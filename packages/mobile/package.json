@@ -16,6 +16,7 @@
   "files": [
     "LICENSE",
     "android/src/main/",
+    "android/src/liveupdate/",
     "android/build.gradle"
   ],
   "nativeContract": 1,

@@ -29,23 +29,30 @@ const write = (file: string, content: string) => {
   writeFileSync(file, content)
 }
 
-// npm and Capacitor as they leave the workspace, Protobase's plugin compiled into Android, recording every call.
-const fakeRun = (calls: Array<{ command: string; args: string[] } & ChildOptions>) => async (command: string, args: string[], options: ChildOptions) => {
-  calls.push({ command, args, ...options })
-  const modules = path.join(options.cwd, 'node_modules')
-  if (command === 'npm') {
-    write(path.join(modules, '@protobase/mobile/package.json'), JSON.stringify({ name: '@protobase/mobile', version: '0.14.2' }))
-    write(path.join(modules, '@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: '8.5.3', bin: { cap: './bin/capacitor' } }))
-    write(path.join(modules, 'native-run/package.json'), JSON.stringify({ name: 'native-run', version: '2.0.3', bin: { 'native-run': 'bin/native-run' } }))
+const protobasePlugins = protobasePluginClasses.map((classpath) => ({ pkg: '@protobase/mobile', classpath }))
+const stockLiveUpdate = { pkg: '@capawesome/capacitor-live-update', classpath: 'io.capawesome.capacitorjs.plugins.liveupdate.LiveUpdatePlugin' }
+
+// npm and Capacitor as they leave the workspace, Protobase's plugin compiled into Android, recording every call; `cap
+// add` lists the plugins given, by default Protobase's on Android and Capacitor's App on iOS.
+const fakeRun =
+  (calls: Array<{ command: string; args: string[] } & ChildOptions>, { android = protobasePlugins, ios = ['AppPlugin'] } = {}) =>
+  async (command: string, args: string[], options: ChildOptions) => {
+    calls.push({ command, args, ...options })
+    const modules = path.join(options.cwd, 'node_modules')
+    if (command === 'npm') {
+      write(path.join(modules, '@protobase/mobile/package.json'), JSON.stringify({ name: '@protobase/mobile', version: '0.14.2' }))
+      write(path.join(modules, '@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: '8.5.3', bin: { cap: './bin/capacitor' } }))
+      write(path.join(modules, 'native-run/package.json'), JSON.stringify({ name: 'native-run', version: '2.0.3', bin: { 'native-run': 'bin/native-run' } }))
+    }
+    if (command === 'node' && args[1] === 'add' && args[2] === 'android') {
+      write(path.join(options.cwd, 'android/app/src/main/assets/capacitor.plugins.json'), JSON.stringify(android))
+    }
+    if (command === 'node' && args[1] === 'add' && args[2] === 'ios') {
+      const configuration = '\t\t\t\tCODE_SIGN_STYLE = Automatic;\n'
+      write(path.join(options.cwd, 'ios/App/App.xcodeproj/project.pbxproj'), `${configuration}${configuration}`)
+      write(path.join(options.cwd, 'ios/App/App/capacitor.config.json'), JSON.stringify({ packageClassList: ios }))
+    }
   }
-  if (command === 'node' && args[1] === 'add' && args[2] === 'ios') {
-    const configuration = '\t\t\t\tCODE_SIGN_STYLE = Automatic;\n'
-    write(path.join(options.cwd, 'ios/App/App.xcodeproj/project.pbxproj'), `${configuration}${configuration}`)
-  }
-  if (command === 'node' && args[1] === 'add' && args[2] === 'android') {
-    write(path.join(options.cwd, 'android/app/src/main/assets/capacitor.plugins.json'), JSON.stringify(protobasePluginClasses.map((classpath) => ({ pkg: '@protobase/mobile', classpath }))))
-  }
-}
 
 // native-run's list with one iPhone connected.
 const capture = async () => JSON.stringify({ devices: [{ id: '00008110-0001', name: 'iPhone' }], virtualDevices: [{ id: 'SIM-1' }], errors: [] })
@@ -105,6 +112,21 @@ describe('mobileRun', () => {
     const dir = project("{ appId: 'com.example.shop' }")
     await expect(mobileRun({ projectDir: dir, platform: 'android', api: 'http://localhost:3000', team: 'ABCDE12345', extensions: [] }, () => {}, { run: fakeRun(calls), build })).rejects.toThrow('--team is for iOS')
     expect(calls).toEqual([])
+  })
+
+  it("lists Protobase's guard in the stock live updater's place on Android", async () => {
+    const dir = project("{ appId: 'com.example.shop' }")
+    await mobileRun({ projectDir: dir, platform: 'android', api: 'http://localhost:3000', extensions: [] }, () => {}, { run: fakeRun([], { android: [stockLiveUpdate, ...protobasePlugins] }), build })
+    const listed = JSON.parse(readFileSync(path.join(dir, '.protobase/mobile/android/app/src/main/assets/capacitor.plugins.json'), 'utf8'))
+    expect(listed).toEqual([{ pkg: '@protobase/mobile', classpath: 'net.protobase.mobile.GuardedLiveUpdate' }, ...protobasePlugins])
+  })
+
+  it('refuses the live updater on iOS before it runs the app', async () => {
+    const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
+    const dir = project("{ appId: 'com.example.shop' }")
+    const deps = { run: fakeRun(calls, { ios: ['AppPlugin', 'LiveUpdatePlugin'] }), build }
+    await expect(mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, deps)).rejects.toThrow('The iOS app lists LiveUpdatePlugin')
+    expect(calls.map(({ args }) => args[1])).not.toContain('run')
   })
 
   it('says what to add without a mobile section', async () => {

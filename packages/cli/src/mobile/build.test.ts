@@ -60,6 +60,7 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
     } else {
       write(path.join(ws, 'ios/App/App.xcodeproj/project.pbxproj'), pbxproj)
       write(path.join(ws, 'ios/App/App/Info.plist'), '<plist version="1.0">\n<dict>\n</dict>\n</plist>\n')
+      write(path.join(ws, 'ios/App/App/capacitor.config.json'), JSON.stringify({ packageClassList: ['AppPlugin'] }))
     }
   }
   if (command === 'node' && args[1] === 'build') write(path.join(ws, 'ios/App/output/App.ipa'), 'ipa')

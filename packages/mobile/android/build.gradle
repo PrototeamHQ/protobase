@@ -13,6 +13,9 @@ buildscript {
 
 apply plugin: 'com.android.library'
 
+// The live updater's project, present only in an app that includes it (capacitor.settings.gradle lists every plugin).
+def liveUpdate = findProject(':capawesome-capacitor-live-update')
+
 android {
     namespace = "net.protobase.mobile"
     compileSdk = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 36
@@ -31,6 +34,11 @@ android {
     lintOptions {
         abortOnError = false
     }
+    // GuardedLiveUpdate extends the live updater's plugin, so it compiles only beside it. Outside src/main, the Capacitor
+    // CLI never lists it on its own (@capacitor/cli android/update.js:63).
+    if (liveUpdate != null) {
+        sourceSets.main.java.srcDirs += 'src/liveupdate/java'
+    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
@@ -44,4 +52,30 @@ repositories {
 
 dependencies {
     implementation project(':capacitor-android')
+    if (liveUpdate != null) {
+        implementation liveUpdate
+    }
 }
+
+// The plugin list the app loads must match what this build compiles, however the build was started (protobase mobile,
+// gradlew, Android Studio, after an `npx cap sync`): Capacitor loads no plugin at all when one listed class is missing
+// (PluginManager.java:25-36, BridgeActivity.java:36-40), which would drop every Protobase stand-in, and the stock live
+// updater listed hands page script all its methods. The CLI swaps the stock class for GuardedLiveUpdate from the same
+// list the source set above follows.
+def pluginList = rootProject.file('app/src/main/assets/capacitor.plugins.json')
+def checkPluginList = tasks.register('checkProtobasePluginList') {
+    inputs.file(pluginList)
+    def compilesGuard = liveUpdate != null
+    doLast {
+        def entries = new groovy.json.JsonSlurper().parse(pluginList)
+        entries.each { entry ->
+            if (entry.pkg == '@capawesome/capacitor-live-update' || entry.classpath == 'io.capawesome.capacitorjs.plugins.liveupdate.LiveUpdatePlugin') {
+                throw new GradleException("${pluginList} lists ${entry.classpath}, which hands page script the live updater unguarded: run protobase mobile again instead of cap sync")
+            }
+            if (entry.classpath == 'net.protobase.mobile.GuardedLiveUpdate' && !compilesGuard) {
+                throw new GradleException("${pluginList} lists ${entry.classpath}, which this app does not compile without the live updater: run protobase mobile again")
+            }
+        }
+    }
+}
+tasks.matching { it.name == 'preBuild' }.configureEach { dependsOn checkPluginList }
