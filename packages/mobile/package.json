@@ -18,6 +18,7 @@
     "android/src/main/",
     "android/build.gradle"
   ],
+  "nativeContract": 1,
   "capacitor": {
     "android": {
       "src": "android"

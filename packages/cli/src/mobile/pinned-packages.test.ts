@@ -1,7 +1,9 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import mobilePackage from '../../../mobile/package.json' with { type: 'json' }
 import { checkInstalledPlugins, pinnedNative, pinnedPackages } from './pinned-packages'
 
 let dir = ''
@@ -18,10 +20,26 @@ describe('pinnedPackages', () => {
   })
 })
 
+/** A hash of the native sources @protobase/mobile publishes: its `files` under android/ and ios/, path and content. */
+const nativeSources = () => {
+  const root = path.join(import.meta.dirname, '../../../mobile')
+  const walk = (file: string): string[] => (statSync(path.join(root, file)).isDirectory() ? readdirSync(path.join(root, file)).flatMap((name) => walk(path.posix.join(file, name))) : [file])
+  const files = mobilePackage.files.filter((file) => /^(android|ios)\//.test(file)).flatMap((file) => walk(file.replace(/\/$/, ''))).sort()
+  const hash = createHash('sha256')
+  for (const file of files) hash.update(`${file}\0`).update(readFileSync(path.join(root, file))).update('\0')
+  return hash.digest('hex')
+}
+
 describe('pinnedNative', () => {
-  it("holds the pinned native packages at their versions, and no @protobase package", () => {
+  it('holds the pinned native packages at their versions, and @protobase/mobile at its native contract', () => {
     expect(pinnedNative).toMatchObject({ '@capacitor/core': expect.stringMatching(/^\d+\.\d+\.\d+$/), '@capawesome/capacitor-live-update': expect.any(String) })
-    expect(Object.keys(pinnedNative).filter((name) => name.startsWith('@protobase/'))).toEqual([])
+    expect(pinnedNative['@protobase/mobile']).toBe(`native-${mobilePackage.nativeContract}`)
+    expect(Object.keys(pinnedNative).filter((name) => name.startsWith('@protobase/'))).toEqual(['@protobase/mobile'])
+  })
+
+  it('names the native sources @protobase/mobile publishes by its native contract', () => {
+    const recorded = { contract: 1, sources: 'c7010c5aa4f4cc1d12c06d3f1312e2e83a5af3106e9849c47c32017b9b5d87fa' }
+    expect({ contract: mobilePackage.nativeContract, sources: nativeSources() }, 'the native sources of @protobase/mobile changed: raise nativeContract in its package.json, then record both here').toEqual(recorded)
   })
 })
 

@@ -9,10 +9,15 @@ import { installedPackage } from './installed-package'
 export const pinnedPackages = new Set([mobilePackage.name, ...Object.keys(mobilePackage.dependencies)])
 
 /**
- * The native packages @protobase/mobile pins, name → exact version, which a native fingerprint names. Never its
- * @protobase/* packages, whose version is Protobase's: every Protobase release would cut the binaries off updates.
+ * The native code an app's binary carries from @protobase/mobile, name → version, which a native fingerprint names:
+ * the native packages it pins, at their versions, and its own native code by its `nativeContract`, `native-<n>`. Never
+ * its npm version, which is Protobase's: every Protobase release would cut the binaries off updates. Raise
+ * `nativeContract` whenever its Android (later iOS) sources change; its test fails until it is.
  */
-export const pinnedNative: Record<string, string> = Object.fromEntries(Object.entries(mobilePackage.dependencies).filter(([name]) => !name.startsWith('@protobase/')))
+export const pinnedNative: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(mobilePackage.dependencies).filter(([name]) => !name.startsWith('@protobase/'))),
+  [mobilePackage.name]: `native-${mobilePackage.nativeContract}`,
+}
 
 const liveUpdate = '@capawesome/capacitor-live-update'
 
