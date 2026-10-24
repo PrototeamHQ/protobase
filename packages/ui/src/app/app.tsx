@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
 import { accountMenuItems, accountSecurityPath, signInPolicyPath } from '../account/account-pages'
 import { AccountSecurityPage } from '../account/account-security-page'
@@ -39,6 +39,7 @@ import { actingUser } from '../roles/acting-user'
 import { useActiveRole } from '../roles/use-active-role'
 import { viewOfList } from '@protobase/schema/internal'
 import { navFromMeta, navItemId } from './nav-from-meta'
+import { startAddress } from './start-address'
 import { ComposedPage } from './pages/composed-page'
 import { CustomBoundary } from './pages/custom-boundary'
 import { ProjectLogo } from './project-logo'
@@ -122,16 +123,13 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const recent = useNavRecent(meta, basePath, { resource: shown?.resource, key: shown?.key })
   useLiveUpdates(meta)
   const groups = navFromMeta(meta, basePath, recent)
-  const firstPage = Object.keys(meta.pages)[0]
-  const firstResource = Object.keys(meta.resources)[0]
+  const start = useMemo(() => startAddress(meta), [meta])
   const page = address?.kind === 'page' ? meta.pages[address.page] : undefined
 
-  // The root opens the first page, else the first resource's list
+  // The root opens the first entry of the sidebar
   useEffect(() => {
-    if (path !== '/') return
-    if (firstPage) go({ kind: 'page', page: firstPage }, { replace: true })
-    else if (firstResource) go({ kind: 'list', resource: firstResource }, { replace: true })
-  }, [path, firstPage, firstResource, go])
+    if (path === '/' && start) go(start, { replace: true })
+  }, [path, start, go])
 
   const resource = address?.kind === 'page' ? undefined : address?.resource
   // A resource drawn from another API waits for that API's `/meta`, and says so when it cannot be read.

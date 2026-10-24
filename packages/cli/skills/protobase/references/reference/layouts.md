@@ -29,7 +29,7 @@ The comment makes `@protobase/layout/jsx-runtime` compile the file instead of Re
 | `options.icon` | One of the [user menu icons](user-menu.md), or `layout-dashboard` (the default). |
 | `options.roles` | Only users with one of these roles get the page. Without it, everyone who can sign in does. |
 
-A page can also sit in the [user menu](user-menu.md) with `m.page(name)`; it then leaves the sidebar. The first page is where the admin opens.
+A page can also sit in the [user menu](user-menu.md) with `m.page(name)`; it then leaves the sidebar. The admin opens on the first entry of the sidebar as the user sees it, so on the first page there in `nav.order`, not the first page the config exports: a config module's exports are in alphabetical order.
 
 ## The element tree
 

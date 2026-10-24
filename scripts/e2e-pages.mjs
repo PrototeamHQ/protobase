@@ -34,9 +34,16 @@ try {
   const list = (resource, params) => api(`/v1/${resource}?${new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined))}`)
   const meta = await api('/meta')
   check('the user has composed pages', meta.pages.length > 0)
-  await page.goto(base)
-  await page.waitForURL(`${base}/${meta.pages[0].name}`)
-  check('the admin opens on the first page', true)
+  // The admin opens on the first sidebar entry: pages lead the sidebar, the first page's group first, by `nav.order`
+  const inMenu = new Set((meta.userMenu?.items ?? []).filter((item) => item.kind === 'page').map((item) => item.page))
+  const listed = meta.pages.filter((entry) => !entry.nav?.hidden && !inMenu.has(entry.name))
+  const order = (entry) => entry.nav?.order ?? Number.MAX_SAFE_INTEGER
+  const start = listed.filter((entry) => entry.nav?.group === listed[0]?.nav?.group).sort((a, b) => order(a) - order(b))[0]
+  if (start) {
+    await page.goto(base)
+    await page.waitForURL(`${base}/${start.name}`)
+    check('the admin opens on the first sidebar entry', true)
+  }
 
   for (const entry of meta.pages) {
     await page.goto(`${base}/${entry.name}`)
