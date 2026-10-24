@@ -1,8 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type AnchorHTMLAttributes, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type AnchorHTMLAttributes, type ReactNode } from 'react'
+import { guarded } from '../lib/guarded'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
 import { RouteLink } from '../primitives/route-link'
 import { text as appText } from './messages'
+import { createPagePlaces } from './page-places'
+import { restoreScroll } from './restore-scroll'
 
 type RouterValue = {
   /** Path below the base path, always starting with `/`. */
@@ -13,6 +16,8 @@ type RouterValue = {
   entry: string
   /** Moves to a path below the base path, as `appPath` writes it. */
   navigate: (to: string, options?: { replace?: boolean }) => void
+  /** Goes back to a path below the base path: as the browser's Back when the page before is that path, else as `navigate`. */
+  back: (to: string) => void
   /** Asks to be told before the page changes; returns how to stop asking. Used by `useNavigationGuard`. */
   registerGuard: (kind?: GuardKind) => () => void
   /** Reloads the page, asking first while a guard holds unsaved changes. */
@@ -49,7 +54,8 @@ type Pending = ({ kind: 'link'; full: string; replace: boolean } | { kind: 'hist
 
 const pathOf = (url: string) => new URL(url, 'http://local').pathname
 
-type HistoryState = { protobaseIndex?: number; protobaseEntry?: string }
+/** `protobasePrevious` is the URL of the page this entry was opened from, so going back to it can take the browser's Back. */
+type HistoryState = { protobaseIndex?: number; protobaseEntry?: string; protobasePrevious?: string }
 const historyState = () => (window.history.state as HistoryState | null) ?? {}
 
 /** Our place in the browser history, so a back or forward press can be told apart and, if needed, undone. */
@@ -66,9 +72,12 @@ const historyEntry = () => {
   return entry
 }
 
+const noStorage = { getItem: () => null, setItem: () => {} }
+
 export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => {
   const memory = initialUrl !== undefined
   const [page, setPage] = useState(() => ({ url: initialUrl ?? browserUrl(), entry: memory ? newEntry() : historyEntry() }))
+  const [places] = useState(() => createPagePlaces(memory ? noStorage : (guarded(() => window.sessionStorage, undefined) ?? noStorage)))
   const guards = useRef(new Map<symbol, GuardKind>())
   const losesInput = () => [...guards.current.values()].includes('input-lost')
   const current = useRef(page)
@@ -80,10 +89,25 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   const leaveAfterUndo = useRef<number | undefined>(undefined)
   const reloading = useRef(false)
   const [pending, setPending] = useState<Pending>()
+  // Where the page being left was scrolled, read before the next page is drawn and changes it
+  const rememberScroll = useCallback(() => places.save(current.current.entry, window.scrollY), [places])
+
+  // A new page starts at the top, and one gone back or forward to where it was left. The browser's own restoring cannot:
+  // a pushed entry keeps the scroll position, and a traversal restores it before the page it returns to is drawn.
+  useLayoutEffect(() => restoreScroll(places.placeOf(page.entry)), [places, page.entry])
 
   useEffect(() => {
     if (memory) return
-    window.history.replaceState({ protobaseIndex: position.current, protobaseEntry: current.current.entry }, '')
+    window.history.scrollRestoration = 'manual'
+    window.history.replaceState({ ...historyState(), protobaseIndex: position.current, protobaseEntry: current.current.entry }, '')
+    // A reload or a discarded tab comes back to where the page was
+    const persist = () => {
+      rememberScroll()
+      places.persist()
+    }
+    const hidden = () => document.visibilityState === 'hidden' && persist()
+    window.addEventListener('pagehide', persist)
+    document.addEventListener('visibilitychange', hidden)
     const onPop = () => {
       const next = historyIndex()
       if (undoing.current) {
@@ -104,22 +128,29 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       }
       proceeding.current = false
       position.current = next
+      rememberScroll()
       setPage({ url: browserUrl(), entry: historyEntry() })
     }
     window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-  }, [memory])
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      window.removeEventListener('pagehide', persist)
+      document.removeEventListener('visibilitychange', hidden)
+    }
+  }, [memory, rememberScroll, places])
 
   const go = useCallback(
     (full: string, replace: boolean) => {
       const entry = replace ? current.current.entry : newEntry()
       if (!memory) {
         position.current += replace ? 0 : 1
-        window.history[replace ? 'replaceState' : 'pushState']({ protobaseIndex: position.current, protobaseEntry: entry }, '', full)
+        const previous = replace ? historyState().protobasePrevious : current.current.url
+        window.history[replace ? 'replaceState' : 'pushState']({ protobaseIndex: position.current, protobaseEntry: entry, protobasePrevious: previous }, '', full)
       }
+      rememberScroll()
       setPage({ url: full, entry })
     },
-    [memory],
+    [memory, rememberScroll],
   )
 
   const navigate = useCallback(
@@ -129,6 +160,15 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       go(full, replace)
     },
     [basePath, go],
+  )
+
+  const back = useCallback(
+    (to: string) => {
+      const previous = memory ? undefined : historyState().protobasePrevious
+      if (previous !== undefined && pathOf(previous) === pathOf(`${basePath}${to}`)) return window.history.back()
+      navigate(to)
+    },
+    [memory, basePath, navigate],
   )
 
   const registerGuard = useCallback((kind: GuardKind = 'draft-kept') => {
@@ -166,11 +206,12 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       basePath,
       entry: page.entry,
       navigate,
+      back,
       registerGuard,
       reload,
       reloadConfirmed,
     }
-  }, [page, basePath, navigate, registerGuard, reload, reloadConfirmed])
+  }, [page, basePath, navigate, back, registerGuard, reload, reloadConfirmed])
 
   return (
     <RouterContext.Provider value={value}>

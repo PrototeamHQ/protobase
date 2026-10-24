@@ -114,7 +114,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const user = state.kind === 'signed-in' ? state.user : undefined
   const staff = state.kind === 'signed-in' ? state.staff : undefined
   const { path, params, basePath } = useRouter()
-  const { address, go, open } = useAppAddress()
+  const { address, go, open, back } = useAppAddress()
   const place = placeOf(address)
   const shown = recordOf(address)
   const search = useGlobalSearch()
@@ -236,6 +236,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       theme={{ preference: theme.preference, onChange: theme.choose }}
       roles={role.current?.active ? { active: role.current.active, roles: role.current.roles, onSwitch: role.switchTo } : undefined}
       onNavigate={open}
+      onBack={back}
       sidebarNotice={<NewVersionBanner />}
       banner={(staff || pluginNotice) && <>{staff && <StaffBanner signIn={staff} onStop={stopStaffSession} />}{pluginNotice && <PluginNotice off={pluginsOff} />}</>}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}

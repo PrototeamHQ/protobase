@@ -10,11 +10,11 @@ export type { CurrentAddress, ListAddress, ListChange } from './current-address'
 /**
  * The app's address as logical values, and the ways to change it: `set` changes the list in place, `listTo` is the
  * list after a change for a link to it, `go` moves to
- * another address, `href` is an address for an `<a href>` and `open` follows such an href. Every component reads and
- * writes the address through this hook, never the query string or a path of its own.
+ * another address, `href` is an address for an `<a href>`, `open` follows such an href and `back` goes back to one.
+ * Every component reads and writes the address through this hook, never the query string or a path of its own.
  */
 export const useAppAddress = () => {
-  const { path, params, basePath, navigate } = useRouter()
+  const { path, params, basePath, navigate, back: backTo } = useRouter()
   const { pages, resources, views } = useAdminMeta()
   const xs = useIsXs()
   const pageNames = useMemo(() => new Set(Object.keys(pages)), [pages])
@@ -44,9 +44,11 @@ export const useAppAddress = () => {
   const href = useCallback((to: AppAddress) => appPath(to, basePath), [basePath])
 
   // The shell's links carry the base path, as hrefs must; the router takes the path below it.
-  const open = useCallback((target: string) => navigate(target.startsWith(`${basePath}/`) ? target.slice(basePath.length) : target), [basePath, navigate])
+  const below = useCallback((target: string) => (target.startsWith(`${basePath}/`) ? target.slice(basePath.length) : target), [basePath])
+  const open = useCallback((target: string) => navigate(below(target)), [below, navigate])
+  const back = useCallback((target: string) => backTo(below(target)), [below, backTo])
 
-  return { address, set, listTo, go, href, open }
+  return { address, set, listTo, go, href, open, back }
 }
 
 /** A link to an address in the app: an ordinary anchor that the router follows without reloading the page. */

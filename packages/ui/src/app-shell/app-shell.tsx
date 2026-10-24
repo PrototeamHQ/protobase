@@ -44,6 +44,8 @@ export type AppShellProps = {
   /** The app's own pages in the profile menu, above "Sign out". */
   userMenu?: ProfileMenuItem[]
   onNavigate?: (href: string) => void
+  /** Follows the top bar's back button, as the browser's Back where the page before is where it leads; without it `onNavigate`. */
+  onBack?: (href: string) => void
   /** Adds "Sign out" to the profile menu. */
   onSignOut?: () => void
   /** The sign-in page, a "Sign in" link in the sidebar for a visitor, who has no `user`. */
@@ -66,7 +68,7 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const noticeShown = useSidebarNoticeShown(sidebarMode)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -96,7 +98,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
         )}
         {/* Without the bottom bar, the page keeps clear of the home indicator itself */}
         <div className={cn('flex min-w-0 flex-1 flex-col', !tabs && 'pb-[var(--pb-safe-bottom)]')}>
-          <TopBar ref={topBarRef} slotRef={setTopBarSlot} sticky={pageScroll} breadcrumb={breadcrumb} onNavigate={onNavigate} actions={actions} onMenu={desktop || tabs ? undefined : () => setDrawerOpen(true)} menuOpen={drawerOpen} menuControls={drawerId} search={search} />
+          <TopBar ref={topBarRef} slotRef={setTopBarSlot} sticky={pageScroll} breadcrumb={breadcrumb} onNavigate={onNavigate} onBack={onBack} actions={actions} onMenu={desktop || tabs ? undefined : () => setDrawerOpen(true)} menuOpen={drawerOpen} menuControls={drawerId} search={search} />
           {banner}
           <main className={pageScroll ? 'flex flex-1 flex-col' : 'flex min-h-0 flex-1 flex-col'}>
             <TopBarSlotContext.Provider value={topBarSlot}>{children}</TopBarSlotContext.Provider>

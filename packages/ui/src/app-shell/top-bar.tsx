@@ -10,6 +10,8 @@ export type TopBarProps = {
   breadcrumb: Crumb[]
   /** Follows a breadcrumb link in the app. */
   onNavigate?: (href: string) => void
+  /** Follows the back button; without it `onNavigate`. */
+  onBack?: (href: string) => void
   actions?: ReactNode
   /** Opens the navigation drawer; the button only shows below `md`. */
   onMenu?: () => void
@@ -30,7 +32,7 @@ export type TopBarProps = {
 /** An icon button of the top bar on a mobile screen, as the menu, back and search buttons are. */
 export const topBarButton = 'inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden'
 
-export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menuControls, search, sticky, slotRef, ref }: TopBarProps) => {
+export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOpen, menuControls, search, sticky, slotRef, ref }: TopBarProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
   const back = backTarget(breadcrumb)
   const desktopSearch = useRef<HTMLInputElement>(null)
@@ -61,9 +63,10 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
             href={back.href}
             aria-label={text('backTo', back.label)}
             onClick={(event) => {
-              if (!onNavigate || !inApp(event)) return
+              const follow = onBack ?? onNavigate
+              if (!follow || !inApp(event)) return
               event.preventDefault()
-              onNavigate(back.href)
+              follow(back.href)
             }}
             className={cn(topBarButton, !onMenu && '-ml-3')}
           >
