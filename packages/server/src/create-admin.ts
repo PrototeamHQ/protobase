@@ -61,6 +61,7 @@ import type { NotificationsOptions } from './notifications/options'
 import { deviceStore, removeDevicesWithUsers } from './notifications/device-store-of'
 import { devicesPath } from './notifications/paths'
 import { deviceRoutes } from './notifications/routes'
+import { notificationSenders, webPushKey } from './notifications/senders-of'
 import type { SubscriptionDefinition } from './webhooks/subscription'
 import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
@@ -230,6 +231,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
   const errorReporting = errorReportingSettings(options.errorReporting, globalThis.process?.env ?? {})
   const maps = mapSettings(options.maps, globalThis.process?.env ?? {})
+  // At startup, so a wrong VAPID variable stops the server; the sending code calls them through these.
+  const senders = notifications ? notificationSenders(notifications) : []
+  const pushKey = webPushKey(senders)
   const locale = localeSetting(options.locale)
   const plugins = pluginOptions(options.plugins, globalThis.process?.env ?? {}, bundlePlugins)
   const sources = sourceOptions(options.sources, globalThis.process?.env ?? {})
@@ -264,6 +268,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(runtime && { runtime }),
     ...(errorReporting && { errorReporting }),
     ...(maps && { maps }),
+    ...(pushKey && { webPushKey: pushKey }),
     ...(locale && { locale }),
     plugins,
     sources,

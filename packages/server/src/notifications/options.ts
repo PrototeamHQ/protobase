@@ -1,4 +1,5 @@
 import { checkDeviceStore, type DeviceStore } from './device-store'
+import { checkSenders, type PushSender } from './sender'
 
 /** The columns of the devices table, by the name Protobase gives them. */
 export const deviceColumns = ['id', 'user_id', 'kind', 'token', 'p256dh', 'auth', 'environment', 'app_id', 'user_agent', 'created_at', 'last_seen_at'] as const
@@ -14,6 +15,11 @@ export type NotificationsOptions = {
   devices?: { table?: string; columns?: Partial<Record<DeviceColumn, string>> }
   /** Keeps the devices somewhere else than the devices table, which is then not needed. */
   store?: DeviceStore
+  /**
+   * Deliver notifications in place of the built-in senders, such as senders from a package; at most one for each kind
+   * of device. By default the built-in ones whose environment is set: Web Push with the `PROTOBASE_VAPID_*` variables.
+   */
+  senders?: PushSender[]
 }
 
 const namePattern = /^[a-z_][a-z0-9_]*$/
@@ -42,10 +48,11 @@ export const notificationsNames = (options: NotificationsOptions = {}) => {
 
 export type NotificationsNames = ReturnType<typeof notificationsNames>
 
-/** The options, checked as `notifications()` takes them: the names, and a given store's methods. */
+/** The options, checked as `notifications()` takes them: the names, a given store's methods and the senders given. */
 export const checkNotificationsOptions = (options: NotificationsOptions) => {
   if (options.ui !== undefined && typeof options.ui !== 'boolean') throw new Error('notifications ui is true or false')
   notificationsNames(options)
   if (options.store !== undefined) checkDeviceStore(options.store)
+  if (options.senders !== undefined) checkSenders(options.senders)
   return options
 }

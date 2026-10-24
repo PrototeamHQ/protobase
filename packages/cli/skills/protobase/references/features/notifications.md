@@ -10,7 +10,7 @@ A bell in the top bar and push to browsers and phones, for what your app tells i
 - [Table names](../reference/notifications.md#table-names) (in development): The built-in stores' schema, tables and columns can be renamed, as auth's users table can.
 - Sending notifications (coming soon): Your code tells a user, or several, about something in the app, and each gets it in the bell and on their devices.
 - Notification history (coming soon): Every notification a user got is kept, read or unread, for the bell to list.
-- Web Push (coming soon): Notifications reach the browsers a user registered, also while the app is closed.
+- [Web Push](../reference/notifications.md#web-push) (in development): Notifications reach desktop and Android browsers and home-screen web apps on iPhone through Web Push, with keys you generate.
 - Push on Android (coming soon): Notifications reach the Android build of the app on a user's phones.
 - Push on iOS (coming soon): Notifications reach the iOS build of the app on a user's iPhones and iPads.
 - Notification bell (coming soon): A bell in the top bar shows a user's unread notifications and lists the latest.

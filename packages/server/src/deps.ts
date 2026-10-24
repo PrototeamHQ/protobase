@@ -47,6 +47,8 @@ export type Deps = {
   errorReporting?: ErrorReportingSettings
   /** The map style the admin app draws maps with and the layers they may switch to, which `/meta` names to everyone. */
   maps?: MapSettings
+  /** The VAPID public key browsers subscribe for Web Push with, when notifications have a web sender, which `/meta` names to everyone. */
+  webPushKey?: string
   /** The language the admin app's screens are in for everyone, which `/meta` names to everyone. */
   locale?: Locale
   /** The plugins `/meta` names to the callers they are for. */

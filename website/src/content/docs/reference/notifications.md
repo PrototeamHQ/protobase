@@ -1,12 +1,12 @@
 ---
 title: Notifications
-description: Turn on notifications, let each signed-in user register their browsers and phones, and keep the devices in Postgres or a store of your own.
+description: Turn on notifications, let each signed-in user register their browsers and phones, deliver to browsers with Web Push, and keep the devices in Postgres or a store of your own.
 ---
 
 ## Turning them on
 
 :::caution[In development]
-Nothing sends notifications yet: sending, the history, Web Push, push on Android and iOS and the bell are coming soon.
+Nothing sends notifications yet: sending, the history, registering a browser, push on Android and iOS and the bell are coming soon.
 :::
 
 Notifications tell a user about something in the app, in a bell in the top bar and as push on their devices. You turn them on in `protobase.config.ts`:
@@ -27,7 +27,7 @@ The bell and push are coming soon. `notifications({ ui: false })` keeps only the
 ## Devices
 
 :::caution[In development]
-A registered device receives nothing yet: Web Push and push on Android and iOS are coming soon.
+A registered device receives nothing yet: sending is coming soon, and so are push on Android and iOS.
 :::
 
 A device is where a user receives push: a browser's push subscription, or an Android or iOS app's push token. Each signed-in user registers and removes only their own, through the API:
@@ -59,10 +59,34 @@ A device is one token, or one endpoint for a browser. Registering a device someo
 
 The path comes from `devicesPath('/api', id)`, and the name of its id parameter from `deviceIdParam`, both exported by `@protobase/server`.
 
+## Web Push
+
+:::caution[In development]
+Browsers cannot register for push yet, so nothing reaches them until browser registration lands.
+:::
+
+Browsers receive push through the Web Push protocol: desktop and Android browsers, and web apps added to the home screen on iPhone. You generate a key pair with the CLI and set it, with a contact address, in three environment variables:
+
+```sh
+protobase notifications vapid-keys
+```
+
+| Variable | |
+| --- | --- |
+| `PROTOBASE_VAPID_PUBLIC_KEY` | the public key the command prints |
+| `PROTOBASE_VAPID_PRIVATE_KEY` | the private key the command prints |
+| `PROTOBASE_VAPID_SUBJECT` | how push services reach you: a `mailto:` address or an `https:` URL |
+
+Without them Web Push is off and the app has no sender for browsers. One or two of them set, a blank one, a key that is not one, or a public key that is not the private key's stops startup, naming the variable without its value.
+
+The private key is a secret: keep it out of client code, `VITE_` variables and the repository. Anyone holding it and the stored subscriptions can push to every subscribed browser. Browsers subscribe with the public key, which `/meta` gives every caller as `notifications.webPushKey`, so a new key pair breaks every subscription until its browser registers again.
+
+Each message is encrypted for its browser and signed with the key. It goes only to an endpoint on one of the browsers' push services, never through a redirect. A message's `platform.web` sets the request's `ttl`, `urgency` and `topic` and fields merged into the JSON the browser receives (`payload`), in place of those built from the message; every URL in that JSON is checked as the message's `url` is. The JSON carries at most 3993 bytes.
+
 ## Your own parts
 
 :::caution[In development]
-Only the device store can be replaced yet: senders, the history store and the bell are coming soon.
+The device store and the senders can be replaced; the history store and the bell are coming soon.
 :::
 
 The device store is an interface with a Postgres default, the [devices table](#table-names). You pass your own store to `notifications()`, such as one from a package that keeps devices elsewhere, and then no table is needed and `protobase migration` writes none:
@@ -86,7 +110,49 @@ Every method takes and returns plain data: the user id as text, and devices as `
 
 When Protobase's auth deletes a user, by an admin or with `protobase users delete`, it calls the store's `removeAllForUser` before anything is deleted, so a store that throws stops the deletion, and once more afterwards. An app that deletes users otherwise calls `deviceStore(db, options).removeAllForUser(userId)` as it deletes one, with the options it gave `notifications()`.
 
-Senders, the history store and the bell are coming soon.
+### Senders
+
+A sender delivers notifications to the devices of the kinds it names, through their push service. Web Push is built in; you pass your own senders to `notifications()`, such as from a package, and they replace the built-in ones, at most one for each kind:
+
+```ts
+import { defineConfig, notifications, type PushSender } from '@protobase/server'
+
+const sender: PushSender = {
+  kinds: ['fcm'],
+  send: async (message, devices) => devices.map((device) => ({ id: device.id, result: 'ok' })),
+}
+
+export default defineConfig({ extends: [notifications({ senders: [sender] })] })
+```
+
+`send` takes a message and a batch of devices of those kinds, and answers each device by its id with a result:
+
+| Result | |
+| --- | --- |
+| `ok` | the push service took the message |
+| `gone` | the device no longer exists there, and should be removed |
+| `retry` | the push service may take it later; `retryAfterSeconds` says when, if the service does |
+
+A device with no answer, or an answer that is none of these, counts as `retry`, and answers for devices outside the batch are ignored. What a sender throws becomes an error that names only the sender's place in the list, since its own error may name devices.
+
+A message is plain data:
+
+| Field | |
+| --- | --- |
+| `title` | the title, required |
+| `body` | the text under it |
+| `url` | opened on tap: an absolute `http` or `https` URL, on the app's origin or any other |
+| `data` | JSON the app reads when the notification is opened |
+| `badge` | the number on the app's icon |
+| `sound` | the sound to play |
+| `tag` | a later notification with the same tag replaces this one: up to 32 letters, digits, `-` and `_` |
+| `ttl` | how long, in seconds, a push service keeps it for a device that is offline, up to 28 days |
+| `urgency` | `very-low`, `low`, `normal` or `high` |
+| `platform` | each protocol's own fields: `web`, `apns` and `fcm` |
+
+`pushMessage(message)` checks a message and answers it as senders get it, or throws a `PushMessageError` that names the field at fault, never its value. Every sender gets a checked message: a `url` with any other scheme, such as `javascript:` or `data:`, or a relative one, is refused, and so is a field that is not one of the message's, a key `__proto__`, `constructor` or `prototype` anywhere in it, or text with control characters. A sender for `web` devices names the VAPID `publicKey` browsers subscribe with, which `/meta` gives every caller; it must be a P-256 public key in base64url.
+
+The history store and the bell are coming soon.
 
 ## Table names
 

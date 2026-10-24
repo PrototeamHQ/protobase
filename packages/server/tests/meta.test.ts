@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Kysely } from 'kysely'
-import { f, resource, view } from '@protobase/schema'
+import { defineRoles, f, resource, view } from '@protobase/schema'
 import { companies } from '../../../test-support/server'
 import { as, createFixtureDb, createTestApp, testAuthenticator, type TestApp } from '../../../test-support/server'
 import { createAdmin } from '../src/create-admin'
+import { memoryDeviceStore } from '../src/notifications/testing/memory-store'
+import { generateVapidKeys } from '../src/notifications/web-push/keys'
 import packageJson from '../package.json' with { type: 'json' }
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -112,5 +114,48 @@ describe('resource names and system endpoints', () => {
     const system = await (await odds.request('/api/meta', { headers: as(1) })).json()
     expect(system.resources.map((r: { name: string }) => r.name)).toEqual(['meta', 'docs'])
     expect((await odds.request('/api/openapi.json', { headers: as(1) })).status).toBe(200)
+  })
+})
+
+describe('GET /meta with notifications', () => {
+  const keys = generateVapidKeys()
+  const subject = 'mailto:push-contact@example.com'
+  const vapid = { PROTOBASE_VAPID_PUBLIC_KEY: keys.publicKey, PROTOBASE_VAPID_PRIVATE_KEY: keys.privateKey, PROTOBASE_VAPID_SUBJECT: subject }
+  const roles = defineRoles({ anonymous: [], admin: [] })
+  const adminWith = (env: Record<string, string>, notifications: Parameters<typeof createAdmin>[0]['notifications'] | false = { store: memoryDeviceStore() }) => {
+    for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value)
+    try {
+      return createAdmin({ resources: [], db: fixture.db, authenticate: testAuthenticator, ...(notifications && { notifications }), options: { roles } })
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  }
+  const metaText = async (admin: ReturnType<typeof createAdmin>) => {
+    const response = await admin.request('/api/meta')
+    expect(response.status).toBe(200)
+    return response.text()
+  }
+
+  it('names the VAPID public key to an anonymous caller, and neither the private key nor the subject', async () => {
+    const text = await metaText(adminWith(vapid))
+    expect(JSON.parse(text).notifications).toEqual({ webPushKey: keys.publicKey })
+    expect(text).not.toContain(keys.privateKey)
+    expect(text).not.toContain('push-contact')
+  })
+
+  it('names no key when Web Push is off, or notifications are', async () => {
+    expect(JSON.parse(await metaText(adminWith({})))).not.toHaveProperty('notifications')
+    expect(JSON.parse(await metaText(adminWith(vapid, false)))).not.toHaveProperty('notifications')
+  })
+
+  it("names a web sender's own public key in place of the built-in one", async () => {
+    const own = generateVapidKeys().publicKey
+    const text = await metaText(adminWith(vapid, { store: memoryDeviceStore(), senders: [{ kinds: ['web'], publicKey: own, send: async () => [] }] }))
+    expect(JSON.parse(text).notifications).toEqual({ webPushKey: own })
+    expect(text).not.toContain(keys.publicKey)
+  })
+
+  it('stops at startup on a VAPID mistake', () => {
+    expect(() => adminWith({ PROTOBASE_VAPID_PRIVATE_KEY: keys.privateKey })).toThrow('PROTOBASE_VAPID_PUBLIC_KEY and PROTOBASE_VAPID_SUBJECT must be set')
   })
 })
