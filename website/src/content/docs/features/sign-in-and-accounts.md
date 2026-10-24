@@ -8,7 +8,7 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Existing users table](/reference/auth/#an-existing-users-table): Sign-in can use the users table another system keeps in the same database.
 - [Users page](/reference/auth/#users-page): Admins find people, set roles, block them, add accounts and invite people by email.
 - [Password reset](/reference/auth/#password-reset): People reset a forgotten password through an emailed link.
-- [Emailed sign-in codes](/reference/auth/#emailed-sign-in-codes): People sign in with a code sent to their email.
+- [Emailed sign-in codes](/reference/auth/#emailed-sign-in-codes): People sign in with a code sent to their email. An address with no account is emailed that it has none, so the person tries the one they signed up with.
 - [Open sign-up](/reference/auth/#open-sign-up): Anyone can create an account after confirming an emailed code.
 - [Passkeys](/reference/auth/#passkeys): People sign in with their device's face or fingerprint unlock, or with a security key.
 - [Two-factor authentication](/reference/auth/#two-factor-authentication): A second step with an authenticator app, backup codes or emailed codes.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountExistsEmail, invitationEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
+import { accountExistsEmail, invitationEmail, noAccountEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
 
 const app = { name: 'Property Finder', url: 'https://homes.example.com/' }
 const expiresAt = new Date('2026-10-15T12:00:00Z')
@@ -12,6 +12,7 @@ describe('the auth emails', () => {
     const emails = [
       await signUpCodeEmail.render({ app, code: '123456', lifetime: '5 minutes' }),
       await accountExistsEmail.render({ app }),
+      await noAccountEmail.render({ app }),
       await signInCodeEmail.render({ app, code: '123456', lifetime: '5 minutes' }),
       await twoFactorCodeEmail.render({ app, code: '123456', lifetime: '5 minutes' }),
       await resetPasswordEmail.render({ app, url: 'https://homes.example.com/api/auth/reset-password/abc', lifetime: '1 hour' }),
@@ -40,6 +41,15 @@ describe('the auth emails', () => {
     const email = await accountExistsEmail.render({ app })
     expect(email.subject).toBe('You already have an account with Property Finder')
     expect(email.html).toContain('href="https://homes.example.com/-/sign-in"')
+    expect(email.text).toContain('Sign in to Property Finder https://homes.example.com/-/sign-in')
+    expect(email.text).not.toMatch(/\d{6}/)
+  })
+
+  it('tell an address no account uses to sign in with the one signed up with, with no code', async () => {
+    const email = await noAccountEmail.render({ app })
+    expect(email.subject).toBe('No Property Finder account uses this address')
+    expect(email.text).toContain('No account uses it, so no code was sent.')
+    expect(email.text).toContain('sign in again with the address you signed up with')
     expect(email.text).toContain('Sign in to Property Finder https://homes.example.com/-/sign-in')
     expect(email.text).not.toMatch(/\d{6}/)
   })

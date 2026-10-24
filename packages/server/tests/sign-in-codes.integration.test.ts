@@ -94,7 +94,18 @@ describe('signing in with an emailed code', () => {
   it('mails a code through the relay that signs in once', async () => {
     const response = await signInWithCode('ada@acme.example.com')
     await expectSignedIn(response)
-    expect((await post('/email-otp/send-verification-otp', { email: 'nobody@acme.example.com', type: 'sign-in' })).status).toBe(200)
+  })
+
+  it('mails an address no account uses that it has none, with no code, and answers as for an account', async () => {
+    const known = await post('/email-otp/send-verification-otp', { email: 'ada@acme.example.com', type: 'sign-in' })
+    await mailedCode('ada@acme.example.com', 'Your Acme ERP sign-in code')
+    const unknown = await post('/email-otp/send-verification-otp', { email: 'Nobody@acme.example.com', type: 'sign-in' })
+    expect([unknown.status, await unknown.json()]).toEqual([known.status, await known.json()])
+    const message = await relay.next()
+    expect(message).toMatchObject({ from: sender, to: ['nobody@acme.example.com'] })
+    expect(message.raw).toContain('Subject: No Acme ERP account uses this address')
+    expect(bodyOf(message.raw)).not.toMatch(/^\d{6}$/m)
+    expect((await post('/sign-in/email-otp', { email: 'nobody@acme.example.com', otp: '123456' })).status).not.toBe(200)
     expect(relay.received).toEqual([])
   })
 })

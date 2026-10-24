@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, waitFor } from 'storybook/test'
 import { mentionEmail } from '../../comments/mention-email'
 import type { RenderedEmail } from '../../mail/define-email'
-import { accountExistsEmail, invitationEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
+import { accountExistsEmail, invitationEmail, noAccountEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
 
 // Each auth email as Protobase renders it: the HTML part in a frame as wide as a mail client's reading pane, with the
 // subject and the plain-text part beside it.
@@ -49,6 +49,11 @@ export const SignUpCode = story(() => signUpCodeEmail.render({ app, code: '48291
 
 export const AccountExists = story(
   () => accountExistsEmail.render({ app }),
+  (body) => expect(body.querySelector('a[href="https://homes.example.com/-/sign-in"]')?.textContent).toBe('Sign in to Property Finder'),
+)
+
+export const NoAccount = story(
+  () => noAccountEmail.render({ app }),
   (body) => expect(body.querySelector('a[href="https://homes.example.com/-/sign-in"]')?.textContent).toBe('Sign in to Property Finder'),
 )
 

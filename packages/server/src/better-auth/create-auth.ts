@@ -34,6 +34,7 @@ import { signInPolicyPlugin } from './policy-plugin'
 import { defaultSignInPolicy, type SignInPolicy } from './sign-in-policy'
 import { assertNoEndpointKeyClashes } from './endpoint-key-clashes'
 import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugin, samlPlugin, type ResolvedSamlProvider, type SsoOptions } from './saml-sign-in'
+import { noAccountMailPlugin } from './no-account-mail'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
 import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
 import { confirmedOnCreate, confirmedOnUpdate, emailConfirmedField } from './email-confirmed'
@@ -313,7 +314,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       // Without a password, as for someone who signs in with a provider only, two-factor authentication is turned on without one.
       twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
       passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]!, origins: appOrigins(options.baseURL, origins) }),
-      ...(mail ? [emailOTP(emailCodeOptions(mail))] : []),
+      ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail)] : []),
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail, defaultPolicy: signInPolicy })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       ...(saml.length > 0 ? [samlPlugin(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
