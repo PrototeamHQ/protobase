@@ -1,7 +1,7 @@
 import type { JobResult, JobWithMetadata } from 'pg-boss'
 import type { Db } from '@protobase/query'
 import type { Mailer } from '../mail/smtp-mailer'
-import type { SendNotification } from '../notifications/send-notification'
+import type { SendNotification } from '../notifications/send-input'
 import { isStatementTimeout, statementTimeoutDetail } from '../statement-timeout'
 import type { JobDefinition } from './job-types'
 

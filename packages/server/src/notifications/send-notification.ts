@@ -1,10 +1,6 @@
-import type { Db } from '@protobase/query'
 import { currentJobs } from '../jobs/current'
-import type { PushMessage } from './message'
 import { pushJobName } from './push-job-name'
-import { checkedSend, type NotificationRecipients } from './send-input'
-
-export type SendNotification = (db: Db, to: NotificationRecipients, message: PushMessage) => Promise<void>
+import { checkedSend, type SendNotification } from './send-input'
 
 /**
  * Sends `message` to users or to devices as a background job, enqueued in `db`'s transaction when it is one, so it

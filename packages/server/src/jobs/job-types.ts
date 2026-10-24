@@ -1,7 +1,7 @@
 import type { Db } from '@protobase/query'
 import type { StandardSchema } from '../functions/read-json'
 import type { Mailer } from '../mail/smtp-mailer'
-import type { SendNotification } from '../notifications/send-notification'
+import type { SendNotification } from '../notifications/send-input'
 
 /** What `run` gets beside the payload. */
 export type JobContext = {

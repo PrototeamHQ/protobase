@@ -1,3 +1,4 @@
+import type { Db } from '@protobase/query'
 import { notificationProblem, type NewNotification } from './history'
 import { pushMessage, PushMessageError, type PushMessage } from './message'
 
@@ -12,6 +13,9 @@ export const maxMessageBytes = 16_384
  * `inbox` is required on a user send and refused on a device send.
  */
 export type NotificationRecipients = { userIds: readonly string[]; inbox: boolean; deviceIds?: never } | { deviceIds: readonly string[]; userIds?: never; inbox?: never }
+
+/** Sends a notification as `sendNotification` does. */
+export type SendNotification = (db: Db, to: NotificationRecipients, message: PushMessage) => Promise<void>
 
 /** A send as the job takes it: each id once, and the message as `pushMessage` writes it. */
 export type CheckedSend = { to: { userIds: string[]; inbox: boolean } | { deviceIds: string[] }; message: PushMessage }
