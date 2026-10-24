@@ -11,3 +11,6 @@ export const readAppName = (env: Record<string, string | undefined>) => env[appN
 
 /** The name the app goes by: the platform's `PROTOBASE_APP_NAME`, which deployments rename it with, over its own `own`. */
 export const appNameOver = (env: Record<string, string | undefined>, own: string | undefined) => readAppName(env) ?? own
+
+/** The name the app shows, in its upper left and its tabs, and mails as: its auth's, else the platform's, else the default. */
+export const shownAppName = (auth: { appName?: string } | undefined, env: Record<string, string | undefined>) => auth?.appName ?? readAppName(env) ?? defaultAppName

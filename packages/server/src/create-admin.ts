@@ -23,7 +23,7 @@ import { unauthorized } from './problem'
 import { realtimeApp } from './realtime/realtime-app'
 import { restRoutes } from './rest/rest-routes'
 import { storageRoutes } from './storage/storage-routes'
-import { defaultAppName, readAppName } from './app-name'
+import { shownAppName } from './app-name'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { mcpDiscovery } from './better-auth/mcp/discovery-routes'
 import { mcpAuthenticator } from './mcp/mcp-authenticator'
@@ -197,7 +197,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   ]
   const views = [...appViews, ...(withJobs ? [failedJobsView] : []), ...(withHistory ? [activityView] : []), ...(withComments ? [commentsView] : [])]
   const commentUsers = withComments ? (givenCommentUsers ?? (auth && betterAuthCommentUsers(auth))) : undefined
-  const mentions = withComments ? mentionJob(commentUsers, auth?.appName ?? readAppName(globalThis.process?.env ?? {}) ?? defaultAppName) : undefined
+  const mentions = withComments ? mentionJob(commentUsers, shownAppName(auth, globalThis.process?.env ?? {})) : undefined
   const registry = buildRegistry(resources)
   const apiFunctions = Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, toApiFunction(name, source)]))
   const viewModels = views.map((view) => view.toModel())
@@ -270,7 +270,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   }
 
   // The tabs end in the name the app signs in and mails as, which the installed app is called too.
-  const appName = auth?.appName ?? readAppName(globalThis.process?.env ?? {}) ?? defaultAppName
+  const appName = shownAppName(auth, globalThis.process?.env ?? {})
   const meta = createMeta(deps, appName, icons?.favicon ? faviconPath : undefined)
   const onError = createErrorHandler(options.onUnhandledError, deps.statementTimeoutMs)
   // Every response of the resources API and of the system endpoints names the models version; every request needs a
