@@ -44,7 +44,7 @@ export const checkInstalledPlugins = (dir: string, keys: string[]) => {
 
 /**
  * Checks that the native packages installed in the workspace `dir` are the versions @protobase/mobile pins, which the
- * native fingerprint names. A from-source workspace keeps its older ones when the pins changed, so it is cleared.
+ * native fingerprint names, whatever npm left in the workspace, so a binary never names native code it does not hold.
  */
 export const checkPinnedNative = (dir: string, pinned = nativeDependencies) => {
   for (const [name, version] of Object.entries(pinned)) {

@@ -56,7 +56,9 @@ describe('prepareWorkspace', () => {
     const copies: Array<{ mobile: boolean; camera: boolean }> = []
     const present = (name: string) => existsSync(path.join(dir, 'node_modules', name, 'package.json'))
     const run = async () => void copies.push({ mobile: present('@protobase/mobile'), camera: present('@capacitor/camera') })
-    const local = workspacePackageJson({ mobileSpec: 'file:/somewhere/mobile', plugins: { '@capacitor/camera': '^8.0.0' } })
+    mkdirSync(path.join(dir, 'mobile'))
+    writeFileSync(path.join(dir, 'mobile', 'package.json'), '{}')
+    const local = workspacePackageJson({ mobileSpec: `file:${path.join(dir, 'mobile')}`, plugins: { '@capacitor/camera': '^8.0.0' } })
     await prepareWorkspace(dir, local, run)
     installed('@protobase/mobile')
     installed('@capacitor/camera')
@@ -68,7 +70,9 @@ describe('prepareWorkspace', () => {
     dir = mkdtempSync(path.join(tmpdir(), 'protobase-ws-'))
     const copies: boolean[] = []
     const run = async () => void copies.push(existsSync(path.join(dir, 'node_modules', 'my-plugin', 'package.json')))
-    const local = workspacePackageJson({ mobileSpec: '0.14.2', plugins: { 'my-plugin': '../my-plugin' } })
+    mkdirSync(path.join(dir, 'my-plugin'))
+    writeFileSync(path.join(dir, 'my-plugin', 'package.json'), '{}')
+    const local = workspacePackageJson({ mobileSpec: '0.14.2', plugins: { 'my-plugin': './my-plugin' } })
     await prepareWorkspace(dir, local, run)
     installed('@protobase/mobile')
     installed('my-plugin')
@@ -84,7 +88,7 @@ describe('prepareWorkspace', () => {
     const bad = workspacePackageJson({ mobileSpec: '0.14.2', plugins: { '../..': 'file:../plugin' } })
     await expect(prepareWorkspace(ws, bad, async (command, args) => void calls.push([command, ...args]))).rejects.toThrow('mobile.plugins lists "../..", which is not an npm package name')
     expect(existsSync(path.join(dir, 'keep'))).toBe(true)
-    expect(existsSync(ws)).toBe(true)
+    expect(existsSync(ws)).toBe(false)
     expect(calls).toEqual([])
   })
 
