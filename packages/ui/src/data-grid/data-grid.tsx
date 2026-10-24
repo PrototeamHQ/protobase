@@ -178,7 +178,7 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const header = (
     <div ref={headerRef} className={cn('sticky z-20 shrink-0 overflow-hidden', own ? 'top-0' : 'top-[var(--pb-sticky-top,0px)]')}>
       <div style={{ minWidth }}>
-        <GridHeader cells={headerCells} specs={sized} gutter={gutter} trailing={trailing} minScale={minScale} pins={pins} lastPinned={lastPinned} scrolled={horizontal.scrolled} onTogglePin={togglePin} resize={narrow ? undefined : resize} widths={resize.widths} selectable={selectable} selectedCount={selectedCount} onClearSelection={() => setRowSelection({})} />
+        <GridHeader cells={headerCells} specs={sized} gutter={gutter} trailing={trailing} minScale={minScale} pins={pins} lastPinned={lastPinned} scrolled={horizontal.scrolled} onTogglePin={togglePin} resize={resize} widths={resize.widths} selectable={selectable} selectedCount={selectedCount} onClearSelection={() => setRowSelection({})} />
       </div>
     </div>
   )
