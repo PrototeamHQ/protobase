@@ -417,7 +417,7 @@ describe('a WebSocket opened with the session cookie', () => {
 
     const own = await upgrade({ cookie, origin })
     expect(own.status).toBe(200)
-    expect(await own.json()).toEqual({ user: { id: user.id, roles: ['user'] }, tenant: 1 })
+    expect(await own.json()).toEqual({ user: { id: user.id, roles: ['user'] }, tenant: 1, signIn: { session: expect.any(String), staff: false } })
     expect((await upgrade({ cookie, origin: 'https://evil.example' })).status).toBe(403)
     expect((await upgrade({ origin })).status).toBe(401)
     expect(handler).toHaveBeenCalledTimes(1)

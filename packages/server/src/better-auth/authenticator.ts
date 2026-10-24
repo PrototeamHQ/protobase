@@ -70,7 +70,7 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
 
   // The app's claims as a session, for its own tokens and those of another audience alike; with `auth`, also whether
   // the token still stands, as `standing` reads it from the store.
-  type Standing = (context: AuthContext, payload: JWTPayload, session: Session) => Promise<void>
+  type Standing = (context: AuthContext, payload: JWTPayload, session: Session) => Promise<Session['signIn'] | void>
   const sessionOf = (verifyOptions: Partial<JwtOptions>, standing: Standing): Authenticator => {
     const sessions = jwtSessions({
       ...tokens,
@@ -81,8 +81,9 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
     })
     const verify: Authenticator = async (request) => {
       const { payload, session } = await sessions(request)
-      if (auth) await standing((await auth.$context) as unknown as AuthContext, payload, session)
-      return session
+      if (!auth) return session
+      const signIn = await standing((await auth.$context) as unknown as AuthContext, payload, session)
+      return signIn ? { ...session, signIn } : session
     }
     if (!organizations) return verify
     return async (request) => {
@@ -102,7 +103,9 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
   const own = sessionOf({ audience: options.audience ?? issuer }, ownStanding)
   // An access token's `sid` names the browser session that allowed the client, which may end long before the grant
   // does; revoking the grant ends its tokens instead (`revokeMcpGrants`), which the grant check sees.
-  const grantStanding: Standing = (context, payload, session) => checkMcpGrant(context.adapter, { userId: payload.sub!, clientId: session.client?.id, issuedAt: payload.iat })
+  const grantStanding: Standing = async (context, payload, session) => {
+    await checkMcpGrant(context.adapter, { userId: payload.sub!, clientId: session.client?.id, issuedAt: payload.iat })
+  }
   return Object.assign(withTrustedApps(own, issuer, options.apps ?? []), {
     forAudience: (audience: string) => sessionOf({ audience, typ: 'at+jwt', dpop: { url: audience, replayStore: dpopReplayStore }, oauthClient: true }, grantStanding),
   })

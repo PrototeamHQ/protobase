@@ -19,6 +19,12 @@ export type Session = {
   anonymous?: true
   /** The outside app acting as the user, such as an MCP client: its OAuth client id and the scopes its token carries. */
   client?: { id: string; scopes: string[] }
+  /**
+   * The user's own sign-in this request comes with: its session id, when it has one, and whether staff started it as
+   * the user. An authenticator sets it only when it knows; without it, what only the user may do, such as registering
+   * their devices for notifications, is refused.
+   */
+  signIn?: { session?: string; staff: boolean }
 }
 
 /**
