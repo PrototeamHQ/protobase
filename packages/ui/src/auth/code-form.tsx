@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '../primitives/button'
 import { OtpInput } from '../primitives/otp-input'
 import { AuthLayout } from './auth-layout'
@@ -33,6 +33,15 @@ export type CodeFormProps = {
  */
 export const CodeForm = ({ title, description, explanation, submitLabel, onSubmit, onResend, onChangeAddress, changeAddressLabel, busy, error, notice, resendCooldown }: CodeFormProps) => {
   const [code, setCode] = useState('')
+  const field = useRef<HTMLInputElement>(null)
+
+  // A new code is on its way: the old one is of no use, so its boxes empty and wait for the new one.
+  useEffect(() => {
+    if (!notice) return
+    setCode('')
+    field.current?.focus()
+  }, [notice])
+
   return (
     <AuthLayout title={title} description={description}>
       <p className="mb-4 text-muted-foreground">{explanation}</p>
@@ -50,7 +59,7 @@ export const CodeForm = ({ title, description, explanation, submitLabel, onSubmi
       >
         <label className="flex flex-col gap-1.5 font-medium">
           {text('code')}
-          <OtpInput name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={setCode} onComplete={(complete) => !busy && onSubmit(complete)} />
+          <OtpInput ref={field} name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={setCode} onComplete={(complete) => !busy && onSubmit(complete)} />
         </label>
         {error && (
           <p role="alert" className="text-body font-medium text-danger-text">

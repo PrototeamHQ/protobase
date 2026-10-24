@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { signInPath, type SignInStep } from '@protobase/schema'
@@ -14,6 +15,7 @@ import { SignUpDetailsForm, type SignUpDetailsFormProps } from './sign-up-detail
 import { SignUpEmailForm, type SignUpEmailFormProps } from './sign-up-email-form'
 import { StaffSignInForm, type StaffSignInFormProps } from './staff-sign-in-form'
 import { TwoFactorForm, type TwoFactorFormProps } from './two-factor-form'
+import { text } from './messages'
 
 const meta = { title: 'Auth', parameters: { layout: 'fullscreen' }, decorators: [(Story) => <div className="h-screen"><Story /></div>] } satisfies Meta
 export default meta
@@ -188,6 +190,38 @@ export const EmailCode: StoryObj<EmailCodeFormProps> = {
     expect(args.onResend).toHaveBeenCalledOnce()
     await userEvent.click(canvas.getByRole('button', { name: 'Back to sign in' }))
     expect(args.onBack).toHaveBeenCalledOnce()
+  },
+}
+
+// The form as the sign-in page holds it: a new code that went out shows a notice.
+const ResendingEmailCodeForm = ({ onResend, ...props }: EmailCodeFormProps) => {
+  const [notice, setNotice] = useState<string>()
+  return (
+    <EmailCodeForm
+      {...props}
+      notice={notice}
+      onResend={() => {
+        onResend()
+        setNotice(text('newCodeSent'))
+      }}
+    />
+  )
+}
+
+/** A new code empties the boxes of the old one and puts the caret back in them, ready for the new code. */
+export const EmailCodeResent: StoryObj<EmailCodeFormProps> = {
+  tags: ['play'],
+  args: { email: 'sanne@veldhuis-supply.example', onSubmit: fn(), onResend: fn(), onBack: fn(), resendCooldown: 0 },
+  render: (args) => <ResendingEmailCodeForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    const code = canvas.getByLabelText('Code')
+    await userEvent.type(code, '482')
+    await userEvent.click(canvas.getByRole('button', { name: 'Send a new code' }))
+    expect(args.onResend).toHaveBeenCalledOnce()
+    expect(await canvas.findByRole('status')).toHaveTextContent(text('newCodeSent'))
+    expect(code).toHaveValue('')
+    expect(code).toHaveFocus()
   },
 }
 
