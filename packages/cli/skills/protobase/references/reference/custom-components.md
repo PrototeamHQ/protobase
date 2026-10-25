@@ -268,6 +268,8 @@ export default defineUi({ shell: { actions: NotesButton, rightPanel: Notes } })
 
 When the app has an [assistant](assistant.md), its button follows the project's actions and its dock the project's panel.
 
+`bell` replaces the [notification bell](notifications.md#the-bell) of the top bar with your own, drawn where it would be, and takes no props either; [the bell's slot](notifications.md#the-bells-slot) lists the hooks it reads the user's notifications with. With a bell from a plugin and one from the project, the project's shows.
+
 `logo` replaces Protobase's logo at the top of the sidebar with the app's own. It gets `compact`, true when the sidebar shows only icons, so it draws a mark alone, `workspace`, the name of the user's organization that Protobase's logo shows under it, `appName`, the app's [name](auth.md#configuration), which Protobase's logo shows beside its mark, and `appIcon`, the path of the project's own [icon](app-identity.md#the-icons) when it has one (`ShellLogoProps`). Its colors follow the [theme](theme.md), and a `dark:` class gives dark its own. When it throws, Protobase's logo shows instead. The tab's icon is [the favicon](theme.md#logo-and-favicon).
 
 ```tsx
