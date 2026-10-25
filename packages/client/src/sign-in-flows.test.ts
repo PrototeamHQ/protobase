@@ -193,6 +193,18 @@ describe('the name, password and devices', () => {
     await expect(refused.session.account.setPassword('correct horse battery')).rejects.toMatchObject({ name: 'AuthError', status: 400, code: 'PASSWORD_ALREADY_SET' })
   })
 
+  it('changes the address with the code mailed to the new one, and reports a wrong code', async () => {
+    const { requests, session } = serve({ '/email-otp/request-email-change': () => json({ success: true }), '/email-otp/change-email': () => json({ success: true }) })
+    await session.account.requestEmailChange('sanne@new.example')
+    await session.account.changeEmail('sanne@new.example', '123456')
+    expect(requests).toEqual([
+      { path: '/email-otp/request-email-change', body: { newEmail: 'sanne@new.example' } },
+      { path: '/email-otp/change-email', body: { newEmail: 'sanne@new.example', otp: '123456' } },
+    ])
+    const refused = serve({ '/email-otp/change-email': () => json({ message: 'Invalid OTP', code: 'INVALID_OTP' }, { status: 400 }) })
+    await expect(refused.session.account.changeEmail('sanne@new.example', '000000')).rejects.toMatchObject({ name: 'AuthError', status: 400, code: 'INVALID_OTP' })
+  })
+
   it('lists the signed-in devices with this one marked, and signs them out', async () => {
     const at = { createdAt: '2026-10-01T09:00:00.000Z', updatedAt: '2026-10-20T09:00:00.000Z', expiresAt: '2026-10-27T09:00:00.000Z' }
     const { requests, session } = serve({

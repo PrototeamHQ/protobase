@@ -73,8 +73,8 @@ describe('auth session sign-in', () => {
   it('reads the setup status, with passwords only from a server that does not list sign-in methods', async () => {
     const open = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: true })) as typeof fetch })
     expect(await open.status()).toEqual({ needsAdmin: true, signInMethods: ['password'], passwordReset: false, socialProviders: [], samlProviders: [] })
-    const resettable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, socialProviders: ['github'] })) as typeof fetch })
-    expect(await resettable.status()).toEqual({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, socialProviders: ['github'], samlProviders: [] })
+    const resettable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, changeEmail: true, socialProviders: ['github'] })) as typeof fetch })
+    expect(await resettable.status()).toEqual({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, changeEmail: true, socialProviders: ['github'], samlProviders: [] })
     const browsable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], anonymous: true })) as typeof fetch })
     expect(await browsable.status()).toMatchObject({ anonymous: true })
     const signUp = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], signUp: true })) as typeof fetch })

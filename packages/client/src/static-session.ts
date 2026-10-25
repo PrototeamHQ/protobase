@@ -53,6 +53,8 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     updateName: unsupported('change its name'),
     changePassword: unsupported('change its password'),
     setPassword: unsupported('set its password'),
+    requestEmailChange: unsupported('change its address'),
+    changeEmail: unsupported('change its address'),
     sessions: async () => [],
     revokeSession: unsupported('sign out a device'),
     revokeOtherSessions: unsupported('sign out other devices'),

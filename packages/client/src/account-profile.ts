@@ -19,7 +19,7 @@ export type DeviceSession = {
 
 const isoDate = (value: string | Date) => new Date(value).toISOString()
 
-/** The signed-in person's name, password and signed-in devices. Each call rejects with `AuthError`. */
+/** The signed-in person's name, address, password and signed-in devices. Each call rejects with `AuthError`. */
 export const accountProfile = (client: BetterAuthClient) => ({
   updateName: async (name: string) => {
     const { error } = await client.updateUser({ name })
@@ -39,6 +39,21 @@ export const accountProfile = (client: BetterAuthClient) => ({
   setPassword: async (next: string) => {
     const { error } = await client.$fetch('/account/set-password', { method: 'POST', body: { newPassword: next } })
     if (error) throw authError(error, 'Could not set your password')
+  },
+
+  /**
+   * Mails a code to `newEmail` that moves the account to it, when the server has mail (`status().changeEmail`). The answer
+   * is the same when another account has the address, which then gets no code.
+   */
+  requestEmailChange: async (newEmail: string) => {
+    const { error } = await client.$fetch('/email-otp/request-email-change', { method: 'POST', body: { newEmail } })
+    if (error) throw authError(error, 'Could not send the code')
+  },
+
+  /** Moves the account to `newEmail` with the code mailed there; this device stays signed in, with the new address. */
+  changeEmail: async (newEmail: string, code: string) => {
+    const { error } = await client.$fetch('/email-otp/change-email', { method: 'POST', body: { newEmail, otp: code } })
+    if (error) throw authError(error, 'Could not change your address')
   },
 
   /** The devices signed in now, with this one marked `current`. */
