@@ -1,11 +1,13 @@
-import type { ButtonHTMLAttributes } from 'react'
+import type { ButtonHTMLAttributes, Ref } from 'react'
 import { cn } from '../lib/cn'
 import { Spinner } from './spinner'
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
-  size?: 'sm' | 'md'
+  /** `icon` is a square of the height of `sm`, for a button with an icon alone. */
+  size?: 'sm' | 'md' | 'icon'
   loading?: boolean
+  ref?: Ref<HTMLButtonElement>
 }
 
 const variants = {
@@ -15,7 +17,7 @@ const variants = {
   danger: 'bg-background text-danger-text border border-border-strong hover:bg-danger-soft shadow-sm',
 }
 
-const sizes = { sm: 'h-7 px-2.5 text-body gap-1.5', md: 'h-8 px-3 text-body gap-2' }
+const sizes = { sm: 'h-7 px-2.5 text-body gap-1.5', md: 'h-8 px-3 text-body gap-2', icon: 'size-7 text-body' }
 
 /** A button's classes, for a link that looks like one. */
 export const buttonClass = ({ variant = 'secondary', size = 'md' }: Pick<ButtonProps, 'variant' | 'size'> = {}) =>
