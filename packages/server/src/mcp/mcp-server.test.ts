@@ -4,6 +4,7 @@ import type { ToolRecords } from '../assistant/records'
 import { defineTool, type ToolContext } from '../assistant/tools'
 import { writeRecordTools } from '../assistant/write-record-tools'
 import { forbidden } from '../problem'
+import { mcpApprovals } from './mcp-approval-store'
 import { mcpServer, type McpServerInput } from './mcp-server'
 
 // The SDK's fromJsonSchema, watched: each call compiles its schema into a cache the SDK never empties.
@@ -38,15 +39,18 @@ const write = defineTool({
   },
 })
 
-type Served = Partial<Pick<McpServerInput, 'tools' | 'context' | 'rolesWithoutApproval'>>
+type Served = Partial<Pick<McpServerInput, 'tools' | 'context' | 'rolesWithoutApproval' | 'approvals'>>
+
+const approvals = mcpApprovals()
+const authInfo = { token: 't', clientId: 'client', scopes: ['mcp'], resource: new URL('http://localhost/api/mcp') }
 
 const post = async (report: (error: unknown) => void, headers: Record<string, string>, method: string, params: object, served: Served = {}) => {
-  const handler = createMcpHandler(() => mcpServer({ info: { name: 'App', version: '1.0.0' }, tools: [echo, broken, write, slow], context, report, ...served }), { legacy: 'stateless' })
+  const handler = createMcpHandler(() => mcpServer({ info: { name: 'App', version: '1.0.0' }, tools: [echo, broken, write, slow], context, report, approvals, ...served }), { legacy: 'stateless' })
   const response = await handler.fetch(new Request('http://localhost/api/mcp', {
     method: 'POST',
     headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json', ...headers },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  }))
+  }), { authInfo })
   const text = await response.text()
   const data = text.startsWith('{') ? text : text.split('\n').find((line) => line.startsWith('data: '))!.slice(6)
   return JSON.parse(data).result
@@ -55,7 +59,7 @@ const post = async (report: (error: unknown) => void, headers: Record<string, st
 const call = (report: (error: unknown) => void, method: string, params: object, served?: Served) => post(report, { 'mcp-protocol-version': '2025-11-25' }, method, params, served)
 
 // A 2026-07-28 tools/call, which carries the client's capabilities in its own envelope.
-const modern = (params: { name: string; arguments: object; inputResponses?: object }, capabilities: object, served?: Served) =>
+const modern = (params: { name: string; arguments: object; inputResponses?: object; requestState?: string }, capabilities: object, served?: Served) =>
   post(() => {}, { 'mcp-protocol-version': '2026-07-28', 'mcp-method': 'tools/call', 'mcp-name': params.name }, 'tools/call', {
     ...params,
     _meta: {
@@ -92,7 +96,7 @@ describe('mcpServer', () => {
   it('compiles each tool\'s schema once however many servers are built with it', () => {
     const tools = ['first', 'second'].map((name) => defineTool({ ...echo, name, parameters: { type: 'object', properties: { text: { type: 'string' } } } }))
     compiled.calls = 0
-    for (let built = 0; built < 50; built++) mcpServer({ info: { name: 'App', version: '1.0.0' }, tools, context, report: () => {} })
+    for (let built = 0; built < 50; built++) mcpServer({ info: { name: 'App', version: '1.0.0' }, tools, context, report: () => {}, approvals })
     expect(compiled.calls).toBe(tools.length)
   })
 
@@ -107,7 +111,7 @@ describe('mcpServer', () => {
   })
 
   it('refuses a tool name a model endpoint would refuse', () => {
-    expect(() => mcpServer({ info: { name: 'App', version: '1.0.0' }, tools: [{ ...echo, name: 'bad name' }], context, report: () => {} })).toThrow('must be 1 to 64')
+    expect(() => mcpServer({ info: { name: 'App', version: '1.0.0' }, tools: [{ ...echo, name: 'bad name' }], context, report: () => {}, approvals })).toThrow('must be 1 to 64')
   })
 
   describe('a tool that asks for approval', () => {
@@ -123,22 +127,30 @@ describe('mcpServer', () => {
       expect(written).not.toHaveBeenCalled()
     })
 
-    it('asks a client with elicitation for the user\'s approval', async () => {
-      expect(await modern({ name: 'write', arguments: {} }, { elicitation: {} })).toMatchObject({
+    it('asks a client with elicitation for the user\'s approval, with a state to echo', async () => {
+      const asked = await modern({ name: 'write', arguments: {} }, { elicitation: {} })
+      expect(asked).toMatchObject({
         resultType: 'input_required',
-        inputRequests: { approve: { method: 'elicitation/create', params: { mode: 'form', message: 'Write it?\n\nit', requestedSchema: { properties: { approve: { type: 'boolean', title: 'Write' } }, required: ['approve'] } } } },
+        requestState: expect.stringMatching(/^v1\./),
       })
+      const [key] = Object.keys(asked.inputRequests)
+      expect(key).toMatch(/^approve-[\w-]{22}$/)
+      expect(asked.inputRequests[key!]).toMatchObject({ method: 'elicitation/create', params: { mode: 'form', message: 'Write it?\n\nit', requestedSchema: { properties: { approve: { type: 'boolean', title: 'Write' } }, required: ['approve'] } } })
       expect(written).not.toHaveBeenCalled()
     })
 
-    it('runs once with the user\'s approval', async () => {
-      const result = await modern({ name: 'write', arguments: {}, inputResponses: { approve: { action: 'accept', content: { approve: true } } } }, { elicitation: {} })
+    it('runs once with the user\'s approval of the call it asked for', async () => {
+      const asked = await modern({ name: 'write', arguments: {} }, { elicitation: {} })
+      const [key] = Object.keys(asked.inputRequests)
+      const result = await modern({ name: 'write', arguments: {}, requestState: asked.requestState, inputResponses: { [key!]: { action: 'accept', content: { approve: true } } } }, { elicitation: {} })
       expect(result).toMatchObject({ content: [{ type: 'text', text: 'written' }] })
       expect(written).toHaveBeenCalledTimes(1)
     })
 
     it('writes nothing when the user declines', async () => {
-      const result = await modern({ name: 'write', arguments: {}, inputResponses: { approve: { action: 'decline' } } }, { elicitation: {} })
+      const asked = await modern({ name: 'write', arguments: {} }, { elicitation: {} })
+      const [key] = Object.keys(asked.inputRequests)
+      const result = await modern({ name: 'write', arguments: {}, requestState: asked.requestState, inputResponses: { [key!]: { action: 'decline' } } }, { elicitation: {} })
       expect(result).toMatchObject({ content: [{ type: 'text', text: 'not approved (rejected)' }] })
       expect(written).not.toHaveBeenCalled()
     })

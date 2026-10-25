@@ -1,7 +1,9 @@
-import { CLIENT_CAPABILITIES_META_KEY, fromJsonSchema, McpServer, type CallToolResult, type ClientCapabilities, type InputRequiredResult } from '@modelcontextprotocol/server'
+import { CLIENT_CAPABILITIES_META_KEY, fromJsonSchema, McpServer, type CallToolResult, type ClientCapabilities, type InputRequiredResult, type ServerContext } from '@modelcontextprotocol/server'
 import { checkedTools } from '../assistant/checked-tools'
 import type { AssistantTool, ToolContext } from '../assistant/tools'
 import { ApprovalNeeded, approvalAsked, approvedUnasked, mcpApproval, writesUnasked } from './mcp-approval'
+import type { McpApprovals } from './mcp-approval-store'
+import { callHash, callScope, scopeHash } from './mcp-call-hash'
 import { isStatementTimeout } from '../statement-timeout'
 
 export type McpServerInput = {
@@ -14,6 +16,8 @@ export type McpServerInput = {
   report: (error: unknown) => void
   /** The roles whose calls are approved without asking the client: a user holding one of them is never asked. None by default. */
   rolesWithoutApproval?: readonly string[]
+  /** The approvals asked for and not yet answered, `mcpApprovals()` built once for every server the endpoint builds. */
+  approvals: McpApprovals
 }
 
 // The SDK's published types leave the envelope's shape empty; on the 2026 protocol it carries the client's capabilities.
@@ -39,19 +43,38 @@ const stopped = (tool: string): CallToolResult => ({
 
 /**
  * An MCP server offering `tools` as MCP tools, each with its JSON Schema, its hints, and the text it returns. A tool
- * that asks for approval makes the call ask the client's user, and runs again from the start with their answer; for a
- * user holding one of `rolesWithoutApproval` it is approved at once, and the client is never asked.
+ * that asks for approval makes the call ask the client's user, and runs again from the start with their answer, which
+ * counts only for the call it was asked for, once, while it lasts; for a user holding one of `rolesWithoutApproval` it
+ * is approved at once, and the client is never asked.
  */
-export const mcpServer = ({ info, tools, context, report, rolesWithoutApproval = [] }: McpServerInput) => {
+export const mcpServer = ({ info, tools, context, report, rolesWithoutApproval = [], approvals }: McpServerInput) => {
   const server = new McpServer(info)
   const unasked = writesUnasked(rolesWithoutApproval, context.session.user.roles)
   for (const tool of checkedTools(tools)) {
     const config = { description: tool.description, inputSchema: inputSchemaOf(tool.parameters), ...(tool.annotations && { annotations: tool.annotations }) }
+    const answer = async (args: Record<string, unknown>, ctx: ServerContext): Promise<CallToolResult | InputRequiredResult> => {
+      // Bound to the arguments as sent: the tool runs on a copy, so nothing it changes in them changes what is approved.
+      const bound = () => {
+        const scope = callScope(context.session, ctx.http?.authInfo?.resource)
+        return { scope: scopeHash(scope), call: callHash(tool.name, args, scope) }
+      }
+      const check = (state: unknown) => {
+        const { scope, call } = bound()
+        return approvals.check(scope, call, state)
+      }
+      const approve = unasked ? approvedUnasked : mcpApproval({ inputResponses: ctx.mcpReq.inputResponses, requestState: ctx.mcpReq.requestState(), check })
+      try {
+        return { content: [{ type: 'text', text: await tool.run(structuredClone(args), { ...context, approve }) }] }
+      } catch (error) {
+        if (!(error instanceof ApprovalNeeded)) throw error
+        const { scope, call } = bound()
+        return approvalAsked(error.request, capabilitiesOf(ctx.mcpReq.envelope), () => approvals.ask(scope, call))
+      }
+    }
     server.registerTool(tool.name, config, async (args, ctx): Promise<CallToolResult | InputRequiredResult> => {
       try {
-        return { content: [{ type: 'text', text: await tool.run(args, { ...context, approve: unasked ? approvedUnasked : mcpApproval(ctx.mcpReq.inputResponses) }) }] }
+        return await answer(args, ctx)
       } catch (error) {
-        if (error instanceof ApprovalNeeded) return approvalAsked(error.request, capabilitiesOf(ctx.mcpReq.envelope))
         // Whatever a tool throws stays on the server: the client gets no raw message, but one that names a stopped query.
         report(error)
         return isStatementTimeout(error) ? stopped(tool.name) : failed
