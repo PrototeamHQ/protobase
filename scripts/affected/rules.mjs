@@ -40,6 +40,8 @@ const exampleDatabase = (example) => ({ from: [`tests/examples/${example}/**`], 
 export const edges = [
   // The CLI's tests start the CLI from source in the ERP, or in a project beside it.
   { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'examples/erp/protobase.config.ts'], reads: ['examples/erp/**'] },
+  // The test that each command exits once done starts the CLI's sources through its own runner, in the ERP.
+  { from: ['packages/cli/tests/project/command-exit.integration.test.ts'], starts: ['packages/cli/tests/support/exit-check.mjs', 'examples/erp/protobase.config.ts'], reads: ['examples/erp/**'] },
   // Those that build, serve or develop the ERP, with its UI.
   { from: ['tests/smoke/erp-bundle.test.ts', 'packages/cli/tests/dev/dev.integration.test.ts'], loads: [...cliModuleFiles, 'examples/erp/protobase.ui.tsx'] },
   // The admin API of every example, built with its own auth.
