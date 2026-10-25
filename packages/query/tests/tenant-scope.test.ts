@@ -92,3 +92,18 @@ describe('tenant scope', () => {
     expect((await listQuery(ctx.db, plain, { limit: 1 }, scope)).rows).toHaveLength(1)
   })
 })
+
+describe('a scope of several tenants', () => {
+  it('reads the rows of each tenant named, and none for an empty list', async () => {
+    expect(await exactCount(ctx.db, tenanted, undefined, { tenantValues: [1, 2] })).toBe(2000)
+    expect(await exactCount(ctx.db, tenanted, undefined, { tenantValues: [2, 3] })).toBe(1000)
+    expect(await exactCount(ctx.db, tenanted, undefined, { tenantValues: [] })).toBe(0)
+  })
+
+  it('ties each tenant to its own row filter', async () => {
+    const both = { tenantValues: [1, 2], rowFilter: check(tenanted, 'org = 1 OR (org = 2 AND qty = 3)') }
+    expect(await exactCount(ctx.db, tenanted, check(tenanted, 'org = 1'), both)).toBe(1000)
+    expect(await exactCount(ctx.db, tenanted, check(tenanted, 'org = 2'), both)).toBe(200)
+    expect(await exactCount(ctx.db, tenanted, check(tenanted, 'org = 2 AND qty != 3'), both)).toBe(0)
+  })
+})

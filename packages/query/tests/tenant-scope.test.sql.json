@@ -2911,5 +2911,19 @@
         ["2","2"]
       ]}}
     ]
+  },
+  "a scope of several tenants > reads the rows of each tenant named, and none for an empty list": {
+    "(hooks)#0": [
+      {"sql":"select count(*)::text as \"n\" from \"tenanted\" as \"t\" where \"t\".\"org\" in ($1, $2)","params":["1","2"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2000"]]}},
+      {"sql":"select count(*)::text as \"n\" from \"tenanted\" as \"t\" where \"t\".\"org\" in ($1, $2)","params":["2","3"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["1000"]]}},
+      {"sql":"select count(*)::text as \"n\" from \"tenanted\" as \"t\" where false","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
+  },
+  "a scope of several tenants > ties each tenant to its own row filter": {
+    "(hooks)#0": [
+      {"sql":"select count(*)::text as \"n\" from \"tenanted\" as \"t\" where \"t\".\"org\" in ($1, $2) and (\"t\".\"org\" = $3 or (\"t\".\"org\" = $4 and \"t\".\"qty\" = $5)) and \"t\".\"org\" = $6","params":["1","2","1","2","3","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["1000"]]}},
+      {"sql":"select count(*)::text as \"n\" from \"tenanted\" as \"t\" where \"t\".\"org\" in ($1, $2) and (\"t\".\"org\" = $3 or (\"t\".\"org\" = $4 and \"t\".\"qty\" = $5)) and \"t\".\"org\" = $6","params":["1","2","1","2","3","2"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["200"]]}},
+      {"sql":"select count(*)::text as \"n\" from \"tenanted\" as \"t\" where \"t\".\"org\" in ($1, $2) and (\"t\".\"org\" = $3 or (\"t\".\"org\" = $4 and \"t\".\"qty\" = $5)) and (\"t\".\"org\" = $6 and \"t\".\"qty\" <> $7)","params":["1","2","1","2","3","2","3"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
   }
 }
