@@ -142,7 +142,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
     const meta = async () => {
       const answer = await client.meta()
       if (answer.status !== 'modified') throw new Error('The app answered /meta without its content')
-      return { appName: answer.meta.appName, ...(answer.meta.notifications && { webPushKey: answer.meta.notifications.webPushKey }) }
+      return { appName: answer.meta.appName, ...(answer.meta.notifications?.webPushKey && { webPushKey: answer.meta.notifications.webPushKey }) }
     }
     return pushNotifications({ ...(nativeBridge && { nativeBridge }), devices: client.devices, meta, user: () => pushUser.current })
   }, [session, origin, nativeBridge])

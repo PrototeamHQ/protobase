@@ -6,6 +6,7 @@ import { createTransport, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
 import { followLive, type LiveHandlers } from './live'
 import { devicesClient } from './devices'
+import { notificationHistoryClient } from './notification-history'
 import type { Aggregate, AggregateParams, BatchOp, BatchResult, CommentPage, Facet, FormChallenge, FormProof, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, MentionableUser, Meta, MetaResult, PublicForm, RecordComment, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
 
 type Json = Record<string, any>
@@ -354,7 +355,10 @@ export const createClient = (options: ClientOptions = {}) => {
   /** The signed-in user's own devices, where they receive push (see `devicesClient`). */
   const devices = devicesClient(send)
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, devices }
+  /** The signed-in user's own notification history, their inbox (see `notificationHistoryClient`). */
+  const notifications = notificationHistoryClient(send)
+
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, devices, notifications }
 }
 
 export type Client = ReturnType<typeof createClient>

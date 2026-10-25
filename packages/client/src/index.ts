@@ -2,6 +2,7 @@ export { createClient, type Client, type InvokeOptions, type UploadOptions, type
 export type { UploadProgress } from './upload-request'
 export type { LiveChange, LiveHandlers } from './live'
 export type { DevicesClient, RegisteredDevice, WebDeviceRegistration } from './devices'
+export type { InboxNotification, InboxPage, NotificationHistoryClient } from './notification-history'
 export { ApiError, PreconditionFailedError, isApiError, type ProblemDetails, type ProblemError } from './problem'
 export { listWire, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
 export type { ClientOptions } from './transport'
