@@ -7,8 +7,8 @@ import StoryFrame from '../../../components/StoryFrame.astro'
 
 ## Turning them on
 
-:::caution[In development]
-Sending keeps notifications in the history, which the bell shows, and pushes them to browsers; push on Android and iOS is coming soon.
+:::caution[Beta]
+Push reaches browsers; push on Android and iOS is coming soon.
 :::
 
 Notifications tell a user about something in the app, in a bell in the top bar and as push on their devices. [Send notifications](/guides/push-notifications/) walks through turning them on and sending the first one. You turn them on in `protobase.config.ts`:
@@ -336,7 +336,7 @@ export default defineUi({ shell: { bell: Bell } })
 ## Table names
 
 :::caution[Beta]
-Both tables are written and checked; nothing writes to the history table until sending lands.
+The names and the checks at startup may still change.
 :::
 
 The default store keeps devices in the table `devices` of the schema `notifications`:
