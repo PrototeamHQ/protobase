@@ -75,6 +75,7 @@ export const blockSpecs: Record<string, BlockSpec> = {
   Settings: { children: false, props: { resource: required('text'), fields: optional('texts'), title: optional('text'), description: optional('text'), span: optional('span') } },
   Users: { children: false, props: {} },
   Profile: { children: false, props: {} },
+  Password: { children: false, props: {} },
   Passkeys: { children: false, props: {} },
   TwoFactor: { children: false, props: {} },
   ConnectedAccounts: { children: false, props: {} },

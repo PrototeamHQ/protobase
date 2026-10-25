@@ -15,6 +15,7 @@ export {
   ModalForm,
   Page,
   Passkeys,
+  Password,
   Profile,
   Progress,
   RecordCard,

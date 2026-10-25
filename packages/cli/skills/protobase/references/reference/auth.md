@@ -144,7 +144,7 @@ Everyone signed in has an account page at `/-/account`, which "Account" in the u
 | Tab | Address | Blocks |
 | --- | --- | --- |
 | Profile | `/-/account` | `Profile` |
-| Sign-in & security | `/-/account/security` | `Passkeys`, `TwoFactor`, `ConnectedAccounts` |
+| Sign-in & security | `/-/account/security` | `Password`, `Passkeys`, `TwoFactor`, `ConnectedAccounts` |
 | Devices | `/-/account/devices` | `Devices` |
 | Connected apps | `/-/account/apps` | `ConnectedApps` |
 
@@ -221,6 +221,8 @@ The signed-in person changes their own name and password, and signs out their ot
 | `revokeOtherSessions()` | `POST /api/auth/revoke-other-sessions`: signs out every device but this one |
 
 Signing out a device, or a new password with `signOutOthers`, stops that device's API token at its next request (see [When a token stops working](#when-a-token-stops-working)); this device stays signed in. A first password with `setPassword` signs out no device and disconnects no [MCP client](#oauth-for-mcp-clients); it needs 12 characters like any other, is limited to 5 per minute and client, and is refused while the [sign-in policy](#sign-in-policy) turns passwords off (`403`). A [staff session](#staff-sign-in) cannot change or set the password or sign out the other devices (`STAFF_CANNOT_CHANGE_SIGN_IN`).
+
+On the [account page](#account-page), the `Password` block does both: with a password, it asks for the current one, the new one twice, and whether to sign out the other devices; without one, it sets the first, and nobody is signed out. While the sign-in policy turns passwords off, or in a staff session, it only says so.
 
 The [account page](#account-page)'s Devices tab lists the sessions with this one first and marked, a Sign out on each other one and Sign out of all other devices. It names each by its browser and system from the user agent, and a staff session by the operator alone, such as "Protobase staff" with when it signed in and until when, never the staff member.
 

@@ -12,7 +12,7 @@ describe('shownAccountTree', () => {
   it('leaves out a hidden block, and the tab it leaves empty', () => {
     const tree = shownAccountTree(accountPage.toModel().tree, new Set(['ConnectedApps', 'ConnectedAccounts']))
     expect(tabNames(tree)).toEqual(['profile', 'security', 'devices'])
-    expect(((tree.children[0] as LayoutNode).children[1] as LayoutNode).children.map((block) => (block as LayoutNode).type)).toEqual(['Passkeys', 'TwoFactor'])
+    expect(((tree.children[0] as LayoutNode).children[1] as LayoutNode).children.map((block) => (block as LayoutNode).type)).toEqual(['Password', 'Passkeys', 'TwoFactor'])
   })
 
   it('keeps a tab that holds more than the hidden block', () => {

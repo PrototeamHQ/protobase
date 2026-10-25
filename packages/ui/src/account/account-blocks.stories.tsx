@@ -6,6 +6,7 @@ import { ConnectedAccountsBlock } from './blocks/connected-accounts-block'
 import { ConnectedAppsBlock } from './blocks/connected-apps-block'
 import { DevicesBlock } from './blocks/devices-block'
 import { PasskeysBlock } from './blocks/passkeys-block'
+import { PasswordBlock } from './blocks/password-block'
 import { ProfileBlock } from './blocks/profile-block'
 import { TwoFactorBlock } from './blocks/two-factor-block'
 
@@ -30,7 +31,7 @@ const sessionWith = (updateName: (name: string) => Promise<void>): AuthSession =
 }
 
 /**
- * Each block reads its own data: the profile changes the name, passkeys and two-factor follow the policy, devices lists
+ * Each block reads its own data: the profile changes the name, an account without a password can set one, passkeys and two-factor follow the policy, devices lists
  * the static session's none, and connected accounts and apps stay hidden in an app without OAuth providers or MCP.
  */
 export const AccountBlocks: StoryObj<{ updateName: (name: string) => Promise<void> }> = {
@@ -39,6 +40,7 @@ export const AccountBlocks: StoryObj<{ updateName: (name: string) => Promise<voi
   render: (args) => (
     <AuthProvider session={sessionWith(args.updateName)}>
       <ProfileBlock />
+      <PasswordBlock />
       <PasskeysBlock />
       <TwoFactorBlock />
       <ConnectedAccountsBlock />
@@ -51,6 +53,7 @@ export const AccountBlocks: StoryObj<{ updateName: (name: string) => Promise<voi
     const profile = within(await canvas.findByRole('region', { name: 'Profile' }))
     expect(profile.getByText('Ana de Vries')).toBeVisible()
     expect(profile.getByText('ana@shop.example')).toBeVisible()
+    expect(within(await canvas.findByRole('region', { name: 'Password' })).getByRole('button', { name: 'Set a password' })).toBeVisible()
     expect(await canvas.findByRole('region', { name: 'Passkeys' })).toBeVisible()
     expect(await canvas.findByRole('region', { name: 'Two-factor authentication' })).toBeVisible()
     expect(canvas.queryByRole('region', { name: 'Connected accounts' })).toBeNull()

@@ -25,6 +25,7 @@ import { ConnectedAccountsBlock } from '../../account/blocks/connected-accounts-
 import { ConnectedAppsBlock } from '../../account/blocks/connected-apps-block'
 import { DevicesBlock } from '../../account/blocks/devices-block'
 import { PasskeysBlock } from '../../account/blocks/passkeys-block'
+import { PasswordBlock } from '../../account/blocks/password-block'
 import { ProfileBlock } from '../../account/blocks/profile-block'
 import { TwoFactorBlock } from '../../account/blocks/two-factor-block'
 import { CustomBoundary } from './custom-boundary'
@@ -55,6 +56,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Tab: TabBlock,
   Users: UsersBlock,
   Profile: ProfileBlock,
+  Password: PasswordBlock,
   Passkeys: PasskeysBlock,
   TwoFactor: TwoFactorBlock,
   ConnectedAccounts: ConnectedAccountsBlock,

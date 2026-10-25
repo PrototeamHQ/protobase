@@ -5,7 +5,7 @@ import { walkTree } from './walk'
 export const accountPageName = 'account'
 
 /** The blocks that act on the signed-in person's own sign-in, so they belong on the account page alone. */
-export const accountBlocks: ReadonlySet<string> = new Set(['Profile', 'Passkeys', 'TwoFactor', 'ConnectedAccounts', 'Devices', 'ConnectedApps'])
+export const accountBlocks: ReadonlySet<string> = new Set(['Profile', 'Password', 'Passkeys', 'TwoFactor', 'ConnectedAccounts', 'Devices', 'ConnectedApps'])
 
 /** Each account block on a page other than the account page, with where it is. */
 export const accountBlockProblems = (name: string, tree: LayoutNode): string[] => {

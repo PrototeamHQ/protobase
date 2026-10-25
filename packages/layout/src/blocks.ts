@@ -159,9 +159,9 @@ export type SettingsProps = { resource: string; fields?: string[]; title?: strin
 export type UsersProps = Record<string, never>
 
 /**
- * A part of the signed-in person's own account, for the `account` page only: their profile, passkeys, two-factor
- * authentication, connected accounts or connected apps. Each takes no props, loads its own data, and hides itself where
- * it does not apply, such as Connected apps without MCP.
+ * A part of the signed-in person's own account, for the `account` page only: their profile, password, passkeys,
+ * two-factor authentication, connected accounts or connected apps. Each takes no props, loads its own data, and hides
+ * itself where it does not apply, such as Connected apps without MCP.
  */
 export type AccountBlockProps = Record<string, never>
 
@@ -186,6 +186,7 @@ export const Tab = defineBlock<TabProps>('Tab', false)
 export const Settings = defineBlock<SettingsProps>('Settings', false)
 export const Users = defineBlock<UsersProps>('Users', false)
 export const Profile = defineBlock<AccountBlockProps>('Profile', false)
+export const Password = defineBlock<AccountBlockProps>('Password', false)
 export const Passkeys = defineBlock<AccountBlockProps>('Passkeys', false)
 export const TwoFactor = defineBlock<AccountBlockProps>('TwoFactor', false)
 export const ConnectedAccounts = defineBlock<AccountBlockProps>('ConnectedAccounts', false)
