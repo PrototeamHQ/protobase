@@ -272,6 +272,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(runtime && { runtime }),
     ...(errorReporting && { errorReporting }),
     ...(maps && { maps }),
+    ...(notifications && notifications.ui !== false && { bell: true }),
     ...(pushKey && { webPushKey: pushKey }),
     ...(locale && { locale }),
     plugins,

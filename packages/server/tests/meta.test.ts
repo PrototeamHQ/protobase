@@ -138,20 +138,25 @@ describe('GET /meta with notifications', () => {
 
   it('names the VAPID public key to an anonymous caller, and neither the private key nor the subject', async () => {
     const text = await metaText(adminWith(vapid))
-    expect(JSON.parse(text).notifications).toEqual({ webPushKey: keys.publicKey })
+    expect(JSON.parse(text).notifications).toEqual({ bell: true, webPushKey: keys.publicKey })
     expect(text).not.toContain(keys.privateKey)
     expect(text).not.toContain('push-contact')
   })
 
-  it('names no key when Web Push is off, or notifications are', async () => {
-    expect(JSON.parse(await metaText(adminWith({})))).not.toHaveProperty('notifications')
+  it('names no key when Web Push is off, and nothing when notifications are', async () => {
+    expect(JSON.parse(await metaText(adminWith({}))).notifications).toEqual({ bell: true })
     expect(JSON.parse(await metaText(adminWith(vapid, false)))).not.toHaveProperty('notifications')
+  })
+
+  it('names no bell with ui: false, which keeps the key', async () => {
+    expect(JSON.parse(await metaText(adminWith({}, { ui: false, store: memoryDeviceStore() })))).not.toHaveProperty('notifications')
+    expect(JSON.parse(await metaText(adminWith(vapid, { ui: false, store: memoryDeviceStore() }))).notifications).toEqual({ webPushKey: keys.publicKey })
   })
 
   it("names a web sender's own public key in place of the built-in one", async () => {
     const own = generateVapidKeys().publicKey
     const text = await metaText(adminWith(vapid, { store: memoryDeviceStore(), senders: [{ kinds: ['web'], publicKey: own, send: async () => [] }] }))
-    expect(JSON.parse(text).notifications).toEqual({ webPushKey: own })
+    expect(JSON.parse(text).notifications).toEqual({ bell: true, webPushKey: own })
     expect(text).not.toContain(keys.publicKey)
   })
 
