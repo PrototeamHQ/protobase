@@ -1,5 +1,6 @@
 import { inputRequired, inputResponse, type CallToolResult, type ClientCapabilities, type InputRequiredResult } from '@modelcontextprotocol/server'
 import type { ApprovalAnswer, ApprovalRequest } from '../assistant/approval'
+import type { AskedApproval } from './mcp-approval-store'
 
 /** Thrown by `approve` over MCP when the request carries no answer yet: the server then asks the client for one. */
 export class ApprovalNeeded extends Error {
@@ -8,15 +9,30 @@ export class ApprovalNeeded extends Error {
   }
 }
 
+/** The key of the answer to the approval asked with `nonce`: an answer filed under any other counts for nothing. */
+export const approvalKey = (nonce: string) => `approve-${nonce}`
+
+export type McpApprovalInput = {
+  inputResponses: Record<string, unknown> | undefined
+  /** The `requestState` the call echoes, as the client sent it. */
+  requestState: unknown
+  /** Takes `state` back for this call (see `McpApprovals.check`): its nonce, or `undefined` when it does not count. */
+  check: (state: unknown) => Promise<string | undefined>
+}
+
 /**
- * `ToolContext.approve` over MCP, from the answers a retried call carries: approved only when the user accepted and
- * ticked `approve`, rejected on any other answer, and `ApprovalNeeded` when there is none yet.
+ * `ToolContext.approve` over MCP, from the answer a retried call carries to the approval asked for that very call:
+ * `ApprovalNeeded` when it carries no state that counts, or no answer under that state's key; approved only when the
+ * user accepted and ticked `approve`; rejected on any other answer.
  */
-export const mcpApproval = (inputResponses: Record<string, unknown> | undefined) => (request: ApprovalRequest): Promise<ApprovalAnswer> => {
-  const answer = inputResponse(inputResponses, 'approve')
-  if (answer.kind === 'missing') return Promise.reject(new ApprovalNeeded(request))
-  if (answer.kind === 'elicit' && answer.action === 'accept' && answer.content?.approve === true) return Promise.resolve('approved')
-  return Promise.resolve('rejected')
+export const mcpApproval = ({ inputResponses, requestState, check }: McpApprovalInput) => async (request: ApprovalRequest): Promise<ApprovalAnswer> => {
+  if (requestState === undefined) throw new ApprovalNeeded(request)
+  const nonce = await check(requestState)
+  if (nonce === undefined) throw new ApprovalNeeded(request)
+  const answer = inputResponse(inputResponses, approvalKey(nonce))
+  if (answer.kind === 'missing') throw new ApprovalNeeded(request)
+  if (answer.kind === 'elicit' && answer.action === 'accept' && answer.content?.approve === true) return 'approved'
+  return 'rejected'
 }
 
 /**
@@ -44,16 +60,19 @@ const cannotAsk: CallToolResult = {
 
 /**
  * The answer to a call whose tool asked for approval: a form asking the user to approve `request` when the client can
- * show one, else a refusal. A 2025-protocol request declares no capabilities per request, so it is always refused.
+ * show one, filed under the nonce of the state `ask` mints for the call, else a refusal. A 2025-protocol request
+ * declares no capabilities per request, so it is always refused.
  */
-export const approvalAsked = (request: ApprovalRequest, capabilities: ClientCapabilities | undefined): CallToolResult | InputRequiredResult => {
+export const approvalAsked = async (request: ApprovalRequest, capabilities: ClientCapabilities | undefined, ask: () => Promise<AskedApproval>): Promise<CallToolResult | InputRequiredResult> => {
   if (!asksForms(capabilities)) return cannotAsk
+  const { state, nonce } = await ask()
   return inputRequired({
     inputRequests: {
-      approve: inputRequired.elicit({
+      [approvalKey(nonce)]: inputRequired.elicit({
         message: messageOf(request),
         requestedSchema: { type: 'object', properties: { approve: { type: 'boolean', title: request.approveLabel ?? 'Approve' } }, required: ['approve'] },
       }),
     },
+    requestState: state,
   })
 }

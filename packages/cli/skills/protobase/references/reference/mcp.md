@@ -70,7 +70,9 @@ createAdmin({ ..., auth, options: { mcp: { writes: true } } })
 
 Each write goes through the REST API as the person: their role's access rules, `validate`, write hooks, events and webhooks apply, so the client can do only what the person may do in the app.
 
-Before each write the client asks the person to approve it, showing the resource and the data, or for a delete the resource, the key and whether the record can be restored, through MCP's form elicitation. For a resource without a soft delete, the approval says plainly that the delete cannot be undone. Nothing is written until they approve, and declining writes nothing. A client's own setting that always allows a tool is not this approval. A client that cannot ask, one without form elicitation or one on the 2025 protocol, gets each write refused with a message saying so.
+Before each write the client asks the person to approve it, showing the resource and the data, or for a delete the resource, the key and whether the record can be restored, through MCP's form elicitation. For a resource without a soft delete, the approval says plainly that the delete cannot be undone. Nothing is written until they approve, and declining writes nothing. A client's own setting that always allows a tool is not this approval. An approval holds only for the call it was asked for, with the same arguments, by the same person in the same app, organization and client, and only once, within 10 minutes; any other call is asked again. A client that cannot ask, one without form elicitation or one on the 2025 protocol, gets each write refused with a message saying so.
+
+<gap>An approval cannot be answered on another server instance or after a restart because a shared approval store is not implemented.</gap> Behind a load balancer, send an MCP client's calls to the same instance.
 
 To offer the writes on some resources only, list them:
 
@@ -124,7 +126,7 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 `@protobase/server` exports the pieces the endpoint is made of, for an MCP server of your own with tools of your own:
 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session)` builds for its caller.
-- `mcpServer({ info, tools, context, report, rolesWithoutApproval })`: an MCP server offering [assistant tools](assistant.md#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`: each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`.
+- `mcpServer({ info, tools, context, report, rolesWithoutApproval, approvals })`: an MCP server offering [assistant tools](assistant.md#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`: each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`. `approvals` is `mcpApprovals()`, built once and passed to every server the endpoint builds: it keeps the approvals asked for until they are answered or expire.
 - `mcpTools({ db, sql, writes })`: the default tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`.
 - `writeRecordTools({ resources })`, or `createRecordTool(...)`, `updateRecordTool(...)` and `deleteRecordTool(...)`: the single write tools alone, on the listed resources or, without `resources`, on any; `batchWriteTool({ resources })` is `batch_write` alone.
 - `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.
@@ -135,7 +137,7 @@ To serve your own endpoint at `mcp.path` instead, pass `createAdmin` `options: {
 A tool of your own goes on the server `server` returns, with the context its tools get:
 
 ```ts
-import { defineTool, mcpHandler, mcpServer, type Session, type ToolContext } from '@protobase/server'
+import { defineTool, mcpApprovals, mcpHandler, mcpServer, type Session, type ToolContext } from '@protobase/server'
 
 const ping = defineTool({
   name: 'ping',
@@ -152,11 +154,13 @@ const context = (session: Session): Omit<ToolContext, 'approve'> => ({
   show: () => {},
 })
 
+const approvals = mcpApprovals()
+
 const handler = mcpHandler({
   authenticate: authenticate.forAudience(auth.mcp.resource),
   resource: auth.mcp.resource,
   scope: auth.mcp.scope,
-  server: (session) => mcpServer({ info: { name: 'My app', version: '1.0.0' }, tools: [ping], context: context(session), report: console.error }),
+  server: (session) => mcpServer({ info: { name: 'My app', version: '1.0.0' }, tools: [ping], context: context(session), report: console.error, approvals }),
 })
 ```
 

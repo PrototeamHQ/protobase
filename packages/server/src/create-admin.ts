@@ -26,6 +26,7 @@ import { storageRoutes } from './storage/storage-routes'
 import { shownAppName } from './app-name'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { mcpDiscovery } from './better-auth/mcp/discovery-routes'
+import { mcpApprovals } from './mcp/mcp-approval-store'
 import { mcpAuthenticator } from './mcp/mcp-authenticator'
 import { mcpToolContext } from './mcp/mcp-context'
 import { mcpHandler } from './mcp/mcp-handler'
@@ -353,8 +354,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes })
+    const approvals = mcpApprovals()
     const server = (session: Session) =>
-      mcpServer({ info: { name: appName, version: '1.0.0' }, tools: tools(session), context: mcpToolContext(deps, meta, session), report, rolesWithoutApproval: rolesWithoutApproval(writes) })
+      mcpServer({ info: { name: appName, version: '1.0.0' }, tools: tools(session), context: mcpToolContext(deps, meta, session), report, rolesWithoutApproval: rolesWithoutApproval(writes), approvals })
     mcpRoutes(app, { path: auth.mcp.path, handler: mcpHandler({ authenticate: mcpAuthenticate, resource: auth.mcp.resource, scope: auth.mcp.scope, server }) })
   }
   const upgradeAuthenticate = upgradeAuthenticator({ authenticate, ...(auth && { origins: auth.origins, sessionToken: betterAuthSessionToken(auth) }) })

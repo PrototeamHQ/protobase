@@ -42,7 +42,7 @@ const rpc = (app: Served, token: string | undefined, method: string, params: obj
   })
 
 /** A JSON-RPC tools/call as a 2026-07-28 client sends it, with its capabilities in the request's own envelope. */
-const modernCall = (app: Served, token: string, params: { name: string; arguments: object; inputResponses?: object }, capabilities: object) =>
+const modernCall = (app: Served, token: string, params: { name: string; arguments: object; inputResponses?: object; requestState?: string }, capabilities: object) =>
   app.request('/api/mcp', {
     body: {
       jsonrpc: '2.0',
@@ -163,9 +163,11 @@ describe('the MCP endpoint', () => {
     const legacy = await resultOf(await rpc(app, mcp, 'tools/call', { name: 'create_record', arguments: args }))
     expect(legacy).toMatchObject({ isError: true, content: [{ text: expect.stringContaining('cannot ask you to approve') }] })
     const asked = await resultOf(await modernCall(app, mcp, { name: 'create_record', arguments: args }, { elicitation: {} }))
-    expect(asked).toMatchObject({ resultType: 'input_required', inputRequests: { approve: { method: 'elicitation/create', params: { message: expect.stringContaining('Approved Org') } } } })
+    const [key] = Object.keys(asked.inputRequests as object)
+    expect(asked).toMatchObject({ resultType: 'input_required', inputRequests: { [key!]: { method: 'elicitation/create', params: { message: expect.stringContaining('Approved Org') } } } })
     expect(events).toEqual([])
-    const approved = await resultOf(await modernCall(app, mcp, { name: 'create_record', arguments: args, inputResponses: { approve: { action: 'accept', content: { approve: true } } } }, { elicitation: {} }))
+    const answer = { requestState: asked.requestState as string, inputResponses: { [key!]: { action: 'accept', content: { approve: true } } } }
+    const approved = await resultOf(await modernCall(app, mcp, { name: 'create_record', arguments: args, ...answer }, { elicitation: {} }))
     const created = JSON.parse((approved.content as Array<{ text: string }>)[0]!.text) as { record: { id: number; name: string }; etag: string }
     expect(created).toMatchObject({ record: { name: 'Approved Org' }, etag: expect.any(String) })
     expect(events).toEqual([{ operation: 'create', resource: 'organizations' }])
@@ -181,7 +183,7 @@ describe('the MCP endpoint', () => {
     expect(await call(ana.app, ana.mcp, 'create_record', args)).toMatchObject({ record: { name: 'Unasked Org' }, etag: expect.any(String) })
     const root = await served(unattended, 'root@example.com')
     const asked = await resultOf(await modernCall(root.app, root.mcp, { name: 'create_record', arguments: args }, { elicitation: {} }))
-    expect(asked).toMatchObject({ resultType: 'input_required', inputRequests: { approve: { method: 'elicitation/create' } } })
+    expect(asked).toMatchObject({ resultType: 'input_required', requestState: expect.any(String) })
   })
 
   it('refuses an update or a delete with an etag the record changed since, and leaves it as it is', async () => {
