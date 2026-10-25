@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
-import { accountMenuItems, readAccountPath, signInPolicyPath } from '../account/account-pages'
+import { accountMenuItems, accountPath, readAccountPath, signInPolicyPath } from '../account/account-pages'
 import { AccountPage, useAccountPage } from '../account/account-page'
 import { connectRoute, type SignInPromptModel } from '@protobase/schema'
 import { SignInPrompt } from '../auth/sign-in-prompt'
@@ -235,7 +235,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       logo={ProjectLogo}
       navGroups={groups}
       bottomBar={bottomBarFromMeta(meta, basePath, place)}
-      userMenu={[...userMenuFromMeta(meta, basePath, place), ...(organizationSettings && user ? organizationMenuItems(basePath, path, current) : []), ...(user ? accountMenuItems(basePath, path, admin) : [])]}
+      userMenu={[userMenuFromMeta(meta, basePath, place), organizationSettings && user ? organizationMenuItems(basePath, path, current) : [], user ? accountMenuItems(basePath, path, admin) : []]}
+      account={user && `${basePath}${accountPath}`}
       organizations={
         organizationSettings && {
           ...(current?.organization && { current: { id: current.organization.id, name: current.organization.name } }),

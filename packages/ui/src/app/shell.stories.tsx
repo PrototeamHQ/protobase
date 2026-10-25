@@ -18,7 +18,7 @@ export default meta
 const session = createStaticSession('story-token', { id: 'story', email: 'story@example.test', name: 'Story User', role: 'user' })
 const allowed = { create: true, update: true, delete: true, conditional: [] }
 
-/** `nav.recent` and `userMenu` from `/meta`, rendered by the real app: records with status dots, then the user menu. */
+/** `nav.recent` and `userMenu` from `/meta`, rendered by the real app: records with status dots, then the user menu, its groups split by a line and its name linking to the account. */
 export const RecentAndUserMenu: StoryObj = {
   tags: ['play'],
   beforeEach: () => localStorage.removeItem(navOpenStorageKey('orders')),
@@ -52,7 +52,9 @@ export const RecentAndUserMenu: StoryObj = {
 
     await userEvent.click(canvas.getByRole('button', { name: 'Profile menu' }))
     const menu = await canvas.findByRole('menu')
-    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Support', 'Account', 'Sign out'])
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Story Userstory@example.test', 'Support', 'Account', 'Sign out'])
+    expect(within(menu).getAllByRole('group').map((group) => within(group).queryAllByRole('menuitem').map((item) => item.textContent))).toEqual([['Support'], ['Account'], []])
+    expect(within(menu).getByRole('menuitem', { name: /Story User/ })).toHaveAttribute('href', '/-/account')
   },
 }
 

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { Building2, CreditCard, LifeBuoy } from 'lucide-react'
+import { CreditCard, LifeBuoy, UserRound } from 'lucide-react'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { AppShell } from './app-shell'
 import { navGroups, type NavGroup, type NavRecord } from './nav'
@@ -46,10 +46,13 @@ const withRecent: NavGroup[] = navGroups.map((group) => ({
   ),
 }))
 
-const accountItems: ProfileMenuItem[] = [
-  { id: 'organization', label: 'Organization', icon: Building2, href: '#organization' },
-  { id: 'billing', label: 'Billing', icon: CreditCard, href: '#billing', active: true },
-  { id: 'support', label: 'Support', icon: LifeBuoy, href: 'mailto:help@example.test', external: true },
+const accountItems: ProfileMenuItem[][] = [
+  [
+    { id: 'billing', label: 'Billing', icon: CreditCard, href: '#billing', active: true },
+    { id: 'support', label: 'Support', icon: LifeBuoy, href: 'mailto:help@example.test', external: true },
+  ],
+  [],
+  [{ id: 'account', label: 'Account', icon: UserRound, href: '#account' }],
 ]
 
 /** Orders lists three records with status dots (picking pulses), invoices are loading and shipments failed to load. */
@@ -91,18 +94,20 @@ export const RecentRecordsIcon: Story = {
   },
 }
 
-/** The app's own pages above "Sign out"; Support opens a new tab. */
+/** The app's own pages above "Sign out", a line between groups and none for an empty one; Support opens a new tab, the name opens the account. */
 export const UserMenuItems: Story = {
   tags: ['play'],
-  args: { userMenu: accountItems, onSignOut: () => undefined },
-  play: async ({ canvasElement }) => {
+  args: { userMenu: accountItems, account: '#account', onSignOut: () => undefined, onNavigate: fn() },
+  play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole('button', { name: 'Profile menu' }))
     const menu = await canvas.findByRole('menu')
-    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Organization', 'Billing', 'Support', 'Sign out'])
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Sample Usersample@example.test', 'Billing', 'Support', 'Account', 'Sign out'])
+    expect(within(menu).getAllByRole('group').map((group) => within(group).getAllByRole('menuitem').map((item) => item.textContent))).toEqual([['Billing', 'Support'], ['Account']])
     expect(within(menu).getByRole('menuitem', { name: 'Billing' })).toHaveAttribute('aria-current', 'page')
     expect(within(menu).getByRole('menuitem', { name: 'Support' })).toHaveAttribute('target', '_blank')
-    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Organization' }))
+    await userEvent.click(within(menu).getByRole('menuitem', { name: /Sample User/ }))
+    expect(args.onNavigate).toHaveBeenCalledWith('#account')
     expect(canvas.queryByRole('menu')).toBeNull()
   },
 }

@@ -1,5 +1,5 @@
 import { ChevronsUpDown, LogOut, type LucideIcon } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../primitives/avatar'
 import { Badge, type BadgeTone } from '../primitives/badge'
@@ -23,8 +23,10 @@ export type ProfileMenuProps = {
   compact: boolean
   /** Controls the menu from outside, for stories; without it the menu opens and closes itself. */
   open?: boolean
-  /** The app's pages, listed above "Sign out". */
-  items?: ProfileMenuItem[]
+  /** The app's pages above "Sign out", in groups split by a line, such as the app's, the organization's and the person's own. */
+  items?: ProfileMenuItem[][]
+  /** Links the name and email at the top to the person's account. */
+  account?: string
   /** Follows an item that is not `external`; without it the link loads the page. */
   onNavigate?: (href: string) => void
   /** Adds "Sign out" to the menu. */
@@ -40,7 +42,7 @@ export type ProfileMenuProps = {
 const menuRow = 'flex min-h-11 w-full items-center gap-2.5 px-3 py-1.5 text-left text-muted-foreground hover:bg-muted md:min-h-0'
 
 /** The person at the bottom of the sidebar; the menu is fixed to the viewport so a narrow sidebar cannot clip it. */
-export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNavigate, onSignOut, organizations, roles, theme }: ProfileMenuProps) => {
+export const ProfileMenu = ({ user, compact, open: controlled, items = [], account, onNavigate, onSignOut, organizations, roles, theme }: ProfileMenuProps) => {
   const activeRole = roles?.roles.find((role) => role.name === roles.active)
   const [local, setLocal] = useState(false)
   const open = controlled ?? local
@@ -59,6 +61,16 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
       document.removeEventListener('keydown', close)
     }
   }, [open, controlled])
+
+  const groups = items.filter((group) => group.length > 0)
+
+  // Inside the admin a page link navigates; an `external` one, or one without `onNavigate`, is left to the browser.
+  const follow = (event: MouseEvent<HTMLAnchorElement>, href: string, external?: boolean) => {
+    setLocal(false)
+    if (external || !onNavigate) return
+    event.preventDefault()
+    onNavigate(href)
+  }
 
   const toggle = () => {
     const rect = root.current?.getBoundingClientRect()
@@ -84,10 +96,17 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
       </button>
       {open && (
         <div role="menu" className={controlled === undefined ? 'fixed z-[60] w-56 overflow-hidden rounded-lg border bg-background py-1 shadow-pop' : 'absolute bottom-full left-0 z-50 mb-2 w-56 overflow-hidden rounded-lg border bg-background py-1 shadow-pop'} style={controlled === undefined && anchor ? { left: anchor.left, bottom: anchor.bottom } : undefined}>
-          <div className="border-b px-3 pb-2 pt-1.5">
-            <div className="font-medium">{user.name}</div>
-            <div className="truncate text-xs text-muted-foreground">{user.email}</div>
-          </div>
+          {account ? (
+            <a role="menuitem" href={account} onClick={(event) => follow(event, account)} className="block border-b px-3 pb-2 pt-1.5 hover:bg-muted">
+              <div className="font-medium">{user.name}</div>
+              <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+            </a>
+          ) : (
+            <div className="border-b px-3 pb-2 pt-1.5">
+              <div className="font-medium">{user.name}</div>
+              <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+            </div>
+          )}
           {organizations && (organizations.current || organizations.others.length > 0) && (
             <SwitchGroup
               label={text('organizations')}
@@ -112,9 +131,9 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
               }}
             />
           )}
-          {items.length > 0 && (
-            <div className={cn((theme || onSignOut) && 'border-b')}>
-              {items.map((item) => {
+          {groups.map((group, index) => (
+            <div key={group[0]?.id} role="group" className={cn('py-1', (index < groups.length - 1 || theme || onSignOut) && 'border-b')}>
+              {group.map((item) => {
                 const Icon = item.icon
                 return (
                   <a
@@ -123,12 +142,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
                     href={item.href}
                     aria-current={item.active ? 'page' : undefined}
                     {...(item.external ? { target: '_blank', rel: 'noreferrer' } : {})}
-                    onClick={(event) => {
-                      setLocal(false)
-                      if (item.external || !onNavigate) return
-                      event.preventDefault()
-                      onNavigate(item.href)
-                    }}
+                    onClick={(event) => follow(event, item.href, item.external)}
                     className={cn(menuRow, item.active && 'bg-muted text-foreground')}
                   >
                     <Icon className="size-4" />
@@ -137,7 +151,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
                 )
               })}
             </div>
-          )}
+          ))}
           {theme && (
             <div className={cn(onSignOut && 'border-b')}>
               <ThemeSwitch theme={theme} className={cn(menuRow, 'hover:bg-transparent')} />

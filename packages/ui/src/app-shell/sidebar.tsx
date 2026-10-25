@@ -25,8 +25,10 @@ export type SidebarProps = {
   profileMenuOpen?: boolean
   /** Resources to list; defaults to the sample ERP navigation. */
   groups?: NavGroup[]
-  /** The app's own pages in the profile menu, above "Sign out". */
-  userMenu?: ProfileMenuItem[]
+  /** The app's own pages in the profile menu, above "Sign out", in groups split by a line. */
+  userMenu?: ProfileMenuItem[][]
+  /** The person's account page, which the name and email at the top of the profile menu link to. */
+  account?: string
   onNavigate?: (href: string) => void
   onSignOut?: () => void
   /** The sign-in page, a link in the footer for someone signed out. */
@@ -43,7 +45,7 @@ export type SidebarProps = {
   notice?: ReactNode
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky, logo: SidebarLogo = Logo, notice }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, account, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky, logo: SidebarLogo = Logo, notice }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
@@ -88,7 +90,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, f
         {notice}
         <div className={cn('shrink-0 border-t p-2', mode !== 'text-large' && mode !== 'text-small' && !expanding && 'flex justify-center')}>
           {user ? (
-            <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} theme={theme} />
+            <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} theme={theme} />
           ) : (
             <>
               {/* An icon-only sidebar has no room for the switch; the page still follows the system or a stored choice. */}

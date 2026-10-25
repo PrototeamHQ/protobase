@@ -41,8 +41,10 @@ export type AppShellProps = {
   forceExpanded?: boolean
   profileMenuOpen?: boolean
   navGroups?: NavGroup[]
-  /** The app's own pages in the profile menu, above "Sign out". */
-  userMenu?: ProfileMenuItem[]
+  /** The app's own pages in the profile menu, above "Sign out", in groups split by a line. */
+  userMenu?: ProfileMenuItem[][]
+  /** The person's account page, which the name and email at the top of the profile menu link to. */
+  account?: string
   onNavigate?: (href: string) => void
   /** Follows the top bar's back button, as the browser's Back where the page before is where it leads; without it `onNavigate`. */
   onBack?: (href: string) => void
@@ -68,7 +70,7 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const noticeShown = useSidebarNoticeShown(sidebarMode)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -85,7 +87,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
   usePageGutter(pageScroll)
   const sidebar = (mode: SidebarMode, sticky = false, notice?: ReactNode) => (
-    <Sidebar mode={mode} sticky={sticky} notice={notice} activeItem={activeItem} user={user} workspace={workspace} appName={appName} appIcon={appIcon} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} logo={logo} />
+    <Sidebar mode={mode} sticky={sticky} notice={notice} activeItem={activeItem} user={user} workspace={workspace} appName={appName} appIcon={appIcon} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} logo={logo} />
   )
   return (
     <PageScrollContext.Provider value={setPageScroll}>
