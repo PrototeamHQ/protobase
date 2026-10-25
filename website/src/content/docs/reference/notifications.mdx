@@ -157,7 +157,7 @@ The panel also offers to turn push on for this device, where the device can rece
 
 ## Without the bell
 
-`notifications({ ui: false })` keeps sending, the history and devices, and the top bar draws no bell and loads none of its code:
+`notifications({ ui: false })` keeps sending, the history and devices, and the top bar draws no bell, so the app reads no notifications for it:
 
 ```ts
 export default defineConfig({ extends: [notifications({ ui: false })] })
