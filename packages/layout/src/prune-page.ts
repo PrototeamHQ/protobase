@@ -89,6 +89,12 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
       const fields = (node.props.fields as string[]).filter((name) => writable(model, name))
       return fields.length > 0 ? { ...node, props: { ...node.props, fields } } : null
     }
+    // What the caller cannot read is left out, and what they cannot write shows as a value.
+    case 'Settings': {
+      if (!model) return null
+      const fields = ((node.props.fields as string[] | undefined) ?? []).filter((name) => Object.hasOwn(model.fields, name))
+      return fields.length > 0 ? { ...node, props: { ...node.props, fields } } : null
+    }
     case 'Action':
       return resource !== undefined && model && access.actions(resource).has(String(node.props.name)) ? node : null
     case 'Link':

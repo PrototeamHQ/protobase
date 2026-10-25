@@ -44,7 +44,7 @@ const flagged = resource('flagged')
   .access({ read: (ctx, record) => roles(ctx).includes('admin') || record!.has_secret === false })
 const notes = resource('notes').table('notes').fields({ id: f.integer(), name: f.text() }).primaryKey((r) => r.id).access({ read: (_, record) => record!.name !== 'hidden' })
 
-const deps = { registry: buildRegistry([keys, notes, presence, roleFirst, caught, ...filtered, flagged]), accessOptions: {} } as unknown as Deps
+const deps = { registry: buildRegistry([keys, notes, presence, roleFirst, caught, ...filtered, flagged]), accessOptions: {}, settingsResources: new Set() } as unknown as Deps
 const change = (resource: string, after: Record<string, unknown>, rest: Partial<ResourceChange> = {}): ResourceChange => ({
   resource, key: '1', operation: 'create', after, changed: [], actor: null, source: 'api', databaseRole: null, transaction: '1', sequence: '1', at: '2026-10-21T00:00:00.000Z', ...rest,
 })

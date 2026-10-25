@@ -4,7 +4,7 @@
 
 Every built-in layout block, its props and what it does, with examples from the ERP's sales overview.
 
-Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](layouts.md#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, `RecordCards`, `Tabs` and `Tab`, and `Users`, which the [Users page](auth.md#users-page) uses, appears in the ERP example's sales overview:
+Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](layouts.md#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, `RecordCards`, `Tabs` and `Tab`, `Settings`, and `Users`, which the [Users page](auth.md#users-page) uses, appears in the ERP example's sales overview:
 
 ```tsx title="examples/erp/config/overview/page.tsx"
 /** @jsxImportSource @protobase/layout */
@@ -400,3 +400,65 @@ export const account = page('account',
     <TwoFactor />
   </Page>)
 ```
+
+### Settings
+
+The signed-in person's own record of `resource` as settings, one field under the other with its label and help: a switch for a boolean, a select for an enum, an input for the other types. A switch or a select saves as soon as it changes; typed values save with **Save**, or Enter. Until the person saves for the first time there is no record, and each field shows its `.default(...)`; the first save creates the record, owned by them, and later saves update it with its ETag. Errors from the server show on their fields.
+
+| Prop | |
+| --- | --- |
+| `resource` | A resource whose `.owner(...)` field is its key, so each person has one record. Required. |
+| `fields` | The fields it shows; default every field a person can set: not the key, read-only, sensitive or file fields. |
+| `title`, `description` | Its heading. |
+| `span` | As for `Card`. |
+
+**Each person's own, admins too.** Every caller of the API, an admin holding `*` included, reads and writes only the records of the resource they own, wherever they ask: the block, the resource's list and record pages, exports, the API and API functions. A caller without a token gets nothing of it. Only SQL of your own and the built-in assistant's [SQL tools](assistant.md#the-built-in-backend), which run outside the access rules for every resource, read every row. The roles still decide who has settings at all: give each role that should `<resource>.read.own`, `.create.own` and `.update.own`. Someone who may read but not write sees the values, not controls; someone who may not read gets no block, and a field they may not read is left out.
+
+The startup check stops the config when the resource has no `.owner(...)`, when its owner is not its whole key, when it has a [tenant](data-config.md#resource) (settings are each person's own, not an organization's), when it has no field a person can set, and when `fields` names an unknown, key, sensitive or file field.
+
+A person's notification choices, in a tab of the [account page](auth.md#account-page). The table has one row per person, keyed by their user id, which is text with Better Auth:
+
+```sql
+-- db/migrations/012_preferences.sql
+create table preferences (
+  user_id text primary key,
+  digest text not null default 'weekly' check (digest in ('daily', 'weekly', 'never')),
+  mentions boolean not null default true
+);
+```
+
+```ts
+// config/preferences/data.ts
+export const preferences = resource('preferences')
+  .table('preferences')
+  .fields({ user_id: f.text(), digest: f.enum(['daily', 'weekly', 'never']).default('weekly'), mentions: f.boolean().default(true) })
+  .primaryKey((r) => r.user_id)
+  .owner((r) => r.user_id)
+
+// config/preferences/ui.ts: labels, help and the values' words, and no sidebar entry
+export const preferencesView = view<typeof preferences>('preferences')
+  .nav({ hidden: true })
+  .fields((r) => ({
+    digest: r.digest.label('Email digest').help('A summary of what changed in your orders.').valueLabels({ daily: 'Every day', weekly: 'Every week', never: 'Never' }),
+    mentions: r.mentions.label('Email me when someone mentions me'),
+  }))
+
+// roles: everyone who signs in has their own
+member: ['preferences.read.own', 'preferences.create.own', 'preferences.update.own', ...]
+```
+
+```tsx
+// config/account.tsx
+export const account = page('account',
+  <Page title="Account">
+    <Tabs>
+      {accountTabs.profile}
+      {accountTabs.security}
+      <Tab name="notifications" label="Notifications">
+        <Settings resource="preferences" title="Notifications" description="What we email you about." />
+      </Tab>
+    </Tabs>
+  </Page>)
+```
+
+Other code reads the choices with SQL, such as a job that sends the digest: `select user_id from preferences where digest = 'daily'`. Someone who never saved has no row, so it reads the default for them: `coalesce(digest, 'weekly')` over a left join from the users.

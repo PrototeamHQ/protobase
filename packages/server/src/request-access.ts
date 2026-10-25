@@ -1,4 +1,4 @@
-import { checkFilter, restrictModel, resolveAccess, type AccessAction, type CheckedFilter, type FieldModel, type FilterExpr, type FormModel, type ResolvedAccess, type ResourceModel } from '@protobase/schema'
+import { checkFilter, restrictModel, resolveAccess, where, type AccessAction, type CheckedFilter, type FieldModel, type FilterExpr, type FormModel, type ResolvedAccess, type ResourceModel } from '@protobase/schema'
 import type { Deps } from './deps'
 import { maskEncrypted } from './encryption/mask-stored'
 import { checkedFilter } from './filter-input'
@@ -46,10 +46,30 @@ const throughForm = (resolved: ResolvedAccess, form: FormModel): ResolvedAccess 
   return { ...resolved, readableFields: [...new Set([...resolved.readableFields, ...create])], writableFields: { create, update: [] } }
 }
 
+const noAccess: ResolvedAccess = {
+  operations: { read: false, list: false, create: false, update: false, delete: false },
+  recordChecks: [],
+  readableFields: [],
+  writableFields: { create: [], update: [] },
+  rowFilter: {},
+}
+
+// A resource a `Settings` block shows holds each person's own settings: every caller, an admin holding `*` too, reads
+// and writes only the records they own, and a caller without a token none.
+const ownOnly = (resolved: ResolvedAccess, entry: Entry, session: Session): ResolvedAccess => {
+  if (session.anonymous) return noAccess
+  const own = checkFilter(trusted(entry.model), where.eq(entry.model.owner!, session.user.id as string))
+  if (!own.ok) throw new Error(`The owner filter of "${entry.name}" is invalid: ${own.errors[0]!.message}`)
+  const { rowFilter } = resolved
+  const narrowed = (operation: keyof typeof rowFilter) => andFilters([rowFilter[operation], own.filter])
+  return { ...resolved, rowFilter: { read: narrowed('read'), create: narrowed('create'), update: narrowed('update'), delete: narrowed('delete') } }
+}
+
 /** `form` is the public form a visitor sends, the only way a caller without a token creates. */
 export const requestAccess = async (deps: Deps, entry: Entry, session: Session, form?: FormModel): Promise<RequestAccess> => {
   const all = await resolveAccess(entry.source, { user: { id: session.user.id, roles: session.user.roles }, ...organizationOf(session) }, deps.accessOptions)
-  const resolved = form ? throughForm(all, form) : withoutAnonymousCreate(all, session)
+  const allowed = form ? throughForm(all, form) : withoutAnonymousCreate(all, session)
+  const resolved = deps.settingsResources.has(entry.name) ? ownOnly(allowed, entry, session) : allowed
   checkOwnerId(entry, session.user, resolved)
   const readable = restrictModel(entry.model, resolved)
   return { entry, session, resolved, full: entry.model, readable, model: withoutSensitive(readable), deps }

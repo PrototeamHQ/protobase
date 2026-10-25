@@ -20,6 +20,7 @@ export {
   RecordCard,
   RecordCards,
   RecordRow,
+  Settings,
   Show,
   Stat,
   Tab,
@@ -50,6 +51,7 @@ export type {
   RecordCardProps,
   RecordCardsProps,
   RecordRowProps,
+  SettingsProps,
   ShowProps,
   GridSpan,
   StatProps,
@@ -60,6 +62,7 @@ export type {
 } from './blocks'
 export { component, type ComponentOptions } from './component'
 export { accountBlocks, accountPageName } from './check-account'
+export { settingsFields, settingsResources, withSettingsFields } from './settings'
 export { accountPage, accountTabs } from './presets/account-page'
 export { usersPage } from './presets/users-page'
 export { page, isPageDefinition, type PageDefinition, type PageModel, type PageOptions } from './page'

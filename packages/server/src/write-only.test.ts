@@ -38,7 +38,7 @@ const steps = resource('steps')
 
 const registry = buildRegistry([secrets, steps])
 const entry = registry.find('secrets')!
-const deps = { registry, accessOptions: {} } as unknown as Deps
+const deps = { registry, accessOptions: {}, settingsResources: new Set() } as unknown as Deps
 const accessOf = (role: string, of = entry) => requestAccess(deps, of, { user: { id: '1', roles: [role] } })
 
 const refusal = (run: () => unknown) => {

@@ -148,6 +148,13 @@ export type TabsProps = { children?: LayoutChildren }
 /** One tab of a `Tabs`: `name` is its address, after the page's, `label` the word it shows. */
 export type TabProps = { name: string; label: string; children?: LayoutChildren }
 
+/**
+ * The signed-in person's own record of `resource`, a resource whose `.owner(...)` is its key, as settings: each of
+ * `fields` as a control that saves on change, its default until the first save creates the record. Every caller, an
+ * admin too, reads and writes only their own record of it. `fields` defaults to every field a person can set.
+ */
+export type SettingsProps = { resource: string; fields?: string[]; title?: string; description?: string; span?: GridSpan }
+
 /** Everyone who can sign in, for admins: inviting by email, adding accounts, changing roles and blocking. Takes no props. */
 export type UsersProps = Record<string, never>
 
@@ -176,6 +183,7 @@ export const Show = defineBlock<ShowProps>('Show', false)
 export const Link = defineBlock<LinkProps>('Link', false)
 export const Tabs = defineBlock<TabsProps>('Tabs', false)
 export const Tab = defineBlock<TabProps>('Tab', false)
+export const Settings = defineBlock<SettingsProps>('Settings', false)
 export const Users = defineBlock<UsersProps>('Users', false)
 export const Profile = defineBlock<AccountBlockProps>('Profile', false)
 export const Passkeys = defineBlock<AccountBlockProps>('Passkeys', false)

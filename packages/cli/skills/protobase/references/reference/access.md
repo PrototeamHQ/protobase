@@ -26,7 +26,7 @@ defineRoles<'orders' | 'products'>({
 })
 ```
 
-- **Scopes**: `.own` gives the records whose [`.owner()`](data-config.md#resource) field holds the user's id, and `.team` those owned by the users that `teamOf` returns for them, a function given as `defineRoles(roles, { teamOf: (user) => ids })`. A scoped capability on a resource without `.owner()` fails the request.
+- **Scopes**: `.own` gives the records whose [`.owner()`](data-config.md#resource) field holds the user's id, and `.team` those owned by the users that `teamOf` returns for them, a function given as `defineRoles(roles, { teamOf: (user) => ids })`. A scoped capability on a resource without `.owner()` fails the request. A resource a [`Settings`](blocks.md#settings) block shows is each person's own for every role, `*` included: its records are always limited to the caller's.
 - **Fields** (`['sku', 'price']`, or `fields` in an object) are an allowlist: for `<resource>.read`, `.create` or `.update`, the role reads or writes only the fields listed, so a column added later stays hidden from it until someone lists it. Key columns are always there, because records are addressed by them. A plain capability (`'products.read'`) still means every field.
 - **Filter** is AIP-160 text, like a filter an access rule returns. It narrows the rows of the capability, together with `.own` or `.team` when the capability has one.
 - A limit names one resource, never `*`, and fields go with `read`, `create` or `update` only; `defineRoles` refuses anything else. At startup the server refuses a field the resource does not have, a filter that does not fit it, and a limit on a name that is not a resource.

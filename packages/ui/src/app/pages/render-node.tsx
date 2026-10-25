@@ -15,6 +15,7 @@ import { ProgressBlock } from './blocks/progress'
 import { RecordCardBlock } from './blocks/record-card'
 import { RecordCardsBlock } from './blocks/record-cards'
 import { RecordRowBlock } from './blocks/record-row'
+import { SettingsBlock } from './blocks/settings'
 import { ShowBlock } from './blocks/show'
 import { StatBlock } from './blocks/stat'
 import { TableBlock } from './blocks/table'
@@ -49,6 +50,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Action: ActionBlock,
   Show: ShowBlock,
   Link: LinkBlock,
+  Settings: SettingsBlock,
   Tabs: TabsBlock,
   Tab: TabBlock,
   Users: UsersBlock,

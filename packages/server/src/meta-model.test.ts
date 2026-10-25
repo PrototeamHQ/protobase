@@ -29,7 +29,7 @@ const secretsView = view<typeof secrets>('secrets')
   .toModel()
 
 const registry = buildRegistry([secrets])
-const deps = { registry, accessOptions: {} } as unknown as Deps
+const deps = { registry, accessOptions: {}, settingsResources: new Set() } as unknown as Deps
 const accessOf = (role: string) => requestAccess(deps, registry.find('secrets')!, { user: { id: '1', roles: [role] } })
 
 describe('the model /meta sends', () => {

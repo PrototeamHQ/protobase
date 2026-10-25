@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import type { UpgradeWebSocket } from 'hono/ws'
 import type { JWTPayload } from 'jose'
-import { accountPage, accountPageName, checkPages } from '@protobase/layout'
+import { accountPage, accountPageName, checkPages, settingsResources, withSettingsFields } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
 import { aiModel } from './ai/ai-model'
@@ -229,8 +229,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   if (options.mcp) checkMcpWrites(registry, declaredRoles(auth, options.roles), options.mcp.writes)
   checkPositionAfter(registry)
   checkParents(registry)
+  const resourceModels = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
   checkPages([...pageModels, accountModel], {
-    models: Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model])),
+    models: resourceModels,
     actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),
     createPages: new Set(viewModels.filter((view) => view.create).map((view) => view.resource)),
   })
@@ -260,8 +261,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     db,
     registry,
     views: viewModels,
-    pages: pageModels,
-    account: accountModel,
+    pages: pageModels.map((entry) => withSettingsFields(entry, resourceModels)),
+    account: withSettingsFields(accountModel, resourceModels),
     ...(userMenuModel && { userMenu: userMenuModel }),
     bottomBars: bottomBarModels,
     basePath,
@@ -273,6 +274,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     audit: options.audit ?? consoleAuditQueue(),
     report: options.onUnhandledError ?? ((error: unknown) => console.error(error)),
     accessOptions: { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) },
+    settingsResources: settingsResources([...pageModels, accountModel]),
     rowPermissions: (resource: string) => (typeof options.rowPermissions === 'object' ? !options.rowPermissions.except.includes(resource) : options.rowPermissions !== false),
     ...(assistant && { assistant: assistant.kind === 'external' ? assistant.url : `${systemPath}/assistant` }),
     ...(runtime && { runtime }),

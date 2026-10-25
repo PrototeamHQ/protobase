@@ -176,6 +176,8 @@ export const account = page('account',
 - **Reorder** by listing the tabs in the order to show them: Sign-in & security comes first here, at `/-/account`.
 - **Wrap** a standard tab by writing it with its name and label, the standard blocks among your own, as the security tab above does with a note.
 
+A tab of personal settings, such as which emails someone gets, is a [`Settings`](/reference/blocks/#settings) block over a resource with one record per person: the fields come from the resource, and each person reads and changes only their own.
+
 The page is checked like any other, and the account blocks are allowed on it alone. A config that [extends](/reference/cli/#extending-a-config) another and exports `account` too is the error of a page defined twice.
 
 ## Password reset

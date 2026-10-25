@@ -3,6 +3,7 @@ import { addressErrors, fieldRefsIn } from '@protobase/schema/internal'
 import { chartProblems } from './check-chart'
 import { conditionProblems } from './check-condition'
 import { resolveFieldPath } from './field-path'
+import { settingsProblems } from './settings'
 import { dataProps, type LayoutNode } from './node'
 import type { PageModel } from './page'
 import { walkTree, type Scope } from './walk'
@@ -94,6 +95,9 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
       for (const name of Object.keys((node.props.values as Record<string, unknown> | undefined) ?? {})) {
         if (!Object.hasOwn(model.fields, name)) problems.push(`values: unknown field "${name}" on ${model.name}`)
       }
+      break
+    case 'Settings':
+      if (model) problems.push(...settingsProblems(model, node.props.fields as string[] | undefined))
       break
     case 'Action':
       if (resource !== undefined && !actions(resource).has(String(node.props.name))) {

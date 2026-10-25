@@ -15,4 +15,5 @@ Pages of your own, built from blocks in a JSX layout.
 - [Record cards](../reference/blocks.md#recordcards): Full-width cards with fields and buttons, stacked or in a carousel.
 - [Chart block](../reference/blocks.md#chart): Counts, sums or averages by value or by date, as bars, lines or a donut, and over time split by a second field.
 - [Buttons and forms](../reference/blocks.md#behaviour): Buttons for named actions, and create or edit forms in a dialog.
+- [Settings block](../reference/blocks.md#settings): Each person's own settings from a resource with one record per person, saved as they change, with defaults until the first save.
 - [Users block](../reference/blocks.md#users): User management on any page: find users, set roles, block them and invite by email.

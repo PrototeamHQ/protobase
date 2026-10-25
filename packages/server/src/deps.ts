@@ -35,6 +35,8 @@ export type Deps = {
   /** Run on a create's or update's body before its transaction opens (see `WriteCheck`). */
   writeChecks: readonly WriteCheck[]
   accessOptions: ResolveOptions
+  /** The resources the pages' `Settings` blocks show: every caller, an admin too, reads and writes only their own records. */
+  settingsResources: ReadonlySet<string>
   /** Where reveals of sensitive fields are published. */
   audit: AuditQueue
   /** Gets the errors of work that runs after a request's response is decided, such as a committed write's file cleanup. */

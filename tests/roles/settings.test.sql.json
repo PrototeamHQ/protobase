@@ -1,0 +1,77 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\n      create table preferences (user_id text primary key, digest text not null default 'weekly', dark_mode boolean not null default false);\n      insert into preferences (user_id, digest, dark_mode) values ('bob', 'daily', true);\n    ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]}
+    ]
+  },
+  "a resource that a Settings block shows > creates a person's own record on their first save, owned by them, and updates it after": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"preferences\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"preferences\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["preferences_pkey","btree","f","user_id","user_id","text_ops"]]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"user_id\" as \"user_id\", \"t\".\"digest\" as \"digest\", \"t\".\"dark_mode\" as \"dark_mode\", \"t\".\"user_id\"::text as \"__pb_key0\" from \"preferences\" as \"t\" where (\"t\".\"user_id\" = $1 and \"t\".\"user_id\" = $2) order by \"t\".\"user_id\" asc limit $3","params":["ann","ann","51"],"result":{"command":"SELECT","rowCount":0,"columns":[["user_id",25],["digest",25],["dark_mode",16],["__pb_key0",25]],"rows":[]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"preferences\" as \"t\" where (\"t\".\"user_id\" = $1 and \"t\".\"user_id\" = $2)","params":["ann","ann"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Index Only Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Scan Direction\": \"Forward\",\n      \"Index Name\": \"preferences_pkey\",\n      \"Relation Name\": \"preferences\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.15,\n      \"Total Cost\": 8.17,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Index Cond\": \"(t.user_id = 'ann'::text)\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"insert into \"preferences\" (\"user_id\", \"digest\", \"dark_mode\") values ($1, $2, $3) returning \"user_id\" as \"user_id\", \"digest\" as \"digest\", \"dark_mode\" as \"dark_mode\"","params":["ann","never","false"],"result":{"command":"INSERT","rowCount":1,"columns":[["user_id",25],["digest",25],["dark_mode",16]],"rows":[["ann","never","f"]]}},
+      {"sql":"select \"user_id\" as \"user_id\" from \"preferences\" as t where \"user_id\" = $1 and (\"t\".\"user_id\" = $2 and \"t\".\"user_id\" = $3) limit 1","params":["ann","ann","ann"],"result":{"command":"SELECT","rowCount":1,"columns":[["user_id",25]],"rows":[["ann"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"user_id\" as \"user_id\", \"digest\" as \"digest\", \"dark_mode\" as \"dark_mode\" from \"preferences\" as t where \"user_id\" = $1 and ((\"t\".\"user_id\" = $2 and \"t\".\"user_id\" = $3) and (\"t\".\"user_id\" = $4 and \"t\".\"user_id\" = $5)) limit 1 for update","params":["ann","ann","ann","ann","ann"],"result":{"command":"SELECT","rowCount":1,"columns":[["user_id",25],["digest",25],["dark_mode",16]],"rows":[["ann","never","f"]]}},
+      {"sql":"update \"preferences\" as t set \"dark_mode\" = $1 where \"user_id\" = $2 returning \"user_id\" as \"user_id\", \"digest\" as \"digest\", \"dark_mode\" as \"dark_mode\"","params":["true","ann"],"result":{"command":"UPDATE","rowCount":1,"columns":[["user_id",25],["digest",25],["dark_mode",16]],"rows":[["ann","never","t"]]}},
+      {"sql":"select \"user_id\" as \"user_id\" from \"preferences\" as t where \"user_id\" = $1 and (\"t\".\"user_id\" = $2 and \"t\".\"user_id\" = $3) limit 1","params":["ann","ann","ann"],"result":{"command":"SELECT","rowCount":1,"columns":[["user_id",25]],"rows":[["ann"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"user_id\" as \"user_id\", \"t\".\"digest\" as \"digest\", \"t\".\"dark_mode\" as \"dark_mode\", \"t\".\"user_id\"::text as \"__pb_key0\" from \"preferences\" as \"t\" where (\"t\".\"user_id\" = $1 and \"t\".\"user_id\" = $2) order by \"t\".\"user_id\" asc limit $3","params":["ann","ann","51"],"result":{"command":"SELECT","rowCount":1,"columns":[["user_id",25],["digest",25],["dark_mode",16],["__pb_key0",25]],"rows":[["ann","never","t","ann"]]}},
+      {"sql":"select \"user_id\" as \"user_id\" from \"preferences\" as t where (\"t\".\"user_id\" = $1 and \"t\".\"user_id\" = $2) and (\"user_id\") in (($3))","params":["ann","ann","ann"],"result":{"command":"SELECT","rowCount":1,"columns":[["user_id",25]],"rows":[["ann"]]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"preferences\" as \"t\" where (\"t\".\"user_id\" = $1 and \"t\".\"user_id\" = $2)","params":["ann","ann"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Index Only Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Scan Direction\": \"Forward\",\n      \"Index Name\": \"preferences_pkey\",\n      \"Relation Name\": \"preferences\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.15,\n      \"Total Cost\": 8.17,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Index Cond\": \"(t.user_id = 'ann'::text)\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a resource that a Settings block shows > refuses a record owned by someone else": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"insert into \"preferences\" (\"user_id\", \"digest\", \"dark_mode\") values ($1, $2, $3) returning \"user_id\" as \"user_id\", \"digest\" as \"digest\", \"dark_mode\" as \"dark_mode\"","params":["carol","daily","false"],"result":{"command":"INSERT","rowCount":1,"columns":[["user_id",25],["digest",25],["dark_mode",16]],"rows":[["carol","daily","f"]]}},
+      {"sql":"select \"user_id\" as \"user_id\" from \"preferences\" as t where \"user_id\" = $1 and (\"t\".\"user_id\" = $2 and \"t\".\"user_id\" = $3) limit 1","params":["carol","ann","ann"],"result":{"command":"SELECT","rowCount":0,"columns":[["user_id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a resource that a Settings block shows > keeps an admin holding * to their own record too, unlike a resource no Settings shows": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"user_id\" as \"user_id\", \"t\".\"digest\" as \"digest\", \"t\".\"dark_mode\" as \"dark_mode\", \"t\".\"user_id\"::text as \"__pb_key0\" from \"preferences\" as \"t\" where \"t\".\"user_id\" = $1 order by \"t\".\"user_id\" asc limit $2","params":["root","51"],"result":{"command":"SELECT","rowCount":0,"columns":[["user_id",25],["digest",25],["dark_mode",16],["__pb_key0",25]],"rows":[]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"preferences\" as \"t\" where \"t\".\"user_id\" = $1","params":["root"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Index Only Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Scan Direction\": \"Forward\",\n      \"Index Name\": \"preferences_pkey\",\n      \"Relation Name\": \"preferences\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.15,\n      \"Total Cost\": 8.17,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Index Cond\": \"(t.user_id = 'root'::text)\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"user_id\" as \"user_id\", \"digest\" as \"digest\", \"dark_mode\" as \"dark_mode\" from \"preferences\" as t where \"user_id\" = $1 and \"t\".\"user_id\" = $2 limit 1","params":["bob","root"],"result":{"command":"SELECT","rowCount":0,"columns":[["user_id",25],["digest",25],["dark_mode",16]],"rows":[]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"user_id\" as \"user_id\", \"digest\" as \"digest\", \"dark_mode\" as \"dark_mode\" from \"preferences\" as t where \"user_id\" = $1 and (\"t\".\"user_id\" = $2 and \"t\".\"user_id\" = $3) limit 1 for update","params":["bob","root","root"],"result":{"command":"SELECT","rowCount":0,"columns":[["user_id",25],["digest",25],["dark_mode",16]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"preferences\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"preferences\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["preferences_pkey","btree","f","user_id","user_id","text_ops"]]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"user_id\" as \"user_id\", \"t\".\"digest\" as \"digest\", \"t\".\"dark_mode\" as \"dark_mode\", \"t\".\"user_id\"::text as \"__pb_key0\" from \"preferences\" as \"t\" order by \"t\".\"user_id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":2,"columns":[["user_id",25],["digest",25],["dark_mode",16],["__pb_key0",25]],"rows":[
+        ["ann","never","t","ann"],
+        ["bob","daily","t","bob"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"preferences\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["-1"]]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"preferences\" as \"t\"","result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"preferences\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 18.70,\n      \"Plan Rows\": 870,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"]\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

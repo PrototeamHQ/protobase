@@ -12,7 +12,7 @@ const orders = resource('orders').table('orders').fields(fields).primaryKey((r) 
 const notes = resource('notes').table('notes').fields(fields).primaryKey((r) => r.id).tenant((r) => r.org_id).live()
 const plain = resource('plain').table('plain').fields(fields).primaryKey((r) => r.id)
 
-const deps = { registry: buildRegistry([orders, notes, plain]), accessOptions: {} } as unknown as Deps
+const deps = { registry: buildRegistry([orders, notes, plain]), accessOptions: {}, settingsResources: new Set() } as unknown as Deps
 
 const notice = (resource: string, tenant: string | null = null): Notice => ({ id: '1', resource, key: '1', operation: 'update', tenant, at: '2026-08-01T00:00:00.000Z' })
 
