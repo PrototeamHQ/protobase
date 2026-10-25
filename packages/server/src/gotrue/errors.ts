@@ -28,6 +28,7 @@ const known: Record<string, readonly [number, string, string?]> = {
   NO_ADMIN_YET: [422, 'signup_disabled'],
   PASSWORD_LENGTH: [422, 'weak_password'],
   PASSWORD_REQUIRED: [422, 'weak_password'],
+  PASSWORD_COMPROMISED: [422, 'weak_password'],
 }
 
 /** A refusal of Better Auth, by its status and body, as GoTrue's: a known code becomes GoTrue's, any other its own in lower case. */

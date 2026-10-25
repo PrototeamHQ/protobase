@@ -8,6 +8,7 @@ describe('auth messages', () => {
     expect(authMessage(new AuthError('Invalid code', 401, 'INVALID_CODE'))).toBe('The code is not right.')
     expect(authMessage(new AuthError('Too many failed verification attempts.', 429, 'ACCOUNT_TEMPORARILY_LOCKED'))).toBe('Too many wrong codes. Wait 15 minutes and try again.')
     expect(authMessage(new AuthError('Too many requests', 429))).toBe('Too many attempts. Wait a minute and try again.')
+    expect(authMessage(new AuthError('The password you entered has been compromised.', 400, 'PASSWORD_COMPROMISED'))).toBe('This password appears in a known data breach. Choose a different one.')
     expect(authMessage(new AuthError('Signing in with a password is turned off.', 403, 'SIGN_IN_METHOD_FORBIDDEN'))).toBe('Signing in with a password is turned off.')
   })
 

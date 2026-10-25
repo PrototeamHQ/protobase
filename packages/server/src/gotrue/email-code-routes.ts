@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import * as z from 'zod'
 import { checkNewAccountPassword } from '../better-auth/new-account-password'
+import { rejectLeakedPassword } from '../better-auth/leaked-passwords'
 import { readSignInPolicy } from '../better-auth/policy-store'
 import { effectiveSignInPolicy } from '../better-auth/sign-in-policy'
 import { createSignedUpAccount } from '../better-auth/sign-up/sign-up-account'
@@ -73,6 +74,7 @@ export const emailCodeRoutes = ({ auth, context, sessionOf }: GoTrueDeps) => {
         if (!auth.signUp) throw signUpDisabled()
         checkMetadata(data)
         checkNewAccountPassword(await signUpPolicy(), password)
+        if (auth.leakedPasswords) await rejectLeakedPassword(password)
         await sendSignUpCode(c.req.raw, email)
         await savePendingSignUp(await context(), email, { passwordHash: await (await context()).password.hash(password), metadata: data })
         return c.json({})

@@ -225,6 +225,20 @@ On the [account page](#account-page), the `Password` block does both: with a pas
 
 The [account page](#account-page)'s Devices tab lists the sessions with this one first and marked, a Sign out on each other one and Sign out of all other devices. It names each by its browser and system from the user agent, and a staff session by the operator alone, such as "Protobase staff" with when it signed in and until when, never the staff member.
 
+## Leaked passwords
+
+`leakedPasswords: true` refuses a new password that appears in a known data breach. It is off by default, since it sends a request to an outside service each time a password is set.
+
+```ts
+createAuth({ ..., leakedPasswords: true })
+```
+
+The check is Better Auth's [haveIBeenPwned](https://www.better-auth.com/docs/plugins/have-i-been-pwned) plugin's: only the first five characters of the password's SHA-1 hash go to Have I Been Pwned's Pwned Passwords range API, which answers with every leaked hash that starts with them, so the password itself never leaves the server. It runs wherever someone chooses a password: [open sign-up](#open-sign-up), an [invitation](#organizations), a first password (`/account/set-password`), a change, a [reset](#password-reset), and an admin adding an account or setting a password, `createUser` on the host included. Signing in never checks.
+
+- A leaked password is refused with `400` and the code `PASSWORD_COMPROMISED`, before anything is saved; Protobase's pages say "This password appears in a known data breach. Choose a different one." The [GoTrue-compatible](#supabase-js-and-supabase-ssr) `signUp` and `updateUser` answer `422 weak_password`.
+- A password outside the 12 to 128 characters is refused for its length, with no lookup.
+- While the service cannot be reached, setting a password fails with a `500`; signing in is not affected.
+
 ## Changing the address
 
 With mail configured, the account page's Profile tab offers "Change email": the person enters the new address, gets a 6-digit code there, and enters it. Only then does the account move to the new address, which counts as verified; they sign in with it from then on, and this device stays signed in. It is Better Auth's [email OTP](https://www.better-auth.com/docs/plugins/email-otp) plugin's address change, and `GET /api/auth/status` says `"changeEmail": true` while it is offered. The client has it in `session.account`:

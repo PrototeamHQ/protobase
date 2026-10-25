@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AuthError } from '@protobase/client'
+import { authMessage } from './auth-messages'
 import { useAuth } from './auth-provider'
 import { minPasswordLength, ResetPasswordForm } from './reset-password-form'
 import { text } from './messages'
@@ -9,7 +10,7 @@ export const resetPasswordMessage = (error: AuthError) => {
   if (error.status === 429) return text('tooManyAttempts')
   if (error.code === 'PASSWORD_TOO_SHORT') return text('useAtLeast', minPasswordLength)
   if (error.code === 'PASSWORD_TOO_LONG') return text('passwordTooLong')
-  return error.message
+  return authMessage(error)
 }
 
 export type ResetPasswordPageProps = {

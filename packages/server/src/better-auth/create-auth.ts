@@ -14,6 +14,7 @@ import type { Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
 import { defaultInvitationSeconds, defaultInvitationUrl } from './invitations/invitation-link-hook'
 import { lastAdminGuardPlugin } from './last-admin-guard'
+import { leakedPasswordsPlugin } from './leaked-passwords'
 import { userDeletion, type UserDeletion } from './user-deletion'
 import { revokeMcpGrants } from './mcp/revoke-grants'
 import { mcpAuthPlugins, mcpScope, mcpUnusedPaths, resolveMcp, type McpAuthOptions, type ResolvedMcp } from './mcp/mcp-plugins'
@@ -138,6 +139,12 @@ export type CreateAuthOptions = {
    * Supabase Auth's. The first sign-in with one stores the password again as Better Auth hashes it. Default none.
    */
   passwordHashes?: PasswordHash[]
+  /**
+   * Refuses a new password that appears in a known data breach, by Have I Been Pwned's password list: at sign-up, from
+   * an invitation, and when a password is set, changed, reset or given by an admin. Only the first five characters of
+   * the password's SHA-1 hash leave the server. While the list cannot be reached, setting a password fails. Default off.
+   */
+  leakedPasswords?: boolean
   /**
    * The identity provider the operator's staff sign in with to sign in as people of this app, for support. Defaults
    * to the one the platform passes in `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID` and
@@ -325,6 +332,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(saml.length > 0 ? [samlPlugin(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
       setPasswordPlugin(),
+      ...(options.leakedPasswords ? [leakedPasswordsPlugin()] : []),
       goTrueSessionsPlugin({ issuer: goTrueIssuer(options.baseURL), jwt: jwtOptions, policy }),
       staffSignInPlugin({ ...(operator && { operator }), ...(mail && { mail }), defaultPolicy: signInPolicy }),
       rolesPlugin({ definitions }),
@@ -468,6 +476,8 @@ export const createAuth = (options: CreateAuthOptions) => {
     /** The policy until an admin saves one. */
     signInPolicy,
     passwordReset: Boolean(mailer),
+    /** New passwords are checked against Have I Been Pwned's list of leaked ones (`leakedPasswords`). */
+    leakedPasswords: Boolean(options.leakedPasswords),
     /** Open sign-up is on and offered: the app asks for it, and can mail the codes. */
     signUp: Boolean(signUpRole && mailer),
     /** The role of accounts made by open sign-up, while it is offered. */

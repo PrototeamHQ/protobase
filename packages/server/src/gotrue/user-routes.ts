@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import * as z from 'zod'
 import { revokeMcpGrants } from '../better-auth/mcp/revoke-grants'
 import { checkNewAccountPassword } from '../better-auth/new-account-password'
+import { rejectLeakedPassword } from '../better-auth/leaked-passwords'
 import { readSignInPolicy } from '../better-auth/policy-store'
 import { effectiveSignInPolicy } from '../better-auth/sign-in-policy'
 import { accessClaimsOf, type AccessClaims } from './bearer'
@@ -57,6 +58,7 @@ export const userRoutes = ({ auth, context }: GoTrueDeps) => {
       if (data !== undefined && !auth.userMetadata) throw new GoTrueError(400, 'validation_failed', 'This app keeps no user metadata: leave data out')
       if (password !== undefined) {
         checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(ctx.adapter, auth.signInPolicy)).policy, { mail: auth.mail }), password)
+        if (auth.leakedPasswords) await rejectLeakedPassword(password)
         const hash = await ctx.password.hash(password)
         const credential = await ctx.internalAdapter.findCredentialAccount(user.id)
         if (credential) await ctx.internalAdapter.updatePassword(user.id, hash)

@@ -28,6 +28,7 @@ const text = defineMessages({
     staffForbidden: 'Staff sign-in is turned off for this app.',
     untrustedCallback: 'This page is not on an address the server trusts.',
     staffFailed: 'The staff sign-in did not go through. Try again.',
+    passwordLeaked: 'This password appears in a known data breach. Choose a different one.',
   },
   nl: {
     tooManyRequests: 'Te veel pogingen. Wacht een minuut en probeer het opnieuw.',
@@ -55,6 +56,7 @@ const text = defineMessages({
     staffForbidden: 'Inloggen als medewerker staat uit voor deze app.',
     untrustedCallback: 'Deze pagina staat niet op een adres dat de server vertrouwt.',
     staffFailed: 'De inlog als medewerker lukte niet. Probeer het opnieuw.',
+    passwordLeaked: 'Dit wachtwoord komt voor in een bekend datalek. Kies een ander wachtwoord.',
   },
 })
 
@@ -102,6 +104,7 @@ const messages: Record<string, Id> = {
   PREVIOUSLY_REGISTERED: 'passkeyAdded',
   ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED: 'passkeyAdded',
   SESSION_NOT_FRESH: 'notFresh',
+  PASSWORD_COMPROMISED: 'passwordLeaked',
 }
 
 const lookup = (ids: Record<string, Id>, code: string | undefined) => {

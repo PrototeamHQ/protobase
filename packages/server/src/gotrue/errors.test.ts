@@ -7,6 +7,7 @@ describe("Better Auth's refusals as GoTrue's", () => {
     expect(errorBody(fromBetterAuth(401, { code: 'INVALID_EMAIL_OR_PASSWORD', message: 'Invalid email or password' }))).toEqual({ code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' })
     expect(errorBody(fromBetterAuth(400, { code: 'INVALID_OTP', message: 'Invalid OTP' }))).toEqual({ code: 403, error_code: 'otp_expired', msg: 'Token has expired or is invalid' })
     expect(errorBody(fromBetterAuth(403, { code: 'BANNED_USER', message: 'You have been banned from this application' }))).toEqual({ code: 403, error_code: 'user_banned', msg: 'You have been banned from this application' })
+    expect(errorBody(fromBetterAuth(400, { code: 'PASSWORD_COMPROMISED', message: 'This password appears in a known data breach.' }))).toEqual({ code: 422, error_code: 'weak_password', msg: 'This password appears in a known data breach.' })
     expect(fromBetterAuth(429, { message: 'Too many requests. Please try again later.' }).errorCode).toBe('over_request_rate_limit')
   })
 
