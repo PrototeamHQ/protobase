@@ -11,7 +11,7 @@ Decide who may read and change which records and fields.
 - [Owned records](../reference/data-config.md#access): Users can be limited to the records they own, or that their team owns, through an owner field. The server does not start when that field cannot hold the users' ids.
 - [Rules on the stored record](../reference/data-config.md#access): A rule can read the record as it is stored, such as one that refuses changes to a locked invoice.
 - [Write-only fields](../reference/access.md#write-only-fields): A role can set a field it can never read back, such as a secret only a worker reads. The admin app edits it only where the layout names it, with no stored value to reveal.
-- [Lists across organizations](../reference/access.md#lists-across-organizations) (beta): One list shows the records of every organization someone is a member of, each read with their role there, with the organization as a filter.
+- [Lists across organizations](../reference/access.md#lists-across-organizations) (beta): One list shows the records of every organization someone is a member of, each read with their role there, with the organization as a filter. Opening a record of another organization switches to it.
 - [Access through a parent record](../reference/access.md#records-that-belong-to-another): Writing a child record can require access to the record it belongs to.
 - [Anonymous access](../reference/access.md#anonymous-access): Visitors without an account can read listed fields of chosen records, such as a public product catalog, and send the public forms you open to them.
 - [Public browsing](../reference/access.md#browsing-the-admin-app): With anonymous access on, visitors browse what they may read in the admin app without signing in, read-only, with a Sign in button.

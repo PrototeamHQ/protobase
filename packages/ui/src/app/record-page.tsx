@@ -49,6 +49,7 @@ import { namedIcon } from './named-icon'
 import { fieldHelp, helpShown, recordShown, whenShown } from './record-mode/record-mode'
 import { useShownLayout } from './record-mode/use-shown-layout'
 import { useRecordEditor } from './use-record-editor'
+import { useRecordElsewhere } from './use-record-elsewhere'
 import { fieldMessage } from './field-errors'
 import { useFocusFirstInvalid } from './use-focus-first-invalid'
 import { useRelatedRecords } from './use-related-records'
@@ -87,10 +88,19 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
   const record = useOpenedRecord(resource, recordKey)
   if (!model) return <Notice title={appText('notFound')}>{appText('noResource', resource)}</Notice>
   if (record.isPending) return <Notice title={text('loading')}>{text('fetching')}</Notice>
-  if (record.error) return <div className="p-8">{isApiError(record.error) && record.error.status === 404 ? <Notice title={appText('notFound')}>{text('noRecord')}</Notice> : <ErrorBanner title={text('couldNotLoad')} error={record.error} />}</div>
+  if (record.error) return <div className="p-8">{isApiError(record.error) && record.error.status === 404 ? <RecordNotFound model={model} recordKey={recordKey} /> : <ErrorBanner title={text('couldNotLoad')} error={record.error} />}</div>
   // A record opened from a list shows that row's fields until it has loaded; the loaded record draws the page anew, so
   // its form starts from the whole record
   return <LoadedRecord key={record.isPlaceholderData ? 'preview' : 'loaded'} model={model} recordKey={recordKey} stored={record.data} preview={record.isPlaceholderData} />
+}
+
+// A record the session's organization does not have may be in another of the person's organizations, which opens it
+const RecordNotFound = ({ model, recordKey }: { model: ResourceModel; recordKey: string }) => {
+  const elsewhere = useRecordElsewhere(model, recordKey)
+  if (elsewhere.state === 'looking') return <Notice title={text('loading')}>{text('fetching')}</Notice>
+  if (elsewhere.state === 'switching') return <Notice title={text('loading')}>{text('openingElsewhere')}</Notice>
+  if (elsewhere.state === 'failed') return <ErrorBanner title={text('couldNotLoad')} error={elsewhere.error} />
+  return <Notice title={appText('notFound')}>{text('noRecord')}</Notice>
 }
 
 type LoadedRecordProps = {
