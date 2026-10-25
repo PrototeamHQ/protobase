@@ -8,8 +8,9 @@ const unsupported = (what: string) => async (): Promise<never> => {
 
 /**
  * A session that is already signed in with a token you hold, for stories and scripts (`protobase token <email>`).
- * It never refreshes, so use a token that outlives the run. Its account has nothing to set up, and it cannot change
- * passkeys, two-factor authentication, the sign-in policy, organizations or its role, and is never a staff session.
+ * It never refreshes, so use a token that outlives the run. Its account has nothing to set up and no devices, and it
+ * cannot change its name, password, passkeys, two-factor authentication, the sign-in policy, organizations or its role,
+ * and is never a staff session.
  */
 export const createStaticSession = (token: string, user: AuthUser = { id: 'token', email: 'token', name: 'API token', role: null }): AuthSession => ({
   token: async () => token,
@@ -49,6 +50,11 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     linkProvider: unsupported('link a sign-in provider'),
     connectedApps: async () => [],
     disconnectApp: unsupported('disconnect an app'),
+    updateName: unsupported('change its name'),
+    changePassword: unsupported('change its password'),
+    sessions: async () => [],
+    revokeSession: unsupported('sign out a device'),
+    revokeOtherSessions: unsupported('sign out other devices'),
   },
   connect: { client: unsupported('allow an app'), resume: unsupported('allow an app'), answer: unsupported('allow an app') },
   signInPolicy: { read: unsupported('read the sign-in policy'), save: unsupported('save the sign-in policy') },

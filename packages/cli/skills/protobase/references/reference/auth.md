@@ -163,6 +163,20 @@ createAuth({ ..., mailer: false })
 - The link is on the origin the reset was asked on, when that is one of the app's.
 - While the [sign-in policy](#sign-in-policy) turns passwords off, reset is off too (`403`).
 
+## Name, password and devices
+
+The signed-in person changes their own name and password, and signs out their other devices, with Better Auth's own endpoints. The client has them in `session.account`, each rejecting with `AuthError`:
+
+| Client | Endpoint |
+| --- | --- |
+| `updateName(name)` | `POST /api/auth/update-user` with `{ name }` |
+| `changePassword(current, next, signOutOthers)` | `POST /api/auth/change-password` with `{ currentPassword, newPassword, revokeOtherSessions }`, for an account that has a password (a wrong one is `INVALID_PASSWORD`) |
+| `sessions()` | `GET /api/auth/list-sessions`: the devices signed in now, each `{ token, current, userAgent?, ipAddress?, createdAt, updatedAt, expiresAt, staff? }`, with `current` for this one and `staff` for a [staff session](#staff-sign-in) |
+| `revokeSession(token)` | `POST /api/auth/revoke-session` with `{ token }`: signs out that device |
+| `revokeOtherSessions()` | `POST /api/auth/revoke-other-sessions`: signs out every device but this one |
+
+Signing out a device, or a new password with `signOutOthers`, stops that device's API token at its next request (see [When a token stops working](#when-a-token-stops-working)); this device stays signed in. A [staff session](#staff-sign-in) cannot change the password or sign out the other devices (`STAFF_CANNOT_CHANGE_SIGN_IN`).
+
 ## Emailed sign-in codes
 
 With mail configured, the sign-in page offers "Email me a sign-in code": the person enters their address, gets a 6-digit code, and signs in with it instead of a password. It is Better Auth's [email OTP](https://www.better-auth.com/docs/plugins/email-otp) plugin: `POST /api/auth/email-otp/send-verification-otp` with `{ email, type: "sign-in" }`, then `POST /api/auth/sign-in/email-otp` with `{ email, otp }`.

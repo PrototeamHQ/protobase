@@ -1,4 +1,5 @@
 import { authBasePath, isLocale } from '@protobase/schema/internal'
+import { accountProfile } from './account-profile'
 import { accountSecurity } from './account-security'
 import { connectClient } from './connect'
 import { AuthError, authError } from './auth-error'
@@ -36,7 +37,7 @@ export const tokenExpiry = (token: string) => {
 
 /**
  * The browser side of Better Auth: sign in with a password, an emailed code or a passkey (with a second step for an
- * account with two-factor authentication), the account's passkeys and two-factor authentication (`account`), the
+ * account with two-factor authentication), the account's name, password, devices, passkeys and two-factor authentication (`account`), the
  * sign-in policy for admins (`signInPolicy`), the people who can sign in for admins (`users`), staff of the operator
  * signing in as people (`staff`), organizations (`organizations`), the role the session acts with (`roles`), allowing an outside app such as an MCP client (`connect`), and a short-lived
  * JWT held in memory only (never in storage), fetched with the session cookie and refreshed before it expires.
@@ -159,7 +160,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
       if (error) throw authError(error, 'Could not set the password')
     },
 
-    account: accountSecurity(client),
+    account: { ...accountSecurity(client), ...accountProfile(client) },
     connect: connectClient(client),
     organizations: organizationsClient(client, () => token({ refresh: true })),
     roles: rolesClient(client, () => token({ refresh: true })),

@@ -169,6 +169,43 @@ describe('the account and the sign-in policy', () => {
   })
 })
 
+describe('the name, password and devices', () => {
+  it('changes the name and the password, signing out the other devices when asked', async () => {
+    const { requests, session } = serve({ '/update-user': () => json({ status: true }), '/change-password': () => json({ token: 's2', user }) })
+    await session.account.updateName('Sanne de Vries')
+    await session.account.changePassword('correct horse battery', 'battery staple horse', true)
+    expect(requests).toEqual([
+      { path: '/update-user', body: { name: 'Sanne de Vries' } },
+      { path: '/change-password', body: { currentPassword: 'correct horse battery', newPassword: 'battery staple horse', revokeOtherSessions: true } },
+    ])
+  })
+
+  it('reports a wrong current password', async () => {
+    const { session } = serve({ '/change-password': () => json({ message: 'Invalid password', code: 'INVALID_PASSWORD' }, { status: 400 }) })
+    await expect(session.account.changePassword('wrong', 'battery staple horse', false)).rejects.toMatchObject({ name: 'AuthError', status: 400, code: 'INVALID_PASSWORD' })
+  })
+
+  it('lists the signed-in devices with this one marked, and signs them out', async () => {
+    const at = { createdAt: '2026-10-01T09:00:00.000Z', updatedAt: '2026-10-20T09:00:00.000Z', expiresAt: '2026-10-27T09:00:00.000Z' }
+    const { requests, session } = serve({
+      '/list-sessions': () => json([
+        { id: 'a', token: 't1', userId: 'u1', userAgent: 'Firefox', ipAddress: '192.0.2.1', ...at },
+        { id: 'b', token: 't2', userId: 'u1', userAgent: null, ipAddress: '', impersonatedBy: 'alex@operator.example', ...at },
+      ]),
+      '/get-session': () => json({ session: { id: 'a', token: 't1', userId: 'u1', ...at }, user }),
+      '/revoke-session': () => json({ status: true }),
+      '/revoke-other-sessions': () => json({ status: true }),
+    })
+    expect(await session.account.sessions()).toEqual([
+      { token: 't1', current: true, userAgent: 'Firefox', ipAddress: '192.0.2.1', ...at },
+      { token: 't2', current: false, staff: 'alex@operator.example', ...at },
+    ])
+    await session.account.revokeSession('t2')
+    await session.account.revokeOtherSessions()
+    expect(requests.slice(2)).toEqual([{ path: '/revoke-session', body: { token: 't2' } }, { path: '/revoke-other-sessions', body: {} }])
+  })
+})
+
 describe('connected accounts', () => {
   it('lists the providers the account is linked to, without its password', async () => {
     const { session } = serve({ '/list-accounts': () => json([{ providerId: 'credential' }, { providerId: 'github' }, { providerId: 'github' }]) })
