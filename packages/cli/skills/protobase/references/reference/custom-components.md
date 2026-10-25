@@ -240,6 +240,34 @@ export const BookRepair = () => {
 }
 ```
 
+## Image carousel
+
+`Carousel` from `@protobase/ui` steps through images the way a card steps through a record's [photos](ui-config.md#card-photos), outside a card too: a row that snaps image by image, swiped on a touch screen or moved by arrows that show on hover, with dots marking the image in view. One image shows without arrows or dots.
+
+| | |
+| --- | --- |
+| `images` | The images in order: `{ src, alt }`, a link with what it shows, or a file field's value as records carry it, with an optional `alt`. A file's smallest [variant](files.md#image-variants-and-placeholders) that is sharp enough is drawn; a missing file or one that is no raster image is left out. |
+| `label` | What the images are, read out with the carousel. |
+| `fit` | `cover`, the default, fills the frame and crops what overflows it; `contain` shows each image whole. |
+| `swipe` | Off, a swipe scrolls what the carousel sits in, such as a row that scrolls sideways, and the arrows always show on a touch screen. On by default. |
+| `className` | The frame's classes, such as its aspect ratio, border and rounding; it has none of its own. |
+
+```tsx
+import { Carousel } from '@protobase/ui'
+
+export const PresetShots = () => (
+  <Carousel
+    label="Bike repairs"
+    fit="contain"
+    className="aspect-[8/5] rounded-lg border border-border"
+    images={[
+      { src: '/shots/repairs-board.png', alt: 'The repairs board' },
+      { src: '/shots/repair.png', alt: 'A repair' },
+    ]}
+  />
+)
+```
+
 ## Components in the chat
 
 The same components draw the assistant's [widget parts](assistant.md#widget-parts): a part names a component, and the dock draws it with the part's props, so one component can sit on a page and in the chat. In the chat there is no record around it, so a component that needs `useLayoutRecord()` works only on pages; take ids as props instead. Besides the API hooks, a widget can read the assistant backend with [`useBackendData`](assistant.md#reading-the-backend-from-a-widget).

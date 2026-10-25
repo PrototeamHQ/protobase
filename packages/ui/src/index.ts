@@ -34,6 +34,7 @@ export { ChatMessage, ChatThread, Composer, type ChatThreadProps, type ComposerP
 export { SidePanel, type SidePanelProps } from './side-panel'
 export { ActionCard, FieldList, type ActionCardProps, type CardAction, type CardTone } from './action-card'
 export { StepList, type Step, type StepState } from './step-list'
+export { Carousel, type CarouselImage, type CarouselProps } from './carousel'
 export { DiffView, diffStats, parseDiff, type DiffLine, type DiffViewProps } from './diff-view'
 export { CompactTable, type CompactTableProps } from './compact-table'
 export { Markdown } from './markdown/markdown'

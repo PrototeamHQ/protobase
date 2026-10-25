@@ -11,6 +11,7 @@ React components, field types, pages and handlers of your own, loaded as plugins
 - [Custom field types](../reference/plugins.md#field-types): Register how a kind of value is shown and edited, and pick it per field in a view.
 - [Custom create pages](../reference/custom-components.md#create-pages): Replace a resource's create form with your own page, such as a booking flow.
 - [Form parts](../reference/custom-components.md#form-parts): Build your own forms from the app's fields, pickers, switches, buttons and dialogs.
+- [Image carousel](../reference/custom-components.md#image-carousel): Step through screenshots or a record's files in your own components by swiping or with arrows, as cards step through photos.
 - [Assistant parts](../reference/assistant.md#in-the-ui): The assistant's panel, chat messages, composer and action cards for your own components, with a frameless action card for a page that is already framed.
 - [Action handlers](../reference/custom-components.md#action-handlers): Your own code for a named action, with the record, the API client and the action's inputs.
 - [Shell slots](../reference/custom-components.md#shell-slots): Your own components in the top bar, in a panel beside every page, or as the sidebar logo.

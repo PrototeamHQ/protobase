@@ -9,6 +9,7 @@
     "AssistantDock",
     "AuthLayout",
     "Button",
+    "Carousel",
     "ChatMessage",
     "ChatThread",
     "Choices",

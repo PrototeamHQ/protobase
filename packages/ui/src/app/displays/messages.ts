@@ -44,7 +44,6 @@ export const text = defineMessages({
     today: 'Today',
     capped: (limit: number, unit: 'week' | 'month' | 'quarter') => `Showing the first ${limit} records of this ${unit}. Narrow the filter to see the rest.`,
     nothingIn: (unit: 'week' | 'month' | 'quarter') => `Nothing in this ${unit}.`,
-    photoOf: (index: number, count: number) => `Photo ${index} of ${count}`,
     noneMatch: (plural: string) => `No ${plural} match.`,
     list: 'List',
     showOneApproximate: (singular: string) => `Show the ${singular}, at an approximate position`,
@@ -65,8 +64,6 @@ export const text = defineMessages({
     couldNotReorder: 'Could not change the order',
     couldNotMoveTo: (to: string) => `Could not move it to ${to}`,
     moreHidden: (count: number) => `+${count} more`,
-    previousPhoto: 'Previous photo',
-    nextPhoto: 'Next photo',
   },
   nl: {
     table: 'Tabel',
@@ -111,7 +108,6 @@ export const text = defineMessages({
     today: 'Vandaag',
     capped: (limit: number, unit: 'week' | 'month' | 'quarter') => `De eerste ${limit} records van ${({ week: 'deze week', month: 'deze maand', quarter: 'dit kwartaal' })[unit]} worden getoond. Verfijn het filter om de rest te zien.`,
     nothingIn: (unit: 'week' | 'month' | 'quarter') => `Niets in ${({ week: 'deze week', month: 'deze maand', quarter: 'dit kwartaal' })[unit]}.`,
-    photoOf: (index: number, count: number) => `Foto ${index} van ${count}`,
     noneMatch: (plural: string) => `Geen ${plural} gevonden.`,
     list: 'Lijst',
     showOneApproximate: (singular: string) => `${singular} tonen, op een geschatte plek`,
@@ -132,7 +128,5 @@ export const text = defineMessages({
     couldNotReorder: 'Kon de volgorde niet wijzigen',
     couldNotMoveTo: (to: string) => `Kon het niet naar ${to} verplaatsen`,
     moreHidden: (count: number) => `+${count} meer`,
-    previousPhoto: 'Vorige foto',
-    nextPhoto: 'Volgende foto',
   },
 })

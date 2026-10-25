@@ -18,6 +18,8 @@ const placeholderImage = (hash: string) => {
 export type FileImageProps = {
   /** What `shownImage` picked: the link to draw and the image's ThumbHash. */
   image: { url: string; placeholder?: string }
+  /** What the image shows, for those who cannot see it; none, the default, for an image that only decorates. */
+  alt?: string
   className?: string
   loading?: 'lazy'
 }
@@ -26,7 +28,7 @@ export type FileImageProps = {
  * An image of a file, its placeholder drawn blurred behind it until it has loaded. One from another site than the app's
  * own and its trusted hosts loads without a referrer.
  */
-export const FileImage = ({ image, className, loading }: FileImageProps) => {
+export const FileImage = ({ image, alt = '', className, loading }: FileImageProps) => {
   const [loaded, setLoaded] = useState<string>()
   const trustedHosts = useTrustedImageHosts()
   const placeholder = useMemo(() => (image.placeholder === undefined ? undefined : placeholderImage(image.placeholder)), [image.placeholder])
@@ -34,7 +36,7 @@ export const FileImage = ({ image, className, loading }: FileImageProps) => {
   return (
     <img
       src={image.url}
-      alt=""
+      alt={alt}
       loading={loading}
       decoding="async"
       referrerPolicy={imageReferrerPolicy(image.url, window.location.href, trustedHosts)}
