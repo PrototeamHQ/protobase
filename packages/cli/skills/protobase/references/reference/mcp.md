@@ -90,7 +90,7 @@ An app that runs service accounts over MCP, such as a backend job or an agent wi
 createAdmin({ ..., auth, options: { mcp: { writes: { resources: ['tasks'], rolesWithoutApproval: ['service'] } } } })
 ```
 
-A user with one of those roles creates, updates and deletes records over MCP without the approval step: the client is never asked, so a client that cannot ask writes too. Their role's access rules and the listed resources still limit every write as before, so a job with no person present can keep the app's data over MCP and do nothing there it could not do through the REST API. Everyone else is still asked before each write.
+A user with one of those roles creates, updates and deletes records over MCP without the approval step: the client is never asked, so a client that cannot ask writes too. Their role's access rules and the listed resources still limit every write as before, so a job with no person present can keep the app's data over MCP and do nothing there it could not do through the REST API. Everyone else is still asked before each write. Taking the role away, banning or deleting the account stops its tokens at their next request, not when they expire.
 
 No role is exempt unless named. The roles are checked against the signed-in user, not against the client, and a user holding several is exempt when any of them is named. A name that is not one of the app's roles, or is `anonymous`, stops the server at startup. Naming a role a person signs in with lets any client that person allows write as them unasked.
 
