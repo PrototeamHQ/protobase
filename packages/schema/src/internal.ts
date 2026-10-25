@@ -30,5 +30,6 @@ export { mobileReleaseBasePath, mobileReleaseParams, mobileReleasePath, mobileRe
 export { authBasePath } from './auth-base-path'
 export { capacitorOrigin } from './capacitor-origins'
 export { pushRecord, serviceWorkerFile } from './push-record'
+export { deviceIdParam, devicesPath } from './devices-path'
 export { parseCapability } from './access/capability'
 export { parseTable } from './resource-model'
