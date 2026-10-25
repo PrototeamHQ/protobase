@@ -1,6 +1,6 @@
 import { resolveAccess } from '@protobase/schema'
 import { describe, expect, it } from 'vitest'
-import { empMaster, orders, stockMoves } from './index'
+import { empMaster, notificationSettings, orders, stockMoves } from './index'
 
 const as = (role: string) => ({ user: { id: 3, roles: [role] } })
 
@@ -52,5 +52,21 @@ describe('hidden columns', () => {
   it('a field with only a read rule follows its resource for writes', async () => {
     const access = await resolveAccess(stockMoves, as('warehouse'))
     expect(access.writableFields.create).toContain('unit_cost')
+  })
+})
+
+describe('ERP roles on notification settings', () => {
+  // Owned by the Better Auth id, which is text.
+  const person = (role: string) => ({ user: { id: '3', roles: [role] } })
+
+  // The account page's Settings keeps everyone to their own record, admins too; these are who has settings at all.
+  it.each(['admin', 'auditor', 'manager', 'sales', 'accountant', 'warehouse', 'editor'])('%s reads and writes their own', async (role) => {
+    const access = await resolveAccess(notificationSettings, person(role))
+    expect(access.operations).toMatchObject({ read: true, create: true, update: true })
+  })
+
+  it('leaves the integration role, which is no person, without any', async () => {
+    const access = await resolveAccess(notificationSettings, person('integration'))
+    expect(access.operations).toMatchObject({ read: false, create: false, update: false })
   })
 })

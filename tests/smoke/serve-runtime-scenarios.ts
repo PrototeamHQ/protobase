@@ -115,6 +115,28 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
     expect(Array.isArray((await response.json()).items)).toBe(true)
   })
 
+  // The guide "Add a personal setting": the ERP's migration, resource, roles and Notifications tab, served together.
+  it("saves the signed-in person's own notification setting from the account page, for SQL to read", async () => {
+    const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' }
+    const meta = await (await fetch(`${base}/api/meta`, { headers })).json()
+    const settings = (node: { type?: string; props?: Record<string, unknown>; children?: unknown[] }): Record<string, unknown> | undefined =>
+      node.type === 'Settings' ? node.props : node.children?.map((child) => settings(child as typeof node)).find(Boolean)
+    expect(settings(meta.account.tree)).toMatchObject({ resource: 'notification_settings', fields: ['overdue_invoices'] })
+
+    const url = `${base}/api/v1/notification_settings`
+    expect((await (await fetch(url, { headers })).json()).items).toEqual([])
+    const created = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ overdue_invoices: 'never' }) })
+    expect(created.status).toBe(201)
+    const { user_id: userId } = await created.json()
+    const updated = await fetch(`${url}/${userId}`, { method: 'PATCH', headers: { ...headers, 'if-match': '*' }, body: JSON.stringify({ overdue_invoices: 'daily' }) })
+    expect(updated.status).toBe(200)
+
+    const sql = postgres(erp().env.DATABASE_URL!, { max: 1, onnotice: () => {} })
+    const rows = await sql`select s.overdue_invoices from core.notification_settings s join auth."user" u on u.id = s.user_id where u.email = ${erp().email}`
+    await sql.end()
+    expect(rows.map((row) => row.overdue_invoices)).toEqual(['daily'])
+  })
+
   it("runs the app's jobs: a sent invoice past its due date turns overdue", async () => {
     expect(await sendPastDueInvoice(base, token, erp().env.DATABASE_URL!)).toBe('overdue')
   })
