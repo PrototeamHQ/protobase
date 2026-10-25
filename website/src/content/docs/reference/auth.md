@@ -306,6 +306,14 @@ Turning it on, off, or making new backup codes asks for the account's password w
 
 Sign-in with GitHub or another [provider](#sign-in-with-github) is not asked for the second step.
 
+## Recent strong sign-in
+
+Some values ask for a sign-in that proved a passkey or a second step not long ago, such as a field with [`.strongSignIn()`](/reference/data-config/#recent-strong-sign-in). Better Auth's sessions do not say how they began, so the server notes it: each passkey sign-in (`/passkey/verify-authentication`), and each correct second step (`/two-factor/verify-totp`, `verify-otp` and `verify-backup-code`), whether it finishes a sign-in or confirms the session the browser has, stores the time beside the session, in the `verification` table, until the session expires. It needs no migration. Staff sessions are never noted.
+
+`betterAuthAuthenticator` gives a token of the person's own session `signIn.strongAt()`, which reads that time when a request needs it, so other requests do no extra lookup. An app with its own `authenticate` sets `signIn: { staff: false, strongAt }` on the sessions it returns, `strongAt` resolving to a `Date` or `undefined`; without it, such values are refused.
+
+Confirming it's them later counts from then: a passkey signs the browser in anew, and a code from the authenticator app, or a backup code, confirms the session it has. `createAuthSession` from `@protobase/client` does both, with `signInWithPasskey()` and `verifyTwoFactor({ method: 'totp', code })`.
+
 ## Sign-in policy
 
 Admins set how people sign in on the app's **Sign-in policy** page (the profile menu, under the user). Each method takes a rule:

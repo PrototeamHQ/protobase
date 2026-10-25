@@ -1,0 +1,57 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\n    create table apps (id integer generated always as identity primary key, organization_id integer not null, name text not null, recovery_code text not null, deploy_key text not null);\n    insert into apps (organization_id, name, recovery_code, deploy_key) values (1, 'Shop', 'recover-shop', 'deploy-shop'), (2, 'Blog', 'recover-blog', 'deploy-blog');\n  ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":2,"columns":[],"rows":[]}]}
+    ]
+  },
+  "a field that needs a recent strong sign-in > is revealed after a strong sign-in in the last minutes, with its audit event": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"recovery_code\" as \"recoveryCode\" from \"apps\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["recoveryCode",25]],"rows":[["1","recover-shop"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a field that needs a recent strong sign-in > is refused, with nothing published, when the strong sign-in is too old or never was": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"recovery_code\" as \"recoveryCode\" from \"apps\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["recoveryCode",25]],"rows":[["1","recover-shop"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"recovery_code\" as \"recoveryCode\" from \"apps\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["recoveryCode",25]],"rows":[["1","recover-shop"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a field that needs a recent strong sign-in > is refused to staff signed in as the person, whatever their sign-in": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"recovery_code\" as \"recoveryCode\" from \"apps\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["recoveryCode",25]],"rows":[["1","recover-shop"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a field that needs a recent strong sign-in > answers a record the caller cannot read as missing before asking for a strong sign-in": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"recovery_code\" as \"recoveryCode\" from \"apps\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","2"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["recoveryCode",25]],"rows":[]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a field that needs a recent strong sign-in > leaves the other sensitive fields as they were": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"deploy_key\" as \"deployKey\" from \"apps\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["deployKey",25]],"rows":[["1","deploy-shop"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

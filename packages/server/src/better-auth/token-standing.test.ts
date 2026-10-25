@@ -71,8 +71,16 @@ describe('the sign-in a token stands for', () => {
     checkTokenStanding(contextWith({ user: [alice], session: [row] }), { userId: 'alice', roles: ['admin'], ...claims }, false, now)
 
   it('is the user\'s own when the session row names no staff, and staff\'s when it does', async () => {
-    expect(await signIn({ ...session, impersonatedBy: null })).toEqual({ session: 's1', staff: false })
+    expect(await signIn({ ...session, impersonatedBy: null })).toEqual({ session: 's1', staff: false, strongAt: expect.any(Function) })
     expect(await signIn({ ...session, impersonatedBy: 'alex@operator.example' })).toEqual({ session: 's1', staff: true })
+  })
+
+  it('reads, for the user\'s own sign-in, when its session last proved a passkey or a second step', async () => {
+    const proved = { value: '2026-08-01T11:50:00.000Z', expiresAt: new Date('2099-01-01T00:00:00Z') }
+    const findVerificationValue = async (identifier: string) => (identifier === 'protobase-strong-sign-in-s1' ? proved : null)
+    const context = { ...contextWith({ user: [alice], session: [{ ...session, impersonatedBy: null }] }), internalAdapter: { findVerificationValue } } as unknown as AuthContext
+    const own = await checkTokenStanding(context, { userId: 'alice', roles: ['admin'], sessionId: 's1' }, false, now)
+    expect(await own?.strongAt?.()).toEqual(new Date('2026-08-01T11:50:00.000Z'))
   })
 
   it('is unknown for a row read without the staff field, and for a token without a session', async () => {

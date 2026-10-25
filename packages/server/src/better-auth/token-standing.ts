@@ -1,10 +1,12 @@
 import type { JWTPayload } from 'jose'
 import { unauthorized } from '../problem'
+import type { Session } from '../types'
 import { effectiveRoles, globalRoles } from './organizations/app-roles'
 import { noGlobalRole } from './organizations/role-definitions'
 import { findMember, findOrganization, type AuthContext } from './organizations/store'
 import { parseRoles } from './parse-roles'
 import { isStaffSession } from './staff-checks'
+import { strongSignInAt } from './strong-sign-ins'
 
 type StandingUser = { id: string; role?: string | null; banned?: boolean | null; banExpires?: Date | null }
 type StandingSession = { userId: string; expiresAt: Date; impersonatedBy?: string | null }
@@ -57,11 +59,14 @@ export const checkUserStanding = async (context: AuthContext, claims: Omit<Token
  * Whether a token still stands, read from the store on every request: its session is not signed out or expired, and
  * its user still stands (`checkUserStanding`). A token that fails is a 401, so the client asks its session for a new
  * one, which carries the roles as they are now or is refused. Answers the sign-in the token's session stands for
- * (`signInOf`), `undefined` for a token without one.
+ * (`signInOf`), `undefined` for a token without one; the user's own one also reads, when asked, when it last proved a
+ * passkey or a second step (`strongSignInAt`).
  */
-export const checkTokenStanding = async (context: AuthContext, claims: TokenClaims, organizations: boolean, now = new Date()) => {
+export const checkTokenStanding = async (context: AuthContext, claims: TokenClaims, organizations: boolean, now = new Date()): Promise<Session['signIn']> => {
   const session = claims.sessionId === undefined ? undefined : await context.adapter.findOne<StandingSession>({ model: 'session', where: [{ field: 'id', value: claims.sessionId }] })
   if (claims.sessionId !== undefined && (!session || session.userId !== claims.userId || session.expiresAt <= now)) throw revoked()
   await checkUserStanding(context, claims, organizations, now)
-  return session ? signInOf(session, claims.sessionId!) : undefined
+  const signIn = session ? signInOf(session, claims.sessionId!) : undefined
+  if (!signIn || signIn.staff) return signIn
+  return { ...signIn, strongAt: () => strongSignInAt(context.internalAdapter, claims.sessionId!) }
 }

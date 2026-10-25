@@ -38,6 +38,11 @@ export type FieldMeta = {
   sensitive?: boolean
   /** Whether it is stored encrypted, and so sensitive too (`.encrypted()`). */
   encrypted?: boolean
+  /** How recent a strong sign-in its reveal needs, and so sensitive too (`.strongSignIn()`). */
+  strongSignIn?: {
+    /** The most minutes since the sign-in, or its confirmation, proved a passkey or a second step. */
+    minutes: number
+  }
   /** An enum's values (`f.enum()`). */
   enumValues?: string[]
   /** A relation's resource and the columns that hold its key (`f.relation()`, `.columns()`). */
@@ -153,6 +158,17 @@ export class Field<V> {
   encrypted() {
     if (this.meta.type !== 'text') throw new Error('.encrypted() takes only f.text() fields')
     return this.with({ encrypted: true, sensitive: true }) as unknown as Field<V | Encrypted>
+  }
+
+  /**
+   * Revealing it needs a strong sign-in: one that proved a passkey or a second step, made or confirmed in the last
+   * `minutes` (15 by default). Otherwise the reveal is refused with `403 strong-sign-in-required`. It is sensitive too.
+   * See [Recent strong sign-in](website/src/content/docs/reference/data-config.mdx#recent-strong-sign-in).
+   */
+  strongSignIn(o: { minutes?: number } = {}) {
+    const minutes = o.minutes ?? 15
+    if (!Number.isInteger(minutes) || minutes < 1) throw new Error('.strongSignIn(): minutes must be a whole number of at least 1')
+    return this.with({ strongSignIn: { minutes }, sensitive: true })
   }
 
   /** The database supplies a value when none is given (identity, now(), ...). */

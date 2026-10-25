@@ -75,6 +75,7 @@ Every option returns a new [field](/api/schema/interfaces/field/), so they chain
 | `.access({ read, create, update })` | Role rules for this column. See [Access](#access). |
 | `.sensitive()` | Hidden like a password: no response carries it, and a caller who may read it reveals one record's value at a time. See [Sensitive fields](#sensitive-fields). |
 | `.encrypted()` | Sensitive, and stored encrypted with the app's own key, so the database only ever holds ciphertext. Text only. See [Encrypted fields](#encrypted-fields). |
+| `.strongSignIn({ minutes })` | Sensitive, and revealed only after a passkey or a second step in the last `minutes` (15 by default). See [Recent strong sign-in](#recent-strong-sign-in). |
 | `.ai({ prompt })` | A job fills the field from `prompt`, `{field}` replaced by the record's values, after a create and after an update of a field the prompt reads, as the user who wrote. Text or enum, optional. See [AI fields and actions](/reference/ai/). |
 | `.rollup({ from, via, fn, field })` | The database keeps the field from the records of another resource: their count, sum, average, least or greatest value. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
 | `.formula(expression)` | The database computes the field from the record's other number fields, as a generated column. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
@@ -125,6 +126,16 @@ A role may also set a sensitive field it cannot read, such as a sealed value onl
 A sensitive field cannot be `.filterable()`, `.sortable()`, aliased, searched, or the key, tenant, owner or soft delete field, and a view may only put it in a record page section: in a list, filter, chart, sidebar, title, recent-record group or action it would always be empty, so the config fails to load.
 
 A [webhook subscription](/reference/webhooks/) delivering `as` a role runs that role's access rules on a captured change, which holds no sensitive field. A rule or row filter that reads one there throws, and the change is kept as failed for that subscription instead of delivered, so decide that access on a field that is not sensitive. A rule that reads the field before it checks the role, such as `record.api_secret == null || ctx.user.roles.includes('admin')`, fails even for `as: { roles: ['admin'] }`: check the role first, as in `ctx.user.roles.includes('admin') || ...`.
+
+### Recent strong sign-in
+
+A field such as a recovery code or an API secret can ask for more than read access: `.strongSignIn()` reveals it only to someone whose sign-in proved a passkey or a second step in the last 15 minutes, or `minutes` you give. It is sensitive too, so all of the above applies, and `/meta` marks it `strongSignIn: { minutes }`.
+
+```ts
+recoveryCode: f.text().encrypted().strongSignIn({ minutes: 10 }),
+```
+
+Without such a sign-in, the reveal is refused with `403` `strong-sign-in-required` and the number of minutes, before anything is decrypted or audited. A passkey sign-in counts, as does a password or emailed code followed by the [second step](/reference/auth/#two-factor-authentication); confirming later counts from then. Staff [signed in as someone](/reference/auth/#staff-sign-in) and an outside app acting as them, such as an MCP client, never count: they proved nothing as the person. See [Recent strong sign-in](/reference/auth/#recent-strong-sign-in) for how the server knows.
 
 ## Encrypted fields
 

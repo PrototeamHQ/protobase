@@ -113,6 +113,8 @@ Get responses carry `permissions: { update, delete, fields }`, where `fields` ma
 
 A field declared [`.sensitive()`](/reference/data-config/#sensitive-fields) is in `/meta` (marked `sensitive: true`), in record `permissions.fields` and in create and update bodies, but in no list, get, `:search`, `:seek`, write or batch response, and `filter`, `order_by`, `fields` and the aggregates refuse it like an unknown field. `POST /{resource}/{key}:reveal` with `{ "field": "<name>" }` returns one record's value. It needs read access to the record and the field: another tenant's record, a row outside the caller's row filter or a key that does not exist is a `404`, a field the caller cannot read or that is not sensitive a `400`. An [encrypted field](/reference/data-config/#encrypted-fields)'s reveal decrypts its value, and an empty one reveals `null`; a value that does not decrypt is a `500` reported to the operator, without an audit event. An update that changes the key of a record with encrypted fields is a `400` `key-change-unsupported`.
 
+A field with [`.strongSignIn()`](/reference/data-config/#recent-strong-sign-in) is a `403` `strong-sign-in-required`, whose problem carries `minutes`, until the caller's sign-in proved a passkey or a second step that recently.
+
 Before answering, the server publishes an audit event to `options.audit`, and when publishing fails the reveal fails (`500`), so no value leaves without its event. The event never holds the value:
 
 ```ts

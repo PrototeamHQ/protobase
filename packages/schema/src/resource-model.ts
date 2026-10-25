@@ -53,6 +53,7 @@ const fieldModel = (name: string, field: AnyField): FieldModel => {
     ...(meta.dbDefault && !meta.hasDefault && { default: { db: true as const } }),
     ...(meta.sensitive && { sensitive: true as const }),
     ...(meta.encrypted && { encrypted: true as const }),
+    ...(meta.strongSignIn && { strongSignIn: { minutes: meta.strongSignIn.minutes } }),
     ...(meta.enumValues && { enumValues: [...meta.enumValues] }),
     ...(meta.relation && {
       relation: { resource: meta.relation.resource, columns: meta.relation.columns ?? [column] },

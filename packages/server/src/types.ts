@@ -31,9 +31,10 @@ export type Session = {
   /**
    * The user's own sign-in this request comes with: its session id, when it has one, and whether staff started it as
    * the user. An authenticator sets it only when it knows; without it, what only the user may do, such as registering
-   * their devices for notifications, is refused.
+   * their devices for notifications, is refused. `strongAt` reads when the sign-in last proved a passkey or a second
+   * step, `undefined` when it never did; without it, a reveal that needs a recent strong sign-in is refused.
    */
-  signIn?: { session?: string; staff: boolean }
+  signIn?: { session?: string; staff: boolean; strongAt?: () => Promise<Date | undefined> }
 }
 
 /**
