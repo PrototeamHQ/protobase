@@ -3,13 +3,12 @@ import type { ProblemError } from '@protobase/client'
 import type { ModalFormProps } from '@protobase/layout'
 import type { ResourceModel } from '@protobase/schema'
 import { useClient } from '../../../data/api-provider'
-import { differs, toDraft, toPatchValue } from '../../../live/field-values'
 import { humanize } from '../../../live/naming'
 import { Button } from '../../../primitives/button'
 import { Dialog } from '../../../primitives/dialog'
 import { Field } from '../../../record-view'
 import { useToast } from '../../../toasts'
-import { createBody, isChosen, type Draft } from '../../create/create-values'
+import { createBody, isChosen } from '../../create/create-values'
 import { ErrorBanner } from '../../error-banner'
 import { fieldErrors, fieldMessage } from '../../field-errors'
 import { useFocusFirstInvalid } from '../../use-focus-first-invalid'
@@ -20,31 +19,10 @@ import { useNavigationGuard } from '../../router'
 import { useLayoutRecord, type LayoutRecord } from '../record-scope'
 import { useFirstRecord, useRefreshResource } from '../use-layout-data'
 import { propsOf, type BlockProps } from './block-props'
+import { editBody, startingDraft } from './form-draft'
 import { text } from '../messages'
 
 type FormProps = Omit<ModalFormProps, 'resource' | 'recordKey'> & { model: ResourceModel; record: LayoutRecord | undefined; onClose: () => void }
-
-/** The literal defaults of new records, or the record's values when editing; relations as `{ key, label }` once chosen. */
-const startingDraft = (model: ResourceModel, fields: string[], record: LayoutRecord | undefined): Draft =>
-  Object.fromEntries(
-    fields.map((name) => {
-      const field = model.fields[name]!
-      if (field.type === 'file') return [name, record?.record[name] ?? null]
-      if (record) return [name, field.type === 'boolean' ? Boolean(record.record[name]) : toDraft(record.record[name])]
-      const fallback = field.default && 'value' in field.default ? field.default.value : undefined
-      return [name, field.type === 'boolean' ? Boolean(fallback) : toDraft(fallback)]
-    }),
-  )
-
-/** Changed fields only; a chosen relation sends its key. */
-const editBody = (model: ResourceModel, draft: Draft, record: LayoutRecord) =>
-  Object.fromEntries(
-    Object.entries(draft).flatMap(([name, value]) => {
-      const field = model.fields[name]!
-      if (isChosen(value)) return value.key === toDraft(record.record[name]) ? [] : [[name, field.type === 'integer' ? Number(value.key) : value.key]]
-      return differs(field, value, record.record[name]) ? [[name, toPatchValue(field, value)]] : []
-    }),
-  )
 
 const ModalFormDialog = ({ model, record, mode, label, title, fields, values, onClose }: FormProps) => {
   const { resources, views } = useAdminMeta()
@@ -52,7 +30,7 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
   const toast = useToast()
   const refresh = useRefreshResource()
   const view = views[model.name]
-  const [draft, setDraft] = useState(() => startingDraft(model, fields, record))
+  const [draft, setDraft] = useState(() => startingDraft(model, fields, record?.record))
   const [errors, setErrors] = useState<Record<string, ProblemError>>({})
   // How many saves the server turned down for their fields
   const [rejections, setRejections] = useState(0)
@@ -69,7 +47,7 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
     const saved =
       mode === 'create'
         ? client.create(model.name, { ...createBody(model, resources, draft), ...values })
-        : client.update(model.name, record!.key, editBody(model, draft, record!), record!.etag ?? '*')
+        : client.update(model.name, record!.key, editBody(model, draft, record!.record), record!.etag ?? '*')
     await saved.then(
       async () => {
         await refresh(model.name)
