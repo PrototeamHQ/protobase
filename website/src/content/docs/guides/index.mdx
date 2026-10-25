@@ -1,0 +1,66 @@
+---
+title: Guides
+description: Every guide to Protobase, grouped by what you want to build, each a walk from a working app to the next step.
+# The hero of a doc page, at the height of a page title rather than a landing page's.
+head:
+  - tag: style
+    content: '.hero { padding-block: 1rem 2rem; }'
+hero:
+  title: Guides
+  tagline: Build with Protobase one step at a time, from a single table to an app on phones. Each guide starts from a working app and leaves it doing one thing more.
+  actions:
+    - text: Start with the first guide
+      link: /guides/table-to-admin/
+      icon: right-arrow
+    - text: Getting started
+      link: /getting-started/
+      variant: minimal
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components'
+
+## First steps
+
+<CardGrid>
+  <LinkCard title="From a table to an admin" href="/guides/table-to-admin/" description="Pip's bike shop goes from a repairs table to an admin the front desk and the workshop both like, in five steps, with a live story for each." />
+  <LinkCard title="Your first composed page" href="/guides/first-composed-page/" description="The sales team's start page in four steps, from four numbers to a row of leads you can add to, with a live story for each." />
+  <LinkCard title="Your first plugin" href="/guides/first-plugin/" description="Build a plugin, serve it, load it into an app and change it without rebuilding the app." />
+</CardGrid>
+
+## Pages of your own
+
+<CardGrid>
+  <LinkCard title="A billing page" href="/guides/billing-page/" description="One page for a customer's plan, billing details, cards and invoices, with forms, actions and a component of your own." />
+  <LinkCard title="A create page of your own" href="/guides/create-page/" description="Replace a resource's create form with a page built from the app's form parts, creating records through an API function." />
+</CardGrid>
+
+## Make it look your own
+
+<CardGrid>
+  <LinkCard title="Theming an app" href="/guides/theme-an-app/" description="The app's own colors, corners and font in protobase.theme.css, in light and dark, kept through every release." />
+  <LinkCard title="Adding a field type" href="/guides/field-type/" description="Show and edit a field your own way everywhere the app shows it, with a field type a plugin registers." />
+  <LinkCard title="A custom record card" href="/guides/record-card/" description="Draw each card of a cards display with a component of your own, with the built-in card as its fallback." />
+</CardGrid>
+
+## Data in and out
+
+<CardGrid>
+  <LinkCard title="Importing records from a spreadsheet" href="/guides/import-records/" description="Bring a spreadsheet into a list with Import, update records from another, and turn Import off where it does not belong." />
+  <LinkCard title="Exporting a list" href="/guides/export-a-list/" description="Let users save a list as an Excel or CSV file, limit the rows a file holds, or take Export off a list." />
+  <LinkCard title="Your own API functions" href="/guides/api-functions/" description="Endpoints of your own beside the REST API, one file each, acting as the signed-in caller or open to a webhook." />
+  <LinkCard title="Showing another app's records" href="/guides/remote-resources/" description="Two Protobase apps, where the shop's admin shows the service desk's tickets with its own pages, sidebar and links." />
+</CardGrid>
+
+## Reach your users
+
+<CardGrid>
+  <LinkCard title="Send notifications" href="/guides/push-notifications/" description="Turn notifications on, send one when a record changes, and see it in the bell and as push on the browser." />
+  <LinkCard title="A mobile app (beta)" href="/guides/mobile-app/" description="Run the app on iOS and Android and build signed store releases from a mobile section in its config." />
+</CardGrid>
+
+## Ship and upgrade
+
+<CardGrid>
+  <LinkCard title="Deploy" href="/guides/deploy/" description="Ship a project as one bundle folder and run it with the serve runtime." />
+  <LinkCard title="Moving onto the plugin build" href="/guides/plugin-build/" description="What changes for a project whose protobase.ui.tsx was built into the admin app, now that it is a plugin beside a prebuilt app." />
+</CardGrid>

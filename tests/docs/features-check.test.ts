@@ -29,6 +29,7 @@ export const reference = ['reference/ui-config', 'reference/architecture']`,
     await write('website/src/content/docs/reference/ui-config.mdx', page('UI config', '## Names and columns\n\n## Filters and the chart\n\n```md\n## Not a heading\n```'))
     await write('website/src/content/docs/reference/architecture.md', page('Architecture', '## Packages'))
     await write('website/src/content/docs/guides/tutorial.md', page('A tutorial', '## 1. A step'))
+    await write('website/src/content/docs/guides/index.mdx', page('Guides', '<LinkCard title="A tutorial" href="/guides/tutorial/" description="A tutorial." />'))
   })
   afterEach(() => rm(site, { recursive: true, force: true }))
 
@@ -109,5 +110,10 @@ export const guides = ['guides/tutorial']
 export const reference = ['reference/ui-config', 'reference/architecture', 'reference/maps']`,
     )
     expect(await problems()).toEqual(['website/sidebar.mjs: no feature entry links reference/maps: add the features it explains to their area page'])
+  })
+
+  it('refuses a guide the guides page does not link', async () => {
+    await write('website/src/content/docs/guides/maps.md', page('Maps', '## 1. A pin'))
+    expect(await problems()).toEqual(['website/src/content/docs/guides/index.mdx: does not link guides/maps'])
   })
 })

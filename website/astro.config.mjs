@@ -21,7 +21,7 @@ export default defineConfig({
       sidebar: [
         { label: 'Start here', items: startHere },
         { label: 'Features', items: features, collapsed: true },
-        { label: 'Guides', items: guides },
+        { label: 'Guides', items: [{ label: 'All guides', link: '/guides/' }, ...guides] },
         { label: 'Reference', items: reference },
         { label: 'API', items: [{ label: '@protobase/schema', link: '/api/schema/' }, typeDocSidebarGroup] },
       ],

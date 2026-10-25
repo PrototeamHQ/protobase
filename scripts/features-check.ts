@@ -7,7 +7,8 @@
 // with `## Subarea` headings between them where an area has them. The stability is left out for a stable feature, and is
 // otherwise beta, in development or coming soon. It checks that every entry keeps that grammar and links a heading of a
 // docs page that exists, that every area page is in the sidebar's `features` list and linked from features.md, and that
-// every reference page is linked by an entry, so a new one cannot ship without its feature.
+// every reference page is linked by an entry, so a new one cannot ship without its feature. The guides page,
+// guides/index.mdx, must link every guide under guides/.
 //
 // With --release-rule it also refuses a release with a `feat` commit that changes no docs page: from the last vx.y.z tag
 // reachable from HEAD, any `feat` commit but those of the example apps needs a change under website/src/content/docs/
@@ -90,6 +91,16 @@ export async function pageProblems(root: string) {
   }
   for (const page of guides) {
     if (!pageFile(docs, page)) problems.push(`website/sidebar.mjs: ${page} has no page`)
+  }
+
+  // deploy is a guide too, though the sidebar lists it under startHere.
+  const guidesIndex = path.join(docs, 'guides/index.mdx')
+  if (!existsSync(guidesIndex)) return [...problems, 'website/src/content/docs/guides/index.mdx: no guides page']
+  const listed = new Set([...readFileSync(guidesIndex, 'utf8').matchAll(/href="\/(guides\/[a-z0-9-]+)\/"/g)].map((match) => match[1]))
+  const guideFiles = readdirSync(path.join(docs, 'guides')).filter((file) => /\.mdx?$/.test(file) && file !== 'index.mdx')
+  for (const file of guideFiles) {
+    const page = `guides/${file.replace(/\.mdx?$/, '')}`
+    if (!listed.has(page)) problems.push(`website/src/content/docs/guides/index.mdx: does not link ${page}`)
   }
   return problems
 }
