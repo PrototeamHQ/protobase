@@ -22,6 +22,11 @@ export type DeliverySteps = {
   hold: () => Promise<void>
   /** Marks the send delivered, dropping its message. */
   complete: () => Promise<void>
+  /**
+   * With Protobase's auth, the sign-in sessions among these ids that still stand, each with its user's id. A device
+   * gets push only while the session it was registered in stands for its user; one without a session counts as ended.
+   */
+  liveSessions?: (ids: readonly string[]) => Promise<Map<string, string>>
 }
 
 // What a try left undone or found wrong, counted by kind and never by id.
@@ -34,7 +39,8 @@ const listed = (counts: Map<string, number>) => [...counts].map(([method, count]
 /**
  * One try of a send, resuming from `given`: for a user send, each user's history entry when the send is for the inbox
  * (once, as `record` marks it), then the user's devices as the store lists them now; for a device send, the devices
- * with those ids now. A device the store gives that is not the user's, or not one asked for, gets nothing. Each kind's
+ * with those ids now. A device the store gives that is not the user's, or not one asked for, gets nothing. With
+ * `liveSessions`, a device whose session no longer stands is removed instead of pushed to. Each kind's
  * devices go to its sender in one batch; a kind without a sender is skipped. An answer of `gone` removes the device,
  * `retry` leaves it to the next try once and gives up on it the second time, and any other is done. A sender that
  * throws leaves its batch to the next try. The try then throws, counting what is left, so the job retries it, or
@@ -73,7 +79,24 @@ export const deliver = async ({ to, message }: CheckedSend, given: Progress, ste
     left.retried += 1
   }
 
-  const push = async (devices: Device[]) => {
+  // The devices whose session still stands; the others are removed and done with. When the sessions cannot be read,
+  // the try throws before any device is pushed to or removed, and is retried.
+  const standing = async (devices: Device[]) => {
+    const { liveSessions } = steps
+    if (!liveSessions) return devices
+    const pending = devices.filter((device) => !done.has(device.id))
+    const ids = [...new Set(pending.flatMap((device) => (device.sessionId === null ? [] : [device.sessionId])))]
+    const live = await liveSessions(ids)
+    const stands = (device: Device) => device.sessionId !== null && live.get(device.sessionId) === device.userId
+    for (const device of pending.filter((device) => !stands(device))) {
+      await storeCall('remove', () => steps.devices.remove(device.userId, device.id))
+      markDone(device.id)
+    }
+    return pending.filter(stands)
+  }
+
+  const push = async (given: Device[]) => {
+    const devices = await standing(given)
     for (const device of devices) if (!steps.senders.some((sender) => sender.kinds.includes(device.kind))) markDone(device.id)
     for (const sender of steps.senders) {
       const batch = devices.filter((device) => sender.kinds.includes(device.kind) && !done.has(device.id))

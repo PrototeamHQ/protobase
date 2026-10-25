@@ -210,9 +210,9 @@
       {"sql":"select to_regclass($1)::oid as oid","params":["\"notifications\".\"history\""],"result":{"command":"SELECT","rowCount":1,"columns":[["oid",26]],"rows":[[null]]}},
       {"sql":"select to_regclass($1)::oid as oid","params":["\"notifications\".\"devices\""],"result":{"command":"SELECT","rowCount":1,"columns":[["oid",26]],"rows":[[null]]}},
       {"sql":"select to_regclass($1)::oid as oid","params":["\"notifications\".\"history\""],"result":{"command":"SELECT","rowCount":1,"columns":[["oid",26]],"rows":[[null]]}},
-      {"sql":"create schema if not exists \"notifications\";\n\ncreate table \"notifications\".\"devices\" (\n  \"id\" uuid primary key,\n  \"user_id\" text not null,\n  \"kind\" text not null check (\"kind\" in ('web', 'apns', 'fcm')),\n  \"token\" text not null,\n  \"p256dh\" text,\n  \"auth\" text,\n  \"environment\" text check (\"environment\" in ('sandbox', 'production')),\n  \"app_id\" text,\n  \"user_agent\" text,\n  \"created_at\" timestamptz not null,\n  \"last_seen_at\" timestamptz not null,\n  check (\n    (\"kind\" = 'web' and \"p256dh\" is not null and \"auth\" is not null and \"environment\" is null and \"app_id\" is null)\n    or (\"kind\" = 'apns' and \"p256dh\" is null and \"auth\" is null and \"environment\" is not null and \"app_id\" is not null)\n    or (\"kind\" = 'fcm' and \"p256dh\" is null and \"auth\" is null and \"environment\" is null)\n  )\n);\n\ncreate unique index on \"notifications\".\"devices\" (\"token\");\n\ncreate index on \"notifications\".\"devices\" (\"user_id\");\n\ncreate table \"notifications\".\"history\" (\n  \"id\" uuid primary key,\n  \"user_id\" text not null,\n  \"title\" text not null,\n  \"body\" text,\n  \"url\" text,\n  \"data\" jsonb,\n  \"created_at\" timestamptz not null,\n  \"read_at\" timestamptz\n);\n\ncreate index on \"notifications\".\"history\" (\"user_id\", \"created_at\" desc, \"id\" desc);\n\ncreate index on \"notifications\".\"history\" (\"user_id\", \"created_at\") where \"read_at\" is null;","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]},
+      {"sql":"create schema if not exists \"notifications\";\n\ncreate table \"notifications\".\"devices\" (\n  \"id\" uuid primary key,\n  \"user_id\" text not null,\n  \"kind\" text not null check (\"kind\" in ('web', 'apns', 'fcm')),\n  \"token\" text not null,\n  \"p256dh\" text,\n  \"auth\" text,\n  \"environment\" text check (\"environment\" in ('sandbox', 'production')),\n  \"app_id\" text,\n  \"user_agent\" text,\n  \"session_id\" text,\n  \"created_at\" timestamptz not null,\n  \"last_seen_at\" timestamptz not null,\n  check (\n    (\"kind\" = 'web' and \"p256dh\" is not null and \"auth\" is not null and \"environment\" is null and \"app_id\" is null)\n    or (\"kind\" = 'apns' and \"p256dh\" is null and \"auth\" is null and \"environment\" is not null and \"app_id\" is not null)\n    or (\"kind\" = 'fcm' and \"p256dh\" is null and \"auth\" is null and \"environment\" is null)\n  )\n);\n\ncreate unique index on \"notifications\".\"devices\" (\"token\");\n\ncreate index on \"notifications\".\"devices\" (\"user_id\");\n\ncreate table \"notifications\".\"history\" (\n  \"id\" uuid primary key,\n  \"user_id\" text not null,\n  \"title\" text not null,\n  \"body\" text,\n  \"url\" text,\n  \"data\" jsonb,\n  \"created_at\" timestamptz not null,\n  \"read_at\" timestamptz\n);\n\ncreate index on \"notifications\".\"history\" (\"user_id\", \"created_at\" desc, \"id\" desc);\n\ncreate index on \"notifications\".\"history\" (\"user_id\", \"created_at\") where \"read_at\" is null;","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]},
       {"sql":"select to_regclass($1)::oid as oid","params":["\"notifications\".\"devices\""],"result":{"command":"SELECT","rowCount":1,"columns":[["oid",26]],"rows":[["{{oid:1}}"]]}},
-      {"sql":"select attname as name, attnum as num from pg_attribute where attrelid = $1 and attnum > 0 and not attisdropped","params":["{{oid:1}}"],"result":{"command":"SELECT","rowCount":11,"columns":[["name",19],["num",21]],"rows":[
+      {"sql":"select attname as name, attnum as num from pg_attribute where attrelid = $1 and attnum > 0 and not attisdropped","params":["{{oid:1}}"],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["num",21]],"rows":[
         ["id","1"],
         ["user_id","2"],
         ["kind","3"],
@@ -222,8 +222,9 @@
         ["environment","7"],
         ["app_id","8"],
         ["user_agent","9"],
-        ["created_at","10"],
-        ["last_seen_at","11"]
+        ["session_id","10"],
+        ["created_at","11"],
+        ["last_seen_at","12"]
       ]}},
       {"sql":"select exists (select from pg_index where indrelid = $1 and indisunique and indpred is null and indexprs is null and indnatts = 1 and indkey[0] = $2) as found","params":["{{oid:1}}","4"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
       {"sql":"select to_regclass($1)::oid as oid","params":["\"notifications\".\"history\""],"result":{"command":"SELECT","rowCount":1,"columns":[["oid",26]],"rows":[["{{oid:2}}"]]}},
@@ -238,7 +239,22 @@
         ["read_at","8"]
       ]}},
       {"sql":"select to_regclass($1)::oid as oid","params":["\"notifications\".\"devices\""],"result":{"command":"SELECT","rowCount":1,"columns":[["oid",26]],"rows":[["{{oid:1}}"]]}},
-      {"sql":"select to_regclass($1)::oid as oid","params":["\"notifications\".\"history\""],"result":{"command":"SELECT","rowCount":1,"columns":[["oid",26]],"rows":[["{{oid:2}}"]]}}
+      {"sql":"select to_regclass($1)::oid as oid","params":["\"notifications\".\"history\""],"result":{"command":"SELECT","rowCount":1,"columns":[["oid",26]],"rows":[["{{oid:2}}"]]}},
+      {"sql":"select to_regclass($1)::oid as oid","params":["\"notifications\".\"devices\""],"result":{"command":"SELECT","rowCount":1,"columns":[["oid",26]],"rows":[["{{oid:1}}"]]}},
+      {"sql":"select attname as name, attnum as num from pg_attribute where attrelid = $1 and attnum > 0 and not attisdropped","params":["{{oid:1}}"],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["num",21]],"rows":[
+        ["id","1"],
+        ["user_id","2"],
+        ["kind","3"],
+        ["token","4"],
+        ["p256dh","5"],
+        ["auth","6"],
+        ["environment","7"],
+        ["app_id","8"],
+        ["user_agent","9"],
+        ["session_id","10"],
+        ["created_at","11"],
+        ["last_seen_at","12"]
+      ]}}
     ]
   },
   "the history table > is written and used under renamed schema, table and columns": {

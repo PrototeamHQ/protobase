@@ -4,7 +4,7 @@ import { guardedSender, PushSenderError } from './guarded-sender'
 import { PushMessageError, type PushMessage } from './message'
 import type { PushSender } from './sender'
 
-const deviceOf = (id: string, kind: Device['kind'] = 'fcm'): Device => ({ id, userId: 'user', kind, token: `token-${id}`, p256dh: null, auth: null, environment: null, appId: null, userAgent: null, createdAt: new Date(0), lastSeenAt: new Date(0) })
+const deviceOf = (id: string, kind: Device['kind'] = 'fcm'): Device => ({ id, userId: 'user', kind, token: `token-${id}`, p256dh: null, auth: null, environment: null, appId: null, userAgent: null, sessionId: null, createdAt: new Date(0), lastSeenAt: new Date(0) })
 
 const recording = (answer: (devices: readonly Device[]) => unknown) => {
   const calls: { message: PushMessage; devices: readonly Device[] }[] = []

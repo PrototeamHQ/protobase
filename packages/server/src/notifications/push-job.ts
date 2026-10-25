@@ -2,7 +2,7 @@ import type { Db } from '@protobase/query'
 import { defineJob } from '../jobs/define-job'
 import { holdJob, replaceJobData, saveJobProgress } from '../jobs/job-progress'
 import type { JobContext } from '../jobs/job-types'
-import { deliver } from './deliver'
+import { deliver, type DeliverySteps } from './deliver'
 import { deviceStore } from './device-store-of'
 import type { NewNotification } from './history'
 import { historyStore } from './history-store-of'
@@ -34,10 +34,11 @@ const recordOnce = (db: Db, options: NotificationsOptions, job: JobContext['job'
 
 /**
  * The job that delivers what `sendNotification` sends, through `senders` (guarded, see `notificationSenders`) and the
- * stores `options` configure. A try resumes where the last one stopped (see `deliver`); once delivered, the job keeps
- * no message. A few tries only: a device that keeps asking for a retry is given up on the second time.
+ * stores `options` configure; with `liveSessions`, as with Protobase's auth, only to devices whose session stands. A
+ * try resumes where the last one stopped (see `deliver`); once delivered, the job keeps no message. A few tries only: a
+ * device that keeps asking for a retry is given up on the second time.
  */
-export const pushJob = (options: NotificationsOptions, senders: readonly PushSender[]) =>
+export const pushJob = (options: NotificationsOptions, senders: readonly PushSender[], liveSessions?: DeliverySteps['liveSessions']) =>
   defineJob({
     name: pushJobName,
     payload: pushPayload,
@@ -52,6 +53,7 @@ export const pushJob = (options: NotificationsOptions, senders: readonly PushSen
         save: (progress) => saveJobProgress(db, job, progress),
         hold: () => holdJob(db, job),
         complete: () => replaceJobData(db, job, { complete: true }),
+        ...(liveSessions && { liveSessions }),
       })
     },
   })

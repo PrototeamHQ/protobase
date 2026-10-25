@@ -4,6 +4,9 @@ import type { NotificationsNames } from './options'
 /** A table by its schema, when one is named, and its name, quoted. */
 export const qualified = ({ schema, table }: { schema?: string | undefined; table: string }) => (schema ? `${quoteIdent(schema)}.${quoteIdent(table)}` : quoteIdent(table))
 
+/** The session column, added to a devices table written before devices kept the session they were registered in. */
+export const deviceSessionColumnSql = ({ schema, table, columns }: NotificationsNames) => `alter table ${qualified({ schema, table })} add column ${quoteIdent(columns.session_id)} text`
+
 /**
  * The devices table: the token unique, so registering one moves it; with auth, its user column points at auth's users
  * table and goes with the user. A field that does not apply to the kind must be NULL, and nothing has a default.
@@ -23,6 +26,7 @@ export const devicesTableSql = ({ schema, table, columns }: NotificationsNames, 
   ${c.environment} text check (${c.environment} in ('sandbox', 'production')),
   ${c.app_id} text,
   ${c.user_agent} text,
+  ${c.session_id} text,
   ${c.created_at} timestamptz not null,
   ${c.last_seen_at} timestamptz not null,
   check (

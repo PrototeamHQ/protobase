@@ -27,7 +27,7 @@ const counted = (store: DeviceStore) => {
 }
 
 // The routes as createAdmin mounts them: behind an authenticator, with the API's error handler.
-const serve = (store: DeviceStore, caller: (request: Request) => Session | Promise<Session>) => {
+const serve = (store: DeviceStore, caller: (request: Request) => Session | Promise<Session>, options: { sessionRequired?: boolean } = {}) => {
   const reported: unknown[] = []
   const app = new Hono<AdminEnv>()
   app.onError(createErrorHandler((error) => void reported.push(error)))
@@ -35,7 +35,7 @@ const serve = (store: DeviceStore, caller: (request: Request) => Session | Promi
     c.set('session', await caller(c.req.raw))
     await next()
   })
-  app.route(devicesPath('/api'), deviceRoutes(store))
+  app.route(devicesPath('/api'), deviceRoutes(store, options))
   // Who is signed in comes from the test's header, never from the body.
   const request = (path: string, init: RequestInit = {}) => app.request(path, init)
   const register = (as: string, body: unknown) =>
@@ -64,7 +64,17 @@ describe('the device endpoints', () => {
     expect(response.status).toBe(200)
     const body = await response.json()
     expect(Object.keys(body).sort()).toEqual(['createdAt', 'id', 'kind', 'lastSeenAt'])
-    expect([...memory.devices.values()]).toEqual([expect.objectContaining({ id: body.id, userId: 'a', token: endpoint(1), userAgent: 'Mozilla/5.0' })])
+    expect([...memory.devices.values()]).toEqual([expect.objectContaining({ id: body.id, userId: 'a', token: endpoint(1), userAgent: 'Mozilla/5.0', sessionId: 'session-a' })])
+    expect(JSON.stringify(body)).not.toContain('session-a')
+  })
+
+  it('refuse a caller whose session has no id when devices go with their session', async () => {
+    const memory = memoryDeviceStore()
+    const noSession = byHeader({ a: { user: { id: 'a', roles: ['user'] }, signIn: { staff: false } } })
+    expect((await serve(memory, noSession, { sessionRequired: true }).register('a', web())).status).toBe(403)
+    expect(memory.devices.size).toBe(0)
+    expect((await serve(memory, noSession).register('a', web())).status).toBe(200)
+    expect([...memory.devices.values()]).toEqual([expect.objectContaining({ userId: 'a', sessionId: null })])
   })
 
   it.each([
@@ -73,7 +83,7 @@ describe('the device endpoints', () => {
     ['a session its authenticator does not mark as a sign-in', 'marked'],
   ])('refuse %s on both endpoints before reading anything', async (_, as) => {
     const memory = memoryDeviceStore()
-    const kept = await memory.register('a', { kind: 'fcm', token: 'kept', p256dh: null, auth: null, environment: null, appId: null, userAgent: null })
+    const kept = (await memory.register('a', { kind: 'fcm', token: 'kept', p256dh: null, auth: null, environment: null, appId: null, userAgent: null, sessionId: null }))!
     const { store, calls } = counted(memory)
     const { request } = serve(store, users)
     const status = as === '' ? 401 : 403
@@ -111,7 +121,7 @@ describe('the device endpoints', () => {
   it('refuse a body that names a user, an id or times, storing nothing', async () => {
     const memory = memoryDeviceStore()
     const { register, request } = serve(memory, users)
-    for (const extra of [{ userId: 'b' }, { user_id: 'b' }, { owner: 'b' }, { id: '00000000-0000-4000-8000-000000000000' }, { createdAt: '2020-01-01' }, { lastSeenAt: '2020-01-01' }]) {
+    for (const extra of [{ user_id: 'b' }, { owner: 'b' }, { id: '00000000-0000-4000-8000-000000000000' }, { createdAt: '2020-01-01' }, { lastSeenAt: '2020-01-01' }]) {
       expect((await register('a', { ...web(), ...extra })).status).toBe(400)
     }
     const proto = await request(devicesPath('/api'), { method: 'POST', headers: { 'content-type': 'application/json', 'x-as': 'a' }, body: `{"kind":"fcm","token":"abc","__proto__":{"userId":"b"}}` })
@@ -137,12 +147,36 @@ describe('the device endpoints', () => {
     expect([...memory.devices.values()]).toEqual([expect.objectContaining({ id: body.id, userId: 'b', userAgent: null })])
   })
 
+  it('take the user the body names when it is the caller, and refuse another with a 409 that stores nothing', async () => {
+    const memory = memoryDeviceStore()
+    const { register } = serve(memory, users)
+    const refused = await register('b', { ...web(), userId: 'a' })
+    expect(refused.status).toBe(409)
+    expect((await refused.json()).type).toBe('urn:protobase:problem:other-user')
+    expect(memory.devices.size).toBe(0)
+    expect((await register('a', { ...web(), userId: 'a' })).status).toBe(200)
+    expect([...memory.devices.values()]).toEqual([expect.objectContaining({ userId: 'a' })])
+  })
+
+  it("refuse a browser's endpoint another user holds with a 409, leaving their device as it was", async () => {
+    const memory = memoryDeviceStore()
+    const { register } = serve(memory, users)
+    await register('a', web())
+    const before = [...memory.devices.values()]
+    for (const spelling of [endpoint(1), endpoint(1).replace('fcm.googleapis.com', 'FCM.GoogleAPIs.com')]) {
+      const refused = await register('b', { ...web(), endpoint: spelling })
+      expect(refused.status).toBe(409)
+      expect((await refused.json()).type).toBe('urn:protobase:problem:device-held')
+    }
+    expect([...memory.devices.values()]).toEqual(before)
+  })
+
   it('keep one device for two spellings of one web endpoint', async () => {
     const memory = memoryDeviceStore()
     const { register } = serve(memory, users)
     await register('a', web())
-    expect((await register('b', { ...web(), endpoint: endpoint(1).replace('fcm.googleapis.com', 'FCM.GoogleAPIs.com') })).status).toBe(200)
-    expect([...memory.devices.values()]).toEqual([expect.objectContaining({ userId: 'b', token: endpoint(1) })])
+    expect((await register('a', { ...web(), endpoint: endpoint(1).replace('fcm.googleapis.com', 'FCM.GoogleAPIs.com') })).status).toBe(200)
+    expect([...memory.devices.values()]).toEqual([expect.objectContaining({ userId: 'a', token: endpoint(1) })])
   })
 
   it("remove the caller's own device, and answer alike for another's, a missing or a malformed id", async () => {
@@ -167,7 +201,7 @@ describe('the device endpoints', () => {
 
   it("answer a generic 500 when a store gives back another user's device", async () => {
     const memory = memoryDeviceStore()
-    const other = await memory.register('a', { kind: 'fcm', token: 'theirs', p256dh: null, auth: null, environment: null, appId: null, userAgent: null })
+    const other = (await memory.register('a', { kind: 'fcm', token: 'theirs', p256dh: null, auth: null, environment: null, appId: null, userAgent: null, sessionId: null }))!
     const { register } = serve({ ...memory, register: async () => other }, users)
     const response = await register('b', { kind: 'fcm', token: 'mine' })
     expect(response.status).toBe(500)
@@ -199,6 +233,10 @@ describe('the device endpoints', () => {
     const kept = [...memory.devices.values()].filter((device) => device.userId === 'a').map((device) => device.id)
     expect(kept.sort()).toEqual(ids.slice(1).sort())
     expect(memory.devices.has(theirs.id)).toBe(true)
+    // A refused register drops none of them.
+    expect((await register('a', web(1000))).status).toBe(409)
+    expect((await register('a', { ...web(5000), userId: 'b' })).status).toBe(409)
+    expect([...memory.devices.values()].filter((device) => device.userId === 'a').map((device) => device.id).sort()).toEqual(ids.slice(1).sort())
   })
 
   it('keep tokens, endpoints and keys out of every answer and report', async () => {

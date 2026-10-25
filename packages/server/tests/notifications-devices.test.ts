@@ -38,11 +38,22 @@ describe('the devices table', () => {
   it('is written and used under renamed schema, table and columns', async () => {
     const pg = await migrated(renamed)
     const columns = await pg.query<{ name: string }>(`select column_name as name from information_schema.columns where table_schema = 'push' and table_name = 'targets' order by 1`)
-    expect(columns.rows.map(({ name }) => name)).toEqual(['app_id', 'address', 'auth', 'created_at', 'environment', 'kind', 'owner_id', 'p256dh', 'seen_at', 'target_id', 'user_agent'].sort())
+    expect(columns.rows.map(({ name }) => name)).toEqual(['app_id', 'address', 'auth', 'created_at', 'environment', 'kind', 'owner_id', 'p256dh', 'seen_at', 'session_id', 'target_id', 'user_agent'].sort())
     await checkNotificationsSchema(pg.db, renamed)
     const store = postgresDeviceStore(pg.db, renamed)
     const stored = await store.register('a', webDevice())
     expect(await store.listForUser('a')).toEqual([stored])
+  })
+
+  it('gets its session column from the migration when it was written without one', async () => {
+    const pg = await migrated(renamed)
+    await pg.exec('alter table push.targets drop column session_id')
+    await expect(checkNotificationsSchema(pg.db, renamed)).rejects.toThrow('has no column "session_id"')
+    const migration = await notificationsMigration(pg.db, renamed)
+    expect(migration).toBe('alter table "push"."targets" add column "session_id" text;')
+    await pg.exec(migration!)
+    await checkNotificationsSchema(pg.db, renamed)
+    expect(await notificationsMigration(pg.db, renamed)).toBeUndefined()
   })
 
   it('stops startup naming a missing column and a missing unique index on the token', async () => {
@@ -76,7 +87,9 @@ describe('the devices table', () => {
     for (const device of [webDevice(), apnsDevice(), fcmDevice()]) {
       for (let round = 0; round < 10; round++) {
         const answers = await Promise.all([store.register('a', device), store.register('b', { ...device, userAgent: 'B' })])
-        expect(answers.map((answer) => answer.token)).toEqual([device.token, device.token])
+        // A browser's endpoint stays with whoever holds it, so the other register keeps nothing.
+        const kept = answers.flatMap((answer) => (answer ? [answer.token] : []))
+        expect(kept).toEqual(device.kind === 'web' ? [device.token] : [device.token, device.token])
       }
       const { rows } = await pg.query<{ holders: number }>('select count(*)::int as holders from notifications.devices where token = $1', [device.token])
       expect(rows).toEqual([{ holders: 1 }])

@@ -5,7 +5,7 @@ import type { AdminAuth } from '../better-auth/create-auth'
 import { migrationCommand } from '../changes/capture-schema'
 import { historyTableSql } from './history-sql'
 import { historyNames, notificationsNames, type NotificationsNames, type NotificationsOptions } from './options'
-import { devicesTableSql, qualified } from './schema-sql'
+import { deviceSessionColumnSql, devicesTableSql, qualified } from './schema-sql'
 
 /** Auth's users table, as the store names it: devices point at it. */
 export const authUsersTable = (auth: AdminAuth) => ({ schema: storeSchema(auth), table: auth.options.user?.modelName ?? 'user' })
@@ -22,23 +22,6 @@ const userIdType = async (db: Db, users: UsersTable) => {
   return rows[0]!.type
 }
 
-/**
- * The SQL that adds the tables `notifications()` keeps devices and each user's history in, under the names its options
- * give; with `auth`, their user columns point at auth's users table. Each table is left out when it exists or a store
- * of the app's own replaces it; `undefined` when none is left.
- */
-export const notificationsMigration = async (db: Db, options: NotificationsOptions = {}, auth?: AdminAuth) => {
-  const devices = !options.store && notificationsNames(options)
-  const history = !options.historyStore && historyNames(options)
-  const missing = async (names: { schema: string; table: string } | false) => names && (await regclass(db, qualified(names))) === null
-  const [needsDevices, needsHistory] = [await missing(devices), await missing(history)]
-  if (!needsDevices && !needsHistory) return undefined
-  const users = auth && authUsersTable(auth)
-  const user = users ? { type: await userIdType(db, users), references: `${qualified(users)} (id)` } : { type: 'text' }
-  const statements = [...(needsDevices && devices ? devicesTableSql(devices, user) : []), ...(needsHistory && history ? historyTableSql(history, user) : [])]
-  return `${[...new Set(statements)].join(';\n\n')};`
-}
-
 const columnsOf = async (db: Db, oid: number) =>
   (await sql<{ name: string; num: number }>`select attname as name, attnum as num from pg_attribute where attrelid = ${oid} and attnum > 0 and not attisdropped`.execute(db)).rows
 
@@ -50,6 +33,35 @@ const uniqueOn = async (db: Db, oid: number, num: number) =>
 const cascadesFrom = async (db: Db, oid: number, num: number, users: UsersTable) =>
   (await sql<{ found: boolean }>`select exists (select from pg_constraint where conrelid = ${oid} and contype = 'f' and confdeltype = 'c'
     and conkey = array[${num}]::int2[] and confrelid = to_regclass(${qualified(users)})) as found`.execute(db)).rows[0]!.found
+
+// Whether the devices table exists without its session column, as one written before devices kept their session.
+const lacksSessionColumn = async (db: Db, names: NotificationsNames) => {
+  const oid = await regclass(db, qualified(names))
+  return oid !== null && !(await columnsOf(db, oid)).some((row) => row.name === names.columns.session_id)
+}
+
+/**
+ * The SQL that adds the tables `notifications()` keeps devices and each user's history in, under the names its options
+ * give; with `auth`, their user columns point at auth's users table. Each table is left out when it exists or a store
+ * of the app's own replaces it, and an existing devices table without its session column gets that column;
+ * `undefined` when nothing is left.
+ */
+export const notificationsMigration = async (db: Db, options: NotificationsOptions = {}, auth?: AdminAuth) => {
+  const devices = !options.store && notificationsNames(options)
+  const history = !options.historyStore && historyNames(options)
+  const missing = async (names: { schema: string; table: string } | false) => names && (await regclass(db, qualified(names))) === null
+  const [needsDevices, needsHistory] = [await missing(devices), await missing(history)]
+  const needsSession = devices && !needsDevices && (await lacksSessionColumn(db, devices))
+  if (!needsDevices && !needsHistory && !needsSession) return undefined
+  const users = auth && authUsersTable(auth)
+  const user = users && (needsDevices || needsHistory) ? { type: await userIdType(db, users), references: `${qualified(users)} (id)` } : { type: 'text' }
+  const statements = [
+    ...(needsDevices && devices ? devicesTableSql(devices, user) : []),
+    ...(needsSession && devices ? [deviceSessionColumnSql(devices)] : []),
+    ...(needsHistory && history ? historyTableSql(history, user) : []),
+  ]
+  return `${[...new Set(statements)].join(';\n\n')};`
+}
 
 const missingTable = (what: string, table: string) =>
   new Error(`The ${what} table ${table} of notifications() is missing. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)

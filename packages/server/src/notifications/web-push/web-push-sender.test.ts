@@ -20,6 +20,7 @@ const deviceOf = (endpoint: string, receiver = webPushReceiver(), change: Partia
   environment: null,
   appId: null,
   userAgent: null,
+  sessionId: null,
   createdAt: new Date(),
   lastSeenAt: new Date(),
   receiver,

@@ -29,6 +29,7 @@ const deviceOf = (row: DeviceRow): Device => ({
   environment: row.environment as Device['environment'],
   appId: row.app_id as string | null,
   userAgent: row.user_agent as string | null,
+  sessionId: row.session_id as string | null,
   createdAt: new Date(row.created_at as Date),
   lastSeenAt: new Date(row.last_seen_at as Date),
 })
@@ -52,17 +53,19 @@ export const postgresDeviceStore = (db: Db, options: NotificationsOptions = {}):
       required('user id', userId)
       required('token', device.token)
       const now = new Date()
-      const values = { id: crypto.randomUUID(), user_id: userId, kind: device.kind, token: device.token, p256dh: device.p256dh, auth: device.auth, environment: device.environment, app_id: device.appId, user_agent: device.userAgent, created_at: now, last_seen_at: now }
+      const values = { id: crypto.randomUUID(), user_id: userId, kind: device.kind, token: device.token, p256dh: device.p256dh, auth: device.auth, environment: device.environment, app_id: device.appId, user_agent: device.userAgent, session_id: device.sessionId, created_at: now, last_seen_at: now }
       const names = sql.join(deviceColumns.map(column))
       const given = sql.join(deviceColumns.map((name) => sql`${values[name]}`))
       const sameUser = sql`${sql.ref(`d.${columns.user_id}`)} = excluded.${column('user_id')}`
-      // A token another user held moves as a new device: a new id and created now. The user's own keeps both.
+      // A token another user held moves as a new device: a new id and created now. The user's own keeps both. A
+      // browser's endpoint another user holds is left as it is, and no row comes back.
       const keep = (name: DeviceColumn) => sql`${column(name)} = case when ${sameUser} then ${sql.ref(`d.${columns[name]}`)} else excluded.${column(name)} end`
-      const replaced = (['user_id', 'kind', 'p256dh', 'auth', 'environment', 'app_id', 'user_agent', 'last_seen_at'] as const).map((name) => sql`${column(name)} = excluded.${column(name)}`)
+      const replaced = (['user_id', 'kind', 'p256dh', 'auth', 'environment', 'app_id', 'user_agent', 'session_id', 'last_seen_at'] as const).map((name) => sql`${column(name)} = excluded.${column(name)}`)
       const [stored] = await rows(sql<DeviceRow>`insert into ${devices} as d (${names}) values (${given})
         on conflict (${column('token')}) do update set ${sql.join([keep('id'), keep('created_at'), ...replaced])}
+        where ${sameUser} or (${sql.ref(`d.${columns.kind}`)} <> 'web' and excluded.${column('kind')} <> 'web')
         returning ${selected}`)
-      return stored!
+      return stored
     },
     remove: async (userId, id) => {
       required('user id', userId)

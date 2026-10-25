@@ -70,7 +70,7 @@ const dataOf = async (db: Kysely<any>, id: string) => (await sql<{ data: Record<
 describe('the send job on Postgres', () => {
   it('keeps the history once, removes a gone device, retries only the device that asked, then drops the message', async () => {
     const { db, devices, history } = await open()
-    const web = (name: string) => ({ kind: 'web' as const, token: endpoint(name), p256dh, auth, environment: null, appId: null, userAgent: null })
+    const web = (name: string) => ({ kind: 'web' as const, token: endpoint(name), p256dh, auth, environment: null, appId: null, userAgent: null, sessionId: null })
     await devices.register('a', web('a-ok'))
     await devices.register('a', web('a-gone'))
     await devices.register('b', web('b-busy'))

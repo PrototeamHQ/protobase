@@ -45,7 +45,7 @@ const app = async () => {
     return new Response(null, { status: 201 })
   }
   const senders = [guardedSender(webPushSender(settings, { fetch: fetch as typeof globalThis.fetch }), 0)]
-  await postgresDeviceStore(pg.db).register('a', { kind: 'web', token: 'https://fcm.googleapis.com/fcm/send/a', p256dh, auth, environment: null, appId: null, userAgent: null })
+  await postgresDeviceStore(pg.db).register('a', { kind: 'web', token: 'https://fcm.googleapis.com/fcm/send/a', p256dh, auth, environment: null, appId: null, userAgent: null, sessionId: null })
   return { db: pg.db, sent, push: pushJob({}, senders), history: postgresHistoryStore(pg.db) }
 }
 

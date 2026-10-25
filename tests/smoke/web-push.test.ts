@@ -109,7 +109,7 @@ describe(`the Web Push sender's crypto on ${runtime}`, () => {
       sent.push(request)
       return new Response(null, { status: 201 })
     }
-    const device = { id: 'd', userId: 'u', kind: 'web' as const, token: 'https://fcm.googleapis.com/fcm/send/x', p256dh: receiver.p256dh, auth: receiver.auth, environment: null, appId: null, userAgent: null, createdAt: new Date(), lastSeenAt: new Date() }
+    const device = { id: 'd', userId: 'u', kind: 'web' as const, token: 'https://fcm.googleapis.com/fcm/send/x', p256dh: receiver.p256dh, auth: receiver.auth, environment: null, appId: null, userAgent: null, sessionId: null, createdAt: new Date(), lastSeenAt: new Date() }
     expect(await webPushSender(settings, { fetch: fetch as typeof globalThis.fetch }).send({ title: 'Hello' }, [device])).toEqual([{ id: 'd', result: 'ok' }])
 
     const [, token, key] = /^vapid t=([^,]+), k=(.+)$/.exec(sent[0]!.headers.get('authorization')!)!

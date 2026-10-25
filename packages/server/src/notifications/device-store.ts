@@ -7,10 +7,12 @@ import type { Device, NewDevice } from './device'
  */
 export type DeviceStore = {
   /**
-   * Registers the device for `userId`, or refreshes it when the user has it already. A token another user holds moves
-   * to `userId` as a new device: a new id, its fields as given, created and last seen now.
+   * Registers the device for `userId`, or refreshes it when the user has it already, its session included. An APNs or
+   * FCM token another user holds moves to `userId` as a new device: a new id, its fields as given, created and last
+   * seen now. A browser's endpoint another user holds stays theirs, unchanged, and the answer is `undefined`: a browser
+   * can always subscribe afresh, so an endpoint never changes hands.
    */
-  register: (userId: string, device: NewDevice) => Promise<Device>
+  register: (userId: string, device: NewDevice) => Promise<Device | undefined>
   /** Removes the device with this id when it is `userId`'s; another user's is left as it is. */
   remove: (userId: string, id: string) => Promise<void>
   /** The user's devices. */

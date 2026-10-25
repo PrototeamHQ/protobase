@@ -17,6 +17,7 @@ expectTypeOf<{ [K in keyof Device]: Device[K] }>().toEqualTypeOf<{
   environment: 'sandbox' | 'production' | null
   appId: string | null
   userAgent: string | null
+  sessionId: string | null
   id: string
   userId: string
   createdAt: Date

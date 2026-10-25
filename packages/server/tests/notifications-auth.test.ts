@@ -6,6 +6,12 @@ import { issueToken } from '../src/better-auth/tokens'
 import { createUser, deleteUser } from '../src/better-auth/users'
 import type { UserTableOptions } from '../src/better-auth/user-table'
 import { createAdmin } from '../src/create-admin'
+import { liveSessions } from '../src/better-auth/live-sessions'
+import { deliver } from '../src/notifications/deliver'
+import { postgresDeviceStore } from '../src/notifications/postgres-store'
+import { noProgress } from '../src/notifications/push-payload'
+import type { PushSender } from '../src/notifications/sender'
+import { checkedSend } from '../src/notifications/send-input'
 import type { DeviceStore } from '../src/notifications/device-store'
 import type { HistoryStore } from '../src/notifications/history-store'
 import { devicesPath, historyPath } from '../src/notifications/paths'
@@ -22,6 +28,7 @@ const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
 const password = 'correct horse battery'
 const fcm = (token: string) => ({ kind: 'fcm', token })
+const browser = (name: string) => ({ kind: 'web', endpoint: `https://fcm.googleapis.com/fcm/send/${name}`, keys: { p256dh: Buffer.alloc(65, 4).toString('base64url'), auth: Buffer.alloc(16, 1).toString('base64url') } })
 
 type Served = { notifications?: boolean; store?: DeviceStore; historyStore?: HistoryStore; users?: UserTableOptions }
 
@@ -100,6 +107,85 @@ describe('the devices endpoints with auth', () => {
   })
 })
 
+// A send to `userId` as the push job delivers it with Protobase's auth: the endpoints' names it reached.
+const pushTo = async ({ pg, auth }: Awaited<ReturnType<typeof serve>>, userId: string) => {
+  const reached: string[] = []
+  const sender: PushSender = {
+    kinds: ['web'],
+    send: async (_message, devices) => {
+      reached.push(...devices.map((device) => device.token.slice(device.token.lastIndexOf('/') + 1)))
+      return devices.map((device) => ({ id: device.id, result: 'ok' as const }))
+    },
+  }
+  const done = async () => {}
+  await deliver(checkedSend({ userIds: [userId], inbox: false }, { title: 'Private' }), noProgress(), {
+    devices: postgresDeviceStore(pg.db),
+    senders: [sender],
+    record: done,
+    save: done,
+    hold: done,
+    complete: done,
+    liveSessions: liveSessions(auth),
+  })
+  return reached
+}
+
+describe('browser push with auth', () => {
+  it('reaches a browser only while the session it was registered in stands', async () => {
+    const served = await serve()
+    const { alice, cookieOf, register, post, devicesOf, app } = served
+    const cookie = await cookieOf('alice@example.com')
+    const token = ((await (await app.request(`${origin}/api/auth/token`, { headers: { cookie, origin } })).json()) as { token: string }).token
+    expect((await register(token, browser('alice-browser'))).status).toBe(200)
+    expect(await pushTo(served, alice.id)).toEqual(['alice-browser'])
+    expect((await post('/api/auth/sign-out', {}, { cookie })).status).toBe(200)
+    expect(await pushTo(served, alice.id)).toEqual([])
+    expect(await devicesOf(alice.id)).toEqual([])
+  })
+
+  it("ends the session a browser held when someone signs in over its cookie, and with it that session's devices", async () => {
+    const served = await serve()
+    const { alice, bob, cookieOf, register, post, devicesOf, app, tokenOf } = served
+    const aliceCookie = await cookieOf('alice@example.com')
+    const token = ((await (await app.request(`${origin}/api/auth/token`, { headers: { cookie: aliceCookie, origin } })).json()) as { token: string }).token
+    expect((await register(token, browser('shared-browser'))).status).toBe(200)
+    // Bob signs in on the same browser without Alice signing out first.
+    const bobSignIn = await post('/api/auth/sign-in/email', { email: 'bob@example.com', password }, { cookie: aliceCookie })
+    expect(bobSignIn.status).toBe(200)
+    expect((await app.request(`${origin}/api/auth/token`, { headers: { cookie: aliceCookie, origin } })).status).toBe(401)
+    expect(await pushTo(served, alice.id)).toEqual([])
+    expect(await devicesOf(alice.id)).toEqual([])
+    // Bob, holding the browser now, registers it afresh as his own.
+    expect((await register(await tokenOf('bob@example.com'), browser('bob-browser'))).status).toBe(200)
+    expect(await pushTo(served, bob.id)).toEqual(['bob-browser'])
+  })
+
+  it('refuses cross-site requests that carry only the cookie, and gives a foreign page no token to read', async () => {
+    const { app, alice, cookieOf, register, tokenOf, devicesOf } = await serve()
+    const own = await (await register(await tokenOf('alice@example.com'), browser('alice-browser'))).json()
+    const cookie = await cookieOf('alice@example.com')
+    const evil = 'https://evil.example'
+    const cookieOnly = [
+      { 'content-type': 'application/x-www-form-urlencoded', body: 'kind=web&endpoint=https%3A%2F%2Ffcm.googleapis.com%2Ffcm%2Fsend%2Fattacker' },
+      { 'content-type': 'text/plain', body: JSON.stringify(browser('attacker')) },
+      { 'content-type': 'application/json', body: JSON.stringify(browser('attacker')) },
+    ]
+    for (const { body, ...headers } of cookieOnly) {
+      const answer = await app.request(`${origin}${devicesPath('/api')}`, { method: 'POST', headers: { ...headers, cookie, origin: evil }, body })
+      expect(answer.status).toBe(401)
+    }
+    expect((await app.request(`${origin}${devicesPath('/api', own.id)}`, { method: 'DELETE', headers: { cookie, origin: evil } })).status).toBe(401)
+    expect(await devicesOf(alice.id)).toEqual([{ token: 'https://fcm.googleapis.com/fcm/send/alice-browser' }])
+    // The token the cookie buys is the boundary: no CORS answer lets a foreign page read it.
+    const read = await app.request(`${origin}/api/auth/token`, { headers: { cookie, origin: evil } })
+    const preflight = await app.request(`${origin}/api/auth/token`, { method: 'OPTIONS', headers: { origin: evil, 'access-control-request-method': 'GET' } })
+    for (const answer of [read, preflight]) {
+      expect(answer.headers.get('access-control-allow-origin')).toBeNull()
+      expect(answer.headers.get('access-control-allow-credentials')).toBeNull()
+    }
+  })
+})
+
 describe('deleting a user with a device store of the app own', () => {
   const recording = (fail = false) => {
     const memory = memoryDeviceStore()
@@ -153,7 +239,7 @@ describe('deleting a user with a device store of the app own', () => {
       removeAllForUser: async (userId) => {
         await memory.removeAllForUser(userId)
         // A register from the user's still-live session, landing right after the first removal.
-        if (!raced) await memory.register(userId, { kind: 'fcm', token: 'late', p256dh: null, auth: null, environment: null, appId: null, userAgent: null })
+        if (!raced) await memory.register(userId, { kind: 'fcm', token: 'late', p256dh: null, auth: null, environment: null, appId: null, userAgent: null, sessionId: null })
         raced = true
       },
     }

@@ -5,6 +5,7 @@ import { adminAc, userAc } from 'better-auth/plugins/admin/access'
 import { appNameOver, defaultAppName } from '../app-name'
 import { goTrueIssuer, goTrueKeyPair } from '../gotrue/keys'
 import { goTrueSessionsPlugin } from '../gotrue/sessions-plugin'
+import { endReplacedSession } from './end-replaced-session'
 import { authBasePath } from './auth-base-path'
 import { mobileRequests, type MobileRequests } from './mobile-requests'
 import { passwordLength } from './new-account-password'
@@ -171,6 +172,9 @@ export type CreateAuthOptions = {
    */
   mcp?: true | McpAuthOptions
 }
+
+// The session hooks, with a new session ending the one the browser's cookie held (see `endReplacedSession`).
+const withEndedReplaced = <H extends { create?: object }>(hooks: H) => ({ ...hooks, create: { ...hooks.create, after: endReplacedSession } })
 
 type UserCreateHooks = NonNullable<NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['user']>['create']>
 
@@ -363,7 +367,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         },
         update: { before: async (user) => ({ data: confirmedOnUpdate(user, new Date()) }) },
       },
-      ...(organizations && { session: sessionOrganizationHooks(context) }),
+      session: withEndedReplaced(organizations ? sessionOrganizationHooks(context) : {}),
     },
     rateLimit: {
       enabled: true,

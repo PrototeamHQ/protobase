@@ -14,6 +14,7 @@ export const memoryDeviceStore = () => {
       required('token', device.token)
       const now = new Date()
       const held = byToken(device.token)
+      if (held && held.userId !== userId && (held.kind === 'web' || device.kind === 'web')) return undefined
       if (held) devices.delete(held.id)
       const own = held?.userId === userId ? held : undefined
       const stored: Device = { ...device, id: own?.id ?? crypto.randomUUID(), userId, createdAt: own?.createdAt ?? now, lastSeenAt: now }

@@ -65,6 +65,7 @@ import { devicesPath, historyPath } from './notifications/paths'
 import { deviceRoutes } from './notifications/routes'
 import { notificationSenders, webPushKey } from './notifications/senders-of'
 import { pushJob } from './notifications/push-job'
+import { liveSessions } from './better-auth/live-sessions'
 import type { SubscriptionDefinition } from './webhooks/subscription'
 import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
@@ -366,7 +367,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   if (notifications) {
     const devices = deviceStore(db, notifications)
     if (auth) removeDevicesWithUsers(auth, devices)
-    app.route(devicesPath(systemPath), guarded((routes) => void routes.route('/', deviceRoutes(devices))))
+    app.route(devicesPath(systemPath), guarded((routes) => void routes.route('/', deviceRoutes(devices, { sessionRequired: Boolean(auth) }))))
     const history = historyStore(db, notifications)
     if (auth) removeHistoryWithUsers(auth, history)
     app.route(historyPath(systemPath), guarded((routes) => void routes.route('/', historyRoutes(history, auth?.origins ?? []))))
@@ -399,5 +400,5 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route(systemPath || '/', webManifestRoute(appName, identity, icons))
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
-  return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders)] : [])] })
+  return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth))] : [])] })
 }

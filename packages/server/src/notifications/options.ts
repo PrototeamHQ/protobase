@@ -3,7 +3,7 @@ import { checkHistoryStore, type HistoryStore } from './history-store'
 import { checkSenders, type PushSender } from './sender'
 
 /** The columns of the devices table, by the name Protobase gives them. */
-export const deviceColumns = ['id', 'user_id', 'kind', 'token', 'p256dh', 'auth', 'environment', 'app_id', 'user_agent', 'created_at', 'last_seen_at'] as const
+export const deviceColumns = ['id', 'user_id', 'kind', 'token', 'p256dh', 'auth', 'environment', 'app_id', 'user_agent', 'session_id', 'created_at', 'last_seen_at'] as const
 export type DeviceColumn = (typeof deviceColumns)[number]
 
 /** The columns of the history table, by the name Protobase gives them. */
