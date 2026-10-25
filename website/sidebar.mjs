@@ -45,6 +45,7 @@ export const guides = [
   'guides/import-records',
   'guides/push-notifications',
   'guides/create-page',
+  'guides/personal-setting',
   'guides/mobile-app',
 ]
 

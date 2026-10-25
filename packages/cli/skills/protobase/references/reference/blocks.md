@@ -416,7 +416,7 @@ The signed-in person's own record of `resource` as settings, one field under the
 
 The startup check stops the config when the resource has no `.owner(...)`, when its owner is not its whole key, when it has a [tenant](data-config.md#resource) (settings are each person's own, not an organization's), when it has no field a person can set, and when `fields` names an unknown, key, sensitive or file field.
 
-A person's notification choices, in a tab of the [account page](auth.md#account-page). The table has one row per person, keyed by their user id, which is text with Better Auth:
+A person's notification choices, in a tab of the [account page](auth.md#account-page); the guide [Add a personal setting](../guides/personal-setting.md) walks through the ERP example's. The table has one row per person, keyed by their user id, which is text with Better Auth:
 
 ```sql
 -- db/migrations/012_preferences.sql
