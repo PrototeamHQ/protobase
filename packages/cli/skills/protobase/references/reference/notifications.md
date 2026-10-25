@@ -7,7 +7,7 @@ Turn on notifications, send them to users or devices, let each signed-in user re
 ## Turning them on
 
 :::caution[In development]
-Sending keeps notifications in the history and pushes them to browsers, but browsers cannot register for push yet: registering a browser, push on Android and iOS and the bell are coming soon.
+Sending keeps notifications in the history and pushes them to browsers; push on Android and iOS and the bell are coming soon.
 :::
 
 Notifications tell a user about something in the app, in a bell in the top bar and as push on their devices. You turn them on in `protobase.config.ts`:
@@ -23,11 +23,11 @@ export default defineConfig({
 
 Then run `protobase migration`, which writes the [devices and history tables](#table-names), and the jobs schema that [sending](#sending) runs on, as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while a table is missing or lacks what notifications need, and name it. Without `notifications()` there is none of it: no endpoints, no tables and no migration.
 
-The bell and push are coming soon. `notifications({ ui: false })` keeps only the backend, without the bell.
+Browsers receive push through [Web Push](#web-push); the bell, and push on Android and iOS, are coming soon. `notifications({ ui: false })` keeps only the backend, without the bell.
 
 ## Devices
 
-:::caution[In development]
+:::caution[Beta]
 Only browsers receive push yet, through [Web Push](#web-push): push on Android and iOS is coming soon.
 :::
 
@@ -49,14 +49,19 @@ The body of a register is JSON (`Content-Type: application/json`, at most 8 KB),
 { "kind": "fcm", "token": "…", "appId": "net.example.app" }
 ```
 
-A field that does not belong to the kind, a missing one, an unknown one such as a user id, or a value out of its format is a `400` that names the field and stores nothing. A browser's `endpoint` must be an https URL on one of the browsers' push services. `environment` is `sandbox` or `production`, and `userAgent`, optional for every kind, is at most 512 characters. The stored device keeps `null` in the fields its kind does not have.
+A field that does not belong to the kind, a missing one, an unknown one such as an owner, or a value out of its format is a `400` that names the field and stores nothing. A browser's `endpoint` must be an https URL on one of the browsers' push services. `environment` is `sandbox` or `production`, and `userAgent`, optional for every kind, is at most 512 characters. The stored device keeps `null` in the fields its kind does not have.
+
+`userId`, optional for every kind, names the user the client registers for, such as the one whose click turned push on. When someone else is signed in by the time the request arrives, it is a `409` of type `other-user` that stores nothing.
 
 Who may call them:
 
 - Only someone signed in as themselves, with the token of their own sign-in. Visitors are refused with a `401`, and staff signed in as the user, outside apps acting for the user (such as an MCP client) and tokens minted with `issueToken` with a `403`.
 - An app with its own `authenticate` marks a user's own sign-in on the session it returns, `signIn: { staff: false }`; without that mark, its sessions are refused.
+- With Protobase's auth, every token the endpoints take names its sign-in session; one that names none is refused with a `403`.
 
-A device is one token, or one endpoint for a browser. Registering a device someone else had moves it to the caller, as a new device with a new id that keeps nothing of the previous user's, so a shared phone or browser notifies whoever signed in on it last. A user keeps up to 20 devices: registering one more removes their least recently seen. Deleting a user removes their devices. <gap>Signing out cannot remove the session's devices because removing devices when a session ends is not implemented.</gap> Remove the device with `DELETE` before signing out.
+A device is one token, or one endpoint for a browser. An Android or iOS token someone else had moves to the caller, as a new device with a new id that keeps nothing of the previous user's, so a shared phone notifies whoever signed in on it last. A browser's endpoint never moves: registering one another user holds is a `409` of type `device-held` that stores nothing, and the browser subscribes again for a new endpoint, as [the browser helper](#in-the-browser) does. A user keeps up to 20 devices: registering one more removes their least recently seen. Deleting a user removes their devices.
+
+With Protobase's auth, a device belongs to the sign-in session it was registered in. Once that session ends, the device gets no more push and is removed at the next send: when the user signs out, someone signs in on the same browser, the user signs out everywhere, a password change signs out their other devices, an admin ends their sessions or bans them, or the session expires. Registering the device again ties it to the session of that request, which the browser helper does on its own for the same user. With an app's own `authenticate`, a device stays its user's until it is removed with `DELETE`.
 
 The path comes from `devicesPath('/api', id)`, and the name of its id parameter from `deviceIdParam`, both exported by `@protobase/server`.
 
@@ -106,7 +111,7 @@ The text you send shows on lock screens, where anyone holding the device can rea
 
 A send checks no permission. A device send reaches the devices whatever user holds them. So check ids taken from a request against the caller first, such as a device id against the caller's own devices.
 
-A user send reaches the user's devices as they are when the job runs. A device that moved to someone else, or was removed, gets nothing. A device stays its user's when a session ends, until it is [removed](#devices), and keeps receiving their notifications until then. When a push service reports a device gone, the device is removed. A device whose push service asks to try again later is tried once more, on the job's next try, and then given up on without being removed. <gap>A push service's own wait before a retry cannot set when the device is tried again because retries follow the job's backoff and timing them per device is not implemented.</gap> A sender that fails is retried with its devices, up to 5 tries of the job. Devices of a kind without a sender are skipped. Without any sender, a send for the inbox is kept in the history and a send that is not does nothing.
+A user send reaches the user's devices as they are when the job runs. A device that moved to someone else, or was removed, gets nothing. With Protobase's auth, a device whose sign-in session has [ended](#devices) is removed instead; a send whose devices' sessions cannot be read pushes to none of them and is retried. With an app's own `authenticate`, a device keeps receiving its user's notifications until it is removed. When a push service reports a device gone, the device is removed. A device whose push service asks to try again later is tried once more, on the job's next try, and then given up on without being removed. <gap>A push service's own wait before a retry cannot set when the device is tried again because retries follow the job's backoff and timing them per device is not implemented.</gap> A sender that fails is retried with its devices, up to 5 tries of the job. Devices of a kind without a sender are skipped. Without any sender, a send for the inbox is kept in the history and a send that is not does nothing.
 
 ## History
 
@@ -135,8 +140,8 @@ The paths come from `historyPath('/api')`, `historyPath('/api', 'unread')`, `his
 
 ## Web Push
 
-:::caution[In development]
-Browsers cannot register for push yet, so nothing reaches them until browser registration lands.
+:::caution[Beta]
+On iPhone and iPad, a browser tab gets no push; the app added to the Home Screen does. The ready-made button is coming soon with the bell.
 :::
 
 Browsers receive push through the Web Push protocol: desktop and Android browsers, and web apps added to the home screen on iPhone. You generate a key pair with the CLI and set it, with a contact address, in three environment variables:
@@ -155,7 +160,31 @@ Without them Web Push is off and the app has no sender for browsers. One or two 
 
 The private key is a secret: keep it out of client code, `VITE_` variables and the repository. Anyone holding it and the stored subscriptions can push to every subscribed browser. Browsers subscribe with the public key, which `/meta` gives every caller as `notifications.webPushKey`, so a new key pair breaks every subscription until its browser registers again.
 
-Each message is encrypted for its browser and signed with the key. It goes only to an endpoint on one of the browsers' push services, never through a redirect; a device stored with any other endpoint, or with keys that are not a subscription's, is `refused`. <gap>Web Push cannot deliver to a push service outside the browsers' own because adding one to the list is not implemented.</gap> A message's `platform.web` sets the request's `ttl`, `urgency` and `topic` and fields merged into the JSON the browser receives (`payload`), in place of those built from the message; every URL in that JSON is checked as the message's `url` is. The JSON carries at most 3993 bytes.
+Each message is encrypted for its browser and signed with the key. It goes only to an endpoint on one of the browsers' push services, never through a redirect; a device stored with any other endpoint, or with keys that are not a subscription's, is `refused`. <gap>Web Push cannot deliver to a push service outside the browsers' own because adding one to the list is not implemented.</gap> A message's `platform.web` sets the request's `ttl`, `urgency` and `topic` and fields merged into the JSON the browser receives (`payload`), in place of those built from the message; every URL in that JSON is checked as the message's `url` is. The JSON also carries `user`, the id of the user the device is registered for, over any `user` in `payload`, and at most 3993 bytes.
+
+### In the browser
+
+`usePushNotifications()` from `@protobase/ui` turns push on and off for the signed-in user in this browser, for your own button or menu item. Its `state` tells whether push is `on`, `off`, `blocked` because the user refused notifications in the browser's settings, or `unsupported`, and `loading` until it knows. Hide the button while it is `unsupported`: the browser has no Web Push, the app has no VAPID keys, or it runs in the Android or iOS app.
+
+```tsx
+import { Button, usePushNotifications } from '@protobase/ui'
+
+export const PushButton = () => {
+  const push = usePushNotifications()
+  if (push.state === 'loading' || push.state === 'unsupported') return null
+  if (push.state === 'blocked') return <p>Notifications are blocked in this browser's settings.</p>
+  if (push.state === 'on') return <Button onClick={() => void push.turnOff()}>Turn off notifications</Button>
+  return <Button onClick={() => void push.turnOn()}>Turn on notifications</Button>
+}
+```
+
+- Call `turnOn` straight from a click. The browser asks for permission then, and only then: without a click nothing happens, and push is never turned on when a page loads. Once the user said no, `turnOn` does not ask again and answers `blocked`.
+- Only someone signed in as themselves can turn push on: a visitor's click and staff signed in as the user do nothing.
+- On iPhone and iPad, push works in the app added to the Home Screen; a browser tab answers `unsupported`.
+- Signing out turns push off in this browser, and so does someone else signing in on it: what the browser showed is closed, the app's badge cleared, and the device removed. Signing in again as the same user keeps it on.
+- A tap on a notification whose url is on your app's origin opens that page in the app, in an open window of it or a new one; any other url opens in a new tab.
+
+`protobase serve` and `protobase dev` both serve the service worker that shows notifications, `protobase dev` only when the app has `notifications()`.
 
 ## Your own parts
 
@@ -169,7 +198,7 @@ The device store is an interface with a Postgres default, the [devices table](#t
 import { defineConfig, notifications, type DeviceStore } from '@protobase/server'
 
 const store: DeviceStore = {
-  register: async (userId, device) => { /* add, refresh, or move the token to userId as a new device */ },
+  register: async (userId, device) => { /* add or refresh it, or move a phone's token to userId as a new device; undefined for a browser's endpoint another user holds */ },
   remove: async (userId, id) => { /* only when the device is userId's */ },
   listForUser: async (userId) => [],
   listByIds: async (ids) => [],
@@ -180,7 +209,7 @@ const store: DeviceStore = {
 export default defineConfig({ extends: [notifications({ store })] })
 ```
 
-Every method takes and returns plain data: the user id as text, and devices as `{ id, userId, kind, token, p256dh, auth, environment, appId, userAgent, createdAt, lastSeenAt }`, with `token` the endpoint for a browser. A method given an empty user id, id or token throws. `listByIds` and `removeGone` act on any user's devices, for the code that sends; the endpoints never call them. A store missing a method stops startup, naming it.
+Every method takes and returns plain data: the user id as text, and devices as `{ id, userId, kind, token, p256dh, auth, environment, appId, userAgent, sessionId, createdAt, lastSeenAt }`, with `token` the endpoint for a browser and `sessionId` the sign-in session it was registered in. A method given an empty user id, id or token throws. `listByIds` and `removeGone` act on any user's devices, for the code that sends; the endpoints never call them. A store missing a method stops startup, naming it.
 
 When Protobase's auth deletes a user, by an admin or with `protobase users delete`, it calls the store's `removeAllForUser` before anything is deleted, so a store that throws stops the deletion, and once more afterwards. An app that deletes users otherwise calls `deviceStore(db, options).removeAllForUser(userId)` as it deletes one, with the options it gave `notifications()`.
 
@@ -244,7 +273,7 @@ A message is plain data:
 | `urgency` | `very-low`, `low`, `normal` or `high` |
 | `platform` | each protocol's own fields: `web`, `apns` and `fcm` |
 
-`pushMessage(message)` checks a message and answers it as senders get it, or throws a `PushMessageError` that names the field at fault, never its value. Every sender gets a checked message: a `url` with any other scheme, such as `javascript:` or `data:`, or a relative one, is refused, and so is a field that is not one of the message's, a key `__proto__`, `constructor` or `prototype` anywhere in it, or text with control characters. A sender for `web` devices names the VAPID `publicKey` browsers subscribe with, which `/meta` gives every caller; it must be a P-256 public key in base64url.
+`pushMessage(message)` checks a message and answers it as senders get it, or throws a `PushMessageError` that names the field at fault, never its value. Every sender gets a checked message: a `url` with any other scheme, such as `javascript:` or `data:`, or a relative one, is refused, and so is a field that is not one of the message's, a key `__proto__`, `constructor` or `prototype` anywhere in it, or text with control characters. A sender for `web` devices names the VAPID `publicKey` browsers subscribe with, which `/meta` gives every caller; it must be a P-256 public key in base64url. Its JSON carries the device's `userId` as `user`, as the built-in sender's does: the service worker shows nothing of a push for another user, or for none.
 
 The bell is coming soon.
 
@@ -266,7 +295,10 @@ The default store keeps devices in the table `devices` of the schema `notificati
 | `environment` | an iOS app's `sandbox` or `production` |
 | `app_id` | the app's bundle id or package name |
 | `user_agent` | what the device said it is |
+| `session_id` | the id of the sign-in session it was registered in, never its token; `NULL` when the app's `authenticate` names none |
 | `created_at`, `last_seen_at` | when the user registered it, and last refreshed it |
+
+`protobase migration` adds `session_id` to a devices table written before devices kept their session.
 
 You rename the schema, the table and each column, as auth takes `users.table` and `users.columns`, such as to keep devices in a table you already have:
 
