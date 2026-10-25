@@ -20,7 +20,7 @@ const textDates = (pg: { types: { getTypeParser: TypeParser } }) => ({
 })
 
 /** The settings `appPool` and `longQueryPool` open node-postgres's pool with. */
-export type AppPoolConfig = { connectionString: string; max: number; connectionTimeoutMillis: number; statement_timeout?: number; types: { getTypeParser: TypeParser } }
+export type AppPoolConfig = { connectionString: string; max: number; connectionTimeoutMillis: number; allowExitOnIdle: true; statement_timeout?: number; types: { getTypeParser: TypeParser } }
 
 type PgPool = {
   readonly ending: boolean
@@ -39,7 +39,8 @@ const store = globalThis as { __protobaseAppPools?: Map<string, { pool: PgPool; 
  * Whoever asks first opens it, and everyone in the process shares it, across a dev server's reloads too, until it ends;
  * so the app never opens more connections than it may. Date and timestamp (without zone) come back as text, which the
  * API formats itself, a dropped connection is printed rather than fatal, and a query waits at most `poolWaitMs` for a
- * free connection.
+ * free connection. Idle connections keep no process alive, so a command exits when its work is done even while
+ * nobody ends the pool, such as one that sent no query of its own after Better Auth's schema check.
  */
 export const appPool = <P extends PgPool>(pg: PgModule<P>, url: string, max = readDbConnections(globalThis.process?.env ?? {})): P => {
   const pools = (store.__protobaseAppPools ??= new Map())
@@ -50,7 +51,7 @@ export const appPool = <P extends PgPool>(pg: PgModule<P>, url: string, max = re
     if (known.max !== max) throw new Error(`The app's pool on this database is open with ${known.max} connections, so it cannot open with ${max}: give both the same PROTOBASE_DB_CONNECTIONS`)
     return known.pool as P
   }
-  const pool = handleDroppedConnections(new pg.Pool({ connectionString: url, max, connectionTimeoutMillis: poolWaitMs, types: textDates(pg) }))
+  const pool = handleDroppedConnections(new pg.Pool({ connectionString: url, max, connectionTimeoutMillis: poolWaitMs, allowExitOnIdle: true, types: textDates(pg) }))
   pools.set(url, { pool, max })
   return pool
 }
@@ -62,4 +63,4 @@ export const appPool = <P extends PgPool>(pg: PgModule<P>, url: string, max = re
  * It opens its connection on first use, and nobody else shares it.
  */
 export const longQueryPool = <P extends PgPool>(pg: PgModule<P>, url: string): P =>
-  handleDroppedConnections(new pg.Pool({ connectionString: url, max: 1, connectionTimeoutMillis: longQueryTimeoutMs, statement_timeout: longQueryTimeoutMs, types: textDates(pg) }))
+  handleDroppedConnections(new pg.Pool({ connectionString: url, max: 1, connectionTimeoutMillis: longQueryTimeoutMs, allowExitOnIdle: true, statement_timeout: longQueryTimeoutMs, types: textDates(pg) }))
