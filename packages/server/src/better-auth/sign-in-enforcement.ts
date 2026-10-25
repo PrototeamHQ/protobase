@@ -3,7 +3,7 @@ import { signInPolicyMethods, type SignInPolicy, type SignInPolicyMethod } from 
 export type SignInRefusal = { code: string; message: string }
 
 // The Better Auth endpoints behind each method, as `ctx.path` names them (without `/api/auth`).
-const passwordPaths = ['/sign-in/email', '/request-password-reset', '/reset-password']
+const passwordPaths = ['/sign-in/email', '/request-password-reset', '/reset-password', '/account/set-password']
 const emailCodePaths = ['/sign-in/email-otp']
 const passkeyPaths = ['/passkey/generate-authenticate-options', '/passkey/verify-authentication', '/passkey/generate-register-options', '/passkey/verify-registration']
 export const staffSignInPath = '/staff/sign-in'

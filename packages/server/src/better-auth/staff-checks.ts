@@ -68,6 +68,7 @@ export const staffLabel = (claims: StaffClaims) => (typeof claims.email === 'str
 const accountChanges = [
   '/change-password',
   '/set-password',
+  '/account/set-password',
   '/change-email',
   '/delete-user',
   '/link-social',

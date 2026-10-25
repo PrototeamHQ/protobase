@@ -363,6 +363,7 @@ describe('audiences', () => {
       expect((await request('/api/auth/token', { headers })).status).toBe(401)
       expect((await request('/api/auth/account/connected-apps', { headers })).status).toBe(401)
       expect((await request('/api/auth/account/connected-apps/disconnect', { headers, body: { clientId } })).status).toBe(401)
+      expect((await request('/api/auth/account/set-password', { headers, body: { newPassword: password } })).status).toBe(401)
     }
   })
 })
@@ -542,6 +543,16 @@ describe('securing the account', () => {
     const { grant, request, refresh, consents, authenticate } = await serve()
     const { clientId, cookie, tokens } = await grant()
     expect((await request('/api/auth/sign-out', { cookie, body: {} })).status).toBe(200)
+    expect(await mcpTakes(authenticate, tokens.access_token)).toBe('taken')
+    expect((await refresh(clientId, tokens.refresh_token!)).status).toBe(200)
+    expect(await consents('ana@example.com')).toHaveLength(1)
+  })
+
+  it('but not by setting a first password, which signs nobody out', async () => {
+    const { grant, request, refresh, consents, authenticate, store, userId } = await serve()
+    const { clientId, cookie, tokens } = await grant()
+    await store.query(`update account set password = null where provider_id = 'credential' and user_id = $1`, [await userId('ana@example.com')])
+    expect((await request('/api/auth/account/set-password', { cookie, body: { newPassword: password } })).status).toBe(200)
     expect(await mcpTakes(authenticate, tokens.access_token)).toBe('taken')
     expect((await refresh(clientId, tokens.refresh_token!)).status).toBe(200)
     expect(await consents('ana@example.com')).toHaveLength(1)

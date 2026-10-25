@@ -112,6 +112,28 @@ describe('an account without a password', () => {
     const cookie = await signInByCode('noor@example.com')
     expect(await (await request('/account/sign-in-methods', { cookie })).json()).toMatchObject({ account: { password: false, passkeys: 0 } })
   })
+
+  it('sets a first password in place, and stays signed in everywhere', async () => {
+    const { auth, request, signIn, signInByCode } = await serve()
+    await createUser(auth, { email: 'noor@example.com', role: 'user' })
+    const cookie = await signInByCode('noor@example.com')
+    const other = await signInByCode('noor@example.com')
+    expect((await request('/account/set-password', { body: { newPassword: password } })).status).toBe(401)
+    const short = await request('/account/set-password', { cookie, body: { newPassword: 'too short' } })
+    expect(short.status).toBe(400)
+    expect(await short.json()).toMatchObject({ code: 'PASSWORD_TOO_SHORT' })
+
+    const set = await request('/account/set-password', { cookie, body: { newPassword: password } })
+    expect(set.status).toBe(200)
+    expect(set.headers.getSetCookie()).toEqual([])
+    for (const session of [cookie, other]) expect(await (await request('/get-session', { cookie: session })).json()).toMatchObject({ user: { email: 'noor@example.com' } })
+    expect(await (await request('/account/sign-in-methods', { cookie })).json()).toMatchObject({ account: { password: true } })
+    await signIn('noor@example.com')
+
+    const again = await request('/account/set-password', { cookie, body: { newPassword: 'another long password' } })
+    expect(again.status).toBe(400)
+    expect(await again.json()).toMatchObject({ code: 'PASSWORD_ALREADY_SET' })
+  })
 })
 
 describe('a way to sign in the policy turns off', () => {
@@ -123,6 +145,15 @@ describe('a way to sign in the policy turns off', () => {
     expect(await refused.json()).toMatchObject({ code: 'SIGN_IN_METHOD_FORBIDDEN', message: 'Signing in with a password is turned off.' })
     expect((await request('/request-password-reset', { body: { email: 'sanne@example.com', redirectTo: `${origin}/` } })).status).toBe(403)
     expect(await status()).toEqual({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: false, socialProviders: [] })
+  })
+
+  it('refuses setting a first password', async () => {
+    const { auth, request, signIn, signInByCode } = await serve()
+    await request('/policy/sign-in', { cookie: await signIn('root@example.com'), body: { ...defaultSignInPolicy, password: 'forbidden' } })
+    await createUser(auth, { email: 'noor@example.com', role: 'user' })
+    const refused = await request('/account/set-password', { cookie: await signInByCode('noor@example.com'), body: { newPassword: password } })
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toMatchObject({ code: 'SIGN_IN_METHOD_FORBIDDEN' })
   })
 
   it('comes back for passwords when mail goes away, so emailed codes are not the only way left', async () => {

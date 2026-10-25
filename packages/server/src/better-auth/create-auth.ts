@@ -27,6 +27,7 @@ import { appOrigins, multiHostBaseURL, readOrigins, resolveOrigins } from './ori
 import { passkeyHosts, readPasskeyDomain, resolvePasskeyDomain } from './passkey-domain'
 import { passkeyPlugin } from './passkey-plugin'
 import { passwordResetOptions } from './password-reset'
+import { setPasswordPath, setPasswordPlugin } from './set-password'
 import { rolesPlugin } from './roles/roles-plugin'
 import type { RoleSession, RoleUser } from './roles/session-role'
 import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
@@ -323,6 +324,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       ...(saml.length > 0 ? [samlPlugin(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
+      setPasswordPlugin(),
       goTrueSessionsPlugin({ issuer: goTrueIssuer(options.baseURL), jwt: jwtOptions, policy }),
       staffSignInPlugin({ ...(operator && { operator }), ...(mail && { mail }), defaultPolicy: signInPolicy }),
       rolesPlugin({ definitions }),
@@ -376,6 +378,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       customRules: {
         '/sign-in/email': { window: 60, max: options.signInPerMinute ?? 5 },
         '/staff/sign-in': { window: 60, max: 5 },
+        [setPasswordPath]: { window: 60, max: 5 },
         '/invitation/sign-up': { window: 60, max: options.signInPerMinute ?? 5 },
         [signUpPaths.sendCode]: { window: 60, max: options.signInPerMinute ?? 5 },
         [signUpPaths.verifyCode]: { window: 60, max: options.signInPerMinute ?? 5 },

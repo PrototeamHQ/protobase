@@ -29,6 +29,10 @@ describe('betterAuthOptions', () => {
     expect([customRules['/sign-up/send-code'], customRules['/sign-up/create']]).toEqual([{ window: 60, max: 7 }, { window: 60, max: 7 }])
   })
 
+  it('limits setting a first password to 5 per minute and client', () => {
+    expect(betterAuthOptions(base, resolved).rateLimit.customRules['/account/set-password']).toEqual({ window: 60, max: 5 })
+  })
+
   it('passes the social providers through and leaves everything else as it was', () => {
     const { socialProviders, ...rest } = betterAuthOptions({ ...base, socialProviders: github }, resolved)
     expect(socialProviders).toBe(github)

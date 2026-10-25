@@ -19,9 +19,9 @@ describe('policyRefusal', () => {
     expect(isPoliced('/staff/sign-in')).toBe(true)
   })
 
-  it('refuses password sign-in and password reset while passwords are off', () => {
+  it('refuses password sign-in, password reset and setting a first password while passwords are off', () => {
     const off = policy({ password: 'forbidden' })
-    for (const path of ['/sign-in/email', '/request-password-reset', '/reset-password', '/reset-password/:token']) {
+    for (const path of ['/sign-in/email', '/request-password-reset', '/reset-password', '/reset-password/:token', '/account/set-password']) {
       expect(policyRefusal(off, { path })).toEqual({ code: 'SIGN_IN_METHOD_FORBIDDEN', message: 'Signing in with a password is turned off.' })
     }
     expect(policyRefusal(off, { path: '/sign-in/email-otp' })).toBeUndefined()

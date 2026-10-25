@@ -255,6 +255,7 @@ describe('the guardrails of a staff sign-in', () => {
     const { browser: staff } = await staffSignIn({ email: 'root@example.com' })
     for (const [path, body] of [
       ['/change-password', { currentPassword: password, newPassword: 'another long password' }],
+      ['/account/set-password', { newPassword: 'another long password' }],
       ['/two-factor/enable', { password }],
       ['/passkey/generate-register-options', undefined],
       ['/policy/sign-in', { ...defaultSignInPolicy, staffAccess: 'allowed' }],
