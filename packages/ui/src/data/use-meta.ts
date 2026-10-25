@@ -36,6 +36,7 @@ export const useMeta = (): UseQueryResult<MetaData> => {
         resources: Object.fromEntries(result.meta.resources.map((model) => [model.name, model])),
         views: Object.fromEntries(result.meta.views.map((model) => [model.resource, model])),
         pages: Object.fromEntries((result.meta.pages ?? []).map((model) => [model.name, model])),
+        ...(result.meta.account && { account: result.meta.account }),
         permissions: result.meta.permissions ?? {},
         ...(result.meta.userMenu && { userMenu: result.meta.userMenu }),
         ...(result.meta.signIn && { signIn: Object.fromEntries(result.meta.signIn.map((entry) => [entry.resource, entry])) }),

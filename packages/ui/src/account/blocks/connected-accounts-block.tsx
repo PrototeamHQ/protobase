@@ -30,10 +30,12 @@ const Linked = ({ providers }: { providers: SignInProvider[] }) => {
   )
 }
 
+/** The sign-in providers an account links to from here: the OAuth ones, as a SAML identity provider links it by signing in. */
+export const linkableProviders = ({ signInProviders, socialProviders }: Pick<ReturnType<typeof useAuth>, 'signInProviders' | 'socialProviders'>) =>
+  signInProviders.filter((provider) => socialProviders.includes(provider.id))
+
 /** The `ConnectedAccounts` block: the OAuth providers the signed-in person can link, hidden when the app has none. */
 export const ConnectedAccountsBlock = () => {
-  const { signInProviders, socialProviders } = useAuth()
-  // An account links to an OAuth provider from here; a SAML identity provider links it by signing in.
-  const linkable = signInProviders.filter((provider) => socialProviders.includes(provider.id))
+  const linkable = linkableProviders(useAuth())
   return linkable.length > 0 ? <Linked providers={linkable} /> : null
 }

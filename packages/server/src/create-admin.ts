@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import type { UpgradeWebSocket } from 'hono/ws'
 import type { JWTPayload } from 'jose'
-import { checkPages } from '@protobase/layout'
+import { accountPage, accountPageName, checkPages } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
 import { aiModel } from './ai/ai-model'
@@ -214,7 +214,11 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const apiFunctions = Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, toApiFunction(name, source)]))
   const viewModels = views.map((view) => view.toModel())
   const userMenuModel = userMenu?.toUserMenuModel()
-  const pageModels = pages.map((entry) => entry.toModel())
+  // The page named `account` is the signed-in person's own, at `/-/account` rather than beside the others; the standard
+  // one when the app has none.
+  const allPages = pages.map((entry) => entry.toModel())
+  const pageModels = allPages.filter((entry) => entry.name !== accountPageName)
+  const accountModel = allPages.find((entry) => entry.name === accountPageName) ?? accountPage.toModel()
   checkShell(registry, viewModels, userMenuModel, pageModels.map((entry) => entry.name))
   const bottomBarModels = bottomBars.map((bar) => bar.toBottomBarModel())
   checkBottomBars(registry, bottomBarModels, pageModels.map((entry) => entry.name), declaredRoles(auth, options.roles))
@@ -225,7 +229,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   if (options.mcp) checkMcpWrites(registry, declaredRoles(auth, options.roles), options.mcp.writes)
   checkPositionAfter(registry)
   checkParents(registry)
-  checkPages(pageModels, {
+  checkPages([...pageModels, accountModel], {
     models: Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model])),
     actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),
     createPages: new Set(viewModels.filter((view) => view.create).map((view) => view.resource)),
@@ -257,6 +261,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     registry,
     views: viewModels,
     pages: pageModels,
+    account: accountModel,
     ...(userMenuModel && { userMenu: userMenuModel }),
     bottomBars: bottomBarModels,
     basePath,

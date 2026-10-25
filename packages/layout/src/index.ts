@@ -59,6 +59,7 @@ export type {
 } from './blocks'
 export { component, type ComponentOptions } from './component'
 export { accountBlocks, accountPageName } from './check-account'
+export { accountPage, accountTabs } from './presets/account-page'
 export { usersPage } from './presets/users-page'
 export { page, isPageDefinition, type PageDefinition, type PageModel, type PageOptions } from './page'
 export { cardsLayoutOf } from './cards-layout'
@@ -67,7 +68,7 @@ export { conditionProblems, conditionReadable } from './check-condition'
 export { prunePage } from './prune-page'
 export { parseCondition, evaluateCondition, countedResource } from './condition'
 export { resolveFieldPath, type PathStep } from './field-path'
-export { walkTree, type Location } from './walk'
+export { mapTree, walkTree, type Location } from './walk'
 
 /** What `@protobase/layout/jsx-runtime` exports, for runtimes that supply it as a module. */
 export * as jsxRuntime from './jsx-runtime'

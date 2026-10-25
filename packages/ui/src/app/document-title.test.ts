@@ -29,11 +29,15 @@ describe('documentTitle', () => {
 
   it('names a composed page', () => {
     expect(title({ address: { kind: 'page', page: 'overview' }, page: { title: 'Overview' } })).toBe('Overview · Protobase')
-    expect(title({ address: { kind: 'page', page: 'account', tab: 'security' }, page: { title: 'Account', tab: 'Sign-in & security' } })).toBe('Sign-in & security · Account · Protobase')
+    expect(title({ address: { kind: 'page', page: 'orders', tab: 'open' }, page: { title: 'Orders', tab: 'Open' } })).toBe('Open · Orders · Protobase')
   })
 
-  it('names an account page', () => {
-    expect(title({ address: undefined, accountPage: 'Sign-in & security' })).toBe('Sign-in & security · Protobase')
+  it("names one of the app's own pages", () => {
+    expect(title({ address: undefined, accountPage: 'Sign-in policy' })).toBe('Sign-in policy · Protobase')
+  })
+
+  it('names the account page by its tab, as a composed page', () => {
+    expect(title({ address: undefined, accountPage: 'Account', page: { title: 'Account', tab: 'Sign-in & security' } })).toBe('Sign-in & security · Account · Protobase')
   })
 
   it('names only the app without an address', () => {

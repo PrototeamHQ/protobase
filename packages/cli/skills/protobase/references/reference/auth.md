@@ -137,6 +137,47 @@ New apps have it already. Leave the export out to drop it, or make a page of you
 
 An invitation to the app is a row of Better Auth's `verification` table, so it needs no table of its own. The client has these as `session.users`.
 
+## Account page
+
+Everyone signed in has an account page at `/-/account`, which "Account" in the user menu opens. When the config exports no page named `account`, the server serves the standard one, `accountPage` from `@protobase/layout`: a [composed page](layouts.md) titled "Account" with three [tabs](blocks.md#tabs-and-tab) of [account blocks](blocks.md#account-blocks), each tab at its own address.
+
+| Tab | Address | Blocks |
+| --- | --- | --- |
+| Profile | `/-/account` | `Profile` |
+| Sign-in & security | `/-/account/security` | `Passkeys`, `TwoFactor`, `ConnectedAccounts` |
+| Connected apps | `/-/account/apps` | `ConnectedApps` |
+
+A tab whose blocks all leave themselves out is not offered, such as Connected apps in an app without [MCP](#oauth-for-mcp-clients).
+
+To change it, export a page named `account` of your own: it replaces the standard one at `/-/account`, and is neither at `/account` nor in the sidebar. `accountTabs` holds the standard tabs by name (`profile`, `security`, `apps`), so the page lists the ones it keeps beside its own:
+
+```tsx
+// config/account.tsx
+import { accountTabs, Card, page, Page, Passkeys, Tab, Tabs, TwoFactor } from '@protobase/layout'
+
+export const account = page('account',
+  <Page title="Account">
+    <Tabs>
+      <Tab name="security" label="Sign-in & security">
+        <Card title="Company policy">Staff sign in with a passkey.</Card>
+        <Passkeys />
+        <TwoFactor />
+      </Tab>
+      {accountTabs.profile}
+      <Tab name="privacy" label="Privacy">
+        <Card title="Analytics">We count visits without cookies.</Card>
+      </Tab>
+    </Tabs>
+  </Page>)
+```
+
+- **Add** a tab of your own, here Privacy at `/-/account/privacy`, with any blocks a page can hold.
+- **Hide** a tab by leaving it out, here Connected apps, or a block by leaving it out of its tab, here `ConnectedAccounts`.
+- **Reorder** by listing the tabs in the order to show them: Sign-in & security comes first here, at `/-/account`.
+- **Wrap** a standard tab by writing it with its name and label, the standard blocks among your own, as the security tab above does with a note.
+
+The page is checked like any other, and the account blocks are allowed on it alone. A config that [extends](cli.md#extending-a-config) another and exports `account` too is the error of a page defined twice.
+
 ## Password reset
 
 With mail configured, the sign-in page offers "Forgot password?": the person enters their email, gets a link, and chooses a new password on the page the link opens. It is Better Auth's own reset: `POST /api/auth/request-password-reset` with `{ email, redirectTo }`, the emailed link `GET /api/auth/reset-password/<token>`, which sends the browser back to `redirectTo` with `?token=...` (or `?error=INVALID_TOKEN`), and `POST /api/auth/reset-password` with `{ token, newPassword }`.
@@ -333,7 +374,7 @@ createAuth({ ..., socialProviders: { github: { clientId: process.env.GITHUB_CLIE
 These work for every provider, the project's own and the [platform's](#platform-sign-in-provider):
 
 - **Sign-in links:** `https://<app>/?sign-in=github` starts signing in with `github` at once, showing only "Signing in with GitHub" while the browser leaves, so someone the provider knows lands signed in without a sign-in page. A refusal comes back to the sign-in page with the reason (`?error=<code>`, for example `signup_disabled`), and does not start again. Someone signed in already just opens the app.
-- **Connected accounts:** the **Sign-in & security** page lists the providers and offers "Connect GitHub" for one the account is not linked to. Connecting signs in at the provider and links that account whatever its address (`accountLinking.allowDifferentEmails`, which applies only to this explicit link by someone signed in). A provider account linked to another person already is refused (`account_already_linked_to_different_user`); a [staff session](#staff-sign-in) cannot link.
+- **Connected accounts:** the [account page](#account-page)'s **Sign-in & security** tab lists the providers and offers "Connect GitHub" for one the account is not linked to. Connecting signs in at the provider and links that account whatever its address (`accountLinking.allowDifferentEmails`, which applies only to this explicit link by someone signed in). A provider account linked to another person already is refused (`account_already_linked_to_different_user`); a [staff session](#staff-sign-in) cannot link.
 - **Linked up front:** `protobase users create <email> --github-id <id>`, or `createUser(auth, { ..., accounts: [{ providerId: 'github', accountId }] })`, links a new user to a GitHub user id, so GitHub finds them by it whatever address it reports.
 - Without a link, a provider finds someone by address only when it vouches for the address (`email_verified`) and the account's address is verified; accounts created by an admin or on the host are.
 
@@ -351,7 +392,7 @@ Instead of the metadata XML, `idp` takes the provider's entity ID, sign-in URL a
 
 - **What the provider's admin needs:** the entity ID and metadata URL `<BETTER_AUTH_URL>/api/auth/sso/saml2/sp/metadata?providerId=okta`, which most providers import, and the ACS URL `<origin>/api/auth/sso/saml2/sp/acs/okta` for each of the app's [origins](#several-origins). The assertion carries the address as attribute `email` (or the NameID), and the name as `givenName` and `surname` or as `displayName`; `attributes: { email, name, firstName, lastName }` names other attributes. The NameID identifies the account, so a stable one is best: persistent, or the address.
 - **Who gets in:** someone at one of `domains` (subdomains count) signs in to the account with that address, linked on the first sign-in, or gets a new one with the [default role](#roles), as with GitHub; without a default role the sign-up is refused. An address outside `domains` is refused, whether or not an account has it (`EMAIL_DOMAIN_NOT_ALLOWED`, or `account_not_linked` for an existing account). With [organizations](#organizations), people still join one by invitation.
-- **Sign-in links** work as for the other providers: `https://<app>/?sign-in=okta` starts it at once. A SAML provider links an account by signing in, so the Sign-in & security page does not offer to connect it.
+- **Sign-in links** work as for the other providers: `https://<app>/?sign-in=okta` starts it at once. A SAML provider links an account by signing in, so the account page does not offer to connect it.
 - `GET /api/auth/status` lists the providers as `samlProviders: [{ id, name }]`. Like `socialProviders`, they have no row in the [sign-in policy](#sign-in-policy), and a required passkey or two-factor authentication still holds back the token until it is set up.
 - **No migration:** the providers live in config, so the store gets no table for them.
 - The plugin's defaults stay: the response must answer a request this app made, within 5 minutes of clock skew, once. Not supported yet:
@@ -416,7 +457,7 @@ PROTOBASE_SIGN_IN_ISSUER=https://dex.example.com PROTOBASE_SIGN_IN_CLIENT_ID=erp
 PROTOBASE_SIGN_IN_ISSUER=https://keycloak.example.com/realms/acme PROTOBASE_SIGN_IN_CLIENT_ID=erp PROTOBASE_SIGN_IN_CLIENT_SECRET=... PROTOBASE_SIGN_IN_NAME="Acme SSO"
 ```
 
-People sign in with the address their account here has, or connect the provider on the Sign-in & security page once.
+People sign in with the address their account here has, or connect the provider on the account page's Sign-in & security tab once.
 
 ## Roles
 

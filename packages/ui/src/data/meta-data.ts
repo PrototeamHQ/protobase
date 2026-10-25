@@ -20,6 +20,8 @@ export type MetaData = {
   views: Record<string, ViewModel>
   /** Composed pages by name. */
   pages: Record<string, PageModel>
+  /** The signed-in user's account page, at `/-/account` (see `AccountPage`). */
+  account?: PageModel
   permissions: Record<string, ResourcePermissions>
   userMenu?: UserMenuModel
   /** For a visitor, the resources they could use once signed in, by name, with what to tell them (see `SignInPrompt`). */

@@ -222,8 +222,8 @@ describe('connected accounts', () => {
 
   it("starts linking a provider and answers its authorization URL, coming back to the page either way", async () => {
     const { requests, session } = serve({ '/link-social': () => json({ url: 'https://auth.example.com/authorize?state=s', redirect: false }) })
-    expect(await session.account.linkProvider('github', 'http://localhost/-/account')).toBe('https://auth.example.com/authorize?state=s')
-    expect(requests).toEqual([{ path: '/link-social', body: { provider: 'github', callbackURL: 'http://localhost/-/account', errorCallbackURL: 'http://localhost/-/account', disableRedirect: true } }])
+    expect(await session.account.linkProvider('github', 'http://localhost/-/account/security')).toBe('https://auth.example.com/authorize?state=s')
+    expect(requests).toEqual([{ path: '/link-social', body: { provider: 'github', callbackURL: 'http://localhost/-/account/security', errorCallbackURL: 'http://localhost/-/account/security', disableRedirect: true } }])
   })
 })
 

@@ -24,7 +24,7 @@ describe('readProviderError', () => {
 describe('withoutSignInLink', () => {
   it('drops the marker and the error and keeps the rest of the address', () => {
     expect(withoutSignInLink('https://erp.example.com/orders?view=open&sign-in=github#top')).toBe('/orders?view=open#top')
-    expect(withoutSignInLink('https://erp.example.com/-/account?error=account_already_linked_to_different_user')).toBe('/-/account')
+    expect(withoutSignInLink('https://erp.example.com/-/account/security?error=account_already_linked_to_different_user')).toBe('/-/account/security')
   })
 })
 

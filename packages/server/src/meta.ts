@@ -36,6 +36,8 @@ export type CallerMeta = {
   views: ViewModel[]
   /** The composed pages the caller may open, without the elements that name what they cannot see or do. */
   pages: PageModel[]
+  /** The caller's account page, at `/-/account`, when they are signed in, pruned as the pages are. */
+  account?: PageModel
   permissions: Record<string, ResourcePermissions>
   /** The user menu with the resources the caller cannot see left out. */
   userMenu?: UserMenuModel
@@ -107,6 +109,8 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       actions: (resource: string) => new Set(views.find((view) => view.resource === resource)?.actions.map((action) => action.name) ?? []),
     }
     const pages = deps.pages.flatMap((page) => prunePage(page, session.user.roles, callerAccess) ?? [])
+    // Only someone signed in has an account to show
+    const account = deps.account && !session.anonymous ? prunePage(deps.account, session.user.roles, callerAccess) : undefined
     const shown = (item: UserMenuItemModel | BottomBarItemModel) =>
       item.kind === 'link' || (item.kind === 'resource' ? visible.some((access) => access.entry.name === item.resource) || prompted.has(item.resource) : pages.some((page) => page.name === item.page))
     const bar = bottomBarFor(deps.bottomBars, activeRole(session))
@@ -120,6 +124,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       resources: visible.map(metaModel),
       views,
       pages,
+      ...(account && { account }),
       permissions: Object.fromEntries(visible.map(({ entry, resolved, full }) => [entry.name, {
         read: resolved.operations.read || resolved.operations.list,
         create: resolved.operations.create,

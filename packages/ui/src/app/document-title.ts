@@ -5,9 +5,9 @@ import { text as createText } from './create/messages'
 export type TitleInput = {
   /** The address the app shows; none at the root. */
   address: CurrentAddress | undefined
-  /** The composed page being shown, when the address is one, with the label of its tab shown when it has tabs. */
+  /** The composed page or account page being shown, with the label of its tab shown when it has tabs. */
   page?: { title: string; tab?: string }
-  /** The app's own page being shown, such as "Sign-in & security". */
+  /** The app's own page being shown, such as "Sign-in policy". */
   accountPage?: string
   /** The resource's plural name, for example "Companies". */
   resourceLabel?: string
@@ -21,8 +21,8 @@ export type TitleInput = {
 
 /** What a tab names, most specific first: the record and its list, the new record and its list, the list, or the page (after its tab). */
 export const titleParts = ({ address, page, accountPage, resourceLabel, singular, recordTitle, recordLoading }: TitleInput): string[] => {
-  if (accountPage) return [accountPage]
   if (page) return page.tab ? [page.tab, page.title] : [page.title]
+  if (accountPage) return [accountPage]
   if (!address || address.kind === 'page') return []
   const list = resourceLabel ? [resourceLabel] : []
   if (address.kind === 'list') return list

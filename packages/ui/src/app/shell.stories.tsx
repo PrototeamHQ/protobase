@@ -52,7 +52,7 @@ export const RecentAndUserMenu: StoryObj = {
 
     await userEvent.click(canvas.getByRole('button', { name: 'Profile menu' }))
     const menu = await canvas.findByRole('menu')
-    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Support', 'Sign-in & security', 'Sign out'])
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Support', 'Account', 'Sign out'])
   },
 }
 
@@ -73,7 +73,7 @@ export const InDutch: StoryObj = {
     expect(await canvas.findByRole('link', { name: /toevoegen$/ })).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: 'Profielmenu' }))
     const menu = await canvas.findByRole('menu')
-    expect(within(menu).getByRole('menuitem', { name: 'Inloggen en beveiliging' })).toBeVisible()
+    expect(within(menu).getByRole('menuitem', { name: 'Account' })).toBeVisible()
     expect(within(menu).getByRole('menuitem', { name: 'Uitloggen' })).toBeVisible()
     expect(within(menu).getByText('Thema')).toBeVisible()
   },

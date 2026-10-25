@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
-import { accountMenuItems, accountSecurityPath, signInPolicyPath } from '../account/account-pages'
-import { AccountSecurityPage } from '../account/account-security-page'
+import { accountMenuItems, readAccountPath, signInPolicyPath } from '../account/account-pages'
+import { AccountPage, useAccountPage } from '../account/account-page'
 import { connectRoute, type SignInPromptModel } from '@protobase/schema'
 import { SignInPrompt } from '../auth/sign-in-prompt'
 import { ConnectPage } from '../connect/connect-page'
@@ -177,20 +177,24 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const current = organizations.current
   const outsideOrganizations = Boolean(organizationSettings) && current !== undefined && !current.organization
   const organizationPage = organizationSettings && user ? organizationPageTitle(path) : undefined
+  // The account page, the app's own or the standard one, and its tab, at `/-/account[/<tab>]`
+  const account = useAccountPage()
+  const accountAddress = user ? readAccountPath(path) : undefined
+  const accountTab = accountAddress && account ? shownPageTab(pageTabs(account.tree), accountAddress.tab) : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
-  const accountPage = path === connectRoute ? 'Connect an app' : !user ? undefined : path === accountSecurityPath ? appText('signInSecurity') : path === signInPolicyPath ? appText('signInPolicy') : organizationPage
+  const accountPage = path === connectRoute ? 'Connect an app' : !user ? undefined : accountAddress ? (account?.title ?? appText('account')) : path === signInPolicyPath ? appText('signInPolicy') : organizationPage
   const resourceLabel = view?.names?.plural ?? (resource && humanize(resource))
   const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel, recordTitle: title, recordLoading: titleLoading })
   const singular = view?.names?.singular ?? (resource && humanize(resource))
   // A page with tabs names the tab shown before itself
   const pageTab = page && address?.kind === 'page' ? shownPageTab(pageTabs(page.tree), address.tab) : undefined
-  const pageTitle = page && { title: page.title, ...(pageTab && { tab: pageTab.label }) }
+  const pageTitle = page ? { title: page.title, ...(pageTab && { tab: pageTab.label }) } : accountAddress && account && { title: account.title, ...(accountTab && { tab: accountTab.label }) }
   useDocumentTitle(documentTitle(titleParts({ address, page: pageTitle, accountPage, resourceLabel, singular, recordTitle: title, recordLoading: titleLoading }), meta.appName))
   const content =
     path === connectRoute ? (
       user ? <ConnectPage email={user.email} appName={meta.appName ?? 'this app'} /> : <SignInPrompt as="page" prompt={connectPrompt} />
-    ) : user && path === accountSecurityPath ? (
-      <AccountSecurityPage email={user.email} />
+    ) : accountAddress ? (
+      <AccountPage {...accountAddress} />
     ) : user && path === signInPolicyPath ? (
       admin ? <SignInPolicyPage /> : <Notice title={appText('adminsOnly')}>{appText('onlyAdminPolicy')}</Notice>
     ) : organizationPage && path === organizationPath ? (

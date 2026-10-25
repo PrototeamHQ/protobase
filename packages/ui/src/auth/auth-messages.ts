@@ -64,7 +64,7 @@ type Id = Parameters<typeof text>[0]
 const providerText = defineMessages({
   en: {
     signupDisabled: (name: string) => `No account here belongs to this ${name} account. Ask an admin to add you, or sign in another way.`,
-    notLinked: (name: string) => `Your ${name} account is not linked to your account here. Sign in another way, then connect ${name} on the Sign-in & security page.`,
+    notLinked: (name: string) => `Your ${name} account is not linked to your account here. Sign in another way, then connect ${name} on your account page.`,
     linkedToOther: (name: string) => `This ${name} account is linked to someone else here already.`,
     couldNotLink: (name: string) => `Your ${name} account could not be linked. Try again.`,
     accessDenied: (name: string) => `${name} did not let you in, or you cancelled.`,
@@ -73,7 +73,7 @@ const providerText = defineMessages({
   },
   nl: {
     signupDisabled: (name: string) => `Geen account hier hoort bij dit ${name}-account. Vraag een beheerder om je toe te voegen, of log op een andere manier in.`,
-    notLinked: (name: string) => `Je ${name}-account is niet gekoppeld aan je account hier. Log op een andere manier in en koppel ${name} dan op de pagina Inloggen en beveiliging.`,
+    notLinked: (name: string) => `Je ${name}-account is niet gekoppeld aan je account hier. Log op een andere manier in en koppel ${name} dan op je accountpagina.`,
     linkedToOther: (name: string) => `Dit ${name}-account is hier al aan iemand anders gekoppeld.`,
     couldNotLink: (name: string) => `Je ${name}-account kon niet worden gekoppeld. Probeer het opnieuw.`,
     accessDenied: (name: string) => `${name} liet je niet binnen, of je hebt geannuleerd.`,

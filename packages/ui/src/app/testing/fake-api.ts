@@ -10,6 +10,8 @@ export type FakeApiInput = {
   resources: ResourceModel[]
   views?: ViewModel[]
   pages?: PageModel[]
+  /** The account page `/meta` names, at `/-/account`. */
+  account?: PageModel
   rows: Record<string, Row[]>
   permissions?: Record<string, ResourcePermissions>
   /** The plugins `/meta` names. */
@@ -111,7 +113,7 @@ const filled = <G extends { value: unknown; count: number }>(groups: G[], stride
   })
 }
 
-export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate }: FakeApiInput) => {
+export const fakeApi = ({ resources, views = [], pages = [], account, rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
   const models = Object.fromEntries(resources.map((model) => [model.name, model]))
   let version = 0
@@ -204,7 +206,7 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
   }
 
   const client = {
-    meta: async () => ({ status: 'modified' as const, etag: '"fake-meta"', meta: { appName: 'Protobase', resources, views, pages, permissions, ...(plugins && { plugins }), ...(sources && { sources }), ...(maps && { maps }), ...(files && { files }), ...(bottomBar && { bottomBar }), ...(signIn && { signIn }) } }),
+    meta: async () => ({ status: 'modified' as const, etag: '"fake-meta"', meta: { appName: 'Protobase', resources, views, pages, ...(account && { account }), permissions, ...(plugins && { plugins }), ...(sources && { sources }), ...(maps && { maps }), ...(files && { files }), ...(bottomBar && { bottomBar }), ...(signIn && { signIn }) } }),
     list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
     search: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
     seek: async (resource: string, params: ListParams & { position: number }) => pageAt(resource, select(resource, params), params.position, params.pageSize ?? 50, params),

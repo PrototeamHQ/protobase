@@ -24,6 +24,8 @@ export type Deps = {
   /** The bottom bars, in config order. */
   bottomBars: BottomBarModel[]
   pages: PageModel[]
+  /** The signed-in person's account page, at `/-/account`: the app's page named `account`, or the standard one. */
+  account?: PageModel
   basePath: string
   /** Where the system endpoints live (`/meta`, `/openapi.json`, `/docs`): the parent of `basePath`, `/api` by default. */
   systemPath: string

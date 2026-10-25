@@ -2,7 +2,9 @@ import { defineMessages } from '../locale/messages'
 
 export const text = defineMessages({
   en: {
-    signInSecurity: 'Sign-in & security',
+    account: 'Account',
+    noAccount: 'No account page',
+    noAccountDescription: 'This app has no account page for you.',
     signInPolicy: 'Sign-in policy',
     couldNotReadMethods: 'Could not read your sign-in methods',
     couldNotReadProfile: 'Could not read your profile',
@@ -112,7 +114,9 @@ export const text = defineMessages({
     policySubtitle: 'How people sign in to this app. Signed-in people keep their session, and are asked for what is newly required within 15 minutes.',
   },
   nl: {
-    signInSecurity: 'Inloggen en beveiliging',
+    account: 'Account',
+    noAccount: 'Geen accountpagina',
+    noAccountDescription: 'Deze app heeft geen accountpagina voor je.',
     signInPolicy: 'Inlogbeleid',
     couldNotReadMethods: 'Kon je inlogmethoden niet lezen',
     couldNotReadProfile: 'Kon je profiel niet lezen',
