@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { createAuthSession, type AuthSession, type AuthUser, type PlatformSignIn, type PluginRef, type SamlSignIn, type RequiredSetup, type SetupStatus, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
+import { createAuthSession, createClient, type AuthSession, type AuthUser, type PlatformSignIn, type PluginRef, type SamlSignIn, type RequiredSetup, type SetupStatus, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
 import type { Locale } from '@protobase/schema/internal'
 import { nativeAuthFetch, type NativeBridge } from '../app/native-auth-fetch'
+import { pushNotifications, type PushNotifications } from '../notifications/push/push-notifications'
+import type { PushUser } from '../notifications/push/web-push'
 import { providerName, withoutSignInLink } from './provider-link'
 import { text } from './messages'
 
@@ -76,6 +78,8 @@ export type AuthApi = {
    * one-time code for the session cookie, and enters the app with it. Resolves `false` when there is none.
    */
   adoptSession: () => Promise<boolean>
+  /** Push in this browser for the signed-in user (see `usePushNotifications`); signing out and in keeps it with them. */
+  push: PushNotifications
 }
 
 /** A sign-in provider as the app offers it: its id and its name. */
@@ -111,7 +115,12 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
   const [beforeSignIn, setBeforeSignIn] = useState<PluginRef[]>([])
   const [locale, setLocale] = useState<Locale>()
   const signedOutState = useCallback((): AuthState => (anonymous ? { kind: 'visitor' } : { kind: 'signed-out' }), [anonymous])
-  const markSignedOut = useCallback(() => setState((current) => (current.kind === 'signed-in' ? { kind: 'signed-out' } : current)), [])
+  // The session is over: push here is forgotten, with no server left to ask.
+  const forgetPush = useRef<() => Promise<void>>(async () => {})
+  const markSignedOut = useCallback(() => {
+    void forgetPush.current()
+    setState((current) => (current.kind === 'signed-in' ? { kind: 'signed-out' } : current))
+  }, [])
   const signedOut = useRef(markSignedOut)
   signedOut.current = markSignedOut
   const session = useMemo(
@@ -125,14 +134,30 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
     [given, origin, nativeBridge],
   )
 
+  // Push follows who is signed in: the helper reads it at each step, and only someone signed in as themselves has it.
+  const pushUser = useRef<PushUser>(undefined)
+  pushUser.current = state.kind === 'signed-in' ? { id: state.user.id, own: !state.staff } : undefined
+  const push = useMemo(() => {
+    const client = createClient({ baseUrl: `${origin ?? globalThis.location?.origin ?? ''}/api/v1`, token: ({ refresh }) => session.token({ refresh }) })
+    const meta = async () => {
+      const answer = await client.meta()
+      if (answer.status !== 'modified') throw new Error('The app answered /meta without its content')
+      return { appName: answer.meta.appName, ...(answer.meta.notifications && { webPushKey: answer.meta.notifications.webPushKey }) }
+    }
+    return pushNotifications({ ...(nativeBridge && { nativeBridge }), devices: client.devices, meta, user: () => pushUser.current })
+  }, [session, origin, nativeBridge])
+
+  forgetPush.current = push.forget
+
   // Signed in: the app opens unless the policy requires something the account lacks, which it never does for staff.
-  // Signing out later shows the sign-in page again.
+  // Signing out later shows the sign-in page again. Push in this browser is kept only for this same user.
   const enter = useCallback(
     async (user: AuthUser) => {
       const [{ missing }, staff] = await Promise.all([session.account.signInMethods(), session.staff.current()])
       setState(missing.length > 0 ? { kind: 'setup-required', user, missing } : { kind: 'signed-in', user, ...(staff && { staff }) })
+      if (missing.length === 0) void push.adopt({ id: user.id, own: !staff })
     },
-    [session],
+    [session, push],
   )
 
   const finish = useCallback(async (result: SignInResult) => (result.kind === 'two-factor' ? setState({ kind: 'two-factor', methods: result.methods }) : enter(result.user)), [enter])
@@ -207,15 +232,19 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
         window.location.assign(await session.account.linkProvider(provider, new URL(withoutSignInLink(window.location.href), window.location.href).href))
       },
       stopStaffSession: async () => {
+        await push.forget()
         await session.staff.stop()
         setState(signedOutState())
       },
+      // Push goes first, while the token can still remove the device; it waits only briefly, then the session ends.
       signOut: async () => {
+        await push.turnOff()
         await session.signOut()
         setState(signedOutState())
       },
+      push,
     }),
-    [state, session, signInMethods, passwordReset, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
+    [push, state, session, signInMethods, passwordReset, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

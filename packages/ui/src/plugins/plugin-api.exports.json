@@ -65,6 +65,7 @@
     "useListDisplay",
     "useMeta",
     "usePlugin",
+    "usePushNotifications",
     "useRecord",
     "useResourceClient",
     "useSeries",
