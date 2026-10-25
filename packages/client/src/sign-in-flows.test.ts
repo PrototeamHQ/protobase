@@ -185,6 +185,14 @@ describe('the name, password and devices', () => {
     await expect(session.account.changePassword('wrong', 'battery staple horse', false)).rejects.toMatchObject({ name: 'AuthError', status: 400, code: 'INVALID_PASSWORD' })
   })
 
+  it('sets a first password, and reports why one is refused', async () => {
+    const { requests, session } = serve({ '/account/set-password': () => json({ status: true }) })
+    await session.account.setPassword('correct horse battery')
+    expect(requests).toEqual([{ path: '/account/set-password', body: { newPassword: 'correct horse battery' } }])
+    const refused = serve({ '/account/set-password': () => json({ message: 'user already has a password', code: 'PASSWORD_ALREADY_SET' }, { status: 400 }) })
+    await expect(refused.session.account.setPassword('correct horse battery')).rejects.toMatchObject({ name: 'AuthError', status: 400, code: 'PASSWORD_ALREADY_SET' })
+  })
+
   it('lists the signed-in devices with this one marked, and signs them out', async () => {
     const at = { createdAt: '2026-10-01T09:00:00.000Z', updatedAt: '2026-10-20T09:00:00.000Z', expiresAt: '2026-10-27T09:00:00.000Z' }
     const { requests, session } = serve({

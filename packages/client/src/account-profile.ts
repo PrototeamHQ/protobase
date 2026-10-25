@@ -32,6 +32,15 @@ export const accountProfile = (client: BetterAuthClient) => ({
     if (error) throw authError(error, 'Could not change your password')
   },
 
+  /**
+   * Gives an account without a password, such as one that signs in with emailed codes or GitHub, its first one; every
+   * device stays signed in. One that has a password already is refused (`PASSWORD_ALREADY_SET`).
+   */
+  setPassword: async (next: string) => {
+    const { error } = await client.$fetch('/account/set-password', { method: 'POST', body: { newPassword: next } })
+    if (error) throw authError(error, 'Could not set your password')
+  },
+
   /** The devices signed in now, with this one marked `current`. */
   sessions: async (): Promise<DeviceSession[]> => {
     const [list, own] = await Promise.all([client.listSessions(), client.getSession()])

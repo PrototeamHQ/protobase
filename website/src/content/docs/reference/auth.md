@@ -170,11 +170,12 @@ The signed-in person changes their own name and password, and signs out their ot
 | --- | --- |
 | `updateName(name)` | `POST /api/auth/update-user` with `{ name }` |
 | `changePassword(current, next, signOutOthers)` | `POST /api/auth/change-password` with `{ currentPassword, newPassword, revokeOtherSessions }`, for an account that has a password (a wrong one is `INVALID_PASSWORD`) |
+| `setPassword(next)` | `POST /api/auth/account/set-password` with `{ newPassword }`, for an account without a password, such as one that signs in with [emailed codes](#emailed-sign-in-codes) or [GitHub](#sign-in-with-github); one that has a password already is `PASSWORD_ALREADY_SET` |
 | `sessions()` | `GET /api/auth/list-sessions`: the devices signed in now, each `{ token, current, userAgent?, ipAddress?, createdAt, updatedAt, expiresAt, staff? }`, with `current` for this one and `staff` for a [staff session](#staff-sign-in) |
 | `revokeSession(token)` | `POST /api/auth/revoke-session` with `{ token }`: signs out that device |
 | `revokeOtherSessions()` | `POST /api/auth/revoke-other-sessions`: signs out every device but this one |
 
-Signing out a device, or a new password with `signOutOthers`, stops that device's API token at its next request (see [When a token stops working](#when-a-token-stops-working)); this device stays signed in. A [staff session](#staff-sign-in) cannot change the password or sign out the other devices (`STAFF_CANNOT_CHANGE_SIGN_IN`).
+Signing out a device, or a new password with `signOutOthers`, stops that device's API token at its next request (see [When a token stops working](#when-a-token-stops-working)); this device stays signed in. A first password with `setPassword` signs out no device and disconnects no [MCP client](#oauth-for-mcp-clients); it needs 12 characters like any other, is limited to 5 per minute and client, and is refused while the [sign-in policy](#sign-in-policy) turns passwords off (`403`). A [staff session](#staff-sign-in) cannot change or set the password or sign out the other devices (`STAFF_CANNOT_CHANGE_SIGN_IN`).
 
 ## Emailed sign-in codes
 
