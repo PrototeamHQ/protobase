@@ -146,6 +146,13 @@ export type LinkProps = ({ to: AppAddress; href?: never } | { href: string; to?:
 /** Everyone who can sign in, for admins: inviting by email, adding accounts, changing roles and blocking. Takes no props. */
 export type UsersProps = Record<string, never>
 
+/**
+ * A part of the signed-in person's own account, for the `account` page only: their profile, passkeys, two-factor
+ * authentication, connected accounts or connected apps. Each takes no props, loads its own data, and hides itself where
+ * it does not apply, such as Connected apps without MCP.
+ */
+export type AccountBlockProps = Record<string, never>
+
 export const Page = defineBlock<PageProps>('Page', false)
 export const Grid = defineBlock<GridProps>('Grid', false)
 export const Card = defineBlock<CardProps>('Card', false)
@@ -163,3 +170,8 @@ export const Action = defineBlock<ActionProps>('Action', false)
 export const Show = defineBlock<ShowProps>('Show', false)
 export const Link = defineBlock<LinkProps>('Link', false)
 export const Users = defineBlock<UsersProps>('Users', false)
+export const Profile = defineBlock<AccountBlockProps>('Profile', false)
+export const Passkeys = defineBlock<AccountBlockProps>('Passkeys', false)
+export const TwoFactor = defineBlock<AccountBlockProps>('TwoFactor', false)
+export const ConnectedAccounts = defineBlock<AccountBlockProps>('ConnectedAccounts', false)
+export const ConnectedApps = defineBlock<AccountBlockProps>('ConnectedApps', false)

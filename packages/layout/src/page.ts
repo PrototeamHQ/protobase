@@ -1,4 +1,5 @@
 import type { NavModel } from '@protobase/schema'
+import { accountBlockProblems } from './check-account'
 import { structureProblems } from './check-structure'
 import type { LayoutNode } from './node'
 
@@ -27,7 +28,7 @@ const pageName = /^[a-z][a-zA-Z0-9-]*$/
  */
 export const page = (name: string, tree: LayoutNode, options: PageOptions = {}): PageDefinition => {
   if (!pageName.test(name)) throw new Error(`Page name "${name}" must start with a lowercase letter and hold only letters, digits and dashes`)
-  const problems = structureProblems(tree)
+  const problems = [...structureProblems(tree), ...accountBlockProblems(name, tree)]
   if (problems.length > 0) throw new Error(`Page "${name}" is not a valid layout:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
   const model: PageModel = { name, title: String(tree.props.title), tree, ...options }
   return { kind: 'page', name, toModel: () => structuredClone(model) }

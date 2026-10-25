@@ -363,3 +363,16 @@ Everyone who can sign in, for admins: find them by address, tick their roles, bl
   <Users />
 </Page>
 ```
+
+### Account blocks
+
+`Profile`, `Passkeys`, `TwoFactor`, `ConnectedAccounts` and `ConnectedApps` are the parts of the signed-in person's own account: their name (which they can change) and address, their [passkeys](auth.md#passkeys), [two-factor authentication](auth.md#two-factor-authentication), the sign-in providers they linked, and the apps such as MCP clients they allowed to act as them. Each takes no props or children, reads its own data, and leaves itself out where it does not apply: `ConnectedAccounts` without an OAuth sign-in provider, `ConnectedApps` without MCP. They act on whoever is signed in, so they are allowed on the page named `account` alone; anywhere else stops the config.
+
+```tsx
+export const account = page('account',
+  <Page title="Account">
+    <Profile />
+    <Passkeys />
+    <TwoFactor />
+  </Page>)
+```

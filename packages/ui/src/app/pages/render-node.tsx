@@ -19,6 +19,11 @@ import { ShowBlock } from './blocks/show'
 import { StatBlock } from './blocks/stat'
 import { TableBlock } from './blocks/table'
 import { UsersBlock } from '../../users/users-block'
+import { ConnectedAccountsBlock } from '../../account/blocks/connected-accounts-block'
+import { ConnectedAppsBlock } from '../../account/blocks/connected-apps-block'
+import { PasskeysBlock } from '../../account/blocks/passkeys-block'
+import { ProfileBlock } from '../../account/blocks/profile-block'
+import { TwoFactorBlock } from '../../account/blocks/two-factor-block'
 import { CustomBoundary } from './custom-boundary'
 import { Problem } from './problem'
 import { useProjectUi } from './project-ui'
@@ -43,6 +48,11 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Show: ShowBlock,
   Link: LinkBlock,
   Users: UsersBlock,
+  Profile: ProfileBlock,
+  Passkeys: PasskeysBlock,
+  TwoFactor: TwoFactorBlock,
+  ConnectedAccounts: ConnectedAccountsBlock,
+  ConnectedApps: ConnectedAppsBlock,
 }
 
 const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && child.type === 'Link')

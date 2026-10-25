@@ -71,6 +71,11 @@ export const blockSpecs: Record<string, BlockSpec> = {
   Show: { children: true, props: { when: required('text') } },
   Link: { children: true, props: { href: optional('text'), to: optional('address') } },
   Users: { children: false, props: {} },
+  Profile: { children: false, props: {} },
+  Passkeys: { children: false, props: {} },
+  TwoFactor: { children: false, props: {} },
+  ConnectedAccounts: { children: false, props: {} },
+  ConnectedApps: { children: false, props: {} },
 }
 
 const formats = ['relative', 'absolute', 'compact', 'percent', 'badge', 'code']

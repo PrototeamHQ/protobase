@@ -6,11 +6,15 @@ export {
   Card,
   CardRow,
   Chart,
+  ConnectedAccounts,
+  ConnectedApps,
   Field,
   Grid,
   Link,
   ModalForm,
   Page,
+  Passkeys,
+  Profile,
   Progress,
   RecordCard,
   RecordCards,
@@ -18,9 +22,11 @@ export {
   Show,
   Stat,
   Table,
+  TwoFactor,
   Users,
 } from './blocks'
 export type {
+  AccountBlockProps,
   ActionProps,
   ButtonVariant,
   CardProps,
@@ -48,6 +54,7 @@ export type {
   UsersProps,
 } from './blocks'
 export { component, type ComponentOptions } from './component'
+export { accountBlocks, accountPageName } from './check-account'
 export { usersPage } from './presets/users-page'
 export { page, isPageDefinition, type PageDefinition, type PageModel, type PageOptions } from './page'
 export { cardsLayoutOf } from './cards-layout'
