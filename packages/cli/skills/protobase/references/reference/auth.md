@@ -236,7 +236,7 @@ createAuth({ ..., leakedPasswords: true })
 
 The check is Better Auth's [haveIBeenPwned](https://www.better-auth.com/docs/plugins/have-i-been-pwned) plugin's: only the first five characters of the password's SHA-1 hash go to Have I Been Pwned's Pwned Passwords range API, which answers with every leaked hash that starts with them, so the password itself never leaves the server. It runs wherever someone chooses a password: [open sign-up](#open-sign-up), an [invitation](#organizations), a first password (`/account/set-password`), a change, a [reset](#password-reset), and an admin adding an account or setting a password, `createUser` on the host included. Signing in never checks.
 
-- A leaked password is refused with `400` and the code `PASSWORD_COMPROMISED`, before anything is saved; Protobase's pages say "This password appears in a known data breach. Choose a different one." The [GoTrue-compatible](#supabase-js-and-supabase-ssr) `signUp` and `updateUser` answer `422 weak_password`.
+- A leaked password is refused with `400` and the code `PASSWORD_COMPROMISED`, before anything is saved; Protobase's pages say "This password appears in a known data breach. Choose a different one." The [GoTrue-compatible](#supabase-js-and-supabasessr) `signUp` and `updateUser` answer `422 weak_password`.
 - A password outside the 12 to 128 characters is refused for its length, with no lookup.
 - While the service cannot be reached, setting a password fails with a `500`; signing in is not affected.
 
