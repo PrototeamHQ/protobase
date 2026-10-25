@@ -15,6 +15,7 @@ export type ResourceState = {
   primaryKey?: string[]
   softDelete?: string
   tenant?: string
+  tenantAcross?: 'memberships'
   search?: string[]
   searchMatch?: Record<string, SearchMatch>
   owner?: string
@@ -91,6 +92,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     primaryKey: [...primaryKey],
     ...(state.softDelete && { softDelete: state.softDelete }),
     ...(state.tenant && { tenant: state.tenant }),
+    ...(state.tenant && state.tenantAcross && { tenantAcross: state.tenantAcross }),
     ...(state.search && { search: [...state.search] }),
     ...(state.searchMatch && Object.keys(state.searchMatch).length > 0 && { searchMatch: { ...state.searchMatch } }),
     ...(state.owner && { owner: state.owner }),

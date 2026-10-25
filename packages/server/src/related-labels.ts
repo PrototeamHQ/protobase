@@ -2,7 +2,8 @@ import { checkFilter, createWhere, type ResourceModel } from '@protobase/schema'
 import { listQuery, type Db } from '@protobase/query'
 import type { Deps } from './deps'
 import { badRequest } from './problem'
-import { readScope, requestAccess, type RequestAccess } from './request-access'
+import { readScope } from './read-scope'
+import { requestAccess, type RequestAccess } from './request-access'
 import { exposeRow } from './rows'
 import type { Row, Session } from './types'
 
@@ -56,7 +57,7 @@ const namesOf = async (trx: Db, { field, access }: Required<LabelRequest>, keys:
   const model = { ...access.model, fields: { ...access.model.fields, [key]: { ...access.model.fields[key]!, filterable: true } } }
   const filter = checkFilter(model, where.in(key, keys))
   if (!filter.ok) throw new Error(`Keys of "${access.entry.name}" do not make a filter: ${filter.errors[0]!.message}`)
-  const page = await listQuery(trx, model, { filter: filter.filter, columns: [key, field], limit: keys.length }, readScope(access))
+  const page = await listQuery(trx, model, { filter: filter.filter, columns: [key, field], limit: keys.length }, await readScope(access))
   const named = page.rows.map((row) => exposeRow(model, row)).filter((row) => row[field] !== null && row[field] !== undefined)
   return Object.fromEntries(named.map((row) => [String(row[key]), String(row[field])]))
 }

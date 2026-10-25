@@ -24,14 +24,22 @@ const matching = async (trx: Db, access: RequestAccess, rows: Row[], filter: Non
   return new Set(found.rows.map((row) => keyOf(access, row)))
 }
 
+// A row a list across tenants brings from another tenant, which is written only from its own: the list reads the
+// tenant field for it (`listRecords`).
+const elsewhere = (access: RequestAccess, row: Row) => {
+  const tenant = access.full.tenant
+  return access.model.tenantAcross !== undefined && tenant !== undefined && String(row[tenant]) !== String(access.session.tenant)
+}
+
 /**
- * What the caller may do with each of these (exposed) rows: the operation must be allowed, the row must match the
- * operation's row filter (checked in the database), a record-level rule must pass for the stored record, and its parents
- * (`.parent()`) must allow writing it. This only informs the UI; every write is checked again by the write pipeline.
+ * What the caller may do with each of these (exposed) rows: the row must be of the caller's tenant, the operation must
+ * be allowed, the row must match the operation's row filter (checked in the database), a record-level rule must pass
+ * for the stored record, and its parents (`.parent()`) must allow writing it. This only informs the UI; every write is
+ * checked again by the write pipeline.
  */
 export const rowPermissions = async (trx: Db, access: RequestAccess, rows: Row[]): Promise<RowPermissions[]> => {
   const { resolved, entry, session } = access
-  const result = rows.map((): RowPermissions => ({ update: true, delete: true }))
+  const result = rows.map((row): RowPermissions => (elsewhere(access, row) ? { update: false, delete: false } : { update: true, delete: true }))
   if (rows.length === 0) return result
   for (const operation of ['update', 'delete'] as const) {
     if (!resolved.operations[operation]) {

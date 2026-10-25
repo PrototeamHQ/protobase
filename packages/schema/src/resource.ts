@@ -21,6 +21,15 @@ export type SearchRefs<F> = {
   }
 }
 
+/** How `.tenant()` separates tenants. */
+export type TenantOptions = {
+  /**
+   * `memberships`: lists also read every other tenant the caller is a member of, each with the caller's role there,
+   * so the tenant field works as a filter across them. A record's own reads and every write stay in the caller's tenant.
+   */
+  across?: 'memberships'
+}
+
 /** A rule over a whole record for `.validate()`: the issues it finds, or `undefined` when there are none. */
 export type Validator<F> = (record: RecordOf<F>) => Issue<F>[] | undefined
 
@@ -78,10 +87,11 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
 
   /**
    * The field that separates tenants: every query is limited to the caller's tenant, creates set it, and a request body
-   * may not.
+   * may not. With `across: 'memberships'`, its lists also read the other tenants the caller is a member of, each as the
+   * caller's role there allows; see [Lists across organizations](website/src/content/docs/reference/access.mdx#lists-across-organizations).
    */
-  tenant(pick: (r: FieldRefs<F>) => Ref) {
-    return this.next({ tenant: pick(this.refs()).name })
+  tenant(pick: (r: FieldRefs<F>) => Ref, options: TenantOptions = {}) {
+    return this.next({ tenant: pick(this.refs()).name, ...(options.across && { tenantAcross: options.across }) })
   }
 
   /**

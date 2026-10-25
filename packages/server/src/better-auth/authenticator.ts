@@ -1,12 +1,13 @@
 import { createDpopReplayStore, createInMemoryDpopReplayStore, type DpopReplayStore } from 'better-auth/oauth2'
 import type { JWTPayload } from 'jose'
 import { jwtSessions, type JwtOptions, type JwtVerifyOptions } from '../auth/jwt'
-import type { Authenticator, Session, TenantValue } from '../types'
+import type { Authenticator, Membership, Session, TenantValue } from '../types'
 import { withTrustedApps, type TrustedApp } from './app-tokens'
 import type { AdminAuth } from './create-auth'
 import { cachedKeys, type JwksCacheOptions } from './jwks-cache'
 import { checkMcpGrant } from './mcp/grant-standing'
 import { noGlobalRole } from './organizations/role-definitions'
+import { sessionMemberships } from './organizations/session-memberships'
 import type { AuthContext } from './organizations/store'
 import { checkTokenStanding, checkUserStanding, tokenClaims } from './token-standing'
 
@@ -61,7 +62,8 @@ export const betterAuthTokens = (options: Pick<BetterAuthAuthenticatorOptions, '
  * organization, and the membership's `app_roles` are added to the global roles; `user`, which stands for no global
  * role, is left out. With `auth`, every request also reads the store to check that the token still stands
  * (`checkTokenStanding`), so a ban, a lowered role, a deleted user or a sign-out ends it at once; with `jwksUrl` alone
- * a token works until it expires. With `apps`, the tokens of those apps are admitted too, with the roles each gives
+ * a token works until it expires. With organizations and `auth`, the session's `memberships` reads the person's
+ * organizations from the store when a list across them asks (`sessionMemberships`). With `apps`, the tokens of those apps are admitted too, with the roles each gives
  * its users here.
  */
 export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions): BetterAuthAuthenticator => {
@@ -91,7 +93,11 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
     return async (request) => {
       const session = await verify(request)
       const user = { ...session.user, roles: session.user.roles.filter((role) => role !== noGlobalRole) }
-      return { ...session, user, ...(session.tenant !== undefined && { organization: { id: session.tenant } }) }
+      // The app's own tokens read the person's other organizations from the store, once a list across them asks; an
+      // outside app's token works in its own organization alone.
+      let memberships: Promise<Membership[]> | undefined
+      const across = auth && !verifyOptions.oauthClient && { memberships: async () => (memberships ??= auth.$context.then((context) => sessionMemberships(context as unknown as AuthContext, String(user.id), user.roles))) }
+      return { ...session, user, ...(session.tenant !== undefined && { organization: { id: session.tenant } }), ...across }
     }
   }
 

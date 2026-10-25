@@ -1,7 +1,7 @@
 import { sql } from 'kysely'
 import { z } from 'zod'
 import { facetCounts, histogram, series, withoutField } from '@protobase/query'
-import type { Granularity } from '@protobase/query'
+import { tenantCondition, type Granularity, type Scope } from '@protobase/query'
 import { checkedFilter } from './filter-input'
 import type { Deps } from './deps'
 import type { ResourceModel } from '@protobase/schema'
@@ -10,7 +10,8 @@ import { parseParams } from './params'
 import { labelRequests, relatedLabels } from './related-labels'
 import type { Entry } from './registry'
 import { rangeEnd, rangeStart } from './range-ends'
-import { readScope, requestAccess, requireOperation, type RequestAccess } from './request-access'
+import { readScope } from './read-scope'
+import { requestAccess, requireOperation, type RequestAccess } from './request-access'
 import { columnId, filterCondition, scopeConditions, tableId, whereClause } from './sql-parts'
 import { readTransaction } from './transactions'
 import type { Session } from './types'
@@ -38,7 +39,7 @@ const rangeMs = { '1h': hourMs, '24h': 24 * hourMs, '7d': 7 * 24 * hourMs, '30d'
 export const scoped = async (deps: Deps, entry: Entry, session: Session, source?: string) => {
   const access = await requestAccess(deps, entry, session)
   requireOperation(access, 'list')
-  return { access, model: access.model, filter: checkedFilter(access.model, source), scope: readScope(access) }
+  return { access, model: access.model, filter: checkedFilter(access.model, source), scope: await readScope(access) }
 }
 
 /**
@@ -67,9 +68,11 @@ export const facets = async (deps: Deps, entry: Entry, session: Session, input: 
   return { body, warning }
 }
 
-const earliest = async (deps: Deps, access: RequestAccess, fieldName: string, scope: ReturnType<typeof readScope>) => {
+const earliest = async (deps: Deps, access: RequestAccess, fieldName: string, scope: Scope) => {
   const target = access.model.fields[fieldName]!
-  const conditions = [...scopeConditions(access.full, scope.tenantValue), ...filterCondition(access.full, scope.rowFilter)]
+  // A list across tenants names them all, as the query layer reads them
+  const across = scope.tenantValues ? [tenantCondition(access.full, scope)!] : []
+  const conditions = [...scopeConditions(access.full, scope.tenantValue), ...across, ...filterCondition(access.full, scope.rowFilter)]
   const result = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) =>
     sql<{ lowest: string | null }>`select min(${columnId(target)})::text as lowest from ${tableId(access.full)} as t${whereClause(conditions)}`.execute(trx))
   return result.rows[0]?.lowest ?? undefined
@@ -84,7 +87,7 @@ export type RangeParams = { range?: keyof typeof rangeMs | 'all'; from?: string;
  * The span a series of `field` covers: `from` and `to`, else the `range` up to now, `all` from the earliest row. A
  * relative range of a date field runs over the days of `timeZone`, the viewer's today included.
  */
-export const seriesRange = async (deps: Deps, access: RequestAccess, field: string, params: RangeParams, timeZone: string, scope: ReturnType<typeof readScope>) => {
+export const seriesRange = async (deps: Deps, access: RequestAccess, field: string, params: RangeParams, timeZone: string, scope: Scope) => {
   const { model } = access
   const type = model.fields[field]?.type
   const now = Date.now()

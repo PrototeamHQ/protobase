@@ -5,7 +5,8 @@ import type { Deps } from './deps'
 import { checkedSort } from './filter-input'
 import { presentFiles } from './files/present'
 import { badRequest } from './problem'
-import { readScope, requestAccess, type RequestAccess } from './request-access'
+import { readScope } from './read-scope'
+import { requestAccess, type RequestAccess } from './request-access'
 import { exposeRow } from './rows'
 import { readTransaction } from './transactions'
 import type { Row, Session } from './types'
@@ -65,7 +66,7 @@ export const recordPhotos = async (deps: Deps, request: PhotosRequest, model: Re
   const sort = checkedSort(access.model, photos.sort)
   const filter = checkFilter(access.model, where.in(photos.field, keys))
   if (!filter.ok) throw new Error(`Keys of "${model.name}" do not make a filter of "${photos.resource}": ${filter.errors[0]!.message}`)
-  const scope = readScope(access)
+  const scope = await readScope(access)
   const warning = await deps.guard(access.entry, { filter: filter.filter, ...(sort && { sort }) }, { model: access.model, scope })
   const found = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) =>
     relatedRows(trx, access.model, { field: photos.field, values: keys, columns: photoColumns({ photos, access }), ...(sort && { sort }), limit: cardPhotoLimit }, scope),

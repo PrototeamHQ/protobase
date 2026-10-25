@@ -17,6 +17,7 @@ export { apiKeyCaller, type Caller, type CallerOptions } from './api-keys/resolv
 export { HttpProblem, MissingCredentials, unauthorized, forbidden, notFound, badRequest } from './problem'
 export type {
   SessionOrganization,
+  Membership,
   Admin,
   Authenticator,
   PipelineHook,

@@ -11,11 +11,20 @@ export type User = { id: string | number; roles: string[] }
 /** The organization a request works in, with organizations on: the same value as `tenant`. */
 export type SessionOrganization = { id: TenantValue }
 
+/** A tenant the person is a member of, with the roles they act with there. */
+export type Membership = { tenant: TenantValue; roles: string[] }
+
 /** `anonymous` marks a request without a token, served as the project's `anonymous` role. */
 export type Session = {
   user: User
   tenant?: TenantValue
   organization?: SessionOrganization
+  /**
+   * The tenants the person is a member of, each with the roles they act with there, read when a list of a resource
+   * with `.tenant(pick, { across: 'memberships' })` needs them. An authenticator sets it only when it knows them; without
+   * it, such lists read `tenant` alone. It must never answer a tenant the person is not a member of.
+   */
+  memberships?: () => Promise<Membership[]>
   anonymous?: true
   /** The outside app acting as the user, such as an MCP client: its OAuth client id and the scopes its token carries. */
   client?: { id: string; scopes: string[] }

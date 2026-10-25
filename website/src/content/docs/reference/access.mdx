@@ -107,6 +107,29 @@ A record often belongs to another one through a relation, such as an operation t
 - **The parent is locked until the write commits** (`FOR NO KEY UPDATE`), so a VM handed to someone else or deleted at the same moment is waited for and checked again. That is the cost: writes of records under one parent, and through an `update` parent under one ancestor, run one after another. The server's database role needs `UPDATE` on the parent's table to take the lock. Two writes that lock the same records in opposite orders, such as two batches writing under VM A then B and B then A, can deadlock: Postgres rolls one back, which answers `409` and writes nothing, and the client sends it again.
 - The record page and `/api/meta` count the check, so the admin app offers no Edit or Delete the server would refuse. `/api/sb/rest/v1` does not use Protobase's access rules at all, so this check is not part of it.
 
+## Lists across organizations
+
+:::caution[Beta]
+<gap>A list across organizations hears live changes of the session's organization only; changes in the others show once it is read again.</gap>
+:::
+
+With [organizations](/reference/auth/#organizations), a session works in one organization and a `.tenant` resource shows only its rows. A resource whose tenant is declared with `across: 'memberships'` lists the rows of every organization the person is a member of instead, so one list shows, say, their apps in each:
+
+```ts
+export const apps = resource('apps')
+  .table('platform.apps')
+  .fields({ id: f.uuid().filterable(), organization_id: f.relation('organizations').filterable(), name: f.text() })
+  .primaryKey((r) => r.id)
+  .tenant((r) => r.organization_id, { across: 'memberships' })
+```
+
+- **Lists only.** A list, `:search` and `:seek`, their counts, facets, charts, groups, map and exports read across; the labels and photos they bring are read as their own resource lists, so across when it is declared so too. Reading one record, revealing a field, its history and comments, and every write (creates, updates, deletes, batches, imports and uploads) stay in the organization the session works in: a record of another one is a `404` there, and a create sets the session's organization, as before.
+- **Each organization with the person's role there.** The rows of another organization are read with the role the person would act with there after a switch: the session's active role when they hold it there, globally or as a member, else their first role there. Its row filters apply to its rows only. An organization where that role cannot list the resource is left out, and so is one where it reads fewer of the resource's fields than the session's role, since the list shows the same fields for every row.
+- **Members only.** An organization someone enters with a global role, without being a member, is not read across; the session's own organization always is. An outside app's token, such as an MCP client's, reads its own organization alone.
+- **The tenant field is a filter.** The list has it as any other field, so `organization_id = "..."`, a facet or a column picks organizations. A caller who cannot read the tenant field lists their own organization alone.
+- **Rows of another organization are read-only in the list.** Their `permissions` say `update: false` and `delete: false`.
+- **Where the memberships come from.** `betterAuthAuthenticator` with `auth` reads them from the store, once per request that lists across organizations. An [authenticator](/reference/auth/#tokens-and-roles) of your own gives them as the session's `memberships`, a function answering `[{ tenant, roles }]`, and must answer only organizations the person is a member of. Without it, as with `jwksUrl` instead of `auth`, a list reads the session's organization alone.
+
 ## Restricted model and row filters
 
 [`resolveAccess`](/api/schema/functions/resolveaccess/) returns everything a request may do. Use [`restrictModel(model, access)`](/api/schema/functions/restrictmodel/) for everything user-facing (checking filters and sorts, queries, OpenAPI, `/meta`): hidden fields are gone, so they cannot be referenced, searched, sorted or leaked. Key columns always stay, because records are addressed by them.

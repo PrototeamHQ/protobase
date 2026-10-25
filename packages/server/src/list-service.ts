@@ -2,7 +2,8 @@ import { countUpTo, estimateCount, listQuery, seekToPosition } from '@protobase/
 import { checkedFilter, checkedSort } from './filter-input'
 import type { Deps } from './deps'
 import { deletedRows, listParams, pageSizeOf, parseParams, seekParams, selectedFields } from './params'
-import { requestAccess, requireOperation, readScope } from './request-access'
+import { readScope } from './read-scope'
+import { requestAccess, requireOperation } from './request-access'
 import type { Entry } from './registry'
 import { etagOf } from './etag'
 import { presentFiles } from './files/present'
@@ -38,7 +39,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   const labels = await labelRequests(deps, session, model, columns, params.labels)
   const photos = await photosRequest(deps, session, model, params.photos, params.photos_order_by)
   const limit = pageSizeOf(params.page_size)
-  const scope = readScope(access, full)
+  const scope = await readScope(access, full)
 
   // A version ETag reads a column the caller may not see; the model handed to the query gets it, the column list does not.
   const etagField = entry.etag && !model.fields[entry.etag.field.name] ? full.fields[entry.etag.field.name] : undefined
@@ -47,7 +48,9 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   // download URL names its row, and photos are matched to it, so a selection with a file field or photos reads the key too
   const keyed = photos !== undefined || columns?.some((name) => model.fields[name]!.type === 'file')
   const withKey = keyed && columns ? [...new Set([...columns, ...entry.model.primaryKey.filter((name) => model.fields[name])])] : columns
-  const read = entry.etag && withKey ? withKey : Object.keys(model.fields)
+  // A list across tenants reads each row's tenant too, which tells its row permissions whether it is the caller's own
+  const across = model.tenantAcross && model.tenant !== undefined ? [model.tenant] : []
+  const read = entry.etag && withKey ? [...new Set([...withKey, ...across])] : Object.keys(model.fields)
 
   const shape = { ...(filter && { filter }), ...(sort && { sort }), limit }
   const warning = await deps.guard(entry, shape, { model: queryModel, scope })

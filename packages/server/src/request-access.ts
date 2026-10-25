@@ -121,8 +121,8 @@ export const andFilters = (filters: Array<CheckedFilter | undefined>): CheckedFi
 export const targetFilter = (access: RequestAccess, operation: 'read' | 'create' | 'update' | 'delete') =>
   operation === 'read' ? access.resolved.rowFilter.read : andFilters([access.resolved.rowFilter.read, access.resolved.rowFilter[operation]])
 
-/** The query-layer scope for reads: tenant, the access row filter against the full model, soft delete from the full model. */
-export const readScope = (access: RequestAccess, fullModel: ResourceModel = access.full): Scope => {
+/** The query-layer scope of the caller's own tenant: it, the access row filter against the full model, soft delete from the full model. */
+export const ownScope = (access: RequestAccess, fullModel: ResourceModel = access.full): Scope => {
   const tenant = tenantScope(access.entry, access.session)
   const rowFilter = access.resolved.rowFilter.read
   return { ...(tenant && { tenantValue: tenant.tenantValue }), ...(rowFilter && { rowFilter }), fullModel }
@@ -130,7 +130,7 @@ export const readScope = (access: RequestAccess, fullModel: ResourceModel = acce
 
 // Filters from access rules are trusted: they may use columns that are neither filterable nor readable, except an
 // encrypted field, whose ciphertext a filter would compare as if it were the value.
-const trusted = (model: ResourceModel): ResourceModel => ({
+export const trusted = (model: ResourceModel): ResourceModel => ({
   ...model,
   fields: Object.fromEntries(Object.entries(model.fields).map(([name, field]) => [name, { ...field, filterable: !field.encrypted }])),
 })

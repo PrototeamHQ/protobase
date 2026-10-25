@@ -215,6 +215,29 @@ describe("an MCP token's organization", () => {
   })
 })
 
+describe('the memberships of a session', () => {
+  const tables = () => ({ user: [{ ...ana, role: 'user' }], member: [{ id: 'm1', organizationId: '1', userId: 'ana', role: 'member', appRoles: ['sales'] }, { id: 'm2', organizationId: '2', userId: 'ana', role: 'member', appRoles: ['sales'] }], organization: [{ id: '1' }, { id: '2' }] })
+
+  it("are read from the store for the app's own token, once a list asks, and once per request", async () => {
+    const store = fakeAdapter(tables())
+    const lookups: string[] = []
+    const counted = { findOne: async (query: { model: string }) => (lookups.push(query.model), store.adapter.findOne(query as never)), findMany: async (query: { model: string }) => (lookups.push(query.model), store.adapter.findMany(query as never)) }
+    const own = betterAuthAuthenticator({ auth: authOver(counted), organizations: true })
+    const appToken = await token({ aud: issuer, typ: 'JWT', claims: { role: 'user', org: '1', app_roles: ['sales'] } })
+    const session = await own(request(`Bearer ${appToken}`))
+    const read = lookups.length
+    expect(await session.memberships!()).toEqual([{ tenant: '1', roles: ['sales'] }, { tenant: '2', roles: ['sales'] }])
+    await session.memberships!()
+    expect(lookups.slice(read)).toEqual(['user', 'member'])
+  })
+
+  it("are not given to an outside app's token, which works in its own organization alone", async () => {
+    const { verify } = standingOf(tables(), true)
+    const session = await verify(request(`Bearer ${await token({ claims: { role: 'user', org: '1', app_roles: ['sales'] } })}`))
+    expect(session).not.toHaveProperty('memberships')
+  })
+})
+
 describe('DPoP-bound tokens', () => {
   it('are refused as a bearer token', async () => {
     await refused(mcp, request(`Bearer ${await token({ cnf: { jkt } })}`))

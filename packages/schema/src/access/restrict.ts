@@ -3,8 +3,8 @@ import type { ResolvedAccess } from './resolve'
 
 /**
  * The resource as one user may see it: only readable fields remain, and a field is `readOnly`
- * unless it is writable on create or update. `search` (and `searchMatch`) shrinks to readable fields, and `tenant`,
- * `softDelete` and `owner` are dropped when their field is hidden, `position` when its field or its `within` is, and each of `parents` whose field is. The event catalogue, whose conditions may use any
+ * unless it is writable on create or update. `search` (and `searchMatch`) shrinks to readable fields, and `tenant` (with
+ * `tenantAcross`), `softDelete` and `owner` are dropped when their field is hidden, `position` when its field or its `within` is, and each of `parents` whose field is. The event catalogue, whose conditions may use any
  * field, is dropped. Key columns always stay,
  * because records are addressed by them.
  *
@@ -22,7 +22,7 @@ export const restrictModel = (
   const keep = (name: string | undefined) => (name !== undefined && visible.has(name) ? name : undefined)
   const search = model.search?.filter((name) => visible.has(name))
   const searchMatch = model.searchMatch && Object.entries(model.searchMatch).filter(([name]) => visible.has(name))
-  const { search: _search, searchMatch: _searchMatch, tenant: _tenant, softDelete: _softDelete, owner: _owner, position: _position, parents: _parents, events: _events, ...rest } = model
+  const { search: _search, searchMatch: _searchMatch, tenant: _tenant, tenantAcross: _tenantAcross, softDelete: _softDelete, owner: _owner, position: _position, parents: _parents, events: _events, ...rest } = model
   const tenant = keep(model.tenant)
   const softDelete = keep(model.softDelete)
   const owner = keep(model.owner)
@@ -38,6 +38,7 @@ export const restrictModel = (
     ...(search?.length && { search }),
     ...(searchMatch?.length && { searchMatch: Object.fromEntries(searchMatch) }),
     ...(tenant && { tenant }),
+    ...(tenant && model.tenantAcross && { tenantAcross: model.tenantAcross }),
     ...(softDelete && { softDelete }),
     ...(owner && { owner }),
     ...(position && { position: { ...position } }),

@@ -164,7 +164,7 @@ describe('the token of a signed-in person', () => {
     const { auth, signIn, tokenOf } = await serve({}, { people: true })
     const authenticate = betterAuthAuthenticator({ auth })
     const session = await authenticate(new Request(origin, { headers: { authorization: `Bearer ${await tokenOf(await signIn('root@example.com'))}` } }))
-    expect(session).toEqual({ user: { id: expect.any(String), roles: ['admin'] }, tenant: '2', organization: { id: '2' }, signIn: { session: expect.any(String), staff: false } })
+    expect(session).toEqual({ user: { id: expect.any(String), roles: ['admin'] }, tenant: '2', organization: { id: '2' }, signIn: { session: expect.any(String), staff: false }, memberships: expect.any(Function) })
     const sanne = await authenticate(new Request(origin, { headers: { authorization: `Bearer ${await tokenOf(await signIn('sanne@example.com'))}` } }))
     expect(sanne.user.roles).toEqual(['sales'])
   })

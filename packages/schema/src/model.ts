@@ -120,6 +120,11 @@ export type ResourceModel = {
   softDelete?: string
   /** The field that separates tenants: every query is limited to the caller's tenant (`.tenant()`). */
   tenant?: string
+  /**
+   * `memberships`: lists also read the other tenants the caller is a member of, each as the caller's role there allows
+   * (`.tenant(pick, { across })`); a record's own reads and every write stay in the caller's tenant.
+   */
+  tenantAcross?: 'memberships'
   /** Field names that the bare-text `search` filter matches against. */
   search?: string[]
   /** How a search field matches when not by containing the word; see `SearchMatch`. */
