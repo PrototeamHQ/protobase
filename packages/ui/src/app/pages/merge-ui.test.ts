@@ -69,6 +69,13 @@ describe('mergeUi', () => {
     expect(mergeUi(defineUi({ extends: [{ shell: { logo: cloudLogo } }] })).shell).toEqual({ logo: cloudLogo })
   })
 
+  it('draws one bell, the last config to set one', () => {
+    const ownBell = text('own bell')
+    const pluginBell = text('plugin bell')
+    expect(mergeUi(defineUi({ extends: [{ shell: { bell: pluginBell } }], shell: { bell: ownBell } })).shell?.bell).toBe(ownBell)
+    expect(mergeUi(defineUi({ extends: [{ shell: { bell: pluginBell } }] })).shell).toEqual({ bell: pluginBell })
+  })
+
   it('draws every beforeSignIn component around the pages, the extended configs outermost', () => {
     const around = (label: string) => ({ children }: BeforeSignInProps) => createElement('div', { title: label }, children)
     const { beforeSignIn } = mergeUi(defineUi({ extends: [defineUi({ beforeSignIn: around('cloud') })], beforeSignIn: around('own') }))

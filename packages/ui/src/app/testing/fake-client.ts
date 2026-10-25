@@ -1,4 +1,4 @@
-import { ApiError, type Client, type ResourcePermissions } from '@protobase/client'
+import { ApiError, type Client, type NotificationHistoryClient, type ResourcePermissions } from '@protobase/client'
 import type { ActionModel, BottomBarModel, NavModel, ResourceModel, UserMenuModel, ViewModel } from '@protobase/schema'
 
 const field = (name: string, type: string, extra: Record<string, unknown> = {}) => ({ name, column: name, type, nullable: false, readOnly: false, filterable: false, sortable: false, aliases: [], ...extra })
@@ -36,16 +36,19 @@ export type FakeClientOptions = {
   locale?: 'en' | 'nl'
   /** The app's name and own icon `/meta` gives; default Protobase's name and no icon. */
   app?: { name: string; icon?: string }
+  /** The signed-in user's notification history, which turns the bell on in `/meta` (see `fakeInbox`). */
+  inbox?: NotificationHistoryClient
 }
 
 /** A server with one resource, for stories and tests that need permissions or failures the real ERP cannot give. */
-export const fakeClient = ({ permissions, remove, nav, userMenu, bottomBar, assistant, runtime, actions, websites, locale, app }: FakeClientOptions) => {
+export const fakeClient = ({ permissions, remove, nav, userMenu, bottomBar, assistant, runtime, actions, websites, locale, app, inbox }: FakeClientOptions) => {
   const model = websites ? { ...orders, fields: { ...orders.fields, website: field('website', 'text', { nullable: true }) } } : orders
   const records = websites ? rows.map((row) => ({ ...row, website: websites[row.number] ?? null })) : rows
   return {
-    meta: async () => ({ status: 'modified' as const, etag: '"meta"', meta: { appName: app?.name ?? 'Protobase', ...(app?.icon && { appIcon: app.icon }), resources: [model], views: [{ ...ordersView, ...(nav && { nav }), ...(actions && { actions }) }], permissions: { orders: permissions }, ...(userMenu && { userMenu }), ...(bottomBar && { bottomBar }), ...(assistant && { assistant }), ...(runtime && { runtime }), ...(locale && { locale }) } }),
+    meta: async () => ({ status: 'modified' as const, etag: '"meta"', meta: { appName: app?.name ?? 'Protobase', ...(app?.icon && { appIcon: app.icon }), resources: [model], views: [{ ...ordersView, ...(nav && { nav }), ...(actions && { actions }) }], permissions: { orders: permissions }, ...(userMenu && { userMenu }), ...(bottomBar && { bottomBar }), ...(assistant && { assistant }), ...(runtime && { runtime }), ...(locale && { locale }), ...(inbox && { notifications: { bell: true } }) } }),
     list: async () => ({ items: records, nextPageToken: '', totalSizeEstimate: records.length }),
     get: async (_resource: string, key: string) => ({ record: records.find((row) => row.id === key) ?? records[0]!, etag: records.find((row) => row.id === key)?.etag ?? '"v1"' }),
     remove: async (_resource: string, key: string, options?: { etag?: string }) => remove?.(key, options?.etag),
+    ...(inbox && { notifications: inbox }),
   } as unknown as Client
 }

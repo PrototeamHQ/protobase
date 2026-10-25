@@ -43,6 +43,7 @@ import { startAddress } from './start-address'
 import { ComposedPage } from './pages/composed-page'
 import { CustomBoundary } from './pages/custom-boundary'
 import { ProjectLogo } from './project-logo'
+import { ShellBell } from './shell-bell'
 import { ProjectUiContext, useProjectUi, type ProjectUi } from './pages/project-ui'
 import type { PluginLoader } from '../plugins/load-plugin'
 import { PluginGate, usePluginsOff } from '../plugins/plugin-gate'
@@ -144,6 +145,9 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const { shell } = useProjectUi()
   const Actions = shell?.actions
   const RightPanel = shell?.rightPanel
+  // The bell is there when `/meta` names it, for someone signed in as themselves: the history is theirs alone, so staff
+  // signed in as them and visitors have none.
+  const bell = meta.bell && user && !staff && <ShellBell own={shell?.bell} />
   // The assistant is there when `/meta` names one, which it does only for the admin and ai roles.
   const [assistantOpen, setAssistantOpen] = useState(false)
   const assistantUrl = meta.assistant?.url
@@ -238,7 +242,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       sidebarNotice={<NewVersionBanner />}
       banner={(staff || pluginNotice) && <>{staff && <StaffBanner signIn={staff} onStop={stopStaffSession} />}{pluginNotice && <PluginNotice off={pluginsOff} />}</>}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
-      actions={(Actions || reloadButton || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{reloadButton}{runtimeButton}{assistantButton}</>}
+      actions={(Actions || bell || reloadButton || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{bell}{reloadButton}{runtimeButton}{assistantButton}</>}
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
     >
       {content}

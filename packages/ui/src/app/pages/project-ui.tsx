@@ -64,10 +64,12 @@ export type ProjectUi = {
   /** Which columns of a board take a card and what a drop there writes, by the name a view's `drag.board` gives (see `BoardDrop`). */
   boardDrops?: Record<string, BoardDrop>
   /**
-   * Rendered in the shell on every page: `actions` at the end of the top bar, `rightPanel` beside the page, and `logo`
-   * at the top of the sidebar in place of Protobase's (see `ShellLogoProps`).
+   * Rendered in the shell on every page: `actions` at the end of the top bar, `rightPanel` beside the page, `logo`
+   * at the top of the sidebar in place of Protobase's (see `ShellLogoProps`), and `bell` in the top bar in place of the
+   * notification bell, where that would be: with notifications on and their `ui` not false, for someone signed in as
+   * themselves.
    */
-  shell?: { actions?: ComponentType; rightPanel?: ComponentType; logo?: ComponentType<ShellLogoProps> }
+  shell?: { actions?: ComponentType; rightPanel?: ComponentType; logo?: ComponentType<ShellLogoProps>; bell?: ComponentType }
   /**
    * Drawn around the pages someone signed out sees, only for a plugin the app loads before sign-in (`beforeSignIn` in
    * `options.plugins`): its code runs for them, and it can sign them in (see `BeforeSignInProps`).

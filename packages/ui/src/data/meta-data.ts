@@ -34,6 +34,8 @@ export type MetaData = {
   errorReporting?: { dsn: string; environment?: string }
   /** The map style the app's maps are drawn with, and the layers they may switch to, when the app has one (see `MapSection`). */
   maps?: { style: string; layers?: MapLayerModel[] }
+  /** Whether the top bar draws the notification bell: the app has notifications and their `ui` is not false (see `ShellBell`). */
+  bell?: boolean
   /** The language the app's screens are in for everyone, when it sets one (see `AppLocale`). */
   locale?: Locale
   /** The hosts besides the app's own whose images are drawn with the page's referrer (see `FileImage`). */

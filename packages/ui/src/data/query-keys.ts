@@ -38,6 +38,12 @@ export const keys = {
   exportCount: (resource: string, filter: string) => ['list', resource, filter, 'export-count'] as const,
   firstRecord: (resource: string, filter: string, orderBy: string) => ['first-record', resource, filter, orderBy] as const,
   pathValue: (resource: string, key: string, path: string) => ['path-value', resource, key, path] as const,
+  /** Everything of the signed-in user's notification history. */
+  inbox: ['inbox'] as const,
+  /** How many of the user's notifications are unread. */
+  inboxUnread: ['inbox', 'unread'] as const,
+  /** The pages of the user's notification history. */
+  inboxPages: ['inbox', 'pages'] as const,
   /** A public form, as `/-/forms/<name>` draws it. */
   publicForm: (name: string) => ['public-form', name] as const,
 }

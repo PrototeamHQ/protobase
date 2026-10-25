@@ -60,15 +60,18 @@
     "useFieldControl",
     "useGuardedPress",
     "useHistogram",
+    "useInbox",
     "useLayoutRecord",
     "useList",
     "useListDisplay",
+    "useMarkNotificationsRead",
     "useMeta",
     "usePlugin",
     "usePushNotifications",
     "useRecord",
     "useResourceClient",
     "useSeries",
+    "useUnreadNotifications",
     "useUpdateRecord"
   ]
 }

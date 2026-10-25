@@ -24,6 +24,7 @@ export type { ListDisplayRow, RecordCardProps } from './app/displays/list-displa
 export { RecordLink } from './app/displays/record-link'
 export { useApiToken } from './auth/use-api-token'
 export { usePushNotifications } from './notifications/push/use-push-notifications'
+export { useInbox, useMarkNotificationsRead, useUnreadNotifications } from './notifications/bell/use-inbox'
 export type { PushState } from './notifications/push/web-push'
 export { SignInPrompt, type SignInPromptProps } from './auth/sign-in-prompt'
 export { ResponsiveDialog, type ResponsiveDialogProps } from './primitives/responsive-dialog'

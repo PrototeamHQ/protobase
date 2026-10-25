@@ -37,6 +37,7 @@ export const pluginUi = (plugin: PluginInfo, module: Record<string, unknown>): P
     ...(ui.shell.actions && { actions: within(plugin, ui.shell.actions, 'shell.actions') }),
     ...(ui.shell.rightPanel && { rightPanel: within(plugin, ui.shell.rightPanel, 'shell.rightPanel') }),
     ...(ui.shell.logo && { logo: within(plugin, ui.shell.logo, 'shell.logo') }),
+    ...(ui.shell.bell && { bell: within(plugin, ui.shell.bell, 'shell.bell') }),
   }
   const beforeSignIn = ui.beforeSignIn && within(plugin, ui.beforeSignIn, 'beforeSignIn')
   return {
