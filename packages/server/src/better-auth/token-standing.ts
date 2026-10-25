@@ -42,18 +42,26 @@ const heldWhere = async ({ adapter }: AuthContext, user: StandingUser, organizat
 }
 
 /**
- * Whether a token still stands, read from the store on every request: its user exists and is not banned, its session
- * is not signed out or expired, and each role it carries is one the user still holds there. A token that fails is a
- * 401, so the client asks its session for a new one, which carries the roles as they are now or is refused. Answers the
- * sign-in the token's session stands for (`signInOf`), `undefined` for a token without one.
+ * Whether a token's user still stands, read from the store: they exist and are not banned, and each role the token
+ * carries is one they still hold where it works. The part of `checkTokenStanding` an MCP access token gets, whose
+ * grant outlives the browser session that made it.
  */
-export const checkTokenStanding = async (context: AuthContext, claims: TokenClaims, organizations: boolean, now = new Date()) => {
-  const { adapter } = context
-  const session = claims.sessionId === undefined ? undefined : await adapter.findOne<StandingSession>({ model: 'session', where: [{ field: 'id', value: claims.sessionId }] })
-  if (claims.sessionId !== undefined && (!session || session.userId !== claims.userId || session.expiresAt <= now)) throw revoked()
-  const user = await adapter.findOne<StandingUser>({ model: 'user', where: [{ field: 'id', value: claims.userId }] })
+export const checkUserStanding = async (context: AuthContext, claims: Omit<TokenClaims, 'sessionId'>, organizations: boolean, now = new Date()) => {
+  const user = await context.adapter.findOne<StandingUser>({ model: 'user', where: [{ field: 'id', value: claims.userId }] })
   if (!user || bannedNow(user, now)) throw revoked()
   const held = await heldWhere(context, user, organizations, claims.organizationId)
   if (!held || claims.roles.some((role) => !held.includes(role))) throw revoked()
+}
+
+/**
+ * Whether a token still stands, read from the store on every request: its session is not signed out or expired, and
+ * its user still stands (`checkUserStanding`). A token that fails is a 401, so the client asks its session for a new
+ * one, which carries the roles as they are now or is refused. Answers the sign-in the token's session stands for
+ * (`signInOf`), `undefined` for a token without one.
+ */
+export const checkTokenStanding = async (context: AuthContext, claims: TokenClaims, organizations: boolean, now = new Date()) => {
+  const session = claims.sessionId === undefined ? undefined : await context.adapter.findOne<StandingSession>({ model: 'session', where: [{ field: 'id', value: claims.sessionId }] })
+  if (claims.sessionId !== undefined && (!session || session.userId !== claims.userId || session.expiresAt <= now)) throw revoked()
+  await checkUserStanding(context, claims, organizations, now)
   return session ? signInOf(session, claims.sessionId!) : undefined
 }

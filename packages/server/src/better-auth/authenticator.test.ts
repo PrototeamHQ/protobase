@@ -13,7 +13,7 @@ const appJwk = { ...(await exportJWK(appKeys.publicKey)), alg: 'EdDSA', kid: 'ap
 const otherKeys = await generateKeyPair('EdDSA')
 
 // The part of a Better Auth instance the authenticator reads: its keys, the store DPoP proofs are reserved in, and
-// the store of grants, where Ana allows the assistant.
+// the store of grants, where Ana, who holds sales, allows the assistant.
 const reserved = new Set<string>()
 const authOver = (adapter: unknown) =>
   ({
@@ -27,20 +27,22 @@ const authOver = (adapter: unknown) =>
     }),
   }) as unknown as AdminAuth
 const allowedAt = new Date(Date.now() - 60_000)
-const grants = fakeAdapter({ oauthConsent: [{ id: 'c1', userId: 'ana', clientId: 'assistant', createdAt: allowedAt }] })
+const ana = { id: 'ana', role: 'sales', banned: false, banExpires: null }
+const consent = (clientId = 'assistant') => ({ id: `c-${clientId}`, userId: 'ana', clientId, createdAt: allowedAt })
+const grants = fakeAdapter({ oauthConsent: [consent()], user: [ana] })
 
 const authenticator = betterAuthAuthenticator({ auth: authOver(grants.adapter) })
 const mcp = authenticator.forAudience(resource)
 
-type TokenInput = { aud?: string; typ?: string; cnf?: { jkt: string }; key?: CryptoKey; client?: string }
-const token = ({ aud = resource, typ = 'at+jwt', cnf, key = appKeys.privateKey, client = 'assistant' }: TokenInput = {}) =>
-  new SignJWT({ role: 'sales', client_id: client, azp: client, scope: 'mcp offline_access', ...(cnf && { cnf }) })
+type TokenInput = { aud?: string; typ?: string; cnf?: { jkt: string }; key?: CryptoKey; client?: string; claims?: Record<string, unknown>; exp?: string | number }
+const token = ({ aud = resource, typ = 'at+jwt', cnf, key = appKeys.privateKey, client = 'assistant', claims = {}, exp = '5m' }: TokenInput = {}) =>
+  new SignJWT({ role: 'sales', client_id: client, azp: client, scope: 'mcp offline_access', ...(cnf && { cnf }), ...claims })
     .setProtectedHeader({ alg: 'EdDSA', kid: 'app', typ })
     .setSubject('ana')
     .setIssuer(issuer)
     .setAudience(aud)
     .setIssuedAt()
-    .setExpirationTime('5m')
+    .setExpirationTime(exp)
     .sign(key)
 
 const dpopKeys = await generateKeyPair('ES256')
@@ -76,7 +78,7 @@ describe('tokens for another audience', () => {
 
 describe("an MCP token's grant", () => {
   it('is read on every request: a token of a client the person no longer allows is refused at once', async () => {
-    const store = fakeAdapter({ oauthConsent: [{ id: 'c1', userId: 'ana', clientId: 'assistant', createdAt: allowedAt }, { id: 'c2', userId: 'ana', clientId: 'editor', createdAt: allowedAt }] })
+    const store = fakeAdapter({ oauthConsent: [consent(), consent('editor')], user: [ana] })
     const verify = betterAuthAuthenticator({ auth: authOver(store.adapter) }).forAudience(resource)
     const assistant = await token()
     const editor = await token({ client: 'editor' })
@@ -87,7 +89,7 @@ describe("an MCP token's grant", () => {
   })
 
   it('stays refused when the person allows the client again, and takes the tokens issued after', async () => {
-    const store = fakeAdapter({ oauthConsent: [{ id: 'c1', userId: 'ana', clientId: 'assistant', createdAt: allowedAt }] })
+    const store = fakeAdapter({ oauthConsent: [consent()], user: [ana] })
     const verify = betterAuthAuthenticator({ auth: authOver(store.adapter) }).forAudience(resource)
     const before = await token()
     store.tables.oauthConsent = [{ id: 'c2', userId: 'ana', clientId: 'assistant', createdAt: new Date(Date.now() + 60_000) }]
@@ -101,6 +103,115 @@ describe("an MCP token's grant", () => {
     const failing = { findMany: async () => { throw new Error('connection lost') } }
     const verify = betterAuthAuthenticator({ auth: authOver(failing) }).forAudience(resource)
     await expect(Promise.resolve().then(async () => verify(request(`Bearer ${await token()}`)))).rejects.toThrow('connection lost')
+  })
+})
+
+// Ana's store as a test changes it, with every lookup counted; and the MCP authenticator over it.
+const standingOf = (tables: Record<string, Record<string, unknown>[]>, organizations = false) => {
+  const store = fakeAdapter({ oauthConsent: [consent(), consent('editor')], user: [{ ...ana }], ...tables })
+  const lookups: string[] = []
+  const counted = {
+    findOne: async (query: { model: string }) => (lookups.push(query.model), store.adapter.findOne(query as never)),
+    findMany: async (query: { model: string }) => (lookups.push(query.model), store.adapter.findMany(query as never)),
+  }
+  const verify = betterAuthAuthenticator({ auth: authOver(counted), organizations }).forAudience(resource)
+  return { store, lookups, verify, user: () => store.tables.user![0]! }
+}
+
+describe("an MCP token's user", () => {
+  it('is read on every request: a lowered role ends the tokens of every client the person allowed, at once', async () => {
+    const { verify, user } = standingOf({})
+    const assistant = await token()
+    const editor = await token({ client: 'editor' })
+    expect(await verify(request(`Bearer ${assistant}`))).toMatchObject({ user: { id: 'ana', roles: ['sales'] } })
+    user().role = 'accountant'
+    await refused(verify, request(`Bearer ${assistant}`))
+    await refused(verify, request(`Bearer ${editor}`))
+  })
+
+  it('ends with a ban, permanent or not yet run out, and stands again once it runs out', async () => {
+    const { verify, user } = standingOf({})
+    const bearer = `Bearer ${await token()}`
+    Object.assign(user(), { banned: true, banExpires: null })
+    await refused(verify, request(bearer))
+    Object.assign(user(), { banExpires: new Date(Date.now() + 3_600_000) })
+    await refused(verify, request(bearer))
+    Object.assign(user(), { banExpires: new Date(Date.now() - 1_000) })
+    expect(await verify(request(bearer))).toMatchObject({ user: { id: 'ana' } })
+  })
+
+  it('ends when the user is deleted', async () => {
+    const { verify, store } = standingOf({})
+    store.tables.user = []
+    await refused(verify, request(`Bearer ${await token()}`))
+  })
+
+  it('must hold each role the token claims by its exact name, in either form of the claim', async () => {
+    const { verify, user } = standingOf({})
+    const both = `Bearer ${await token({ claims: { role: 'admin,viewer' } })}`
+    user().role = 'viewer'
+    await refused(verify, request(both))
+    user().role = 'admin-readonly,viewer'
+    await refused(verify, request(both))
+    user().role = 'sales'
+    await refused(verify, request(`Bearer ${await token({ claims: { role: ['sales', 'admin'] } })}`))
+  })
+
+  it('keeps only the roles the token claims when the user gains one', async () => {
+    const { verify, user } = standingOf({})
+    user().role = 'admin,sales'
+    expect(await verify(request(`Bearer ${await token()}`))).toMatchObject({ user: { roles: ['sales'] } })
+  })
+
+  it("outlives the browser session that allowed the client, which the token's sid names", async () => {
+    const { verify, lookups } = standingOf({ session: [] })
+    expect(await verify(request(`Bearer ${await token({ claims: { sid: 'signed-out' } })}`))).toMatchObject({ user: { id: 'ana' } })
+    expect(lookups).not.toContain('session')
+  })
+
+  it('reads no store for a token refused on its signature, audience or expiry', async () => {
+    const { verify, lookups } = standingOf({})
+    await refused(verify, request(`Bearer ${await token({ key: otherKeys.privateKey })}`))
+    await refused(verify, request(`Bearer ${await token({ aud: `${issuer}/api/other` })}`))
+    await refused(verify, request(`Bearer ${await token({ exp: Math.floor(Date.now() / 1000) - 60 })}`))
+    expect(lookups).toEqual([])
+  })
+
+  it('is refused when its user or membership cannot be read, never answered on the claims alone', async () => {
+    const lost = async () => { throw new Error('connection lost') }
+    for (const lookup of ['user', 'member']) {
+      const { store } = standingOf({ member: [{ id: 'm1', organizationId: '1', userId: 'ana', role: 'member', appRoles: [] }] }, true)
+      const failing = { findMany: store.adapter.findMany, findOne: async (query: { model: string }) => (query.model === lookup ? lost() : store.adapter.findOne(query as never)) }
+      const verify = betterAuthAuthenticator({ auth: authOver(failing), organizations: true }).forAudience(resource)
+      await expect(Promise.resolve().then(async () => verify(request(`Bearer ${await token({ claims: { org: '1' } })}`)))).rejects.toThrow('connection lost')
+    }
+  })
+})
+
+describe("an MCP token's organization", () => {
+  const member = { id: 'm1', organizationId: '1', userId: 'ana', role: 'member', appRoles: ['editor'] }
+  const inOne = () => token({ claims: { role: 'user', org: '1', app_roles: ['editor'] } })
+  const tables = () => ({ user: [{ ...ana, role: 'user' }], member: [{ ...member }, { ...member, id: 'm2', organizationId: '2' }], organization: [{ id: '1' }, { id: '2' }] })
+
+  it("stands while the membership of the token's own organization holds its roles", async () => {
+    const { verify } = standingOf(tables(), true)
+    expect(await verify(request(`Bearer ${await inOne()}`))).toMatchObject({ user: { roles: ['editor'] }, organization: { id: '1' } })
+  })
+
+  it('ends when the role is lowered there, even while another organization still gives it, whatever the request names', async () => {
+    const { verify, store } = standingOf(tables(), true)
+    store.tables.member![0]!.appRoles = []
+    const bearer = `Bearer ${await inOne()}`
+    await refused(verify, request(bearer))
+    await refused(verify, new Request(`${resource}?org=2`, { method: 'POST', headers: { authorization: bearer, 'x-organization-id': '2' } }))
+  })
+
+  it('ends when the member is removed, or the organization deleted', async () => {
+    const removed = standingOf(tables(), true)
+    removed.store.tables.member = removed.store.tables.member!.filter((row) => row.organizationId !== '1')
+    await refused(removed.verify, request(`Bearer ${await inOne()}`))
+    const deleted = standingOf({ ...tables(), member: [], organization: [{ id: '2' }] }, true)
+    await refused(deleted.verify, request(`Bearer ${await token({ claims: { role: 'user', org: '1' } })}`))
   })
 })
 

@@ -99,13 +99,17 @@ export const listUsers = async (auth: AdminAuth): Promise<StoredUser[]> =>
     createdAt: new Date(user.createdAt).toISOString(),
   }))
 
-/** Deletes the user with their sessions and accounts, and what `auth.userDeletion` removes; refuses to delete the last active admin. */
+/**
+ * Deletes the user with their sessions and accounts, their MCP grants with MCP on, and what `auth.userDeletion`
+ * removes; refuses to delete the last active admin.
+ */
 export const deleteUser = async (auth: AdminAuth, email: string) => {
   const user = await findUser(auth, email)
   await refuseLastAdmin(auth, user, 'delete')
   const { internalAdapter } = await auth.$context
   await auth.userDeletion.run(user.id)
   await internalAdapter.deleteUserSessions(user.id)
+  if (auth.mcp) await revokeMcpGrants((await auth.$context).adapter, user.id)
   await internalAdapter.deleteUser(user.id)
   await auth.userDeletion.run(user.id)
 }

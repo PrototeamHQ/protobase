@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import type { CreateAuthOptions } from '../src/better-auth/create-auth'
-import { setUserBanned, setUserRole } from '../src/better-auth/users'
+import { deleteUser, setUserBanned, setUserRole } from '../src/better-auth/users'
 import { dropMcpTables } from '../src/better-auth/mcp/mcp-tables'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
@@ -383,6 +383,44 @@ describe('DPoP', () => {
     const refreshed = await refresh(clientId, tokens.refresh_token!, { dpop: await dpopProof(tokenEndpoint) })
     expect(refreshed.status, await refreshed.clone().text()).toBe(200)
     expect(((await refreshed.json()) as Tokens).token_type).toBe('DPoP')
+  })
+})
+
+describe("an MCP token ends with its user's standing, read on every request", () => {
+  it('when the role it carries is taken away, by the CLI or straight in the store, and the refresh is refused', async () => {
+    for (const lower of [
+      (app: Awaited<ReturnType<typeof serve>>) => setUserRole(app.auth, { email: 'ana@example.com', role: 'accountant' }),
+      (app: Awaited<ReturnType<typeof serve>>) => app.store.query(`update "user" set role = 'accountant' where email = 'ana@example.com'`),
+    ]) {
+      const app = await serve()
+      const ana = await app.grant('ana@example.com')
+      const bo = await app.grant('bo@example.com')
+      expect(await mcpTakes(app.authenticate, ana.tokens.access_token)).toBe('taken')
+      await lower(app)
+      expect(await mcpTakes(app.authenticate, ana.tokens.access_token)).toBe(401)
+      expect(await mcpTakes(app.authenticate, bo.tokens.access_token)).toBe('taken')
+      await app.refused(await app.refresh(ana.clientId, ana.tokens.refresh_token!))
+    }
+  })
+
+  it('when the user is banned straight in the store, for good or until later, and the refresh is refused', async () => {
+    for (const until of [null, new Date('2026-09-01T00:00:00Z')]) {
+      const app = await serve()
+      const ana = await app.grant('ana@example.com')
+      await app.store.query(`update "user" set banned = true, ban_expires = $1 where email = 'ana@example.com'`, [until])
+      expect(await mcpTakes(app.authenticate, ana.tokens.access_token)).toBe(401)
+      await app.refused(await app.refresh(ana.clientId, ana.tokens.refresh_token!))
+    }
+  })
+
+  it('when the CLI deletes the user, with their consents and refresh tokens', async () => {
+    const app = await serve()
+    const ana = await app.grant('ana@example.com')
+    const id = await app.userId('ana@example.com')
+    await deleteUser(app.auth, 'ana@example.com')
+    expect(await mcpTakes(app.authenticate, ana.tokens.access_token)).toBe(401)
+    expect((await app.store.query(`select id from oauth_consent where user_id = $1 union all select id from oauth_refresh_token where user_id = $1`, [id])).rows).toEqual([])
+    expect((await app.refresh(ana.clientId, ana.tokens.refresh_token!)).status).toBe(400)
   })
 })
 

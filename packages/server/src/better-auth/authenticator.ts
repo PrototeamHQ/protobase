@@ -8,7 +8,7 @@ import { cachedKeys, type JwksCacheOptions } from './jwks-cache'
 import { checkMcpGrant } from './mcp/grant-standing'
 import { noGlobalRole } from './organizations/role-definitions'
 import type { AuthContext } from './organizations/store'
-import { checkTokenStanding, tokenClaims } from './token-standing'
+import { checkTokenStanding, checkUserStanding, tokenClaims } from './token-standing'
 
 export type BetterAuthAuthenticatorOptions = {
   /** The Better Auth instance of this process: keys are read from it directly, no HTTP round trip. */
@@ -39,7 +39,9 @@ export type BetterAuthAuthenticator = Authenticator & {
    * proof of the key for a DPoP-bound token, checked against `audience` as the URL it guards (the endpoint must answer
    * at exactly that URL). The app's own tokens and trusted apps' are refused; the session keeps the token's `client`.
    * With `auth`, every request also reads the store to check that the person still allows the client
-   * (`checkMcpGrant`), so a disconnected client or a secured account ends its tokens at once. With `jwksUrl` instead of
+   * (`checkMcpGrant`), and that they exist unbanned and still hold each role the token carries where it works
+   * (`checkUserStanding`), so a disconnected client, a secured account, a ban, a lowered role or a deletion ends its
+   * tokens at once; the session's roles are the token's checked ones, and nothing later reads the claims again. With `jwksUrl` instead of
    * `auth`, a token works until it expires, and a DPoP proof's single use holds in this process only.
    */
   forAudience: (audience: string) => Authenticator
@@ -102,9 +104,12 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
     checkTokenStanding(context, tokenClaims(payload, session.user.roles, organizations ? session.tenant : undefined), organizations)
   const own = sessionOf({ audience: options.audience ?? issuer }, ownStanding)
   // An access token's `sid` names the browser session that allowed the client, which may end long before the grant
-  // does; revoking the grant ends its tokens instead (`revokeMcpGrants`), which the grant check sees.
+  // does; revoking the grant ends its tokens instead (`revokeMcpGrants`), which the grant check sees. Its user and the
+  // roles it carries are checked as the app's own tokens' are, so a ban, a lowered role or a deletion ends it at once.
   const grantStanding: Standing = async (context, payload, session) => {
     await checkMcpGrant(context.adapter, { userId: payload.sub!, clientId: session.client?.id, issuedAt: payload.iat })
+    const { sessionId: _, ...claims } = tokenClaims(payload, session.user.roles, organizations ? session.tenant : undefined)
+    await checkUserStanding(context, claims, organizations)
   }
   return Object.assign(withTrustedApps(own, issuer, options.apps ?? []), {
     forAudience: (audience: string) => sessionOf({ audience, typ: 'at+jwt', dpop: { url: audience, replayStore: dpopReplayStore }, oauthClient: true }, grantStanding),

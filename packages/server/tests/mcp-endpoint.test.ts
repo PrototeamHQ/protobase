@@ -2,6 +2,7 @@ import { base64url } from 'jose'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { AdminOptions } from '../src/admin-options'
 import type { BetterAuthAuthenticator } from '../src/better-auth/authenticator'
+import { setUserRole } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { mcpHandler } from '../src/mcp/mcp-handler'
 import { mcpServer } from '../src/mcp/mcp-server'
@@ -196,6 +197,44 @@ describe('the MCP endpoint', () => {
     expect(await call(app, mcp, 'update_record', { ...stale, data: { name: 'Overwritten Org' } })).toMatchObject({ error: 'precondition-failed' })
     expect(await call(app, mcp, 'delete_record', stale)).toMatchObject({ error: 'precondition-failed' })
     expect(await call(app, mcp, 'get_record', { resource: 'organizations', key })).toEqual(updated)
+  })
+
+  const organizationsNamed = async (name: string) => (await stores.fixture.pg.query(`select id from organizations where name = $1`, [name])).rows
+
+  it('refuses every request at once, writing nothing, once the role exempting its writes is taken away', async () => {
+    const { app, mcp } = await served(unattended)
+    expect(await toolNames(app, mcp)).toContain('create_record')
+    await setUserRole(app.auth, { email: 'ana@example.com', role: 'accountant' })
+    const lowered = [
+      await rpc(app, mcp, 'tools/list'),
+      await rpc(app, mcp, 'tools/call', { name: 'get_record', arguments: { resource: 'organizations', key: 1 } }),
+      await rpc(app, mcp, 'tools/call', { name: 'create_record', arguments: { resource: 'organizations', data: { name: 'Lowered Org' } } }),
+    ]
+    expect(lowered.map((answer) => answer.status)).toEqual([401, 401, 401])
+    expect(await organizationsNamed('Lowered Org')).toEqual([])
+  })
+
+  it('writes nothing for an approval answered after the role was lowered', async () => {
+    const { app, mcp } = await served({ mcp: { writes: true } })
+    const args = { resource: 'organizations', data: { name: 'Late Org' } }
+    const asked = await resultOf(await modernCall(app, mcp, { name: 'create_record', arguments: args }, { elicitation: {} }))
+    const [key] = Object.keys(asked.inputRequests as object)
+    await setUserRole(app.auth, { email: 'ana@example.com', role: 'accountant' })
+    const answer = { requestState: asked.requestState as string, inputResponses: { [key!]: { action: 'accept', content: { approve: true } } } }
+    expect((await modernCall(app, mcp, { name: 'create_record', arguments: args, ...answer }, { elicitation: {} })).status).toBe(401)
+    expect(await organizationsNamed('Late Org')).toEqual([])
+  })
+
+  it('answers a bare 500 and writes nothing when the token cannot be checked against the store', async () => {
+    const lost = () => async () => { throw new Error('connection lost: select * from "user"') }
+    const app = await serveMcp(stores, { admin: unattended, authenticate: (own) => Object.assign((request: Request) => own(request), { userIdType: own.userIdType, forAudience: lost }) })
+    const { tokens } = await app.grant()
+    const answer = await rpc(app, tokens.access_token, 'tools/call', { name: 'create_record', arguments: { resource: 'organizations', data: { name: 'Unchecked Org' } } })
+    expect(answer.status).toBe(500)
+    const body = await answer.text()
+    expect(body).not.toContain('connection lost')
+    expect(body).not.toContain(tokens.access_token)
+    expect(await organizationsNamed('Unchecked Org')).toEqual([])
   })
 })
 
