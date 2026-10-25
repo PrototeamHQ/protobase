@@ -12,8 +12,7 @@ export type StoredNotification = NewNotification & { id: string; userId: string;
 /** Where a page of the history ends: the last entry's creation time and id. The next page starts after it. */
 export type HistoryPosition = { createdAt: Date; id: string }
 
-/** What an entry id looks like in every history store: it goes into a path, so no `/`, `.`, `?`, `#` or `%`. */
-export const historyIdPattern = /^[A-Za-z0-9_-]{1,64}$/
+export { historyIdPattern } from '@protobase/schema/internal'
 
 /** The longest title, body and url, as a push message takes them, and the most bytes of `data` as JSON. */
 export const historyLimits = { title: 256, body: 2048, url: 2048, dataBytes: 4096 } as const

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { historyPath } from './paths'
+import { historyPath } from './history-path'
 
 describe('historyPath', () => {
   it('names the list, its unread count, marking all and marking one read', () => {
