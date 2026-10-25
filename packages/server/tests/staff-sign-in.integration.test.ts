@@ -95,15 +95,16 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', origin },
       ...(method === 'POST' && { body: JSON.stringify({ kind: 'fcm', token: 'staff-phone' }) }),
     })
-  // Each endpoint of the notification history, with the token.
-  const callHistory = (token: string, id: string) => {
+  // Each endpoint of the notification history, with the token: one after another, so the recording keeps their
+  // queries in one order.
+  const callHistory = async (token: string, id: string) => {
     const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json', origin }
-    return Promise.all([
-      app.request(`${origin}${historyPath('/api')}`, { headers }),
-      app.request(`${origin}${historyPath('/api', 'unread')}`, { headers }),
-      app.request(`${origin}${historyPath('/api', { read: id })}`, { method: 'POST', headers, body: '{}' }),
-      app.request(`${origin}${historyPath('/api', 'read')}`, { method: 'POST', headers, body: JSON.stringify({ upTo: '2030-01-01T00:00:00.000Z' }) }),
-    ])
+    return [
+      await app.request(`${origin}${historyPath('/api')}`, { headers }),
+      await app.request(`${origin}${historyPath('/api', 'unread')}`, { headers }),
+      await app.request(`${origin}${historyPath('/api', { read: id })}`, { method: 'POST', headers, body: '{}' }),
+      await app.request(`${origin}${historyPath('/api', 'read')}`, { method: 'POST', headers, body: JSON.stringify({ upTo: '2030-01-01T00:00:00.000Z' }) }),
+    ]
   }
   return { auth, store, sent, operator, request, signIn, savePolicy, staffSignIn, staffSignIns, devices, history, tokenOf, changeDevice, callHistory }
 }
