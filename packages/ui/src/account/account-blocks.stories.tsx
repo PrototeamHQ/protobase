@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
-import { createStaticSession, type AuthSession } from '@protobase/client'
+import { AuthError, createStaticSession, type AuthSession } from '@protobase/client'
 import { AuthProvider } from '../auth/auth-provider'
 import { ConnectedAccountsBlock } from './blocks/connected-accounts-block'
 import { ConnectedAppsBlock } from './blocks/connected-apps-block'
@@ -54,6 +54,7 @@ export const AccountBlocks: StoryObj<{ updateName: (name: string) => Promise<voi
     expect(profile.getByText('Ana de Vries')).toBeVisible()
     expect(profile.getByText('ana@shop.example')).toBeVisible()
     expect(within(await canvas.findByRole('region', { name: 'Password' })).getByRole('button', { name: 'Set a password' })).toBeVisible()
+    expect(profile.queryByRole('button', { name: 'Change email' })).toBeNull()
     expect(await canvas.findByRole('region', { name: 'Passkeys' })).toBeVisible()
     expect(await canvas.findByRole('region', { name: 'Two-factor authentication' })).toBeVisible()
     expect(canvas.queryByRole('region', { name: 'Connected accounts' })).toBeNull()
@@ -67,5 +68,51 @@ export const AccountBlocks: StoryObj<{ updateName: (name: string) => Promise<voi
     await userEvent.click(dialog.getByRole('button', { name: 'Save' }))
     expect(args.updateName).toHaveBeenCalledWith('Ana Jansen')
     expect(await profile.findByText('Ana Jansen')).toBeVisible()
+  },
+}
+
+/** A signed-in session on a server with mail, whose address moves once the code `246810` mailed to the new one comes back. */
+const mailingSession = (requestEmailChange: (newEmail: string) => Promise<void>): AuthSession => {
+  let user = { id: 'u-ana', email: 'ana@shop.example', name: 'Ana de Vries', role: 'sales' }
+  const base = createStaticSession('story-token', user)
+  return {
+    ...base,
+    status: async () => ({ ...(await base.status()), changeEmail: true }),
+    session: async () => user,
+    account: {
+      ...base.account,
+      requestEmailChange,
+      changeEmail: async (newEmail, code) => {
+        if (code !== '246810') throw new AuthError('Invalid OTP', 400, 'INVALID_OTP')
+        user = { ...user, email: newEmail }
+      },
+    },
+  }
+}
+
+/** With mail, the profile changes the address: a code goes to the new one, and a wrong code is refused before the right one moves it. */
+export const ChangeEmail: StoryObj<{ requestEmailChange: (newEmail: string) => Promise<void> }> = {
+  tags: ['play'],
+  args: { requestEmailChange: fn(async () => undefined) },
+  render: (args) => (
+    <AuthProvider session={mailingSession(args.requestEmailChange)}>
+      <ProfileBlock />
+    </AuthProvider>
+  ),
+  play: async ({ canvasElement, args }) => {
+    const profile = within(await within(canvasElement).findByRole('region', { name: 'Profile' }))
+    await userEvent.click(await profile.findByRole('button', { name: 'Change email' }))
+    const dialog = within(document.body)
+    await userEvent.type(dialog.getByLabelText('New email'), 'ana@new.example')
+    await userEvent.click(dialog.getByRole('button', { name: 'Send code' }))
+    expect(args.requestEmailChange).toHaveBeenCalledWith('ana@new.example')
+    expect(await dialog.findByText(/we emailed to ana@new\.example/)).toBeVisible()
+
+    await userEvent.type(dialog.getByLabelText('Code'), '111111')
+    expect(await dialog.findByRole('alert')).toBeVisible()
+    await userEvent.clear(dialog.getByLabelText('Code'))
+    await userEvent.type(dialog.getByLabelText('Code'), '246810')
+    expect(await profile.findByText('ana@new.example')).toBeVisible()
+    expect(dialog.queryByRole('dialog')).toBeNull()
   },
 }

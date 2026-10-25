@@ -5,11 +5,12 @@ import { text } from '../messages'
 import { AccountLoading } from './account-loading'
 import { useAccountData } from './use-account-data'
 
-/** The `Profile` block: the signed-in person's name, which they can change, and their address. */
+/** The `Profile` block: the signed-in person's name and address, which they can change; the address only with mail. */
 export const ProfileBlock = () => {
-  const { session } = useAuth()
+  const { session, changeEmail } = useAuth()
   const { data: user, loaded, error, reload } = useAccountData(useCallback(() => session.session(), [session]), text('couldNotReadProfile'))
   if (!loaded) return <AccountLoading error={error} />
   if (!user) return null
-  return <ProfileSection name={user.name} email={user.email} onRename={(name) => session.account.updateName(name).then(reload)} />
+  const emailChange = changeEmail ? { request: session.account.requestEmailChange, confirm: session.account.changeEmail } : undefined
+  return <ProfileSection name={user.name} email={user.email} onRename={(name) => session.account.updateName(name).then(reload)} emailChange={emailChange} onEmailChanged={reload} />
 }

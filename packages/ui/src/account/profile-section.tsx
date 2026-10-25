@@ -5,6 +5,7 @@ import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
 import { Input } from '../primitives/input'
 import { AccountSection, SectionError } from './account-section'
+import { ChangeEmailDialog, type EmailChange } from './change-email-dialog'
 import { text } from './messages'
 
 export type ProfileSectionProps = {
@@ -12,11 +13,16 @@ export type ProfileSectionProps = {
   email: string
   /** Rejects with `AuthError`, which the section shows. */
   onRename: (name: string) => Promise<void>
+  /** Offers to change the address, when the server can mail the code that confirms it. */
+  emailChange?: EmailChange
+  /** Called once the address changed, to read it back. */
+  onEmailChanged?: () => void
 }
 
-/** The signed-in person's name, which they can change, and the address they sign in with. */
-export const ProfileSection = ({ name, email, onRename }: ProfileSectionProps) => {
+/** The signed-in person's name, which they can change, and the address they sign in with, which they can change with mail. */
+export const ProfileSection = ({ name, email, onRename, emailChange, onEmailChanged }: ProfileSectionProps) => {
   const [editing, setEditing] = useState(false)
+  const [changingEmail, setChangingEmail] = useState(false)
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -42,15 +48,18 @@ export const ProfileSection = ({ name, email, onRename }: ProfileSectionProps) =
         <dt className="text-muted-foreground">{text('email')}</dt>
         <dd className="min-w-0 truncate font-medium">{email}</dd>
       </dl>
-      <Button
-        onClick={() => {
-          setDraft(name)
-          setError(undefined)
-          setEditing(true)
-        }}
-      >
-        {text('changeName')}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          onClick={() => {
+            setDraft(name)
+            setError(undefined)
+            setEditing(true)
+          }}
+        >
+          {text('changeName')}
+        </Button>
+        {emailChange && <Button onClick={() => setChangingEmail(true)}>{text('changeEmail')}</Button>}
+      </div>
       {editing && (
         <Dialog
           title={text('changeName')}
@@ -71,6 +80,17 @@ export const ProfileSection = ({ name, email, onRename }: ProfileSectionProps) =
           </label>
           <SectionError message={error} />
         </Dialog>
+      )}
+      {changingEmail && emailChange && (
+        <ChangeEmailDialog
+          email={email}
+          change={emailChange}
+          onClose={() => setChangingEmail(false)}
+          onDone={() => {
+            setChangingEmail(false)
+            onEmailChanged?.()
+          }}
+        />
       )}
     </AccountSection>
   )

@@ -28,6 +28,8 @@ export type AuthApi = {
   signInMethods: SignInMethod[]
   /** The server can email reset links, so the sign-in page offers "Forgot password?". */
   passwordReset: boolean
+  /** The server can email the code that confirms a new address, so the account page offers "Change email". */
+  changeEmail: boolean
   /** MCP clients can connect to the app, so the account page lists those the person allowed. */
   mcp: boolean
   /** Anyone can make their own account, so the sign-in page and sign-in prompts offer "Create an account". */
@@ -102,6 +104,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
   const [state, setState] = useState<AuthState>({ kind: 'loading' })
   const [signInMethods, setSignInMethods] = useState<SignInMethod[]>(['password'])
   const [passwordReset, setPasswordReset] = useState(false)
+  const [changeEmail, setChangeEmail] = useState(false)
   const [mcp, setMcp] = useState(false)
   const [canSignUp, setCanSignUp] = useState(false)
   const [passkeyDomains, setPasskeyDomains] = useState<string[]>([])
@@ -167,6 +170,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
     void session.status().then(async (status) => {
       setSignInMethods(status.signInMethods)
       setPasswordReset(status.passwordReset && !nativeBridge)
+      setChangeEmail(Boolean(status.changeEmail))
       setMcp(Boolean(status.mcp))
       setCanSignUp(Boolean(status.signUp))
       setPasskeyDomains(status.passkeyDomains ?? [])
@@ -192,6 +196,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       session,
       signInMethods,
       passwordReset,
+      changeEmail,
       mcp,
       canSignUp,
       passkeyDomains,
@@ -244,7 +249,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       },
       push,
     }),
-    [push, state, session, signInMethods, passwordReset, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
+    [push, state, session, signInMethods, passwordReset, changeEmail, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }
