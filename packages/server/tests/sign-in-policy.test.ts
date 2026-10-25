@@ -144,7 +144,7 @@ describe('a way to sign in the policy turns off', () => {
     expect(refused.status).toBe(403)
     expect(await refused.json()).toMatchObject({ code: 'SIGN_IN_METHOD_FORBIDDEN', message: 'Signing in with a password is turned off.' })
     expect((await request('/request-password-reset', { body: { email: 'sanne@example.com', redirectTo: `${origin}/` } })).status).toBe(403)
-    expect(await status()).toEqual({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: false, socialProviders: [] })
+    expect(await status()).toEqual({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: false, changeEmail: true, socialProviders: [] })
   })
 
   it('refuses setting a first password', async () => {

@@ -226,13 +226,27 @@ On the [account page](#account-page), the `Password` block does both: with a pas
 
 The [account page](#account-page)'s Devices tab lists the sessions with this one first and marked, a Sign out on each other one and Sign out of all other devices. It names each by its browser and system from the user agent, and a staff session by the operator alone, such as "Protobase staff" with when it signed in and until when, never the staff member.
 
+## Changing the address
+
+With mail configured, the account page's Profile tab offers "Change email": the person enters the new address, gets a 6-digit code there, and enters it. Only then does the account move to the new address, which counts as verified; they sign in with it from then on, and this device stays signed in. It is Better Auth's [email OTP](https://www.better-auth.com/docs/plugins/email-otp) plugin's address change, and `GET /api/auth/status` says `"changeEmail": true` while it is offered. The client has it in `session.account`:
+
+| Client | Endpoint |
+| --- | --- |
+| `requestEmailChange(newEmail)` | `POST /api/auth/email-otp/request-email-change` with `{ newEmail }`: mails the code to the new address |
+| `changeEmail(newEmail, code)` | `POST /api/auth/email-otp/change-email` with `{ newEmail, otp }`: moves the account once the code is right (a wrong one is `INVALID_OTP`, an old one `OTP_EXPIRED`) |
+
+- A code works for 5 minutes, once, and three wrong tries end it. Codes are stored hashed.
+- An address another account has gets no code, and the answer is the same, so it does not tell who has an account.
+- Each endpoint is limited to 3 requests per minute and client. Without mail both answer `404`.
+- A [staff session](#staff-sign-in) cannot change the address (`STAFF_CANNOT_CHANGE_SIGN_IN`), and neither can an [MCP client](#oauth-for-mcp-clients)'s token (`401`).
+
 ## Emailed sign-in codes
 
 With mail configured, the sign-in page offers "Email me a sign-in code": the person enters their address, gets a 6-digit code, and signs in with it instead of a password. It is Better Auth's [email OTP](https://www.better-auth.com/docs/plugins/email-otp) plugin: `POST /api/auth/email-otp/send-verification-otp` with `{ email, type: "sign-in" }`, then `POST /api/auth/sign-in/email-otp` with `{ email, otp }`.
 
 - A code works for 5 minutes, once, and three wrong tries end it; asking again sends a new one and the old one stops working. Codes are stored hashed.
 - It never creates an account: an address no account uses gets no code but an email saying so, which suggests signing in with the address the person signed up with. The answer is the same either way, so it does not tell who has an account.
-- Only sign-in codes are mailed. The plugin's own email verification, password reset and address change endpoints are off (`404`), and asking for another type of code answers `400`.
+- Only sign-in codes are mailed this way. The plugin's own email verification and password reset endpoints are off (`404`), and asking for another type of code answers `400`. Its address change is on, as [Changing the address](#changing-the-address) describes.
 - An account with [two-factor authentication](#two-factor-authentication) is asked for its second step after the code too, as after a password.
 - An account created by Protobase 0.3 or earlier, which has a password, is marked verified the first time it uses a code. Otherwise Better Auth would treat the code as taking over an unverified account and delete its password.
 

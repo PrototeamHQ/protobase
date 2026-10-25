@@ -256,6 +256,7 @@ describe('the guardrails of a staff sign-in', () => {
     for (const [path, body] of [
       ['/change-password', { currentPassword: password, newPassword: 'another long password' }],
       ['/account/set-password', { newPassword: 'another long password' }],
+      ['/email-otp/request-email-change', { newEmail: 'someone@new.example' }],
       ['/two-factor/enable', { password }],
       ['/passkey/generate-register-options', undefined],
       ['/policy/sign-in', { ...defaultSignInPolicy, staffAccess: 'allowed' }],

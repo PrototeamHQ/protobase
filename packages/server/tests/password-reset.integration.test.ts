@@ -50,7 +50,7 @@ describe('password reset over SMTP', () => {
     expect(before.status).toBe(200)
     const oldSession = cookieOf(before)
 
-    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: false, signInMethods: ['password', 'emailCode', 'passkey'], passwordReset: true, socialProviders: [] })
+    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: false, signInMethods: ['password', 'emailCode', 'passkey'], passwordReset: true, changeEmail: true, socialProviders: [] })
     const requested = await post('/request-password-reset', { email: 'sanne@acme.example.com', redirectTo: `${origin}/orders?password-reset` })
     expect(requested.status).toBe(200)
 

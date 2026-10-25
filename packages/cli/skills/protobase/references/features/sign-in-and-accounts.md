@@ -10,6 +10,7 @@ Sign-in methods, users, roles, organizations and tokens.
 - [Users page](../reference/auth.md#users-page): Admins find people, set roles, block them, add accounts and invite people by email.
 - [Password reset](../reference/auth.md#password-reset): People reset a forgotten password through an emailed link.
 - [Emailed sign-in codes](../reference/auth.md#emailed-sign-in-codes): People sign in with a code sent to their email. An address with no account is emailed that it has none, so the person tries the one they signed up with.
+- [Changing the address](../reference/auth.md#changing-the-address): People move their account to a new email address from the account page, once they enter the code sent there.
 - [Open sign-up](../reference/auth.md#open-sign-up): Anyone can create an account after confirming an emailed code.
 - [Passkeys](../reference/auth.md#passkeys): People sign in with their device's face or fingerprint unlock, or with a security key.
 - [Two-factor authentication](../reference/auth.md#two-factor-authentication): A second step with an authenticator app, backup codes or emailed codes.

@@ -355,7 +355,8 @@ describe('audiences', () => {
   })
 
   it("gives an MCP token no session on the app's own endpoints, as Bearer or DPoP", async () => {
-    const { grant, request } = await serve()
+    // With mail, so changing the address is one of them.
+    const { grant, request } = await serve({ mailer: recordingMailer().mailer })
     const { clientId, tokens } = await grant()
     for (const scheme of ['Bearer', 'DPoP']) {
       const headers = { authorization: `${scheme} ${tokens.access_token}` }
@@ -364,6 +365,7 @@ describe('audiences', () => {
       expect((await request('/api/auth/account/connected-apps', { headers })).status).toBe(401)
       expect((await request('/api/auth/account/connected-apps/disconnect', { headers, body: { clientId } })).status).toBe(401)
       expect((await request('/api/auth/account/set-password', { headers, body: { newPassword: password } })).status).toBe(401)
+      expect((await request('/api/auth/email-otp/request-email-change', { headers, body: { newEmail: 'ana@new.example' } })).status).toBe(401)
     }
   })
 })

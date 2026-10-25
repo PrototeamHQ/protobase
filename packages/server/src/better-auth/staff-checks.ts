@@ -70,6 +70,8 @@ const accountChanges = [
   '/set-password',
   '/account/set-password',
   '/change-email',
+  '/email-otp/request-email-change',
+  '/email-otp/change-email',
   '/delete-user',
   '/link-social',
   '/unlink-account',

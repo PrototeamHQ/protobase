@@ -67,7 +67,7 @@ describe('staffLabel', () => {
 
 describe('isRefusedForStaff', () => {
   it("refuses changes to the person's sign-in and saving the sign-in policy", () => {
-    for (const path of ['/change-password', '/change-email', '/two-factor/disable', '/two-factor/enable', '/passkey/delete-passkey', '/passkey/verify-registration', '/revoke-sessions', '/account/connected-apps/disconnect', '/account/set-password']) {
+    for (const path of ['/change-password', '/change-email', '/two-factor/disable', '/two-factor/enable', '/passkey/delete-passkey', '/passkey/verify-registration', '/revoke-sessions', '/account/connected-apps/disconnect', '/account/set-password', '/email-otp/request-email-change', '/email-otp/change-email']) {
       expect(isRefusedForStaff(path, 'POST')).toBe(true)
     }
     expect(isRefusedForStaff('/policy/sign-in', 'POST')).toBe(true)

@@ -10,15 +10,18 @@ const codeLifetime = '5 minutes'
 type EmailOtpOptions = Parameters<typeof emailOTP>[0]
 
 /**
- * Better Auth's email OTP plugin as sign-in only: never a sign-up, codes stored hashed, sent with `mail`. The
- * plugin's other uses (email verification, its own password reset, changing the address) are not offered.
+ * Better Auth's email OTP plugin for signing in and changing the address: never a sign-up, codes stored hashed, sent
+ * with `mail`. A new address gets its own email, with the code that moves the account to it. The plugin's other uses
+ * (email verification, its own password reset) are not offered.
  */
 export const emailCodeOptions = (mail: AuthMail) =>
   ({
     disableSignUp: true,
     expiresIn: codeLifetimeSeconds,
     storeOTP: 'hashed',
-    sendVerificationOTP: ({ email, otp }, ctx) => sendAuthEmail(mail, 'signInCodeEmail', email, { code: otp, lifetime: codeLifetime }, ctx?.context.baseURL),
+    changeEmail: { enabled: true },
+    sendVerificationOTP: ({ email, otp, type }, ctx) =>
+      sendAuthEmail(mail, type === 'change-email' ? 'changeEmailCodeEmail' : 'signInCodeEmail', email, { code: otp, lifetime: codeLifetime }, ctx?.context.baseURL),
   }) satisfies EmailOtpOptions
 
 /** The email OTP plugin's endpoints Protobase does not use; `createAuth` turns them off. */
@@ -28,8 +31,6 @@ export const unusedEmailCodePaths = [
   '/email-otp/request-password-reset',
   '/forget-password/email-otp',
   '/email-otp/reset-password',
-  '/email-otp/request-email-change',
-  '/email-otp/change-email',
 ] satisfies BetterAuthOptions['disabledPaths']
 
 type TwoFactorOptions = NonNullable<Parameters<typeof twoFactor>[0]>

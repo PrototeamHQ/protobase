@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountExistsEmail, invitationEmail, noAccountEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
+import { accountExistsEmail, changeEmailCodeEmail, invitationEmail, noAccountEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
 
 const app = { name: 'Property Finder', url: 'https://homes.example.com/' }
 const expiresAt = new Date('2026-10-15T12:00:00Z')
@@ -15,6 +15,7 @@ describe('the auth emails', () => {
       await noAccountEmail.render({ app }),
       await signInCodeEmail.render({ app, code: '123456', lifetime: '5 minutes' }),
       await twoFactorCodeEmail.render({ app, code: '123456', lifetime: '5 minutes' }),
+      await changeEmailCodeEmail.render({ app, code: '123456', lifetime: '5 minutes' }),
       await resetPasswordEmail.render({ app, url: 'https://homes.example.com/api/auth/reset-password/abc', lifetime: '1 hour' }),
       await staffSignInEmail.render({ app, staff: 'Alex (alex@operator.example)', reason: 'Ticket 12', expiresAt }),
       await invitationEmail.render({ app, inviter: 'Ada', organization: 'Acme', url: 'https://homes.example.com/-/invitation?token=t', expiresAt }),
@@ -35,6 +36,10 @@ describe('the auth emails', () => {
     expect(email.text).toContain('It works for 5 minutes, once.')
     expect((await signInCodeEmail.render({ app, code: '654321', lifetime: '5 minutes' })).subject).toBe('Your Property Finder sign-in code')
     expect(lines((await twoFactorCodeEmail.render({ app, code: '654321', lifetime: '5 minutes' })).text)).toContain('654321')
+    const changeEmail = await changeEmailCodeEmail.render({ app, code: '654321', lifetime: '5 minutes' })
+    expect(changeEmail.subject).toBe('Confirm your new Property Finder address')
+    expect(lines(changeEmail.text)).toContain('654321')
+    expect(changeEmail.text).toContain('nobody can move an account to your address without the code')
   })
 
   it('send an address that has an account to the sign-in page, with no code', async () => {

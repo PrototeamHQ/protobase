@@ -78,7 +78,7 @@ describe('password reset is on only with mail', () => {
     const { mailer } = recordingMailer()
     const { auth, status } = await serve({ mailer })
     expect(auth.passwordReset).toBe(true)
-    expect(await status()).toEqual({ needsAdmin: false, signInMethods: ['password', 'emailCode', 'passkey'], passwordReset: true, socialProviders: [] })
+    expect(await status()).toEqual({ needsAdmin: false, signInMethods: ['password', 'emailCode', 'passkey'], passwordReset: true, changeEmail: true, socialProviders: [] })
   })
 })
 
