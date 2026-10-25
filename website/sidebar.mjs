@@ -43,6 +43,7 @@ export const guides = [
   'guides/remote-resources',
   'guides/export-a-list',
   'guides/import-records',
+  'guides/push-notifications',
   'guides/create-page',
   'guides/mobile-app',
 ]

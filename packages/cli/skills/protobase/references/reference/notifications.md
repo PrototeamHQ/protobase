@@ -10,7 +10,7 @@ Turn on notifications, send them to users or devices, show each signed-in user t
 Sending keeps notifications in the history, which the bell shows, and pushes them to browsers; push on Android and iOS is coming soon.
 :::
 
-Notifications tell a user about something in the app, in a bell in the top bar and as push on their devices. You turn them on in `protobase.config.ts`:
+Notifications tell a user about something in the app, in a bell in the top bar and as push on their devices. [Send notifications](../guides/push-notifications.md) walks through turning them on and sending the first one. You turn them on in `protobase.config.ts`:
 
 ```ts
 import { defineConfig, notifications } from '@protobase/server'
@@ -71,7 +71,7 @@ The path comes from `devicesPath('/api', id)`, and the name of its id parameter 
 Only browsers receive push yet; push on Android and iOS is coming soon. <gap>A send can reach a device twice, or keep an entry twice in a history store of your own, when a worker stops mid-send because saving the send's progress in the same step as the push is not implemented.</gap>
 :::
 
-You send a notification from your server code, such as a job, a hook, an event subscription or an API function, with `sendNotification(db, to, message)` from `@protobase/server`. It is queued as a background job in `db`'s transaction when `db` is one, so it goes out only once your write commits, and nothing goes out when the transaction rolls back. A running job also has it as `sendNotification` in its context, beside `mail`, when the app has `notifications()`.
+[Send notifications](../guides/push-notifications.md) sends one from a record change, step by step. You send a notification from your server code, such as a job, a hook, an event subscription or an API function, with `sendNotification(db, to, message)` from `@protobase/server`. It is queued as a background job in `db`'s transaction when `db` is one, so it goes out only once your write commits, and nothing goes out when the transaction rolls back. A running job also has it as `sendNotification` in its context, beside `mail`, when the app has `notifications()`.
 
 Every send to users says whether it shows in their inbox:
 
