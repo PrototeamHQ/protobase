@@ -1228,6 +1228,12 @@ export type NavModel = {
   order?: number
   /** A few of its records listed under its entry. */
   recent?: NavRecentModel
+  /**
+   * `current`: the entry opens the list on the caller's own tenant, and its recent records are that tenant's, for a
+   * resource whose lists read across tenants (`.tenant(pick, { across })`). `/meta` writes it into the list's opening
+   * filter and the recent records' filter as `tenantField = "<tenant>"`, which the person can clear or change.
+   */
+  tenant?: 'current'
 }
 
 /** An entry in the menu under the signed-in user, at the bottom of the sidebar. */

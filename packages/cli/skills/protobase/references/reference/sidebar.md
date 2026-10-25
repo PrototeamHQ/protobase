@@ -6,6 +6,19 @@ How sidebar entries are grouped, and how an entry lists recent records with stat
 
 The admin's sidebar has one entry per resource view, grouped by `nav.group` (default: the database schema) and sorted by `nav.order`. A view's [named lists](ui-config.md#more-than-one-list) are entries of their own, placed by their own `nav`. `nav({ hidden: true })` leaves a resource out, for line and link tables; a resource in the [user menu](user-menu.md) is left out too. [Composed pages](layouts.md#setup) have entries of their own, and groups that hold pages come first. A [remote resource](remote-resources.md) has its entry where its source's view places it; while its source cannot be reached, it sits under the source's label, marked "Cannot reach" with the source's name.
 
+## The current organization
+
+For a resource whose lists read [across organizations](access.md#lists-across-organizations), `nav({ tenant: 'current' })` opens its entry on the organization the session works in, while the person can still clear or widen it:
+
+```ts
+view<typeof apps>('apps')
+  .nav({ group: 'Platform', tenant: 'current' })
+  .list((r) => ({ columns: [r.name, r.organization_id, r.status], filter: 'isNull(parent_id)' }))
+  .filters((r, w) => [w.facets(r.organization_id)])
+```
+
+`/meta` writes the session's organization into the list's opening filter, here `isNull(parent_id) AND organization_id = "<id>"`, and into the filter of its [recent records](#recent-records). Like any opening filter it applies when the address names no filter: the facet shows the organization chosen, and the person picks others or clears it, which lists every organization they are a member of. A link with its own filter replaces it, and switching organization opens the app again on the new one. A [named list](ui-config.md#more-than-one-list) takes `tenant` in its own `nav`. `createAdmin` refuses to start when the view has no `.list(...)`, or the resource has no `.tenant()` on a `.filterable()` field.
+
 ## Recent records
 
 An entry can list a few of its records under it, each with a status dot, so the ones that need attention are one click away:

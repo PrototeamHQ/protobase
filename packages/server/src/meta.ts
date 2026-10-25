@@ -9,6 +9,7 @@ import { sha256Hex, stableJson } from './hash'
 import type { MapSettings } from './maps/map-settings'
 import { pluginsFor, type PluginRef } from './plugins/plugin-settings'
 import { metaModel } from './meta-model'
+import { withCurrentTenant } from './nav-tenant'
 import { protobaseVersion } from './protobase-version'
 import { requestAccess, writeOnlyFields } from './request-access'
 import { seesRuntime } from './runtime/runtime-settings'
@@ -101,7 +102,8 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       return view ? [{ access, view }] : []
     })
     const createPages = new Set(picked.filter(({ view }) => view.create).map(({ view }) => view.resource))
-    const views = picked.map(({ access, view }) => pruneView(view, access.readable, listed, prompted, createPages, new Set(writeOnlyFields(access))))
+    const views = picked.map(({ access, view }) =>
+      withCurrentTenant(pruneView(view, access.readable, listed, prompted, createPages, new Set(writeOnlyFields(access))), access.model.tenant, session.tenant))
     const callerAccess = {
       createPages,
       models: listed,

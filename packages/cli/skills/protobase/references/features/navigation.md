@@ -6,6 +6,7 @@ The sidebar, the user menu, the bottom bar on phones and the global search.
 
 - [Sidebar](../reference/sidebar.md): Resources and pages in groups, in the order you set.
 - [Recent records](../reference/sidebar.md#recent-records): A sidebar entry lists a few records under it with status dots.
+- [The current organization](../reference/sidebar.md#the-current-organization): A sidebar entry opens its list on the organization you work in, which you can clear to see every organization you are a member of.
 - [User menu](../reference/user-menu.md): Account pages, help links, security settings, the theme switch and Sign out.
 - [Bottom bar](../reference/bottom-bar.md): On phones, tabs along the bottom for each role's main screens.
 - [Global search](../reference/client.md#global-search): A search box, also on Cmd+K or Ctrl+K, finds records in every resource and jumps to pages and New forms.

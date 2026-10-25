@@ -112,7 +112,11 @@ export class ViewBuilder<R extends {
     return this.next({ searchResult: { ...(titles.length > 0 && { title: titles.map((ref) => ref.name) }), ...(subtitle && { subtitle: subtitle.name }) } })
   }
 
-  /** Where the resource sits in the sidebar; `recent` lists a few of its records under the entry (see [Sidebar](website/src/content/docs/reference/sidebar.md#recent-records)). */
+  /**
+   * Where the resource sits in the sidebar; `recent` lists a few of its records under the entry (see
+   * [Sidebar](website/src/content/docs/reference/sidebar.md#recent-records)), and `tenant: 'current'` opens it on the
+   * caller's own tenant (see [The current organization](website/src/content/docs/reference/sidebar.md#the-current-organization)).
+   */
   nav(nav: NavInput<R>) {
     return this.next({ nav })
   }
@@ -366,7 +370,7 @@ export class ViewBuilder<R extends {
     return this.next({ searchesOf: searches })
   }
 
-  /** With the resource's model, also verifies the title, search result and list display fields, related column names, a gallery's image, `listOf`, `searchesOf`, the sidebar's `recent` group and the forms' fields. */
+  /** With the resource's model, also verifies the title, search result and list display fields, related column names, a gallery's image, `listOf`, `searchesOf`, the sidebar's `recent` group and `tenant`, and the forms' fields. */
   toModel(resource?: ResourceModel): ViewModel {
     const { title, nav, searchResult, list, listOf } = this.state
     if (resource && title !== undefined && !Object.hasOwn(resource.fields, title)) {
@@ -416,6 +420,11 @@ export class ViewBuilder<R extends {
     for (const form of resource ? (this.state.forms ?? []) : []) {
       const unknown = form.fields.find((name) => !Object.hasOwn(resource!.fields, name))
       if (unknown !== undefined) throw new Error(`View "${this.state.resource}": form "${form.name}" names field "${unknown}", which the resource does not have`)
+    }
+    if (nav?.tenant === 'current' && !list) throw new Error(`View "${this.state.resource}": nav.tenant narrows the opening filter of the list, so the view needs .list(...)`)
+    const tenantField = resource?.tenant === undefined ? undefined : resource.fields[resource.tenant]
+    if (resource && nav?.tenant === 'current' && !tenantField?.filterable) {
+      throw new Error(`View "${this.state.resource}": nav.tenant opens the list on the current tenant, so the resource needs .tenant() on a .filterable() field`)
     }
     const recentErrors = resource && nav?.recent ? navRecentErrors(nav.recent, resource) : []
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)
