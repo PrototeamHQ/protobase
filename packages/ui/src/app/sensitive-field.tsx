@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { isApiError } from '@protobase/client'
 import { Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import type { FieldModel, FieldViewModel } from '@protobase/schema'
@@ -8,10 +9,14 @@ import { toDraft } from '../live/field-values'
 import { humanize } from '../live/naming'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
+import { ConfirmSignIn } from './confirm-sign-in'
 import { ErrorBanner } from './error-banner'
 import { text as appText } from './messages'
 
 const mask = '••••••••••'
+
+// The server asks for a recent strong sign-in first, with how many minutes it may be old.
+const strongSignInMinutes = (error: unknown) => (isApiError(error) && error.slug === 'strong-sign-in-required' ? (error.problem.minutes ?? 15) : undefined)
 
 export type SensitiveFieldProps = {
   field: FieldModel
@@ -28,7 +33,8 @@ export type SensitiveFieldProps = {
 
 /**
  * A value hidden like a password. Showing a stored one asks the server for it, once per page visit; a write-only one has
- * none to show, so its eye only unmasks what was typed.
+ * none to show, so its eye only unmasks what was typed. When the server wants a recent strong sign-in first, the field
+ * asks the person to confirm it's them, then shows the value.
  */
 export const SensitiveField = ({ field, hints, value, reveal, locked, invalid, placeholder, onChange }: SensitiveFieldProps) => {
   const [shown, setShown] = useState(false)
@@ -44,7 +50,9 @@ export const SensitiveField = ({ field, hints, value, reveal, locked, invalid, p
       {!stored.isPending && (shown ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />)}
     </Button>
   )
-  const error = stored.error && <div className="mt-2"><ErrorBanner title={appText('couldNotShow', label)} error={stored.error} /></div>
+  const minutes = strongSignInMinutes(stored.error)
+  const error =
+    minutes !== undefined ? <ConfirmSignIn minutes={minutes} onConfirmed={() => stored.mutate()} /> : stored.error && <div className="mt-2"><ErrorBanner title={appText('couldNotShow', label)} error={stored.error} /></div>
 
   if (locked) {
     return (

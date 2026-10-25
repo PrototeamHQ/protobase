@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
-import { createStaticSession, type ResourcePermissions } from '@protobase/client'
+import { ApiError, createStaticSession, type AuthSession, type ResourcePermissions } from '@protobase/client'
 import { App } from './app'
 import { fakeApi, type FakeApiInput } from './testing/fake-api'
 import { forbidden } from './testing/fake-client'
@@ -18,7 +18,7 @@ const permissions = (update: boolean): Record<string, ResourcePermissions> =>
 /** Every reveal the fake server answered, so a play can count them. */
 const reveals: string[] = []
 
-const Rentals = ({ path, update = true, reveal }: { path: string; update?: boolean; reveal?: FakeApiInput['reveal'] }) => {
+const Rentals = ({ path, update = true, reveal, auth = session }: { path: string; update?: boolean; reveal?: FakeApiInput['reveal']; auth?: AuthSession }) => {
   const [api] = useState(() =>
     fakeApi({
       resources: rentalResources,
@@ -30,7 +30,7 @@ const Rentals = ({ path, update = true, reveal }: { path: string; update?: boole
   )
   return (
     <div className="h-screen">
-      <App client={api.client} auth={session} initialUrl={path} />
+      <App client={api.client} auth={auth} initialUrl={path} />
     </div>
   )
 }
@@ -112,6 +112,49 @@ export const IbanRevealRefused: StoryObj = {
     expect(await canvas.findByText('Could not show the IBAN')).toBeVisible()
     expect(canvas.getByText('You may not see bank details.')).toBeVisible()
     expect(canvasElement.textContent).not.toContain(rentalIbans.ada)
+  },
+}
+
+// An account with a passkey and an authenticator app, whose code confirms it's them until the page reloads.
+let confirmed = false
+const strongSession: AuthSession = {
+  ...session,
+  verifyTwoFactor: async (input) => {
+    confirmed = input.code === '123456'
+    if (!confirmed) throw new Error('The code did not work')
+    return session.verifyTwoFactor(input)
+  },
+  account: {
+    ...session.account,
+    signInMethods: async () => ({ ...(await session.account.signInMethods()), account: { password: true, passkeys: 1, twoFactor: true, authenticatorApp: true } }),
+  },
+}
+
+export const IbanAfterConfirmingItsYou: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <Rentals
+      path="/tenants/1"
+      auth={strongSession}
+      reveal={async (_resource, _key, _field, value) => {
+        if (confirmed) return value
+        throw new ApiError({ type: 'urn:protobase:problem:strong-sign-in-required', title: 'Forbidden', status: 403, detail: "Confirm it's you", minutes: 15 })
+      }}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    confirmed = false
+    const canvas = within(canvasElement)
+    const input = (await canvas.findByLabelText('IBAN')) as HTMLInputElement
+    await userEvent.click(canvas.getByRole('button', { name: 'Show IBAN' }))
+    const step = await canvas.findByRole('region', { name: "Confirm it's you" })
+    expect(within(step).getByText('Showing this needs a passkey or your authenticator app in the last 15 minutes.')).toBeVisible()
+    expect(await within(step).findByRole('button', { name: 'Use a passkey' })).toBeVisible()
+    expect(canvasElement.textContent).not.toContain(rentalIbans.ada)
+    await userEvent.type(within(step).getByLabelText('Code from your authenticator app'), '123456')
+    await waitFor(() => expect(input.value).toBe(rentalIbans.ada))
+    expect(input.type).toBe('text')
+    expect(canvas.queryByRole('region', { name: "Confirm it's you" })).toBeNull()
   },
 }
 

@@ -227,7 +227,7 @@ A field such as a recovery code or an API secret can ask for more than read acce
 recoveryCode: f.text().encrypted().strongSignIn({ minutes: 10 }),
 ```
 
-Without such a sign-in, the reveal is refused with `403` `strong-sign-in-required` and the number of minutes, before anything is decrypted or audited. A passkey sign-in counts, as does a password or emailed code followed by the [second step](auth.md#two-factor-authentication); confirming later counts from then. Staff [signed in as someone](auth.md#staff-sign-in) and an outside app acting as them, such as an MCP client, never count: they proved nothing as the person. See [Recent strong sign-in](auth.md#recent-strong-sign-in) for how the server knows.
+Without such a sign-in, the reveal is refused with `403` `strong-sign-in-required` and the number of minutes, before anything is decrypted or audited. The record page then asks the person to confirm it's them, with a passkey or the code of their authenticator app, whichever their account has, and shows the value once they did. A passkey sign-in counts, as does a password or emailed code followed by the [second step](auth.md#two-factor-authentication); confirming later counts from then. Staff [signed in as someone](auth.md#staff-sign-in) and an outside app acting as them, such as an MCP client, never count: they proved nothing as the person. See [Recent strong sign-in](auth.md#recent-strong-sign-in) for how the server knows.
 
 ## Encrypted fields
 

@@ -162,8 +162,9 @@ export class Field<V> {
 
   /**
    * Revealing it needs a strong sign-in: one that proved a passkey or a second step, made or confirmed in the last
-   * `minutes` (15 by default). Otherwise the reveal is refused with `403 strong-sign-in-required`. It is sensitive too.
-   * See [Recent strong sign-in](website/src/content/docs/reference/data-config.mdx#recent-strong-sign-in).
+   * `minutes` (15 by default). Otherwise the reveal is refused with `403 strong-sign-in-required`, and the record page
+   * asks the person to confirm it's them first. It is sensitive too. See
+   * [Recent strong sign-in](website/src/content/docs/reference/data-config.mdx#recent-strong-sign-in).
    */
   strongSignIn(o: { minutes?: number } = {}) {
     const minutes = o.minutes ?? 15

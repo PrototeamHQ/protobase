@@ -95,6 +95,9 @@ export const useAuth = () => {
   return api
 }
 
+/** The auth state and steps inside `AuthProvider`, `null` outside it, for a part that also works without one. */
+export const useOptionalAuth = () => useContext(AuthContext)
+
 /**
  * Finds out whether the server has a login and who is signed in, and keeps that state for the app. Without a `session`,
  * it makes one on `origin`, the page's own by default; in the iOS or Android app, with its `nativeBridge`, the session

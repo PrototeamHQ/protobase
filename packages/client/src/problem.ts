@@ -24,6 +24,8 @@ export type ProblemDetails = {
   operation?: number
   /** For a delete other records still point at: their resource, and its field pointing at the record, as far as the caller may know. */
   blockedBy?: { resource: string; field?: string }
+  /** For `strong-sign-in-required`: how many minutes old the strong sign-in may be. */
+  minutes?: number
 }
 
 /** A non-2xx response, parsed from `application/problem+json`. */
