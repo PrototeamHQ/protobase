@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Action, Card, ConnectedAccounts, ConnectedApps, Field, Grid, Link, ModalForm, Page, Passkeys, Profile, Progress, RecordCard, RecordCards, Show, Stat, Table, TwoFactor } from './blocks'
+import { Action, Card, ConnectedAccounts, ConnectedApps, Devices, Field, Grid, Link, ModalForm, Page, Passkeys, Profile, Progress, RecordCard, RecordCards, Show, Stat, Table, TwoFactor } from './blocks'
 import { component } from './component'
 import { isPageDefinition, page } from './page'
 import { billing } from './testing/billing'
@@ -143,12 +143,12 @@ describe('page', () => {
   })
 
   it('keeps the account blocks to the account page, as they act on the signed-in person', () => {
-    const blocks = [Profile({}), Passkeys({}), TwoFactor({}), ConnectedAccounts({}), ConnectedApps({})]
+    const blocks = [Profile({}), Passkeys({}), TwoFactor({}), ConnectedAccounts({}), Devices({}), ConnectedApps({})]
     expect(() => page('account', Page({ title: 'Account', children: Grid({ children: blocks }) }))).not.toThrow()
     expect(problems(Page({ title: 'x', children: Card({ title: 'Mine', children: Passkeys({}) }) }))).toEqual([
       '<Page> › <Card> › <Passkeys>: <Passkeys> acts on the signed-in person\'s own account, so it is only allowed on the "account" page',
     ])
-    expect(problems(Page({ title: 'x', children: blocks }))).toHaveLength(5)
+    expect(problems(Page({ title: 'x', children: blocks }))).toHaveLength(6)
   })
 
   it('reports every problem at once, under the page name', () => {

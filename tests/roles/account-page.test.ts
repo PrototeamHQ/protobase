@@ -19,7 +19,7 @@ describe('the account page in /meta', () => {
   it('gives everyone signed in the standard account page when the app has none, beside its pages', async () => {
     const body = await meta(admin(), as(undefined, 'member'))
     expect(body.account?.title).toBe('Account')
-    expect(tabs(body.account)).toEqual(['profile', 'security', 'apps'])
+    expect(tabs(body.account)).toEqual(['profile', 'security', 'devices', 'apps'])
     expect(body.pages.map((entry) => entry.name)).toEqual(['overview'])
   })
 

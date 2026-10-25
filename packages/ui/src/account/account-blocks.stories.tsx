@@ -4,6 +4,7 @@ import { createStaticSession, type AuthSession } from '@protobase/client'
 import { AuthProvider } from '../auth/auth-provider'
 import { ConnectedAccountsBlock } from './blocks/connected-accounts-block'
 import { ConnectedAppsBlock } from './blocks/connected-apps-block'
+import { DevicesBlock } from './blocks/devices-block'
 import { PasskeysBlock } from './blocks/passkeys-block'
 import { ProfileBlock } from './blocks/profile-block'
 import { TwoFactorBlock } from './blocks/two-factor-block'
@@ -29,8 +30,8 @@ const sessionWith = (updateName: (name: string) => Promise<void>): AuthSession =
 }
 
 /**
- * Each block reads its own data: the profile changes the name, passkeys and two-factor follow the policy, and connected
- * accounts and apps stay hidden in an app without OAuth providers or MCP.
+ * Each block reads its own data: the profile changes the name, passkeys and two-factor follow the policy, devices lists
+ * the static session's none, and connected accounts and apps stay hidden in an app without OAuth providers or MCP.
  */
 export const AccountBlocks: StoryObj<{ updateName: (name: string) => Promise<void> }> = {
   tags: ['play'],
@@ -41,6 +42,7 @@ export const AccountBlocks: StoryObj<{ updateName: (name: string) => Promise<voi
       <PasskeysBlock />
       <TwoFactorBlock />
       <ConnectedAccountsBlock />
+      <DevicesBlock />
       <ConnectedAppsBlock />
     </AuthProvider>
   ),
@@ -52,6 +54,7 @@ export const AccountBlocks: StoryObj<{ updateName: (name: string) => Promise<voi
     expect(await canvas.findByRole('region', { name: 'Passkeys' })).toBeVisible()
     expect(await canvas.findByRole('region', { name: 'Two-factor authentication' })).toBeVisible()
     expect(canvas.queryByRole('region', { name: 'Connected accounts' })).toBeNull()
+    expect(await canvas.findByRole('region', { name: 'Devices' })).toBeVisible()
     expect(canvas.queryByRole('region', { name: 'Connected apps' })).toBeNull()
 
     await userEvent.click(profile.getByRole('button', { name: 'Change name' }))

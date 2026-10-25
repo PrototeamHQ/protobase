@@ -8,6 +8,7 @@ export {
   Chart,
   ConnectedAccounts,
   ConnectedApps,
+  Devices,
   Field,
   Grid,
   Link,

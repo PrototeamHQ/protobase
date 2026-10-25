@@ -77,6 +77,7 @@ export const blockSpecs: Record<string, BlockSpec> = {
   Passkeys: { children: false, props: {} },
   TwoFactor: { children: false, props: {} },
   ConnectedAccounts: { children: false, props: {} },
+  Devices: { children: false, props: {} },
   ConnectedApps: { children: false, props: {} },
 }
 

@@ -138,17 +138,18 @@ An invitation to the app is a row of Better Auth's `verification` table, so it n
 
 ## Account page
 
-Everyone signed in has an account page at `/-/account`, which "Account" in the user menu opens. When the config exports no page named `account`, the server serves the standard one, `accountPage` from `@protobase/layout`: a [composed page](/reference/layouts/) titled "Account" with three [tabs](/reference/blocks/#tabs-and-tab) of [account blocks](/reference/blocks/#account-blocks), each tab at its own address.
+Everyone signed in has an account page at `/-/account`, which "Account" in the user menu opens. When the config exports no page named `account`, the server serves the standard one, `accountPage` from `@protobase/layout`: a [composed page](/reference/layouts/) titled "Account" with four [tabs](/reference/blocks/#tabs-and-tab) of [account blocks](/reference/blocks/#account-blocks), each tab at its own address.
 
 | Tab | Address | Blocks |
 | --- | --- | --- |
 | Profile | `/-/account` | `Profile` |
 | Sign-in & security | `/-/account/security` | `Passkeys`, `TwoFactor`, `ConnectedAccounts` |
+| Devices | `/-/account/devices` | `Devices` |
 | Connected apps | `/-/account/apps` | `ConnectedApps` |
 
 A tab whose blocks all leave themselves out is not offered, such as Connected apps in an app without [MCP](#oauth-for-mcp-clients).
 
-To change it, export a page named `account` of your own: it replaces the standard one at `/-/account`, and is neither at `/account` nor in the sidebar. `accountTabs` holds the standard tabs by name (`profile`, `security`, `apps`), so the page lists the ones it keeps beside its own:
+To change it, export a page named `account` of your own: it replaces the standard one at `/-/account`, and is neither at `/account` nor in the sidebar. `accountTabs` holds the standard tabs by name (`profile`, `security`, `devices`, `apps`), so the page lists the ones it keeps beside its own:
 
 ```tsx
 // config/account.tsx
@@ -171,7 +172,7 @@ export const account = page('account',
 ```
 
 - **Add** a tab of your own, here Privacy at `/-/account/privacy`, with any blocks a page can hold.
-- **Hide** a tab by leaving it out, here Connected apps, or a block by leaving it out of its tab, here `ConnectedAccounts`.
+- **Hide** a tab by leaving it out, here Devices and Connected apps, or a block by leaving it out of its tab, here `ConnectedAccounts`.
 - **Reorder** by listing the tabs in the order to show them: Sign-in & security comes first here, at `/-/account`.
 - **Wrap** a standard tab by writing it with its name and label, the standard blocks among your own, as the security tab above does with a note.
 
@@ -217,6 +218,8 @@ The signed-in person changes their own name and password, and signs out their ot
 | `revokeOtherSessions()` | `POST /api/auth/revoke-other-sessions`: signs out every device but this one |
 
 Signing out a device, or a new password with `signOutOthers`, stops that device's API token at its next request (see [When a token stops working](#when-a-token-stops-working)); this device stays signed in. A first password with `setPassword` signs out no device and disconnects no [MCP client](#oauth-for-mcp-clients); it needs 12 characters like any other, is limited to 5 per minute and client, and is refused while the [sign-in policy](#sign-in-policy) turns passwords off (`403`). A [staff session](#staff-sign-in) cannot change or set the password or sign out the other devices (`STAFF_CANNOT_CHANGE_SIGN_IN`).
+
+The [account page](#account-page)'s Devices tab lists the sessions with this one first and marked, a Sign out on each other one and Sign out of all other devices. It names each by its browser and system from the user agent, and a staff session by the operator alone, such as "Protobase staff" with when it signed in and until when, never the staff member.
 
 ## Emailed sign-in codes
 

@@ -58,6 +58,7 @@ export const Checks: StoryObj = {
     expect(nav.getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['Profile', '/-/account'],
       ['Sign-in & security', '/-/account/security'],
+      ['Devices', '/-/account/devices'],
     ])
     expect(await canvas.findByText('ana@shop.example')).toBeVisible()
     await waitFor(() => expect(document.title).toBe('Profile · Account · Protobase'))
