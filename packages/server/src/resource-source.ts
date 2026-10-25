@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 import { isPageDefinition, type PageDefinition } from '@protobase/layout'
-import type { AccessSource, BottomBarSource, EventMatch, FileProcessor, UserMenuSource, ViewModel } from '@protobase/schema'
+import type { AccessSource, BottomBarSource, ComputedReveal, EventMatch, FileProcessor, UserMenuSource, ViewModel } from '@protobase/schema'
 import { isSubscription } from './webhooks/subscription'
 
 type FieldSource = { schema: z.ZodType; meta: { readOnly: boolean; nullable: boolean; file?: { derive?: Record<string, FileProcessor> } } }
@@ -10,6 +10,8 @@ export type ResourceSource = AccessSource & {
   readonly state: { fields?: Record<string, FieldSource | null> }
   readonly validators: readonly ((record: any) => Array<{ field: string; message: string }> | undefined)[]
   recordSchema(): z.ZodType
+  /** Its values revealed like sensitive fields but computed when asked (`.reveals()`), by name. */
+  readonly computedReveals?: Readonly<Record<string, ComputedReveal<any>>>
   /** The code predicates of its events, by event name. */
   eventMatches?(): Record<string, EventMatch<any>>
 }

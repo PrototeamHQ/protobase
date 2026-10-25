@@ -94,7 +94,8 @@ export const resourcePaths = (access: RequestAccess) => {
   const tenantNote = entry.model.tenant ? ' Rows of other tenants are never visible.' : ''
   const softNote = entry.model.softDelete ? ' Soft-deleted rows are hidden.' : ''
   const keyErrors = { 400: error('BadRequest'), ...auth, 404: error('NotFound') }
-  const sensitive = Object.values(access.readable.fields).filter((field) => field.sensitive).map((field) => field.name)
+  // A computed reveal's own read rule is checked when it is revealed; its name is listed for every reader.
+  const sensitive = [...Object.values(access.readable.fields).filter((field) => field.sensitive).map((field) => field.name), ...Object.keys(entry.source.computedReveals ?? {})]
   const aiActions = (pickView(access.deps.views, access.session.user.roles, entry.name)?.actions ?? []).filter((action) => action.run?.kind === 'ai').map((action) => action.name)
 
   const paths = {
@@ -175,7 +176,7 @@ export const resourcePaths = (access: RequestAccess) => {
           operationId: `reveal_${entry.name}`,
           tags: tag,
           summary: `Reveal a sensitive field of a ${entry.name} record`,
-          description: 'A sensitive field never comes with the record. This returns its value for one record, with the same access as a get, and publishes an audit event first. A field that needs a recent strong sign-in is a 403 `strong-sign-in-required` until the caller confirms it\'s them with a passkey or a second step.',
+          description: 'A sensitive field never comes with the record. This returns its value for one record, or makes the value of a computed reveal, with the same access as a get, and publishes an audit event first. A field that needs a recent strong sign-in is a 403 `strong-sign-in-required` until the caller confirms it\'s them with a passkey or a second step.',
           parameters: [param('key')],
           requestBody: { required: true, content: json({ type: 'object', required: ['field'], properties: { field: { type: 'string', enum: sensitive } }, additionalProperties: false }) },
           responses: { 200: { description: 'The value; never cached', content: json({ type: 'object', required: ['field', 'value'], properties: { field: { type: 'string' }, value: {} } }) }, ...keyErrors, 403: error('Forbidden') },

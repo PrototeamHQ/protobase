@@ -229,6 +229,28 @@ recoveryCode: f.text().encrypted().strongSignIn({ minutes: 10 }),
 
 Without such a sign-in, the reveal is refused with `403` `strong-sign-in-required` and the number of minutes, before anything is decrypted or audited. The record page then asks the person to confirm it's them, with a passkey or the code of their authenticator app, whichever their account has, and shows the value once they did. A passkey sign-in counts, as does a password or emailed code followed by the [second step](auth.md#two-factor-authentication); confirming later counts from then. Staff [signed in as someone](auth.md#staff-sign-in) and an outside app acting as them, such as an MCP client, never count: they proved nothing as the person. See [Recent strong sign-in](auth.md#recent-strong-sign-in) for how the server knows.
 
+### Computed reveals
+
+:::caution[Beta]
+The record page does not show computed reveals yet: an app's own component reveals them with the client's `reveal`.
+:::
+
+Some secrets are not in the app's database, such as an API key another service keeps, or are built from several values, such as a file of settings. `.reveals()` names values revealed like a sensitive field but made when one is asked for:
+
+```ts
+resource('apps')
+  // ...fields, key and tenant
+  .reveals({
+    env: {
+      value: (app, caller) => secrets.envFile(app.id),
+      read: roles.is('owner'),
+      strongSignIn: { minutes: 15 },
+    },
+  })
+```
+
+`POST /apps/{key}:reveal` with `{ "field": "env" }` reads the record as a get does, inside the caller's tenant, row filter and record rules, so a record they cannot read is a `404`. `value` gets the record with every field the caller may read but the sensitive ones, and the caller's user and organization; its answer is the value, `null` when it returns nothing. `read` is a role rule like a field's own read rule, and a caller it leaves out gets `400` as for an unknown field. `strongSignIn` asks for a [recent strong sign-in](#recent-strong-sign-in), 15 minutes when it names no minutes. Each reveal publishes the same audit event as a field's, with the reveal's name as `field`, before the value is returned. A reveal cannot have the name of a field of its resource.
+
 ## Encrypted fields
 
 An encrypted field is a [sensitive field](#sensitive-fields) whose value the server encrypts before it reaches the database, so a dump, a backup, a replica, a realtime subscriber or anyone running SQL sees only ciphertext. Only its reveal decrypts it, for a caller who may read the record and the field, and every reveal is audited. Every API write encrypts it: the record form, REST, batches, imports, [public forms](forms.md) and `records` in [API functions](../guides/api-functions.md). The [Supabase-compatible REST API](supabase-rest.md#encrypted-fields) refuses to write or filter it.

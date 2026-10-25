@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { FieldAccess } from './access/types'
 import { eventHelpers, type EventHelpers, type EventSpec } from './events/event-helpers'
 import { eventMatches } from './events/event-models'
+import type { ComputedReveal } from './computed/computed-reveal'
 import type { ParentAccess, PositionAfterModel, ResourceModel, SearchMatch } from './model'
 import { buildResourceModel, ignoredColumns, type ResourceState } from './resource-model'
 import type { Access, Issue, KeyRefs, RecordOf } from './resource-types'
@@ -51,6 +52,8 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
     readonly validators: readonly Validator<F>[] = [],
     /** @internal */
     readonly accessRules: Access<F> = {},
+    /** @internal */
+    readonly computedReveals: Readonly<Record<string, ComputedReveal<RecordOf<F>>>> = {},
   ) {}
 
   /** The table, with or without its schema: `'shop.repairs'` or `'repairs'`. Required. */
@@ -74,6 +77,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
       { ...this.state, primaryKey: refs.map((ref) => ref.name) },
       this.validators,
       this.accessRules,
+      this.computedReveals,
     )
   }
 
@@ -205,7 +209,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    * ```
    */
   validate(validator: Validator<F>) {
-    return new ResourceBuilder<F, K>(this.state, [...this.validators, validator], this.accessRules)
+    return new ResourceBuilder<F, K>(this.state, [...this.validators, validator], this.accessRules, this.computedReveals)
   }
 
   /**
@@ -223,7 +227,28 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    * ```
    */
   access(rules: Access<F>) {
-    return new ResourceBuilder<F, K>(this.state, this.validators, { ...this.accessRules, ...rules })
+    return new ResourceBuilder<F, K>(this.state, this.validators, { ...this.accessRules, ...rules }, this.computedReveals)
+  }
+
+  /**
+   * Values revealed like sensitive fields, by name, but made when one is asked for instead of read from a column: a
+   * secret another service keeps, or a file of settings built from several. `POST /{resource}/{key}:reveal` with
+   * `{ "field": "<name>" }` answers one for a caller who may read the record, after the same audit event as a field's
+   * reveal. Each call adds names, which no field may have. See
+   * [Computed reveals](website/src/content/docs/reference/data-config.mdx#computed-reveals).
+   *
+   * @example
+   * ```ts
+   * .reveals({ env: { value: (app) => secrets.envFile(app.id), read: roles.is('owner'), strongSignIn: { minutes: 15 } } })
+   * ```
+   */
+  reveals(reveals: Record<string, ComputedReveal<RecordOf<F>>>) {
+    for (const [name, reveal] of Object.entries(reveals)) {
+      if (Object.hasOwn(this.state.fields ?? {}, name)) throw new Error(`Resource "${this.state.name}": the reveal "${name}" has the name of a field`)
+      const minutes = reveal.strongSignIn?.minutes
+      if (minutes !== undefined && (!Number.isInteger(minutes) || minutes < 1)) throw new Error(`Resource "${this.state.name}": the reveal "${name}" needs minutes of at least 1`)
+    }
+    return new ResourceBuilder<F, K>(this.state, this.validators, this.accessRules, { ...this.computedReveals, ...reveals })
   }
 
   /** Role-based rules per field, for fields that declared `.access(...)`. */
@@ -264,7 +289,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   }
 
   private next(patch: Partial<ResourceState>) {
-    return new ResourceBuilder<F, K>({ ...this.state, ...patch }, this.validators, this.accessRules)
+    return new ResourceBuilder<F, K>({ ...this.state, ...patch }, this.validators, this.accessRules, this.computedReveals)
   }
 }
 

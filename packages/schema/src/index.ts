@@ -103,6 +103,7 @@ export type {
 } from './model'
 export { f } from './fields'
 export type { Rollup, RollupCount, RollupFn, RollupSource, RollupValue } from './computed/rollup'
+export type { ComputedReveal, RevealCaller } from './computed/computed-reveal'
 export { resource, type ResourceBuilder, type SearchRef, type SearchRefs, type TenantOptions, type Validator } from './resource'
 export type { EventActor, EventContext, EventMatch, EventSpec, EventHelpers, CreatedOptions, UpdatedOptions, DeletedOptions, UndeletedOptions } from './events/event-helpers'
 export { isRecordCondition } from './record-when'
