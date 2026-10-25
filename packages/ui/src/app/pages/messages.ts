@@ -4,6 +4,8 @@ export const text = defineMessages({
   en: {
     notFound: 'Not found',
     noPage: 'There is no page called {}.',
+    tabs: 'Tabs',
+    noTab: (name: string) => `This page has no tab called ${name}.`,
     cancel: 'Cancel',
     couldNotDraw: '{} could not be drawn.',
     noComponent: 'No component is registered as {}. Export it from protobase.ui.tsx, or load the plugin that provides it.',
@@ -36,6 +38,8 @@ export const text = defineMessages({
   nl: {
     notFound: 'Niet gevonden',
     noPage: 'Er is geen pagina met de naam {}.',
+    tabs: 'Tabbladen',
+    noTab: (name: string) => `Deze pagina heeft geen tabblad met de naam ${name}.`,
     cancel: 'Annuleren',
     couldNotDraw: '{} kon niet worden getekend.',
     noComponent: 'Er is geen component geregistreerd als {}. Exporteer die uit protobase.ui.tsx, of laad de plug-in die haar levert.',

@@ -95,7 +95,7 @@ const recordQuery = (address: Extract<AppAddress, { kind: 'record' }>) => {
 export const appPath = (address: AppAddress, basePath = ''): string => {
   switch (address.kind) {
     case 'page':
-      return `${basePath}/${encodeURIComponent(address.page)}`
+      return `${basePath}/${encodeURIComponent(address.page)}${address.tab ? `/${encodeURIComponent(address.tab)}` : ''}`
     case 'create':
       return `${basePath}/${encodeURIComponent(address.resource)}/${addressWords.create}${valuesQuery(address.values)}`
     case 'record':
@@ -124,7 +124,8 @@ const filterLayout = (value: string | null): FilterLayout | undefined => (value 
 
 /**
  * The address `pathAndQuery` (below the base path) shows, or `undefined` for anything else: the root, the app's own
- * pages under `/-/`, or a path that is not one. A first segment in `pages` is a composed page, otherwise a resource.
+ * pages under `/-/`, or a path that is not one. A first segment in `pages` is a composed page, and a second one its
+ * tab; otherwise it is a resource.
  */
 export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): AppAddress | undefined => {
   const url = new URL(pathAndQuery, 'http://app')
@@ -132,7 +133,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
   if (!segments || segments.length === 0 || segments.length > 2) return undefined
   const [first, second] = segments as [string, string | undefined]
   if (first === '-') return undefined
-  if (pages.has(first)) return second === undefined ? { kind: 'page', page: first } : undefined
+  if (pages.has(first)) return { kind: 'page', page: first, ...(second !== undefined && { tab: second }) }
   if (second === addressWords.create) {
     const values = Object.fromEntries([...url.searchParams].filter(([, value]) => value !== ''))
     return { kind: 'create', resource: first, ...(Object.keys(values).length > 0 && { values }) }

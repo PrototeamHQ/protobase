@@ -2,6 +2,7 @@ import { appHrefError } from '@protobase/schema/internal'
 import { blockSpecs, propProblems } from './block-specs'
 import { parseCondition } from './condition'
 import type { LayoutNode } from './node'
+import { tabsProblems } from './check-tabs'
 import { walkTree, type Scope } from './walk'
 
 /** Problems that need a record around the element, which only a `RecordCard` or a `CardRow` card provides. */
@@ -42,8 +43,8 @@ const linkProblems = ({ props }: LayoutNode): string[] => {
 
 /**
  * Checks a page's tree without the models: the root is one `Page`, every built-in element has known props of the right
- * kind, elements that show a record's fields sit inside one, and conditions parse. Returns the problems, each with
- * where it is.
+ * kind, elements that show a record's fields sit inside one, tabs are placed as their address needs, and conditions
+ * parse. Returns the problems, each with where it is.
  */
 export const structureProblems = (tree: LayoutNode): string[] => {
   const problems: string[] = []
@@ -64,5 +65,5 @@ export const structureProblems = (tree: LayoutNode): string[] => {
       if (!parsed.ok) report(`"when" is not a valid condition: ${parsed.message}`)
     }
   })
-  return problems
+  return [...problems, ...tabsProblems(tree)]
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fieldRef, type FieldRefValue } from '@protobase/schema'
-import { Chart, Link, Page, RecordCard, RecordCards, Show, Table } from './blocks'
+import { Card, Chart, Link, Page, RecordCard, RecordCards, Show, Tab, Table, Tabs } from './blocks'
 import { component } from './component'
 import type { LayoutNode } from './node'
 import type { PageModel } from './page'
@@ -143,5 +143,25 @@ describe('prunePage', () => {
     expect(types(pruned)).toEqual(['Page', 'RecordCard', 'Sparkline'])
     expect(JSON.stringify(pruned)).not.toMatch(/seats"|total/)
     expect(types(prunePage(page, [], access({ models: restricted({}, {}, ['invoices']) })))).toEqual(['Page', 'RecordCard', 'Sparkline', 'Sparkline'])
+  })
+
+  it('leaves out a tab whose every element the caller cannot see, and tabs left with none', () => {
+    const page: PageModel = {
+      name: 'account',
+      title: 'Account',
+      tree: Page({
+        title: 'Account',
+        children: Tabs({
+          children: [
+            Tab({ name: 'profile', label: 'Profile', children: Card({ title: 'About you' }) }),
+            Tab({ name: 'billing', label: 'Billing', children: Table({ resource: 'invoices' }) }),
+          ],
+        }),
+      }),
+    }
+    expect(types(prunePage(page, [], access()))).toEqual(['Page', 'Tabs', 'Tab:profile', 'Card', 'Tab:billing', 'Table'])
+    expect(types(prunePage(page, [], access({ models: restricted({}, {}, ['invoices']) })))).toEqual(['Page', 'Tabs', 'Tab:profile', 'Card'])
+    const billingOnly: PageModel = { ...page, tree: Page({ title: 'Account', children: Tabs({ children: Tab({ name: 'billing', label: 'Billing', children: Table({ resource: 'invoices' }) }) }) }) }
+    expect(types(prunePage(billingOnly, [], access({ models: restricted({}, {}, ['invoices']) })))).toEqual(['Page'])
   })
 })

@@ -29,6 +29,7 @@ describe('documentTitle', () => {
 
   it('names a composed page', () => {
     expect(title({ address: { kind: 'page', page: 'overview' }, page: { title: 'Overview' } })).toBe('Overview · Protobase')
+    expect(title({ address: { kind: 'page', page: 'account', tab: 'security' }, page: { title: 'Account', tab: 'Sign-in & security' } })).toBe('Sign-in & security · Account · Protobase')
   })
 
   it('names an account page', () => {

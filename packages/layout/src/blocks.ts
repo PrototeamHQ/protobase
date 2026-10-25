@@ -143,6 +143,11 @@ export type ShowProps = { when: string; children?: LayoutChildren }
  */
 export type LinkProps = ({ to: AppAddress; href?: never } | { href: string; to?: never }) & { children?: LayoutChildren }
 
+/** One route per `Tab` below the page's address: the first tab at the page's own, each other at `/<page>/<tab name>`. */
+export type TabsProps = { children?: LayoutChildren }
+/** One tab of a `Tabs`: `name` is its address, after the page's, `label` the word it shows. */
+export type TabProps = { name: string; label: string; children?: LayoutChildren }
+
 /** Everyone who can sign in, for admins: inviting by email, adding accounts, changing roles and blocking. Takes no props. */
 export type UsersProps = Record<string, never>
 
@@ -169,6 +174,8 @@ export const ModalForm = defineBlock<ModalFormProps>('ModalForm', false)
 export const Action = defineBlock<ActionProps>('Action', false)
 export const Show = defineBlock<ShowProps>('Show', false)
 export const Link = defineBlock<LinkProps>('Link', false)
+export const Tabs = defineBlock<TabsProps>('Tabs', false)
+export const Tab = defineBlock<TabProps>('Tab', false)
 export const Users = defineBlock<UsersProps>('Users', false)
 export const Profile = defineBlock<AccountBlockProps>('Profile', false)
 export const Passkeys = defineBlock<AccountBlockProps>('Passkeys', false)

@@ -103,6 +103,10 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
       })
       return known ? node : null
     }
+    // A tab whose every element is left out has nothing to show, and tabs without one are left out too.
+    case 'Tab':
+    case 'Tabs':
+      return node.children.length > 0 ? node : null
     default:
       return node
   }
@@ -111,9 +115,9 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
 /**
  * The page as one caller may see it, or `undefined` when its roles leave the caller out. Every element that names a
  * resource, field, filter, sort or action the caller cannot use is left out, with what it contains, custom components
- * by their `resource` and field references (`fieldRef`) too; table columns and form fields are narrowed to what the
- * caller may read and write. Data still comes from the API, which applies
- * the same access rules (row filters included) to every request.
+ * by their `resource` and field references (`fieldRef`) too, and so is a tab left with nothing in it; table columns and
+ * form fields are narrowed to what the caller may read and write. Data still comes from the API, which applies the same
+ * access rules (row filters included) to every request.
  */
 export const prunePage = (page: PageModel, roles: readonly string[], access: CallerAccess): PageModel | undefined => {
   if (page.roles && !page.roles.some((role) => roles.includes(role))) return undefined

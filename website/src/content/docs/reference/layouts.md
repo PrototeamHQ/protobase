@@ -106,7 +106,7 @@ Every place in the app has an address, and the app writes and reads them in one 
 | `{ kind: 'list', resource, filter?, orderBy?, display? }` | A resource's list, with the filter, order and [display](/reference/ui-config/#list-displays) the list page would show. |
 | `{ kind: 'record', resource, key, edit?, open?, tab? }` | One record; `key` is its value, or its parts for a composite key. `edit: true` is its form (`?edit=true`), on a view whose record page opens as a [read view or locked](/reference/ui-config/#read-view-and-edit). `open` lists the titles of the record page's collapsed [groups](/reference/ui-config/#groups) that are open (`?open=<title>`, once per group), and `tab` the title of the [tab](/reference/ui-config/#tabs) it shows (`?tab=<title>`). |
 | `{ kind: 'create', resource, values? }` | The form for a new record, with `values` filled in by field name, as text: `{ kind: 'create', resource: 'notes', values: { listing_id: '{id}' } }` on a listing's page starts a note about that listing. A relation shows the name of the record it points at. The values are a start the person can change, not a rule: what they may write is still up to the access rules. A view with a [create page](/reference/ui-config/#create-pages) shows that page here instead, with the values in the address. |
-| `{ kind: 'page', page }` | A composed page. |
+| `{ kind: 'page', page, tab? }` | A composed page; `tab` the name of one of its [tabs](/reference/blocks/#tabs-and-tab) (`/<page>/<tab>`), the first when omitted. |
 
 The resources, pages and fields an address names are checked when the server starts, like every other name.
 
@@ -117,7 +117,7 @@ Every block reads the regular API with the user's token, so the access rules app
 `/api/meta` also gives each user the page without what they cannot use, the way views lose hidden fields:
 
 - a page whose `roles` leave the user out is not sent;
-- an element whose resource they cannot see, or whose filter or sort names a field they cannot read, is left out with everything inside it;
+- an element whose resource they cannot see, or whose filter or sort names a field they cannot read, is left out with everything inside it, and so is a `Tab` left with nothing in it;
 - `Field`, `Progress` and `Stat field` on a field they cannot read are left out, and table columns are narrowed;
 - `ModalForm` needs create or update permission and keeps only the fields they may write;
 - an `Action` missing from their view of the resource is left out, and so is a `Show` that names something they cannot see.

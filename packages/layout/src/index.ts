@@ -21,7 +21,9 @@ export {
   RecordRow,
   Show,
   Stat,
+  Tab,
   Table,
+  Tabs,
   TwoFactor,
   Users,
 } from './blocks'
@@ -50,7 +52,9 @@ export type {
   ShowProps,
   GridSpan,
   StatProps,
+  TabProps,
   TableProps,
+  TabsProps,
   UsersProps,
 } from './blocks'
 export { component, type ComponentOptions } from './component'

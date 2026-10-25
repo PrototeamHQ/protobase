@@ -6,7 +6,7 @@ description: Every built-in layout block, its props and what it does, with examp
 import { Code } from '@astrojs/starlight/components'
 import erpPage from '../../../../../examples/erp/config/overview/page.tsx?raw'
 
-Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, `RecordCards`, and `Users`, which the [Users page](/reference/auth/#users-page) uses, appears in the ERP example's sales overview:
+Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, `RecordCards`, `Tabs` and `Tab`, and `Users`, which the [Users page](/reference/auth/#users-page) uses, appears in the ERP example's sales overview:
 
 <Code code={erpPage} lang="tsx" title="examples/erp/config/overview/page.tsx" />
 
@@ -66,6 +66,30 @@ A link in text: `to` an address in the app, or an `href` that leaves it (`https:
 | `href` | A link that leaves the app. A path in the app is refused when the config loads: give it as `to`. |
 
 One of the two is required. A link to a resource or field the user cannot see is left out of their page.
+
+### Tabs and Tab
+
+`Tabs` splits a page into tabs, each at its own address: the first at the page's (`/<page>`), each other at its name below it (`/<page>/<name>`). Only the shown tab's elements are drawn, so the others load nothing. On a phone the tabs are a select. `Tabs` takes no props and holds only `Tab`s; it sits directly in the `Page`, once per page, with other elements before or after it if you like.
+
+| `Tab` prop | |
+| --- | --- |
+| `name` | The tab's address, after the page's, and how a [link](/reference/layouts/#addresses) opens it (`{ kind: 'page', page, tab }`). Lowercase first letter, then letters, digits and dashes; one per tab. Required. |
+| `label` | The tab's word in the row of tabs, and before the page's title in the browser tab. Required. |
+
+```tsx
+<Page title="Settings">
+  <Tabs>
+    <Tab name="general" label="General">
+      <Card title="Opening hours">Monday to Friday, 8:00 to 17:30.</Card>
+    </Tab>
+    <Tab name="billing" label="Billing">
+      <Table title="Invoices" resource="invoices" />
+    </Tab>
+  </Tabs>
+</Page>
+```
+
+A tab whose every element a user may not see is left out of their page, and so are tabs left with none. An address with a tab name the page has no tab for (or not for this user) shows the tabs and says so.
 
 ## Data
 

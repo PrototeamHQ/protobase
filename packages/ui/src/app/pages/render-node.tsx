@@ -18,6 +18,7 @@ import { RecordRowBlock } from './blocks/record-row'
 import { ShowBlock } from './blocks/show'
 import { StatBlock } from './blocks/stat'
 import { TableBlock } from './blocks/table'
+import { TabBlock, TabsBlock } from './blocks/tabs'
 import { UsersBlock } from '../../users/users-block'
 import { ConnectedAccountsBlock } from '../../account/blocks/connected-accounts-block'
 import { ConnectedAppsBlock } from '../../account/blocks/connected-apps-block'
@@ -47,6 +48,8 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Action: ActionBlock,
   Show: ShowBlock,
   Link: LinkBlock,
+  Tabs: TabsBlock,
+  Tab: TabBlock,
   Users: UsersBlock,
   Profile: ProfileBlock,
   Passkeys: PasskeysBlock,

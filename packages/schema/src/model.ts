@@ -291,6 +291,8 @@ export type AppAddress =
       kind: 'page'
       /** The page's name. */
       page: string
+      /** The name of the page's tab shown (`<Tab name>`); the first tab when omitted. */
+      tab?: string
     }
 
 /**

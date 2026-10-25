@@ -10,6 +10,7 @@ describe('appPath', () => {
     expect(appPath({ kind: 'record', resource: 'repairs', key: 42 }, '/admin')).toBe('/admin/repairs/42')
     expect(appPath({ kind: 'create', resource: 'repairs' })).toBe('/repairs/new')
     expect(appPath({ kind: 'page', page: 'overview' }, '/admin')).toBe('/admin/overview')
+    expect(appPath({ kind: 'page', page: 'overview', tab: 'this-week' }, '/admin')).toBe('/admin/overview/this-week')
   })
 
   it("writes a record's form as edit=true, and the record alone without it", () => {
@@ -67,6 +68,7 @@ describe('readAppPath', () => {
       { kind: 'create', resource: 'repairs' },
       { kind: 'create', resource: 'notes', values: { listing_id: '42', body: 'Big garden & a shed' } },
       { kind: 'page', page: 'overview' },
+      { kind: 'page', page: 'overview', tab: 'this-week' },
     ]
     for (const address of addresses) expect(readAppPath(appPath(address), pages)).toEqual(address)
   })
@@ -128,7 +130,11 @@ describe('readAppPath', () => {
     }
   })
 
-  it('reads nothing at the root, under /-/, below a page, deeper than a record, or from broken encoding', () => {
-    for (const path of ['/', '/-/account', '/-', '/overview/x', '/repairs/1/notes', '/repairs/%E0%A4%A']) expect(readAppPath(path, pages)).toBeUndefined()
+  it("reads a page's tab from the segment after it", () => {
+    expect(readAppPath('/overview/this-week', pages)).toEqual({ kind: 'page', page: 'overview', tab: 'this-week' })
+  })
+
+  it('reads nothing at the root, under /-/, below a tab, deeper than a record, or from broken encoding', () => {
+    for (const path of ['/', '/-/account', '/-', '/overview/x/y', '/repairs/1/notes', '/repairs/%E0%A4%A']) expect(readAppPath(path, pages)).toBeUndefined()
   })
 })

@@ -41,6 +41,7 @@ import { viewOfList } from '@protobase/schema/internal'
 import { navFromMeta, navItemId } from './nav-from-meta'
 import { startAddress } from './start-address'
 import { ComposedPage } from './pages/composed-page'
+import { pageTabs, shownPageTab } from './pages/page-tabs'
 import { CustomBoundary } from './pages/custom-boundary'
 import { ProjectLogo } from './project-logo'
 import { ShellBell } from './shell-bell'
@@ -181,7 +182,10 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const resourceLabel = view?.names?.plural ?? (resource && humanize(resource))
   const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel, recordTitle: title, recordLoading: titleLoading })
   const singular = view?.names?.singular ?? (resource && humanize(resource))
-  useDocumentTitle(documentTitle(titleParts({ address, page, accountPage, resourceLabel, singular, recordTitle: title, recordLoading: titleLoading }), meta.appName))
+  // A page with tabs names the tab shown before itself
+  const pageTab = page && address?.kind === 'page' ? shownPageTab(pageTabs(page.tree), address.tab) : undefined
+  const pageTitle = page && { title: page.title, ...(pageTab && { tab: pageTab.label }) }
+  useDocumentTitle(documentTitle(titleParts({ address, page: pageTitle, accountPage, resourceLabel, singular, recordTitle: title, recordLoading: titleLoading }), meta.appName))
   const content =
     path === connectRoute ? (
       user ? <ConnectPage email={user.email} appName={meta.appName ?? 'this app'} /> : <SignInPrompt as="page" prompt={connectPrompt} />
@@ -198,7 +202,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
     ) : !address ? (
       path === '/' ? <Notice title={appText('chooseResource')}>{appText('pickFromSidebar')}</Notice> : <Notice title={appText('notFound')}>{appText('nothingHere')}</Notice>
     ) : address.kind === 'page' ? (
-      page ? <ComposedPage key={page.name} name={page.name} /> : <Notice title={appText('notFound')}>{slotted(appText('noPage'), address.page)}</Notice>
+      page ? <ComposedPage key={page.name} name={page.name} {...(address.tab && { tab: address.tab })} /> : <Notice title={appText('notFound')}>{slotted(appText('noPage'), address.page)}</Notice>
     ) : drawnFrom && drawnFrom.state !== 'ready' ? (
       <SourceNotice status={drawnFrom} />
     ) : address.kind === 'create' ? (

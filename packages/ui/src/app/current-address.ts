@@ -14,7 +14,7 @@ export type CurrentAddress =
   | ListAddress
   | { kind: 'record'; resource: string; key: string; edit?: true; open?: readonly string[]; tab?: string }
   | { kind: 'create'; resource: string; values?: Readonly<Record<string, string>> }
-  | { kind: 'page'; page: string }
+  | { kind: 'page'; page: string; tab?: string }
 
 /** What can change about the list the app shows; `undefined` returns a value to its default. */
 export type ListChange = Partial<Omit<ListAddress, 'kind' | 'resource' | 'list'>>

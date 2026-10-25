@@ -70,6 +70,8 @@ export const blockSpecs: Record<string, BlockSpec> = {
   Action: { children: false, props: { name: required('text'), resource: optional('text'), label: optional('text'), variant: optional('variant') } },
   Show: { children: true, props: { when: required('text') } },
   Link: { children: true, props: { href: optional('text'), to: optional('address') } },
+  Tabs: { children: true, props: {} },
+  Tab: { children: true, props: { name: required('text'), label: required('text') } },
   Users: { children: false, props: {} },
   Profile: { children: false, props: {} },
   Passkeys: { children: false, props: {} },
