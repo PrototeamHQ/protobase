@@ -1,8 +1,10 @@
+import { serviceWorkerFile } from '@protobase/schema/internal'
 import { faviconFile } from './favicon'
+import { pushHandlersCode } from './service-worker-push-code'
 import { themeFile } from './theme'
 
 /** The service worker's file in the shell, at the root so it may answer the whole origin. */
-export const serviceWorkerFile = 'protobase.sw.js'
+export { serviceWorkerFile }
 
 /**
  * The shell's service worker, which makes the admin app open without a network and then say the API is unreachable;
@@ -14,6 +16,8 @@ export const serviceWorkerFile = 'protobase.sw.js'
  * - The content-hashed assets under /assets come from the cache, filled as the app loads them.
  * - The project's theme and favicon go to the network, the cached copy standing in when it fails.
  * - Everything else, the API above all, never reaches the worker's cache.
+ *
+ * It also shows push notifications and opens them on tap (see `pushHandlersCode`).
  */
 export const serviceWorkerCode = ({ version, precache }: { version: string; precache: string[] }) => `const cacheName = ${JSON.stringify(`protobase-shell-${version}`)}
 const precache = ${JSON.stringify(precache)}
@@ -48,4 +52,5 @@ self.addEventListener('fetch', (event) => {
   else if (url.pathname.startsWith('/assets/')) event.respondWith(fromCache(request))
   else if (revalidated.includes(url.pathname)) event.respondWith(fromNetwork(request, request))
 })
-`
+
+${pushHandlersCode}`

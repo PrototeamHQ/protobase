@@ -6,6 +6,7 @@ import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
 import { devJobs } from './dev-jobs'
 import { loadProject, projectDb } from './project'
+import { withDevServiceWorker } from './service-worker-route'
 import { setMissing, supabaseEnv } from './supabase-env'
 
 // Loaded by Vite's SSR module graph (see run.ts). Editing any file it imports re-evaluates this module
@@ -57,7 +58,8 @@ const { admin, jobs } = projectAdmin({ ...project, authenticate: project.authent
 // command that writes its migration.
 await devJobs(db, jobs)
 
-export default new Hono().route('/', admin)
+// The push worker, with notifications() alone.
+export default withDevServiceWorker(new Hono(), Boolean(project.notifications)).route('/', admin)
 
 // Without users nobody can sign in; say how to fix that, once per server start.
 if (project.auth && !store.__protobaseNoUsersShown) {
