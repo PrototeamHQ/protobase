@@ -141,7 +141,7 @@ div | block
                             button role=switch .relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors bg-border-strong | inline-flex row nowrap center normal relative
                               span .size-4 rounded-full bg-white shadow transition-transform translate-x-0.5 | block
                             p .mt-1.5 text-xs text-muted-foreground | block
-                  aside .space-y-4 md:pt-8 | block
+                  aside .space-y-4 md:sticky md:top-[var(--pb-sticky-top,0px)] md:max-h-[calc(100dvh-var(--pb-sticky-top,0px)-var(--pb-sticky-bottom,0px))] md:self-start md:overflow-y-auto md:pb-4 md:pt-8 | block sticky
                     div .hidden flex-col items-center gap-2 md:flex | flex column nowrap center normal
                       button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 max-md:min-h-11 max-md:flex-1 md:w-full | flex row nowrap center center
                     div .max-md:hidden | block

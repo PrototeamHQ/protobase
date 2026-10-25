@@ -383,7 +383,8 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
               {after.flatMap(mainItem)}
               {linesModel && !preview && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} locked={shown !== 'form'} />}
             </main>
-            <aside className="space-y-4 md:pt-8">
+            {/* Beside the main column the sidebar stays in view below the top bar, and scrolls on its own when taller than the window */}
+            <aside className="space-y-4 md:sticky md:top-[var(--pb-sticky-top,0px)] md:max-h-[calc(100dvh-var(--pb-sticky-top,0px)-var(--pb-sticky-bottom,0px))] md:self-start md:overflow-y-auto md:pb-4 md:pt-8">
               {formControls && <div className="hidden flex-col items-center gap-2 md:flex">{formControls}</div>}
               {!preview && <RecordActions model={model} stored={stored} recordKey={recordKey} edit={offersEdit ? editAddress : undefined} onDelete={startDelete} />}
               {firstSidebar === -1 && summary}
