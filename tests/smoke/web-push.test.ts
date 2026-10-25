@@ -117,7 +117,7 @@ describe(`the Web Push sender's crypto on ${runtime}`, () => {
     const publicKey = await crypto.subtle.importKey('raw', Buffer.from(key!, 'base64url'), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'])
     expect(await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, publicKey, Buffer.from(signature!, 'base64url'), new TextEncoder().encode(`${head}.${claims}`))).toBe(true)
     expect(JSON.parse(Buffer.from(claims!, 'base64url').toString()).aud).toBe('https://fcm.googleapis.com')
-    expect(JSON.parse(receiver.decrypt(new Uint8Array(await sent[0]!.arrayBuffer())))).toEqual({ title: 'Hello' })
+    expect(JSON.parse(receiver.decrypt(new Uint8Array(await sent[0]!.arrayBuffer())))).toEqual({ title: 'Hello', user: 'u' })
   })
 
   it("reproduces RFC 8291's worked example", async () => {

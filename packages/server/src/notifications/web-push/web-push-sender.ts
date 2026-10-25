@@ -43,7 +43,7 @@ const headersOf = (message: PushMessage) => {
  * The built-in Web Push sender (RFC 8030, 8291, 8292): delivers to `web` devices, signed with the VAPID pair and
  * encrypted for each device's keys. It checks the message as `pushMessage` does and throws before any request when it
  * is not one. A device whose endpoint is not on a browser's push service, or whose keys are not a subscription's, is
- * answered `refused` with no request. It logs nothing, and its errors and answers carry no endpoint, key or token.
+ * answered `refused` with no request. Each device's JSON carries its user's id as `user`. It logs nothing, and its errors and answers carry no endpoint, key or token.
  */
 export const webPushSender = (settings: VapidSettings, options: WebPushOptions = {}): PushSender => {
   const authorization = vapidAuthorizer(settings, options.now)
@@ -61,11 +61,14 @@ export const webPushSender = (settings: VapidSettings, options: WebPushOptions =
     const message = pushMessage(given)
     if (devices.some((device) => device.kind !== 'web')) throw new Error('The Web Push sender was given a device that is not a web device')
     const headers = headersOf(message)
-    const plaintext = Buffer.from(JSON.stringify(webPushPayload(message)))
-    if (plaintext.length > maxPlaintextBytes) throw new PushMessageError(`message: its Web Push payload is over ${maxPlaintextBytes} bytes`)
+    const payload = webPushPayload(message)
+    // Each device's payload names the user it is for, over anything the message gave, so the service worker shows it
+    // only while the browser is registered for that user.
+    const plaintexts = new Map(devices.map((device) => [device.id, Buffer.from(JSON.stringify({ ...payload, user: device.userId }))]))
+    if ([...plaintexts.values()].some((plaintext) => plaintext.length > maxPlaintextBytes)) throw new PushMessageError(`message: its Web Push payload is over ${maxPlaintextBytes} bytes`)
     const answers: PushAnswer[] = []
     for (let start = 0; start < devices.length; start += concurrency) {
-      answers.push(...(await Promise.all(devices.slice(start, start + concurrency).map((device) => sendOne(device, headers, plaintext)))))
+      answers.push(...(await Promise.all(devices.slice(start, start + concurrency).map((device) => sendOne(device, headers, plaintexts.get(device.id)!)))))
     }
     return answers
   }

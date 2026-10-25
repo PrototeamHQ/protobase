@@ -46,7 +46,7 @@ afterEach(() => vi.restoreAllMocks())
 describe('webPushSender', () => {
   it('sends each device a VAPID-signed aes128gcm body whose headers match the message', async () => {
     const service = pushService()
-    const devices = [deviceOf('https://fcm.googleapis.com/fcm/send/one'), deviceOf('https://updates.push.services.mozilla.com/wpush/v2/two')]
+    const devices = [deviceOf('https://fcm.googleapis.com/fcm/send/one'), deviceOf('https://updates.push.services.mozilla.com/wpush/v2/two', undefined, { userId: 'other' })]
     const sender = webPushSender(settings, { fetch: service.fetch })
     const message: PushMessage = { title: 'Task assigned', body: 'Private body', url: 'https://app.example/tasks/1', tag: 'task-1', ttl: 600, urgency: 'high' }
     expect(await sender.send(message, devices)).toEqual(devices.map((device) => ({ id: device.id, result: 'ok' })))
@@ -57,8 +57,15 @@ describe('webPushSender', () => {
       expect(request.headers.authorization).toMatch(new RegExp(`, k=${keys.publicKey}$`))
       expect(claimsOf(request.headers.authorization!).aud).toBe(new URL(devices[index]!.token).origin)
       expect(Buffer.from(request.body).toString('latin1')).not.toContain('Private body')
-      expect(JSON.parse(devices[index]!.receiver.decrypt(request.body))).toEqual({ title: 'Task assigned', body: 'Private body', url: 'https://app.example/tasks/1', tag: 'task-1' })
+      expect(JSON.parse(devices[index]!.receiver.decrypt(request.body))).toEqual({ title: 'Task assigned', body: 'Private body', url: 'https://app.example/tasks/1', tag: 'task-1', user: devices[index]!.userId })
     }
+  })
+
+  it("names each device's own user in its payload, over one the message gives", async () => {
+    const service = pushService()
+    const device = deviceOf('https://fcm.googleapis.com/fcm/send/one', undefined, { userId: 'alice' })
+    await webPushSender(settings, { fetch: service.fetch }).send({ title: 'x', platform: { web: { payload: { user: 'mallory' } } } }, [device])
+    expect(JSON.parse(device.receiver.decrypt(service.sent[0]!.body)).user).toBe('alice')
   })
 
   it('lets platform.web replace the headers built from the message', async () => {
