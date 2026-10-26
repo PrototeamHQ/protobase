@@ -16,7 +16,8 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./internal": "./src/internal.ts"
+    "./internal": "./src/internal.ts",
+    "./png-icons": "./src/png-icons.ts"
   },
   "types": "./src/index.ts",
   "files": [
@@ -30,7 +31,8 @@
     "access": "public",
     "exports": {
       ".": "./dist/index.js",
-      "./internal": "./dist/internal.js"
+      "./internal": "./dist/internal.js",
+      "./png-icons": "./dist/png-icons.js"
     },
     "types": "./dist/index.d.ts"
   },
