@@ -15,6 +15,7 @@ import { faviconLink } from '../project/favicon-link'
 import { layoutCheck } from '../build/layout-check'
 import { checkDatabase } from './check-database'
 import { alsoOnIpv6, checkPortFree, devHost } from './loopback'
+import { loginLine } from './login-line'
 import { stopDevJobs } from './dev-jobs'
 import { loadNearestEnvFile } from './env'
 import { apiWebSockets } from './api-websockets'
@@ -144,9 +145,12 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   // The app's own origin, whose /api/sb its functions call as SUPABASE_URL.
   process.env.PROTOBASE_DEV_URL = `http://localhost:${port}`
   // Load the API once now so a missing authenticator or a broken config stops startup instead of failing requests.
-  await server.ssrLoadModule(entry).catch(closeAndThrow)
-  out(`protobase dev ready at http://localhost:${port}\n`)
-  out(`  project  ${options.projectDir}\n  api      http://localhost:${port}/api/v1 (docs at /api/docs)\n`)
-  out('  login    sign in with a user created by `protobase users create`\n')
+  const api = await server.ssrLoadModule(entry).catch(closeAndThrow)
+  const anyUsers: boolean | undefined = await api.anyUsers().catch(closeAndThrow)
+  out(
+    `protobase dev ready at http://localhost:${port}\n` +
+      `  project  ${options.projectDir}\n  api      http://localhost:${port}/api/v1 (docs at /api/docs)\n` +
+      loginLine(anyUsers, process.env.npm_config_user_agent),
+  )
   return server
 }

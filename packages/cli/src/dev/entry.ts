@@ -21,7 +21,7 @@ if (!project.authenticate) {
 }
 
 // Once per server start, so a behind auth schema stops startup with the command that writes its migration.
-const store = globalThis as { __protobaseNoUsersShown?: boolean; __protobaseAuthSchemaChecked?: boolean }
+const store = globalThis as { __protobaseAuthSchemaChecked?: boolean }
 if (project.auth && !store.__protobaseAuthSchemaChecked) {
   await checkAuthSchema(project.auth)
   store.__protobaseAuthSchemaChecked = true
@@ -61,13 +61,5 @@ await devJobs(db, jobs)
 // The push worker, with notifications() alone.
 export default withDevServiceWorker(new Hono(), Boolean(project.notifications)).route('/', admin)
 
-// Without users nobody can sign in; say how to fix that, once per server start.
-if (project.auth && !store.__protobaseNoUsersShown) {
-  store.__protobaseNoUsersShown = true
-  hasUsers(project.auth).then(
-    (any) => {
-      if (!any) console.log('No users yet. Create the first admin with: protobase users create you@example.com')
-    },
-    (error: Error) => console.error(`Could not check for users, is the auth schema migrated? ${error.message}`),
-  )
-}
+/** Whether the auth store has a user yet, for the banner's sign-in line; undefined without one. */
+export const anyUsers = () => (project.auth ? hasUsers(project.auth) : Promise.resolve(undefined))

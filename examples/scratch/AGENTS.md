@@ -20,3 +20,7 @@ first change adds its first tables and resources.
 
 The platform runs `db:migrate` (the auth schema's migrations included), `typecheck` and `test`, with their settings in
 the environment: keep them working. Run `typecheck` and `test` before you finish.
+
+`bun run dev` serves the app locally. Nobody can sign in until a user exists in the database it points at: its startup
+message prints the exact command while there are none, `bun run protobase users create you@example.com
+--generate-password`. A database with users already, such as the hosted one, needs a new email for a local user.

@@ -27,14 +27,14 @@ const startupTimeout = 90_000
 
 // Resolves with the child's output once it prints the ready line; rejects with that output if it exits first.
 const untilReady = (child: ChildProcess) =>
-  new Promise<void>((resolve, reject) => {
+  new Promise<string>((resolve, reject) => {
     let output = ''
     const timer = setTimeout(() => reject(new Error(`protobase dev not ready in time:\n${output}`)), startupTimeout - 5_000)
     const collect = (chunk: Buffer) => {
       output += chunk
       if (!output.includes('protobase dev ready')) return
       clearTimeout(timer)
-      resolve()
+      resolve(output)
     }
     child.stdout?.on('data', collect)
     child.stderr?.on('data', collect)
@@ -52,6 +52,7 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
   let issued: Awaited<ReturnType<typeof run>>
   let token: string
   let port: number
+  let banner: string
 
   beforeAll(async () => {
     port = await freePort()
@@ -62,17 +63,18 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     await writeFile(path.join(projectDir, 'protobase.theme.css'), ':root {\n  --primary: #0d9488;\n}\n')
     await writeFile(path.join(projectDir, 'functions/whoami.ts'), `import { defineFunction } from '@protobase/server'\nexport default defineFunction((request, { session }) => Response.json({ path: new URL(request.url).pathname, roles: session.user.roles }))\n`)
     await writeFile(path.join(projectDir, 'functions/supabase-env.ts'), `import { defineFunction } from '@protobase/server'\nexport default defineFunction({ public: true, supabase: true }, { fetch: (request: Request) => Response.json({ path: new URL(request.url).pathname, url: process.env.SUPABASE_URL, jwks: process.env.SUPABASE_JWKS_URL }) })\n`)
+    // Started before the first user, whom its startup message then says how to create.
+    child = spawn(process.execPath, [bin, 'dev', '--port', String(port), '--cache-dir', cacheDir], {
+      cwd: projectDir,
+      env: { ...process.env, ...env, DATABASE_URL: url, npm_config_user_agent: 'bun/1.4.2 npm/? node/v22.12.0 darwin arm64' },
+    })
+    banner = await untilReady(child)
     // The users commands through the real binary: bin → Vite's module runner → the project's protobase.config.ts → a pg
     // Pool. What they do is covered in process by users.test.ts.
     created = await run([bin, 'users', 'create', 'dev@example.com', '--role', 'viewer', '--password-stdin'], projectDir, env, 'a-long-test-password\n')
     if (created.status !== 0) throw new Error(`users create failed:\n${created.stderr}`)
     issued = await run([bin, 'token', 'dev@example.com', '--ttl', '30m'], projectDir, env)
     token = issued.stdout.trim()
-    child = spawn(process.execPath, [bin, 'dev', '--port', String(port), '--cache-dir', cacheDir], {
-      cwd: projectDir,
-      env: { ...process.env, ...env, DATABASE_URL: url },
-    })
-    await untilReady(child)
   }, startupTimeout)
 
   afterAll(async () => {
@@ -86,6 +88,10 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
   it('has users create make the first admin from --password-stdin, whatever --role says', () => {
     expect(created.stderr).toBe('')
     expect(created.stdout).toBe('Created admin dev@example.com\n')
+  })
+
+  it('prints the exact command that creates the first admin while there are no users', () => {
+    expect(banner).toContain('  login    no users yet; create the first admin with:\n             bun run protobase users create you@example.com --generate-password\n')
   })
 
   // `localhost` is either address, depending on the runtime and the browser.
