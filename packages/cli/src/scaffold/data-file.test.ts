@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { DbColumn, DbIndex, DbTable } from '../db/model'
-import { makeLiveInDataFile, renderDataFile } from './data-file'
+import { addFieldsToDataFile, makeLiveInDataFile, renderDataFile } from './data-file'
 import { planResource, proposeAll } from './resource-plan'
+import { proposeField } from '../infer/proposal'
 
 const column = (name: string, typeName: string): DbColumn => ({
   name,
@@ -60,5 +61,14 @@ describe('live resources', () => {
     const live = makeLiveInDataFile(text)
     expect(live).toBe(`${text.trimEnd()}\n  .live()\n`)
     expect(makeLiveInDataFile(live)).toBe(live)
+  })
+})
+
+describe('re-scaffolding', () => {
+  it('ends an added field with a comma, as the written ones end', () => {
+    const db = table([])
+    const vip = column('vip', 'bool')
+    const added = addFieldsToDataFile(rendered(db), [{ proposal: proposeField(db, vip, { table: db, resourceNameOf: (_, name) => name }), ignored: false }])
+    expect(added).toContain('    name: f.text(),\n    vip: f.boolean(),\n  })')
   })
 })
