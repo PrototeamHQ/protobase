@@ -39,7 +39,7 @@ Protobase's own tables are left out, since they hold password hashes, OAuth toke
 | `--config <dir>` | config folder, default `config` |
 | `--yes` | accept every proposal, no prompts (required without a TTY) |
 | `--dry-run` | print a diff, write nothing |
-| `--ui` | also write `ui.ts` (`.names()` and `.list()`) |
+| `--ui` | also write `ui.ts` (`.names()` and `.list()`); the list never shows a secret-like column (`password`, `hash`, `token`, `secret`, `salt`, `otp`, `private_key`, `api_key` in its name) |
 | `--ui-list`, `--ui-section <names\|list>` | write only those `ui.ts` sections |
 | `--exclude <schema[.table]>` | skip tables, repeatable |
 

@@ -23,10 +23,19 @@ export type UiTarget = {
 const auditField = /^(created|updated)(At|On|_at|_on)$/
 const longText = /^(notes?|description|body|comment|comments)$/
 const listSize = 5
+const secretWords = new Set(['password', 'passwd', 'hash', 'token', 'secret', 'salt', 'otp'])
+const secretPairs = ['private key', 'api key']
 
-// The first useful fields: plain scalars first, then relations, falling back to the key.
+// Credentials, by the words of the name (`password_hash`, `accessToken`, `private_key`), which no list shows.
+export const isSecretLike = (name: string) => {
+  const words = name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+  const joined = words.join(' ')
+  return words.some((word) => secretWords.has(word)) || secretPairs.some((pair) => joined.includes(pair))
+}
+
+// The first useful fields: plain scalars first, then relations, falling back to the key; never a secret-like one.
 export const listColumns = (fields: UiField[]) => {
-  const plain = fields.filter((f) => f.role === 'plain' && f.type !== 'json' && !auditField.test(f.name))
+  const plain = fields.filter((f) => f.role === 'plain' && f.type !== 'json' && !auditField.test(f.name) && !isSecretLike(f.name))
   const scalars = plain.filter((f) => f.type !== 'relation' && !longText.test(f.name))
   const relations = plain.filter((f) => f.type === 'relation')
   const picked = [...scalars.slice(0, listSize), ...(scalars.length < 3 ? relations : [])].slice(0, listSize)
