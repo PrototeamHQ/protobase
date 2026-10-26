@@ -4,7 +4,7 @@
 
 Turn notifications on, send one when a record changes, and see it in the bell and as push on the user's browser.
 
-You turn notifications on, send one when something happens in your app, and see it in the bell and as push on your browser. This guide uses the ERP example (`examples/erp`, set up as its README says, with a user from `protobase users create`): when an order's status changes, its owner hears about it. The [Notifications reference](../reference/notifications.md) has every option.
+You turn notifications on, send one when something happens in your app, and see it in the bell and as push on your browser. This guide uses the ERP example (`tests/apps/erp`, set up as its README says, with a user from `protobase users create`): when an order's status changes, its owner hears about it. The [Notifications reference](../reference/notifications.md) has every option.
 
 ## 1. Turn notifications on
 

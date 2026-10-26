@@ -4,7 +4,7 @@
 
 Show and edit a field your own way everywhere the app shows it, with a field type a plugin registers and a view picks.
 
-An order's status is one of six values, and each order moves through them in turn: draft, confirmed, picking, shipped, delivered. The app shows it as a badge and edits it with a select. Rijnland's warehouse wants to see at a glance how far along an order is, and to move it with one click. That is a field type: a component that shows the value, one that edits it, and the storage types it works for. This guide adds one, `steps`, to the ERP example (`examples/erp`). [Field types](../reference/plugins.md#field-types) has the contract.
+An order's status is one of six values, and each order moves through them in turn: draft, confirmed, picking, shipped, delivered. The app shows it as a badge and edits it with a select. Rijnland's warehouse wants to see at a glance how far along an order is, and to move it with one click. That is a field type: a component that shows the value, one that edits it, and the storage types it works for. This guide adds one, `steps`, to the ERP example (`tests/apps/erp`). [Field types](../reference/plugins.md#field-types) has the contract.
 
 ## 1. Show the value
 

@@ -10,7 +10,7 @@ import { projectAdmin } from './project-admin'
 // Each example's auth gets a pg pool, which connects nothing until a query.
 vi.unmock('pg')
 
-const examplesDir = path.join(import.meta.dirname, '..', '..', '..', '..', 'examples')
+const examplesDir = path.join(import.meta.dirname, '..', '..', '..', '..', 'tests', 'apps')
 const examples = readdirSync(examplesDir).filter((name) => existsSync(path.join(examplesDir, name, 'protobase.config.ts')))
 
 // Each example, which is also what a preset starts an app from, built as `dev` and `serve` build its admin API: with

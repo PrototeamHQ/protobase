@@ -11,7 +11,7 @@ import { protobaseVersion } from '../../packages/cli/src/version/version'
 import { serveRuntimeScenarios } from './serve-runtime-scenarios'
 
 const url = testDatabaseUrl()
-const erpDir = path.join(root, 'examples/erp')
+const erpDir = path.join(root, 'tests/apps/erp')
 const reachable = await databaseReachable(url)
 const runtime = process.versions.bun ? 'Bun' : 'Node'
 const onBun = Boolean(process.versions.bun)

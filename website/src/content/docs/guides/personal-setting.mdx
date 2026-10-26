@@ -4,12 +4,12 @@ description: A choice each person makes for themselves, such as which emails the
 ---
 
 import { Code } from '@astrojs/starlight/components'
-import migration from '../../../../../examples/erp/db/migrations/021_notification_settings.sql?raw'
-import data from '../../../../../examples/erp/config/notification_settings/data.ts?raw'
-import ui from '../../../../../examples/erp/config/notification_settings/ui.ts?raw'
-import account from '../../../../../examples/erp/config/account.tsx?raw'
+import migration from '../../../../../tests/apps/erp/db/migrations/021_notification_settings.sql?raw'
+import data from '../../../../../tests/apps/erp/config/notification_settings/data.ts?raw'
+import ui from '../../../../../tests/apps/erp/config/notification_settings/ui.ts?raw'
+import account from '../../../../../tests/apps/erp/config/account.tsx?raw'
 
-Rijnland's accountants want an email for each invoice that passes its due date; the warehouse would rather get none. That is a choice each person makes for themselves, so it belongs on their [account page](/reference/auth/#account-page), and the fields the page shows come from a resource like any other. This guide adds it to the ERP example (`examples/erp`) in four steps: a table, a resource, roles and a tab.
+Rijnland's accountants want an email for each invoice that passes its due date; the warehouse would rather get none. That is a choice each person makes for themselves, so it belongs on their [account page](/reference/auth/#account-page), and the fields the page shows come from a resource like any other. This guide adds it to the ERP example (`tests/apps/erp`) in four steps: a table, a resource, roles and a tab.
 
 ## 1. A table with one row per person
 

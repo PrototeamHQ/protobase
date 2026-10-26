@@ -3,9 +3,9 @@ import { sql } from 'kysely'
 import { SignJWT } from 'jose'
 import { afterAll, describe, expect, it } from 'vitest'
 import { configExports, createAdmin, jwtAuthenticator } from '@protobase/server'
-import * as config from '../../../examples/property-portal/config'
-import { roles } from '../../../examples/property-portal/config/roles'
-import { createDb } from '../../../examples/property-portal/db/kysely'
+import * as config from '../../apps/property-portal/config'
+import { roles } from '../../apps/property-portal/config/roles'
+import { createDb } from '../../apps/property-portal/db/kysely'
 import { databaseSeeded } from './seeded'
 
 const seeded = await databaseSeeded()

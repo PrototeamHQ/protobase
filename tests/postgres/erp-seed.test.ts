@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest'
-import { connect } from '../../examples/erp/db/connection'
-import { scales, type ScaleName } from '../../examples/erp/seed/scales'
+import { connect } from '../apps/erp/db/connection'
+import { scales, type ScaleName } from '../apps/erp/seed/scales'
 import { databaseReachable } from '../examples/erp/reachable'
 
 const reachable = await databaseReachable()

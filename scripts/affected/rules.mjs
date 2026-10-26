@@ -35,19 +35,19 @@ export const alwaysRun = ['tests/smoke/**']
 // - `reads`: files it reads by path.
 // A file that is no module and that no rule reads runs everything.
 const cliModuleFiles = ['packages/cli/src/project/admin-app.ts', 'packages/cli/src/build/entry-code.ts', 'packages/cli/src/build/serve-runtime.ts', 'packages/cli/src/dev/run.ts']
-const exampleDatabase = (example) => ({ from: [`tests/examples/${example}/**`], reads: [`examples/${example}/db/migrations/**`, `examples/${example}/seed/**`] })
+const exampleDatabase = (example) => ({ from: [`tests/examples/${example}/**`], reads: [`tests/apps/${example}/db/migrations/**`, `tests/apps/${example}/seed/**`] })
 
 export const edges = [
   // The CLI's tests start the CLI from source in the ERP, or in a project beside it.
-  { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'examples/erp/protobase.config.ts'], reads: ['examples/erp/**'] },
+  { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
   // The test that each command exits once done starts the CLI's sources through its own runner, in the ERP.
-  { from: ['packages/cli/tests/project/command-exit.integration.test.ts'], starts: ['packages/cli/tests/support/exit-check.mjs', 'examples/erp/protobase.config.ts'], reads: ['examples/erp/**'] },
+  { from: ['packages/cli/tests/project/command-exit.integration.test.ts'], starts: ['packages/cli/tests/support/exit-check.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
   // The in-memory runner's test runs it in a Bun process of its own.
   { from: ['packages/cli/tests/runner/runner.integration.test.ts'], starts: ['packages/cli/src/runner.ts'] },
   // Those that build, serve or develop the ERP, with its UI.
-  { from: ['tests/smoke/erp-bundle.test.ts', 'packages/cli/tests/dev/dev.integration.test.ts'], loads: [...cliModuleFiles, 'examples/erp/protobase.ui.tsx'] },
+  { from: ['tests/smoke/erp-bundle.test.ts', 'packages/cli/tests/dev/dev.integration.test.ts'], loads: [...cliModuleFiles, 'tests/apps/erp/protobase.ui.tsx'] },
   // The admin API of every example, built with its own auth.
-  { from: ['packages/cli/src/project/examples-admin.test.ts'], loads: ['examples/*/protobase.config.ts'] },
+  { from: ['packages/cli/src/project/examples-admin.test.ts'], loads: ['tests/apps/*/protobase.config.ts'] },
   // The admin app, found by @protobase/ui's path, which a build bundles and checks a theme against.
   { from: ['packages/cli/src/project/admin-app.ts'], loads: ['packages/ui/src/app/main.tsx'], reads: ['packages/ui/**'] },
   // Modules the CLI loads by path (module-file.ts).
@@ -80,7 +80,7 @@ export const edges = [
 // does not show, the schema API reference, the site's pages and the example code they show, and the scripts that check them.
 export const site = {
   loads: ['packages/*/src/**/*.stories.tsx', '.storybook/*', 'packages/schema/src/index.ts'],
-  reads: ['packages/**/*.css', 'website/**', 'docs-examples/**', 'examples/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,check-docs,static-server}.mjs'],
+  reads: ['packages/**/*.css', 'website/**', 'docs-examples/**', 'tests/apps/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,check-docs,static-server}.mjs'],
 }
 
 // What the Postgres suite (`bun run test:postgres`, tests/postgres) checks that the snapshot recordings cannot show, so
@@ -90,8 +90,8 @@ export const site = {
 // `runEverything`, which runs it too. Any other change runs it only when its recordings differ
 // (scripts/affected-postgres.mjs).
 export const postgresSuite = [
-  'examples/*/db/**',
-  'examples/*/seed/**',
+  'tests/apps/*/db/**',
+  'tests/apps/*/seed/**',
   'packages/server/src/jobs/**',
   'packages/server/src/changes/**',
   'packages/server/src/webhooks/**',
@@ -119,6 +119,6 @@ export const snapshotRecording = [
   'packages/cli/src/supabase/**',
   'packages/*/tests/**',
   'tests/{ai,changes,comments,import,roles}/**',
-  'examples/*/db/migrations/**',
-  'examples/*/seed/**',
+  'tests/apps/*/db/migrations/**',
+  'tests/apps/*/seed/**',
 ]

@@ -7,7 +7,7 @@ Ship a project as one bundle folder and run it with the serve runtime.
 A project ships as one bundle folder; the host runs protobase around it.
 
 ```sh
-bun run --cwd examples/erp protobase build    # the bundle to ship: examples/erp/dist/
+bun run --cwd tests/apps/erp protobase build    # the bundle to ship: tests/apps/erp/dist/
 bun run build:serve                     # the runtime the host carries: dist/protobase-serve.js
 bun --no-install /opt/protobase/protobase-serve.js /app/protobase.config.js   # on the host: the API
 ```

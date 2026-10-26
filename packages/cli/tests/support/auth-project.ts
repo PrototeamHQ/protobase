@@ -58,14 +58,14 @@ process.exit(0)
 `
 
 /**
- * A throwaway project inside examples/erp (so it resolves the same packages) with its own Better Auth store, in a
+ * A throwaway project inside tests/apps/erp (so it resolves the same packages) with its own Better Auth store, in a
  * schema of the database at `databaseUrl` that `dispose` drops. Its config/ re-exports the ERP's resources and roles,
  * which its bottom bar names, and auth/hooks.ts takes user ids from a sequence of its own.
  */
 export const createAuthProject = async (databaseUrl: string) => {
   const suffix = randomBytes(4).toString('hex')
   const schema = `protobase_cli_test_${suffix}`
-  const projectDir = path.join(root, 'examples/erp', `.cli-test-${suffix}`)
+  const projectDir = path.join(root, 'tests/apps/erp', `.cli-test-${suffix}`)
   const env = { DATABASE_URL: databaseUrl, TEST_AUTH_SCHEMA: schema }
 
   await mkdir(projectDir, { recursive: true })

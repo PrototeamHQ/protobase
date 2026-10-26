@@ -9,7 +9,7 @@ The signed-in user sits at the bottom of the sidebar. Clicking them opens a menu
 Export one [`userMenu(...)`](https://docs.protobase.net/api/schema/functions/usermenu/) from the config module:
 
 ```ts
-// examples/erp/config/user-menu.ts, re-exported from config/index.ts
+// tests/apps/erp/config/user-menu.ts, re-exported from config/index.ts
 import { userMenu } from '@protobase/schema'
 
 export const accountMenu = userMenu((m) => [

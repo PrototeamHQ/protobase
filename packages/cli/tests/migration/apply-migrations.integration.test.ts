@@ -171,7 +171,7 @@ insert into q (v) values ('$migration$; commit; ''x''');
     expect(await run).toEqual(['001_one.sql'])
 
     for (const example of ['erp', 'property-portal', 'real-estate', 'scratch']) {
-      expect(await readFile(path.join(root, 'examples', example, 'db/migrate.ts'), 'utf8')).toContain('const lockKey = 7_311_946_202\n')
+      expect(await readFile(path.join(root, 'tests/apps', example, 'db/migrate.ts'), 'utf8')).toContain('const lockKey = 7_311_946_202\n')
     }
   })
 })

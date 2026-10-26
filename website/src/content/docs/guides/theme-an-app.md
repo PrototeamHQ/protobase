@@ -3,7 +3,7 @@ title: Theming an app
 description: Give an app its own colors, corners and font with protobase.theme.css, in light and dark, and keep them through every release.
 ---
 
-Rijnland Industrial Supply wants its admin in its own colors: teal instead of blue, rounder corners and its own font. That is one file of values, `protobase.theme.css`, which the app reads on every page, the sign-in page included. This guide writes it for the ERP example (`examples/erp`); any project works the same. [Theme](/reference/theme/) has every token.
+Rijnland Industrial Supply wants its admin in its own colors: teal instead of blue, rounder corners and its own font. That is one file of values, `protobase.theme.css`, which the app reads on every page, the sign-in page included. This guide writes it for the ERP example (`tests/apps/erp`); any project works the same. [Theme](/reference/theme/) has every token.
 
 ## 1. The light values
 

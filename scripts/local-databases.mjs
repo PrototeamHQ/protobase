@@ -8,7 +8,7 @@ import postgres from 'postgres'
 const examples = ['erp', 'real-estate', 'property-portal']
 
 for (const example of examples) {
-  const dir = path.join('examples', example)
+  const dir = path.join('tests/apps', example)
   if (!existsSync(path.join(dir, '.env'))) copyFileSync(path.join(dir, '.env.example'), path.join(dir, '.env'))
   const line = readFileSync(path.join(dir, '.env'), 'utf8').split('\n').find((text) => text.startsWith('DATABASE_URL='))
   if (!line) throw new Error(`${dir}/.env has no DATABASE_URL`)

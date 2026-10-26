@@ -8,7 +8,7 @@ On phones the sidebar is a drawer behind the top bar's menu button. For people w
 Export a [`bottomBar(...)`](/api/schema/functions/bottombar/) from the config module for each group of roles that gets one:
 
 ```ts
-// examples/erp/config/bottom-bar.ts, re-exported from config/index.ts
+// tests/apps/erp/config/bottom-bar.ts, re-exported from config/index.ts
 import { bottomBar } from '@protobase/schema'
 
 export const warehouseBar = bottomBar({ label: 'Warehouse', roles: ['warehouse'] }, (m) => [

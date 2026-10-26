@@ -4,7 +4,7 @@
 
 A choice each person makes for themselves, such as which emails they get, in a tab of the account page, from a table, a resource and roles, with no UI code.
 
-Rijnland's accountants want an email for each invoice that passes its due date; the warehouse would rather get none. That is a choice each person makes for themselves, so it belongs on their [account page](../reference/auth.md#account-page), and the fields the page shows come from a resource like any other. This guide adds it to the ERP example (`examples/erp`) in four steps: a table, a resource, roles and a tab.
+Rijnland's accountants want an email for each invoice that passes its due date; the warehouse would rather get none. That is a choice each person makes for themselves, so it belongs on their [account page](../reference/auth.md#account-page), and the fields the page shows come from a resource like any other. This guide adds it to the ERP example (`tests/apps/erp`) in four steps: a table, a resource, roles and a tab.
 
 ## 1. A table with one row per person
 

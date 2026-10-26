@@ -5,7 +5,7 @@ import postgres from 'postgres'
 
 // db/migrations/006_price_split.sql against a database as it stood before it: the listings' and search profiles'
 // prices move to the purchase price or the rent of what they offered or looked for.
-const directory = new URL('../../../examples/property-portal/db/migrations/', import.meta.url)
+const directory = new URL('../../apps/property-portal/db/migrations/', import.meta.url)
 const reachable = await serverReachable()
 const database = `property_portal_migration_${process.pid}`
 let sql: postgres.Sql

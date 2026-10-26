@@ -505,7 +505,7 @@ view<typeof savedSearches>('saved_searches').searchesOf((r) => ({
 
 The view checks its own fields when the config loads: `filter` and `name` are text fields, `seenAt` a timestamp and each control an enum or boolean. The server checks the rest when it starts: `resource` has an [owner](data-config.md#access), the fields a save or a control writes are writable, `unseen.field` is a filterable timestamp or date of the searched resource, and a view of the resource a list saves to has `searchesOf` for that list. In `/api/meta`, a user who cannot list the searched resource or read `filter` gets the view without `searchesOf`, and its controls and `unseen` narrow to what they can write. A search's filter is checked like any list's when its records load; checking it on a write, against the searched resource, is the data config's: a `.validate` rule with `parseFilter` and `checkFilter`.
 
-To tell users of new records, a job matches each new record against the saved filters with `evaluateFilter`, given the searched resource as `search` so that a search text in the filter looks in its search fields too, and sends an [email](email.md). The [property portal example](https://github.com/PrototeamHQ/protobase/tree/main/examples/property-portal#alerts) mails at once or in a daily digest.
+To tell users of new records, a job matches each new record against the saved filters with `evaluateFilter`, given the searched resource as `search` so that a search text in the filter looks in its search fields too, and sends an [email](email.md). The [property portal example](https://github.com/PrototeamHQ/protobase/tree/main/tests/apps/property-portal#alerts) mails at once or in a daily digest.
 
 ### Exports
 
@@ -763,7 +763,7 @@ d.map(
 
 `radius`, `area` and `defaultRadius` need `approximate` or `exact`, and the server refuses to start when a field is of another type. A user who may not read the field that marks the positions sees them as exact.
 
-<gap>A map does not edit the position.</gap> List the fields in a section as well when users should change them. The [property portal example](https://github.com/PrototeamHQ/protobase/tree/main/examples/property-portal) shows a listing on a map, and its listings on one.
+<gap>A map does not edit the position.</gap> List the fields in a section as well when users should change them. The [property portal example](https://github.com/PrototeamHQ/protobase/tree/main/tests/apps/property-portal) shows a listing on a map, and its listings on one.
 
 #### Map layers
 
@@ -796,7 +796,7 @@ export default defineConfig({
 | `bounds` | Optional `[west, south, east, north]` in degrees, where the tiles are. The layer is offered everywhere; outside its bounds no tiles are asked for and the style's map shows through. |
 | `maxzoom` | Optional deepest zoom of the tiles, from 0 to 24 (default 22); closer in, the map enlarges them. |
 
-The browser fetches the tiles, so their host must answer the app's origins with CORS. Layers need a style: without one there is no map to switch. A layer that is not as above stops the server at startup. Use only tiles whose terms allow it: open aerial photos are published per country, such as the Netherlands' [PDOK Luchtfoto](https://www.pdok.nl/-/open-data-hr-luchtfoto) and Spain's [PNOA](https://pnoa.ign.es/) from the IGN, both CC BY 4.0, free and without a key; the [property portal example](https://github.com/PrototeamHQ/protobase/tree/main/examples/property-portal) offers both.
+The browser fetches the tiles, so their host must answer the app's origins with CORS. Layers need a style: without one there is no map to switch. A layer that is not as above stops the server at startup. Use only tiles whose terms allow it: open aerial photos are published per country, such as the Netherlands' [PDOK Luchtfoto](https://www.pdok.nl/-/open-data-hr-luchtfoto) and Spain's [PNOA](https://pnoa.ign.es/) from the IGN, both CC BY 4.0, free and without a key; the [property portal example](https://github.com/PrototeamHQ/protobase/tree/main/tests/apps/property-portal) offers both.
 
 ### Related records
 
@@ -822,7 +822,7 @@ Without any configuration, the record page's rail has a **Related records** card
 
 The real estate example lists who a unit is let to (the primary tenant and co-signers of the lease that runs today) and that lease:
 
-```ts title="examples/real-estate/config/units/ui.ts"
+```ts title="tests/apps/real-estate/config/units/ui.ts"
 import { l, view } from '@protobase/schema'
 import type { units } from './data'
 
@@ -942,7 +942,7 @@ export const workshopRepairsView = laidOut
 
 The ERP's orders view uses most of this page at once, with a recent-record group in the sidebar:
 
-```ts title="examples/erp/config/orders/ui.ts"
+```ts title="tests/apps/erp/config/orders/ui.ts"
 import { view } from '@protobase/schema'
 import type { orders } from './data'
 

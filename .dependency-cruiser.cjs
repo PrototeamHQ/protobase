@@ -82,7 +82,7 @@ module.exports = {
       name: 'examples-use-entry-points',
       comment: 'Examples, the ERP and the documentation\'s, their tests and the shared test support import @protobase packages by name, never by path.',
       severity: 'error',
-      from: { path: '^(examples|docs-examples|tests/examples|test-support)/' },
+      from: { path: '^(tests/apps|docs-examples|tests/examples|test-support)/' },
       to: { path: '^packages/', dependencyTypes: ['local'], dependencyTypesNot: ['aliased-workspace'] },
     },
     {

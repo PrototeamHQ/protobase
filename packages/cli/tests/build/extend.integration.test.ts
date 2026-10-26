@@ -18,8 +18,8 @@ const write = async (dir: string, files: Record<string, string>) => {
   return dir
 }
 
-// Inside examples/erp, so the project's @protobase imports resolve.
-const createProject = (files: Record<string, string>) => write(path.join(root, 'examples/erp', `.extend-test-${randomBytes(4).toString('hex')}`), files)
+// Inside tests/apps/erp, so the project's @protobase imports resolve.
+const createProject = (files: Record<string, string>) => write(path.join(root, 'tests/apps/erp', `.extend-test-${randomBytes(4).toString('hex')}`), files)
 
 // Outside the repository, with no node_modules: its @protobase and React imports can only resolve from the project.
 const createExtension = async (files: Record<string, string>) => write(await mkdtemp(path.join(tmpdir(), 'protobase-extension-')), files)

@@ -2,9 +2,9 @@ import { sql } from 'kysely'
 import { SignJWT } from 'jose'
 import { afterAll, describe, expect, it } from 'vitest'
 import { configExports, createAdmin, jwtAuthenticator } from '@protobase/server'
-import * as config from '../../../examples/real-estate/config'
-import { roles } from '../../../examples/real-estate/config/roles'
-import { createDb } from '../../../examples/real-estate/db/kysely'
+import * as config from '../../apps/real-estate/config'
+import { roles } from '../../apps/real-estate/config/roles'
+import { createDb } from '../../apps/real-estate/db/kysely'
 import { databaseSeeded } from './seeded'
 
 const seeded = await databaseSeeded()

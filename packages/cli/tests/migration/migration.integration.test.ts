@@ -17,8 +17,8 @@ const url = testDatabaseUrl()
 const reachable = await databaseReachable(url)
 const suffix = randomBytes(4).toString('hex')
 const database = `protobase_migration_${suffix}`
-// Inside examples/erp, so the project resolves the same packages.
-const projectDir = path.join(root, 'examples/erp', `.cli-test-${suffix}`)
+// Inside tests/apps/erp, so the project resolves the same packages.
+const projectDir = path.join(root, 'tests/apps/erp', `.cli-test-${suffix}`)
 const databaseUrl = withDatabase(url, database)
 const maintenance = () => postgres(withDatabase(url, 'postgres'), { max: 1, onnotice: () => {} })
 

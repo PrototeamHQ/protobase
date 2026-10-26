@@ -3,7 +3,7 @@ title: Architecture
 description: How the packages are laid out, which package may import which, and where tests and stories live.
 ---
 
-A Bun workspace of npm packages under the `@protobase` scope, in `packages/<name>`, all released together at one version. `examples/*` are workspace members that consume the packages; `website` is this documentation site (Astro with Starlight), also a workspace member. The workspace root is private and is not published.
+A Bun workspace of npm packages under the `@protobase` scope, in `packages/<name>`, all released together at one version. `tests/apps/*`, the example apps the tests run on and the presets are written from, are workspace members that consume the packages; `website` is this documentation site (Astro with Starlight), also a workspace member. The workspace root is private and is not published.
 
 ## Packages
 
@@ -17,9 +17,9 @@ A Bun workspace of npm packages under the `@protobase` scope, in `packages/<name
 | `@protobase/server` | `packages/server` | `@protobase/server` | server | `schema`, `layout`, `query` |
 | `@protobase/cli` | `packages/cli` | the `protobase` command (`bin/protobase.mjs`) | Node and Bun | `schema`, `layout`, `query`, `server`, `ui` |
 | `@protobase/presets` | `packages/presets` | none: private, `bun run presets:write` writes a project per preset | Bun | none; each preset depends on the `@protobase` packages of the major it is written at, locked at that version |
-| `examples/*` | | none | any | `@protobase/*` entry points only |
+| `tests/apps/*` | | none | any | `@protobase/*` entry points only |
 
-The presets are written from `examples/erp`, `examples/real-estate` and `examples/scratch` (from scratch) by `bun run presets:write <version> <dir>`, run from a clone of this repository; `npm create protobase` (`packages/create-protobase`) writes them too, without a lockfile. Each is a standalone copy with the `@protobase` packages in the caret range of `<version>`, `^x.y.z`, so an app takes the updates semver calls compatible: within that major from 1.0 on, and within that minor below 1.0, where a minor may break, and its own `bun.lock` at exactly `<version>`. The three declare the same dependencies, so one `node_modules` fits them all, and their `db:migrate` (the auth schema's migrations included), `typecheck` and `test` scripts take their settings from the environment, or a `.env` beside them, and reach nothing outside the project.
+The presets are written from `tests/apps/erp`, `tests/apps/real-estate` and `tests/apps/scratch` (from scratch) by `bun run presets:write <version> <dir>`, run from a clone of this repository; `npm create protobase` (`packages/create-protobase`) writes them too, without a lockfile. Each is a standalone copy with the `@protobase` packages in the caret range of `<version>`, `^x.y.z`, so an app takes the updates semver calls compatible: within that major from 1.0 on, and within that minor below 1.0, where a minor may break, and its own `bun.lock` at exactly `<version>`. The three declare the same dependencies, so one `node_modules` fits them all, and their `db:migrate` (the auth schema's migrations included), `typecheck` and `test` scripts take their settings from the environment, or a `.env` beside them, and reach nothing outside the project.
 
 The JSX runtime belongs to `@protobase/layout` because a layout file names one package in `@jsxImportSource @protobase/layout`, and TypeScript and Vite look up `jsx-runtime` and `jsx-dev-runtime` under it. Each field type is split along the same lines: its Zod builder is `packages/schema/src/fields/<type>.ts` and its SQL parameter conversion `packages/query/src/fields/<type>.ts`.
 
@@ -36,7 +36,7 @@ In this repository, entry points export TypeScript source directly and the CLI r
 ## Tests and stories
 
 - Unit tests: `*.test.ts` next to the code, run by Vitest in a node environment.
-- Tests that use a database, a subprocess or the network: `packages/<name>/tests/`, mirroring the source path, and the examples' in `tests/examples/`. Most database tests are snapshot tests, which replay SQL recorded from Postgres (`<test>.sql.json`); the fixtures, the recording and replay, and the setup they share are in `test-support/` at the root.
+- Tests that use a database, a subprocess or the network: `packages/<name>/tests/`, mirroring the source path, and the example apps' in `tests/examples/`. Most database tests are snapshot tests, which replay SQL recorded from Postgres (`<test>.sql.json`); the fixtures, the recording and replay, and the setup they share are in `test-support/` at the root.
 - Stories: `*.stories.tsx` next to the component in `packages/ui/src`; Storybook config lives in `.storybook/`.
 - Packing leaves tests, stories and their fixtures out of a package (`files` in its `package.json`).
 

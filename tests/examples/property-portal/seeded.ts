@@ -1,4 +1,4 @@
-import { connect } from '../../../examples/property-portal/db/connection'
+import { connect } from '../../apps/property-portal/db/connection'
 
 // Tests run against the database vitest.config.ts clones for the run; without DATABASE_URL, connection.ts would
 // fall back to the developer database.

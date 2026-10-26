@@ -22,7 +22,7 @@ const admin = createAdmin({
 })
 ```
 
-Run the ERP example with `bun run --cwd examples/erp serve` (port 8787, Better Auth login, organization 1 as tenant; `REQUEST_LOG=true` logs requests). Interactive reference: `/api/docs`; like `/api/openapi.json` it needs a bearer token, because the document lists what the caller may see and do. Every route answers `401` without a valid token; get one with `protobase token you@example.com`. A project whose roles define [`anonymous`](/reference/access/#anonymous-access) serves the resources API to requests without a token as that role.
+Run the ERP example with `bun run --cwd tests/apps/erp serve` (port 8787, Better Auth login, organization 1 as tenant; `REQUEST_LOG=true` logs requests). Interactive reference: `/api/docs`; like `/api/openapi.json` it needs a bearer token, because the document lists what the caller may see and do. Every route answers `401` without a valid token; get one with `protobase token you@example.com`. A project whose roles define [`anonymous`](/reference/access/#anonymous-access) serves the resources API to requests without a token as that role.
 
 ## Routes
 

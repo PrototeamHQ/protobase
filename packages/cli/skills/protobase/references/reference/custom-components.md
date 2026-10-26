@@ -6,7 +6,7 @@ React components and action handlers of your own in protobase.ui.tsx, used by na
 
 Layouts are data; a project's React code lives in one module: `protobase.ui.tsx` at the project root, beside `protobase.config.ts`. It exports each custom component under the name its layouts declare, each from a file of its own, and default-exports `defineUi({ actions })` from `@protobase/ui` for the rest, so the project depends on `@protobase/ui`, and on `react` for its JSX. This is the ERP example's:
 
-```tsx title="examples/erp/protobase.ui.tsx"
+```tsx title="tests/apps/erp/protobase.ui.tsx"
 import { defineUi, type ActionContext } from '@protobase/ui'
 
 // The custom components, each in a file of its own, exported by the name their layouts declare.
@@ -23,7 +23,7 @@ const send = async ({ record, recordKey, etag, client }: ActionContext) => {
 export default defineUi({ actions: { send } })
 ```
 
-```tsx title="examples/erp/components/orders-per-day.tsx"
+```tsx title="tests/apps/erp/components/orders-per-day.tsx"
 import { useSeries } from '@protobase/ui'
 
 /** Bars for orders per day; the custom component behind `<OrdersPerDay>` in config/overview/page.tsx. */

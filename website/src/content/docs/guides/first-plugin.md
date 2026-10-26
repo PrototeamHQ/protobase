@@ -5,7 +5,7 @@ description: Build a plugin, serve it, load it into an app and change it without
 
 Sam's sales team wants the newest draft orders on their start page, each a link to the order. That is a few lines of React. Written in the app's `protobase.ui.tsx`, it would be that app's alone, shipped with each of its builds. Written as a [plugin](/reference/plugins/) of its own, it is built once, served on its own, and loaded by every app that lists it when it starts, whatever release the app runs.
 
-This guide builds that plugin, serves it, loads it into an app and changes it without touching the app. It uses the orders of the ERP example (`examples/erp`); any resource of yours works the same.
+This guide builds that plugin, serves it, loads it into an app and changes it without touching the app. It uses the orders of the ERP example (`tests/apps/erp`); any resource of yours works the same.
 
 ## 1. A folder for the plugin
 

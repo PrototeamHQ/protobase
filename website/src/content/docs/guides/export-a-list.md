@@ -3,7 +3,7 @@ title: Exporting a list
 description: Let users save a list as an Excel or CSV file, limit how many rows a file holds, or take Export off a list.
 ---
 
-Every list in the admin can be saved as a file: Rijnland's finance team wants this month's invoices in Excel, and the warehouse wants a CSV of the stock moves for a supplier. Nothing needs setting up for that; this guide shows what users get, and how a view limits it or takes it away. It uses the ERP example (`examples/erp`).
+Every list in the admin can be saved as a file: Rijnland's finance team wants this month's invoices in Excel, and the warehouse wants a CSV of the stock moves for a supplier. Nothing needs setting up for that; this guide shows what users get, and how a view limits it or takes it away. It uses the ERP example (`tests/apps/erp`).
 
 ## 1. Export a list
 

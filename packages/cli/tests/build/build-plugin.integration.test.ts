@@ -8,9 +8,9 @@ import { expectDebugIdMap } from '../support/source-maps'
 const root = path.resolve(__dirname, '../../../..')
 const uiVersion = JSON.parse(await readFile(path.join(root, 'packages/ui/package.json'), 'utf8')).version as string
 
-// Inside examples/erp, so the plugin's @protobase/ui and react resolve.
+// Inside tests/apps/erp, so the plugin's @protobase/ui and react resolve.
 const createPlugin = async (files: Record<string, string>) => {
-  const pluginDir = path.join(root, 'examples/erp', `.plugin-test-${randomBytes(4).toString('hex')}`)
+  const pluginDir = path.join(root, 'tests/apps/erp', `.plugin-test-${randomBytes(4).toString('hex')}`)
   for (const [file, content] of Object.entries(files)) {
     await mkdir(path.dirname(path.join(pluginDir, file)), { recursive: true })
     await writeFile(path.join(pluginDir, file), content)

@@ -187,7 +187,7 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
   it("leaves an existing user's role, password and session as they are", async () => {
     const email = 'auditor@example.com'
     const password = 'auditor-test-password'
-    const created = await run([bin, 'users', 'create', email, '--role', 'auditor', '--password-stdin'], path.join(root, 'examples/erp'), erp().env, `${password}\n`)
+    const created = await run([bin, 'users', 'create', email, '--role', 'auditor', '--password-stdin'], path.join(root, 'tests/apps/erp'), erp().env, `${password}\n`)
     if (created.status !== 0) throw new Error(`users create failed:\n${created.stderr}`)
     const signedIn = await fetch(`${base}/api/auth/sign-in/email`, {
       method: 'POST',

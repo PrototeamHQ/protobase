@@ -6,7 +6,7 @@ import type { ProtobaseConfig } from '@protobase/config'
 import type { AuthHooks, JobRun, Mailer } from '@protobase/server'
 import { buildAppAuth, buildAuthenticator, declaredJob } from '@protobase/server/internal'
 
-const exampleDir = (name: string) => path.join(import.meta.dirname, '../../examples', name)
+const exampleDir = (name: string) => path.join(import.meta.dirname, '../apps', name)
 
 const configOf = async (name: string) => ((await import(path.join(exampleDir(name), 'protobase.config.ts'))) as { default: ProtobaseConfig }).default
 

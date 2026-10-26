@@ -9,7 +9,7 @@ import { createErpDatabase, sendPastDueInvoice, serveOnFreePort, signIn, stopPro
 
 const url = testDatabaseUrl()
 const reachable = await databaseReachable(url)
-const erpDir = path.join(root, 'examples/erp')
+const erpDir = path.join(root, 'tests/apps/erp')
 
 // The CLI's subprocesses start slowly on a busy machine.
 const timeout = 120_000

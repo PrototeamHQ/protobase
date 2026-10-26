@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { connect } from '../../../examples/property-portal/db/connection'
-import { isScale } from '../../../examples/property-portal/seed/scales'
-import { buildWorld } from '../../../examples/property-portal/seed/world'
+import { connect } from '../../apps/property-portal/db/connection'
+import { isScale } from '../../apps/property-portal/seed/scales'
+import { buildWorld } from '../../apps/property-portal/seed/world'
 import { databaseSeeded } from './seeded'
 
 const seeded = await databaseSeeded()

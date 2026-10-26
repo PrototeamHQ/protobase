@@ -84,7 +84,7 @@ describe('reading a config', () => {
         return { ...data, jobs: Object.fromEntries(Object.entries(jobs).map(([name, { declaration }]) => [name, declaration])), writeHooks: writeHooks.map(({ name }) => name) }
       }
       const json = await described(dir)
-      expect(json).toEqual(await described(path.join(root, 'examples/erp')))
+      expect(json).toEqual(await described(path.join(root, 'tests/apps/erp')))
       expect(json).toMatchObject({ url: 'https://erp.example.com', secret: 'secret', auth: { trustedOrigins: ['https://a.example', 'https://b.example'] } })
     } finally {
       for (const key of Object.keys(env)) if (!(key in before)) delete process.env[key]

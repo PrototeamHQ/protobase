@@ -8,8 +8,8 @@ import bikeShop from '../../../../../docs-examples/bike-shop/data.ts?raw'
 import keys from '../../../../../docs-examples/reference/keys.ts?raw'
 import rollups from '../../../../../docs-examples/reference/rollups.ts?raw'
 import access from '../../../../../docs-examples/reference/access.ts?raw'
-import products from '../../../../../examples/erp/config/products/data.ts?raw'
-import orders from '../../../../../examples/erp/config/orders/data.ts?raw'
+import products from '../../../../../tests/apps/erp/config/products/data.ts?raw'
+import orders from '../../../../../tests/apps/erp/config/orders/data.ts?raw'
 
 A **resource** describes one table of a database you already have: its columns as fields, its key, and the rules around it. It is plain TypeScript in `config/<resource>/data.ts`, exported from `config/index.ts`; [`protobase scaffold`](/reference/cli/#scaffold) writes a first version from the database. Every example on this page is a file in the repository that CI typechecks and tests.
 
@@ -82,7 +82,7 @@ Every option returns a new [field](/api/schema/interfaces/field/), so they chain
 
 The ERP's products show most of them, together with soft delete and a tenant:
 
-<Code code={products} lang="ts" title="examples/erp/config/products/data.ts" />
+<Code code={products} lang="ts" title="tests/apps/erp/config/products/data.ts" />
 
 ## Rollups and formulas
 
@@ -245,6 +245,6 @@ Without rules everyone who can sign in may do everything. Rules come in three ki
 
 Export the roles as `roles` from `config/roles.ts`, where the server finds them, and every operation without a rule needs its capability (`<resource>.<action>`). The ERP's orders use `.owner` and `.search` with the ERP's roles:
 
-<Code code={orders} lang="ts" title="examples/erp/config/orders/data.ts" />
+<Code code={orders} lang="ts" title="tests/apps/erp/config/orders/data.ts" />
 
 The UI side of a resource, its names, columns, filters and record page, is in [UI config](/reference/ui-config/).

@@ -4,7 +4,7 @@
 
 Draw each card of a cards display with a component of your own, and keep the built-in card as its fallback.
 
-A list can show its records as [cards](../reference/ui-config.md#list-displays) beside its table: a title, a subtitle, a badge and a few small fields. Rijnland's sales team wants order cards that lead with the total and the customer, the way they talk about orders. That is a card component: the list page still loads the orders, filters, sorts and links each card to its order; the component only draws what is inside a card. This guide adds one to the ERP example (`examples/erp`).
+A list can show its records as [cards](../reference/ui-config.md#list-displays) beside its table: a title, a subtitle, a badge and a few small fields. Rijnland's sales team wants order cards that lead with the total and the customer, the way they talk about orders. That is a card component: the list page still loads the orders, filters, sorts and links each card to its order; the component only draws what is inside a card. This guide adds one to the ERP example (`tests/apps/erp`).
 
 ## 1. The card
 

@@ -1,6 +1,6 @@
 import type { TransactionSql } from 'postgres'
 import { afterAll, describe, expect, it } from 'vitest'
-import { connect, type Db } from '../../../examples/real-estate/db/connection'
+import { connect, type Db } from '../../apps/real-estate/db/connection'
 import { databaseSeeded } from './seeded'
 
 const seeded = await databaseSeeded()

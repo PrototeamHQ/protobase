@@ -14,9 +14,9 @@ vi.setConfig({ testTimeout: 30_000 })
 
 const root = path.resolve(__dirname, '../../../..')
 
-// Inside examples/erp, so the bundle's @protobase imports resolve when the test imports it.
+// Inside tests/apps/erp, so the bundle's @protobase imports resolve when the test imports it.
 const createProject = async (files: Record<string, string>) => {
-  const projectDir = path.join(root, 'examples/erp', `.build-test-${randomBytes(4).toString('hex')}`)
+  const projectDir = path.join(root, 'tests/apps/erp', `.build-test-${randomBytes(4).toString('hex')}`)
   for (const [file, content] of Object.entries(files)) {
     await mkdir(path.dirname(path.join(projectDir, file)), { recursive: true })
     await writeFile(path.join(projectDir, file), content)

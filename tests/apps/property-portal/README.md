@@ -10,11 +10,11 @@ The database sits beside the other examples' in the same Postgres container, as 
 
 ```sh
 bun run db:up                                                # repository root: docker compose up, creates the property_portal database and .env from .env.example
-bun run --cwd examples/property-portal db:migrate
-bun run --cwd examples/property-portal db:seed --scale small  # small | medium | large
-bun run --cwd examples/property-portal map:tiles              # the listing map's tiles, in a terminal of its own
-bun run --cwd examples/property-portal dev                    # http://localhost:5173
-bun run --cwd examples/property-portal test                   # the unit tests next to the config, the jobs and the seed
+bun run --cwd tests/apps/property-portal db:migrate
+bun run --cwd tests/apps/property-portal db:seed --scale small  # small | medium | large
+bun run --cwd tests/apps/property-portal map:tiles              # the listing map's tiles, in a terminal of its own
+bun run --cwd tests/apps/property-portal dev                    # http://localhost:5173
+bun run --cwd tests/apps/property-portal test                   # the unit tests next to the config, the jobs and the seed
 ```
 
 Sign in with one of the seeded accounts, all with the password `property-portal-demo`:
@@ -27,7 +27,7 @@ Sign in with one of the seeded accounts, all with the password `property-portal-
 
 Anyone can also make their own account: **Create an account** on the sign-in page, or on a sign-in prompt, emails a code to the address; once the code is right, a name and a password make a member ([Open sign-up](https://docs.protobase.net/reference/auth/#open-sign-up), turned on in `auth/accounts.ts`). It needs mail, `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` in `.env`, with a mail catcher such as Mailpit in development; without them it is not offered.
 
-Other scripts: `db:reset` (drop, migrate, seed small), `typecheck`, `serve` (`protobase build`, then `protobase serve dist` on port 8787). More accounts: `bun run --cwd examples/property-portal protobase users create you@example.com --generate-password` makes a member; `--role admin` an admin. The database tests are the repository's `bun run test:integration`.
+Other scripts: `db:reset` (drop, migrate, seed small), `typecheck`, `serve` (`protobase build`, then `protobase serve dist` on port 8787). More accounts: `bun run --cwd tests/apps/property-portal protobase users create you@example.com --generate-password` makes a member; `--role admin` an admin. The database tests are the repository's `bun run test:integration`.
 
 The same data is a REST API with an OpenAPI document: [API.md](API.md) walks through signing in, listing published listings and creating and publishing one with `curl`.
 

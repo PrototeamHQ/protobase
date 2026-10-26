@@ -4,7 +4,7 @@
 
 Bring a spreadsheet of companies into the admin app with the list's Import, update them from another, and turn Import off where it does not belong.
 
-Rijnland's sales team keeps a spreadsheet of companies they met at a trade fair, and wants them in the ERP example (`examples/erp`) without typing each one. Every list offers **Import** to a user who may create its records, so there is nothing to build: this guide walks through an import, an update from a second file, and turning Import off. The [reference](../reference/ui-config.md#importing-records) has every rule.
+Rijnland's sales team keeps a spreadsheet of companies they met at a trade fair, and wants them in the ERP example (`tests/apps/erp`) without typing each one. Every list offers **Import** to a user who may create its records, so there is nothing to build: this guide walks through an import, an update from a second file, and turning Import off. The [reference](../reference/ui-config.md#importing-records) has every rule.
 
 ## 1. Import new records
 

@@ -10,7 +10,7 @@ This guide makes the desk's tickets a [remote resource](../reference/remote-reso
 
 ## 1. Two apps
 
-You need two Protobase projects, each with its own database, its own [admin store](../reference/auth.md#admin-store) and a user: the from-scratch preset (`examples/scratch` in the repository) is enough for both. Each runs on its own origin; this guide runs them side by side on one machine:
+You need two Protobase projects, each with its own database, its own [admin store](../reference/auth.md#admin-store) and a user: the from-scratch preset (`tests/apps/scratch` in the repository) is enough for both. Each runs on its own origin; this guide runs them side by side on one machine:
 
 | | `PROTOBASE_URL` in its `.env` | Started with |
 | --- | --- | --- |

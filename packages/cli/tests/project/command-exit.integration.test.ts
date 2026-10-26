@@ -7,7 +7,7 @@ const url = testDatabaseUrl()
 const reachable = await databaseReachable(url)
 
 const exitCheck = path.join(root, 'packages/cli/tests/support/exit-check.mjs')
-const erp = path.join(root, 'examples/erp')
+const erp = path.join(root, 'tests/apps/erp')
 const env = { DATABASE_URL: url, PROTOBASE_SECRET: 'command-exit-test-secret-0123456789abcdef' }
 
 // The commands Cloud runs on every deploy, in the ERP, whose Better Auth store shares the app's pool and checks its

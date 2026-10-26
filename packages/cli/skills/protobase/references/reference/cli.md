@@ -9,7 +9,7 @@ The `protobase` command comes with `@protobase/cli`. Install it in a project nex
 ```sh
 bun add @protobase/cli @protobase/schema @protobase/layout @protobase/server @protobase/ui
 bun run protobase <command>                     # from the project, config folder defaults to ./config
-bun run --cwd examples/erp protobase <command>  # in this repository, for an example
+bun run --cwd tests/apps/erp protobase <command>  # in this repository, for an example
 ```
 
 Any package manager installs the packages, and the command runs on Node or on Bun: `npm install` and `npx protobase <command>` work the same. The bin starts with `#!/usr/bin/env node`, so where Node is installed `bun run protobase` starts it on Node, unless the project's `bunfig.toml` sets `[run] bun = true`, as the presets' does. `protobase --version` (or `-v`) prints the Protobase version. Before any command runs, the CLI checks that the project in the current directory, by the `@protobase` packages installed there, is of its own major version, and stops with an error naming both versions when it is not: within a major a CLI runs every project, whatever its minor. That is the CLI's one version check. Outside a project, or before its install, there is nothing to check.
@@ -120,7 +120,7 @@ Exit code is 1 when there are errors. Run it after the project's migrations and 
 ## `dev`
 
 ```sh
-protobase dev [--port 5173] [--env DATABASE_URL] [--cache-dir <dir>] [--allowed-hosts <hosts>] [--extend <dir>]   # run inside a project, e.g. bun run --cwd examples/erp dev
+protobase dev [--port 5173] [--env DATABASE_URL] [--cache-dir <dir>] [--allowed-hosts <hosts>] [--extend <dir>]   # run inside a project, e.g. bun run --cwd tests/apps/erp dev
 ```
 
 One port, two processes: Vite serves the admin app from `@protobase/ui`'s `src/app/` (`dist/app/` when installed; `index.html` and `main.tsx`, or `main.js`; the command fails with a clear message when they are missing) and hands `/api`, supabase-js's `/api/sb` included, to the Hono app from `createAdmin`, which runs in a process of its own; the CLI's process never loads `@protobase/server`. Open `http://localhost:<port>`; the API reference is at `/api/docs`.
@@ -148,7 +148,7 @@ One port, two processes: Vite serves the admin app from `@protobase/ui`'s `src/a
 ## `build`
 
 ```sh
-protobase build [--out dist] [--bun] [--extend <dir>] [--source-maps]   # run inside a project, e.g. bun run --cwd examples/erp protobase build
+protobase build [--out dist] [--bun] [--extend <dir>] [--source-maps]   # run inside a project, e.g. bun run --cwd tests/apps/erp protobase build
 ```
 
 Writes the project's deploy bundle, the folder a deployment ships:
@@ -342,7 +342,7 @@ bun --no-install protobase-serve.js create-admin <bundle> <email>    # --generat
 ```sh
 bun --no-install protobase-serve.js <bundle>/protobase.config.js   # production, under Bun: the API
 protobase serve <bundle>/protobase.config.js                       # the same, with the CLI on Node or Bun
-protobase serve <bundle>                                           # the whole bundle as a host serves it, e.g. bun run --cwd examples/erp serve
+protobase serve <bundle>                                           # the whole bundle as a host serves it, e.g. bun run --cwd tests/apps/erp serve
 ```
 
 Serves the API of a bundle from `protobase build` and owns the process around it. Given the bundle folder, `protobase serve` also serves its UI by [the manifest's rules](#the-manifest), so a bundle can be checked locally exactly as the host will serve it.
@@ -561,10 +561,10 @@ Copies the agent skills of this CLI's version into the current project, or only 
 ## ERP example
 
 ```sh
-bun run db:up && bun run --cwd examples/erp db:migrate && bun run --cwd examples/erp db:seed --scale small
-bun run --cwd examples/erp protobase scaffold postgres://protobase:protobase@localhost:55432/protobase \
+bun run db:up && bun run --cwd tests/apps/erp db:migrate && bun run --cwd tests/apps/erp db:seed --scale small
+bun run --cwd tests/apps/erp protobase scaffold postgres://protobase:protobase@localhost:55432/protobase \
   --yes --ui --exclude auth --exclude public.schema_migrations --exclude public.seed_info
-bun run --cwd examples/erp protobase doctor postgres://protobase:protobase@localhost:55432/protobase
+bun run --cwd tests/apps/erp protobase doctor postgres://protobase:protobase@localhost:55432/protobase
 ```
 
 Always pass `--exclude auth`: the ERP keeps Better Auth's users, sessions and signing keys in the `auth` schema of the same database, and scaffolding them would expose credentials through the admin API.

@@ -117,7 +117,7 @@ Every option returns a new [field](https://docs.protobase.net/api/schema/interfa
 
 The ERP's products show most of them, together with soft delete and a tenant:
 
-```ts title="examples/erp/config/products/data.ts"
+```ts title="tests/apps/erp/config/products/data.ts"
 import { f, resource } from '@protobase/schema'
 import { erpAccess } from '../roles'
 
@@ -398,7 +398,7 @@ export const workOrders = resource('work_orders')
 
 Export the roles as `roles` from `config/roles.ts`, where the server finds them, and every operation without a rule needs its capability (`<resource>.<action>`). The ERP's orders use `.owner` and `.search` with the ERP's roles:
 
-```ts title="examples/erp/config/orders/data.ts"
+```ts title="tests/apps/erp/config/orders/data.ts"
 import { f, resource } from '@protobase/schema'
 import { erpAccess } from '../roles'
 

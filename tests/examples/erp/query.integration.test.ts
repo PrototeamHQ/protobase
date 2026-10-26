@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely'
 import { afterAll, describe, expect, it } from 'vitest'
 import { facetCounts, tableIndexes, uncoveredColumns } from '@protobase/query'
-import { connect } from '../../../examples/erp/db/connection'
+import { connect } from '../../apps/erp/db/connection'
 import { PostgresJsDialect } from './kysely-postgres-js'
 import { check, stockMoves } from './erp-models'
 import { databaseReachable } from './reachable'

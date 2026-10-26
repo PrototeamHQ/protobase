@@ -6,9 +6,9 @@ A real Postgres 18 database for the sample ERP: five module schemas plus one leg
 
 ```sh
 bun run db:up                                    # repository root: docker compose up, waits until healthy; creates .env from .env.example
-bun run --cwd examples/erp db:migrate
-bun run --cwd examples/erp db:seed --scale small       # small | medium | large
-bun run --cwd examples/erp test                        # the unit tests next to the config and the seed
+bun run --cwd tests/apps/erp db:migrate
+bun run --cwd tests/apps/erp db:seed --scale small       # small | medium | large
+bun run --cwd tests/apps/erp test                        # the unit tests next to the config and the seed
 ```
 
 Other scripts: `db:seed:base` (the countries, the currencies and organization 1, named with `--name`: what an app made from the ERP preset starts with), `db:reset` (drop, migrate, seed small), `typecheck`. `bun run db:down` in the repository root stops the container; the `pgdata` volume stays, remove it with `docker compose down -v`. The database tests are the repository's `bun run test:integration`.
@@ -55,7 +55,7 @@ Seed consistency: an invoice's subtotal equals the sum of its lines and an order
 
 ## Login
 
-`bun run --cwd examples/erp db:migrate` also creates Better Auth's tables in the `auth` schema of the ERP database (`db/migrations/009_auth.sql`; later ones come from `protobase auth migration`); `bun run --cwd examples/erp serve` (or `protobase dev`) then needs `PROTOBASE_SECRET` in `.env` and serves real sign-in. See [Login with Better Auth](https://docs.protobase.net/reference/auth/). There is no passwordless mode: create the first admin with `protobase users create <email>`, and mint a bearer token for curl with `protobase token <email>`.
+`bun run --cwd tests/apps/erp db:migrate` also creates Better Auth's tables in the `auth` schema of the ERP database (`db/migrations/009_auth.sql`; later ones come from `protobase auth migration`); `bun run --cwd tests/apps/erp serve` (or `protobase dev`) then needs `PROTOBASE_SECRET` in `.env` and serves real sign-in. See [Login with Better Auth](https://docs.protobase.net/reference/auth/). There is no passwordless mode: create the first admin with `protobase users create <email>`, and mint a bearer token for curl with `protobase token <email>`.
 
 The ERP has [organizations](https://docs.protobase.net/reference/auth/#organizations) on (`auth/auth.ts`): the seed writes its organizations to the auth schema too, under the ids its records use, and the first user owns them. Everyone else joins one with an organization role and app roles, by invitation in the app or on the host:
 
@@ -72,13 +72,13 @@ A new organization takes the next id of `core.organizations` and gets its row th
 The ERP has no server code of its own: `protobase.config.ts` exports the config, `auth` and `authenticate`, and protobase serves it.
 
 ```sh
-bun run --cwd examples/erp serve    # protobase build, then protobase serve dist on port 8787 (PORT): the UI and the API, from source
+bun run --cwd tests/apps/erp serve    # protobase build, then protobase serve dist on port 8787 (PORT): the UI and the API, from source
 ```
 
 For a deployment, ship the bundle folder: the host serves its `public/` and runs its config module with the serve runtime under Bun:
 
 ```sh
-bun run --cwd examples/erp build    # examples/erp/dist/: the config module, the app and protobase.ui.tsx as a plugin in public/, and protobase.bundle.json
+bun run --cwd tests/apps/erp build    # tests/apps/erp/dist/: the config module, the app and protobase.ui.tsx as a plugin in public/, and protobase.bundle.json
 bun run build:serve           # dist/protobase-serve.js at the repository root, the runtime
 bun --no-install /opt/protobase/protobase-serve.js /app/protobase.config.js
 ```

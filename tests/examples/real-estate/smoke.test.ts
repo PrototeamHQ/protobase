@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
-import { connect } from '../../../examples/real-estate/db/connection'
-import type { ScaleName } from '../../../examples/real-estate/seed/scales'
-import { buildWorld } from '../../../examples/real-estate/seed/world'
+import { connect } from '../../apps/real-estate/db/connection'
+import type { ScaleName } from '../../apps/real-estate/seed/scales'
+import { buildWorld } from '../../apps/real-estate/seed/world'
 import { databaseSeeded } from './seeded'
 
 const seeded = await databaseSeeded()

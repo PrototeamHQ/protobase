@@ -14,7 +14,7 @@ import step1 from '../../../../../packages/ui/src/app/pages/guide/sales-steps/st
 import step2 from '../../../../../packages/ui/src/app/pages/guide/sales-steps/step-2.tsx?raw'
 import step3 from '../../../../../packages/ui/src/app/pages/guide/sales-steps/step-3.tsx?raw'
 import step4 from '../../../../../packages/ui/src/app/pages/guide/sales-steps/step-4.tsx?raw'
-import ordersView from '../../../../../examples/erp/config/orders/ui.ts?raw'
+import ordersView from '../../../../../tests/apps/erp/config/orders/ui.ts?raw'
 
 It is Monday morning at Veldhuis Supply. Sam, who runs sales, opens the admin and starts the usual round: Orders filtered to drafts, Orders again for deliveries nobody paid, Invoices filtered to overdue, Companies filtered to leads. Four lists, four filters, every week.
 
@@ -81,7 +81,7 @@ A `CardRow` shows a few records side by side, and its children are the template 
 
 There is no endpoint for "biggest unpaid delivery" and no component for "lead card". Every block reads the regular API with Sam's token, so the access rules apply exactly as on the lists. A sales rep with `orders.read.own` sees only their own orders in every count, table and card, and a field they may not read is not on their page at all (see [Access](/reference/layouts/#access)).
 
-The ERP example carries this page, with a few more blocks, in `examples/erp/config/overview/page.tsx`. Next:
+The ERP example carries this page, with a few more blocks, in `tests/apps/erp/config/overview/page.tsx`. Next:
 
 - [A billing page](/guides/billing-page/) adds forms, delete and link actions, and a React component of your own.
 - [Blocks](/reference/blocks/) lists every block and its props.

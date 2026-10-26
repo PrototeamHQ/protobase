@@ -2,8 +2,8 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { SignJWT } from 'jose'
 import { createAdmin, jwtAuthenticator } from '@protobase/server'
-import { stockMoves } from '../../../examples/erp/config'
-import { createDb } from '../../../examples/erp/db/kysely'
+import { stockMoves } from '../../apps/erp/config'
+import { createDb } from '../../apps/erp/db/kysely'
 import { databaseReachable } from './reachable'
 
 const reachable = await databaseReachable()

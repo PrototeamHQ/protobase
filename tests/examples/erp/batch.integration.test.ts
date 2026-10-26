@@ -2,9 +2,9 @@ import { sql } from 'kysely'
 import { SignJWT } from 'jose'
 import { afterAll, describe, expect, it } from 'vitest'
 import { configExports, createAdmin, jwtAuthenticator } from '@protobase/server'
-import * as config from '../../../examples/erp/config'
-import { roles } from '../../../examples/erp/config/roles'
-import { createDb } from '../../../examples/erp/db/kysely'
+import * as config from '../../apps/erp/config'
+import { roles } from '../../apps/erp/config/roles'
+import { createDb } from '../../apps/erp/db/kysely'
 import { databaseReachable } from './reachable'
 
 const reachable = await databaseReachable()

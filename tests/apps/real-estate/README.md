@@ -8,9 +8,9 @@ The database sits beside the ERP's in the same Postgres container, as `real_esta
 
 ```sh
 bun run db:up                                            # repository root: docker compose up, creates the real_estate database and .env from .env.example
-bun run --cwd examples/real-estate db:migrate
-bun run --cwd examples/real-estate db:seed --scale small       # small | medium | large
-bun run --cwd examples/real-estate test                        # the unit tests next to the config and the seed
+bun run --cwd tests/apps/real-estate db:migrate
+bun run --cwd tests/apps/real-estate db:seed --scale small       # small | medium | large
+bun run --cwd tests/apps/real-estate test                        # the unit tests next to the config and the seed
 ```
 
 Other scripts: `db:seed:base` (the amenities and organization 1, named with `--name`: what an app made from the real estate preset starts with), `db:reset` (drop, migrate, seed small), `typecheck`. `bun run db:down` in the repository root stops the container the ERP shares. The database tests are the repository's `bun run test:integration`.
@@ -76,12 +76,12 @@ A tenant's IBAN is a [sensitive field](https://docs.protobase.net/reference/data
 
 ## Login
 
-`bun run --cwd examples/real-estate db:migrate` also creates Better Auth's tables in the `auth` schema of the real estate database (`db/migrations/007_auth.sql`); `bun run --cwd examples/real-estate dev` (http://localhost:5173) or `serve` then needs `PROTOBASE_SECRET` in `.env`. Create the first admin with `bun run --cwd examples/real-estate protobase users create you@example.com --role admin --generate-password`. A new user takes the next id of `core.users` (`generateUserId` in `auth/auth.ts`), which tickets name as their assignee, and gets their row there in organization 1 (`db/migrations/013_auth_users.sql`), without a `role`, since their roles live in the auth schema. See [Login with Better Auth](https://docs.protobase.net/reference/auth/).
+`bun run --cwd tests/apps/real-estate db:migrate` also creates Better Auth's tables in the `auth` schema of the real estate database (`db/migrations/007_auth.sql`); `bun run --cwd tests/apps/real-estate dev` (http://localhost:5173) or `serve` then needs `PROTOBASE_SECRET` in `.env`. Create the first admin with `bun run --cwd tests/apps/real-estate protobase users create you@example.com --role admin --generate-password`. A new user takes the next id of `core.users` (`generateUserId` in `auth/auth.ts`), which tickets name as their assignee, and gets their row there in organization 1 (`db/migrations/013_auth_users.sql`), without a `role`, since their roles live in the auth schema. See [Login with Better Auth](https://docs.protobase.net/reference/auth/).
 
 ## Serve and deploy
 
 ```sh
-bun run --cwd examples/real-estate serve    # protobase build, then protobase serve dist on port 8787 (PORT)
+bun run --cwd tests/apps/real-estate serve    # protobase build, then protobase serve dist on port 8787 (PORT)
 ```
 
 The ERP's `serve` uses the same port, so run one at a time or set `PORT` in this example's `.env`. Deploying works as for the ERP; see [its README](../erp/README.md#serve-and-deploy) and the [CLI reference](https://docs.protobase.net/reference/cli/#build).

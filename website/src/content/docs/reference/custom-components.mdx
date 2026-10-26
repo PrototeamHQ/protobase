@@ -4,14 +4,14 @@ description: React components and action handlers of your own in protobase.ui.ts
 ---
 
 import { Code } from '@astrojs/starlight/components'
-import erpUi from '../../../../../examples/erp/protobase.ui.tsx?raw'
-import ordersPerDay from '../../../../../examples/erp/components/orders-per-day.tsx?raw'
+import erpUi from '../../../../../tests/apps/erp/protobase.ui.tsx?raw'
+import ordersPerDay from '../../../../../tests/apps/erp/components/orders-per-day.tsx?raw'
 
 Layouts are data; a project's React code lives in one module: `protobase.ui.tsx` at the project root, beside `protobase.config.ts`. It exports each custom component under the name its layouts declare, each from a file of its own, and default-exports `defineUi({ actions })` from `@protobase/ui` for the rest, so the project depends on `@protobase/ui`, and on `react` for its JSX. This is the ERP example's:
 
-<Code code={erpUi} lang="tsx" title="examples/erp/protobase.ui.tsx" />
+<Code code={erpUi} lang="tsx" title="tests/apps/erp/protobase.ui.tsx" />
 
-<Code code={ordersPerDay} lang="tsx" title="examples/erp/components/orders-per-day.tsx" />
+<Code code={ordersPerDay} lang="tsx" title="tests/apps/erp/components/orders-per-day.tsx" />
 
 `protobase dev` serves it with hot reload, and `protobase build` builds it as the [plugin](/reference/plugins/) `app` in the bundle's `public/plugins/app/`, beside the prebuilt admin app, which loads it when someone signs in. It is the only project code that reaches the browser, so keep secrets out of it. `definePlugin` types its default export as well as `defineUi`, which stays as its alias. The same exports can come from other plugins too, which the app loads at runtime and which keep working when the app moves to a newer release.
 

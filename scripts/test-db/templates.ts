@@ -30,10 +30,10 @@ const example = (database: string, dir: string, scale: 'small' | 'medium', strat
 type Strategy = 'wal_log' | 'file_copy'
 
 export const templates = {
-  erp: example('protobase_test_template', 'examples/erp', 'small', 'wal_log'),
-  realEstate: example('real_estate_test_template', 'examples/real-estate', 'small', 'wal_log'),
-  propertyPortal: example('property_portal_test_template', 'examples/property-portal', 'small', 'wal_log'),
-  erpMedium: example('protobase_medium_test_template', 'examples/erp', 'medium', 'file_copy'),
+  erp: example('protobase_test_template', 'tests/apps/erp', 'small', 'wal_log'),
+  realEstate: example('real_estate_test_template', 'tests/apps/real-estate', 'small', 'wal_log'),
+  propertyPortal: example('property_portal_test_template', 'tests/apps/property-portal', 'small', 'wal_log'),
+  erpMedium: example('protobase_medium_test_template', 'tests/apps/erp', 'medium', 'file_copy'),
 }
 
 export type TemplateKey = keyof typeof templates

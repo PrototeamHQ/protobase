@@ -24,7 +24,7 @@ view<typeof apps>('apps')
 An entry can list a few of its records under it, each with a status dot, so the ones that need attention are one click away:
 
 ```ts
-// examples/erp/config/orders/ui.ts
+// tests/apps/erp/config/orders/ui.ts
 export const ordersView = view<typeof orders>('orders')
   .nav({
     recent: {
@@ -61,4 +61,4 @@ The records come from the list API with the caller's token, so they follow the s
 
 `/meta` drops the group, and keeps the rest of `nav`, for a caller who cannot read a field it uses (its status, or a field in its filter or order), so it never names a hidden field.
 
-`EMAIL=... PASSWORD=... bun scripts/e2e-shell.mjs` checks the groups and the user menu in a browser against a running `bun run --cwd examples/erp dev` (`BASE` for another address), comparing them with what the API gives that user.
+`EMAIL=... PASSWORD=... bun scripts/e2e-shell.mjs` checks the groups and the user menu in a browser against a running `bun run --cwd tests/apps/erp dev` (`BASE` for another address), comparing them with what the API gives that user.

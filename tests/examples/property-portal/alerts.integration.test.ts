@@ -1,7 +1,7 @@
 import { sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { enqueueJob, startJobs, type JobsRuntime, type MailMessage } from '@protobase/server'
-import { createDb } from '../../../examples/property-portal/db/kysely'
+import { createDb } from '../../apps/property-portal/db/kysely'
 import { exampleJobs } from '../example-app'
 import { databaseSeeded } from './seeded'
 

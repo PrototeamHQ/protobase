@@ -35,7 +35,7 @@ For a Postgres database you already have, [Admin over an existing database](/gui
 
 Every page of these docs is also Markdown at its address plus `.md`: `https://docs.protobase.net/reference/cli/` is also `https://docs.protobase.net/reference/cli.md`. The code a page shows from example files is written out in it, and its live demos are left out, so a coding agent or a chat assistant reads the page whole. In a project, [`protobase skill install`](/reference/cli/#skill) gives coding agents the docs of the installed version.
 
-The rest of this page works in a clone of this repository, on its examples.
+The rest of this page works in a clone of this repository, on its example apps in `tests/apps`.
 
 ## Setup
 
@@ -47,33 +47,33 @@ bun install
 
 ## Run the ERP example
 
-`examples/erp` is a sample ERP on a real Postgres database, seeded with three years of history. It needs Docker for the database: `bun run db:up` starts the Postgres container and gives each example its database and a `.env` from its `.env.example`.
+`tests/apps/erp` is a sample ERP on a real Postgres database, seeded with three years of history. It needs Docker for the database: `bun run db:up` starts the Postgres container and gives each example its database and a `.env` from its `.env.example`.
 
 ```sh
-bun run db:up && bun run --cwd examples/erp db:migrate && bun run --cwd examples/erp db:seed --scale small   # the ERP's tables and Better Auth's
-bun run --cwd examples/erp protobase users create you@example.com --generate-password
-bun run --cwd examples/erp dev                          # http://localhost:5173
+bun run db:up && bun run --cwd tests/apps/erp db:migrate && bun run --cwd tests/apps/erp db:seed --scale small   # the ERP's tables and Better Auth's
+bun run --cwd tests/apps/erp protobase users create you@example.com --generate-password
+bun run --cwd tests/apps/erp dev                          # http://localhost:5173
 ```
 
-`PROTOBASE_SECRET` in `examples/erp/.env` signs the session cookies; see [Login with Better Auth](/reference/auth/). `protobase dev` serves the admin app and the API on one port and reloads both on every change ([CLI](/reference/cli/#dev)). Its startup message says how to sign in: while the database has no users, it prints the exact `users create` command for the first admin. It stops with a clear message when another server holds its port; pass `--port 5174` to run a second app beside it.
+`PROTOBASE_SECRET` in `tests/apps/erp/.env` signs the session cookies; see [Login with Better Auth](/reference/auth/). `protobase dev` serves the admin app and the API on one port and reloads both on every change ([CLI](/reference/cli/#dev)). Its startup message says how to sign in: while the database has no users, it prints the exact `users create` command for the first admin. It stops with a clear message when another server holds its port; pass `--port 5174` to run a second app beside it.
 
 ## Run the real estate example
 
-`examples/real-estate` is a rental and property management firm: owners, properties and units, leases and tenants, monthly rent, payments and arrears, and maintenance. Its database sits beside the ERP's in the same Postgres container, and it keeps its own `.env`.
+`tests/apps/real-estate` is a rental and property management firm: owners, properties and units, leases and tenants, monthly rent, payments and arrears, and maintenance. Its database sits beside the ERP's in the same Postgres container, and it keeps its own `.env`.
 
 ```sh
-bun run db:up && bun run --cwd examples/real-estate db:migrate && bun run --cwd examples/real-estate db:seed --scale small
-bun run --cwd examples/real-estate protobase users create you@example.com --role admin --generate-password
-bun run --cwd examples/real-estate dev                  # http://localhost:5173
+bun run db:up && bun run --cwd tests/apps/real-estate db:migrate && bun run --cwd tests/apps/real-estate db:seed --scale small
+bun run --cwd tests/apps/real-estate protobase users create you@example.com --role admin --generate-password
+bun run --cwd tests/apps/real-estate dev                  # http://localhost:5173
 ```
 
 ## Run the property portal example
 
-`examples/property-portal` is a public portal of homes for sale and for rent in the Netherlands and Spain. Visitors browse and filter the listings without signing in, through the [anonymous role](/reference/access/#anonymous-access); members save searches of the listings that mail them new homes, and keep favorites and notes that only they see. The seed makes two members, `anna@portal.example` and `bram@portal.example`, and an admin, `admin@portal.example`, all with the password `property-portal-demo`.
+`tests/apps/property-portal` is a public portal of homes for sale and for rent in the Netherlands and Spain. Visitors browse and filter the listings without signing in, through the [anonymous role](/reference/access/#anonymous-access); members save searches of the listings that mail them new homes, and keep favorites and notes that only they see. The seed makes two members, `anna@portal.example` and `bram@portal.example`, and an admin, `admin@portal.example`, all with the password `property-portal-demo`.
 
 ```sh
-bun run db:up && bun run --cwd examples/property-portal db:migrate && bun run --cwd examples/property-portal db:seed --scale small
-bun run --cwd examples/property-portal dev              # http://localhost:5173
+bun run db:up && bun run --cwd tests/apps/property-portal db:migrate && bun run --cwd tests/apps/property-portal db:seed --scale small
+bun run --cwd tests/apps/property-portal dev              # http://localhost:5173
 ```
 
 ## Commands

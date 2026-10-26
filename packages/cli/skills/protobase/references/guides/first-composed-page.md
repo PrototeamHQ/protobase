@@ -224,7 +224,7 @@ A `CardRow` shows a few records side by side, and its children are the template 
 
 There is no endpoint for "biggest unpaid delivery" and no component for "lead card". Every block reads the regular API with Sam's token, so the access rules apply exactly as on the lists. A sales rep with `orders.read.own` sees only their own orders in every count, table and card, and a field they may not read is not on their page at all (see [Access](../reference/layouts.md#access)).
 
-The ERP example carries this page, with a few more blocks, in `examples/erp/config/overview/page.tsx`. Next:
+The ERP example carries this page, with a few more blocks, in `tests/apps/erp/config/overview/page.tsx`. Next:
 
 - [A billing page](billing-page.md) adds forms, delete and link actions, and a React component of your own.
 - [Blocks](../reference/blocks.md) lists every block and its props.

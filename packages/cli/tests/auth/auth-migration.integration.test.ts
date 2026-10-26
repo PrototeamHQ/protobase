@@ -328,7 +328,7 @@ describe.skipIf(!reachable)('the auth store and the app\'s resources', () => {
 
 // The migrate step of the examples and presets, copied into a project of its own with migrations the test writes.
 describe.skipIf(!reachable)("a project's migrate step", () => {
-  const scratchDir = path.join(root, 'examples/scratch')
+  const scratchDir = path.join(root, 'tests/apps/scratch')
   let projectDir: string
 
   beforeAll(async () => {

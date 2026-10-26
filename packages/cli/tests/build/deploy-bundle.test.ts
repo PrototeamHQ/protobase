@@ -15,9 +15,9 @@ import { expectDebugIdMap } from '../support/source-maps'
 
 const root = path.resolve(__dirname, '../../../..')
 
-// Inside examples/erp, so the project's @protobase imports resolve.
+// Inside tests/apps/erp, so the project's @protobase imports resolve.
 const createProject = async (files: Record<string, string>) => {
-  const projectDir = path.join(root, 'examples/erp', `.deploy-test-${randomBytes(4).toString('hex')}`)
+  const projectDir = path.join(root, 'tests/apps/erp', `.deploy-test-${randomBytes(4).toString('hex')}`)
   for (const [file, content] of Object.entries(files)) {
     await mkdir(path.dirname(path.join(projectDir, file)), { recursive: true })
     await writeFile(path.join(projectDir, file), content)

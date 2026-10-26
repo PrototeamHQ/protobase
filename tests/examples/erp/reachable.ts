@@ -1,4 +1,4 @@
-import { connect } from '../../../examples/erp/db/connection'
+import { connect } from '../../apps/erp/db/connection'
 
 // Tests run against the database vitest.config.ts clones for the run; without DATABASE_URL, connection.ts would
 // fall back to the developer database.
