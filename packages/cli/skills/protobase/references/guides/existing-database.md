@@ -104,7 +104,7 @@ The first user is always an admin. The password is printed once. `protobase dev`
 
 ## Running scaffold again
 
-When the database gets a new table or column, run `npx protobase scaffold --ui --exclude auth` again. It adds only what is new, and leaves your edits as they are. `--exclude auth` keeps the sign-in tables out of the admin. It also reports drift: a declared field whose column has gone, or whose type no longer fits.
+When the database gets a new table or column, run `npx protobase scaffold --ui` again. It adds only what is new, and leaves your edits as they are. It leaves out the `auth` schema of step 5 on its own, and says so, as the sign-in tables are no admin pages. It also reports drift: a declared field whose column has gone, or whose type no longer fits.
 
 ## Next
 
