@@ -52,6 +52,12 @@ export const guides = [
 
 export const reference = [
   'reference/config',
+  'reference/config/app',
+  'reference/config/sign-in',
+  'reference/config/api',
+  'reference/config/admin-app',
+  'reference/config/jobs-and-events',
+  'reference/config/files',
   'reference/data-config',
   'reference/ui-config',
   'reference/architecture',

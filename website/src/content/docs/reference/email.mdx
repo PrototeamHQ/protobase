@@ -18,7 +18,7 @@ An app sends mail through one SMTP server: Protobase's own mail ([password reset
 | --- | --- |
 | `PROTOBASE_SMTP_URL` | The SMTP server, credential included: `smtp://user:password@host:587` (STARTTLS when the server offers it) or `smtps://user:password@host:465` (TLS from the start). |
 | `PROTOBASE_MAIL_FROM` | The sender, a plain address such as `noreply@shop.example.com`. The client greets the server with its domain; a `?name=` on the URL overrides that. |
-| `PROTOBASE_APP_NAME` | Optional: the app's name, such as `Shop`, which mail clients show as the sender's name (`Shop <noreply@shop.example.com>`). It overrides the config's [`name`](/reference/config/#keys). Without either the sender has no name. |
+| `PROTOBASE_APP_NAME` | Optional: the app's name, such as `Shop`, which mail clients show as the sender's name (`Shop <noreply@shop.example.com>`). It overrides the config's [`name`](/reference/config/app/#name). Without either the sender has no name. |
 
 Set both or neither. One without the other, a URL that is not `smtp://` or `smtps://`, or a sender that is not a plain address stops the app at startup. Without them mail is off: password reset and emailed codes are not offered, a job's `mail` is `undefined`, and sending an app's email rejects.
 

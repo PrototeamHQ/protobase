@@ -63,7 +63,13 @@ Guides:
 
 Reference:
 
-- When writing `protobase.config.ts`, or looking for where a job's, hook's or other piece of the app's code goes → read [protobase.config.ts](references/reference/config.md)
+- When writing `protobase.config.ts`, or looking for where a job's, hook's or other piece of the app's code goes → read [Configuring Protobase](references/reference/config.md)
+- When setting the app's name, URL, secret, language, time zone or mobile build in the config → read [App options](references/reference/config/app.md)
+- When setting `auth` or `authenticate` in the config → read [Sign-in options](references/reference/config/sign-in.md)
+- When setting the API's keys, CORS, limits, write hooks, MCP tools or remote resources in the config → read [API options](references/reference/config/api.md)
+- When setting the assistant, maps or plugins in the config → read [Admin app options](references/reference/config/admin-app.md)
+- When setting `jobs`, `events`, `history`, `webhooks` or `notifications` in the config → read [Jobs and events options](references/reference/config/jobs-and-events.md)
+- When setting `files` in the config → read [Files options](references/reference/config/files.md)
 - When defining resources, fields, keys, relations, rollups, formulas and validation → read [Data config](references/reference/data-config.md)
 - When defining views, columns, filters, charts, related records and actions → read [UI config](references/reference/ui-config.md)
 - When asking how the packages fit together → read [Architecture](references/reference/architecture.md)

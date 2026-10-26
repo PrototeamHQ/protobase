@@ -9,6 +9,12 @@ Start a new app, or an admin over an existing Postgres database, and keep the co
 - [One config](../reference/config.md): The whole app is one object of data in `protobase.config.ts`, typed with `defineConfig`, with a sensible default for every key.
 - [Code found by path](../reference/config.md#where-the-code-is): The config names jobs, hooks and providers, and Protobase finds their code by its path, such as `jobs/<name>.ts`.
 - [JSON config](../reference/config.md#the-same-config-as-json): The same config works as `protobase.config.json`, with values from the environment written as `$env`.
+- [App options](../reference/config/app.md): The app's name, public URL, secret, language, time zone, install colours and mobile build, each with its type, default and environment variable.
+- [Sign-in options](../reference/config/sign-in.md): Every key of `auth` and `authenticate`, from roles and organizations to sign-in providers and tokens of an auth server elsewhere.
+- [API options](../reference/config/api.md): The REST API's path, keys, CORS, access defaults, query limits, error reporting, write hooks and MCP tools.
+- [Admin app options](../reference/config/admin-app.md): The assistant, the maps and the plugins the admin app loads.
+- [Jobs and events options](../reference/config/jobs-and-events.md): Each job's retries, timeout and schedule, and the settings of events, history, webhooks and notifications.
+- [Files options](../reference/config/files.md): The file providers, retention, signing, the Storage API and the image library.
 - [Scaffold from a database](../reference/cli.md#scaffold): Reads your Postgres tables and writes the data config for them, with field types, keys, relations, enums, soft delete, tenants and search filled in, and with `--ui` a first view of each.
 - [Safe re-scaffolding](../reference/cli.md#re-running): Running scaffold again adds only the columns that are not declared yet and leaves your own config code as it is.
 - [Schema drift report](../reference/cli.md#drift-report): After each scaffold, lists declared fields whose column is gone, whose type changed or whose enum values differ, with a suggested fix.

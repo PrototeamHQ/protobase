@@ -1,0 +1,61 @@
+---
+title: Admin app options
+description: The config keys of what the admin app draws besides the resources, the assistant, the maps and the plugins, with their types, defaults and environment variables, and the file of the assistant's own tools.
+---
+
+The keys of what the admin app draws besides the resources, at the top level of [`protobase.config.ts`](/reference/config/). The app's language is [`locale`](/reference/config/app/#locale).
+
+## assistant
+
+- **Type:** `{ url?: string; apiKey?: string; model?: string; baseUrl?: string; chats?: string } | false`
+- **Default:** the backend of `PROTOBASE_ASSISTANT_URL`; otherwise the built-in one, when `PROTOBASE_ASSISTANT_API_KEY` is set; otherwise none
+- **Environment variables:** `PROTOBASE_ASSISTANT_URL`, `PROTOBASE_ASSISTANT_API_KEY`, `PROTOBASE_ASSISTANT_MODEL`, `PROTOBASE_ASSISTANT_BASE_URL`, `PROTOBASE_ASSISTANT_CHATS`
+
+The assistant in the admin app's dock, which admins and the `ai` role see. Each key falls back to its variable:
+
+- `url`: an assistant backend elsewhere, which the dock talks to instead of the built-in one.
+- `apiKey`: turns on the built-in assistant, which answers with a chat model.
+- `baseUrl`: the model's OpenAI-compatible endpoint; default OpenRouter's, `https://openrouter.ai/api/v1`.
+- `model`: the model; default `openrouter/auto` with OpenRouter, and required with any other endpoint.
+- `chats`: the folder the built-in assistant keeps conversations in, one file each; default `.protobase/chats`.
+
+`false` turns the assistant off. A value that cannot work stops the app at start. See [Assistant](/reference/assistant/#which-backend).
+
+```ts
+export default defineConfig(({ env }) => ({
+  assistant: { apiKey: env.OPENROUTER_API_KEY, model: 'anthropic/claude-sonnet-5.5' },
+}))
+```
+
+The built-in assistant's own tools are the default export of `assistant/tools.ts`, an array of `defineTool(...)`, offered after its own; with [extensions](/reference/config/#extensions), the extensions' come first. See [The app's own tools](/reference/assistant/#the-apps-own-tools).
+
+## maps
+
+- **Type:** `{ style?: string; layers?: { id: string; label: string; tiles: string; attribution: string; bounds?: [number, number, number, number]; maxzoom?: number }[] } | false`
+- **Default:** the style of `PROTOBASE_MAP_STYLE_URL`, when set
+- **Environment variable:** `PROTOBASE_MAP_STYLE_URL`
+
+The map style the app's maps (`l.map`, `d.map`) are drawn with, and the layers they may switch to. `style` is the URL of a MapLibre style, such as one of self-hosted PMTiles. Each of `layers` is another map of raster tiles, such as aerial photos: `tiles` is its tile URL with `{z}`, `{x}` and `{y}`, `attribution` the credit its licence asks for, `bounds` where its tiles are (`[west, south, east, north]`), and `maxzoom` the deepest zoom they go to (default 22). Without a style, or with `false`, the app draws no maps. See [Map layers](/reference/ui-config/#map-layers).
+
+```ts
+export default defineConfig({
+  maps: {
+    style: 'https://tiles.example.com/style.json',
+    layers: [{ id: 'aerial', label: 'Aerial', tiles: 'https://tiles.example.com/aerial/{z}/{x}/{y}.jpg', attribution: '© Example' }],
+  },
+})
+```
+
+## plugins
+
+- **Type:** `{ url: string; settings?: Record<string, JsonValue>; roles?: string[]; beforeSignIn?: boolean }[] | false`
+- **Default:** none, and those the environment variables list
+- **Environment variables:** `PROTOBASE_PLUGINS` and `PROTOBASE_PLUGINS_BEFORE_SIGN_IN`, plugin.json URLs separated by commas, loaded after the config's
+
+The plugins the admin app loads at runtime. `url` names a plugin's `plugin.json`, on another origin or this one (`/plugins/...`); the plugin reads `settings` with `usePlugin()`; with `roles`, only callers holding one of them load it; with `beforeSignIn`, the app loads it before anyone signs in, which cannot go with `roles`. `false` turns off all but the plugins the app's own bundle carries. See [Loading](/reference/plugins/#loading).
+
+```ts
+export default defineConfig({
+  plugins: [{ url: 'https://plugins.example.com/maps/plugin.json', settings: { zoom: 12 }, roles: ['admin'] }],
+})
+```
