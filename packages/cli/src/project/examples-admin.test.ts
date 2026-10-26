@@ -5,6 +5,9 @@ import { mergeConfig, type Authenticator, type ProjectConfig } from '@protobase/
 import { importProjectFile } from './import-project-file'
 import { projectAdmin } from './project-admin'
 
+// Each example's auth makes its pg pool when imported, which connects nothing until a query.
+vi.unmock('pg')
+
 const examplesDir = path.join(import.meta.dirname, '..', '..', '..', '..', 'examples')
 const examples = readdirSync(examplesDir).filter((name) => existsSync(path.join(examplesDir, name, 'protobase.config.ts')))
 

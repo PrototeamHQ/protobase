@@ -15,7 +15,7 @@ Any package manager installs the packages, and the command runs on Node or on Bu
 
 ## How it runs
 
-The published `@protobase` packages are JavaScript: each is built with [tsdown](https://tsdown.dev) to ES modules and type declarations in `dist`, one file per source module, and packing them points their `exports`, `types` and `bin` at it (`publishConfig`). The installed `protobase` command (`bin/protobase.mjs`) runs `dist` on Node 22.12 or later, or on Bun. The project's own TypeScript is loaded with Vite on both: `users` and `doctor` import it through Vite's module runner, `dev` serves it and `build` bundles it.
+The published `@protobase` packages are JavaScript: each is built with [tsdown](https://tsdown.dev) to ES modules and type declarations in `dist`, one file per source module, and packing them points their `exports`, `types` and `bin` at it (`publishConfig`). The installed `protobase` command (`bin/protobase.mjs`) runs `dist` on Node 22.12 or later, or on Bun. The commands that read the project's own TypeScript, such as `users` and `doctor`, import it directly on Bun and through Vite's module runner on Node, which cannot resolve its extensionless imports; `dev` serves it with Vite and `build` bundles it.
 
 In this repository nothing needs a build: the packages' `exports` point at `src`, and the workspace's `protobase` is `bin/protobase-source.mjs`, which imports `src/index.ts`: Bun loads it itself, Node through [tsx](https://tsx.is). `bun run build` builds every package to `dist`.
 
