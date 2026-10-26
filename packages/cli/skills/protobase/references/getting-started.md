@@ -10,11 +10,22 @@ An app's own React code, its components, field types and actions, is a [plugin](
 
 ## Start an app
 
-`npm create protobase my-app` asks which preset to start from, scratch (the default), the ERP or real estate, writes the project into `my-app`, with the `@protobase` packages in the range of the latest release's major, and prints the next steps: install it with Bun, point `.env` at a Postgres database, migrate it, load the preset's base data, if it has any, create a user and run `bun run dev`. `--preset <name>` picks one without asking; without a terminal it takes scratch. It needs Node 22.12 or later. Each preset has an `AGENTS.md` with the rules for a coding agent that changes the app, such as a new migration file for every schema change.
+`npm create protobase my-app` asks which preset to start from, scratch (the default), the ERP or real estate, writes the project into `my-app`, with the `@protobase` packages in the range of the latest release's major, and prints the next steps. `--preset <name>` picks the preset without asking; without a terminal it takes scratch. `bun create protobase` and `pnpm create protobase` do the same, and take `--preset` without the `--` that npm needs. It needs Node 22.12 or later. Each preset has an `AGENTS.md` with the rules for a coding agent that changes the app, such as a new migration file for every schema change.
 
 ```sh
 npm create protobase my-app
 npm create protobase my-app -- --preset real-estate
+```
+
+The project comes with its own Postgres for development: a `docker-compose.yml` with Postgres 18, started by `bun run db:up` and stopped by `bun run db:down`, on port 55432 or, when something listens there already, the next free one. Its `.env` points at that database and has a `BETTER_AUTH_SECRET` of its own. Without Docker, set `DATABASE_URL` in `.env` to a Postgres database of yours. The next steps install it with Bun, which runs the project's scripts, start the database, migrate it, load the preset's base data, if it has any, create a user and run `bun run dev`. For scratch:
+
+```sh
+cd my-app
+bun install
+bun run db:up
+bun run db:migrate
+bun run protobase users create you@example.com --generate-password
+bun run dev                         # http://localhost:5173
 ```
 
 ## Admin over an existing database

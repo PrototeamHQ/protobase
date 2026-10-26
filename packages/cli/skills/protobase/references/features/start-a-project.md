@@ -4,7 +4,7 @@
 
 Start a new app, or an admin over an existing Postgres database, and keep the config in step with it.
 
-- [Project starter](../getting-started.md#start-an-app): `npm create protobase` starts a new app from the scratch, ERP or real estate preset and prints the next steps. Each preset has an `AGENTS.md` with rules for coding agents.
+- [Project starter](../getting-started.md#start-an-app): `npm create protobase` (also `bun create` and `pnpm create`) starts a new app from the scratch, ERP or real estate preset, with its own Postgres in Docker for development, and prints the next steps. Each preset has an `AGENTS.md` with rules for coding agents.
 - [Example apps](../getting-started.md#run-the-erp-example): Seeded example apps on Postgres: an ERP, real estate property management and a public property portal.
 - [Scaffold from a database](../reference/cli.md#scaffold): Reads your Postgres tables and writes the data config for them, with field types, keys, relations, enums, soft delete, tenants and search filled in, and with `--ui` a first view of each.
 - [Safe re-scaffolding](../reference/cli.md#re-running): Running scaffold again adds only the columns that are not declared yet and leaves your own config code as it is.

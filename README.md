@@ -19,7 +19,7 @@ npm packages under the `@protobase` scope, all at one version, built from `packa
 - `@protobase/cli`: the `protobase` command (scaffold, doctor, dev, build, serve)
 
 Beside them, `create-protobase` starts a new app from a preset (scratch, the default, ERP or real estate), asking
-which in a terminal, then prints the next steps:
+which in a terminal, with a Postgres in Docker for development (`bun run db:up`), then prints the next steps:
 
 ```sh
 npm create protobase my-app
