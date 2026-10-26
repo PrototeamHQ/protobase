@@ -3,6 +3,7 @@ import { defineMessages } from '../locale/messages'
 export const text = defineMessages({
   en: {
     organizations: 'Organizations',
+    manageOrganizations: 'Manage organizations',
     organization: 'Organization',
     members: 'Members',
     invitations: 'Invitations',
@@ -91,6 +92,7 @@ export const text = defineMessages({
   },
   nl: {
     organizations: 'Organisaties',
+    manageOrganizations: 'Organisaties beheren',
     organization: 'Organisatie',
     members: 'Leden',
     invitations: 'Uitnodigingen',

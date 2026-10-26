@@ -19,6 +19,11 @@ describe('the organization menu items', () => {
     expect(ids({ organization: acme, role: 'admin', appRoles: [], globalRoles: [] })).toEqual(['organizations', 'organization', 'members', 'invitations'])
     expect(organizationMenuItems('/admin', '/-/organization', { organization: acme, globalRoles: [] })[1]).toMatchObject({ href: '/admin/-/organization', active: true })
   })
+
+  it('name the organizations page apart from the switcher above them, which lists the organizations already', () => {
+    const labels = organizationMenuItems('/admin', '/-/organization', { organization: acme, role: 'member', appRoles: [], globalRoles: [] }).map((item) => item.label)
+    expect(labels).toEqual(['Manage organizations', 'Organization'])
+  })
 })
 
 describe('the app roles someone may give', () => {

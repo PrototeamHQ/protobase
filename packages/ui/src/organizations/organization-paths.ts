@@ -33,12 +33,13 @@ export const managesOrganization = (current?: CurrentOrganization) => current?.r
 
 /**
  * The organization pages in the profile menu: every organization of the person, and for the one they work in its
- * details, and for its owners and admins its members and invitations.
+ * details, and for its owners and admins its members and invitations. The first is "Manage organizations", as the
+ * switcher above it already lists the organizations.
  */
 export const organizationMenuItems = (basePath: string, path: string, current?: CurrentOrganization): ProfileMenuItem[] => {
   const item = (id: string, label: string, icon: ProfileMenuItem['icon'], target: string) => ({ id, label, icon, href: `${basePath}${target}`, active: path === target })
   return [
-    item('organizations', text('organizations'), Network, organizationsPath),
+    item('organizations', text('manageOrganizations'), Network, organizationsPath),
     ...(current?.organization ? [item('organization', text('organization'), Building2, organizationPath)] : []),
     ...(managesOrganization(current) ? [item('members', text('members'), Users, membersPath), item('invitations', text('invitations'), Mail, invitationsPath)] : []),
   ]
