@@ -1,4 +1,4 @@
-import { generateVapidKeys, vapidPrivateKeyVariable, vapidPublicKeyVariable, vapidSubjectVariable } from '@protobase/server'
+import { generateVapidKeys, vapidPrivateKeyVariable, vapidPublicKeyVariable, vapidSubjectVariable } from '@protobase/server/vapid'
 
 /**
  * Prints a fresh VAPID key pair as the two environment variables Web Push reads, and on `note` how to set the third.

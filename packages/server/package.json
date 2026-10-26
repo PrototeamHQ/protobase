@@ -16,7 +16,8 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./email": "./src/email.ts"
+    "./email": "./src/email.ts",
+    "./vapid": "./src/vapid.ts"
   },
   "types": "./src/index.ts",
   "files": [
@@ -30,7 +31,8 @@
     "access": "public",
     "exports": {
       ".": "./dist/index.js",
-      "./email": "./dist/email.js"
+      "./email": "./dist/email.js",
+      "./vapid": "./dist/vapid.js"
     },
     "types": "./dist/index.d.ts"
   },
