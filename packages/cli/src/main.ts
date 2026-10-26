@@ -6,6 +6,7 @@ import { isConnectionString, resolveConnectionUrl } from './db/connect'
 import { parseHosts } from './dev/hosts'
 import { loadNearestEnvFile } from './dev/env'
 import { resolveExtensions } from './project/extensions'
+import { placeholderSecretWarning } from './project/placeholder-secret'
 import { registerOrganizations } from './organizations/register'
 import { registerFiles } from './files/register'
 import { registerEncryption } from './encryption/register'
@@ -21,6 +22,8 @@ import { protobaseVersion } from './version/version'
 
 // Each command imports what it runs when it runs, so that --help and a command that needs little start fast.
 const out = (text: string) => process.stdout.write(text)
+
+const warn = (message: string | undefined) => message && process.stderr.write(`warning: ${message}\n`)
 
 const collect = (value: string, previous: string[]) => [...previous, value]
 
@@ -103,6 +106,7 @@ program
       },
       out,
     )
+    warn(placeholderSecretWarning(process.env))
     process.once('SIGINT', () => void server.close().then(() => process.exit(0)))
     process.once('SIGTERM', () => void server.close().then(() => process.exit(0)))
   })
@@ -168,6 +172,7 @@ program
   .argument('<bundle>', 'the bundle folder, e.g. dist, or its dist/protobase.config.js')
   .action(async (bundle: string) => {
     loadNearestEnvFile(process.cwd())
+    warn(placeholderSecretWarning(process.env))
     if (statSync(bundle).isDirectory()) await (await import('./serve/serve-dir')).serveBundleDir(bundle, process.env, out)
     else await (await import('./serve/serve-bundle')).serveBundle(bundle, process.env, out)
   })
