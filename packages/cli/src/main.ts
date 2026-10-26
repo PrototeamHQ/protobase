@@ -7,7 +7,7 @@ import { buildPlugin, pluginManifestFile } from './build/plugin-build'
 import { buildServeRuntime } from './build/serve-runtime'
 import { buildShell } from './build/shell'
 import { manifestFile } from './bundle/manifest'
-import { resolveConnectionUrl } from './db/connect'
+import { isConnectionString, resolveConnectionUrl } from './db/connect'
 import { parseHosts } from './dev/hosts'
 import { loadNearestEnvFile } from './dev/env'
 import { runDev } from './dev/run'
@@ -48,7 +48,7 @@ const program = new Command('protobase').description('Protobase command line')
 program
   .command('scaffold')
   .description('Generate or update config/<resource>/data.ts from a Postgres database')
-  .argument('[args...]', 'connection string (unless --env) followed by an optional target: all, schema, schema.table, schema.table.column')
+  .argument('[args...]', 'connection string (default: DATABASE_URL from the environment or .env) followed by an optional target: all, schema, schema.table, schema.table.column')
   .option('--env <variable>', 'read the connection string from this environment variable')
   .option('--config <dir>', 'config folder', 'config')
   .option('--yes', 'accept all proposals without asking', false)
@@ -58,9 +58,11 @@ program
   .option('--ui-section <name>', 'write only this ui.ts section (names or list), repeatable', collectSection, [])
   .option('--exclude <table>', 'skip a schema or schema.table, repeatable', collect, [])
   .action(async (args: string[], opts) => {
+    loadNearestEnvFile(process.cwd())
     const [first, ...rest] = args
-    const url = resolveConnectionUrl(opts.env ? undefined : first, opts.env)
-    const [target, ...extra] = opts.env ? args : rest
+    const fromArgument = !opts.env && first !== undefined && isConnectionString(first)
+    const url = resolveConnectionUrl(fromArgument ? first : undefined, opts.env)
+    const [target, ...extra] = fromArgument ? rest : args
     if (extra.length > 0) throw new Error(`Unexpected argument "${extra[0]}"`)
     const ui: UiSection[] = opts.ui ? ['names', 'list'] : [...opts.uiSection, ...(opts.uiList ? ['list' as const] : [])]
     await runScaffold(
@@ -80,10 +82,11 @@ program
 program
   .command('doctor')
   .description('Check a config folder against the database')
-  .argument('[connection]', 'connection string')
+  .argument('[connection]', 'connection string (default: DATABASE_URL from the environment or .env)')
   .option('--env <variable>', 'read the connection string from this environment variable')
   .option('--config <dir>', 'config folder', 'config')
   .action(async (connection: string | undefined, opts) => {
+    loadNearestEnvFile(process.cwd())
     const url = resolveConnectionUrl(connection, opts.env)
     const { errors } = await runDoctor({ url, configDir: path.resolve(opts.config) }, out)
     if (errors > 0) process.exitCode = 1

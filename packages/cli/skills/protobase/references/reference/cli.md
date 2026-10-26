@@ -27,10 +27,10 @@ The CLI reads the database with `default_transaction_read_only = on`, so it can 
 ## `scaffold`
 
 ```sh
-protobase scaffold <connection string | --env DATABASE_URL> [target] [options]
+protobase scaffold [connection string | --env VAR] [target] [options]
 ```
 
-`target` is `all` (default), `schema`, `schema.table` or `schema.table.column`. Tables are introspected from `pg_catalog`; `config/<resource>/data.ts` is created or extended.
+Without a connection string or `--env`, the URL is `DATABASE_URL`, from the environment or the nearest `.env` at or above the current directory, as `dev` reads it. `target` is `all` (default), `schema`, `schema.table` or `schema.table.column`. Tables are introspected from `pg_catalog`; `config/<resource>/data.ts` is created or extended.
 
 Protobase's own tables are left out, since they hold password hashes, OAuth tokens and signing keys: the `auth` schema, another schema holding Better Auth's `user`, `session`, `account` and `verification` tables (in `public`, only the auth store's tables), and pg-boss's `jobs` schema. A line names each one skipped; a target naming the schema scaffolds it anyway. A resource an earlier run made over one of them gets a warning to remove it.
 
@@ -78,8 +78,10 @@ After each run, declared fields are compared with the database: a column that no
 ## `doctor`
 
 ```sh
-protobase doctor <connection string | --env VAR> [--config <dir>]
+protobase doctor [connection string | --env VAR] [--config <dir>]
 ```
+
+The URL comes as for [`scaffold`](#scaffold): the connection string, the variable `--env` names, or `DATABASE_URL`, each also read from the nearest `.env`.
 
 Imports `config/index.ts` and the views of `config/*/ui.ts`, as the config module has them by convention, and checks every exported resource against the database:
 
