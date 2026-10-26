@@ -8,6 +8,7 @@ const text = defineMessages({
     wrongEmailOrPassword: 'The email or password is not right.',
     wrongPassword: 'The password is not right.',
     wrongCode: 'The code is not right.',
+    wrongOrExpiredCode: 'The code is not right, or has expired. Ask for a new one.',
     codeExpired: 'The code has expired. Ask for a new one.',
     tooManyCodes: 'Too many wrong codes. Ask for a new one.',
     wrongBackupCode: 'The backup code is not right, or was used before.',
@@ -36,6 +37,7 @@ const text = defineMessages({
     wrongEmailOrPassword: 'Het e-mailadres of wachtwoord klopt niet.',
     wrongPassword: 'Het wachtwoord klopt niet.',
     wrongCode: 'De code klopt niet.',
+    wrongOrExpiredCode: 'De code klopt niet, of is verlopen. Vraag een nieuwe aan.',
     codeExpired: 'De code is verlopen. Vraag een nieuwe aan.',
     tooManyCodes: 'Te veel verkeerde codes. Vraag een nieuwe aan.',
     wrongBackupCode: 'De back-upcode klopt niet, of is al eerder gebruikt.',
@@ -88,8 +90,10 @@ const providerText = defineMessages({
 const messages: Record<string, Id> = {
   INVALID_EMAIL_OR_PASSWORD: 'wrongEmailOrPassword',
   INVALID_PASSWORD: 'wrongPassword',
-  INVALID_OTP: 'wrongCode',
+  // Better Auth drops an expired emailed code before it checks one, so a late code is mostly this and seldom OTP_EXPIRED.
+  INVALID_OTP: 'wrongOrExpiredCode',
   OTP_EXPIRED: 'codeExpired',
+  OTP_HAS_EXPIRED: 'codeExpired',
   TOO_MANY_ATTEMPTS: 'tooManyCodes',
   INVALID_CODE: 'wrongCode',
   INVALID_BACKUP_CODE: 'wrongBackupCode',

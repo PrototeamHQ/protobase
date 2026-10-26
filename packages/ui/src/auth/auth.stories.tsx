@@ -334,7 +334,7 @@ export const SignUpDetailsPasswordOnly: StoryObj<SignUpDetailsFormProps> = {
 }
 
 export const EmailCodeWrong: StoryObj<EmailCodeFormProps> = {
-  args: { email: 'sanne@veldhuis-supply.example', onSubmit: fn(), onResend: fn(), onBack: fn(), error: 'The code is not right.' },
+  args: { email: 'sanne@veldhuis-supply.example', onSubmit: fn(), onResend: fn(), onBack: fn(), error: 'The code is not right, or has expired. Ask for a new one.' },
   render: (args) => <EmailCodeForm {...args} />,
 }
 

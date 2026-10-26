@@ -6,6 +6,8 @@ import { authMessage, providerMessage, signInMessage, staffSignInMessage } from 
 describe('auth messages', () => {
   it('words the codes of the sign-in steps, and keeps the server message for anything else', () => {
     expect(authMessage(new AuthError('Invalid code', 401, 'INVALID_CODE'))).toBe('The code is not right.')
+    expect(authMessage(new AuthError('Invalid OTP', 400, 'INVALID_OTP'))).toBe('The code is not right, or has expired. Ask for a new one.')
+    expect(authMessage(new AuthError('OTP has expired', 400, 'OTP_HAS_EXPIRED'))).toBe('The code has expired. Ask for a new one.')
     expect(authMessage(new AuthError('Too many failed verification attempts.', 429, 'ACCOUNT_TEMPORARILY_LOCKED'))).toBe('Too many wrong codes. Wait 15 minutes and try again.')
     expect(authMessage(new AuthError('Too many requests', 429))).toBe('Too many attempts. Wait a minute and try again.')
     expect(authMessage(new AuthError('The password you entered has been compromised.', 400, 'PASSWORD_COMPROMISED'))).toBe('This password appears in a known data breach. Choose a different one.')
