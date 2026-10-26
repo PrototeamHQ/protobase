@@ -5,6 +5,7 @@ import { connect } from '../db/connect'
 import { introspect } from '../db/introspect'
 import { readExistingResources } from './existing-config'
 import { planScaffold, type FileChange } from './plan'
+import type { ProtobaseSchema } from './protobase-tables'
 import { acceptAll, interactive } from './prompt'
 import { parseTarget } from './targets'
 import type { UiSection } from './ui-file'
@@ -25,6 +26,9 @@ const readText = (file: string) =>
     if (error.code === 'ENOENT') return undefined
     throw error
   })
+
+const skippedLine = ({ schema, what, tables }: ProtobaseSchema) =>
+  `skipped ${schema === 'public' ? tables.map((table) => `public.${table.name}`).join(', ') : `schema ${schema}`}, Protobase's ${what}; pass "${schema}" as the target to scaffold it anyway\n`
 
 const write = async ({ path: file, after }: FileChange) => {
   await mkdir(path.dirname(file), { recursive: true })
@@ -65,6 +69,7 @@ export const runScaffold = async (options: ScaffoldOptions, out: (text: string) 
   }
   if (plan.changes.length === 0) out('Nothing to do, config is up to date.\n')
   else if (options.dryRun) out(`${plan.changes.length} file(s) would change; nothing was written (--dry-run).\n`)
+  for (const schema of plan.skipped) out(skippedLine(schema))
   for (const warning of plan.warnings) out(`warning: ${warning}\n`)
   if (plan.drift.length > 0) {
     out('\nDrift:\n')

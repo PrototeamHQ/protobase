@@ -32,6 +32,8 @@ protobase scaffold <connection string | --env DATABASE_URL> [target] [options]
 
 `target` is `all` (default), `schema`, `schema.table` or `schema.table.column`. Tables are introspected from `pg_catalog`; `config/<resource>/data.ts` is created or extended.
 
+Protobase's own tables are left out, since they hold password hashes, OAuth tokens and signing keys: the `auth` schema, another schema holding Better Auth's `user`, `session`, `account` and `verification` tables (in `public`, only the auth store's tables), and pg-boss's `jobs` schema. A line names each one skipped; a target naming the schema scaffolds it anyway. A resource an earlier run made over one of them gets a warning to remove it.
+
 | Option | Effect |
 | --- | --- |
 | `--config <dir>` | config folder, default `config` |

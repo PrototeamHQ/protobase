@@ -9,6 +9,7 @@ import { findField, type ExistingResource } from './existing-config'
 import { ensureExports, type Registration } from './index-file'
 import { assignNames } from './resource-names'
 import { planResource, type Decision } from './resource-plan'
+import { protobaseSchemas, type ProtobaseSchema } from './protobase-tables'
 import type { Decide } from './prompt'
 import { dependencyOrder } from './table-order'
 import { isExcluded, matchesTarget, type Target } from './targets'
@@ -35,6 +36,8 @@ export type ScaffoldPlan = {
   changes: FileChange[]
   drift: Drift[]
   warnings: string[]
+  // Protobase's own tables, left out unless the target names their schema.
+  skipped: ProtobaseSchema[]
   // "schema.table" of the `live` tables whose resource has `.live()` now.
   live: string[]
 }
@@ -55,13 +58,18 @@ const change = (file: string, before: string | undefined, after: string): FileCh
 
 export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> => {
   const { configDir, existing, ui } = input
-  const names = assignNames(input.tables, existing)
+  const skipped = protobaseSchemas(input.tables.filter((table) => matchesTarget(input.target, table)), input.target)
+  const isProtobase = (table: DbTable) => skipped.some((schema) => schema.tables.includes(table))
+  // Protobase's tables take no names, so an app's `session` stays `session` next to the auth store's.
+  const names = assignNames(input.tables.filter((table) => !isProtobase(table)), existing)
   const byTable = new Map(existing.map((resource) => [resource.table, resource]))
   const context = (table: DbTable): ProposalContext => ({
     table,
     resourceNameOf: (schema, name) => names.get(`${schema}.${name}`) ?? name,
   })
-  const targets = dependencyOrder(input.tables.filter((table) => matchesTarget(input.target, table) && !isExcluded(input.excludes, table)))
+  const targets = dependencyOrder(
+    input.tables.filter((table) => matchesTarget(input.target, table) && !isExcluded(input.excludes, table) && !isProtobase(table)),
+  )
 
   const changes: FileChange[] = []
   const drift: Drift[] = []
@@ -77,6 +85,11 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
     const target = { resource, identifier, tableName: table.name, fields: uiFields(table, current, decisions) }
     changes.push(...change(file, before, before === undefined ? renderUiFile(target, ui) : addUiSections(before, target, ui)))
     if (before === undefined) registrations.push({ from: `./${dir}/ui`, names: [viewName(identifier)] })
+  }
+
+  for (const resource of existing) {
+    const table = input.tables.find((each) => tableKey(each) === resource.table)
+    if (table && isProtobase(table)) warnings.push(`${resource.table}: one of Protobase's own tables, which ${resource.dir}/data.ts declares; remove that resource`)
   }
 
   for (const table of targets) {
@@ -122,7 +135,7 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
   if (wanted.length > 0 || indexBefore === undefined) {
     changes.push(...change(indexFile, indexBefore, ensureExports(indexBefore ?? '', wanted)))
   }
-  return { changes, drift, warnings, live }
+  return { changes, drift, warnings, skipped, live }
 }
 
 // With no config/index.ts yet, every resource already on disk is registered too.

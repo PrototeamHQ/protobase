@@ -50,6 +50,16 @@ describe.skipIf(!reachable)('scaffold against the ERP database', () => {
     expect(index).toContain("export { orderLinesView } from './order_lines/ui'")
   })
 
+  it("leaves out Protobase's auth store and job queue unless the target names them", async () => {
+    const lines: string[] = []
+    const plan = await runScaffold({ ...options(), excludes: ['public'], dryRun: true }, (text) => lines.push(text))
+    expect(plan.skipped.map((each) => each.schema)).toEqual(['auth', 'jobs'])
+    expect(plan.changes.filter((c) => /\/(account|jwks|session|user|job|queue)\//.test(c.path))).toEqual([])
+    expect(lines).toContain('skipped schema auth, Protobase\'s auth store; pass "auth" as the target to scaffold it anyway\n')
+    const auth = await runScaffold({ ...options(), target: 'auth', excludes: [], dryRun: true }, () => {})
+    expect(auth.changes.map((c) => path.basename(path.dirname(c.path)))).toContain('jwks')
+  })
+
   it('is a no-op when re-run', async () => {
     const plan = await run()
     expect(plan.changes).toEqual([])
