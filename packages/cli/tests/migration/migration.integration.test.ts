@@ -7,6 +7,7 @@ import { f, resource } from '@protobase/schema'
 import { mergeConfig, webhooks, type ProjectConfig } from '@protobase/server'
 import { migrationProject } from '../../src/migration/load-project'
 import { migrationParts } from '../../src/migration/parts'
+import { signInGuide } from '../../src/migration/summary'
 import { writeMigrations } from '../../src/migration/write-migrations'
 import { bin, root, run } from '../support/auth-project'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
@@ -82,10 +83,12 @@ export const prune = defineJob({ name: 'prune-notes', run: () => {} })
 export default { config: { notes }, jobs: { prune } }
 `)
     const first = await migration()
-    expect([first.status, first.stdout, first.stderr]).toEqual([0, "wrote db/migrations/001_jobs.sql\napply them with the project's migrations\n", ''])
+    // Without auth there is no sign-in, which the command says rather than leave it to "up to date".
+    const noSignIn = `no sign-in is configured, so nothing was written for it: export auth and authenticate from protobase.config.ts, see ${signInGuide}\n`
+    expect([first.status, first.stdout, first.stderr]).toEqual([0, `wrote db/migrations/001_jobs.sql\napply them with the project's migrations\n${noSignIn}`, ''])
     expect(await readFile(path.join(projectDir, 'db/migrations/001_jobs.sql'), 'utf8')).toMatch(/^-- The jobs schema this version of Protobase needs, written by `protobase migration`\./)
     await applyAll()
-    expect((await migration()).stdout).toBe('the database is up to date; nothing to write\n')
+    expect((await migration()).stdout).toBe(`the database is up to date; nothing to write\n${noSignIn}`)
   }, 60_000)
 
   it('writes the change capture of resources with events as the next migration, then nothing once applied', async () => {

@@ -3,6 +3,7 @@ import type { Command } from 'commander'
 import { resolveExtensions } from '../project/extensions'
 import { loadMigrationProject } from './load-project'
 import { migrationParts } from './parts'
+import { migrationSummary } from './summary'
 import { writeMigrations } from './write-migrations'
 
 const out = (text: string) => process.stdout.write(text)
@@ -19,7 +20,7 @@ export const registerMigration = (program: Command) => {
       const project = await loadMigrationProject(process.cwd(), resolveExtensions(opts.extend))
       try {
         const files = await writeMigrations(migrationParts(project), path.resolve(opts.dir))
-        out(files.length > 0 ? files.map((file) => `wrote ${path.relative(process.cwd(), file)}\n`).join('') + "apply them with the project's migrations\n" : 'the database is up to date; nothing to write\n')
+        out(migrationSummary(files, process.cwd(), Boolean(project.auth)))
       } finally {
         await project.close()
       }
