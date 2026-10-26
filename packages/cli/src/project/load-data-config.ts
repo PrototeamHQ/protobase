@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { configExports } from '@protobase/server'
+import { configExports } from '@protobase/server/config-exports'
 import { conventionConfig } from './convention'
 import { uiDirs } from './convention-files'
 import { importProjectFiles } from './import-project-file'
