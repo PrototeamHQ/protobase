@@ -7,7 +7,8 @@ const describeTarget = (url: string) => {
   return `${hostname}:${port || 5432}${pathname}`
 }
 
-// A hint to run the project's db:up script when it has one, whichever package manager runs it.
+// A hint to run the project's db:up script when it has one, whichever package manager runs it. Only for a refused
+// connection: a missing database or a rejected password is a Postgres that runs, often another project's.
 const startHint = async (projectDir: string) => {
   const manifest = await readFile(path.join(projectDir, 'package.json'), 'utf8').catch((error: NodeJS.ErrnoException) => {
     if (error.code === 'ENOENT') return undefined
@@ -31,15 +32,15 @@ const reasons: Record<string, string> = {
 
 export const checkDatabase = async (url: string, projectDir: string) => {
   const sql = connect(url, { connectTimeout: 3 })
-  const failure = await sql`select 1`.then(
+  const code = await sql`select 1`.then(
     () => undefined,
     (error: NodeJS.ErrnoException) => {
       if (!error.code || !(error.code in reasons)) throw error
-      return reasons[error.code]
+      return error.code
     },
   )
   await sql.end()
-  if (failure) {
-    throw new Error(`Cannot reach the database at ${describeTarget(url)}: ${failure}.${await startHint(projectDir)}`)
-  }
+  if (!code) return
+  const hint = code === 'ECONNREFUSED' ? await startHint(projectDir) : ''
+  throw new Error(`Cannot reach the database at ${describeTarget(url)}: ${reasons[code]}.${hint}`)
 }
