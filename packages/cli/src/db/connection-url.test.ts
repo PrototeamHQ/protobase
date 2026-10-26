@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { isConnectionString, resolveConnectionUrl } from './connect'
+import { isConnectionString, resolveConnectionUrl } from './connection-url'
 
 afterEach(() => {
   vi.unstubAllEnvs()
