@@ -6,8 +6,9 @@ import { getMigrations } from 'better-auth/db/migration'
 import pg from 'pg'
 import postgres from 'postgres'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { PostgresDialect } from 'kysely'
-import { authSchemaDrift, checkAuthSchema, createAuth, createOrganization, createUser, unauthorized, type AdminAuth } from '@protobase/server'
+import { Kysely, PostgresDialect } from 'kysely'
+import { f, resource } from '@protobase/schema'
+import { authSchemaDrift, authSchemaMigration, checkAuthSchema, checkResourcesOutsideAuthStore, createAuth, createOrganization, createUser, unauthorized, type AdminAuth } from '@protobase/server'
 import { writeAuthMigration } from '../../src/auth/write-migration'
 import { startServe } from '../../src/serve/lifecycle'
 import { root, run, typescriptArgs } from '../support/auth-project'
@@ -277,6 +278,46 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const auth: AdminAuth = authOn(databaseUrl)
     const project = { config: {}, auth, authenticate: () => Promise.reject(unauthorized('no')) }
     await expect(startServe({ project, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/The auth store has no auth_migrations table.*`protobase auth migration`/)
+  })
+})
+
+// The routes that read tables, the API, the Supabase-compatible endpoints, realtime and MCP, read the app's resources
+// only, so the store is kept from all of them by refusing a resource over any of its tables.
+describe.skipIf(!reachable)('the auth store and the app\'s resources', () => {
+  const over = (table: string) => resource(table.replace('.', '_')).table(table).fields({ id: f.text() }).primaryKey((r) => r.id).toModel()
+  // A migrated store in `schemaName`, or the search path, and the app's own table `orders`.
+  const migrated = async ({ schemaName, users }: { schemaName?: string; users?: { table: string } } = {}) => {
+    const databaseUrl = await createDatabase()
+    const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
+    pools.push(pool)
+    if (schemaName) await pool.query(`create schema ${schemaName}`)
+    const database = schemaName ? { dialect: new PostgresDialect({ pool }), type: 'postgres' as const, schemaName } : pool
+    const auth = createAuth({ database, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, ...(users && { users }) })
+    await pool.query((await authSchemaMigration(auth))!)
+    await pool.query('create table orders (id text primary key)')
+    const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
+    return { databaseUrl, auth, db }
+  }
+
+  it('refuses a resource over any table of a store in the search path, and takes the app\'s own', async () => {
+    const { auth, db } = await migrated({ users: { table: 'people' } })
+    await expect(checkResourcesOutsideAuthStore(db, [over('orders')], auth)).resolves.toBeUndefined()
+    for (const table of ['people', 'session', 'oauth_consent', 'member', 'auth_migrations', 'public.jwks']) {
+      await expect(checkResourcesOutsideAuthStore(db, [over('orders'), over(table)], auth)).rejects.toThrow(/Resources over the auth store's tables, which hold password hashes, sessions and tokens: \w+ \(public\.\w+\)/)
+    }
+  })
+
+  it('refuses a resource over a table of a store in its own schema, and takes a table of the same name elsewhere', async () => {
+    const { auth, db } = await migrated({ schemaName: 'auth' })
+    await db.schema.createTable('session').addColumn('id', 'text', (column) => column.primaryKey()).execute()
+    await expect(checkResourcesOutsideAuthStore(db, [over('session'), over('public.session')], auth)).resolves.toBeUndefined()
+    await expect(checkResourcesOutsideAuthStore(db, [over('auth.user')], auth)).rejects.toThrow('auth_user (auth.user)')
+  })
+
+  it('keeps protobase serve from starting with a resource over the store', async () => {
+    const { databaseUrl, auth } = await migrated()
+    const project = { config: { session: resource('session').table('session').fields({ id: f.text() }).primaryKey((r) => r.id) }, auth, authenticate: () => Promise.reject(unauthorized('no')) }
+    await expect(startServe({ project, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/Resources over the auth store's tables.*session \(public\.session\)/)
   })
 })
 

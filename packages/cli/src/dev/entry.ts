@@ -1,6 +1,6 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkNotificationsSchema, checkQueryRunner, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
+import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkNotificationsSchema, checkQueryRunner, checkResourcesOutsideAuthStore, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
 import { projectIcons } from '../build/app-icons'
 import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
@@ -27,8 +27,9 @@ if (project.auth && !store.__protobaseAuthSchemaChecked) {
   store.__protobaseAuthSchemaChecked = true
 }
 
-// On every load, since editing the config can give a resource events or history whose triggers the database lacks, or
-// comments whose table it lacks, or rollups and formulas whose columns it lacks.
+// On every load, since editing the config can add a resource over a table of the auth store, give a resource events or
+// history whose triggers the database lacks, or comments whose table it lacks, or rollups and formulas whose columns it lacks.
+if (project.auth) await checkResourcesOutsideAuthStore(db, resources.map((resource) => resource.toModel()), project.auth)
 await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
 await checkComments(db, resources.map((resource) => resource.toModel()))
 await checkComputed(db, resources.map((resource) => resource.toModel()))

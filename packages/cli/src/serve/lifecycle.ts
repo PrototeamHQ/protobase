@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import pg from 'pg'
 import type { Db } from '@protobase/query'
-import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkNotificationsSchema, checkQueryRunner, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
+import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkNotificationsSchema, checkQueryRunner, checkResourcesOutsideAuthStore, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { createPgDb } from '../project/pg-db'
 import { apiWebSocketServer } from '../project/api-websocket-server'
@@ -59,6 +59,7 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
   const db = project.db ?? ownDb!
   const { resources, views } = configExports(project.config)
   const startJobsAndListen = async () => {
+    if (env.startupChecks && project.auth) await checkResourcesOutsideAuthStore(db, resources.map((resource) => resource.toModel()), project.auth)
     if (env.startupChecks) await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
     if (env.startupChecks) await checkComments(db, resources.map((resource) => resource.toModel()))
     if (env.startupChecks) await checkComputed(db, resources.map((resource) => resource.toModel()))
