@@ -12,6 +12,8 @@ export type ExistingField = {
   // First builder call, e.g. "integer" for `f.integer().optional()`.
   type?: string
   enumValues?: string[]
+  // Has `.sortable()`, so a list may sort by it.
+  sortable?: boolean
 }
 
 export type ExistingResource = {
@@ -45,11 +47,13 @@ const describeField = (name: string, initializer: Node | undefined): ExistingFie
   let column: string | undefined
   let type: string | undefined
   let enumValues: string[] | undefined
+  let sortable = false
   let node: Node = initializer
   while (Node.isCallExpression(node)) {
     const expression = node.getExpression()
     if (!Node.isPropertyAccessExpression(expression)) break
     if (expression.getName() === 'column') column ??= stringArg(node)
+    if (expression.getName() === 'sortable') sortable = true
     if (expression.getExpression().getText() === 'f') {
       type = expression.getName()
       const arg = node.getArguments()[0]
@@ -66,6 +70,7 @@ const describeField = (name: string, initializer: Node | undefined): ExistingFie
     ignored: false,
     ...(type && { type }),
     ...(enumValues && { enumValues }),
+    ...(sortable && { sortable }),
   }
 }
 

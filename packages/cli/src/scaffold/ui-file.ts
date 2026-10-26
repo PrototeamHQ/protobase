@@ -8,6 +8,8 @@ export type UiSection = 'names' | 'list'
 export type UiField = {
   name: string
   type: string
+  // Has `.sortable()`, so the list may sort by it.
+  sortable: boolean
   role: 'key' | 'tenant' | 'softDelete' | 'plain'
 }
 
@@ -21,6 +23,7 @@ export type UiTarget = {
 }
 
 const auditField = /^(created|updated)(At|On|_at|_on)$/
+const createdField = /^(created|inserted)(At|On|_at|_on)$/
 const longText = /^(notes?|description|body|comment|comments)$/
 const listSize = 5
 const secretWords = new Set(['password', 'passwd', 'hash', 'token', 'secret', 'salt', 'otp'])
@@ -33,20 +36,38 @@ export const isSecretLike = (name: string) => {
   return words.some((word) => secretWords.has(word)) || secretPairs.some((pair) => joined.includes(pair))
 }
 
-// The first useful fields: plain scalars first, then relations, falling back to the key; never a secret-like one.
+const relationsShown = 2
+
+/**
+ * The first useful fields: the key, unless it is a uuid nobody reads, then the records a record points at, such as an
+ * order line's order, then plain scalars, never a secret-like one. Without any of them, the key after all.
+ */
 export const listColumns = (fields: UiField[]) => {
+  const keys = fields.filter((f) => f.role === 'key' && f.type !== 'uuid')
   const plain = fields.filter((f) => f.role === 'plain' && f.type !== 'json' && !auditField.test(f.name) && !isSecretLike(f.name))
+  const relations = plain.filter((f) => f.type === 'relation').slice(0, relationsShown)
   const scalars = plain.filter((f) => f.type !== 'relation' && !longText.test(f.name))
-  const relations = plain.filter((f) => f.type === 'relation')
-  const picked = [...scalars.slice(0, listSize), ...(scalars.length < 3 ? relations : [])].slice(0, listSize)
+  const picked = [...keys, ...relations, ...scalars].slice(0, listSize)
   return (picked.length > 0 ? picked : fields.filter((f) => f.role === 'key')).map((f) => f.name)
+}
+
+/**
+ * The newest records first, by the sortable date the records were created on, else by another sortable date. Without
+ * one the list keeps the API's order, by key.
+ */
+export const listSort = (fields: UiField[]) => {
+  const dates = fields.filter((f) => f.sortable && (f.type === 'timestamp' || f.type === 'date'))
+  return (dates.find((f) => createdField.test(f.name)) ?? dates[0])?.name
 }
 
 export const viewName = (identifier: string) => `${identifier}View`
 
 const sectionText: Record<UiSection, (target: UiTarget) => string> = {
   names: (t) => `.names({ singular: '${humanizeSingular(t.tableName)}', plural: '${humanize(t.tableName)}' })`,
-  list: (t) => `.list((r) => ({ columns: [${listColumns(t.fields).map((n) => `r.${n}`).join(', ')}] }))`,
+  list: (t) => {
+    const sort = listSort(t.fields)
+    return `.list((r) => ({ columns: [${listColumns(t.fields).map((n) => `r.${n}`).join(', ')}]${sort ? `, sort: [[r.${sort}, 'desc']]` : ''} }))`
+  },
 }
 
 const lines = (sections: readonly UiSection[], target: UiTarget) =>

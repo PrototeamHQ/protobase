@@ -44,6 +44,8 @@ Protobase's own tables are left out, since they hold password hashes, OAuth toke
 
 Interactively, each new column shows its proposal: accept, edit (name, type) or ignore (writes `field: null`; key columns cannot be ignored).
 
+The list `--ui` writes shows five columns at most: the key unless it is a uuid, up to two relations, then the other fields but long text, json and audit timestamps. It sorts newest first by a sortable `created_at` (or `inserted_at`, `createdAt`, ...), else by another sortable date or timestamp, else not at all.
+
 ### Inference
 
 | Database | Field |

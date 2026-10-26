@@ -12,8 +12,8 @@ export const uiFields = (table: DbTable, existing: ExistingResource | undefined,
     const declared = existing && findField(existing, column.name)
     const decided = decisions.find((d) => d.proposal.column === column.name)
     const resolved = declared
-      ? { name: declared.name, type: declared.type ?? 'text', ignored: declared.ignored }
-      : decided && { name: decided.proposal.name, type: decided.proposal.type, ignored: decided.ignored }
+      ? { name: declared.name, type: declared.type ?? 'text', sortable: declared.sortable ?? false, ignored: declared.ignored }
+      : decided && { name: decided.proposal.name, type: decided.proposal.type, sortable: decided.proposal.sortable, ignored: decided.ignored }
     if (!resolved || resolved.ignored) return []
     const role = key.includes(column.name)
       ? 'key'
@@ -22,6 +22,6 @@ export const uiFields = (table: DbTable, existing: ExistingResource | undefined,
         : isSoftDeleteColumn(table, column.name)
           ? 'softDelete'
           : 'plain'
-    return [{ name: resolved.name, type: resolved.type, role }]
+    return [{ name: resolved.name, type: resolved.type, sortable: resolved.sortable, role }]
   })
 }
