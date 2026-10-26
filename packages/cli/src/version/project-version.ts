@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import semver from 'semver'
 import { findPackageDirSync } from '../build/packages/package-dir'
 import { protobaseVersion } from './version'
 
@@ -18,14 +19,15 @@ export const projectProtobaseVersion = (projectDir: string): string | undefined 
   return undefined
 }
 
-const major = (version: string) => version.split('.')[0]
-
 /**
- * Refuses a project of another Protobase major than this CLI's, the one version check the CLI makes: within a major a
- * CLI runs every project, whatever its minor. Outside a project, or before its install, there is nothing to check.
+ * Refuses a project whose Protobase version this CLI is not compatible with, the one version check the CLI makes: the
+ * CLI's version must be in the caret range of the project's, so from 1.0 on the same major and below 1.0, where a minor
+ * may break, the same minor, and never older. Outside a project, or before its install, there is nothing to check.
  */
-export const checkProjectMajor = (projectDir: string, cliVersion = protobaseVersion) => {
+export const checkProjectVersion = (projectDir: string, cliVersion = protobaseVersion) => {
   const project = projectProtobaseVersion(projectDir)
-  if (project === undefined || major(project) === major(cliVersion)) return
-  throw new Error(`This project is on Protobase ${project}, and this CLI is Protobase ${cliVersion}: run it with a Protobase ${major(project)}.x CLI`)
+  if (project === undefined) return
+  const range = `^${project}`
+  if (semver.satisfies(cliVersion, range)) return
+  throw new Error(`This project is on Protobase ${project}, and this CLI is Protobase ${cliVersion}: run it with a Protobase ${range} CLI`)
 }

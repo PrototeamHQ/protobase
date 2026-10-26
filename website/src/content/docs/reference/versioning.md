@@ -55,13 +55,13 @@ Running the workflow by hand with a tag (`gh workflow run release.yml -f tag=v0.
 
 ## Bundles and runtimes
 
-The CLI makes one version check, when it starts: the project in the current directory, by the `@protobase` packages installed there, must be of the CLI's own major version. A 0.x CLI runs every 0.x project, whatever its minor, and refuses a 1.x one before any command runs:
+The CLI makes one version check, when it starts: its own version must be in the caret range of the project's, the version of the `@protobase` packages installed in the current directory, which semver calls compatible with it. From 1.0 on that is the same major, and below 1.0, where a minor may break, the same minor, never older than the project's. A 0.14.2 CLI runs a 0.14.0 project and refuses a 0.15.0 or a 1.2.0 one before any command runs:
 
 ```
-error: This project is on Protobase 1.2.0, and this CLI is Protobase 0.14.2: run it with a Protobase 1.x CLI
+error: This project is on Protobase 1.2.0, and this CLI is Protobase 0.14.2: run it with a Protobase ^1.2.0 CLI
 ```
 
-Within a major the CLI stays backwards compatible, so a platform builds every app with the newest CLI of the app's major. Nothing else compares versions: not the build, not the serve runtime. `protobase build` writes the version the project is pinned to, the `@protobase/cli` its lockfile installed, into [the manifest](/reference/cli/#the-manifest) as `protobase`, whichever CLI built the bundle, and a host serves the bundle on the runtime of that version. The check is `checkProjectMajor` in `packages/cli/src/version/project-version.ts`.
+Within its caret range the CLI stays backwards compatible, so a platform builds every app with the newest CLI in the caret range of the app's version. Nothing else compares versions: not the build, not the serve runtime. `protobase build` writes the version the project is pinned to, the `@protobase/cli` its lockfile installed, into [the manifest](/reference/cli/#the-manifest) as `protobase`, whichever CLI built the bundle, and a host serves the bundle on the runtime of that version. The check is `checkProjectVersion` in `packages/cli/src/version/project-version.ts`.
 
 ## Plugins
 

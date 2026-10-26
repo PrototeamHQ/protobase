@@ -20,7 +20,7 @@ import type { UiSection } from './scaffold/ui-file'
 import { ExitSignal } from './exit-signal'
 import { errorMessage } from './error-message'
 import { protobaseVersion } from './version/version'
-import { checkProjectMajor } from './version/project-version'
+import { checkProjectVersion } from './version/project-version'
 
 // Each command imports what it runs when it runs, so that --help and a command that needs little start fast.
 const out = (text: string) => process.stdout.write(text)
@@ -39,7 +39,7 @@ const collectSection = (value: string, previous: UiSection[]) => [...previous, u
 export const program = new Command('protobase').description('Protobase command line').version(protobaseVersion, '-v, --version', 'print the Protobase version')
 
 // Before any command runs; --help and --version run anywhere.
-program.hook('preAction', () => checkProjectMajor(process.cwd()))
+program.hook('preAction', () => checkProjectVersion(process.cwd()))
 
 program
   .command('scaffold')
