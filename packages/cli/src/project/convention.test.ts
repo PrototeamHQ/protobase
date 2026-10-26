@@ -13,4 +13,8 @@ describe('conventionConfig', () => {
     const orders = { resource: 'orders' }
     expect(conventionConfig({ orders }, [])).toEqual({ orders })
   })
+  it('puts the index exports in the order its source declares, then any it could not see', () => {
+    const [vehicles, jobs, customers, other] = [{}, {}, {}, {}]
+    expect(Object.keys(conventionConfig({ customers, jobs, other, vehicles }, [], ['vehicles', 'jobs', 'customers', 'gone']))).toEqual(['vehicles', 'jobs', 'customers', 'other'])
+  })
 })

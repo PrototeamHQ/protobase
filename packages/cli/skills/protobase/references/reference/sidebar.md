@@ -4,7 +4,7 @@
 
 How sidebar entries are grouped, and how an entry lists recent records with status dots.
 
-The admin's sidebar has one entry per resource view, grouped by `nav.group` (default: the database schema, with no group name for `public`) and sorted by `nav.order`. A view's [named lists](ui-config.md#more-than-one-list) are entries of their own, placed by their own `nav`. `nav({ hidden: true })` leaves a resource out, for line and link tables; a resource in the [user menu](user-menu.md) is left out too. [Composed pages](layouts.md#setup) have entries of their own, and groups that hold pages come first. A [remote resource](remote-resources.md) has its entry where its source's view places it; while its source cannot be reached, it sits under the source's label, marked "Cannot reach" with the source's name.
+The admin's sidebar has one entry per resource view, grouped by `nav.group` (default: the database schema, with no group name for `public`) and sorted by `nav.order`, then by the order `config/index.ts` exports them, in `protobase dev` and in a built bundle alike. The app opens on the first entry. A view's [named lists](ui-config.md#more-than-one-list) are entries of their own, placed by their own `nav`. `nav({ hidden: true })` leaves a resource out, for line and link tables; a resource in the [user menu](user-menu.md) is left out too. [Composed pages](layouts.md#setup) have entries of their own, and groups that hold pages come first. A [remote resource](remote-resources.md) has its entry where its source's view places it; while its source cannot be reached, it sits under the source's label, marked "Cannot reach" with the source's name.
 
 ## The current organization
 

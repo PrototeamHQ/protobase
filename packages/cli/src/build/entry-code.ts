@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { moduleFile } from '../module-file'
+import { exportOrder } from './export-order'
 import { uiDirs } from '../project/convention-files'
 import type { Extension } from '../project/extensions'
 import { functionFiles } from '../project/functions-folder'
@@ -25,7 +26,8 @@ export const bundleEntryCode = (projectDir: string, extensions: Extension[] = []
       `import { conventionConfig } from ${JSON.stringify(conventionModule)}`,
       `import * as index from ${JSON.stringify(index)}`,
       ...dirs.map((dir, i) => `import * as ui${i} from ${JSON.stringify(path.join(configDir, dir, 'ui.ts'))}`),
-      `const convention = conventionConfig(index, [${dirs.map((dir, i) => `[${JSON.stringify(dir)}, ui${i}]`).join(', ')}])`,
+      // The namespace sorts the index's names; the convention keeps the order the source declares, as in `protobase dev`
+      `const convention = conventionConfig(index, [${dirs.map((dir, i) => `[${JSON.stringify(dir)}, ui${i}]`).join(', ')}], ${JSON.stringify(exportOrder(index))})`,
     )
   } else {
     lines.push('const convention = undefined')

@@ -21,7 +21,7 @@ describe('bundleEntryCode', () => {
     const code = bundleEntryCode(dir)
     expect(code).toContain('const project = {}')
     expect(code).toContain(`import * as index from ${JSON.stringify(path.join(dir, 'config/index.ts'))}`)
-    expect(code).toContain('conventionConfig(index, [["customers", ui0], ["orders", ui1]])')
+    expect(code).toContain('conventionConfig(index, [["customers", ui0], ["orders", ui1]], [])')
     expect(code).not.toContain('lines')
     expect(code).toContain(`export default mergeConfig(named({ ...project, config: project.config ?? convention, functions: project.functions ?? functions }, "config/index.ts"))`)
   })
@@ -31,7 +31,7 @@ describe('bundleEntryCode', () => {
     const code = bundleEntryCode(dir)
     expect(code).toContain(`import * as custom from ${JSON.stringify(path.join(dir, 'protobase.config.ts'))}`)
     expect(code).toContain('const project = custom.default ?? {}')
-    expect(code).toContain('conventionConfig(index, [])')
+    expect(code).toContain('conventionConfig(index, [], [])')
   })
 
   it('takes protobase.config.ts alone when there is no config folder', async () => {

@@ -51,6 +51,23 @@ describe('buildConfigBundle', () => {
     expect(Object.keys(project.config).sort()).toEqual(['things', 'things:archivedThings', 'thingsView'])
   })
 
+  it("keeps config/index.ts's export order, which picks the table the app opens on", async () => {
+    const table = (name: string) => `import { f, resource } from '@protobase/schema'
+export const ${name} = resource('${name}').table('${name}').fields({ id: f.integer() }).primaryKey((r) => r.id)
+`
+    projectDir = await createProject({
+      'config/index.ts': `export { vehicles } from './vehicles'\nexport * from './jobs'\nexport { customers } from './customers'\n`,
+      'config/vehicles.ts': table('vehicles'),
+      'config/jobs.ts': `${table('serviceJobs')}${table('appointments').replace(/^import.*\n/, '')}`,
+      'config/customers.ts': table('customers'),
+    })
+    const outFile = path.join(projectDir, 'dist/protobase.config.js')
+    await buildConfigBundle({ projectDir, outFile })
+
+    const { default: project } = await import(pathToFileURL(outFile).href)
+    expect(Object.keys(project.config)).toEqual(['vehicles', 'serviceJobs', 'appointments', 'customers'])
+  })
+
   const nonAscii = {
     'config/index.ts': `export { things } from './things/data'\nexport { thingsView } from './things/ui'\n`,
     'config/things/data.ts': things,
