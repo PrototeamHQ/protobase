@@ -7,6 +7,7 @@ import { goTrueIssuer, goTrueKeyPair } from '../gotrue/keys'
 import { goTrueSessionsPlugin } from '../gotrue/sessions-plugin'
 import { endReplacedSession } from './end-replaced-session'
 import { authBasePath } from './auth-base-path'
+import { authLogger } from './auth-logger'
 import { cookiePrefixOf } from './cookie-prefix'
 import { mobileRequests, type MobileRequests } from './mobile-requests'
 import { passwordLength } from './new-account-password'
@@ -298,6 +299,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   return {
     appName,
     database: options.database,
+    logger: authLogger,
     baseURL: multiHostBaseURL(options.baseURL, origins),
     basePath: authBasePath,
     secret: options.secret,
