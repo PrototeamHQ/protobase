@@ -17,7 +17,7 @@ const db = projectDb(project, projectDir)
 const { resources, views } = configExports(project.exports)
 
 if (!project.authenticate) {
-  throw new Error('No authenticator: export `authenticate` (and `auth`) from protobase.config.ts; see https://docs.protobase.net/reference/auth/')
+  throw new Error('No authenticator: export `authenticate` (and `auth`) from protobase.config.ts; see https://docs.protobase.net/guides/existing-database/#4-add-sign-in')
 }
 
 // Once per server start, so a behind auth schema stops startup with the command that writes its migration.
