@@ -16,6 +16,7 @@ import { layoutCheck } from '../build/layout-check'
 import { checkDatabase } from './check-database'
 import { alsoOnIpv6, checkPortFree, devHost } from './loopback'
 import { loginLine } from './login-line'
+import { startupLogger } from './startup-logger'
 import { stopDevJobs } from './dev-jobs'
 import { loadNearestEnvFile } from './env'
 import { apiWebSockets } from './api-websockets'
@@ -94,9 +95,11 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   process.env.PROTOBASE_PROJECT = options.projectDir
   process.env.PROTOBASE_EXTENSIONS = JSON.stringify(extensions)
   process.env.PROTOBASE_DATABASE_URL = url
+  const logging = startupLogger()
   const server = await createServer({
     root: appDir,
     configFile: false,
+    customLogger: logging.logger,
     ...(options.cacheDir && { cacheDir: options.cacheDir }),
     // @protobase/ui is the admin app itself, served from its files: a project's or extension's import of it
     // reaches the same modules instead of a pre-bundled copy, which would hold its own React contexts and
@@ -147,6 +150,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   // Load the API once now so a missing authenticator or a broken config stops startup instead of failing requests.
   const api = await server.ssrLoadModule(entry).catch(closeAndThrow)
   const anyUsers: boolean | undefined = await api.anyUsers().catch(closeAndThrow)
+  logging.started()
   out(
     `protobase dev ready at http://localhost:${port}\n` +
       `  project  ${options.projectDir}\n  api      http://localhost:${port}/api/v1 (docs at /api/docs)\n` +
