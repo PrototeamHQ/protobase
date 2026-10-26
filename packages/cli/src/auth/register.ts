@@ -1,7 +1,5 @@
 import path from 'node:path'
 import type { Command } from 'commander'
-import { loadProjectAuth } from '../users/load-auth'
-import { writeAuthMigration } from './write-migration'
 
 const out = (text: string) => process.stdout.write(text)
 
@@ -14,6 +12,7 @@ export const registerAuth = (program: Command) => {
     .option('--dir <dir>', 'migrations folder', 'db/migrations')
     .option('--name <name>', 'file name after the number', 'auth')
     .action(async (opts) => {
+      const [{ loadProjectAuth }, { writeAuthMigration }] = await Promise.all([import('../users/load-auth'), import('./write-migration')])
       const file = await writeAuthMigration({ auth: await loadProjectAuth(process.cwd()), dir: path.resolve(opts.dir), name: opts.name })
       out(file ? `wrote ${path.relative(process.cwd(), file)}; apply it with the project's migrations\n` : 'the auth schema is up to date; nothing to write\n')
       // The auth store keeps a connection pool open.

@@ -1,6 +1,5 @@
 import type { Command } from 'commander'
-import { createEncryptionTools, type EncryptionTools } from '@protobase/server'
-import { loadBundleProject } from '../project/load-bundle-project'
+import type { EncryptionTools } from '@protobase/server'
 import { printApply } from './print-apply'
 import { printStatus } from './print-status'
 import { rebindOption, type RebindFlags } from './rebind-option'
@@ -11,6 +10,7 @@ const bundleArgument = ['[bundle]', 'a bundle from `protobase build` (its folder
 
 // Runs `work` with the project's encryption tools, the keys from the environment and the nearest .env, like serve.
 const withTools = async (bundle: string | undefined, work: (tools: EncryptionTools) => Promise<boolean>) => {
+  const [{ createEncryptionTools }, { loadBundleProject }] = await Promise.all([import('@protobase/server'), import('../project/load-bundle-project')])
   const project = await loadBundleProject(bundle, process.cwd())
   try {
     const tools = createEncryptionTools({ ...project, env: process.env })

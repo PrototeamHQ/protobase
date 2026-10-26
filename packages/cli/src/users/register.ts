@@ -1,19 +1,18 @@
 import { Command, Option } from 'commander'
 import { createInterface } from 'node:readline/promises'
-import { issueToken } from '@protobase/server'
 import { addMemberCommand } from '../organizations/commands'
-import { organizationsApi } from '../organizations/register'
-import { createUserCommand, listRolesCommand, listUsersCommand } from './commands'
 import { deleteUserCommand, setRoleCommand } from './manage'
-import { loadProjectAuth } from './load-auth'
-import { readHidden, rejectPasswordArgument } from './password'
-import { setDisabledInProject } from './set-disabled'
 import { parseTtl } from './ttl'
-import { usersApi } from './users-api'
 
+// The modules that load the project's auth, and @protobase/server with it, are imported when a command runs.
 const out = (text: string) => process.stdout.write(text)
 
-const projectApi = async () => usersApi(await loadProjectAuth(process.cwd()))
+const loadAuth = async () => (await import('./load-auth')).loadProjectAuth(process.cwd())
+
+const projectApi = async () => {
+  const [{ usersApi }, auth] = await Promise.all([import('./users-api'), loadAuth()])
+  return usersApi(auth)
+}
 
 const ask = async (question: string) => {
   if (!process.stdin.isTTY) throw new Error('Confirmation needs a terminal; pass --yes to skip it')
@@ -44,8 +43,14 @@ export const registerUsers = (program: Command) => {
     .option('--app-roles <roles>', 'with --organization: app roles there, comma separated')
     .addOption(new Option('--password <value>').hideHelp())
     .action(async (email: string, opts) => {
+      const { readHidden, rejectPasswordArgument } = await import('./password')
       rejectPasswordArgument(opts.password)
-      const auth = await loadProjectAuth(process.cwd())
+      const [{ createUserCommand }, { usersApi }, { organizationsApi }, auth] = await Promise.all([
+        import('./commands'),
+        import('./users-api'),
+        import('../organizations/api'),
+        loadAuth(),
+      ])
       await createUserCommand(
         usersApi(auth),
         { email, name: opts.name, role: opts.role, passwordStdin: opts.passwordStdin, generatePassword: opts.generatePassword, noPassword: opts.password === false, githubId: opts.githubId },
@@ -82,7 +87,8 @@ export const registerUsers = (program: Command) => {
       .description(disabled ? 'Ban a user and revoke their sessions' : 'Lift a ban')
       .argument('<email>')
       .action(async (email: string) => {
-        await setDisabledInProject(await loadProjectAuth(process.cwd()), { email, disabled }, out)
+        const { setDisabledInProject } = await import('./set-disabled')
+        await setDisabledInProject(await loadAuth(), { email, disabled }, out)
         finish(0)
       })
   }
@@ -91,6 +97,7 @@ export const registerUsers = (program: Command) => {
     .command('roles')
     .description('List the roles of the project (the first is admin)')
     .action(async () => {
+      const { listRolesCommand } = await import('./commands')
       await listRolesCommand(await projectApi(), out)
       finish(0)
     })
@@ -99,6 +106,7 @@ export const registerUsers = (program: Command) => {
     .command('list')
     .description('List users: email, role, creation date')
     .action(async () => {
+      const { listUsersCommand } = await import('./commands')
       await listUsersCommand(await projectApi(), out)
       finish(0)
     })
@@ -113,7 +121,7 @@ export const registerToken = (program: Command) => {
     .option('--ttl <duration>', 'lifetime: 30s, 15m, up to 24h', '15m')
     .action(async (email: string, opts) => {
       const ttlSeconds = parseTtl(opts.ttl)
-      const auth = await loadProjectAuth(process.cwd())
+      const [{ issueToken }, auth] = await Promise.all([import('@protobase/server'), loadAuth()])
       const { token } = await issueToken(auth, { email, ttlSeconds })
       out(`${token}\n`)
       finish(0)

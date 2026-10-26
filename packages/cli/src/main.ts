@@ -2,24 +2,10 @@ import { statSync } from 'node:fs'
 import path from 'node:path'
 import { Command, InvalidArgumentError } from 'commander'
 import { registerAuth } from './auth/register'
-import { buildDeployBundle } from './build/deploy-bundle'
-import { buildPlugin, pluginManifestFile } from './build/plugin-build'
-import { buildServeRuntime } from './build/serve-runtime'
-import { buildShell } from './build/shell'
-import { manifestFile } from './bundle/manifest'
 import { isConnectionString, resolveConnectionUrl } from './db/connect'
 import { parseHosts } from './dev/hosts'
 import { loadNearestEnvFile } from './dev/env'
-import { runDev } from './dev/run'
-import { runDoctor } from './doctor/run'
 import { resolveExtensions } from './project/extensions'
-import { projectErrorReporter } from './project/error-reporter'
-import { runScaffold } from './scaffold/run'
-import { serveBundle } from './serve/serve-bundle'
-import { serveBundleDir } from './serve/serve-dir'
-import { reportCrashes } from './serve/crash-reports'
-import { closeOnSignals } from './serve/signals'
-import { loadWorkerBundle, startWorker } from './worker/start-worker'
 import { registerOrganizations } from './organizations/register'
 import { registerFiles } from './files/register'
 import { registerEncryption } from './encryption/register'
@@ -32,6 +18,7 @@ import { registerToken, registerUsers } from './users/register'
 import type { UiSection } from './scaffold/ui-file'
 import { errorMessage } from './error-message'
 
+// Each command imports what it runs when it runs, so that --help and a command that needs little start fast.
 const out = (text: string) => process.stdout.write(text)
 
 const collect = (value: string, previous: string[]) => [...previous, value]
@@ -65,6 +52,7 @@ program
     const [target, ...extra] = fromArgument ? rest : args
     if (extra.length > 0) throw new Error(`Unexpected argument "${extra[0]}"`)
     const ui: UiSection[] = opts.ui ? ['names', 'list'] : [...opts.uiSection, ...(opts.uiList ? ['list' as const] : [])]
+    const { runScaffold } = await import('./scaffold/run')
     await runScaffold(
       {
         url,
@@ -88,6 +76,7 @@ program
   .action(async (connection: string | undefined, opts) => {
     loadNearestEnvFile(process.cwd())
     const url = resolveConnectionUrl(connection, opts.env)
+    const { runDoctor } = await import('./doctor/run')
     const { errors } = await runDoctor({ url, configDir: path.resolve(opts.config) }, out)
     if (errors > 0) process.exitCode = 1
   })
@@ -101,6 +90,7 @@ program
   .option('--cache-dir <dir>', "Vite's dependency cache, so parallel dev servers do not share one")
   .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
   .action(async (opts) => {
+    const { runDev } = await import('./dev/run')
     const server = await runDev(
       {
         extensions: resolveExtensions(opts.extend),
@@ -126,6 +116,7 @@ program
   .action(async (opts) => {
     const extensions = resolveExtensions(opts.extend)
     const onWarning = (message: string) => process.stderr.write(`warning: ${message}\n`)
+    const [{ buildDeployBundle }, { manifestFile }] = await Promise.all([import('./build/deploy-bundle'), import('./bundle/manifest')])
     const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun, extensions, sourceMaps: opts.sourceMaps, onWarning })
     const packages = manifest.nodeModules ? `, ${manifest.nodeModules}/` : ''
     const plugins = manifest.plugins.length > 0 ? ` with plugins ${manifest.plugins.map((plugin) => plugin.name).join(', ')}` : ''
@@ -142,6 +133,7 @@ program
   .action(async (dir: string, opts) => {
     const pluginDir = path.resolve(dir)
     const outDir = path.resolve(opts.out ?? path.join(dir, 'dist'))
+    const { buildPlugin, pluginManifestFile } = await import('./build/plugin-build')
     const manifest = await buildPlugin({ pluginDir, outDir, sourceMaps: opts.sourceMaps, ...(opts.name && { name: opts.name }) })
     const shown = path.relative(process.cwd(), outDir)
     out(`built ${shown.startsWith('..') ? outDir : shown || '.'}: ${pluginManifestFile}, ${manifest.entry} and ${manifest.css} (${manifest.name}, plugin API ${manifest.api}, Protobase ${manifest.protobase})\n`)
@@ -153,6 +145,7 @@ program
   .argument('<out>', 'output folder')
   .option('--source-maps <dir>', 'end each script with a //# debugId= comment and write its source map, carrying the same id, to this folder')
   .action(async (outDir: string, opts) => {
+    const { buildShell } = await import('./build/shell')
     const shell = await buildShell(path.resolve(outDir), opts.sourceMaps && path.resolve(opts.sourceMaps))
     out(`built ${outDir}: the shell of Protobase ${shell.protobase} (plugin API ${shell.pluginApi})\n`)
   })
@@ -163,6 +156,7 @@ program
   .option('--out <file>', 'output file', 'dist/protobase-serve.js')
   .option('--bun', "have Bun's bundler write the file (needs bun on PATH)", false)
   .action(async (opts) => {
+    const { buildServeRuntime } = await import('./build/serve-runtime')
     await buildServeRuntime({ outFile: path.resolve(opts.out), bun: opts.bun })
     out(`built ${opts.out}\n`)
   })
@@ -173,8 +167,8 @@ program
   .argument('<bundle>', 'the bundle folder, e.g. dist, or its dist/protobase.config.js')
   .action(async (bundle: string) => {
     loadNearestEnvFile(process.cwd())
-    if (statSync(bundle).isDirectory()) await serveBundleDir(bundle, process.env, out)
-    else await serveBundle(bundle, process.env, out)
+    if (statSync(bundle).isDirectory()) await (await import('./serve/serve-dir')).serveBundleDir(bundle, process.env, out)
+    else await (await import('./serve/serve-bundle')).serveBundle(bundle, process.env, out)
   })
 
 program
@@ -183,6 +177,12 @@ program
   .argument('<bundle>', 'the bundle folder, e.g. dist, or its dist/protobase.config.js')
   .action(async (bundle: string) => {
     loadNearestEnvFile(process.cwd())
+    const [{ loadWorkerBundle, startWorker }, { projectErrorReporter }, { reportCrashes }, { closeOnSignals }] = await Promise.all([
+      import('./worker/start-worker'),
+      import('./project/error-reporter'),
+      import('./serve/crash-reports'),
+      import('./serve/signals'),
+    ])
     const project = await loadWorkerBundle(bundle)
     const reporter = await projectErrorReporter(project, process.env)
     if (reporter) reportCrashes(reporter)

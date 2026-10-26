@@ -1,7 +1,6 @@
 import path from 'node:path'
 import type { Command } from 'commander'
 import { loadNearestEnvFile } from '../dev/env'
-import { runSupabaseImport } from './run'
 
 const out = (text: string) => process.stdout.write(text)
 
@@ -39,6 +38,7 @@ export const registerImport = (program: Command) => {
       if (source && opts.sourceEnv) throw new Error('Pass either a connection string or --source-env, not both')
       const projectDir = process.cwd()
       loadNearestEnvFile(projectDir)
+      const { runSupabaseImport } = await import('./run')
       await runSupabaseImport(
         {
           sourceUrl: source ?? (opts.sourceEnv ? variable(opts.sourceEnv) : undefined),

@@ -1,10 +1,7 @@
 import path from 'node:path'
 import type { Command } from 'commander'
 import { resolveExtensions } from '../project/extensions'
-import { loadMigrationProject } from './load-project'
-import { migrationParts } from './parts'
 import { migrationSummary } from './summary'
-import { writeMigrations } from './write-migrations'
 
 const out = (text: string) => process.stdout.write(text)
 
@@ -17,6 +14,7 @@ export const registerMigration = (program: Command) => {
     .option('--dir <dir>', 'migrations folder', 'db/migrations')
     .option('--extend <dir>', 'merge the protobase.config.ts in this folder before the project\'s, as dev and build do, repeatable', collect, [])
     .action(async (opts) => {
+      const [{ loadMigrationProject }, { migrationParts }, { writeMigrations }] = await Promise.all([import('./load-project'), import('./parts'), import('./write-migrations')])
       const project = await loadMigrationProject(process.cwd(), resolveExtensions(opts.extend))
       try {
         const files = await writeMigrations(migrationParts(project), path.resolve(opts.dir))

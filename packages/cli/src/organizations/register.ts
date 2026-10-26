@@ -1,24 +1,13 @@
 import type { Command } from 'commander'
-import { addAppRoleToOwners, addMember, createOrganization, listOrganizations, listUsers, removeMember, setMemberRoles, setUserRole, type AdminAuth } from '@protobase/server'
-import { loadProjectAuth } from '../users/load-auth'
-import { addAppRoleCommand, addMemberCommand, createOrganizationCommand, listOrganizationsCommand, removeMemberCommand, setMemberRolesCommand, type OrganizationsApi } from './commands'
+import { addAppRoleCommand, addMemberCommand, createOrganizationCommand, listOrganizationsCommand, removeMemberCommand, setMemberRolesCommand } from './commands'
 
 const out = (text: string) => process.stdout.write(text)
 
-// The commands over a project's Better Auth instance.
-export const organizationsApi = (auth: AdminAuth): OrganizationsApi => ({
-  listOrganizations: () => listOrganizations(auth),
-  createOrganization: (input) => createOrganization(auth, input),
-  addMember: (input) => addMember(auth, input),
-  setMemberRoles: (input) => setMemberRoles(auth, input),
-  removeMember: (input) => removeMember(auth, input),
-  addAppRoleToOwners: (appRole) => addAppRoleToOwners(auth, appRole),
-  listUsers: () => listUsers(auth),
-  setUserRole: (input) => setUserRole(auth, input),
-  membershipRoles: () => auth.roleDefinitions.names.filter((name) => name !== 'admin' && name !== 'user'),
-})
-
-const projectApi = async () => organizationsApi(await loadProjectAuth(process.cwd()))
+// The project's auth, and @protobase/server with it, is imported when a command runs.
+const projectApi = async () => {
+  const [{ organizationsApi }, { loadProjectAuth }] = await Promise.all([import('./api'), import('../users/load-auth')])
+  return organizationsApi(await loadProjectAuth(process.cwd()))
+}
 
 // The auth store keeps a connection pool open, so the commands end the process themselves.
 const finish = (code: number) => process.exit(code)
