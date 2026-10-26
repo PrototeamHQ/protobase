@@ -55,25 +55,19 @@ Running the workflow by hand with a tag (`gh workflow run release.yml -f tag=v0.
 
 ## Bundles and runtimes
 
-`protobase build` writes the Protobase version that built the bundle into [the manifest](/reference/cli/#the-manifest) as `protobase`. The serve runtime knows its own version, inlined into `protobase-serve.js` by `protobase build-serve` and inlined into the CLI's `dist` when the package is built, and read from `@protobase/cli`'s `package.json` when `protobase serve` runs from source in this repository. Before it loads a bundle, it compares the two:
-
-- **From 1.0:** the major versions are the same and the runtime's minor is the bundle's or newer. A 1.4.x runtime serves bundles built by 1.0.0 up to 1.4.x.
-- **Below 1.0:** the minor versions are the same. A 0.2.x runtime serves only bundles built by 0.2.x, not those of 0.1.x or 0.3.x.
-- **Patches** never matter: a 0.1.2 runtime serves a bundle built by 0.1.7.
-
-Otherwise, and for a bundle whose manifest has no `protobase` version or one that is not `x.y.z`, startup stops with exit code 1 and an error naming both versions:
+The CLI makes one version check, when it starts: the project in the current directory, by the `@protobase` packages installed there, must be of the CLI's own major version. A 0.x CLI runs every 0.x project, whatever its minor, and refuses a 1.x one before any command runs:
 
 ```
-error: dist/protobase.bundle.json: the bundle was built by Protobase 0.2.0 and this runtime is Protobase 0.1.3, which serves bundles built by 0.1.x; rebuild the bundle with Protobase 0.1.x or serve it with a runtime of 0.2.x
+error: This project is on Protobase 1.2.0, and this CLI is Protobase 0.14.2: run it with a Protobase 1.x CLI
 ```
 
-Rebuild the bundle with the runtime's version of Protobase, or upgrade the runtime to one that serves the bundle. The rule is `bundleVersionProblem` in `packages/cli/src/version/compatibility.ts`.
+Within a major the CLI stays backwards compatible, so a platform builds every app with the newest CLI of the app's major. Nothing else compares versions: not the build, not the serve runtime. `protobase build` writes the version the project is pinned to, the `@protobase/cli` its lockfile installed, into [the manifest](/reference/cli/#the-manifest) as `protobase`, whichever CLI built the bundle, and a host serves the bundle on the runtime of that version. The check is `checkProjectMajor` in `packages/cli/src/version/project-version.ts`.
 
 ## Plugins
 
-[Plugins](/reference/plugins/) are versioned by a plugin API of their own, not by the bundle's rule above: `@protobase/ui`'s `pluginApi`, 1 so far. A plugin's `plugin.json` names the plugin API it is built for and a range of Protobase versions, from the `@protobase/ui` it is built with on. An app loads a plugin of its own plugin API whose range holds its version, and turns off any other, telling its admins why.
+[Plugins](/reference/plugins/) are versioned by a plugin API of their own: `@protobase/ui`'s `pluginApi`, 1 so far. A plugin's `plugin.json` names the plugin API it is built for and a range of Protobase versions, from the `@protobase/ui` it is built with on. An app loads a plugin of its own plugin API whose range holds its version, and turns off any other, telling its admins why.
 
-A project's own `protobase.ui.tsx` is a plugin of its bundle, so the same rule holds for it. The admin app it runs in, the shell, is prebuilt once per release; a host that serves a newer release's shell for a bundle whose plugins all load in it gives the app that release's fixes without a rebuild (see [the shell](/reference/plugins/#the-shell)). The server config still follows the bundle's rule above.
+A project's own `protobase.ui.tsx` is a plugin of its bundle, so the same rule holds for it. The admin app it runs in, the shell, is prebuilt once per release; a host that serves a newer release's shell for a bundle whose plugins all load in it gives the app that release's fixes without a rebuild (see [the shell](/reference/plugins/#the-shell)).
 
 Releases keep the plugin API, below 1.0 too, where a minor version may change the config: they add exports to `@protobase/ui`, but remove or change one, add or remove a module the app shares with plugins, or move to a new major version of React only with a new plugin API. A test pins every export of `@protobase/ui` (`packages/ui/src/plugins/plugin-api.exports.json`) and fails when one goes away while `pluginApi` stays the same.
 

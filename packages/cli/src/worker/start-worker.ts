@@ -6,7 +6,7 @@ import { checkJobsSchema, configExports, isCaptured, jobDefinitions, startJobs }
 import { projectAdmin } from '../project/project-admin'
 import { readManifest } from '../bundle/manifest'
 import { createPgDb } from '../project/pg-db'
-import { checkBundleVersion } from '../serve/bundle-version'
+import { checkBundleManifest } from '../serve/bundle-manifest'
 import { loadBundle, type ServedProject } from '../serve/load-bundle'
 
 // The config module of a bundle from `protobase build`, given its folder or the module itself.
@@ -55,9 +55,9 @@ export const startWorker = async ({ project, databaseUrl, createDb = (url) => cr
   }
 }
 
-/** `protobase worker <bundle>`: the bundle's jobs until SIGTERM or SIGINT, once its manifest shows a version this CLI runs. */
+/** `protobase worker <bundle>`: the bundle's jobs until SIGTERM or SIGINT. */
 export const loadWorkerBundle = async (bundle: string) => {
   const file = await bundleConfigFile(bundle)
-  await checkBundleVersion(file)
+  checkBundleManifest(file)
   return loadBundle(file)
 }

@@ -6,7 +6,7 @@ How Protobase is released and versioned, and what a release keeps working.
 
 - [Releases](../reference/versioning.md#releases): Every fix and feature is released when it lands, as npm packages, published with provenance, and images of one version.
 - [Version rules](../reference/versioning.md#versions-below-10): Semantic versioning. Below 1.0 a minor version may break.
-- [Bundles and runtimes](../reference/versioning.md#bundles-and-runtimes): A runtime serves only bundles of a compatible version, and says why when it refuses one.
+- [Bundles and runtimes](../reference/versioning.md#bundles-and-runtimes): The CLI runs every project of its major, and a bundle names the version its project is pinned to, for the host to serve it on.
 - [Plugins keep working](../reference/versioning.md#plugins): Plugins target a plugin API that releases keep.
 - [Runtime updates](../reference/versioning.md#runtime-updates): Admins see whether the runtime has an update and start it from the app, when the host offers one.
 - [New version notice](../reference/versioning.md#a-new-version-under-an-open-page): An open page keeps working when the server moves to a new Protobase version, and offers a reload.

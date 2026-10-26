@@ -229,12 +229,12 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
     }
   })
 
-  it('refuses a version of a host package that the runtime would replace', async () => {
+  it('leaves a host package as an import for the runtime to supply, whatever version the project has installed', async () => {
     projectDir = await createProject({ 'protobase.config.ts': `import { z } from 'zod'\nexport default { config: { z } }\n` })
     await writePackage(projectDir, { name: 'zod', version: '3.25.0' })
-    await expect(buildConfigBundle({ projectDir, outFile: path.join(projectDir, 'dist/out.js') })).rejects.toThrow(
-      'zod 3.25.0 is installed here, but the serve runtime supplies zod 4.',
-    )
+    const outFile = path.join(projectDir, 'dist/out.js')
+    await buildConfigBundle({ projectDir, outFile })
+    expect(await readFile(outFile, 'utf8')).toContain('from "zod"')
   })
 
   it('leaves a package with a native add-on as an import, also from an inlined package, and reports it', async () => {

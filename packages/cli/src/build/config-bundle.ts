@@ -5,7 +5,7 @@ import { extensionImports, type Extension } from '../project/extensions'
 import { collectComponents } from './component-names'
 import { bundleEntryCode } from './entry-code'
 import { layoutCheck } from './layout-check'
-import { hostPackages, hostVersionProblem } from './packages/host-packages'
+import { hostPackages } from './packages/host-packages'
 import { isNativePackage } from './packages/native-package'
 import { findPackageDir, packageName } from './packages/package-dir'
 import type { NativeImport } from './packages/package-tree'
@@ -47,8 +47,6 @@ const servedImports = (native: Map<string, NativeImport>): Plugin => {
           unavailable.add(id)
           return { id, external: true }
         }
-        const problem = await hostVersionProblem(name, from)
-        if (problem) this.error(problem)
         return { id, external: true }
       }
       const dir = await findPackageDir(name, from)

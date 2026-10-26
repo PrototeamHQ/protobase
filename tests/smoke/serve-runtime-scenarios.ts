@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import postgres from 'postgres'
@@ -56,28 +56,9 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
     if (dir) await rm(dir, { recursive: true, force: true })
   }, 60_000)
 
-  it('runs from the config module of a complete bundle folder, built by its own Protobase version', async () => {
+  it('runs from the config module of a complete bundle folder, pinned to its own Protobase version', async () => {
     expect(existsSync(path.join(dir, 'app/public/index.html'))).toBe(true)
     expect(JSON.parse(await readFile(path.join(dir, 'app/protobase.bundle.json'), 'utf8')).protobase).toBe(protobaseVersion)
-  })
-
-  it('refuses a bundle built by a newer minor, naming both versions', async () => {
-    const [major, minor] = protobaseVersion.split('.').map(Number)
-    const newer = `${major}.${minor! + 1}.0`
-    await mkdir(path.join(dir, 'newer'))
-    await copyFile(path.join(dir, 'app/protobase.config.js'), path.join(dir, 'newer/protobase.config.js'))
-    const manifest = JSON.parse(await readFile(path.join(dir, 'app/protobase.bundle.json'), 'utf8'))
-    await writeFile(path.join(dir, 'newer/protobase.bundle.json'), JSON.stringify({ ...manifest, protobase: newer }))
-
-    const refused = spawnSync('bun', ['--no-install', 'opt/protobase-serve.js', 'newer/protobase.config.js'], {
-      cwd: dir,
-      env: { PATH: process.env.PATH, ...erp().env, PORT: '0' },
-      encoding: 'utf8',
-    })
-    expect(refused.status).toBe(1)
-    expect(refused.stdout).toBe('')
-    expect(refused.stderr).toContain(`error: newer/protobase.bundle.json: the bundle was built by Protobase ${newer} and this runtime is Protobase ${protobaseVersion}`)
-    expect(refused.stderr).toContain(`rebuild the bundle with Protobase ${major}.${minor}.x or serve it with a runtime of`)
   })
 
   it("with --bun, is written by Bun's bundler: its `// @bun` pragma, and non-ASCII text escaped", async () => {
@@ -170,6 +151,17 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
 
   it("migrates with the bundle's own migrations, finding the database the ERP's migrate script made current", () => {
     const migrated = command(['migrate', 'app'], { DATABASE_URL: erp().env.DATABASE_URL })
+    expect(migrated.stderr).toBe('')
+    expect(migrated.stdout).toBe('the database is up to date\n')
+    expect(migrated.status).toBe(0)
+  }, commandTimeout)
+
+  it('takes a bundle of any Protobase version, checking none: the host picks the runtime from it', async () => {
+    const [major, minor] = protobaseVersion.split('.').map(Number)
+    await cp(path.join(dir, 'app'), path.join(dir, 'newer'), { recursive: true })
+    const manifest = JSON.parse(await readFile(path.join(dir, 'newer/protobase.bundle.json'), 'utf8'))
+    await writeFile(path.join(dir, 'newer/protobase.bundle.json'), JSON.stringify({ ...manifest, protobase: `${major}.${minor! + 1}.0` }))
+    const migrated = command(['migrate', 'newer'], { DATABASE_URL: erp().env.DATABASE_URL })
     expect(migrated.stderr).toBe('')
     expect(migrated.stdout).toBe('the database is up to date\n')
     expect(migrated.status).toBe(0)

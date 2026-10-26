@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { oauthWellKnownPaths } from '@protobase/server'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -65,6 +66,35 @@ describe('buildDeployBundle', () => {
     const precache = JSON.parse(/const precache = (.*)/.exec(worker)![1]!) as string[]
     expect(precache).toEqual(expect.arrayContaining(['/index.html', `/assets/${script}`, `/assets/${style}`, '/protobase.theme.css', '/protobase.favicon.svg']))
   }, buildTimeout)
+
+  it("names the Protobase version the project's install pinned, of whichever minor, not the building CLI's", async () => {
+    const [major, minor] = protobaseVersion.split('.').map(Number)
+    const pinned = `${major}.${minor! + 3}.1`
+    projectDir = await createProject({ 'config/index.ts': things })
+    await writePackage(projectDir, { name: '@protobase/cli', version: pinned })
+    const outDir = path.join(projectDir, 'dist')
+    expect((await buildDeployBundle({ projectDir, outDir })).protobase).toBe(pinned)
+    expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8')).protobase).toBe(pinned)
+  }, buildTimeout)
+
+  it('builds a project pinned to an older minor, whose @protobase packages the runtime of its pin supplies', async () => {
+    const [major, minor] = protobaseVersion.split('.').map(Number)
+    const pinned = `${major}.${minor! - 1}.4`
+    projectDir = await createProject({
+      'config/index.ts': things,
+      'protobase.config.ts': `import { defineConfig } from '@protobase/server'\nexport default defineConfig({})\n`,
+    })
+    await writePackage(projectDir, { name: '@protobase/cli', version: pinned })
+    await writePackage(projectDir, { name: '@protobase/server', version: pinned, type: 'module' }, { 'index.js': 'export const defineConfig = (config) => config\n' })
+    const outDir = path.join(projectDir, 'dist')
+    expect((await buildDeployBundle({ projectDir, outDir })).protobase).toBe(pinned)
+    expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).toContain('from "@protobase/server"')
+  }, buildTimeout)
+
+  it('refuses a project without its @protobase packages installed', async () => {
+    projectDir = await mkdtemp(path.join(tmpdir(), 'protobase-uninstalled-'))
+    await expect(buildDeployBundle({ projectDir, outDir: path.join(projectDir, 'dist') })).rejects.toThrow(`${projectDir} has no @protobase packages installed; install the project's dependencies first`)
+  })
 
   it('names the modules it shares with plugins in an import map, ahead of every module, each an entry exporting its names', async () => {
     projectDir = await createProject({ 'config/index.ts': things })

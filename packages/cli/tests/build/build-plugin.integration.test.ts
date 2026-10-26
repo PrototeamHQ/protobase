@@ -117,11 +117,11 @@ export default definePlugin({ fields: { rating: { of: ['integer'], display: Star
     expect((await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist'), name: 'board' })).name).toBe('board')
   }, buildTimeout)
 
-  it('takes the Protobase versions engines.protobase names, when they hold the @protobase/ui it is built with', async () => {
+  it('takes the Protobase versions engines.protobase names, whichever versions they hold', async () => {
     pluginDir = await createPlugin({ 'package.json': JSON.stringify({ name: 'wide', engines: { protobase: '>=0.1.0 <9.0.0' } }), 'protobase.ui.tsx': `export const Board = () => null\n` })
     expect((await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist') })).protobase).toBe('>=0.1.0 <9.0.0')
     await writeFile(path.join(pluginDir, 'package.json'), JSON.stringify({ name: 'wide', engines: { protobase: '>=99.0.0' } }))
-    await expect(buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist') })).rejects.toThrow(`engines.protobase ">=99.0.0" leaves out @protobase/ui ${uiVersion}, which the plugin is built with`)
+    expect((await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist') })).protobase).toBe('>=99.0.0')
     await writeFile(path.join(pluginDir, 'package.json'), JSON.stringify({ name: 'wide', engines: { protobase: '^0.11.0' } }))
     await expect(buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist') })).rejects.toThrow('engines.protobase "^0.11.0" is not a range the app reads')
   }, buildTimeout)

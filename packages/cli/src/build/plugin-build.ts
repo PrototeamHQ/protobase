@@ -43,9 +43,8 @@ const pluginTarget = async (pluginDir: string, own: UiPackageJson, projectDir: s
   const theme = ui.exports?.['./theme.css']
   if (api === undefined || typeof theme !== 'string') throw new Error(`@protobase/ui ${ui.version} loads no plugins; install a version that does`)
   const protobase = own.engines?.protobase ?? `>=${ui.version}`
-  const fits = inRange(ui.version ?? '', protobase)
-  if (fits === undefined) throw new Error(`engines.protobase "${protobase}" is not a range the app reads; write comparators such as >=0.12.0 <1.0.0`)
-  if (!fits) throw new Error(`engines.protobase "${protobase}" leaves out @protobase/ui ${ui.version}, which the plugin is built with`)
+  // Only the range's form is checked here; which versions it holds is the app's to compare when it loads the plugin.
+  if (inRange(ui.version ?? '', protobase) === undefined) throw new Error(`engines.protobase "${protobase}" is not a range the app reads; write comparators such as >=0.12.0 <1.0.0`)
   return { api, protobase, theme: path.join(uiDir, theme), uiDir }
 }
 

@@ -3,7 +3,7 @@ import postgres from 'postgres'
 import { readManifest } from '../bundle/manifest'
 import { applyMigrations } from '../migration/apply-migrations'
 import { bundleConfigFile } from '../worker/start-worker'
-import { checkBundleVersion } from './bundle-version'
+import { checkBundleManifest } from './bundle-manifest'
 
 /**
  * The runtime's `migrate`: applies the migrations the bundle carries to DATABASE_URL (see applyMigrations). It never
@@ -12,7 +12,7 @@ import { checkBundleVersion } from './bundle-version'
  */
 export const migrateBundle = async (bundle: string, env: Record<string, string | undefined>, out: (text: string) => void) => {
   const file = await bundleConfigFile(bundle)
-  await checkBundleVersion(file)
+  checkBundleManifest(file)
   const dir = path.dirname(file)
   const manifest = await readManifest(dir)
   if (!manifest.migrations) {

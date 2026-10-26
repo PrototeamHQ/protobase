@@ -54,7 +54,7 @@ Each `--extend` folder's `protobase.ui.tsx` becomes a plugin of its own, `plugin
 A host that serves `public/` as before keeps working: `index.html` for navigations, files for the rest. Two things are new:
 
 - The plugins' `assets/` folders, `public/plugins/<name>/assets/`, are named by their content like `public/assets/`: serve them as immutable too. `plugin.json`, `protobase.theme.css`, `protobase.favicon.svg` and the PNG icons are served with `no-cache`.
-- A host that keeps the prebuilt app of newer releases may serve it for the manifest's `shell.paths`, so the app gets that release's fixes without a rebuild (see [the shell](../reference/plugins.md#the-shell)). `protobase serve` does so with its own when every plugin of the bundle loads in it.
+- A host that keeps the prebuilt app of newer releases may serve it for the manifest's `shell.paths`, so the app gets that release's fixes without a rebuild (see [the shell](../reference/plugins.md#the-shell)). `protobase serve` does so with its own whenever it has one.
 
 ## 6. protobase dev
 
@@ -62,4 +62,4 @@ Nothing changes: `protobase dev` builds `protobase.ui.tsx` into its page with ho
 
 ## After the move
 
-From now on, a release of Protobase within the same minor needs no rebuild of the project's UI: the app it runs in is the release's, and the plugin keeps working within its [plugin API](../reference/plugins.md#versions). The server config still follows the [bundle's rule](../reference/versioning.md#bundles-and-runtimes), so a new minor below 1.0 is still a rebuild.
+From now on, a release of Protobase within the same minor needs no rebuild of the project's UI: the app it runs in is the release's, and the plugin keeps working within its [plugin API](../reference/plugins.md#versions). The server config runs on the runtime the project is pinned to (see [Bundles and runtimes](../reference/versioning.md#bundles-and-runtimes)), so moving the pin to a new minor below 1.0 is still a rebuild.

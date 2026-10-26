@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { findPackageDir, findPackageDirSync, readPackageJson, type PackageJson } from './package-dir'
+import { findPackageDirSync, type PackageJson } from './package-dir'
 
 const cliRoot = fileURLToPath(new URL('../../..', import.meta.url))
 
@@ -36,18 +36,3 @@ const declaredIn = collectHostPackages()
 // available.
 export const hostPackages: ReadonlySet<string> = new Set(declaredIn.keys())
 
-// Versions that share an API: the same major, or the same minor below 1.0.
-const releaseLine = (version = '') => {
-  const [major, minor] = version.split('.')
-  return major === '0' ? `0.${minor}` : major
-}
-
-// Why the project's own copy of a host package cannot be swapped for the runtime's, if it cannot: the bundle would
-// run against the version the @protobase packages were built with, not the one the project was written for.
-export const hostVersionProblem = async (name: string, importerDir: string) => {
-  const [projectDir, ownDir] = await Promise.all([findPackageDir(name, importerDir), findPackageDir(name, declaredIn.get(name) ?? cliRoot)])
-  if (!projectDir || !ownDir || projectDir === ownDir) return undefined
-  const [project, own] = await Promise.all([readPackageJson(projectDir), readPackageJson(ownDir)])
-  if (releaseLine(project.version) === releaseLine(own.version)) return undefined
-  return `${name} ${project.version} is installed here, but the serve runtime supplies ${name} ${own.version}; use a version compatible with it`
-}

@@ -22,8 +22,8 @@ export type BundleShell = { protobase: string; pluginApi: number; paths: string[
 export type BundleManifest = {
   // The format of this file.
   version: 3
-  // The Protobase version that built the bundle, which the serve runtime checks before loading it (see
-  // src/version/compatibility.ts).
+  // The Protobase version the project is pinned to, as its lockfile installed it, whichever CLI built the bundle: the
+  // runtime a host serves the bundle on.
   protobase: string
   // The config module for the serve runtime, relative to the bundle.
   server: string
@@ -91,7 +91,7 @@ const isVersions = (value: unknown): value is Record<string, string> => isObject
 const isIcons = (value: unknown): value is AppIcons =>
   isObject(value) && typeof value.favicon === 'boolean' && isStringList(value.png) && value.png.every((icon) => icon in pngIcons)
 
-// The bundle's layout; its Protobase version is the serve runtime's to check (see checkBundleVersion).
+// The bundle's layout; its Protobase version is the host's, to pick the runtime it serves the bundle on.
 export type BundleLayout = Omit<BundleManifest, 'protobase'>
 
 export const parseManifest = (value: unknown, file: string): BundleLayout => {

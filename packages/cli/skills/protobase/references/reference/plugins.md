@@ -16,7 +16,7 @@ Plugins are written by an app's developers and by Protobase itself, and they run
 
 Plugins split the work of keeping an app current. Protobase maintains the admin app, the API and the server; an app's developers maintain their plugins, and those seldom need work. A plugin is built against the plugin API, which releases add to but never break, so the same build keeps loading as the app moves to newer releases, and gets their fixes and new features on the way. Nobody ports it, rebuilds it or tests it again for each release; it needs a new build only when Protobase starts a new plugin API (see [Versions](#versions)).
 
-What still follows Protobase's releases is the rest of the bundle. Below 1.0 a new minor version may change how `data.ts`, `ui.ts` and the server config are written, and a runtime serves only bundles built by its own minor, so moving to a new minor means running `protobase build` again with that version, after any change the release notes ask of the config (see [Bundles and runtimes](versioning.md#bundles-and-runtimes)). The plugins' code stays as it is. Within a minor, where features ship as patches below 1.0, a host that serves the newer release's [shell](#the-shell) gives the app its fixes with nothing rebuilt.
+What still follows Protobase's releases is the rest of the bundle. Below 1.0 a new minor version may change how `data.ts`, `ui.ts` and the server config are written, and a bundle is served on the runtime of the version the project is pinned to, so moving to a new minor means installing that version and running `protobase build` again, after any change the release notes ask of the config (see [Bundles and runtimes](versioning.md#bundles-and-runtimes)). The plugins' code stays as it is. Within a minor, where features ship as patches below 1.0, a host that serves the newer release's [shell](#the-shell) gives the app its fixes with nothing rebuilt.
 
 ## How a plugin stays working
 
@@ -274,7 +274,7 @@ The plugin starts the session itself, with a request that sets the app's session
 
 The shell is the admin app: `index.html` and its `assets/`, the same for every project on a release. Each release ships it prebuilt in `@protobase/ui`'s `dist/shell/` and in the [protobase image](../guides/deploy.md#images) at `/opt/protobase/shell/`, with a `protobase.shell.json` naming its Protobase version and plugin API. A bundle carries a copy, so any static host can serve it, and its manifest names that copy's version and paths (`shell` in [the manifest](cli.md#the-manifest)).
 
-A host that keeps the shells of its releases can serve the shell of a newer one for those paths, when every plugin of the bundle loads in it; the plugins, the theme and the API stay the bundle's. `protobase serve` does this with its own shell (see [serve](cli.md#serve)). The app then has the newer release's fixes with nothing rebuilt; only a change of the server config's format, a new minor below 1.0, still needs a [rebuild](versioning.md#bundles-and-runtimes).
+A host that keeps the shells of its releases can serve the shell of a newer one for those paths; the app still turns off a plugin that does not load in it. The plugins, the theme and the API stay the bundle's. `protobase serve` does this with its own shell (see [serve](cli.md#serve)). The app then has the newer release's fixes with nothing rebuilt; only a change of the server config's format, a new minor below 1.0, still needs a [rebuild](versioning.md#bundles-and-runtimes).
 
 ## Versions
 
@@ -287,7 +287,7 @@ A plugin is built for one plugin API and a range of Protobase versions, both wri
   { "engines": { "protobase": ">=0.12.0" } }
   ```
 
-  A range is comparators separated by spaces, all of which must hold: `>=`, `>`, `<=`, `<` or `=` and an `x.y.z` version, such as `>=0.12.0 <2.0.0`. The build refuses one that leaves out the version it is built with. If the plugin uses something an older release in its range does not have, it fails to load there and is turned off, as described below.
+  A range is comparators separated by spaces, all of which must hold: `>=`, `>`, `<=`, `<` or `=` and an `x.y.z` version, such as `>=0.12.0 <2.0.0`. The build checks only the range's form; which versions it holds is the app's to compare when it loads the plugin. If the plugin uses something an older release in its range does not have, it fails to load there and is turned off, as described below.
 
 The app loads a plugin when the plugin's `api` is its own and its version is in the plugin's `protobase` range. Protobase keeps the plugin API through its releases and starts a new one only when a plugin built for the old one could break:
 
