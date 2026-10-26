@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { presetPath } from './preset-files'
-import { majorRange, presetPackage } from './preset-package'
+import { caretRange, presetPackage } from './preset-package'
 import type { Preset } from './presets'
 
 const root = path.join(import.meta.dirname, '..', '..', '..')
@@ -34,14 +34,14 @@ export const writePresetFiles = (preset: Preset, range: string, outDir: string) 
 }
 
 /**
- * Writes one preset to `outDir`: its files in `version`'s major range (see majorRange), so the app takes updates within
- * that major, and its own bun.lock, which bun resolves from the registry at exactly `version`, so those packages must be
+ * Writes one preset to `outDir`: its files in `version`'s caret range (see caretRange), so the app takes the updates
+ * semver calls compatible, and its own bun.lock, which bun resolves from the registry at exactly `version`, so those packages must be
  * published at that version.
  */
 export const writePreset = (preset: Preset, version: string, outDir: string) => {
   // Locked at exactly `version` first; bun keeps that locked version when the range then widens around it.
   writePresetFiles(preset, version, outDir)
   lock(outDir)
-  writePackage(path.join(root, preset.source), majorRange(version), outDir)
+  writePackage(path.join(root, preset.source), caretRange(version), outDir)
   lock(outDir)
 }

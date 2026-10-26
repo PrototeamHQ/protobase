@@ -27,7 +27,7 @@ npm create protobase my-app -- --preset erp   # without asking
 ```
 
 `bun run presets:write <version> <dir>` writes every preset from a clone of this repository, each with the
-`@protobase` packages in the range of `<version>`'s major (`>=0.y.z <1` below 1.0, `^x.y.z` from 1.0) and its own
+`@protobase` packages in the caret range of `<version>` (`^x.y.z`, which below 1.0 covers only that minor) and its own
 `bun.lock` at exactly `<version>`.
 
 Every release also pushes two images to GitHub's registry: `ghcr.io/prototeamhq/protobase:<version>`, the serve

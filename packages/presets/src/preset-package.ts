@@ -1,14 +1,15 @@
+import semver from 'semver'
+
 type Dependencies = Record<string, string>
 type PackageJson = { dependencies?: Dependencies; devDependencies?: Dependencies; [key: string]: unknown }
 
 /**
- * The range an app keeps the @protobase packages in: any version of `version`'s major, from `version` on. Below 1.0
- * ^0.y.z covers only that minor, so there it is spelled `>=0.y.z <1`.
+ * The range an app keeps the @protobase packages in: the caret range of `version`, the versions semver calls compatible
+ * with it. From 1.0 on that is its major; below 1.0, where a minor may break, its minor.
  */
-export const majorRange = (version: string) => {
-  const major = /^(\d+)\.\d+\.\d+/.exec(version)?.[1]
-  if (major === undefined) throw new Error(`not a version: ${version}`)
-  return major === '0' ? `>=${version} <1` : `^${version}`
+export const caretRange = (version: string) => {
+  if (semver.valid(version) !== version) throw new Error(`not a version: ${version}`)
+  return `^${version}`
 }
 
 // workspace:* is the only range the examples use; publishing pins it to the exact version, and a preset to `range`.
