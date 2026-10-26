@@ -9,7 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { Kysely, PostgresDialect } from 'kysely'
 import { f, resource } from '@protobase/schema'
 import { authSchemaDrift, authSchemaMigration, checkAuthSchema, checkResourcesOutsideAuthStore, createOrganization, createUser, unauthorized, type AdminAuth } from '@protobase/server'
-import { createAuth } from '@protobase/server/internal'
+import { buildAuth, createAuth } from '@protobase/server/internal'
 import { writeAuthMigration } from '../../src/auth/write-migration'
 import { startServe } from '../../src/serve/lifecycle'
 import { servedConfig } from '../support/served-config'
@@ -115,7 +115,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const written = new Set<string>()
     for (const features of featureSets) {
       const databaseUrl = await createDatabase()
-      const auth = createAuth({ database: new pg.Pool({ connectionString: databaseUrl, max: 2 }), baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, ...features })
+      const auth = await buildAuth({ database: new pg.Pool({ connectionString: databaseUrl, max: 2 }), baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, ...features })
       pools.push(auth.options.database as pg.Pool)
       const folder = await migrationsDir()
       written.add(await readFile((await writeAuthMigration({ auth, dir: folder, name: 'auth' }))!, 'utf8'))
@@ -150,7 +150,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
 
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
     expect(await versions(databaseUrl, 'auth.auth_migrations')).toEqual(every)
-    expect(await authSchemaDrift(createAuth({ ...options, ...allOn }))).toEqual([])
+    expect(await authSchemaDrift(await buildAuth({ ...options, ...allOn }))).toEqual([])
     const columns = await query<{ name: string }>(
       databaseUrl,
       `select table_name || '.' || column_name || ' ' || udt_name as name from information_schema.columns where table_schema = 'auth' and (table_name = 'people' and column_name in ('address', 'mfa', 'last_org', 'meta') or table_name = 'session' and column_name = 'user_id') order by 1`,
@@ -172,7 +172,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
 
     const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
     pools.push(pool)
-    const on = createAuth({ database: pool, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, ...allOn })
+    const on = await buildAuth({ database: pool, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, ...allOn })
     await expect(checkAuthSchema(on)).resolves.toBeUndefined()
     expect(await writeAuthMigration({ auth: on, dir: folder, name: 'auth' })).toBeUndefined()
     expect(await authSchemaDrift(on)).toEqual([])
