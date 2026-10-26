@@ -11,6 +11,9 @@ describe('userToShell', () => {
   it('names the first role of a list', () => {
     expect(userToShell({ id: 'u3', email: 'a@b.c', name: 'A B', role: 'sales,user' }).role).toBe('Sales')
   })
+  it('names a role in words', () => {
+    expect(userToShell({ id: 'u4', email: 'a@b.c', name: 'A B', role: 'full_access' }).role).toBe('Full access')
+  })
   it('gives the same user the same colour', () => {
     expect(userToShell({ id: 'u1', email: 'x@y.z', name: 'X' }).hue).toBe(userToShell({ id: 'u1', email: 'x@y.z', name: 'X' }).hue)
   })
