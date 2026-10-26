@@ -12,7 +12,7 @@ import { hasUsers } from './users'
  * `GET {authBase}/status`: `needsAdmin` while the admin store has no user, so a login page can say how to create one;
  * `signInMethods`, the ways to sign in the sign-in policy leaves on (`password`, `emailCode`, `passkey`), so it offers
  * only those; `passwordReset` when reset mail can be sent and passwords are on, so it offers "Forgot password?" only
- * then; `changeEmail` when mail can be sent, so the account page offers to change the address with an emailed code; `signUp` when the app has open sign-up, so it offers "Create an account"; the ids of the `socialProviders` people can sign in with, so it offers "Continue with GitHub" when `github` is
+ * then; `signInFirst: 'emailCode'` when the app has the sign-in page lead with an emailed code and the policy leaves both it and passwords on; `changeEmail` when mail can be sent, so the account page offers to change the address with an emailed code; `signUp` when the app has open sign-up, so it offers "Create an account"; the ids of the `socialProviders` people can sign in with, so it offers "Continue with GitHub" when `github` is
  * one; `platformSignIn`, the id and name of the platform's provider when it is one of them; `samlProviders`, the id and name of each SAML provider, when the app has any; `staffSignIn`, the
  * operator provider's name, when staff can sign in as people; `passkeyDomains`, when people have passkeys for more than
  * one of the app's hosts, the RP IDs a passkey sign-in can ask for, the passkey domain first; with organizations, who may create them and the roles
@@ -37,6 +37,7 @@ export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [], 
       needsAdmin: !(await hasUsers(auth)),
       signInMethods,
       passwordReset: auth.passwordReset && policy.password === 'allowed',
+      ...(auth.signInFirst === 'emailCode' && signInMethods.includes('emailCode') && signInMethods.includes('password') && { signInFirst: 'emailCode' }),
       ...(auth.mail && { changeEmail: true }),
       ...(auth.signUp && { signUp: true }),
       socialProviders,

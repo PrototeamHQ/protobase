@@ -18,6 +18,12 @@ export type SignInFormProps = {
   notice?: string
   /** The ways to sign in the server offers; default a password only. */
   methods?: SignInMethod[]
+  /**
+   * What the form leads with when `methods` has both `password` and `emailCode`: the password, with emailing a code
+   * below it (the default); or `emailCode`, the address and "Email me a sign-in code", with the password behind "Use a
+   * password".
+   */
+  first?: 'password' | 'emailCode'
   /** Emails a sign-in code to the address; offered when `methods` has `emailCode`. */
   onSendCode?: (email: string) => void
   /** Signs in with a passkey, of the app's passkey domain or of `domain`; offered when `methods` has `passkey`. */
@@ -47,14 +53,17 @@ const Divider = () => (
   </div>
 )
 
-export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, passkeyDomains = [], forgotPassword, providers = [], onContinueWith, signUp, onBrowse }: SignInFormProps) => {
+export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], first = 'password', onSendCode, onPasskey, passkeyDomains = [], forgotPassword, providers = [], onContinueWith, signUp, onBrowse }: SignInFormProps) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [passwordChosen, setPasswordChosen] = useState(false)
   const emailInput = useRef<HTMLInputElement>(null)
   const withPassword = methods.includes('password')
   const withCode = methods.includes('emailCode') && onSendCode !== undefined
   const withPasskey = methods.includes('passkey') && onPasskey !== undefined
   const offered = onContinueWith ? providers : []
+  const leadsWithCode = first === 'emailCode' && withPassword && withCode && !passwordChosen
+  const asksPassword = withPassword && !leadsWithCode
 
   // The code button sits in the password form, which also wants a password; it asks only for the address.
   const sendCode = () => {
@@ -107,7 +116,7 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
           className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault()
-            if (withPassword) onSubmit(email.trim(), password)
+            if (asksPassword) onSubmit(email.trim(), password)
             else sendCode()
           }}
         >
@@ -115,7 +124,7 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
             {text('email')}
             <Input ref={emailInput} type="email" name="email" autoComplete="username webauthn" required autoFocus value={email} invalid={Boolean(error)} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
           </label>
-          {withPassword && (
+          {asksPassword && (
             <label className="flex flex-col gap-1.5 font-medium">
               {text('password')}
               <Input type="password" name="password" autoComplete="current-password" required value={password} invalid={Boolean(error)} onChange={(event) => setPassword(event.target.value)} className="min-h-6" />
@@ -126,18 +135,23 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
               {error}
             </p>
           )}
-          {withPassword && (
+          {asksPassword && (
             <Button variant="primary" type="submit" loading={busy} className="min-h-10">
               {text('signIn')}
             </Button>
           )}
           {withCode && (
-            <Button variant={withPassword ? 'secondary' : 'primary'} type={withPassword ? 'button' : 'submit'} onClick={withPassword ? sendCode : undefined} loading={busy && !withPassword} disabled={busy} className="min-h-10">
+            <Button variant={asksPassword ? 'secondary' : 'primary'} type={asksPassword ? 'button' : 'submit'} onClick={asksPassword ? sendCode : undefined} loading={busy && !asksPassword} disabled={busy} className="min-h-10">
               <Mail className="size-4" />
               {text('emailSignInCode')}
             </Button>
           )}
-          {withPassword && forgotPassword && (
+          {leadsWithCode && (
+            <Button variant="ghost" onClick={() => setPasswordChosen(true)} disabled={busy} className="min-h-10">
+              {text('usePassword')}
+            </Button>
+          )}
+          {asksPassword && forgotPassword && (
             <RouteLink to={forgotPassword} className="self-center font-medium text-primary-text hover:underline">
               {text('forgotPassword')}
             </RouteLink>

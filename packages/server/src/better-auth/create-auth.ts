@@ -105,6 +105,12 @@ export type CreateAuthOptions = {
    * with everything else allowed. Checked at startup as an admin's save is. Default everything allowed.
    */
   signInPolicy?: Partial<SignInPolicy>
+  /**
+   * What the sign-in page leads with: `password`, the email address and a password, with emailing a code below it; or
+   * `emailCode`, the address and "Email me a sign-in code", with the password behind "Use a password", for apps whose
+   * people mostly never set one. Only while the policy leaves both on; default `password`.
+   */
+  signInFirst?: 'password' | 'emailCode'
   /** Sign-in attempts allowed per minute and client, default 5; also the sign-up requests allowed. */
   signInPerMinute?: number
   /**
@@ -481,6 +487,8 @@ export const createAuth = (options: CreateAuthOptions) => {
     mail: Boolean(mailer),
     /** The policy until an admin saves one. */
     signInPolicy,
+    /** What the sign-in page leads with (`signInFirst`). */
+    signInFirst: options.signInFirst ?? 'password',
     passwordReset: Boolean(mailer),
     /** New passwords are checked against Have I Been Pwned's list of leaked ones (`leakedPasswords`). */
     leakedPasswords: Boolean(options.leakedPasswords),

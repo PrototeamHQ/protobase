@@ -112,7 +112,7 @@ await deleteUser(auth, email)                                // with sessions an
 
 The last active admin cannot be deleted, demoted or banned: those functions throw instead, and Better Auth's admin endpoints answer `400 LAST_ADMIN`, so every caller is protected. An account created by `createUser` or an admin counts as having a verified address, since whoever created it vouches for it; that lets it sign in with an [emailed code](#emailed-sign-in-codes).
 
-Until a user exists sign-in fails, and `GET /api/auth/status` (public) answers `{ "needsAdmin": true, "signInMethods": ["password", "passkey"], "passwordReset": false, "socialProviders": [] }` so a login page can say what to do. `signInMethods` lists the ways to sign in the [sign-in policy](#sign-in-policy) leaves on (`password`, `emailCode`, `passkey`), `passwordReset` is whether [reset mail](#password-reset) can be sent and passwords are on, `signUp`, when there, says anyone can [make an account](#open-sign-up), and `staffSignIn`, when there, names the provider of [staff sign-in](#staff-sign-in). Further users are created by an admin on the [Users page](#users-page), or with `createUser` on the host. The auth store holds a connection pool; scripts that call these functions end the process themselves.
+Until a user exists sign-in fails, and `GET /api/auth/status` (public) answers `{ "needsAdmin": true, "signInMethods": ["password", "passkey"], "passwordReset": false, "socialProviders": [] }` so a login page can say what to do. `signInMethods` lists the ways to sign in the [sign-in policy](#sign-in-policy) leaves on (`password`, `emailCode`, `passkey`), `passwordReset` is whether [reset mail](#password-reset) can be sent and passwords are on, `signInFirst`, when there, says the page leads with an [emailed code](#emailed-sign-in-codes), `signUp`, when there, says anyone can [make an account](#open-sign-up), and `staffSignIn`, when there, names the provider of [staff sign-in](#staff-sign-in). Further users are created by an admin on the [Users page](#users-page), or with `createUser` on the host. The auth store holds a connection pool; scripts that call these functions end the process themselves.
 
 ## Users page
 
@@ -256,6 +256,12 @@ With mail configured, the account page's Profile tab offers "Change email": the 
 ## Emailed sign-in codes
 
 With mail configured, the sign-in page offers "Email me a sign-in code": the person enters their address, gets a 6-digit code, and signs in with it instead of a password. It is Better Auth's [email OTP](https://www.better-auth.com/docs/plugins/email-otp) plugin: `POST /api/auth/email-otp/send-verification-otp` with `{ email, type: "sign-in" }`, then `POST /api/auth/sign-in/email-otp` with `{ email, otp }`.
+
+By default the page leads with the password and offers the code below it. For an app whose people mostly never set a password, `signInFirst: 'emailCode'` leads with the code instead: the page asks for the address and "Email me a sign-in code", and the password field, with "Forgot password?", waits behind "Use a password". It applies while the [sign-in policy](#sign-in-policy) leaves both on; `/api/auth/status` then answers `signInFirst: "emailCode"`.
+
+```ts
+createAuth({ ..., signInFirst: 'emailCode' })
+```
 
 - A code works for 10 minutes, once, and three wrong tries end it; asking again sends a new one and the old one stops working. Codes are stored hashed.
 - It never creates an account: an address no account uses gets no code but an email saying so, which suggests signing in with the address the person signed up with. The answer is the same either way, so it does not tell who has an account.

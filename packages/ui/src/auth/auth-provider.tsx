@@ -26,6 +26,8 @@ export type AuthApi = {
   session: AuthSession
   /** The ways to sign in the server's policy leaves on. */
   signInMethods: SignInMethod[]
+  /** What the sign-in page leads with: a password, or an emailed code with the password behind "Use a password". */
+  signInFirst: 'password' | 'emailCode'
   /** The server can email reset links, so the sign-in page offers "Forgot password?". */
   passwordReset: boolean
   /** The server can email the code that confirms a new address, so the account page offers "Change email". */
@@ -106,6 +108,7 @@ export const useOptionalAuth = () => useContext(AuthContext)
 export const AuthProvider = ({ session: given, origin, nativeBridge, children }: { session?: AuthSession; origin?: string; nativeBridge?: NativeBridge; children: ReactNode }) => {
   const [state, setState] = useState<AuthState>({ kind: 'loading' })
   const [signInMethods, setSignInMethods] = useState<SignInMethod[]>(['password'])
+  const [signInFirst, setSignInFirst] = useState<'password' | 'emailCode'>('password')
   const [passwordReset, setPasswordReset] = useState(false)
   const [changeEmail, setChangeEmail] = useState(false)
   const [mcp, setMcp] = useState(false)
@@ -172,6 +175,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
     setState({ kind: 'loading' })
     void session.status().then(async (status) => {
       setSignInMethods(status.signInMethods)
+      setSignInFirst(status.signInFirst ?? 'password')
       setPasswordReset(status.passwordReset && !nativeBridge)
       setChangeEmail(Boolean(status.changeEmail))
       setMcp(Boolean(status.mcp))
@@ -198,6 +202,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       state,
       session,
       signInMethods,
+      signInFirst,
       passwordReset,
       changeEmail,
       mcp,
@@ -252,7 +257,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       },
       push,
     }),
-    [push, state, session, signInMethods, passwordReset, changeEmail, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
+    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

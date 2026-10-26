@@ -129,6 +129,9 @@ export const SignInWithEveryMethod: StoryObj<SignInFormProps> = {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole('button', { name: 'Sign in with a passkey' }))
     expect(args.onPasskey).toHaveBeenCalledOnce()
+    // By default the form leads with the password, with the code below it.
+    expect(canvas.getByLabelText('Password')).toBeVisible()
+    expect(canvas.queryByRole('button', { name: 'Use a password' })).toBeNull()
     // The code needs only the address, not the password.
     await userEvent.click(canvas.getByRole('button', { name: 'Email me a sign-in code' }))
     expect(args.onSendCode).not.toHaveBeenCalled()
@@ -136,6 +139,26 @@ export const SignInWithEveryMethod: StoryObj<SignInFormProps> = {
     await userEvent.click(canvas.getByRole('button', { name: 'Email me a sign-in code' }))
     expect(args.onSendCode).toHaveBeenCalledWith('sanne@veldhuis-supply.example')
     expect(args.onSubmit).not.toHaveBeenCalled()
+  },
+}
+
+/** With `first: 'emailCode'` the form leads with emailing a code; the password, and its reset link, wait behind "Use a password". */
+export const SignInWithCodeFirst: StoryObj<SignInFormProps> = {
+  tags: ['play'],
+  args: { onSubmit: fn(), onSendCode: fn(), forgotPassword: stepLink('forgot-password'), methods: ['password', 'emailCode'], first: 'emailCode', workspace: 'Veldhuis Supply' },
+  render: (args) => <SignInForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.queryByLabelText('Password')).toBeNull()
+    expect(canvas.queryByRole('link', { name: 'Forgot password?' })).toBeNull()
+    await userEvent.type(canvas.getByLabelText('Email'), 'sanne@veldhuis-supply.example{enter}')
+    expect(args.onSendCode).toHaveBeenCalledWith('sanne@veldhuis-supply.example')
+    await userEvent.click(canvas.getByRole('button', { name: 'Use a password' }))
+    expect(canvas.queryByRole('button', { name: 'Use a password' })).toBeNull()
+    expect(canvas.getByRole('link', { name: 'Forgot password?' })).toBeVisible()
+    await userEvent.type(canvas.getByLabelText('Password'), 'correct horse battery{enter}')
+    expect(args.onSubmit).toHaveBeenCalledWith('sanne@veldhuis-supply.example', 'correct horse battery')
+    expect(args.onSendCode).toHaveBeenCalledOnce()
   },
 }
 

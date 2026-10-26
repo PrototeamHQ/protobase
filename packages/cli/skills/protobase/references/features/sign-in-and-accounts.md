@@ -10,7 +10,7 @@ Sign-in methods, users, roles, organizations and tokens.
 - [Users page](../reference/auth.md#users-page): Admins find people, set roles, block them, add accounts and invite people by email.
 - [Password reset](../reference/auth.md#password-reset): People reset a forgotten password through an emailed link.
 - [Leaked passwords](../reference/auth.md#leaked-passwords): New passwords that appear in a known data breach are refused, when the app turns the check on.
-- [Emailed sign-in codes](../reference/auth.md#emailed-sign-in-codes): People sign in with a code sent to their email. An address with no account is emailed that it has none, so the person tries the one they signed up with.
+- [Emailed sign-in codes](../reference/auth.md#emailed-sign-in-codes): People sign in with a code sent to their email. An address with no account is emailed that it has none, so the person tries the one they signed up with. An app can have the sign-in page lead with the code and put the password behind "Use a password".
 - [Changing the address](../reference/auth.md#changing-the-address): People move their account to a new email address from the account page, once they enter the code sent there.
 - [Open sign-up](../reference/auth.md#open-sign-up): Anyone can create an account after confirming an emailed code.
 - [Passkeys](../reference/auth.md#passkeys): People sign in with their device's face or fingerprint unlock, or with a security key.

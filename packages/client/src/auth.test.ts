@@ -92,6 +92,9 @@ describe('auth session sign-in', () => {
     const mcp = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], mcp: true })) as typeof fetch })
     expect(await mcp.status()).toMatchObject({ mcp: true })
     expect(await early.status()).not.toHaveProperty('mcp')
+    const codeFirst = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password', 'emailCode'], socialProviders: [], signInFirst: 'emailCode' })) as typeof fetch })
+    expect(await codeFirst.status()).toMatchObject({ signInFirst: 'emailCode' })
+    expect(await early.status()).not.toHaveProperty('signInFirst')
   })
 
   it('says so when the URL is not a Protobase server', async () => {

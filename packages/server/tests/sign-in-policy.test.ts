@@ -261,3 +261,13 @@ describe('a required method', () => {
     expect((await request('/passkey/delete-passkey', { cookie, body: { id: first.id } })).status).toBe(200)
   })
 })
+
+describe('what the sign-in page leads with', () => {
+  it('is the password by default, and the emailed code when the app asks for it while the policy leaves both on', async () => {
+    expect(await (await serve()).status()).not.toHaveProperty('signInFirst')
+    const { request, signIn, status } = await serve({ signInFirst: 'emailCode' })
+    expect(await status()).toMatchObject({ signInMethods: ['password', 'emailCode', 'passkey'], signInFirst: 'emailCode' })
+    expect((await request('/policy/sign-in', { cookie: await signIn('root@example.com'), body: { ...defaultSignInPolicy, password: 'forbidden' } })).status).toBe(200)
+    expect(await status()).not.toHaveProperty('signInFirst')
+  })
+})
