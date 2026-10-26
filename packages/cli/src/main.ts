@@ -30,6 +30,7 @@ import { registerSkill } from './skill/register'
 import { registerImport } from './supabase/register'
 import { registerToken, registerUsers } from './users/register'
 import type { UiSection } from './scaffold/ui-file'
+import { errorMessage } from './error-message'
 
 const out = (text: string) => process.stdout.write(text)
 
@@ -202,6 +203,6 @@ registerNotifications(program)
 // Central error handler: commands throw, the user sees one line.
 export const run = (argv: string[]) =>
   program.parseAsync(argv).catch((error: Error) => {
-    process.stderr.write(`error: ${error.message}\n`)
+    process.stderr.write(`error: ${errorMessage(error)}\n`)
     process.exitCode = 1
   })
