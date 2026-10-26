@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { presetForAnswer } from './ask-preset'
+import { askPreset, presetForAnswer } from './ask-preset'
 
 const names = ['scratch', 'erp', 'real-estate']
 
@@ -17,5 +17,18 @@ describe('presetForAnswer', () => {
     expect(presetForAnswer(names, '4')).toBeUndefined()
     expect(presetForAnswer(names, '1.5')).toBeUndefined()
     expect(presetForAnswer(names, 'crm')).toBeUndefined()
+  })
+})
+
+describe('askPreset', () => {
+  it('asks again until the answer names a preset', async () => {
+    const answers = ['crm', '3']
+    const asked: string[] = []
+    const question = async (text: string) => {
+      asked.push(text)
+      return answers.shift()!
+    }
+    expect(await askPreset(names, question)).toBe('real-estate')
+    expect(asked).toEqual(['Preset [1-3]: ', 'Preset [1-3]: '])
   })
 })

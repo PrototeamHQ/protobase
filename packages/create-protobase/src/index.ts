@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import path from 'node:path'
+import { createInterface } from 'node:readline/promises'
 import { parseArgs } from 'node:util'
+import { askDir } from './ask-dir'
 import { askPreset } from './ask-preset'
 import { createProject } from './create-project'
 import { freePort } from './free-port'
@@ -14,20 +16,41 @@ const templatesDir = path.join(import.meta.dirname, 'templates')
 
 const usage = 'usage: npm create protobase <dir> [-- --preset <name>]'
 
+type Question = (text: string) => Promise<string>
+
+// The positional folder, else the terminal's answer.
+const pickDir = async (positionals: string[], question: Question | undefined) => {
+  const [dir, ...extra] = positionals
+  if (extra.length > 0) throw new Error(usage)
+  if (dir) return dir
+  if (question) return askDir(question)
+  throw new Error(usage)
+}
+
 // The flag's preset, else the terminal's answer, else the default without waiting for input.
-const pickPreset = async (flag: string | undefined) => {
+const pickPreset = async (flag: string | undefined, question: Question | undefined) => {
   const names = presetNames(templatesDir)
   if (flag !== undefined) return checkPreset(names, flag)
-  if (process.stdin.isTTY && process.stdout.isTTY) return askPreset(names)
+  if (question) return askPreset(names, question)
   return defaultPreset
+}
+
+// One prompt for every question in a terminal, so none reads the answers typed ahead for the next; none without one.
+const pick = async (positionals: string[], flag: string | undefined) => {
+  const terminal = process.stdin.isTTY && process.stdout.isTTY
+  const prompt = terminal ? createInterface({ input: process.stdin, output: process.stdout }) : undefined
+  const question = prompt && ((text: string) => prompt.question(text))
+  try {
+    return { dir: await pickDir(positionals, question), preset: await pickPreset(flag, question) }
+  } finally {
+    prompt?.close()
+  }
 }
 
 const create = async (argv: string[]) => {
   const options = { preset: { type: 'string' } } as const
   const { values, positionals } = parseArgs({ args: argv.slice(2), allowPositionals: true, options })
-  const [dir, ...extra] = positionals
-  if (!dir || extra.length > 0) throw new Error(usage)
-  const preset = await pickPreset(values.preset)
+  const { dir, preset } = await pick(positionals, values.preset)
   const port = await freePort(defaultPort)
   const secret = randomBytes(32).toString('base64')
   const { scripts } = createProject(path.join(templatesDir, preset), path.resolve(dir), { port, secret })

@@ -1,5 +1,3 @@
-import { createInterface } from 'node:readline/promises'
-
 /** The preset for an answer: its number in `names` or its name, the first one when the answer is empty. */
 export const presetForAnswer = (names: string[], answer: string) => {
   const text = answer.trim()
@@ -12,14 +10,12 @@ export const presetForAnswer = (names: string[], answer: string) => {
 const menu = (names: string[]) =>
   `Which preset do you want to start from?\n${names.map((name, i) => `  ${i + 1}. ${name}${i === 0 ? ' (default)' : ''}\n`).join('')}`
 
-/** Asks in the terminal which of `names` to start from, again until the answer is one of them. */
-export const askPreset = async (names: string[]) => {
-  const prompt = createInterface({ input: process.stdin, output: process.stdout })
+/** Asks with `question`, a terminal prompt's, which of `names` to start from, again until the answer is one of them. */
+export const askPreset = async (names: string[], question: (text: string) => Promise<string>) => {
   process.stdout.write(menu(names))
   let picked: string | undefined
   while (!picked) {
-    picked = presetForAnswer(names, await prompt.question(`Preset [1-${names.length}]: `))
+    picked = presetForAnswer(names, await question(`Preset [1-${names.length}]: `))
   }
-  prompt.close()
   return picked
 }
