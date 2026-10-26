@@ -1,8 +1,6 @@
 import type { Command } from 'commander'
 import type { EncryptionTools } from '@protobase/server'
-import { printApply } from './print-apply'
-import { printStatus } from './print-status'
-import { rebindOption, type RebindFlags } from './rebind-option'
+import type { RebindFlags } from './rebind-option'
 
 const out = (text: string) => void process.stdout.write(text)
 
@@ -28,7 +26,10 @@ export const registerEncryption = (program: Command) => {
     .command('status')
     .description('Count each encrypted field\'s values by key, list plaintext and unreadable ones and old values left in history; exits 1 when any need work')
     .argument(...bundleArgument)
-    .action((bundle: string | undefined) => withTools(bundle, async (tools) => printStatus(await tools.status(), out)))
+    .action(async (bundle: string | undefined) => {
+      const { printStatus } = await import('./print-status')
+      await withTools(bundle, async (tools) => printStatus(await tools.status(), out))
+    })
 
   encryption
     .command('apply')
@@ -37,9 +38,10 @@ export const registerEncryption = (program: Command) => {
     .option('--rebind <resource[.field]>', 'rebind the values of a resource, or one field, sealed before a rename')
     .option('--from-table <table>', 'the table, as .table() named it, the values were in before')
     .option('--from-column <column>', 'the column the field\'s values were in before')
-    .action((bundle: string | undefined, flags: RebindFlags) => {
+    .action(async (bundle: string | undefined, flags: RebindFlags) => {
+      const [{ rebindOption }, { printApply }] = await Promise.all([import('./rebind-option'), import('./print-apply')])
       const rebind = rebindOption(flags)
-      return withTools(bundle, async (tools) => {
+      await withTools(bundle, async (tools) => {
         out(`Encrypting with key ${tools.kid}\n`)
         return printApply(await tools.apply(rebind ? { rebind } : {}), out)
       })

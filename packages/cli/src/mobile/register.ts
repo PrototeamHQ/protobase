@@ -1,6 +1,5 @@
 import path from 'node:path'
 import type { Command } from 'commander'
-import { resolveExtensions } from '../project/extensions'
 import { parseAppVersion, parseBuildNumber, parsePlatform, parsePort, parseSigningName, parseTeamId } from './arguments'
 import type { Platform } from './platform'
 
@@ -25,7 +24,7 @@ export const registerMobile = (program: Command) => {
     .option('--port <port>', 'the port of protobase dev, for --live', parsePort, 5173)
     .option('--extend <dir>', extend, collect, [])
     .action(async (chosen: Platform, opts) => {
-      const { mobileRun } = await import('./run')
+      const [{ mobileRun }, { resolveExtensions }] = await Promise.all([import('./run'), import('../project/extensions')])
       const input = { projectDir: process.cwd(), platform: chosen, extensions: resolveExtensions(opts.extend), ...(opts.api !== undefined && { api: opts.api }), ...(opts.target && { target: opts.target }), ...(opts.team && { team: opts.team }) }
       await mobileRun({ ...input, ...(opts.live && { live: opts.port }) }, out)
     })
@@ -37,7 +36,7 @@ export const registerMobile = (program: Command) => {
     .option(api, apiHelp)
     .option('--extend <dir>', extend, collect, [])
     .action(async (chosen: Platform, opts) => {
-      const { mobileOpen } = await import('./run')
+      const [{ mobileOpen }, { resolveExtensions }] = await Promise.all([import('./run'), import('../project/extensions')])
       await mobileOpen({ projectDir: process.cwd(), platform: chosen, extensions: resolveExtensions(opts.extend), ...(opts.api !== undefined && { api: opts.api }) }, out)
     })
 
@@ -56,7 +55,7 @@ export const registerMobile = (program: Command) => {
     .action(async (chosen: Platform, opts) => {
       if (chosen === 'android' && (opts.team || opts.certificate || opts.profile)) throw new Error('--team, --certificate and --profile are for iOS: Android signs with the PROTOBASE_ANDROID_* variables')
       if (Boolean(opts.certificate) !== Boolean(opts.profile)) throw new Error('Manual signing takes both --certificate and --profile')
-      const { mobileBuild } = await import('./build')
+      const [{ mobileBuild }, { resolveExtensions }] = await Promise.all([import('./build'), import('../project/extensions')])
       const projectDir = process.cwd()
       await mobileBuild(
         {

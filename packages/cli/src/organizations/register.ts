@@ -1,5 +1,4 @@
 import type { Command } from 'commander'
-import { addAppRoleCommand, addMemberCommand, createOrganizationCommand, listOrganizationsCommand, removeMemberCommand, setMemberRolesCommand } from './commands'
 
 const out = (text: string) => process.stdout.write(text)
 
@@ -26,6 +25,7 @@ export const registerOrganizations = (program: Command) => {
     .command('list')
     .description('List organizations with their members and roles')
     .action(async () => {
+      const { listOrganizationsCommand } = await import('./commands')
       await listOrganizationsCommand(await projectApi(), out)
       finish(0)
     })
@@ -39,16 +39,19 @@ export const registerOrganizations = (program: Command) => {
     .option('--id <id>', 'keep an existing tenant value, for an app that ran as one organization')
     .option('--members <all>', '"all": every other user joins; their global roles move here, superusers become owners')
     .action(async (name: string, opts) => {
+      const { createOrganizationCommand } = await import('./commands')
       await createOrganizationCommand(await projectApi(), { name, owner: opts.owner, slug: opts.slug, id: opts.id, members: opts.members }, out)
       finish(0)
     })
 
   memberOptions(organizations.command('add-member').description('Add a user to an organization (organization role member unless given)')).action(async (organization: string, email: string, opts) => {
+    const { addMemberCommand } = await import('./commands')
     await addMemberCommand(await projectApi(), { organization, email, orgRole: opts.orgRole, appRoles: opts.appRoles }, out)
     finish(0)
   })
 
   memberOptions(organizations.command('set-roles').description("Change a member's organization role, app roles, or both")).action(async (organization: string, email: string, opts) => {
+    const { setMemberRolesCommand } = await import('./commands')
     await setMemberRolesCommand(await projectApi(), { organization, email, orgRole: opts.orgRole, appRoles: opts.appRoles }, out)
     finish(0)
   })
@@ -59,6 +62,7 @@ export const registerOrganizations = (program: Command) => {
     .argument('<organization>', 'its slug or id')
     .argument('<email>')
     .action(async (organization: string, email: string) => {
+      const { removeMemberCommand } = await import('./commands')
       await removeMemberCommand(await projectApi(), { organization, email }, out)
       finish(0)
     })
@@ -69,6 +73,7 @@ export const registerOrganizations = (program: Command) => {
     .argument('<role>')
     .requiredOption('--to <owners>', '"owners"')
     .action(async (role: string, opts) => {
+      const { addAppRoleCommand } = await import('./commands')
       await addAppRoleCommand(await projectApi(), { role, to: opts.to }, out)
       finish(0)
     })

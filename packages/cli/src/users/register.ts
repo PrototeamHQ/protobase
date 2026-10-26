@@ -1,7 +1,5 @@
 import { Command, Option } from 'commander'
 import { createInterface } from 'node:readline/promises'
-import { addMemberCommand } from '../organizations/commands'
-import { deleteUserCommand, setRoleCommand } from './manage'
 import { parseTtl } from './ttl'
 
 // The modules that load the project's auth, and @protobase/server with it, are imported when a command runs.
@@ -45,10 +43,11 @@ export const registerUsers = (program: Command) => {
     .action(async (email: string, opts) => {
       const { readHidden, rejectPasswordArgument } = await import('./password')
       rejectPasswordArgument(opts.password)
-      const [{ createUserCommand }, { usersApi }, { organizationsApi }, auth] = await Promise.all([
+      const [{ createUserCommand }, { usersApi }, { organizationsApi }, { addMemberCommand }, auth] = await Promise.all([
         import('./commands'),
         import('./users-api'),
         import('../organizations/api'),
+        import('../organizations/commands'),
         loadAuth(),
       ])
       await createUserCommand(
@@ -67,6 +66,7 @@ export const registerUsers = (program: Command) => {
     .argument('<email>')
     .option('--yes', 'skip the confirmation', false)
     .action(async (email: string, opts) => {
+      const { deleteUserCommand } = await import('./manage')
       await deleteUserCommand(await projectApi(), { email, yes: opts.yes }, ask, out)
       finish(0)
     })
@@ -77,6 +77,7 @@ export const registerUsers = (program: Command) => {
     .argument('<email>')
     .argument('<role>')
     .action(async (email: string, role: string) => {
+      const { setRoleCommand } = await import('./manage')
       await setRoleCommand(await projectApi(), { email, role }, out)
       finish(0)
     })

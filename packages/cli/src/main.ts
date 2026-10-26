@@ -5,7 +5,6 @@ import { registerAuth } from './auth/register'
 import { isConnectionString, resolveConnectionUrl } from './db/connection-url'
 import { parseHosts } from './dev/hosts'
 import { loadNearestEnvFile } from './dev/env'
-import { resolveExtensions } from './project/extensions'
 import { placeholderSecretWarning } from './project/placeholder-secret'
 import { registerOrganizations } from './organizations/register'
 import { registerFiles } from './files/register'
@@ -99,7 +98,7 @@ program
   .option('--cache-dir <dir>', "Vite's dependency cache, so parallel dev servers do not share one")
   .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
   .action(async (opts) => {
-    const { runDev } = await import('./dev/run')
+    const [{ runDev }, { resolveExtensions }] = await Promise.all([import('./dev/run'), import('./project/extensions')])
     const server = await runDev(
       {
         extensions: resolveExtensions(opts.extend),
@@ -124,9 +123,9 @@ program
   .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
   .option('--source-maps', 'end each script with a //# debugId= comment and write its source map, carrying the same id, beside it', false)
   .action(async (opts) => {
+    const [{ buildDeployBundle }, { manifestFile }, { resolveExtensions }] = await Promise.all([import('./build/deploy-bundle'), import('./bundle/manifest'), import('./project/extensions')])
     const extensions = resolveExtensions(opts.extend)
     const onWarning = (message: string) => process.stderr.write(`warning: ${message}\n`)
-    const [{ buildDeployBundle }, { manifestFile }] = await Promise.all([import('./build/deploy-bundle'), import('./bundle/manifest')])
     const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun, extensions, sourceMaps: opts.sourceMaps, onWarning })
     const packages = manifest.nodeModules ? `, ${manifest.nodeModules}/` : ''
     const plugins = manifest.plugins.length > 0 ? ` with plugins ${manifest.plugins.map((plugin) => plugin.name).join(', ')}` : ''
