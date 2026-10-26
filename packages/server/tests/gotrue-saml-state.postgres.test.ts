@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
-import { createAuth } from '../src/better-auth/create-auth'
+import { buildAuth } from '../src/better-auth/create-auth'
 import { createAdmin } from '../src/create-admin'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
 import { fakeSamlIdp } from './support/fake-saml-idp'
@@ -23,7 +23,7 @@ let address = 0
 
 const serve = async () => {
   const store = await openPostgresDatabase('auth')
-  const auth = createAuth({
+  const auth = await buildAuth({
     database: { dialect: store.dialect, type: 'postgres' },
     baseURL: origin,
     secret,

@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth'
 import { memoryAdapter } from 'better-auth/adapters/memory'
 import { describe, expect, it } from 'vitest'
 import { betterAuthOptions, type CreateAuthOptions } from './create-auth'
+import { mcpAuthPlugins } from './mcp/mcp-auth-plugins'
 import { resolveMcp } from './mcp/mcp-plugins'
 import { mobileRequests } from './mobile-requests'
 import { roleDefinitions } from './organizations/role-definitions'
@@ -48,7 +49,7 @@ describe('trusted origins', () => {
 // make them: Better Auth's origin check answers 403 before the provider reads the request.
 describe('the connect page calls, with MCP on', () => {
   const call = async (path: string, origin: string) => {
-    const authOptions = betterAuthOptions(base, { ...resolved, mcp: resolveMcp(base.baseURL, true) })
+    const authOptions = betterAuthOptions(base, { ...resolved, mcp: resolveMcp(base.baseURL, true), mcpAuthPlugins })
     const database = memoryAdapter({ verification: [], sign_in_policy: [], session: [], user: [], oauth_resource: [] })
     const auth = betterAuth({ ...authOptions, database, advanced: { ...authOptions.advanced, disableOriginCheck: false } })
     const response = await auth.handler(

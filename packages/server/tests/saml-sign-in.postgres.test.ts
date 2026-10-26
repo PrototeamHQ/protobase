@@ -1,7 +1,7 @@
 import { sql } from 'kysely'
 import { describe, expect, it } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
-import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
+import { buildAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
@@ -25,7 +25,7 @@ const sanne = (changes: Partial<SamlPerson> = {}): SamlPerson => ({ email: 'sann
 // Every app gets a copy of the migrated store with an admin, the Acme provider, and a client address of its own.
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   const store = await openPostgresDatabase('auth')
-  const auth = createAuth({
+  const auth = await buildAuth({
     database: { dialect: store.dialect, type: 'postgres' },
     baseURL: origin,
     secret,

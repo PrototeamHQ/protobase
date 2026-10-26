@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { defaultSsoEntry, emailInDomains, resolveSamlProviders, samlEntityId, samlRefusal, type SamlProvider } from './saml-sign-in'
+import { emailInDomains, resolveSamlProviders, samlEntityId, samlRefusal, type SamlProvider } from './saml-sign-in'
+import { defaultSsoEntry } from './saml-plugin'
 
 const metadata = '<EntityDescriptor entityID="https://idp.example.com"/>'
 const okta: SamlProvider = { id: 'okta', domains: ['Example.com '], idp: { metadata } }

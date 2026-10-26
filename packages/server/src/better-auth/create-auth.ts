@@ -19,7 +19,8 @@ import { lastAdminGuardPlugin } from './last-admin-guard'
 import { leakedPasswordsPlugin } from './leaked-passwords'
 import { userDeletion, type UserDeletion } from './user-deletion'
 import { revokeMcpGrants } from './mcp/revoke-grants'
-import { mcpAuthPlugins, mcpScope, mcpUnusedPaths, resolveMcp, type McpAuthOptions, type ResolvedMcp } from './mcp/mcp-plugins'
+import type { mcpAuthPlugins } from './mcp/mcp-auth-plugins'
+import { mcpScope, mcpUnusedPaths, resolveMcp, type McpAuthOptions, type ResolvedMcp } from './mcp/mcp-plugins'
 import { lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
 import { organizationPlugin } from './organizations/organization-plugin'
 import { protobaseOrganizationPlugin } from './organizations/protobase-plugin'
@@ -38,7 +39,8 @@ import { appSignInPolicy } from './app-sign-in-policy'
 import { signInPolicyPlugin } from './policy-plugin'
 import { defaultSignInPolicy, type SignInPolicy } from './sign-in-policy'
 import { assertNoEndpointKeyClashes } from './endpoint-key-clashes'
-import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugin, samlPlugin, type ResolvedSamlProvider, type SsoOptions } from './saml-sign-in'
+import type { samlPlugin } from './saml-plugin'
+import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugin, type ResolvedSamlProvider, type SsoOptions } from './saml-sign-in'
 import { noAccountMailPlugin } from './no-account-mail'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
 import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
@@ -251,6 +253,23 @@ type Resolved = {
   mobile?: MobileRequests
   /** What runs when a user is deleted (see `userDeletion`). */
   deletion?: UserDeletion
+} & AuthPlugins
+
+/**
+ * The plugins only some apps use, which `loadAuthPlugins` imports when the options turn them on: the SSO plugin of
+ * `sso.saml` and the OAuth provider of `mcp`.
+ */
+export type AuthPlugins = { samlPlugin?: typeof samlPlugin; mcpAuthPlugins?: typeof mcpAuthPlugins }
+
+/** The optional plugins `options` turns on, imported: an app without SAML or MCP loads neither. */
+export const loadAuthPlugins = async (options: Pick<CreateAuthOptions, 'sso' | 'mcp'>): Promise<AuthPlugins> => ({
+  ...((options.sso?.saml.length ?? 0) > 0 && { samlPlugin: (await import('./saml-plugin')).samlPlugin }),
+  ...(options.mcp && { mcpAuthPlugins: (await import('./mcp/mcp-auth-plugins')).mcpAuthPlugins }),
+})
+
+const loaded = <T>(plugin: T | undefined, option: string): T => {
+  if (!plugin) throw new Error(`${option} needs its plugin loaded: build auth with buildAuth, which loads it`)
+  return plugin
 }
 
 const newUserId = (generate: NonNullable<CreateAuthOptions['generateUserId']>) => (generate === 'uuid' ? crypto.randomUUID() : generate())
@@ -265,7 +284,7 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, ...plugins }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   const hosts = passkeyHosts([options.baseURL, ...origins])
@@ -340,7 +359,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail)] : []),
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail, defaultPolicy: signInPolicy })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
-      ...(saml.length > 0 ? [samlPlugin(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
+      ...(saml.length > 0 ? [loaded(plugins.samlPlugin, 'sso.saml')(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
       setPasswordPlugin(),
       ...(options.leakedPasswords ? [leakedPasswordsPlugin()] : []),
@@ -363,7 +382,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       }),
       ...(passwordHashes.length > 0 ? [rehashPasswordsPlugin(passwordHashes)] : []),
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
-      ...(mcp ? mcpAuthPlugins({ mcp, organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context }) : []),
+      ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context }) : []),
     ].map((plugin) => withUserColumns(plugin, users)),
     disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : [])],
     databaseHooks: {
@@ -430,7 +449,7 @@ const checkSignUpRole = (role: string, roles: string[]) => {
   return role
 }
 
-export const createAuth = (options: CreateAuthOptions) => {
+export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}) => {
   // People of organizations come from invitations.
   if (options.signUp && options.organizations) throw new Error('signUp is not available with organizations: their people join by invitation')
   const definitions = roleDefinitions(options.roles, { organizations: options.organizations !== undefined })
@@ -461,7 +480,7 @@ export const createAuth = (options: CreateAuthOptions) => {
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
   const mobile = mobileRequests()
   const deletion = userDeletion()
-  const authOptions = betterAuthOptions(options, { mobile, deletion, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...((organizations || mcp) && { context }) })
+  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...((organizations || mcp) && { context }) })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
@@ -518,3 +537,6 @@ export const createAuth = (options: CreateAuthOptions) => {
 }
 
 export type AdminAuth = ReturnType<typeof createAuth>
+
+/** `createAuth` with the optional plugins its options turn on loaded first (see `loadAuthPlugins`). */
+export const buildAuth = async (options: CreateAuthOptions): Promise<AdminAuth> => createAuth(options, await loadAuthPlugins(options))

@@ -1,4 +1,3 @@
-import { sso, type SSOOptions } from '@better-auth/sso'
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthMiddleware } from 'better-auth/api'
 import { authBasePath } from './auth-base-path'
@@ -65,40 +64,6 @@ export type ResolvedSamlProvider = ReturnType<typeof resolveSamlProviders>[numbe
 
 /** The app's SP entity ID for a provider: its metadata URL on `baseURL`, the same on every origin. */
 export const samlEntityId = (baseURL: string, id: string) => `${baseURL.replace(/\/$/, '')}${authBasePath}/sso/saml2/sp/metadata?providerId=${encodeURIComponent(id)}`
-
-type DefaultSso = NonNullable<SSOOptions['defaultSSO']>[number]
-
-/** The provider as one of the SSO plugin's configured providers (`defaultSSO`). */
-export const defaultSsoEntry = (provider: ResolvedSamlProvider, baseURL: string): DefaultSso => {
-  const { idp, attributes = {} } = provider
-  const mapping = Object.fromEntries(Object.entries(attributes).filter(([, name]) => name !== undefined))
-  return {
-    providerId: provider.id,
-    domain: provider.domains.join(','),
-    samlConfig: {
-      issuer: samlEntityId(baseURL, provider.id),
-      // With metadata, the plugin reads the sign-in URL and the certificate from the XML and ignores this.
-      entryPoint: 'ssoUrl' in idp ? idp.ssoUrl : '',
-      idpMetadata: 'metadata' in idp ? { metadata: idp.metadata } : { entityID: idp.entityId, cert: idp.certificate },
-      ...(Object.keys(mapping).length > 0 && { mapping }),
-    },
-  }
-}
-
-/**
- * Better Auth's SSO plugin with the configured providers. Their domains are trusted, so an address there links to the
- * account that has it; organizations are not assigned by provider, and nobody registers providers.
- */
-export const samlPlugin = (providers: ResolvedSamlProvider[], baseURL: string) => {
-  // Protobase keeps the providers in config, so the plugin's provider table is never created or read.
-  const { schema: _schema, ...plugin } = sso({
-    defaultSSO: providers.map((provider) => defaultSsoEntry(provider, baseURL)),
-    domainVerification: { enabled: true },
-    organizationProvisioning: { disabled: true },
-    providersLimit: 0,
-  })
-  return plugin satisfies BetterAuthPlugin
-}
 
 /** The SSO plugin's endpoints for providers kept in its table, and its OIDC callback, which Protobase does not serve. */
 export const samlDisabledPaths = ['/sso/register', '/sso/providers', '/sso/get-provider', '/sso/update-provider', '/sso/delete-provider', '/sso/request-domain-verification', '/sso/verify-domain', '/sso/callback']

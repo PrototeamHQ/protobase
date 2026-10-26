@@ -1,6 +1,6 @@
 import { createAuthEndpoint } from 'better-auth/api'
 import { describe, expect, it } from 'vitest'
-import { createAuth } from './create-auth'
+import { buildAuth } from './create-auth'
 import { assertNoEndpointKeyClashes, endpointKeyClashes } from './endpoint-key-clashes'
 
 const endpoint = (path: string) => createAuthEndpoint(path, { method: 'GET' }, async (ctx) => ctx.json({}))
@@ -22,8 +22,8 @@ describe('endpointKeyClashes', () => {
 })
 
 describe('the auth plugins with every feature on', () => {
-  it("register no endpoint key twice, so Better Auth's organization endpoints answer at their paths", () => {
-    const auth = createAuth({
+  it("register no endpoint key twice, so Better Auth's organization endpoints answer at their paths", async () => {
+    const auth = await buildAuth({
       database: undefined,
       baseURL: 'https://admin.example.com',
       secret: 'test-secret-test-secret-test-secret-1234',

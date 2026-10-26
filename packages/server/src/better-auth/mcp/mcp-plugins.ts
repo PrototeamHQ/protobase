@@ -1,22 +1,5 @@
-import { cimd } from '@better-auth/cimd'
-import { fetchClientMetadataResource } from '@better-auth/cimd/node'
-import { mcp } from '@better-auth/mcp'
 import type { ClientMetadataResourceFetch } from '@better-auth/oauth-provider'
 import { connectRoute } from '@protobase/schema'
-import type { RoleDefinitions } from '../organizations/role-definitions'
-import type { AuthContext } from '../organizations/store'
-import type { RoleSession } from '../roles/session-role'
-import type { SignInPolicy } from '../sign-in-policy'
-import { pluginNames } from '../snake-case-names'
-import { mcpConsentCheck } from './consent-check'
-import { mcpConnectedApps } from './connected-apps'
-import { consentReference } from './consent-reference'
-import { mcpTokenClaims } from './mcp-token-claims'
-import { mcpRefreshReuse } from './refresh-reuse'
-import { mcpRequestDefaults } from './request-defaults'
-import { mcpGrantRevocation } from './revoke-grants'
-import { mcpSetupGate } from './setup-gate'
-import { mcpSignedQueryGuard } from './signed-query-guard'
 
 /** The path of the app's MCP endpoint, below its origin, unless `mcp.path` names another. */
 export const defaultMcpPath = '/api/mcp'
@@ -37,7 +20,7 @@ export type McpAuthOptions = {
 }
 
 /** `McpAuthOptions` with the defaults filled in and the resource worked out. */
-export type ResolvedMcp = { path: string; connectPage: string; resource: string; fetchClientMetadata: ClientMetadataResourceFetch }
+export type ResolvedMcp = { path: string; connectPage: string; resource: string; fetchClientMetadata?: ClientMetadataResourceFetch }
 
 /** The OAuth resource of the MCP endpoint: the origin of `baseURL` with `path`. */
 export const mcpResource = (baseURL: string, path: string) => `${new URL(baseURL).origin}${path}`
@@ -47,10 +30,10 @@ export const mcpResource = (baseURL: string, path: string) => `${new URL(baseURL
  * resource is never the issuer, in either of its forms, whose tokens the app's own API takes.
  */
 export const resolveMcp = (baseURL: string, options: true | McpAuthOptions): ResolvedMcp => {
-  const { path = defaultMcpPath, connectPage = connectRoute, fetchClientMetadata = fetchClientMetadataResource } = options === true ? {} : options
+  const { path = defaultMcpPath, connectPage = connectRoute, fetchClientMetadata } = options === true ? {} : options
   if (!path.startsWith('/') || path.length < 2) throw new Error(`mcp.path "${path}" must be a path below the app's origin, such as ${defaultMcpPath}`)
   if (!connectPage.startsWith('/')) throw new Error(`mcp.connectPage "${connectPage}" must be a path on the app's origin, such as ${connectRoute}`)
-  return { path, connectPage, resource: mcpResource(baseURL, path), fetchClientMetadata }
+  return { path, connectPage, resource: mcpResource(baseURL, path), ...(fetchClientMetadata && { fetchClientMetadata }) }
 }
 
 /**
@@ -74,59 +57,4 @@ export const mcpUnusedPaths = [
   '/oauth2/get-consents',
   '/oauth2/update-consent',
   '/oauth2/delete-consent',
-]
-
-export type McpAuthPluginsOptions = {
-  mcp: ResolvedMcp
-  /** Organizations are on. */
-  organizations: boolean
-  /** Mail can be sent, as the sign-in policy reads it. */
-  mail: boolean
-  /** The policy until an admin saves one, from `appSignInPolicy`. */
-  defaultPolicy: SignInPolicy
-  /** The roles with their labels, for the list of connected apps. */
-  definitions: RoleDefinitions
-  /** The auth context once the instance exists. */
-  context: () => Promise<AuthContext>
-}
-
-/**
- * The Better Auth plugins of an OAuth provider for MCP clients, after the `jwt` plugin, in this order: the guard on
- * signed queries, the request defaults, the setup gate, the provider (`mcp()`), and client metadata documents
- * (`cimd()`), the revocation when the account is secured (`mcpGrantRevocation`) or a refresh token is reused
- * (`mcpRefreshReuse`), and the person's list of connected
- * apps, where they disconnect one (`mcpConnectedApps`). A client registers itself, the person signs in on the app's own pages and allows it on the connect
- * page, and the client gets 15-minute access tokens for the MCP resource only, with refresh tokens, carrying the role
- * and organization the person worked in when they allowed it.
- */
-export const mcpAuthPlugins = ({ mcp: resolved, organizations, mail, defaultPolicy, definitions, context }: McpAuthPluginsOptions) => [
-  mcpSignedQueryGuard(),
-  mcpRequestDefaults(resolved.resource),
-  mcpSetupGate({ mail, defaultPolicy, connectPage: resolved.connectPage }),
-  mcp({
-    resource: resolved.resource,
-    loginPage: resolved.connectPage,
-    consentPage: resolved.connectPage,
-    scopes: [mcpScope, 'offline_access'],
-    clientRegistrationDefaultScopes: [mcpScope, 'offline_access'],
-    grantTypes: ['authorization_code', 'refresh_token'],
-    allowDynamicClientRegistration: true,
-    allowUnauthenticatedClientRegistration: true,
-    // Loopback and app-scheme callbacks (command-line tools, code editors) register without an application type; a sent one stands.
-    clientRegistrationDefaultApplicationType: 'infer',
-    postLogin: {
-      page: resolved.connectPage,
-      // The connect page resumes through `/oauth2/continue` itself, so the provider never redirects to it for this.
-      shouldRedirect: () => false,
-      consentReferenceId: async ({ user, session }) => consentReference(await context(), { user, session: session as RoleSession }),
-    },
-    customAccessTokenClaims: async ({ user, referenceId }) => mcpTokenClaims(await context(), { organizations, mail, defaultPolicy }, user, referenceId),
-    accessTokenExpiresIn: mcpAccessTokenSeconds,
-    extensions: [mcpConsentCheck()],
-    schema: pluginNames.mcp,
-  }),
-  cimd({ fetchClientMetadataResource: resolved.fetchClientMetadata, metadataProfile: 'mcp-2026-07-28' }),
-  mcpGrantRevocation(),
-  mcpRefreshReuse(),
-  mcpConnectedApps({ definitions }),
 ]

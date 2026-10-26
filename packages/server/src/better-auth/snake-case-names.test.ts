@@ -1,11 +1,13 @@
 import { getSchema } from 'better-auth/db'
 import { describe, expect, it } from 'vitest'
 import { betterAuthOptions } from './create-auth'
+import { mcpAuthPlugins } from './mcp/mcp-auth-plugins'
 import { resolveMcp } from './mcp/mcp-plugins'
 import { resolveOperator } from './operator-provider'
 import { resolveOrganizations } from './organizations/options'
 import { roleDefinitions } from './organizations/role-definitions'
 import { resolvePlatformSignIn } from './platform-sign-in'
+import { samlPlugin } from './saml-plugin'
 import { resolveSamlProviders } from './saml-sign-in'
 
 const snakeCase = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/
@@ -17,6 +19,8 @@ describe('the auth store names', () => {
       { database: undefined, baseURL: 'https://admin.example.com', secret: 'test-secret-test-secret-test-secret-1234' },
       {
         mcp: resolveMcp('https://admin.example.com', true),
+        mcpAuthPlugins,
+        samlPlugin,
         roles: ['admin', 'user'],
         definitions: roleDefinitions(),
         mailer: { send: async () => {} },

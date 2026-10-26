@@ -2,7 +2,7 @@ import { base64url } from 'jose'
 import { expect } from 'vitest'
 import type { AdminOptions } from '../../src/admin-options'
 import { betterAuthAuthenticator, type BetterAuthAuthenticator } from '../../src/better-auth/authenticator'
-import { createAuth, type CreateAuthOptions } from '../../src/better-auth/create-auth'
+import { buildAuth, type CreateAuthOptions } from '../../src/better-auth/create-auth'
 import { createUser, setUserRole } from '../../src/better-auth/users'
 import { createAdmin } from '../../src/create-admin'
 import type { Authenticator } from '../../src/types'
@@ -23,7 +23,7 @@ export const fetchClientMetadata = async (url: string | URL) =>
 
 // Made, then given the time to check its schema in the background, so its queries come before the test's.
 export const authOn = async (store: SnapshotDb, options: Partial<CreateAuthOptions> = {}) => {
-  const auth = createAuth({
+  const auth = await buildAuth({
     database: { dialect: store.dialect, type: 'postgres' },
     baseURL: origin,
     secret,
