@@ -10,6 +10,7 @@ import { ensureExports, type Registration } from './index-file'
 import { assignNames } from './resource-names'
 import { planResource, type Decision } from './resource-plan'
 import type { Decide } from './prompt'
+import { dependencyOrder } from './table-order'
 import { isExcluded, matchesTarget, type Target } from './targets'
 import { uiFields } from './ui-fields'
 import { addUiSections, renderUiFile, viewName, type UiSection } from './ui-file'
@@ -60,9 +61,7 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
     table,
     resourceNameOf: (schema, name) => names.get(`${schema}.${name}`) ?? name,
   })
-  const targets = input.tables
-    .filter((table) => matchesTarget(input.target, table) && !isExcluded(input.excludes, table))
-    .sort((a, b) => tableKey(a).localeCompare(tableKey(b)))
+  const targets = dependencyOrder(input.tables.filter((table) => matchesTarget(input.target, table) && !isExcluded(input.excludes, table)))
 
   const changes: FileChange[] = []
   const drift: Drift[] = []

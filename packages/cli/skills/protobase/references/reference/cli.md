@@ -67,7 +67,7 @@ Interactively, each new column shows its proposal: accept, edit (name, type) or 
 
 ### Re-running
 
-Existing `data.ts` files are edited with ts-morph: only columns that are neither declared nor `null` are added, at the end of `.fields({...})`. Nothing else is rewritten, and key, soft delete and tenant calls are only written when a resource is created. `ui.ts` gets only missing sections. `config/index.ts` gets exports for resources created in the run (all resources when it does not exist yet); existing lines are never touched. A run with nothing new changes nothing. `schema.table.column` on an unscaffolded table scaffolds the whole table.
+Existing `data.ts` files are edited with ts-morph: only columns that are neither declared nor `null` are added, at the end of `.fields({...})`. Nothing else is rewritten, and key, soft delete and tenant calls are only written when a resource is created. `ui.ts` gets only missing sections. `config/index.ts` gets exports for resources created in the run (all resources when it does not exist yet), each table after the tables its foreign keys point to and otherwise by name, so the sidebar, and the table the app opens on, start with tables others refer to; existing lines are never touched. A run with nothing new changes nothing. `schema.table.column` on an unscaffolded table scaffolds the whole table.
 
 ### Drift report
 
