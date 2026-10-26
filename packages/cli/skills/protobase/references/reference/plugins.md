@@ -91,7 +91,7 @@ export const Greeting = () => {
 | `name` | The plugin's name, from its `plugin.json`. |
 | `version` | Its own version, from its `package.json`, when it has one. |
 | `url` | Its `plugin.json`: `new URL('./data.json', url)` finds a file served beside it. |
-| `settings` | What the app gives it in `options.plugins` (see [loading](#loading)), `{}` otherwise. |
+| `settings` | What the app gives it in `plugins` (see [loading](#loading)), `{}` otherwise. |
 
 It works in the components, field types, shell slots and `beforeSignIn` a plugin registers and everything they render, and throws anywhere else.
 
@@ -192,31 +192,28 @@ The output folder is emptied first, so it must not hold the plugin's own files. 
 The app loads the plugins `/api/meta` names to the signed-in user, in this order:
 
 1. the bundle's own, from its manifest: each `--extend` folder's, then the project's (`app`), for everyone;
-2. those `createAdmin`'s `options.plugins` lists, in `protobase.config.ts`;
+2. those `plugins` in `protobase.config.ts` lists;
 3. those `PROTOBASE_PLUGINS` lists: URLs separated by commas, which a hosting platform sets for the plugins it adds to its apps;
 4. those `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` lists, the same way, which also load [before sign-in](#before-sign-in).
 
 ```ts
 // protobase.config.ts
-export default {
-  config,
-  options: {
-    plugins: [
-      { url: 'https://plugins.example.com/sales-tools/plugin.json' },
-      { url: '/plugins/board/plugin.json', settings: { columns: 3 }, roles: ['admin', 'sales'] },
-    ],
-  },
-}
+export default defineConfig({
+  plugins: [
+    { url: 'https://plugins.example.com/sales-tools/plugin.json' },
+    { url: '/plugins/board/plugin.json', settings: { columns: 3 }, roles: ['admin', 'sales'] },
+  ],
+})
 ```
 
-| `options.plugins[]` | |
+| `plugins[]` | |
 | --- | --- |
 | `url` | The plugin's `plugin.json`: an `https://` or `http://` URL, or a path on the app's own origin. |
 | `settings` | Data the plugin reads with `usePlugin()`. |
 | `roles` | When set, only callers with one of these roles load it; without, everyone does. This decides what the app loads, not what anyone may do: the API's access rules still decide that. |
 | `beforeSignIn` | `true` loads it [before sign-in](#before-sign-in) too, for everyone; it cannot have `roles`. Off by default. |
 
-`options.plugins: false` turns off all but the first; the bundle's own plugins are the app's own UI and always load. A URL that is not one stops the server at startup, naming where it came from, and so does a plugin with both `roles` and `beforeSignIn`. Each URL is loaded once, where it is first listed; one `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` lists loads before sign-in wherever it is listed.
+`plugins: false` turns off all but the first; the bundle's own plugins are the app's own UI and always load. A URL that is not one stops the server at startup, naming where it came from, and so does a plugin with both `roles` and `beforeSignIn`. Each URL is loaded once, where it is first listed; one `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` lists loads before sign-in wherever it is listed.
 
 When the user signs in, or before for a plugin that loads [before sign-in](#before-sign-in), the app reads each `plugin.json`, then loads the module and the stylesheet of each plugin that fits, and draws once they have loaded, or after ten seconds at most: a slower plugin comes in when it arrives. So a host serves them like this:
 
@@ -326,4 +323,4 @@ From `@protobase/ui`:
 | `pluginApi` | The plugin API of the app's `@protobase/ui`. |
 | `protobaseVersion` | The Protobase version of the app's `@protobase/ui`. |
 
-From `@protobase/layout`: `component(name, { plugin })` (see [above](#declaring-its-components-in-the-config)). From `@protobase/schema`: `.widget(name, props)` on a view's fields and `d.cards(fields, { card })` (see [Views](ui-config.md)). From `@protobase/server`: `options.plugins` of `createAdmin`, `PROTOBASE_PLUGINS` and `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` (see [loading](#loading)). The tokens a plugin's utilities read are in [Theme](theme.md).
+From `@protobase/layout`: `component(name, { plugin })` (see [above](#declaring-its-components-in-the-config)). From `@protobase/schema`: `.widget(name, props)` on a view's fields and `d.cards(fields, { card })` (see [Views](ui-config.md)). From the config: `plugins`; from the environment: `PROTOBASE_PLUGINS` and `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` (see [loading](#loading)). The tokens a plugin's utilities read are in [Theme](theme.md).

@@ -20,8 +20,8 @@ const converting: CronPlanOptions = { pgCron: false, target: bare, timezone: 'GM
 describe('cronPlan', () => {
   it('makes a job of plain SQL a recurring job of the same name, schedule and SQL, in UTC', () => {
     const [planned] = cronPlan([job(1, 'purge-done', '0 3 * * *', 'delete from public.todos where done')], converting)
-    expect(planned!.outcome).toEqual({ kind: 'converted', name: 'purge-done', file: 'purge-done', exportName: 'purgeDone', timezone: undefined })
-    expect(convertedCronJobs([planned!])).toEqual([{ name: 'purge-done', file: 'purge-done', exportName: 'purgeDone', timezone: undefined, schedule: '0 3 * * *', command: 'delete from public.todos where done' }])
+    expect(planned!.outcome).toEqual({ kind: 'converted', name: 'purge-done', file: 'purge-done', timezone: undefined })
+    expect(convertedCronJobs([planned!])).toEqual([{ name: 'purge-done', file: 'purge-done', timezone: undefined, schedule: '0 3 * * *', command: 'delete from public.todos where done' }])
   })
 
   it("keeps pg_cron's time zone, when the project set one", () => {
@@ -35,19 +35,19 @@ describe('cronPlan', () => {
       converting,
     )
     expect(planned.map((one) => one.outcome)).toEqual([
-      { kind: 'converted', name: 'cron-job-7', file: 'cron-job-7', exportName: 'cronJob7', timezone: undefined },
-      { kind: 'converted', name: 'Nightly-Report-', file: 'nightly-report', exportName: 'nightlyReport', timezone: undefined },
-      { kind: 'converted', name: '2fa-cleanup', file: '2fa-cleanup', exportName: 'cron2faCleanup', timezone: undefined },
-      { kind: 'converted', name: 'delete', file: 'delete', exportName: 'cronDelete', timezone: undefined },
+      { kind: 'converted', name: 'cron-job-7', file: 'cron-job-7', timezone: undefined },
+      { kind: 'converted', name: 'Nightly-Report-', file: 'nightly-report', timezone: undefined },
+      { kind: 'converted', name: '2fa-cleanup', file: '2fa-cleanup', timezone: undefined },
+      { kind: 'converted', name: 'delete', file: 'delete', timezone: undefined },
     ])
   })
 
   it('tells apart jobs whose names become the same', () => {
     const planned = cronPlan([job(1, 'a b', '* * * * *', 'select 1'), job(2, 'a-b', '* * * * *', 'select 2'), job(3, 'a/b', '* * * * *', 'select 3')], converting)
     expect(planned.map((one) => one.outcome)).toEqual([
-      { kind: 'converted', name: 'a-b', file: 'a-b', exportName: 'aB', timezone: undefined },
-      { kind: 'converted', name: 'a-b-2', file: 'a-b-2', exportName: 'aB2', timezone: undefined },
-      { kind: 'converted', name: 'a/b', file: 'a-b-3', exportName: 'aB3', timezone: undefined },
+      { kind: 'converted', name: 'a-b', file: 'a-b', timezone: undefined },
+      { kind: 'converted', name: 'a-b-2', file: 'a-b-2', timezone: undefined },
+      { kind: 'converted', name: 'a/b', file: 'a-b-3', timezone: undefined },
     ])
   })
 

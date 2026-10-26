@@ -61,7 +61,7 @@ export type AdminOptions = {
   /** The assistant in the admin app's dock: a backend elsewhere or the built-in one (see `AssistantOptions`); `false` turns it off. */
   assistant?: AssistantOptions | false
   /**
-   * The MCP endpoint, on with `createAuth({ mcp })`. `sql: true` also offers admins and the `ai` role
+   * The MCP endpoint, on with `auth.mcp`. `sql: true` also offers admins and the `ai` role
    * `run_read_only_query`, which reads the whole database as the app's database role, outside the access rules.
    * `writes: true` offers `create_record` and `update_record`, through the REST API's access rules, `validate` and write
    * hooks; the person approves each write in their client, and a client that cannot ask is refused.
@@ -75,7 +75,7 @@ export type AdminOptions = {
   mcp?: { sql?: boolean; writes?: McpWrites } | false
   /**
    * The websites whose browser code may call the API (`/api/*` but `/api/auth/*`) besides the app's own origins (see
-   * `createAuth`'s `origins`): a list of origins, or `*` for any. Defaults to the one the platform passes in
+   * `auth.origins`): a list of origins, or `*` for any. Defaults to the one the platform passes in
    * `PROTOBASE_CORS_ORIGINS` (`*` or comma separated), when set. A `mobile` section adds the app's Capacitor origins
    * (`capacitor://localhost`, `https://localhost`). With none of these nor other origins, the API sends no CORS headers.
    */

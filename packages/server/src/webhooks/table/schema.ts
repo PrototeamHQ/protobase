@@ -22,7 +22,7 @@ const readWebhooksSchema = async (db: Db, schema: string) => {
 }
 
 /**
- * The SQL that brings the `webhooks` schema to what `webhooks()` needs: the subscriptions table, its commands, the
+ * The SQL that brings the `webhooks` schema to what `webhooks` needs: the subscriptions table, its commands, the
  * deliveries view and, with `deliveryLog`, the log table. `undefined` when current. Needs the jobs schema, which the
  * deliveries view reads. Tables are never dropped.
  */
@@ -40,7 +40,7 @@ export const webhooksMigration = async (db: Db, options: WebhooksOptions = {}, e
   return `${statements.join(';\n\n')};`
 }
 
-/** Refuses to go on while the `webhooks` schema lacks what `webhooks()` needs; the project's migrations add it. */
+/** Refuses to go on while the `webhooks` schema lacks what `webhooks` needs; the project's migrations add it. */
 export const checkWebhooksSchema = async (db: Db, options: WebhooksOptions = {}) => {
   const schema = webhooksSchema(options)
   const found = await readWebhooksSchema(db, schema)

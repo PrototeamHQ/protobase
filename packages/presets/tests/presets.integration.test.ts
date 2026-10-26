@@ -53,7 +53,7 @@ describe.skipIf(!(await serverReachable())).each(presets)('the $name preset', (p
     writePreset(preset, version, dir)
     const url = await provision(database, randomBytes(16).toString('hex'))
     // Only what a job passes: nothing of this repository's environment.
-    env = { PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR, DATABASE_URL: url, BETTER_AUTH_SECRET: randomBytes(32).toString('base64') }
+    env = { PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR, DATABASE_URL: url, PROTOBASE_SECRET: randomBytes(32).toString('base64') }
   })
 
   afterAll(async () => {

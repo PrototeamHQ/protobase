@@ -1,6 +1,8 @@
 import { mapSettings } from '@protobase/server'
 import { describe, expect, it } from 'vitest'
-import { mapLayers } from './map-layers'
+import config from '../protobase.config'
+
+const mapLayers = config.maps ? config.maps.layers ?? [] : []
 
 describe('the aerial photo layers', () => {
   it('pass the checks the server makes at startup, and /meta names them beside the style', () => {

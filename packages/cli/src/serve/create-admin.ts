@@ -1,4 +1,7 @@
+import pg from 'pg'
 import { checkAuthSchema } from '@protobase/server'
+import { projectAuth } from '../config/build-project'
+import { openAppDatabase } from '../project/pg-db'
 import { createUserCommand } from '../users/commands'
 import { readHidden } from '../users/password'
 import { usersApi } from '../users/users-api'
@@ -11,8 +14,10 @@ import type { CreateAdminOptions } from './runtime-program'
 export const createAdminInBundle = async (bundle: string, email: string, options: CreateAdminOptions, out: (text: string) => void) => {
   const file = await bundleConfigFile(bundle)
   checkBundleManifest(file)
-  const project = await loadBundle(file)
-  if (!project.auth) throw new Error('The bundle exports no `auth`: users are managed by Better Auth')
-  await checkAuthSchema(project.auth)
-  await createUserCommand(usersApi(project.auth), { email, role: 'admin', ...options }, { stdin: process.stdin, prompt: readHidden }, out)
+  const config = await loadBundle(file)
+  if (!config.auth) throw new Error('Sign-in is off in the bundle\'s config (`auth: false`), so the app has no users to manage')
+  if (!process.env.DATABASE_URL) throw new Error('No database: set DATABASE_URL')
+  const auth = (await projectAuth(config, openAppDatabase(pg, process.env.DATABASE_URL)))!
+  await checkAuthSchema(auth)
+  await createUserCommand(usersApi(auth), { email, role: 'admin', ...options }, { stdin: process.stdin, prompt: readHidden }, out)
 }

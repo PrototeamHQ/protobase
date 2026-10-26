@@ -10,6 +10,8 @@ export type FormsRuntimeInput = {
   /** The roles' limits, where the anonymous role's `create` lists the fields it may set. */
   limits: readonly RoleLimit[]
   env: Record<string, string | undefined>
+  /** The app's secret (`secret`), which signs the challenges unless `PROTOBASE_FORMS_SECRET` is set. */
+  secret?: string
   /** The proof-of-work range; tests make it tiny. */
   difficulty?: Difficulty
 }
@@ -24,14 +26,14 @@ const anonymousCreates = (limits: readonly RoleLimit[]) => (resource: string) =>
  * The public forms of the views, checked, with the challenges that guard them and their rate limit; `undefined` without
  * any. Fails at startup on a form that cannot be served and when nothing signs the challenges.
  */
-export const createFormsRuntime = ({ registry, views, limits, env, difficulty }: FormsRuntimeInput) => {
+export const createFormsRuntime = ({ registry, views, limits, env, secret: appSecret, difficulty }: FormsRuntimeInput) => {
   // The view without roles first, so a form it shares with a view built on it takes its field hints
   const ordered = [...views].sort((a, b) => Number(a.roles !== undefined) - Number(b.roles !== undefined))
   const declared = ordered.flatMap((view) => (view.forms ?? []).map((form) => ({ form, view })))
   if (declared.length === 0) return undefined
   const forms = checkForms(registry, declared, anonymousCreates(limits))
-  const secret = env.PROTOBASE_FORMS_SECRET ?? env.BETTER_AUTH_SECRET
-  if (!secret) throw new Error('Public forms need a secret to sign their bot checks: set PROTOBASE_FORMS_SECRET or BETTER_AUTH_SECRET')
+  const secret = env.PROTOBASE_FORMS_SECRET ?? appSecret ?? env.PROTOBASE_SECRET
+  if (!secret) throw new Error('Public forms need a secret to sign their bot checks: set secret in protobase.config.ts, or PROTOBASE_FORMS_SECRET')
   return { forms, challenges: createFormChallenges(secret, { ...(difficulty && { difficulty }) }), limit: createRateLimit() }
 }
 

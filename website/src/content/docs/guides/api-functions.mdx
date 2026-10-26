@@ -42,7 +42,7 @@ The app's own `authenticate` checks the token, the same one that guards the REST
 - **Not functions:** files and folders starting with `_` (shared code, such as `functions/_shared/`), dotfiles, `*.test.ts`, `*.spec.ts` and `*.d.ts`. A folder without an `index.ts` is an error that says so.
 - **The default export** is `defineFunction(...)` from `@protobase/server`, a bare `(request, context)` handler, or a Hono app. The last two need a signed-in caller.
 - **Any method** reaches the function, and so does any path below its name. The request's path is the part after `/api/functions/<name>`: `/` for the function itself, `/42/advance` for `/api/functions/workshop/42/advance`. The query string and the body are passed through unchanged.
-- **In `protobase.config.ts`,** `functions: { name: fn }` replaces the folder, the same way `config` replaces `config/index.ts`. The functions of [extended configs](/reference/cli/#extending-a-config) are kept, and a name used by two configs is an error that names both.
+- **Only the folder:** `protobase.config.ts` names no functions; they are found in `functions/`. The functions of an [extension](/reference/config/#extensions)'s `functions/` folder are kept, and a name used by two folders is an error that names both.
 
 ## The context
 
@@ -84,7 +84,7 @@ A refusal or a missing record rejects with the problem the REST API would answer
 
 `defineFunction({ roles: ['mechanic', 'desk'] }, handler)` lets in callers with at least one of those roles. `defineFunction({ capability: 'vms.update' }, handler)` lets in callers whose roles hold all of that capability ([`roles.holds`](/reference/access/#wildcards-in-has-can-and-holds)): `*`, `vms.*` or a plain `vms.update`, but not `vms.update.own` or a `vms.update` limited to fields or rows. A wildcard means all of it, so `vms.*` needs a role that holds `vms.*` or `*`. Anyone else gets a `403 function-forbidden` problem before the handler runs. Finer rules belong in the resources' [access rules](/reference/access/), which `records` already applies.
 
-In an app with [roles](/reference/access/) (`options: { roles }`), a function with neither is closed like a resource without a rule: only callers whose roles hold `*`, such as `admin: ['*']`, may call it, unless `defaultAccess` is `allow`. A function for everyone signed in says so with its roles. In an app without roles, every signed-in caller may call it. A `capability` needs the app's roles, and a function takes `roles` or `capability`, not both: the server refuses to start otherwise.
+In an app with [roles](/reference/access/) (`config/roles.ts`), a function with neither is closed like a resource without a rule: only callers whose roles hold `*`, such as `admin: ['*']`, may call it, unless `defaultAccess` is `allow`. A function for everyone signed in says so with its roles. In an app without roles, every signed-in caller may call it. A `capability` needs the app's roles, and a function takes `roles` or `capability`, not both: the server refuses to start otherwise.
 
 ## Public functions and webhooks
 
@@ -237,13 +237,13 @@ export default defineFunction({ longQueries: true }, async (request, { db }) => 
 - **Up to 30 seconds** per query, the most any query of an app may run. Work longer than that belongs in steps, such as a [job](/reference/jobs/) per batch, which takes `longQueries` too.
 - **One connection kept for it.** Under `protobase dev` and `serve`, those queries run on a connection of their own, which asks for the longer timeout when it logs in, so long work never takes the connections pages need; a second long call waits for it. A PgBouncer of your own in front of the database must list `statement_timeout` in `track_extra_parameters` to pass that on; Protobase Cloud's does. With a `db` the project exports itself, the option changes nothing.
 - **`records` keep the API's limit,** [`statementTimeoutMs`](/reference/api/#safety).
-- **A query past its limit** is stopped, and the call answers `504 statement-timeout` naming the call, its limit and the way out, such as `POST /api/functions/import ran a query longer than the database's statement timeout, so the database stopped it. Make the query faster, such as with an index or a narrower filter, or give it longQueries: true, whose queries may run up to 30 s.` It goes to `options.onUnhandledError` and the [error tracker](/reference/api/#error-reporting).
+- **A query past its limit** is stopped, and the call answers `504 statement-timeout` naming the call, its limit and the way out, such as `POST /api/functions/import ran a query longer than the database's statement timeout, so the database stopped it. Make the query faster, such as with an index or a narrower filter, or give it longQueries: true, whose queries may run up to 30 s.` It goes to the app's error hook, `hooks/error.ts`, and the [error tracker](/reference/api/#error-reporting).
 
 ## Errors
 
 - **Problems:** throw an `HttpProblem` (or `badRequest`, `unauthorized`, `forbidden`, `notFound` from `@protobase/server`) to answer with an [RFC 9457 problem](/reference/api/#errors). Hono's `HTTPException` works too.
 - **A query the database stopped** is a `504 statement-timeout` that names the call; see [Long queries](#long-queries).
-- **Everything else:** any other error, or a handler that returns something other than a `Response`, becomes a `500 internal-error` problem without its message. The error goes to `options.onUnhandledError`, which `protobase dev` and `serve` print.
+- **Everything else:** any other error, or a handler that returns something other than a `Response`, becomes a `500 internal-error` problem without its message. The error goes to the app's error hook, `hooks/error.ts`; without one, `protobase dev` and `serve` print it.
 
 ## Functions moved from Supabase
 

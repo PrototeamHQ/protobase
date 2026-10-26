@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { defineFunction } from '@protobase/server'
 import { startServe } from '../../src/serve/lifecycle'
-import type { ServedProject } from '../../src/serve/load-bundle'
+import { servedConfig } from '../support/served-config'
 import { databaseUrl } from '../../../../scripts/test-db/templates'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../../test-support/postgres-database'
 import { longQueryScenarios } from './long-queries-scenarios'
@@ -11,7 +11,7 @@ import { longQueryScenarios } from './long-queries-scenarios'
 const tickets = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
 
 // An import that holds the app's only connection for longer than a request waits for one.
-const project: ServedProject = {
+const project = {
   config: { tickets },
   functions: {
     'listing-import': defineFunction(async (_request, { db }) => {
@@ -30,7 +30,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the limits of the quer
   it('answers a request that finds every connection busy for 2 s with a 503 that names it', async () => {
     const database = await openPostgresDatabase('empty')
     await database.exec("create table tickets (id integer primary key, title text not null); insert into tickets values (1, 'Leaking roof')")
-    const server = await startServe({ project, env: { ...env, databaseUrl: database.url } })
+    const server = await startServe({ config: servedConfig(project), env: { ...env, databaseUrl: database.url } })
     const base = `http://localhost:${server.port}`
     const sleeping = async () => (await sql<{ count: number }>`select count(*)::int as count from pg_stat_activity where datname = current_database() and query like 'select pg_sleep%'`.execute(database.db)).rows[0]!.count
 

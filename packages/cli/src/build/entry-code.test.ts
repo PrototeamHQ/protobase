@@ -15,58 +15,50 @@ describe('bundleEntryCode', () => {
     await mkdir(path.dirname(path.join(dir, file)), { recursive: true })
     await writeFile(path.join(dir, file), '')
   }
+  const at = (file: string) => JSON.stringify(path.join(dir, file))
 
-  it('imports config/index.ts and every config/*/ui.ts, in a stable order', async () => {
+  it('references config/index.ts and every config/*/ui.ts, in a stable order, without a config file', async () => {
     await Promise.all(['config/index.ts', 'config/orders/ui.ts', 'config/customers/ui.ts', 'config/customers/data.ts', 'config/lines/data.ts'].map(touch))
     const code = bundleEntryCode(dir)
-    expect(code).toContain('const project = {}')
-    expect(code).toContain(`import * as index from ${JSON.stringify(path.join(dir, 'config/index.ts'))}`)
-    expect(code).toContain('conventionConfig(index, [["customers", ui0], ["orders", ui1]], [])')
+    expect(code).toContain('const config = {}')
+    expect(code).toContain(`conventionConfig(await import(${at('config/index.ts')}), [["customers", await import(${at('config/customers/ui.ts')})], ["orders", await import(${at('config/orders/ui.ts')})]], [])`)
     expect(code).not.toContain('lines')
-    expect(code).toContain(`export default mergeConfig(named({ ...project, config: project.config ?? convention, functions: project.functions ?? functions }, "config/index.ts"))`)
+    expect(code).toContain('export const extensions = []')
   })
 
-  it('starts from protobase.config.ts and keeps the convention as the fallback for config', async () => {
-    await Promise.all(['protobase.config.ts', 'config/index.ts'].map(touch))
-    const code = bundleEntryCode(dir)
-    expect(code).toContain(`import * as custom from ${JSON.stringify(path.join(dir, 'protobase.config.ts'))}`)
-    expect(code).toContain('const project = custom.default ?? {}')
-    expect(code).toContain('conventionConfig(index, [], [])')
-  })
-
-  it('takes protobase.config.ts alone when there is no config folder', async () => {
+  it('carries protobase.config.ts as a module, or protobase.config.json as its object', async () => {
     await touch('protobase.config.ts')
-    const code = bundleEntryCode(dir)
-    expect(code).toContain('const convention = undefined')
-    expect(code).not.toContain('conventionConfig')
+    expect(bundleEntryCode(dir)).toContain(`import * as configModule from ${at('protobase.config.ts')}\nconst config = configModule.default`)
+    await rm(path.join(dir, 'protobase.config.ts'))
+    await touch('protobase.config.json')
+    expect(bundleEntryCode(dir)).toContain(`import config from ${at('protobase.config.json')}`)
   })
 
-  it('merges the extensions’ configs first, each named by its file unless it has a name', async () => {
-    await Promise.all(['protobase.config.ts', 'ext-a/protobase.config.ts', 'ext-b/protobase.ui.tsx'].map(touch))
+  it('references the files the conventions find: jobs, hooks, the auth hooks and authenticator, and the roles', async () => {
+    await Promise.all(['protobase.config.ts', 'jobs/send-invoice.ts', 'jobs/send-invoice.test.ts', 'hooks/audit.ts', 'auth/hooks.ts', 'config/roles.ts'].map(touch))
+    const code = bundleEntryCode(dir)
+    for (const file of ['jobs/send-invoice.ts', 'hooks/audit.ts', 'auth/hooks.ts', 'config/roles.ts']) expect(code).toContain(`${JSON.stringify(file)}: () => import(${at(file)})`)
+    expect(code).not.toContain('send-invoice.test')
+    expect(code).not.toContain('resources:')
+  })
+
+  it("carries the extensions' configs, each with its own folder's files, and the packages the config names", async () => {
+    await Promise.all(['protobase.config.ts', 'ext-a/protobase.config.ts', 'ext-a/jobs/sync.ts', 'ext-b/protobase.ui.tsx'].map(touch))
     const extensions = [{ dir: path.join(dir, 'ext-a'), config: path.join(dir, 'ext-a/protobase.config.ts') }, { dir: path.join(dir, 'ext-b'), ui: path.join(dir, 'ext-b/protobase.ui.tsx') }]
-    const code = bundleEntryCode(dir, extensions)
-    const a = JSON.stringify(path.join(dir, 'ext-a/protobase.config.ts'))
-    expect(code).toContain(`import * as extension0 from ${a}`)
+    const code = bundleEntryCode(dir, extensions, ['sharp'])
+    expect(code).toContain(`import * as extension0Module from ${at('ext-a/protobase.config.ts')}`)
+    expect(code).toContain(`"jobs/sync.ts": () => import(${at('ext-a/jobs/sync.ts')})`)
     expect(code).not.toContain('ext-b')
-    expect(code).toContain(`export default mergeConfig(named(extension0.default ?? {}, ${a}), named({ ...project, config: project.config ?? convention, functions: project.functions ?? functions }, "protobase.config.ts"))`)
+    expect(code).toContain('export const packages = { "sharp": () => import("sharp") }')
   })
 
-  it('imports one function per file in ./functions, protobase.config.ts’s own functions first', async () => {
+  it('references one function per file in ./functions', async () => {
     await Promise.all(['config/index.ts', 'functions/hello.ts', 'functions/stripe-webhook/index.ts', 'functions/_shared/cors.ts'].map(touch))
-    const code = bundleEntryCode(dir)
-    expect(code).toContain(`import * as function0 from ${JSON.stringify(path.join(dir, 'functions/hello.ts'))}`)
-    expect(code).toContain(`import * as function1 from ${JSON.stringify(path.join(dir, 'functions/stripe-webhook/index.ts'))}`)
-    expect(code).toContain('const functions = { "hello": function0.default, "stripe-webhook": function1.default }')
-    expect(code).not.toContain('_shared')
-    expect(code).toContain('functions: project.functions ?? functions')
-  })
-
-  it('has no functions without a functions folder', async () => {
-    await touch('config/index.ts')
-    expect(bundleEntryCode(dir)).toContain('const functions = undefined')
+    expect(bundleEntryCode(dir)).toContain(`functions: { "hello": () => import(${at('functions/hello.ts')}), "stripe-webhook": () => import(${at('functions/stripe-webhook/index.ts')}) }`)
+    expect(bundleEntryCode(dir)).not.toContain('_shared')
   })
 
   it('refuses a folder that is not a project', () => {
-    expect(() => bundleEntryCode(dir)).toThrow(`No protobase.config.ts or config/index.ts in ${dir}`)
+    expect(() => bundleEntryCode(dir)).toThrow(`No protobase.config.ts, protobase.config.json or config/index.ts in ${dir}`)
   })
 })

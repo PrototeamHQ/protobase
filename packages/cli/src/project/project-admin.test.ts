@@ -10,7 +10,7 @@ vi.mock('@protobase/server', async (real) => {
 describe('projectAdmin', () => {
   it('hands options.mcp false to createAdmin as it is, as dev and serve build the app', () => {
     const authenticate = () => ({ user: { id: 1, roles: [] } })
-    projectAdmin({ authenticate, options: { mcp: false } }, {}, {} as never)
+    projectAdmin({ config: {}, jobs: [], authenticate, options: { mcp: false } }, {} as never)
     expect(vi.mocked(createAdmin).mock.calls[0]![0].options!.mcp).toBe(false)
   })
 })

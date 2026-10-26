@@ -38,6 +38,6 @@ describe('sendNotification', () => {
 
   it('says notifications are off when the app has none', async () => {
     running(['other'])
-    await expect(sendNotification(db, { deviceIds: ['d'] }, { title: 'Hi' })).rejects.toThrow('Notifications are off: add extends: [notifications()]')
+    await expect(sendNotification(db, { deviceIds: ['d'] }, { title: 'Hi' })).rejects.toThrow('Notifications are off: add notifications: {}')
   })
 })

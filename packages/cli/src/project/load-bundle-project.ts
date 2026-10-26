@@ -1,47 +1,40 @@
-import { existsSync, statSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
-import { configExports, type ProjectConfig } from '@protobase/server'
+import { configExports } from '@protobase/server'
 import { readManifest } from '../bundle/manifest'
+import type { MergedConfig } from '../config/merge-config'
+import { projectFiles, projectResources } from '../config/project-parts'
+import { loadSourceConfig } from '../config/source-config'
 import { loadNearestEnvFile } from '../dev/env'
 import { createPgDb } from './pg-db'
-import { importProjectFile } from './import-project-file'
 import { loadBundle } from '../serve/load-bundle'
 
 // A bundle from `protobase build`: its folder or its config module.
-const bundleProject = async (bundle: string): Promise<ProjectConfig> => {
-  if (!statSync(bundle).isDirectory()) return loadBundle(bundle)
+const bundleConfig = async (bundle: string): Promise<MergedConfig> => {
+  if (!statSync(bundle).isDirectory()) return loadBundle(bundle, 'tool')
   const manifest = await readManifest(bundle)
-  return loadBundle(path.join(bundle, manifest.server))
-}
-
-// The project in `dir` as `protobase dev` reads it: protobase.config.ts, and config/index.ts when that has no `config`.
-const sourceProject = async (dir: string): Promise<ProjectConfig> => {
-  const file = path.join(dir, 'protobase.config.ts')
-  const custom = existsSync(file) ? (((await importProjectFile(file)).default ?? {}) as ProjectConfig) : {}
-  if (custom.config) return custom
-  const index = path.join(dir, 'config', 'index.ts')
-  if (!existsSync(index)) throw new Error(`No config/index.ts or protobase.config.ts in ${dir}; run this inside a project, or name a bundle`)
-  return { ...custom, config: await importProjectFile(index) }
+  return loadBundle(path.join(bundle, manifest.server), 'tool')
 }
 
 /**
  * What a command over a project's data needs: its resources, its files and events options and a database, from a bundle
- * or from the project in `dir`. `close` ends the pool it opened; a `db` the project exports stays the project's.
+ * or from the project in `dir`. `close` ends the pool it opened.
  */
 export const loadBundleProject = async (bundle: string | undefined, dir: string) => {
   loadNearestEnvFile(dir)
-  const project = bundle ? await bundleProject(bundle) : await sourceProject(dir)
+  const config = bundle ? await bundleConfig(bundle) : await loadSourceConfig(dir, { command: 'tool' })
   const url = process.env.DATABASE_URL
-  if (!project.db && !url) throw new Error('No database: set DATABASE_URL or export `db` from protobase.config.ts')
-  const ownDb = project.db ? undefined : createPgDb(pg, url!)
+  if (!url) throw new Error('No database: set DATABASE_URL')
+  const [resources, files] = await Promise.all([projectResources(config), projectFiles(config)])
+  const db = createPgDb(pg, url)
   return {
-    resources: configExports(project.config ?? {}).resources,
-    db: project.db ?? ownDb!,
-    ...(project.files && { files: project.files }),
-    ...(project.events && { events: project.events }),
+    resources: configExports(resources).resources,
+    db,
+    ...(files && { files }),
+    ...(config.events && { events: config.events }),
     close: async () => {
-      await ownDb?.destroy()
+      await db.destroy()
     },
   }
 }

@@ -5,7 +5,7 @@ export const maxUnreadCount = 100
 
 /**
  * Where each user's inbox notifications are kept: the Postgres default (`postgresHistoryStore`), or a store of the
- * app's own passed as `notifications({ historyStore })`. Plain data in and out, so any store can implement it. Every
+ * app's own passed as `notifications.historyStore`. Plain data in and out, so any store can implement it. Every
  * method takes the user and touches that user's entries alone; each throws on an empty user id or id.
  */
 export type HistoryStore = {
@@ -28,7 +28,7 @@ const methods = ['record', 'list', 'countUnread', 'markRead', 'markAllRead', 're
 /** The store, checked to have every method; a missing one is an error naming it. */
 export const checkHistoryStore = (store: HistoryStore) => {
   const missing = methods.find((method) => typeof (store as Partial<HistoryStore>)[method] !== 'function')
-  if (missing !== undefined) throw new Error(`notifications({ historyStore }): the history store has no ${missing} method`)
+  if (missing !== undefined) throw new Error(`notifications.historyStore: the history store has no ${missing} method`)
   return store
 }
 

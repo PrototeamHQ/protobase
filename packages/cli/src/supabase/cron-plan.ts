@@ -1,7 +1,8 @@
 import type { CronJob } from './source-facts'
 
 /** A pg_cron job made a Protobase recurring job: its name, the file in `jobs/` and the export that declare it. */
-export type ConvertedCronJob = { name: string; file: string; exportName: string; timezone: string | undefined }
+/** A pg_cron job made a Protobase job: pg_cron's name for it, and its job's name, which is its file `jobs/<file>.ts`. */
+export type ConvertedCronJob = { name: string; file: string; timezone: string | undefined }
 
 export type CronOutcome = { kind: 'rescheduled' } | ({ kind: 'converted' } & ConvertedCronJob) | { kind: 'left'; reason: string }
 
@@ -32,6 +33,7 @@ const utc = new Set(['GMT', 'UTC', 'Etc/UTC', 'Etc/GMT'])
 /** A pg_cron job name as a Protobase job name: letters, digits, `_`, `-`, `.` and `/`, the rest made `-`. */
 const jobName = (job: CronJob) => (job.name ?? `cron-job-${job.id}`).replace(/[^\w.\-/]+/g, '-')
 
+/** A job's name as Protobase declares it, which is also its file `jobs/<name>.ts`: lowercase words joined by `-`. */
 const fileName = (name: string) =>
   name
     .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
@@ -39,17 +41,9 @@ const fileName = (name: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'cron-job'
 
-/** Words a module's export may not be named, which a job named so gets `cron` before. */
-const reserved = new Set(['await', 'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'enum', 'export', 'extends', 'false', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'let', 'new', 'null', 'return', 'static', 'super', 'switch', 'this', 'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with', 'yield'])
-
-const exportName = (file: string) => {
-  const camel = file.replace(/-([a-z0-9])/g, (_, letter: string) => letter.toUpperCase())
-  return /^[0-9]/.test(camel) || reserved.has(camel) ? `cron${camel[0]!.toUpperCase()}${camel.slice(1)}` : camel
-}
-
 /** `wanted`, or with `-<id>` after it when `taken` has it already, which it then holds. */
-const unique = (taken: Set<string>, wanted: string, id: number, separator = '-') => {
-  const name = taken.has(wanted) ? `${wanted}${separator}${id}` : wanted
+const unique = (taken: Set<string>, wanted: string, id: number) => {
+  const name = taken.has(wanted) ? `${wanted}-${id}` : wanted
   taken.add(name)
   return name
 }
@@ -83,7 +77,6 @@ export type CronPlanOptions = {
 export const cronPlan = (jobs: CronJob[], options: CronPlanOptions): PlannedCronJob[] => {
   const names = new Set<string>()
   const files = new Set<string>()
-  const exports = new Set<string>()
   return jobs.map((job) => {
     if (!job.local) return { ...job, outcome: { kind: 'left', reason: `runs in the database ${job.database}, which the import does not carry over` } }
     if (options.pgCron) return { ...job, outcome: { kind: 'rescheduled' } }
@@ -93,7 +86,7 @@ export const cronPlan = (jobs: CronJob[], options: CronPlanOptions): PlannedCron
     const file = unique(files, fileName(name), job.id)
     return {
       ...job,
-      outcome: { kind: 'converted', name, file, exportName: unique(exports, exportName(file), job.id, ''), timezone: utc.has(options.timezone) ? undefined : options.timezone },
+      outcome: { kind: 'converted', name, file, timezone: utc.has(options.timezone) ? undefined : options.timezone },
     }
   })
 }

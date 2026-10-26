@@ -4,7 +4,7 @@
 
 A bell in the top bar and push to browsers and phones, for what your app tells its users.
 
-- [Notifications](../reference/notifications.md#turning-them-on) (beta): `extends: [notifications()]` gives every signed-in user a bell in the top bar and push to their browsers and phones; `ui: false` keeps only the backend.
+- [Notifications](../reference/notifications.md#turning-them-on) (beta): `notifications: {}` in the config gives every signed-in user a bell in the top bar and push to their browsers and phones; `ui: false` keeps only the backend.
 - [Devices](../reference/notifications.md#devices) (beta): Each signed-in user registers their own browsers and phones to receive push, and a device gets it only while the sign-in it was registered in lasts.
 - [Your own parts](../reference/notifications.md#your-own-parts) (beta): Senders, the device store, the history store and the bell can each be replaced by your own, such as a store outside the database.
 - [Table names](../reference/notifications.md#table-names) (beta): The built-in stores' schema, tables and columns can be renamed, as auth's users table can.

@@ -12,7 +12,7 @@ export type PushAnswer = { id: string; result: 'ok' | 'gone' | 'retry' | 'refuse
 
 /**
  * Delivers notifications to the devices of its `kinds`, through their push service: the built-in Web Push sender, or
- * one of the app's own passed as `notifications({ senders })`, typically from a package. `send` takes a message and a
+ * one of the app's own passed as `notifications.senders`, typically from a package. `send` takes a message and a
  * batch of devices of those kinds only, and answers each device by its id. A sender for `web` devices names the VAPID
  * `publicKey` browsers subscribe with, which every client may read.
  */
@@ -23,7 +23,7 @@ export type PushSender = {
 }
 
 const checkSender = (sender: PushSender, index: number, claimed: Set<DeviceKind>) => {
-  const name = `notifications({ senders }): sender ${index}`
+  const name = `notifications.senders: sender ${index}`
   if (typeof sender !== 'object' || sender === null || typeof sender.send !== 'function') throw new Error(`${name} has no send method`)
   if (!Array.isArray(sender.kinds) || sender.kinds.length === 0) throw new Error(`${name} names no kinds: ${deviceKinds.join(', ')}`)
   for (const kind of sender.kinds) {
@@ -37,7 +37,7 @@ const checkSender = (sender: PushSender, index: number, claimed: Set<DeviceKind>
 
 /** The senders, checked: each with a send method and kinds, no kind delivered by two, and a public key when one is named. */
 export const checkSenders = (senders: readonly PushSender[]) => {
-  if (!Array.isArray(senders)) throw new Error('notifications({ senders }) is a list of senders')
+  if (!Array.isArray(senders)) throw new Error('notifications.senders is a list of senders')
   const claimed = new Set<DeviceKind>()
   senders.forEach((sender, index) => checkSender(sender, index, claimed))
   return senders

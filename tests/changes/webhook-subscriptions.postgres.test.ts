@@ -7,11 +7,12 @@ import {
   createAdmin,
   startJobs,
   verifyStandardWebhook,
-  webhooks,
   webhooksMigration,
   type JobsRuntime,
   type SubscriptionEvent,
+  type WebhooksOptions,
 } from '@protobase/server'
+import { webhooksModule } from '@protobase/server/internal'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 import { startReceiver } from './receiver'
 
@@ -35,7 +36,7 @@ const orders = resource('orders')
 // Lotte is a sales admin of organization 1; Sem one of organization 2.
 const people: Record<string, { tenant: number; roles: string[] }> = { lotte: { tenant: 1, roles: ['sales'] }, sem: { tenant: 2, roles: ['sales'] } }
 
-const plugin = webhooks({ allowPrivateAddresses: true, ownerRoles: async ({ id }) => people[id]?.roles ?? [] })
+const webhooks: WebhooksOptions = { allowPrivateAddresses: true, ownerRoles: async ({ id }) => people[id]?.roles ?? [] }
 
 describe.skipIf(!(await postgresTemplateReady('jobs')))('webhook subscriptions made in the admin app', () => {
   let pg: PostgresDatabase
@@ -52,10 +53,10 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('webhook subscriptions m
     await pg.exec('create table orders (id integer generated always as identity primary key, organization_id integer not null, status text not null default \'open\', total numeric(12, 2) not null, cost numeric(12, 2) not null default 0)')
     await pg.exec('create index on orders (organization_id, status)')
     await pg.exec((await changesMigration(db, [orders.toModel()]))!)
-    await pg.exec((await webhooksMigration(db, plugin.webhooks))!)
+    await pg.exec((await webhooksMigration(db, webhooks))!)
     receiver = await startReceiver()
     vi.spyOn(console, 'log').mockImplementation(() => {})
-    const { resources, views } = configExports({ orders, ...plugin.config })
+    const { resources, views } = configExports({ orders, ...webhooksModule(webhooks) })
     admin = createAdmin({
       resources,
       views,
@@ -65,7 +66,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('webhook subscriptions m
         const person = people[id]!
         return { user: { id, roles: person.roles }, tenant: person.tenant, organization: { id: person.tenant } }
       },
-      webhooks: plugin.webhooks!,
+      webhooks,
     })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
   })

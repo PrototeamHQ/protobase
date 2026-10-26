@@ -40,7 +40,7 @@ const entriesOf = (env: Env): Entry[] => {
 
 // Rotating a sign-in or API secret must not lose data, nor losing one expose it: the key is never one of them.
 const checkApart = (entries: Entry[], env: Env) => {
-  for (const name of ['BETTER_AUTH_SECRET', 'PROTOBASE_SECRET_KEY']) {
+  for (const name of ['PROTOBASE_SECRET', 'PROTOBASE_SECRET_KEY']) {
     const secret = env[name]?.trim()
     const same = secret && entries.find((entry) => entry.text === secret)
     if (same) throw new Error(`${same.where} is the same as ${name}: give encryption a key of its own`)

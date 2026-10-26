@@ -1,22 +1,16 @@
-import { existsSync } from 'node:fs'
-import path from 'node:path'
-import { mergeConfig, type ProjectConfig } from '@protobase/server'
+import { appNameOver } from '@protobase/server'
+import { loadSourceConfig } from '../config/source-config'
 import { loadNearestEnvFile } from '../dev/env'
 import type { Extension } from '../project/extensions'
-import { importProjectFile } from '../project/import-project-file'
-import { noMobileSection } from './mobile-config'
-
-const configOf = async (file: string): Promise<ProjectConfig> => ((await importProjectFile(file)).default ?? {}) as ProjectConfig
 
 /**
  * What a mobile build needs of the project in `dir`, merged as `protobase dev` merges it after the configs of
- * `extensions`: its mobile section, unchecked, and its auth. The project's .env is loaded first, as other commands do.
+ * `extensions`: its mobile section, unchecked, and with sign-in on the app's URL, its tokens' issuer, and its name.
+ * The project's .env is loaded first, as other commands do; nothing but the configs runs.
  */
 export const loadMobileProject = async (dir: string, extensions: Extension[]) => {
   loadNearestEnvFile(dir)
-  const file = path.join(dir, 'protobase.config.ts')
-  if (!existsSync(file)) throw new Error(noMobileSection)
-  const extended = await Promise.all(extensions.flatMap((extension) => (extension.config ? [configOf(extension.config)] : [])))
-  const { mobile, auth } = mergeConfig(...extended, await configOf(file))
-  return { mobile: mobile as unknown, auth }
+  const { mobile, auth, url, name } = await loadSourceConfig(dir, { command: 'tool', extensions })
+  const appName = appNameOver(process.env, name)
+  return { mobile: mobile as unknown, auth: auth && url ? { issuer: url, ...(appName && { appName }) } : undefined }
 }

@@ -5,7 +5,7 @@ description: Build, check and ship a Protobase admin app on Postgres (data.ts, u
 
 # Protobase
 
-Protobase is a config-driven admin on an existing Postgres database. `config/index.ts` exports the resources, `config/<resource>/data.ts` describes a table and `ui.ts` its views, `functions/` holds the app's API functions, and `protobase.config.ts` in the project root replaces the conventions when it exists. The app's own React code (components, field types, actions) is a plugin in `protobase.ui.tsx`.
+Protobase is a config-driven admin on an existing Postgres database. `config/index.ts` exports the resources, `config/<resource>/data.ts` describes a table and `ui.ts` its views, `functions/` holds the app's API functions, and `protobase.config.ts` in the project root describes the rest of the app as one object of data (sign-in, jobs, files, the API's settings), whose code Protobase finds by its path, such as `jobs/<name>.ts`. The app's own React code (components, field types, actions) is a plugin in `protobase.ui.tsx`.
 
 Run the CLI as the project does: `npx protobase <command>`, or `bun run protobase <command>`. These pages describe the Protobase version installed in the project.
 
@@ -63,6 +63,7 @@ Guides:
 
 Reference:
 
+- When writing `protobase.config.ts`, or looking for where a job's, hook's or other piece of the app's code goes → read [protobase.config.ts](references/reference/config.md)
 - When defining resources, fields, keys, relations, rollups, formulas and validation → read [Data config](references/reference/data-config.md)
 - When defining views, columns, filters, charts, related records and actions → read [UI config](references/reference/ui-config.md)
 - When asking how the packages fit together → read [Architecture](references/reference/architecture.md)

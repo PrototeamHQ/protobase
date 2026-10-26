@@ -25,7 +25,7 @@ const renamed: NotificationsOptions = {
 describe('the history table', () => {
   it('is written by the migration beside the devices table, then current, and none for a store of the app own', async () => {
     const pg = await openSnapshotDb('empty')
-    await expect(checkNotificationsSchema(pg.db, { store: memoryDeviceStore() })).rejects.toThrow('The history table "notifications"."history" of notifications() is missing. Write it as a migration with `protobase migration`')
+    await expect(checkNotificationsSchema(pg.db, { store: memoryDeviceStore() })).rejects.toThrow('The history table "notifications"."history" of notifications is missing. Write it as a migration with `protobase migration`')
     const migration = await notificationsMigration(pg.db)
     expect(migration).toContain('create table "notifications"."devices"')
     expect(migration).toContain('create table "notifications"."history"')

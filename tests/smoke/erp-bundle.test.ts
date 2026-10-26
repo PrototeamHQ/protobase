@@ -34,9 +34,9 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
   let plainBuild: { status: number | null; stderr: string }
 
   beforeAll(async () => {
-    // Each serve names its own port as BETTER_AUTH_URL.
+    // Each serve names its own port as PROTOBASE_URL.
     store = await createErpDatabase({ url, erpDir, base: 'http://localhost', email, password })
-    // As a platform builds it: no BETTER_AUTH_SECRET, and no database to reach.
+    // As a platform builds it: no PROTOBASE_SECRET, and no database to reach.
     const env = { PATH: process.env.PATH, HOME: process.env.HOME, DATABASE_URL: 'postgres://nobody@127.0.0.1:1/none' }
     plainBuild = spawnSync(process.execPath, [bin, 'build', '--out', path.join(outDir, 'plain')], { cwd: erpDir, env, encoding: 'utf8' })
     if (plainBuild.status !== 0) throw new Error(`protobase build failed:\n${plainBuild.stderr}`)
@@ -54,7 +54,7 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
   const serve = async (name: string, env: Record<string, string> = {}) => {
     const served = await serveOnFreePort((port) => {
       output = ''
-      child = spawn(process.execPath, [bin, 'serve', path.join(outDir, name)], { cwd: erpDir, env: { ...process.env, ...store.env, ...env, PORT: String(port), BETTER_AUTH_URL: `http://localhost:${port}` } })
+      child = spawn(process.execPath, [bin, 'serve', path.join(outDir, name)], { cwd: erpDir, env: { ...process.env, ...store.env, ...env, PORT: String(port), PROTOBASE_URL: `http://localhost:${port}` } })
       child.stdout?.on('data', (chunk) => (output += chunk))
       return child
     }, timeout - 10_000)

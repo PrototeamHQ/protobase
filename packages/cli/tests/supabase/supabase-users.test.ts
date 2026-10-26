@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { afterEach, expect, it, vi } from 'vitest'
-import { authSchemaMigration, createAuth, createUser } from '@protobase/server'
+import { authSchemaMigration, createUser } from '@protobase/server'
+import { createAuth } from '@protobase/server/internal'
 import { openSnapshotDb, settled, type SnapshotDb } from '../../../../test-support/sql-snapshot'
 import { supabaseUsers } from '../../src/supabase/auth-config'
 import { splitDump } from '../../src/supabase/statements'

@@ -66,7 +66,7 @@ Two transaction settings steer the capture:
 For a database that already has a schema named `changes`, pick another name in `protobase.config.ts`; the settings take the same prefix:
 
 ```ts
-export default defineConfig({ config, auth, authenticate, events: { schema: 'row_changes' } })
+export default defineConfig({ events: { schema: 'row_changes' } })
 ```
 
 ## Migrations and startup

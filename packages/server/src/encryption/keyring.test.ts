@@ -30,7 +30,7 @@ describe('encryptionKeyring', () => {
     ['non-canonical base64', { PROTOBASE_ENCRYPTION_KEY: `!${keyA}` }, 'PROTOBASE_ENCRYPTION_KEY is not 32 bytes'],
     ['an empty previous entry', { PROTOBASE_ENCRYPTION_KEY: keyA, PROTOBASE_ENCRYPTION_PREVIOUS_KEYS: `${keyB},` }, 'PROTOBASE_ENCRYPTION_PREVIOUS_KEYS entry 2 is empty'],
     ['a key twice', { PROTOBASE_ENCRYPTION_KEY: keyA, PROTOBASE_ENCRYPTION_PREVIOUS_KEYS: keyA }, 'PROTOBASE_ENCRYPTION_PREVIOUS_KEYS entry 1 is a key given before'],
-    ['the sign-in secret', { PROTOBASE_ENCRYPTION_KEY: keyA, BETTER_AUTH_SECRET: keyA }, 'PROTOBASE_ENCRYPTION_KEY is the same as BETTER_AUTH_SECRET'],
+    ['the sign-in secret', { PROTOBASE_ENCRYPTION_KEY: keyA, PROTOBASE_SECRET: keyA }, 'PROTOBASE_ENCRYPTION_KEY is the same as PROTOBASE_SECRET'],
     ['the API secret key', { PROTOBASE_ENCRYPTION_KEY: keyA, PROTOBASE_ENCRYPTION_PREVIOUS_KEYS: keyB, PROTOBASE_SECRET_KEY: keyB }, 'PROTOBASE_ENCRYPTION_PREVIOUS_KEYS entry 1 is the same as PROTOBASE_SECRET_KEY'],
     ['32 identical bytes', { PROTOBASE_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64') }, 'PROTOBASE_ENCRYPTION_KEY is 32 identical bytes'],
   ])('refuses %s, naming the variable but not the key', (_, env, message) => {

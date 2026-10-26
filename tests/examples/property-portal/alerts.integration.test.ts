@@ -1,8 +1,8 @@
 import { sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { startJobs, type JobsRuntime, type MailMessage } from '@protobase/server'
+import { enqueueJob, startJobs, type JobsRuntime, type MailMessage } from '@protobase/server'
 import { createDb } from '../../../examples/property-portal/db/kysely'
-import * as jobs from '../../../examples/property-portal/jobs'
+import { exampleJobs } from '../example-app'
 import { databaseSeeded } from './seeded'
 
 // Workers poll on real timers, which a busy machine stretches.
@@ -34,7 +34,7 @@ beforeAll(async () => {
   instant = await search('instant', `for_sale = true AND ${place} AND purchase_price >= 0 AND purchase_price <= 500000 AND living_area >= 70 AND living_area <= 400`)
   daily = await search('daily', `for_rent = true AND ${place} AND rent_price >= 0 AND rent_price <= 2000 AND living_area >= 70 AND living_area <= 400`)
   quiet = await search('none', `${place} AND search("Teststraat")`)
-  runtime = await startJobs({ db, jobs: Object.values(jobs), pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error }, mailer: { send: async (message) => { sent.push(message) } } })
+  runtime = await startJobs({ db, jobs: await exampleJobs('property-portal'), pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error }, mailer: { send: async (message) => { sent.push(message) } } })
 })
 
 afterAll(async () => {
@@ -78,7 +78,7 @@ describe.skipIf(!seeded)('alerts for newly published listings', () => {
     await sql`update market.listings set published_at = now() where id = ${draft}`.execute(db)
     await vi.waitFor(async () => expect((await alertsOf(instant)).map((alert) => alert.listing_id)).toContain(draft), { timeout: 20_000, interval: 200 })
     await sql`update market.listings set published_at = now() where id = ${draft}`.execute(db)
-    await jobs.matchListing.enqueue(db, { listingId: Number(draft) })
+    await enqueueJob(db, 'match-listing', { listingId: Number(draft) })
     await drained()
     expect((await alertsOf(instant)).filter((alert) => alert.listing_id === draft)).toHaveLength(1)
   })
@@ -88,7 +88,7 @@ describe.skipIf(!seeded)('alerts for newly published listings', () => {
     await vi.waitFor(async () => expect((await alertsOf(daily)).map((alert) => alert.listing_id)).toEqual([rental]), { timeout: 20_000, interval: 200 })
     expect((await alertsOf(daily))[0]!.emailed_at).toBeNull()
     const before = sent.length
-    await jobs.emailAlerts.enqueue(db, { userId: user, frequency: 'daily' })
+    await enqueueJob(db, 'email-alerts', { userId: user, frequency: 'daily' })
     await vi.waitFor(async () => expect((await alertsOf(daily))[0]!.emailed_at).toBeInstanceOf(Date), { timeout: 20_000, interval: 200 })
     expect(sent.slice(before).map((message) => message.subject)).toEqual(['1 new home fits your searches'])
     expect(sent.at(-1)!.text).toContain('These homes were published since your last digest')
@@ -97,7 +97,7 @@ describe.skipIf(!seeded)('alerts for newly published listings', () => {
   it('records what a search without email finds, by its search text too, and never mails it', async () => {
     const home = await listing('Teststraat 7', { purchase: 900_000 }, 120, true)
     await vi.waitFor(async () => expect((await alertsOf(quiet)).map((alert) => alert.listing_id)).toContain(home), { timeout: 20_000, interval: 200 })
-    await jobs.emailAlerts.enqueue(db, { userId: user, frequency: 'daily' })
+    await enqueueJob(db, 'email-alerts', { userId: user, frequency: 'daily' })
     await drained()
     expect((await alertsOf(quiet)).every((alert) => alert.emailed_at === null)).toBe(true)
     expect(sent.some((message) => message.text.includes('Teststraat 7'))).toBe(false)

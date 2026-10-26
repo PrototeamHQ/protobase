@@ -1,6 +1,7 @@
 import { Readable } from 'node:stream'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { authSchemaMigration, createAuth, issueToken, type AdminAuth } from '@protobase/server'
+import { authSchemaMigration, issueToken, type AdminAuth } from '@protobase/server'
+import { buildAuth, createAuth } from '@protobase/server/internal'
 import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from '../../src/users/commands'
 import { deleteUserCommand, setDisabledCommand, setRoleCommand } from '../../src/users/manage'
 import { setDisabledInProject } from '../../src/users/set-disabled'

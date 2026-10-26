@@ -10,7 +10,7 @@ const collect = (value: string, previous: string[]) => [...previous, value]
 export const registerMobile = (program: Command) => {
   const mobile = program.command('mobile').description("Build the project in the current directory as an iOS or Android app, from the mobile section of its protobase.config.ts")
   const api = '--api <url>'
-  const apiHelp = "the server the app calls (default: the auth issuer, the project's baseURL)"
+  const apiHelp = "the server the app calls (default: the app's URL, url or PROTOBASE_URL)"
   const extend = "merge the protobase.config.ts and protobase.ui.tsx in this folder before the project's, repeatable"
 
   mobile

@@ -17,7 +17,7 @@ npm create protobase my-app
 npm create protobase my-app -- --preset real-estate
 ```
 
-The project comes with its own Postgres for development: a `docker-compose.yml` with Postgres 18, started by `bun run db:up` and stopped by `bun run db:down`, on port 55432 or, when something listens there already, the next free one. Its `.env` points at that database and has a `BETTER_AUTH_SECRET` of its own. Without Docker, set `DATABASE_URL` in `.env` to a Postgres database of yours. The next steps install it with Bun, which runs the project's scripts, start the database, migrate it, load the preset's base data, if it has any, create a user and run `bun run dev`. For scratch:
+The project comes with its own Postgres for development: a `docker-compose.yml` with Postgres 18, started by `bun run db:up` and stopped by `bun run db:down`, on port 55432 or, when something listens there already, the next free one. Its `.env` points at that database and has a `PROTOBASE_SECRET` of its own. Without Docker, set `DATABASE_URL` in `.env` to a Postgres database of yours. The next steps install it with Bun, which runs the project's scripts, start the database, migrate it, load the preset's base data, if it has any, create a user and run `bun run dev`. For scratch:
 
 ```sh
 cd my-app
@@ -56,7 +56,7 @@ bun run --cwd examples/erp protobase users create you@example.com --generate-pas
 bun run --cwd examples/erp dev                          # http://localhost:5173
 ```
 
-`BETTER_AUTH_SECRET` in `examples/erp/.env` signs the session cookies; see [Login with Better Auth](reference/auth.md). `protobase dev` serves the admin app and the API on one port and reloads both on every change ([CLI](reference/cli.md#dev)). Its startup message says how to sign in: while the database has no users, it prints the exact `users create` command for the first admin. It stops with a clear message when another server holds its port; pass `--port 5174` to run a second app beside it.
+`PROTOBASE_SECRET` in `examples/erp/.env` signs the session cookies; see [Login with Better Auth](reference/auth.md). `protobase dev` serves the admin app and the API on one port and reloads both on every change ([CLI](reference/cli.md#dev)). Its startup message says how to sign in: while the database has no users, it prints the exact `users create` command for the first admin. It stops with a clear message when another server holds its port; pass `--port 5174` to run a second app beside it.
 
 ## Run the real estate example
 

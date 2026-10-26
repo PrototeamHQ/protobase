@@ -10,7 +10,7 @@ export type DeviceColumn = (typeof deviceColumns)[number]
 export const historyColumns = ['id', 'user_id', 'title', 'body', 'url', 'data', 'created_at', 'read_at'] as const
 export type HistoryColumn = (typeof historyColumns)[number]
 
-/** Notifications, turned on with `extends: [notifications()]`. */
+/** Notifications, turned on with `notifications: {}` in `protobase.config.ts`. */
 export type NotificationsOptions = {
   /** The bell in the top bar; default true. `false` keeps only the backend. */
   ui?: boolean
@@ -67,7 +67,7 @@ export type HistoryNames = ReturnType<typeof historyNames>
 
 export type NotificationsNames = ReturnType<typeof notificationsNames>
 
-/** The options, checked as `notifications()` takes them: the names, given stores' methods and the senders given. */
+/** The options, checked as `notifications` takes them: the names, given stores' methods and the senders given. */
 export const checkNotificationsOptions = (options: NotificationsOptions) => {
   if (options.ui !== undefined && typeof options.ui !== 'boolean') throw new Error('notifications ui is true or false')
   notificationsNames(options)

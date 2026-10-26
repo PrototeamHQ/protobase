@@ -13,7 +13,7 @@ export type JobContext = {
   signal: AbortSignal
   /** Sends mail through the app's SMTP server (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`); `undefined` when the app has no mail. */
   mail?: Mailer
-  /** Sends a notification as `sendNotification` does; `undefined` when the app has no `notifications()`. */
+  /** Sends a notification as `sendNotification` does; `undefined` when the app has no `notifications`. */
   sendNotification?: SendNotification
 }
 

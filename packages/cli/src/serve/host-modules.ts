@@ -15,6 +15,7 @@ import * as postgres from 'postgres'
 import * as react from 'react'
 import * as reactJsxRuntime from 'react/jsx-runtime'
 import * as zod from 'zod'
+import * as protobaseConfig from '@protobase/config'
 import * as layout from '@protobase/layout'
 import * as query from '@protobase/query'
 import * as schema from '@protobase/schema'
@@ -22,6 +23,7 @@ import * as server from '@protobase/server'
 import type { HostModuleId, LazyHostModuleId } from './host-module-ids'
 
 const hostModules: Record<Exclude<HostModuleId, LazyHostModuleId>, Record<string, unknown>> = {
+  '@protobase/config': protobaseConfig,
   '@protobase/schema': schema,
   '@protobase/layout': layout,
   '@protobase/layout/jsx-runtime': layout.jsxRuntime,

@@ -42,7 +42,7 @@ export const rushOrders = subscription('rushOrders', {
 
 ## subscription()
 
-`subscription(name, options)`: the name is unique across the config and the configs it extends, letters, digits, `_` and `-`. Each has one target:
+`subscription(name, options)`: the name is unique across the app and its [extensions](config.md#extensions), letters, digits, `_` and `-`. Each has one target:
 
 | Target | |
 | --- | --- |
@@ -102,12 +102,12 @@ Every outcome is a line in the server log, such as `webhook newOrdersToSlack ord
 
 ## Subscriptions in the admin app
 
-A subscription in the config suits a developer. For people who make their own at runtime, such as a tenant admin wiring their organization to a tool they use, extend the config with `webhooks()`:
+A subscription in the config suits a developer. For people who make their own at runtime, such as a tenant admin wiring their organization to a tool they use, turn them on with `webhooks` in `protobase.config.ts`:
 
 ```ts
-import { defineConfig, webhooks } from '@protobase/server'
+import { defineConfig } from '@protobase/config'
 
-export default defineConfig({ extends: [webhooks()], config, auth, authenticate })
+export default defineConfig({ webhooks: {} })
 ```
 
 It adds two pages, over a `webhooks` schema that [`protobase migration`](cli.md#migration) writes (`NNN_webhooks.sql`):
@@ -117,7 +117,7 @@ It adds two pages, over a `webhooks` schema that [`protobase migration`](cli.md#
 
 Both are scoped to the tenant like any resource with `.tenant()`, and their access decides who may do what: `webhook_subscriptions.create`, `webhook_deliveries.update` and so on, as for the app's own resources.
 
-A subscription made here **delivers as its owner**, with the role they act with now in its tenant (the [active role](auth.md#active-role) they last chose, else their first): only records and fields it may read. Letting people make subscriptions therefore grants them nothing they could not read already. The roles are read from the project's Better Auth; a project that signs people in otherwise passes `webhooks({ ownerRoles: async ({ id, tenant }) => [...] })`.
+A subscription made here **delivers as its owner**, with the role they act with now in its tenant (the [active role](auth.md#active-role) they last chose, else their first): only records and fields it may read. Letting people make subscriptions therefore grants them nothing they could not read already. The roles are read from the app's sign-in; a project that signs people in otherwise exports its own, `async ({ id, tenant }) => [...]`, as the default of `webhooks/owner-roles.ts`.
 
 | Action | |
 | --- | --- |
@@ -128,9 +128,8 @@ A subscription made here **delivers as its owner**, with the role they act with 
 
 A subscription is **disabled by itself** when its receiver answers `410 Gone`, or when no delivery succeeded for three days; the page says why.
 
-| `webhooks(options)` | |
+| `webhooks` | |
 | --- | --- |
 | `schema` | The schema of its tables, for a database that has a `webhooks` schema already. Default `webhooks`. |
 | `deliveryLog` | Also keeps every try, successes too, for 30 days, listed as Webhook delivery log: status, try, status code, the first 2 KB of the answer and how long it took. Default false. |
-| `ownerRoles` | The roles an owner holds now in a tenant, for a project without Better Auth. |
 | `allowPrivateAddresses` | Lets URLs reach private addresses, for development and tests. Default false. |

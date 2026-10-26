@@ -6,13 +6,10 @@ description: Comments on a resource's records by anyone who may read them, with 
 import { Code } from '@astrojs/starlight/components'
 import StoryFrame from '../../../components/StoryFrame.astro'
 import tickets from '../../../../../docs-examples/comments/tickets.ts?raw'
-import config from '../../../../../docs-examples/comments/protobase.config.ts?raw'
 
 A resource with [`.comments()`](/api/schema/interfaces/resourcebuilder/#comments) takes comments on its records: plain text, each with its author and time. Typing `@` in a comment mentions someone, who gets an email with a link to the record. <gap>Comments cannot be edited.</gap> <gap>Comments have no replies.</gap> <gap>Comments have no reactions.</gap>
 
 <Code code={tickets} lang="ts" title="config/tickets.ts" />
-
-<Code code={config} lang="ts" title="protobase.config.ts" />
 
 ## On the record page
 

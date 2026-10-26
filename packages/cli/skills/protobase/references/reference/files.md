@@ -81,30 +81,28 @@ An image with variants also has `variants`, each `{ url, type, width, height }` 
 ## Providers
 
 ```ts title="protobase.config.ts"
-import sharp from 'sharp'
-import { defineConfig, localFiles } from '@protobase/server'
-import * as config from './config'
+import { defineConfig } from '@protobase/config'
 
 export default defineConfig({
-  config,
   files: {
     providers: {
-      private: localFiles({ dir: './data/files/private' }),
-      public: localFiles({ dir: './data/files/public', public: true }),
-      archive: localFiles({ dir: '/mnt/archive', retention: '30 days' }),
+      private: { kind: 'local', dir: './data/files/private' },
+      public: { kind: 'local', dir: './data/files/public', public: true },
+      archive: { kind: 'local', dir: '/mnt/archive', retention: '30 days' },
     },
     retention: '1 day',
     // Makes the image variants and placeholders
-    sharp,
+    images: 'sharp',
   },
 })
 ```
 
-- `localFiles({ dir, public?, publicUrl?, retention? })` keeps files in a folder on local disk. Writes go to a temporary file first and are renamed into place, so nobody reads half a file. A full disk or quota answers `507`.
-- `s3Files({ bucket, prefix?, endpoint?, region?, public?, publicUrl?, retention? })` keeps them in an S3-compatible bucket, see [S3-compatible buckets](#s3-compatible-buckets).
+- `{ kind: 'local', dir, public?, publicUrl?, retention? }` keeps files in a folder on local disk. Writes go to a temporary file first and are renamed into place, so nobody reads half a file. A full disk or quota answers `507`.
+- `{ kind: 's3', bucket, prefix?, endpoint?, region?, public?, publicUrl?, retention? }` keeps them in an S3-compatible bucket, see [S3-compatible buckets](#s3-compatible-buckets).
+- `{ kind: 'custom' }` is a `FileProvider` of the project's own, the default export of `files/<name>.ts`.
 - Without config, `private` and `public` are the folders `data/files/private` and `data/files/public`, created when needed. Any other provider a field names must be configured.
 - `PROTOBASE_FILES_<NAME>` configures a provider from the environment and wins over the config for that name: `PROTOBASE_FILES_PRIVATE=file:///data/files/private`, or `file:///data/files/public?public=1&public_url=https://cdn.example.com/app&retention=0`, or an `s3://` URL. `PROTOBASE_FILES_RETENTION` overrides `files.retention`.
-- Uploads and download links are signed with `files.secret`, else `PROTOBASE_FILES_SECRET`, else `BETTER_AUTH_SECRET`. The server does not start with file fields and none of them set.
+- Uploads and download links are signed with `files.secret`, else `PROTOBASE_FILES_SECRET`, else the app's `secret` (`PROTOBASE_SECRET`). The server does not start with file fields and none of them set.
 
 ### Limits
 
@@ -114,7 +112,7 @@ A bucket has no quota of its own, so the provider counts what it holds with `lis
 
 ### Writing files from a seed
 
-A seed, an import or another script that writes files outside a request uses `storeFile` from `@protobase/server`, so the same script fills the folder locally and the bucket where the app has one. It finds the provider as the server does, from `env` and the config's `files`, when that declares providers:
+A seed, an import or another script that writes files outside a request uses `storeFile` from `@protobase/server`, so the same script fills the folder locally and the bucket where the app has one. It finds the provider as the server does, from `env`, and from `files` with its providers made when the script passes it:
 
 ```ts
 import { storeFile } from '@protobase/server'
@@ -131,14 +129,14 @@ await storeFile({ provider: 'public', path: 'images/test.png', body: bytes, env:
 <gap>S3-compatible buckets work only when the app runs on Bun, as Node has no S3 client built in.</gap> On Node the first file operation fails.
 :::
 
-`s3Files` stores files in any bucket with the S3 API, such as Cloudflare R2, Scaleway Object Storage or AWS S3, under `prefix` when given, so one bucket can hold several providers or apps:
+An `s3` provider stores files in any bucket with the S3 API, such as Cloudflare R2, Scaleway Object Storage or AWS S3, under `prefix` when given, so one bucket can hold several providers or apps:
 
 ```ts
 // Cloudflare R2, in the EU jurisdiction
-private: s3Files({ bucket: 'acme-files', prefix: 'private', endpoint: 'https://<account id>.eu.r2.cloudflarestorage.com', region: 'auto' }),
-public: s3Files({ bucket: 'acme-files', prefix: 'public', endpoint: 'https://<account id>.eu.r2.cloudflarestorage.com', region: 'auto', publicUrl: 'https://files.acme.com' }),
+private: { kind: 's3', bucket: 'acme-files', prefix: 'private', endpoint: 'https://<account id>.eu.r2.cloudflarestorage.com', region: 'auto' },
+public: { kind: 's3', bucket: 'acme-files', prefix: 'public', endpoint: 'https://<account id>.eu.r2.cloudflarestorage.com', region: 'auto', publicUrl: 'https://files.acme.com' },
 // Scaleway, in Paris
-archive: s3Files({ bucket: 'acme-archive', endpoint: 'https://s3.fr-par.scw.cloud', region: 'fr-par', retention: '30 days' }),
+archive: { kind: 's3', bucket: 'acme-archive', endpoint: 'https://s3.fr-par.scw.cloud', region: 'fr-par', retention: '30 days' },
 ```
 
 Or from the environment, the same providers:
@@ -222,16 +220,14 @@ photo_placeholder: f.text().readOnly().optional(),
 
 Variants and placeholders turn the image upright first, following its EXIF orientation, and carry no metadata. JPEG, PNG, WebP, AVIF, GIF and TIFF images are processed; any other file, HEIC and SVG included, is stored as it is, without variants, and its placeholder is `null`. <gap>Files uploaded before a field declared variants keep none, as variants are not made for existing files.</gap>
 
-sharp is a native package, so the config passes it in, and a [built bundle](cli.md#native-packages) carries it with its add-on for linux:
+sharp is a native package, so the config names it, the app loads it from the project's dependencies when it serves, and a [built bundle](cli.md#native-packages) carries it with its add-on for linux:
 
 ```ts
 // protobase.config.ts
-import sharp from 'sharp'
-
-export default defineConfig({ config, files: { sharp } })
+export default defineConfig({ files: { images: 'sharp' } })
 ```
 
-The server does not start with a field that declares variants or a placeholder and no `files.sharp`. In code, `fileUrl(file, 'card')` from `@protobase/client` links a variant by name, or the file itself when it has none.
+The server does not start with a field that declares variants or a placeholder and no `files.images`. In code, `fileUrl(file, 'card')` from `@protobase/client` links a variant by name, or the file itself when it has none.
 
 ## External URLs
 
@@ -268,7 +264,6 @@ The admin app draws every image of a file field with `referrerPolicy="no-referre
 
 ```ts
 export default defineConfig({
-  config,
   files: { trustedHosts: ['images.example.com'] },
 })
 ```
@@ -279,7 +274,7 @@ A trusted host is matched exactly: `images.example.com` does not trust `cdn.imag
 
 Files are deleted by schedule, never in the write itself, so a restore of the database to an earlier moment still finds its files:
 
-- A write that **replaces or clears** a file, or **deletes a row** (not a soft delete), schedules the delete of each file it took out of its row, with its variants, once it commits, so its transaction never waits on the storage. It is due after the provider's retention: `files.retention`, 1 day by default, or 0 for a public provider. When the storage refuses the entry, the write still stands, the file stays in storage, and the error goes to `options.onUnhandledError`.
+- A write that **replaces or clears** a file, or **deletes a row** (not a soft delete), schedules the delete of each file it took out of its row, with its variants, once it commits, so its transaction never waits on the storage. It is due after the provider's retention: `files.retention`, 1 day by default, or 0 for a public provider. When the storage refuses the entry, the write still stands, the file stays in storage, and the error goes to the default export of `hooks/error.ts`.
 - Every **upload** schedules one too, due an hour after its ticket expires, so a file nobody saved, or whose write rolled back, goes as well.
 - Each scheduled delete is a small JSON object in the provider's own storage, in a `.cleanup/` folder, named after its due time and saying what to delete: `.cleanup/2026-10-12T03-00-00Z-<uuid>.json` holding `{ "provider": "private", "path": "1/2992db9c-….jpg", "due": "…" }`.
 - A **cleanup run** handles the entries that are due. Right before deleting, it checks every file column of every resource for the file: one that a row holds again (a rolled-back write, a restore, a copied value) is kept, and its entry dropped. Two runs at once do no harm.

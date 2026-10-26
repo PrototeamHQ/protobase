@@ -10,15 +10,14 @@ You turn notifications on, send one when something happens in your app, and see 
 
 ## 1. Turn notifications on
 
-Add `notifications()` to `protobase.config.ts`:
+Add `notifications` to `protobase.config.ts`:
 
 ```ts
-import { defineConfig, notifications } from '@protobase/server'
+import { defineConfig } from '@protobase/config'
 
 export default defineConfig({
-  config,
-  extends: [notifications()],
-  // auth, authenticate, jobs, ...
+  notifications: {},
+  // auth, jobs, ...
 })
 ```
 
@@ -92,7 +91,7 @@ On an iPhone or iPad, push reaches the app once it is added to the Home Screen, 
 
 ## 6. Turn the bell off or replace a part
 
-- `notifications({ ui: false })` keeps sending, the history and devices, and draws no bell: your own UI reads the history and turns push on with [the browser helper](/reference/notifications/#in-the-browser) ([without the bell](/reference/notifications/#without-the-bell)).
+- `notifications: { ui: false }` keeps sending, the history and devices, and draws no bell: your own UI reads the history and turns push on with [the browser helper](/reference/notifications/#in-the-browser) ([without the bell](/reference/notifications/#without-the-bell)).
 - `shell.bell` in `protobase.ui.tsx` draws your own bell in its place ([the bell's slot](/reference/notifications/#the-bells-slot)).
 - Your own device store, history store or senders replace the built-in ones, such as a store outside the database ([your own parts](/reference/notifications/#your-own-parts)).
 - The tables' schema, names and columns can be renamed ([table names](/reference/notifications/#table-names)).

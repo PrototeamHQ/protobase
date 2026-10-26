@@ -1,6 +1,7 @@
 import { chromium, type Browser, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { betterAuthAuthenticator, createAdmin, createAuth, createUser, type AdminAuth } from '@protobase/server'
+import { createAdmin, createUser, type AdminAuth } from '@protobase/server'
+import { betterAuthAuthenticator, createAuth } from '@protobase/server/internal'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 import { bundleBrowserClient } from './support/bundle-client'
 import { startHttpsServer } from './support/https-server'

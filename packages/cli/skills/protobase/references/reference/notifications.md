@@ -13,17 +13,16 @@ Push reaches browsers; push on Android and iOS is coming soon.
 Notifications tell a user about something in the app, in a bell in the top bar and as push on their devices. [Send notifications](../guides/push-notifications.md) walks through turning them on and sending the first one. You turn them on in `protobase.config.ts`:
 
 ```ts
-import { defineConfig, notifications } from '@protobase/server'
+import { defineConfig } from '@protobase/config'
 
 export default defineConfig({
-  extends: [notifications()],
-  // config, auth, ...
+  notifications: {},
 })
 ```
 
-Then run `protobase migration`, which writes the [devices and history tables](#table-names), and the jobs schema that [sending](#sending) runs on, as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while a table is missing or lacks what notifications need, and name it. Without `notifications()` there is none of it: no endpoints, no tables and no migration.
+Then run `protobase migration`, which writes the [devices and history tables](#table-names), and the jobs schema that [sending](#sending) runs on, as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while a table is missing or lacks what notifications need, and name it. Without `notifications` there is none of it: no endpoints, no tables and no migration.
 
-Every signed-in user gets [the bell](#the-bell), and browsers receive push through [Web Push](#web-push); push on Android and iOS is coming soon. `notifications({ ui: false })` keeps only the backend, [without the bell](#without-the-bell).
+Every signed-in user gets [the bell](#the-bell), and browsers receive push through [Web Push](#web-push); push on Android and iOS is coming soon. `notifications: { ui: false }` keeps only the backend, [without the bell](#without-the-bell).
 
 ## Devices
 
@@ -71,7 +70,7 @@ The path comes from `devicesPath('/api', id)`, and the name of its id parameter 
 Only browsers receive push yet; push on Android and iOS is coming soon. <gap>A send can reach a device twice, or keep an entry twice in a history store of your own, when a worker stops mid-send because saving the send's progress in the same step as the push is not implemented.</gap>
 :::
 
-[Send notifications](../guides/push-notifications.md) sends one from a record change, step by step. You send a notification from your server code, such as a job, a hook, an event subscription or an API function, with `sendNotification(db, to, message)` from `@protobase/server`. It is queued as a background job in `db`'s transaction when `db` is one, so it goes out only once your write commits, and nothing goes out when the transaction rolls back. A running job also has it as `sendNotification` in its context, beside `mail`, when the app has `notifications()`.
+[Send notifications](../guides/push-notifications.md) sends one from a record change, step by step. You send a notification from your server code, such as a job, a hook, an event subscription or an API function, with `sendNotification(db, to, message)` from `@protobase/server`. It is queued as a background job in `db`'s transaction when `db` is one, so it goes out only once your write commits, and nothing goes out when the transaction rolls back. A running job also has it as `sendNotification` in its context, beside `mail`, when the app has `notifications`.
 
 Every send to users says whether it shows in their inbox:
 
@@ -134,7 +133,7 @@ The list gives 20 at a time, or as many as `?limit=` says, up to 50. A full page
 
 `title` and `body` are plain text: show them as text, never as HTML. `url` is a path on the app, such as `/tasks/42`, or an absolute URL on one of the app's own origins; anything else, another site, `javascript:` or `data:`, is answered as `null`. A notification's `url` and `data` are kept until its user is removed, so leave one-time links and secrets out of inbox notifications.
 
-The same people may call them as may [register devices](#devices): only someone signed in as themselves. With Protobase's auth, deleting a user removes their history; an app that deletes users otherwise calls `historyStore(db, options).removeAllForUser(userId)` as it deletes one, with the options it gave `notifications()`.
+The same people may call them as may [register devices](#devices): only someone signed in as themselves. With Protobase's auth, deleting a user removes their history; an app that deletes users otherwise calls `historyStore(db, options).removeAllForUser(userId)` as it deletes one, with the config's `notifications`.
 
 The paths come from `historyPath('/api')`, `historyPath('/api', 'unread')`, `historyPath('/api', 'read')` and `historyPath('/api', { read: id })`, and the name of the id parameter from `historyIdParam`, all exported by `@protobase/server`.
 
@@ -154,10 +153,10 @@ The panel also offers to turn push on for this device, where the device can rece
 
 ## Without the bell
 
-`notifications({ ui: false })` keeps sending, the history and devices, and the top bar draws no bell, so the app reads no notifications for it:
+`notifications: { ui: false }` keeps sending, the history and devices, and the top bar draws no bell, so the app reads no notifications for it:
 
 ```ts
-export default defineConfig({ extends: [notifications({ ui: false })] })
+export default defineConfig({ notifications: { ui: false } })
 ```
 
 Your own UI then reads the [history endpoints](#history), through `client.notifications` of `@protobase/client` (`list`, `unread`, `markRead` and `markAllRead`) or the [hooks](#the-bells-slot), and turns push on with [the browser helper](#in-the-browser), such as in a button of the top bar's [actions](custom-components.md#shell-slots).
@@ -208,7 +207,7 @@ export const PushButton = () => {
 - Signing out turns push off in this browser, and so does someone else signing in on it: what the browser showed is closed, the app's badge cleared, and the device removed. Signing in again as the same user keeps it on.
 - A tap on a notification whose url is on your app's origin opens that page in the app, in an open window of it or a new one; any other url opens in a new tab.
 
-`protobase serve` and `protobase dev` both serve the service worker that shows notifications, `protobase dev` only when the app has `notifications()`.
+`protobase serve` and `protobase dev` both serve the service worker that shows notifications, `protobase dev` only when the app has `notifications`.
 
 ## Your own parts
 
@@ -216,10 +215,11 @@ export const PushButton = () => {
 The stores, the senders and the bell's slot may still change.
 :::
 
-The device store is an interface with a Postgres default, the [devices table](#table-names). You pass your own store to `notifications()`, such as one from a package that keeps devices elsewhere, and then no table is needed and `protobase migration` writes none:
+The device store is an interface with a Postgres default, the [devices table](#table-names). Your own store, such as one from a package that keeps devices elsewhere, is the default export of `notifications/store.ts`, and then no table is needed and `protobase migration` writes none:
 
 ```ts
-import { defineConfig, notifications, type DeviceStore } from '@protobase/server'
+// notifications/store.ts
+import type { DeviceStore } from '@protobase/server'
 
 const store: DeviceStore = {
   register: async (userId, device) => { /* add or refresh it, or move a phone's token to userId as a new device; undefined for a browser's endpoint another user holds */ },
@@ -230,17 +230,18 @@ const store: DeviceStore = {
   removeAllForUser: async (userId) => {},
 }
 
-export default defineConfig({ extends: [notifications({ store })] })
+export default store
 ```
 
 Every method takes and returns plain data: the user id as text, and devices as `{ id, userId, kind, token, p256dh, auth, environment, appId, userAgent, sessionId, createdAt, lastSeenAt }`, with `token` the endpoint for a browser and `sessionId` the sign-in session it was registered in. A method given an empty user id, id or token throws. `listByIds` and `removeGone` act on any user's devices, for the code that sends; the endpoints never call them. A store missing a method stops startup, naming it.
 
-When Protobase's auth deletes a user, by an admin or with `protobase users delete`, it calls the store's `removeAllForUser` before anything is deleted, so a store that throws stops the deletion, and once more afterwards. An app that deletes users otherwise calls `deviceStore(db, options).removeAllForUser(userId)` as it deletes one, with the options it gave `notifications()`.
+When Protobase's auth deletes a user, by an admin or with `protobase users delete`, it calls the store's `removeAllForUser` before anything is deleted, so a store that throws stops the deletion, and once more afterwards. An app that deletes users otherwise calls `deviceStore(db, options).removeAllForUser(userId)` as it deletes one, with the config's `notifications`.
 
-The history store is an interface with a Postgres default too, the [history table](#table-names), and you pass your own as `historyStore`:
+The history store is an interface with a Postgres default too, the [history table](#table-names), and your own is the default export of `notifications/history-store.ts`:
 
 ```ts
-import { defineConfig, notifications, type HistoryStore } from '@protobase/server'
+// notifications/history-store.ts
+import type { HistoryStore } from '@protobase/server'
 
 const historyStore: HistoryStore = {
   record: async (userId, notification) => { /* keep it unread, created now, under a new id */ },
@@ -251,24 +252,25 @@ const historyStore: HistoryStore = {
   removeAllForUser: async (userId) => {},
 }
 
-export default defineConfig({ extends: [notifications({ historyStore })] })
+export default historyStore
 ```
 
 A notification is `{ id, userId, title, body, url, data, createdAt, readAt }`, and `before` is the `{ createdAt, id }` of the last one of the page before. Each method touches only the given user's notifications, and throws on an empty user id or id. An id is letters, digits, `-` and `_`, at most 64 characters, as it goes into a path. `record` keeps only what `historyLimits` allows: a title of up to 256 characters, a body and a url of up to 2048, and `data` of up to 4096 bytes of JSON. The endpoints answer with an error, showing nothing of it, when a store gives back another user's notification. A store missing a method stops startup, naming it. Deleting a user calls its `removeAllForUser` as it does the device store's; an app that deletes users otherwise calls `historyStore(db, options).removeAllForUser(userId)`.
 
 ### Senders
 
-A sender delivers notifications to the devices of the kinds it names, through their push service. Web Push is built in; you pass your own senders to `notifications()`, such as from a package, and they replace the built-in ones, at most one for each kind:
+A sender delivers notifications to the devices of the kinds it names, through their push service. Web Push is built in; your own senders, such as from a package, are the default export of `notifications/senders.ts`, an array, and they replace the built-in ones, at most one for each kind:
 
 ```ts
-import { defineConfig, notifications, type PushSender } from '@protobase/server'
+// notifications/senders.ts
+import type { PushSender } from '@protobase/server'
 
 const sender: PushSender = {
   kinds: ['fcm'],
   send: async (message, devices) => devices.map((device) => ({ id: device.id, result: 'ok' })),
 }
 
-export default defineConfig({ extends: [notifications({ senders: [sender] })] })
+export default [sender]
 ```
 
 `send` takes a message and a batch of devices of those kinds, and answers each device by its id with a result:
@@ -356,10 +358,10 @@ The default store keeps devices in the table `devices` of the schema `notificati
 You rename the schema, the table and each column, as auth takes `users.table` and `users.columns`, such as to keep devices in a table you already have:
 
 ```ts
-notifications({
+notifications: {
   schema: 'push',
   devices: { table: 'targets', columns: { user_id: 'owner_id', token: 'address' } },
-})
+},
 ```
 
 The history is kept in the table `history` of the same schema:
@@ -377,9 +379,9 @@ The history is kept in the table `history` of the same schema:
 Two indexes keep a user's newest-first pages and unread count cheap. You rename its table and columns as `history.table` and `history.columns`:
 
 ```ts
-notifications({
+notifications: {
   history: { table: 'inbox', columns: { user_id: 'owner_id', read_at: 'seen_at' } },
-})
+},
 ```
 
 A name is lowercase letters, digits and `_`, at most 63 characters. Startup stops, naming what is wrong, while a table lacks a configured column, while the devices table lacks a unique index on the token column alone, which moving a device relies on, or, with Protobase's auth, while either table lacks the foreign key from its user column to the users table with `on delete cascade`.

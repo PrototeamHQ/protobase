@@ -12,7 +12,7 @@ describe('migrationSummary', () => {
 
   it('says a config without auth has no sign-in, whose tables it never writes', () => {
     expect(migrationSummary([], '/app', false)).toBe(
-      'the database is up to date; nothing to write\nno sign-in is configured, so nothing was written for it: export auth and authenticate from protobase.config.ts, see https://docs.protobase.net/guides/existing-database/\n',
+      'the database is up to date; nothing to write\nsign-in is off, so nothing was written for it: see https://docs.protobase.net/guides/existing-database/\n',
     )
   })
 })

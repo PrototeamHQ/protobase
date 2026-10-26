@@ -35,6 +35,8 @@ export const ticketSeconds = 24 * 60 * 60
 export type FilesRuntimeInput = {
   options?: FilesOptions
   env: Record<string, string | undefined>
+  /** The app's secret (`secret`), which signs uploads unless `files.secret` or `PROTOBASE_FILES_SECRET` names another. */
+  secret?: string
   models: ResourceModel[]
   systemPath: string
   /** Whether the app serves `/api/sb/storage/v1`, which it does when it has an API key, unless `files.storage` is `false`. */
@@ -51,17 +53,17 @@ const imageFields = (models: ResourceModel[]) =>
  * The runtime, when a resource has a file field, the config names providers or the app serves `/api/sb/storage/v1`. It fails at startup when a field's
  * provider is not configured, nothing signs uploads, or a field makes image variants or placeholders without sharp.
  */
-export const createFilesRuntime = ({ options = {}, env, models, systemPath, storage: servesStorage = false }: FilesRuntimeInput): FilesRuntime | undefined => {
+export const createFilesRuntime = ({ options = {}, env, secret: appSecret, models, systemPath, storage: servesStorage = false }: FilesRuntimeInput): FilesRuntime | undefined => {
   const storageName = servesStorage ? storageProviderName(options) : undefined
   const storage = storageName && options.storage !== false ? { provider: storageName, maxBytes: parseSize(options.storage?.maxFileSize ?? '50 MB') } : undefined
   const fieldProviders = models.flatMap((model) => Object.values(model.fields).flatMap((field) => (field.file ? [field.file.provider] : [])))
   const used = [...new Set([...fieldProviders, ...(storage ? [storage.provider] : [])])]
   if (used.length === 0 && !options.providers) return undefined
-  const secret = options.secret ?? env.PROTOBASE_FILES_SECRET ?? env.BETTER_AUTH_SECRET
-  if (!secret) throw new Error('File fields and /api/sb/storage/v1 need a secret to sign uploads: set BETTER_AUTH_SECRET, PROTOBASE_FILES_SECRET or files.secret')
+  const secret = options.secret ?? env.PROTOBASE_FILES_SECRET ?? appSecret ?? env.PROTOBASE_SECRET
+  if (!secret) throw new Error('File fields and /api/sb/storage/v1 need a secret to sign uploads: set secret in protobase.config.ts, files.secret or PROTOBASE_FILES_SECRET')
   const images = imageFields(models)
   if (images.length > 0 && !options.sharp) {
-    throw new Error(`${images.join(', ')} make image variants or placeholders, which need sharp: add it to the project (bun add sharp), then import sharp from 'sharp' in the config and pass files: { sharp }`)
+    throw new Error(`${images.join(', ')} make image variants or placeholders, which need sharp: add it to the project (bun add sharp), then give the config files: { sharp: () => import('sharp') }`)
   }
   const providers = resolveProviders(options, env, used)
   const retention = retentionOf(options, env)

@@ -2,13 +2,13 @@ import type { KeyObject } from 'node:crypto'
 import { readDbConnections, readSigningKey } from '@protobase/server'
 import { readTrustedProxies } from './client-address'
 
-// The environment the platform provides. Better Auth settings (BETTER_AUTH_SECRET, ...) are the project's own.
+// The environment the platform provides. The app's own settings (PROTOBASE_URL, PROTOBASE_SECRET, ...) are its config's.
 export type ServeEnv = {
   port: number
-  // Not needed when protobase.config.ts exports `db`.
+  // DATABASE_URL.
   databaseUrl?: string
   // How many connections the pool opens to DATABASE_URL (PROTOBASE_DB_CONNECTIONS), such as the plan's limit, which the
-  // app's own code shares (`appPool`); function calls and jobs hold one less. Unset, 10.
+  // app's Better Auth store shares; function calls and jobs hold one less. Unset, 10.
   dbConnections?: number
   // Whether every request is logged (REQUEST_LOG=true).
   requestLog: boolean

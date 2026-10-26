@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import type { DeviceStore } from './device-store'
 import type { HistoryStore } from './history-store'
 import { checkNotificationsOptions, historyNames, notificationsNames } from './options'
-import { notifications } from './plugin'
 import { memoryHistoryStore } from './testing/memory-history-store'
 import { memoryDeviceStore } from './testing/memory-store'
 
@@ -48,9 +47,9 @@ describe('historyNames', () => {
     ['history.table', { history: { table: 'public.history' } }],
     ['history.columns.read_at', { history: { columns: { read_at: 'read at' } } }],
     ['history.columns.title', { history: { columns: { title: 'x'.repeat(64) } } }],
-  ])('refuses a bad %s, in notifications() too', (option, options) => {
+  ])('refuses a bad %s, in the checked options too', (option, options) => {
     expect(() => historyNames(options)).toThrow(`notifications ${option} is not a valid name`)
-    expect(() => notifications(options)).toThrow(`notifications ${option} is not a valid name`)
+    expect(() => checkNotificationsOptions(options)).toThrow(`notifications ${option} is not a valid name`)
   })
 
   it('refuses a column the table does not have', () => {
@@ -58,20 +57,20 @@ describe('historyNames', () => {
   })
 })
 
-describe('notifications()', () => {
-  it('turns notifications on with its options', () => {
-    expect(notifications({ ui: false })).toEqual({ name: 'protobase-notifications', notifications: { ui: false } })
+describe('checkNotificationsOptions', () => {
+  it('keeps the options as they are', () => {
+    expect(checkNotificationsOptions({ ui: false })).toEqual({ ui: false })
   })
 
   it('takes a store with every method, and names a missing one', () => {
     expect(() => checkNotificationsOptions({ store: memoryDeviceStore() })).not.toThrow()
     const { removeGone: _, ...partial } = memoryDeviceStore()
-    expect(() => notifications({ store: partial as unknown as DeviceStore })).toThrow('the device store has no removeGone method')
+    expect(() => checkNotificationsOptions({ store: partial as unknown as DeviceStore })).toThrow('the device store has no removeGone method')
   })
 
   it.each(['record', 'list', 'countUnread', 'markRead', 'markAllRead', 'removeAllForUser'] as const)('names a history store without %s', (method) => {
     expect(() => checkNotificationsOptions({ historyStore: memoryHistoryStore() })).not.toThrow()
     const { [method]: _, ...partial } = memoryHistoryStore()
-    expect(() => notifications({ historyStore: partial as unknown as HistoryStore })).toThrow(`the history store has no ${method} method`)
+    expect(() => checkNotificationsOptions({ historyStore: partial as unknown as HistoryStore })).toThrow(`the history store has no ${method} method`)
   })
 })

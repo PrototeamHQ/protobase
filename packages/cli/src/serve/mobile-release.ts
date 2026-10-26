@@ -9,7 +9,7 @@ import { siteFiles } from './site-files'
 const loopback = ['localhost', '127.0.0.1', '[::1]']
 
 /**
- * The API origin a release names, the auth issuer's (`baseURL`), as the app's own files do by default: https, or plain
+ * The API origin a release names, the app's URL (`url`), as the app's own files do by default: https, or plain
  * http to this machine only, as `protobase mobile` allows it. `undefined` for any other, which no app calls.
  */
 export const releaseOrigin = (issuer: string | undefined) => {

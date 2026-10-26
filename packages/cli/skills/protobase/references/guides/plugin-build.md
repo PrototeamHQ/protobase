@@ -47,7 +47,7 @@ The project's Tailwind classes are built into the plugin's own stylesheet, `plug
 
 ## 4. Extensions
 
-Each `--extend` folder's `protobase.ui.tsx` becomes a plugin of its own, `plugins/<name>/`, named by its `package.json`, else its folder, and merged before the project's, as before. Its `protobase.config.ts` is merged into the config module as before. Two extensions that would be plugins of one name fail the build: give one's `package.json` another `name`.
+Each `--extend` folder's `protobase.ui.tsx` becomes a plugin of its own, `plugins/<name>/`, named by its `package.json`, else its folder, and merged before the project's, as before. Its config, with the code its paths find, goes into the config module and is merged before the project's when the bundle is served (see [Extensions](../reference/config.md#extensions)). Two extensions that would be plugins of one name fail the build: give one's `package.json` another `name`.
 
 ## 5. Hosts
 

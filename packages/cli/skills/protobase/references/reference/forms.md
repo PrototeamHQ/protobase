@@ -88,26 +88,14 @@ A submission is a create like any other, made by the anonymous role and limited 
 There is no mail built into forms: the record's `created` event enqueues a [job](jobs.md), and the job [sends the mail](jobs.md#mail).
 
 ```ts title="config/notify.ts"
-import { defineJob, FatalJobError, subscription } from '@protobase/server'
-import { z } from 'zod'
+import { enqueueJob, subscription } from '@protobase/server'
 
-// Email me on a new submission: the record's event enqueues a job, and the job sends the mail.
-
-export const emailContactRequest = defineJob({
-  name: 'email-contact-request',
-  payload: z.object({ id: z.number() }),
-  run: async ({ id }, { db, mail }) => {
-    if (!mail) throw new FatalJobError('Mail is off: set PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM')
-    const request = await db.selectFrom('contact_requests').select(['name', 'email', 'message']).where('id', '=', id).executeTakeFirst()
-    if (!request) return
-    await mail.send({ to: 'shop@example.com', subject: `Contact request from ${request.name}`, text: `${request.email} wrote:\n\n${request.message}` })
-  },
-})
-
+// Email me on a new submission: the record's event enqueues a job (jobs/email-contact-request.ts), and the job sends
+// the mail.
 export const newContactRequests = subscription('newContactRequests', {
   events: ['contact_requests.created'],
   run: async (event, { db }) => {
-    await emailContactRequest.enqueue(db, { id: Number(event.data.key) }, { key: `contact-request:${event.data.key}` })
+    await enqueueJob(db, 'email-contact-request', { id: Number(event.data.key) }, { key: `contact-request:${event.data.key}` })
   },
 })
 ```
@@ -120,7 +108,7 @@ Each client may send a form `perMinute` times a minute, 5 by default, as many as
 
 Every submission carries a solved proof-of-work challenge ([ALTCHA](https://altcha.org)): the browser fetches a fresh one when the visitor presses **Send** and counts SHA-256 hashes until it finds the one the challenge asks for, about a second on a current laptop. There is no third-party service, cookie or visible puzzle, and it works offline. Sending many forms costs a bot that second each time, on top of the rate limit.
 
-A challenge is made for one form, expires after 5 minutes and verifies once. The server signs challenges with `PROTOBASE_FORMS_SECRET`, or `BETTER_AUTH_SECRET` when it is not set, and does not start with a form and neither variable, so give every instance of an app the same one. The browser solves the check with Web Crypto, which needs `https` or `localhost`.
+A challenge is made for one form, expires after 5 minutes and verifies once. The server signs challenges with `PROTOBASE_FORMS_SECRET`, else the app's `secret` (`PROTOBASE_SECRET`), and does not start with a form and none of them, so give every instance of an app the same one. The browser solves the check with Web Crypto, which needs `https` or `localhost`.
 
 ## Routes
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { notifications } from './plugin'
+import { checkNotificationsOptions } from './options'
 import type { PushSender } from './sender'
 import { notificationSenders, webPushKey } from './senders-of'
 import { generateVapidKeys } from './web-push/keys'
@@ -34,7 +34,7 @@ describe('notificationSenders', () => {
     expect(webPushKey(notificationSenders({ senders: [{ kinds: ['web'], publicKey: other, send: async () => [] }] }, {}))).toBe(other)
   })
 
-  it('checks the senders as notifications() takes them', () => {
-    expect(() => notifications({ senders: [{ kinds: ['web'], publicKey: 'secret', send: async () => [] }] })).toThrow('publicKey')
+  it('checks the senders as the notifications options take them', () => {
+    expect(() => checkNotificationsOptions({ senders: [{ kinds: ['web'], publicKey: 'secret', send: async () => [] }] })).toThrow('publicKey')
   })
 })

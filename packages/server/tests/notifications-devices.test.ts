@@ -24,7 +24,7 @@ const renamed: NotificationsOptions = {
 describe('the devices table', () => {
   it('is written by the migration under the default names, then current, and none for a store of the app own', async () => {
     const pg = await openSnapshotDb('empty')
-    await expect(checkNotificationsSchema(pg.db)).rejects.toThrow('The devices table "notifications"."devices" of notifications() is missing. Write it as a migration with `protobase migration`')
+    await expect(checkNotificationsSchema(pg.db)).rejects.toThrow('The devices table "notifications"."devices" of notifications is missing. Write it as a migration with `protobase migration`')
     const migration = await notificationsMigration(pg.db)
     expect(migration).toContain('create table "notifications"."devices"')
     expect(migration).not.toContain('default')

@@ -95,13 +95,13 @@ describe('the deploy guide\'s self-hosted template', () => {
     expect(caddyfile[1]).toContain('reverse_proxy 127.0.0.1:8787')
     expect(caddyfile.index).toBeLessThan(firstAdmin)
     const after = section.slice(caddyfile.index, firstAdmin)
-    expect(after).toMatch(/BETTER_AUTH_URL=https:\/\/[^`]*` in `app\.env` and run `docker compose up -d`/)
+    expect(after).toMatch(/PROTOBASE_URL=https:\/\/[^`]*` in `app\.env` and run `docker compose up -d`/)
     expect(after).toMatch(/append the client's address to `X-Forwarded-For` \(see \[Client addresses\]\(\/reference\/auth\/#client-addresses\)\)/)
   })
 
   it('has the first admin sign in at the https address once the proxy is in front', () => {
     const firstAdmin = section.slice(section.indexOf('### First admin'), section.indexOf('### Upgrade'))
-    expect(firstAdmin).toMatch(/open the address in `BETTER_AUTH_URL`[^\n]*`https:\/\/app\.example\.com` once the proxy is in front/)
+    expect(firstAdmin).toMatch(/open the address in `PROTOBASE_URL`[^\n]*`https:\/\/app\.example\.com` once the proxy is in front/)
   })
 })
 

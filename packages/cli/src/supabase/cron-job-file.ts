@@ -5,23 +5,24 @@ const quoted = (text: string) => `'${text.replaceAll('\\', '\\\\').replaceAll("'
 const templateLiteral = (text: string) => `\`${text.replaceAll('\\', '\\\\').replaceAll('`', '\\`').replaceAll('${', '\\${')}\``
 
 /**
- * The module of `jobs/` that runs a pg_cron job's SQL as a Protobase recurring job, on its schedule, as the app's
- * database role. pg_cron ran each time once, without retrying a failed one, so the job tries once too.
+ * What `jobs/<file>.ts` holds for a pg_cron job made a Protobase recurring job: its run, the job's SQL as the app's
+ * database role. Its schedule is in protobase.config.ts (see `cronJobDeclaration`).
  */
 export const cronJobModule = (job: CronJobToWrite) =>
   [
-    "import { defineJob } from '@protobase/server'",
     "import { sql } from 'kysely'",
+    "import type { JobRun } from '@protobase/server'",
     '',
-    `/** pg_cron's job ${job.name}, imported from Supabase: its SQL, on its schedule, tried once each time as pg_cron did. */`,
-    `export const ${job.exportName} = defineJob({`,
-    `  name: ${quoted(job.name)},`,
-    `  schedule: ${quoted(job.schedule)},`,
-    ...(job.timezone ? [`  timezone: ${quoted(job.timezone)},`] : []),
-    '  maxAttempts: 1,',
-    '  run: async (_, { db }) => {',
-    `    await sql.raw(${templateLiteral(job.command)}).execute(db)`,
-    '  },',
-    '})',
+    `/** pg_cron's job ${job.name}, imported from Supabase: its SQL, on the schedule protobase.config.ts declares. */`,
+    'export default (async (_, { db }) => {',
+    `  await sql.raw(${templateLiteral(job.command)}).execute(db)`,
+    '}) satisfies JobRun',
     '',
   ].join('\n')
+
+/**
+ * The job's declaration in protobase.config.ts's `jobs`, as the text of one entry: pg_cron ran each time once, without
+ * retrying a failed one, so the job tries once too.
+ */
+export const cronJobDeclaration = (job: CronJobToWrite) =>
+  `${quoted(job.file)}: { description: ${quoted(`pg_cron's job ${job.name}, imported from Supabase.`)}, schedule: ${quoted(job.schedule)}, ${job.timezone ? `timezone: ${quoted(job.timezone)}, ` : ''}maxAttempts: 1 }`

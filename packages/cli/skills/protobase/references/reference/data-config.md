@@ -275,7 +275,7 @@ No other field of the resource may be over the column, as its own or as a relati
 
 ### The key
 
-The app's key is `PROTOBASE_ENCRYPTION_KEY`: 32 random bytes in base64, such as the output of `openssl rand -base64 32`. It is its own: never `BETTER_AUTH_SECRET` or an API key, nor derived from one, so rotating those loses nothing. Keep it apart from the database's backups, since whoever holds both reads every value. The server does not start with an encrypted field and no key, or a key that is not 32 bytes in base64.
+The app's key is `PROTOBASE_ENCRYPTION_KEY`: 32 random bytes in base64, such as the output of `openssl rand -base64 32`. It is its own: never the app's `secret` (`PROTOBASE_SECRET`) or an API key, nor derived from one, so rotating those loses nothing. Keep it apart from the database's backups, since whoever holds both reads every value. The server does not start with an encrypted field and no key, or a key that is not 32 bytes in base64.
 
 To rotate it on several instances:
 
@@ -396,7 +396,7 @@ export const workOrders = resource('work_orders')
   })
 ```
 
-Pass the roles to the server (`options: { roles }` in `protobase.config.ts`) and every operation without a rule needs its capability (`<resource>.<action>`). The ERP's orders use `.owner` and `.search` with the ERP's roles:
+Export the roles as `roles` from `config/roles.ts`, where the server finds them, and every operation without a rule needs its capability (`<resource>.<action>`). The ERP's orders use `.owner` and `.search` with the ERP's roles:
 
 ```ts title="examples/erp/config/orders/data.ts"
 import { f, resource } from '@protobase/schema'

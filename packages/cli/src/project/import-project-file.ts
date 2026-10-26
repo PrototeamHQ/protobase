@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { Plugin } from 'vite'
 
 // Imports project files through Vite's module runner, which transforms the project's files and imports its packages
@@ -9,16 +10,20 @@ const runnerImport = async (file: string, plugins: Plugin[] = []) => {
   return module
 }
 
-// Imports one of the project's TypeScript files: Bun loads it itself, Node through Vite's module runner.
+// A package's own file, which Node loads as it is.
+const inPackage = (file: string) => file.split(path.sep).includes('node_modules')
+
+// Imports one of the project's TypeScript files: Bun loads it itself, Node through Vite's module runner, or a package's
+// file as it is.
 export const importProjectFile = async (file: string): Promise<Record<string, unknown>> =>
-  process.versions.bun ? import(file) : runnerImport(file)
+  process.versions.bun ? import(file) : inPackage(file) ? import(pathToFileURL(file).href) : runnerImport(file)
 
 /**
  * Imports several of the project's files in order, so that the modules they share are loaded once. Bun's module cache
  * does that itself; Vite's runner gets them as the imports of one module, which need not exist, beside the first file.
  */
 export const importProjectFiles = async (files: string[]): Promise<Array<Record<string, unknown>>> => {
-  if (process.versions.bun) {
+  if (process.versions.bun || files.length === 1) {
     const modules = []
     for (const file of files) modules.push(await importProjectFile(file))
     return modules

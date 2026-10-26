@@ -24,7 +24,7 @@ export type MobileInput = {
   /** The project folder, the one the command runs in. */
   projectDir: string
   platform: Platform
-  /** The server the app calls; default the auth issuer. */
+  /** The server the app calls; default the app's URL. */
   api?: string
   extensions: Extension[]
   /** For `run`: the device or simulator. */

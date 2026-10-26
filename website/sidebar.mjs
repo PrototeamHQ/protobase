@@ -51,6 +51,7 @@ export const guides = [
 ]
 
 export const reference = [
+  'reference/config',
   'reference/data-config',
   'reference/ui-config',
   'reference/architecture',

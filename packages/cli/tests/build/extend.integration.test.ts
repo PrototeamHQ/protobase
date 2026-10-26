@@ -2,9 +2,10 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildDeployBundle } from '../../src/build/deploy-bundle'
+import { projectOptions, projectResources } from '../../src/config/project-parts'
+import { loadBundle } from '../../src/serve/load-bundle'
 import { resolveExtensions } from '../../src/project/extensions'
 
 const root = path.resolve(__dirname, '../../../..')
@@ -32,10 +33,13 @@ const tool = (name: string) => `defineTool({ name: '${name}', description: 'Show
   return 'shown'
 } })`
 
+const toolsFile = (name: string) => `import { defineTool, widget } from '@protobase/server'
+export default [${tool(name)}]
+`
+
 const extensionFiles = {
-  'protobase.config.ts': `import { defineConfig, defineTool, widget } from '@protobase/server'
-export default defineConfig({ name: 'test-extension', options: { assistant: { tools: [${tool('protobase_test_show')}] } } })
-`,
+  'protobase.config.ts': 'export default {}\n',
+  'assistant/tools.ts': toolsFile('protobase_test_show'),
   'protobase.ui.tsx': `import { ActionCard, defineUi } from '@protobase/ui'
 const ProtobaseTestCard = () => <div className="rotate-[17deg]"><ActionCard title="Extension card c4f1e2" /></div>
 export default defineUi({ name: 'test-extension', components: { ProtobaseTestCard } })
@@ -64,9 +68,10 @@ describe('protobase build --extend', () => {
     const outDir = path.join(projectDir, 'dist')
     const manifest = await buildDeployBundle({ projectDir, outDir, extensions: resolveExtensions([extensionDir]) })
 
-    const { default: served } = await import(pathToFileURL(path.join(outDir, 'protobase.config.js')).href)
-    expect(Object.keys(served.config)).toEqual(['things'])
-    expect(served.options.assistant.tools.map((entry: { name: string }) => entry.name)).toEqual(['protobase_test_show'])
+    const served = await loadBundle(path.join(outDir, 'protobase.config.js'))
+    expect(Object.keys(await projectResources(served))).toEqual(['things'])
+    const { assistant } = await projectOptions(served)
+    expect(assistant && assistant.tools?.map((entry) => entry.name)).toEqual(['protobase_test_show'])
 
     // The extension, outside the project and without packages of its own, is named after its folder.
     const extension = path.basename(extensionDir)
@@ -98,16 +103,16 @@ describe('protobase build --extend', () => {
     )
   }, buildTimeout)
 
-  it('fails to load a served config whose tool the extension defines too, naming both', async () => {
+  it("fails to build a served app whose assistant tool the extension defines too, naming both", async () => {
     projectDir = await createProject({
       'config/index.ts': things,
-      'protobase.config.ts': `import { defineTool, widget } from '@protobase/server'\nimport * as config from './config'\nexport default { config, options: { assistant: { tools: [${tool('protobase_test_show')}] } } }\n`,
+      'assistant/tools.ts': toolsFile('protobase_test_show'),
     })
-    extensionDir = await createExtension({ 'protobase.config.ts': extensionFiles['protobase.config.ts'] })
+    extensionDir = await createExtension({ 'protobase.config.ts': extensionFiles['protobase.config.ts'], 'assistant/tools.ts': extensionFiles['assistant/tools.ts'] })
     const outDir = path.join(projectDir, 'dist')
     await buildDeployBundle({ projectDir, outDir, extensions: resolveExtensions([extensionDir]) })
-    await expect(import(pathToFileURL(path.join(outDir, 'protobase.config.js')).href)).rejects.toThrow(
-      'The assistant tool "protobase_test_show" is defined twice, by test-extension and by protobase.config.ts; rename one of them',
+    await expect(projectOptions(await loadBundle(path.join(outDir, 'protobase.config.js')))).rejects.toThrow(
+      `The assistant tool "protobase_test_show" is defined twice, by ${path.basename(extensionDir)} and by config/index.ts; rename one of them`,
     )
   }, buildTimeout)
 

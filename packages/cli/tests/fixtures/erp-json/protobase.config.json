@@ -1,0 +1,30 @@
+{
+  "url": { "$env": "PROTOBASE_URL", "default": "http://localhost:5173" },
+  "secret": { "$env": "PROTOBASE_SECRET" },
+  "timezone": "Europe/Amsterdam",
+  "auth": {
+    "roles": {
+      "admin": "Superuser",
+      "auditor": "Auditor",
+      "manager": { "label": "Manager", "grants": ["sales", "accountant", "warehouse", "editor"] },
+      "sales": "Sales",
+      "accountant": "Accountant",
+      "warehouse": "Warehouse",
+      "editor": "Editor",
+      "integration": "Integration"
+    },
+    "organizations": true,
+    "trustedOrigins": { "$env": "PROTOBASE_TRUSTED_ORIGINS", "split": "," }
+  },
+  "jobs": {
+    "mark-invoice-overdue": {
+      "description": "An invoice still sent and unpaid once its due date has passed becomes overdue.",
+      "arguments": { "invoiceId": "bigint" }
+    },
+    "mark-overdue-invoices": {
+      "description": "Every night, the sent invoices that passed their due date, such as imported ones that never had a check enqueued.",
+      "schedule": "0 2 * * *"
+    }
+  },
+  "writeHooks": ["schedule-overdue-check"]
+}

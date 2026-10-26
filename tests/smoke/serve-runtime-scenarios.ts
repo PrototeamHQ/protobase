@@ -43,7 +43,7 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
       output = ''
       child = spawn('bun', ['--no-install', 'opt/protobase-serve.js', 'app/protobase.config.js'], {
         cwd: dir,
-        env: { PATH: process.env.PATH, ...env, PORT: String(port), BETTER_AUTH_URL: `http://localhost:${port}`, PROTOBASE_JOBS_DRAIN_TOKEN: drainToken },
+        env: { PATH: process.env.PATH, ...env, PORT: String(port), PROTOBASE_URL: `http://localhost:${port}`, PROTOBASE_JOBS_DRAIN_TOKEN: drainToken },
       })
       child.stdout?.on('data', (chunk) => (output += chunk))
       child.stderr?.on('data', (chunk) => (output += chunk))
@@ -224,7 +224,7 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
   }, commandTimeout)
 
   it('creates nobody without the auth secret or with a short password', async () => {
-    const { BETTER_AUTH_SECRET: _, ...withoutSecret } = erp().env
+    const { PROTOBASE_SECRET: _, ...withoutSecret } = erp().env
     expect(command(['create-admin', 'app', 'nosecret@example.com', '--generate-password'], withoutSecret).status).toBe(1)
     const short = command(['create-admin', 'app', 'short@example.com', '--password-stdin'], erp().env, 'short\n')
     expect(short.status).toBe(1)
@@ -248,7 +248,7 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
   describe('given the bundle folder', () => {
     beforeAll(async () => {
       const served = await serveOnFreePort((port) => {
-        child = spawn('bun', ['--no-install', 'opt/protobase-serve.js', 'app'], { cwd: dir, env: { PATH: process.env.PATH, ...erp().env, PORT: String(port), BETTER_AUTH_URL: `http://localhost:${port}` } })
+        child = spawn('bun', ['--no-install', 'opt/protobase-serve.js', 'app'], { cwd: dir, env: { PATH: process.env.PATH, ...erp().env, PORT: String(port), PROTOBASE_URL: `http://localhost:${port}` } })
         return child
       }, startupTimeout - 10_000)
       base = served.base

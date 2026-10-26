@@ -12,16 +12,16 @@ Protobase never changes your tables. Sign-in is the one thing it adds to the dat
 In a new folder, next to the database's own code or anywhere else:
 
 ```sh
-npm install @protobase/cli @protobase/schema @protobase/layout @protobase/server @protobase/ui pg kysely
+npm install @protobase/cli @protobase/config @protobase/schema @protobase/layout @protobase/server @protobase/ui pg kysely
 ```
 
 Then a `.env` beside it, which every `protobase` command reads:
 
 ```sh
 DATABASE_URL=postgres://user:password@localhost:5432/shop
-# Signs session cookies: generate your own with openssl rand -base64 32
-BETTER_AUTH_SECRET=
-BETTER_AUTH_URL=http://localhost:5173
+# The app's secret, which signs session cookies: generate your own with openssl rand -base64 32
+PROTOBASE_SECRET=
+PROTOBASE_URL=http://localhost:5173
 ```
 
 Keep `.env` out of version control.
@@ -44,39 +44,19 @@ It checks the config against the database: each table and column exists, each ty
 
 ## 4. Add sign-in
 
-Two files. `protobase.config.ts` is the project:
+Sign-in is on by default: it takes the app's address and secret from `PROTOBASE_URL` and `PROTOBASE_SECRET` in `.env`, and keeps users, sessions and signing keys in an `auth` schema of their own, next to your tables. `protobase.config.ts` says the rest; the resources in `config/` are found by that path:
 
 ```ts
-import * as config from './config'
-import { auth, authenticate } from './auth/auth'
+import { defineConfig } from '@protobase/config'
 
-export default { config, auth, authenticate }
-```
-
-`auth/auth.ts` sets up sign-in with [Better Auth](/reference/auth/), with its tables in the `auth` schema:
-
-```ts
-import { PostgresDialect } from 'kysely'
-import pg from 'pg'
-import { appPool, betterAuthAuthenticator, createAuth } from '@protobase/server'
-
-const secret = process.env.BETTER_AUTH_SECRET
-if (!secret) throw new Error('BETTER_AUTH_SECRET is not set: put the output of `openssl rand -base64 32` in .env')
-
-// The app's one pool on DATABASE_URL, which `protobase dev` and `serve` share.
-const pool = appPool(pg, process.env.DATABASE_URL!)
-
-export const auth = createAuth({
-  // Users, sessions and signing keys live in a schema of their own, next to your tables.
-  database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: 'auth', transaction: true },
-  baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:5173',
-  secret,
+export default defineConfig({
+  auth: { roles: ['admin'] },
+  // Everyone works in tenant 1.
+  authenticate: { tenant: 1 },
 })
-
-export const authenticate = betterAuthAuthenticator({ auth, tenant: 1 })
 ```
 
-The [auth reference](/reference/auth/) has the rest: emailed codes, passkeys, two-factor, roles, and a users table the database already has.
+The [config reference](/reference/config/) has every key, and the [auth reference](/reference/auth/) the rest of sign-in: emailed codes, passkeys, two-factor, roles, and a users table the database already has.
 
 ## 5. Write and apply the auth tables
 

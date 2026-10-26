@@ -8,15 +8,14 @@ You turn notifications on, send one when something happens in your app, and see 
 
 ## 1. Turn notifications on
 
-Add `notifications()` to `protobase.config.ts`:
+Add `notifications` to `protobase.config.ts`:
 
 ```ts
-import { defineConfig, notifications } from '@protobase/server'
+import { defineConfig } from '@protobase/config'
 
 export default defineConfig({
-  config,
-  extends: [notifications()],
-  // auth, authenticate, jobs, ...
+  notifications: {},
+  // auth, jobs, ...
 })
 ```
 
@@ -62,7 +61,7 @@ import { appPath } from '@protobase/schema'
 import { sendNotification, subscription } from '@protobase/server'
 
 // The app's public origin: the address its sign-in runs on, from its own configuration.
-const appOrigin = process.env.BETTER_AUTH_URL ?? 'http://localhost:5173'
+const appOrigin = process.env.PROTOBASE_URL ?? 'http://localhost:5173'
 
 /** Tells an order's owner when its status changes, in their inbox and as push, with a link to the order. */
 export const orderStatusToOwner = subscription('orderStatusToOwner', {
@@ -107,7 +106,7 @@ On an iPhone or iPad, push reaches the app once it is added to the Home Screen, 
 
 ## 6. Turn the bell off or replace a part
 
-- `notifications({ ui: false })` keeps sending, the history and devices, and draws no bell: your own UI reads the history and turns push on with [the browser helper](../reference/notifications.md#in-the-browser) ([without the bell](../reference/notifications.md#without-the-bell)).
+- `notifications: { ui: false }` keeps sending, the history and devices, and draws no bell: your own UI reads the history and turns push on with [the browser helper](../reference/notifications.md#in-the-browser) ([without the bell](../reference/notifications.md#without-the-bell)).
 - `shell.bell` in `protobase.ui.tsx` draws your own bell in its place ([the bell's slot](../reference/notifications.md#the-bells-slot)).
 - Your own device store, history store or senders replace the built-in ones, such as a store outside the database ([your own parts](../reference/notifications.md#your-own-parts)).
 - The tables' schema, names and columns can be renamed ([table names](../reference/notifications.md#table-names)).

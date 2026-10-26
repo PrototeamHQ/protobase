@@ -39,14 +39,6 @@ export const ticketsView = view<typeof tickets>('tickets')
   ])
 ```
 
-```ts title="protobase.config.ts"
-import { defineConfig } from '@protobase/server'
-import * as config from './tickets'
-
-// The model comes from PROTOBASE_ASSISTANT_API_KEY; the summaries are filled by the app's workers.
-export default defineConfig({ config })
-```
-
 ## Prompts
 
 A prompt names fields of the record as `{field}`, at least one. The model gets a fixed instruction to answer with the value only, and the prompt with each `{field}` replaced by the record's value as text: text as it is, numbers and booleans written out, json as JSON, an empty value as nothing. For an enum field, the prompt ends with the values the answer must be one of. Nothing else of the record or the app is sent. The answer is trimmed, and validated as any write is, so an enum value the field does not have, or text over its `.max()`, is refused.
@@ -95,7 +87,7 @@ Every check is made before the model is asked.
 
 ## The model
 
-AI fields and actions use the [assistant's model settings](assistant.md#which-backend): `PROTOBASE_ASSISTANT_API_KEY`, with `PROTOBASE_ASSISTANT_BASE_URL` and `PROTOBASE_ASSISTANT_MODEL`, or the same keys of `options.assistant`. They use them also when `PROTOBASE_ASSISTANT_URL` names a chat backend elsewhere, which replaces the chat, not the model, and when `options.assistant` is `false`, which turns off the chat only. On OpenRouter they ask for little reasoning.
+AI fields and actions use the [assistant's model settings](assistant.md#which-backend): `PROTOBASE_ASSISTANT_API_KEY`, with `PROTOBASE_ASSISTANT_BASE_URL` and `PROTOBASE_ASSISTANT_MODEL`, or the same keys of the config's `assistant`. They use them also when `PROTOBASE_ASSISTANT_URL` names a chat backend elsewhere, which replaces the chat, not the model, and when `assistant` is `false`, which turns off the chat only. On OpenRouter they ask for little reasoning.
 
 `protobase dev` and `protobase serve` do not start when a resource has an AI field or a view an AI action and no key is set; `PROTOBASE_STARTUP_CHECKS=false` skips that check, as it does the others. Other commands, such as `protobase migration`, run without a key.
 

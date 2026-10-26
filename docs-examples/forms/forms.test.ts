@@ -17,16 +17,16 @@ const start = () => createAdmin({ resources: [contactRequests], views: [contactR
 describe('the contact form', () => {
   afterEach(() => vi.unstubAllEnvs())
 
-  it('asks for the request fields the anonymous role creates, five times a minute per client', () => {
+  it('asks for the request fields the anonymous role creates, five times a minute per client', async () => {
     expect(contactRequestsView.toModel(contactRequests.toModel()).forms).toEqual([
       { name: 'contact', title: 'Contact us', fields: ['name', 'email', 'topic', 'message'], thanks: 'Thanks, we will reply within a day.', perMinute: 5 },
     ])
     expect(roles.limits).toEqual([{ role: 'anonymous', capability: 'contact_requests.create', fields: ['name', 'email', 'topic', 'message'] }])
-    expect(project.jobs).toHaveProperty('emailContactRequest')
+    expect(project.jobs).toHaveProperty('email-contact-request')
   })
 
   it('starts with a secret to sign its bot checks, and not without one', () => {
-    vi.stubEnv('BETTER_AUTH_SECRET', undefined)
+    vi.stubEnv('PROTOBASE_SECRET', undefined)
     vi.stubEnv('PROTOBASE_FORMS_SECRET', undefined)
     expect(start).toThrow('Public forms need a secret')
     vi.stubEnv('PROTOBASE_FORMS_SECRET', 'a long random secret')

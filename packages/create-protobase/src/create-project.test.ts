@@ -4,7 +4,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createProject } from './create-project'
 
-const example = 'DATABASE_URL=postgres://protobase:protobase@localhost:55432/scratch\nBETTER_AUTH_SECRET=change-me\n'
+const example = 'DATABASE_URL=postgres://protobase:protobase@localhost:55432/scratch\nPROTOBASE_SECRET=change-me\n'
 
 const template = () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'create-protobase-template-'))
@@ -42,7 +42,7 @@ describe('createProject', () => {
     const dir = target('env')
     createProject(template(), dir, { port: 55434, secret: 's3cret' })
     expect(read(dir, '.env.example')).toBe(example.replace('55432', '55434'))
-    expect(read(dir, '.env')).toBe('DATABASE_URL=postgres://protobase:protobase@localhost:55434/scratch\nBETTER_AUTH_SECRET=s3cret\n')
+    expect(read(dir, '.env')).toBe('DATABASE_URL=postgres://protobase:protobase@localhost:55434/scratch\nPROTOBASE_SECRET=s3cret\n')
     expect(read(dir, 'docker-compose.yml')).toContain("- '55434:5432'")
   })
 

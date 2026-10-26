@@ -617,7 +617,7 @@ The photos are read with the list API under the user's own access, up to 500, so
 ])
 ```
 
-The map is drawn with [MapLibre](https://maplibre.org) from the style the server names: `createAdmin`'s `options.maps.style`, else `PROTOBASE_MAP_STYLE_URL`, an http(s) URL of a MapLibre style; `options.maps: false` turns maps off whatever the variable says, and a style that is no http(s) URL stops the server at startup. The style's sources may be [PMTiles](https://docs.protomaps.com/pmtiles/) archives (`pmtiles://https://...`), so the tiles can be one file on a bucket of your own. The tiles, sprites and fonts are fetched by the browser, so their host must answer the app's origins with CORS, and an archive with range requests. Without a style there is no map, nor is there one for a record whose fields hold no position or for a user who may not read them. MapLibre loads with the first map drawn, so a page without one does not load it.
+The map is drawn with [MapLibre](https://maplibre.org) from the style the server names: `maps.style` in `protobase.config.ts`, else `PROTOBASE_MAP_STYLE_URL`, an http(s) URL of a MapLibre style; `maps: false` turns maps off whatever the variable says, and a style that is no http(s) URL stops the server at startup. The style's sources may be [PMTiles](https://docs.protomaps.com/pmtiles/) archives (`pmtiles://https://...`), so the tiles can be one file on a bucket of your own. The tiles, sprites and fonts are fetched by the browser, so their host must answer the app's origins with CORS, and an archive with range requests. Without a style there is no map, nor is there one for a record whose fields hold no position or for a user who may not read them. MapLibre loads with the first map drawn, so a page without one does not load it.
 
 A map display takes two number fields that are `.filterable()`, since it asks for the records inside its view with a filter on them, and the server refuses to start otherwise; an index on them, such as `(latitude, longitude)`, lets Postgres find those records. The filter and search of the list narrow what it shows. Where it looks is in the address, `/listings?display=map&map=52.37,4.89,12` (latitude, longitude, zoom), so Back, a reload or a shared link opens the same view; without one it fits every matching record. When none is in view, **Show all** fits them again.
 
@@ -642,24 +642,22 @@ d.map(
 
 #### Map layers
 
-`options.maps.layers` adds other maps of raster tiles, such as aerial photos, next to the style. With layers, every map (`l.map` and `d.map`) has a switch in its top left corner between **Map**, the style's map and the default, and each layer by its `label`. The choice is remembered in the browser for every map, and a layer the app no longer offers falls back to the default. The chosen layer is drawn over the style's map, under the areas and markers, and its `attribution` shows in the map's corner while it is.
+`maps.layers` in the config adds other maps of raster tiles, such as aerial photos, next to the style. With layers, every map (`l.map` and `d.map`) has a switch in its top left corner between **Map**, the style's map and the default, and each layer by its `label`. The choice is remembered in the browser for every map, and a layer the app no longer offers falls back to the default. The chosen layer is drawn over the style's map, under the areas and markers, and its `attribution` shows in the map's corner while it is.
 
 ```ts
-createAdmin({
-  // ...
-  options: {
-    maps: {
-      layers: [
-        {
-          id: 'aerial_nl',
-          label: 'Aerial (NL)',
-          tiles: 'https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_orthoHR/EPSG:3857/{z}/{x}/{y}.jpeg',
-          attribution: 'Luchtfoto <a href="https://www.beeldmateriaal.nl/">Beeldmateriaal Nederland</a>, CC BY 4.0, via <a href="https://www.pdok.nl/">PDOK</a>',
-          bounds: [3.2, 50.7, 7.3, 53.7],
-          maxzoom: 21,
-        },
-      ],
-    },
+// protobase.config.ts
+export default defineConfig({
+  maps: {
+    layers: [
+      {
+        id: 'aerial_nl',
+        label: 'Aerial (NL)',
+        tiles: 'https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_orthoHR/EPSG:3857/{z}/{x}/{y}.jpeg',
+        attribution: 'Luchtfoto <a href="https://www.beeldmateriaal.nl/">Beeldmateriaal Nederland</a>, CC BY 4.0, via <a href="https://www.pdok.nl/">PDOK</a>',
+        bounds: [3.2, 50.7, 7.3, 53.7],
+        maxzoom: 21,
+      },
+    ],
   },
 })
 ```

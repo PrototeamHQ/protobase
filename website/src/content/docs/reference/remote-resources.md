@@ -31,18 +31,13 @@ So the source decides what a person sees and may do, exactly as in its own admin
 
 ## Declaring a source
 
-A source is declared on the app's server, in `options.sources` of its config, or by the platform that runs the app in `PROTOBASE_SOURCES`, without the app's own code:
+A source is declared on the app's server, in `remoteResources` of its config, or by the platform that runs the app in `PROTOBASE_SOURCES`, without the app's own code:
 
 ```ts
 // protobase.config.ts
-export default {
-  config,
-  auth,
-  authenticate,
-  options: {
-    sources: [{ url: 'https://desk.example.com/api/v1', label: 'Service desk', resources: ['tickets', 'ticket_notes'] }],
-  },
-}
+export default defineConfig({
+  remoteResources: [{ url: 'https://desk.example.com/api/v1', label: 'Service desk', resources: ['tickets', 'ticket_notes'] }],
+})
 ```
 
 ```sh
@@ -56,7 +51,7 @@ PROTOBASE_SOURCES='[{"url":"https://desk.example.com/api/v1","label":"Service de
 | `resources` | The resources the app draws from it, by their names there. Its other resources stay out of the app. |
 | `roles` | Optional: only callers holding one of these roles are told about the source. Without, everyone is. |
 
-The sources of `options.sources` come first, then those of `PROTOBASE_SOURCES`; `options.sources: false` turns both off.
+The sources of `remoteResources` come first, then those of `PROTOBASE_SOURCES`; `remoteResources: false` turns both off.
 
 **Checks at startup.** The server refuses to start, naming the source, when a source cannot work: a `url` that is no http(s) URL or names no path, a missing `label` or `resources`, a key a source does not take (such as `resource` for `resources`), the same `url` listed twice, or one resource drawn from two sources. It refuses to start too when a source draws a resource under a name the app already has, for one of its own resources or a [composed page](/reference/layouts/): the address `/<name>` would mean two things. Rename one of them, or leave it out of the source's resources.
 
@@ -73,40 +68,39 @@ A source's view can be written for the people of another app: views are picked [
 
 The browser sends the source the token the app issued to the signed-in person, as it sends it to the app's own API (`Authorization: Bearer`). The source accepts it or not: there is no second sign-in, and the app never sees a password or key of the source.
 
-A Protobase API accepts the tokens of another Protobase app when it lists that app in `betterAuthAuthenticator`'s `apps`:
+A Protobase API accepts the tokens of another Protobase app when it lists that app in `authenticate.apps`:
 
 ```ts
-// the source's auth.ts
-export const authenticate = betterAuthAuthenticator({
-  auth,
-  apps: [{ issuer: 'https://shop.example.com', roles: { admin: 'shop' } }],
+// the source's protobase.config.ts
+export default defineConfig({
+  authenticate: { apps: [{ issuer: 'https://shop.example.com', roles: { admin: 'shop' } }] },
 })
 ```
 
 | Trusted app | |
 | --- | --- |
-| `issuer` | The other app's Better Auth `baseURL`, its `BETTER_AUTH_URL`, with or without a trailing slash: the issuer and audience of its tokens. Its keys are read from `<issuer>/api/auth/jwks`. |
+| `issuer` | The other app's `url`, its `PROTOBASE_URL`, with or without a trailing slash: the issuer and audience of its tokens. Its keys are read from `<issuer>/api/auth/jwks`. |
 | `roles` | Its global roles as they are here: `{ admin: 'shop' }` makes its admins `shop` here. A role it does not list is dropped, and a user left with none is refused with `403`. A role someone holds in one of its [organizations](/reference/auth/#organizations) is never mapped, since that organization's owners hand it out; with organizations there, only a global role counts. |
 | `tenant` | The tenant its users work in here, for resources with a [tenant](/reference/data-config/#resource). Nothing in its tokens names a tenant here. |
 | `keys` | Its key set, instead of reading it from its `/api/auth/jwks`: for tests, or keys at hand. |
 
 - A token whose issuer is a trusted app's is verified against that app's keys, with that issuer as issuer and audience; every other token goes to the app's own check. The key set is kept for 10 minutes and read again for an unknown key, as jose's remote key sets do.
 - The user's id here is `<sub>@<that app's host>`, such as `x81kd2@shop.example.com`, so it never equals an id of this app's own users: an [owner field](/reference/access/) or an audit entry tells them apart.
-- Give the other app's users roles of their own (`shop`, not `admin`) and open to those roles exactly what you share. A role that is only in `apps` needs no place in `createAuth`'s `roles`, which are the roles of this app's own users; with [`defineRoles`](/reference/access/), define what it may do like any role.
+- Give the other app's users roles of their own (`shop`, not `admin`) and open to those roles exactly what you share. A role that is only in `apps` needs no place in `auth.roles`, which are the roles of this app's own users; with [`defineRoles`](/reference/access/), define what it may do like any role.
 - An app without `defineRoles` [allows](/reference/access/#defaults) every operation without a rule to everyone signed in, the other app's users included. Give the resources you do not share an access rule that leaves their role out, or define roles.
 - A trusted app cannot be this app itself.
 
-A source that is not a Protobase app accepts the app's tokens its own way: they are EdDSA JWTs whose issuer and audience are the app's `BETTER_AUTH_URL`, whose keys are at `<that URL>/api/auth/jwks`, which carry the user's id in `sub`, their active role in `role` and live for 15 minutes (see [Tokens and roles](/reference/auth/#tokens-and-roles)).
+A source that is not a Protobase app accepts the app's tokens its own way: they are EdDSA JWTs whose issuer and audience are the app's `url` (`PROTOBASE_URL`), whose keys are at `<that URL>/api/auth/jwks`, which carry the user's id in `sub`, their active role in `role` and live for 15 minutes (see [Tokens and roles](/reference/auth/#tokens-and-roles)).
 
 **What it trusts.** A source sees the person's token, which the app's own API also accepts until it expires, within 15 minutes. List as a source only an API you trust as much as a [plugin](/reference/plugins/), whose code runs in the app with the same rights.
 
 ## CORS
 
-The browser calls the source from the app's origin, so the source answers [CORS](/reference/api/#cors) for it: it lists the app's origin in `options.cors` or `PROTOBASE_CORS_ORIGINS`:
+The browser calls the source from the app's origin, so the source answers [CORS](/reference/api/#cors) for it: it lists the app's origin in `cors` or `PROTOBASE_CORS_ORIGINS`:
 
 ```ts
 // the source's protobase.config.ts
-export default { config, auth, authenticate, options: { cors: ['https://shop.example.com'] } }
+export default defineConfig({ cors: ['https://shop.example.com'] })
 ```
 
 A Protobase API then answers preflights for the bearer token and the `If-Match` and `If-None-Match` headers, and exposes `ETag`, `Location` and `X-Meta-Version`, which the app uses. Without it the browser refuses every answer of the source, and the app shows its resources as unavailable.
@@ -168,13 +162,13 @@ Each source's `/meta` is read again when the window regains focus, with `If-None
 
 **`/api/meta`** names the caller's sources in `sources`: `[{ url, label, resources }]`, without `roles`; none without sources.
 
-**`@protobase/server`**
+**Config and `@protobase/server`**
 
 | | |
 | --- | --- |
-| `options.sources` | `SourceOption[]` (`{ url, label, resources, roles? }`) or `false`. |
-| `PROTOBASE_SOURCES` | A JSON list of the same, after `options.sources`. |
-| `betterAuthAuthenticator({ apps })` | `TrustedApp[]` (`{ issuer, roles, tenant?, keys? }`): other apps whose tokens the API admits. |
+| `remoteResources` | `SourceOption[]` (`{ url, label, resources, roles? }`) or `false`. |
+| `PROTOBASE_SOURCES` | A JSON list of the same, after `remoteResources`. |
+| `authenticate.apps` | `TrustedApp[]` (`{ issuer, roles, tenant?, keys? }`): other apps whose tokens the API admits. |
 | `withTrustedApps(own, ownIssuer, apps)` | The same around any authenticator. |
 | `sourceOptions`, `checkSourceNames`, `sourcesFor` | What `createAdmin` reads, checks and names, for hosts that read sources themselves. |
 

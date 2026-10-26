@@ -1,17 +1,14 @@
-import sharp from 'sharp'
-import { defineConfig, localFiles } from '@protobase/server'
-import * as config from './config'
+import { defineConfig } from '@protobase/config'
 
 export default defineConfig({
-  config,
   files: {
     providers: {
-      private: localFiles({ dir: './data/files/private' }),
-      public: localFiles({ dir: './data/files/public', public: true }),
-      archive: localFiles({ dir: '/mnt/archive', retention: '30 days' }),
+      private: { kind: 'local', dir: './data/files/private' },
+      public: { kind: 'local', dir: './data/files/public', public: true },
+      archive: { kind: 'local', dir: '/mnt/archive', retention: '30 days' },
     },
     retention: '1 day',
     // Makes the image variants and placeholders
-    sharp,
+    images: 'sharp',
   },
 })

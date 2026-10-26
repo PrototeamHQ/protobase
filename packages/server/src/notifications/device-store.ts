@@ -2,7 +2,7 @@ import type { Device, NewDevice } from './device'
 
 /**
  * Where each user's devices are kept: the Postgres default (`postgresDeviceStore`), or a store of the app's own passed
- * as `notifications({ store })`. Plain data in and out, so any store can implement it. Every method throws on an empty
+ * as `notifications.store`. Plain data in and out, so any store can implement it. Every method throws on an empty
  * user id, id or token, and none touches every device.
  */
 export type DeviceStore = {
@@ -30,7 +30,7 @@ const methods = ['register', 'remove', 'listForUser', 'listByIds', 'removeGone',
 /** The store, checked to have every method; a missing one is an error naming it. */
 export const checkDeviceStore = (store: DeviceStore) => {
   const missing = methods.find((method) => typeof (store as Partial<DeviceStore>)[method] !== 'function')
-  if (missing !== undefined) throw new Error(`notifications({ store }): the device store has no ${missing} method`)
+  if (missing !== undefined) throw new Error(`notifications.store: the device store has no ${missing} method`)
   return store
 }
 

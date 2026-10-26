@@ -12,6 +12,6 @@ import { checkedSend, type SendNotification } from './send-input'
 export const sendNotification: SendNotification = async (db, to, message) => {
   const send = checkedSend(to, message)
   const job = currentJobs().definition(pushJobName)
-  if (!job) throw new Error('Notifications are off: add extends: [notifications()] to protobase.config.ts to send them')
+  if (!job) throw new Error('Notifications are off: add notifications: {} to protobase.config.ts to send them')
   await job.enqueue(db, send)
 }

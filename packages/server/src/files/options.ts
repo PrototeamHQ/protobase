@@ -1,21 +1,18 @@
 import type { Sharp } from './images'
 import type { FileProvider } from './store'
 
-/** `files` in `protobase.config.ts`. Environment variables override it (see `resolveProviders`). */
+/** Where file fields keep their bytes, as the API runs with them: `files` of `protobase.config.ts` with its providers made. Environment variables override it (see `resolveProviders`). */
 export type FilesOptions = {
   /**
-   * Providers by name, such as `private: localFiles({ dir: './data/files' })`. A name is part of every stored value, so
-   * name the role (`archive`), not the vendor. Without config, `private` and `public` are folders under `data/files`.
+   * Providers by name. A name is part of every stored value, so name the role (`archive`), not the vendor. Without
+   * config, `private` and `public` are folders under `data/files`.
    */
   providers?: Record<string, FileProvider>
   /** How long bytes outlive their last reference, for restores; default `1 day`. Public providers default to 0. */
   retention?: number | string
-  /** Signs upload tickets and download URLs; default `PROTOBASE_FILES_SECRET`, then `BETTER_AUTH_SECRET`. */
+  /** Signs upload tickets and download URLs; default `PROTOBASE_FILES_SECRET`, then the app's `secret` (`PROTOBASE_SECRET`). */
   secret?: string
-  /**
-   * The image library that makes the variants and placeholders of image fields: `import sharp from 'sharp'` in the
-   * config, so a built bundle carries it with its native add-on.
-   */
+  /** The image library that makes the variants and placeholders of image fields: sharp's default export. */
   sharp?: Sharp
   /**
    * Hosts whose images the admin app draws with the page's referrer, besides the app's own and those its providers link

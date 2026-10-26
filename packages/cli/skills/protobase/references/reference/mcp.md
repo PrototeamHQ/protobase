@@ -8,10 +8,10 @@ An app can serve an MCP endpoint: a person adds its address to an AI client that
 
 ## Turning it on
 
-One option of `createAuth` turns it on:
+`auth.mcp` in `protobase.config.ts` turns it on:
 
 ```ts
-createAuth({ ..., mcp: true })
+export default defineConfig({ auth: { mcp: true } })
 ```
 
 Every auth store has the OAuth tables, so turning it on needs no migration. The endpoint is `https://<app>/api/mcp`, or the path `mcp.path` names. How clients register, how people sign in and allow them, and how they disconnect them is in [OAuth for MCP clients](auth.md#oauth-for-mcp-clients).
@@ -45,20 +45,20 @@ A refusal, such as a resource the person may not read or a bad filter, comes bac
 
 ### SQL for admins
 
-`createAdmin`'s `options.mcp.sql` also offers `run_read_only_query`, as in the [assistant](assistant.md#the-built-in-backend), to people with the `admin` or `ai` role:
+`mcpEndpoint.sql` also offers `run_read_only_query`, as in the [assistant](assistant.md#the-built-in-backend), to people with the `admin` or `ai` role:
 
 ```ts
-createAdmin({ ..., auth, options: { mcp: { sql: true } } })
+export default defineConfig({ auth: { mcp: true }, mcpEndpoint: { sql: true } })
 ```
 
 It runs one `SELECT` in a read-only transaction, as the app's database role, **outside the access rules and tenant scoping**: whoever has one of those roles reads the whole database through it. Give those roles only to people who may see all of the data.
 
 ### Writes
 
-`createAdmin`'s `options.mcp.writes` also offers three tools that change records, to everyone signed in:
+`mcpEndpoint.writes` also offers three tools that change records, to everyone signed in:
 
 ```ts
-createAdmin({ ..., auth, options: { mcp: { writes: true } } })
+export default defineConfig({ auth: { mcp: true }, mcpEndpoint: { writes: true } })
 ```
 
 | Tool | What it does |
@@ -77,17 +77,17 @@ Before each write the client asks the person to approve it, showing the resource
 To offer the writes on some resources only, list them:
 
 ```ts
-createAdmin({ ..., auth, options: { mcp: { writes: { resources: ['tasks'] } } } })
+mcpEndpoint: { writes: { resources: ['tasks'] } }
 ```
 
 The write tools then name those resources in their descriptions, and refuse a write to any other before asking, with `{ "error": "forbidden", "message": ... }` saying which resources they write; nothing is written. A name the app has no resource for stops the server at startup. The list only narrows the writes: the person's access rules still apply on the listed resources.
 
 #### Writes without approval
 
-An app that runs service accounts over MCP, such as a backend job or an agent with no person present, names their roles in `options.mcp.writes`:
+An app that runs service accounts over MCP, such as a backend job or an agent with no person present, names their roles in `mcpEndpoint.writes`:
 
 ```ts
-createAdmin({ ..., auth, options: { mcp: { writes: { resources: ['tasks'], rolesWithoutApproval: ['service'] } } } })
+mcpEndpoint: { writes: { resources: ['tasks'], rolesWithoutApproval: ['service'] } }
 ```
 
 A user with one of those roles creates, updates and deletes records over MCP without the approval step: the client is never asked, so a client that cannot ask writes too. Their role's access rules and the listed resources still limit every write as before, so a job with no person present can keep the app's data over MCP and do nothing there it could not do through the REST API. Everyone else is still asked before each write. Taking the role away, banning or deleting the account stops its tokens at their next request, not when they expire.
@@ -132,7 +132,7 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 - `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.
 - `mcpToolContext(...)`, `mcpRoutes(app, { path, handler })` and `sessionOf(authInfo)`: the tools' context as the app builds it, the routes with open CORS, and the session a request was admitted with.
 
-To serve your own endpoint at `mcp.path` instead, pass `createAdmin` `options: { mcp: false }` and mount yours in front of `createAdmin`'s app. The OAuth provider and its discovery stay, `createAdmin` answers 404 at the path and under it, and its `authenticate` needs no `forAudience`.
+To serve your own endpoint at `mcp.path` instead, set `mcpEndpoint: false` (`createAdmin`'s `options.mcp`) and mount yours in front of `createAdmin`'s app. The OAuth provider and its discovery stay, `createAdmin` answers 404 at the path and under it, and its `authenticate` needs no `forAudience`.
 
 A tool of your own goes on the server `server` returns, with the context its tools get:
 

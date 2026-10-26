@@ -23,11 +23,11 @@ const customers = resource('customers').table('customers').fields({ id: f.intege
 const registry = buildRegistry([requests, customers])
 const allowed = ['name', 'email', 'message', 'topic', 'customer_id', 'attachment', 'secret_note', 'iban', 'extra', 'id']
 const roles = defineRoles({ anonymous: [{ 'contact_requests.create': allowed }] })
-const env = { BETTER_AUTH_SECRET: 'secret' }
+const env = { PROTOBASE_SECRET: 'secret' }
 
 const contact = view<typeof requests>('contact_requests')
-const runtime = (views: ViewModel[], options: { limits?: typeof roles.limits; env?: Record<string, string> } = {}) => () =>
-  createFormsRuntime({ registry, views, limits: options.limits ?? roles.limits, env: options.env ?? env })
+const runtime = (views: ViewModel[], options: { limits?: typeof roles.limits; env?: Record<string, string>; secret?: string } = {}) => () =>
+  createFormsRuntime({ registry, views, limits: options.limits ?? roles.limits, env: options.env ?? env, ...(options.secret && { secret: options.secret }) })
 
 describe('createFormsRuntime', () => {
   it('serves nothing and needs no secret without forms', () => {
@@ -42,8 +42,9 @@ describe('createFormsRuntime', () => {
 
   it('needs a secret to sign the bot checks', () => {
     const views = [contact.form((r) => ({ name: 'contact', fields: [r.name, r.email], thanks: 'Thanks!' })).toModel()]
-    expect(runtime(views, { env: {} })).toThrow('set PROTOBASE_FORMS_SECRET or BETTER_AUTH_SECRET')
+    expect(runtime(views, { env: {} })).toThrow('set secret in protobase.config.ts, or PROTOBASE_FORMS_SECRET')
     expect(runtime(views, { env: { PROTOBASE_FORMS_SECRET: 'secret' } })).not.toThrow()
+    expect(runtime(views, { env: {}, secret: 'the app secret' })).not.toThrow()
   })
 
   it('refuses fields a visitor cannot fill in', () => {

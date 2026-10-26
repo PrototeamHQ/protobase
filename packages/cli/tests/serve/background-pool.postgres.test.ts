@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { defineFunction } from '@protobase/server'
 import { startServe } from '../../src/serve/lifecycle'
-import type { ServedProject } from '../../src/serve/load-bundle'
+import { servedConfig } from '../support/served-config'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../../test-support/postgres-database'
 
 const tickets = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
@@ -14,7 +14,7 @@ const slowImport = defineFunction(async (_request, { db }) => {
   return Response.json({ imported: true })
 })
 
-const project: ServedProject = {
+const project = {
   config: { tickets },
   functions: { 'listing-import': slowImport },
   authenticate: () => ({ user: { id: 1, roles: ['admin'] } }),
@@ -26,7 +26,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the pool protobase ser
   it('keeps a connection for requests while function calls hold all of theirs', async () => {
     const database = await openPostgresDatabase('empty')
     await database.exec("create table tickets (id integer primary key, title text not null); insert into tickets values (1, 'Leaking roof')")
-    const server = await startServe({ project, env: { ...env, databaseUrl: database.url } })
+    const server = await startServe({ config: servedConfig(project), env: { ...env, databaseUrl: database.url } })
     const base = `http://localhost:${server.port}`
     const finished: string[] = []
 

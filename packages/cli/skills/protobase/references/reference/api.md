@@ -6,9 +6,10 @@ The REST API that @protobase/server generates, with its routes, access, filters,
 
 `@protobase/server` turns resource definitions into a Hono app that follows Google's API design conventions ([AIP-131 to 136](https://google.aip.dev/131), [158](https://google.aip.dev/158), [160](https://google.aip.dev/160)). It uses Web APIs only and runs on Node and Workers; the Node adapter lives in the example.
 
+`protobase dev` and `serve` build it from the project: the resources of `config/`, the functions of `functions/`, sign-in from `auth`, and the API's settings from the top-level keys of [`protobase.config.ts`](config.md), such as `statementTimeoutMs` and `scanGuard`. In code of its own, an app builds it with `createAdmin`, whose `options` take the same settings:
+
 ```ts
-import { configExports, createAdmin } from '@protobase/server'
-import { auth, authenticate } from './auth/auth' // Better Auth, see /reference/auth/
+import { configExports, createAdmin, jwtAuthenticator } from '@protobase/server'
 import * as config from './config'
 
 const { resources, views } = configExports(config) // splits a config's index.ts exports
@@ -16,8 +17,7 @@ const admin = createAdmin({
   resources,
   views,                                            // optional, served by /meta
   db,                                               // Kysely<any> on Postgres
-  authenticate,                                     // required: no development mode; anonymous only with that role
-  auth,                                             // optional: mounts login at /api/auth/*
+  authenticate: jwtAuthenticator({ jwksUrl, issuer }), // required: no development mode; anonymous only with that role
   functions,                                        // optional: your own endpoints at /api/functions/<name>, see /guides/api-functions/
   options: { statementTimeoutMs: 1_000, scanGuard: { mode: 'reject' } },
 })
@@ -27,7 +27,7 @@ Run the ERP example with `bun run --cwd examples/erp serve` (port 8787, Better A
 
 ## Routes
 
-`/api/v1/*` is resources only, so a table may be called `meta` or `docs`. The system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`), the app's own [API functions](../guides/api-functions.md) (`/api/functions/<name>`), [file downloads](files.md#downloads) (`/api/files/<provider>/<path>`), [public forms](forms.md#routes) (`/api/forms/<name>`) and login (`/api/auth/*`) live beside it; the parent of `options.basePath` is where the system endpoints go.
+`/api/v1/*` is resources only, so a table may be called `meta` or `docs`. The system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`), the app's own [API functions](../guides/api-functions.md) (`/api/functions/<name>`), [file downloads](files.md#downloads) (`/api/files/<provider>/<path>`), [public forms](forms.md#routes) (`/api/forms/<name>`) and login (`/api/auth/*`) live beside it; the parent of `apiPath` (default `/api/v1`) is where the system endpoints go.
 
 Under `/api/v1`:
 
@@ -100,11 +100,11 @@ Access is resolved once per request and resource ([`resolveAccess`](https://docs
 - **ETags**: with a read-only `version` or `updated_at` column the ETag is a hash of that column's exact text, so it never shows a hidden value yet moves on every change. Without one it is a hash of the fields the caller may read, sensitive ones excluded: a change to a field they cannot read, or to a sensitive field, does not change their ETag.
 - **Errors** never contain values of fields the caller cannot read; database errors leave out constraint and column names.
 
-`options.roles` (from `defineRoles`) makes an operation without an explicit rule need the matching capability (`orders.update`), and limits each role to the [fields and rows](access.md#capabilities) its capabilities list; `options.defaultAccess: 'allow' | 'deny'` overrides the capability check. Without either, operations without a rule are allowed (single-admin projects).
+The roles (the `roles` export of `config/roles.ts`, from `defineRoles`) make an operation without an explicit rule need the matching capability (`orders.update`), and limits each role to the [fields and rows](access.md#capabilities) its capabilities list; `defaultAccess: 'allow' | 'deny'` in the config overrides the capability check. Without either, operations without a rule are allowed (single-admin projects).
 
 ### Record permissions
 
-Get responses carry `permissions: { update, delete, fields }`, where `fields` maps each readable field to `edit` or `read` for this record (hidden fields are not listed). List items carry `permissions: { update, delete }` too, decided in the database in one extra query per page; turn it off for a resource with `options.rowPermissions: { except: ['resource'] }` (or `false` for all). They only inform the UI: every write is checked again. A resource cannot have a field named `permissions` or `etag`.
+Get responses carry `permissions: { update, delete, fields }`, where `fields` maps each readable field to `edit` or `read` for this record (hidden fields are not listed). List items carry `permissions: { update, delete }` too, decided in the database in one extra query per page; turn it off for a resource with `rowPermissions: { except: ['resource'] }` in the config (or `false` for all). They only inform the UI: every write is checked again. A resource cannot have a field named `permissions` or `etag`.
 
 ### `/meta` and OpenAPI per caller
 
@@ -116,7 +116,7 @@ A field declared [`.sensitive()`](data-config.md#sensitive-fields) is in `/meta`
 
 A field with [`.strongSignIn()`](data-config.md#recent-strong-sign-in) is a `403` `strong-sign-in-required`, whose problem carries `minutes`, until the caller's sign-in proved a passkey or a second step that recently. The same request reveals a resource's [computed reveals](data-config.md#computed-reveals) by name, whose value the server makes when asked.
 
-Before answering, the server publishes an audit event to `options.audit`, and when publishing fails the reveal fails (`500`), so no value leaves without its event. The event never holds the value:
+Before answering, the server publishes an audit event to the app's audit queue, and when publishing fails the reveal fails (`500`), so no value leaves without its event. The event never holds the value:
 
 ```ts
 type AuditEvent = {
@@ -135,7 +135,7 @@ With [organizations](auth.md#organizations), someone with a global role switchin
 
 ### Audit events
 
-`options.audit` is an `AuditQueue`, `{ publish(event): Promise<void> }`, set in `protobase.config.ts` (`options: { roles, audit }`). The default, `consoleAuditQueue()`, prints each event to the console as one `[audit] {...}` JSON line and keeps nothing; a queue that stores or forwards events replaces it there.
+The queue is an `AuditQueue`, `{ publish(event): Promise<void> }`, the default export of the project's `audit/queue.ts`. The default, `consoleAuditQueue()`, prints each event to the console as one `[audit] {...}` JSON line and keeps nothing; a queue that stores or forwards events replaces it there.
 
 ## Filters
 
@@ -181,13 +181,13 @@ The rules behind these steps are described under [Access](#access).
 
 ## Authentication
 
-Real login is [Better Auth](auth.md). Lower level:
+Real login is the app's [sign-in](auth.md). Lower level:
 
-`authenticate(request)` returns `{ user: { id, roles }, tenant? }` or throws `unauthorized(...)` (a `401` problem), or `new MissingCredentials(...)` (also a `401`) when the request carries no credential at all. Shipped: `jwtAuthenticator({ jwksUrl | keys, issuer?, audience?, rolesClaim?, tenantClaim?, tenant? })`, which verifies a bearer token with `jose` (`sub` is the user id; `tenant` fixes the tenant instead of reading a claim), and `betterAuthAuthenticator` on top of it ([Login with Better Auth](auth.md)). No code path treats a request as a user without verifying a credential; the one exception is the [anonymous role](access.md#anonymous-access), which the resources API gives a request that has none, when the project defines it.
+`authenticate(request)` returns `{ user: { id, roles }, tenant? }` or throws `unauthorized(...)` (a `401` problem), or `new MissingCredentials(...)` (also a `401`) when the request carries no credential at all. Shipped: `jwtAuthenticator({ jwksUrl | keys, issuer?, audience?, rolesClaim?, tenantClaim?, tenant? })`, which verifies a bearer token with `jose` (`sub` is the user id; `tenant` fixes the tenant instead of reading a claim), and the authenticator of the app's sign-in on top of it, which `authenticate` in the config sets ([Tokens and roles](auth.md#tokens-and-roles)); an authenticator of the project's own is the default export of `auth/authenticate.ts`. No code path treats a request as a user without verifying a credential; the one exception is the [anonymous role](access.md#anonymous-access), which the resources API gives a request that has none, when the project defines it.
 
 ## CORS
 
-The API sends no CORS headers until it has something to allow: other websites in `options.cors` (a list of origins, or `'*'` for any), which defaults to `PROTOBASE_CORS_ORIGINS` (`*` or comma separated http and https origins), other [origins of the app](auth.md#several-origins), which are always allowed, or a [mobile section](../guides/mobile-app.md), which allows the app's Capacitor origins, `capacitor://localhost` and `https://localhost`. `PROTOBASE_CORS_ORIGINS` refuses other schemes at startup.
+The API sends no CORS headers until it has something to allow: other websites in `cors` in the config (a list of origins, or `'*'` for any), which defaults to `PROTOBASE_CORS_ORIGINS` (`*` or comma separated http and https origins), other [origins of the app](auth.md#several-origins), which are always allowed, or a [mobile section](../guides/mobile-app.md), which allows the app's Capacitor origins, `capacitor://localhost` and `https://localhost`. `PROTOBASE_CORS_ORIGINS` refuses other schemes at startup.
 
 - It covers `/api/*` but Better Auth's `/api/auth/*`, which checks origins itself (the mobile app [signs in](../guides/mobile-app.md) through native HTTP, outside CORS), and [API functions](../guides/api-functions.md) with a `cors` of their own; supabase-js's [`/api/sb`](auth.md#supabase-js-and-supabasessr) is under it too.
 - An allowed origin gets `Access-Control-Allow-Origin` with its name and `Vary: Origin`, or `*` with `'*'`. No credentials: browser code calls the API with a bearer token.
@@ -222,15 +222,15 @@ Every error is `application/problem+json` (RFC 9457) with `type` (`urn:protobase
 
 ### Error reporting
 
-An app can send its errors to an error tracker of its own: [Sentry](https://sentry.io) or one that speaks its protocol, such as [Bugsink](https://www.bugsink.com) or [GlitchTip](https://glitchtip.com). It is off until a DSN, the address the tracker gives a project, is set in `options.errorReporting` or `PROTOBASE_SENTRY_DSN`; without one nothing is loaded or sent.
+An app can send its errors to an error tracker of its own: [Sentry](https://sentry.io) or one that speaks its protocol, such as [Bugsink](https://www.bugsink.com) or [GlitchTip](https://glitchtip.com). It is off until a DSN, the address the tracker gives a project, is set in `errorReporting` or `PROTOBASE_SENTRY_DSN`; without one nothing is loaded or sent.
 
 ```ts
 export default defineConfig({
-  options: { errorReporting: { dsn: 'https://<key>@errors.example.com/42', environment: 'staging' } },
+  errorReporting: { dsn: 'https://<key>@errors.example.com/42', environment: 'staging' },
 })
 ```
 
-- **Server:** every `500` with the request it failed, and every `504 statement-timeout` and `503 connections-busy` with the request it names, under `dev`, `serve` and the runtime, besides `options.onUnhandledError` or the console. Under `serve`, the runtime and `worker`, an uncaught exception or unhandled rejection too, which then still ends the process with exit code 1.
+- **Server:** every `500` with the request it failed, and every `504 statement-timeout` and `503 connections-busy` with the request it names, under `dev`, `serve` and the runtime, besides the default export of `hooks/error.ts` or the console. Under `serve`, the runtime and `worker`, an uncaught exception or unhandled rejection too, which then still ends the process with exit code 1.
 - **Admin app:** uncaught errors and the errors of components that fail to draw. `/api/meta` names the DSN to every signed-in caller, as a browser app always shows its own.
 - Errors only, with no performance tracing. Before an event leaves, the values of authorization headers, cookies, passwords, tokens and other credentials, in fields and in URLs, are replaced by `[Filtered]`.
 - `environment` names the deployment in the tracker; without it the tracker's default, `production`. `errorReporting: false` turns reporting off whatever the environment says. A DSN that is no `http(s)` URL with a key and a project id stops startup.

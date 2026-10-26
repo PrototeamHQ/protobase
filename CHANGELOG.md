@@ -2,6 +2,12 @@
 
 The releases of Protobase that the release workflow cut with a release commit. Later releases are not listed here: each one's notes are in its [GitHub release](https://github.com/PrototeamHQ/protobase/releases) (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## Unreleased
+
+### ⚠ BREAKING CHANGES
+
+* **config:** `protobase.config.ts` is one object of data from `defineConfig` in the new `@protobase/config` package, or the same object as `protobase.config.json`. The project's code is found by its path (`jobs/<name>.ts`, `hooks/<name>.ts`, `auth/hooks.ts`, `config/roles.ts`, ...) instead of being imported by the config, and `createAuth`, `betterAuthAuthenticator`, `appPool`, `localFiles`, `s3Files`, `defineConfig` and `mergeConfig` leave `@protobase/server`. The old shape is not read any more, and `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET` and `TRUSTED_ORIGINS` become `PROTOBASE_URL`, `PROTOBASE_SECRET` and `PROTOBASE_TRUSTED_ORIGINS`. See [protobase.config.ts](https://docs.protobase.net/reference/config/).
+
 ## [0.14.2](https://github.com/PrototeamHQ/protobase/compare/v0.14.1...v0.14.2) (2026-10-13)
 
 ### Features

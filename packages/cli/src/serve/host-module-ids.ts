@@ -7,6 +7,7 @@
 export const lazyHostModuleIds = ['@protobase/server/email'] as const
 
 export const hostModuleIds = [
+  '@protobase/config',
   '@protobase/schema',
   '@protobase/layout',
   '@protobase/layout/jsx-runtime',

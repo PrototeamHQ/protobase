@@ -9,11 +9,12 @@ import { projectAdmin } from '../../src/project/project-admin'
 import { createServeApp } from '../../src/serve/app'
 import { servedRelease } from '../../src/serve/mobile-release'
 import { nativeFingerprint } from '../../src/mobile/fingerprint'
-import type { ServedProject } from '../../src/serve/load-bundle'
+import type { BuiltProject } from '../../src/config/build-project'
 import { openSnapshotDb } from '../../../../test-support/sql-snapshot'
 
-const project: ServedProject = {
+const project: BuiltProject = {
   config: {},
+  jobs: [],
   authenticate: (request) => {
     if (request.headers.get('authorization') !== 'Bearer ok') throw unauthorized('Send a bearer token')
     return { user: { id: 1, roles: ['admin'] } }
@@ -33,7 +34,7 @@ describe('createServeApp with a site', () => {
     await mkdir(path.join(publicDir, 'assets'))
     await writeFile(path.join(publicDir, 'index.html'), '<title>admin</title>')
     await writeFile(path.join(publicDir, 'assets/app-1a2b.js'), 'export {}')
-    app = createServeApp({ admin: projectAdmin(project, project.config, db).admin, requestLog: false, site: { publicDir, spa: 'index.html', api: ['/api'] } })
+    app = createServeApp({ admin: projectAdmin(project, db).admin, requestLog: false, site: { publicDir, spa: 'index.html', api: ['/api'] } })
   })
   afterAll(async () => {
     await rm(publicDir, { recursive: true, force: true })
@@ -73,7 +74,7 @@ describe('createServeApp with a mobile section', () => {
     const native = { '@capacitor/core': '8.5.3' }
     const site = { publicDir, spa: 'index.html', api: ['/api'], native }
     const release = await servedRelease({ site, mobile: { appId: 'com.example.shop' }, issuer: 'https://shop.example.com' })
-    const app = createServeApp({ admin: projectAdmin(project, project.config, db).admin, requestLog: false, site, mobile: { ...(release && { release }), serverVersion: '0.14.2' } })
+    const app = createServeApp({ admin: projectAdmin(project, db).admin, requestLog: false, site, mobile: { ...(release && { release }), serverVersion: '0.14.2' } })
     const answer = await (await app.request(`/api/mobile/release?fingerprint=${nativeFingerprint(native)}&shell_version=0.14.2`)).json()
     expect(answer).toEqual({ bundleId: release?.bundleId, url: `https://shop.example.com/api/mobile/releases/${release?.bundleId}`, required: false })
 

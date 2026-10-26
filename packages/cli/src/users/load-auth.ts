@@ -1,23 +1,24 @@
-import { existsSync } from 'node:fs'
-import path from 'node:path'
+import pg from 'pg'
+import { removeDevicesWithUsers, removeHistoryWithUsers } from '@protobase/server'
+import { projectAuth } from '../config/build-project'
+import { projectNotifications } from '../config/project-parts'
+import { loadSourceConfig } from '../config/source-config'
 import { loadNearestEnvFile } from '../dev/env'
-import { importProjectFile } from '../project/import-project-file'
-import { mergeConfig, removeDevicesWithUsers, removeHistoryWithUsers, type ProjectConfig } from '@protobase/server'
+import { openAppDatabase } from '../project/pg-db'
 
 /**
- * Imports the project's protobase.config.ts directly and returns its Better Auth instance. With a device or history
- * store of the app's own (`notifications({ store, historyStore })`), deleting a user removes their devices or history
- * from it too; the built-in tables go with the user by their foreign keys.
+ * The sign-in of the project in `projectDir`, built from its config's `auth` over DATABASE_URL, with only the plugins
+ * it turns on. With a device or history store of the app's own (notifications/store.ts, notifications/history-store.ts),
+ * deleting a user removes their devices or history from it too; the built-in tables go with the user by their foreign
+ * keys.
  */
 export const loadProjectAuth = async (projectDir: string) => {
   loadNearestEnvFile(projectDir)
-  const file = path.join(projectDir, 'protobase.config.ts')
-  if (!existsSync(file)) throw new Error(`No protobase.config.ts in ${projectDir}; run this inside a project`)
-  const module = (await importProjectFile(file)) as { default?: ProjectConfig }
-  const project = mergeConfig(module.default ?? {})
-  const { auth } = project
-  if (!auth) throw new Error('protobase.config.ts does not export `auth`; users are managed by Better Auth')
-  if (project.notifications?.store) removeDevicesWithUsers(auth, project.notifications.store)
-  if (project.notifications?.historyStore) removeHistoryWithUsers(auth, project.notifications.historyStore)
-  return auth
+  const config = await loadSourceConfig(projectDir, { command: 'tool' })
+  if (!config.auth) throw new Error('Sign-in is off (`auth: false` in the config), so the app has no users to manage')
+  if (!process.env.DATABASE_URL) throw new Error('No database: set DATABASE_URL')
+  const [auth, notifications] = await Promise.all([projectAuth(config, openAppDatabase(pg, process.env.DATABASE_URL)), projectNotifications(config)])
+  if (notifications?.store) removeDevicesWithUsers(auth!, notifications.store)
+  if (notifications?.historyStore) removeHistoryWithUsers(auth!, notifications.historyStore)
+  return auth!
 }

@@ -22,6 +22,8 @@ Set their variables, such as `ANDROID_HOME` and `JAVA_HOME`, in your shell, not 
 
 ```ts
 // protobase.config.ts
+import { defineConfig } from '@protobase/config'
+
 export default defineConfig({
   // ...
   mobile: {
@@ -34,7 +36,7 @@ export default defineConfig({
 - `appId` is the app's id in reverse-DNS form, the same on iOS and Android: at least two parts separated by dots, each starting with a letter and holding only letters and digits. Underscores and hyphens are refused, as iOS rejects underscores and Android rejects hyphens; `protobase mobile` stops early on such an id and suggests one without them.
 - `plugins`, optional, are extra native [Capacitor plugins](https://capacitorjs.com/docs/plugins), npm name to version. Capacitor itself, `@capacitor/app`, `@capacitor/keyboard`, `@capacitor/splash-screen` and `@capawesome/capacitor-live-update` come with Protobase at fixed versions and cannot be listed. A plugin runs native code with the app's rights, and one that writes files, such as `@capacitor/filesystem`, lets a script that got into the page point the iOS app at files it wrote (with Capacitor's own `WebView.setServerBasePath`), so list only plugins the app needs. On Android a plugin's JavaScript cannot call `CapacitorHttp`, `CapacitorCookies` or `WebView`, and `Capacitor.convertFileSrc` URLs do not load: call those from the plugin's native code.
 
-The app is installed under the name it shows in its upper left, on iOS and Android alike: `protobase mobile` reads it from the server the app calls (its web manifest), so a `PROTOBASE_APP_NAME` the server runs with names the app on the phone too. When that server cannot be reached, `run` and `open` warn and take the project's own name, `appName` or `PROTOBASE_APP_NAME` in its environment, and `build` stops.
+The app is installed under the name it shows in its upper left, on iOS and Android alike: `protobase mobile` reads it from the server the app calls (its web manifest), so a `PROTOBASE_APP_NAME` the server runs with names the app on the phone too. When that server cannot be reached, `run` and `open` warn and take the project's own name, the config's `name` or `PROTOBASE_APP_NAME` in its environment, and `build` stops.
 
 On the home screen the app shows Protobase's icon, on iOS and Android alike. <gap>An app cannot show its own icon on the phone because setting the mobile app's icon is not implemented.</gap>
 
@@ -60,7 +62,7 @@ The first run installs Capacitor into `.protobase/mobile/`, which ignores itself
 
 In the app, the admin keeps clear of the status bar, the notch, the home indicator and Android's system bars, and it does not zoom: a focused input leaves the page at its scale, and so does a pinch. <gap>The status bar's text cannot follow the theme chosen in the app, only the phone's light or dark mode, because setting the status bar's style is not implemented.</gap>
 
-The app calls the server at the project's auth `baseURL`; pass `--api https://shop.example.com` for another one. Plain http is only for a server on this machine (`localhost`) or, on the Android emulator, its host `10.0.2.2`; any other server needs https. An Android phone on USB reaches a server on `localhost` through a forwarded port; an iPhone needs an https server. The app's UI plugins load from the device only when the server serves a built bundle (`protobase serve dist`): against `protobase dev`, use `--live`.
+The app calls the server at the app's `url` (`PROTOBASE_URL` by default); pass `--api https://shop.example.com` for another one. Plain http is only for a server on this machine (`localhost`) or, on the Android emulator, its host `10.0.2.2`; any other server needs https. An Android phone on USB reaches a server on `localhost` through a forwarded port; an iPhone needs an https server. The app's UI plugins load from the device only when the server serves a built bundle (`protobase serve dist`): against `protobase dev`, use `--live`.
 
 `--target <id>` picks the simulator, emulator or device; without it Capacitor asks.
 
@@ -99,7 +101,7 @@ protobase mobile build ios --app-version 1.2.3 --build-number 7 --api https://sh
 makes a signed release binary: an `.aab` to upload to Google Play, an `.ipa` to upload to App Store Connect. It goes to `mobile-release/`, which ignores itself in git, named `<appId>-<version>-<build number>`; `--out <dir>` picks another folder.
 
 - The binary carries the app's files, so it opens without a network and never downloads anything on its first launch; offline it says it cannot reach the server, as the web app does.
-- A release calls its server over https, at `--api` or the project's auth `baseURL`: plain http, `localhost` and `10.0.2.2` are refused.
+- A release calls its server over https, at `--api` or the app's `url`: plain http, `localhost` and `10.0.2.2` are refused.
 - `--app-version` is the version the stores show, one to three numbers such as `1.2.3`. `--build-number` is a whole number that must rise with every upload, such as your CI's run number.
 - Extra plugins run at build time with access to your signing key, so add only plugins you trust.
 

@@ -1,7 +1,8 @@
 import { decodeJwt } from 'jose'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { bottomBar } from '@protobase/schema'
-import { betterAuthAuthenticator, createAdmin, createAuth, createUser, setUserRole } from '@protobase/server'
+import { createAdmin, createUser, setUserRole } from '@protobase/server'
+import { betterAuthAuthenticator, createAuth } from '@protobase/server/internal'
 import { allResources, createFixtureDb } from '../../test-support/server'
 import { openSnapshotDb, type SnapshotDb } from '../../test-support/sql-snapshot'
 

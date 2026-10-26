@@ -14,8 +14,8 @@ describe('mcpAuthenticator', () => {
   })
 
   it('stops the server when options.mcp is set without MCP, or authenticate cannot verify its tokens', () => {
-    expect(() => mcpAuthenticator(withAudiences, undefined, { sql: true })).toThrow('options.mcp needs createAuth({ mcp })')
-    expect(() => mcpAuthenticator(async () => ({ user: { id: 1, roles: [] } }), mcp, undefined)).toThrow('MCP needs authenticate from betterAuthAuthenticator')
+    expect(() => mcpAuthenticator(withAudiences, undefined, { sql: true })).toThrow('mcpEndpoint needs auth.mcp in protobase.config.ts')
+    expect(() => mcpAuthenticator(async () => ({ user: { id: 1, roles: [] } }), mcp, undefined)).toThrow("MCP needs the app's own authenticator")
   })
 
   it('is none when the host serves its own endpoint, without asking for the audience\'s', () => {

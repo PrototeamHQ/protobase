@@ -1,5 +1,6 @@
 import path from 'node:path'
 import type { Plugin } from 'vite'
+import { loadSourceConfig } from '../config/source-config'
 import { hostModuleIds } from '../serve/host-module-ids'
 import { extensionImports, type Extension } from '../project/extensions'
 import { collectComponents } from './component-names'
@@ -75,13 +76,14 @@ export type ConfigBundleInput = {
   components?: Set<string>
 }
 
-// The project's config, merged after the extensions' configs, as one module whose default export is a ProjectConfig
-// with `config` always set. Returns the packages with native add-ons it imports, which the bundle has to carry (see
+// The project's config and the extensions' configs, with the code their conventions find, as one module (see
+// `bundleEntryCode`). Each config is read first, so one that breaks the rules stops the build. Returns the packages with native add-ons it imports, which the bundle has to carry (see
 // copyPackages).
 export const buildConfigBundle = async ({ projectDir, outFile, bun, extensions = [], components = new Set() }: ConfigBundleInput): Promise<NativeImport[]> => {
+  const config = await loadSourceConfig(projectDir, { command: 'build', extensions })
   const file = path.join(projectDir, 'protobase-bundle-entry.js')
   const native = new Map<string, NativeImport>()
-  const plugins = [layoutCheck(), collectComponents(components), extensionImports(projectDir, extensions), servedImports(native), entry(file, bundleEntryCode(projectDir, extensions))]
+  const plugins = [layoutCheck(), collectComponents(components), extensionImports(projectDir, extensions), servedImports(native), entry(file, bundleEntryCode(projectDir, extensions, config.files?.images ? [config.files.images] : []))]
   await viteBundle({ root: projectDir, entry: file, outFile, bun, plugins })
   return [...native.values()]
 }

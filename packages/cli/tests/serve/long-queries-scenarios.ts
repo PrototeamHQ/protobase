@@ -3,7 +3,7 @@ import { expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { defineFunction } from '@protobase/server'
 import { startServe } from '../../src/serve/lifecycle'
-import type { ServedProject } from '../../src/serve/load-bundle'
+import { servedConfig } from '../support/served-config'
 import { openPostgresDatabase } from '../../../../test-support/postgres-database'
 
 // A view whose rows take longer than the API's second to read.
@@ -11,7 +11,7 @@ const slowRows = resource('slow_rows').table('slow_rows').fields({ id: f.integer
 
 const limitOf = async (db: Kysely<any>) => (await sql<{ statement_timeout: string }>`show statement_timeout`.execute(db)).rows[0]!.statement_timeout
 
-const project: ServedProject = {
+const project = {
   config: { slowRows },
   functions: {
     // Its queries have the database's own limit, as the platform sets it for the app's role.
@@ -45,7 +45,7 @@ export const longQueryScenarios = (through: (database: string) => string) => {
       alter role current_user in database "${name}" set idle_in_transaction_session_timeout = '1s';
       create view slow_rows as select 1 as id, pg_sleep(1.2)::text as nap;
     `)
-    const server = await startServe({ project, env: { ...env, databaseUrl: through(name) } })
+    const server = await startServe({ config: servedConfig(project), env: { ...env, databaseUrl: through(name) } })
     const call = async (path: string, init?: RequestInit) => {
       const response = await fetch(`http://localhost:${server.port}${path}`, init)
       return { status: response.status, body: await response.json() }

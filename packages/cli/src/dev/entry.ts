@@ -4,21 +4,21 @@ import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, ch
 import { projectIcons } from '../build/app-icons'
 import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
+import { buildProject } from '../config/build-project'
 import { devJobs } from './dev-jobs'
-import { loadProject, projectDb } from './project'
+import { devDatabase, loadDevConfig } from './project'
 import { withDevServiceWorker } from './service-worker-route'
 import { setMissing, supabaseEnv } from './supabase-env'
 
 // Loaded by Vite's SSR module graph (see run.ts). Editing any file it imports re-evaluates this module
 // on the next request, which rebuilds the API; `/meta` then reports a new X-Meta-Version.
 const projectDir = process.env.PROTOBASE_PROJECT!
-const project = await loadProject(projectDir, JSON.parse(process.env.PROTOBASE_EXTENSIONS ?? '[]'))
-const db = projectDb(project, projectDir)
-const { resources, views } = configExports(project.exports)
-
-if (!project.authenticate) {
-  throw new Error('No authenticator: export `authenticate` (and `auth`) from protobase.config.ts; see https://docs.protobase.net/guides/existing-database/#4-add-sign-in')
-}
+const config = await loadDevConfig(projectDir, JSON.parse(process.env.PROTOBASE_EXTENSIONS ?? '[]'))
+const database = devDatabase(projectDir)
+const { db } = database
+// The app as it serves, built from the config: its references loaded, auth and the authenticator made.
+const project = await buildProject(config, database)
+const { resources, views } = configExports(project.config)
 
 // Once per server start, so a behind auth schema stops startup with the command that writes its migration.
 const store = globalThis as { __protobaseAuthSchemaChecked?: boolean }
@@ -50,10 +50,10 @@ setMissing(process.env, supabaseEnv({
 
 // With a DSN set, the API's 500s go to the error tracker too; a crash is the terminal's to show. Its `/api/sb/realtime/v1`
 // sockets are upgraded by run.ts's `apiWebSockets`.
-const reporter = await projectErrorReporter(project, process.env)
+const reporter = await projectErrorReporter(config, process.env)
 // The plugins come from Vite here, not a bundle; the icons are the project's files, which the dev server answers.
 const ui = { plugins: [], fieldTypes: {}, icons: projectIcons(projectDir) }
-const { admin, jobs } = projectAdmin({ ...project, authenticate: project.authenticate }, project.exports, db, ui, reporter, upgradeWebSocket)
+const { admin, jobs } = projectAdmin(project, db, ui, reporter, upgradeWebSocket)
 
 // The project's jobs and the delivery of its events, run in this server; a behind jobs schema stops startup with the
 // command that writes its migration.

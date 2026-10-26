@@ -4,8 +4,8 @@ import { databaseUrl, envFile, withDatabasePort } from './env-file'
 const example = [
   '# The app settings',
   'DATABASE_URL=postgres://protobase:protobase@localhost:55432/real_estate',
-  'BETTER_AUTH_URL=http://localhost:5173',
-  'BETTER_AUTH_SECRET=change-me-generate-with-openssl-rand-base64-32',
+  'PROTOBASE_URL=http://localhost:5173',
+  'PROTOBASE_SECRET=change-me-generate-with-openssl-rand-base64-32',
   '',
 ].join('\n')
 
@@ -15,7 +15,7 @@ describe('databaseUrl', () => {
   })
 
   it('refuses a file without it', () => {
-    expect(() => databaseUrl('BETTER_AUTH_SECRET=x\n')).toThrow('.env.example has no DATABASE_URL')
+    expect(() => databaseUrl('PROTOBASE_SECRET=x\n')).toThrow('.env.example has no DATABASE_URL')
   })
 })
 
@@ -28,11 +28,11 @@ describe('withDatabasePort', () => {
 })
 
 describe('envFile', () => {
-  it('sets BETTER_AUTH_SECRET and keeps the rest', () => {
+  it('sets PROTOBASE_SECRET and keeps the rest', () => {
     expect(envFile(example, 'abc=')).toBe(example.replace('change-me-generate-with-openssl-rand-base64-32', 'abc='))
   })
 
-  it('refuses a file without BETTER_AUTH_SECRET', () => {
-    expect(() => envFile('DATABASE_URL=postgres://x@y/z\n', 'abc')).toThrow('.env.example has no BETTER_AUTH_SECRET')
+  it('refuses a file without PROTOBASE_SECRET', () => {
+    expect(() => envFile('DATABASE_URL=postgres://x@y/z\n', 'abc')).toThrow('.env.example has no PROTOBASE_SECRET')
   })
 })

@@ -1,8 +1,9 @@
 import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from 'kysely'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FatalJobError, type FunctionContext, type JobContext, type MailMessage, type WriteEvent } from '@protobase/server'
-import { emailRepairReady } from './email/jobs'
-import project from './email/protobase.config'
+import emailReadyRepair from './email/hooks/email-ready-repair'
+import emailRepairReady from './email/jobs/email-repair-ready'
+import config from './email/protobase.config'
 import { repairReady } from './email/repair-ready'
 import resendRepairReady from './email/resend-repair-ready'
 
@@ -40,16 +41,18 @@ describe('the repair-ready email', () => {
   it('is sent by the job, through the mail it gets', async () => {
     const sent: MailMessage[] = []
     const db = answering([{ number: 'R-0007', bike: 'Gazelle Orange', name: 'Sanne', email: 'sanne@example.com' }])
-    await emailRepairReady.options.run({ repairId: 7 }, contextWith(db, { send: async (message) => void sent.push(message) }))
+    await emailRepairReady({ repairId: 7 }, contextWith(db, { send: async (message) => void sent.push(message) }))
     expect(sent).toEqual([{ to: 'sanne@example.com', subject: 'Your Gazelle Orange is ready for pickup', html: expect.stringContaining('R-0007'), text: expect.stringContaining('Hi Sanne') }])
   })
 
   it('fails the job for good while mail is off', async () => {
-    await expect(emailRepairReady.options.run({ repairId: 7 }, contextWith(answering([])))).rejects.toThrow(FatalJobError)
+    await expect(emailRepairReady({ repairId: 7 }, contextWith(answering([])))).rejects.toThrow(FatalJobError)
   })
 
   it('is enqueued by the write hook of a repair that became ready', async () => {
-    const [hook] = project.options!.writeHooks!
+    expect(config.writeHooks).toEqual(['email-ready-repair'])
+    expect(config.jobs).toHaveProperty('email-repair-ready')
+    const hook = emailReadyRepair
     const ready = { operation: 'update', resource: { name: 'repairs' }, user: { id: 1, roles: [] }, before: { status: 'working' }, after: { id: '7', status: 'ready' } } as unknown as WriteEvent
     await expect(hook!(ready, {} as never)).rejects.toThrow('Jobs are not running in this process')
     await expect(hook!({ ...ready, before: { status: 'ready' } }, {} as never)).resolves.toBeUndefined()

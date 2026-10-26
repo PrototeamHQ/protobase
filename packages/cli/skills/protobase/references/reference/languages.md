@@ -8,10 +8,12 @@ The admin app's own texts and its numbers and dates come in English and Dutch. T
 
 ## Choosing the language
 
-Without a setting, each user sees the app in their browser's language when it is Dutch or English, and in English otherwise. `options.locale` in `protobase.config.ts` puts the app in one language for everyone:
+Without a setting, each user sees the app in their browser's language when it is Dutch or English, and in English otherwise. `locale` in `protobase.config.ts` puts the app in one language for everyone:
 
 ```ts title="protobase.config.ts"
-export default { config, auth, authenticate, options: { locale: 'nl' } }
+import { defineConfig } from '@protobase/config'
+
+export default defineConfig({ locale: 'nl' })
 ```
 
 The value is `'en'` or `'nl'`, and the server refuses to start with any other value. `/meta` names the language as `locale`, and so does the sign-in status (`GET /api/auth/status`), which the sign-in screens and public forms read before `/meta`, so they are in the same language.

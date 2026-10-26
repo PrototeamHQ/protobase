@@ -23,7 +23,7 @@ export const Wordmark = ({ className }: { className?: string }) => (
 
 /**
  * What the logo at the top of the sidebar gets: `compact` when the sidebar shows only icons, the workspace's name, the
- * app's name, such as `Property Finder` (`PROTOBASE_APP_NAME` or `createAuth`'s `appName`), and the path of its own
+ * app's name, such as `Property Finder` (`PROTOBASE_APP_NAME` or `auth.appName`), and the path of its own
  * icon, its `protobase.favicon.svg`, when the project has one.
  */
 export type ShellLogoProps = { compact: boolean; workspace?: string; appName?: string; appIcon?: string }

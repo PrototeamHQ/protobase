@@ -50,11 +50,18 @@ module.exports = {
       to: { path: '^packages/', pathNot: '^packages/(server|schema|layout|query)/' },
     },
     {
+      name: 'config-types-only',
+      comment: '@protobase/config runs nothing besides defineConfig: reading a config loads it and the config alone, so it imports types only.',
+      severity: 'error',
+      from: { path: '^packages/config/src/', pathNot: testCode },
+      to: { pathNot: '^packages/config/', dependencyTypesNot: ['type-only'] },
+    },
+    {
       name: 'cli-imports',
-      comment: '@protobase/cli imports only schema, layout, query, server and ui, and the pins in @protobase/mobile\'s package.json, which its build inlines.',
+      comment: '@protobase/cli imports only config, schema, layout, query, server and ui, and the pins in @protobase/mobile\'s package.json, which its build inlines.',
       severity: 'error',
       from: { path: '^packages/cli/' },
-      to: { path: '^packages/', pathNot: ['^packages/(cli|schema|layout|query|server|ui)/', mobilePins] },
+      to: { path: '^packages/', pathNot: ['^packages/(cli|config|schema|layout|query|server|ui)/', mobilePins] },
     },
     {
       name: 'packages-through-entry-points',

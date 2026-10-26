@@ -5,6 +5,8 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { prebuildifyFiles, writePackage } from '../../tests/support/packages'
+import { projectResources } from '../config/project-parts'
+import { loadBundle } from '../serve/load-bundle'
 import { buildConfigBundle } from './config-bundle'
 
 // Each test bundles with esbuild, CPU work a busy machine stretches past 5 s.
@@ -30,11 +32,17 @@ export const thingsView = view('things').names({ singular: 'Thing', plural: 'Thi
 export const archivedThings = view('things').names({ singular: 'Archived thing', plural: 'Archived things' })
 `
 
+// A project whose resources module imports what the test bundles.
+const probe = (code: string) => ({ 'config/index.ts': "export * from '../probe'\n", 'probe.ts': code })
+
+// The resources module of a bundle, as the serve runtime loads it.
+const bundledResources = async (outFile: string) => projectResources(await loadBundle(outFile))
+
 describe('buildConfigBundle', () => {
   let projectDir = ''
   afterEach(() => rm(projectDir, { recursive: true, force: true }))
 
-  it('writes one module that imports @protobase/schema and default-exports the convention config', async () => {
+  it('writes one module that imports @protobase/schema and carries the convention config', async () => {
     projectDir = await createProject({
       'config/index.ts': `export { things } from './things/data'\nexport { thingsView } from './things/ui'\n`,
       'config/things/data.ts': things,
@@ -47,8 +55,7 @@ describe('buildConfigBundle', () => {
     expect(code).not.toContain('// @bun')
     expect(code).toContain('from "@protobase/schema"')
     expect(code).not.toContain('function resource(')
-    const { default: project } = await import(pathToFileURL(outFile).href)
-    expect(Object.keys(project.config).sort()).toEqual(['things', 'things:archivedThings', 'thingsView'])
+    expect(Object.keys(await bundledResources(outFile)).sort()).toEqual(['things', 'things:archivedThings', 'thingsView'])
   })
 
   it("keeps config/index.ts's export order, which picks the table the app opens on", async () => {
@@ -64,8 +71,7 @@ export const ${name} = resource('${name}').table('${name}').fields({ id: f.integ
     const outFile = path.join(projectDir, 'dist/protobase.config.js')
     await buildConfigBundle({ projectDir, outFile })
 
-    const { default: project } = await import(pathToFileURL(outFile).href)
-    expect(Object.keys(project.config)).toEqual(['vehicles', 'serviceJobs', 'appointments', 'customers'])
+    expect(Object.keys(await bundledResources(outFile))).toEqual(['vehicles', 'serviceJobs', 'appointments', 'customers'])
   })
 
   const nonAscii = {
@@ -78,7 +84,7 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
 
   // The view as Bun reads the bundle itself; inside Vitest, Vite reads it.
   const thingsViewUnderBun = (outFile: string) => {
-    const script = `const { default: project } = await import(${JSON.stringify(pathToFileURL(outFile).href)}); console.log(JSON.stringify(project.config.thingsView))`
+    const script = `const { own } = await import(${JSON.stringify(pathToFileURL(outFile).href)}); console.log(JSON.stringify((await own.files.resources()).thingsView))`
     return spawnSync('bun', ['-e', script], { cwd: projectDir, encoding: 'utf8' })
   }
 
@@ -111,16 +117,31 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
     expect(loaded.stdout).toContain('"singular":"Thing 😀"')
   })
 
-  it('keeps what protobase.config.ts exports', async () => {
+  it('keeps what protobase.config.ts describes, read again where the bundle serves, and the code its conventions find', async () => {
     projectDir = await createProject({
-      'protobase.config.ts': `import * as config from './resources'\nexport default { config, options: { statementTimeoutMs: 5000 } }\n`,
-      'resources.ts': things,
+      'protobase.config.ts': `import { timeout } from './settings'\nexport default () => ({ statementTimeoutMs: timeout, jobs: { nightly: { schedule: '0 3 * * *' } } })\n`,
+      'settings.ts': 'export const timeout = 5000\n',
+      'config/index.ts': things,
+      'jobs/nightly.ts': 'export default async () => {}\n',
     })
     const outFile = path.join(projectDir, 'dist/protobase.config.js')
     await buildConfigBundle({ projectDir, outFile })
-    const { default: project } = await import(pathToFileURL(outFile).href)
-    expect(Object.keys(project.config)).toEqual(['things'])
-    expect(project.options).toEqual({ statementTimeoutMs: 5000 })
+    const config = await loadBundle(outFile)
+    expect(Object.keys(await projectResources(config))).toEqual(['things'])
+    expect(config.statementTimeoutMs).toBe(5000)
+    expect(await config.jobs.nightly!.files.module('jobs/nightly.ts')!()).toHaveProperty('default')
+  })
+
+  it('takes a JSON config as it takes TypeScript', async () => {
+    projectDir = await createProject({ 'protobase.config.json': '{ "statementTimeoutMs": 4000 }', 'config/index.ts': things })
+    const outFile = path.join(projectDir, 'dist/protobase.config.js')
+    await buildConfigBundle({ projectDir, outFile })
+    expect((await loadBundle(outFile)).statementTimeoutMs).toBe(4000)
+  })
+
+  it('refuses a config that loads a part of itself later, before it bundles', async () => {
+    projectDir = await createProject({ 'protobase.config.ts': `export default { jobs: () => import('./jobs') }\n`, 'config/index.ts': things })
+    await expect(buildConfigBundle({ projectDir, outFile: path.join(projectDir, 'dist/out.js') })).rejects.toThrow('imports "./jobs" lazily')
   })
 
   it('compiles layout files through @protobase/layout/jsx-runtime, which the serve runtime supplies', async () => {
@@ -134,8 +155,7 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
     const code = await readFile(outFile, 'utf8')
     expect(code).toContain('from "@protobase/layout/jsx-runtime"')
     expect(code).toContain('from "@protobase/layout"')
-    const { default: project } = await import(pathToFileURL(outFile).href)
-    expect(project.config.overview.toModel().tree).toEqual({ type: 'Page', props: { title: 'Overview' }, children: [{ type: 'Table', props: { resource: 'things', limit: 5 }, children: [] }] })
+    expect(((await bundledResources(outFile)).overview as { toModel: () => { tree: unknown } }).toModel().tree).toEqual({ type: 'Page', props: { title: 'Overview' }, children: [{ type: 'Table', props: { resource: 'things', limit: 5 }, children: [] }] })
   })
 
   it('refuses a layout with values that cannot be static, before anything runs', async () => {
@@ -148,23 +168,25 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
 
   it('refuses @protobase packages the serve runtime does not provide', async () => {
     projectDir = await createProject({
-      'protobase.config.ts': `import { DataGrid } from '@protobase/ui'\nexport default { config: { DataGrid } }\n`,
+      ...probe(`import { DataGrid } from '@protobase/ui'\nexport { DataGrid }\n`),
     })
     await expect(buildConfigBundle({ projectDir, outFile: path.join(projectDir, 'dist/out.js') })).rejects.toThrow(
-      '@protobase/ui is not available to a served config; of the @protobase packages and their dependencies it may import @protobase/schema, @protobase/layout, @protobase/layout/jsx-runtime, @protobase/query, @protobase/server, @protobase/server/email, kysely,',
+      '@protobase/ui is not available to a served config; of the @protobase packages and their dependencies it may import @protobase/config, @protobase/schema, @protobase/layout, @protobase/layout/jsx-runtime, @protobase/query, @protobase/server, @protobase/server/email, kysely,',
     )
   })
 
   it("leaves the @protobase packages' dependencies to the serve runtime", async () => {
     projectDir = await createProject({
-      'protobase.config.ts': [
-        `import pg from 'pg'`,
-        `import postgres from 'postgres'`,
-        `import { jsonArrayFrom } from 'kysely/helpers/postgres'`,
-        `import { z } from 'zod'`,
-        `import * as config from './resources'`,
-        `export default { config, options: { found: [typeof pg.Pool, typeof postgres, typeof jsonArrayFrom, typeof z.object] } }`,
-      ].join('\n'),
+      ...probe(
+        [
+          `import pg from 'pg'`,
+          `import postgres from 'postgres'`,
+          `import { jsonArrayFrom } from 'kysely/helpers/postgres'`,
+          `import { z } from 'zod'`,
+          `export { things } from './resources'`,
+          `export const found = [typeof pg.Pool, typeof postgres, typeof jsonArrayFrom, typeof z.object]`,
+        ].join('\n'),
+      ),
       'resources.ts': things,
     })
     const outFile = path.join(projectDir, 'dist/protobase.config.js')
@@ -173,13 +195,12 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
     const code = await readFile(outFile, 'utf8')
     for (const id of ['pg', 'postgres', 'kysely/helpers/postgres', 'zod']) expect(code).toContain(`from "${id}"`)
     expect(code).not.toContain('node_modules')
-    const { default: project } = await import(pathToFileURL(outFile).href)
-    expect(project.options.found).toEqual(['function', 'function', 'function', 'function'])
+    expect((await bundledResources(outFile)).found).toEqual(['function', 'function', 'function', 'function'])
   })
 
   it('leaves the Hono middleware an API function may use to the serve runtime', async () => {
     projectDir = await createProject({
-      'protobase.config.ts': `import { cors } from 'hono/cors'\nimport { HTTPException } from 'hono/http-exception'\nimport { validator } from 'hono/validator'\nexport default { config: {}, options: { found: [cors, HTTPException, validator] } }\n`,
+      ...probe(`import { cors } from 'hono/cors'\nimport { HTTPException } from 'hono/http-exception'\nimport { validator } from 'hono/validator'\nexport const found = [cors, HTTPException, validator]\n`),
     })
     const outFile = path.join(projectDir, 'dist/protobase.config.js')
     await buildConfigBundle({ projectDir, outFile })
@@ -196,7 +217,7 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
 
   it("leaves React to the serve runtime, so an email's component renders with the runtime's React Email renderer", async () => {
     projectDir = await createProject({
-      'protobase.config.ts': `import { welcome } from './welcome'\nexport default { config: {}, options: { welcome } }\n`,
+      ...probe(`export { welcome } from './welcome'\n`),
       'welcome.tsx': welcomeEmail('Button, Html, Text', '<Html><Text>Hi</Text><Button href={url}>Open</Button></Html>'),
     })
     const outFile = path.join(projectDir, 'dist/protobase.config.js')
@@ -204,15 +225,15 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
     const code = await readFile(outFile, 'utf8')
     for (const id of ['react', 'react/jsx-runtime']) expect(code).toContain(`from "${id}"`)
     expect(code).not.toContain('tailwindcss')
-    const { default: project } = await import(pathToFileURL(outFile).href)
-    const email = await project.options.welcome.render({ url: 'https://app.example.com' })
+    const { welcome } = (await bundledResources(outFile)) as { welcome: { render: (data: { url: string }) => Promise<{ html: string; text: string }> } }
+    const email = await welcome.render({ url: 'https://app.example.com' })
     expect(email.html).toContain('href="https://app.example.com"')
     expect(email.text).toBe('Hi\n\nOpen https://app.example.com')
   })
 
   it("refuses React Email's Tailwind component, whose tailwindcss the runtime does not supply", async () => {
     projectDir = await createProject({
-      'protobase.config.ts': `import { welcome } from './welcome'\nexport default { config: {}, options: { welcome } }\n`,
+      ...probe(`export { welcome } from './welcome'\n`),
       'welcome.tsx': welcomeEmail('Html, Tailwind, Text', '<Tailwind><Html><Text className="p-4">{url}</Text></Html></Tailwind>'),
     })
     await expect(buildConfigBundle({ projectDir, outFile: path.join(projectDir, 'dist/out.js') })).rejects.toThrow('tailwindcss is not available to a served config')
@@ -223,14 +244,14 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
       ['better-auth/plugins', 'admin'],
       ['@tanstack/react-query', 'QueryClient'],
     ]) {
-      projectDir = await createProject({ 'protobase.config.ts': `import { ${name} } from '${id}'\nexport default { config: { ${name} } }\n` })
+      projectDir = await createProject(probe(`import { ${name} } from '${id}'\nexport { ${name} }\n`))
       await expect(buildConfigBundle({ projectDir, outFile: path.join(projectDir, 'dist/out.js') })).rejects.toThrow(`${id} is not available to a served config`)
       await rm(projectDir, { recursive: true, force: true })
     }
   })
 
   it('leaves a host package as an import for the runtime to supply, whatever version the project has installed', async () => {
-    projectDir = await createProject({ 'protobase.config.ts': `import { z } from 'zod'\nexport default { config: { z } }\n` })
+    projectDir = await createProject(probe(`import { z } from 'zod'\nexport { z }\n`))
     await writePackage(projectDir, { name: 'zod', version: '3.25.0' })
     const outFile = path.join(projectDir, 'dist/out.js')
     await buildConfigBundle({ projectDir, outFile })
@@ -239,7 +260,7 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
 
   it('leaves a package with a native add-on as an import, also from an inlined package, and reports it', async () => {
     projectDir = await createProject({
-      'protobase.config.ts': `import { hash } from 'native-hash'\nimport { greet } from 'plain-lib'\nexport default { config: {}, options: { hash, greet } }\n`,
+      ...probe(`import { hash } from 'native-hash'\nimport { greet } from 'plain-lib'\nexport { hash, greet }\n`),
     })
     const native = await writePackage(projectDir, { name: 'native-hash' }, prebuildifyFiles)
     await writePackage(projectDir, { name: 'plain-lib', type: 'module' }, {

@@ -4,7 +4,7 @@ import path from 'node:path'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { mergeConfig, webhooks, type ProjectConfig } from '@protobase/server'
+import { servedConfig } from '../support/served-config'
 import { migrationProject } from '../../src/migration/load-project'
 import { migrationParts } from '../../src/migration/parts'
 import { signInGuide } from '../../src/migration/summary'
@@ -30,8 +30,8 @@ const notes = () => resource('notes').table('notes').fields({ id: f.integer().re
 
 // The rest run what the command runs, in process: the files it writes for a config into the project's migrations, by
 // name, none when the database is current.
-const migrationFor = async (config: ProjectConfig) => {
-  const project = migrationProject(mergeConfig(config), databaseUrl)
+const migrationFor = async (config: Parameters<typeof servedConfig>[0]) => {
+  const project = await migrationProject(servedConfig(config), databaseUrl)
   try {
     return (await writeMigrations(migrationParts(project), path.join(projectDir, 'db/migrations'))).map((file) => path.basename(file))
   } finally {
@@ -76,15 +76,17 @@ describe.skipIf(!reachable)('protobase migration', () => {
   })
 
   it('writes the jobs schema for a config with jobs, then nothing once applied', async () => {
-    await writeFile(path.join(projectDir, 'protobase.config.ts'), `import { f, resource } from '@protobase/schema'
-import { defineJob } from '@protobase/server'
+    // Sign-in off, a declared job and its run, and a resource of the convention's config/.
+    await writeFile(path.join(projectDir, 'protobase.config.ts'), `export default { auth: false, jobs: { 'prune-notes': {} } }\n`)
+    await mkdir(path.join(projectDir, 'config'), { recursive: true })
+    await mkdir(path.join(projectDir, 'jobs'), { recursive: true })
+    await writeFile(path.join(projectDir, 'config/index.ts'), `import { f, resource } from '@protobase/schema'
 export const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly(), body: f.text() }).primaryKey((r) => r.id)
-export const prune = defineJob({ name: 'prune-notes', run: () => {} })
-export default { config: { notes }, jobs: { prune } }
 `)
+    await writeFile(path.join(projectDir, 'jobs/prune-notes.ts'), 'export default () => {}\n')
     const first = await migration()
-    // Without auth there is no sign-in, which the command says rather than leave it to "up to date".
-    const noSignIn = `no sign-in is configured, so nothing was written for it: export auth and authenticate from protobase.config.ts, see ${signInGuide}\n`
+    // With sign-in off, the command says so rather than leave it to "up to date".
+    const noSignIn = `sign-in is off, so nothing was written for it: see ${signInGuide}\n`
     expect([first.status, first.stdout, first.stderr]).toEqual([0, `wrote db/migrations/001_jobs.sql\napply them with the project's migrations\n${noSignIn}`, ''])
     expect(await readFile(path.join(projectDir, 'db/migrations/001_jobs.sql'), 'utf8')).toMatch(/^-- The jobs schema this version of Protobase needs, written by `protobase migration`\./)
     await applyAll()
@@ -108,15 +110,15 @@ export default { config: { notes }, jobs: { prune } }
     await applyAll()
   })
 
-  it('writes the webhooks schema for a config that extends webhooks(), after the change capture', async () => {
-    const config = { extends: [webhooks()], config: { notes: notes().events((e) => e.crud()) } }
+  it('writes the webhooks schema for a config with webhooks, after the change capture', async () => {
+    const config = { webhooks: {}, config: { notes: notes().events((e) => e.crud()) } }
     expect(await migrationFor(config)).toEqual(['004_changes.sql', '005_webhooks.sql'])
     await applyAll()
     expect(await migrationFor(config)).toEqual([])
   })
 
   it("writes the role of the built-in assistant's read-only queries, then nothing once applied", async () => {
-    const config = { extends: [webhooks()], config: { notes: notes().events((e) => e.crud()) }, options: { assistant: { apiKey: 'test-key' } } }
+    const config = { webhooks: {}, config: { notes: notes().events((e) => e.crud()) }, assistant: { apiKey: 'test-key' } }
     expect(await migrationFor(config)).toEqual(['006_query.sql'])
     await applyAll()
     expect(await migrationFor(config)).toEqual([])

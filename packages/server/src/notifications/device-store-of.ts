@@ -5,7 +5,7 @@ import type { NotificationsOptions } from './options'
 import { postgresDeviceStore } from './postgres-store'
 
 /**
- * The devices' store `notifications()` configures: the app's own `store`, or the devices table in `db`. An app that
+ * The devices' store `notifications` configures: the app's own `store`, or the devices table in `db`. An app that
  * deletes users without Protobase's auth calls its `removeAllForUser` as it deletes one.
  */
 export const deviceStore = (db: Db, options: NotificationsOptions = {}) => options.store ?? postgresDeviceStore(db, options)

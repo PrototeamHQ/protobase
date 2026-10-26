@@ -18,12 +18,12 @@ This guide makes the desk's tickets a [remote resource](/reference/remote-resour
 
 You need two Protobase projects, each with its own database, its own [admin store](/reference/auth/#admin-store) and a user: the from-scratch preset (`examples/scratch` in the repository) is enough for both. Each runs on its own origin; this guide runs them side by side on one machine:
 
-| | `BETTER_AUTH_URL` in its `.env` | Started with |
+| | `PROTOBASE_URL` in its `.env` | Started with |
 | --- | --- | --- |
 | The service desk | `http://localhost:4720` | `protobase dev --port 4720` |
 | The shop | `http://localhost:4710` | `protobase dev --port 4710` |
 
-`BETTER_AUTH_URL` matters here: it is the issuer of each app's tokens, and the desk will recognise the shop's tokens by it.
+`PROTOBASE_URL` matters here: it is the issuer of each app's tokens, and the desk will recognise the shop's tokens by it.
 
 The shop has its orders. The desk has tickets and their notes:
 
@@ -89,30 +89,25 @@ That is the desk's admin app as its agents use it. Nothing in it knows about the
 
 The shop's admin app will call the desk's API from the browser, with the token the shop gave the signed-in person. The desk needs to accept two things: that token, and calls from the shop's origin.
 
-The token: list the shop as a trusted app in the desk's authenticator, and say what the shop's roles are at the desk:
+The token: list the shop as a trusted app in the desk's `authenticate`, and say what the shop's roles are at the desk. The origin: the shop's admin app runs on `http://localhost:4710`, so the desk answers [CORS](/reference/api/#cors) for it:
 
 ```ts
-// desk: auth/auth.ts
-export const authenticate = betterAuthAuthenticator({
-  auth,
-  tenant: 1,
-  // The shop's admins sign in at the shop; the desk takes the shop's tokens and calls them `shop` here.
-  apps: [{ issuer: 'http://localhost:4710', roles: { admin: 'shop' }, tenant: 1 }],
+// desk: protobase.config.ts
+import { defineConfig } from '@protobase/config'
+
+export default defineConfig({
+  auth: { roles: ['admin'] },
+  authenticate: {
+    tenant: 1,
+    // The shop's admins sign in at the shop; the desk takes the shop's tokens and calls them `shop` here.
+    apps: [{ issuer: 'http://localhost:4710', roles: { admin: 'shop' }, tenant: 1 }],
+  },
+  // The shop's admin app, on its own origin, calls this API from the browser.
+  cors: ['http://localhost:4710'],
 })
 ```
 
 The desk now checks a token from the shop against the shop's keys, at `http://localhost:4710/api/auth/jwks`. Its holder is `shop` at the desk, never the desk's `admin`, so the `deskOnly` rule keeps tickets from being deleted from the shop; a shop user with any other role is refused. The [reference](/reference/remote-resources/#signing-in-at-the-source) has the details, such as the ids those users get.
-
-The origin: the shop's admin app runs on `http://localhost:4710`, so the desk answers [CORS](/reference/api/#cors) for it:
-
-```ts
-// desk: protobase.config.ts
-import * as config from './config'
-import { auth, authenticate } from './auth/auth'
-
-// The shop's admin app, on its own origin, calls this API from the browser.
-export default { config, auth, authenticate, options: { cors: ['http://localhost:4710'] } }
-```
 
 `protobase dev` reloads the desk.
 
@@ -122,17 +117,13 @@ The shop lists the desk as a source, with the resources it draws from it:
 
 ```ts
 // shop: protobase.config.ts
-import * as config from './config'
-import { auth, authenticate } from './auth/auth'
+import { defineConfig } from '@protobase/config'
 
-export default {
-  config,
-  auth,
-  authenticate,
-  options: {
-    sources: [{ url: 'http://localhost:4720/api/v1', label: 'Service desk', resources: ['tickets', 'ticket_notes'] }],
-  },
-}
+export default defineConfig({
+  auth: { roles: ['admin'] },
+  authenticate: { tenant: 1 },
+  remoteResources: [{ url: 'http://localhost:4720/api/v1', label: 'Service desk', resources: ['tickets', 'ticket_notes'] }],
+})
 ```
 
 `url` is the desk's resources API, and `label` its name when the shop's people cannot reach it. The notes are there because a ticket's page lists them: what the shop does not draw, it does not show. A platform that runs the shop can set the same list in `PROTOBASE_SOURCES`, without touching the shop's code:

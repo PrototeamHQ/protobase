@@ -74,7 +74,7 @@ Releases keep the plugin API, below 1.0 too, where a minor version may change th
 
 ## Runtime updates
 
-An app whose host can update its runtime, such as a hosting platform, can show admins an **Update** button in the top bar. `PROTOBASE_RUNTIME_URL` (or `createAdmin`'s `options.runtime.url`) names the host's endpoint, and `/api/meta` passes it on as `runtime: { url }` to callers with the `admin` role only. Without it, or for anyone else, the app shows nothing and asks nothing.
+An app whose host can update its runtime, such as a hosting platform, can show admins an **Update** button in the top bar. `PROTOBASE_RUNTIME_URL` (or `runtimeUpdates.url` in `protobase.config.ts`) names the host's endpoint, and `/api/meta` passes it on as `runtime: { url }` to callers with the `admin` role only. Without it, or for anyone else, the app shows nothing and asks nothing.
 
 The app sends the signed-in user's API token as `Authorization: Bearer <token>` (verified like an [assistant backend](assistant.md#another-backend) does) and expects:
 

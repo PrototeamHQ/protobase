@@ -3,26 +3,25 @@ title: Login with Better Auth
 description: Sign-in with Better Auth, with the admin store, sign-in methods and policy, sign-in providers, staff sign-in, roles, tokens and the public endpoints.
 ---
 
-`@protobase/server` ships a [Better Auth](https://www.better-auth.com) setup (version 1.7): sign-in with a password, an [emailed code](#emailed-sign-in-codes) or a [passkey](#passkeys), [two-factor authentication](#two-factor-authentication), a [sign-in policy](#sign-in-policy) admins set in the app, [staff sign-in](#staff-sign-in) for the team that runs the app, [SAML single sign-on](#sign-in-with-saml), roles, and short-lived JWTs that the API verifies against Better Auth's own JWKS, and, when turned on, [organizations](#organizations) people work in one at a time. All of it is Better Auth's own plugins (`emailOTP`, `twoFactor`, `@better-auth/passkey`, `@better-auth/sso`), wired by `createAuth`.
+`@protobase/server` ships a [Better Auth](https://www.better-auth.com) setup (version 1.7): sign-in with a password, an [emailed code](#emailed-sign-in-codes) or a [passkey](#passkeys), [two-factor authentication](#two-factor-authentication), a [sign-in policy](#sign-in-policy) admins set in the app, [staff sign-in](#staff-sign-in) for the team that runs the app, [SAML single sign-on](#sign-in-with-saml), roles, and short-lived JWTs that the API verifies against Better Auth's own JWKS, and, when turned on, [organizations](#organizations) people work in one at a time. All of it is Better Auth's own plugins (`emailOTP`, `twoFactor`, `@better-auth/passkey`, `@better-auth/sso`), wired by Protobase; the SSO and MCP plugins load only when the config turns them on.
+
+Sign-in is on by default. Its settings are the `auth` key of [`protobase.config.ts`](/reference/config/), and it takes the app's address, secret and name from `url`, `secret` and `name`:
 
 ```ts
-import { betterAuthAuthenticator, createAdmin, createAuth } from '@protobase/server'
+// protobase.config.ts
+import { defineConfig } from '@protobase/config'
 
-const auth = createAuth({ database: pool, baseURL: 'https://admin.example.com', secret: process.env.BETTER_AUTH_SECRET! })
-const admin = createAdmin({ resources, db, auth, authenticate: betterAuthAuthenticator({ auth, tenant: 1 }) })
+export default defineConfig({
+  auth: { roles: ['admin', 'sales'] },
+  authenticate: { tenant: 1 },
+})
 ```
 
-`createAdmin({ auth })` mounts Better Auth at `/api/auth/*` next to the API at `/api/v1`.
+`auth: false` turns sign-in off. The app serves it at `/api/auth/*` next to the API at `/api/v1`. The snippets below show the keys of `auth` they set.
 
 ## Admin store
 
-Users, sessions and signing keys stay apart from the application's tables. The ERP example keeps them in an `auth` schema of its own database, so a host that gives an application one database (and a role that cannot create databases) is enough:
-
-```ts
-createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: 'auth', transaction: true }, ... })
-```
-
-Build that pool with `appPool(pg, process.env.DATABASE_URL)` (from `@protobase/server`), as the presets do: it is the app's one pool on that database, which `protobase dev` and `serve` share, so the store opens no connections beyond [`PROTOBASE_DB_CONNECTIONS`](/reference/cli/#serve), and a database restart is printed instead of stopping the app. A pool of the app's own, such as `new pg.Pool(...)`, opens its connections beside the runtime's.
+Users, sessions and signing keys stay apart from the application's tables, in a schema of the app's own database, `auth` by default (`auth: { schema: 'accounts' }` names another), so a host that gives an application one database (and a role that cannot create databases) is enough. The store shares the app's one pool on `DATABASE_URL`, which `protobase dev` and `serve` open, so it opens no connections beyond [`PROTOBASE_DB_CONNECTIONS`](/reference/cli/#serve), and a database restart is printed instead of stopping the app.
 
 ### Migrations
 
@@ -46,20 +45,16 @@ No resource may be over a table of the store, which holds password hashes, sessi
 
 A store made before 0.48, when `protobase auth migration` compared the database with Better Auth's tables, has no `auth_migrations`. For it, `protobase auth migration` writes the step that adopts it, once: it runs each version in a scratch schema, in a transaction it rolls back, to find the tables and columns that version makes, records each version whose tables and columns the store has, with their types, as applied, and writes the versions whose tables it has none of, such as MCP's for an app that never turned MCP on. The file checks again, when it is applied, that the store has every table and column it adopts, and stops otherwise, naming them. A store that has only some of a version's tables and columns, or has them with other types, is refused, naming what differs: bring it to the schema of Protobase 0.47 first, with that version's `protobase auth migration`. A store set up by Protobase 0.6, with Better Auth's camelCase names, or by `auth:migrate` before it, goes through 0.47 the same way.
 
-`createAuth` takes a `pg` Pool or `{ dialect, type: 'postgres', schemaName? }` as `database`; without `schemaName` the tables go to the connection's `search_path` (usually `public`). The examples keep the store in the `auth` schema of `DATABASE_URL`'s database, so their migrations cover both.
-
 ### An existing users table
 
 The store can use a users table another system made, such as Supabase's `auth.users`, so its rows keep signing in and every foreign key, trigger and function that names the table keeps working:
 
 ```ts
-createAuth({
-  database: { dialect, type: 'postgres', schemaName: 'auth' },
+auth: {
   users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' },
   passwordHashes: ['bcrypt'],
   generateUserId: 'uuid',
-  ...
-})
+}
 ```
 
 - `users.table` names the table, default `user`. `users.columns` maps a column, by the name Protobase gives it (`name`, `email`, `email_verified`, `email_confirmed_at`, `image`, `created_at`, `updated_at`, `role`, `banned`, `ban_reason`, `ban_expires`, `two_factor_enabled`, `last_role`, `last_organization_id`), to the table's own; here the app's roles go to `app_role`, since Supabase's `role` holds the Postgres role. The other tables keep their names and point at this one.
@@ -73,22 +68,48 @@ The store's migrations make the user table only when it is missing, and add each
 
 | Variable | |
 | --- | --- |
-| `BETTER_AUTH_SECRET` | signs cookies and encrypts the token keys; `openssl rand -base64 32`; never committed (`.env.example` has a placeholder) |
-| `BETTER_AUTH_URL` | public URL of the API (default `http://localhost:5173`); issuer and audience of the tokens; when tunnelling, the https tunnel URL |
-| `TRUSTED_ORIGINS` | extra comma separated origins; a dev tunnel needs its exact host here, such as `https://my-tunnel.trycloudflare.com`, since no wildcard is trusted |
+| `PROTOBASE_SECRET` | the app's secret, the default of `secret`: signs cookies and encrypts the token keys; `openssl rand -base64 32`; never committed (`.env.example` has a placeholder) |
+| `PROTOBASE_URL` | the app's public URL, the default of `url` (in `protobase dev`, the dev server's own); issuer and audience of the tokens; when tunnelling, the https tunnel URL |
+| `PROTOBASE_TRUSTED_ORIGINS` | extra comma separated origins, the default of `auth.trustedOrigins`; a dev tunnel needs its exact host here, such as `https://my-tunnel.trycloudflare.com`, since no wildcard is trusted |
 | `PROTOBASE_ORIGINS` | the other origins the app is served on, comma separated, passed by the platform; see [Several origins](#several-origins) |
-| `PROTOBASE_PASSKEY_DOMAIN` | the host new [passkeys](#passkeys) are made for, passed by the platform; default the host of `BETTER_AUTH_URL` |
+| `PROTOBASE_PASSKEY_DOMAIN` | the host new [passkeys](#passkeys) are made for, passed by the platform; default the host of the app's `url` |
 | `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins, passed by the platform; see [CORS](/reference/api/#cors) |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes), emailed [two-factor](#two-factor-authentication) codes and [open sign-up](#open-sign-up), passed by the platform; all four are off without them |
-| `PROTOBASE_APP_NAME` | the app's name, passed by the platform: it overrides `appName` |
+| `PROTOBASE_APP_NAME` | the app's name, passed by the platform: it overrides `name` |
 | `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-provider) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the [operator provider](#operator-provider) its staff sign in with to sign in as people, passed by the platform; staff sign-in is off without them. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional |
 | `PROTOBASE_TRUSTED_PROXIES` | the proxies in front of `protobase serve`, addresses or CIDR ranges, comma separated, such as `172.30.87.1`, the Docker network's gateway in the [compose template](/guides/deploy/#compose-template); see [Client addresses](#client-addresses) |
 
-- Cookies are `SameSite=Lax`, and `Secure` when `BETTER_AUTH_URL` is https. When it is http with a port, their names carry it (`better-auth-5173.session_token`), because a browser shares cookies across the ports of a host: two apps on `localhost` then keep their own sign-ins.
+- Cookies are `SameSite=Lax`, and `Secure` when the app's `url` is https. When it is http with a port, their names carry it (`better-auth-5173.session_token`), because a browser shares cookies across the ports of a host: two apps on `localhost` then keep their own sign-ins.
 - Sign-in is rate limited (5 password attempts per minute and client by default, `signInPerMinute`, which also limits [sign-up](#open-sign-up) requests; 3 per minute for emailed codes); [Client addresses](#client-addresses) says how a client is known.
 - New passwords need at least 12 characters.
-- `appName` is the app's name: authenticator apps and passkey prompts show it, the admin app's sidebar shows it at the top beside the app's [icon](/reference/app-identity/#the-icons), else Protobase's mark (Protobase's wordmark when it is `Protobase`), every browser tab of the admin app ends its title with it, the [installed app](/reference/installable-app/) is called by it, the [auth emails](/reference/email/#protobases-own-mail) name the app with it, and the platform's mailer sends them as it (the sender's display name). `PROTOBASE_APP_NAME`, when set, overrides it; without either it is `Protobase`, then without a display name. See [App identity](/reference/app-identity/).
+- `name`, at the config's top level, is the app's name: authenticator apps and passkey prompts show it, the admin app's sidebar shows it at the top beside the app's [icon](/reference/app-identity/#the-icons), else Protobase's mark (Protobase's wordmark when it is `Protobase`), every browser tab of the admin app ends its title with it, the [installed app](/reference/installable-app/) is called by it, the [auth emails](/reference/email/#protobases-own-mail) name the app with it, and the platform's mailer sends them as it (the sender's display name). `PROTOBASE_APP_NAME`, when set, overrides it; without either it is `Protobase`, then without a display name. See [App identity](/reference/app-identity/).
+
+### Hooks
+
+Sign-in runs the project's own code from `auth/hooks.ts`, which Protobase finds by that path and loads when it builds sign-in. Each hook is a named export, typed with `AuthHooks` from `@protobase/server`, and gets the app's database, `{ db }` (Kysely), as its last argument:
+
+```ts
+// auth/hooks.ts
+import { sql } from 'kysely'
+import type { AuthHooks } from '@protobase/server'
+
+export const generateUserId: AuthHooks['generateUserId'] = async ({ db }) => {
+  const { rows } = await sql<{ id: string }>`select nextval(pg_get_serial_sequence('core.users', 'id'))::text as id`.execute(db)
+  return rows[0]!.id
+}
+```
+
+| Hook | |
+| --- | --- |
+| `generateUserId` | the id of a new user, by any route; see [User ids](#roles-and-access-in-the-api) |
+| `onUserCreated` | `(user, context, { db })`, after a user is created by any route: `protobase users create`, an admin, [open sign-up](#open-sign-up) or a [sign-in provider](#sign-in-with-github) |
+| `generateOrganizationId` | the id of a new [organization](#organizations); default a random UUID |
+| `onOrganizationCreated` | `({ organization, member }, { db })`, after an organization is created, with its owner's membership |
+| `beforeOrganizationDeleted` | `(organization, { db })`, before an organization is deleted; throwing refuses it |
+| `organizationHooks` | Better Auth's organization hooks by name, each with `{ db }` last, run after Protobase's own |
+
+A mailer of the project's own, for sign-in's mail, is the default export of `auth/mailer.ts` (see [Password reset](#password-reset)). An authenticator of its own, in place of the one `authenticate` describes, is the default export of `auth/authenticate.ts` (see [Tokens and roles](#tokens-and-roles)).
 
 ### Client addresses
 
@@ -101,7 +122,7 @@ An app served another way than `protobase serve`, such as its own server around 
 
 ## First run
 
-Accounts are never created over the web while the store is empty: there is no setup route, and [open sign-up](#open-sign-up), when an app turns it on, waits for the first admin, so a freshly deployed URL cannot be claimed by whoever reaches it first. The first admin is created on the host, with the CLI (`protobase users create you@example.com --generate-password`, or `--no-password` for an account that signs in by emailed code, passkey or a sign-in provider only) or from code:
+Accounts are never created over the web while the store is empty: there is no setup route, and [open sign-up](#open-sign-up), when an app turns it on, waits for the first admin, so a freshly deployed URL cannot be claimed by whoever reaches it first. The first admin is created on the host, with the CLI (`protobase users create you@example.com --generate-password`, or `--no-password` for an account that signs in by emailed code, passkey or a sign-in provider only). The `users` commands call these functions of `@protobase/server`, on the app's sign-in:
 
 ```ts
 import { createUser, hasUsers, listUsers } from '@protobase/server'
@@ -193,11 +214,13 @@ PROTOBASE_SMTP_URL=smtps://user:password@smtp.example.com:465   # or smtp://...:
 PROTOBASE_MAIL_FROM=noreply@admin.example.com
 ```
 
-`createAuth` reads both from the environment; the platform passes them, like `DATABASE_URL`. Set both or neither: one without the other, a URL that is not `smtp://` or `smtps://`, or a sender that is not a plain address stops `createAuth` with an error. Without them reset is off: `GET /api/auth/status` says `"passwordReset": false`, the page shows no link, and a reset request answers `400` (`RESET_PASSWORD_DISABLED`). A project can send the mail itself instead, or turn reset off whatever the environment says:
+Sign-in reads both from the environment; the platform passes them, like `DATABASE_URL`. Set both or neither: one without the other, a URL that is not `smtp://` or `smtps://`, or a sender that is not a plain address stops the app at start with an error. Without them reset is off: `GET /api/auth/status` says `"passwordReset": false`, the page shows no link, and a reset request answers `400` (`RESET_PASSWORD_DISABLED`). A project can send the mail itself instead, with a `Mailer` as the default export of `auth/mailer.ts`, or turn mail off whatever the environment says, with `auth: { mailer: false }`:
 
 ```ts
-createAuth({ ..., mailer: { send: async ({ to, subject, text }) => { /* deliver it */ } } })
-createAuth({ ..., mailer: false })
+// auth/mailer.ts
+import type { Mailer } from '@protobase/server'
+
+export default { send: async ({ to, subject, text }) => { /* deliver it */ } } satisfies Mailer
 ```
 
 [Jobs](/reference/jobs/#mail) send their own mail through the same server, with `mail` in their context, and so do the app's [email templates](/reference/email/).
@@ -206,7 +229,7 @@ createAuth({ ..., mailer: false })
 - The SMTP client greets the server with the sender's domain (`admin.example.com` above), not the container's `[127.0.0.1]`; a `?name=` on `PROTOBASE_SMTP_URL` overrides it.
 - A request answers the same whether or not the address has an account, and the mail goes out after the answer, so neither the response nor its timing tells. A send that fails is logged by Better Auth.
 - Requests are limited to 3 per minute and client. Setting a new password ends all of the user's sessions; the new password needs 12 characters like any other.
-- `redirectTo` must be on a trusted origin (`BETTER_AUTH_URL`, one of the app's [other origins](#several-origins) or `TRUSTED_ORIGINS`); the admin app sends its own page with a `password-reset` marker, so the link opens the set-password page there.
+- `redirectTo` must be on a trusted origin (the app's `url`, one of its [other origins](#several-origins) or `auth.trustedOrigins`); the admin app sends its own page with a `password-reset` marker, so the link opens the set-password page there.
 - The link is on the origin the reset was asked on, when that is one of the app's.
 - While the [sign-in policy](#sign-in-policy) turns passwords off, reset is off too (`403`).
 
@@ -234,7 +257,7 @@ The [account page](#account-page)'s Devices tab lists the sessions with this one
 `leakedPasswords: true` refuses a new password that appears in a known data breach. It is off by default, since it sends a request to an outside service each time a password is set.
 
 ```ts
-createAuth({ ..., leakedPasswords: true })
+auth: { leakedPasswords: true }
 ```
 
 The check is Better Auth's [haveIBeenPwned](https://www.better-auth.com/docs/plugins/have-i-been-pwned) plugin's: only the first five characters of the password's SHA-1 hash go to Have I Been Pwned's Pwned Passwords range API, which answers with every leaked hash that starts with them, so the password itself never leaves the server. It runs wherever someone chooses a password: [open sign-up](#open-sign-up), an [invitation](#organizations), a first password (`/account/set-password`), a change, a [reset](#password-reset), and an admin adding an account or setting a password, `createUser` on the host included. Signing in never checks.
@@ -264,7 +287,7 @@ With mail configured, the sign-in page offers "Email me a sign-in code": the per
 By default the page leads with the password and offers the code below it. For an app whose people mostly never set a password, `signInFirst: 'emailCode'` leads with the code instead: the page asks for the address and "Email me a sign-in code", and the password field, with "Forgot password?", waits behind "Use a password". It applies while the [sign-in policy](#sign-in-policy) leaves both on; `/api/auth/status` then answers `signInFirst: "emailCode"`.
 
 ```ts
-createAuth({ ..., signInFirst: 'emailCode' })
+auth: { signInFirst: 'emailCode' }
 ```
 
 - A code works for 10 minutes, once, and three wrong tries end it; asking again sends a new one and the old one stops working. Codes are stored hashed.
@@ -278,27 +301,27 @@ createAuth({ ..., signInFirst: 'emailCode' })
 Off by default: accounts come from the host, an admin, an [invitation](#users-page) to the app or to an [organization](#organizations), or a [sign-in provider](#sign-in-with-github). An app where anyone may make an account, such as a public portal whose visitors save searches, turns it on with the role new accounts get:
 
 ```ts
-createAuth({ ..., roles: ['admin', 'member'], signUp: { role: 'member' } })
+auth: { roles: ['admin', 'member'], signUp: { role: 'member' } }
 ```
 
 The sign-in page then offers "Create an account", and so do [sign-in prompts](/reference/ui-config/#sign-in-prompts): the person enters their address, gets a 6-digit code, and enters it on a page of its own. Only once the code is right does the next page ask for their name and a password. The account is made only then, with the address verified, and signed in.
 
-- `role` is one of `roles`, and never `admin`: `createAuth` stops with an error otherwise. Give it the least a stranger may hold; a request that names another role, or sets `role` through Better Auth's own endpoints, does not get it.
+- `role` is one of `roles`, and never `admin`: the app stops at start with an error otherwise. Give it the least a stranger may hold; a request that names another role, or sets `role` through Better Auth's own endpoints, does not get it.
 - It needs mail: without a mailer it is not offered, `GET /api/auth/status` has no `signUp`, and its endpoints answer `404`. Not with [organizations](#organizations), whose people join by invitation.
 - `POST /api/auth/sign-up/send-code` with `{ email }` mails the code. It answers the same whether the address has an account or not; an address that has one is mailed a note saying so instead of a code, with a link to the sign-in page, so nobody can tell from the answer, and no second account is made.
 - `POST /api/auth/sign-up/verify-code` with `{ email, code }` checks the code on its own and answers `{ ticket }`. A code works for 10 minutes, once, and three wrong tries end it; asking again sends a new one. Codes are stored hashed.
 - `POST /api/auth/sign-up/create` with `{ ticket, name, password? }` makes the account for the address whose code was right, and signs in. A ticket works for 30 minutes, once, and is stored hashed; a password the policy refuses leaves it for another try. A used or expired one answers `SIGN_UP_TICKET_INVALID`, and the sign-up starts again with the address.
 - The password follows the [sign-in policy](#sign-in-policy) as for an invitation: none while passwords are off, optional while emailed codes are on, 12 characters or more. What the policy requires, such as two-factor authentication, is set up after the first sign-in, as for every account.
 - The three requests are limited per minute and client like sign-in (`signInPerMinute`, default 5), and refused (`NO_ADMIN_YET`) while the store has no user.
-- `onUserCreated` runs for every account made this way.
+- The `onUserCreated` [hook](#hooks) runs for every account made this way.
 
 ## Passkeys
 
 People add passkeys (Face ID, Touch ID, Windows Hello, a phone or a security key) on their account page, and sign in with "Sign in with a passkey". It is Better Auth's [passkey](https://www.better-auth.com/docs/plugins/passkey) plugin from `@better-auth/passkey`, under `/api/auth/passkey/*`.
 
-- A passkey is made for the app's passkey domain, its RP ID: the host of `BETTER_AUTH_URL` (`admin.example.com`), or the host of one of its [other origins](#several-origins) set with `passkeyDomain` or `PROTOBASE_PASSKEY_DOMAIN`. For local development, `http://localhost` works.
-- Each passkey keeps the RP ID it was made for (`passkey.rp_id`), so changing the passkey domain breaks none. Passkeys made before Protobase kept it count for the host of `BETTER_AUTH_URL`, which they were made for; renaming that host breaks them. The column is new in 0.10: the server refuses to start until the [migration](#migrations) that adds it is applied.
-- A passkey's answer, for adding a passkey or signing in, must name the origin of `BETTER_AUTH_URL` or one of the [other origins](#several-origins) exactly. An origin listed only in `TRUSTED_ORIGINS`, such as a dev tunnel, cannot use passkeys: list it as one of the other origins instead.
+- A passkey is made for the app's passkey domain, its RP ID: the host of the app's `url` (`admin.example.com`), or the host of one of its [other origins](#several-origins) set with `auth.passkeyDomain` or `PROTOBASE_PASSKEY_DOMAIN`. For local development, `http://localhost` works.
+- Each passkey keeps the RP ID it was made for (`passkey.rp_id`), so changing the passkey domain breaks none. Passkeys made before Protobase kept it count for the host of the app's `url`, which they were made for; renaming that host breaks them. The column is new in 0.10: the server refuses to start until the [migration](#migrations) that adds it is applied.
+- A passkey's answer, for adding a passkey or signing in, must name the origin of the app's `url` or one of the [other origins](#several-origins) exactly. An origin listed only in `auth.trustedOrigins`, such as a dev tunnel, cannot use passkeys: list it as one of the other origins instead.
 - On an app with several origins, every passkey works on each of them through [Related Origin Requests](https://passkeys.dev/docs/advanced/related-origins/) (Chrome and Edge 128, Safari 18, Firefox 152; at most 5 registrable domains).
 - A browser asks for the passkeys of one RP ID at a time. When people have passkeys for more than one of the app's hosts, `GET /api/auth/status` lists them as `passkeyDomains`, the passkey domain first, and the sign-in page adds "Use a passkey made for {host}" for each of the others. `GET /api/auth/passkey/generate-authenticate-options?rpId=<host>` asks for one of them.
 - A passkey sign-in asks for no second step: the passkey is something you have and something you are or know.
@@ -320,7 +343,7 @@ Sign-in with GitHub or another [provider](#sign-in-with-github) is not asked for
 
 Some values ask for a sign-in that proved a passkey or a second step not long ago, such as a field with [`.strongSignIn()`](/reference/data-config/#recent-strong-sign-in). Better Auth's sessions do not say how they began, so the server notes it: each passkey sign-in (`/passkey/verify-authentication`), and each correct second step (`/two-factor/verify-totp`, `verify-otp` and `verify-backup-code`), whether it finishes a sign-in or confirms the session the browser has, stores the time beside the session, in the `verification` table, until the session expires. It needs no migration. Staff sessions are never noted.
 
-`betterAuthAuthenticator` gives a token of the person's own session `signIn.strongAt()`, which reads that time when a request needs it, so other requests do no extra lookup. An app with its own `authenticate` sets `signIn: { staff: false, strongAt }` on the sessions it returns, `strongAt` resolving to a `Date` or `undefined`; without it, such values are refused.
+The app's authenticator gives a token of the person's own session `signIn.strongAt()`, which reads that time when a request needs it, so other requests do no extra lookup. An app with its own authenticator (`auth/authenticate.ts`) sets `signIn: { staff: false, strongAt }` on the sessions it returns, `strongAt` resolving to a `Date` or `undefined`; without it, such values are refused.
 
 Confirming it's them later counts from then: a passkey signs the browser in anew, and a code from the authenticator app, or a backup code, confirms the session it has. `createAuthSession` from `@protobase/client` does both, with `signInWithPasskey()` and `verifyTwoFactor({ method: 'totp', code })`.
 
@@ -337,10 +360,10 @@ Admins set how people sign in on the app's **Sign-in policy** page (the profile 
 | Staff sign-in as a person | On, Email the person, Off | On |
 | Sign in with ... through the platform | On, Off | On |
 
-The Default column is the policy of an app that sets none. An app sets its own in code, the policy that applies until an admin saves one, such as emailed codes and passkeys only, with the methods it changes:
+The Default column is the policy of an app that sets none. An app sets its own in the config, the policy that applies until an admin saves one, such as emailed codes and passkeys only, with the methods it changes:
 
 ```ts
-createAuth({ ..., signInPolicy: { password: 'forbidden' } })
+auth: { signInPolicy: { password: 'forbidden' } }
 ```
 
 It is checked at startup as an admin's save is, so a default that would lock people out stops the app; without mail it applies as a saved policy does (password sign-in is then on). The page shows it, as never changed, until an admin saves a policy. Pair it with `protobase users create --no-password`, so the first admin has no password to fall back on.
@@ -384,7 +407,7 @@ Admins find the log under the policy on the **Sign-in policy** page: each staff 
 
 Any OpenID Connect provider works. Register the app with it as a confidential client:
 
-- Redirect URI: `<BETTER_AUTH_URL>/api/auth/staff/callback`, and `<origin>/api/auth/staff/callback` for each of the app's [other origins](#several-origins): staff come back to the one they started on.
+- Redirect URI: `<url>/api/auth/staff/callback`, and `<origin>/api/auth/staff/callback` for each of the app's [other origins](#several-origins): staff come back to the one they started on.
 - The client authenticates with its secret (`client_secret_basic`) and PKCE (`S256`); scopes `openid email profile`.
 - The ID token carries `groups`, `amr` (or `acr`) and `auth_time`, signed with a key the provider publishes in its JWKS.
 
@@ -398,28 +421,30 @@ PROTOBASE_OPERATOR_NAME="Protobase Cloud"                  # shown as "Continue 
 PROTOBASE_OPERATOR_GROUP=protobase-staff-access            # the default
 ```
 
-Set the first three together or none: some but not all of them stops `createAuth` with an error. In code, `operator` takes the same settings and a few more, and `false` turns staff sign-in off whatever the environment says:
+Set the first three together or none: some but not all of them stops the app at start with an error. In the config, `auth.operator` takes the same settings and a few more, and `false` turns staff sign-in off whatever the environment says:
 
 ```ts
-createAuth({ ..., operator: { issuer, clientId, clientSecret, name: 'Support', group: 'support-leads', scopes: ['groups'], acrValues: ['gold'], sessionMinutes: 15 } })
-createAuth({ ..., operator: false })
+auth: { operator: { issuer, clientId, clientSecret, name: 'Support', group: 'support-leads', scopes: ['groups'], acrValues: ['gold'], sessionMinutes: 15 } }
+auth: { operator: false }
 ```
 
 `scopes` adds scopes for a provider that puts `groups` in the ID token only for a scope of its own (Okta's `groups`, for example), and `acrValues` names the levels that count as a strong sign-in for a provider that reports `acr` instead of `amr` (Keycloak's levels of assurance, for example); the app then asks for them with `acr_values`. `GET /api/auth/status` names the provider as `staffSignIn` while staff can sign in.
 
 ## Sign-in with GitHub
 
-Projects have no sign-in provider of their own by default (a platform can add [one](#platform-sign-in-provider)). `socialProviders` adds Better Auth's [social providers](https://www.better-auth.com/docs/authentication/github), and the sign-in page shows "Continue with GitHub" when `github` is one:
+Projects have no sign-in provider of their own by default (a platform can add [one](#platform-sign-in-provider)). `auth.socialProviders` adds Better Auth's [social providers](https://www.better-auth.com/docs/authentication/github), and the sign-in page shows "Continue with GitHub" when `github` is one:
 
 ```ts
-createAuth({ ..., socialProviders: { github: { clientId: process.env.GITHUB_CLIENT_ID!, clientSecret: process.env.GITHUB_CLIENT_SECRET! } } })
+export default defineConfig(({ env }) => ({
+  auth: { socialProviders: { github: { clientId: env.GITHUB_CLIENT_ID!, clientSecret: env.GITHUB_CLIENT_SECRET! } } },
+}))
 ```
 
-- The callback URL to register with GitHub is `<BETTER_AUTH_URL>/api/auth/callback/github`, and the same path on each of the app's [other origins](#several-origins) it should sign in on. A GitHub OAuth App takes one callback URL, so it covers one origin; a GitHub App takes several. A GitHub App needs the Email addresses (read-only) account permission, or sign-in fails with `email_not_found`.
+- The callback URL to register with GitHub is `<url>/api/auth/callback/github`, and the same path on each of the app's [other origins](#several-origins) it should sign in on. A GitHub OAuth App takes one callback URL, so it covers one origin; a GitHub App takes several. A GitHub App needs the Email addresses (read-only) account permission, or sign-in fails with `email_not_found`.
 - A provider is also a public sign-up: someone without an account gets one with the [default role](#roles). Without a default role the sign-up is refused.
 - `GET /api/auth/status` lists the provider ids as `socialProviders`.
 - `encryptOAuthTokens: true` stores the provider's access, refresh and ID tokens encrypted with the secret.
-- `onUserCreated: async (user, ctx) => { ... }` runs after any user is created, a social sign-up included (Better Auth's `databaseHooks.user.create.after`; the type is `UserCreatedHook`).
+- The `onUserCreated` [hook](#hooks) runs after any user is created, a social sign-up included (Better Auth's `databaseHooks.user.create.after`).
 
 ### Sign-in links and connected accounts
 
@@ -432,17 +457,19 @@ These work for every provider, the project's own and the [platform's](#platform-
 
 ## Sign-in with SAML
 
-`sso.saml` adds the app's SAML 2.0 identity providers, such as Okta, Entra ID or Google Workspace, through Better Auth's [SSO plugin](https://www.better-auth.com/docs/plugins/sso). The sign-in page shows "Continue with {name}" for each:
+`auth.sso.saml` adds the app's SAML 2.0 identity providers, such as Okta, Entra ID or Google Workspace, through Better Auth's [SSO plugin](https://www.better-auth.com/docs/plugins/sso). The sign-in page shows "Continue with {name}" for each:
 
 ```ts
 import { readFileSync } from 'node:fs'
 
-createAuth({ ..., sso: { saml: [{ id: 'okta', name: 'Okta', domains: ['example.com'], idp: { metadata: readFileSync('auth/okta-metadata.xml', 'utf8') } }] } })
+export default defineConfig({
+  auth: { sso: { saml: [{ id: 'okta', name: 'Okta', domains: ['example.com'], idp: { metadata: readFileSync('auth/okta-metadata.xml', 'utf8') } }] } },
+})
 ```
 
 Instead of the metadata XML, `idp` takes the provider's entity ID, sign-in URL and signing certificate: `{ entityId, ssoUrl, certificate }`, where `certificate` is a PEM, or a list of them while one rotates. The id is lowercase letters, digits or `-`, and differs from those of the other sign-in providers; `name` defaults to `SSO`.
 
-- **What the provider's admin needs:** the entity ID and metadata URL `<BETTER_AUTH_URL>/api/auth/sso/saml2/sp/metadata?providerId=okta`, which most providers import, and the ACS URL `<origin>/api/auth/sso/saml2/sp/acs/okta` for each of the app's [origins](#several-origins). The assertion carries the address as attribute `email` (or the NameID), and the name as `givenName` and `surname` or as `displayName`; `attributes: { email, name, firstName, lastName }` names other attributes. The NameID identifies the account, so a stable one is best: persistent, or the address.
+- **What the provider's admin needs:** the entity ID and metadata URL `<url>/api/auth/sso/saml2/sp/metadata?providerId=okta`, which most providers import, and the ACS URL `<origin>/api/auth/sso/saml2/sp/acs/okta` for each of the app's [origins](#several-origins). The assertion carries the address as attribute `email` (or the NameID), and the name as `givenName` and `surname` or as `displayName`; `attributes: { email, name, firstName, lastName }` names other attributes. The NameID identifies the account, so a stable one is best: persistent, or the address.
 - **Who gets in:** someone at one of `domains` (subdomains count) signs in to the account with that address, linked on the first sign-in, or gets a new one with the [default role](#roles), as with GitHub; without a default role the sign-up is refused. An address outside `domains` is refused, whether or not an account has it (`EMAIL_DOMAIN_NOT_ALLOWED`, or `account_not_linked` for an existing account). With [organizations](#organizations), people still join one by invitation.
 - **Sign-in links** work as for the other providers: `https://<app>/?sign-in=okta` starts it at once. A SAML provider links an account by signing in, so the account page does not offer to connect it.
 - `GET /api/auth/status` lists the providers as `samlProviders: [{ id, name }]`. Like `socialProviders`, they have no row in the [sign-in policy](#sign-in-policy), and a required passkey or two-factor authentication still holds back the token until it is set up.
@@ -466,7 +493,7 @@ PROTOBASE_SIGN_IN_PROVIDER=oidc                       # the default; the button,
 PROTOBASE_SIGN_IN_NAME="Acme SSO"                      # shown as "Continue with Acme SSO"; default GitHub for github, SSO otherwise
 ```
 
-Register the app with the provider as a confidential client with the redirect URI `<BETTER_AUTH_URL>/api/auth/callback/<provider>` (`/api/auth/callback/oidc` by default), and the same path on each of the app's [other origins](#several-origins). The app authenticates with its secret (`client_secret_basic`) and PKCE (`S256`), asks for `openid email profile`, and takes the person from the ID token only, verified against the provider's JWKS, the issuer, the client and the nonce. The provider needs no userinfo endpoint.
+Register the app with the provider as a confidential client with the redirect URI `<url>/api/auth/callback/<provider>` (`/api/auth/callback/oidc` by default), and the same path on each of the app's [other origins](#several-origins). The app authenticates with its secret (`client_secret_basic`) and PKCE (`S256`), asks for `openid email profile`, and takes the person from the ID token only, verified against the provider's JWKS, the issuer, the client and the nonce. The provider needs no userinfo endpoint.
 
 - **No sign-up:** someone without an account is refused (`signup_disabled`); admins add people as before. A provider the project did not choose never opens the app to new people.
 - **The project's own provider wins:** with `socialProviders.github` in code and `PROTOBASE_SIGN_IN_PROVIDER=github`, the project's GitHub app handles the sign-in and the platform's is left out.
@@ -474,11 +501,11 @@ Register the app with the provider as a confidential client with the redirect UR
 - **Startup:** the provider's settings are read when the app starts; when they cannot be, the provider is left out until the next start (the status and sign-in page do not offer it) and every other way to sign in works.
 - The [sign-in policy](#sign-in-policy) has a row for it, and `GET /api/auth/status` names it as `platformSignIn: { provider, name }` besides listing it in `socialProviders`.
 
-Set the first three together or none: some but not all of them stops `createAuth` with an error. In code, `signInProvider` takes the same settings and `scopes`, and `false` turns it off whatever the environment says:
+Set the first three together or none: some but not all of them stops the app at start with an error. In the config, `auth.signInProvider` takes the same settings and `scopes`, and `false` turns it off whatever the environment says:
 
 ```ts
-createAuth({ ..., signInProvider: { issuer, clientId, clientSecret, provider: 'oidc', name: 'Acme SSO', scopes: ['groups'] } })
-createAuth({ ..., signInProvider: false })
+auth: { signInProvider: { issuer, clientId, clientSecret, provider: 'oidc', name: 'Acme SSO', scopes: ['groups'] } }
+auth: { signInProvider: false }
 ```
 
 ### Self-hosting with Dex or Keycloak
@@ -513,7 +540,7 @@ People sign in with the address their account here has, or connect the provider 
 
 ## Roles
 
-The roles are a project setting: `createAuth({ ..., roles: ['admin', 'auditor', 'sales', 'accountant'] })`. `admin` is always included and first; the default is `['admin', 'user']`. Names are lowercase letters, digits, `_` and `-`. `defaultRole` is what a new user gets when no role is given. Without it, and with more than one role besides `admin`, creating a user without a role is an error that lists the choices (the CLI then needs `--role`); with exactly one other role, that role is the default. `auth.defaultRole` is `undefined` when a role must be chosen. A user can hold several roles (`setUserRole(auth, { email, role: 'sales,accountant' })`), and acts with one of them at a time, the [active role](#active-role).
+The roles are a project setting: `auth: { roles: ['admin', 'auditor', 'sales', 'accountant'] }`. `admin` is always included and first; the default is `['admin', 'user']`. Names are lowercase letters, digits, `_` and `-`. `defaultRole` is what a new user gets when no role is given. Without it, and with more than one role besides `admin`, creating a user without a role is an error that lists the choices (the CLI then needs `--role`); with exactly one other role, that role is the default. `auth.defaultRole` is `undefined` when a role must be chosen. A user can hold several roles (`setUserRole(auth, { email, role: 'sales,accountant' })`), and acts with one of them at a time, the [active role](#active-role).
 
 `createUser`, `setUserRole` and Better Auth's own admin endpoints refuse a role outside the list. `roleChoices(auth)` returns the list, for the CLI's `users set-role` and for UIs. Only `admin` gains Better Auth admin-plugin permissions (managing users); every other role is for your access rules, which see them as `ctx.user.roles`. Besides `admin`, the role `ai` opens the [assistant](/reference/assistant/#who-sees-it) when the project lists it.
 
@@ -525,11 +552,10 @@ The app offers the roles in the profile menu, below the organizations, for someo
 
 ## Organizations
 
-Off by default: without `organizations`, an app is one organization, as above. Turned on, people work in one organization at a time, `.tenant` resources show only its rows, and the organization comes from the signed-in person instead of `tenant`:
+Off by default: without `organizations`, an app is one organization, as above. Turned on, people work in one organization at a time, `.tenant` resources show only its rows, and the organization comes from the signed-in person instead of `authenticate.tenant`:
 
 ```ts
-const auth = createAuth({
-  ...,
+auth: {
   roles: {
     admin: 'Superuser',
     manager: { label: 'Manager', grants: ['sales', 'accountant'] },
@@ -537,8 +563,7 @@ const auth = createAuth({
     accountant: 'Accountant',
   },
   organizations: { create: 'everyone' },
-})
-const authenticate = betterAuthAuthenticator({ auth })
+}
 ```
 
 It is Better Auth's organization plugin, with its tables named in snake_case (`organization`, `member`, `invitation`, `session.active_organization_id`); every store has them, and `user.last_organization_id`, with organizations on or off (see [migrations](#migrations)).
@@ -547,15 +572,15 @@ It is Better Auth's organization plugin, with its tables named in snake_case (`o
 
 **Who gives which role.** Someone may give or take away a member's app role only if they hold it, in that organization or globally, or hold a role whose `grants` list it (`manager` above gives `accountant` without holding it); grants do not chain, and a superuser may give any. Only a superuser changes global roles. The creator of an organization becomes its owner with every app role (`creatorAppRoles`, default `'all'`), so they can give them on; for a role added later, list it in a role owners hold, or run `protobase organizations add-app-role <role> --to owners`.
 
-**The organization in the token.** A new session starts in the organization the person last worked in, else their oldest membership. `/api/auth/token` adds `org` (the organization), `org_role` and `app_roles` (the membership's, narrowed to the active role), read when the token is issued; a removed member's token, or one carrying an app role taken away, [stops working](#when-a-token-stops-working) on its next request. `betterAuthAuthenticator` makes `org` the tenant and `ctx.organization.id`, and adds `app_roles` to the global roles. `POST /api/auth/organization/switch` with `{ organizationId }` moves the session; the next token names the new organization, without signing in again. Someone with a global role may switch into any organization, without being a member, and sees there what those roles allow; each such entry is an `organization.entered` [audit event](/reference/api/#audit-events). `GET /api/auth/organization/search?query=&offset=` lists every organization for them, ordered by slug, 20 at a time with the `total`, narrowed by text in the name or slug; the Organizations page shows it as All organizations. A list across every organization stays a resource without `.tenant`, readable by the global role; a list across the organizations someone is a member of is a `.tenant` resource with `across: 'memberships'` (see [Lists across organizations](/reference/access/#lists-across-organizations)).
+**The organization in the token.** A new session starts in the organization the person last worked in, else their oldest membership. `/api/auth/token` adds `org` (the organization), `org_role` and `app_roles` (the membership's, narrowed to the active role), read when the token is issued; a removed member's token, or one carrying an app role taken away, [stops working](#when-a-token-stops-working) on its next request. The app's authenticator makes `org` the tenant and `ctx.organization.id`, and adds `app_roles` to the global roles. `POST /api/auth/organization/switch` with `{ organizationId }` moves the session; the next token names the new organization, without signing in again. Someone with a global role may switch into any organization, without being a member, and sees there what those roles allow; each such entry is an `organization.entered` [audit event](/reference/api/#audit-events). `GET /api/auth/organization/search?query=&offset=` lists every organization for them, ordered by slug, 20 at a time with the `total`, narrowed by text in the name or slug; the Organizations page shows it as All organizations. A list across every organization stays a resource without `.tenant`, readable by the global role; a list across the organizations someone is a member of is a `.tenant` resource with `across: 'memberships'` (see [Lists across organizations](/reference/access/#lists-across-organizations)).
 
-**Invitations.** Better Auth's `POST /api/auth/organization/invite-member` with `{ organizationId, email, role, appRoles }`; inviting again replaces the earlier invitation, and it works for `invitationDays` (default 7). The email links to `{baseURL}/-/invitation?token=…` (`invitationUrl`), with a token signed with `secret`, since members can read invitation ids; without a mailer, the answer carries the `link` to pass on. The link page shows `GET /api/auth/invitation?token=`, accepts with `POST /api/auth/invitation/accept` for someone signed in as the invited address, and makes an account with `POST /api/auth/invitation/sign-up` (`{ token, name, password? }`) for an address without one. Someone signed in sees the invitations for their own address with Better Auth's `GET /api/auth/organization/list-user-invitations`, on the organizations page, and accepts one there with `POST /api/auth/invitation/accept-own` (`{ invitationId }`). The link page and its sign-up serve [invitations to the app](#users-page) too. [Open sign-up](#open-sign-up) is not available with organizations: an invitation is the address someone vouched for.
+**Invitations.** Better Auth's `POST /api/auth/organization/invite-member` with `{ organizationId, email, role, appRoles }`; inviting again replaces the earlier invitation, and it works for `invitationDays` (default 7). The email links to `{url}/-/invitation?token=…` (`invitationUrl`), with a token signed with the app's `secret`, since members can read invitation ids; without a mailer, the answer carries the `link` to pass on. The link page shows `GET /api/auth/invitation?token=`, accepts with `POST /api/auth/invitation/accept` for someone signed in as the invited address, and makes an account with `POST /api/auth/invitation/sign-up` (`{ token, name, password? }`) for an address without one. Someone signed in sees the invitations for their own address with Better Auth's `GET /api/auth/organization/list-user-invitations`, on the organizations page, and accepts one there with `POST /api/auth/invitation/accept-own` (`{ invitationId }`). The link page and its sign-up serve [invitations to the app](#users-page) too. [Open sign-up](#open-sign-up) is not available with organizations: an invitation is the address someone vouched for.
 
 **Members.** Better Auth's `list-members`, `update-member-role`, `remove-member` and `leave`; `POST /api/auth/organization/set-app-roles` (`{ memberId, appRoles }`); `POST /api/auth/organization/transfer-ownership` (`{ memberId, keepAs? }`) makes a member owner and the caller an admin in one step. `GET /api/auth/organization/current` answers the organization a session works in with the caller's roles there.
 
-**Deleting** an organization (Better Auth's `delete`, owners only) is refused with `409 ORGANIZATION_HAS_RECORDS` while a `.tenant` resource has rows in it; `deleteRecords: 'cascade'` leaves it to the project's foreign keys. `beforeDelete` may refuse too.
+**Deleting** an organization (Better Auth's `delete`, owners only) is refused with `409 ORGANIZATION_HAS_RECORDS` while a `.tenant` resource has rows in it; `deleteRecords: 'cascade'` leaves it to the project's foreign keys. The `beforeOrganizationDeleted` [hook](#hooks) may refuse too.
 
-**Ids.** `generateId` makes a new organization's id, by default a UUID; `.tenant` columns hold it, so `text` or `uuid`. An app whose tenant columns are integers takes the next value of its own organizations sequence instead, and adds its own row in `onCreated`, as the ERP example does (`examples/erp/auth/auth.ts`). An app that ran as one organization keeps its tenant value: `protobase organizations create "Acme" --owner you@example.com --id 1 --members all` makes that organization, with every user in it: superusers as owners, everyone else as a member, their global roles moved onto the membership.
+**Ids.** The `generateOrganizationId` [hook](#hooks) makes a new organization's id, by default a UUID; `.tenant` columns hold it, so `text` or `uuid`. An app whose tenant columns are integers takes the next value of its own organizations sequence instead, and adds its own row in `onOrganizationCreated`, as the ERP example does (`examples/erp/auth/hooks.ts`). An app that ran as one organization keeps its tenant value: `protobase organizations create "Acme" --owner you@example.com --id 1 --members all` makes that organization, with every user in it: superusers as owners, everyone else as a member, their global roles moved onto the membership.
 
 The app's own pages are under the profile menu: the switcher, "Manage organizations" (theirs, a new one, and for global roles any one), "Organization" (details, leaving, handing over, deleting), and for owners and admins "Members" and "Invitations". The client has them as `session.organizations` (`list`, `current`, `switchTo`, `members`, `invite`, ...).
 
@@ -563,13 +588,13 @@ The app's own pages are under the profile menu: the switcher, "Manage organizati
 
 Sign in at `POST /api/auth/sign-in/email` (or with a code or passkey), then `GET /api/auth/token` (with the session cookie) returns `{ token }`, an EdDSA JWT valid for 15 minutes, unless the [sign-in policy](#sign-in-policy) requires something the account has not set up; the keys are at `/api/auth/jwks`. Send it as `Authorization: Bearer <token>`. `/token` is the only way to a token in the browser: the `set-auth-jwt` header of Better Auth's JWT plugin is off. No other answer under `/api/auth` carries the session token (Better Auth's `token` and `session.token`, as in a sign-in, `get-session` or `list-sessions`): the session is the httpOnly cookie's alone, so script on the page never holds it.
 
-`betterAuthAuthenticator` maps the claims to a session: `sub` is the user id, `roles` come from the `role` claim, the session's [active role](#active-role) of those in the admin plugin's `role` column on the user (a comma separated string; the first user is always `admin`). Access rules see them as `ctx.user.roles`. Without organizations, the tenant is the configured `tenant` option, never a claim; with them, it is the organization the session works in (`org`, see [organizations](#organizations)). The key set is cached in memory: read once, again every 10 minutes (so removed keys stop being accepted), and again when a token names an unknown `kid` (a rotated key), at most once per 30 seconds however many such tokens arrive (`cache: { refreshMs, minReloadMs }`). Pass `jwksUrl` and `issuer` instead of `auth` when the API runs apart from the auth server.
+The app's authenticator, which the config's `authenticate` describes, maps the claims to a session: `sub` is the user id, `roles` come from the `role` claim, the session's [active role](#active-role) of those in the admin plugin's `role` column on the user (a comma separated string; the first user is always `admin`). Access rules see them as `ctx.user.roles`. Without organizations, the tenant is `authenticate.tenant`, never a claim; with them, it is the organization the session works in (`org`, see [organizations](#organizations)). The key set is cached in memory: read once, again every 10 minutes (so removed keys stop being accepted), and again when a token names an unknown `kid` (a rotated key), at most once per 30 seconds however many such tokens arrive (`authenticate: { cache: { refreshMs, minReloadMs } }`). An API that runs apart from the auth server sets `authenticate: { jwksUrl, issuer }`, with `organizations: true` when its tokens carry organizations; that turns its own sign-in off, unless the config sets `auth` too. An authenticator of the app's own, such as `jwtAuthenticator(...)` from `@protobase/server` for the tokens of another system, is the default export of `auth/authenticate.ts`, which replaces the one `authenticate` describes.
 
 `jwtAuthenticator` accepts asymmetric signature algorithms only unless you pass `algorithms` explicitly (the tests do, for HS256), so a token cannot be forged with a public key used as an HMAC secret; Better Auth signs with its own key pair and publishes the public keys at `/api/auth/jwks`. An expired, tampered, wrongly signed or missing token is a `401` problem with `WWW-Authenticate: Bearer`; with an [anonymous role](/reference/access/#anonymous-access), a missing one on the resources API is served as that role instead.
 
 ### When a token stops working
 
-With `auth`, `betterAuthAuthenticator` checks on every request that the token still stands, so these take effect on the next request every route that authenticates sees (the resources API, `/api/meta`, batches, functions, files and new `/live` streams), not when the token expires:
+With sign-in on, the app's authenticator checks on every request that the token still stands, so these take effect on the next request every route that authenticates sees (the resources API, `/api/meta`, batches, functions, files and new `/live` streams), not when the token expires:
 
 | Change | The token |
 | --- | --- |
@@ -581,14 +606,14 @@ With `auth`, `betterAuthAuthenticator` checks on every request that the token st
 
 A refused token is a `401`, as an expired one is, and the client retries the request once with a new token from `/api/auth/token`. Tokens carry their session's id in `sid`; one from [`issueToken`](#tokens-for-scripts-and-curl) names none, and is checked against the user alone.
 
-The cost is two or three lookups by key in the auth store per request: the session by `sid`, the user by `sub`, and with organizations the membership. Nothing is cached, so every server process sees a change at once. An open `/live` stream was admitted when it connected and keeps running until it closes. With `jwksUrl` instead of `auth`, the API cannot read the auth store and a token works until it expires, as do tokens of [other apps](#users-of-another-app).
+The cost is two or three lookups by key in the auth store per request: the session by `sid`, the user by `sub`, and with organizations the membership. Nothing is cached, so every server process sees a change at once. An open `/live` stream was admitted when it connected and keeps running until it closes. With `authenticate.jwksUrl` instead of sign-in of its own, the API cannot read the auth store and a token works until it expires, as do tokens of [other apps](#users-of-another-app).
 
 ## Users of another app
 
-An API can admit the signed-in users of another Protobase app with the tokens that app issues, so that app's admin app can draw its resources as [remote resources](/reference/remote-resources/). `betterAuthAuthenticator`'s `apps` lists each such app by its `baseURL`, the issuer of its tokens, with the roles its users' global roles become here:
+An API can admit the signed-in users of another Protobase app with the tokens that app issues, so that app's admin app can draw its resources as [remote resources](/reference/remote-resources/). `authenticate.apps` lists each such app by its `url`, the issuer of its tokens, with the roles its users' global roles become here:
 
 ```ts
-betterAuthAuthenticator({ auth, apps: [{ issuer: 'https://shop.example.com', roles: { admin: 'shop' }, tenant: 1 }] })
+authenticate: { apps: [{ issuer: 'https://shop.example.com', roles: { admin: 'shop' }, tenant: 1 }] }
 ```
 
 Their tokens are verified against that app's keys at `<issuer>/api/auth/jwks`; a role it does not map is dropped, a role held in one of its organizations never counts, and a user left with none gets `403`; their id here is `<sub>@<that app's host>`. See [Signing in at the source](/reference/remote-resources/#signing-in-at-the-source).
@@ -598,12 +623,12 @@ Their tokens are verified against that app's keys at `<issuer>/api/auth/jwks`; a
 An app moving from Supabase keeps its `supabase.auth` calls and its `@supabase/ssr` session checks: the app serves GoTrue's endpoints at `/api/sb/auth/v1`, over the same Better Auth sign-in, so `createClient(<the app's origin>/api/sb, <publishable key>)` signs in, refreshes, reads the user and signs out as on Supabase.
 
 - `signInWithPassword`, `signInWithOtp` then `verifyOtp({ email, token, type: 'email' })`, `signInWithOAuth` with one of the app's [sign-in providers](#sign-in-with-github) (PKCE, as `@supabase/ssr` uses, or the implicit flow), `refreshSession`, `getUser`, `getClaims`, `updateUser({ password, data })` and `signOut` work. Each goes through Better Auth's own endpoint, with its rate limits and the [sign-in policy](#sign-in-policy).
-  - The implicit flow is for an https `redirect_to` whose exact origin is a trusted origin. For http, including localhost, custom schemes and hosts that only a wildcard pattern in `TRUSTED_ORIGINS` matches, use PKCE: supabase-js `flowType: 'pkce'`; `@supabase/ssr` already uses it.
+  - The implicit flow is for an https `redirect_to` whose exact origin is a trusted origin. For http, including localhost, custom schemes and hosts that only a wildcard pattern in `auth.trustedOrigins` matches, use PKCE: supabase-js `flowType: 'pkce'`; `@supabase/ssr` already uses it.
   - The sign-in must start at `/api/sb/auth/v1/authorize` in the same browser: `/api/sb/auth/v1/callback` hands a code or a session only at the end of a provider sign-in started there.
   - The browser keeps no Protobase session afterwards: the app holds its own.
-  - A wildcard pattern in `TRUSTED_ORIGINS` still trusts every host it matches with the sign-in code, so list only hosts you control.
+  - A wildcard pattern in `auth.trustedOrigins` still trusts every host it matches with the sign-in code, so list only hosts you control.
 - Addresses are proved with the emailed 6-digit code, never a link. `signUp({ email, password, options: { data } })` needs [open sign-up](#open-sign-up) and mails a sign-up code; `verifyOtp({ email, token, type: 'signup' })` makes the account, with `data` in the [user metadata column](#an-existing-users-table), and signs in. Until then there is no account and `signUp` answers no user. `resetPasswordForEmail` mails a sign-in code; `verifyOtp` with `type: 'recovery'` signs in, and `updateUser({ password })` sets the new password.
-- The access token is ES256, valid for an hour, with Supabase's claims: `sub`, `role: authenticated`, `aud: authenticated`, `email`, `app_metadata`, `user_metadata`, `aal`, `session_id`, issued by `<baseURL>/api/sb/auth/v1`. Its keys are at `/api/sb/auth/v1/.well-known/jwks.json`. It is apart from the EdDSA token of [Tokens and roles](#tokens-and-roles): neither is accepted for the other.
+- The access token is ES256, valid for an hour, with Supabase's claims: `sub`, `role: authenticated`, `aud: authenticated`, `email`, `app_metadata`, `user_metadata`, `aal`, `session_id`, issued by `<url>/api/sb/auth/v1`. Its keys are at `/api/sb/auth/v1/.well-known/jwks.json`. It is apart from the EdDSA token of [Tokens and roles](#tokens-and-roles): neither is accepted for the other.
 - The refresh token is the Better Auth session's token. Each refresh gives the session a new one, so a refresh token works once, and signing out, a ban or a revoked session ends it.
 - `email_confirmed_at` is the time the address was confirmed, in the user table's `email_confirmed_at` column. An account verified before that column existed has none.
 - Not offered:
@@ -632,14 +657,14 @@ It is signed with the same keys and carries the same claims as a token from `/ap
 With `mcp`, the app is an OAuth provider for MCP clients, such as AI assistants and code editors that speak MCP: a person adds the app's MCP address to the client, the client registers itself, the person signs in on the app's own pages and allows it on the connect page, and the client gets tokens that act as that person. What the client can do with them is in [MCP](/reference/mcp/).
 
 ```ts
-createAuth({ ..., mcp: true })
-createAuth({ ..., mcp: { path: '/api/mcp', connectPage: '/-/connect' } })
+auth: { mcp: true }
+auth: { mcp: { path: '/api/mcp', connectPage: '/-/connect' } }
 ```
 
-- `path` is the MCP endpoint's path on the origin of `baseURL`, its OAuth resource (default `/api/mcp`); `connectPage` is the connect page's path (default `/-/connect`, for a UI at the root); `fetchClientMetadata` replaces how a client's metadata document is fetched (default a transport that refuses private and reserved addresses). `auth.mcp` is `{ resource, path, scope }`, for the endpoint.
-- It needs an https `baseURL`, or localhost. Every store has the OAuth tables (see [migrations](#migrations)), so turning MCP on or off needs no migration. Turning it off drops nothing: the clients and grants stay, and work again once MCP is on, so disconnect the clients first to forget them. While MCP is off, ending a person's sessions, banning them or setting their password disconnects none of their clients. Clients connect through `baseURL`'s origin only, whatever [other origins](#several-origins) the app has. Changing `path` makes every client connect again.
+- `path` is the MCP endpoint's path on the origin of the app's `url`, its OAuth resource (default `/api/mcp`); `connectPage` is the connect page's path (default `/-/connect`, for a UI at the root). A client's metadata document is fetched through a transport that refuses private and reserved addresses.
+- It needs an https `url`, or localhost. Every store has the OAuth tables (see [migrations](#migrations)), so turning MCP on or off needs no migration. Turning it off drops nothing: the clients and grants stay, and work again once MCP is on, so disconnect the clients first to forget them. While MCP is off, ending a person's sessions, banning them or setting their password disconnects none of their clients. Clients connect through the origin of `url` only, whatever [other origins](#several-origins) the app has. Changing `path` makes every client connect again.
 - Clients find the provider at `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`, register at `/api/auth/oauth2/register` (dynamic registration) or are known by an https client id that names their metadata document (CIMD), and are asked for nothing per client. Back-channel logout, a key set URL at registration (`jwks_uri`) and the client credentials grant are refused, though a client with a metadata document may publish its keys on its own origin, and the provider's client management, userinfo, logout and consent endpoints are closed.
-- The scopes are `mcp` and `offline_access`, which is added when a client leaves it out. Access tokens last 15 minutes, carry the MCP resource as their audience and `typ: at+jwt`, and work for MCP only: the app's API refuses them, and the MCP endpoint refuses the app's own tokens. Refresh tokens roll for 30 days. `betterAuthAuthenticator(...).forAudience(auth.mcp.resource)` verifies them, and with `auth` checks on every request that the person still allows the client, still exists unbanned and still holds each role the token carries, so a disconnected client, a ban, a lowered role or a deleted user stops its access tokens at the next request rather than at their expiry; a lookup that fails refuses the request. A client that binds its tokens to a key (DPoP) sends a proof with each, checked against the resource's URL.
+- The scopes are `mcp` and `offline_access`, which is added when a client leaves it out. Access tokens last 15 minutes, carry the MCP resource as their audience and `typ: at+jwt`, and work for MCP only: the app's API refuses them, and the MCP endpoint refuses the app's own tokens. Refresh tokens roll for 30 days. The MCP endpoint verifies them, and checks on every request that the person still allows the client, still exists unbanned and still holds each role the token carries, so a disconnected client, a ban, a lowered role or a deleted user stops its access tokens at the next request rather than at their expiry; a lookup that fails refuses the request. A client that binds its tokens to a key (DPoP) sends a proof with each, checked against the resource's URL.
 - A grant keeps the role and organization the person worked in when they allowed the client. A refresh is refused once they no longer hold that role or may no longer enter that organization, once the [sign-in policy](#sign-in-policy) requires something they have not set up, and while they are banned; access tokens already issued last out their 15 minutes. A grant made without a role is refused.
 - Someone who has not set up what the sign-in policy requires is sent to the setup page first. Staff signed in as a person cannot allow a client, nor disconnect one. An account whose address is not verified cannot connect a client until it signs in once with an emailed code: a provider sign-up whose provider did not vouch for the address, or a password account created before Protobase created accounts verified. With password-only sign-in, or without mail, it cannot.
 - The connect page shows the client's name as the client's own claim, who published it for a client with an https id, where the code goes (a website by its host, an app on this computer by its port, or an app on the device by its whole address), and the signed-in address. It cannot be used inside another site's frame, and Allow takes a click only once the page has been in front for half a second. `protobase serve` and `protobase dev` send `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'` with every page of the UI; a host that serves `public/` itself should send them too.
@@ -649,17 +674,18 @@ createAuth({ ..., mcp: { path: '/api/mcp', connectPage: '/-/connect' } })
 
 ## Several origins
 
-An app can be served on more than one origin, such as its platform address and the customer's own domain. `origins` lists the others; it defaults to `PROTOBASE_ORIGINS`, which a platform sets:
+An app can be served on more than one origin, such as its platform address and the customer's own domain. `auth.origins` lists the others; it defaults to `PROTOBASE_ORIGINS`, which a platform sets:
 
 ```ts
-createAuth({ ..., baseURL: 'https://erp-x1.protobase.net', origins: ['https://admin.shop.com'], passkeyDomain: 'admin.shop.com' })
+url: 'https://erp-x1.protobase.net',
+auth: { origins: ['https://admin.shop.com'], passkeyDomain: 'admin.shop.com' },
 ```
 
-- A request to one of them is answered for its own host: the sign-in callbacks, the [password reset](#password-reset) link and its `redirectTo`, and a [staff sign-in](#staff-sign-in) stay there. A request to any other host is answered for `baseURL`.
-- Tokens keep `baseURL` as issuer and audience, whichever origin issued them, so the API takes them on every origin. `auth.issuer` is that value and `auth.origins` every origin, `baseURL`'s first.
+- A request to one of them is answered for its own host: the sign-in callbacks, the [password reset](#password-reset) link and its `redirectTo`, and a [staff sign-in](#staff-sign-in) stay there. A request to any other host is answered for the app's `url`.
+- Tokens keep the app's `url` as issuer and audience, whichever origin issued them, so the API takes them on every origin.
 - Sessions are cookies of each host: a person signs in once per origin.
 - `GET /.well-known/webauthn` answers `{ "origins": [...] }` with every origin of the app, on each of them, so its [passkeys](#passkeys) work on all. `protobase serve` and `protobase dev` send that path to the server, whatever the bundle's `api` says; a host in front must too.
-- Each origin is a URL with the scheme of `baseURL`; one that is not stops the server at startup. The host that serves the app must pass each origin's own `Host` header on.
+- Each origin is a URL with the scheme of the app's `url`; one that is not stops the server at startup. The host that serves the app must pass each origin's own `Host` header on.
 - The app's own origins may call each other's API from the browser ([CORS](/reference/api/#cors)).
 
 ## Public endpoints
@@ -668,6 +694,6 @@ Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, [open 
 
 ## Roles and access in the API
 
-Roles are bundles of capabilities (`defineRoles` in `@protobase/schema`: `orders.read.own`, `costs.read`, `*.read`, ...). Pass the result as `options.roles` to `createAdmin`, and every operation without an explicit rule needs the matching capability; a capability may be limited to [fields and rows](/reference/access/#capabilities). The token's `roles` become `ctx.user.roles` in rules; the user id (`sub`) is what `.own` compares with the resource's `.owner(...)` field, so it must be the id that field stores. How the API enforces them (hidden fields, row filters, record permissions) is in [the REST API reference](/reference/api/#access).
+Roles are bundles of capabilities (`defineRoles` in `@protobase/schema`: `orders.read.own`, `costs.read`, `*.read`, ...). Export the result as `roles` from `config/roles.ts`, where Protobase finds it, and every operation without an explicit rule needs the matching capability; a capability may be limited to [fields and rows](/reference/access/#capabilities). The token's `roles` become `ctx.user.roles` in rules; the user id (`sub`) is what `.own` compares with the resource's `.owner(...)` field, so it must be the id that field stores. How the API enforces them (hidden fields, row filters, record permissions) is in [the REST API reference](/reference/api/#access).
 
-**User ids.** Better Auth gives a new user a random 32-character text id, so an `.owner(...)` field holds `text`: the server refuses to start (`protobase dev`, `serve`) when one holds integers or UUIDs, naming the field. An app whose owner columns are integers, such as a relation to its own users table, gives `createAuth` a `generateUserId` that takes the next value of that table's sequence, and adds the user's row there, as the ERP example does (`examples/erp/auth/auth.ts`, with the row added by `db/migrations/019_auth_users.sql` when someone joins an organization). One whose owner columns are UUIDs gives it `generateUserId: 'uuid'` (see [An existing users table](#an-existing-users-table)). An authenticator that maps the signed-in account to a user of the app's own, such as a wrapper around `betterAuthAuthenticator` that returns the id of a row in its users table, declares the type of those ids instead, `Object.assign(authenticate, { userIdType: 'uuid' })` (or `'integer'`, `'bigint'`, `'text'`), and the owner fields are checked against that. A request by a user whose id the owner field cannot hold, such as one made before `generateUserId`, fails with an `owner-id-mismatch` problem that names the field.
+**User ids.** Better Auth gives a new user a random 32-character text id, so an `.owner(...)` field holds `text`: the server refuses to start (`protobase dev`, `serve`) when one holds integers or UUIDs, naming the field. An app whose owner columns are integers, such as a relation to its own users table, gives the `generateUserId` [hook](#hooks) the next value of that table's sequence, and adds the user's row there, as the ERP example does (`examples/erp/auth/hooks.ts`, with the row added by `db/migrations/019_auth_users.sql` when someone joins an organization). One whose owner columns are UUIDs sets `auth: { generateUserId: 'uuid' }` (see [An existing users table](#an-existing-users-table)). An authenticator that maps the signed-in account to a user of the app's own, such as one in `auth/authenticate.ts` that returns the id of a row in its users table, declares the type of those ids instead, `Object.assign(authenticate, { userIdType: 'uuid' })` (or `'integer'`, `'bigint'`, `'text'`), and the owner fields are checked against that. A request by a user whose id the owner field cannot hold, such as one made before `generateUserId`, fails with an `owner-id-mismatch` problem that names the field.

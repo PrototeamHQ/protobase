@@ -1,20 +1,20 @@
 import { decodeJwt } from 'jose'
-import type pg from 'pg'
 import { afterAll, describe, expect, it } from 'vitest'
 import { addMember, configExports, createAdmin, createOrganization, createUser, listOrganizations } from '@protobase/server'
 import * as config from '../../../examples/erp/config'
 import { roles } from '../../../examples/erp/config/roles'
+import { databaseUrl } from '../../../examples/erp/db/connection'
 import { createDb } from '../../../examples/erp/db/kysely'
+import { exampleAuth } from '../example-app'
 import { databaseReachable } from './reachable'
 
 const reachable = await databaseReachable()
-// The ERP's auth module reads its secret at import; the run's database comes from vitest.config.ts.
-process.env.BETTER_AUTH_SECRET ??= 'organizations-test-secret-organizations-test'
-const { auth, authenticate } = await import('../../../examples/erp/auth/auth')
+// The ERP's auth as its config builds it; the run's database comes from vitest.config.ts.
+const { auth, authenticate, close } = await exampleAuth('erp', databaseUrl, { secret: 'organizations-test-secret-organizations-test' })
 const db = createDb(4)
 afterAll(async () => {
   await db.destroy()
-  await (globalThis as { __erpAdminPool?: pg.Pool }).__erpAdminPool?.end()
+  await close()
 })
 
 const origin = 'http://localhost:5173'

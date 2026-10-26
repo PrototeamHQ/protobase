@@ -1,0 +1,38 @@
+{
+  "name": "@protobase/config",
+  "version": "0.14.2",
+  "description": "defineConfig and the types of a Protobase project's protobase.config.ts.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrototeamHQ/protobase.git",
+    "directory": "packages/config"
+  },
+  "homepage": "https://docs.protobase.net",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "tsdown"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": "./dist/index.js"
+    },
+    "types": "./dist/index.d.ts"
+  },
+  "peerDependencies": {
+    "@protobase/server": "workspace:*"
+  }
+}

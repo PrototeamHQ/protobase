@@ -34,7 +34,7 @@ Each bar names its roles, and a role belongs to one bar. A caller gets the bar t
 
 ## Checks
 
-`createAdmin` refuses to start when a bar names a resource or page that does not exist, has no roles, no items or more than four, names a role the app does not have (the roles of [`createAuth`](auth.md) and [`defineRoles`](access.md); without either, any role is accepted), shares a role with another bar, or has the label of another bar. The checks are [`bottomBarErrors`](https://docs.protobase.net/api/schema/functions/bottombarerrors/) from `@protobase/schema`, a pure function of the bars and the app's names.
+`createAdmin` refuses to start when a bar names a resource or page that does not exist, has no roles, no items or more than four, names a role the app does not have (the roles of [`auth.roles`](auth.md#roles) and [`defineRoles`](access.md); without either, any role is accepted), shares a role with another bar, or has the label of another bar. The checks are [`bottomBarErrors`](https://docs.protobase.net/api/schema/functions/bottombarerrors/) from `@protobase/schema`, a pure function of the bars and the app's names.
 
 `protobase dev`, `protobase build` and `protobase serve` pick the bars up from the config module. With `createAdmin` directly, pass them as `bottomBars`:
 

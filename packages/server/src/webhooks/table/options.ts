@@ -1,6 +1,6 @@
 import type { TenantValue } from '../../types'
 
-/** Webhook subscriptions made in the admin app (`extends: [webhooks()]`), kept in a table of the app's database. */
+/** Webhook subscriptions made in the admin app (`webhooks: {}`), kept in a table of the app's database. */
 export type WebhooksOptions = {
   /** The schema of the subscriptions table and the deliveries view; default `webhooks`. */
   schema?: string

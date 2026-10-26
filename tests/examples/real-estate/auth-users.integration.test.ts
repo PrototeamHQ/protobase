@@ -1,20 +1,20 @@
 import { decodeJwt } from 'jose'
-import type pg from 'pg'
 import { afterAll, describe, expect, it } from 'vitest'
 import { configExports, createAdmin, createUser } from '@protobase/server'
 import * as config from '../../../examples/real-estate/config'
 import { roles } from '../../../examples/real-estate/config/roles'
+import { databaseUrl } from '../../../examples/real-estate/db/connection'
 import { createDb } from '../../../examples/real-estate/db/kysely'
+import { exampleAuth } from '../example-app'
 import { databaseSeeded } from './seeded'
 
 const seeded = await databaseSeeded()
-// The example's auth module reads its secret at import; the run's database comes from vitest.config.ts.
-process.env.BETTER_AUTH_SECRET ??= 'real-estate-auth-users-test-secret-12345678'
-const { auth, authenticate } = await import('../../../examples/real-estate/auth/auth')
+// The example's auth as its config builds it; the run's database comes from vitest.config.ts.
+const { auth, authenticate, close } = await exampleAuth('real-estate', databaseUrl, { secret: 'real-estate-auth-users-test-secret-12345678' })
 const db = createDb(4)
 afterAll(async () => {
   await db.destroy()
-  await (globalThis as { __realEstateAdminPool?: pg.Pool }).__realEstateAdminPool?.end()
+  await close()
 })
 
 const origin = 'http://localhost:5173'

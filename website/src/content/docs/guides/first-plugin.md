@@ -156,7 +156,7 @@ Reload the app. The card shows three orders, and the app was neither rebuilt nor
 
 ## 7. Ship it
 
-Put `dist/` on a static host, and list its `plugin.json` in the deployed app's `PROTOBASE_PLUGINS`, or in `options.plugins` of its `protobase.config.ts`, which can also give the plugin settings and limit it to some roles (see [loading](/reference/plugins/#loading)). Serve `plugin.json` without caching, so a new build reaches the apps on their next load, and the files in `assets/`, whose names change with their content, as long as you like.
+Put `dist/` on a static host, and list its `plugin.json` in the deployed app's `PROTOBASE_PLUGINS`, or in the `plugins` of its `protobase.config.ts`, which can also give the plugin settings and limit it to some roles (see [loading](/reference/plugins/#loading)). Serve `plugin.json` without caching, so a new build reaches the apps on their next load, and the files in `assets/`, whose names change with their content, as long as you like.
 
 ## When the app moves on
 

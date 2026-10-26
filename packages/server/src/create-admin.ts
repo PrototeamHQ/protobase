@@ -130,6 +130,8 @@ export type CreateAdminInput = {
   auth?: AdminAuth
   /** API functions of the app's own, each served at `<systemPath>/functions/<name>` (see `defineFunction`). */
   functions?: Record<string, FunctionSource>
+  /** The app's secret (`secret`): it signs public forms' bot checks, and upload tickets unless `files.secret` names another. */
+  secret?: string
   /** Where file fields keep their bytes (see `FilesOptions`). */
   files?: FilesOptions
   /** Where the changes that resources' events are raised from are captured (see `EventsOptions`). */
@@ -140,9 +142,9 @@ export type CreateAdminInput = {
   jobs?: JobDefinition[]
   /** Where the resources' events are delivered (`subscription(...)` exports of the config module). */
   subscriptions?: SubscriptionDefinition[]
-  /** Webhook subscriptions made in the admin app, from `extends: [webhooks()]` (see `WebhooksOptions`). */
+  /** Webhook subscriptions made in the admin app, from `webhooks: {}` (see `WebhooksOptions`). */
   webhooks?: WebhooksOptions
-  /** Each user's devices and the endpoints that register them, from `extends: [notifications()]` (see `NotificationsOptions`). */
+  /** Each user's devices and the endpoints that register them, from `notifications: {}` (see `NotificationsOptions`). */
   notifications?: NotificationsOptions
   /**
    * The app's iOS and Android build (see `MobileConfig`): the API answers its Capacitor origins through CORS, and sign-in
@@ -190,7 +192,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, notifications, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, notifications, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -235,7 +237,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),
     createPages: new Set(viewModels.filter((view) => view.create).map((view) => view.resource)),
   })
-  const forms = createFormsRuntime({ registry, views: viewModels, limits: options.roles?.limits ?? [], env: globalThis.process?.env ?? {}, ...(formsDifficulty && { difficulty: formsDifficulty }) })
+  const forms = createFormsRuntime({ registry, views: viewModels, limits: options.roles?.limits ?? [], env: globalThis.process?.env ?? {}, ...(secret && { secret }), ...(formsDifficulty && { difficulty: formsDifficulty }) })
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
   const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
@@ -251,7 +253,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const apiKeys = apiKeySettings(options.apiKeys, globalThis.process?.env ?? {})
   const servesKeys = Boolean(apiKeys.publishable || apiKeys.secret)
   const encryption = createEncryptionRuntime({ models: registry.entries.map((entry) => entry.model), env: globalThis.process?.env ?? {} })
-  const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath, storage: servesKeys })
+  const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), ...(secret && { secret }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath, storage: servesKeys })
   const table = webhooksOptions && webhookTable(webhooksOptions, auth)
   // AI fields and actions call the assistant's model; without a key they fail when used, and dev and serve stop at startup (see `checkAi`)
   const withAi = withAiFields || hasAiActions(viewModels)

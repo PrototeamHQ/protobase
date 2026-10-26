@@ -5,7 +5,7 @@ import type { NotificationsOptions } from './options'
 import { postgresHistoryStore } from './postgres-history-store'
 
 /**
- * The history's store `notifications()` configures: the app's own `historyStore`, or the history table in `db`. An app
+ * The history's store `notifications` configures: the app's own `historyStore`, or the history table in `db`. An app
  * that deletes users without Protobase's auth calls its `removeAllForUser` as it deletes one.
  */
 export const historyStore = (db: Db, options: NotificationsOptions = {}) => options.historyStore ?? postgresHistoryStore(db, options)

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { bikes } from './files/bikes'
+import type { FileProviderSettings } from '@protobase/server'
+import { fileProviderOf } from '@protobase/server/internal'
 import project from './files/protobase.config'
 
 // The documentation shows these files; this keeps what it says about them true.
@@ -36,9 +38,9 @@ describe('files', () => {
     expect(await derived('manual').manual_sha256!.run(input('application/pdf', manual))).toMatch(/^[0-9a-f]{64}$/)
   })
 
-  it('configure three providers, one of them public and one keeping files longer, and sharp for the images', () => {
-    expect(project.files!.sharp).toBeTypeOf('function')
-    const providers = project.files!.providers!
+  it('configure three providers, one of them public and one keeping files longer, and sharp for the images', async () => {
+    expect(project.files!.images).toBe('sharp')
+    const providers = Object.fromEntries(Object.entries(project.files!.providers!).map(([name, settings]) => [name, fileProviderOf(name, settings as FileProviderSettings)]))
     expect(Object.keys(providers)).toEqual(['private', 'public', 'archive'])
     expect(providers.public!.public).toBe(true)
     expect(providers.archive!.retention).toBe(30 * 86_400_000)

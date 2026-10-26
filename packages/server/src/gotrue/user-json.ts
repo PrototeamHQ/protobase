@@ -7,7 +7,7 @@ export type StoredUser = {
   emailConfirmedAt?: Date | string | null
   createdAt: Date | string
   updatedAt: Date | string
-  /** The user metadata column's value, when the app has one (`createAuth`'s `users.metadata`). */
+  /** The user metadata column's value, when the app has one (`auth.users.metadata`). */
   metadata?: unknown
 }
 

@@ -19,7 +19,7 @@ const memberOptions = (command: Command) =>
     .option('--app-roles <roles>', 'app roles in this organization, comma separated (see `users roles`)')
 
 export const registerOrganizations = (program: Command) => {
-  const organizations = program.command('organizations').description('Manage the organizations of the project in the current directory (with `organizations` in createAuth)')
+  const organizations = program.command('organizations').description('Manage the organizations of the project in the current directory (with `auth.organizations` in protobase.config.ts)')
 
   organizations
     .command('list')

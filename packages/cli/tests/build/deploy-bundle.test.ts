@@ -158,8 +158,9 @@ describe('buildDeployBundle', () => {
 
   it('carries a native package in node_modules and names it in the manifest, until a build without one', async () => {
     projectDir = await createProject({
-      'protobase.config.ts': `import { hash } from 'native-hash'\nimport * as config from './resources'\nexport default { config, options: { hash } }\n`,
-      'resources.ts': things,
+      'config/index.ts': things,
+      'protobase.config.ts': `export default { writeHooks: ['hash'] }\n`,
+      'hooks/hash.ts': `import { hash } from 'native-hash'\nexport default async () => void hash\n`,
     })
     await writePackage(projectDir, { name: 'native-hash', dependencies: { 'node-gyp-build': '^4' } }, prebuildifyFiles)
     await writePackage(projectDir, { name: 'node-gyp-build' })
@@ -171,7 +172,8 @@ describe('buildDeployBundle', () => {
     expect((await readdir(path.join(outDir, 'node_modules'))).sort()).toEqual(['native-hash', 'node-gyp-build'])
     expect((await readdir(path.join(outDir, 'node_modules/native-hash/prebuilds'))).sort()).toEqual(['linux-arm64', 'linux-x64'])
 
-    await writeFile(path.join(projectDir, 'protobase.config.ts'), `import * as config from './resources'\nexport default { config }\n`)
+    await writeFile(path.join(projectDir, 'protobase.config.ts'), 'export default {}\n')
+    await rm(path.join(projectDir, 'hooks'), { recursive: true })
     expect((await buildDeployBundle({ projectDir, outDir })).nodeModules).toBeUndefined()
     expect(existsSync(path.join(outDir, 'node_modules'))).toBe(false)
   }, buildTimeout)
@@ -213,10 +215,11 @@ describe('buildDeployBundle', () => {
     expect((await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).startsWith('// @bun\n')).toBe(true)
   }, buildTimeout)
 
-  it('never runs protobase.config.ts: one that throws on import still builds', async () => {
+  it("never runs the code the app runs at serve time: a job's file that throws on import still builds", async () => {
     projectDir = await createProject({
-      'protobase.config.ts': `import * as config from './resources'\nthrow new Error('protobase.config.ts ran at build time')\nexport default { config }\n`,
-      'resources.ts': things,
+      'config/index.ts': things,
+      'protobase.config.ts': `export default { jobs: { prune: {} } }\n`,
+      'jobs/prune.ts': `throw new Error('jobs/prune.ts ran at build time')\nexport default async () => {}\n`,
     })
     const manifest = await buildDeployBundle({ projectDir, outDir: path.join(projectDir, 'dist') })
     expect(manifest.api).toEqual(['/api', ...oauthWellKnownPaths])

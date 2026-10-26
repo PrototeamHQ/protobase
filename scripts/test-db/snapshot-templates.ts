@@ -1,6 +1,7 @@
 import { Kysely, PostgresDialect, sql } from 'kysely'
 import pg from 'pg'
-import { authSchemaMigration, createAuth, jobsSchemaMigration } from '@protobase/server'
+import { authSchemaMigration, jobsSchemaMigration } from '@protobase/server'
+import { createAuth } from '@protobase/server/internal'
 import { queryDdl } from '../../test-support/fixtures/query-ddl'
 import { restDdl } from '../../test-support/fixtures/rest-ddl'
 import { serverDdl } from '../../test-support/fixtures/server-ddl'

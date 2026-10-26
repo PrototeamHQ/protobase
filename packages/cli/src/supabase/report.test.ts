@@ -20,7 +20,7 @@ const manifest: ImportManifest = {
     left: ['functions/hello/index.ts:3: Deno.openKv, of Deno: rewrite it for Node or Bun'],
   },
   cronJobs: [
-    { ...cronJob, name: 'purge', command: 'delete from public.todos', outcome: { kind: 'converted', name: 'purge', file: 'purge', exportName: 'purge', timezone: undefined } },
+    { ...cronJob, name: 'purge', command: 'delete from public.todos', outcome: { kind: 'converted', name: 'purge', file: 'purge', timezone: undefined } },
     { ...cronJob, id: 2, name: 'ping', command: "select net.http_get('https://example.com')", outcome: { kind: 'left', reason: "calls net, which the project's database lacks" } },
   ],
   vaultSecrets: undefined,
@@ -82,7 +82,7 @@ describe('importReport', () => {
     expect(report).toContain('| auth.users | 2 |\n| public.todos | 3 |')
     expect(report).toContain("- pg_cron job purge, `0 3 * * *`, as the recurring job `jobs/purge.ts`")
     expect(report).toContain('## Recurring jobs\n\nThe import wrote')
-    expect(report).toContain('`protobase.config.ts` passes them as its `jobs`.')
+    expect(report).toContain('`protobase.config.ts` declares them in its `jobs`, each with its schedule.')
     expect(report).toContain("## Cron jobs\n\nThese pg_cron jobs did not come over, each for the reason it gives. Make each a Protobase recurring job, or schedule it where the database has pg_cron.\n\n- ping, `0 3 * * *`: `select net.http_get('https://example.com')`, calls net, which the project's database lacks\n")
     expect(report).toContain('## Vault secrets\n\nThe importing role could not read them')
     expect(report).toContain('## Extensions left out\n\nNone.')
@@ -131,7 +131,7 @@ describe('importReport', () => {
   })
 
   it("says to add the jobs to a config with jobs of its own, and that the role could not read pg_cron's", () => {
-    expect(importReport(manifest, undefined, false, [], [])).toContain('`protobase.config.ts` has a `jobs` of its own: add the exports of `jobs/index.ts` to it.')
+    expect(importReport(manifest, undefined, false, [], [])).toContain('`protobase.config.ts` could not be changed: declare each of them in its `jobs`')
     expect(importReport({ ...manifest, cronJobs: undefined }, undefined, true, [], [])).toContain('## Cron jobs\n\nThe importing role could not read them')
   })
 })

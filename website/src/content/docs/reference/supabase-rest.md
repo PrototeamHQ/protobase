@@ -14,7 +14,7 @@ const { data, error } = await supabase.from('todos').select('id, title').eq('don
 
 ## Keys and roles
 
-The keys are `options.apiKeys` of `createAdmin`, `{ publishable_key, secret_key }`, or else `PROTOBASE_PUBLISHABLE_KEY` and `PROTOBASE_SECRET_KEY`. Without either, or with `apiKeys: false`, the app serves no `/api/sb/rest/v1`. Each request sends a key in the `apikey` header, and runs in one transaction as:
+The keys are `apiKeys` in `protobase.config.ts`, `{ publishable_key, secret_key }`, or else `PROTOBASE_PUBLISHABLE_KEY` and `PROTOBASE_SECRET_KEY`. Without either, or with `apiKeys: false`, the app serves no `/api/sb/rest/v1`. Each request sends a key in the `apikey` header, and runs in one transaction as:
 
 | The request sends | It runs as |
 | --- | --- |

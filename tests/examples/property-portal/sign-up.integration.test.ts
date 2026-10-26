@@ -1,26 +1,24 @@
 import sharp from 'sharp'
 import { decodeJwt } from 'jose'
-import { PostgresDialect, sql } from 'kysely'
-import pg from 'pg'
+import { sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { betterAuthAuthenticator, configExports, createAdmin, createAuth, type MailMessage } from '@protobase/server'
-import { accounts } from '../../../examples/property-portal/auth/accounts'
+import { configExports, createAdmin, type MailMessage } from '@protobase/server'
 import * as config from '../../../examples/property-portal/config'
 import { roles } from '../../../examples/property-portal/config/roles'
 import { databaseUrl } from '../../../examples/property-portal/db/connection'
 import { createDb } from '../../../examples/property-portal/db/kysely'
+import { exampleAuth } from '../example-app'
 import { databaseSeeded } from './seeded'
 
 // The portal's own account settings, open sign-up included, on its seeded database: the accounts made here are
 // removed afterwards, with their favorites and searches.
 const seeded = await databaseSeeded()
 const db = createDb(2)
-const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
 const emails = ['nia@portal.example', 'ole@portal.example']
 afterAll(async () => {
   await sql`delete from auth."user" where email in (${sql.join(emails)})`.execute(db)
   await db.destroy()
-  await pool.end()
+  await closeAuth()
 })
 
 const origin = 'http://localhost:5173'
@@ -28,16 +26,14 @@ const password = 'correct horse battery'
 const sent: MailMessage[] = []
 const { resources, views, pages } = configExports(config)
 let app: ReturnType<typeof createAdmin>
+let closeAuth = async () => {}
 
-beforeAll(() => {
-  const auth = createAuth({
-    database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: 'auth', transaction: true },
-    baseURL: origin,
-    secret: 'property-portal-sign-up-test-secret-1234',
-    ...accounts,
-    mailer: { send: async (message) => void sent.push(message) },
-  })
-  app = createAdmin({ resources, views, pages, db, files: { secret: 'property-portal-files-test', sharp }, authenticate: betterAuthAuthenticator({ auth }), auth, options: { roles } })
+// The portal's own auth as its config builds it, with a mailer that keeps what it sends.
+beforeAll(async () => {
+  const mailer = { send: async (message: MailMessage) => void sent.push(message) }
+  const { auth, authenticate, close } = await exampleAuth('property-portal', databaseUrl, { url: origin, secret: 'property-portal-sign-up-test-secret-1234', mailer })
+  closeAuth = close
+  app = createAdmin({ resources, views, pages, db, files: { secret: 'property-portal-files-test', sharp }, authenticate, auth, options: { roles } })
 })
 
 let client = 0

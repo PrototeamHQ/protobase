@@ -17,10 +17,11 @@ export const serveBundle = async (file: string, env: Record<string, string | und
   const serveEnv = readServeEnv(env)
   checkBundleManifest(file)
   const manifest = await readManifest(path.dirname(file))
-  const project = await loadBundle(file)
-  const reporter = await projectErrorReporter(project, env)
+  // The config is read again here, with this environment.
+  const config = await loadBundle(file)
+  const reporter = await projectErrorReporter(config, env)
   if (reporter) reportCrashes(reporter)
-  const server = await startServe({ project, env: serveEnv, site, ui: bundleUi(manifest), ...(reporter && { reporter }) })
+  const server = await startServe({ config, env: serveEnv, site, ui: bundleUi(manifest), ...(reporter && { reporter }) })
   closeOnSignals(server.close)
   out(`protobase serve listening on port ${server.port}\n`)
   return server

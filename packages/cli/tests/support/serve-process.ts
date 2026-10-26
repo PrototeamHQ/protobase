@@ -84,8 +84,8 @@ export const createErpDatabase = async ({ url, erpDir, base, email, password }: 
 
   const env = {
     DATABASE_URL: withDatabase(url, database),
-    BETTER_AUTH_SECRET: randomBytes(32).toString('base64'),
-    BETTER_AUTH_URL: base,
+    PROTOBASE_SECRET: randomBytes(32).toString('base64'),
+    PROTOBASE_URL: base,
   }
   const migrated = await run(typescriptArgs('db/migrate.ts'), erpDir, env)
   if (migrated.status !== 0) throw new Error(`migrations failed:\n${migrated.stderr}`)

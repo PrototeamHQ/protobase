@@ -12,7 +12,7 @@ An app sends mail through one SMTP server: Protobase's own mail ([password reset
 | --- | --- |
 | `PROTOBASE_SMTP_URL` | The SMTP server, credential included: `smtp://user:password@host:587` (STARTTLS when the server offers it) or `smtps://user:password@host:465` (TLS from the start). |
 | `PROTOBASE_MAIL_FROM` | The sender, a plain address such as `noreply@shop.example.com`. The client greets the server with its domain; a `?name=` on the URL overrides that. |
-| `PROTOBASE_APP_NAME` | Optional: the app's name, such as `Shop`, which mail clients show as the sender's name (`Shop <noreply@shop.example.com>`). It overrides [`createAuth`'s `appName`](auth.md#configuration). Without either the sender has no name. |
+| `PROTOBASE_APP_NAME` | Optional: the app's name, such as `Shop`, which mail clients show as the sender's name (`Shop <noreply@shop.example.com>`). It overrides the config's [`name`](config.md#keys). Without either the sender has no name. |
 
 Set both or neither. One without the other, a URL that is not `smtp://` or `smtps://`, or a sender that is not a plain address stops the app at startup. Without them mail is off: password reset and emailed codes are not offered, a job's `mail` is `undefined`, and sending an app's email rejects.
 
@@ -26,7 +26,7 @@ PROTOBASE_SMTP_URL=smtp://localhost:1025
 PROTOBASE_MAIL_FROM=noreply@shop.example.com
 ```
 
-A project that delivers mail another way passes a `mailer`, `{ send({ to, subject, text, html, headers }) }`, to [`createAuth`](auth.md#password-reset) and `startJobs`, or `mailer: false` to turn mail off whatever the environment says. A template's `send` takes one too, see [Templates](#templates).
+A project that delivers sign-in's mail another way exports a mailer, `{ send({ to, subject, text, html, headers }) }`, as the default of `auth/mailer.ts`; `auth: { mailer: false }` turns that mail off whatever the environment says. A host that runs jobs itself passes a mailer to `startJobs`. A template's `send` takes one too, see [Templates](#templates).
 
 ## Protobase's own mail
 
@@ -130,49 +130,48 @@ They are apart from `@protobase/server` itself, so an app that imports none neve
 
 A **job** is the usual place: it runs after the write that asked for it has committed, and a message the server refuses fails the try, which is retried. Pass the job's `mail`, so a job runtime started with a mailer of its own sends through it:
 
-```ts title="config/jobs.ts"
-import { defineJob, FatalJobError } from '@protobase/server'
-import { z } from 'zod'
-import { repairReady } from './repair-ready'
+```ts title="jobs/email-repair-ready.ts"
+import { FatalJobError, type JobRun } from '@protobase/server'
+import { repairReady } from '../repair-ready'
 
-// Enqueued by the write hook of a repair that became ready (see protobase.config.ts), so the email goes out only once
-// the write has committed, and a refused message is retried.
-export const emailRepairReady = defineJob({
-  name: 'email-repair-ready',
-  payload: z.object({ repairId: z.number() }),
-  run: async ({ repairId }, { db, mail }) => {
-    if (!mail) throw new FatalJobError('Mail is off: set PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM')
-    const repair = await db
-      .selectFrom('repairs')
-      .innerJoin('customers', 'customers.id', 'repairs.customer_id')
-      .select(['repairs.number', 'repairs.bike', 'customers.name', 'customers.email'])
-      .where('repairs.id', '=', repairId)
-      .executeTakeFirst()
-    if (!repair?.email) return
-    const url = `https://bikeshop.example.com/repairs/${repair.number}`
-    await repairReady.send(repair.email, { customer: repair.name, bike: repair.bike, number: repair.number, url }, mail)
-  },
-})
+// Enqueued by the write hook of a repair that became ready (hooks/email-ready-repair.ts), so the email goes out only
+// once the write has committed, and a refused message is retried.
+export default (async ({ repairId }, { db, mail }) => {
+  if (!mail) throw new FatalJobError('Mail is off: set PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM')
+  const repair = await db
+    .selectFrom('repairs')
+    .innerJoin('customers', 'customers.id', 'repairs.customer_id')
+    .select(['repairs.number', 'repairs.bike', 'customers.name', 'customers.email'])
+    .where('repairs.id', '=', repairId)
+    .executeTakeFirst()
+  if (!repair?.email) return
+  const url = `https://bikeshop.example.com/repairs/${repair.number}`
+  await repairReady.send(repair.email, { customer: repair.name, bike: repair.bike, number: repair.number, url }, mail)
+}) satisfies JobRun<{ repairId: number }>
 ```
 
 A **write hook** runs in the write's transaction, which may still roll back. It enqueues the job rather than sending, so the email goes out only for a write that committed:
 
+```ts title="hooks/email-ready-repair.ts"
+import { enqueueJob, type PipelineHook } from '@protobase/server'
+
+// The job commits with the write, or not at all: no email about a change that was rolled back.
+export default (async (event, trx) => {
+  if (event.resource.name !== 'repairs' || event.after?.status !== 'ready' || event.before?.status === 'ready') return
+  await enqueueJob(trx, 'email-repair-ready', { repairId: Number(event.after.id) })
+}) satisfies PipelineHook
+```
+
 ```ts title="protobase.config.ts"
-import { defineConfig } from '@protobase/server'
-import * as jobs from './jobs'
+import { defineConfig } from '@protobase/config'
 
 export default defineConfig({
-  config: {},
-  jobs,
-  options: {
-    writeHooks: [
-      // The job commits with the write, or not at all: no email about a change that was rolled back.
-      async (event, trx) => {
-        if (event.resource.name !== 'repairs' || event.after?.status !== 'ready' || event.before?.status === 'ready') return
-        await jobs.emailRepairReady.enqueue(trx, { repairId: Number(event.after.id) })
-      },
-    ],
+  jobs: {
+    // jobs/email-repair-ready.ts
+    'email-repair-ready': { description: 'Emails a customer that their repair is ready for pickup.', arguments: { repairId: 'integer' } },
   },
+  // hooks/email-ready-repair.ts
+  writeHooks: ['email-ready-repair'],
 })
 ```
 

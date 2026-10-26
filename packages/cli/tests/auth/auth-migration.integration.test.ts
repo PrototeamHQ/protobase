@@ -8,9 +8,11 @@ import postgres from 'postgres'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Kysely, PostgresDialect } from 'kysely'
 import { f, resource } from '@protobase/schema'
-import { authSchemaDrift, authSchemaMigration, checkAuthSchema, checkResourcesOutsideAuthStore, createAuth, createOrganization, createUser, unauthorized, type AdminAuth } from '@protobase/server'
+import { authSchemaDrift, authSchemaMigration, checkAuthSchema, checkResourcesOutsideAuthStore, createOrganization, createUser, unauthorized, type AdminAuth } from '@protobase/server'
+import { createAuth } from '@protobase/server/internal'
 import { writeAuthMigration } from '../../src/auth/write-migration'
 import { startServe } from '../../src/serve/lifecycle'
+import { servedConfig } from '../support/served-config'
 import { root, run, typescriptArgs } from '../support/auth-project'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
 import { withDatabase } from '../support/serve-process'
@@ -34,6 +36,9 @@ const createDatabase = async () => {
   databases.push(name)
   return withDatabase(url, name)
 }
+
+// The same store as `authOn`'s, as a served config's `auth` describes it: in the database's search path, without mail or providers.
+const storeAuth = { schema: 'public', mailer: false, operator: false, signInProvider: false } as const
 
 const pools: pg.Pool[] = []
 const authOn = (databaseUrl: string, options: pg.PoolConfig = {}) => {
@@ -275,9 +280,8 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
 
   it('keeps protobase serve from starting while the store is behind', async () => {
     const databaseUrl = await createDatabase()
-    const auth: AdminAuth = authOn(databaseUrl)
-    const project = { config: {}, auth, authenticate: () => Promise.reject(unauthorized('no')) }
-    await expect(startServe({ project, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/The auth store has no auth_migrations table.*`protobase auth migration`/)
+    const config = servedConfig({ url: 'http://localhost:1', secret, auth: storeAuth, authenticate: () => Promise.reject(unauthorized('no')) })
+    await expect(startServe({ config, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/The auth store has no auth_migrations table.*`protobase auth migration`/)
   })
 })
 
@@ -315,9 +319,10 @@ describe.skipIf(!reachable)('the auth store and the app\'s resources', () => {
   })
 
   it('keeps protobase serve from starting with a resource over the store', async () => {
-    const { databaseUrl, auth } = await migrated()
-    const project = { config: { session: resource('session').table('session').fields({ id: f.text() }).primaryKey((r) => r.id) }, auth, authenticate: () => Promise.reject(unauthorized('no')) }
-    await expect(startServe({ project, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/Resources over the auth store's tables.*session \(public\.session\)/)
+    const { databaseUrl } = await migrated()
+    const session = resource('session').table('session').fields({ id: f.text() }).primaryKey((r) => r.id)
+    const config = servedConfig({ config: { session }, url: 'http://localhost:1', secret, auth: storeAuth, authenticate: () => Promise.reject(unauthorized('no')) })
+    await expect(startServe({ config, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/Resources over the auth store's tables.*session \(public\.session\)/)
   })
 })
 

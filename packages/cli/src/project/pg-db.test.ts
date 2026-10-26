@@ -1,7 +1,8 @@
 import { EventEmitter } from 'node:events'
 import { sql } from 'kysely'
 import { describe, expect, it } from 'vitest'
-import { appPool, runInBackground } from '@protobase/server'
+import { runInBackground } from '@protobase/server'
+import { appPool } from '@protobase/server/internal'
 import { createPgDb } from './pg-db'
 
 // node-postgres's Pool with room for every checkout, whose clients answer each query with their pool's size.

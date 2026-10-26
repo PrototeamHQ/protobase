@@ -26,7 +26,7 @@ export type LinkedAccount = { providerId: string; accountId: string }
 
 /**
  * Without `password` the user signs in by emailed code, passkey or a sign-in provider only. `metadata` lands in the
- * user metadata column, which `createAuth`'s `users.metadata` names; it needs one.
+ * user metadata column, which `auth.users.metadata` names; it needs one.
  */
 export type NewUser = { email: string; password?: string; name?: string; role?: string; accounts?: LinkedAccount[]; metadata?: Record<string, unknown> }
 export type StoredUser = { id: string; email: string; role: string; banned: boolean; createdAt: string }

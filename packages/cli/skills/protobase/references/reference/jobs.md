@@ -6,86 +6,83 @@ Background jobs in the app's own database, enqueued with its writes, retried wit
 
 A job is work the app does after a request, or that a request should not wait for: mail an invoice, push a change to another system, recompute a report. Jobs live in the app's own Postgres database, in a schema named `jobs`, so a job can commit in the same transaction as the write that asks for it. The queue underneath is [pg-boss](https://github.com/timgit/pg-boss), pinned to one version; Protobase's own API in front of it is what the app uses.
 
-```ts title="config/jobs.ts"
-import { defineJob, FatalJobError } from '@protobase/server'
-import { z } from 'zod'
-
-export const sendInvoice = defineJob({
-  name: 'send-invoice',
-  payload: z.object({ invoiceId: z.number() }),
-  maxAttempts: 10, // then kept as failed, with its last error
-  retryDelay: '30 seconds', // doubling with each retry, up to maxRetryDelay
-  run: async ({ invoiceId }, { db }) => {
-    const invoice = await db.selectFrom('sales.invoices').select(['id', 'status']).where('id', '=', invoiceId).executeTakeFirst()
-    // Retrying will not bring it back: fail for good.
-    if (!invoice) throw new FatalJobError(`Invoice ${invoiceId} is gone`)
-    // ... render the PDF and mail it
-  },
-})
-
-// One at a time per customer, in the order the changes were made.
-export const syncCustomer = defineJob({
-  name: 'sync-customer',
-  ordered: true,
-  payload: z.object({ customerId: z.number(), fields: z.array(z.string()) }),
-  run: async ({ customerId, fields }) => {
-    // ... push the changed fields to the CRM
-  },
-})
-
-// Every morning at 7 in Amsterdam: one run per time, however many workers run.
-export const remindOverdue = defineJob({
-  name: 'remind-overdue',
-  schedule: '0 7 * * *',
-  timezone: 'Europe/Amsterdam',
-  run: async (_, { db }) => {
-    // ... mail a reminder for every invoice past its due date
-  },
-})
-```
+A job is declared in `protobase.config.ts`, by its name, under `jobs`: what it does, its arguments and when it runs. What it does is the default export of `jobs/<name>.ts`, which Protobase finds by that path and loads the first time the job runs.
 
 ```ts title="protobase.config.ts"
-import { defineConfig } from '@protobase/server'
-import * as jobs from './jobs'
+import { defineConfig } from '@protobase/config'
 
 export default defineConfig({
-  config: {},
-  jobs, // run by the worker in `protobase dev` and `protobase serve`
-  options: {
-    writeHooks: [
-      // In the write's own transaction: the invoice and its job commit together or not at all.
-      async (event, trx) => {
-        if (event.resource.name !== 'invoices' || event.after?.status !== 'sent' || event.before?.status === 'sent') return
-        const invoiceId = Number(event.after.id)
-        await jobs.sendInvoice.enqueue(trx, { invoiceId }, { key: `invoice:${invoiceId}` })
-      },
-    ],
+  // Each job's run is jobs/<name>.ts; the worker in `protobase dev` and `protobase serve` runs them.
+  jobs: {
+    'send-invoice': {
+      description: 'Renders an invoice as a PDF and mails it to the customer.',
+      arguments: { invoiceId: 'integer' },
+      maxAttempts: 10, // then kept as failed, with its last error
+      retryDelay: '30 seconds', // doubling with each retry, up to maxRetryDelay
+    },
+    'sync-customer': {
+      description: 'Pushes the changed fields of a customer to the CRM.',
+      arguments: { customerId: 'integer', fields: 'json' },
+      ordered: true, // one at a time per customer, in the order the changes were made
+    },
+    'remind-overdue': {
+      description: 'Mails a reminder for every invoice past its due date.',
+      schedule: '0 7 * * *', // every morning at 7: one run per time, however many workers run
+      timezone: 'Europe/Amsterdam',
+    },
   },
+  // hooks/queue-sent-invoice.ts
+  writeHooks: ['queue-sent-invoice'],
 })
 ```
 
-| `defineJob` option | |
+```ts title="jobs/send-invoice.ts"
+import { FatalJobError, type JobRun } from '@protobase/server'
+
+export default (async ({ invoiceId }, { db }) => {
+  const invoice = await db.selectFrom('sales.invoices').select(['id', 'status']).where('id', '=', invoiceId).executeTakeFirst()
+  // Retrying will not bring it back: fail for good.
+  if (!invoice) throw new FatalJobError(`Invoice ${invoiceId} is gone`)
+  // ... render the PDF and mail it
+}) satisfies JobRun<{ invoiceId: number }>
+```
+
+| Key of a job | |
 | --- | --- |
-| `name` | Letters, digits, `_`, `-`, `.` and `/`. Two jobs may not share a name. |
-| `payload` | A [Standard Schema](https://standardschema.dev) such as a zod schema, checked when the job is enqueued and again before it runs. A payload it refuses at run time fails the job for good. |
-| `run(payload, { db, job, signal, mail, sendNotification })` | The work. `db` is the app's pool: the enqueuer's transaction has committed by then. `job` holds its `id`, `name`, `attempt`, `maxAttempts` and `startedOn`, when this try took it. `signal` aborts when the try times out or the worker shuts down. `mail` sends mail, see [Mail](#mail). `sendNotification` sends a notification, see [Sending](notifications.md#sending); inside a transaction of `db`, a try that throws in it queues nothing. |
+| its name | Letters, digits, `_`, `-`, `.` and `/`; the file `jobs/<name>.ts` holds what it does. |
+| `description` | What the job does, for the people who read the config. |
+| `arguments` | Its arguments by name, each a [field type](data-config.md#field-types) such as `'integer'` or `'bigint'`, or the type with options: `{ type: 'enum', values: ['day', 'week'] }`, `{ type: 'text', min: 1 }`, `{ type: 'integer', optional: true }`, `{ type: 'decimal', precision: 8, scale: 2 }`. Each value is checked as a field of that type checks it, when the job is enqueued and again before it runs, and no other argument is taken. A payload refused at run time fails the job for good. The same is JSON in a `protobase.config.json`. |
+| the default export of `jobs/<name>.ts` | `(payload, { db, job, signal, mail, sendNotification })`, typed with `JobRun<Payload>` from `@protobase/server`: the work. `db` is the app's pool: the enqueuer's transaction has committed by then. `job` holds its `id`, `name`, `attempt`, `maxAttempts` and `startedOn`, when this try took it. `signal` aborts when the try times out or the worker shuts down. `mail` sends mail, see [Mail](#mail). `sendNotification` sends a notification, see [Sending](notifications.md#sending); inside a transaction of `db`, a try that throws in it queues nothing. |
 | `maxAttempts` | Tries before the job is kept as failed; default 10. |
 | `retryDelay`, `maxRetryDelay` | The wait before the first retry, doubling with each one (with some jitter), and its ceiling; default `2s` and `1 hour`. Milliseconds or text such as `30 seconds`. |
 | `timeout` | How long one try may run before it counts as failed; default `15 minutes`. |
 | `concurrency` | Jobs of this name running at once in each worker process; default 1. |
 | `longQueries` | Its queries through `db` may run up to 30 seconds instead of the database's own limit, for imports, backfills and large deletes; see [Long queries](../guides/api-functions.md#long-queries). A query stopped at its limit fails the try with an error that names the job. |
 | `ordered` | Jobs run one at a time per group, in the order they were enqueued; see [Ordered groups](#ordered-groups). |
-| `schedule`, `timezone` | Runs the job on a cron schedule, in a time zone (default `UTC`); see [Recurring jobs](#recurring-jobs). |
+| `schedule`, `timezone` | Runs the job on a cron schedule, in a time zone (default the config's `timezone`, else `UTC`); see [Recurring jobs](#recurring-jobs). |
 
 A job runs **at least once**: a worker that dies mid-job, or a try cut off by a shutdown, means it runs again. Write `run` so that running twice does no harm, for example by checking the state it is about to change.
 
 ## Enqueueing
 
 ```ts
-await sendInvoice.enqueue(db, { invoiceId: 7 }, { delay: '5 minutes', key: 'invoice:7', priority: 10 })
+import { enqueueJob } from '@protobase/server'
+
+await enqueueJob(db, 'send-invoice', { invoiceId: 7 }, { delay: '5 minutes', key: 'invoice:7', priority: 10 })
 ```
 
-`db` is the app's database, or the transaction of a write hook or an [API function](../guides/api-functions.md): there, the job commits with the caller's writes, or not at all. It returns the job's id.
+`db` is the app's database, or the transaction of a write hook or an [API function](../guides/api-functions.md): there, the job commits with the caller's writes, or not at all. It returns the job's id. A write hook is named in the config's `writeHooks` and is the default export of `hooks/<name>.ts`:
+
+```ts title="hooks/queue-sent-invoice.ts"
+import { enqueueJob, type PipelineHook } from '@protobase/server'
+
+// In the write's own transaction: the invoice and its job commit together or not at all.
+export default (async (event, trx) => {
+  if (event.resource.name !== 'invoices' || event.after?.status !== 'sent' || event.before?.status === 'sent') return
+  const invoiceId = Number(event.after.id)
+  await enqueueJob(trx, 'send-invoice', { invoiceId }, { key: `invoice:${invoiceId}` })
+}) satisfies PipelineHook
+```
 
 | Option | |
 | --- | --- |

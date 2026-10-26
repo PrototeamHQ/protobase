@@ -1,4 +1,5 @@
-import { appPool, longQueryPool, readDbConnections, wantsLongQueries } from '@protobase/server'
+import { readDbConnections, wantsLongQueries } from '@protobase/server'
+import { appPool, longQueryPool } from '@protobase/server/internal'
 import { Kysely, PostgresDialect } from 'kysely'
 import { gateBackgroundWork } from './background-gate'
 import { connectLong } from './long-connect'
@@ -10,7 +11,10 @@ type PgModule = Pick<typeof import('pg'), 'Pool' | 'types'>
 // A query waits at most `poolWaitMs` for a free one. Function calls and jobs share them with requests but hold at most
 // one less, so a request always finds a connection they cannot take; those with `longQueries` take theirs from a pool
 // of one connection whose queries may run up to `longQueryTimeoutMs` (`longQueryPool`), within the same slots.
-export const createPgDb = (pg: PgModule, url: string, max = readDbConnections(process.env)) => {
+export const createPgDb = (pg: PgModule, url: string, max = readDbConnections(process.env)) => openAppDatabase(pg, url, max).db
+
+/** Kysely over the app's pool, as `createPgDb` makes it, and the pool itself, which the app's Better Auth store shares. */
+export const openAppDatabase = (pg: PgModule, url: string, max = readDbConnections(process.env)) => {
   const pool = appPool(pg, url, max)
   const long = longQueryPool(pg, url)
   const shortConnect = connectOrBusy(pool)
@@ -22,5 +26,5 @@ export const createPgDb = (pg: PgModule, url: string, max = readDbConnections(pr
       await Promise.all([pool.end(), long.end()])
     },
   }
-  return new Kysely<any>({ dialect: new PostgresDialect({ pool: gateBackgroundWork(routed, Math.max(1, max - 1)) }) })
+  return { db: new Kysely<any>({ dialect: new PostgresDialect({ pool: gateBackgroundWork(routed, Math.max(1, max - 1)) }) }), pool }
 }

@@ -7,7 +7,7 @@ The admin app can show an assistant: an **Assistant** button at the end of the t
 
 ## Who sees it
 
-`/api/meta` names the backend as `assistant: { url }`, and only for a caller with the `admin` or `ai` role. The app shows the button when `/meta` has it, so without a backend, or for anyone else, nothing shows. Give someone the assistant without making them an admin by adding `ai` to the project's roles (`createAuth({ roles: ['admin', 'ai', ...] })`, see [Roles](/reference/auth/#roles)) and to their user (`protobase users set-role me@example.com sales,ai`).
+`/api/meta` names the backend as `assistant: { url }`, and only for a caller with the `admin` or `ai` role. The app shows the button when `/meta` has it, so without a backend, or for anyone else, nothing shows. Give someone the assistant without making them an admin by adding `ai` to the project's roles (`auth: { roles: ['admin', 'ai', ...] }` in `protobase.config.ts`, see [Roles](/reference/auth/#roles)) and to their user (`protobase users set-role me@example.com sales,ai`).
 
 The built-in backend checks the role again on every request.
 
@@ -19,7 +19,7 @@ The built-in backend checks the role again on every request.
 | otherwise `PROTOBASE_ASSISTANT_API_KEY` | `/api/assistant`, the built-in backend |
 | neither | no assistant |
 
-Each variable can also be set in code, as `options.assistant` of `createAdmin` (in `protobase.config.ts`, `export default { ..., options: { assistant: { ... } } }`), which wins over the variable. `assistant: false` turns the assistant off whatever the environment says. A value that is no `http(s)` URL stops the server at startup. The model settings also serve [AI fields and actions](/reference/ai/#the-model), even with a backend elsewhere or `assistant: false`.
+Each variable can also be set in `assistant` of `protobase.config.ts` (`assistant: { model: '...' }`), which wins over the variable. `assistant: false` turns the assistant off whatever the environment says. A value that is no `http(s)` URL stops the server at startup. The model settings also serve [AI fields and actions](/reference/ai/#the-model), even with a backend elsewhere or `assistant: false`.
 
 | Variable | Option | |
 | --- | --- | --- |
@@ -61,18 +61,18 @@ It lives at `/api/assistant` on the app's own origin and answers with the user's
 
 Both run **outside Protobase's access rules and tenant scoping**: whoever has the `admin` or `ai` role can read every resource's table, and with approval change everything the app's database role can, since `propose_write_query` still runs as that role. Give the app a database role without superuser rights, and those roles only to people who may see all of the data.
 
-Making the query role needs `CREATEROLE` once, for the role that applies the migrations; that role becomes a member of it and may run the function. The query role bypasses row-level security only when the migrating role may grant that, a superuser or, on Postgres 16 and later, a role with `BYPASSRLS`; otherwise it reads what the tables' policies give it. When the app serves as another database role than the one that migrates, grant that role `usage on schema query` and `execute on function query.run_read_only(text, integer)`. `protobase migration` writes the role only when it finds the built-in assistant's key, `PROTOBASE_ASSISTANT_API_KEY` in the `.env` it reads or `options.assistant.apiKey`, so run it with the key set even when only production has the real one. The server does not start while the role or its function is missing, while the role can read an auth table, or while it may call a `SECURITY DEFINER` function, other than a trigger function, whose owner can read one: the statement would read the auth store through it, so revoke `execute` on such a function from `PUBLIC`, or keep it in a schema without a resource. A resource added since the last migration is refused by Postgres until the next one grants its table.
+Making the query role needs `CREATEROLE` once, for the role that applies the migrations; that role becomes a member of it and may run the function. The query role bypasses row-level security only when the migrating role may grant that, a superuser or, on Postgres 16 and later, a role with `BYPASSRLS`; otherwise it reads what the tables' policies give it. When the app serves as another database role than the one that migrates, grant that role `usage on schema query` and `execute on function query.run_read_only(text, integer)`. `protobase migration` writes the role only when it finds the built-in assistant's key, `PROTOBASE_ASSISTANT_API_KEY` in the `.env` it reads or `assistant.apiKey` of the config, so run it with the key set even when only production has the real one. The server does not start while the role or its function is missing, while the role can read an auth table, or while it may call a `SECURITY DEFINER` function, other than a trigger function, whose owner can read one: the statement would read the auth store through it, so revoke `execute` on such a function from `PUBLIC`, or keep it in a schema without a resource. A resource added since the last migration is refused by Postgres until the next one grants its table.
 
 ### The app's own tools
 
-`options.assistant.tools` adds tools of the app's own, which the built-in backend offers after its two. A tool is `defineTool({ name, description, parameters, run })` from `@protobase/server`: `parameters` is the JSON Schema of its arguments, and `run(args, context)` returns the text the model reads. A name must be 1 to 64 letters, digits, `_` or `-`, and a name taken twice stops the server at startup. A backend elsewhere has its own tools, so the option does nothing there. A tool's `annotations` are MCP's tool hints (`readOnlyHint`, `destructiveHint`, ...), which the dock ignores; the same tools can be offered over the app's [MCP endpoint](/reference/mcp/#building-on-it).
+`assistant/tools.ts` adds tools of the app's own, which the built-in backend offers after its two: its default export is an array of tools, found by that path when the app starts. A tool is `defineTool({ name, description, parameters, run })` from `@protobase/server`: `parameters` is the JSON Schema of its arguments, and `run(args, context)` returns the text the model reads. A name must be 1 to 64 letters, digits, `_` or `-`, and a name taken twice stops the server at startup. A backend elsewhere has its own tools, so the file does nothing there, nor with `assistant: false`. A tool's `annotations` are MCP's tool hints (`readOnlyHint`, `destructiveHint`, ...), which the dock ignores; the same tools can be offered over the app's [MCP endpoint](/reference/mcp/#building-on-it).
 
 `context` holds the user's `session`, `show(part)` to add a part to the answer, `approve(request)` for an approval card, `conversation` (the dock's, absent over MCP), `resources()` (the resources the user may read, restricted to their fields, with their views), and `records`: `list(resource, params)` with the REST API's list parameters, `get(resource, key)`, `create(resource, data)`, `update(resource, key, data, { etag? })` (without an ETag it updates any version), `delete(resource, key, { etag? })` (soft on a resource with `.softDelete()`) and `softDeleteField(resource)` (the field a delete sets, or `undefined` when a delete removes the record) on the app's resources **as the user**, through their access rules, tenant scope, validation and write hooks, as in the REST API. Each answers `{ record, etag }`. `batch(operations)` runs the operations of a REST [batch write](/reference/api/#batch-writes) in one transaction and answers its `results`; a refusal or a missing record rejects with an `HttpProblem`, whose `detail` a tool can return to the model as text.
 
 A tool with a [widget](#widget-parts) creates or finds what it is about, shows a widget with its id, and returns the id and the state at that moment:
 
 ```ts
-// config/assistant/propose-task.ts
+// assistant/propose-task.ts
 import { defineTool, widget } from '@protobase/server'
 
 export const proposeTask = defineTool({
@@ -86,7 +86,7 @@ export const proposeTask = defineTool({
   },
 })
 
-// protobase.config.ts: export default { ..., options: { assistant: { tools: [proposeTask] } } }
+// assistant/tools.ts: import { proposeTask } from './propose-task'; export default [proposeTask]
 ```
 
 ```tsx

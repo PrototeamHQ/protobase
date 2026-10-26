@@ -193,10 +193,10 @@ program
       import('./serve/crash-reports'),
       import('./serve/signals'),
     ])
-    const project = await loadWorkerBundle(bundle)
-    const reporter = await projectErrorReporter(project, process.env)
+    const config = await loadWorkerBundle(bundle)
+    const reporter = await projectErrorReporter(config, process.env)
     if (reporter) reportCrashes(reporter)
-    const worker = await startWorker({ project, databaseUrl: process.env.DATABASE_URL || undefined })
+    const worker = await startWorker({ config, databaseUrl: process.env.DATABASE_URL || undefined })
     closeOnSignals(worker.stop)
     out(`protobase worker running ${worker.jobs} job${worker.jobs === 1 ? '' : 's'}\n`)
   })

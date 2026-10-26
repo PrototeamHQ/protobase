@@ -7,14 +7,14 @@ const loopback = ['localhost', '127.0.0.1']
 const httpHosts: Record<Platform, string[]> = { ios: [...loopback, '[::1]'], android: [...loopback, '10.0.2.2'] }
 
 /**
- * The server the app calls: `--api` when given, else the auth issuer (`baseURL`). It must be an http or https origin
+ * The server the app calls: `--api` when given, else the app's URL (`url`, `PROTOBASE_URL`), its tokens' issuer. It must be an http or https origin
  * with nothing after it; plain http only to this machine, or the Android emulator's host, since anyone on the network
  * between could read or change what it sends.
  */
 export const apiUrl = (given: string | undefined, issuer: string | undefined, platform: Platform) => {
   const value = given ?? issuer
-  const what = given === undefined ? `The auth issuer (baseURL) "${value}"` : `--api ${given}`
-  if (value === undefined) throw new Error('This project has no auth issuer (baseURL) for the app to call: pass --api https://…')
+  const what = given === undefined ? `The app's URL (url or PROTOBASE_URL) "${value}"` : `--api ${given}`
+  if (value === undefined) throw new Error('This project has no url (PROTOBASE_URL) for the app to call: set it, or pass --api https://…')
   if (!URL.canParse(value)) throw new Error(`${what} is not a URL such as https://shop.example.com`)
   const url = new URL(value)
   if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error(`${what} must be an http or https URL`)
@@ -49,6 +49,6 @@ const isLocalHost = (hostname: string) =>
 export const checkReleaseUrl = (url: URL) => {
   const { cleartext, mixedContent } = httpAllowances(url)
   if (cleartext || mixedContent || url.protocol !== 'https:' || isLocalHost(url.hostname)) {
-    throw new Error(`A release build calls its server over https, since anyone between could read or change plain http, and not ${url.origin} on this machine: pass --api https://… or give auth an https baseURL`)
+    throw new Error(`A release build calls its server over https, since anyone between could read or change plain http, and not ${url.origin} on this machine: pass --api https://… or give the app an https url (PROTOBASE_URL)`)
   }
 }

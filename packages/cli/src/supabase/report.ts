@@ -35,7 +35,7 @@ const cronLeft = (jobs: PlannedCronJob[] | undefined) =>
 /** What a person does before the converted pg_cron jobs run, or nothing when the import converted none. */
 const recurringJobs = (manifest: ImportManifest, jobsWired: boolean) => {
   if (convertedCronJobs(manifest.cronJobs).length === 0) return []
-  const wiring = jobsWired ? '`protobase.config.ts` passes them as its `jobs`.' : '`protobase.config.ts` has a `jobs` of its own: add the exports of `jobs/index.ts` to it.'
+  const wiring = jobsWired ? '`protobase.config.ts` declares them in its `jobs`, each with its schedule.' : '`protobase.config.ts` could not be changed: declare each of them in its `jobs`, by the name of its file, with its schedule and `maxAttempts: 1`.'
   return [
     `## Recurring jobs\n\nThe import wrote pg_cron's jobs it could convert in \`jobs/\`, each running its SQL as the app's database role, once per time and without retries, as pg_cron did. ${wiring} They run once the database has the jobs schema: run \`protobase migration\` and apply it.\n`,
   ]
@@ -96,13 +96,13 @@ const signInSection = (providers: ProviderCount[]) =>
     "Supabase's users sign in with their own passwords once the migrations the import wrote are applied; those who never confirmed their address sign in by code instead. Sessions do not carry over, so everyone signs in once; MFA factors and passkeys are set up again. No imported user has a role in the app yet: give the admins theirs with `protobase users set-role <email> admin`.\n",
     providers.length === 0
       ? 'auth.identities is empty.\n'
-      : `Each identity of a social provider became an account, which signs in once the provider is in \`createAuth\`'s \`socialProviders\`, with the client id and secret the Supabase project used. By provider:\n\n${providers.map((provider) => `- ${providerLine(provider)}`).join('\n')}\n`,
+      : `Each identity of a social provider became an account, which signs in once the provider is in \`auth.socialProviders\` of protobase.config.ts, with the client id and secret the Supabase project used. By provider:\n\n${providers.map((provider) => `- ${providerLine(provider)}`).join('\n')}\n`,
   ].join('\n')
 
 /**
  * The import's report: what it loaded, and what it could not carry over, for a person or their AI assistant to finish.
  * `doctor` is `protobase doctor`'s output on the scaffolded config, or `undefined` when there was no config to check;
- * `jobsWired` whether protobase.config.ts passes the pg_cron jobs the load wrote as its `jobs`; `live` the tables, as
+ * `jobsWired` whether protobase.config.ts declares the pg_cron jobs the load wrote in its `jobs`; `live` the tables, as
  * `schema.table`, whose resources the scaffold gave `.live()`; `providers` counts the loaded auth.identities by
  * provider.
  */

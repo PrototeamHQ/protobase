@@ -6,7 +6,6 @@ description: Fields a model fills from a prompt after each write, and buttons th
 import { Code } from '@astrojs/starlight/components'
 import StoryFrame from '../../../components/StoryFrame.astro'
 import tickets from '../../../../../docs-examples/ai/tickets.ts?raw'
-import config from '../../../../../docs-examples/ai/protobase.config.ts?raw'
 
 A model can write fields of a record for the people using the app, in two ways:
 
@@ -16,8 +15,6 @@ A model can write fields of a record for the people using the app, in two ways:
 Both write through the API as the user who wrote or clicked, so their access rules, validation and write hooks apply, and the value lands in a field the user can see. Nothing is written anywhere else.
 
 <Code code={tickets} lang="ts" title="config/tickets.ts" />
-
-<Code code={config} lang="ts" title="protobase.config.ts" />
 
 ## Prompts
 
@@ -69,7 +66,7 @@ Every check is made before the model is asked.
 
 ## The model
 
-AI fields and actions use the [assistant's model settings](/reference/assistant/#which-backend): `PROTOBASE_ASSISTANT_API_KEY`, with `PROTOBASE_ASSISTANT_BASE_URL` and `PROTOBASE_ASSISTANT_MODEL`, or the same keys of `options.assistant`. They use them also when `PROTOBASE_ASSISTANT_URL` names a chat backend elsewhere, which replaces the chat, not the model, and when `options.assistant` is `false`, which turns off the chat only. On OpenRouter they ask for little reasoning.
+AI fields and actions use the [assistant's model settings](/reference/assistant/#which-backend): `PROTOBASE_ASSISTANT_API_KEY`, with `PROTOBASE_ASSISTANT_BASE_URL` and `PROTOBASE_ASSISTANT_MODEL`, or the same keys of the config's `assistant`. They use them also when `PROTOBASE_ASSISTANT_URL` names a chat backend elsewhere, which replaces the chat, not the model, and when `assistant` is `false`, which turns off the chat only. On OpenRouter they ask for little reasoning.
 
 `protobase dev` and `protobase serve` do not start when a resource has an AI field or a view an AI action and no key is set; `PROTOBASE_STARTUP_CHECKS=false` skips that check, as it does the others. Other commands, such as `protobase migration`, run without a key.
 

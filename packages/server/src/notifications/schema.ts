@@ -17,7 +17,7 @@ const regclass = async (db: Db, name: string) => (await sql<{ oid: number | null
 // The type of the users table's id, which the devices' user column takes.
 const userIdType = async (db: Db, users: UsersTable) => {
   const oid = await regclass(db, qualified(users))
-  if (oid === null) throw new Error(`notifications(): auth's users table ${qualified(users)} is not in the app's database, so devices cannot point at it`)
+  if (oid === null) throw new Error(`notifications: auth's users table ${qualified(users)} is not in the app's database, so devices cannot point at it`)
   const { rows } = await sql<{ type: string }>`select format_type(atttypid, atttypmod) as type from pg_attribute where attrelid = ${oid} and attname = 'id'`.execute(db)
   return rows[0]!.type
 }
@@ -41,7 +41,7 @@ const lacksSessionColumn = async (db: Db, names: NotificationsNames) => {
 }
 
 /**
- * The SQL that adds the tables `notifications()` keeps devices and each user's history in, under the names its options
+ * The SQL that adds the tables `notifications` keeps devices and each user's history in, under the names its options
  * give; with `auth`, their user columns point at auth's users table. Each table is left out when it exists or a store
  * of the app's own replaces it, and an existing devices table without its session column gets that column;
  * `undefined` when nothing is left.
@@ -64,10 +64,10 @@ export const notificationsMigration = async (db: Db, options: NotificationsOptio
 }
 
 const missingTable = (what: string, table: string) =>
-  new Error(`The ${what} table ${table} of notifications() is missing. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
+  new Error(`The ${what} table ${table} of notifications is missing. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
 
 /**
- * Refuses to start while the devices table lacks what `notifications()` needs, naming it: the table, each column under
+ * Refuses to start while the devices table lacks what `notifications` needs, naming it: the table, each column under
  * its configured name, a unique index on the token alone, which moving a device relies on, and with `auth` a foreign key
  * from the user column that deletes a user's devices with the user. Nothing to check with a store of the app's own.
  */
@@ -80,7 +80,7 @@ const checkDevicesTable = async (db: Db, options: NotificationsOptions, users: U
   const found = await columnsOf(db, oid)
   const numOf = (column: keyof NotificationsNames['columns']) => found.find((row) => row.name === names.columns[column])?.num
   const missing = (Object.keys(names.columns) as (keyof NotificationsNames['columns'])[]).find((column) => numOf(column) === undefined)
-  if (missing !== undefined) throw new Error(`The devices table ${devices} has no column "${names.columns[missing]}": add it, or name the table's own with notifications({ devices: { columns: { ${missing}: ... } } })`)
+  if (missing !== undefined) throw new Error(`The devices table ${devices} has no column "${names.columns[missing]}": add it, or name the table's own with notifications: { devices: { columns: { ${missing}: ... } } } in protobase.config.ts`)
   if (!(await uniqueOn(db, oid, numOf('token')!))) throw new Error(`The devices table ${devices} needs a unique index on its token column "${names.columns.token}" alone, which moving a device to the user who registers it relies on`)
   if (users && !(await cascadesFrom(db, oid, numOf('user_id')!, users))) {
     throw new Error(`The devices table ${devices} needs a foreign key from "${names.columns.user_id}" to ${qualified(users)} with on delete cascade, so a deleted user's devices go with them`)
@@ -97,13 +97,13 @@ const checkHistoryTable = async (db: Db, options: NotificationsOptions, users: U
   const found = await columnsOf(db, oid)
   const numOf = (column: keyof typeof names.columns) => found.find((row) => row.name === names.columns[column])?.num
   const missing = (Object.keys(names.columns) as (keyof typeof names.columns)[]).find((column) => numOf(column) === undefined)
-  if (missing !== undefined) throw new Error(`The history table ${history} has no column "${names.columns[missing]}": add it, or name the table's own with notifications({ history: { columns: { ${missing}: ... } } })`)
+  if (missing !== undefined) throw new Error(`The history table ${history} has no column "${names.columns[missing]}": add it, or name the table's own with notifications: { history: { columns: { ${missing}: ... } } } in protobase.config.ts`)
   if (users && !(await cascadesFrom(db, oid, numOf('user_id')!, users))) {
     throw new Error(`The history table ${history} needs a foreign key from "${names.columns.user_id}" to ${qualified(users)} with on delete cascade, so a deleted user's history goes with them`)
   }
 }
 
-/** Refuses to start while the devices or the history table lacks what `notifications()` needs, naming it. */
+/** Refuses to start while the devices or the history table lacks what `notifications` needs, naming it. */
 export const checkNotificationsSchema = async (db: Db, options: NotificationsOptions = {}, auth?: AdminAuth) => {
   const users = auth && authUsersTable(auth)
   await checkDevicesTable(db, options, users)

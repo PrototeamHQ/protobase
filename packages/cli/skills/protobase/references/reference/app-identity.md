@@ -8,26 +8,25 @@ An app looks like its own everywhere from three things in its project: its name,
 
 | What | Where | Used by |
 | --- | --- | --- |
-| Name | `appName` of `createAuth` ([auth configuration](auth.md#configuration)), overridden at run time by `PROTOBASE_APP_NAME` | the sidebar's logo, the end of every tab title, the installed app's name, the [mobile app](../guides/mobile-app.md)'s name on the phone, passkey and authenticator prompts, auth mail and its sender's name |
+| Name | `name` in `protobase.config.ts` ([config](config.md)), overridden at run time by `PROTOBASE_APP_NAME` | the sidebar's logo, the end of every tab title, the installed app's name, the [mobile app](../guides/mobile-app.md)'s name on the phone, passkey and authenticator prompts, auth mail and its sender's name |
 | Icon | `protobase.favicon.svg` at the project's root | the browser tab, the sidebar's logo, the installed app's icon; the [mobile app](../guides/mobile-app.md) shows Protobase's icon instead |
 | Raster icons | optional PNGs beside the SVG, below | the iPhone home screen and Android launchers, which take no SVG |
-| Colours | `app` in `protobase.config.ts` | the installed app's title bar and its start screen |
+| Colours | `themeColor` and `backgroundColor` in `protobase.config.ts` | the installed app's title bar and its start screen |
 
 ```ts
 // protobase.config.ts
+import { defineConfig } from '@protobase/config'
+
 export default defineConfig({
-  config,
-  auth,
-  authenticate,
-  app: { themeColor: '#0d9488', backgroundColor: '#ffffff' },
+  name: 'Acme Admin',
+  themeColor: '#0d9488',
+  backgroundColor: '#ffffff',
 })
 ```
 
-`createAuth` takes the name because the sign-in it builds needs it, so keep the name in a constant both `auth/auth.ts` and anything else that shows it import, if you want it written once.
-
 ## The name
 
-`appName` names the app; `PROTOBASE_APP_NAME`, when a deployment sets it, overrides it, so a deployment can rename an app without a new build. Without either the app is called `Protobase`.
+`name` names the app; `PROTOBASE_APP_NAME`, when a deployment sets it, overrides it, so a deployment can rename an app without a new build. Without either the app is called `Protobase`.
 
 ## The icons
 
@@ -46,7 +45,7 @@ Each is optional, and none is made from the SVG: without the touch icon an iPhon
 
 ## The colours
 
-`app` takes any CSS colour for each, and the web manifest carries the ones set:
+Each takes any CSS colour, and the web manifest carries the ones set:
 
 - `themeColor`: the installed app's title bar and the browser's toolbar around it (`theme_color`).
 - `backgroundColor`: the screen the installed app shows while it starts (`background_color`).

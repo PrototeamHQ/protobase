@@ -127,7 +127,7 @@ describe('mobileBuild android', () => {
   })
 
   it('refuses a missing variable, and a server that is not https away from this machine, before npm runs', async () => {
-    const dir = project("{ mobile: { appId: 'com.example.shop' }, auth: { issuer: 'http://api.example.com' } }")
+    const dir = project("{ mobile: { appId: 'com.example.shop' }, url: 'http://api.example.com' }")
     const calls: Call[] = []
     const deps = { run: fakeRun(calls), build: webBuild, fetch }
     delete process.env.PROTOBASE_ANDROID_KEY_ALIAS
@@ -192,7 +192,7 @@ describe('mobileBuild ios', () => {
   })
 
   it('refuses a release without a team or an https server before npm runs', async () => {
-    const dir = project("{ mobile: { appId: 'com.example.shop' }, auth: { issuer: 'https://localhost:3000' } }")
+    const dir = project("{ mobile: { appId: 'com.example.shop' }, url: 'https://localhost:3000' }")
     const calls: Call[] = []
     const deps = { run: fakeRun(calls), build: webBuild, fetch }
     await expect(mobileBuild(input(dir, 'ios'), () => {}, deps)).rejects.toThrow('pass --team')

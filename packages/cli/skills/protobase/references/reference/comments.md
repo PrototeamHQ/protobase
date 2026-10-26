@@ -32,14 +32,6 @@ export const ticketsView = view<typeof tickets>('tickets')
   ])
 ```
 
-```ts title="protobase.config.ts"
-import { defineConfig } from '@protobase/server'
-import * as config from './tickets'
-
-// Mentions are emailed by the app's workers, to the users of its Better Auth (`auth`, left out here).
-export default defineConfig({ config })
-```
-
 ## On the record page
 
 [`l.comments(title?, { when })`](https://docs.protobase.net/api/schema/variables/l/#comments) shows the record's comments oldest first, the newest just above the box to write one; Show earlier comments loads those before. ⌘/Ctrl+Enter or the Comment button posts. A view without a layout shows Comments last by itself. A view that names `l.comments()` for a resource without `.comments()` stops startup. A visitor who is not signed in sees the comments but no box.

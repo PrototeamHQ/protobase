@@ -11,7 +11,7 @@ const builtInSenders = (env: Record<string, string | undefined>): PushSender[] =
 }
 
 /**
- * The senders `notifications()` delivers with: the app's own `senders`, which replace the built-in ones, or the
+ * The senders `notifications` delivers with: the app's own `senders`, which replace the built-in ones, or the
  * built-in ones whose environment is set. Each comes guarded (see `guardedSender`): the code that sends calls them only
  * through what this returns. A VAPID variable that is wrong stops startup.
  */

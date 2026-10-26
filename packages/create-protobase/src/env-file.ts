@@ -20,8 +20,8 @@ export const withDatabasePort = (example: string, port: number) => {
   return replaceSetting(example, 'DATABASE_URL', url.toString())
 }
 
-/** A new project's .env: its .env.example with `secret` as BETTER_AUTH_SECRET in place of the placeholder. */
+/** A new project's .env: its .env.example with `secret` as PROTOBASE_SECRET in place of the placeholder. */
 export const envFile = (example: string, secret: string) => {
-  setting(example, 'BETTER_AUTH_SECRET')
-  return replaceSetting(example, 'BETTER_AUTH_SECRET', secret)
+  setting(example, 'PROTOBASE_SECRET')
+  return replaceSetting(example, 'PROTOBASE_SECRET', secret)
 }
