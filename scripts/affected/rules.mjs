@@ -53,7 +53,8 @@ export const edges = [
   // Modules the CLI loads by path (module-file.ts).
   { from: ['packages/cli/src/build/entry-code.ts'], loads: ['packages/cli/src/project/convention.ts'] },
   { from: ['packages/cli/src/build/serve-runtime.ts'], loads: ['packages/cli/src/serve/main.ts'] },
-  { from: ['packages/cli/src/dev/run.ts'], loads: ['packages/cli/src/dev/entry.ts'] },
+  { from: ['packages/cli/src/dev/api-child.ts'], starts: ['packages/cli/src/dev/api-process.ts'] },
+  { from: ['packages/cli/src/dev/api-process.ts'], loads: ['packages/cli/src/dev/entry.ts', 'packages/cli/src/dev/api-support.ts'] },
   // A deploy bundle copies the @protobase packages.
   { from: ['packages/cli/src/build/packages/copy-packages.ts'], reads: ['packages/**'] },
   // The UI's tests of its stylesheet and page, and the auth schema a server test upgrades.

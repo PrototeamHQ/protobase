@@ -32,7 +32,7 @@ export const maxPayloadOf = (url: string) => {
  * over its socket's cap (`maxPayloadOf`, or a function's lower `maxMessageBytes`) closes the socket with 1009 before it
  * is read.
  */
-export const apiWebSocketServer = () => {
+export const apiWebSocketServer = (): WebSocketServer => {
   const Base = npmWebSocketServer()
   class ApiWebSocketServer extends Base {
     override handleUpgrade(...[request, ...rest]: Parameters<WebSocketServer['handleUpgrade']>) {

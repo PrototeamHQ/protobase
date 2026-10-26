@@ -1,27 +1,15 @@
 import { existsSync } from 'node:fs'
 import type { Server as HttpServer } from 'node:http'
 import path from 'node:path'
-import tailwindcss from '@tailwindcss/vite'
-import devServer from '@hono/vite-dev-server'
-import react from '@vitejs/plugin-react'
-import { createServer, searchForWorkspaceRoot, type Plugin } from 'vite'
-import { adminAppDir, adminAppMain, uiPackageDir } from '../project/admin-app'
-import { moduleFile } from '../module-file'
-import { extensionImports, extensionStyles, type Extension } from '../project/extensions'
-import { projectUiPlugin } from '../project/project-ui'
-import { sharedModulesPlugin } from '../project/shared-modules'
-import { themeLink } from '../project/theme-link'
-import { faviconLink } from '../project/favicon-link'
-import { layoutCheck } from '../build/layout-check'
+import type { Plugin } from 'vite'
+import { adminAppDir, adminAppMain } from '../project/admin-app'
+import type { Extension } from '../project/extensions'
 import { checkDatabase } from './check-database'
-import { alsoOnIpv6, checkPortFree, devHost } from './loopback'
+import { alsoOnIpv6, checkPortFree } from './loopback'
 import { loginLine } from './login-line'
-import { startupLogger } from './startup-logger'
-import { stopDevJobs } from './dev-jobs'
 import { loadNearestEnvFile } from './env'
-import { apiWebSockets } from './api-websockets'
-import { isProjectFile } from './project-files'
-import { frameHeaders } from '../serve/static-site'
+import { apiForward } from './api-forward'
+import { forkApiChild, type ApiChild } from './api-child'
 
 export type DevOptions = {
   port: number
@@ -36,8 +24,6 @@ export type DevOptions = {
   extensions?: Extension[]
 }
 
-const entry = moduleFile('./entry', import.meta.url)
-
 const requireAppFiles = (appDir: string) => {
   const missing = ['index.html', adminAppMain].filter((file) => !existsSync(path.join(appDir, file)))
   if (missing.length > 0) {
@@ -45,41 +31,6 @@ const requireAppFiles = (appDir: string) => {
   }
 }
 
-// The project's files are loaded with a dynamic import, which Vite does not track as an edge of the entry
-// module. Any change inside the project or an extension therefore drops the server-side module graph, so the next request
-// rebuilds the API and `/meta` reports a new X-Meta-Version.
-const reloadOnProjectChange = (dirs: string[]): Plugin => ({
-  name: 'protobase-project-reload',
-  handleHotUpdate: ({ file, server }) => {
-    if (isProjectFile(dirs, file)) {
-      server.environments.ssr.moduleGraph.invalidateAll()
-    }
-    return undefined
-  },
-})
-
-// The jobs the entry module started run until the server closes, which lets running ones finish.
-const stopJobsOnClose: Plugin = { name: 'protobase-jobs', closeBundle: () => stopDevJobs() }
-
-// The app's browser dependencies, optimised up front: when Vite discovers them while serving the first page
-// it re-optimises and answers 504 "Outdated Optimize Dep", which shows up as a blank first load.
-const appDependencies = [
-  'react',
-  'react/jsx-runtime',
-  'react/jsx-dev-runtime',
-  'react-dom',
-  'react-dom/client',
-  'lucide-react',
-  'zod',
-  '@tanstack/react-query',
-  '@tanstack/react-table',
-  'recharts',
-  '@sentry/browser',
-  'maplibre-gl',
-  'pmtiles',
-  'fflate',
-  'react-map-gl/maplibre',
-]
 
 export const runDev = async (options: DevOptions, out: (text: string) => void) => {
   loadNearestEnvFile(options.projectDir)
@@ -91,66 +42,41 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   if (options.port !== 0) await checkPortFree(options.port)
 
   const extensions = options.extensions ?? []
-  const projectDirs = [options.projectDir, ...extensions.map((extension) => extension.dir)]
   process.env.PROTOBASE_PROJECT = options.projectDir
   process.env.PROTOBASE_EXTENSIONS = JSON.stringify(extensions)
   process.env.PROTOBASE_DATABASE_URL = url
-  const logging = startupLogger()
-  const server = await createServer({
-    root: appDir,
-    configFile: false,
-    customLogger: logging.logger,
-    ...(options.cacheDir && { cacheDir: options.cacheDir }),
-    // @protobase/ui is the admin app itself, served from its files: a project's or extension's import of it
-    // reaches the same modules instead of a pre-bundled copy, which would hold its own React contexts and
-    // cannot load MapLibre's `?worker&url` worker import.
-    optimizeDeps: { include: appDependencies, exclude: ['@protobase/ui'] },
-    server: {
-      // Vite sends these with the page of every navigation, as `protobase serve` does: no other site frames the app.
-      headers: frameHeaders,
-      host: devHost,
-      port: options.port,
-      strictPort: true,
-      ...(options.allowedHosts.length > 0 && { allowedHosts: options.allowedHosts }),
-      fs: { allow: [searchForWorkspaceRoot(options.projectDir), uiPackageDir, options.projectDir, ...extensions.map((extension) => extension.dir)] },
-    },
-    plugins: [
-      reloadOnProjectChange(projectDirs),
-      apiWebSockets(entry, projectDirs),
-      stopJobsOnClose,
-      sharedModulesPlugin(),
-      themeLink(options.projectDir),
-      faviconLink(options.projectDir),
-      projectUiPlugin(options.projectDir, extensions),
-      extensionImports(options.projectDir, extensions),
-      extensionStyles(extensions),
-      layoutCheck(),
-      react(),
-      tailwindcss(),
-      devServer({
-        entry,
-        // Vite serves everything that is not under /api, the passkey origins at /.well-known/webauthn, the OAuth
-        // discovery documents MCP clients read (`oauthWellKnownPaths`), below which a resource's own one is, or the push
-        // worker (`withDevServiceWorker`).
-        exclude: [/^(?!\/api(\/|\?|$)|\/\.well-known\/webauthn(\?|$)|\/\.well-known\/oauth-(authorization-server|protected-resource)(\/|\?|$)|\/protobase\.sw\.js(\?|$)).*/],
-        injectClientScript: false,
-      }),
-    ],
+  // The API runs in a process of its own (api-process.ts), forked before this process loads Vite so it loads
+  // @protobase/server while the app's server starts, and started once that one listens; its requests wait for it. An API process that ends while serving, such
+  // as on an uncaught error, ends dev too.
+  const onApiExit = (code: number) => {
+    process.stderr.write(`error: the API process of protobase dev ended with exit code ${code}\n`)
+    void server.close().then(() => process.exit(code || 1))
+  }
+  const apiChild = forkApiChild({ projectDir: options.projectDir, extensions, ...(options.cacheDir && { cacheDir: path.join(options.cacheDir, 'api') }) }, onApiExit)
+  let apiReady: (child: ApiChild) => void = () => undefined
+  const api = new Promise<ApiChild>((resolve) => {
+    apiReady = resolve
   })
+  // The API's running jobs finish when the server closes.
+  const stopApiOnClose: Plugin = { name: 'protobase-api-process', closeBundle: () => apiChild.stop() }
+  const stopApiAndThrow = async (error: Error): Promise<never> => {
+    await apiChild.stop()
+    throw error
+  }
+  const { createAppServer } = await import('./app-server')
+  const server = await createAppServer({ ...options, appDir, extensions }, [apiForward(() => api.then((child) => child.port)), stopApiOnClose]).catch(stopApiAndThrow)
   const closeAndThrow = async (error: Error): Promise<never> => {
     await server.close()
     throw error
   }
-  await server.listen()
+  await server.listen().catch(closeAndThrow)
   const address = server.httpServer?.address()
   const port = typeof address === 'object' && address ? address.port : options.port
   if (server.httpServer) await alsoOnIpv6(server.httpServer as HttpServer, port).catch(closeAndThrow)
-  // The app's own origin, whose /api/sb its functions call as SUPABASE_URL.
-  process.env.PROTOBASE_DEV_URL = `http://localhost:${port}`
-  // Load the API once now so a missing authenticator or a broken config stops startup instead of failing requests.
-  const api = await server.ssrLoadModule(entry).catch(closeAndThrow)
-  const anyUsers: boolean | undefined = await api.anyUsers().catch(closeAndThrow)
-  logging.started()
+  // It loads the API once at its start, so a missing authenticator or a broken config stops startup instead of failing requests.
+  const started = await apiChild.start(`http://localhost:${port}`).catch(closeAndThrow)
+  apiReady(started)
+  const { anyUsers } = started
   out(
     `protobase dev ready at http://localhost:${port}\n` +
       `  project  ${options.projectDir}\n  api      http://localhost:${port}/api/v1 (docs at /api/docs)\n` +
