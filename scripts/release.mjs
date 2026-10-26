@@ -15,7 +15,9 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
+import semver from 'semver'
 import { releaseProblems } from './features-check.ts'
+import { releaseVersion } from './release-tag.ts'
 
 const firstRelease = '0.1.0'
 const { values } = parseArgs({ options: { 'dry-run': { type: 'boolean' }, notes: { type: 'string' }, 'features-release-rule': { type: 'boolean' } } })
@@ -32,7 +34,7 @@ const git = (...args) => {
 const releaseTags = (...filter) =>
   git('tag', '--list', 'v[0-9]*', '--sort=-v:refname', ...filter)
     .split('\n')
-    .filter((tag) => /^v\d+\.\d+\.\d+$/.test(tag))
+    .filter((tag) => releaseVersion(tag) !== undefined)
 
 const releasedAs = releaseTags('--points-at', 'HEAD')[0]
 if (releasedAs) {
@@ -64,17 +66,10 @@ if (!section) {
 const bumped = /^## \[?(\d+\.\d+\.\d+)/.exec(section)?.[1]
 if (!bumped) throw new Error(`the changelog's section has no version: ${section.split('\n')[0]}`)
 
-const parse = (version) => version.replace(/^v/, '').split('.').map(Number)
-// A breaking change bumps the major from 1.0 on and the minor below it; anything else bumps less.
-const isBreaking = (from, to) => {
-  const [major, minor] = parse(from)
-  const [toMajor, toMinor] = parse(to)
-  return major === 0 ? toMajor > 0 || toMinor > minor : toMajor > major
-}
-const patchAfter = (tag) => {
-  const [major, minor, patch] = parse(tag)
-  return `${major}.${minor}.${patch + 1}`
-}
+// A breaking change bumps the major from 1.0 on and the minor below it, out of the caret range of the tag's version;
+// anything else bumps less.
+const isBreaking = (from, to) => !semver.satisfies(to, `^${releaseVersion(from)}`)
+const patchAfter = (tag) => semver.inc(releaseVersion(tag), 'patch')
 const maintenance = lastTag !== undefined && newestTag !== lastTag
 if (maintenance && isBreaking(lastTag, bumped)) {
   throw new Error(

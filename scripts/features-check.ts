@@ -20,6 +20,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
+import { releaseVersion } from './release-tag'
 
 const stabilities = ['beta', 'in development', 'coming soon']
 const entryPattern = /^- (?:\[(?<linked>[^\]]+)\]\((?<link>[^)\s]*)\)|(?<plain>[^\s[(:][^(:]*?))(?: \((?<stability>[^)]+)\))?: (?<text>\S.*)$/
@@ -115,7 +116,7 @@ export function releaseProblems(cwd: string) {
   }
   const lastTag = git('tag', '--list', 'v[0-9]*', '--sort=-v:refname', '--merged', 'HEAD')
     .split('\n')
-    .find((tag) => /^v\d+\.\d+\.\d+$/.test(tag))
+    .find((tag) => releaseVersion(tag) !== undefined)
   const range = lastTag ? [`${lastTag}..HEAD`] : ['HEAD']
   const features = git('log', '--format=%h %s', ...range)
     .split('\n')

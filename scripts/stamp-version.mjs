@@ -7,8 +7,9 @@
 import { spawnSync } from 'node:child_process'
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { releaseVersion } from './release-tag.ts'
 
-const version = /^v(\d+\.\d+\.\d+)$/.exec(process.argv[2] ?? '')?.[1]
+const version = releaseVersion(process.argv[2] ?? '')
 if (!version) throw new Error('usage: bun scripts/stamp-version.mjs v<x.y.z>')
 
 const manifests = ['package.json', ...readdirSync('packages').map((dir) => path.join('packages', dir, 'package.json'))]
