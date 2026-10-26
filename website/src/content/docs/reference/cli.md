@@ -21,7 +21,7 @@ In this repository nothing needs a build: the packages' `exports` point at `src`
 
 ### In another process
 
-A process that runs many commands, such as a deploy, can run them without starting the CLI each time. `@protobase/cli/runner` exports one function, and nothing else of the CLI:
+A process that runs many commands, such as a deploy, can run them without starting the CLI each time. `@protobase/cli/runner` exports one function for that; `@protobase/cli/auth` exports the other one a script may call, `loadProjectAuth`, which builds the project's sign-in as the `users` commands do (see [Auth](/reference/auth/#first-run)). Nothing else of the CLI is exported:
 
 ```ts
 import { runCommand } from '@protobase/cli/runner'

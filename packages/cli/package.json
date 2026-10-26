@@ -19,6 +19,7 @@
     "node": ">=22.12.0"
   },
   "exports": {
+    "./auth": "./src/project-auth.ts",
     "./runner": "./src/runner.ts"
   },
   "bin": {
@@ -39,6 +40,7 @@
       "protobase": "./bin/protobase.mjs"
     },
     "exports": {
+      "./auth": "./dist/project-auth.js",
       "./runner": "./dist/runner.js"
     }
   },

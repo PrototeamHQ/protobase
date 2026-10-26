@@ -123,10 +123,13 @@ An app served another way than `protobase serve`, such as its own server around 
 
 ## First run
 
-Accounts are never created over the web while the store is empty: there is no setup route, and [open sign-up](#open-sign-up), when an app turns it on, waits for the first admin, so a freshly deployed URL cannot be claimed by whoever reaches it first. The first admin is created on the host, with the CLI (`protobase users create you@example.com --generate-password`, or `--no-password` for an account that signs in by emailed code, passkey or a sign-in provider only). The `users` commands call these functions of `@protobase/server`, on the app's sign-in:
+Accounts are never created over the web while the store is empty: there is no setup route, and [open sign-up](#open-sign-up), when an app turns it on, waits for the first admin, so a freshly deployed URL cannot be claimed by whoever reaches it first. The first admin is created on the host, with the CLI (`protobase users create you@example.com --generate-password`, or `--no-password` for an account that signs in by emailed code, passkey or a sign-in provider only). The `users` commands call these functions of `@protobase/server`, on the app's sign-in. A script of the project's own, such as a seed, builds that sign-in as the commands do, from the project's config and `DATABASE_URL`, with `loadProjectAuth` of `@protobase/cli/auth`:
 
 ```ts
+import { loadProjectAuth } from '@protobase/cli/auth'
 import { createUser, hasUsers, listUsers } from '@protobase/server'
+
+const auth = await loadProjectAuth(process.cwd())            // the project's folder; its .env is loaded too
 
 await createUser(auth, { email, password?, name?, role? }) // the first user is always an admin; later ones default to `user`
 await hasUsers(auth)                                         // boolean
@@ -672,8 +675,10 @@ An app moving from Supabase keeps its `supabase.auth` calls and its `@supabase/s
 There is no development login. For scripts, mint a token for an existing user on the host (the CLI exposes it as `protobase token you@example.com`):
 
 ```ts
+import { loadProjectAuth } from '@protobase/cli/auth'
 import { issueToken } from '@protobase/server'
 
+const auth = await loadProjectAuth(process.cwd())
 const { token, expiresAt } = await issueToken(auth, { email: 'you@example.com', ttlSeconds: 3600 }) // default 15 minutes, at most 24 hours
 ```
 

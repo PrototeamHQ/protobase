@@ -4,7 +4,7 @@ import { defineConfig } from 'tsdown'
 // build/serve-runtime.ts), and dev/api-process.ts runs in a process of its own (see dev/api-child.ts). As entries they
 // keep every export.
 export default defineConfig({
-  entry: ['src/index.ts', 'src/runner.ts', 'src/dev/entry.ts', 'src/dev/api-support.ts', 'src/dev/api-process.ts', 'src/serve/main.ts'],
+  entry: ['src/index.ts', 'src/runner.ts', 'src/project-auth.ts', 'src/dev/entry.ts', 'src/dev/api-support.ts', 'src/dev/api-process.ts', 'src/serve/main.ts'],
   unbundle: true,
   fixedExtension: false,
   dts: true,
