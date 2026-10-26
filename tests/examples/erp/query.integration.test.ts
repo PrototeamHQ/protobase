@@ -20,8 +20,13 @@ const scope = { tenantValue: 1 }
 // @protobase/query's tests; statistics on a million rows are the Postgres suite's (tests/postgres/erp-statistics.test.ts).
 describe.skipIf(!reachable)('query layer against the seeded erp database', () => {
   it('cancels a slow facet count with statement_timeout', async () => {
-    const slow = facetCounts(db, stockMoves, 'reference', undefined, { statementTimeoutMs: 5, scope })
-    await expect(slow).rejects.toThrow(/statement timeout/)
+    // The small seed counts in a few milliseconds, as fast as any short timeout on some machines; another transaction
+    // holding the table makes the count wait until the timeout fires, however fast the machine.
+    await pg.begin(async lock => {
+      await lock`lock table inventory.stock_moves in access exclusive mode`
+      const slow = facetCounts(db, stockMoves, 'reference', undefined, { statementTimeoutMs: 50, scope })
+      await expect(slow).rejects.toThrow(/statement timeout/)
+    })
     const generous = await facetCounts(db, stockMoves, 'kind', undefined, { statementTimeoutMs: 120_000, scope })
     expect(generous.length).toBeGreaterThan(0)
   })
