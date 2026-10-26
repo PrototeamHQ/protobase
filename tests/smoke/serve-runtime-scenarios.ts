@@ -8,10 +8,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildServeRuntime } from '../../packages/cli/src/build/serve-runtime'
 import { protobaseVersion } from '../../packages/cli/src/version/version'
 import { bin, root, run } from '../../packages/cli/tests/support/auth-project'
-import { sendPastDueInvoice, signIn, stopProcess, untilListening } from '../../packages/cli/tests/support/serve-process'
+import { sendPastDueInvoice, serveOnFreePort, signIn, stopProcess } from '../../packages/cli/tests/support/serve-process'
 
-/** A plain ERP bundle `protobase build` wrote, and what serving it takes: its database's environment, a port, a user. */
-export type BuiltErp = { bundle: string; env: Record<string, string>; port: number; email: string; password: string }
+/** A plain ERP bundle `protobase build` wrote, and what serving it takes: its database's environment, a user. */
+export type BuiltErp = { bundle: string; env: Record<string, string>; email: string; password: string }
 
 // Building the runtime and starting Bun are slow under load.
 const startupTimeout = 120_000
@@ -33,19 +33,22 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
   let token = ''
 
   beforeAll(async () => {
-    const { bundle, env, port } = erp()
-    base = `http://localhost:${port}`
+    const { bundle, env } = erp()
     dir = await mkdtemp(path.join(tmpdir(), 'protobase-serve-'))
     await cp(bundle, path.join(dir, 'app'), { recursive: true })
     await buildServeRuntime({ outFile: path.join(dir, 'opt/protobase-serve.js'), bun: true })
 
-    child = spawn('bun', ['--no-install', 'opt/protobase-serve.js', 'app/protobase.config.js'], {
-      cwd: dir,
-      env: { PATH: process.env.PATH, ...env, PORT: String(port), PROTOBASE_JOBS_DRAIN_TOKEN: drainToken },
-    })
-    child.stdout?.on('data', (chunk) => (output += chunk))
-    child.stderr?.on('data', (chunk) => (output += chunk))
-    await untilListening(child, startupTimeout - 10_000)
+    const served = await serveOnFreePort((port) => {
+      output = ''
+      child = spawn('bun', ['--no-install', 'opt/protobase-serve.js', 'app/protobase.config.js'], {
+        cwd: dir,
+        env: { PATH: process.env.PATH, ...env, PORT: String(port), BETTER_AUTH_URL: `http://localhost:${port}`, PROTOBASE_JOBS_DRAIN_TOKEN: drainToken },
+      })
+      child.stdout?.on('data', (chunk) => (output += chunk))
+      child.stderr?.on('data', (chunk) => (output += chunk))
+      return child
+    }, startupTimeout - 10_000)
+    base = served.base
   }, startupTimeout)
 
   afterAll(async () => {
@@ -252,8 +255,11 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
   // The image's command: the bundle folder, served with its own copy of the app.
   describe('given the bundle folder', () => {
     beforeAll(async () => {
-      child = spawn('bun', ['--no-install', 'opt/protobase-serve.js', 'app'], { cwd: dir, env: { PATH: process.env.PATH, ...erp().env, PORT: String(erp().port) } })
-      await untilListening(child, startupTimeout - 10_000)
+      const served = await serveOnFreePort((port) => {
+        child = spawn('bun', ['--no-install', 'opt/protobase-serve.js', 'app'], { cwd: dir, env: { PATH: process.env.PATH, ...erp().env, PORT: String(port), BETTER_AUTH_URL: `http://localhost:${port}` } })
+        return child
+      }, startupTimeout - 10_000)
+      base = served.base
     }, startupTimeout)
 
     it('serves the app and the API', async () => {

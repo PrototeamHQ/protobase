@@ -5,8 +5,8 @@ import path from 'node:path'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { bin, root, run } from '../../packages/cli/tests/support/auth-project'
-import { databaseReachable, freePort, testDatabaseUrl } from '../../packages/cli/tests/support/database'
-import { createErpDatabase, sendPastDueInvoice, signIn, stopProcess, untilListening, untilPrinted } from '../../packages/cli/tests/support/serve-process'
+import { databaseReachable, testDatabaseUrl } from '../../packages/cli/tests/support/database'
+import { createErpDatabase, sendPastDueInvoice, serveOnFreePort, signIn, stopProcess, untilPrinted } from '../../packages/cli/tests/support/serve-process'
 import { protobaseVersion } from '../../packages/cli/src/version/version'
 import { serveRuntimeScenarios } from './serve-runtime-scenarios'
 
@@ -28,17 +28,14 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
   const outDir = path.join(erpDir, `.smoke-${randomBytes(4).toString('hex')}`)
   const email = 'smoke@example.com'
   const password = 'a-long-test-password'
-  let port: number
-  let base: string
   let store: Awaited<ReturnType<typeof createErpDatabase>>
   let child: ChildProcess | undefined
   let plainCode: string
   let plainBuild: { status: number | null; stderr: string }
 
   beforeAll(async () => {
-    port = await freePort()
-    base = `http://localhost:${port}`
-    store = await createErpDatabase({ url, erpDir, base, email, password })
+    // Each serve names its own port as BETTER_AUTH_URL.
+    store = await createErpDatabase({ url, erpDir, base: 'http://localhost', email, password })
     // As a platform builds it: no BETTER_AUTH_SECRET, and no database to reach.
     const env = { PATH: process.env.PATH, HOME: process.env.HOME, DATABASE_URL: 'postgres://nobody@127.0.0.1:1/none' }
     plainBuild = spawnSync(process.execPath, [bin, 'build', '--out', path.join(outDir, 'plain')], { cwd: erpDir, env, encoding: 'utf8' })
@@ -52,6 +49,18 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
     await store?.dispose()
   }, 60_000)
 
+  // Serves the bundle `name` with the database's environment and `env`, on a port of its own; `output` is what it printed.
+  let output = ''
+  const serve = async (name: string, env: Record<string, string> = {}) => {
+    const served = await serveOnFreePort((port) => {
+      output = ''
+      child = spawn(process.execPath, [bin, 'serve', path.join(outDir, name)], { cwd: erpDir, env: { ...process.env, ...store.env, ...env, PORT: String(port), BETTER_AUTH_URL: `http://localhost:${port}` } })
+      child.stdout?.on('data', (chunk) => (output += chunk))
+      return child
+    }, timeout - 10_000)
+    return served.base
+  }
+
   // A bundle of its own, built with the database's environment.
   const build = async (name: string, ...options: string[]) => {
     const built = await run([bin, 'build', '--out', path.join(outDir, name), ...options], erpDir, store.env)
@@ -61,9 +70,8 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
 
   // Serves the bundle, calls the ERP's API function, has its worker run a job, reads /api/meta as an admin and stops it again.
   const serveMeta = async (name: string) => {
-    child = spawn(process.execPath, [bin, 'serve', path.join(outDir, name)], { cwd: erpDir, env: { ...process.env, ...store.env, PORT: String(port) } })
     try {
-      await untilListening(child, timeout - 10_000)
+      const base = await serve(name)
       const token = await signIn(base, email, password)
       const unpaid = await fetch(`${base}/api/functions/unpaid-orders`, { headers: { authorization: `Bearer ${token}` } })
       expect(unpaid.status).toBe(200)
@@ -107,11 +115,8 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
     if (shell.status !== 0) throw new Error(`protobase build-shell failed:\n${shell.stderr}`)
     const index = path.join(shellDir, 'index.html')
     await writeFile(index, (await readFile(index, 'utf8')).replace('<title>Protobase</title>', '<title>Own shell 5e2a</title>'))
-    let output = ''
-    child = spawn(process.execPath, [bin, 'serve', path.join(outDir, 'plain')], { cwd: erpDir, env: { ...process.env, ...store.env, PORT: String(port), PROTOBASE_SHELL: shellDir } })
-    child.stdout?.on('data', (chunk) => (output += chunk))
     try {
-      await untilListening(child, timeout - 10_000)
+      const base = await serve('plain', { PROTOBASE_SHELL: shellDir })
       for (const pathname of ['/', '/orders/42']) expect(await (await fetch(`${base}${pathname}`, { headers: { accept: 'text/html' } })).text()).toContain('Own shell 5e2a')
       const plugin = await fetch(`${base}/plugins/app/plugin.json`)
       expect(plugin.status).toBe(200)
@@ -128,9 +133,8 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
   // The jobs in a process of their own: `serve` with PROTOBASE_JOBS=false only enqueues them, `protobase worker` runs them.
   it.skipIf(!onBun)('runs the jobs in protobase worker beside a serve that only enqueues them', async () => {
     const worker = spawn(process.execPath, [bin, 'worker', path.join(outDir, 'plain')], { cwd: erpDir, env: { ...process.env, ...store.env } })
-    child = spawn(process.execPath, [bin, 'serve', path.join(outDir, 'plain')], { cwd: erpDir, env: { ...process.env, ...store.env, PORT: String(port), PROTOBASE_JOBS: 'false' } })
     try {
-      await Promise.all([untilListening(child, timeout - 10_000), untilPrinted(worker, 'protobase worker running 2 jobs', timeout - 10_000)])
+      const [base] = await Promise.all([serve('plain', { PROTOBASE_JOBS: 'false' }), untilPrinted(worker, 'protobase worker running 2 jobs', timeout - 10_000)])
       const token = await signIn(base, email, password)
       expect(await sendPastDueInvoice(base, token, store.env.DATABASE_URL)).toBe('overdue')
       // The nightly sweep waits as its next run, which the worker enqueued.
@@ -144,5 +148,5 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
     }
   }, timeout)
 
-  if (onBun) serveRuntimeScenarios(() => ({ bundle: path.join(outDir, 'plain'), env: store.env, port, email, password }))
+  if (onBun) serveRuntimeScenarios(() => ({ bundle: path.join(outDir, 'plain'), env: store.env, email, password }))
 })

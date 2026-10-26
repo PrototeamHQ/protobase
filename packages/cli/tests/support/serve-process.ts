@@ -2,6 +2,7 @@ import type { ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import postgres from 'postgres'
 import { bin, run, typescriptArgs } from './auth-project'
+import { freePort } from './database'
 
 export const withDatabase = (target: string, database: string) => {
   const next = new URL(target)
@@ -30,6 +31,39 @@ export const untilPrinted = (child: ChildProcess, text: string, timeout: number)
 
 // Resolves once a serve process prints that it listens.
 export const untilListening = (child: ChildProcess, timeout: number) => untilPrinted(child, 'protobase serve listening', timeout)
+
+// Resolves with whether a serve process listens, or exited because another socket held its port.
+const listensOrPortTaken = (child: ChildProcess, timeout: number) =>
+  new Promise<'listening' | 'port taken'>((resolve, reject) => {
+    let output = ''
+    const timer = setTimeout(() => reject(new Error(`process did not listen in time:\n${output}`)), timeout)
+    const collect = (chunk: Buffer) => {
+      output += chunk
+      if (!output.includes('protobase serve listening')) return
+      clearTimeout(timer)
+      resolve('listening')
+    }
+    child.stdout?.on('data', collect)
+    child.stderr?.on('data', collect)
+    child.once('exit', (code) => {
+      clearTimeout(timer)
+      if (/EADDRINUSE|Is port \d+ in use/.test(output)) resolve('port taken')
+      else reject(new Error(`process exited with ${code}:\n${output}`))
+    })
+  })
+
+/**
+ * Starts a server on a port `freePort` found, and on another one when a socket took that port between `freePort`
+ * releasing it and the server binding it, as any client socket of a parallel test may. Resolves once it listens.
+ */
+export const serveOnFreePort = async (start: (port: number) => ChildProcess, timeout: number) => {
+  for (let tries = 0; tries < 5; tries++) {
+    const port = await freePort()
+    const child = start(port)
+    if ((await listensOrPortTaken(child, timeout)) === 'listening') return { child, port, base: `http://localhost:${port}` }
+  }
+  throw new Error('the server found its port taken 5 times in a row')
+}
 
 export const stopProcess = async (child: ChildProcess | undefined) => {
   if (!child || child.exitCode !== null || child.signalCode !== null) return
