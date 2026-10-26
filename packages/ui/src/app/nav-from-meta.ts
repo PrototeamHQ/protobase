@@ -13,8 +13,14 @@ export const navItemId = (resource: string, list?: string) => (list === undefine
 
 const groupLabels: Record<string, 'sales' | 'crm' | 'catalog' | 'inventory' | 'admin' | 'hr'> = { sales: 'sales', crm: 'crm', catalog: 'catalog', inventory: 'inventory', core: 'admin', hr: 'hr' }
 
+/** The group of a schema's resources: none for the default `public` schema, whose name would read as "visible to anyone". */
+const schemaGroup = (schema = 'public') => {
+  if (schema === 'public') return ''
+  return groupLabels[schema] ? appText(groupLabels[schema]) : humanize(schema)
+}
+
 /**
- * One sidebar group per `nav.group` (default: the database schema, and "Pages" for pages); `nav.hidden` and a place in
+ * One sidebar group per `nav.group` (default: the database schema, none for `public`, and "Pages" for pages); `nav.hidden` and a place in
  * the user menu leave an entry out, `nav.order` sorts within a group, and `recent` (from `useNavRecent`) makes an entry
  * collapsible. Groups with pages come first, so a dashboard leads the sidebar. The resources of a source that cannot be
  * read are listed under its label, each with the problem. A visitor also gets the resources whose views ask them to sign
@@ -36,8 +42,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
   for (const model of Object.values(meta.resources)) {
     const view = meta.views[model.name]
     if (!view || inMenu.has(model.name)) continue
-    const schema = model.table.schema ?? 'public'
-    const defaultGroup = view.nav?.group ?? (groupLabels[schema] ? appText(groupLabels[schema]) : humanize(schema))
+    const defaultGroup = view.nav?.group ?? schemaGroup(model.table.schema)
     const add = (groupName: string, item: NavGroup['items'][number], order: number | undefined) => {
       const group = groups.get(groupName) ?? { label: groupName, items: [] }
       group.items.push(item)

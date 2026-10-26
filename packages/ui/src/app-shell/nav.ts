@@ -57,4 +57,5 @@ export type NavItem = {
   /** Why the entry cannot open what it names right now, such as another API that does not answer; marked beside it. */
   problem?: string
 }
+/** A group of sidebar entries; an empty `label` shows them without a heading. */
 export type NavGroup = { label: string; items: NavItem[] }

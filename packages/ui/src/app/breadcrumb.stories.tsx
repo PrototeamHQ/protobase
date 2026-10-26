@@ -24,7 +24,7 @@ const Rentals = ({ path, held }: { path: string; held?: Promise<void> }) => {
   )
 }
 
-/** The list and the record are links; the sidebar group has no page, so it stays text. */
+/** The list and the record are links; the default `public` schema is no sidebar group, so it is no crumb either. */
 export const RecordLinks: StoryObj = {
   tags: ['play'],
   render: () => <Rentals path="/admin/tenants/1" />,
@@ -38,7 +38,7 @@ export const RecordLinks: StoryObj = {
     expect(list).toHaveAttribute('href', '/admin/tenants')
     expect(list).not.toHaveAttribute('aria-current')
     expect(trail.getAllByRole('link')).toHaveLength(2)
-    expect(trail.getByText('Public').closest('a')).toBeNull()
+    expect(trail.queryByText(/public/i)).toBeNull()
 
     await userEvent.click(list)
     await canvas.findByRole('link', { name: /New tenant/ })

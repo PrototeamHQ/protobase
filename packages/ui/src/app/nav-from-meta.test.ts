@@ -110,6 +110,21 @@ describe('navFromMeta', () => {
     ])
   })
 
+  it('shows the default public schema without a group name', () => {
+    const meta = {
+      etag: '"x"',
+      appName: 'Protobase',
+      permissions: {},
+      pages: {},
+      resources: { tenants: model('tenants', 'public'), orders: model('orders', 'sales') },
+      views: {
+        tenants: { resource: 'tenants', fields: {}, filters: [], layout: [], actions: [] } as ViewModel,
+        orders: { resource: 'orders', fields: {}, filters: [], layout: [], actions: [] } as ViewModel,
+      },
+    }
+    expect(navFromMeta(meta).map((group) => group.label)).toEqual(['', 'Sales'])
+  })
+
   it('leaves user menu resources out and attaches recent records', () => {
     const view = (resource: string) => ({ resource, fields: {}, filters: [], layout: [], actions: [] }) as unknown as ViewModel
     const meta = {
