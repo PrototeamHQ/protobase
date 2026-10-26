@@ -53,7 +53,8 @@ const relationOf = (table: DbTable, column: string, context: ProposalContext) =>
   return fk.columns.length === 1 ? { resource } : { resource, columns: fk.columns }
 }
 
-export const auditColumn = /^(created|inserted|updated|modified)_at$/
+// snake_case or camelCase, as a table another tool made may name them.
+export const auditColumn = /^(created|inserted|updated|modified)(_at|At)$/
 
 // Computed defaults on identity, key and audit-timestamp columns are never meant to be typed in.
 export const isServerManaged = (table: DbTable, column: DbColumn) =>
