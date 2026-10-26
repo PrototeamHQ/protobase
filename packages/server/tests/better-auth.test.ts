@@ -360,6 +360,7 @@ describe('configurable roles', () => {
 
     await createUser(roled, { email: 'boss@example.com', password })
     await expect(createUser(roled, { email: 'clerk@example.com', password })).rejects.toThrow('A role is required: choose one of admin, accountant, warehouse')
+    await expect(createUser(roled, { email: 'Boss@example.com', password })).rejects.toThrow('A user with email Boss@example.com exists already; use another email')
     const clerk = await createUser(roled, { email: 'clerk@example.com', password, role: 'accountant' })
     expect(clerk.role).toBe('accountant')
     await expect(createUser(roled, { email: 'x@example.com', password, role: 'user' })).rejects.toThrow('Unknown role "user"; use admin, accountant, warehouse')

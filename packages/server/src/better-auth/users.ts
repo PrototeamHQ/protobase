@@ -53,7 +53,13 @@ const checkAccounts = async (auth: AdminAuth, accounts: LinkedAccount[]) => {
 export const createUser = async (auth: AdminAuth, input: NewUser) => {
   const first = !(await hasUsers(auth))
   const requested = input.role ?? auth.defaultRole
-  if (!first && requested === undefined) throw new Error(`A role is required: choose one of ${auth.roles.join(', ')}`)
+  if (!first && requested === undefined) {
+    // An address that has its user already is the problem then, not the missing role (Better Auth says so with one).
+    if (await (await auth.$context).internalAdapter.findUserByEmail(input.email.toLowerCase())) {
+      throw new Error(`A user with email ${input.email} exists already; use another email`)
+    }
+    throw new Error(`A role is required: choose one of ${auth.roles.join(', ')}`)
+  }
   const role = first ? 'admin' : checkRoles(auth, requested!).join(',')
   const accounts = input.accounts ?? []
   await checkAccounts(auth, accounts)
