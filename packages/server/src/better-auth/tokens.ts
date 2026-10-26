@@ -31,6 +31,7 @@ export const issueToken = async (auth: AdminAuth, options: IssueTokenOptions) =>
   if (user.banned) throw new Error(`${options.email} is banned`)
   const issuedAt = Math.floor(Date.now() / 1000)
   const { role } = narrowClaims({ role: parseRoles(user.role).join(',') }, [user.lastRole], Boolean(auth.organizations))
+  await auth.api.ensureSigningKey()
   const { token } = await auth.api.signJWT({
     body: { payload: { iat: issuedAt, exp: issuedAt + ttl, sub: user.id, email: user.email, role } },
   })

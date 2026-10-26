@@ -15,6 +15,12 @@ describe('withDefaults', () => {
     expect(withDefaults(merged({ url: 'https://own.example.com' }), 'serve', { PROTOBASE_URL: 'https://shop.example.com' }).url).toBe('https://own.example.com')
   })
 
+  it("takes the app's previous secrets from the environment, comma separated, unless the config lists its own", () => {
+    expect(withDefaults(merged({}), 'serve', { PROTOBASE_PREVIOUS_SECRETS: 'b, a' }).previousSecrets).toEqual(['b', 'a'])
+    expect(withDefaults(merged({ previousSecrets: ['c'] }), 'serve', { PROTOBASE_PREVIOUS_SECRETS: 'b' }).previousSecrets).toEqual(['c'])
+    expect(withDefaults(merged({}), 'serve', { PROTOBASE_PREVIOUS_SECRETS: ' ' })).not.toHaveProperty('previousSecrets')
+  })
+
   it('turns sign-in on with its defaults, unless the config turns it off or trusts an auth server elsewhere', () => {
     expect(withDefaults(merged({}), 'serve', { PROTOBASE_TRUSTED_ORIGINS: 'https://a.example, https://b.example' }).auth).toEqual({ trustedOrigins: ['https://a.example', 'https://b.example'] })
     expect(withDefaults(merged({ auth: { roles: ['admin', 'sales'] } }), 'serve', {}).auth).toEqual({ roles: ['admin', 'sales'] })

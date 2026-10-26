@@ -42,6 +42,18 @@ The app's secret, made with `openssl rand -base64 32`: it signs session cookies,
 export default defineConfig(({ env }) => ({ secret: env.ADMIN_SECRET }))
 ```
 
+## previousSecrets
+
+- **Type:** `string[]`
+- **Default:** `PROTOBASE_PREVIOUS_SECRETS`, comma separated; none
+- **Environment variable:** `PROTOBASE_PREVIOUS_SECRETS`
+
+The app's secrets before `secret`, newest first. The app encrypts with `secret` and still decrypts what these encrypted, so after the secret changes the token signing keys keep signing and the tokens in flight keep verifying. Keep an old secret listed until the keys it encrypted have rotated out ([`signingKeyDays`](sign-in.md#signingkeydays)), and while authenticator apps set up before the change are in use. See [Changing the secret](../auth.md#changing-the-secret).
+
+```ts
+export default defineConfig(({ env }) => ({ secret: env.ADMIN_SECRET, previousSecrets: [env.OLD_ADMIN_SECRET] }))
+```
+
 ## locale
 
 - **Type:** `'en' | 'nl'`

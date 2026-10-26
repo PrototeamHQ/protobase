@@ -1,7 +1,7 @@
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint } from 'better-auth/api'
 import { generateRandomString } from 'better-auth/crypto'
-import { createJwk, signJWT, type JwtOptions } from 'better-auth/plugins'
+import { signJWT, type JwtOptions } from 'better-auth/plugins'
 import * as z from 'zod'
 import { tokenRefusal, type SignInPolicyPluginOptions } from '../better-auth/policy-plugin'
 import { goTrueAlgorithm } from './keys'
@@ -13,6 +13,8 @@ export type GoTrueSessionsOptions = {
   issuer: string
   /** The JWT plugin's own options, whose keys sign the access tokens. */
   jwt: JwtOptions
+  /** Makes sure a live EdDSA key signs the app's own tokens (`signingKeys`), before this signs with the ES256 one. */
+  signingKey: (ctx: Context) => Promise<void>
   /** The sign-in policy's, which holds tokens back as it does Protobase's own. */
   policy: SignInPolicyPluginOptions
 }
@@ -26,17 +28,7 @@ const refreshTokenNotFound = () => new APIError('BAD_REQUEST', { code: 'REFRESH_
  * so signing out anywhere, a ban or a revoked session ends it, and refreshing gives the session a new token, so each
  * refresh token works once. Server-side endpoints only, for `goTrueRoutes`.
  */
-export const goTrueSessionsPlugin = ({ issuer, jwt, policy }: GoTrueSessionsOptions) => {
-  // Protobase's own tokens are signed with the newest EdDSA key, or the newest key of all when there is none; an EdDSA
-  // key made before the first ES256 one keeps them EdDSA.
-  let primaryKeyMade = false
-  const makePrimaryKey = async (ctx: Context) => {
-    if (primaryKeyMade) return
-    const keys = await ctx.context.adapter.findMany<{ alg?: string | null }>({ model: 'jwks' })
-    if (!keys.some((key) => key.alg === null || key.alg === undefined || key.alg === 'EdDSA')) await createJwk(ctx, jwt)
-    primaryKeyMade = true
-  }
-
+export const goTrueSessionsPlugin = ({ issuer, jwt, signingKey, policy }: GoTrueSessionsOptions) => {
   const sessionOf = async (ctx: Context, sessionToken: string) => {
     const found = await ctx.context.internalAdapter.findSession(sessionToken)
     if (!found) throw refreshTokenNotFound()
@@ -45,7 +37,9 @@ export const goTrueSessionsPlugin = ({ issuer, jwt, policy }: GoTrueSessionsOpti
     if (refusal) throw new APIError('FORBIDDEN', refusal)
     const accounts = (await ctx.context.internalAdapter.findAccounts(user.id)) as StoredAccount[]
     const now = Math.floor(Date.now() / 1000)
-    await makePrimaryKey(ctx)
+    // Protobase's own tokens are signed with the newest live EdDSA key, or the newest live key of all when there is
+    // none; an EdDSA key made before the ES256 one keeps them EdDSA.
+    await signingKey(ctx)
     const accessToken = await signJWT(ctx, { options: jwt, payload: accessClaims({ user, accounts, sessionId: found.session.id, issuer, now }), signingAlgorithm: goTrueAlgorithm })
     return goTrueSession({ accessToken, refreshToken: sessionToken, issuedAt: now, user: goTrueUser(user, accounts) })
   }

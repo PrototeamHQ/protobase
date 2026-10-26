@@ -69,6 +69,7 @@ The store's migrations make the user table only when it is missing, and add each
 | Variable | |
 | --- | --- |
 | `PROTOBASE_SECRET` | the app's secret, the default of `secret`: signs cookies and encrypts the token keys; `openssl rand -base64 32`; never committed (`.env.example` has a placeholder) |
+| `PROTOBASE_PREVIOUS_SECRETS` | the app's secrets before `PROTOBASE_SECRET`, newest first, comma separated, the default of `previousSecrets`; see [Changing the secret](#changing-the-secret) |
 | `PROTOBASE_URL` | the app's public URL, the default of `url` (in `protobase dev`, the dev server's own); issuer and audience of the tokens; when tunnelling, the https tunnel URL |
 | `PROTOBASE_TRUSTED_ORIGINS` | extra comma separated origins, the default of `auth.trustedOrigins`; a dev tunnel needs its exact host here, such as `https://my-tunnel.trycloudflare.com`, since no wildcard is trusted |
 | `PROTOBASE_ORIGINS` | the other origins the app is served on, comma separated, passed by the platform; see [Several origins](#several-origins) |
@@ -607,6 +608,32 @@ With sign-in on, the app's authenticator checks on every request that the token 
 A refused token is a `401`, as an expired one is, and the client retries the request once with a new token from `/api/auth/token`. Tokens carry their session's id in `sid`; one from [`issueToken`](#tokens-for-scripts-and-curl) names none, and is checked against the user alone.
 
 The cost is two or three lookups by key in the auth store per request: the session by `sid`, the user by `sub`, and with organizations the membership. Nothing is cached, so every server process sees a change at once. An open `/live` stream was admitted when it connected and keeps running until it closes. With `authenticate.jwksUrl` instead of sign-in of its own, the API cannot read the auth store and a token works until it expires, as do tokens of [other apps](#users-of-another-app).
+
+### Signing keys
+
+The app makes the keys that sign its tokens itself, and keeps them in the auth store, the private half encrypted with the app's `secret`. Every instance of the app signs with the same keys, since they share the database, and nobody supplies one.
+
+The keys rotate. A key signs for 30 days (`signingKeyDays`); the first token after that makes a new key, which signs from then on. The replaced key stays in `/api/auth/jwks` for 7 more days (`signingKeyGraceDays`, at least 1), so the tokens it signed keep verifying until they expire, and is then deleted. A month bounds how long a leaked key could sign, and keeps the key set to a few keys. A week is far longer than any token lasts (a day at most, from [`protobase token`](#tokens-for-scripts-and-curl)), so an API that caches the key set, such as another app reading `/api/auth/jwks`, never refuses a token signed just before a rotation. The ES256 key of the [Supabase-compatible tokens](#supabase-js-and-supabasessr) rotates the same way. A key made by a version before rotation expires 30 days after it was made, or at once when it is older.
+
+```ts
+export default defineConfig({ signingKeyDays: 90, signingKeyGraceDays: 14 })
+```
+
+#### Changing the secret
+
+The secret encrypts the signing keys, so with a new `secret` alone the app cannot read them, and making a token fails with `Failed to decrypt private key`. List the old secret in `previousSecrets`, newest first, or in `PROTOBASE_PREVIOUS_SECRETS`, comma separated:
+
+```sh
+PROTOBASE_SECRET=<the new secret>
+PROTOBASE_PREVIOUS_SECRETS=<the old secret>
+```
+
+The app then encrypts with the new secret and still decrypts what an old one encrypted, so it keeps signing with the same key, and the tokens in flight keep verifying. Keep an old secret listed:
+
+- until the keys it encrypted have rotated out, `signingKeyDays` after the change: the next keys are encrypted with the new secret;
+- while people use the [authenticator apps](#two-factor-authentication) they set up before the change, whose secrets it encrypted too, and, with `encryptOAuthTokens`, while the tokens it encrypted for social sign-ins are needed.
+
+What the old secret signed stops working: session cookies, so everyone signs in again, and links already sent, such as invitations and download links. Give every instance the same secrets: an instance that knows only the old secret cannot read a key made with the new one.
 
 ## Users of another app
 

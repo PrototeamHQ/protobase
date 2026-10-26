@@ -14,8 +14,11 @@ import type {
   WebhooksOptions,
 } from '@protobase/server'
 
-/** `auth`: sign-in (see `AuthSettings`). Its URL, secret and name are the app's (`url`, `secret`, `name`). */
-export type AuthConfig = Omit<AuthSettings, 'baseURL' | 'secret' | 'appName'>
+/**
+ * `auth`: sign-in (see `AuthSettings`). Its URL, secrets and name are the app's (`url`, `secret`, `previousSecrets`,
+ * `name`), and so are its signing keys' (`signingKeyDays`, `signingKeyGraceDays`).
+ */
+export type AuthConfig = Omit<AuthSettings, 'baseURL' | 'secret' | 'appName' | 'previousSecrets' | 'signingKeyDays' | 'signingKeyGraceDays'>
 
 /** `files`: where file fields keep their bytes (see `FilesOptions`), with the providers as data. */
 export type FilesConfig = Omit<FilesOptions, 'providers' | 'sharp'> & {
@@ -42,6 +45,16 @@ type AppKeys = AppIdentity & {
    * and public forms' bot checks, and encrypts the token signing keys. Default `PROTOBASE_SECRET`; required with sign-in.
    */
   secret?: string
+  /**
+   * The app's secrets before `secret`, newest first: what they encrypted still decrypts, so the token signing keys keep
+   * signing after the secret changes. Keep one listed while the keys it encrypted sign (`signingKeyDays`), and while
+   * two-factor authenticator apps set up with it are in use. Default `PROTOBASE_PREVIOUS_SECRETS`, comma separated.
+   */
+  previousSecrets?: string[]
+  /** Days a token signing key signs before a new one takes over. Default 30. */
+  signingKeyDays?: number
+  /** Days a replaced signing key still verifies the tokens it signed. Default 7, at least 1. */
+  signingKeyGraceDays?: number
   /** The language of the admin app's built-in screens and of its numbers and dates, for every user: `'en'` or `'nl'`; unset, each user's browser's. */
   locale?: NonNullable<AdminOptions['locale']>
   /** The time zone the jobs' schedules are read in unless a job names its own, such as `Europe/Amsterdam`. Default `UTC`. */

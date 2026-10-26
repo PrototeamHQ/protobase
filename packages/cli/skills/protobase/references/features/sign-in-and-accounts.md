@@ -25,6 +25,8 @@ Sign-in methods, users, roles, organizations and tokens.
 - [Organizations](../reference/auth.md#organizations): People work in one organization at a time, see only its records, and are invited with their own roles.
 - [API tokens](../reference/auth.md#tokens-and-roles): A signed-in session gets short-lived tokens for the API.
 - [Immediate revocation](../reference/auth.md#when-a-token-stops-working): A ban, removed role or ended session takes effect on the next request.
+- [Signing key rotation](../reference/auth.md#signing-keys): The keys that sign the tokens are replaced every 30 days on their own, and old ones keep verifying the tokens they signed for a week.
+- [Changing the secret](../reference/auth.md#changing-the-secret): The app's secret can change while the signing keys keep signing, by listing the old secret beside the new one.
 - [Tokens for scripts](../reference/auth.md#tokens-for-scripts-and-curl): A token for an existing user, for scripts and curl.
 - [Several origins](../reference/auth.md#several-origins): One app works on several domains, such as its own address and a custom domain.
 - [Sign-in rate limits](../reference/auth.md#client-addresses): Sign-in and code requests are limited per client address, also behind a proxy.

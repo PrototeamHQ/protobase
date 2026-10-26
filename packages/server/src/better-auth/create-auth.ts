@@ -33,6 +33,8 @@ import { passkeyPlugin } from './passkey-plugin'
 import { passwordResetOptions } from './password-reset'
 import { setPasswordPath, setPasswordPlugin } from './set-password'
 import { rolesPlugin } from './roles/roles-plugin'
+import { versionedSecrets } from './secret-versions'
+import { signingKeyRotation, signingKeys } from './signing-keys'
 import type { RoleSession, RoleUser } from './roles/session-role'
 import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { appSignInPolicy } from './app-sign-in-policy'
@@ -81,6 +83,15 @@ export type CreateAuthOptions = {
   appName?: string
   /** Signs cookies and encrypts the JWT private keys. Generate with `openssl rand -base64 32`. */
   secret: string
+  /**
+   * The secrets the app had before `secret`, newest first, such as `PROTOBASE_PREVIOUS_SECRETS`: what they encrypted
+   * still decrypts, so the signing keys keep signing after the secret changes. Default none.
+   */
+  previousSecrets?: string[]
+  /** Days a token signing key signs before a new one takes over; default 30. */
+  signingKeyDays?: number
+  /** Days a replaced signing key still verifies the tokens it signed; default 7, at least 1. */
+  signingKeyGraceDays?: number
   /** Extra origins that may call the auth endpoints, such as the exact host of a dev tunnel. `baseURL` and `origins` are always trusted. */
   trustedOrigins?: string[]
   /**
@@ -301,8 +312,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   }
   const jwtOptions = {
     schema: pluginNames.jwt,
-    // Protobase's tokens are EdDSA; the GoTrue-compatible endpoints' are ES256, with a key of their own.
-    jwks: { keyPairConfigs: [goTrueKeyPair] },
+    // Protobase's tokens are EdDSA; the GoTrue-compatible endpoints' are ES256, with a key of their own. Both rotate.
+    jwks: { keyPairConfigs: [goTrueKeyPair], ...signingKeyRotation(options) },
     jwt: {
       expirationTime: tokenLifetime,
       issuer: options.baseURL,
@@ -319,6 +330,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     // Tokens come from `/token` only, which the sign-in policy holds back until required methods are set up.
     disableSettingJwtHeader: true,
   } satisfies JwtOptions
+  const keys = signingKeys(jwtOptions)
+  const { secrets, legacySecret } = versionedSecrets(options.secret, options.previousSecrets)
   const trusted = [options.baseURL, ...origins, ...(options.trustedOrigins ?? [])]
   const userFields = { ...userFieldsNamed(emailConfirmedField, users), ...(organizations && userFieldsNamed(lastOrganizationField, users)), ...metadataField(users) }
   return {
@@ -327,7 +340,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     logger: authLogger,
     baseURL: multiHostBaseURL(options.baseURL, origins),
     basePath: authBasePath,
-    secret: options.secret,
+    // Better Auth encrypts with the first of `secrets`; `secret` decrypts what was encrypted before they had versions.
+    secret: legacySecret,
+    secrets,
     trustedOrigins: mobile ? (request?: Request) => [...trusted, ...mobile.trusted(request)] : trusted,
     // The minimum length holds for new passwords only: one another system accepted signs in as it is.
     emailAndPassword: {
@@ -352,6 +367,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       // Without a default role the plugin's own default is a name outside the list, which the hook below refuses.
       admin({ schema: pluginNames.admin, defaultRole: defaultRole ?? 'unassigned', roles: Object.fromEntries(roles.map((role) => [role, role === 'admin' ? adminAc : userAc])) }),
       jwt(jwtOptions),
+      keys.plugin,
       // Without a password, as for someone who signs in with a provider only, two-factor authentication is turned on without one.
       twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
       passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]!, origins: appOrigins(options.baseURL, origins) }),
@@ -363,7 +379,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       signInPolicyPlugin(policy),
       setPasswordPlugin(),
       ...(options.leakedPasswords ? [leakedPasswordsPlugin()] : []),
-      goTrueSessionsPlugin({ issuer: goTrueIssuer(options.baseURL), jwt: jwtOptions, policy }),
+      goTrueSessionsPlugin({ issuer: goTrueIssuer(options.baseURL), jwt: jwtOptions, signingKey: keys.ensure, policy }),
       staffSignInPlugin({ ...(operator && { operator }), ...(mail && { mail }), defaultPolicy: signInPolicy }),
       rolesPlugin({ definitions }),
       lastAdminGuardPlugin(),

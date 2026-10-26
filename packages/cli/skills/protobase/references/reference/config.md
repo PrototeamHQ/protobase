@@ -26,8 +26,8 @@ Each key is described with its type and default in the option pages:
 
 | Page | Keys |
 | --- | --- |
-| [App options](config/app.md) | `name`, `url`, `secret`, `locale`, `timezone`, `themeColor`, `backgroundColor`, `mobile` |
-| [Sign-in options](config/sign-in.md) | `auth`, `authenticate` |
+| [App options](config/app.md) | `name`, `url`, `secret`, `previousSecrets`, `locale`, `timezone`, `themeColor`, `backgroundColor`, `mobile` |
+| [Sign-in options](config/sign-in.md) | `auth`, `authenticate`, `signingKeyDays`, `signingKeyGraceDays` |
 | [API options](config/api.md) | `apiPath`, `apiKeys`, `cors`, `defaultAccess`, `rowPermissions`, `statementTimeoutMs`, `scanGuard`, `errorReporting`, `writeHooks`, `mcpEndpoint`, `remoteResources`, `runtimeUpdates` |
 | [Admin app options](config/admin-app.md) | `assistant`, `maps`, `plugins` |
 | [Jobs and events options](config/jobs-and-events.md) | `jobs`, `events`, `history`, `webhooks`, `notifications` |

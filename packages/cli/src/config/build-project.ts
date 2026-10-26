@@ -12,18 +12,18 @@ import { projectFiles, projectFunctions, projectJobs, projectNotifications, proj
 export type AppDatabase = { db: Db; pool?: PostgresPool }
 
 /**
- * The app's sign-in, built from `auth` with the app's URL, secret and name, the hooks of its auth/hooks.ts and the
- * mailer of its auth/mailer.ts when it has them; none without `auth`.
+ * The app's sign-in, built from `auth` with the app's URL, secrets, signing key rotation and name, the hooks of its
+ * auth/hooks.ts and the mailer of its auth/mailer.ts when it has them; none without `auth`.
  */
 export const projectAuth = async (config: MergedConfig, { db, pool }: AppDatabase): Promise<AdminAuth | undefined> => {
   if (!config.auth) return undefined
   if (!pool) throw new Error("auth needs the app's pool, which its store shares")
-  const { url, secret, name } = config
+  const { url, secret, previousSecrets, signingKeyDays, signingKeyGraceDays, name } = config
   if (!url) throw new Error('Sign-in needs the app\'s public URL: set PROTOBASE_URL, such as https://admin.example.com, or url in protobase.config.ts')
   if (!secret) throw new Error('Sign-in needs the app\'s secret: set PROTOBASE_SECRET to the output of `openssl rand -base64 32`, or secret in protobase.config.ts')
   const [hooks, mailer] = await Promise.all(['auth/hooks.ts', 'auth/mailer.ts'].map((file) => config.authFiles?.module(file)?.()))
   return buildAppAuth(
-    { ...(config.auth || {}), baseURL: url, secret, ...(name && { appName: name }) },
+    { ...(config.auth || {}), baseURL: url, secret, ...(previousSecrets && { previousSecrets }), ...(signingKeyDays !== undefined && { signingKeyDays }), ...(signingKeyGraceDays !== undefined && { signingKeyGraceDays }), ...(name && { appName: name }) },
     { pool, db, ...(hooks && { hooks: hooks as AuthHooks }), ...(mailer && { mailer: mailer.default as Mailer }) },
   )
 }

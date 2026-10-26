@@ -8,6 +8,10 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 * **config:** `protobase.config.ts` is one object of data from `defineConfig` in the new `@protobase/config` package, or the same object as `protobase.config.json`. The project's code is found by its path (`jobs/<name>.ts`, `hooks/<name>.ts`, `auth/hooks.ts`, `config/roles.ts`, ...) instead of being imported by the config, and `createAuth`, `betterAuthAuthenticator`, `appPool`, `localFiles`, `s3Files`, `defineConfig` and `mergeConfig` leave `@protobase/server`. The old shape is not read any more, and `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET` and `TRUSTED_ORIGINS` become `PROTOBASE_URL`, `PROTOBASE_SECRET` and `PROTOBASE_TRUSTED_ORIGINS`. See [protobase.config.ts](https://docs.protobase.net/reference/config/).
 
+### Features
+
+* **server:** the token signing keys rotate: a key signs for 30 days and verifies for 7 more, then is deleted (`signingKeyDays`, `signingKeyGraceDays`), and a key made before this version expires 30 days after it was made. `previousSecrets`, or `PROTOBASE_PREVIOUS_SECRETS`, lists the app's old secrets, so the keys keep signing after `secret` changes. New keys and other encrypted values carry their secret's version; an instance of an earlier version cannot read them, so update every instance together. See [Signing keys](https://docs.protobase.net/reference/auth/#signing-keys).
+
 ## [0.14.2](https://github.com/PrototeamHQ/protobase/compare/v0.14.1...v0.14.2) (2026-10-13)
 
 ### Features

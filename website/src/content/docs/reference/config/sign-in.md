@@ -3,7 +3,7 @@ title: Sign-in options
 description: The config keys of sign-in, auth and authenticate, each with its type, default and environment variable, and the files where sign-in's hooks, mailer, mail templates and an authenticator of the project's own go.
 ---
 
-The keys of sign-in and of how the API verifies tokens, in [`protobase.config.ts`](/reference/config/). The app's URL, secret and name, which sign-in uses, are the top-level [`url`, `secret` and `name`](/reference/config/app/). How sign-in works is in [Login with Better Auth](/reference/auth/).
+The keys of sign-in and of how the API verifies tokens, in [`protobase.config.ts`](/reference/config/). The app's URL, secrets and name, which sign-in uses, are the top-level [`url`, `secret`, `previousSecrets` and `name`](/reference/config/app/). How sign-in works is in [Login with Better Auth](/reference/auth/).
 
 ## auth
 
@@ -370,4 +370,26 @@ Other Protobase apps whose signed-in users this API admits with their own tokens
 export default defineConfig({
   authenticate: { apps: [{ issuer: 'https://admin.shop.com', roles: { admin: 'shop' } }] },
 })
+```
+
+## signingKeyDays
+
+- **Type:** `number`
+- **Default:** `30`
+
+Days a token signing key signs; the first token after that makes a new key. A month bounds how long a leaked key could sign, and keeps the key set to a few keys. A top-level key, beside `auth`. See [Signing keys](/reference/auth/#signing-keys).
+
+```ts
+export default defineConfig({ signingKeyDays: 90 })
+```
+
+## signingKeyGraceDays
+
+- **Type:** `number`, at least `1`
+- **Default:** `7`
+
+Days a replaced signing key stays in the key set, so the tokens it signed keep verifying until they expire; it is deleted after that. A week is far longer than any token lasts, a day at most, so an API that caches the key set never refuses a token signed just before a rotation. A top-level key, beside `auth`.
+
+```ts
+export default defineConfig({ signingKeyGraceDays: 14 })
 ```

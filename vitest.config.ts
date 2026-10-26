@@ -92,6 +92,7 @@ const snapshotIsolated = [
   'packages/server/tests/sign-in-codes.integration.test.ts',
   'packages/server/tests/sign-in-policy.test.ts',
   'packages/server/tests/sign-up.test.ts',
+  'packages/server/tests/signing-keys.test.ts',
   'packages/server/tests/social-sign-in.test.ts',
   'packages/server/tests/sources.test.ts',
   'packages/server/tests/staff-sign-in.integration.test.ts',
