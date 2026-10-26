@@ -26,10 +26,8 @@ const roles: CreateAuthOptions['roles'] = {
 }
 
 let fixture: Awaited<ReturnType<typeof createFixtureDb>>
-let base: SnapshotDb
 let migrated: SnapshotDb
 let peopled: SnapshotDb
-let migration: string
 
 // Made, then given the time to check its schema in the background, so its queries come before the test's.
 const authOn = async (store: SnapshotDb, ids: string[], options: Partial<CreateAuthOptions> = {}) => {
@@ -49,16 +47,11 @@ const authOn = async (store: SnapshotDb, ids: string[], options: Partial<CreateA
   return auth
 }
 
-// The auth store brought up to date the way a project's migration does, and a copy of it with the people below, made
-// once: hashing their passwords and making their organizations is most of what these tests would repeat. Better Auth
-// checks the schema once per instance as soon as it is made, so every instance on a store comes after the migration,
-// as it does when a project migrates before it starts.
+// The migrated auth store, and a copy of it with the people below, made once: hashing their passwords and making their
+// organizations is most of what these tests would repeat.
 beforeAll(async () => {
   fixture = await createFixtureDb()
-  base = await openSnapshotDb('auth')
-  migrated = await base.clone()
-  migration = (await authSchemaMigration(await authOn(migrated, [])))!
-  await migrated.exec(migration)
+  migrated = await openSnapshotDb('auth')
   peopled = await migrated.clone()
   await people(await authOn(peopled, ['1', '2']))
 })
@@ -92,7 +85,7 @@ const serve = async (options: Partial<CreateAuthOptions> = {}, { people = false 
     return response.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
   }
   const tokenOf = async (cookie: string) => ((await (await request('/api/auth/token', { cookie })).json()) as { token: string }).token
-  return { auth, store, migration, audited, request, signIn, tokenOf }
+  return { auth, store, audited, request, signIn, tokenOf }
 }
 
 /** Root (superuser), Bo (owns Acme), Sanne (sales in Acme), Ana (global support, in no organization). */
@@ -108,18 +101,19 @@ const people = async (auth: ReturnType<typeof createAuth>) => {
 }
 
 describe('the auth schema with organizations', () => {
-  it('gets the organization tables and columns in snake_case, and the server starts once they exist', async () => {
-    const { auth, migration } = await serve()
-    expect(migration).toContain('create table if not exists "organization"')
-    expect(migration).toContain('"app_roles" jsonb')
-    expect(migration).toMatch(/alter table "session" add column if not exists "active_organization_id"/)
-    expect(migration).toMatch(/alter table "user" add column if not exists "last_organization_id"/)
+  it('has the organization tables and columns in snake_case in every store, and the server starts', async () => {
+    const { auth, store } = await serve()
+    const { rows } = await store.query<{ name: string }>(
+      "select table_name || '.' || column_name as name from information_schema.columns where (table_name, column_name) in (('organization', 'slug'), ('member', 'app_roles'), ('session', 'active_organization_id'), ('user', 'last_organization_id')) order by 1",
+    )
+    expect(rows.map((row) => row.name)).toEqual(['member.app_roles', 'organization.slug', 'session.active_organization_id', 'user.last_organization_id'])
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
     expect(await authSchemaMigration(auth)).toBeUndefined()
   })
 
-  it('stays as it was without organizations', async () => {
-    const auth = createAuth({ database: { dialect: (await base.clone()).dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false })
+  it('needs no migration to turn organizations off', async () => {
+    const auth = createAuth({ database: { dialect: (await migrated.clone()).dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false })
+    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
     expect(await authSchemaMigration(auth)).toBeUndefined()
     expect(auth.organizations).toBeUndefined()
   })

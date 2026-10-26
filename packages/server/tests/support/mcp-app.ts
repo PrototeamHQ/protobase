@@ -1,7 +1,6 @@
 import { base64url } from 'jose'
 import { expect } from 'vitest'
 import type { AdminOptions } from '../../src/admin-options'
-import { authSchemaMigration } from '../../src/better-auth/auth-schema'
 import { betterAuthAuthenticator, type BetterAuthAuthenticator } from '../../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../../src/better-auth/create-auth'
 import { createUser, setUserRole } from '../../src/better-auth/users'
@@ -41,16 +40,13 @@ export const authOn = async (store: SnapshotDb, options: Partial<CreateAuthOptio
 }
 
 /**
- * The stores an MCP test serves from: the fixture database, an auth store before and after the auth migration with MCP
- * on, and that migration. Made in `beforeAll`; destroy `fixture.db` in `afterAll`.
+ * The stores an MCP test serves from: the fixture database and a migrated auth store, which has the OAuth tables as
+ * every store does. Made in `beforeAll`; destroy `fixture.db` in `afterAll`.
  */
 export const mcpStores = async () => {
   const fixture = await createFixtureDb()
-  const base = await openSnapshotDb('auth')
-  const migrated = await base.clone()
-  const migration = (await authSchemaMigration(await authOn(migrated)))!
-  await migrated.exec(migration)
-  return { fixture, base, migrated, migration }
+  const migrated = await openSnapshotDb('auth')
+  return { fixture, migrated }
 }
 
 export type McpStores = Awaited<ReturnType<typeof mcpStores>>

@@ -1,85 +1,56 @@
-import { getMigrations } from 'better-auth/db/migration'
-import { storeSchema } from './auth-tables'
 import type { AdminAuth } from './create-auth'
-import { dropMcpTables, leftoverMcpTables, mcpTableNames, withMcpTables } from './mcp/mcp-tables'
-import { snakeCaseMigration } from './snake-case-migration'
+import { planAdoption, storeHasTables, adoptionSql } from './store/adoption'
+import { migrationSql, migrationsTableSql } from './store/migration-sql'
+import { latestStoreVersion, storeMigrations } from './store/migrations'
+import { appliedVersions, migrationsTableName } from './store/migrations-table'
+import { storeDb } from './store/store-db'
+import { storeNames } from './store/store-names'
 
-// Both read the store's tables through Better Auth's own migration planner, which only introspects: neither writes.
+// The admin store is versioned: its migrations ship with Protobase (`store/migrations`), and `auth_migrations` records
+// the ones applied. Writing the next migration reads that record, and so does the check before serving: neither
+// compares the store's tables with what Better Auth needs (only a store without the record is compared, once, to adopt it).
 
 /** The command that writes the pending changes as a migration file of the project. */
 export const authMigrationCommand = 'protobase auth migration'
 
-/**
- * Better Auth's statements, each made to skip what exists already, so a migration written from an empty database also
- * applies to one an earlier Protobase set up in place.
- */
-export const skipExisting = (sql: string) =>
-  sql
-    .split(';\n\n')
-    .map((statement) =>
-      statement
-        .replace(/^create table (?!if not exists )/, 'create table if not exists ')
-        .replace(/^create (unique )?index (?!if not exists )/, (_, unique: string | undefined) => `create ${unique ?? ''}index if not exists `)
-        .replace(/^(alter table .+? )add column (?!if not exists )/, '$1add column if not exists '),
-    )
-    .join(';\n\n')
-
-type Plan = Awaited<ReturnType<typeof getMigrations>>
-
-/**
- * Better Auth adds `email_verified` to a `user` table that exists only when the table still has the camelCase names
- * of Protobase 0.6, whose `emailVerified` it does not know: such a store is renamed, never given new columns beside
- * the old ones.
- */
-const hasCamelCaseNames = ({ toBeAdded }: Plan) => toBeAdded.some(({ table, fields }) => table === 'user' && 'email_verified' in fields)
-
-/**
- * The SQL that brings the admin store up to what this version of Protobase and the project's Better Auth plugins need:
- * for a store with the camelCase names of Protobase 0.6, their rename to snake_case (`snakeCaseMigration`); otherwise
- * new tables, columns and indexes, each skipped where it exists, and never a drop but of MCP's tables once MCP is off
- * (`dropMcpTables`). `undefined` when the store is current. A change Better Auth cannot make safely, such as a required
- * column without a default on a table with rows, is an error.
- */
-export const authSchemaMigration = async (auth: AdminAuth) => {
-  const found = await getMigrations(withMcpTables(auth), { throwOnUnsafe: false })
-  if (hasCamelCaseNames(found)) return snakeCaseMigration(storeSchema(auth))
-  const drop = leftoverMcpTables(auth, found).length > 0 ? [dropMcpTables(storeSchema(auth))] : []
-  const { toBeCreated, toBeAdded, toBeAddedIndexes, compileMigrations } = await getMigrations(auth.options)
-  const changes = toBeCreated.length === 0 && toBeAdded.length === 0 && toBeAddedIndexes.length === 0 ? [] : [skipExisting(await compileMigrations())]
-  const statements = [...changes, ...drop]
-  return statements.length === 0 ? undefined : statements.join('\n\n')
+const refuseNewer = (applied: number[]) => {
+  const newest = applied.at(-1)
+  if (newest !== undefined && newest > latestStoreVersion) {
+    throw new Error(`The auth store is at migration ${newest}, newer than the ${latestStoreVersion} this version of Protobase knows; upgrade Protobase`)
+  }
 }
 
 /**
- * The tables and `table.column`s the admin store lacks; an index missing is not a reason to refuse requests. MCP's
- * tables, named with MCP off only to find them left over, are never missing then.
+ * The SQL that brings the admin store to this version of Protobase: the migrations it has not applied, each followed by
+ * its row in `auth_migrations`; for a new store, that table first. A store an earlier Protobase made without the record
+ * is adopted: the migrations it matches are recorded as applied (`planAdoption`), the others follow. `undefined` when
+ * the store is current. The SQL never drops anything.
  */
-const missingTablesAndColumns = (auth: AdminAuth, { toBeCreated, toBeAdded }: Plan) => [
-  ...toBeCreated.map(({ table }) => table).filter((table) => auth.mcp || !mcpTableNames.includes(table)),
-  ...toBeAdded.flatMap(({ table, fields }) => Object.keys(fields).map((field) => `${table}.${field}`)),
-]
+export const authSchemaMigration = async (auth: AdminAuth) => {
+  const names = storeNames(auth)
+  const db = storeDb(auth)
+  const applied = await appliedVersions(db, names)
+  if (applied !== undefined) {
+    refuseNewer(applied)
+    const pending = storeMigrations.filter((migration) => !applied.includes(migration.version))
+    return pending.length === 0 ? undefined : pending.map((migration) => migrationSql(names, migration)).join('\n\n')
+  }
+  if (!(await storeHasTables(db, names))) return [migrationsTableSql(names), ...storeMigrations.map((migration) => migrationSql(names, migration))].join('\n\n')
+  const { adopted, pending } = await planAdoption(db, names)
+  return [migrationsTableSql(names), adoptionSql(names, adopted), ...pending.map((migration) => migrationSql(names, migration))].join('\n\n')
+}
 
 /**
- * Refuses to go on while the admin store lacks a table or column Better Auth needs, still has the camelCase names of
- * Protobase 0.6, since every sign-in would fail, or still has MCP's tables with MCP off, since their grants would come
- * back with MCP. The server never changes the schema itself: the project's migrations do, before the new version serves.
+ * Refuses to go on while the admin store has not applied every migration of this version of Protobase, from its
+ * `auth_migrations` alone, since every sign-in would fail. The server never changes the schema itself: the project's
+ * migrations do, before the new version serves.
  */
 export const checkAuthSchema = async (auth: AdminAuth) => {
-  const plan = await getMigrations(withMcpTables(auth), { throwOnUnsafe: false })
-  if (hasCamelCaseNames(plan)) {
-    throw new Error(
-      `The auth schema still has the camelCase names of Protobase 0.6, which this version names in snake_case. Write their rename as a migration with \`${authMigrationCommand}\`, apply it with the project's migrations, then start again.`,
-    )
-  }
-  const missing = missingTablesAndColumns(auth, plan)
-  if (missing.length > 0) {
-    throw new Error(
-      `The auth schema is behind this version of Protobase (missing ${missing.join(', ')}). Write the change as a migration with \`${authMigrationCommand}\`, apply it with the project's migrations, then start again.`,
-    )
-  }
-  const leftovers = leftoverMcpTables(auth, plan)
-  if (leftovers.length === 0) return
-  throw new Error(
-    `The auth schema still has the tables of the OAuth provider for MCP (${leftovers.join(', ')}), which is off. Write their removal as a migration with \`${authMigrationCommand}\`, apply it with the project's migrations, then start again; every MCP client then has to be allowed again.`,
-  )
+  const applied = await appliedVersions(storeDb(auth), storeNames(auth))
+  const write = `Write it as a migration with \`${authMigrationCommand}\`, apply it with the project's migrations, then start again.`
+  if (applied === undefined) throw new Error(`The auth store has no ${migrationsTableName} table: it is new, or an earlier Protobase made it. ${write}`)
+  refuseNewer(applied)
+  const missing = storeMigrations.filter((migration) => !applied.includes(migration.version))
+  if (missing.length === 0) return
+  throw new Error(`The auth schema is behind this version of Protobase (missing migrations ${missing.map(({ version, name }) => `${version} ${name}`).join(', ')}). ${write}`)
 }

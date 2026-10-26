@@ -6,7 +6,8 @@ import { getMigrations } from 'better-auth/db/migration'
 import pg from 'pg'
 import postgres from 'postgres'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { checkAuthSchema, createAuth, unauthorized, type AdminAuth } from '@protobase/server'
+import { PostgresDialect } from 'kysely'
+import { authSchemaDrift, checkAuthSchema, createAuth, createOrganization, createUser, unauthorized, type AdminAuth } from '@protobase/server'
 import { writeAuthMigration } from '../../src/auth/write-migration'
 import { startServe } from '../../src/serve/lifecycle'
 import { root, run, typescriptArgs } from '../support/auth-project'
@@ -71,75 +72,195 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     await mkdir(folder)
     return folder
   }
+  const query = async <Row extends object>(databaseUrl: string, text: string) => {
+    const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
+    const rows = await sql.unsafe<Row[]>(text)
+    await sql.end()
+    return [...rows]
+  }
+  const versions = async (databaseUrl: string, table = 'auth_migrations') => (await query<{ version: number }>(databaseUrl, `select version from ${table} order by version`)).map((row) => row.version)
+  const every = [1, 2, 3, 4, 5, 6, 7]
+  // Every feature that keeps something in the store: organizations and the OAuth provider for MCP.
+  const allOn = { organizations: { create: 'everyone' as const }, mcp: true as const }
 
-  it('writes every table into a fresh database, then nothing once that is applied', async () => {
+  it('writes every migration into a fresh database and records them, then nothing once that is applied', async () => {
     const databaseUrl = await createDatabase()
     const auth = authOn(databaseUrl)
     const folder = await migrationsDir()
-    await expect(checkAuthSchema(auth)).rejects.toThrow(/The auth schema is behind this version of Protobase \(missing user, session, account.*`protobase auth migration`/)
+    await expect(checkAuthSchema(auth)).rejects.toThrow(/The auth store has no auth_migrations table.*`protobase auth migration`/)
 
     const file = await writeAuthMigration({ auth, dir: folder, name: 'auth' })
     expect(path.basename(file!)).toBe('001_auth.sql')
     const text = await readFile(file!, 'utf8')
+    expect(text).toContain('create table "auth_migrations"')
     expect(text).toContain('create table if not exists "user"')
-    expect(text).toContain('"platform_sign_in" text not null')
+    expect(text).toContain('platform_sign_in text not null')
+    expect(text).toContain('-- 7 mcp: ')
 
     await applyAll(databaseUrl, folder)
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    expect(await versions(databaseUrl)).toEqual(every)
     expect(await writeAuthMigration({ auth, dir: folder, name: 'auth' })).toBeUndefined()
     expect(await readdir(folder)).toEqual(['001_auth.sql'])
   })
 
-  it('writes only what an older schema lacks, as the next migration', async () => {
+  it('writes the same migrations whatever features the app turns on, with every table each of them needs', async () => {
+    const featureSets = [{}, { organizations: allOn.organizations }, { mcp: allOn.mcp }, allOn]
+    const written = new Set<string>()
+    for (const features of featureSets) {
+      const databaseUrl = await createDatabase()
+      const auth = createAuth({ database: new pg.Pool({ connectionString: databaseUrl, max: 2 }), baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, ...features })
+      pools.push(auth.options.database as pg.Pool)
+      const folder = await migrationsDir()
+      written.add(await readFile((await writeAuthMigration({ auth, dir: folder, name: 'auth' }))!, 'utf8'))
+      await applyAll(databaseUrl, folder)
+      await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+      expect(await authSchemaDrift(auth)).toEqual([])
+    }
+    expect(written.size).toBe(1)
+  })
+
+  it("names the store's schema, user table, user columns and id type as the app configures them", async () => {
+    const databaseUrl = await createDatabase()
+    await query(databaseUrl, 'create schema auth')
+    const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
+    pools.push(pool)
+    const options = {
+      database: { dialect: new PostgresDialect({ pool }), type: 'postgres' as const, schemaName: 'auth' },
+      baseURL: 'http://localhost:1',
+      secret,
+      mailer: false as const,
+      operator: false as const,
+      signInProvider: false as const,
+      users: { table: 'people', columns: { email: 'address', two_factor_enabled: 'mfa', last_organization_id: 'last_org' }, metadata: 'meta' },
+      generateUserId: 'uuid' as const,
+    }
+    const auth = createAuth(options)
+    const folder = await migrationsDir()
+    const text = await readFile((await writeAuthMigration({ auth, dir: folder, name: 'auth' }))!, 'utf8')
+    expect(text).toContain('create table if not exists "auth"."people" (id uuid default pg_catalog.gen_random_uuid() primary key)')
+    expect(text).toContain('references "auth"."people" (id)')
+    await applyAll(databaseUrl, folder)
+
+    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    expect(await versions(databaseUrl, 'auth.auth_migrations')).toEqual(every)
+    expect(await authSchemaDrift(createAuth({ ...options, ...allOn }))).toEqual([])
+    const columns = await query<{ name: string }>(
+      databaseUrl,
+      `select table_name || '.' || column_name || ' ' || udt_name as name from information_schema.columns where table_schema = 'auth' and (table_name = 'people' and column_name in ('address', 'mfa', 'last_org', 'meta') or table_name = 'session' and column_name = 'user_id') order by 1`,
+    )
+    expect(columns.map((row) => row.name)).toEqual(['people.address text', 'people.last_org text', 'people.meta jsonb', 'people.mfa bool', 'session.user_id uuid'])
+    const made = await createUser(auth, { email: 'root@example.com', password: 'a-long-test-password' })
+    expect(made.id).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
+  it('needs no migration to turn a feature on later, and a user made with it off works with it on', async () => {
+    const databaseUrl = await createDatabase()
+    const off = authOn(databaseUrl)
+    const folder = await migrationsDir()
+    await writeAuthMigration({ auth: off, dir: folder, name: 'auth' })
+    await applyAll(databaseUrl, folder)
+    // The columns organizations and two-step sign-in add to the user and session tables are there, empty.
+    await createUser(off, { email: 'root@example.com', password: 'a-long-test-password' })
+    expect(await query(databaseUrl, 'select two_factor_enabled, last_organization_id from "user"')).toEqual([{ two_factor_enabled: false, last_organization_id: null }])
+
+    const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
+    pools.push(pool)
+    const on = createAuth({ database: pool, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, ...allOn })
+    await expect(checkAuthSchema(on)).resolves.toBeUndefined()
+    expect(await writeAuthMigration({ auth: on, dir: folder, name: 'auth' })).toBeUndefined()
+    expect(await authSchemaDrift(on)).toEqual([])
+    await createOrganization(on, { name: 'Acme', slug: 'acme', owner: 'root@example.com' })
+    expect(await query(databaseUrl, 'select o.slug, m.role from member m join organization o on o.id = m.organization_id')).toEqual([{ slug: 'acme', role: 'owner' }])
+  })
+
+  it('writes only the migrations the store has not applied, as the next file', async () => {
     const databaseUrl = await createDatabase()
     const auth = authOn(databaseUrl)
     const folder = await migrationsDir()
     await writeAuthMigration({ auth, dir: folder, name: 'auth' })
     await applyAll(databaseUrl, folder)
-    // The schema of an earlier Protobase: no staff sign-in log, no policy for sign-in through the platform.
-    const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
-    await sql.unsafe(`drop table staff_sign_in; alter table sign_in_policy drop column platform_sign_in; alter table sign_in_policy drop column staff_access`)
-    await sql`insert into sign_in_policy (id, password, email_code, passkey, two_factor, created_at) values ('p1', 'allowed', 'allowed', 'allowed', 'required', now())`
-    await sql.end()
-    await expect(checkAuthSchema(auth)).rejects.toThrow(/missing staff_sign_in, sign_in_policy\.staff_access, sign_in_policy\.platform_sign_in\)/)
+    // The store as a version of Protobase before the last migration left it.
+    await query(databaseUrl, `drop table oauth_client, oauth_resource, oauth_client_resource, oauth_refresh_token, oauth_access_token, oauth_consent, oauth_client_assertion; delete from auth_migrations where version = 7`)
+    await expect(checkAuthSchema(auth)).rejects.toThrow(/The auth schema is behind this version of Protobase \(missing migrations 7 mcp\).*`protobase auth migration`/)
 
-    const file = await writeAuthMigration({ auth, dir: folder, name: 'auth_staff' })
-    expect(path.basename(file!)).toBe('002_auth_staff.sql')
+    const file = await writeAuthMigration({ auth, dir: folder, name: 'auth' })
+    expect(path.basename(file!)).toBe('002_auth.sql')
     const text = await readFile(file!, 'utf8')
-    expect(text).not.toContain('"user"')
-    expect(text).toContain('create table if not exists "staff_sign_in"')
-    expect(text).toContain('alter table "sign_in_policy" add column if not exists "platform_sign_in"')
-
-    // Applied on its own, as the migrate step does with the files not applied yet; the saved row gets the defaults.
-    const next = postgres(databaseUrl, { max: 1, onnotice: () => {} })
-    await next.begin((tx) => tx.unsafe(text))
-    expect(await next`select staff_access, platform_sign_in from sign_in_policy`).toEqual([{ staff_access: 'allowed', platform_sign_in: 'allowed' }])
-    await next.end()
+    expect(text).not.toContain('create table if not exists "user"')
+    expect(text).not.toContain('create table "auth_migrations"')
+    expect(text).toContain('-- 7 mcp: ')
+    const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
+    await sql.begin((tx) => tx.unsafe(text))
+    await sql.end()
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    expect(await versions(databaseUrl)).toEqual(every)
   })
 
-  // Upgrading a project whose store `auth:migrate` of Protobase 0.5 set up: one migration written from an empty
-  // database, one from the project's, and both apply to either.
-  it('writes migrations that apply to a fresh database and to a store an earlier version set up in place', async () => {
-    const earlier = await createDatabase()
-    const setUp = authOn(earlier)
-    await (await getMigrations(setUp.options)).runMigrations()
-    const sql = postgres(earlier, { max: 1, onnotice: () => {} })
-    await sql.unsafe(`alter table sign_in_policy drop column platform_sign_in; insert into "user" (id, name, email, email_verified) values ('u1', 'Root', 'root@example.com', true)`)
-    await sql.end()
+  // A store an earlier Protobase made by comparing its tables with Better Auth's: organizations on, MCP off, a user in it.
+  const earlierStore = async () => {
+    const databaseUrl = await createDatabase()
+    const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
+    pools.push(pool)
+    const options = { database: pool, baseURL: 'http://localhost:1', secret, mailer: false as const, operator: false as const, signInProvider: false as const, organizations: allOn.organizations }
+    await (await getMigrations(createAuth(options).options)).runMigrations()
+    await query(databaseUrl, `insert into "user" (id, name, email, email_verified) values ('u1', 'Root', 'root@example.com', true)`)
+    return { databaseUrl, auth: createAuth(options) }
+  }
 
+  it('adopts a store an earlier Protobase made, once: the migrations it matches are recorded, the others applied', async () => {
+    const { databaseUrl, auth } = await earlierStore()
+    await expect(checkAuthSchema(auth)).rejects.toThrow(/no auth_migrations table/)
     const folder = await migrationsDir()
-    const fresh = await createDatabase()
-    expect(path.basename((await writeAuthMigration({ auth: authOn(fresh), dir: folder, name: 'auth' }))!)).toBe('001_auth.sql')
-    expect(path.basename((await writeAuthMigration({ auth: authOn(earlier), dir: folder, name: 'auth_upgrade' }))!)).toBe('002_auth_upgrade.sql')
+    const text = await readFile((await writeAuthMigration({ auth, dir: folder, name: 'auth' }))!, 'utf8')
+    expect(text).toContain('adopted: 1 core, 2 two_factor, 3 passkeys, 4 sign_in_policy, 5 staff_sign_in, 6 organizations')
+    expect(text).not.toContain('create table if not exists "user"')
+    expect(text).toContain('-- 7 mcp: ')
 
-    for (const databaseUrl of [earlier, fresh]) {
-      await applyAll(databaseUrl, folder)
-      await expect(checkAuthSchema(authOn(databaseUrl))).resolves.toBeUndefined()
-    }
-    const after = postgres(earlier, { max: 1, onnotice: () => {} })
-    expect(await after`select email from "user"`).toEqual([{ email: 'root@example.com' }])
-    await after.end()
+    await applyAll(databaseUrl, folder)
+    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    expect(await versions(databaseUrl)).toEqual(every)
+    expect(await query(databaseUrl, 'select email from "user"')).toEqual([{ email: 'root@example.com' }])
+    expect(await writeAuthMigration({ auth, dir: folder, name: 'auth' })).toBeUndefined()
+
+    // Written from this store, the file stops on a database whose store lacks a table it adopts, changing nothing.
+    const other = await earlierStore()
+    await query(other.databaseUrl, 'drop table passkey')
+    await expect(applyAll(other.databaseUrl, folder)).rejects.toThrow(/does not match the migrations this file adopts: it lacks passkey\.aaguid, passkey\.backed_up, /)
+    expect(await query(other.databaseUrl, "select to_regclass('auth_migrations') as found")).toEqual([{ found: null }])
+  })
+
+  it('refuses to adopt a store that matches no version, naming what differs', async () => {
+    const { databaseUrl, auth } = await earlierStore()
+    await query(databaseUrl, 'alter table passkey drop column rp_id; alter table jwks alter column alg type integer using null')
+    const folder = await migrationsDir()
+    await expect(writeAuthMigration({ auth, dir: folder, name: 'auth' })).rejects.toThrow(
+      /matches none of its migrations' versions: 1 core has jwks\.alg as int4, not text; 3 passkeys lacks passkey\.rp_id\. Bring it to the schema of Protobase 0\.47 first/,
+    )
+    expect(await readdir(folder)).toEqual([])
+    expect(await query(databaseUrl, "select nspname from pg_namespace where nspname = 'protobase_auth_adoption'")).toEqual([])
+  })
+
+  it('refuses a store a newer Protobase migrated', async () => {
+    const databaseUrl = await createDatabase()
+    const auth = authOn(databaseUrl)
+    const folder = await migrationsDir()
+    await writeAuthMigration({ auth, dir: folder, name: 'auth' })
+    await applyAll(databaseUrl, folder)
+    await query(databaseUrl, "insert into auth_migrations (version, name) values (8, 'later')")
+    await expect(checkAuthSchema(auth)).rejects.toThrow('The auth store is at migration 8, newer than the 7 this version of Protobase knows; upgrade Protobase')
+    await expect(writeAuthMigration({ auth, dir: folder, name: 'auth' })).rejects.toThrow(/newer than the 7/)
+  })
+
+  it('compares the tables only in the development check, which names what drifted', async () => {
+    const databaseUrl = await createDatabase()
+    const auth = authOn(databaseUrl)
+    const folder = await migrationsDir()
+    await writeAuthMigration({ auth, dir: folder, name: 'auth' })
+    await applyAll(databaseUrl, folder)
+    await query(databaseUrl, 'alter table passkey drop column rp_id')
+    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    expect(await authSchemaDrift(auth)).toEqual(['lacks the column passkey.rp_id'])
   })
 
   it('checks without writing: it works on a read-only connection', async () => {
@@ -151,11 +272,11 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     await expect(checkAuthSchema(readOnly)).resolves.toBeUndefined()
   })
 
-  it('keeps protobase serve from starting while the schema is behind', async () => {
+  it('keeps protobase serve from starting while the store is behind', async () => {
     const databaseUrl = await createDatabase()
     const auth: AdminAuth = authOn(databaseUrl)
     const project = { config: {}, auth, authenticate: () => Promise.reject(unauthorized('no')) }
-    await expect(startServe({ project, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/The auth schema is behind.*`protobase auth migration`/)
+    await expect(startServe({ project, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/The auth store has no auth_migrations table.*`protobase auth migration`/)
   })
 })
 

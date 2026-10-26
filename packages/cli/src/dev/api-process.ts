@@ -16,7 +16,7 @@ import { startupLogger } from './startup-logger'
 
 export type ApiProcessOptions = ApiViteOptions
 
-export type ApiProcessMessage = { ready: { port: number; anyUsers?: boolean } } | { failed: string }
+export type ApiProcessMessage = { ready: { port: number; anyUsers?: boolean; authDrift: string[] } } | { failed: string }
 
 /** What run.ts sends once its server listens: the app's origin, whose /api/sb functions call as SUPABASE_URL. */
 export type ApiProcessStart = { start: { devUrl: string } }
@@ -89,10 +89,11 @@ const start = async () => {
   // Load the API once now so a missing authenticator or a broken config stops startup instead of failing requests.
   const api = await vite.ssrLoadModule(entry)
   const anyUsers: boolean | undefined = await api.anyUsers()
+  const authDrift: string[] = await api.authDrift()
   logging.started()
   server = createAdaptorServer({ fetch, overrideGlobalObjects: false, websocket: { server: sockets } }) as Server
   const port = await listen(server)
-  process.send!({ ready: { port, anyUsers } } satisfies ApiProcessMessage)
+  process.send!({ ready: { port, anyUsers, authDrift } } satisfies ApiProcessMessage)
 }
 
 process.on('SIGINT', () => undefined)

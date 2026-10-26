@@ -65,11 +65,11 @@ export const createAuthProject = async (databaseUrl: string) => {
   )
   await writeFile(
     path.join(projectDir, 'migrate.ts'),
-    `import { getMigrations } from 'better-auth/db/migration'
-import pg from 'pg'
+    `import pg from 'pg'
+import { authSchemaMigration } from '@protobase/server'
 import { auth } from './auth'
-await (await getMigrations(auth.options)).runMigrations()
 const pool = new pg.Pool({ connectionString: process.env.TEST_AUTH_URL, max: 1 })
+await pool.query((await authSchemaMigration(auth))!)
 await pool.query('create sequence if not exists user_ids')
 await pool.end()
 process.exit(0)

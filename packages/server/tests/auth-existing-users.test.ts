@@ -68,11 +68,19 @@ describe('Better Auth on an existing users table', () => {
     const auth = await authOn(pg)
 
     const migration = await authSchemaMigration(auth)
-    expect(migration).toContain('create table if not exists "auth"."session"')
-    expect(migration).toContain('references "auth"."users" ("id")')
-    expect(migration).not.toContain('create table if not exists "auth"."users"')
+    expect(migration).toContain('create table "auth"."session"')
+    expect(migration).toContain('references "auth"."users" (id)')
+    // The table and the columns it has already are left as they are; the ones it lacks are added.
+    expect(migration).toContain('create table if not exists "auth"."users"')
+    expect(migration).toContain('add column if not exists "app_role" text')
     await pg.db.transaction().execute((tx) => sql.raw(migration!).execute(tx))
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    const columns = await pg.query(`select column_name, data_type from information_schema.columns where table_schema = 'auth' and table_name = 'users' and column_name in ('email', 'two_factor_enabled', 'last_role') order by 1`)
+    expect(columns.rows).toEqual([
+      { column_name: 'email', data_type: 'character varying' },
+      { column_name: 'last_role', data_type: 'text' },
+      { column_name: 'two_factor_enabled', data_type: 'boolean' },
+    ])
     await pg.exec(`insert into auth.account (account_id, provider_id, user_id, password, updated_at) select id::text, 'credential', id, encrypted_password, now() from auth.users`)
 
     const served = await authOn(pg)

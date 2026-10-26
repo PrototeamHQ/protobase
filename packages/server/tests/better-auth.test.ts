@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto'
-import { getMigrations } from 'better-auth/db/migration'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
+import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth } from '../src/better-auth/create-auth'
 import { issueToken } from '../src/better-auth/tokens'
@@ -343,13 +343,13 @@ describe('configurable roles', () => {
   it('keeps the admin store in its own schema of a shared database', async () => {
     const shared = await openSnapshotDb('empty')
     const scoped = createAuth({ database: { dialect: shared.dialect, type: 'postgres', schemaName: 'auth' }, baseURL: origin, secret })
-    await (await getMigrations(scoped.options)).runMigrations()
+    await shared.exec((await authSchemaMigration(scoped))!)
     await createUser(scoped, { email: 'boss@example.com', password })
     expect(await hasUsers(scoped)).toBe(true)
 
     const { rows } = await shared.query<{ table_schema: string }>(`select distinct table_schema from information_schema.tables where table_name in ('user', 'session', 'jwks')`)
     expect(rows.map((row) => row.table_schema)).toEqual(['auth'])
-    expect((await getMigrations(scoped.options)).toBeCreated).toEqual([])
+    await expect(checkAuthSchema(scoped)).resolves.toBeUndefined()
   })
 
   it('validates users and role changes against the project roles, and passes them to access rules', async () => {

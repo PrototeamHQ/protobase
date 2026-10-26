@@ -7,6 +7,8 @@ export type ApiChild = {
   port: number
   /** Whether the auth store has a user yet, for the banner's sign-in line; undefined without one. */
   anyUsers: boolean | undefined
+  /** How the auth store's tables differ from what the project's Better Auth needs; none when they match. */
+  authDrift: string[]
 }
 
 const apiProcess = moduleFile('./api-process', import.meta.url)
@@ -48,7 +50,7 @@ export const forkApiChild = (options: ApiProcessOptions, onExit: (code: number) 
       throw new Error(message.failed)
     }
     ready = true
-    return { port: message.ready.port, anyUsers: message.ready.anyUsers }
+    return { port: message.ready.port, anyUsers: message.ready.anyUsers, authDrift: message.ready.authDrift }
   }
 
   return { start, stop }

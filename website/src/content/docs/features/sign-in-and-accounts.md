@@ -5,6 +5,7 @@ description: Sign-in methods, users, roles, organizations and tokens.
 
 - [Built-in sign-in](/reference/auth/): Password sign-in, sessions and short-lived tokens, with no separate identity service.
 - [First admin](/reference/auth/#first-run): No account can be made over the web while the app has no users. You create the first admin from the terminal, and the last active admin cannot be deleted, demoted or blocked.
+- [Versioned sign-in tables](/reference/auth/#migrations): The sign-in tables come from numbered migrations that ship with Protobase, written as the project's own and recorded in the database, so a deploy checks them without comparing tables. Every feature has its tables from the start, so turning one on or off needs no migration.
 - [Existing users table](/reference/auth/#an-existing-users-table): Sign-in can use the users table another system keeps in the same database.
 - [Users page](/reference/auth/#users-page): Admins find people, set roles, block them, add accounts and invite people by email.
 - [Password reset](/reference/auth/#password-reset): People reset a forgotten password through an emailed link.

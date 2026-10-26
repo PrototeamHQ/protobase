@@ -57,10 +57,9 @@ export const edges = [
   { from: ['packages/cli/src/dev/api-process.ts'], loads: ['packages/cli/src/dev/entry.ts', 'packages/cli/src/dev/api-support.ts'] },
   // A deploy bundle copies the @protobase packages.
   { from: ['packages/cli/src/build/packages/copy-packages.ts'], reads: ['packages/**'] },
-  // The UI's tests of its stylesheet and page, and the auth schema a server test upgrades.
+  // The UI's tests of its stylesheet and page.
   { from: ['packages/ui/src/tokens.test.ts'], reads: ['packages/ui/src/tokens.css'] },
   { from: ['packages/ui/src/app/index-html.test.ts', 'packages/ui/src/theme/theme-preference.test.ts'], reads: ['packages/ui/src/app/index.html'] },
-  { from: ['packages/server/tests/auth-snake-case.test.ts'], reads: ['packages/server/tests/support/*.sql'] },
   // The examples' tests run on a clone of a template database, migrated and seeded from the example.
   exampleDatabase('erp'),
   exampleDatabase('real-estate'),
@@ -96,7 +95,8 @@ export const postgresSuite = [
   'packages/server/src/jobs/**',
   'packages/server/src/changes/**',
   'packages/server/src/webhooks/**',
-  'packages/server/src/better-auth/{auth-schema,snake-case-migration}.ts',
+  'packages/server/src/better-auth/auth-schema.ts',
+  'packages/server/src/better-auth/store/**',
   'packages/server/src/comments/comments-sql.ts',
   'packages/server/src/{app-pool,background-work,statement-timeout}.ts',
   'packages/cli/src/project/{pg-db,background-gate,long-connect,pool-wait}.ts',

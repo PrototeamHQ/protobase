@@ -1,12 +1,11 @@
 import { Readable } from 'node:stream'
-import { getMigrations } from 'better-auth/db/migration'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { authSchemaMigration, createAuth, issueToken, type AdminAuth } from '@protobase/server'
 import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from '../../src/users/commands'
 import { deleteUserCommand, setDisabledCommand, setRoleCommand } from '../../src/users/manage'
 import { setDisabledInProject } from '../../src/users/set-disabled'
 import { usersApi } from '../../src/users/users-api'
-import { openSnapshotDb, settled, type SnapshotDb } from '../../../../test-support/sql-snapshot'
+import { openSnapshotDb } from '../../../../test-support/sql-snapshot'
 
 // The users commands over a real Better Auth store, wired as the CLI wires them; the setup of dev.integration.test.ts
 // runs the binary itself once.
@@ -14,12 +13,9 @@ let auth: AdminAuth
 let api: UsersApi
 
 beforeAll(async () => {
-  auth = createAuth({ database: { dialect: (await openSnapshotDb('empty')).dialect, type: 'postgres' }, baseURL: 'http://localhost:1', secret: 'users-test-secret-users-test-secret-1234' })
-  // Its schema check runs in the background once its context is made, which a busy machine can take longer for than
-  // settled() waits; let it finish before the migration's queries.
-  await auth.$context
-  await settled()
-  await (await getMigrations(auth.options)).runMigrations()
+  const store = await openSnapshotDb('empty')
+  auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: 'http://localhost:1', secret: 'users-test-secret-users-test-secret-1234' })
+  await store.exec((await authSchemaMigration(auth))!)
   api = usersApi(auth)
 })
 
@@ -92,34 +88,22 @@ describe('protobase users create --github-id', () => {
   })
 })
 
-describe('protobase users disable and enable with MCP turned off', () => {
-  it('refuse while the OAuth tables of MCP are left, changing nobody, and act once their drop is applied', async () => {
-    // Better Auth's own tables, to which the migration adds those of MCP.
-    const store = await openSnapshotDb('auth')
-    const authOf = async (mcp: boolean) => {
-      const made = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: 'http://localhost:1', secret: 'users-test-secret-users-test-secret-1234', ...(mcp && { mcp: true as const }) })
-      await made.$context
-      await settled()
-      return made
-    }
-    // Better Auth checks the schema once per instance, so the commands use an instance made after the migration.
-    await store.exec((await authSchemaMigration(await authOf(true)))!)
-    const on = await authOf(true)
-    const create = (email: string) => createUserCommand(usersApi(on), { email, passwordStdin: true, generatePassword: false }, { stdin: Readable.from(['a-long-test-password\n']), prompt: async () => '' }, () => {})
+describe('protobase users disable and enable', () => {
+  it('refuse on a store behind its migrations, changing nobody, and act once it is current', async () => {
+    const store = await openSnapshotDb('empty')
+    const made = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: 'http://localhost:1', secret: 'users-test-secret-users-test-secret-1234' })
+    const migration = (await authSchemaMigration(made))!
+    // Every migration but the last applied, as a deploy of an older version left it.
+    await store.exec(migration.slice(0, migration.lastIndexOf('\n\n-- ')))
+    const create = (email: string) => createUserCommand(usersApi(made), { email, passwordStdin: true, generatePassword: false }, { stdin: Readable.from(['a-long-test-password\n']), prompt: async () => '' }, () => {})
     await create('root@example.com')
     await create('ana@example.com')
-    await create('bo@example.com')
-    await usersApi(on).setUserBanned({ email: 'bo@example.com', banned: true })
 
-    const off = await authOf(false)
-    const leftover = /still has the tables of the OAuth provider for MCP .*`protobase auth migration`/
-    await expect(setDisabledInProject(off, { email: 'ana@example.com', disabled: true }, () => {})).rejects.toThrow(leftover)
-    expect((await issueToken(off, { email: 'ana@example.com' })).token).toBeTruthy()
-    await expect(setDisabledInProject(off, { email: 'bo@example.com', disabled: false }, () => {})).rejects.toThrow(leftover)
-    await expect(issueToken(off, { email: 'bo@example.com' })).rejects.toThrow('bo@example.com is banned')
+    await expect(setDisabledInProject(made, { email: 'ana@example.com', disabled: true }, () => {})).rejects.toThrow(/The auth schema is behind this version of Protobase \(missing migrations 7 mcp\)/)
+    expect((await issueToken(made, { email: 'ana@example.com' })).token).toBeTruthy()
 
-    await store.exec((await authSchemaMigration(off))!)
-    await setDisabledInProject(off, { email: 'ana@example.com', disabled: true }, () => {})
-    await expect(issueToken(off, { email: 'ana@example.com' })).rejects.toThrow('ana@example.com is banned')
+    await store.exec((await authSchemaMigration(made))!)
+    await setDisabledInProject(made, { email: 'ana@example.com', disabled: true }, () => {})
+    await expect(issueToken(made, { email: 'ana@example.com' })).rejects.toThrow('ana@example.com is banned')
   })
 })

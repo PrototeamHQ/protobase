@@ -1,7 +1,6 @@
-import { getMigrations } from 'better-auth/db/migration'
 import { Kysely, PostgresDialect, sql } from 'kysely'
 import pg from 'pg'
-import { createAuth, jobsSchemaMigration } from '@protobase/server'
+import { authSchemaMigration, createAuth, jobsSchemaMigration } from '@protobase/server'
 import { queryDdl } from '../../test-support/fixtures/query-ddl'
 import { restDdl } from '../../test-support/fixtures/rest-ddl'
 import { serverDdl } from '../../test-support/fixtures/server-ddl'
@@ -46,11 +45,11 @@ export const snapshotTemplates = {
     await exec(db, restDdl)
     await exec(db, 'vacuum analyze')
   }),
-  /** A migrated Better Auth store with nothing in it: no users, no signing keys. */
-  auth: snapshot('snapshot_auth_test_template', ['packages/server/src/auth', 'bun.lock'], async (_, url) => {
+  /** A migrated Better Auth store with nothing in it, as `protobase auth migration` writes it: no users, no signing keys. */
+  auth: snapshot('snapshot_auth_test_template', ['packages/server/src/better-auth/store', 'bun.lock'], async (db, url) => {
     const pool = new pg.Pool({ connectionString: url, max: 1 })
     const auth = createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres' }, baseURL: 'http://localhost', secret: 'auth-store-snapshot-secret-0123456789', mailer: false })
-    await (await getMigrations(auth.options)).runMigrations()
+    await exec(db, (await authSchemaMigration(auth))!)
     await pool.end()
   }),
   /** A restored Supabase `storage` schema with buckets and policies, for `/api/sb/storage/v1`. */

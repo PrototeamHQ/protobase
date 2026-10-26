@@ -14,7 +14,7 @@ One option of `createAuth` turns it on:
 createAuth({ ..., mcp: true })
 ```
 
-Run `protobase auth migration` after turning it on, for the OAuth tables. The endpoint is `https://<app>/api/mcp`, or the path `mcp.path` names. How clients register, how people sign in and allow them, and how they disconnect them is in [OAuth for MCP clients](auth.md#oauth-for-mcp-clients).
+Every auth store has the OAuth tables, so turning it on needs no migration. The endpoint is `https://<app>/api/mcp`, or the path `mcp.path` names. How clients register, how people sign in and allow them, and how they disconnect them is in [OAuth for MCP clients](auth.md#oauth-for-mcp-clients).
 
 ## Connecting a client
 

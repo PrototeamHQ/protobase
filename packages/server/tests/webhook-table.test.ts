@@ -1,7 +1,6 @@
 import { Kysely, sql } from 'kysely'
 import { describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { authSchemaMigration } from '../src/better-auth/auth-schema'
 import { createAuth } from '../src/better-auth/create-auth'
 import { addMember, createOrganization } from '../src/better-auth/organizations/host'
 import { createUser, setUserBanned } from '../src/better-auth/users'
@@ -115,7 +114,6 @@ describe('betterAuthOwnerRoles', () => {
       await settled()
       return auth
     }
-    await store.exec((await authSchemaMigration(await make()))!)
     const auth = await make()
     const password = 'correct horse battery'
     const root = await createUser(auth, { email: 'root@example.com', password })

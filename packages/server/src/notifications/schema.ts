@@ -1,6 +1,6 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
-import { storeSchema } from '../better-auth/auth-tables'
+import { storeSchema } from '../better-auth/store/store-names'
 import type { AdminAuth } from '../better-auth/create-auth'
 import { migrationCommand } from '../changes/capture-schema'
 import { historyTableSql } from './history-sql'

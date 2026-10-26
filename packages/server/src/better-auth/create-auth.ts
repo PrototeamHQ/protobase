@@ -411,9 +411,14 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       // Mail goes out after the response, so asking a reset for a known address takes as long as for an unknown one.
       // Better Auth logs a failed send.
       backgroundTasks: { handler: () => {} },
-      // Every id column is a uuid then, also each that points at a user; the other tables' ids come from their default,
-      // a user's from `newUserId`, as a table another system made may have no default.
-      ...(options.generateUserId === 'uuid' && { database: { generateId: 'uuid' as const } }),
+      database: {
+        // Better Auth would compare the store's tables with its own at every start; the store's record of migrations
+        // says where it is instead (`checkAuthSchema`), and `protobase dev` compares them on the developer's machine.
+        validateSchema: false,
+        // Every id column is a uuid then, also each that points at a user; the other tables' ids come from their default,
+        // a user's from `newUserId`, as a table another system made may have no default.
+        ...(options.generateUserId === 'uuid' && { generateId: 'uuid' as const }),
+      },
     },
   } satisfies BetterAuthOptions
 }
@@ -498,6 +503,8 @@ export const createAuth = (options: CreateAuthOptions) => {
     signUpRole: mailer ? signUpRole : undefined,
     /** The app keeps each user's metadata, in the column `users.metadata` names. */
     userMetadata: Boolean(options.users?.metadata),
+    /** The user table's name and columns, as `users` names them, for the store's migrations. */
+    userTable: userTable(options.users),
     socialProviders,
     /** The app's name it signs in and mails as: `PROTOBASE_APP_NAME`, else `appName`, else `Protobase`. */
     appName: appName ?? defaultAppName,

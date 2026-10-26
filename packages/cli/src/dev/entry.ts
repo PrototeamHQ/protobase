@@ -1,6 +1,6 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authStoreTables, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkNotificationsSchema, checkQueryRunner, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
+import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkNotificationsSchema, checkQueryRunner, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
 import { projectIcons } from '../build/app-icons'
 import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
@@ -63,3 +63,9 @@ export default withDevServiceWorker(new Hono(), Boolean(project.notifications)).
 
 /** Whether the auth store has a user yet, for the banner's sign-in line; undefined without one. */
 export const anyUsers = () => (project.auth ? hasUsers(project.auth) : Promise.resolve(undefined))
+
+/**
+ * How the auth store's tables differ from what the project's Better Auth needs, for the banner's warnings: the one
+ * comparison of the store's tables, made in development only, since a deploy reads the store's record of migrations.
+ */
+export const authDrift = () => (project.auth ? authSchemaDrift(project.auth) : Promise.resolve([]))

@@ -6,6 +6,7 @@ import { adminAppDir, adminAppMain } from '../project/admin-app'
 import type { Extension } from '../project/extensions'
 import { checkDatabase } from './check-database'
 import { alsoOnIpv6, checkPortFree } from './loopback'
+import { authDriftLines } from './auth-drift-lines'
 import { loginLine } from './login-line'
 import { loadNearestEnvFile } from './env'
 import { apiForward } from './api-forward'
@@ -76,11 +77,12 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   // It loads the API once at its start, so a missing authenticator or a broken config stops startup instead of failing requests.
   const started = await apiChild.start(`http://localhost:${port}`).catch(closeAndThrow)
   apiReady(started)
-  const { anyUsers } = started
+  const { anyUsers, authDrift } = started
   out(
     `protobase dev ready at http://localhost:${port}\n` +
       `  project  ${options.projectDir}\n  api      http://localhost:${port}/api/v1 (docs at /api/docs)\n` +
-      loginLine(anyUsers, process.env.npm_config_user_agent),
+      loginLine(anyUsers, process.env.npm_config_user_agent) +
+      authDriftLines(authDrift),
   )
   return server
 }

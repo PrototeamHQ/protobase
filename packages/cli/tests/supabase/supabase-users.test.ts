@@ -82,8 +82,8 @@ it("signs Supabase's users in with their own passwords and GitHub, and adds new 
   await pg.exec(`alter table auth.users disable trigger user;\n${gotrueUsers}\nalter table auth.users enable trigger user;`)
 
   const migration = await authSchemaMigration(await authOn(pg))
-  expect(migration).toContain('create table if not exists "auth"."account"')
-  expect(migration).not.toContain('create table if not exists "auth"."users"')
+  expect(migration).toContain('create table "auth"."account"')
+  expect(migration).toContain('create table if not exists "auth"."users"')
   await pg.exec(migration!)
   await pg.exec(accountsMigration())
 
