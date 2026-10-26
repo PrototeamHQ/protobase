@@ -2,11 +2,11 @@ import { APIError } from 'better-auth/api'
 import type { AuthContext } from '../organizations/store'
 
 // The code that proves someone reads the address they sign up with, kept in Better Auth's verification table: hashed,
-// for five minutes, and for three tries; a fourth try finds it gone. Web Crypto only, like the rest of the server.
+// for ten minutes, and for three tries; a fourth try finds it gone. Web Crypto only, like the rest of the server.
 
 /** How long the emailed code works, in seconds and in the email's words. */
-export const signUpCodeLifetimeSeconds = 5 * 60
-export const signUpCodeLifetime = '5 minutes'
+export const signUpCodeLifetimeSeconds = 10 * 60
+export const signUpCodeLifetime = '10 minutes'
 
 const allowedAttempts = 3
 

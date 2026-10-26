@@ -62,7 +62,7 @@ describe('changing the address', () => {
 
     const { mail, code } = await requestCode(cookie, 'Sanne@New.example')
     expect(mail.to).toBe('sanne@new.example')
-    expect(mail.subject).toBe('Confirm your new Protobase address')
+    expect(mail.subject).toBe(`${code} confirms your new Protobase address`)
     const wrong = await request('/email-otp/change-email', { cookie, body: { newEmail: 'sanne@new.example', otp: code === '000000' ? '111111' : '000000' } })
     expect(wrong.status).toBe(400)
     expect(await wrong.json()).toMatchObject({ code: 'INVALID_OTP' })

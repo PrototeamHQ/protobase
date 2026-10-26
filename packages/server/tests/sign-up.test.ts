@@ -116,7 +116,7 @@ describe('open sign-up, turned on', () => {
     const asked = await askCode(' New@Example.com ')
     expect(asked.status).toBe(200)
     expect(await asked.json()).toEqual({ sent: true })
-    expect(sent.at(-1)).toMatchObject({ to: 'new@example.com', subject: 'Your code to create an account with Homes' })
+    expect(sent.at(-1)).toMatchObject({ to: 'new@example.com', subject: `${codeFor('new@example.com')} is your code to create an account with Homes` })
     expect(sent.at(-1)!.text).toContain('create your account with Homes')
 
     // The code is checked on its own, and traded for a ticket; nothing is made or signed in yet.
@@ -187,7 +187,7 @@ describe('open sign-up, turned on', () => {
     const { auth, request, codeFor, verify, askCode } = await serve({ signUp })
     await askCode('new@example.com')
     const lapsed = codeFor('new@example.com')
-    vi.useFakeTimers({ now: Date.now() + 6 * 60 * 1000, toFake: ['Date'] })
+    vi.useFakeTimers({ now: Date.now() + 11 * 60 * 1000, toFake: ['Date'] })
     try {
       expect(await (await verify('new@example.com', lapsed)).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
       expect(await (await auth.$context).internalAdapter.findUserByEmail('new@example.com')).toBeNull()

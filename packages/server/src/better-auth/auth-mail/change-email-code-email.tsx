@@ -15,4 +15,4 @@ const ChangeEmailCodeEmail = ({ app, code, lifetime }: ChangeEmailCodeData) => (
 )
 
 /** The email to the new address with the code that moves the account to it. */
-export const changeEmailCodeEmail = defineEmail({ name: 'change-email-code', subject: ({ app }: ChangeEmailCodeData) => `Confirm your new ${app.name} address`, component: ChangeEmailCodeEmail })
+export const changeEmailCodeEmail = defineEmail({ name: 'change-email-code', subject: ({ app, code }: ChangeEmailCodeData) => `${code} confirms your new ${app.name} address`, component: ChangeEmailCodeEmail })

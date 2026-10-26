@@ -196,7 +196,7 @@ describe('emailed codes', () => {
     expect((await request('/email-otp/send-verification-otp', { body: { email: 'sanne@example.com', type: 'sign-in' } })).status).toBe(200)
     await expect.poll(() => sent.length, { timeout: 10_000 }).toBe(1)
     const code = /^\d{6}$/m.exec(sent[0]!.text)?.[0]
-    expect(sent[0]).toMatchObject({ to: 'sanne@example.com', subject: 'Your Protobase sign-in code' })
+    expect(sent[0]).toMatchObject({ to: 'sanne@example.com', subject: `${code} is your Protobase sign-in code` })
     expect((await request('/sign-in/email-otp', { body: { email: 'sanne@example.com', otp: code } })).status).toBe(200)
     expect((await request('/sign-in/email', { body: { email: 'sanne@example.com', password } })).status).toBe(200)
     expect(auth.mail).toBe(true)

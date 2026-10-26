@@ -3,9 +3,9 @@ import type { emailOTP, twoFactor } from 'better-auth/plugins'
 import { sendAuthEmail, type AuthMail } from './auth-mail/send-auth-email'
 
 /** How long an emailed code works: in seconds for the sign-in code, in minutes for the two-factor one, and in the email's words. */
-export const codeLifetimeSeconds = 5 * 60
-const codeLifetimeMinutes = 5
-const codeLifetime = '5 minutes'
+export const codeLifetimeSeconds = 10 * 60
+const codeLifetimeMinutes = 10
+const codeLifetime = '10 minutes'
 
 type EmailOtpOptions = Parameters<typeof emailOTP>[0]
 

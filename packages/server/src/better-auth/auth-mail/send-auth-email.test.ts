@@ -16,7 +16,7 @@ describe('sendAuthEmail', () => {
 
   it('links the app on its base URL outside a request', async () => {
     const { sent, mail } = recording()
-    await sendAuthEmail(mail, 'signInCodeEmail', 'ada@example.com', { code: '123456', lifetime: '5 minutes' })
+    await sendAuthEmail(mail, 'signInCodeEmail', 'ada@example.com', { code: '123456', lifetime: '10 minutes' })
     expect(sent[0]!.text).toContain('Property Finder https://homes.example.com/')
   })
 })

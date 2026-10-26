@@ -39,13 +39,14 @@ const get = (path: string, cookie: string) => app.request(`${origin}/api/auth${p
 const cookiesOf = (response: Response) =>
   response.headers.getSetCookie().map((line) => line.split(';')[0]!).filter((pair) => !pair.endsWith('=')).join('; ')
 
+// The code a message to `to` carries, which its subject begins with.
 const mailedCode = async (to: string, subject: string) => {
   const message = await relay.next()
   expect(message).toMatchObject({ from: sender, to: [to] })
-  expect(message.raw).toContain(`Subject: ${subject}`)
   expect(message.raw).toContain(`From: Acme ERP <${sender}>`)
   const code = /^\d{6}$/m.exec(bodyOf(message.raw))?.[0]
   if (!code) throw new Error(`No code in the email:\n${message.raw}`)
+  expect(message.raw).toContain(`Subject: ${code} ${subject}`)
   return code
 }
 
@@ -67,7 +68,7 @@ const signInWithPassword = (email: string) => post('/sign-in/email', { email, pa
 
 const signInWithCode = async (email: string) => {
   expect((await post('/email-otp/send-verification-otp', { email, type: 'sign-in' })).status).toBe(200)
-  return post('/sign-in/email-otp', { email, otp: await mailedCode(email, 'Your Acme ERP sign-in code') })
+  return post('/sign-in/email-otp', { email, otp: await mailedCode(email, 'is your Acme ERP sign-in code') })
 }
 
 // Turns on two-factor authentication with an authenticator app, as the account page does; returns the scanned URI and the backup codes.
@@ -98,7 +99,7 @@ describe('signing in with an emailed code', () => {
 
   it('mails an address no account uses that it has none, with no code, and answers as for an account', async () => {
     const known = await post('/email-otp/send-verification-otp', { email: 'ada@acme.example.com', type: 'sign-in' })
-    await mailedCode('ada@acme.example.com', 'Your Acme ERP sign-in code')
+    await mailedCode('ada@acme.example.com', 'is your Acme ERP sign-in code')
     const unknown = await post('/email-otp/send-verification-otp', { email: 'Nobody@acme.example.com', type: 'sign-in' })
     expect([unknown.status, await unknown.json()]).toEqual([known.status, await known.json()])
     const message = await relay.next()
@@ -125,7 +126,7 @@ describe('two-factor authentication', () => {
   it('mails the second step instead when asked', async () => {
     const pending = cookiesOf(await signInWithPassword('bob@acme.example.com'))
     expect((await post('/two-factor/send-otp', {}, pending)).status).toBe(200)
-    const code = await mailedCode('bob@acme.example.com', 'Your Acme ERP verification code')
+    const code = await mailedCode('bob@acme.example.com', 'is your Acme ERP verification code')
     await expectSignedIn(await post('/two-factor/verify-otp', { code }, pending))
   })
 

@@ -45,7 +45,7 @@ const story = (render: () => Promise<RenderedEmail>, check?: (body: HTMLElement)
   },
 })
 
-export const SignUpCode = story(() => signUpCodeEmail.render({ app, code: '482913', lifetime: '5 minutes' }), (body) => expect(body.textContent).toContain('482913'))
+export const SignUpCode = story(() => signUpCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }), (body) => expect(body.textContent).toContain('482913'))
 
 export const AccountExists = story(
   () => accountExistsEmail.render({ app }),
@@ -57,11 +57,11 @@ export const NoAccount = story(
   (body) => expect(body.querySelector('a[href="https://homes.example.com/-/sign-in"]')?.textContent).toBe('Sign in to Property Finder'),
 )
 
-export const SignInCode = story(() => signInCodeEmail.render({ app, code: '482913', lifetime: '5 minutes' }))
+export const SignInCode = story(() => signInCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }))
 
-export const TwoFactorCode = story(() => twoFactorCodeEmail.render({ app, code: '482913', lifetime: '5 minutes' }))
+export const TwoFactorCode = story(() => twoFactorCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }))
 
-export const ChangeEmailCode = story(() => changeEmailCodeEmail.render({ app, code: '482913', lifetime: '5 minutes' }), (body) => expect(body.textContent).toContain('Confirm your new address'))
+export const ChangeEmailCode = story(() => changeEmailCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }), (body) => expect(body.textContent).toContain('Confirm your new address'))
 
 export const ResetPassword = story(() =>
   resetPasswordEmail.render({ app, url: 'https://homes.example.com/api/auth/reset-password/abc?callbackURL=%2F', lifetime: '1 hour' }),

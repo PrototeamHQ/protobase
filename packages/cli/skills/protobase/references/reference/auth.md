@@ -249,7 +249,7 @@ With mail configured, the account page's Profile tab offers "Change email": the 
 | `requestEmailChange(newEmail)` | `POST /api/auth/email-otp/request-email-change` with `{ newEmail }`: mails the code to the new address |
 | `changeEmail(newEmail, code)` | `POST /api/auth/email-otp/change-email` with `{ newEmail, otp }`: moves the account once the code is right (a wrong one is `INVALID_OTP`, an old one `OTP_EXPIRED`) |
 
-- A code works for 5 minutes, once, and three wrong tries end it. Codes are stored hashed.
+- A code works for 10 minutes, once, and three wrong tries end it. Codes are stored hashed.
 - An address another account has gets no code, and the answer is the same, so it does not tell who has an account.
 - Each endpoint is limited to 3 requests per minute and client. Without mail both answer `404`.
 - A [staff session](#staff-sign-in) cannot change the address (`STAFF_CANNOT_CHANGE_SIGN_IN`), and neither can an [MCP client](#oauth-for-mcp-clients)'s token (`401`).
@@ -258,7 +258,7 @@ With mail configured, the account page's Profile tab offers "Change email": the 
 
 With mail configured, the sign-in page offers "Email me a sign-in code": the person enters their address, gets a 6-digit code, and signs in with it instead of a password. It is Better Auth's [email OTP](https://www.better-auth.com/docs/plugins/email-otp) plugin: `POST /api/auth/email-otp/send-verification-otp` with `{ email, type: "sign-in" }`, then `POST /api/auth/sign-in/email-otp` with `{ email, otp }`.
 
-- A code works for 5 minutes, once, and three wrong tries end it; asking again sends a new one and the old one stops working. Codes are stored hashed.
+- A code works for 10 minutes, once, and three wrong tries end it; asking again sends a new one and the old one stops working. Codes are stored hashed.
 - It never creates an account: an address no account uses gets no code but an email saying so, which suggests signing in with the address the person signed up with. The answer is the same either way, so it does not tell who has an account.
 - Only sign-in codes are mailed this way. The plugin's own email verification and password reset endpoints are off (`404`), and asking for another type of code answers `400`. Its address change is on, as [Changing the address](#changing-the-address) describes.
 - An account with [two-factor authentication](#two-factor-authentication) is asked for its second step after the code too, as after a password.
@@ -277,7 +277,7 @@ The sign-in page then offers "Create an account", and so do [sign-in prompts](ui
 - `role` is one of `roles`, and never `admin`: `createAuth` stops with an error otherwise. Give it the least a stranger may hold; a request that names another role, or sets `role` through Better Auth's own endpoints, does not get it.
 - It needs mail: without a mailer it is not offered, `GET /api/auth/status` has no `signUp`, and its endpoints answer `404`. Not with [organizations](#organizations), whose people join by invitation.
 - `POST /api/auth/sign-up/send-code` with `{ email }` mails the code. It answers the same whether the address has an account or not; an address that has one is mailed a note saying so instead of a code, with a link to the sign-in page, so nobody can tell from the answer, and no second account is made.
-- `POST /api/auth/sign-up/verify-code` with `{ email, code }` checks the code on its own and answers `{ ticket }`. A code works for 5 minutes, once, and three wrong tries end it; asking again sends a new one. Codes are stored hashed.
+- `POST /api/auth/sign-up/verify-code` with `{ email, code }` checks the code on its own and answers `{ ticket }`. A code works for 10 minutes, once, and three wrong tries end it; asking again sends a new one. Codes are stored hashed.
 - `POST /api/auth/sign-up/create` with `{ ticket, name, password? }` makes the account for the address whose code was right, and signs in. A ticket works for 30 minutes, once, and is stored hashed; a password the policy refuses leaves it for another try. A used or expired one answers `SIGN_UP_TICKET_INVALID`, and the sign-up starts again with the address.
 - The password follows the [sign-in policy](#sign-in-policy) as for an invitation: none while passwords are off, optional while emailed codes are on, 12 characters or more. What the policy requires, such as two-factor authentication, is set up after the first sign-in, as for every account.
 - The three requests are limited per minute and client like sign-in (`signInPerMinute`, default 5), and refused (`NO_ADMIN_YET`) while the store has no user.
@@ -301,7 +301,7 @@ People add passkeys (Face ID, Touch ID, Windows Hello, a phone or a security key
 On their account page, people turn on a second step after a password or an emailed sign-in code, with Better Auth's [two-factor](https://www.better-auth.com/docs/plugins/2fa) plugin:
 
 - **Authenticator app:** the page shows a QR code (and the key, to type in), the person confirms it with a code from the app, and gets ten backup codes that each work once instead of a code. New backup codes replace the old ones.
-- **Emailed code:** with mail configured, a 6-digit code mailed at each sign-in, valid for 5 minutes. An account with an app can also choose an emailed code at sign-in. Backup codes come with the app only.
+- **Emailed code:** with mail configured, a 6-digit code mailed at each sign-in, valid for 10 minutes. An account with an app can also choose an emailed code at sign-in. Backup codes come with the app only.
 
 Turning it on, off, or making new backup codes asks for the account's password when it has one. At sign-in, a correct password or code answers `{ "twoFactorRedirect": true, "twoFactorMethods": ["totp", "otp"] }` instead of a session, and `POST /api/auth/two-factor/verify-totp`, `verify-otp` or `verify-backup-code` with `{ code, trustDevice? }` finishes it; `trustDevice` skips the step in that browser for 30 days. Ten wrong codes in a row lock the account's second step for 15 minutes.
 

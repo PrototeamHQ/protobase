@@ -15,4 +15,4 @@ const SignInCodeEmail = ({ app, code, lifetime }: SignInCodeData) => (
 )
 
 /** The email with a code to sign in with instead of a password. */
-export const signInCodeEmail = defineEmail({ name: 'sign-in-code', subject: ({ app }: SignInCodeData) => `Your ${app.name} sign-in code`, component: SignInCodeEmail })
+export const signInCodeEmail = defineEmail({ name: 'sign-in-code', subject: ({ app, code }: SignInCodeData) => `${code} is your ${app.name} sign-in code`, component: SignInCodeEmail })

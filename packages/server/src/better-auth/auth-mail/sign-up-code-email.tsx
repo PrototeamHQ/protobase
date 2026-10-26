@@ -15,4 +15,4 @@ const SignUpCodeEmail = ({ app, code, lifetime }: SignUpCodeData) => (
 )
 
 /** The email with the code that makes an account for the address. */
-export const signUpCodeEmail = defineEmail({ name: 'sign-up-code', subject: ({ app }: SignUpCodeData) => `Your code to create an account with ${app.name}`, component: SignUpCodeEmail })
+export const signUpCodeEmail = defineEmail({ name: 'sign-up-code', subject: ({ app, code }: SignUpCodeData) => `${code} is your code to create an account with ${app.name}`, component: SignUpCodeEmail })

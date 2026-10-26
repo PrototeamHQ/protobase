@@ -15,4 +15,4 @@ const TwoFactorCodeEmail = ({ app, code, lifetime }: TwoFactorCodeData) => (
 )
 
 /** The email with the second step of a sign-in, for an account with two-factor authentication by email. */
-export const twoFactorCodeEmail = defineEmail({ name: 'two-factor-code', subject: ({ app }: TwoFactorCodeData) => `Your ${app.name} verification code`, component: TwoFactorCodeEmail })
+export const twoFactorCodeEmail = defineEmail({ name: 'two-factor-code', subject: ({ app, code }: TwoFactorCodeData) => `${code} is your ${app.name} verification code`, component: TwoFactorCodeEmail })
