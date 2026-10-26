@@ -7,6 +7,7 @@ import { goTrueIssuer, goTrueKeyPair } from '../gotrue/keys'
 import { goTrueSessionsPlugin } from '../gotrue/sessions-plugin'
 import { endReplacedSession } from './end-replaced-session'
 import { authBasePath } from './auth-base-path'
+import { cookiePrefixOf } from './cookie-prefix'
 import { mobileRequests, type MobileRequests } from './mobile-requests'
 import { passwordLength } from './new-account-password'
 import { platformMailer } from '../mail/platform-mailer'
@@ -397,6 +398,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     },
     advanced: {
       useSecureCookies: secure,
+      cookiePrefix: cookiePrefixOf(options.baseURL),
       defaultCookieAttributes: { sameSite: 'lax', secure },
       // Mail goes out after the response, so asking a reset for a known address takes as long as for an unknown one.
       // Better Auth logs a failed send.

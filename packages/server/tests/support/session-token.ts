@@ -1,6 +1,7 @@
 import { expect } from 'vitest'
 
-export const sessionCookie = 'better-auth.session_token'
+/** The session cookie of an app on `http://localhost:5173`, whose cookie names carry its port. */
+export const sessionCookie = 'better-auth-5173.session_token'
 
 /** The session token a response sets in its session cookie, whose value is `token.signature`. */
 export const sessionTokenOf = (response: Response) => {

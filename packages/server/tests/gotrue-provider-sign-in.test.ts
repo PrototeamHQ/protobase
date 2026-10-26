@@ -100,8 +100,10 @@ const cookieJar = () => {
 
 type Jar = ReturnType<typeof cookieJar>
 
-const sessionCookie = 'better-auth.session_token'
-const flowCookie = 'better-auth.gotrue_flow'
+// Over http the cookie names carry the app's port; over https they keep Better Auth's own.
+const sessionCookie = 'better-auth-5173.session_token'
+const flowCookie = 'better-auth-5173.gotrue_flow'
+const httpsFlowCookie = 'better-auth.gotrue_flow'
 
 const browse = async ({ app, address }: Served, jar: Jar, url: string) => jar.take(await app.request(url, { headers: { cookie: jar.header(), 'x-forwarded-for': address } }))
 
@@ -231,7 +233,7 @@ describe('GoTrue sign-in with a provider', () => {
 
     // The browser is told to drop its session, and the session is gone on the server too.
     const cleared = handedOff.headers.getSetCookie().filter((line) => /max-age=0/i.test(line)).map((line) => line.split('=')[0])
-    expect(cleared).toEqual(expect.arrayContaining([sessionCookie, 'better-auth.session_data', 'better-auth.dont_remember']))
+    expect(cleared).toEqual(expect.arrayContaining([sessionCookie, 'better-auth-5173.session_data', 'better-auth-5173.dont_remember']))
     expect(await served.auth.api.getSession({ headers: new Headers({ cookie: spent }) })).toBeNull()
     expect(await sessionIn(served, jar)).toBeNull()
     expect(jar.names().some((name) => name.endsWith('session_token'))).toBe(false)
@@ -484,21 +486,21 @@ describe('GoTrue sign-in with a provider', () => {
     const served = await serve({ baseURL: 'https://admin.example.org' })
     const jar = cookieJar()
     const authorization = await authorize(served, jar, { challenge: await challengeOf(verifier) })
-    const secureFlow = `__Secure-${flowCookie}`
+    const secureFlow = `__Secure-${httpsFlowCookie}`
     const line = authorization.headers.getSetCookie().find((cookie) => cookie.startsWith(`${secureFlow}=`))!
     const attributes = line.split(';').slice(1).map((attribute) => attribute.trim().toLowerCase())
     expect(attributes).toEqual(expect.arrayContaining(['secure', 'httponly', 'samesite=lax', 'path=/api/sb/auth/v1/callback']))
     expect(attributes.some((attribute) => attribute.startsWith('domain='))).toBe(false)
     expect(Number(attributes.find((attribute) => attribute.startsWith('max-age='))?.slice('max-age='.length))).toBeLessThanOrEqual(600)
-    expect(jar.names()).not.toContain(flowCookie)
+    expect(jar.names()).not.toContain(httpsFlowCookie)
 
     const toCallback = location(await approveAtGitHub(served, jar, location(authorization).href))
     // The flow's id under the unprefixed name, as a sibling site over http could set it, is no flow.
     const id = jar.get(secureFlow)!
     jar.delete(secureFlow)
-    jar.set(flowCookie, id)
+    jar.set(httpsFlowCookie, id)
     expectDenied(location(await browse(served, jar, toCallback.href)), 'hash')
-    jar.delete(flowCookie)
+    jar.delete(httpsFlowCookie)
     jar.set(secureFlow, id)
 
     const back = location(await browse(served, jar, toCallback.href))
