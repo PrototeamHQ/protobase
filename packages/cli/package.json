@@ -17,6 +17,9 @@
   "engines": {
     "node": ">=22.12.0"
   },
+  "exports": {
+    "./runner": "./src/runner.ts"
+  },
   "bin": {
     "protobase": "./bin/protobase-source.mjs"
   },
@@ -33,6 +36,9 @@
     "access": "public",
     "bin": {
       "protobase": "./bin/protobase.mjs"
+    },
+    "exports": {
+      "./runner": "./dist/runner.js"
     }
   },
   "dependencies": {

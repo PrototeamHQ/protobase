@@ -24,6 +24,7 @@ const mocking = [
   'packages/cli/src/mobile/run.test.ts',
   'packages/cli/src/project/examples-admin.test.ts',
   'packages/cli/src/project/project-admin.test.ts',
+  'packages/cli/src/runner.test.ts',
   'packages/cli/src/serve/crash-reports.test.ts',
   'packages/cli/src/serve/signals.test.ts',
   'packages/cli/src/supabase/functions/samples.test.ts',

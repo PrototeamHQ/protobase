@@ -20,6 +20,22 @@ The published `@protobase` packages are JavaScript: each is built with [tsdown](
 
 In this repository nothing needs a build: the packages' `exports` point at `src`, and the workspace's `protobase` is `bin/protobase-source.mjs`, which imports `src/index.ts`: Bun loads it itself, Node through [tsx](https://tsx.is). `bun run build` builds every package to `dist`.
 
+### In another process
+
+A process that runs many commands, such as a deploy, can run them without starting the CLI each time. `@protobase/cli/runner` exports one function, and nothing else of the CLI:
+
+```ts
+import { runCommand } from '@protobase/cli/runner'
+
+const { exitCode, stdout, stderr } = await runCommand(['doctor', '--env', 'DATABASE_URL'], { cwd: '/srv/app', env: { DATABASE_URL: url } })
+```
+
+- `cwd` is the folder the command runs in, and `env` its whole environment, as a child process gets them. Both default to the current process's. `stdin` is what the command reads from stdin, by default nothing.
+- Commands run one at a time, since they share the process's working folder, environment and output. Each puts them back when it ends.
+- The CLI and its packages stay loaded, so only the first command pays for loading them. On Bun the project's own files are loaded again for each command, so a command sees them as they are when it starts.
+- `dev`, `serve`, `worker` and `mobile` run until a signal, so the runner refuses them; start them as a process.
+- A command that ends with an exit code returns it rather than ending the process. Database pools the project's config opens close once idle.
+
 The serve runtime is bundled by `protobase build-serve` into one JavaScript file for Bun, so production needs neither `node_modules` nor the CLI (see [serve](#serve)).
 
 The CLI reads the database with `default_transaction_read_only = on`, so it can never write.

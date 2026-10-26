@@ -17,6 +17,7 @@ import { registerSkill } from './skill/register'
 import { registerImport } from './supabase/register'
 import { registerToken, registerUsers } from './users/register'
 import type { UiSection } from './scaffold/ui-file'
+import { ExitSignal } from './exit-signal'
 import { errorMessage } from './error-message'
 import { protobaseVersion } from './version/version'
 
@@ -212,6 +213,10 @@ registerNotifications(program)
 // Central error handler: commands throw, the user sees one line.
 export const run = (argv: string[]) =>
   program.parseAsync(argv).catch((error: Error) => {
+    if (error instanceof ExitSignal) {
+      process.exitCode = error.code
+      return
+    }
     process.stderr.write(`error: ${errorMessage(error)}\n`)
     process.exitCode = 1
   })

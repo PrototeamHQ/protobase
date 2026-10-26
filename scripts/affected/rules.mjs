@@ -42,6 +42,8 @@ export const edges = [
   { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'examples/erp/protobase.config.ts'], reads: ['examples/erp/**'] },
   // The test that each command exits once done starts the CLI's sources through its own runner, in the ERP.
   { from: ['packages/cli/tests/project/command-exit.integration.test.ts'], starts: ['packages/cli/tests/support/exit-check.mjs', 'examples/erp/protobase.config.ts'], reads: ['examples/erp/**'] },
+  // The in-memory runner's test runs it in a Bun process of its own.
+  { from: ['packages/cli/tests/runner/runner.integration.test.ts'], starts: ['packages/cli/src/runner.ts'] },
   // Those that build, serve or develop the ERP, with its UI.
   { from: ['tests/smoke/erp-bundle.test.ts', 'packages/cli/tests/dev/dev.integration.test.ts'], loads: [...cliModuleFiles, 'examples/erp/protobase.ui.tsx'] },
   // The admin API of every example, built with its own auth.
