@@ -47,15 +47,23 @@ const edit = async (proposal: Proposal, ask: Ask): Promise<Proposal> => {
   return retype({ ...proposal, name }, ask)
 }
 
-export const interactive = () => {
-  const rl = createInterface({ input: process.stdin, output: process.stdout })
+// Asks for each column, until "all" accepts it and every proposal after it.
+export const interactive = (input: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout) => {
+  const rl = createInterface({ input, output })
+  let acceptRest = false
   const decide: Decide = async (initial, { table, required }) => {
+    if (acceptRest) return initial
     let proposal = initial
     for (;;) {
-      process.stdout.write(`\n${table}.${proposal.column}\n  ${proposal.name}: ${renderField(proposal)}\n`)
-      const options = required ? '[a]ccept, [e]dit' : '[a]ccept, [e]dit, [i]gnore'
+      output.write(`\n${table}.${proposal.column}\n  ${proposal.name}: ${renderField(proposal)}\n`)
+      const options = required ? '[a]ccept, accept a[l]l, [e]dit' : '[a]ccept, accept a[l]l, [e]dit, [i]gnore'
       const answer = (await rl.question(`  ${options} (a): `)).trim().toLowerCase() || 'a'
       if (answer === 'a') return proposal
+      if (answer === 'l') {
+        acceptRest = true
+        output.write('  accepting this and every remaining proposal\n')
+        return proposal
+      }
       if (answer === 'e') proposal = await edit(proposal, (q) => rl.question(q))
       if (answer === 'i' && !required) return null
     }
