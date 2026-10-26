@@ -9,7 +9,12 @@ const column = (name: string) => ({ name, position: 1, typeName: 'text', formatt
 const table = (schema: string, name: string, columns = ['id']) =>
   ({ schema, name, kind: 'table', columns: columns.map(column), foreignKeys: [], checks: [], indexes: [{ name: `${name}_pkey`, columns: ['id'], unique: true, primary: true, partial: false, method: 'btree', opclasses: ['text_ops'] }] }) as DbTable
 
-const store = (schema: string) => ['user', 'session', 'account', 'verification', 'jwks'].map((name) => table(schema, name))
+// A store with its sessions pointing at its user table, `user` unless the app names it otherwise.
+const store = (schema: string, user = 'user', more: string[] = []) => [
+  table(schema, user),
+  { ...table(schema, 'session'), foreignKeys: [{ columns: ['user_id'], refSchema: schema, refTable: user, refColumns: ['id'] }] },
+  ...['account', 'verification', 'jwks', ...more].map((name) => table(schema, name)),
+]
 const queue = ['job', 'version', 'queue'].map((name) => table('jobs', name))
 
 const plan = (tables: DbTable[], target = {}, existing: ExistingResource[] = []) =>
@@ -28,9 +33,14 @@ describe('protobaseSchemas', () => {
     expect(protobaseSchemas([table('jobs', 'applicants'), table('app', 'session')], {})).toEqual([])
   })
 
-  it('takes only the store tables out of public', () => {
-    const [found] = protobaseSchemas([...store('public'), table('public', 'orders')], {})
-    expect(found!.tables.map((each) => each.name)).toEqual(['user', 'session', 'account', 'verification', 'jwks'])
+  it('takes only the store tables out of public: those its migrations make, its record and its user table, however named', () => {
+    const [found] = protobaseSchemas([...store('public', 'people', ['organization', 'member', 'oauth_client', 'auth_migrations']), table('public', 'orders'), table('public', 'user')], {})
+    expect(found!.tables.map((each) => each.name)).toEqual(['people', 'session', 'account', 'verification', 'jwks', 'organization', 'member', 'oauth_client', 'auth_migrations'])
+  })
+
+  it('finds a store by its record of migrations, and no store in tables merely named like its own', () => {
+    expect(protobaseSchemas([table('identity', 'auth_migrations'), table('identity', 'member')], {}).map(({ schema }) => schema)).toEqual(['identity'])
+    expect(protobaseSchemas(['session', 'account', 'verification'].map((name) => table('public', name)), {})).toEqual([])
   })
 })
 
@@ -41,8 +51,14 @@ describe('scaffold of a database with Protobase in it', () => {
     expect(result.skipped.map((each) => each.schema)).toEqual(['auth', 'jobs'])
   })
 
-  it('scaffolds the auth store when the target names its schema', async () => {
-    expect(await scaffolded(store('auth'), { schema: 'auth' })).toContain('/config/account/data.ts')
+  it('never scaffolds the auth store, even when the target names its schema or one of its tables', async () => {
+    expect(await scaffolded(store('auth'), { schema: 'auth' })).toEqual([])
+    expect(await scaffolded([...store('public'), table('public', 'orders')], { schema: 'public' })).toEqual(['/config/orders/data.ts'])
+    expect(await scaffolded([...store('public'), table('public', 'orders')], { schema: 'public', table: 'session' })).toEqual([])
+  })
+
+  it('still scaffolds the job queue when the target names its schema', async () => {
+    expect(await scaffolded(queue, { schema: 'jobs' })).toContain('/config/job/data.ts')
   })
 
   it('warns about a resource an earlier run made over the auth store', async () => {

@@ -16,6 +16,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./auth-store": "./src/auth-store.ts",
     "./config-exports": "./src/config-exports.ts",
     "./email": "./src/email.ts",
     "./vapid": "./src/vapid.ts"
@@ -32,6 +33,7 @@
     "access": "public",
     "exports": {
       ".": "./dist/index.js",
+      "./auth-store": "./dist/auth-store.js",
       "./config-exports": "./dist/config-exports.js",
       "./email": "./dist/email.js",
       "./vapid": "./dist/vapid.js"

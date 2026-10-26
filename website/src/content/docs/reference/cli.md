@@ -47,7 +47,7 @@ protobase scaffold [connection string | --env VAR] [target] [options]
 
 Without a connection string or `--env`, the URL is `DATABASE_URL`, from the environment or the nearest `.env` at or above the current directory, as `dev` reads it. `target` is `all` (default), `schema`, `schema.table` or `schema.table.column`. Tables are introspected from `pg_catalog`; `config/<resource>/data.ts` is created or extended.
 
-Protobase's own tables are left out, since they hold password hashes, OAuth tokens and signing keys: the `auth` schema, another schema holding Better Auth's `user`, `session`, `account` and `verification` tables (in `public`, only the auth store's tables), and pg-boss's `jobs` schema. A line names each one skipped; a target naming the schema scaffolds it anyway. A resource an earlier run made over one of them gets a warning to remove it.
+Protobase's own tables are left out, since they hold password hashes, OAuth tokens and signing keys: the auth store, which is the `auth` schema or another schema with the store's `auth_migrations` table, or with Better Auth's `session`, `account` and `verification` tables whose sessions point at a user table (in `public`, only the tables of the store's [migrations](/reference/auth/#migrations) and that user table, whatever it is called), and pg-boss's `jobs` schema. A line names each one skipped. The auth store is left out whatever the target names; a target naming the `jobs` schema scaffolds it anyway. A resource an earlier run made over one of them gets a warning to remove it.
 
 | Option | Effect |
 | --- | --- |

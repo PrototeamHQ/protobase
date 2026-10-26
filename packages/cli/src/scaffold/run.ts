@@ -27,8 +27,9 @@ const readText = (file: string) =>
     throw error
   })
 
+// The auth store is never scaffolded; the job queue is when the target names its schema.
 const skippedLine = ({ schema, what, tables }: ProtobaseSchema) =>
-  `skipped ${schema === 'public' ? tables.map((table) => `public.${table.name}`).join(', ') : `schema ${schema}`}, Protobase's ${what}; pass "${schema}" as the target to scaffold it anyway\n`
+  `skipped ${schema === 'public' ? tables.map((table) => `public.${table.name}`).join(', ') : `schema ${schema}`}, Protobase's ${what}${what === 'job queue' ? `; pass "${schema}" as the target to scaffold it anyway` : ''}\n`
 
 const write = async ({ path: file, after }: FileChange) => {
   await mkdir(path.dirname(file), { recursive: true })
