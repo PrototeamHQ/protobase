@@ -1,5 +1,5 @@
 import type { ProtobaseConfig } from '@protobase/config'
-import { jobDefinitions, type Authenticator, type FunctionSource } from '@protobase/server'
+import { jobDefinitions, type Authenticator, type FunctionSource, type Mailer } from '@protobase/server'
 import { mergeConfig } from '../../src/config/merge-config'
 import type { ProjectFiles } from '../../src/config/project-files'
 
@@ -12,16 +12,19 @@ type Parts = Omit<ProtobaseConfig, 'jobs'> & {
   jobs?: Record<string, unknown>
   /** The API functions, as ./functions would hold them. */
   functions?: Record<string, FunctionSource>
+  /** The app's own mailer, as auth/mailer.ts would export it. */
+  mailer?: Mailer
 }
 
 /**
  * A merged config as a bundle's reads, from parts the test made: the folder's files hand them back. Sign-in is off
  * unless `auth` turns it on.
  */
-export const servedConfig = ({ config = {}, authenticate, jobs = {}, functions = {}, ...rest }: Parts) => {
+export const servedConfig = ({ config = {}, authenticate, jobs = {}, functions = {}, mailer, ...rest }: Parts) => {
   const definitions = jobDefinitions(jobs)
   const modules: Record<string, Record<string, unknown>> = {
     ...(authenticate && { 'auth/authenticate.ts': { default: authenticate } }),
+    ...(mailer && { 'auth/mailer.ts': { default: mailer } }),
     ...Object.fromEntries(definitions.map((definition) => [`jobs/${definition.name}.ts`, { default: definition.options.run }])),
   }
   const files: ProjectFiles = {

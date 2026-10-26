@@ -11,7 +11,7 @@ export type JobContext = {
   job: { id: string; name: string; attempt: number; maxAttempts: number; startedOn: Date }
   /** Aborted when the job's timeout passes, or when the worker shuts down and its grace period ends. */
   signal: AbortSignal
-  /** Sends mail through the app's SMTP server (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`); `undefined` when the app has no mail. */
+  /** Sends mail with the app's mailer: its auth/mailer.ts, else the SMTP server of `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM`; `undefined` when the app has no mail. */
   mail?: Mailer
   /** Sends a notification as `sendNotification` does; `undefined` when the app has no `notifications`. */
   sendNotification?: SendNotification

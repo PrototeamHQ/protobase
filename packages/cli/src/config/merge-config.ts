@@ -15,7 +15,7 @@ export type Found = { files: ProjectFiles; label: string }
 export type MergedConfig = Omit<ProtobaseConfig, 'jobs' | 'writeHooks'> & {
   /** Every config's folder, in merge order: their resources and functions all count. */
   sources: Found[]
-  /** The folder of the last config that sets `auth`, else the app's own: its auth/hooks.ts and auth/mailer.ts are sign-in's. */
+  /** The folder of the last config that sets `auth`, else the app's own: its auth/hooks.ts is sign-in's, and its auth/mailer.ts the app's mailer. */
   authFiles?: ProjectFiles
   jobs: Record<string, Found & { declaration: JobDeclaration }>
   /** The write hooks by name, in order. */

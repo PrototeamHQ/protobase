@@ -109,7 +109,7 @@ select jobs.enqueue('sync-customer', '{"customerId": 3, "fields": ["email"]}', g
 
 ## Mail
 
-`mail.send({ to, subject, text, html })` sends one message, with an optional HTML part beside the plain text, through the app's SMTP server, the one that also sends password resets and sign-in codes: `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` (see [Email](email.md#configuration)). An [email template](email.md#templates) sends through it with `template.send(to, data, mail)`. It rejects when the server refuses the message, so the try fails and is retried. Without those variables `mail` is `undefined`: a job that must send fails for good with `FatalJobError`, and one that may skip mail leaves it out.
+`mail.send({ to, subject, text, html })` sends one message, with an optional HTML part beside the plain text, through the app's mail, the one that also sends password resets and sign-in codes: the mailer of `auth/mailer.ts` when the app has one, else the SMTP server of `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` (see [Email](email.md#configuration)). An [email template](email.md#templates) sends through it with `template.send(to, data, mail)`. It rejects when the server refuses the message, so the try fails and is retried. Without either, `mail` is `undefined`: a job that must send fails for good with `FatalJobError`, and one that may skip mail leaves it out.
 
 ```ts
 run: async ({ invoiceId }, { db, mail }) => {

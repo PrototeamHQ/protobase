@@ -227,7 +227,7 @@ import type { Mailer } from '@protobase/server'
 export default { send: async ({ to, subject, text }) => { /* deliver it */ } } satisfies Mailer
 ```
 
-[Jobs](/reference/jobs/#mail) send their own mail through the same server, with `mail` in their context, and so do the app's [email templates](/reference/email/).
+[Jobs](/reference/jobs/#mail) send their own mail through the same server, or the same `auth/mailer.ts`, with `mail` in their context, and so do the app's [email templates](/reference/email/) given it.
 
 - The email names the app and gives the link, as a button and in its plain-text part, that it works for 1 hour and once, and that it can be ignored (see [Protobase's own mail](/reference/email/#protobases-own-mail)).
 - The SMTP client greets the server with the sender's domain (`admin.example.com` above), not the container's `[127.0.0.1]`; a `?name=` on `PROTOBASE_SMTP_URL` overrides it.

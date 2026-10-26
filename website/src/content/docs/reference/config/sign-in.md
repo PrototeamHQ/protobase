@@ -19,7 +19,7 @@ export default defineConfig({ auth: { roles: ['admin', 'sales'], signInFirst: 'e
 Sign-in runs the project's own code from these files, each loaded when Protobase builds sign-in:
 
 - `auth/hooks.ts`: the hooks, as named exports typed with `AuthHooks` from `@protobase/server`: `generateUserId`, `onUserCreated`, `generateOrganizationId`, `onOrganizationCreated`, `beforeOrganizationDeleted` and `organizationHooks`. Each gets the app's database, `{ db }`, as its last argument. See [Hooks](/reference/auth/#hooks).
-- `auth/mailer.ts`: a mailer of the project's own for sign-in's mail, as its default export, in place of the SMTP mailer. See [Email](/reference/email/).
+- `auth/mailer.ts`: a mailer of the project's own, as its default export, in place of the SMTP mailer: sign-in's mail and the jobs' `mail` both go through it. See [Email](/reference/email/).
 - `emails/`: the templates of sign-in's mail. See [Templates](/reference/email/#templates).
 
 With [extensions](/reference/config/#extensions), the hooks and the mailer are those of the last folder whose config sets `auth`.

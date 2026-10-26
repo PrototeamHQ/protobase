@@ -57,7 +57,7 @@ const { admin, jobs } = projectAdmin(project, db, ui, reporter, upgradeWebSocket
 
 // The project's jobs and the delivery of its events, run in this server; a behind jobs schema stops startup with the
 // command that writes its migration.
-await devJobs(db, jobs)
+await devJobs(db, jobs, project.mailer)
 
 // The push worker, with notifications() alone.
 export default withDevServiceWorker(new Hono(), Boolean(project.notifications)).route('/', admin)

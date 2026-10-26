@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { defineJob, unauthorized } from '@protobase/server'
+import { sql } from 'kysely'
+import { defineJob, unauthorized, type MailMessage } from '@protobase/server'
 import { startWorker } from '../../src/worker/start-worker'
 import { servedConfig } from '../support/served-config'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../../test-support/postgres-database'
@@ -18,5 +19,20 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('protobase worker', () 
     expect(destroy).toHaveBeenCalledTimes(1)
     destroy.mockRestore()
     await expect(startWorker({ config: servedConfig({ ...project, jobs: { job } }), databaseUrl: 'postgres://unused/app', openDb: () => ({ db }) })).rejects.toThrow('The jobs schema is missing')
+  }, 30_000)
+
+  it("sends the jobs' mail through the app's own mailer, auth/mailer.ts, as sign-in's", async () => {
+    const sent: MailMessage[] = []
+    const mailer = { send: async (message: MailMessage) => void sent.push(message) }
+    const job = defineJob({ name: 'welcome', run: async (_payload, { mail }) => mail!.send({ to: 'new@example.com', subject: 'Welcome', text: 'Hello' }) })
+    const { db } = await openPostgresDatabase('jobs')
+    vi.spyOn(db, 'destroy').mockImplementation(async () => {})
+    const worker = await startWorker({ config: servedConfig({ ...project, jobs: { job }, mailer }), databaseUrl: 'postgres://unused/app', openDb: () => ({ db }) })
+    try {
+      await sql`select jobs.enqueue('welcome')`.execute(db)
+      await vi.waitFor(() => expect(sent).toEqual([{ to: 'new@example.com', subject: 'Welcome', text: 'Hello' }]), { timeout: 10_000 })
+    } finally {
+      await worker.stop()
+    }
   }, 30_000)
 })

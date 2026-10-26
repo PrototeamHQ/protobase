@@ -12,8 +12,14 @@ import { projectFiles, projectFunctions, projectJobs, projectNotifications, proj
 export type AppDatabase = { db: Db; pool?: PostgresPool }
 
 /**
+ * The app's own mailer, the default export of its auth/mailer.ts: what sign-in and the jobs (`context.mail`) both send
+ * with; `undefined` without one, when both send through `PROTOBASE_SMTP_URL`.
+ */
+export const projectMailer = async (config: MergedConfig) => (await config.authFiles?.module('auth/mailer.ts')?.())?.default as Mailer | undefined
+
+/**
  * The app's sign-in, built from `auth` with the app's URL, secrets, signing key rotation and name, the hooks of its
- * auth/hooks.ts and the mailer of its auth/mailer.ts when it has them; none without `auth`.
+ * auth/hooks.ts and the app's mailer when it has them; none without `auth`.
  */
 export const projectAuth = async (config: MergedConfig, { db, pool }: AppDatabase): Promise<AdminAuth | undefined> => {
   if (!config.auth) return undefined
@@ -21,10 +27,10 @@ export const projectAuth = async (config: MergedConfig, { db, pool }: AppDatabas
   const { url, secret, previousSecrets, signingKeyDays, signingKeyGraceDays, name } = config
   if (!url) throw new Error('Sign-in needs the app\'s public URL: set PROTOBASE_URL, such as https://admin.example.com, or url in protobase.config.ts')
   if (!secret) throw new Error('Sign-in needs the app\'s secret: set PROTOBASE_SECRET to the output of `openssl rand -base64 32`, or secret in protobase.config.ts')
-  const [hooks, mailer] = await Promise.all(['auth/hooks.ts', 'auth/mailer.ts'].map((file) => config.authFiles?.module(file)?.()))
+  const [hooks, mailer] = await Promise.all([config.authFiles?.module('auth/hooks.ts')?.(), projectMailer(config)])
   return buildAppAuth(
     { ...(config.auth || {}), baseURL: url, secret, ...(previousSecrets && { previousSecrets }), ...(signingKeyDays !== undefined && { signingKeyDays }), ...(signingKeyGraceDays !== undefined && { signingKeyGraceDays }), ...(name && { appName: name }) },
-    { pool, db, ...(hooks && { hooks: hooks as AuthHooks }), ...(mailer && { mailer: mailer.default as Mailer }) },
+    { pool, db, ...(hooks && { hooks: hooks as AuthHooks }), ...(mailer && { mailer }) },
   )
 }
 
@@ -53,6 +59,8 @@ export type BuiltProject = {
   webhooks?: WebhooksOptions
   notifications?: NotificationsOptions
   jobs: JobDefinition[]
+  /** The app's own mailer (`projectMailer`), which the jobs send with as sign-in does. */
+  mailer?: Mailer
   mobile?: MobileConfig
   app?: AppIdentity
   options?: AdminOptions
@@ -60,7 +68,7 @@ export type BuiltProject = {
 
 /** The app, built from its merged config over its database: every reference loaded, auth and the authenticator made. */
 export const buildProject = async (config: MergedConfig, database: AppDatabase): Promise<BuiltProject> => {
-  const [resources, functions, files, options, auth, webhooks, notifications] = await Promise.all([
+  const [resources, functions, files, options, auth, webhooks, notifications, mailer] = await Promise.all([
     projectResources(config),
     projectFunctions(config),
     projectFiles(config),
@@ -68,6 +76,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     projectAuth(config, database),
     projectWebhooks(config),
     projectNotifications(config),
+    projectMailer(config),
   ])
   const jobs = projectJobs(config)
   // The installed app's colours, the app's other settings being the config's.
@@ -83,6 +92,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     ...(config.history && { history: config.history }),
     ...(webhooks && { webhooks }),
     ...(notifications && { notifications }),
+    ...(mailer && { mailer }),
     ...(config.mobile && { mobile: config.mobile }),
     ...(config.secret && { secret: config.secret }),
     ...(identity && { app: identity }),

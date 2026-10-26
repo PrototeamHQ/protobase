@@ -32,7 +32,7 @@ PROTOBASE_SMTP_URL=smtp://localhost:1025
 PROTOBASE_MAIL_FROM=noreply@shop.example.com
 ```
 
-A project that delivers sign-in's mail another way exports a mailer, `{ send({ to, subject, text, html, headers }) }`, as the default of `auth/mailer.ts`; `auth: { mailer: false }` turns that mail off whatever the environment says. A host that runs jobs itself passes a mailer to `startJobs`. A template's `send` takes one too, see [Templates](#templates).
+A project that delivers its mail another way exports a mailer, `{ send({ to, subject, text, html, headers }) }`, as the default of `auth/mailer.ts`: sign-in and the jobs (`mail` in their context) both send with it. `auth: { mailer: false }` turns sign-in's mail off whatever the environment says. A host that runs jobs itself passes a mailer to `startJobs`. A template's `send` takes one too, see [Templates](#templates).
 
 ## Protobase's own mail
 
