@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import type { Server as HttpServer } from 'node:http'
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import devServer from '@hono/vite-dev-server'
@@ -13,6 +14,7 @@ import { themeLink } from '../project/theme-link'
 import { faviconLink } from '../project/favicon-link'
 import { layoutCheck } from '../build/layout-check'
 import { checkDatabase } from './check-database'
+import { alsoOnIpv6, checkPortFree, devHost } from './loopback'
 import { stopDevJobs } from './dev-jobs'
 import { loadNearestEnvFile } from './env'
 import { apiWebSockets } from './api-websockets'
@@ -84,6 +86,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   const appDir = options.appDir ?? adminAppDir
   requireAppFiles(appDir)
   await checkDatabase(url, options.projectDir)
+  if (options.port !== 0) await checkPortFree(options.port)
 
   const extensions = options.extensions ?? []
   const projectDirs = [options.projectDir, ...extensions.map((extension) => extension.dir)]
@@ -101,6 +104,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
     server: {
       // Vite sends these with the page of every navigation, as `protobase serve` does: no other site frames the app.
       headers: frameHeaders,
+      host: devHost,
       port: options.port,
       strictPort: true,
       ...(options.allowedHosts.length > 0 && { allowedHosts: options.allowedHosts }),
@@ -129,16 +133,18 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
       }),
     ],
   })
+  const closeAndThrow = async (error: Error): Promise<never> => {
+    await server.close()
+    throw error
+  }
   await server.listen()
   const address = server.httpServer?.address()
   const port = typeof address === 'object' && address ? address.port : options.port
+  if (server.httpServer) await alsoOnIpv6(server.httpServer as HttpServer, port).catch(closeAndThrow)
   // The app's own origin, whose /api/sb its functions call as SUPABASE_URL.
   process.env.PROTOBASE_DEV_URL = `http://localhost:${port}`
   // Load the API once now so a missing authenticator or a broken config stops startup instead of failing requests.
-  await server.ssrLoadModule(entry).catch(async (error: Error) => {
-    await server.close()
-    throw error
-  })
+  await server.ssrLoadModule(entry).catch(closeAndThrow)
   out(`protobase dev ready at http://localhost:${port}\n`)
   out(`  project  ${options.projectDir}\n  api      http://localhost:${port}/api/v1 (docs at /api/docs)\n`)
   out('  login    sign in with a user created by `protobase users create`\n')

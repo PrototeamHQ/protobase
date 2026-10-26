@@ -40,7 +40,7 @@ bun run --cwd examples/erp protobase users create you@example.com --generate-pas
 bun run --cwd examples/erp dev                          # http://localhost:5173
 ```
 
-`BETTER_AUTH_SECRET` in `examples/erp/.env` signs the session cookies; see [Login with Better Auth](/reference/auth/). `protobase dev` serves the admin app and the API on one port and reloads both on every change ([CLI](/reference/cli/#dev)).
+`BETTER_AUTH_SECRET` in `examples/erp/.env` signs the session cookies; see [Login with Better Auth](/reference/auth/). `protobase dev` serves the admin app and the API on one port and reloads both on every change ([CLI](/reference/cli/#dev)). It stops with a clear message when another server holds its port; pass `--port 5174` to run a second app beside it.
 
 ## Run the real estate example
 

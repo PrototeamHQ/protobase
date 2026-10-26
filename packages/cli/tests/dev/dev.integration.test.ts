@@ -88,6 +88,18 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     expect(created.stdout).toBe('Created admin dev@example.com\n')
   })
 
+  // `localhost` is either address, depending on the runtime and the browser.
+  it('answers on both loopback addresses', async () => {
+    for (const host of ['127.0.0.1', '[::1]']) expect((await fetch(`http://${host}:${port}/api/meta`)).status).toBe(401)
+  })
+
+  it('refuses to start a second server on its port, naming the address', async () => {
+    const { projectDir, env } = project
+    const second = await run([bin, 'dev', '--port', String(port)], projectDir, { ...env, DATABASE_URL: url })
+    expect(second.status).toBe(1)
+    expect(second.stderr).toContain(`Port ${port} is in use by another server on 127.0.0.1, which would answer http://localhost:${port} instead`)
+  })
+
   it('has token print only a JWT on stdout for an existing user', () => {
     expect(issued.status).toBe(0)
     expect(issued.stdout).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+\n$/)
