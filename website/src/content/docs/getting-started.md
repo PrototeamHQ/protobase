@@ -16,6 +16,10 @@ npm create protobase my-app
 npm create protobase my-app -- --preset real-estate
 ```
 
+## Admin over an existing database
+
+For a Postgres database you already have, [Admin over an existing database](/guides/existing-database/) goes from an empty folder to signing in: install the packages, scaffold the config from the tables, check it with `doctor`, add sign-in and its tables, create the first admin and run `protobase dev`.
+
 ## Docs as Markdown
 
 Every page of these docs is also Markdown at its address plus `.md`: `https://docs.protobase.net/reference/cli/` is also `https://docs.protobase.net/reference/cli.md`. The code a page shows from example files is written out in it, and its live demos are left out, so a coding agent or a chat assistant reads the page whole. In a project, [`protobase skill install`](/reference/cli/#skill) gives coding agents the docs of the installed version.

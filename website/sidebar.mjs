@@ -31,6 +31,7 @@ export const features = [
 ]
 
 export const guides = [
+  'guides/existing-database',
   'guides/table-to-admin',
   'guides/first-composed-page',
   'guides/billing-page',
