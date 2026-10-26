@@ -112,14 +112,17 @@ A bucket has no quota of its own, so the provider counts what it holds with `lis
 
 ### Writing files from a seed
 
-A seed, an import or another script that writes files outside a request uses `storeFile` from `@protobase/server`, so the same script fills the folder locally and the bucket where the app has one. It finds the provider as the server does, from `env`, and from `files` with its providers made when the script passes it:
+A seed, an import or another script that writes files outside a request uses `storeFile` from `@protobase/server`, so the same script fills the folder locally and the bucket where the app has one. It finds the provider as the server does, from `env`, and from `files` when the script passes the config's, as it is:
 
-```ts
+```ts title="docs-examples/files/seed.ts"
 import { storeFile } from '@protobase/server'
+import config from './protobase.config'
 
 // A row then holds public:images/test.png
-await storeFile({ provider: 'public', path: 'images/test.png', body: bytes, env: process.env })
+export const seedImage = (bytes: Uint8Array) => storeFile({ provider: 'public', path: 'images/test.png', body: bytes, files: config.files, env: process.env })
 ```
+
+A `custom` provider is the project's own code, so the script imports the default export of `files/<name>.ts` and passes it in `files.providers` in place of `{ kind: 'custom' }`.
 
 `body` is bytes or a stream. A relative folder, such as the default `data/files/public`, is taken from the working directory, so run the script where the server runs. A script that makes [variants](#image-variants-and-placeholders) stores each at `variantPath(path, name, extension)` the same way.
 

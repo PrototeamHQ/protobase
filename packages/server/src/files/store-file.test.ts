@@ -51,6 +51,19 @@ describe('storeFile', () => {
     expect([...bucket.current!.objects.keys()]).toEqual(['b.txt'])
   })
 
+  it('takes the providers as the config writes them, so a seed passes its files as they are', async () => {
+    const files = { providers: { archive: { kind: 'local' as const, dir: folder.dir }, uploads: { kind: 'custom' as const } }, images: 'sharp' }
+    await storeFile({ provider: 'archive', path: 'a.txt', body: bytes, files, env: {} })
+    expect(await readFile(path.join(folder.dir, 'a.txt'), 'utf8')).toBe('a photo')
+    await storeFile({ provider: 'public', path: 'b.txt', body: bytes, files: { providers: { public: { kind: 's3', bucket: 'acme-files', prefix: 'public', accessKeyId: 'id', secretAccessKey: 'secret' } } }, env: {} })
+    expect([...bucket.current!.objects.keys()]).toEqual(['public/b.txt'])
+  })
+
+  it('asks for a custom provider made, since its code is the project\'s', async () => {
+    const files = { providers: { uploads: { kind: 'custom' as const } } }
+    await expect(storeFile({ provider: 'uploads', path: 'a.txt', body: bytes, files, env: {} })).rejects.toThrow("files.providers.uploads is the default export of files/uploads.ts: import it and pass it in place of { kind: 'custom' }")
+  })
+
   it('fails for a provider the app does not have', async () => {
     await expect(storeFile({ provider: 'archive', path: 'a.txt', body: bytes, env: {} })).rejects.toThrow('No file provider "archive"')
   })

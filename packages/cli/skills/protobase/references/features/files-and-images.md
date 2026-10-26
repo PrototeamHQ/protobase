@@ -7,6 +7,7 @@ Uploaded files and images, where they are kept and how they are served.
 - [File fields](../reference/files.md#what-the-column-holds): A text column holds an uploaded file, with limits on type and size.
 - [File storage](../reference/files.md#providers): Files are kept on disk, or in a bucket of your own.
 - [S3-compatible buckets](../reference/files.md#s3-compatible-buckets) (beta): Files are kept in any bucket that speaks the S3 API, when the app runs on Bun.
+- [Files from a seed](../reference/files.md#writing-files-from-a-seed): A seed or another script writes files into the app's providers, read from its config and environment as the server reads them.
 - [Type detection](../reference/files.md#how-the-type-is-decided): An upload's type is decided from its content, and a disguised file is refused.
 - [Signed downloads](../reference/files.md#downloads): Private files open through short-lived links that stop working once the record no longer holds the file.
 - [Derived fields](../reference/files.md#derived-fields): Width, height, size and type of each upload are written to other fields.
