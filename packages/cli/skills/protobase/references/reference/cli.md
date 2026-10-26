@@ -12,7 +12,7 @@ bun run protobase <command>                     # from the project, config folde
 bun run --cwd examples/erp protobase <command>  # in this repository, for an example
 ```
 
-Any package manager installs the packages, and the command runs on Node or on Bun: `npm install` and `npx protobase <command>` work the same. The bin starts with `#!/usr/bin/env node`, so where Node is installed `bun run protobase` starts it on Node, unless the project's `bunfig.toml` sets `[run] bun = true`, as the presets' does.
+Any package manager installs the packages, and the command runs on Node or on Bun: `npm install` and `npx protobase <command>` work the same. The bin starts with `#!/usr/bin/env node`, so where Node is installed `bun run protobase` starts it on Node, unless the project's `bunfig.toml` sets `[run] bun = true`, as the presets' does. `protobase --version` (or `-v`) prints the Protobase version.
 
 ## How it runs
 

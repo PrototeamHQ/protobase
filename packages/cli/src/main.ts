@@ -17,6 +17,7 @@ import { registerImport } from './supabase/register'
 import { registerToken, registerUsers } from './users/register'
 import type { UiSection } from './scaffold/ui-file'
 import { errorMessage } from './error-message'
+import { protobaseVersion } from './version/version'
 
 // Each command imports what it runs when it runs, so that --help and a command that needs little start fast.
 const out = (text: string) => process.stdout.write(text)
@@ -30,7 +31,7 @@ const uiSection = (value: string): UiSection => {
 
 const collectSection = (value: string, previous: UiSection[]) => [...previous, uiSection(value)]
 
-const program = new Command('protobase').description('Protobase command line')
+export const program = new Command('protobase').description('Protobase command line').version(protobaseVersion, '-v, --version', 'print the Protobase version')
 
 program
   .command('scaffold')
