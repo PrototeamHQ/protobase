@@ -19,6 +19,7 @@ import { addUiSections, renderUiFile, viewName, type UiSection } from './ui-file
 export type FileChange = { path: string; before?: string; after: string }
 
 export type ScaffoldInput = {
+  // Tables, and views to name as skipped.
   tables: DbTable[]
   existing: ExistingResource[]
   configDir: string
@@ -58,22 +59,26 @@ const change = (file: string, before: string | undefined, after: string): FileCh
 
 export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> => {
   const { configDir, existing, ui } = input
-  const skipped = protobaseSchemas(input.tables.filter((table) => matchesTarget(input.target, table)), input.target)
-  const isProtobase = (table: DbTable) => skipped.some((schema) => schema.tables.includes(table))
-  // Protobase's tables take no names, so an app's `session` stays `session` next to the auth store's.
-  const names = assignNames(input.tables.filter((table) => !isProtobase(table)), existing)
   const byTable = new Map(existing.map((resource) => [resource.table, resource]))
+  const wanted = (table: DbTable) => matchesTarget(input.target, table) && !isExcluded(input.excludes, table)
+  const tables = input.tables.filter((table) => table.kind === 'table')
+  const skipped = protobaseSchemas(tables.filter((table) => matchesTarget(input.target, table)), input.target)
+  const isProtobase = (table: DbTable) => skipped.some((schema) => schema.tables.includes(table))
+  // A view has no key Postgres knows, so a resource over one is written by hand; one already declared is left as it is,
+  // and so is one in a schema of Protobase's own, other than public, which may also hold the app's tables.
+  const inProtobaseSchema = (view: DbTable) => skipped.some(({ schema }) => schema === view.schema && schema !== 'public')
+  const skippedViews = input.tables.filter((table) => table.kind !== 'table' && wanted(table) && !byTable.has(tableKey(table)) && !inProtobaseSchema(table))
+  // Protobase's tables take no names, so an app's `session` stays `session` next to the auth store's.
+  const names = assignNames(tables.filter((table) => !isProtobase(table)), existing)
   const context = (table: DbTable): ProposalContext => ({
     table,
     resourceNameOf: (schema, name) => names.get(`${schema}.${name}`) ?? name,
   })
-  const targets = dependencyOrder(
-    input.tables.filter((table) => matchesTarget(input.target, table) && !isExcluded(input.excludes, table) && !isProtobase(table)),
-  )
+  const targets = dependencyOrder(tables.filter((table) => wanted(table) && !isProtobase(table)))
 
   const changes: FileChange[] = []
   const drift: Drift[] = []
-  const warnings: string[] = []
+  const warnings = skippedViews.map((view) => `${tableKey(view)}: a ${view.kind}, skipped; scaffold writes resources over tables, declare one over a view by hand`)
   const registrations: Registration[] = []
   const live: string[] = []
   const isLive = (key: string) => input.live?.includes(key) ?? false
@@ -131,9 +136,9 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
   const indexFile = path.join(configDir, 'index.ts')
   const indexBefore = await input.readText(indexFile)
   const missingIndex = indexBefore === undefined ? await registerExisting(input, registrations) : []
-  const wanted = [...missingIndex, ...registrations]
-  if (wanted.length > 0 || indexBefore === undefined) {
-    changes.push(...change(indexFile, indexBefore, ensureExports(indexBefore ?? '', wanted)))
+  const exports = [...missingIndex, ...registrations]
+  if (exports.length > 0 || indexBefore === undefined) {
+    changes.push(...change(indexFile, indexBefore, ensureExports(indexBefore ?? '', exports)))
   }
   return { changes, drift, warnings, skipped, live }
 }

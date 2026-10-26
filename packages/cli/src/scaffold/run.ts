@@ -44,7 +44,7 @@ export const runScaffold = async (options: ScaffoldOptions, out: (text: string) 
   const plan = await (async () => {
     try {
       return await planScaffold({
-        tables: await introspect(sql),
+        tables: await introspect(sql, { views: true }),
         existing: await readExistingResources(options.configDir),
         configDir: options.configDir,
         target: parseTarget(options.target),
