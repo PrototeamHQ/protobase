@@ -8,7 +8,7 @@ import { humanize } from '../live/naming'
 import { Button } from '../primitives/button'
 import { Spinner } from '../primitives/spinner'
 import { Field } from '../record-view'
-import { createBody, hasDatabaseDefault, initialDraft, isRequired, type Draft } from '../app/create/create-values'
+import { createBody, hasDatabaseDefault, initialDraft, numberDefault, isRequired, type Draft } from '../app/create/create-values'
 import { useDocumentTitle } from '../app/document-title'
 import { ErrorBanner } from '../app/error-banner'
 import { FieldEditor } from '../app/field-editor'
@@ -108,7 +108,7 @@ const LoadedForm = ({ form }: { form: PublicForm }) => {
                 hints={hints}
                 value={draft[name] ?? (field.type === 'boolean' ? false : '')}
                 stored={undefined}
-                placeholder={hasDatabaseDefault(field) ? text('setByDatabase') : undefined}
+                placeholder={hasDatabaseDefault(field) ? text('setByDatabase') : numberDefault(field)}
                 invalid={Boolean(problem)}
                 onChange={(next) => change(name, next)}
               />

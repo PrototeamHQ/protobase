@@ -15,7 +15,7 @@ import { fieldErrors, fieldMessage } from '../field-errors'
 import { useFocusFirstInvalid } from '../use-focus-first-invalid'
 import { useLiveSave } from '../use-live-save'
 import { CreateRecordForm } from './create-record-form'
-import { createBody, createSections, hasDatabaseDefault, initialDraft, isChosen, isRequired, type Draft } from './create-values'
+import { createBody, createSections, hasDatabaseDefault, initialDraft, numberDefault, isChosen, isRequired, type Draft } from './create-values'
 import { text as appText } from '../messages'
 import { text } from './messages'
 
@@ -113,7 +113,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
             value={isChosen(value) ? value.key : (value ?? (field.type === 'boolean' ? false : ''))}
             stored={undefined}
             relationLabel={isChosen(value) ? value.label : undefined}
-            placeholder={hasDatabaseDefault(field) ? text('setByDatabase') : undefined}
+            placeholder={hasDatabaseDefault(field) ? text('setByDatabase') : numberDefault(field)}
             relationPicker={target ? { target, view: meta.views[target.name] } : undefined}
             invalid={Boolean(errors[name])}
             resource={model.name}

@@ -70,9 +70,21 @@ const givenValue = (field: FieldModel, value: string): unknown => {
   return value
 }
 
+const numeric = new Set(['integer', 'bigint', 'decimal'])
+
+/**
+ * A number field's literal default, which its empty input shows as a placeholder rather than as its value: typing into a
+ * prefilled `0` would add to it, and the create applies the default to an empty field.
+ */
+export const numberDefault = (field: FieldModel) => {
+  if (!numeric.has(field.type) || !field.default || !('value' in field.default)) return undefined
+  const value = field.default.value
+  return value === null || value === undefined ? undefined : String(value)
+}
+
 /**
  * The form's starting values: the values the address gives (`/notes/new?listing_id=42`), for the fields the form has,
- * else literal defaults from `/meta`. Database defaults stay empty so the database fills them.
+ * else literal defaults from `/meta`, but for numbers. Database defaults stay empty so the database fills them.
  */
 export const initialDraft = (model: ResourceModel, sections: CreateSection[], given: Readonly<Record<string, string>> = {}): Draft =>
   Object.fromEntries(
@@ -81,6 +93,7 @@ export const initialDraft = (model: ResourceModel, sections: CreateSection[], gi
         const field = model.fields[name]!
         if (Object.hasOwn(given, name)) return [[name, givenValue(field, given[name]!)]]
         const fallback = field.default
+        if (numberDefault(field) !== undefined) return []
         if (!fallback || !('value' in fallback) || fallback.value === null || fallback.value === undefined) return []
         return [[name, typeof fallback.value === 'boolean' ? fallback.value : String(fallback.value)]]
       }),
