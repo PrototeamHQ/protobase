@@ -2,7 +2,7 @@ import { defineMessages } from '../locale/messages'
 
 export const text = defineMessages({
   en: {
-    rows: (count: string) => `${count} rows`,
+    rows: (count: string, one: boolean) => `${count} ${one ? 'row' : 'rows'}`,
     aboutRows: (count: string) => `about ${count} rows`,
     secondsAgo: (count: number) => `${count} s ago`,
     minutesAgo: (count: number) => `${count} min ago`,
@@ -11,7 +11,7 @@ export const text = defineMessages({
     justNow: 'just now',
   },
   nl: {
-    rows: (count: string) => `${count} rijen`,
+    rows: (count: string, one: boolean) => `${count} ${one ? 'rij' : 'rijen'}`,
     aboutRows: (count: string) => `ongeveer ${count} rijen`,
     secondsAgo: (count: number) => `${count} s geleden`,
     minutesAgo: (count: number) => `${count} min geleden`,

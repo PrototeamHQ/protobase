@@ -28,6 +28,8 @@ describe('numbers', () => {
     expect(formatApproxRows(10_240_113)).toBe('about 10,240,000 rows')
     expect(formatApproxRows(48_213)).toBe('about 48,210 rows')
     expect(formatApproxRows(312)).toBe('312 rows')
+    expect(formatApproxRows(1)).toBe('1 row')
+    expect(formatApproxRows(0)).toBe('0 rows')
   })
 })
 
@@ -85,6 +87,7 @@ describe('in Dutch', () => {
   it('says how long ago in Dutch', () => {
     setAppLocale('nl')
     expect(formatApproxRows(48_213)).toBe('ongeveer 48.210 rijen')
+    expect(formatApproxRows(1)).toBe('1 rij')
     expect(formatRelativeTime(10)).toBe('zojuist')
     expect(formatRelativeTime(86_400)).toBe('gisteren')
     expect(formatAgo(180)).toBe('3 min geleden')
