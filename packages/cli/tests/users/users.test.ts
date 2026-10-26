@@ -34,7 +34,7 @@ const create = (email: string, role?: string) =>
 
 describe('protobase users against a Better Auth store', () => {
   it('creates the first admin, whatever role is asked for', async () => {
-    expect(await create('me@example.com', 'viewer')).toBe('Created admin me@example.com\n')
+    expect(await create('me@example.com', 'viewer')).toBe('Created admin me@example.com, shown in the app as Superuser\n')
   })
 
   it('lists the user without credentials', async () => {

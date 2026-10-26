@@ -4,9 +4,9 @@ import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } 
 import { readPasswordFromStream, rejectPasswordArgument, resolvePassword } from './password'
 
 const api = (existing: boolean): UsersApi => ({
-  roles: async () => ({ roles: ['admin', 'auditor'], defaultRole: 'auditor' }),
+  roles: async () => ({ roles: ['admin', 'auditor'], defaultRole: 'auditor', labels: { admin: 'Superuser', auditor: 'Auditor', user: 'User' } }),
   hasUsers: async () => existing,
-  createUser: vi.fn(async (input) => ({ id: '1', email: input.email, role: input.role })),
+  createUser: vi.fn(async (input) => ({ id: '1', email: input.email, role: input.role ?? 'auditor' })),
   listUsers: async () => [{ id: '1', email: 'a@example.com', role: 'admin', createdAt: '2026-10-07' }],
   deleteUser: vi.fn(async () => {}),
   setUserRole: vi.fn(async ({ email, role }) => ({ email, role })),
@@ -26,7 +26,7 @@ describe('createUserCommand', () => {
     const out: string[] = []
     await createUserCommand(users, { ...base, email: 'me@example.com', role: 'viewer', passwordStdin: true }, deps('a-long-password\n'), (t) => out.push(t))
     expect(users.createUser).toHaveBeenCalledWith({ email: 'me@example.com', password: 'a-long-password', role: 'admin' })
-    expect(out.join('')).toBe('Created admin me@example.com\n')
+    expect(out.join('')).toBe('Created admin me@example.com, shown in the app as Superuser\n')
   })
 
   it('uses the requested role for later users', async () => {
@@ -55,7 +55,7 @@ describe('createUserCommand', () => {
     const out: string[] = []
     await createUserCommand(users, { ...base, email: 'me@example.com', noPassword: true }, deps('', ['never-asked']), (t) => out.push(t))
     expect(users.createUser).toHaveBeenCalledWith({ email: 'me@example.com', role: 'admin' })
-    expect(out.join('')).toBe('Created admin me@example.com\n')
+    expect(out.join('')).toBe('Created admin me@example.com, shown in the app as Superuser\n')
   })
 
   it('links the user to a GitHub user id', async () => {

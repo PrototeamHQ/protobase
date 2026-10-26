@@ -3,7 +3,7 @@ import type { UsersApi } from './commands'
 import { deleteUserCommand, setDisabledCommand, setRoleCommand } from './manage'
 
 const api = (): UsersApi => ({
-  roles: async () => ({ roles: ['admin', 'user'] }),
+  roles: async () => ({ roles: ['admin', 'user'], labels: {} }),
   hasUsers: async () => true,
   createUser: vi.fn(),
   listUsers: async () => [],

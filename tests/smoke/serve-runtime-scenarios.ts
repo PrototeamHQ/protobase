@@ -176,7 +176,7 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
     const password = 'second-admin-password'
     const created = command(['create-admin', 'app', 'second@example.com', '--password-stdin'], erp().env, `${password}\n`)
     expect(created.stderr).toBe('')
-    expect(created.stdout).toBe('Created admin second@example.com\n')
+    expect(created.stdout).toBe('Created admin second@example.com, shown in the app as Superuser\n')
     expect(created.status).toBe(0)
     expect(await signIn(base, 'second@example.com', password)).toBeTruthy()
   }, commandTimeout)

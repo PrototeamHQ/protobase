@@ -4,7 +4,7 @@ import type { UsersApi } from './commands'
 // The commands over a project's Better Auth instance.
 export const usersApi = (auth: AdminAuth): UsersApi => ({
   hasUsers: () => hasUsers(auth),
-  roles: async () => ({ roles: roleChoices(auth), defaultRole: auth.defaultRole }),
+  roles: async () => ({ roles: roleChoices(auth), defaultRole: auth.defaultRole, labels: auth.roleDefinitions.labels }),
   createUser: (input) => createUser(auth, input),
   listUsers: () => listUsers(auth),
   deleteUser: (email) => deleteUser(auth, email),

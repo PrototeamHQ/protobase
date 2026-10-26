@@ -3,7 +3,8 @@ import { resolvePassword, type PasswordDeps } from './password'
 // The host-side user functions of @protobase/server, injected so the commands are testable.
 export type UsersApi = {
   hasUsers: () => Promise<boolean>
-  roles: () => Promise<{ roles: string[]; defaultRole?: string }>
+  /** The roles, and the labels the app shows for them, such as Superuser for admin. */
+  roles: () => Promise<{ roles: string[]; defaultRole?: string; labels: Record<string, string> }>
   createUser: (input: { email: string; password?: string; name?: string; role?: string; accounts?: { providerId: string; accountId: string }[] }) => Promise<{ id: string; email: string; role: string }>
   listUsers: () => Promise<{ id: string; email: string; role: string; createdAt: string; banned?: boolean }[]>
   deleteUser: (email: string) => Promise<void>
@@ -25,6 +26,13 @@ export type CreateUserOptions = {
 
 const githubId = /^[1-9][0-9]*$/
 
+// The labels the app shows for the roles of `role` ("admin" or "a,b"), where they differ from the names the CLI takes.
+const shownAs = (role: string, labels: Record<string, string>) => {
+  const names = role.split(',')
+  const shown = names.map((name) => labels[name] ?? name)
+  return shown.some((label, index) => label.toLowerCase() !== names[index]!.toLowerCase()) ? `, shown in the app as ${shown.join(', ')}` : ''
+}
+
 export const createUserCommand = async (
   api: UsersApi,
   options: CreateUserOptions,
@@ -44,7 +52,8 @@ export const createUserCommand = async (
     ...(options.name && { name: options.name }),
     ...(options.githubId && { accounts: [{ providerId: 'github', accountId: options.githubId }] }),
   })
-  out(`Created ${user.role} ${user.email}${options.githubId ? `, linked to GitHub user ${options.githubId}` : ''}\n`)
+  const { labels } = await api.roles()
+  out(`Created ${user.role} ${user.email}${shownAs(user.role, labels)}${options.githubId ? `, linked to GitHub user ${options.githubId}` : ''}\n`)
   if (generated) out(`Password (shown once): ${password}\n`)
 }
 

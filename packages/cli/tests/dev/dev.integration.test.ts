@@ -87,7 +87,7 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
 
   it('has users create make the first admin from --password-stdin, whatever --role says', () => {
     expect(created.stderr).toBe('')
-    expect(created.stdout).toBe('Created admin dev@example.com\n')
+    expect(created.stdout).toBe('Created admin dev@example.com, shown in the app as Superuser\n')
   })
 
   it('prints the exact command that creates the first admin while there are no users', () => {
