@@ -18,6 +18,13 @@ const usage = 'usage: npm create protobase <dir> [-- --preset <name>]'
 
 type Question = (text: string) => Promise<string>
 
+// npm reads an option before `--` as its own and passes its environment as npm_config_<name>: `--preset erp` reaches
+// this script as the positional `erp`, so a stray npm_config_preset says the `--` is missing.
+const checkNpmPreset = (flag: string | undefined) => {
+  if (flag !== undefined || process.env.npm_config_preset === undefined) return
+  throw new Error('npm took --preset for itself: put -- before it, as in npm create protobase my-app -- --preset erp')
+}
+
 // The positional folder, else the terminal's answer.
 const pickDir = async (positionals: string[], question: Question | undefined) => {
   const [dir, ...extra] = positionals
@@ -50,6 +57,7 @@ const pick = async (positionals: string[], flag: string | undefined) => {
 const create = async (argv: string[]) => {
   const options = { preset: { type: 'string' } } as const
   const { values, positionals } = parseArgs({ args: argv.slice(2), allowPositionals: true, options })
+  checkNpmPreset(values.preset)
   const { dir, preset } = await pick(positionals, values.preset)
   const port = await freePort(defaultPort)
   const secret = randomBytes(32).toString('base64')
