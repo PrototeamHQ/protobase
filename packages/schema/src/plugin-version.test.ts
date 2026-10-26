@@ -20,7 +20,11 @@ describe('inRange', () => {
 
   it('is undefined for a range or version it cannot read', () => {
     for (const range of ['', '^0.12.0', '>=0.12', '0.12.x', '>= 0.12.0', 'latest']) expect(inRange('0.12.0', range)).toBeUndefined()
-    expect(inRange('0.12.0-beta.1', '>=0.12.0')).toBeUndefined()
+    expect(inRange('twelve', '>=0.12.0')).toBeUndefined()
+  })
+
+  it('leaves a prerelease out of a range of releases, as semver does', () => {
+    expect(inRange('0.12.1-beta.1', '>=0.12.0')).toBe(false)
   })
 })
 

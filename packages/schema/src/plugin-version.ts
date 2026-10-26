@@ -1,40 +1,25 @@
-type Version = readonly [number, number, number]
+import semver from 'semver'
 
-const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
-
-const parseVersion = (text: string): Version | undefined => {
-  const match = versionPattern.exec(text)
-  return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : undefined
+// Whether `text` is one comparator, `>=`, `>`, `<=`, `<` or `=` and a version: every app reads ranges of those, the
+// oldest included, which a caret or x-range written by a newer plugin would not be.
+const isComparator = (text: string) => {
+  try {
+    new semver.Comparator(text)
+    return true
+  } catch (error) {
+    if (error instanceof TypeError) return false
+    throw error
+  }
 }
-
-const compare = (a: Version, b: Version) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]
-
-const comparatorPattern = /^(>=|<=|>|<|=)?(.+)$/
-
-const holds = {
-  '>=': (order: number) => order >= 0,
-  '<=': (order: number) => order <= 0,
-  '>': (order: number) => order > 0,
-  '<': (order: number) => order < 0,
-  '=': (order: number) => order === 0,
-} as const
 
 /**
  * Whether `version` is in `range`: comparators such as `>=0.12.0 <1.0.0`, separated by spaces, all of which must hold.
- * Undefined when the range is not one of those, or the version is no x.y.z version.
+ * Undefined when the range is not one of those, or the version is no semver version.
  */
 export const inRange = (version: string, range: string): boolean | undefined => {
-  const own = parseVersion(version)
   const comparators = range.trim().split(/\s+/)
-  if (!own || range.trim() === '') return undefined
-  let result = true
-  for (const comparator of comparators) {
-    const [, operator = '=', text = ''] = comparatorPattern.exec(comparator) ?? []
-    const bound = parseVersion(text)
-    if (!bound) return undefined
-    result &&= holds[operator as keyof typeof holds](compare(own, bound))
-  }
-  return result
+  if (semver.valid(version) === null || range.trim() === '' || !comparators.every(isComparator)) return undefined
+  return semver.satisfies(version, range)
 }
 
 /** What a plugin's plugin.json says it is built for: a plugin API, and the Protobase versions it runs on. */
