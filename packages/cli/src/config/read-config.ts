@@ -37,8 +37,14 @@ const typescriptInput = async (file: string, importModules: ImportModules): Prom
   return module!.default as ConfigInput
 }
 
+// A JSON config's object, without the `$schema` an editor checks it with.
+const jsonInput = async (file: string) => {
+  const { $schema: _, ...config } = JSON.parse(await readFile(file, 'utf8')) as ConfigInput & { $schema?: string }
+  return config as ConfigInput
+}
+
 /** The config of a config file: a JSON object, or a TypeScript module's default export, called with `configEnv`. */
 export const readConfigFile = async (file: string, configEnv: ConfigEnv, importModules: ImportModules) => {
-  const input = file.endsWith('.json') ? (JSON.parse(await readFile(file, 'utf8')) as ConfigInput) : await typescriptInput(file, importModules)
+  const input = file.endsWith('.json') ? await jsonInput(file) : await typescriptInput(file, importModules)
   return calledConfig(input, configEnv, path.basename(file))
 }

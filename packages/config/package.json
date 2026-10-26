@@ -1,7 +1,7 @@
 {
   "name": "@protobase/config",
   "version": "0.14.2",
-  "description": "defineConfig and the types of a Protobase project's protobase.config.ts.",
+  "description": "defineConfig and the types of a Protobase project's protobase.config.ts, and the JSON Schema of protobase.config.json.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -15,11 +15,13 @@
     "node": ">=22.12.0"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./schema.json": "./schema.json"
   },
   "types": "./src/index.ts",
   "files": [
-    "dist"
+    "dist",
+    "schema.json"
   ],
   "scripts": {
     "build": "tsdown",
@@ -28,7 +30,8 @@
   "publishConfig": {
     "access": "public",
     "exports": {
-      ".": "./dist/index.js"
+      ".": "./dist/index.js",
+      "./schema.json": "./schema.json"
     },
     "types": "./dist/index.d.ts"
   },

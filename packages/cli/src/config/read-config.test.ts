@@ -46,6 +46,11 @@ describe('reading a config', () => {
     expect(await readConfigFile(file, configEnv(), importProjectFiles)).toEqual({ auth: { baseURL: 'http://localhost:5173' } })
   })
 
+  it('leaves out the $schema an editor checks a JSON config with', async () => {
+    await write({ 'protobase.config.json': JSON.stringify({ $schema: './node_modules/@protobase/config/schema.json', timezone: 'Europe/Amsterdam' }) })
+    expect(await readConfigFile(path.join(dir, 'protobase.config.json'), configEnv(), importProjectFiles)).toEqual({ timezone: 'Europe/Amsterdam' })
+  })
+
   it('takes the one config file, and refuses a project with both', async () => {
     await write({ 'protobase.config.json': '{}' })
     expect(configFileOf(dir)).toBe(path.join(dir, 'protobase.config.json'))

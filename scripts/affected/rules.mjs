@@ -44,6 +44,9 @@ export const edges = [
   { from: ['packages/cli/tests/project/command-exit.integration.test.ts'], starts: ['packages/cli/tests/support/exit-check.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
   // The in-memory runner's test runs it in a Bun process of its own.
   { from: ['packages/cli/tests/runner/runner.integration.test.ts'], starts: ['packages/cli/src/runner.ts'] },
+  // The JSON Schema of protobase.config.json is made from the types of every package's sources, read by path, and its
+  // test reads the published schema and the ERP's JSON config.
+  { from: ['scripts/config-schema/config-schema.ts'], reads: ['packages/*/src/**', 'packages/config/schema.json', 'packages/cli/tests/fixtures/erp-json/**', 'tsconfig.json'] },
   // The test of @protobase/cli/auth runs a script that imports it, in a project beside the ERP.
   { from: ['packages/cli/tests/auth/project-auth.integration.test.ts'], starts: ['packages/cli/src/project-auth.ts'] },
   // Those that build, serve or develop the ERP, with its UI.

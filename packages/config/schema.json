@@ -1,0 +1,3460 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "protobase.config.json",
+  "description": "A Protobase project's config, as protobase.config.ts's ProtobaseConfig types it: one flat object of plain data, everything optional.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "The JSON Schema this file follows, such as ./node_modules/@protobase/config/schema.json.",
+      "type": "string"
+    },
+    "themeColor": {
+      "description": "The colour of the installed app's title bar and of the browser's toolbar around it.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "backgroundColor": {
+      "description": "The colour of the screen an installed app shows while it starts.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "name": {
+      "description": "The app's name: sign-in prompts, the mail it sends, the tab titles and the installed app; `PROTOBASE_APP_NAME` overrides it. Default `Protobase`.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "url": {
+      "description": "The app's public URL, such as `https://admin.example.com`: the issuer of its tokens and where its emails link to.\nDefault `PROTOBASE_URL`, or in `protobase dev` the dev server's own; required with sign-in otherwise.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "secret": {
+      "description": "The app's secret, made with `openssl rand -base64 32`: it signs session cookies, upload tickets and download links\nand public forms' bot checks, and encrypts the token signing keys. Default `PROTOBASE_SECRET`; required with sign-in.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "previousSecrets": {
+      "description": "The app's secrets before `secret`, newest first: what they encrypted still decrypts, so the token signing keys keep\nsigning after the secret changes. Keep one listed while the keys it encrypted sign (`signingKeyDays`), and while\ntwo-factor authenticator apps set up with it are in use. Default `PROTOBASE_PREVIOUS_SECRETS`, comma separated.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/definitions/EnvValue"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "signingKeyDays": {
+      "description": "Days a token signing key signs before a new one takes over. Default 30.",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "signingKeyGraceDays": {
+      "description": "Days a replaced signing key still verifies the tokens it signed. Default 7, at least 1.",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "locale": {
+      "description": "The language of the admin app's built-in screens and of its numbers and dates, for every user: `'en'` or `'nl'`; unset, each user's browser's.",
+      "anyOf": [
+        {
+          "enum": [
+            "en",
+            "nl"
+          ]
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "timezone": {
+      "description": "The time zone the jobs' schedules are read in unless a job names its own, such as `Europe/Amsterdam`. Default `UTC`.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "apiKeys": {
+      "description": "The app's publishable and secret keys, with which supabase-js calls the PostgREST-compatible `/api/sb/rest/v1` and the\nRealtime-compatible `/api/sb/realtime/v1` and the Storage-compatible `/api/sb/storage/v1` (see `ApiKeysOptions`); default `PROTOBASE_PUBLISHABLE_KEY` and\n`PROTOBASE_SECRET_KEY`. Without either, or with `false`, the app serves neither.",
+      "anyOf": [
+        {
+          "const": false
+        },
+        {
+          "$ref": "#/definitions/ApiKeysOptions"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "statementTimeoutMs": {
+      "description": "How long a query of an API request may run, set on every request's transaction with SET LOCAL; a query that runs\nlonger is a 504 that names the request. Default 1000: a query that needs longer wants an index or a simpler filter,\nor belongs in a function or job with `longQueries`.",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "scanGuard": {
+      "description": "Reads that filter, sort or count values by a column no index serves. Default mode `reject`.",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "reject",
+                    "warn",
+                    "off"
+                  ]
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "defaultAccess": {
+      "description": "What an operation without a rule does; overrides the capability check. Without `roles` the default is allow.",
+      "anyOf": [
+        {
+          "enum": [
+            "allow",
+            "deny"
+          ]
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "rowPermissions": {
+      "description": "Whether list items carry their `permissions` (update, delete): true by default, or `{ except: [...] }` for resources that opt out.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "except": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "$ref": "#/definitions/EnvValue"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            }
+          },
+          "required": [
+            "except"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "errorReporting": {
+      "description": "Where the app's errors go: the server's 500s, stopped queries and crashes, and the admin app's errors in the\nbrowser (see `ErrorReportingOptions`). Defaults to the DSN the platform passes in `PROTOBASE_SENTRY_DSN`; `false`\nturns it off.",
+      "anyOf": [
+        {
+          "const": false
+        },
+        {
+          "$ref": "#/definitions/ErrorReportingOptions"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "cors": {
+      "description": "The websites whose browser code may call the API (`/api/*` but `/api/auth/*`) besides the app's own origins (see\n`auth.origins`): a list of origins, or `*` for any. Defaults to the one the platform passes in\n`PROTOBASE_CORS_ORIGINS` (`*` or comma separated), when set. A `mobile` section adds the app's Capacitor origins\n(`capacitor://localhost`, `https://localhost`). With none of these nor other origins, the API sends no CORS headers.",
+      "anyOf": [
+        {
+          "const": "*"
+        },
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/definitions/EnvValue"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "maps": {
+      "description": "The map style the app's maps (`l.map`, `d.map`) are drawn with, and the layers they may switch to (see\n`MapOptions`). The style defaults to the one the platform passes in `PROTOBASE_MAP_STYLE_URL`; without either, or\nwith `false`, the app draws no maps.",
+      "anyOf": [
+        {
+          "const": false
+        },
+        {
+          "$ref": "#/definitions/MapOptions"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "plugins": {
+      "description": "The plugins the admin app loads (see `PluginOption`), before the ones the platform lists in `PROTOBASE_PLUGINS`\nand, for those that load before sign-in, `PROTOBASE_PLUGINS_BEFORE_SIGN_IN`; `false` turns all of them off.",
+      "anyOf": [
+        {
+          "const": false
+        },
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/PluginOption"
+              },
+              {
+                "$ref": "#/definitions/EnvValue"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "apiPath": {
+      "description": "The path of the REST API; default `/api/v1` (`AdminOptions['basePath']`).",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "writeHooks": {
+      "description": "The write hooks by name, run in this order inside each write's transaction; each is `hooks/<name>.ts`.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/definitions/EnvValue"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "assistant": {
+      "anyOf": [
+        {
+          "const": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "apiKey": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "model": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "baseUrl": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "chats": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "mcpEndpoint": {
+      "description": "The MCP endpoint's tools: `sql`, `writes`, or `false` for a host that serves its own (`AdminOptions['mcp']`); `auth.mcp` turns MCP on.",
+      "anyOf": [
+        {
+          "const": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sql": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "writes": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "resources": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "$ref": "#/definitions/EnvValue"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    },
+                    "rolesWithoutApproval": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "$ref": "#/definitions/EnvValue"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "runtimeUpdates": {
+      "description": "The runtime updates endpoint behind the top bar's update button (`AdminOptions['runtime']`).",
+      "anyOf": [
+        {
+          "const": false
+        },
+        {
+          "$ref": "#/definitions/RuntimeOptions"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "remoteResources": {
+      "description": "Other Protobase APIs whose resources the admin app draws as its own (`AdminOptions['sources']`).",
+      "anyOf": [
+        {
+          "const": false
+        },
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/SourceOption"
+              },
+              {
+                "$ref": "#/definitions/EnvValue"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "auth": {
+      "description": "Sign-in (see `AuthConfig`), on by default with its own defaults; `false` turns it off, as does an\n`authenticate.jwksUrl` that trusts an auth server elsewhere. Its hooks are `auth/hooks.ts`.",
+      "anyOf": [
+        {
+          "const": false
+        },
+        {
+          "$ref": "#/definitions/AuthConfig"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "authenticate": {
+      "description": "How the API verifies tokens; default the tokens of `auth` (see `AuthenticateSettings`).",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/AuthenticateSettings"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "jobs": {
+      "description": "The app's jobs by name: what each does, its arguments and when it runs; its run is `jobs/<name>.ts`.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/JobDeclaration"
+              },
+              {
+                "$ref": "#/definitions/EnvValue"
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "files": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/FilesConfig"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "events": {
+      "description": "Where the changes that resources' events are raised from are captured (see `EventsOptions`).",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/EventsOptions"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "history": {
+      "description": "How long the history of resources with `.history()` is kept (see `HistoryOptions`).",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/HistoryOptions"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "webhooks": {
+      "description": "Webhook subscriptions made in the admin app (see `WebhooksOptions`); `{}` turns them on.",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema": {
+              "description": "The schema of the subscriptions table and the deliveries view; default `webhooks`.",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "deliveryLog": {
+              "description": "Also keep every try, successes too, for 30 days, listed as Webhook delivery log. Default false.",
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "allowPrivateAddresses": {
+              "description": "Lets subscriptions send to private, loopback and link-local addresses, for development and tests. Default false:\na URL whose host resolves to one is refused, so a subscription cannot reach the app's own network.",
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "notifications": {
+      "description": "Each user's devices and inbox (see `NotificationsOptions`); `{}` turns them on.",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema": {
+              "description": "The schema of the built-in tables; default `notifications`.",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "ui": {
+              "description": "The bell in the top bar; default true. `false` keeps only the backend.",
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "devices": {
+              "description": "The devices table: its name, default `devices`, and its columns named otherwise than Protobase names them.",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "table": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    },
+                    "columns": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "created_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "auth": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "id": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "user_id": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "kind": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "token": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "p256dh": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "environment": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "app_id": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "user_agent": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "session_id": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "last_seen_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "history": {
+              "description": "The history table: its name, default `history`, and its columns named otherwise than Protobase names them.",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "table": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    },
+                    "columns": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "url": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "created_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "id": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "user_id": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "title": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "body": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "data": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "read_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "mobile": {
+      "description": "The app's iOS and Android build (see `MobileConfig`).",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/MobileConfig"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "EnvValue": {
+      "description": "A value read from the environment variable `$env`: `default` when it is unset or empty, and with `split` the list of its non-empty parts.",
+      "type": "object",
+      "properties": {
+        "$env": {
+          "type": "string"
+        },
+        "default": {},
+        "split": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "$env"
+      ],
+      "additionalProperties": false
+    },
+    "ApiKeysOptions": {
+      "type": "object",
+      "properties": {
+        "publishable_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "secret_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ErrorReportingOptions": {
+      "type": "object",
+      "properties": {
+        "dsn": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MapOptions": {
+      "type": "object",
+      "properties": {
+        "style": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "layers": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/MapLayer"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MapLayer": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "tiles": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "attribution": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "bounds": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              ],
+              "minItems": 4,
+              "maxItems": 4
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "maxzoom": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "tiles",
+        "attribution"
+      ],
+      "additionalProperties": false
+    },
+    "PluginOption": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "settings": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "array",
+                    "items": {}
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": {}
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "roles": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "beforeSignIn": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "RuntimeOptions": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SourceOption": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "resources": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "roles": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "url",
+        "label",
+        "resources"
+      ],
+      "additionalProperties": false
+    },
+    "AuthConfig": {
+      "type": "object",
+      "properties": {
+        "roles": {
+          "description": "The roles users can have, for example `['admin', 'accountant', 'warehouse']`. `admin` is always included; default\n`['admin', 'user']`. With `organizations`, give each a label, and optionally the other roles its holders may also\ngive members: `{ manager: { label: 'Manager', grants: ['sales'] }, sales: 'Sales' }`.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "grants": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "mcp": {
+          "description": "Turns on the OAuth provider for MCP clients: `true`, or the endpoint's `path` and the `connectPage`.",
+          "anyOf": [
+            {
+              "const": true
+            },
+            {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "description": "The path of the MCP endpoint on the app's origin, its OAuth resource; default `/api/mcp`. Changing it makes clients connect again.",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "connectPage": {
+                  "description": "The connect page's path on the app's origin, where people sign in and allow a client; default `/-/connect`, for a UI at the root.",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "generateUserId": {
+          "description": "`'uuid'` gives new users a random UUID, and makes every id column of the store a `uuid`; `generateUserId` in the hooks takes the ids from the app instead.",
+          "anyOf": [
+            {
+              "const": "uuid"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "mailer": {
+          "description": "`false` turns mail off whatever the environment says; default SMTP from `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM`.",
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "organizations": {
+          "description": "Turns on organizations (see `OrganizationsOptions`); their hooks are in the hooks module.",
+          "anyOf": [
+            {
+              "const": true
+            },
+            {
+              "type": "object",
+              "properties": {
+                "creatorAppRoles": {
+                  "description": "The app roles an organization's creator holds there: `'all'` (default), every role a member can hold, or a list.",
+                  "anyOf": [
+                    {
+                      "const": "all"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "create": {
+                  "description": "Who may create organizations: `'admins'` (default), superusers only, or `'everyone'` signed in.",
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "admins",
+                        "everyone"
+                      ]
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "invitationDays": {
+                  "description": "How long an invitation works, in days. Default 7.",
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "membershipLimit": {
+                  "description": "The most members an organization can have. Default 1000.",
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "deleteRecords": {
+                  "description": "What deleting an organization does with its records: `'refuse'` (default) deletes only an organization without\nrows in any `.tenant` resource; `'cascade'` leaves it to the project's foreign keys.",
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "refuse",
+                        "cascade"
+                      ]
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "invitationUrl": {
+                  "description": "The page an invitation link opens, with `?token=`. Default `{baseURL}/-/invitation`.",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "origins": {
+          "description": "The other origins the app is served on, for example `['https://admin.shop.com']`. A request to one of them is\nanswered for that host: its sign-in callbacks and the links it mails, such as a password reset, stay there, and\npasskeys work on every origin. Tokens keep `baseURL` as issuer, whatever host issued them. Defaults to the\ncomma-separated list the platform passes in `PROTOBASE_ORIGINS`, when set; none otherwise.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "passkeyDomain": {
+          "description": "The host new passkeys are made for (their RP ID): the host of `baseURL` or of one of `origins`. Each passkey keeps\nthe one it was made for, and works on every origin, so changing it breaks none. Defaults to the one the platform\npasses in `PROTOBASE_PASSKEY_DOMAIN`, when set, and to the host of `baseURL` otherwise.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "trustedOrigins": {
+          "description": "Extra origins that may call the auth endpoints, such as the exact host of a dev tunnel. `baseURL` and `origins` are always trusted.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "defaultRole": {
+          "description": "The role of a user created without one. Optional: when unset, and more than one role besides `admin` exists,\ncreating a user without a role is an error that asks for one. With exactly one other role, that role is the default.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "signUp": {
+          "description": "Open sign-up: anyone makes their own account from the sign-in page, with `role`, after proving their address with\nan emailed code. Off by default, so accounts come only from the host, an admin, an invitation or a sign-in provider.\nNeeds a mailer: without one it is not offered. `role` is one of `roles` and never `admin`; give it the least\na stranger may hold. Not with `organizations`, whose people come from invitations.",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "role"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "signInPolicy": {
+          "description": "The sign-in policy that applies until an admin saves one on the Sign-in policy page, and when the saved one no\nlonger reads: the methods it names, for example `{ password: 'forbidden' }` for emailed codes and passkeys only,\nwith everything else allowed. Checked at startup as an admin's save is. Default everything allowed.",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "password": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "allowed",
+                        "forbidden"
+                      ]
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "emailCode": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "allowed",
+                        "forbidden"
+                      ]
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "passkey": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "allowed",
+                        "forbidden",
+                        "required"
+                      ]
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "twoFactor": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "allowed",
+                        "forbidden",
+                        "required"
+                      ]
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "staffAccess": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "allowed",
+                        "forbidden",
+                        "notify"
+                      ]
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "platformSignIn": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "allowed",
+                        "forbidden"
+                      ]
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "signInFirst": {
+          "description": "What the sign-in page leads with: `password`, the email address and a password, with emailing a code below it; or\n`emailCode`, the address and \"Email me a sign-in code\", with the password behind \"Use a password\", for apps whose\npeople mostly never set one. Only while the policy leaves both on; default `password`.",
+          "anyOf": [
+            {
+              "enum": [
+                "password",
+                "emailCode"
+              ]
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "signInPerMinute": {
+          "description": "Sign-in attempts allowed per minute and client, default 5; also the sign-up requests allowed.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "socialProviders": {
+          "description": "Sign-in providers for Better Auth, for example `{ github: { clientId, clientSecret } }`; the callback is\n`{baseURL}/api/auth/callback/<provider>`. A provider also signs up people without an account, with the default role.\nOne with the id of `signInProvider` takes its place. Default none.",
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "encryptOAuthTokens": {
+          "description": "Encrypt the OAuth access, refresh and ID tokens Better Auth stores for social sign-ins, with `secret`. Default off.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "users": {
+          "description": "The user table, when it is one another system made, such as Supabase's `auth.users`: its name, the columns named\notherwise than Protobase names them, and a JSON column for each user's metadata, for example `{ table: 'users',\ncolumns: { role: 'app_role' }, metadata: 'raw_user_meta_data' }`. The other tables keep their names. Default the\ntable `protobase auth migration` makes.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UserTableOptions"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "passwordHashes": {
+          "description": "Password hashes another system wrote that sign-in accepts besides Better Auth's own, such as `['bcrypt']` for\nSupabase Auth's. The first sign-in with one stores the password again as Better Auth hashes it. Default none.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "const": "bcrypt"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "leakedPasswords": {
+          "description": "Refuses a new password that appears in a known data breach, by Have I Been Pwned's password list: at sign-up, from\nan invitation, and when a password is set, changed, reset or given by an admin. Only the first five characters of\nthe password's SHA-1 hash leave the server. While the list cannot be reached, setting a password fails. Default off.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "operator": {
+          "description": "The identity provider the operator's staff sign in with to sign in as people of this app, for support. Defaults\nto the one the platform passes in `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID` and\n`PROTOBASE_OPERATOR_CLIENT_SECRET` (see `readOperatorSettings`), when set; `false` turns staff sign-in off\nwhatever the environment says.",
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "$ref": "#/definitions/OperatorProvider"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "signInProvider": {
+          "description": "A sign-in provider the platform adds for people who already have an account: an OpenID Connect provider that never\nsigns anyone up. Defaults to the one the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`\nand `PROTOBASE_SIGN_IN_CLIENT_SECRET` (see `readPlatformSignIn`), when set; `false` turns it off whatever the\nenvironment says. Left out when `socialProviders` has a provider with the same id.",
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "$ref": "#/definitions/PlatformSignIn"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "sso": {
+          "description": "Single sign-on with the app's SAML 2.0 identity providers, for example `{ saml: [{ id: 'okta', name: 'Okta',\ndomains: ['example.com'], idp: { metadata } }] }` (see `SamlProvider`). Like `socialProviders`, a provider signs up\npeople without an account, with the default role, but only at its `domains`, where it also links to the account\nwith the same address. Default none.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SsoOptions"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "schema": {
+          "description": "The schema of the auth store in the app's database; default `auth`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "UserTableOptions": {
+      "type": "object",
+      "properties": {
+        "table": {
+          "description": "The table's name, default `user`, for example `users` for Supabase's `auth.users`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "columns": {
+          "description": "The columns named otherwise than Protobase names them: `{ role: 'app_role' }`, where `role` holds something else\nalready, such as the Postgres role in Supabase's `auth.users`.",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "email": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "image": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "role": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "banned": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "email_verified": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "email_confirmed_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "created_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "updated_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "ban_reason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "ban_expires": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "two_factor_enabled": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "last_role": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "last_organization_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "metadata": {
+          "description": "A JSON column that holds each user's metadata, such as `raw_user_meta_data`; none by default.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "OperatorProvider": {
+      "type": "object",
+      "properties": {
+        "issuer": {
+          "description": "The provider's issuer URL; its settings are read from `{issuer}/.well-known/openid-configuration`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "clientId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "clientSecret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "name": {
+          "description": "Shown on the staff sign-in page as \"Continue with {name}\". Default `the operator`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "group": {
+          "description": "The group in the ID token's `groups` claim that lets staff sign in as people. Default `protobase-staff-access`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "scopes": {
+          "description": "Scopes asked for besides `openid email profile`, for a provider that puts `groups` in the ID token only for one of its own.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "acrValues": {
+          "description": "`acr` values that count as a strong sign-in, asked for as `acr_values`, for a provider that reports levels instead of `amr`.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "sessionMinutes": {
+          "description": "How long a staff session lasts, in minutes: default 30, at most 240. It is not extended while in use.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "issuer",
+        "clientId",
+        "clientSecret"
+      ],
+      "additionalProperties": false
+    },
+    "PlatformSignIn": {
+      "type": "object",
+      "properties": {
+        "issuer": {
+          "description": "The provider's issuer URL; its settings are read from `{issuer}/.well-known/openid-configuration`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "clientId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "clientSecret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "provider": {
+          "description": "The id of the provider: the button, the callback path, and the namespace of the linked accounts. Default `oidc`.\nUse `github` only when the provider's `sub` is the GitHub user id, so its accounts are those of Better Auth's own\nGitHub provider.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "name": {
+          "description": "Shown on the sign-in page as \"Continue with {name}\". Default `GitHub` for the `github` provider, `SSO` otherwise.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "scopes": {
+          "description": "Scopes asked for besides `openid email profile`.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "issuer",
+        "clientId",
+        "clientSecret"
+      ],
+      "additionalProperties": false
+    },
+    "SsoOptions": {
+      "type": "object",
+      "properties": {
+        "saml": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/SamlProvider"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "saml"
+      ],
+      "additionalProperties": false
+    },
+    "SamlProvider": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "The id: the button's `?sign-in=` link, the provider's paths and the namespace of its accounts. Lowercase letters, digits or \"-\".",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "name": {
+          "description": "Shown on the sign-in page as \"Continue with {name}\". Default `SSO`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "domains": {
+          "description": "The email domains of its people, for example `['example.com']`; subdomains count. Only an address there signs up,\nor links to the account that has it.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "idp": {
+          "description": "The provider's metadata XML, or its entity ID, sign-in URL and signing certificate(s) (PEM; several while one rotates).",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "metadata": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "metadata"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "entityId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "ssoUrl": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "certificate": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "entityId",
+                "ssoUrl",
+                "certificate"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "attributes": {
+          "description": "The assertion's attribute names, when they are not `email`, `givenName`, `surname` and `displayName`.",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "firstName": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "lastName": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "domains",
+        "idp"
+      ],
+      "additionalProperties": false
+    },
+    "AuthenticateSettings": {
+      "type": "object",
+      "properties": {
+        "organizations": {
+          "description": "Whether the tokens carry organizations; read from `auth` when given. Needed with `jwksUrl` only.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "jwksUrl": {
+          "description": "Or its JWKS endpoint, for an API that runs apart from the auth server. Needs `issuer`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "issuer": {
+          "description": "Defaults to the auth instance's `issuer`, its `baseURL`; it is both issuer and audience of its tokens.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "cache": {
+          "description": "How long the key set is cached; see `cachedKeys`.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/JwksCacheOptions"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "apps": {
+          "description": "Other Protobase apps whose users this API admits with their own tokens, so their admin apps can draw its resources (see `TrustedApp`).",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/TrustedApp"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "audience": {
+          "description": "The audience the tokens must name; default `issuer`, the app's own tokens.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "tenant": {
+          "description": "The one tenant everyone works in, for an app without organizations; never read from the token.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "JwksCacheOptions": {
+      "type": "object",
+      "properties": {
+        "refreshMs": {
+          "description": "Reload the whole key set this often, so removed keys stop being accepted. Default 10 minutes.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "minReloadMs": {
+          "description": "A token with an unknown `kid` reloads the set, but at most this often. Default 30 seconds.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "TrustedApp": {
+      "type": "object",
+      "properties": {
+        "issuer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "roles": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "tenant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "issuer",
+        "roles"
+      ],
+      "additionalProperties": false
+    },
+    "JobDeclaration": {
+      "type": "object",
+      "properties": {
+        "maxAttempts": {
+          "description": "Tries before the job is kept as failed, listed in the admin app. Default 10.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "retryDelay": {
+          "description": "The wait before the first retry, doubling with each one: milliseconds or text such as `30 seconds`. Default `2s`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "maxRetryDelay": {
+          "description": "The longest wait between two tries. Default `1 hour`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "timeout": {
+          "description": "How long one try may run before it counts as failed. Default `15 minutes`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "longQueries": {
+          "description": "Its queries through `db` may run up to 30 seconds instead of the database's own limit, on a connection kept for\nsuch work: for imports, backfills, large deletes and other bulk work.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "concurrency": {
+          "description": "Jobs of this name running at once in each worker process. Default 1.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "ordered": {
+          "description": "Jobs run one at a time per group, in the order they were enqueued, and every enqueue names its group. A job that is\nretrying or failed holds back the rest of its group until it succeeds, or is retried or deleted in the admin app.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "schedule": {
+          "description": "Runs the job on this cron schedule, such as `0 7 * * *` (with an optional seconds field first), with no payload: one\nrun per time, however many workers run. A run missed while no worker ran happens once, as soon as one does.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "timezone": {
+          "description": "The time zone `schedule` is read in, such as `Europe/Amsterdam`. Default `UTC`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "description": {
+          "description": "What the job does, for the people who read the config and the failed jobs page.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "arguments": {
+          "description": "Its arguments by name, each a field type or a type with options (see `ArgumentSpec`), such as `{ invoiceId: 'bigint' }`.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ArgumentsSpec"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "ArgumentsSpec": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "enum": [
+              "bigint",
+              "boolean",
+              "uuid",
+              "text",
+              "integer",
+              "decimal",
+              "date",
+              "timestamp",
+              "enum",
+              "json",
+              "currency",
+              "country"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "description": "The argument's type.",
+                "anyOf": [
+                  {
+                    "enum": [
+                      "bigint",
+                      "boolean",
+                      "uuid",
+                      "text",
+                      "integer",
+                      "decimal",
+                      "date",
+                      "timestamp",
+                      "enum",
+                      "json",
+                      "currency",
+                      "country"
+                    ]
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              },
+              "optional": {
+                "description": "It may be left out.",
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              },
+              "values": {
+                "description": "An enum's values.",
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              },
+              "min": {
+                "description": "The least value, or for text the shortest length.",
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              },
+              "max": {
+                "description": "The greatest value, or for text the longest length.",
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              },
+              "precision": {
+                "description": "A decimal's number of digits.",
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              },
+              "scale": {
+                "description": "A decimal's number of digits after the point.",
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "$ref": "#/definitions/EnvValue"
+          }
+        ]
+      }
+    },
+    "FilesConfig": {
+      "type": "object",
+      "properties": {
+        "secret": {
+          "description": "Signs upload tickets and download URLs; default `PROTOBASE_FILES_SECRET`, then the app's `secret` (`PROTOBASE_SECRET`).",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "retention": {
+          "description": "How long bytes outlive their last reference, for restores; default `1 day`. Public providers default to 0.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "trustedHosts": {
+          "description": "Hosts whose images the admin app draws with the page's referrer, besides the app's own and those its providers link\npublic files from: `['images.example.com']`. Images from any other host load with `referrerPolicy=\"no-referrer\"`.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "storage": {
+          "description": "Where `supabase.storage` keeps the bytes of its objects, which the app serves at `/api/sb/storage/v1` when it has an API key\n(see `apiKeys`): `provider` names one of the providers, default `private`, and `maxFileSize` caps every upload, as\n`50 MB` (the default) or a number of bytes; a bucket's own limit can only be lower. `false` serves no `/api/sb/storage/v1`.",
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "provider": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "maxFileSize": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "providers": {
+          "description": "Providers by name: `{ kind: 'local', dir }`, `{ kind: 's3', bucket }`, or `{ kind: 'custom' }`, the default export\nof `files/<name>.ts`. Name the role (`archive`), not the vendor.",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "anyOf": [
+                          {
+                            "const": "local"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "maxBytes": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "maxFiles": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "dir": {
+                        "description": "The folder the files live in, created when missing; relative to the working directory.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "public": {
+                        "description": "Files anyone with the link may open, served without a signature.",
+                        "anyOf": [
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "publicUrl": {
+                        "description": "Where public files are linked from instead of the app's own `/api/files/<provider>`, such as a CDN in front of it.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "retention": {
+                        "description": "How long bytes outlive their last reference; default `files.retention`, or 0 for a public provider.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "dir"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "anyOf": [
+                          {
+                            "const": "s3"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "maxBytes": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "maxFiles": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "bucket": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "prefix": {
+                        "description": "The folder in the bucket that holds this provider's files, such as `acme/private`; default the bucket's root.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "endpoint": {
+                        "description": "The S3 API's address, such as `https://<account>.eu.r2.cloudflarestorage.com`; default AWS.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "region": {
+                        "description": "`auto` for R2, `fr-par` for Scaleway in Paris.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "accessKeyId": {
+                        "description": "Default `S3_ACCESS_KEY_ID`, then `AWS_ACCESS_KEY_ID`, from the environment.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "secretAccessKey": {
+                        "description": "Default `S3_SECRET_ACCESS_KEY`, then `AWS_SECRET_ACCESS_KEY`, from the environment.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "public": {
+                        "description": "Files anyone with the link may open.",
+                        "anyOf": [
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "publicUrl": {
+                        "description": "The bucket's public address, such as an R2 custom domain; public files are linked from there, under `prefix`.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "retention": {
+                        "description": "How long bytes outlive their last reference; default `files.retention`, or 0 for a public provider.",
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "bucket"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "anyOf": [
+                          {
+                            "const": "custom"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "images": {
+          "description": "The image library of image fields' variants and placeholders, by its package name, loaded when the app serves.",
+          "anyOf": [
+            {
+              "const": "sharp"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "EventsOptions": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "description": "The schema holding the outbox and the capture function, and the prefix of their transaction settings\n(`changes.actor`, `changes.capture`); default `changes`. Rename it when the database already has a schema by that name.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "HistoryOptions": {
+      "type": "object",
+      "properties": {
+        "days": {
+          "description": "Days a change is kept; a daily job deletes older ones. Kept forever when omitted.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MobileConfig": {
+      "type": "object",
+      "properties": {
+        "appId": {
+          "description": "The app's id on both iOS and Android, such as `com.example.shop`: two or more dot-separated parts, each a letter then letters and digits.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "plugins": {
+          "description": "Extra native Capacitor plugins the app needs, as npm name → version range, such as `{ '@capacitor/camera': '^8.0.0' }`.",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "appId"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

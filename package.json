@@ -40,6 +40,7 @@
     "docs:check": "bun scripts/check-docs.mjs",
     "docs:api-check": "bun run --cwd website api-check",
     "docs:skill": "bun scripts/protobase-skill.ts",
+    "config:schema": "bun scripts/config-schema/write.ts",
     "features:check": "bun scripts/features-check.ts",
     "release": "bun scripts/release.mjs",
     "release:speed": "bun scripts/release-speed/main.ts"
@@ -65,6 +66,7 @@
     "@types/semver": "^7.8.0",
     "@types/smtp-server": "^3.5.13",
     "@vitejs/plugin-react": "^6.1.2",
+    "ajv": "^8.20.0",
     "altcha-lib": "^2.6.0",
     "better-auth": "^1.7.12",
     "commit-and-tag-version": "^13.2.1",

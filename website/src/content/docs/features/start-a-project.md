@@ -7,7 +7,7 @@ description: Start a new app, or an admin over an existing Postgres database, an
 - [Example apps](/getting-started/#run-the-erp-example): Seeded example apps on Postgres: an ERP, real estate property management and a public property portal.
 - [One config](/reference/config/): The whole app is one object of data in `protobase.config.ts`, typed with `defineConfig`, with a sensible default for every key.
 - [Code found by path](/reference/config/#where-the-code-is): The config names jobs, hooks and providers, and Protobase finds their code by its path, such as `jobs/<name>.ts`.
-- [JSON config](/reference/config/#the-same-config-as-json): The same config works as `protobase.config.json`, with values from the environment written as `$env`.
+- [JSON config](/reference/config/#the-same-config-as-json): The same config works as `protobase.config.json`, with values from the environment written as `$env`, and a JSON Schema that checks it in the editor.
 - [App options](/reference/config/app/): The app's name, public URL, secret, language, time zone, install colours and mobile build, each with its type, default and environment variable.
 - [Sign-in options](/reference/config/sign-in/): Every key of `auth` and `authenticate`, from roles and organizations to sign-in providers and tokens of an auth server elsewhere.
 - [API options](/reference/config/api/): The REST API's path, keys, CORS, access defaults, query limits, error reporting, write hooks and MCP tools.
