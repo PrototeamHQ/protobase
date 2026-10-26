@@ -37,14 +37,15 @@ export default defineConfig({
 ```
 
 ```ts title="jobs/send-invoice.ts"
-import { FatalJobError, type JobRun } from '@protobase/server'
+import { FatalJobError, type JobPayload, type JobRun } from '@protobase/server'
+import type config from '../protobase.config'
 
 export default (async ({ invoiceId }, { db }) => {
   const invoice = await db.selectFrom('sales.invoices').select(['id', 'status']).where('id', '=', invoiceId).executeTakeFirst()
   // Retrying will not bring it back: fail for good.
   if (!invoice) throw new FatalJobError(`Invoice ${invoiceId} is gone`)
   // ... render the PDF and mail it
-}) satisfies JobRun<{ invoiceId: number }>
+}) satisfies JobRun<JobPayload<typeof config, 'send-invoice'>>
 ```
 
 | Key of a job | |
@@ -52,7 +53,7 @@ export default (async ({ invoiceId }, { db }) => {
 | its name | Letters, digits, `_`, `-`, `.` and `/`; the file `jobs/<name>.ts` holds what it does. |
 | `description` | What the job does, for the people who read the config. |
 | `arguments` | Its arguments by name, each a [field type](data-config.md#field-types) such as `'integer'` or `'bigint'`, or the type with options: `{ type: 'enum', values: ['day', 'week'] }`, `{ type: 'text', min: 1 }`, `{ type: 'integer', optional: true }`, `{ type: 'decimal', precision: 8, scale: 2 }`. Each value is checked as a field of that type checks it, when the job is enqueued and again before it runs, and no other argument is taken. A payload refused at run time fails the job for good. The same is JSON in a `protobase.config.json`. |
-| the default export of `jobs/<name>.ts` | `(payload, { db, job, signal, mail, sendNotification })`, typed with `JobRun<Payload>` from `@protobase/server`: the work. `db` is the app's pool: the enqueuer's transaction has committed by then. `job` holds its `id`, `name`, `attempt`, `maxAttempts` and `startedOn`, when this try took it. `signal` aborts when the try times out or the worker shuts down. `mail` sends mail, see [Mail](#mail). `sendNotification` sends a notification, see [Sending](notifications.md#sending); inside a transaction of `db`, a try that throws in it queues nothing. |
+| the default export of `jobs/<name>.ts` | `(payload, { db, job, signal, mail, sendNotification })`, typed with `JobRun<Payload>` from `@protobase/server`, its payload `JobPayload<typeof config, '<name>'>` (see [Typed names and payloads](#typed-names-and-payloads)): the work. `db` is the app's pool: the enqueuer's transaction has committed by then. `job` holds its `id`, `name`, `attempt`, `maxAttempts` and `startedOn`, when this try took it. `signal` aborts when the try times out or the worker shuts down. `mail` sends mail, see [Mail](#mail). `sendNotification` sends a notification, see [Sending](notifications.md#sending); inside a transaction of `db`, a try that throws in it queues nothing. |
 | `maxAttempts` | Tries before the job is kept as failed; default 10. |
 | `retryDelay`, `maxRetryDelay` | The wait before the first retry, doubling with each one (with some jitter), and its ceiling; default `2s` and `1 hour`. Milliseconds or text such as `30 seconds`. |
 | `timeout` | How long one try may run before it counts as failed; default `15 minutes`. |
@@ -74,15 +75,23 @@ await enqueueJob(db, 'send-invoice', { invoiceId: 7 }, { delay: '5 minutes', key
 `db` is the app's database, or the transaction of a write hook or an [API function](../guides/api-functions.md): there, the job commits with the caller's writes, or not at all. It returns the job's id. A write hook is named in the config's `writeHooks` and is the default export of `hooks/<name>.ts`:
 
 ```ts title="hooks/queue-sent-invoice.ts"
-import { enqueueJob, type PipelineHook } from '@protobase/server'
+import { enqueueJob, type EnqueueJob, type PipelineHook } from '@protobase/server'
+import type config from '../protobase.config'
+
+// enqueueJob, typed with the config's jobs: a name it does not declare, or a payload that does not fit, fails to compile.
+const enqueue: EnqueueJob<typeof config> = enqueueJob
 
 // In the write's own transaction: the invoice and its job commit together or not at all.
 export default (async (event, trx) => {
   if (event.resource.name !== 'invoices' || event.after?.status !== 'sent' || event.before?.status === 'sent') return
   const invoiceId = Number(event.after.id)
-  await enqueueJob(trx, 'send-invoice', { invoiceId }, { key: `invoice:${invoiceId}` })
+  await enqueue(trx, 'send-invoice', { invoiceId }, { key: `invoice:${invoiceId}` })
 }) satisfies PipelineHook
 ```
+
+### Typed names and payloads
+
+`enqueueJob` takes any name and payload, and checks them when it runs. `EnqueueJob<typeof config>` of `@protobase/server`, with `config` the default export of `protobase.config.ts` imported as a type, checks them as the code compiles, as the hook above does: a name the config does not declare, a required argument left out, one it does not take, or a value of the wrong type is an error. The payload follows each argument's type: a number for `integer`, a boolean for `boolean`, any JSON value for `json`, one of an enum's `values`, and a string for the others, `bigint` and `decimal` too, which JSON numbers cannot hold exactly. `JobPayload<typeof config, '<name>'>` is the same payload, for the job's `JobRun`. A job without `arguments` takes any payload. A `protobase.config.json` gives the names only, since JSON keeps no argument's type.
 
 | Option | |
 | --- | --- |

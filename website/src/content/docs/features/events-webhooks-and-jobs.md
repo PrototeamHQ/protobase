@@ -10,6 +10,7 @@ description: React to changes, deliver them to other systems, and run work in th
 - [Delivery retries](/reference/webhooks/#delivery-and-retries): Failed deliveries are retried for about three days.
 - [Webhooks in the admin app](/reference/webhooks/#subscriptions-in-the-admin-app): Users create subscriptions, send test events and resend failures in the app.
 - [Background jobs](/reference/jobs/#enqueueing): Jobs are kept in the app's own Postgres and can be queued in the same transaction as a write, also from SQL.
+- [Typed jobs](/reference/jobs/#typed-names-and-payloads): Code that queues a job, and the job itself, are checked against the names and arguments the config declares as they compile.
 - [Retries](/reference/jobs/#failures): Failed jobs are retried with growing waits, and duplicates can be prevented with a key.
 - [Ordered groups](/reference/jobs/#ordered-groups): Jobs in one group run one at a time, in order.
 - [Recurring jobs](/reference/jobs/#recurring-jobs): Jobs run on a cron schedule in a chosen time zone.
