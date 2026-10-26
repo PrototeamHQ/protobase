@@ -4,6 +4,7 @@ import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import postgres from 'postgres'
+import semver from 'semver'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildServeRuntime } from '../../packages/cli/src/build/serve-runtime'
 import { protobaseVersion } from '../../packages/cli/src/version/version'
@@ -157,10 +158,9 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
   }, commandTimeout)
 
   it('takes a bundle of any Protobase version, checking none: the host picks the runtime from it', async () => {
-    const [major, minor] = protobaseVersion.split('.').map(Number)
     await cp(path.join(dir, 'app'), path.join(dir, 'newer'), { recursive: true })
     const manifest = JSON.parse(await readFile(path.join(dir, 'newer/protobase.bundle.json'), 'utf8'))
-    await writeFile(path.join(dir, 'newer/protobase.bundle.json'), JSON.stringify({ ...manifest, protobase: `${major}.${minor! + 1}.0` }))
+    await writeFile(path.join(dir, 'newer/protobase.bundle.json'), JSON.stringify({ ...manifest, protobase: semver.inc(protobaseVersion, 'minor') }))
     const migrated = command(['migrate', 'newer'], { DATABASE_URL: erp().env.DATABASE_URL })
     expect(migrated.stderr).toBe('')
     expect(migrated.stdout).toBe('the database is up to date\n')

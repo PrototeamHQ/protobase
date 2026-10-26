@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { oauthWellKnownPaths } from '@protobase/server'
+import semver from 'semver'
 import { afterEach, describe, expect, it } from 'vitest'
 import { prebuildifyFiles, writePackage } from '../support/packages'
 import { protobaseVersion } from '../../src/version/version'
@@ -68,8 +69,8 @@ describe('buildDeployBundle', () => {
   }, buildTimeout)
 
   it("names the Protobase version the project's install pinned, of whichever minor, not the building CLI's", async () => {
-    const [major, minor] = protobaseVersion.split('.').map(Number)
-    const pinned = `${major}.${minor! + 3}.1`
+    const [major, minor] = [semver.major(protobaseVersion), semver.minor(protobaseVersion)]
+    const pinned = `${major}.${minor + 3}.1`
     projectDir = await createProject({ 'config/index.ts': things })
     await writePackage(projectDir, { name: '@protobase/cli', version: pinned })
     const outDir = path.join(projectDir, 'dist')
@@ -78,8 +79,8 @@ describe('buildDeployBundle', () => {
   }, buildTimeout)
 
   it('builds a project pinned to an older minor, whose @protobase packages the runtime of its pin supplies', async () => {
-    const [major, minor] = protobaseVersion.split('.').map(Number)
-    const pinned = `${major}.${minor! - 1}.4`
+    const [major, minor] = [semver.major(protobaseVersion), semver.minor(protobaseVersion)]
+    const pinned = `${major}.${minor - 1}.4`
     projectDir = await createProject({
       'config/index.ts': things,
       'protobase.config.ts': `import { defineConfig } from '@protobase/server'\nexport default defineConfig({})\n`,
