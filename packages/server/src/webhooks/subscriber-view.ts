@@ -1,6 +1,6 @@
 import { checkRecord, evaluateFilter, type ResourceModel } from '@protobase/schema'
 import { EventCodeError } from '../changes/event-code-error'
-import type { ResourceChange } from '../changes/resource-change'
+import { currentRecord, type ResourceChange } from '../changes/resource-change'
 import type { Deps } from '../deps'
 import { requestAccess, type RequestAccess } from '../request-access'
 import type { Row, Session } from '../types'
@@ -37,6 +37,29 @@ export const subscriptionEvent = (change: ResourceChange, event: string, { field
     transaction: change.transaction,
   },
 })
+
+/**
+ * A delivery's stored event as a change again, with its records as the model has them now, to shape it anew for the
+ * subscription as it is now: an event stored before a field became sensitive holds it. The database role is unknown.
+ */
+export const eventChange = (model: ResourceModel, event: SubscriptionEvent): ResourceChange => {
+  const { data } = event
+  return {
+    resource: data.resource,
+    key: data.key,
+    operation: data.operation,
+    ...(data.before && { before: currentRecord(model, data.before) }),
+    ...(data.after && { after: currentRecord(model, data.after) }),
+    changed: data.changed,
+    actor: data.actor,
+    source: data.source,
+    databaseRole: null,
+    ...(data.tenant !== undefined && { tenant: data.tenant }),
+    transaction: data.transaction,
+    sequence: data.sequence,
+    at: event.timestamp,
+  }
+}
 
 // A captured record holds no sensitive field, nor one captured before it had a column, so whether one is set is unknown
 // here: a rule that reads one throws, and the change is kept as failed, rather than deciding as if the field were empty.
@@ -97,7 +120,11 @@ export const subscriberEvents = (deps: Deps) => {
     if (!accesses.has(cacheKey)) accesses.set(cacheKey, requestAccess(deps, entry, session))
     const readable = async () => {
       const access = await accesses.get(cacheKey)!
-      return (await mayRead(access, (change.after ?? change.before)!)) ? access : undefined
+      const record = change.after ?? change.before
+      // A thin event stored for a later try holds no record: its rules on the record cannot be checked again, only
+      // whether the roles may read the resource at all.
+      if (!record) return access.resolved.operations.read ? access : undefined
+      return (await mayRead(access, record)) ? access : undefined
     }
     // The access rules are the app's code.
     const access = await readable().catch((error: unknown) => {

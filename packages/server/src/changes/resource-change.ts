@@ -34,11 +34,14 @@ const fieldValue = (type: string, value: unknown) => {
   return value
 }
 
-/** A captured row by field name, fields without a captured column left out. */
+/**
+ * A captured row by field name, fields without a captured column and sensitive ones left out, whatever the capture
+ * kept: a row captured before a field became sensitive holds its value.
+ */
 export const recordOf = (model: ResourceModel, columns: Row): Row =>
   Object.fromEntries(
     Object.values(model.fields)
-      .filter((field) => Object.hasOwn(columns, field.column))
+      .filter((field) => !field.sensitive && Object.hasOwn(columns, field.column))
       .map((field) => [field.name, fieldValue(field.type, columns[field.column])]),
   )
 
@@ -81,3 +84,27 @@ export const resourceChange = (model: ResourceModel, change: CoalescedChange): R
     at: change.at,
   }
 }
+
+/** A record by field name with only the fields the model has now and that are not sensitive. */
+export const currentRecord = (model: ResourceModel, record: Row): Row =>
+  Object.fromEntries(Object.entries(record).filter(([name]) => Object.hasOwn(model.fields, name) && !model.fields[name]!.sensitive))
+
+/**
+ * A change kept by an earlier dispatch, as the model has it now: a record kept before a field became sensitive, or was
+ * removed, holds it. Built from the change's known properties, so one an earlier release kept is dropped too.
+ */
+export const currentChange = (model: ResourceModel, change: ResourceChange): ResourceChange => ({
+  resource: change.resource,
+  key: change.key,
+  operation: change.operation,
+  ...(change.before && { before: currentRecord(model, change.before) }),
+  ...(change.after && { after: currentRecord(model, change.after) }),
+  changed: change.changed,
+  actor: change.actor,
+  source: change.source,
+  databaseRole: change.databaseRole,
+  ...(change.tenant !== undefined && { tenant: change.tenant }),
+  transaction: change.transaction,
+  sequence: change.sequence,
+  at: change.at,
+})

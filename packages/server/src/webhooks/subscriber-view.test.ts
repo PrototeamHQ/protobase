@@ -3,7 +3,7 @@ import { f, resource } from '@protobase/schema'
 import type { ResourceChange } from '../changes/resource-change'
 import type { Deps } from '../deps'
 import { buildRegistry } from '../registry'
-import { subscriberEvents } from './subscriber-view'
+import { eventChange, subscriberEvents, subscriptionEvent } from './subscriber-view'
 import { subscription } from './subscription'
 
 // A presence rule, as the docs teach for encrypted fields: only holders of `keys` see records whose secret is set.
@@ -42,9 +42,11 @@ const flagged = resource('flagged')
   .fields({ id: f.integer(), name: f.text(), has_secret: f.boolean().optional() })
   .primaryKey((r) => r.id)
   .access({ read: (ctx, record) => roles(ctx).includes('admin') || record!.has_secret === false })
+// A role-only rule, which decides without the record.
+const viewers = secrets('viewers', (ctx) => roles(ctx).includes('viewer'))
 const notes = resource('notes').table('notes').fields({ id: f.integer(), name: f.text() }).primaryKey((r) => r.id).access({ read: (_, record) => record!.name !== 'hidden' })
 
-const deps = { registry: buildRegistry([keys, notes, presence, roleFirst, caught, ...filtered, flagged]), accessOptions: {}, settingsResources: new Set() } as unknown as Deps
+const deps = { registry: buildRegistry([keys, notes, viewers, presence, roleFirst, caught, ...filtered, flagged]), accessOptions: {}, settingsResources: new Set() } as unknown as Deps
 const change = (resource: string, after: Record<string, unknown>, rest: Partial<ResourceChange> = {}): ResourceChange => ({
   resource, key: '1', operation: 'create', after, changed: [], actor: null, source: 'api', databaseRole: null, transaction: '1', sequence: '1', at: '2026-10-21T00:00:00.000Z', ...rest,
 })
@@ -97,5 +99,34 @@ describe('subscriberEvents', () => {
     const events = subscriberEvents(deps)
     expect(await events(as, change('notes', { id: 1, name: 'hidden' }), 'notes.created')).toBeUndefined()
     expect((await events(as, change('notes', { id: 1, name: 'shown' }), 'notes.created'))?.data.after).toEqual({ id: 1, name: 'shown' })
+  })
+})
+
+describe('eventChange', () => {
+  const system = subscription('system', { url: 'https://example.com/hook', events: ['*'] } as never)
+  const model = viewers.toModel()
+  const update = change('viewers', { id: 1, name: 'api' }, { operation: 'update', before: { id: 1, name: 'old' }, changed: ['name', 'api_secret'] })
+  const stored = subscriptionEvent(update, 'viewers.updated')
+  const stale = { ...stored, data: { ...stored.data, after: { ...stored.data.after, api_secret: 'captured' }, before: { ...stored.data.before, api_secret: 'captured' } } }
+
+  it('shapes a stored event again without a field that became sensitive, under the same id', async () => {
+    const shaped = await subscriberEvents(deps)(system, eventChange(model, stale), stale.type)
+    expect(shaped).toEqual(stored)
+    expect((await subscriberEvents(deps)(viewer, eventChange(model, stale), stale.type))?.data).toMatchObject({ after: { id: 1, name: 'api' }, before: { id: 1, name: 'old' }, changed: ['name', 'api_secret'] })
+  })
+
+  it('drops a property an earlier release stored', async () => {
+    const extra = { ...stored, record: { api_secret: 'captured' }, data: { ...stored.data, record: { api_secret: 'captured' } } }
+    expect(JSON.stringify(await subscriberEvents(deps)(system, eventChange(model, extra), extra.type))).not.toContain('captured')
+  })
+
+  it("follows the subscription's roles as they are now", async () => {
+    expect(await subscriberEvents(deps)(as, eventChange(model, stale), stale.type)).toBeUndefined()
+  })
+
+  it('sends a stored thin event only while the roles may read the resource', async () => {
+    const thin = subscriptionEvent(update, 'viewers.updated', { thin: true })
+    expect(await subscriberEvents(deps)(viewer, eventChange(model, thin), thin.type)).toEqual({ ...thin, data: { ...thin.data, changed: ['name', 'api_secret'] } })
+    expect(await subscriberEvents(deps)(as, eventChange(model, thin), thin.type)).toBeUndefined()
   })
 })

@@ -3,7 +3,7 @@ import { f, resource } from '@protobase/schema'
 import type { CoalescedChange } from './coalesce'
 import { EventCodeError } from './event-code-error'
 import { eventMatcher } from './match-events'
-import { resourceChange } from './resource-change'
+import { currentChange, resourceChange } from './resource-change'
 
 const orders = resource('orders')
   .table('sales.orders')
@@ -73,6 +73,29 @@ describe('resourceChange', () => {
     expect(resourceChange(model, change({ deleted_at: at }, {}, ['deleted_at'])).operation).toBe('undelete')
     expect(resourceChange(model, change({}, null)).operation).toBe('delete')
     expect(resourceChange(model, change(null, {})).operation).toBe('create')
+  })
+
+  it('leaves out a sensitive field a row was captured with, and still names it as changed', () => {
+    const iban = 'NL91ABNA0417164300'
+    expect(resourceChange(model, change(null, { iban })).after).toEqual({ id: '7', status: 'open', total: '10', notes: null, organizationId: 3, deletedAt: null })
+    const updated = resourceChange(model, change({ iban: 'old' }, { iban }, ['iban']))
+    expect(JSON.stringify(updated)).not.toContain(iban)
+    expect(updated.before).not.toHaveProperty('iban')
+    expect(updated.changed).toEqual(['iban'])
+  })
+})
+
+describe('currentChange', () => {
+  const kept = { ...resourceChange(model, change({}, {}, ['iban'])) }
+
+  it('drops fields that are sensitive now or gone from a change kept before', () => {
+    const stale = { ...kept, before: { ...kept.before, iban: 'old', gone: 1 }, after: { ...kept.after, iban: 'new', gone: 2 } }
+    expect(currentChange(model, stale)).toEqual(kept)
+  })
+
+  it('drops a property an earlier release kept', () => {
+    const stale = { ...kept, record: { iban: 'old' } }
+    expect(currentChange(model, stale)).toEqual(kept)
   })
 })
 
