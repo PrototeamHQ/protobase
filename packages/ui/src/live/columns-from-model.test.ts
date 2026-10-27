@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FieldModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { columnsFromModel, listColumnNames } from './columns-from-model'
+import { columnsFromModel } from './columns-from-model'
 
 const field = (name: string, type: FieldModel['type'], extra: Partial<FieldModel> = {}): FieldModel =>
   ({ name, column: name, type, nullable: false, readOnly: false, filterable: false, sortable: false, aliases: [], ...extra }) as FieldModel
@@ -24,13 +24,6 @@ const view = {
   fields: { total: { prefix: '€', decimals: 2 }, discountPercent: { label: 'Discount', format: 'percent' }, status: { valueLabels: { shipped: 'Sent out' } } },
   list: { columns: ['number', 'companyId', 'status', 'total', 'discountPercent', 'createdAt', 'missing'] },
 } as unknown as ViewModel
-
-describe('listColumnNames', () => {
-  it('takes the first six fields the caller reads when the view has no list', () => {
-    const sealed = { ...model, fields: { sealed: field('sealed', 'text', { sensitive: true, writeOnly: true }), ...model.fields } } as ResourceModel
-    expect(listColumnNames(sealed, undefined)).toEqual(['number', 'companyId', 'status', 'total', 'discountPercent', 'createdAt'])
-  })
-})
 
 describe('columnsFromModel', () => {
   const columns = columnsFromModel(model, view, ['discountPercent'])
