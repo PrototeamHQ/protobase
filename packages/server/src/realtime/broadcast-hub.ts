@@ -10,16 +10,20 @@ export type BroadcastMember = {
 
 /**
  * The channels of a process by topic, which hear each other's broadcasts in-process: a cloud app runs as one process,
- * so channels of other processes are not reached. A topic takes `realtimeLimits.topicBroadcastsPerSecond`, whoever sends
+ * so channels of other processes are not reached. Private and public channels of a topic do not hear each other, as on
+ * Supabase, so a public channel cannot reach past the policies of a private one. A topic takes `realtimeLimits.topicBroadcastsPerSecond`, whoever sends
  * them; its window is kept here, so a topic left empty and joined again does not start a new one.
  */
 export const broadcastHub = ({ now = () => Date.now() }: { now?: () => number } = {}) => {
-  const topics = new Map<string, Set<BroadcastMember>>()
+  const publicTopics = new Map<string, Set<BroadcastMember>>()
+  const privateTopics = new Map<string, Set<BroadcastMember>>()
+  const topicsOf = (isPrivate: boolean) => (isPrivate ? privateTopics : publicTopics)
   const rate = fixedWindows(realtimeLimits.topicBroadcastsPerSecond, 1000, now)
 
   return {
     /** Puts the member on the topic until the returned function takes it off. */
     join: (topic: string, member: BroadcastMember) => {
+      const topics = topicsOf(member.private)
       const members = topics.get(topic) ?? new Set()
       topics.set(topic, members.add(member))
       return () => {
@@ -33,7 +37,7 @@ export const broadcastHub = ({ now = () => Date.now() }: { now?: () => number } 
      */
     send: (topic: string, from: BroadcastMember, event: string, payload: unknown) => {
       if (!rate(topic)) return false
-      for (const member of topics.get(topic) ?? []) {
+      for (const member of topicsOf(from.private).get(topic) ?? []) {
         if (member !== from || member.self) member.receive(event, payload)
       }
       return true
@@ -47,16 +51,14 @@ export const broadcastHub = ({ now = () => Date.now() }: { now?: () => number } 
       for (const { topic } of publications) takes.set(topic, (takes.get(topic) ?? 0) + 1)
       if (!rate.all(takes)) return false
       for (const publication of publications) {
-        for (const member of topics.get(publication.topic) ?? []) {
-          if (!publication.private || member.private) member.receive(publication.event, publication.payload)
-        }
+        for (const member of topicsOf(publication.private).get(publication.topic) ?? []) member.receive(publication.event, publication.payload)
       }
       return true
     },
   }
 }
 
-/** A broadcast sent without a channel, such as over `POST /api/broadcast`; a private one reaches private channels only. */
+/** A broadcast sent without a channel, such as over `POST /api/broadcast`, to the private or the public channels. */
 export type Publication = {
   topic: string
   event: string
