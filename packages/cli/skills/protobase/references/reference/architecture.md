@@ -17,9 +17,9 @@ A Bun workspace of npm packages under the `@protobase` scope, in `packages/<name
 | `@protobase/ui` | `packages/ui` | `@protobase/ui`, `@protobase/ui/theme.css`, `@protobase/ui/styles.css`; the admin app in `src/app` | browser | `schema`, `layout`, `client` |
 | `@protobase/server` | `packages/server` | `@protobase/server`, `@protobase/server/auth-store`, `@protobase/server/config-exports`, `@protobase/server/email`, `@protobase/server/vapid`; `@protobase/server/internal` for the other packages only | server | `schema`, `layout`, `query` |
 | `@protobase/config` | `packages/config` | `@protobase/config`, `@protobase/config/schema.json` | anywhere | types of `server` only: it runs nothing besides `defineConfig` |
-| `@protobase/cli` | `packages/cli` | the `protobase` command (`bin/protobase.mjs`), `@protobase/cli/auth`, `@protobase/cli/runner` | Node and Bun | `config`, `schema`, `layout`, `query`, `server`, `ui` |
+| `@protobase/cli` | `packages/cli` | the `protobase` command (`bin/protobase.mjs`), `@protobase/cli/auth`, `@protobase/cli/runner`, `@protobase/cli/scaffold` | Node and Bun | `config`, `schema`, `layout`, `query`, `server`, `ui` |
 | `@protobase/mobile` | `packages/mobile` | none: the Capacitor packages and native plugins `protobase mobile` installs on first use | the app's iOS and Android projects | none |
-| `create-protobase` | `packages/create-protobase` | the `create-protobase` command, for `npm create protobase` | Node | none |
+| `create-protobase` | `packages/create-protobase` | the `create-protobase` command, for `npm create protobase` | Node | no other `@protobase` package: `postgres` checks a database URL's connection, and `@protobase/cli/scaffold` is loaded from the project it installed |
 | `@protobase/presets` | `packages/presets` | none: private, `bun run presets:write` writes a project per preset | Bun | none; each preset depends on the `@protobase` packages of the major it is written at, locked at that version |
 | `tests/apps/*` | | none | any | `@protobase/*` entry points only |
 

@@ -25,7 +25,7 @@ In this repository nothing needs a build: the packages' `exports` point at `src`
 
 ### In another process
 
-A process that runs many commands, such as a deploy, can run them without starting the CLI each time. `@protobase/cli/runner` exports one function for that; `@protobase/cli/auth` exports the other one a script may call, `loadProjectAuth`, which builds the project's sign-in as the `users` commands do (see [Auth](auth.md#first-run)). Nothing else of the CLI is exported:
+A process that runs many commands, such as a deploy, can run them without starting the CLI each time. `@protobase/cli/runner` exports one function for that; `@protobase/cli/auth` exports the other one a script may call, `loadProjectAuth`, which builds the project's sign-in as the `users` commands do (see [Auth](auth.md#first-run)). `@protobase/cli/scaffold` is [`scaffold`](#scaffold) as functions, for `npm create protobase <database-url>`, which loads it from the project it installed: `listTables`, `runScaffold` and `asking`, its column prompt on a question function of the caller's. Nothing else of the CLI is exported:
 
 ```ts
 import { runCommand } from '@protobase/cli/runner'
@@ -62,6 +62,8 @@ Protobase's own tables are left out, since they hold password hashes, OAuth toke
 | `--ui` | also write `ui.ts` (`.names()` and `.list()`); the list never shows a secret-like column (`password`, `hash`, `token`, `secret`, `salt`, `otp`, `private_key`, `api_key` in its name) |
 | `--ui-list`, `--ui-section <names\|list>` | write only those `ui.ts` sections |
 | `--exclude <schema[.table]>` | skip tables, repeatable |
+
+`npm create protobase <database-url>` runs it in the project it makes, on the tables you pick there (see [On an existing database](../getting-started.md#on-an-existing-database)).
 
 Interactively, each new column shows its proposal: accept, accept all (this one and every one after it, without asking), edit (name, type) or ignore (writes `field: null`; key columns cannot be ignored).
 

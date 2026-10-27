@@ -1,20 +1,26 @@
 import { randomBytes } from 'node:crypto'
 import path from 'node:path'
-import { createInterface } from 'node:readline/promises'
 import { parseArgs } from 'node:util'
 import { askDir } from './ask-dir'
 import { askPreset } from './ask-preset'
 import { createProject } from './create-project'
+import { databaseSteps } from './database-steps'
+import { createFromDatabase } from './database-wizard'
 import { freePort } from './free-port'
 import { defaultPort } from './local-database'
 import { nextSteps } from './next-steps'
 import { checkPreset, defaultPreset, presetNames } from './presets'
+import { openTerminal, type ProcessTerminal } from './terminal'
 import { findTools } from './tools'
 
 // The build writes one folder per preset beside this module in dist/.
 const templatesDir = path.join(import.meta.dirname, 'templates')
 
-const usage = 'usage: npm create protobase <dir> [-- --preset <name>]'
+const usage = 'usage: npm create protobase [<dir>] [<postgres-url>] [-- --preset <name>]'
+
+const isDatabaseUrl = (value: string) => /^postgres(ql)?:\/\//.test(value)
+
+const newSecret = () => randomBytes(32).toString('base64')
 
 type Question = (text: string) => Promise<string>
 
@@ -42,28 +48,38 @@ const pickPreset = async (flag: string | undefined, question: Question | undefin
   return defaultPreset
 }
 
-// One prompt for every question in a terminal, so none reads the answers typed ahead for the next; none without one.
-const pick = async (positionals: string[], flag: string | undefined) => {
-  const terminal = process.stdin.isTTY && process.stdout.isTTY
-  const prompt = terminal ? createInterface({ input: process.stdin, output: process.stdout }) : undefined
-  const question = prompt && ((text: string) => prompt.question(text))
-  try {
-    return { dir: await pickDir(positionals, question), preset: await pickPreset(flag, question) }
-  } finally {
-    prompt?.close()
-  }
+// A project from a preset, with a Postgres of its own in Docker.
+const fromPreset = async (positionals: string[], flag: string | undefined, terminal: ProcessTerminal) => {
+  const dir = await pickDir(positionals, terminal.ask)
+  const preset = await pickPreset(flag, terminal.ask)
+  terminal.closePrompt()
+  const port = await freePort(defaultPort)
+  const { scripts } = createProject(path.join(templatesDir, preset), path.resolve(dir), { secret: newSecret(), database: { port } })
+  const steps = nextSteps(dir, scripts, port, findTools())
+  terminal.print(`Created a Protobase project in ${dir} from the ${preset} preset. Next:\n\n${steps}`)
+}
+
+// A project from scratch on the existing database at `url`, which the wizard asks how to import.
+const fromDatabase = async (url: string, positionals: string[], flag: string | undefined, terminal: ProcessTerminal) => {
+  if (flag !== undefined && flag !== defaultPreset) throw new Error(`a project on an existing database starts from ${defaultPreset}: leave out --preset`)
+  const [dir, ...extra] = positionals
+  if (extra.length > 0) throw new Error(usage)
+  const steps = databaseSteps({ templateDir: path.join(templatesDir, defaultPreset), secret: newSecret(), tools: findTools(), terminal })
+  await createFromDatabase(url, dir, terminal, steps)
 }
 
 const create = async (argv: string[]) => {
   const options = { preset: { type: 'string' } } as const
   const { values, positionals } = parseArgs({ args: argv.slice(2), allowPositionals: true, options })
   checkNpmPreset(values.preset)
-  const { dir, preset } = await pick(positionals, values.preset)
-  const port = await freePort(defaultPort)
-  const secret = randomBytes(32).toString('base64')
-  const { scripts } = createProject(path.join(templatesDir, preset), path.resolve(dir), { port, secret })
-  const steps = nextSteps(dir, scripts, port, findTools())
-  process.stdout.write(`Created a Protobase project in ${dir} from the ${preset} preset. Next:\n\n${steps}`)
+  const url = positionals.find(isDatabaseUrl)
+  const terminal = openTerminal()
+  try {
+    if (url) await fromDatabase(url, positionals.filter((each) => each !== url), values.preset, terminal)
+    else await fromPreset(positionals, values.preset, terminal)
+  } finally {
+    terminal.closePrompt()
+  }
 }
 
 // Central error handler: the user sees one line.

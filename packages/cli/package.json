@@ -21,7 +21,8 @@
   },
   "exports": {
     "./auth": "./src/project-auth.ts",
-    "./runner": "./src/runner.ts"
+    "./runner": "./src/runner.ts",
+    "./scaffold": "./src/scaffold-api.ts"
   },
   "bin": {
     "protobase": "./bin/protobase-source.mjs"
@@ -42,7 +43,8 @@
     },
     "exports": {
       "./auth": "./dist/project-auth.js",
-      "./runner": "./dist/runner.js"
+      "./runner": "./dist/runner.js",
+      "./scaffold": "./dist/scaffold-api.js"
     }
   },
   "dependencies": {

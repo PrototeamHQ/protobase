@@ -120,6 +120,12 @@
       "bin": {
         "create-protobase": "./bin/create-protobase.mjs",
       },
+      "dependencies": {
+        "postgres": "^3.4.9",
+      },
+      "devDependencies": {
+        "@protobase/cli": "workspace:*",
+      },
     },
     "packages/layout": {
       "name": "@protobase/layout",

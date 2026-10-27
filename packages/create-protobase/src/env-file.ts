@@ -13,11 +13,21 @@ const replaceSetting = (text: string, name: string, value: string) =>
 /** The DATABASE_URL of a preset's .env.example. */
 export const databaseUrl = (example: string) => new URL(setting(example, 'DATABASE_URL'))
 
+/** `example`, a preset's .env.example, with `url` as its DATABASE_URL. */
+export const withDatabaseUrl = (example: string, url: string) => replaceSetting(example, 'DATABASE_URL', url)
+
 /** `example`, a preset's .env.example, with its DATABASE_URL on `port`. */
 export const withDatabasePort = (example: string, port: number) => {
   const url = databaseUrl(example)
   url.port = String(port)
-  return replaceSetting(example, 'DATABASE_URL', url.toString())
+  return withDatabaseUrl(example, url.toString())
+}
+
+/** `url` without its password, for a file that is committed. */
+export const withoutPassword = (url: string) => {
+  const parsed = new URL(url)
+  parsed.password = ''
+  return parsed.toString()
 }
 
 /** A new project's .env: its .env.example with `secret` as PROTOBASE_SECRET in place of the placeholder. */

@@ -5,6 +5,8 @@ description: Put an admin on a Postgres database you already have, in six steps,
 
 You have a Postgres database and want an admin over its tables, without moving the data. This guide goes from an empty folder to signing in to that admin. It takes about fifteen minutes and needs Node 22.12 or later.
 
+`npm create protobase <database-url>` does steps 1, 2 and 4 in one go, in a new project, and writes the migration of step 5 for its `bun run db:migrate` to apply: see [On an existing database](/getting-started/#on-an-existing-database). This guide takes each step by hand, in a folder of your own.
+
 Protobase never changes your tables. Sign-in is the one thing it adds to the database: an `auth` schema with its own tables for users, sessions and signing keys. `protobase migration` writes them as a SQL file you apply yourself, like any other migration, and the app never changes the schema while it runs.
 
 ## 1. Install

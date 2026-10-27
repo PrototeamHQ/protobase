@@ -6,7 +6,7 @@ import { introspect } from '../db/introspect'
 import { readExistingResources } from './existing-config'
 import { planScaffold, type FileChange } from './plan'
 import type { ProtobaseSchema } from './protobase-tables'
-import { acceptAll, interactive } from './prompt'
+import { acceptAll, interactive, type Decide } from './prompt'
 import { parseTarget } from './targets'
 import type { UiSection } from './ui-file'
 
@@ -19,6 +19,8 @@ export type ScaffoldOptions = {
   ui: UiSection[]
   excludes: string[]
   live?: string[]
+  // Decides each column in place of the terminal prompt, as `npm create protobase <url>` does with its own.
+  decide?: Decide
 }
 
 const readText = (file: string) =>
@@ -37,11 +39,12 @@ const write = async ({ path: file, after }: FileChange) => {
 }
 
 export const runScaffold = async (options: ScaffoldOptions, out: (text: string) => void) => {
-  if (!options.yes && !process.stdin.isTTY) {
+  const asks = !options.yes && !options.decide
+  if (asks && !process.stdin.isTTY) {
     throw new Error('Interactive scaffolding needs a terminal; pass --yes to accept all proposals')
   }
   const sql = connect(options.url)
-  const prompter = options.yes ? undefined : interactive()
+  const prompter = asks ? interactive() : undefined
   const plan = await (async () => {
     try {
       return await planScaffold({
@@ -51,7 +54,7 @@ export const runScaffold = async (options: ScaffoldOptions, out: (text: string) 
         target: parseTarget(options.target),
         excludes: options.excludes,
         live: options.live,
-        decide: prompter?.decide ?? acceptAll,
+        decide: options.decide ?? prompter?.decide ?? acceptAll,
         ui: options.ui,
         readText,
       })

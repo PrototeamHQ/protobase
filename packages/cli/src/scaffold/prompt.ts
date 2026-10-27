@@ -19,13 +19,14 @@ const types: FieldType[] = [
 ]
 
 type Ask = (question: string) => Promise<string>
+type Write = (text: string) => void
 
-const retype = async (proposal: Proposal, ask: Ask): Promise<Proposal> => {
+const retype = async (proposal: Proposal, ask: Ask, write: Write): Promise<Proposal> => {
   const answer = (await ask(`  type (${types.join(', ')}) [${proposal.type}]: `)).trim()
   if (!answer || answer === proposal.type) return proposal
   const type = types.find((t) => t === answer)
   if (!type) {
-    process.stdout.write(`  unknown type "${answer}", keeping ${proposal.type}\n`)
+    write(`  unknown type "${answer}", keeping ${proposal.type}\n`)
     return proposal
   }
   const { enumValues, relation, precision, scale, defaultValue, ...rest } = proposal
@@ -42,31 +43,36 @@ const retype = async (proposal: Proposal, ask: Ask): Promise<Proposal> => {
   return next
 }
 
-const edit = async (proposal: Proposal, ask: Ask): Promise<Proposal> => {
+const edit = async (proposal: Proposal, ask: Ask, write: Write): Promise<Proposal> => {
   const name = (await ask(`  field name [${proposal.name}]: `)).trim() || proposal.name
-  return retype({ ...proposal, name }, ask)
+  return retype({ ...proposal, name }, ask, write)
 }
 
-// Asks for each column, until "all" accepts it and every proposal after it.
-export const interactive = (input: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout) => {
-  const rl = createInterface({ input, output })
+// Asks with `ask` for each column, writing the proposals with `write`, until "all" accepts it and every proposal after it.
+export const asking = (ask: Ask, write: Write): Decide => {
   let acceptRest = false
-  const decide: Decide = async (initial, { table, required }) => {
+  return async (initial, { table, required }) => {
     if (acceptRest) return initial
     let proposal = initial
     for (;;) {
-      output.write(`\n${table}.${proposal.column}\n  ${proposal.name}: ${renderField(proposal)}\n`)
+      write(`\n${table}.${proposal.column}\n  ${proposal.name}: ${renderField(proposal)}\n`)
       const options = required ? '[a]ccept, accept a[l]l, [e]dit' : '[a]ccept, accept a[l]l, [e]dit, [i]gnore'
-      const answer = (await rl.question(`  ${options} (a): `)).trim().toLowerCase() || 'a'
+      const answer = (await ask(`  ${options} (a): `)).trim().toLowerCase() || 'a'
       if (answer === 'a') return proposal
       if (answer === 'l') {
         acceptRest = true
-        output.write('  accepting this and every remaining proposal\n')
+        write('  accepting this and every remaining proposal\n')
         return proposal
       }
-      if (answer === 'e') proposal = await edit(proposal, (q) => rl.question(q))
+      if (answer === 'e') proposal = await edit(proposal, ask, write)
       if (answer === 'i' && !required) return null
     }
   }
+}
+
+// `asking` on a terminal.
+export const interactive = (input: NodeJS.ReadableStream = process.stdin, output: NodeJS.WritableStream = process.stdout) => {
+  const rl = createInterface({ input, output })
+  const decide = asking((q) => rl.question(q), (text) => output.write(text))
   return { decide, close: () => rl.close() }
 }

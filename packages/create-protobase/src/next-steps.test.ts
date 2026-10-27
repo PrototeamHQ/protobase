@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextSteps } from './next-steps'
+import { databaseNextSteps, nextSteps } from './next-steps'
 
 const both = { bun: true, docker: true }
 
@@ -33,5 +33,23 @@ describe('nextSteps', () => {
   it('says to install Bun first without it', () => {
     const steps = nextSteps('my-app', {}, 55432, { bun: false, docker: true })
     expect(steps).toMatch(/^Bun 1\.4 runs the project's scripts: install it first \(https:\/\/bun\.sh\)\.\n\n  cd my-app\n/)
+  })
+})
+
+describe('databaseNextSteps', () => {
+  it('migrates the auth schema in, as the first write to the database, creates a user and serves', () => {
+    expect(databaseNextSteps('shop', both)).toBe(
+      [
+        '  cd shop',
+        '  bun run db:migrate     # the first write to the database: the auth schema, and public.schema_migrations',
+        '  bun run protobase users create you@example.com --generate-password',
+        '  bun run dev            # http://localhost:5173',
+        '',
+      ].join('\n'),
+    )
+  })
+
+  it('says to install Bun first without it', () => {
+    expect(databaseNextSteps('shop', { bun: false, docker: false })).toMatch(/^Bun 1\.4 runs the project's scripts: install it first/)
   })
 })

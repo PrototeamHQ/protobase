@@ -28,6 +28,13 @@ npm create protobase my-app
 npm create protobase my-app -- --preset erp   # without asking
 ```
 
+Given an existing Postgres database's URL instead, it makes the project on that database, reading it only, and asks
+which of its tables become resources:
+
+```sh
+npm create protobase 'postgres://user:password@localhost:5432/shop'
+```
+
 `bun run presets:write <version> <dir>` writes every preset from a clone of this repository, each with the
 `@protobase` packages in the caret range of `<version>` (`^x.y.z`, which below 1.0 covers only that minor) and its own
 `bun.lock` at exactly `<version>`.

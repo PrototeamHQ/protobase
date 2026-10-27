@@ -1,7 +1,7 @@
 {
   "name": "create-protobase",
   "version": "0.14.2",
-  "description": "npm create protobase: starts a new Protobase project from one of its presets.",
+  "description": "npm create protobase: starts a new Protobase project from one of its presets, or on an existing Postgres database.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -23,6 +23,12 @@
   "scripts": {
     "build": "tsdown && bun ../presets/src/write-template.ts",
     "prepack": "tsdown && bun ../presets/src/write-template.ts"
+  },
+  "dependencies": {
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@protobase/cli": "workspace:*"
   },
   "publishConfig": {
     "access": "public"

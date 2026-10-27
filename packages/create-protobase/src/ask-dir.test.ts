@@ -12,4 +12,8 @@ describe('askDir', () => {
   it('asks for the folder with my-app as the default', async () => {
     expect(await askDir(async (text) => (text === 'Project folder [my-app]: ' ? '' : 'wrong'))).toBe('my-app')
   })
+
+  it('offers another default', async () => {
+    expect(await askDir(async (text) => (text === 'Project folder [shop]: ' ? '' : 'wrong'), 'shop')).toBe('shop')
+  })
 })

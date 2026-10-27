@@ -1,6 +1,13 @@
 /** Whether the commands the next steps run are on PATH. */
 export type Tools = { bun: boolean; docker: boolean }
 
+// The steps as indented lines, after installing Bun, which runs every script, when it is not there.
+const withBun = (steps: string[], tools: Tools) => {
+  const lines = steps.map((line) => `  ${line}\n`).join('')
+  if (tools.bun) return lines
+  return `Bun 1.4 runs the project's scripts: install it first (https://bun.sh).\n\n${lines}`
+}
+
 /**
  * What to run in a new project, from `cwd`'s point of view, until its admin app serves. `scripts` are those of the
  * project's package.json: a preset with a base seed loads it, and one with sample data offers it, before the first user,
@@ -20,7 +27,20 @@ export const nextSteps = (dir: string, scripts: Record<string, string>, port: nu
     'bun run protobase users create you@example.com --generate-password',
     'bun run dev            # http://localhost:5173',
   ]
-  const lines = steps.map((line) => `  ${line}\n`).join('')
-  if (tools.bun) return lines
-  return `Bun 1.4 runs the project's scripts: install it first (https://bun.sh).\n\n${lines}`
+  return withBun(steps, tools)
 }
+
+/**
+ * What to run in a new project on an existing database, its packages installed, until its admin app serves: the first
+ * of them is the first that writes to the database, adding the auth schema sign-in keeps its users in.
+ */
+export const databaseNextSteps = (dir: string, tools: Tools) =>
+  withBun(
+    [
+      `cd ${dir}`,
+      'bun run db:migrate     # the first write to the database: the auth schema, and public.schema_migrations',
+      'bun run protobase users create you@example.com --generate-password',
+      'bun run dev            # http://localhost:5173',
+    ],
+    tools,
+  )

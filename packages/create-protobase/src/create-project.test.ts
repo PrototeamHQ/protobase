@@ -18,7 +18,7 @@ const template = () => {
 }
 
 const target = (name: string) => path.join(mkdtempSync(path.join(tmpdir(), 'create-protobase-')), name)
-const settings = { port: 55432, secret: 's3cret' }
+const settings = { secret: 's3cret', database: { port: 55432 } }
 const read = (dir: string, file: string) => readFileSync(path.join(dir, file), 'utf8')
 
 describe('createProject', () => {
@@ -40,10 +40,20 @@ describe('createProject', () => {
 
   it('writes a .env with the secret and a docker-compose.yml, both on the port', () => {
     const dir = target('env')
-    createProject(template(), dir, { port: 55434, secret: 's3cret' })
+    createProject(template(), dir, { secret: 's3cret', database: { port: 55434 } })
     expect(read(dir, '.env.example')).toBe(example.replace('55432', '55434'))
     expect(read(dir, '.env')).toBe('DATABASE_URL=postgres://protobase:protobase@localhost:55434/scratch\nPROTOBASE_SECRET=s3cret\n')
     expect(read(dir, 'docker-compose.yml')).toContain("- '55434:5432'")
+  })
+
+  it('on an existing database, writes its URL to .env, without the password to .env.example, and no Postgres of its own', () => {
+    const dir = target('existing')
+    const url = 'postgres://shop:s3cret@db.example.com:5432/shop'
+    const manifest = createProject(template(), dir, { secret: 'abc', database: { url } })
+    expect(manifest.scripts).toEqual({ dev: 'protobase dev' })
+    expect(read(dir, '.env')).toBe(`DATABASE_URL=${url}\nPROTOBASE_SECRET=abc\n`)
+    expect(read(dir, '.env.example')).toBe('DATABASE_URL=postgres://shop@db.example.com:5432/shop\nPROTOBASE_SECRET=change-me\n')
+    expect(existsSync(path.join(dir, 'docker-compose.yml'))).toBe(false)
   })
 
   it('writes into an empty folder that exists', () => {

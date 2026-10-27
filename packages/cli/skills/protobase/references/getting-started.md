@@ -2,7 +2,7 @@
 
 # Getting started
 
-Start an app with npm create protobase, install the repository, run the ERP, real estate and property portal examples and learn the development commands.
+Start an app with npm create protobase, on a new database or one you have, install the repository, run the ERP, real estate and property portal examples and learn the development commands.
 
 Protobase is a config-driven admin panel framework for existing Postgres databases. Each resource's data config lives in `config/<resource>/data.ts` and its UI config in `ui.ts`, all exported from `config/index.ts`; the rest of the app, its sign-in, jobs, files and API settings, is one object of data in [`protobase.config.ts`](reference/config.md). A Hono server serves the API and a React app renders the admin. Coding agents get the guides and reference of the installed version with [`protobase skill install`](reference/cli.md#skill).
 
@@ -41,9 +41,36 @@ bun run protobase doctor
 
 `scaffold` writes `config/customers/data.ts` and `ui.ts` and exports them from `config/index.ts`, where Protobase finds every resource, view and page; `--exclude public.schema_migrations` leaves out the table the migrate script records its migrations in. `bun run dev` shows the new list at once. The [Data config](reference/data-config.md) and [UI config](reference/ui-config.md) say what else a resource can be.
 
+### On an existing database
+
+Given the URL of a Postgres database you already have, `npm create protobase` makes the project on that database:
+
+```sh
+npm create protobase 'postgres://user:password@localhost:5432/shop'
+bun create protobase 'postgres://user:password@localhost:5432/shop'
+pnpm create protobase 'postgres://user:password@localhost:5432/shop'
+```
+
+It connects read-only and names the database and its Postgres version, then asks for the folder, the database's name by default (`npm create protobase my-app <url>` names it). It writes the scratch preset there, with the URL in `.env`, the URL without its password in `.env.example`, and no `docker-compose.yml`, and installs its packages with Bun, or with npm without Bun. It then lists the tables the project's [`scaffold`](reference/cli.md#scaffold) writes resources over, and what it leaves out, with why: views, tables without a primary key or a unique index on columns that are never null, and Protobase's own tables. It asks:
+
+- which tables become resources: numbers, ranges such as `2-4` or names, separated by commas, all of them by default. The tables those point to through foreign keys come too, since a relation needs the resource of its table, and it names them;
+- whether each gets a `ui.ts` with its names and list, yes by default;
+- whether to review the field proposed for each column, as `scaffold` asks it, no by default.
+
+Then it runs that `scaffold` in the project and prints the next steps. Without a terminal it asks nothing: the folder is the database's name, and every table gets a resource and a `ui.ts`. Quote the URL, as a shell reads `?` and `&` in it. `--preset` is refused with a URL: the project starts from scratch.
+
+It never writes to the database. The first of the next steps does: `bun run db:migrate` adds the `auth` schema that sign-in keeps its users in, and `public.schema_migrations`, where the script records the migrations it applied.
+
+```sh
+cd shop
+bun run db:migrate                  # the first write to the database
+bun run protobase users create you@example.com --generate-password
+bun run dev                         # http://localhost:5173
+```
+
 ## Admin over an existing database
 
-For a Postgres database you already have, [Admin over an existing database](guides/existing-database.md) goes from an empty folder to signing in: install the packages, scaffold the config from the tables, check it with `doctor`, add sign-in and its tables, create the first admin and run `protobase dev`.
+For a Postgres database you already have, `npm create protobase <database-url>` makes the project, as [above](#on-an-existing-database). [Admin over an existing database](guides/existing-database.md) does it by hand, in a folder of your own: install the packages, scaffold the config from the tables, check it with `doctor`, add sign-in and its tables, create the first admin and run `protobase dev`.
 
 ## Docs as Markdown
 
