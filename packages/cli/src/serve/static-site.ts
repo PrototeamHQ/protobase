@@ -1,6 +1,7 @@
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { getMimeType } from 'hono/utils/mime'
+import { faviconIcoFile, faviconIcoPath } from '../build/favicon-ico'
 
 export type StaticSite = {
   // Absolute folder with index.html and assets/.
@@ -65,13 +66,15 @@ const isUnder = (paths: readonly string[], pathname: string) => paths.some((pref
 /** The folder the site serves the URL path `pathname` from: its own shell's, for the shell's paths and the root, else publicDir. */
 export const siteRoot = ({ publicDir, shell }: StaticSite, pathname: string) => (shell && (pathname === '/' || isUnder(shell.paths, pathname)) ? shell.dir : publicDir)
 
-// A built UI as a host serves it: the file a GET or HEAD names, else the SPA page for a navigation, else 404. With a
-// shell of its own, the shell's paths and the SPA page come from it.
+// A built UI as a host serves it: the file a GET or HEAD names, `/favicon.ico` the app's icon (see `faviconIcoFile`),
+// else the SPA page for a navigation, else 404. With a shell of its own, the shell's paths and the SPA page come from it.
 export const serveStaticSite = async (site: StaticSite, request: Request) => {
   const { publicDir, spa, shell } = site
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method Not Allowed', { status: 405, headers: { allow: 'GET, HEAD' } })
   const pathname = new URL(request.url).pathname
   const appDir = shell?.dir ?? publicDir
+  const icon = pathname === faviconIcoPath ? faviconIcoFile(publicDir) : undefined
+  if (icon) return fileResponse(publicDir, icon)
   const root = siteRoot(site, pathname)
   const file = await fileFor(root, pathname)
   if (file) return fileResponse(root, file)

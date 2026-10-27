@@ -48,6 +48,20 @@ describe('serveStaticSite', () => {
     expect(frameHeaders).toEqual({ 'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'" })
   })
 
+  it('answers /favicon.ico with the app\'s favicon, or its PNG icon when it has one', async () => {
+    const own = { ...site, publicDir: await mkdtemp(path.join(tmpdir(), 'protobase-icons-')) }
+    await writeFile(path.join(own.publicDir, 'protobase.favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>')
+    const svg = await serveStaticSite(own, page('/favicon.ico'))
+    expect(svg.headers.get('content-type')).toContain('image/svg+xml')
+    expect(await svg.text()).toBe('<svg xmlns="http://www.w3.org/2000/svg"/>')
+
+    await writeFile(path.join(own.publicDir, 'protobase.icon-512.png'), 'png')
+    const png = await serveStaticSite(own, page('/favicon.ico'))
+    expect(png.status).toBe(200)
+    expect(png.headers.get('content-type')).toBe('image/png')
+    await rm(own.publicDir, { recursive: true, force: true })
+  })
+
   it('answers 404 for a missing file that is not a navigation', async () => {
     expect((await serveStaticSite(site, page('/assets/gone.js'))).status).toBe(404)
   })

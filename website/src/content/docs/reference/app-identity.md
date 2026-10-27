@@ -8,7 +8,7 @@ An app looks like its own everywhere from three things in its project: its name,
 | What | Where | Used by |
 | --- | --- | --- |
 | Name | `name` in `protobase.config.ts` ([config](/reference/config/)), overridden at run time by `PROTOBASE_APP_NAME` | the sidebar's logo, the end of every tab title, the installed app's name, the [mobile app](/guides/mobile-app/)'s name on the phone, passkey and authenticator prompts, auth mail and its sender's name |
-| Icon | `protobase.favicon.svg` at the project's root | the browser tab, the sidebar's logo, the installed app's icon; the [mobile app](/guides/mobile-app/) shows Protobase's icon instead |
+| Icon | `protobase.favicon.svg` at the project's root | the browser tab, `/favicon.ico`, the sidebar's logo, the installed app's icon, the [MCP endpoint](/reference/mcp/#the-apps-icon)'s icon in AI clients; the [mobile app](/guides/mobile-app/) shows Protobase's icon instead |
 | Raster icons | optional PNGs beside the SVG, below | the iPhone home screen and Android launchers, which take no SVG |
 | Colours | `themeColor` and `backgroundColor` in `protobase.config.ts` | the installed app's title bar and its start screen |
 
@@ -39,6 +39,8 @@ Some platforms take no SVG, so a project may put PNGs of the same icon beside it
 | `protobase.icon-192.png` | 192 × 192 | the web manifest, for Android launchers |
 | `protobase.icon-512.png` | 512 × 512 | the web manifest, for Android's install screens |
 | `protobase.icon-maskable.png` | 512 × 512 | the web manifest's maskable icon, which Android crops to its own shape: keep the mark within the middle 80% |
+
+The app answers `/favicon.ico`, which browsers and favicon services ask for when they have not read the page, with its icon: the 192 pixel PNG, else the touch icon, else the 512 pixel PNG, else the SVG, each with its own content type. Without a favicon of its own the app answers Protobase's.
 
 Each is optional, and none is made from the SVG: without the touch icon an iPhone's home screen shows a picture of the page. `protobase build` copies the ones the project has to the bundle's `public/`, and fails on a file that is no PNG or not its size; `protobase dev` serves them from the project's root.
 
