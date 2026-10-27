@@ -4,8 +4,10 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { Plugin } from 'vite'
+import { bundledImports } from '../project/bundled-imports'
 import { extensionImports, type Extension } from '../project/extensions'
 import { projectUiFile, projectUiId, projectUiPlugin } from '../project/project-ui'
+import { projectPackages } from '../version/project-packages'
 import { viteBundle } from './vite-bundle'
 
 // A module standing in for a file in the project, so its import of @protobase/ui resolves from there: it loads the
@@ -26,7 +28,7 @@ const checkEntry = (file: string): Plugin => ({
 })
 
 // The components the project's UI registers, its own and its extensions', loaded once in Node with everything bundled
-// into a scratch file. Two UI configs defining the same component or action handler throw here, naming both.
+// into a scratch file, a bundled project's with the CLI's @protobase/ui and React. Two UI configs defining the same component or action handler throw here, naming both.
 const registeredComponents = async (projectDir: string, extensions: Extension[]): Promise<string[]> => {
   if (!existsSync(projectUiFile(projectDir)) && !extensions.some((extension) => extension.ui)) return []
   const scratch = await mkdtemp(path.join(tmpdir(), 'protobase-ui-check-'))
@@ -34,7 +36,9 @@ const registeredComponents = async (projectDir: string, extensions: Extension[])
   const outFile = path.join(scratch, 'ui-check.mjs')
   try {
     // Bundling React libraries for Node warns about their "use client" directives, which do not matter here.
-    const plugins = [checkEntry(checkFile(projectDir)), projectUiPlugin(projectDir, extensions), extensionImports(projectDir, extensions)]
+    const bundled = projectPackages(projectDir).mode === 'bundled'
+    const projectDirs = [projectDir, ...extensions.map((extension) => extension.dir)]
+    const plugins = [checkEntry(checkFile(projectDir)), projectUiPlugin(projectDir, extensions), ...(bundled ? [bundledImports(projectDirs)] : []), extensionImports(projectDir, extensions)]
     await viteBundle({ root: projectDir, entry: checkFile(projectDir), outFile, plugins, logLevel: 'error' })
     return (await import(pathToFileURL(outFile).href)).default as string[]
   } finally {

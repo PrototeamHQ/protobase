@@ -17,6 +17,8 @@ describe('reading a config', () => {
   })
   afterEach(() => rm(dir, { recursive: true, force: true }))
 
+  const importModules = (files: string[]) => importProjectFiles(files, dir)
+
   const write = async (files: Record<string, string>) => {
     for (const [file, text] of Object.entries(files)) {
       await mkdir(path.dirname(path.join(dir, file)), { recursive: true })
@@ -29,26 +31,26 @@ describe('reading a config', () => {
       'protobase.config.ts': "import { roles } from './roles'\nexport default ({ env }: { env: Record<string, string | undefined> }) => ({ auth: { baseURL: env.URL ?? 'http://x', roles } })\n",
       'roles.ts': "export const roles = ['admin', 'sales']\n",
     })
-    expect(await readConfigFile(path.join(dir, 'protobase.config.ts'), configEnv({ URL: 'https://shop.example.com' }), importProjectFiles)).toEqual({ auth: { baseURL: 'https://shop.example.com', roles: ['admin', 'sales'] } })
+    expect(await readConfigFile(path.join(dir, 'protobase.config.ts'), configEnv({ URL: 'https://shop.example.com' }), importModules)).toEqual({ auth: { baseURL: 'https://shop.example.com', roles: ['admin', 'sales'] } })
   })
 
   it('refuses a config that loads a part of itself later', async () => {
     await write({ 'protobase.config.ts': "export default { jobs: () => import('./jobs') }\n" })
-    await expect(readConfigFile(path.join(dir, 'protobase.config.ts'), configEnv(), importProjectFiles)).rejects.toThrow('protobase.config.ts imports "./jobs" lazily; a config is one object')
+    await expect(readConfigFile(path.join(dir, 'protobase.config.ts'), configEnv(), importModules)).rejects.toThrow('protobase.config.ts imports "./jobs" lazily; a config is one object')
   })
 
   it('reads a JSON config, with the values it takes from the environment', async () => {
     await write({ 'protobase.config.json': JSON.stringify({ auth: { baseURL: { $env: 'URL', default: 'http://localhost:5173' }, secret: { $env: 'SECRET' }, trustedOrigins: { $env: 'ORIGINS', split: ',' } } }) })
     const file = path.join(dir, 'protobase.config.json')
-    expect(await readConfigFile(file, configEnv({ SECRET: 's', ORIGINS: 'https://a.example,https://b.example' }), importProjectFiles)).toEqual({
+    expect(await readConfigFile(file, configEnv({ SECRET: 's', ORIGINS: 'https://a.example,https://b.example' }), importModules)).toEqual({
       auth: { baseURL: 'http://localhost:5173', secret: 's', trustedOrigins: ['https://a.example', 'https://b.example'] },
     })
-    expect(await readConfigFile(file, configEnv(), importProjectFiles)).toEqual({ auth: { baseURL: 'http://localhost:5173' } })
+    expect(await readConfigFile(file, configEnv(), importModules)).toEqual({ auth: { baseURL: 'http://localhost:5173' } })
   })
 
   it('leaves out the $schema an editor checks a JSON config with', async () => {
     await write({ 'protobase.config.json': JSON.stringify({ $schema: './node_modules/@protobase/config/schema.json', timezone: 'Europe/Amsterdam' }) })
-    expect(await readConfigFile(path.join(dir, 'protobase.config.json'), configEnv(), importProjectFiles)).toEqual({ timezone: 'Europe/Amsterdam' })
+    expect(await readConfigFile(path.join(dir, 'protobase.config.json'), configEnv(), importModules)).toEqual({ timezone: 'Europe/Amsterdam' })
   })
 
   it('takes the one config file, and refuses a project with both', async () => {

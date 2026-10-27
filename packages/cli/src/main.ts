@@ -85,7 +85,7 @@ program
     loadNearestEnvFile(process.cwd())
     const url = resolveConnectionUrl(connection, opts.env)
     const { runDoctor } = await import('./doctor/run')
-    const { errors } = await runDoctor({ url, configDir: path.resolve(opts.config) }, out)
+    const { errors } = await runDoctor({ url, configDir: path.resolve(opts.config), projectDir: process.cwd() }, out)
     if (errors > 0) process.exitCode = 1
   })
 

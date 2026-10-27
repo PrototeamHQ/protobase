@@ -63,7 +63,7 @@ error: This project asks for Protobase ^0.14.0, and this CLI is Protobase 0.15.0
 
 The copies installed for the project must also be ones the CLI runs: its version in their caret range, which from 1.0 on is the same major and below 1.0, where a minor may break, the same minor, never older. A specifier that is no range, such as `workspace:*`, says no version, so only the installed copies are checked. A project that lists no `@protobase` package, or has no `package.json`, has nothing to check.
 
-Within its caret range the CLI stays backwards compatible, so a platform builds every app with the newest CLI in the caret range of the app's version. Nothing else compares versions: not the build, not the serve runtime. `protobase build` writes the version the project is pinned to, the `@protobase/cli` its lockfile installed, into [the manifest](/reference/cli/#the-manifest) as `protobase`, whichever CLI built the bundle, and a host serves the bundle on the runtime of that version. The check is `checkProjectVersion` in `packages/cli/src/version/project-version.ts`.
+Within its caret range the CLI stays backwards compatible, so a platform builds every app with the newest CLI in the caret range of the app's version. Nothing else compares versions: not the build, not the serve runtime. `protobase build` writes the version of the copies it used into [the manifest](/reference/cli/#the-manifest) as `protobase`: the building CLI's own in a bundled project, the `@protobase` packages its lockfile installed in a locked one, and a host serves the bundle on the runtime of that version. The check is `checkProjectVersion` in `packages/cli/src/version/project-version.ts`.
 
 ## Plugins
 

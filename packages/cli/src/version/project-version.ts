@@ -20,6 +20,18 @@ export const projectProtobaseVersion = (projectDir: string): string | undefined 
   return undefined
 }
 
+/**
+ * The Protobase version a bundle of the project in `projectDir` runs on, its manifest's `protobase`: the version of the
+ * copies the build uses, the CLI's own in a bundled project and the installed ones in a locked project, which fails
+ * before its install.
+ */
+export const bundleProtobaseVersion = (projectDir: string, cliVersion = protobaseVersion) => {
+  if (projectPackages(projectDir).mode === 'bundled') return cliVersion
+  const installed = projectProtobaseVersion(projectDir)
+  if (installed === undefined) throw new Error(`${projectDir} lists its @protobase packages in dependencies and has none installed; install the project's dependencies first`)
+  return installed
+}
+
 // The installed copies must be ones this CLI can run: the CLI's version in the caret range of theirs, so from 1.0 on
 // the same major and below 1.0, where a minor may break, the same minor, and never older.
 const checkInstalled = (projectDir: string, cliVersion: string) => {

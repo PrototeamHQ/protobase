@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { oauthWellKnownPaths } from '@protobase/server'
@@ -68,21 +68,25 @@ describe('buildDeployBundle', () => {
     expect(precache).toEqual(expect.arrayContaining(['/index.html', `/assets/${script}`, `/assets/${style}`, '/protobase.theme.css', '/protobase.favicon.svg']))
   }, buildTimeout)
 
-  it("names the Protobase version the project's install pinned, of whichever minor, not the building CLI's", async () => {
+  // A locked project: its package.json lists the @protobase packages in dependencies.
+  const locked = (version: string) => JSON.stringify({ name: 'app', type: 'module', dependencies: { '@protobase/cli': version, '@protobase/server': version } })
+
+  it("names the Protobase version a locked project's install pinned, of whichever minor, not the building CLI's", async () => {
     const [major, minor] = [semver.major(protobaseVersion), semver.minor(protobaseVersion)]
     const pinned = `${major}.${minor + 3}.1`
-    projectDir = await createProject({ 'config/index.ts': things })
+    projectDir = await createProject({ 'config/index.ts': things, 'package.json': locked(pinned) })
     await writePackage(projectDir, { name: '@protobase/cli', version: pinned })
     const outDir = path.join(projectDir, 'dist')
     expect((await buildDeployBundle({ projectDir, outDir })).protobase).toBe(pinned)
     expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8')).protobase).toBe(pinned)
   }, buildTimeout)
 
-  it('builds a project pinned to an older minor, whose @protobase packages the runtime of its pin supplies', async () => {
+  it('builds a locked project pinned to an older minor, whose @protobase packages the runtime of its pin supplies', async () => {
     const [major, minor] = [semver.major(protobaseVersion), semver.minor(protobaseVersion)]
     const pinned = `${major}.${minor - 1}.4`
     projectDir = await createProject({
       'config/index.ts': things,
+      'package.json': locked(pinned),
       'protobase.config.ts': `import { defineConfig } from '@protobase/server'\nexport default defineConfig({})\n`,
     })
     await writePackage(projectDir, { name: '@protobase/cli', version: pinned })
@@ -92,10 +96,34 @@ describe('buildDeployBundle', () => {
     expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).toContain('from "@protobase/server"')
   }, buildTimeout)
 
-  it('refuses a project without its @protobase packages installed', async () => {
+  it('refuses a locked project without its @protobase packages installed', async () => {
     projectDir = await mkdtemp(path.join(tmpdir(), 'protobase-uninstalled-'))
-    await expect(buildDeployBundle({ projectDir, outDir: path.join(projectDir, 'dist') })).rejects.toThrow(`${projectDir} has no @protobase packages installed; install the project's dependencies first`)
+    await writeFile(path.join(projectDir, 'package.json'), locked(protobaseVersion))
+    await expect(buildDeployBundle({ projectDir, outDir: path.join(projectDir, 'dist') })).rejects.toThrow(
+      `${projectDir} lists its @protobase packages in dependencies and has none installed; install the project's dependencies first`,
+    )
   })
+
+  it("builds a bundled project with nothing installed on the CLI's packages, its UI for the CLI's version", async () => {
+    projectDir = await realpath(await mkdtemp(path.join(tmpdir(), 'protobase-bundled-')))
+    const files = {
+      'package.json': JSON.stringify({ name: 'app', type: 'module', devDependencies: { '@protobase/server': `^${protobaseVersion}` } }),
+      'protobase.config.ts': `import { defineConfig } from '@protobase/config'\nimport { oauthWellKnownPaths } from '@protobase/server'\nexport default defineConfig({ name: oauthWellKnownPaths.length > 0 ? 'Shop' : 'None' })\n`,
+      'config/index.ts': `import { component } from '@protobase/layout'\n${things}export const PlanCard = component('PlanCard')\n`,
+      'protobase.ui.tsx': `import { defineUi } from '@protobase/ui'\nimport { useState } from 'react'\nconst PlanCard = () => <p>{useState('Plan 4e2a')[0]}</p>\nexport default defineUi({ components: { PlanCard } })\n`,
+    }
+    for (const [file, content] of Object.entries(files)) {
+      await mkdir(path.dirname(path.join(projectDir, file)), { recursive: true })
+      await writeFile(path.join(projectDir, file), content)
+    }
+    const outDir = path.join(projectDir, 'dist')
+    const manifest = await buildDeployBundle({ projectDir, outDir })
+    expect(manifest.protobase).toBe(protobaseVersion)
+    expect(manifest.plugins).toEqual([{ name: 'app', path: 'plugins/app/plugin.json', api: 1, protobase: `>=${protobaseVersion}` }])
+    const code = await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')
+    expect(code).toContain('from "@protobase/config"')
+    expect(code).toContain('from "@protobase/server"')
+  }, buildTimeout)
 
   it('names the modules it shares with plugins in an import map, ahead of every module, each an entry exporting its names', async () => {
     projectDir = await createProject({ 'config/index.ts': things })

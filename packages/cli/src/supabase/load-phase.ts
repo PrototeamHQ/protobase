@@ -43,11 +43,11 @@ const checkReady = async (url: string, projectDir: string, manifest: ImportManif
   }
 }
 
-/** `protobase doctor`'s output on the config at `configDir`, or `undefined` when there is none. */
-const doctorOutput = async (url: string, configDir: string) => {
+/** `protobase doctor`'s output on the config at `configDir` of the project in `projectDir`, or `undefined` when there is none. */
+const doctorOutput = async (url: string, configDir: string, projectDir: string) => {
   if (!existsSync(path.join(configDir, 'index.ts'))) return undefined
   let text = ''
-  await runDoctor({ url, configDir }, (line) => (text += line))
+  await runDoctor({ url, configDir, projectDir }, (line) => (text += line))
   return text
 }
 
@@ -96,7 +96,7 @@ export const runLoadPhase = async (options: LoadOptions, out: (text: string) => 
 
   const target = connect(options.targetUrl)
   const providers = await providerCounts(target).finally(() => target.end())
-  await writeFile(state.report, importReport(manifest, await doctorOutput(options.targetUrl, options.configDir), jobsWired, live, providers), { mode: 0o600 })
+  await writeFile(state.report, importReport(manifest, await doctorOutput(options.targetUrl, options.configDir, options.projectDir), jobsWired, live, providers), { mode: 0o600 })
   out(`wrote ${path.relative(options.projectDir, state.report)}: what the import could not carry over\n`)
   out("next: apply the migrations with the project's migrations; Supabase's users then sign in with their own passwords\n")
 }

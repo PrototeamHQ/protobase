@@ -7,8 +7,10 @@ import react from '@vitejs/plugin-react'
 import { inRange } from '@protobase/schema/internal'
 import { build, type Plugin, type Rolldown } from 'vite'
 import { uiPackageDir } from '../project/admin-app'
+import { bundledImports } from '../project/bundled-imports'
 import { extensionImports } from '../project/extensions'
 import { sharedModules } from '../project/shared-modules'
+import { projectPackages } from '../version/project-packages'
 import { findPackageDirSync, readPackageJson, type PackageJson } from './packages/package-dir'
 import { pluginFieldTypes } from './plugin-fields'
 import { layerPluginUtilities } from './plugin-styles'
@@ -30,14 +32,20 @@ type UiPackageJson = PackageJson & { protobase?: { pluginApi?: number }; exports
 // Tailwind's stylesheets, from the copy the admin app is built with.
 const tailwindDir = path.dirname(createRequire(path.join(uiPackageDir, 'package.json')).resolve('tailwindcss/package.json'))
 
+// The @protobase/ui a plugin is built for: the CLI's own for a plugin of a bundled project, as the project's page code
+// gets it in dev; otherwise the one installed for the plugin, else for the project it extends, else the CLI's.
+const targetUiDir = (pluginDir: string, projectDir: string | undefined, bundled: boolean) => {
+  if (bundled) return uiPackageDir
+  return findPackageDirSync('@protobase/ui', pluginDir) ?? (projectDir === undefined ? undefined : findPackageDirSync('@protobase/ui', projectDir)) ?? uiPackageDir
+}
+
 /**
- * What the plugin is built for, from the @protobase/ui installed for it (else for the project it extends): its plugin
- * API, and Protobase from its version on, unless the plugin's package.json names other versions in `engines.protobase`.
- * Also that version's theme, which the plugin's stylesheet draws with, and its folder.
+ * What the plugin is built for, from its @protobase/ui (see `targetUiDir`): its plugin API, and Protobase from its
+ * version on, unless the plugin's package.json names other versions in `engines.protobase`. Also that version's theme,
+ * which the plugin's stylesheet draws with, and its folder.
  */
-const pluginTarget = async (pluginDir: string, own: UiPackageJson, projectDir: string | undefined) => {
-  const uiDir = findPackageDirSync('@protobase/ui', pluginDir) ?? (projectDir === undefined ? undefined : findPackageDirSync('@protobase/ui', projectDir))
-  if (!uiDir) throw new Error(`@protobase/ui is not installed for ${pluginDir}; add it to the plugin's dependencies, as the version it is built for`)
+const pluginTarget = async (pluginDir: string, own: UiPackageJson, projectDir: string | undefined, bundled: boolean) => {
+  const uiDir = targetUiDir(pluginDir, projectDir, bundled)
   const ui = (await readPackageJson(uiDir)) as UiPackageJson
   const api = ui.protobase?.pluginApi
   const theme = ui.exports?.['./theme.css']
@@ -115,7 +123,8 @@ export type PluginBuildInput = {
   name?: string
   /**
    * The project a plugin of `protobase build` belongs to, its own UI or an `--extend` folder's: the plugin's imports of
-   * @protobase packages resolve from it, as they do in `protobase dev`, and so does @protobase/ui when the plugin has none.
+   * @protobase packages resolve from it, as they do in `protobase dev`, and so does @protobase/ui when the plugin has
+   * none; in a bundled project they are the CLI's own.
    */
   projectDir?: string
   /** Folders inside the plugin's that are no files of it, such as the bundle being written. */
@@ -136,7 +145,8 @@ export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore 
   const own: UiPackageJson = existsSync(path.join(pluginDir, 'package.json')) ? await readPackageJson(pluginDir) : {}
   const pluginName = (name ?? own.name ?? path.basename(pluginDir)).trim()
   if (pluginName === '') throw new Error('The plugin needs a name: give its package.json a name, or pass --name')
-  const target = await pluginTarget(pluginDir, own, projectDir)
+  const bundled = projectDir !== undefined && projectPackages(projectDir).mode === 'bundled'
+  const target = await pluginTarget(pluginDir, own, projectDir, bundled)
   const styles = path.join(pluginDir, 'protobase-plugin.css')
 
   // React's production build and JSX runtime, whatever NODE_ENV says (see buildShell).
@@ -151,6 +161,7 @@ export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore 
     logLevel: 'warn',
     plugins: [
       pluginImports(),
+      ...(bundled ? [bundledImports([projectDir!, pluginDir])] : []),
       ...(projectDir === undefined ? [] : [extensionImports(projectDir, [{ dir: pluginDir }])]),
       pluginStyles(styles, styleCode(pluginDir, target.theme, [outDir, ...ignore])),
       react(),
@@ -180,7 +191,7 @@ export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore 
   const module = output.find((file) => file.type === 'chunk' && file.isEntry && file.facadeModuleId === entry)
   const css = output.find((file) => file.type === 'asset' && file.fileName.endsWith('.css'))
   if (!module || !css) throw new Error('The plugin build wrote no module or no stylesheet')
-  const fields = await pluginFieldTypes({ pluginDir, entry, uiDir: target.uiDir, projectDir })
+  const fields = await pluginFieldTypes({ pluginDir, entry, uiDir: target.uiDir, projectDir, bundled })
   const manifest: PluginManifest = {
     name: pluginName,
     ...(own.version && { version: own.version }),

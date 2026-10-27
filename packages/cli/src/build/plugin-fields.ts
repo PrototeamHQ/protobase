@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { Plugin } from 'vite'
+import { bundledImports } from '../project/bundled-imports'
 import { extensionImports } from '../project/extensions'
 import { sharedModules } from '../project/shared-modules'
 import { viteBundle } from './vite-bundle'
@@ -42,15 +43,33 @@ const isStorageTypes = (value: unknown): value is string[] => Array.isArray(valu
 /**
  * The field types a plugin registers (`definePlugin({ fields })`), each with the storage types it shows (`of`), which
  * the server checks the views against at startup. The plugin's module is loaded once in Node, everything bundled into
- * a scratch file, as `protobase build` loads a project's UI to check its names; nothing is rendered.
+ * a scratch file, as `protobase build` loads a project's UI to check its names; nothing is rendered. A plugin of a
+ * bundled project imports the CLI's @protobase packages, as its build does.
  */
-export const pluginFieldTypes = async ({ pluginDir, entry, uiDir, projectDir }: { pluginDir: string; entry: string; uiDir: string; projectDir?: string }): Promise<Record<string, string[]>> => {
+export const pluginFieldTypes = async ({
+  pluginDir,
+  entry,
+  uiDir,
+  projectDir,
+  bundled = false,
+}: {
+  pluginDir: string
+  entry: string
+  uiDir: string
+  projectDir?: string
+  bundled?: boolean
+}): Promise<Record<string, string[]>> => {
   const file = path.join(pluginDir, 'protobase-plugin-fields.js')
   const scratch = await mkdtemp(path.join(tmpdir(), 'protobase-plugin-fields-'))
   // .mjs: a scratch folder has no package.json saying its .js files are ES modules
   const outFile = path.join(scratch, 'fields.mjs')
   try {
-    const plugins = [fieldsEntry(file, fieldsCode(entry)), sharedFromUi(uiDir), ...(projectDir === undefined ? [] : [extensionImports(projectDir, [{ dir: pluginDir }])])]
+    const plugins = [
+      fieldsEntry(file, fieldsCode(entry)),
+      sharedFromUi(uiDir),
+      ...(bundled && projectDir !== undefined ? [bundledImports([projectDir, pluginDir])] : []),
+      ...(projectDir === undefined ? [] : [extensionImports(projectDir, [{ dir: pluginDir }])]),
+    ]
     await viteBundle({ root: pluginDir, entry: file, outFile, plugins, logLevel: 'error' })
     const fields = (await import(pathToFileURL(outFile).href)).default as Record<string, unknown>
     const wrong = Object.entries(fields).find(([, of]) => !isStorageTypes(of))

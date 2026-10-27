@@ -6,11 +6,12 @@ import { importProjectFiles } from './import-project-file'
 
 /**
  * The resources, views and pages of a config folder, as the config module has them by convention: config/index.ts and
- * every config/<dir>/ui.ts. Only those files and what they import run, not protobase.config.ts, which may need secrets.
+ * every config/<dir>/ui.ts, of the project in `projectDir`. Only those files and what they import run, not
+ * protobase.config.ts, which may need secrets.
  */
-export const loadDataConfig = async (configDir: string) => {
+export const loadDataConfig = async (configDir: string, projectDir: string) => {
   const dirs = uiDirs(configDir)
-  const [index, ...ui] = await importProjectFiles([path.join(configDir, 'index.ts'), ...dirs.map((dir) => path.join(configDir, dir, 'ui.ts'))])
+  const [index, ...ui] = await importProjectFiles([path.join(configDir, 'index.ts'), ...dirs.map((dir) => path.join(configDir, dir, 'ui.ts'))], projectDir)
   const config = conventionConfig(index!, dirs.map((dir, i): [string, Record<string, unknown>] => [dir, ui[i]!]))
   const { resources, views, pages } = configExports(config)
   return {

@@ -276,7 +276,7 @@ A host that keeps the shells of its releases can serve the shell of a newer one 
 
 A plugin is built for one plugin API and a range of Protobase versions, both written by `build-plugin` into `plugin.json`:
 
-- `api` is the plugin API of the `@protobase/ui` installed for the plugin.
+- `api` is the plugin API of the `@protobase/ui` installed for the plugin, else the CLI's own (always the CLI's for the UI of a bundled project).
 - `protobase` is `>=` that `@protobase/ui`'s version: the plugin may use anything that version has. To run on older releases too, name the range in the plugin's `package.json`:
 
   ```json

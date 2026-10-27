@@ -11,6 +11,6 @@ import { loadDataConfig } from '../project/load-data-config'
 export const checkViews = async (projectDir: string) => {
   const configDir = path.join(projectDir, 'config')
   if (!existsSync(path.join(configDir, 'index.ts'))) return
-  const { models, views } = await loadDataConfig(configDir)
+  const { models, views } = await loadDataConfig(configDir, projectDir)
   checkViewQueries(models, views)
 }

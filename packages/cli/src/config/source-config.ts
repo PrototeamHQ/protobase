@@ -11,7 +11,7 @@ export type SourceConfigOptions = {
   command: ConfigCommand
   /** Extensions merged in before the project (`--extend`). */
   extensions?: Extension[]
-  /** How the project's files load; default Bun itself, or Vite's module runner on Node. */
+  /** How the project's files load; default `importProjectFiles`. */
   importModules?: ImportModules
 }
 
@@ -20,7 +20,7 @@ export type SourceConfigOptions = {
  * extensions' configs, with the code each folder's conventions find. Only the config files run here; that code loads
  * when a command asks for it.
  */
-export const loadSourceConfig = async (dir: string, { command, extensions = [], importModules = importProjectFiles }: SourceConfigOptions) => {
+export const loadSourceConfig = async (dir: string, { command, extensions = [], importModules = (files) => importProjectFiles(files, dir) }: SourceConfigOptions) => {
   const configEnv = { command, env: process.env, root: dir }
   const extended = []
   for (const extension of extensions) {

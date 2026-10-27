@@ -12,6 +12,7 @@ import { readShapes } from './read-shapes'
 export type DoctorOptions = {
   url: string
   configDir: string
+  projectDir: string
 }
 
 const format = (issue: Issue) =>
@@ -21,7 +22,7 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
   if (!existsSync(path.join(options.configDir, 'index.ts'))) {
     throw new Error(`No config in ${options.configDir}: write it with \`protobase scaffold\`, or pass --config <dir>`)
   }
-  const config = await loadDataConfig(options.configDir)
+  const config = await loadDataConfig(options.configDir, options.projectDir)
   const { models } = config
   if (models.length === 0) throw new Error(`No resources exported from ${options.configDir}/index.ts`)
   const sql = connect(options.url)
