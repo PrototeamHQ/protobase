@@ -2,7 +2,7 @@
 
 # Supabase Realtime
 
-The Realtime-compatible /api/sb/realtime/v1 that supabase-js's channel() joins, for postgres_changes checked under the subscriber's RLS policies, broadcasts and presence, on public and private channels.
+The Realtime-compatible /api/sb/realtime/v1 that supabase-js's channel() joins, for postgres_changes checked under the subscriber's RLS policies, broadcasts and presence, on public and private channels, and broadcasts from the database.
 
 An app with API keys also serves `/api/sb/realtime/v1/websocket`, the socket that supabase-js's `channel()` joins. An app moved from Supabase keeps its `postgres_changes` listeners, broadcasts and presence: point the client at the app's `/api/sb` and give it the publishable key.
 
@@ -60,6 +60,30 @@ await supabase.removeChannel(room)
 
 `POST /api/sb/realtime/v1/api/broadcast` takes Supabase's batch, `{ "messages": [{ "topic": "room", "event": "cursor", "payload": { "x": 1 }, "private": false }] }`, of at most 100 messages, each with an object payload. `httpSend()` sends one message to `POST /api/sb/realtime/v1/api/broadcast/<topic>/events/<event>`, `?private=true` for a private one, with a JSON object or, as `application/octet-stream`, binary bytes. A message reaches the channels joined on its topic in this process, under a broadcast's limits: a body is at most 256 KiB, a topic and an event at most 255 bytes each, and a request that would take a topic over its 100 broadcasts a second is refused with `429` and reaches no one. A public message reaches the topic's public channels; a private one reaches only its private channels that may receive broadcasts, and only when the caller may send broadcasts there by the [policies on `realtime.messages`](#private-channels): a batch drops one it may not send, as Supabase does, and `httpSend()` is refused with `403`. <gap>A policy cannot read a broadcast request's headers in `request.headers` because passing them to the checks is not implemented.</gap>
 
+### Broadcast from the database
+
+SQL and triggers broadcast with Supabase's `realtime.send(payload, event, topic, private)` and `realtime.broadcast_changes(topic, event, operation, table, schema, new, old)`, which [`import supabase`](cli.md#import-supabase) makes in the project's database. A trigger as Supabase's docs write one keeps working:
+
+```sql
+create function public.todos_broadcast() returns trigger security definer language plpgsql as $$
+begin
+  perform realtime.broadcast_changes('todos:' || coalesce(new.list_id, old.list_id), tg_op, tg_op, tg_table_name, tg_table_schema, new, old);
+  return null;
+end
+$$;
+
+create trigger todos_broadcast after insert or update or delete on public.todos for each row execute function public.todos_broadcast();
+```
+
+```ts
+supabase
+  .channel('todos:42', { config: { private: true } })
+  .on('broadcast', { event: 'INSERT' }, ({ payload }) => console.log(payload.record))
+  .subscribe()
+```
+
+Each call inserts a message into `realtime.messages` in the caller's transaction, as on Supabase, so a transaction rolled back sends nothing. Within a second of its commit, the server takes the message out of the table and sends it to the channels joined on its topic, in the order the transaction sent them, with the message's id in the payload's `id` and in the broadcast's `meta.id`. `broadcast_changes()` sends `{ operation, table, schema, record, old_record }`, `record` and `old_record` each the whole row or `null`. `private` is `true` unless the call says `false`, as on Supabase: a private message reaches only the topic's private channels whose [policies](#private-channels) let them receive broadcasts, and a public one only its public channels. A message goes under the topic's 100 broadcasts a second, and one whose topic or event is over 255 bytes or whose payload is over 256 KiB is dropped. The server reads the table while one of its sockets is open, and a message no channel hears is dropped, as on Supabase. A call as a role the policies on `realtime.messages` do not let insert sends nothing and raises a warning, as Supabase's does, so a trigger function that sends for its callers is `security definer`. <gap>Messages sent while no socket is open stay in `realtime.messages` until one opens, because nothing else prunes the table.</gap> <gap>A project that was not imported cannot call `realtime.send()` without making Supabase's functions in a migration of its own, because Protobase's migrations do not make them.</gap>
+
 ## Private channels
 
 A channel joined with `private: true` is authorized as Supabase Realtime Authorization does it: by the row security policies on `realtime.messages`, which say who may receive and who may send each extension's messages, `broadcast` or `presence`, and `realtime.topic()`, the channel's topic without its `realtime:` prefix:
@@ -92,7 +116,7 @@ grant usage on schema realtime to anon, authenticated;
 grant select, insert on realtime.messages to anon, authenticated;
 ```
 
-Each check inserts its messages in a transaction it rolls back, so the table stays empty: the app's database role must own it, or bypass row security, to insert the message a join checks. Without `realtime.messages`, every private channel is refused.
+Each check inserts its messages in a transaction it rolls back, so they stay out of the table: the app's database role must own it, or bypass row security, to insert the message a join checks and to take out the messages the database broadcasts. Without `realtime.messages`, every private channel is refused.
 
 ## What a subscriber receives
 

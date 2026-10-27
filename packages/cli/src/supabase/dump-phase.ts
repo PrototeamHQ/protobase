@@ -103,8 +103,9 @@ const pattern = (name: string) => `"${name.replaceAll('"', '""')}"`
 /**
  * The import's first run: dumps the Supabase database's schemas and data as of one snapshot, writes the schema as
  * the project's next migration, with the extensions the project's database can create, and the columns Better Auth
- * needs on auth.users as the one after, then `realtime.messages` with its policies, which authorize private Realtime
- * channels, when the source has any, points the app's Better Auth setup at auth.users in place of the user table the
+ * needs on auth.users as the one after, then the realtime schema: `realtime.send()` and `realtime.broadcast_changes()`,
+ * which broadcast from the database, and `realtime.messages` with its policies, which authorize private Realtime
+ * channels, points the app's Better Auth setup at auth.users in place of the user table the
  * project's auth migrations make, removing them, and keeps the data dump, the replay of Vault's secrets, pgmq's
  * queues and pg_cron's jobs and what the report needs in `supabase-import/` for the run that loads it, once the
  * project's migrations are applied.
@@ -126,8 +127,8 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     const snapshot = exported!.snapshot
     refuseSsoUsers(await ssoUserCount((text) => reserved.unsafe(text)))
     const { manifest: source, plan, realtimePolicies: policies, replay } = await readSource(reserved, options.targetUrl)
-    // realtime.messages comes over only with policies to keep: without them, no private channel may join anyway.
-    const created = await checkTarget(options.targetUrl, policies.length > 0 ? [...source.schemas, 'realtime'] : source.schemas, source.tables)
+    // The realtime schema always comes over, for the triggers and SQL that broadcast from the database.
+    const created = await checkTarget(options.targetUrl, [...source.schemas, 'realtime'], source.tables)
     if (created.length > 0) out(`created the roles ${created.join(', ')} in the project's database\n`)
 
     await state.prepare()
@@ -143,7 +144,7 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     await mkdir(options.migrationsDir, { recursive: true })
     const file = await writeMigration(options.migrationsDir, 'supabase_schema', migration.text)
     const usersFile = await writeMigration(options.migrationsDir, 'supabase_users', usersColumnsMigration())
-    const realtimeFile = policies.length > 0 ? await writeMigration(options.migrationsDir, 'supabase_realtime', realtimeMigration(policies)) : undefined
+    const realtimeFile = await writeMigration(options.migrationsDir, 'supabase_realtime', realtimeMigration(policies))
     await authConfig.write()
     for (const store of storeMigrations) await rm(path.join(options.migrationsDir, store))
     const packages = await writeFunctions(options.projectDir, functions)
@@ -151,7 +152,7 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     const relative = (to: string) => path.relative(options.projectDir, to)
     out(`wrote ${relative(path.join(options.migrationsDir, file))}, the schemas ${source.schemas.join(', ')}\n`)
     out(`wrote ${relative(path.join(options.migrationsDir, usersFile))}, the columns Better Auth needs on auth.users, and pointed ${relative(authConfig.file)} at it\n`)
-    if (realtimeFile) out(`wrote ${relative(path.join(options.migrationsDir, realtimeFile))}, realtime.messages with its ${policies.length} policies, which authorize private Realtime channels\n`)
+    out(`wrote ${relative(path.join(options.migrationsDir, realtimeFile))}, realtime.send() and realtime.broadcast_changes(), which broadcast from the database, and realtime.messages with its ${policies.length} policies, which authorize private Realtime channels\n`)
     for (const store of storeMigrations) out(`removed ${relative(path.join(options.migrationsDir, store))}: auth.users replaces Protobase's own user table it made\n`)
     if (functions.functions.length > 0) out(`converted ${functions.functions.length} Edge Functions into functions/${packages.length > 0 ? `, adding ${packages.length} packages to package.json: install them` : ''}\n`)
     out(`dumped ${source.tables.length} tables' data into ${path.relative(options.projectDir, state.data)}, which git ignores\n`)

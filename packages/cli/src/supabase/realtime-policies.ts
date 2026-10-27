@@ -1,3 +1,4 @@
+import { realtimeSchemaSql } from './realtime-schema'
 import { isSupabaseRole } from './rewrite'
 
 /** A row security policy on Supabase's `realtime.messages`, its expressions with every name schema-qualified. */
@@ -29,28 +30,6 @@ export const realtimePolicies = async (query: Query) => {
 
 const quoted = (name: string) => `"${name.replaceAll('"', '""')}"`
 
-// The columns of Supabase's realtime.messages, which policies may read, unpartitioned: Protobase inserts its probe
-// messages only in transactions it rolls back.
-const schema = `create schema realtime;
-
-create table realtime.messages (
-  topic text not null,
-  extension text not null,
-  payload jsonb,
-  event text,
-  private boolean,
-  updated_at timestamp without time zone not null default now(),
-  inserted_at timestamp without time zone not null default now(),
-  id uuid not null default gen_random_uuid() primary key
-);
-
-create function realtime.topic() returns text language sql stable as $$ select nullif(current_setting('realtime.topic', true), '')::text $$;
-
-alter table realtime.messages enable row level security;
-grant usage on schema realtime to anon, authenticated, service_role;
-grant select, insert, update, delete on realtime.messages to anon, authenticated, service_role;
-`
-
 const policySql = (policy: RealtimePolicy) => {
   const roles = policy.roles.filter((role) => !isSupabaseRole(role))
   // JSON's quoting keeps a name with a line break inside the comment.
@@ -65,15 +44,17 @@ const policySql = (policy: RealtimePolicy) => {
 }
 
 /**
- * The migration that makes Supabase's `realtime.messages` and `realtime.topic()` with the source's policies on it, which
- * decide who may join, hear and send on a private channel of `/api/sb/realtime/v1`. The role that applies it owns the
- * table; the server's probes need the app's database role to own it or to bypass row security.
+ * The migration that makes Supabase's `realtime` schema (`realtimeSchemaSql`) with the source's policies on
+ * `realtime.messages`, which decide who may join, hear and send on a private channel of `/api/sb/realtime/v1`. The
+ * role that applies it owns the table; the server's probes, and its reads of the messages the database broadcasts,
+ * need the app's database role to own it or to bypass row security.
  */
 export const realtimeMigration = (policies: readonly RealtimePolicy[]) =>
   [
     '-- realtime.messages of a Supabase database with its row security policies, which authorize private Realtime\n',
-    '-- channels, written by `protobase import supabase`.\n\n',
-    schema,
+    '-- channels, and realtime.send() and realtime.broadcast_changes(), which broadcast from the database, written by\n',
+    '-- `protobase import supabase`.\n\n',
+    realtimeSchemaSql,
     '\n',
     ...policies.map(policySql),
   ].join('')
