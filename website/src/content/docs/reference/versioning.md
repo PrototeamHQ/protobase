@@ -1,6 +1,6 @@
 ---
 title: Versioning
-description: How Protobase is versioned and released, the commit convention behind it, and which bundles a serve runtime runs.
+description: How Protobase is versioned and released, the commit convention behind it, bundled and locked projects, and which bundles a serve runtime runs.
 ---
 
 Protobase follows [semantic versioning](https://semver.org). Every push to `main` that holds a fix, a feature or a breaking change is released: the pushed commit is tagged `v<version>`, and a [GitHub release](https://github.com/PrototeamHQ/protobase/releases) of that tag holds the release's changes. Every `@protobase` package is then published to npm at that version. A release adds no commit to `main`: a release's version is its tag, not a `package.json` field, so the version in the repository's `package.json` files is not bumped. `CHANGELOG.md` lists only the releases from before releases stopped committing.
@@ -53,6 +53,21 @@ When `main` moved on while the checks ran, the run of the newer push releases bo
 
 Running the workflow by hand with a tag (`gh workflow run release.yml -f tag=v0.1.0`) only publishes: the packages at that tag and its version, skipping every version npm already has, and the images, which repeats a missed or half-done publish. `node scripts/publish.mjs --dry-run` packs the packages and shows what `npm publish` would send, and `node scripts/publish.mjs --pack`, which CI runs, packs every package without asking npm or publishing. Each package on npm trusts `release.yml` of `PrototeamHQ/protobase` as its publisher; a new package has to be published once by hand before that can be set up. The workflow pushes the images with its own token; a new image on GitHub's registry starts out private and is made public once in its package settings.
 
+## Bundled and locked projects
+
+Where a project's `package.json` lists the `@protobase` packages decides whose copies dev, the build and its scripts use:
+
+| `package.json` | Mode | Copies used by `dev`, `build` and `protobase run` | The bundle's `protobase` |
+| --- | --- | --- | --- |
+| `@protobase/*` in `devDependencies` | bundled (what the presets write) | the CLI's own | the CLI's version |
+| `@protobase/*` in `dependencies` | locked | the project's installed copies | the installed version |
+| no `@protobase/*`, or no `package.json` | bundled | the CLI's own | the CLI's version |
+
+- **Bundled.** Nothing of Protobase has to be installed: a `protobase.config.ts` alone is a project. The CLI that runs, installed globally or as the project's dev dependency, supplies every `@protobase` package and every package the serve runtime supplies to a bundle (`kysely`, `pg`, `react`, ...), whatever the project installed: to `dev`'s API and page, to the build, to [`protobase run`](/reference/cli/#run) and, through [`protobase types`](/reference/cli/#types), to the editor. Installing a newer CLI that the specifier holds updates the app with no change to its files or lockfile: dev and the next build use it, and the bundle names its version. `@types/react` and `@types/node` stay the project's own dev dependencies, since the CLI carries no types for them.
+- **Locked.** Move every `@protobase` package to `dependencies` at one exact version, and install. Dev, the build and scripts use the installed copies, and the bundle names that version, so a host serves exactly it. A CLI installed elsewhere hands a locked project over to the `@protobase/cli` it installed (see [CLI](/reference/cli/)). The version moves only when the specifier and the lockfile do.
+
+Packages the runtime supplies, such as React, may be listed for their types, in either mode: in a bundle the runtime's copy runs, whichever the project installed. `dependencies` holds the packages the project's own code uses at runtime.
+
 ## Bundles and runtimes
 
 The CLI makes one version check, when it starts. The project's `package.json` lists its `@protobase` packages at one version specifier, the same for every one of them, and semver must say the CLI's version satisfies it. A `^0.14.0` project runs on a 0.14.2 CLI and is refused by a 0.15.0 or a 1.2.0 one before any command runs:
@@ -61,9 +76,9 @@ The CLI makes one version check, when it starts. The project's `package.json` li
 error: This project asks for Protobase ^0.14.0, and this CLI is Protobase 0.15.0: run it with a CLI whose version ^0.14.0 holds
 ```
 
-The copies installed for the project must also be ones the CLI runs: its version in their caret range, which from 1.0 on is the same major and below 1.0, where a minor may break, the same minor, never older. A specifier that is no range, such as `workspace:*`, says no version, so only the installed copies are checked. A project that lists no `@protobase` package, or has no `package.json`, has nothing to check.
+In a locked project the installed copies must also be ones the CLI runs: its version in their caret range, which from 1.0 on is the same major and below 1.0, where a minor may break, the same minor, never older. A specifier that is no range, such as `workspace:*`, says no version, so the installed copies are checked instead. A project that lists no `@protobase` package, or has no `package.json`, has nothing to check.
 
-Within its caret range the CLI stays backwards compatible, so a platform builds every app with the newest CLI in the caret range of the app's version. Nothing else compares versions: not the build, not the serve runtime. `protobase build` writes the version of the copies it used into [the manifest](/reference/cli/#the-manifest) as `protobase`: the building CLI's own in a bundled project, the `@protobase` packages its lockfile installed in a locked one, and a host serves the bundle on the runtime of that version. The check is `checkProjectVersion` in `packages/cli/src/version/project-version.ts`.
+Nothing else compares versions: not the build, not the serve runtime. `protobase build` writes the version of the copies it used into [the manifest](/reference/cli/#the-manifest) as `protobase`: the building CLI's own in a bundled project, the `@protobase` packages its lockfile installed in a locked one, and a host serves the bundle on the runtime of that version. The check is `checkProjectVersion` in `packages/cli/src/version/project-version.ts`.
 
 ## Plugins
 

@@ -119,13 +119,16 @@ An update outside the specifier is a change to the specifier, made by hand, by a
 | Part | Today | Planned |
 | --- | --- | --- |
 | Semver comparisons | Built: the startup check, plugin ranges, shell versions, release tags and preset ranges use the `semver` library. | |
-| Startup check | Reads the version of the `@protobase` packages installed in the project (`packages/cli/src/version/project-version.ts`). | Read the specifier from package.json, and check that all `@protobase` packages carry the same one. |
-| devDependencies vs dependencies | Not distinguished: any listing counts as the project's. | Bundled for `devDependencies`, locked for `dependencies`. |
-| Dev in its own process | Built (`packages/cli/src/dev/server-package.ts`): the project's server when package.json lists it in any field, the CLI's otherwise or without package.json. | The project's server only when locked. |
-| Build without an install | Refused: the build needs installed `@protobase` packages (`packages/cli/src/build/deploy-bundle.ts`), and the UI plugin needs an installed `@protobase/ui` (`packages/cli/src/build/plugin-build.ts`). | Fall back to the CLI's version and its `@protobase/ui`. |
-| `manifest.protobase` | The installed version. | The version of the copies the mode selects. |
-| `.protobase/tsconfig.json` | Not built. | Written by the CLI. |
-| Templates | `@protobase/*`, `@protobase/config` included, in `dependencies` at the caret range of the release (`packages/presets`, written from `tests/apps`). | In `devDependencies`, and bumped by a GitHub Action. |
+| Startup check | Built (`packages/cli/src/version/project-version.ts`): the CLI's version must satisfy the specifier package.json lists every `@protobase` package at, the same for all of them; a locked project's installed copies must also be in the caret range of the CLI's version. | |
+| devDependencies vs dependencies | Built (`packages/cli/src/version/project-packages.ts`): bundled for `devDependencies` or no listing, locked for `dependencies`. | |
+| Dev in its own process | Built (`packages/cli/src/dev/server-package.ts`): the project's server only when locked; a bundled project's files, API and page get the CLI's copies (`packages/cli/src/project/bundled-imports.ts`). | |
+| Build without an install | Built: a bundled project's files load with the CLI's copies, and its UI plugin builds against the CLI's `@protobase/ui` (`packages/cli/src/build/plugin-build.ts`). A locked project still needs its install. | |
+| `manifest.protobase` | Built: the version of the copies the mode selects (`bundleProtobaseVersion`). | |
+| `.protobase/tsconfig.json` | Built: `protobase types` writes it, and so do `dev` and `build` (`packages/cli/src/project/project-types.ts`). | |
+| Scripts | Built: `protobase run <file>` runs a script under Bun, with a bundled project's imports preloaded from the CLI (`packages/cli/src/run`). | Tests: vitest does not reach the CLI's copies yet. |
+| Hand-over | Built: a CLI hands a locked project over to the `@protobase/cli` it installed (`packages/cli/src/hand-over.ts`). | `@protobase/cli/runner` does not hand over. |
+| `protobase-dev` image | Built: the release's CLI installed globally, in `/opt/protobase/cli`. | |
+| Templates | Built: `@protobase/*` in `devDependencies` at the caret range of the release, `tsconfig.json` extending `.protobase/tsconfig.json`, scripts through `protobase run` (`packages/presets`, written from `tests/apps`, whose examples stay locked to the workspace). | Bumped by a GitHub Action in each template repository. |
 | Cloud build | Runs the CLI of the release the app's lockfile pins, in that release's job image, built first when the host has none. | The newest CLI of the app's major, in the newest `protobase-dev` image. |
 | Cloud runtime | Built: exactly the release the lockfile pins, as `manifest.protobase` names it. | Unchanged. |
 | Cloud lockfile and updates | Built: only the update job moves the lockfile, pre-flight then switch. New apps' policy is `immediate`. | Unchanged. |
@@ -133,6 +136,5 @@ An update outside the specifier is a change to the specifier, made by hand, by a
 
 ### Open questions for the implementation tasks
 
-- How scripts and tests (seeds, migrations, vitest) reach the CLI's copies in a bundled project. The scout found that a Bun preload registering them as virtual modules works.
-- Whether a global CLI hands over to a locked project's installed `@protobase/cli`.
+- How tests (vitest) reach the CLI's copies in a bundled project with nothing installed. Scripts do, through `protobase run`.
 - Where Cloud gets the newest CLI of a major: jobs run the job image of one exact release, and the images carry only exact version tags.

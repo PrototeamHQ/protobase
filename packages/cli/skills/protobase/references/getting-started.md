@@ -10,7 +10,7 @@ An app's own React code, its components, field types and actions, is a [plugin](
 
 ## Start an app
 
-`npm create protobase my-app` asks which preset to start from, scratch (the default), the ERP or real estate, writes the project into `my-app`, with the `@protobase` packages in the range of the latest release's major, and prints the next steps. Without a folder it asks for one too. `--preset <name>` picks the preset without asking; without a terminal it takes scratch. `bun create protobase` and `pnpm create protobase` do the same, and take `--preset` without the `--` that npm needs. It needs Node 22.12 or later. Each preset has an `AGENTS.md` with the rules for a coding agent that changes the app, such as a new migration file for every schema change.
+`npm create protobase my-app` asks which preset to start from, scratch (the default), the ERP or real estate, writes the project into `my-app`, with the `@protobase` packages in `devDependencies` at the caret range of the latest release, so it is [bundled](reference/versioning.md#bundled-and-locked-projects): dev, the build and its scripts run the CLI's own copies, and a newer CLI in that range updates it with no change to its files. It prints the next steps. Without a folder it asks for one too. `--preset <name>` picks the preset without asking; without a terminal it takes scratch. `bun create protobase` and `pnpm create protobase` do the same, and take `--preset` without the `--` that npm needs. It needs Node 22.12 or later. Each preset has an `AGENTS.md` with the rules for a coding agent that changes the app, such as a new migration file for every schema change.
 
 ```sh
 npm create protobase my-app

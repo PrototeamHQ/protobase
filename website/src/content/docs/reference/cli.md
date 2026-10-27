@@ -3,15 +3,18 @@ title: CLI
 description: Every protobase command, from scaffold, doctor, dev, build, build-plugin, build-serve and serve to users, organizations, token and skill.
 ---
 
-The `protobase` command comes with `@protobase/cli`. Install it in a project next to the packages its config imports:
+The `protobase` command comes with `@protobase/cli`. Install it globally, or in a project next to the packages its config imports:
 
 ```sh
-bun add @protobase/cli @protobase/schema @protobase/layout @protobase/server @protobase/ui
-bun run protobase <command>                     # from the project, config folder defaults to ./config
-bun run --cwd tests/apps/erp protobase <command>  # in this repository, for an example
+bun add --global @protobase/cli                    # the protobase command for every bundled project
+bun add --dev @protobase/cli @protobase/config @protobase/schema @protobase/layout @protobase/server @protobase/ui
+bun run protobase <command>                        # from the project, config folder defaults to ./config
+bun run --cwd tests/apps/erp protobase <command>   # in this repository, for an example
 ```
 
-Any package manager installs the packages, and the command runs on Node or on Bun: `npm install` and `npx protobase <command>` work the same. The bin starts with `#!/usr/bin/env node`, so where Node is installed `bun run protobase` starts it on Node, unless the project's `bunfig.toml` sets `[run] bun = true`, as the presets' does. `protobase --version` (or `-v`) prints the Protobase version. Before any command runs, the CLI checks that the version specifier the current directory's `package.json` lists the `@protobase` packages at holds its own version, and stops with an error naming both when it does not (see [Versioning](/reference/versioning/#bundles-and-runtimes)). That is the CLI's one version check. Outside a project, or in one that lists no `@protobase` package, there is nothing to check. In a locked project that has its own `@protobase/cli` installed, a CLI installed elsewhere, globally, in CI or in an image, hands the command over to that one before anything else, with a line on stderr naming its version, so the project runs on the version it is locked to.
+Listed in `devDependencies`, as the presets list them, or not at all, the packages make the project bundled: whichever CLI runs supplies them, so a global CLI runs a project with nothing installed. Listed in `dependencies`, they lock it to the installed copies. See [Bundled and locked projects](/reference/versioning/#bundled-and-locked-projects).
+
+Any package manager installs it, and the command runs on Node or on Bun: `npm install` and `npx protobase <command>` work the same. The bin starts with `#!/usr/bin/env node`, so where Node is installed `bun run protobase` starts it on Node, unless the project's `bunfig.toml` sets `[run] bun = true`, as the presets' does. `protobase --version` (or `-v`) prints the Protobase version. Before any command runs, the CLI checks that the version specifier the current directory's `package.json` lists the `@protobase` packages at holds its own version, and stops with an error naming both when it does not (see [Versioning](/reference/versioning/#bundles-and-runtimes)). That is the CLI's one version check. Outside a project, or in one that lists no `@protobase` package, there is nothing to check. In a locked project that has its own `@protobase/cli` installed, a CLI installed elsewhere, globally, in CI or in an image, hands the command over to that one before anything else, with a line on stderr naming its version, so the project runs on the version it is locked to.
 
 ## How it runs
 
