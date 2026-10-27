@@ -119,6 +119,8 @@ export { listResourcesTool, listRecordsTool, getRecordTool, readRecordTools } fr
 export { createRecordTool, updateRecordTool, writeRecordTools, type WriteRecordToolsInput } from './assistant/write-record-tools'
 export { deleteRecordTool } from './assistant/delete-record-tool'
 export { batchWriteTool } from './assistant/batch-write-tool'
+export { listCommentsTool, addCommentTool, commentTools, type CommentToolsInput } from './assistant/comment-tools'
+export type { ToolComments, ToolComment, ToolCommentPage } from './comments/tool-comment-types'
 export type { BatchOperation } from './batch/schema'
 export type { BatchResult } from './batch/run-batch'
 export { mcpServer, type McpServerInput } from './mcp/mcp-server'

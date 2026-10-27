@@ -98,3 +98,14 @@ export const deleteApproval = (text: WriteTexts, described: Described, key: Reco
   approveLabel: restorable ? text.delete : text.deleteForGood,
   rejectLabel: text.reject,
 })
+
+// A comment keeps its lines, but nothing that could hide or reorder text
+const hiddenInComment = /[\p{Cf}\p{Zl}\p{Zp}]|[^\P{Cc}\n]/gu
+
+/** `Comment on Task #42 "Fix the sign-in lockout"?`, with the whole comment, as it will be posted. */
+export const commentApproval = (text: WriteTexts, described: Described, key: RecordKeyInput, current: Row, comment: string): ApprovalRequest => ({
+  title: text.commentTitle(recordName(described, key, current)),
+  body: comment.trim().replace(hiddenInComment, ' '),
+  approveLabel: text.comment,
+  rejectLabel: text.reject,
+})

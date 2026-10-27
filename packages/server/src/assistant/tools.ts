@@ -1,5 +1,6 @@
 import type { AssistantPart, ResourceModel, ViewModel } from '@protobase/schema'
 import type { Locale } from '@protobase/schema/internal'
+import type { ToolComments } from '../comments/tool-comment-types'
 import type { Session } from '../types'
 import type { ApprovalAnswer, ApprovalRequest } from './approval'
 import type { Conversation } from './conversations'
@@ -22,6 +23,8 @@ export type ToolContext = {
   records: ToolRecords
   /** The resources the caller may read, each restricted to their fields, with their views. */
   resources: () => Promise<ReadableResources>
+  /** Records' comments as the session's user, which the MCP endpoint gives its tools; absent elsewhere. */
+  comments?: ToolComments
 }
 
 /** MCP's tool hints, which an MCP client may show or act on; the dock ignores them. */

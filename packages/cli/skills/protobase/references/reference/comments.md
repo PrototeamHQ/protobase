@@ -56,6 +56,8 @@ Whoever may read the record may read its comments and add one: the same tenant, 
 
 `GET /api/v1/{resource}/{key}:comments` reads them newest first, `POST` to the same path adds one, and `GET /api/v1/{resource}/{key}:mentionable?q=` lists whom a comment may mention. See [REST API](api.md#record-comments).
 
+An AI client reads and adds them over the app's [MCP endpoint](mcp.md#comments), with `list_comments` and `add_comment`, under the same rules.
+
 ## Moderation
 
 Once a resource takes comments, admins get **Comments** (the built-in resource `record_comments`): every comment of every resource, newest first, filterable by resource, record, author and time. Only the `admin` role reads it, whatever the project's roles say; deleting a comment there is how a wrong or abusive one goes. When a resource with comments has a [tenant](data-config.md#resource), the list is scoped to the caller's tenant.

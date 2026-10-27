@@ -2,7 +2,7 @@
 
 # MCP
 
-The app's MCP endpoint, through which a person's AI client lists resources, finds and reads records, and, when turned on, creates and updates them with that person's access and approval.
+The app's MCP endpoint, through which a person's AI client lists resources, finds and reads records and their comments, and, when turned on, creates and updates them with that person's access and approval.
 
 An app can serve an MCP endpoint: a person adds its address to an AI client that speaks MCP, such as a chat assistant or a code editor, signs in on the app and allows the client. The client then works with that person's access: it lists the resources and fields they may read, finds records with the API's filters, sorting and pages, and reads one record.
 
@@ -42,6 +42,17 @@ Each tool reads as the signed-in person: their role's access rules, row filters,
 `show_deleted` works as the [REST API](api.md#routes)'s: it applies only to a resource with a soft delete, and is refused on any other. Soft-deleted records come under the same access rules, tenant and hidden fields as the rest, and carry the field their deletion set.
 
 A refusal, such as a resource the person may not read or a bad filter, comes back to the client as text it can act on, `{ "error": ..., "message": ... }`.
+
+### Comments
+
+When a resource takes [comments](comments.md), the endpoint also offers `list_comments`, and with [writes](#writes) on, `add_comment`. They go through the same service as the REST API's comments, as the person: whoever may read a record may read its comments and add one, and everyone else gets the same refusal as from `GET` or `POST /api/v1/{resource}/{key}:comments`. An app without a resource with comments offers neither.
+
+| Tool | What it does |
+| --- | --- |
+| `list_comments` | A page of a record's comments, newest first, each as `{ author, created_at, text }`, the author's `name` beside their `id` when the app's auth knows it. `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page. |
+| `add_comment` | Adds `text` as the person's comment on one record, and returns it as `list_comments` gives it. |
+
+`add_comment` is a write: the person approves each comment first, seeing the record's name and the whole comment, unless they hold one of the [roles without approval](#writes-without-approval). With writes limited to some resources, it comments only on those. A comment it adds mentions nobody, so it sends no emails. An empty comment, one over 10,000 characters, a resource without comments, and a record the person may not read, or one that is soft-deleted, are refused before asking.
 
 ### SQL for admins
 
@@ -127,11 +138,12 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session, request)` builds for its caller; `request` is the HTTP request, such as for the language the person reads.
 - `mcpServer({ info, tools, context, report, rolesWithoutApproval, approvals })`: an MCP server offering [assistant tools](assistant.md#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`, with the `locale` its approvals are asked in (English when absent): each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`. `approvals` is `mcpApprovals()`, built once and passed to every server the endpoint builds: it keeps the approvals asked for until they are answered or expire.
-- `mcpTools({ db, sql, writes })`: the default tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`.
+- `mcpTools({ db, sql, writes, commented })`: the default tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`, and `commented` names the resources with comments.
 - `readRecordTools()`, or `listResourcesTool()`, `listRecordsTool()` and `getRecordTool()`: the read tools alone; `readOnlyQueryTool(db)` is `run_read_only_query`, and `readWriteQueryTool(db)` proposes one write statement that the user approves before it runs.
+- `commentTools({ commented }, writes)`, or `listCommentsTool({ commented })` and `addCommentTool({ commented, resources })`: the comment tools on the resources named in `commented`, which call the context's `comments`, and `add_comment` only when `writes` is not `false`.
 - `writeRecordTools({ resources })`, or `createRecordTool(...)`, `updateRecordTool(...)` and `deleteRecordTool(...)`: the single write tools alone, on the listed resources or, without `resources`, on any; `batchWriteTool({ resources })` is `batch_write` alone.
 - `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.
-- `mcpToolContext(...)`, `mcpRoutes(app, { path, handler })` and `sessionOf(authInfo)`: the tools' context as the app builds it, the routes with open CORS, and the session a request was admitted with.
+- `mcpToolContext(...)`, with the records' comments as `comments`, `mcpRoutes(app, { path, handler })` and `sessionOf(authInfo)`: the tools' context as the app builds it, the routes with open CORS, and the session a request was admitted with.
 
 A host that builds its own server around `createAdmin`, rather than running the project with `protobase dev` or `protobase serve`, can serve its own endpoint at `auth.mcp.path` instead: `mcpEndpoint: false` (`createAdmin`'s `options.mcp`) turns Protobase's off, and the host mounts its own in front of `createAdmin`'s app. The OAuth provider and its discovery stay, and `createAdmin` answers 404 at the path and under it. `protobase dev` and `protobase serve` have no place to mount another endpoint, so in a project served by them `mcpEndpoint: false` only turns the endpoint off.
 

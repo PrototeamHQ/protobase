@@ -30,6 +30,14 @@ describe('mcpTools', () => {
     expect(writeTools.map((tool) => (tool.parameters as { properties: Record<string, unknown> }).properties.resource)).toEqual([limited, limited, limited])
   })
 
+  it('offers list_comments where a resource takes comments, and add_comment after the write tools with writes on', () => {
+    const tools = (writes: McpWrites, commented: string[]) => mcpTools({ db, sql: false, writes, commented })({ user: { id: 1, roles: ['sales'] } }).map((tool) => tool.name)
+    expect(tools(false, [])).toEqual(records)
+    expect(tools(false, ['tasks'])).toEqual([...records, 'list_comments'])
+    expect(tools(true, ['tasks'])).toEqual([...records, 'create_record', 'update_record', 'delete_record', 'batch_write', 'list_comments', 'add_comment'])
+    expect(tools({ resources: ['labels'] }, ['tasks'])).toEqual([...records, 'create_record', 'update_record', 'delete_record', 'batch_write', 'list_comments'])
+  })
+
   it('gives every session the same tool objects, so their schemas are compiled once', () => {
     const tools = mcpTools({ db, sql: true, writes: true })
     const first = tools({ user: { id: 1, roles: ['admin'] } })

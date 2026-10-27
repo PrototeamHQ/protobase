@@ -5,6 +5,7 @@ import { readRecordTools } from '../assistant/record-tools'
 import type { AssistantTool } from '../assistant/tools'
 import { writeRecordTools, type WriteRecordToolsInput } from '../assistant/write-record-tools'
 import { batchWriteTool } from '../assistant/batch-write-tool'
+import { commentTools } from '../assistant/comment-tools'
 import type { Session } from '../types'
 import type { McpWrites } from './mcp-writes'
 
@@ -18,19 +19,26 @@ export type McpToolsInput = {
    * `rolesWithoutApproval`.
    */
   writes: McpWrites
+  /**
+   * The resources whose records take comments: offers `list_comments` on them, and `add_comment` with writes on, on
+   * those of them that `writes` lists when it lists some. None by default.
+   */
+  commented?: string[]
 }
 
 /**
- * The default MCP tools for a caller: the record tools, the write tools when `writes` is on, and read-only SQL when `sql`
- * is on and the caller sees the assistant.
+ * The default MCP tools for a caller: the record tools, the write tools when `writes` is on, the comment tools when a
+ * resource takes comments, and read-only SQL when `sql` is on and the caller sees the assistant.
  */
 const writeTools = (input: WriteRecordToolsInput) => [...writeRecordTools(input), batchWriteTool(input)]
 
 // The tools are built once and only chosen per session: the MCP server compiles each tool's schema, and a schema object
 // made per request would be compiled again.
-export const mcpTools = ({ db, sql, writes }: McpToolsInput) => {
+export const mcpTools = ({ db, sql, writes, commented = [] }: McpToolsInput) => {
   const read = readRecordTools()
-  const write = writes === false ? [] : writeTools(writes === true || !writes.resources ? {} : { resources: writes.resources })
+  const limits = writes === false ? false : writes === true || !writes.resources ? {} : { resources: writes.resources }
+  const write = limits === false ? [] : writeTools(limits)
+  const comments = commentTools({ commented }, limits)
   const query = sql ? [readOnlyQueryTool(db)] : []
-  return (session: Session): AssistantTool[] => [...read, ...write, ...(seesAssistant(session.user.roles) ? query : [])]
+  return (session: Session): AssistantTool[] => [...read, ...write, ...comments, ...(seesAssistant(session.user.roles) ? query : [])]
 }

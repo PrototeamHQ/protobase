@@ -363,10 +363,12 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   if (auth?.mcp && options.mcp === false) closedMcpRoutes(app, auth.mcp.path)
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes })
+    const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented })
     const approvals = mcpApprovals()
+    const { resource } = auth.mcp
     const server = (session: Session, request: Request | undefined) => {
-      const context = mcpToolContext(deps, meta, session, request ? requestLocale(locale, request) : locale)
+      const context = mcpToolContext(deps, meta, session, { locale: request ? requestLocale(locale, request) : locale, requestURL: request?.url ?? resource })
       return mcpServer({ info: { name: appName, version: '1.0.0' }, tools: tools(session), context, report, rolesWithoutApproval: rolesWithoutApproval(writes), approvals })
     }
     mcpRoutes(app, { path: auth.mcp.path, handler: mcpHandler({ authenticate: mcpAuthenticate, resource: auth.mcp.resource, scope: auth.mcp.scope, server }) })
