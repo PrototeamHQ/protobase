@@ -42,8 +42,8 @@ export const edges = [
   { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
   // The test that each command exits once done starts the CLI's sources through its own runner, in the ERP.
   { from: ['packages/cli/tests/project/command-exit.integration.test.ts'], starts: ['packages/cli/tests/support/exit-check.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
-  // The test of `protobase run` starts the CLI from source in a project of its own.
-  { from: ['packages/cli/tests/run/run-script.integration.test.ts'], starts: ['packages/cli/bin/protobase-source.mjs'] },
+  // The tests of `protobase run` and of the hand-over start the CLI from source in a project of their own.
+  { from: ['packages/cli/tests/run/run-script.integration.test.ts', 'packages/cli/tests/hand-over/hand-over.integration.test.ts'], starts: ['packages/cli/bin/protobase-source.mjs'] },
   // The in-memory runner's test runs it in a Bun process of its own.
   { from: ['packages/cli/tests/runner/runner.integration.test.ts'], starts: ['packages/cli/src/runner.ts'] },
   // The JSON Schema of protobase.config.json is made from the types of every package's sources, read by path, and its
