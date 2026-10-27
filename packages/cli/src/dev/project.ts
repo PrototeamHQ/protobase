@@ -3,6 +3,7 @@ import { loadSourceConfig } from '../config/source-config'
 import type { ImportModules } from '../config/read-config'
 import type { Extension } from '../project/extensions'
 import { sharedDb } from './create-db'
+import { serverPackage } from './server-package'
 
 // Vite serves absolute files under /@fs, which keeps them in the module graph (and so hot reloadable); a package's own
 // file loads as it is.
@@ -22,9 +23,9 @@ const importModules: ImportModules = async (files) => {
  */
 export const loadDevConfig = (projectDir: string, extensions: Extension[] = []) => loadSourceConfig(projectDir, { command: 'dev', extensions, importModules })
 
-/** The app's database, shared across reloads. */
+/** The app's database, over the `pg` the project's config gets, shared across reloads. */
 export const devDatabase = (projectDir: string) => {
   const url = process.env.PROTOBASE_DATABASE_URL
   if (!url) throw new Error('No database: set DATABASE_URL (or pass --env)')
-  return sharedDb(projectDir, url)
+  return sharedDb(serverPackage(projectDir).root, url)
 }

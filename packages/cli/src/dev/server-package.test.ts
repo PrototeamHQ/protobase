@@ -17,19 +17,21 @@ describe('serverPackage', () => {
     await rm(projectDir, { recursive: true, force: true })
   })
 
-  it("takes the CLI's framework packages for a project without a package.json", () => {
-    expect(serverPackage(projectDir, cliDir)).toEqual({ from: 'cli', root: cliDir, dedupe: ['@protobase/layout', '@protobase/query', '@protobase/schema', '@protobase/server'] })
+  it("takes the CLI's packages, those the serve runtime supplies, for a project without a package.json", () => {
+    const resolution = serverPackage(projectDir, cliDir)
+    expect(resolution).toMatchObject({ from: 'cli', root: cliDir })
+    expect(resolution.dedupe).toEqual(expect.arrayContaining(['@protobase/server', '@protobase/schema', '@protobase/layout', 'kysely', 'pg', 'react']))
   })
 
-  it("takes the CLI's for a package.json that does not list @protobase/server, whatever else it lists", async () => {
-    await manifest({ dependencies: { '@protobase/schema': '^0.14.0', react: '^19.0.0' } })
+  it("takes the CLI's for a bundled project: one that lists no @protobase package, or lists them in devDependencies", async () => {
+    await manifest({ dependencies: { react: '^19.0.0' } })
+    expect(serverPackage(projectDir, cliDir).from).toBe('cli')
+    await manifest({ devDependencies: { '@protobase/server': '^0.14.0', '@protobase/cli': '^0.14.0' } })
     expect(serverPackage(projectDir, cliDir).from).toBe('cli')
   })
 
-  it("takes the project's own when any dependency field lists it", async () => {
-    for (const field of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
-      await manifest({ [field]: { '@protobase/server': '^0.14.0' } })
-      expect(serverPackage(projectDir, cliDir)).toEqual({ from: 'project', root: projectDir, dedupe: ['@protobase/server'] })
-    }
+  it("takes the project's own for a locked project, one that lists @protobase packages in dependencies", async () => {
+    await manifest({ dependencies: { '@protobase/server': '^0.14.0' }, devDependencies: { '@protobase/cli': '^0.14.0' } })
+    expect(serverPackage(projectDir, cliDir)).toEqual({ from: 'project', root: projectDir, dedupe: ['@protobase/server'] })
   })
 })

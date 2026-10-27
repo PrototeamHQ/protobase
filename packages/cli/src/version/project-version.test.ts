@@ -50,11 +50,17 @@ describe('project versions', () => {
     expect(() => checkProjectVersion(dir, '0.14.2')).toThrow('lists @protobase/server at ^0.14.0 and @protobase/cli at ^0.14.1; list every @protobase package at the same version')
   })
 
-  it('refuses installed copies outside the caret range of the CLI, below 1.0 another minor', async () => {
+  it("refuses a locked project's installed copies outside the caret range of the CLI, below 1.0 another minor", async () => {
     await manifest({ dependencies: { '@protobase/server': '>=0.12.0 <1' } })
     await writePackage(dir, { name: '@protobase/server', version: '0.13.9' })
     expect(() => checkProjectVersion(dir, '0.14.2')).toThrow('This project has Protobase 0.13.9 installed, and this CLI is Protobase 0.14.2: run it with a Protobase ^0.13.9 CLI')
     await writePackage(dir, { name: '@protobase/server', version: '0.14.0' })
+    expect(() => checkProjectVersion(dir, '0.14.2')).not.toThrow()
+  })
+
+  it('leaves the installed copies of a bundled project unchecked: the CLI runs its own', async () => {
+    await manifest({ devDependencies: { '@protobase/server': '>=0.12.0 <1' } })
+    await writePackage(dir, { name: '@protobase/server', version: '0.13.9' })
     expect(() => checkProjectVersion(dir, '0.14.2')).not.toThrow()
   })
 

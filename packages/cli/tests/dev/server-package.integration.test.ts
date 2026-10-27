@@ -21,7 +21,7 @@ describe("the API process's @protobase/server", () => {
     await writeFile(path.join(packageDir, 'index.js'), `export const copy = ${JSON.stringify(copy)}\n`)
   }
 
-  const manifest = (dependencies: Record<string, string>) => writeFile(path.join(projectDir, 'package.json'), JSON.stringify({ name: 'app', type: 'module', dependencies }))
+  const manifest = (dependencies: Record<string, string>, field = 'dependencies') => writeFile(path.join(projectDir, 'package.json'), JSON.stringify({ name: 'app', type: 'module', [field]: dependencies }))
 
   // The copy the project's config gets, and the one the CLI's own code (as entry.ts) gets.
   const loaded = async () => {
@@ -58,13 +58,19 @@ describe("the API process's @protobase/server", () => {
     expect(await loaded()).toEqual({ config: 'cli', cli: 'cli' })
   })
 
-  it("is the project's when its package.json lists it and it is installed, for the CLI's code too", async () => {
+  it("is the CLI's for a project that lists it in devDependencies, even with a copy in the project's node_modules", async () => {
+    await manifest({ '@protobase/server': '^0.14.0' }, 'devDependencies')
+    await installServer(projectDir, 'project')
+    expect(await loaded()).toEqual({ config: 'cli', cli: 'cli' })
+  })
+
+  it("is the project's when its package.json lists it in dependencies and it is installed, for the CLI's code too", async () => {
     await manifest({ '@protobase/server': '^0.14.0' })
     await installServer(projectDir, 'project')
     expect(await loaded()).toEqual({ config: 'project', cli: 'project' })
   })
 
-  it('fails as any missing package does when the package.json lists it and it is not installed', async () => {
+  it('fails as any missing package does when the package.json lists it in dependencies and it is not installed', async () => {
     await manifest({ '@protobase/server': '^0.14.0' })
     await expect(loaded()).rejects.toThrow(/@protobase\/server/)
   })
