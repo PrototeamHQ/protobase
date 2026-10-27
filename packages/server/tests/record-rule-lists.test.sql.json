@@ -1,0 +1,174 @@
+{
+  "(repeated)": [
+    {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1","params":["a"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Bitmap Heap Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"filtered\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 4.17,\n      \"Total Cost\": 11.28,\n      \"Plan Rows\": 3,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Recheck Cond\": \"(t.owner_id = 'a'::text)\",\n      \"Plans\": [\n        {\n          \"Node Type\": \"Bitmap Index Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Index Name\": \"filtered_owner_id_idx\",\n          \"Startup Cost\": 0.00,\n          \"Total Cost\": 4.17,\n          \"Plan Rows\": 3,\n          \"Plan Width\": 0,\n          \"Disabled\": false,\n          \"Index Cond\": \"(t.owner_id = 'a'::text)\"\n        }\n      ]\n    }\n  }\n]"]]}},
+    {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1","params":["b"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Bitmap Heap Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"filtered\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 4.17,\n      \"Total Cost\": 11.28,\n      \"Plan Rows\": 3,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Recheck Cond\": \"(t.owner_id = 'b'::text)\",\n      \"Plans\": [\n        {\n          \"Node Type\": \"Bitmap Index Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Index Name\": \"filtered_owner_id_idx\",\n          \"Startup Cost\": 0.00,\n          \"Total Cost\": 4.17,\n          \"Plan Rows\": 3,\n          \"Plan Width\": 0,\n          \"Disabled\": false,\n          \"Index Cond\": \"(t.owner_id = 'b'::text)\"\n        }\n      ]\n    }\n  }\n]"]]}}
+  ],
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\n    create table folders (id integer primary key);\n    insert into folders values (1);\n    create table items (id integer primary key, folder_id integer references folders (id), name text not null, owner_id text not null, status text not null);\n    create index on items (owner_id); create index on items (name); create index on items (status); create index on items (folder_id);\n    create table owned (id integer primary key, folder_id integer references folders (id), name text not null, owner_id text not null, status text not null);\n    create index on owned (owner_id); create index on owned (name); create index on owned (status); create index on owned (folder_id);\n    create table filtered (id integer primary key, folder_id integer references folders (id), name text not null, owner_id text not null, status text not null);\n    create index on filtered (owner_id); create index on filtered (name); create index on filtered (status); create index on filtered (folder_id);\n    insert into items values (1, 1, 'visible', 'a', 'published'), (2, 1, 'hidden', 'b', 'draft');\n    insert into owned values (1, null, 'of a', 'a', 'draft'), (2, null, 'of b', 'b', 'draft');\n    insert into filtered values (1, null, 'of a', 'a', 'draft'), (2, null, 'of b', 'b', 'draft'), (3, null, 'also of a', 'a', 'draft');\n    create table invoices (id integer primary key, customer_id integer not null references items (id));\n    insert into invoices values (1, 1), (2, 2);\n    create table orders (id integer primary key, status text not null);\n    insert into orders values (1, 'shipped'), (2, 'draft');\n  ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":2,"columns":[],"rows":[]},{"command":"INSERT","rowCount":2,"columns":[],"rows":[]},{"command":"INSERT","rowCount":3,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":2,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":2,"columns":[],"rows":[]}]}
+    ]
+  },
+  "a resource whose read rule reads the record > still reads each record by its rule, a selection of fields included": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"folder_id\" as \"folderId\", \"name\" as \"name\", \"owner_id\" as \"ownerId\", \"status\" as \"status\" from \"items\" as t where \"id\" = $1 limit 1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["folderId",23],["name",25],["ownerId",25],["status",25]],"rows":[["1","1","visible","a","published"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"folder_id\" as \"folderId\", \"name\" as \"name\", \"owner_id\" as \"ownerId\", \"status\" as \"status\" from \"items\" as t where \"id\" = $1 limit 1","params":["2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["folderId",23],["name",25],["ownerId",25],["status",25]],"rows":[["2","1","hidden","b","draft"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"folder_id\" as \"folderId\", \"name\" as \"name\", \"owner_id\" as \"ownerId\", \"status\" as \"status\" from \"items\" as t where \"id\" = $1 limit 1","params":["2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["folderId",23],["name",25],["ownerId",25],["status",25]],"rows":[["2","1","hidden","b","draft"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a resource whose read rule reads the record > refuses each caller whose verdict needs the record, and their gets keep to the rule": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"folder_id\" as \"folderId\", \"name\" as \"name\", \"owner_id\" as \"ownerId\", \"status\" as \"status\" from \"owned\" as t where \"id\" = $1 limit 1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["folderId",23],["name",25],["ownerId",25],["status",25]],"rows":[["1",null,"of a","a","draft"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"folder_id\" as \"folderId\", \"name\" as \"name\", \"owner_id\" as \"ownerId\", \"status\" as \"status\" from \"owned\" as t where \"id\" = $1 limit 1","params":["2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["folderId",23],["name",25],["ownerId",25],["status",25]],"rows":[["2",null,"of b","b","draft"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a resource whose read rule reads the record > gives no labels of its records to a readable resource that points at them": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"invoices\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"invoices\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["invoices_pkey","btree","f","id","id","int4_ops"]]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"customer_id\" as \"customerId\", \"t\".\"id\"::text as \"__pb_key0\" from \"invoices\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["customerId",23],["__pb_key0",25]],"rows":[
+        ["1","1","1"],
+        ["2","2","2"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"invoices\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["-1"]]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"invoices\" as \"t\"","result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"invoices\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 32.60,\n      \"Plan Rows\": 2260,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"]\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a resource whose read rule reads the record > names no blocking record of it when a delete of what it points at is refused": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"id\" as \"id\" from \"folders\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["1"]]}},
+      {"sql":"delete from \"folders\" as t where \"id\" = $1 returning \"id\" as \"id\"","params":["1"],"error":{"message":"update or delete on table \"folders\" violates foreign key constraint \"items_folder_id_fkey\" on table \"items\"","severity":"ERROR","code":"23503","detail":"Key (id)=(1) is still referenced from table \"items\".","schema":"public","table":"items","constraint":"items_folder_id_fkey"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the same rule as a row filter > lists, searches, seeks and counts only the caller's own rows": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"filtered\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"filtered\""],"result":{"command":"SELECT","rowCount":5,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+        ["filtered_folder_id_idx","btree","f","folder_id","folder_id","int4_ops"],
+        ["filtered_name_idx","btree","f","name","name","text_ops"],
+        ["filtered_owner_id_idx","btree","f","owner_id","owner_id","text_ops"],
+        ["filtered_pkey","btree","f","id","id","int4_ops"],
+        ["filtered_status_idx","btree","f","status","status","text_ops"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"folder_id\" as \"folderId\", \"t\".\"name\" as \"name\", \"t\".\"owner_id\" as \"ownerId\", \"t\".\"status\" as \"status\", \"t\".\"id\"::text as \"__pb_key0\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["a","51"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["folderId",23],["name",25],["ownerId",25],["status",25],["__pb_key0",25]],"rows":[
+        ["1",null,"of a","a","draft","1"],
+        ["3",null,"also of a","a","draft","3"]
+      ]}},
+      {"repeated":0},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 limit $2) as \"found\"","params":["a","10001"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"folder_id\" as \"folderId\", \"t\".\"name\" as \"name\", \"t\".\"owner_id\" as \"ownerId\", \"t\".\"status\" as \"status\", \"t\".\"id\"::text as \"__pb_key0\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 and (\"t\".\"name\" = $2 or \"t\".\"name\" = $3) order by \"t\".\"id\" asc limit $4","params":["a","of a","of b","51"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["folderId",23],["name",25],["ownerId",25],["status",25],["__pb_key0",25]],"rows":[["1",null,"of a","a","draft","1"]]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 and (\"t\".\"name\" = $2 or \"t\".\"name\" = $3)","params":["a","of a","of b"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Bitmap Heap Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"filtered\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 4.17,\n      \"Total Cost\": 11.30,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Recheck Cond\": \"(t.owner_id = 'a'::text)\",\n      \"Filter\": \"((t.name = 'of a'::text) OR (t.name = 'of b'::text))\",\n      \"Plans\": [\n        {\n          \"Node Type\": \"Bitmap Index Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Index Name\": \"filtered_owner_id_idx\",\n          \"Startup Cost\": 0.00,\n          \"Total Cost\": 4.17,\n          \"Plan Rows\": 3,\n          \"Plan Width\": 0,\n          \"Disabled\": false,\n          \"Index Cond\": \"(t.owner_id = 'a'::text)\"\n        }\n      ]\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"repeated":0},
+      {"sql":"select count(*)::text as \"n\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1","params":["a"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2"]]}},
+      {"sql":"select r.k0 as \"value\", r.rn::text as \"rn\" from (select \"t\".\"id\"::text as \"k0\", row_number() over (order by \"t\".\"id\" asc) as \"rn\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1) as \"r\" where (r.rn - 1) % $2 = 0 order by r.rn","params":["a","1"],"result":{"command":"SELECT","rowCount":2,"columns":[["value",25],["rn",25]],"rows":[
+        ["1","1"],
+        ["3","2"]
+      ]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"folder_id\" as \"folderId\", \"t\".\"name\" as \"name\", \"t\".\"owner_id\" as \"ownerId\", \"t\".\"status\" as \"status\", \"t\".\"id\"::text as \"__pb_key0\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["a","51"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["folderId",23],["name",25],["ownerId",25],["status",25],["__pb_key0",25]],"rows":[
+        ["1",null,"of a","a","draft","1"],
+        ["3",null,"also of a","a","draft","3"]
+      ]}},
+      {"repeated":0},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 group by \"t\".\"status\" order by count(*) desc, \"t\".\"status\" asc limit $2","params":["a","100"],"result":{"command":"SELECT","rowCount":1,"columns":[["value",25],["n",25]],"rows":[["draft","2"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"folder_id\" as \"folderId\", \"t\".\"name\" as \"name\", \"t\".\"owner_id\" as \"ownerId\", \"t\".\"status\" as \"status\", \"t\".\"id\"::text as \"__pb_key0\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["b","51"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["folderId",23],["name",25],["ownerId",25],["status",25],["__pb_key0",25]],"rows":[["2",null,"of b","b","draft","2"]]}},
+      {"repeated":1},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 limit $2) as \"found\"","params":["b","10001"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["1"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"folder_id\" as \"folderId\", \"t\".\"name\" as \"name\", \"t\".\"owner_id\" as \"ownerId\", \"t\".\"status\" as \"status\", \"t\".\"id\"::text as \"__pb_key0\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 and (\"t\".\"name\" = $2 or \"t\".\"name\" = $3) order by \"t\".\"id\" asc limit $4","params":["b","of a","of b","51"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["folderId",23],["name",25],["ownerId",25],["status",25],["__pb_key0",25]],"rows":[["2",null,"of b","b","draft","2"]]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 and (\"t\".\"name\" = $2 or \"t\".\"name\" = $3)","params":["b","of a","of b"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Bitmap Heap Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"filtered\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 4.17,\n      \"Total Cost\": 11.30,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Recheck Cond\": \"(t.owner_id = 'b'::text)\",\n      \"Filter\": \"((t.name = 'of a'::text) OR (t.name = 'of b'::text))\",\n      \"Plans\": [\n        {\n          \"Node Type\": \"Bitmap Index Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Index Name\": \"filtered_owner_id_idx\",\n          \"Startup Cost\": 0.00,\n          \"Total Cost\": 4.17,\n          \"Plan Rows\": 3,\n          \"Plan Width\": 0,\n          \"Disabled\": false,\n          \"Index Cond\": \"(t.owner_id = 'b'::text)\"\n        }\n      ]\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"repeated":1},
+      {"sql":"select count(*)::text as \"n\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1","params":["b"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["1"]]}},
+      {"sql":"select r.k0 as \"value\", r.rn::text as \"rn\" from (select \"t\".\"id\"::text as \"k0\", row_number() over (order by \"t\".\"id\" asc) as \"rn\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1) as \"r\" where (r.rn - 1) % $2 = 0 order by r.rn","params":["b","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["value",25],["rn",25]],"rows":[["2","1"]]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"folder_id\" as \"folderId\", \"t\".\"name\" as \"name\", \"t\".\"owner_id\" as \"ownerId\", \"t\".\"status\" as \"status\", \"t\".\"id\"::text as \"__pb_key0\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["b","51"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["folderId",23],["name",25],["ownerId",25],["status",25],["__pb_key0",25]],"rows":[["2",null,"of b","b","draft","2"]]}},
+      {"repeated":1},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\" from \"filtered\" as \"t\" where \"t\".\"owner_id\" = $1 group by \"t\".\"status\" order by count(*) desc, \"t\".\"status\" asc limit $2","params":["b","100"],"result":{"command":"SELECT","rowCount":1,"columns":[["value",25],["n",25]],"rows":[["draft","1"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a write rule that reads the record without throwing > is checked against the stored record, leaving a shipped order as it is": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"id\" as \"id\", \"status\" as \"status\" from \"orders\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["status",25]],"rows":[["1","shipped"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"id\" as \"id\", \"status\" as \"status\" from \"orders\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["status",25]],"rows":[["1","shipped"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"status\" as \"status\" from \"orders\" as t where \"id\" = $1 limit 1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["status",25]],"rows":[["1","shipped"]]}},
+      {"sql":"select \"id\" as \"id\", \"status\" as \"status\" from \"orders\" as t where \"id\" = $1 limit 1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["status",25]],"rows":[["1","shipped"]]}},
+      {"sql":"select \"id\" as \"id\", \"status\" as \"status\" from \"orders\" as t where \"id\" = $1 limit 1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["status",25]],"rows":[["1","shipped"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"id\" as \"id\", \"status\" as \"status\" from \"orders\" as t where \"id\" = $1 limit 1 for update","params":["2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["status",25]],"rows":[["2","draft"]]}},
+      {"sql":"update \"orders\" as t set \"status\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"status\" as \"status\"","params":["paid","2"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["status",25]],"rows":[["2","paid"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

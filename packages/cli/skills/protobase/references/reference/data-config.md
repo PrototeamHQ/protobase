@@ -355,7 +355,7 @@ Every builder, option and type that `@protobase/schema` exports has a doc commen
 
 Without rules everyone who can sign in may do everything. Rules come in three kinds, and the [Access](access.md) reference explains the defaults:
 
-- **Per operation** (`list`, `read`, `create`, `update`, `delete`): `.access({ update: rule })`. A rule returns `true`, `false`, or an AIP-160 filter that limits the rows, like row-level security. A rule that reads the record (`record.status`) is checked against the stored row.
+- **Per operation** (`list`, `read`, `create`, `update`, `delete`): `.access({ update: rule })`. A rule returns `true`, `false`, or an AIP-160 filter that limits the rows, like row-level security. A rule that reads the record (`record.status`) is checked against the stored row on a get and a write; a caller it reads the record for may not list, so a rule that should list is a filter. See [Rules that read the record](access.md#rules-that-read-the-record).
 - **Per row**: a filter from a rule, or a `.own` or `.team` capability with `.owner(...)`: `.own` gives the records whose owner is the user, `.team` those owned by the users that `defineRoles(roles, { teamOf: (user) => ids })` returns for them.
 - **Per field**: `.access({ read, create, update })` on the field. Field rules see only the user, never a record, so the fields a user can read are the same for every row.
 

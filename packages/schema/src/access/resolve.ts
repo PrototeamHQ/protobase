@@ -53,7 +53,10 @@ export type RowFilterOperation = 'read' | 'create' | 'update' | 'delete'
 
 /** What one request may do with one resource, as `resolveAccess` works it out. */
 export type ResolvedAccess = {
-  /** Whether each operation is allowed at all; one in `recordChecks` or `rowFilter` only for some records. */
+  /**
+   * Whether each operation is allowed at all; one in `recordChecks` or `rowFilter` only for some records. `list` is
+   * never record-checked: it is denied when the read or list rule needs the record.
+   */
   operations: Record<AccessAction, boolean>
   /** Operations whose rule needs the record (or input); check them with `checkRecord`. */
   recordChecks: AccessAction[]
@@ -144,7 +147,6 @@ export const resolveAccess = async (
   for (const operation of operations) {
     if (operation === 'list' && !source.accessRules.list) {
       allowed.list = allowed.read
-      if (recordChecks.includes('read')) recordChecks.push('list')
       continue
     }
     const context = { ...ctx, model, operation }
@@ -163,6 +165,13 @@ export const resolveAccess = async (
       allowed[operation] = combined !== false
       if (typeof combined === 'object') filters[operation] = combined
     }
+  }
+
+  // A list cannot run a rule on each row without breaking its pages and counts, so one whose read or list rule needs the
+  // record is refused: it never shows a row the caller's get of it would refuse. A row filter is what lists.
+  if (recordChecks.includes('read') || recordChecks.includes('list')) {
+    allowed.list = false
+    if (recordChecks.includes('list')) recordChecks.splice(recordChecks.indexOf('list'), 1)
   }
 
   const fieldRules = source.fieldAccess()
