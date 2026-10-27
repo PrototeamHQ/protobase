@@ -1,3 +1,4 @@
+import type { BroadcastMeta } from './broadcast-frame'
 import { fixedWindows } from './fixed-window'
 import { realtimeLimits } from './realtime-limits'
 
@@ -5,7 +6,7 @@ import { realtimeLimits } from './realtime-limits'
 export type BroadcastMember = {
   self: boolean
   private: boolean
-  receive: (event: string, payload: unknown) => void
+  receive: (event: string, payload: unknown, meta?: BroadcastMeta) => void
 }
 
 /**
@@ -51,19 +52,23 @@ export const broadcastHub = ({ now = () => Date.now() }: { now?: () => number } 
       for (const { topic } of publications) takes.set(topic, (takes.get(topic) ?? 0) + 1)
       if (!rate.all(takes)) return false
       for (const publication of publications) {
-        for (const member of topicsOf(publication.private).get(publication.topic) ?? []) member.receive(publication.event, publication.payload)
+        for (const member of topicsOf(publication.private).get(publication.topic) ?? []) member.receive(publication.event, publication.payload, publication.meta)
       }
       return true
     },
   }
 }
 
-/** A broadcast sent without a channel, such as over `POST /api/broadcast`, to the private or the public channels. */
+/**
+ * A broadcast sent without a channel, such as over `POST /api/broadcast` or from the database, to the private or the
+ * public channels.
+ */
 export type Publication = {
   topic: string
   event: string
   payload: unknown
   private: boolean
+  meta?: BroadcastMeta
 }
 
 export type BroadcastHub = ReturnType<typeof broadcastHub>

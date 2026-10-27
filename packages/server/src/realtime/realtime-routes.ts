@@ -4,10 +4,11 @@ import type { Caller } from '../api-keys/resolve-caller'
 import { HttpProblem } from '../problem'
 import type { Entry } from '../registry'
 import { broadcastApi } from './broadcast-api'
-import { broadcastHub } from './broadcast-hub'
+import type { BroadcastHub } from './broadcast-hub'
 import { bufferedOf } from './buffered-amount'
 import type { ChangeHub } from './change-hub'
 import type { ChannelAccess } from './channel-access'
+import type { DatabaseBroadcasts } from './database-broadcasts'
 import { vsnOf } from './phoenix-message'
 import { presenceHub } from './presence-hub'
 import { realtimeSocket } from './realtime-socket'
@@ -19,6 +20,9 @@ export type RealtimeRoutesOptions = {
   caller: (request: Request) => Promise<Caller>
   live: readonly Entry[]
   hub: ChangeHub
+  broadcasts: BroadcastHub
+  /** The database's broadcasts to `broadcasts`, read while a socket is open. */
+  database: Pick<DatabaseBroadcasts, 'follow'>
   access: ChannelAccess
   report: (error: unknown) => void
 }
@@ -31,11 +35,11 @@ const keyRequest = (apikey: string, token?: string) => new Request('http://realt
  * resources, and broadcasts and presence between the sockets of this process (see `realtimeSocket`). A missing or wrong
  * key is refused before the upgrade, with 401. A socket whose raw socket is not one of npm `ws`, such as Bun's own `ws`
  * shim's, is closed at once with 1011, since its unsent bytes cannot be counted (`realtimeLimits.maxUnsentBytes`).
- * `POST /api/sb/realtime/v1/api/broadcast` sends to the same channels without a socket (see `broadcastApi`).
+ * `POST /api/sb/realtime/v1/api/broadcast` sends to the same channels without a socket (see `broadcastApi`), and so
+ * does the database (see `databaseBroadcasts`).
  */
-export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, access, report }: RealtimeRoutesOptions) => {
+export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, broadcasts, database, access, report }: RealtimeRoutesOptions) => {
   const app = new Hono()
-  const broadcasts = broadcastHub()
   const presences = presenceHub()
   let lastId = 0
   const nextId = () => ++lastId
@@ -51,12 +55,18 @@ export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, access, re
     upgradeWebSocket((c) => {
       const apikey = c.req.query('apikey')!
       let socket: ReturnType<typeof realtimeSocket> | undefined
+      let unfollow = () => {}
+      const closed = () => {
+        unfollow()
+        socket?.closed()
+      }
       return {
         onOpen: (_event, ws) => {
           if (bufferedOf(ws.raw) === undefined) {
             report(new Error('Not implemented: realtime needs WebSockets of npm ws, which count unsent bytes; on Bun, load npm ws by its path rather than Bun\'s ws shim, or run on Node'))
             return ws.close(1011)
           }
+          unfollow = database.follow()
           socket = realtimeSocket({
             vsn: vsnOf(c.req.query('vsn'))!,
             send: (frame) => ws.send(frame),
@@ -75,8 +85,8 @@ export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, access, re
         onMessage: (event) => socket?.message(event.data),
         // ws closes a socket itself on a protocol error, such as a frame over its `maxPayload`, and its close event can
         // come 30 seconds later, when the client does not answer: the socket leaves at the error.
-        onError: () => socket?.closed(),
-        onClose: () => socket?.closed(),
+        onError: closed,
+        onClose: closed,
       }
     }),
   )

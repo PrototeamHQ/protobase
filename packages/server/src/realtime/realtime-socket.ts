@@ -3,7 +3,7 @@ import { HttpProblem } from '../problem'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import type { Entry } from '../registry'
-import { decodeBroadcastPush, encodeBroadcast, fitsFrame } from './broadcast-frame'
+import { decodeBroadcastPush, encodeBroadcast, fitsFrame, type BroadcastMeta } from './broadcast-frame'
 import type { BroadcastHub, BroadcastMember } from './broadcast-hub'
 import type { ChangeHub } from './change-hub'
 import type { ChannelAccess } from './channel-access'
@@ -126,11 +126,11 @@ export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub,
 
   // A vsn 2.0.0 client reads broadcasts as binary frames; a vsn 1.0.0 one reads text only, which cannot carry the bytes
   // of a binary broadcast, so it does not hear those.
-  const hear = (topic: string, channel: Channel, event: string, payload: unknown) => {
+  const hear = (topic: string, channel: Channel, event: string, payload: unknown, meta?: BroadcastMeta) => {
     if (!channel.gate.hears('broadcast')) return
-    if (vsn === '2.0.0') return deliver(encodeBroadcast(topic, event, payload))
+    if (vsn === '2.0.0') return deliver(encodeBroadcast(topic, event, payload, meta))
     if (payload instanceof ArrayBuffer) return
-    toChannel(topic, channel, 'broadcast', { type: 'broadcast', event, payload })
+    toChannel(topic, channel, 'broadcast', { type: 'broadcast', event, payload, ...(meta && { meta }) })
   }
 
   const leave = (topic: string) => {
@@ -177,7 +177,7 @@ export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub,
     const parsed = parseBindings(config.postgres_changes, live, nextId)
     if (typeof parsed === 'string') return push(reply(message, 'error', { reason: parsed }))
     const { topic } = message
-    const member: BroadcastMember = { self: broadcast.self === true, private: config.private === true, receive: (event, payload) => hear(topic, channel, event, payload) }
+    const member: BroadcastMember = { self: broadcast.self === true, private: config.private === true, receive: (event, payload, meta) => hear(topic, channel, event, payload, meta) }
     // Supabase tracks a channel that names no key under a key of its own.
     const key = typeof presence.key === 'string' && presence.key !== '' ? presence.key : randomUUID()
     const seat = presences.join(topic, { key, private: config.private === true, get listens() { return listens && gate.hears('presence') }, receive: (diff) => toChannel(topic, channel, 'presence_diff', diff) })

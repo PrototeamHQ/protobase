@@ -33,4 +33,9 @@ describe('encodeBroadcast', () => {
     expect([...new Uint8Array(encodeBroadcast('t', 'e', { a: 1 }))]).toEqual([4, 1, 1, 0, 1, ...encoder.encode('te{"a":1}')])
     expect([...new Uint8Array(encodeBroadcast('t', 'e', new Uint8Array([5]).buffer))]).toEqual([4, 1, 1, 0, 0, ...encoder.encode('te'), 5])
   })
+
+  it('writes the metadata as JSON between the event and the payload', () => {
+    const meta = encoder.encode('{"id":"m1"}')
+    expect([...new Uint8Array(encodeBroadcast('t', 'e', { a: 1 }, { id: 'm1' }))]).toEqual([4, 1, 1, meta.length, 1, ...encoder.encode('te'), ...meta, ...encoder.encode('{"a":1}')])
+  })
 })

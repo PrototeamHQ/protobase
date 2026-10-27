@@ -42,21 +42,27 @@ export const decodeBroadcastPush = (frame: ArrayBuffer): PhoenixMessage | undefi
 /** Whether a topic or event fits a binary frame's one-byte length. */
 export const fitsFrame = (text: string) => encoder.encode(text).length <= 255
 
+/** A broadcast's metadata, which realtime-js hands its listeners as `meta`: the id of a message sent from the database. */
+export type BroadcastMeta = { id: string }
+
 /**
  * A broadcast as the binary frame realtime-js reads: kind, topic, user event and metadata lengths, encoding, fields,
- * payload. A payload is JSON, or the bytes of a binary broadcast.
+ * metadata as JSON, payload. A payload is JSON, or the bytes of a binary broadcast.
  */
-export const encodeBroadcast = (topic: string, event: string, payload: unknown): ArrayBuffer => {
+export const encodeBroadcast = (topic: string, event: string, payload: unknown, meta?: BroadcastMeta): ArrayBuffer => {
   const topicBytes = encoder.encode(topic)
   const eventBytes = encoder.encode(event)
+  const metaBytes = encoder.encode(meta === undefined ? '' : JSON.stringify(meta))
   const binary = payload instanceof ArrayBuffer
   const body = binary ? new Uint8Array(payload) : encoder.encode(JSON.stringify(payload ?? {}))
-  // The socket refuses a broadcast whose topic or event does not fit (`fitsFrame`), so this is never reached.
-  if (topicBytes.length > 255 || eventBytes.length > 255) throw new Error('A broadcast topic and event are at most 255 bytes each')
-  const frame = new Uint8Array(5 + topicBytes.length + eventBytes.length + body.length)
-  frame.set([userBroadcast, topicBytes.length, eventBytes.length, 0, binary ? binaryEncoding : jsonEncoding])
-  frame.set(topicBytes, 5)
-  frame.set(eventBytes, 5 + topicBytes.length)
-  frame.set(body, 5 + topicBytes.length + eventBytes.length)
+  // The socket refuses a broadcast whose topic or event does not fit (`fitsFrame`), and an id's metadata always fits.
+  if (topicBytes.length > 255 || eventBytes.length > 255 || metaBytes.length > 255) throw new Error('A broadcast topic, event and metadata are at most 255 bytes each')
+  const frame = new Uint8Array(5 + topicBytes.length + eventBytes.length + metaBytes.length + body.length)
+  frame.set([userBroadcast, topicBytes.length, eventBytes.length, metaBytes.length, binary ? binaryEncoding : jsonEncoding])
+  let offset = 5
+  for (const part of [topicBytes, eventBytes, metaBytes, body]) {
+    frame.set(part, offset)
+    offset += part.length
+  }
   return frame.buffer
 }
