@@ -150,6 +150,10 @@ export const text = defineMessages({
     couldNotReadPolicy: 'Could not read the sign-in policy',
     policySaved: 'Saved. It applies to every sign-in from now on.',
     policySubtitle: 'How people sign in to this app. Signed-in people keep their session, and are asked for what is newly required within 15 minutes.',
+    mcpAddress: 'MCP address',
+    mcpAddressDescription: 'Add this address to an AI assistant or code editor that speaks MCP, as a custom connector or remote MCP server. It opens this app in your browser, where you sign in and allow it; it then works with your access.',
+    copyMcpAddress: 'Copy the MCP address',
+    addToClaude: 'Add to Claude',
   },
   nl: {
     account: 'Account',
@@ -300,5 +304,9 @@ export const text = defineMessages({
     couldNotReadPolicy: 'Kon het inlogbeleid niet lezen',
     policySaved: 'Bewaard. Het geldt vanaf nu voor elke inlog.',
     policySubtitle: 'Hoe mensen inloggen bij deze app. Wie is ingelogd, houdt de sessie en krijgt binnen 15 minuten de vraag naar wat nieuw verplicht is.',
+    mcpAddress: 'MCP-adres',
+    mcpAddressDescription: 'Voeg dit adres toe aan een AI-assistent of code-editor die MCP spreekt, als aangepaste connector of externe MCP-server. Die opent deze app in je browser, waar je inlogt en hem toestaat; daarna werkt hij met jouw toegang.',
+    copyMcpAddress: 'Het MCP-adres kopiëren',
+    addToClaude: 'Toevoegen aan Claude',
   },
 })

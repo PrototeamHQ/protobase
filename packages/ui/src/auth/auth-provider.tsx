@@ -32,8 +32,8 @@ export type AuthApi = {
   passwordReset: boolean
   /** The server can email the code that confirms a new address, so the account page offers "Change email". */
   changeEmail: boolean
-  /** MCP clients can connect to the app, so the account page lists those the person allowed. */
-  mcp: boolean
+  /** When MCP clients can connect to the app: its endpoint's `url`, which the account page shows with the clients the person allowed. */
+  mcp?: { url: string }
   /** Anyone can make their own account, so the sign-in page and sign-in prompts offer "Create an account". */
   canSignUp: boolean
   /** The domains people's passkeys were made for, when more than one, the passkey domain first; otherwise empty. */
@@ -111,7 +111,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
   const [signInFirst, setSignInFirst] = useState<'password' | 'emailCode'>('password')
   const [passwordReset, setPasswordReset] = useState(false)
   const [changeEmail, setChangeEmail] = useState(false)
-  const [mcp, setMcp] = useState(false)
+  const [mcp, setMcp] = useState<{ url: string }>()
   const [canSignUp, setCanSignUp] = useState(false)
   const [passkeyDomains, setPasskeyDomains] = useState<string[]>([])
   const [socialProviders, setSocialProviders] = useState<string[]>([])
@@ -178,7 +178,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       setSignInFirst(status.signInFirst ?? 'password')
       setPasswordReset(status.passwordReset && !nativeBridge)
       setChangeEmail(Boolean(status.changeEmail))
-      setMcp(Boolean(status.mcp))
+      setMcp(status.mcp)
       setCanSignUp(Boolean(status.signUp))
       setPasskeyDomains(status.passkeyDomains ?? [])
       setSocialProviders(status.socialProviders)

@@ -106,7 +106,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         ...(body.passkeyDomains && { passkeyDomains: body.passkeyDomains }),
         ...(body.organizations && { organizations: body.organizations }),
         ...(body.anonymous && { anonymous: true }),
-        ...(body.mcp && { mcp: true }),
+        ...(body.mcp && { mcp: { url: body.mcp.url } }),
         ...(body.plugins && body.plugins.length > 0 && { plugins: body.plugins }),
         ...(isLocale(body.locale) && { locale: body.locale }),
       }

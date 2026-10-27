@@ -18,3 +18,4 @@ description: Fields and actions filled by a model, the assistant beside the admi
 - [MCP comments](/reference/mcp/#comments): AI clients read a record's comments, and with MCP writes on add one after the person approves it.
 - [MCP batch writes](/reference/mcp/#batch-writes): When MCP writes are on, AI clients make many creates, updates and deletes across resources in one transaction, after the person approves the batch.
 - [Connected apps](/reference/auth/#oauth-for-mcp-clients): People allow an AI client to sign in, and disconnect it later.
+- [MCP address](/reference/mcp/#connecting-a-client): Signed-in people find the app's MCP address on their account page, copy it or add it to Claude in one click.
