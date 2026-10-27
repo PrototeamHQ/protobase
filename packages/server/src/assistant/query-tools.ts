@@ -1,8 +1,7 @@
 import type { Db } from '@protobase/query'
+import { budgetedQueryResult } from './query-result-budget'
 import { runReadOnlyQuery, runReadWriteQuery, type QueryOptions, type QueryResult } from './run-query'
 import { defineTool, type ToolContext } from './tools'
-
-const maxResultLength = 20_000
 
 const sqlParameter = (description: string) => ({ type: 'string', description })
 
@@ -14,11 +13,12 @@ const refused = (error: unknown) => {
   throw error
 }
 
-const shown = (result: QueryResult, statement: string, context: ToolContext) => {
+const shown = (result: QueryResult, statement: string, context: ToolContext, more: (count: number) => string) => {
   context.show({ type: 'table', id: crypto.randomUUID(), columns: result.columns, rows: result.rows, caption: statement, ...(result.truncated && { truncated: true }) })
-  const json = JSON.stringify(result)
-  return json.length > maxResultLength ? `${json.slice(0, maxResultLength)}... (cut off)` : json
+  return budgetedQueryResult(result, more)
 }
+
+const readOn = (count: number) => `; add OFFSET ${count} to the statement to read on`
 
 const statementOf = (args: Record<string, unknown>) => (typeof args.sql === 'string' && args.sql.trim() ? args.sql : undefined)
 
@@ -30,13 +30,13 @@ const statementOf = (args: Record<string, unknown>) => (typeof args.sql === 'str
 export const readOnlyQueryTool = (db: Db, options: QueryOptions = {}) =>
   defineTool({
     name: 'run_read_only_query',
-    description: `Runs one PostgreSQL SELECT on the app's database in a read-only transaction and returns up to ${options.rowLimit ?? 200} rows as JSON ({ columns, rows, truncated }). The user sees the rows as a table. Use it to answer questions about the data. It reads the app's resource tables only. It cannot change anything.`,
+    description: `Runs one PostgreSQL SELECT on the app's database in a read-only transaction and returns up to ${options.rowLimit ?? 200} rows as JSON ({ columns, rows, truncated }); a result too large for one answer holds fewer rows, with long values cut and named in cut_fields, and a note on reading the rest. The user sees the rows as a table. Use it to answer questions about the data. It reads the app's resource tables only. It cannot change anything.`,
     parameters: { type: 'object', properties: { sql: sqlParameter('One SELECT statement, without a trailing semicolon.') }, required: ['sql'] },
     annotations: { readOnlyHint: true, openWorldHint: false },
     run: async (args, context) => {
       const statement = statementOf(args)
       if (!statement) return 'Pass the statement as { "sql": "select ..." }.'
-      return runReadOnlyQuery(db, statement, options).then((result) => shown(result, statement, context), refused)
+      return runReadOnlyQuery(db, statement, options).then((result) => shown(result, statement, context, readOn), refused)
     },
   })
 
@@ -62,6 +62,6 @@ export const readWriteQueryTool = (db: Db, options: QueryOptions = {}) =>
       if (!statement) return 'Pass the statement as { "sql": "update ... returning ...", "summary": "..." }.'
       const answer = await context.approve({ title: 'Run this change?', body: typeof args.summary === 'string' ? args.summary : undefined, code: statement })
       if (answer !== 'approved') return `The user did not approve the statement (${answer}); nothing ran.`
-      return runReadWriteQuery(db, statement, options).then((result) => shown(result, statement, context), refused)
+      return runReadWriteQuery(db, statement, options).then((result) => shown(result, statement, context, () => ''), refused)
     },
   })

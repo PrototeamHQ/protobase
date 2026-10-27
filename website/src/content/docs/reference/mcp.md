@@ -36,9 +36,13 @@ Each tool reads as the signed-in person: their role's access rules, row filters,
 | --- | --- |
 | `list_resources` | The resources the person may read, with their labels, key, whether they soft delete (`soft_delete`) and fields: each field's type, label, enum values, the resource a relation links to, and whether filters and sorts take it. |
 | `list_records` | A page of a resource's records: `filter` in the API's [filter syntax](/reference/api/#filters), `order_by`, `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page. `show_deleted: true` also returns soft-deleted records. |
-| `get_record` | One record by its key, with its ETag. A composite key is passed as the values of its fields, in order. `show_deleted: true` also finds a soft-deleted record. |
+| `get_record` | One record by its key, with its ETag. A composite key is passed as the values of its fields, in order. `show_deleted: true` also finds a soft-deleted record. With `field`, it reads that one field alone, `max_chars` characters (20,000 by default, at most 30,000) from `offset`, and gives its whole `length` and the `next_offset` to read on from. |
 
 `show_deleted` works as the [REST API](/reference/api/#routes)'s: it applies only to a resource with a soft delete, and is refused on any other. Soft-deleted records come under the same access rules, tenant and hidden fields as the rest, and carry the field their deletion set.
+
+### Result size
+
+The result of each tool that returns records, and of `run_read_only_query`, stays within 40,000 characters of JSON, below what clients take as one tool result, and stays valid JSON when it is cut. Over that, long text values are cut first, each named in `cut_fields` with its path and full length, such as `{ "field": "items[3].body", "length": 52341 }`. When that is not enough, `list_records` returns fewer records, with the `next_page_token` that goes on after the last one, and `run_read_only_query` fewer rows, marked `truncated`. A `note` then says how to read the rest: `get_record` with `field` and `offset` for a cut field, or `OFFSET` and `substring` in SQL.
 
 A refusal, such as a resource the person may not read or a bad filter, comes back to the client as text it can act on, `{ "error": ..., "message": ... }`.
 
