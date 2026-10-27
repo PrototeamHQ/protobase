@@ -6,6 +6,8 @@
 import { HttpProblem } from '../problem'
 import { batchApproval } from './batch-approval'
 import { batchOperationsOf, type WriteOperation } from './batch-write-args'
+import { cutRecordNote } from './budgeted-page'
+import { forcedJson } from './result-budget'
 import { defineTool, type ToolContext } from './tools'
 import type { WriteRecordToolsInput } from './write-record-tools'
 
@@ -81,6 +83,6 @@ export const batchWriteTool = (input: WriteRecordToolsInput = {}) =>
       if (softDeleteRefusal) return softDeleteRefusal
       const answer = await context.approve(batchApproval(operations, await softDeletesFor(context, operations)))
       if (answer !== 'approved') return `The user did not approve this batch (${answer}); nothing was written.`
-      return context.records.batch(operations).then((results) => JSON.stringify({ results }), refused)
+      return context.records.batch(operations).then((results) => forcedJson({ results }, cutRecordNote), refused)
     },
   })

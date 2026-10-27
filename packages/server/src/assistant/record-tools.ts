@@ -1,5 +1,9 @@
 import type { FieldModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { invalidShowDeleted, keyOf, keyParameter, refused, resourceOf, resourceParameter, showDeletedOf, showDeletedParameter } from './record-tool-args'
+import type { ListParams, ToolRecord } from './records'
+import { budgetedPage, cutRecordNote } from './budgeted-page'
+import { fieldPiece, pieceParameters, readsPiece } from './record-field-piece'
+import { forcedJson } from './result-budget'
 import { defineTool, type ReadableResources } from './tools'
 
 const readOnly = { readOnlyHint: true, openWorldHint: false }
@@ -47,7 +51,7 @@ export const listResourcesTool = () =>
 export const listRecordsTool = () =>
   defineTool({
     name: 'list_records',
-    description: `Finds records of a resource and returns a page of them as JSON ({ items, next_page_token, total_size_estimate }). filter uses AIP-160 syntax, such as status = "open" AND amount > 10, and order_by a comma-separated list of fields, each optionally followed by desc. Pass next_page_token back as page_token for the next page; it is empty on the last. show_deleted: true also returns soft-deleted records.`,
+    description: `Finds records of a resource and returns a page of them as JSON ({ items, next_page_token, total_size_estimate }). filter uses AIP-160 syntax, such as status = "open" AND amount > 10, and order_by a comma-separated list of fields, each optionally followed by desc. Pass next_page_token back as page_token for the next page; it is empty on the last. A page too large for one result holds fewer records, with long values cut and named in cut_fields, and a note on reading the rest. show_deleted: true also returns soft-deleted records.`,
     parameters: {
       type: 'object',
       properties: {
@@ -73,7 +77,8 @@ export const listRecordsTool = () =>
         page_size: typeof args.page_size === 'number' ? Math.min(args.page_size, maxPageSize) : defaultPageSize,
         ...(showDeleted && { show_deleted: true }),
       }
-      return context.records.list(resource, params).then((page) => JSON.stringify(page), refused)
+      const list = (paged: ListParams) => context.records.list(resource, paged)
+      return list(params).then((page) => budgetedPage(page, params, list)).catch(refused)
     },
   })
 
@@ -81,13 +86,14 @@ export const listRecordsTool = () =>
 export const getRecordTool = () =>
   defineTool({
     name: 'get_record',
-    description: 'Reads one record of a resource by its key and returns it as JSON ({ record, etag }). show_deleted: true also finds a soft-deleted record.',
+    description: 'Reads one record of a resource by its key and returns it as JSON ({ record, etag }), with long values cut and named in cut_fields when it is too large for one result. field reads one field alone, in pieces from offset. show_deleted: true also finds a soft-deleted record.',
     parameters: {
       type: 'object',
       properties: {
         resource: resourceParameter,
         key: keyParameter,
         show_deleted: showDeletedParameter,
+        ...pieceParameters,
       },
       required: ['resource', 'key'],
     },
@@ -98,7 +104,8 @@ export const getRecordTool = () =>
       if (!resource || key === undefined) return 'Pass the resource and key as { "resource": "<name>", "key": "<key>" }.'
       const showDeleted = showDeletedOf(args)
       if (showDeleted === undefined) return invalidShowDeleted
-      return context.records.get(resource, key, { show_deleted: showDeleted }).then((record) => JSON.stringify(record), refused)
+      const shown = (found: ToolRecord) => (readsPiece(args) ? fieldPiece(found, args) : forcedJson(found, cutRecordNote))
+      return context.records.get(resource, key, { show_deleted: showDeleted }).then(shown, refused)
     },
   })
 
