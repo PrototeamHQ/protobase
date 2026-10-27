@@ -6,7 +6,7 @@ The app's colours, name, icon, language and installation.
 
 - [Theme](../reference/theme.md): One CSS file sets the app's colours, corners and fonts for light and dark, and keeps working on every release.
 - [Dark mode](../reference/theme.md#light-dark-or-the-system): Each user picks light, dark or the system setting.
-- [App name, icon and colours](../reference/app-identity.md): The app's own name, icon and colours in the sidebar, browser tabs, home-screen icon and mail.
+- [App name, icon and colours](../reference/app-identity.md): The app's own name, icon and colours in the sidebar, browser tabs, `/favicon.ico`, home-screen icon and mail.
 - [Logo and favicon](../reference/theme.md#logo-and-favicon): Your own favicon or logo replaces Protobase's.
 - [English and Dutch](../reference/languages.md): The built-in screens come in English and Dutch, with numbers and dates written to match.
 - [Installable app](../reference/installable-app.md): The admin installs as an app on phones and computers, and says when the server cannot be reached.
