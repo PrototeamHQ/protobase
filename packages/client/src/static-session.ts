@@ -28,6 +28,7 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
   signInSocial: unsupported('sign in with a provider'),
   signInSaml: unsupported('sign in with a provider'),
   signOut: async () => undefined,
+  deleteAccount: unsupported('delete its account'),
   requestPasswordReset: async () => undefined,
   resetPassword: async () => undefined,
   account: {

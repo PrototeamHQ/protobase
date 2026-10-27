@@ -81,6 +81,7 @@ export const blockSpecs: Record<string, BlockSpec> = {
   ConnectedAccounts: { children: false, props: {} },
   Devices: { children: false, props: {} },
   ConnectedApps: { children: false, props: {} },
+  DeleteAccount: { children: false, props: {} },
 }
 
 const formats = ['relative', 'absolute', 'compact', 'percent', 'badge', 'code']

@@ -9,9 +9,10 @@ export type UserDeletionListener = (userId: string) => Promise<void>
 const removePath = '/admin/remove-user'
 
 /**
- * What runs when a user is deleted, by an admin (`/admin/remove-user`) or by `deleteUser` (the CLI): each listener
- * before anything is deleted, so one that throws stops the deletion with the user, their sessions and accounts in
- * place, and once more after the user is gone, for what was added in between.
+ * What runs when a user is deleted, by an admin (`/admin/remove-user`), by `deleteUser` (the CLI) or by themselves
+ * (`/delete-user`, see `selfDeletionOptions`): each listener before anything is deleted, so one that throws stops the
+ * deletion with the user, their sessions and accounts in place, and once more after the user is gone, for what was
+ * added in between.
  */
 export const userDeletion = () => {
   const listeners = new Map<string, UserDeletionListener>()

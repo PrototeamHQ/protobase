@@ -21,7 +21,8 @@ export type SamlSignIn = { id: string; name: string }
 /**
  * `needsAdmin` while no user exists yet; `signInMethods` the ways to sign in the server's policy leaves on;
  * `signInFirst` when the sign-in page leads with an emailed code, with the password behind "Use a password"; `passwordReset` when the server can email reset links; `changeEmail` when it can email the code that confirms a new
- * address (see `account.requestEmailChange`); `signUp` when anyone can make their own account (see
+ * address (see `account.requestEmailChange`); `accountDeletion` when people may delete their own account (see
+ * `deleteAccount`); `signUp` when anyone can make their own account (see
  * `sendSignUpCode`); `socialProviders` the ids of the sign-in providers, for example
  * `github`; `platformSignIn` the one of them the platform adds; `samlProviders` the app's SAML identity providers; `staffSignIn` the operator provider's name when its staff
  * can sign in as people; `organizations` when the app has them; `anonymous` when visitors may browse what the project's
@@ -35,6 +36,7 @@ export type SetupStatus = {
   signInFirst?: 'emailCode'
   passwordReset: boolean
   changeEmail?: boolean
+  accountDeletion?: boolean
   signUp?: boolean
   socialProviders: string[]
   platformSignIn?: PlatformSignIn

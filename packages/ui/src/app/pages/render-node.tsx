@@ -23,6 +23,7 @@ import { TabBlock, TabsBlock } from './blocks/tabs'
 import { UsersBlock } from '../../users/users-block'
 import { ConnectedAccountsBlock } from '../../account/blocks/connected-accounts-block'
 import { ConnectedAppsBlock } from '../../account/blocks/connected-apps-block'
+import { DeleteAccountBlock } from '../../account/blocks/delete-account-block'
 import { DevicesBlock } from '../../account/blocks/devices-block'
 import { PasskeysBlock } from '../../account/blocks/passkeys-block'
 import { PasswordBlock } from '../../account/blocks/password-block'
@@ -62,6 +63,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   ConnectedAccounts: ConnectedAccountsBlock,
   Devices: DevicesBlock,
   ConnectedApps: ConnectedAppsBlock,
+  DeleteAccount: DeleteAccountBlock,
 }
 
 const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && child.type === 'Link')

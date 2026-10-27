@@ -173,12 +173,12 @@ Everyone signed in has an account page at `/-/account`, which "Account" in the u
 
 | Tab | Address | Blocks |
 | --- | --- | --- |
-| Profile | `/-/account` | `Profile` |
+| Profile | `/-/account` | `Profile`, `DeleteAccount` |
 | Sign-in & security | `/-/account/security` | `Password`, `Passkeys`, `TwoFactor`, `ConnectedAccounts` |
 | Devices | `/-/account/devices` | `Devices` |
 | Connected apps | `/-/account/apps` | `ConnectedApps` |
 
-A tab whose blocks all leave themselves out is not offered, such as Connected apps in an app without [MCP](#oauth-for-mcp-clients).
+A tab whose blocks all leave themselves out is not offered, such as Connected apps in an app without [MCP](#oauth-for-mcp-clients). `DeleteAccount` leaves itself out when the app turns [account deletion](#deleting-the-account) off.
 
 To change it, export a page named `account` of your own: it replaces the standard one at `/-/account`, and is neither at `/account` nor in the sidebar. `accountTabs` holds the standard tabs by name (`profile`, `security`, `devices`, `apps`), so the page lists the ones it keeps beside its own:
 
@@ -257,6 +257,21 @@ Signing out a device, or a new password with `signOutOthers`, stops that device'
 On the [account page](#account-page), the `Password` block does both: with a password, it asks for the current one, the new one twice, and whether to sign out the other devices; without one, it sets the first, and nobody is signed out. While the sign-in policy turns passwords off, or in a staff session, it only says so.
 
 The [account page](#account-page)'s Devices tab lists the sessions with this one first and marked, a Sign out on each other one and Sign out of all other devices. It names each by its browser and system from the user agent, and a staff session by the operator alone, such as "Protobase staff" with when it signed in and until when, never the staff member.
+
+## Deleting the account
+
+Everyone signed in can delete their own account: the account page's Profile tab ends with "Delete account", which asks them to confirm in a dialog, with their password when the account has one. It is on by default, since an app store requires an app that makes accounts to let people delete them in the app, and `accountDeletion: false` turns it off, for an app whose accounts an organization's admins manage:
+
+```ts
+auth: { accountDeletion: false }
+```
+
+It is Better Auth's own deletion, `POST /api/auth/delete-user` with `{ password }`, which the client has as `session.deleteAccount(password?)` and `GET /api/auth/status` offers as `"accountDeletion": true`. It deletes the user with their sessions, sign-in methods and linked accounts, as an admin's [removal](#users-page) does, along with what the app keeps of them elsewhere, such as their [devices for push](../guides/push-notifications.md), and their [MCP clients](#oauth-for-mcp-clients)' grants; the app's own records that point at the user stay. This device is signed out, and the address can no longer sign in.
+
+- Without a password, as for someone who signs in with [emailed codes](#emailed-sign-in-codes) or a passkey, the session must have signed in within the last day, else it is `SESSION_EXPIRED`, which the page shows as "sign out and sign in again first". A wrong password is `INVALID_PASSWORD`.
+- The last active admin cannot delete themselves (`400 LAST_ADMIN`), nor can an account in `PROTOBASE_LOCKED_ACCOUNTS` (`403 ACCOUNT_LOCKED`); nothing is deleted then.
+- A [staff session](#staff-sign-in) cannot delete the account (`STAFF_CANNOT_CHANGE_SIGN_IN`).
+- With `accountDeletion: false` the endpoint answers `404` and the page offers nothing. Better Auth's emailed confirmation link (`/delete-user/callback`) is always off.
 
 ## Leaked passwords
 

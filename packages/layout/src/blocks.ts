@@ -160,8 +160,9 @@ export type UsersProps = Record<string, never>
 
 /**
  * A part of the signed-in person's own account, for the `account` page only: their profile, password, passkeys,
- * two-factor authentication, connected accounts or connected apps. Each takes no props, loads its own data, and hides
- * itself where it does not apply, such as Connected apps without MCP.
+ * two-factor authentication, connected accounts, connected apps, or the deletion of the account. Each takes no props,
+ * loads its own data, and hides itself where it does not apply, such as Connected apps without MCP, or Delete account
+ * with `auth.accountDeletion: false`.
  */
 export type AccountBlockProps = Record<string, never>
 
@@ -192,3 +193,4 @@ export const TwoFactor = defineBlock<AccountBlockProps>('TwoFactor', false)
 export const ConnectedAccounts = defineBlock<AccountBlockProps>('ConnectedAccounts', false)
 export const Devices = defineBlock<AccountBlockProps>('Devices', false)
 export const ConnectedApps = defineBlock<AccountBlockProps>('ConnectedApps', false)
+export const DeleteAccount = defineBlock<AccountBlockProps>('DeleteAccount', false)

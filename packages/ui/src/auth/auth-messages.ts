@@ -108,6 +108,8 @@ const messages: Record<string, Id> = {
   PREVIOUSLY_REGISTERED: 'passkeyAdded',
   ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED: 'passkeyAdded',
   SESSION_NOT_FRESH: 'notFresh',
+  // Better Auth's answer to an account deletion without a password from a session older than a day.
+  SESSION_EXPIRED: 'notFresh',
   PASSWORD_COMPROMISED: 'passwordLeaked',
 }
 

@@ -18,7 +18,8 @@ const lockedFields: Record<string, (field: string) => boolean> = {
   twoFactor: (field) => !['failedVerificationCount', 'lockedUntil', 'updatedAt'].includes(field),
 }
 
-const refuse = (): never => {
+/** Refuses, with `403 ACCOUNT_LOCKED`, a change to or the deletion of a locked account. */
+export const refuseLockedAccount = (): never => {
   throw new APIError('FORBIDDEN', { code: 'ACCOUNT_LOCKED', message: 'This account is locked: its address, password, passkeys, two-factor authentication and linked accounts stay as they are, and it cannot be deleted.' })
 }
 
@@ -40,16 +41,16 @@ export const lockAccounts = <A extends Writes>(adapter: A, emails: string[]): A 
   }
   const checkUpdate = async (model: string, where: Where[], fields: string[]) => {
     const locked = lockedFields[model]
-    if (locked && fields.some(locked) && (await matchesLocked(model, where))) refuse()
+    if (locked && fields.some(locked) && (await matchesLocked(model, where))) refuseLockedAccount()
   }
   const checkDelete = async (model: string, where: Where[]) => {
-    if (lockedFields[model] && (await matchesLocked(model, where))) refuse()
+    if (lockedFields[model] && (await matchesLocked(model, where))) refuseLockedAccount()
   }
   const checkCreate = async (model: string, data: Record<string, unknown>) => {
     if (model === 'user' || !lockedFields[model]) return
     if (!(await lockedIds()).has(data.userId as string)) return
     if (model === 'account' && (await adapter.count({ model: 'account', where: [{ field: 'userId', value: data.userId as string }] })) === 0) return
-    refuse()
+    refuseLockedAccount()
   }
   return {
     ...adapter,

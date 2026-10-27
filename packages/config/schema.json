@@ -1902,6 +1902,17 @@
             }
           ]
         },
+        "accountDeletion": {
+          "description": "Lets the signed-in person delete their own account from the account page, with their password or from a session\nthat signed in within the last day; `false` turns it off, for apps whose accounts are managed by an organization's\nadmins. Default on, as app stores require an app that makes accounts to delete them too.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
         "operator": {
           "description": "The identity provider the operator's staff sign in with to sign in as people of this app, for support. Defaults\nto the one the platform passes in `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID` and\n`PROTOBASE_OPERATOR_CLIENT_SECRET` (see `readOperatorSettings`), when set; `false` turns staff sign-in off\nwhatever the environment says.",
           "anyOf": [

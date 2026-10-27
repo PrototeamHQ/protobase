@@ -21,6 +21,11 @@ export const adminChange = (path: string, body: Body): AdminChange | undefined =
   return { userId, ...(roles && { roles }), ...(banned !== undefined && { banned }) }
 }
 
+/** Refuses, with `400 LAST_ADMIN`, a change that would leave no active admin. */
+export const refuseLastAdmin = (): never => {
+  throw new APIError('BAD_REQUEST', { code: 'LAST_ADMIN', message: 'This is the last admin: make someone else an admin first.' })
+}
+
 const guardedPaths = ['/admin/set-role', '/admin/ban-user', '/admin/remove-user', '/admin/update-user']
 
 /** Refuses, with `400 LAST_ADMIN`, an admin endpoint that would demote, block or remove the last active admin. */
@@ -35,9 +40,7 @@ export const lastAdminGuardPlugin = () =>
             const change = adminChange(ctx.path, (ctx.body ?? {}) as Body)
             if (!change) return
             const users = await ctx.context.adapter.findMany<AdminCandidate>({ model: 'user', select: ['id', 'role', 'banned'] })
-            if (wouldLeaveNoAdmin(users, change)) {
-              throw new APIError('BAD_REQUEST', { code: 'LAST_ADMIN', message: 'This is the last admin: make someone else an admin first.' })
-            }
+            if (wouldLeaveNoAdmin(users, change)) refuseLastAdmin()
           }),
         },
       ],

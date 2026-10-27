@@ -60,6 +60,34 @@ describe('auth session tokens', () => {
   })
 })
 
+describe('deleting the account', () => {
+  const setup = (respond: (path: string) => Response) => {
+    const calls: { path: string; body: unknown }[] = []
+    const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = new Request(input, init)
+      const path = new URL(request.url).pathname
+      calls.push({ path, body: request.method === 'POST' ? await request.json() : undefined })
+      return respond(path)
+    }) as typeof globalThis.fetch
+    return { calls, session: createAuthSession({ origin: 'http://localhost', fetch, onSignedOut: vi.fn() }) }
+  }
+
+  it('sends the password when given, and forgets the token once the account is gone', async () => {
+    const { calls, session } = setup((path) => (path.endsWith('/token') ? json({ token: jwt(15 * 60_000) }) : json({ success: true, message: 'User deleted' })))
+    await session.token()
+    await session.deleteAccount('secret')
+    expect(calls.find((call) => call.path.endsWith('/delete-user'))?.body).toEqual({ password: 'secret' })
+    await session.token()
+    expect(calls.filter((call) => call.path.endsWith('/token'))).toHaveLength(2)
+  })
+
+  it('rejects with the server\'s code, such as LAST_ADMIN', async () => {
+    const { calls, session } = setup(() => json({ message: 'This is the last admin', code: 'LAST_ADMIN' }, { status: 400 }))
+    await expect(session.deleteAccount()).rejects.toMatchObject({ status: 400, code: 'LAST_ADMIN' })
+    expect(calls.find((call) => call.path.endsWith('/delete-user'))?.body).toEqual({})
+  })
+})
+
 describe('auth session sign-in', () => {
   it('turns Better Auth errors into AuthError', async () => {
     const session = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ message: 'Invalid email or password', code: 'INVALID_EMAIL_OR_PASSWORD' }, { status: 401 })) as typeof fetch })
@@ -73,6 +101,8 @@ describe('auth session sign-in', () => {
   it('reads the setup status, with passwords only from a server that does not list sign-in methods', async () => {
     const open = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: true })) as typeof fetch })
     expect(await open.status()).toEqual({ needsAdmin: true, signInMethods: ['password'], passwordReset: false, socialProviders: [], samlProviders: [] })
+    const deletable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, accountDeletion: true })) as typeof fetch })
+    expect(await deletable.status()).toMatchObject({ accountDeletion: true })
     const resettable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, changeEmail: true, socialProviders: ['github'] })) as typeof fetch })
     expect(await resettable.status()).toEqual({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, changeEmail: true, socialProviders: ['github'], samlProviders: [] })
     const browsable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], anonymous: true })) as typeof fetch })

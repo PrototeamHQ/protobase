@@ -32,6 +32,8 @@ export type AuthApi = {
   passwordReset: boolean
   /** The server can email the code that confirms a new address, so the account page offers "Change email". */
   changeEmail: boolean
+  /** People may delete their own account, so the account page offers "Delete account". */
+  accountDeletion: boolean
   /** When MCP clients can connect to the app: its endpoint's `url`, which the account page shows with the clients the person allowed. */
   mcp?: { url: string }
   /** Anyone can make their own account, so the sign-in page and sign-in prompts offer "Create an account". */
@@ -67,6 +69,8 @@ export type AuthApi = {
   /** Ends a staff session: the browser is signed out, and the log notes the end. */
   stopStaffSession: () => Promise<void>
   signOut: () => Promise<void>
+  /** Deletes the signed-in person's account, with their password when it has one, and signs this device out; rejects with `AuthError`. */
+  deleteAccount: (password?: string) => Promise<void>
   /** The API said 401 twice: back to the sign-in page. Signing in again shows what the account has to set up, if anything. */
   markSignedOut: () => void
   /** Someone signed out browses as a visitor again, when the server lets visitors browse without signing in. */
@@ -111,6 +115,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
   const [signInFirst, setSignInFirst] = useState<'password' | 'emailCode'>('password')
   const [passwordReset, setPasswordReset] = useState(false)
   const [changeEmail, setChangeEmail] = useState(false)
+  const [accountDeletion, setAccountDeletion] = useState(false)
   const [mcp, setMcp] = useState<{ url: string }>()
   const [canSignUp, setCanSignUp] = useState(false)
   const [passkeyDomains, setPasskeyDomains] = useState<string[]>([])
@@ -178,6 +183,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       setSignInFirst(status.signInFirst ?? 'password')
       setPasswordReset(status.passwordReset && !nativeBridge)
       setChangeEmail(Boolean(status.changeEmail))
+      setAccountDeletion(Boolean(status.accountDeletion))
       setMcp(status.mcp)
       setCanSignUp(Boolean(status.signUp))
       setPasskeyDomains(status.passkeyDomains ?? [])
@@ -205,6 +211,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       signInFirst,
       passwordReset,
       changeEmail,
+      accountDeletion,
       mcp,
       canSignUp,
       passkeyDomains,
@@ -255,9 +262,15 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
         await session.signOut()
         setState(signedOutState())
       },
+      // The server removed the account's devices with it, so push is only forgotten here.
+      deleteAccount: async (password) => {
+        await session.deleteAccount(password)
+        await push.forget()
+        setState(signedOutState())
+      },
       push,
     }),
-    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
+    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

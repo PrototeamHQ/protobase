@@ -98,6 +98,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         ...(body.signInFirst === 'emailCode' && { signInFirst: 'emailCode' }),
         passwordReset: Boolean(body.passwordReset),
         ...(body.changeEmail && { changeEmail: true }),
+        ...(body.accountDeletion && { accountDeletion: true }),
         ...(body.signUp && { signUp: true }),
         socialProviders: body.socialProviders ?? [],
         ...(body.platformSignIn && { platformSignIn: body.platformSignIn }),
@@ -145,6 +146,17 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
     signOut: async () => {
       forget()
       await client.signOut()
+    },
+
+    /**
+     * Deletes the signed-in person's account with its sessions and sign-in methods, when the server allows it
+     * (`status().accountDeletion`), and signs this device out. Without `password` the session must have signed in within
+     * the last day (`SESSION_EXPIRED`); the last admin (`LAST_ADMIN`) and a locked account (`ACCOUNT_LOCKED`) are refused.
+     */
+    deleteAccount: async (password?: string) => {
+      const { error } = await client.deleteUser(password ? { password } : {})
+      if (error) throw authError(error, 'Could not delete your account')
+      forget()
     },
 
     /**

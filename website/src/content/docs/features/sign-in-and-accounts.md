@@ -13,6 +13,7 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Leaked passwords](/reference/auth/#leaked-passwords): New passwords that appear in a known data breach are refused, when the app turns the check on.
 - [Emailed sign-in codes](/reference/auth/#emailed-sign-in-codes): People sign in with a code sent to their email. An address with no account is emailed that it has none, so the person tries the one they signed up with. An app can have the sign-in page lead with the code and put the password behind "Use a password".
 - [Changing the address](/reference/auth/#changing-the-address): People move their account to a new email address from the account page, once they enter the code sent there.
+- [Deleting the account](/reference/auth/#deleting-the-account): People delete their own account from the account page, after confirming it, in the web app and the mobile app. On by default; an app whose accounts an organization's admins manage turns it off.
 - [Open sign-up](/reference/auth/#open-sign-up): Anyone can create an account after confirming an emailed code.
 - [Passkeys](/reference/auth/#passkeys): People sign in with their device's face or fingerprint unlock, or with a security key.
 - [Two-factor authentication](/reference/auth/#two-factor-authentication): A second step with an authenticator app, backup codes or emailed codes.

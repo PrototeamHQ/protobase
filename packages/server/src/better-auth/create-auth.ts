@@ -18,6 +18,7 @@ import { defaultInvitationSeconds, defaultInvitationUrl } from './invitations/in
 import { lastAdminGuardPlugin } from './last-admin-guard'
 import { leakedPasswordsPlugin } from './leaked-passwords'
 import { lockedAccountsPlugin, readLockedAccounts } from './locked-accounts'
+import { selfDeletionCallbackPath, selfDeletionOptions, selfDeletionPath } from './self-deletion'
 import { userDeletion, type UserDeletion } from './user-deletion'
 import { revokeMcpGrants } from './mcp/revoke-grants'
 import type { mcpAuthPlugins } from './mcp/mcp-auth-plugins'
@@ -168,6 +169,12 @@ export type CreateAuthOptions = {
    * the password's SHA-1 hash leave the server. While the list cannot be reached, setting a password fails. Default off.
    */
   leakedPasswords?: boolean
+  /**
+   * Lets the signed-in person delete their own account from the account page, with their password or from a session
+   * that signed in within the last day; `false` turns it off, for apps whose accounts are managed by an organization's
+   * admins. Default on, as app stores require an app that makes accounts to delete them too.
+   */
+  accountDeletion?: boolean
   /**
    * The identity provider the operator's staff sign in with to sign in as people of this app, for support. Defaults
    * to the one the platform passes in `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID` and
@@ -339,6 +346,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   const { secrets, legacySecret } = versionedSecrets(options.secret, options.previousSecrets)
   const trusted = [options.baseURL, ...origins, ...(options.trustedOrigins ?? [])]
   const userFields = { ...userFieldsNamed(emailConfirmedField, users), ...(organizations && userFieldsNamed(lastOrganizationField, users)), ...metadataField(users) }
+  const accountDeletion = options.accountDeletion !== false
+  const deleteUser = accountDeletion ? { deleteUser: selfDeletionOptions({ lockedAccounts, mcp: Boolean(mcp), adapter: async () => (await context()).adapter, ...(deletion && { deletion }) }) } : {}
   return {
     appName,
     database: options.database,
@@ -359,7 +368,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(mail && passwordResetOptions(mail, mcp ? { onPasswordReset: async ({ user }) => revokeMcpGrants((await context()).adapter, user.id) } : {})),
     },
     ...(options.socialProviders && { socialProviders: options.socialProviders }),
-    user: Object.keys(userFields).length > 0 ? { ...userModel(users), additionalFields: userFields } : userModel(users),
+    user: { ...userModel(users), ...(Object.keys(userFields).length > 0 && { additionalFields: userFields }), ...deleteUser },
     session: coreNames.session,
     verification: coreNames.verification,
     account: {
@@ -407,7 +416,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
       ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context }) : []),
     ].map((plugin) => withUserColumns(plugin, users)),
-    disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : [])],
+    disabledPaths: [selfDeletionCallbackPath, ...(accountDeletion ? [] : [selfDeletionPath]), ...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : [])],
     databaseHooks: {
       user: {
         create: {
@@ -504,7 +513,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const mobile = mobileRequests()
   const deletion = userDeletion()
   const lockedAccounts = platformLockedAccounts()
-  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...((organizations || mcp) && { context }) })
+  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), context })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
@@ -540,6 +549,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     passwordReset: Boolean(mailer),
     /** New passwords are checked against Have I Been Pwned's list of leaked ones (`leakedPasswords`). */
     leakedPasswords: Boolean(options.leakedPasswords),
+    /** The signed-in person can delete their own account (`accountDeletion`). */
+    accountDeletion: options.accountDeletion !== false,
     /** Open sign-up is on and offered: the app asks for it, and can mail the codes. */
     signUp: Boolean(signUpRole && mailer),
     /** The role of accounts made by open sign-up, while it is offered. */

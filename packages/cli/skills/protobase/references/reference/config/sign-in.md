@@ -198,6 +198,17 @@ Refuses a new password that appears in a known data breach, by Have I Been Pwned
 export default defineConfig({ auth: { leakedPasswords: true } })
 ```
 
+## auth.accountDeletion
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Lets the signed-in person delete their own account from the account page, as app stores require of an app that makes accounts. `false` turns it off, for an app whose accounts an organization's admins manage. See [Deleting the account](../auth.md#deleting-the-account).
+
+```ts
+export default defineConfig({ auth: { accountDeletion: false } })
+```
+
 ## auth.users
 
 - **Type:** `{ table?: string; columns?: Record<string, string>; metadata?: string }`
