@@ -1,16 +1,20 @@
 /**
  * `batch_write`: many creates, updates and deletes across resources in one transaction, through the REST API's batch
- * write, after the user approves the batch once. Over MCP the tool runs again from the start with the user's answer, so
- * everything before `approve` only checks the arguments and builds the approval text: nothing is read or written.
+ * write, after the user approves the batch once, seeing each write in their language. Over MCP the tool runs again from
+ * the start with the user's answer, so everything before `approve` only checks the arguments and reads what the approval
+ * names: nothing is written.
  */
 import { HttpProblem } from '../problem'
-import { batchApproval } from './batch-approval'
+import { batchApproval, shownOperations } from './batch-approval'
+import { batchBefore } from './batch-before'
 import { batchEcho, recordsBefore } from './batch-echo'
 import { batchOperationsOf, type WriteOperation } from './batch-write-args'
 import { cutRecordNote } from './budgeted-page'
 import { forcedJson } from './result-budget'
 import { defineTool, type ToolContext } from './tools'
 import { fieldsParameter } from './write-echo'
+import { writeText } from './write-messages'
+import { describedResource } from './write-prompts'
 import type { WriteRecordToolsInput } from './write-record-tools'
 
 const writes = { readOnlyHint: false, destructiveHint: true, openWorldHint: false }
@@ -43,11 +47,18 @@ const softDeleteSet = async (context: ToolContext, operations: WriteOperation[])
   return undefined
 }
 
-// Only a batch with deletes needs to know which resources restore what they delete.
-const softDeletesFor = async (context: ToolContext, operations: WriteOperation[]) => {
-  if (!operations.some((operation) => operation.op === 'delete')) return new Set<string>()
-  const { models } = await context.resources()
-  return new Set(models.filter((model) => model.softDelete).map((model) => model.name))
+// The approval of `operations`, after reading the records it names, or the refusal of one of those reads.
+const approvalOf = async (context: ToolContext, operations: WriteOperation[]) => {
+  const before = await batchBefore(context, operations, shownOperations).catch(refused)
+  if (typeof before === 'string') return before
+  const readable = await context.resources()
+  return batchApproval({
+    text: writeText(context.locale ?? 'en'),
+    described: (resource) => describedResource(readable, resource),
+    operations,
+    before,
+    softDeletes: new Set(readable.models.filter((model) => model.softDelete).map((model) => model.name)),
+  })
 }
 
 const operationsParameter = (input: WriteRecordToolsInput) => ({
@@ -84,7 +95,9 @@ export const batchWriteTool = (input: WriteRecordToolsInput = {}) =>
       if (outsideRefusal) return outsideRefusal
       const softDeleteRefusal = await softDeleteSet(context, operations).catch(refused)
       if (softDeleteRefusal) return softDeleteRefusal
-      const answer = await context.approve(batchApproval(operations, await softDeletesFor(context, operations)))
+      const approval = await approvalOf(context, operations)
+      if (typeof approval === 'string') return approval
+      const answer = await context.approve(approval)
       if (answer !== 'approved') return `The user did not approve this batch (${answer}); nothing was written.`
       const befores = await recordsBefore(context, operations)
       return context.records.batch(operations).then(async (results) => forcedJson({ results: await batchEcho(context, operations, results, befores, fields) }, cutRecordNote), refused)

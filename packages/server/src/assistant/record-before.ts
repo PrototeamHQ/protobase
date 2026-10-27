@@ -6,8 +6,8 @@ import type { ToolContext } from './tools'
 import { writeText } from './write-messages'
 import { describedResource } from './write-prompts'
 
-// The caller's read rules hide the record from them, which leaves the write's own rules to decide
-const hidden = (error: unknown) => error instanceof HttpProblem && (error.status === 403 || error.status === 404)
+/** Whether the caller's read rules hide the record from them, which leaves the write's own rules to decide. */
+export const hidden = (error: unknown) => error instanceof HttpProblem && (error.status === 403 || error.status === 404)
 
 /**
  * The record as the caller reads it now, for what an approval names and shows before a write: undefined when they may

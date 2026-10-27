@@ -27,12 +27,13 @@ const hiddenCharacters = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu
 const longest = 200
 
 /** `text` on one line with nothing hidden in it, cut at 200 characters. */
-const shown = (text: string) => {
+export const shown = (text: string) => {
   const line = text.replace(hiddenCharacters, ' ')
   return line.length > longest ? `${line.slice(0, longest - 1)}…` : line
 }
 
-const resourceLabel = ({ name, view }: Described) => shown(view?.names?.singular ?? humanize(name))
+/** The resource's singular label, as a record page names it. */
+export const resourceLabel = ({ name, view }: Described) => shown(view?.names?.singular ?? humanize(name))
 
 const fieldLabel = ({ view }: Described, name: string) => shown(view?.fields[name]?.label ?? humanize(name))
 
@@ -48,7 +49,7 @@ const shownValue = (text: WriteTexts, described: Described, name: string, value:
 }
 
 /** `Task #42 "Fix the sign-in lockout"`: the resource's label, the record's key, and its title when it has one apart from the key. */
-const recordName = (described: Described, key: RecordKeyInput, record: Row) => {
+export const recordName = (described: Described, key: RecordKeyInput, record: Row) => {
   const shownKey = shown(Array.isArray(key) ? key.join(',') : String(key))
   const title = described.model ? shown(recordTitle(described.model, described.view, record, shownKey)) : shownKey
   return `${resourceLabel(described)} #${shownKey}${title === shownKey ? '' : ` "${title}"`}`
@@ -63,27 +64,39 @@ const titleOfNew = (described: Described, data: Row) => {
 // The same value whatever the order of an object's keys is not worth telling apart here: JSON is close enough
 const same = (before: unknown, after: unknown) => JSON.stringify(before ?? null) === JSON.stringify(after ?? null)
 
-/** `Create Task "Fix the sign-in lockout"?`, with each field the new record is given by its label. */
-export const createApproval = (text: WriteTexts, described: Described, data: Row): ApprovalRequest => ({
-  title: text.createTitle(resourceLabel(described), titleOfNew(described, data)),
-  fields: Object.entries(data).map(([name, value]) => ({ label: fieldLabel(described, name), value: shownValue(text, described, name, value) })),
-  approveLabel: text.create,
-  rejectLabel: text.reject,
+export type ApprovalField = { label: string; value: string }
+
+/** A create as one change: `Create Task "Fix the sign-in lockout"`, and each field the new record is given by its label. */
+export const createChange = (text: WriteTexts, described: Described, data: Row) => ({
+  action: text.createAction(resourceLabel(described), titleOfNew(described, data)),
+  fields: Object.entries(data).map(([name, value]): ApprovalField => ({ label: fieldLabel(described, name), value: shownValue(text, described, name, value) })),
 })
 
 /**
- * `Update Task #42 "Fix the sign-in lockout"?`, with each field that changes as `In flight -> Done`. A field the
- * caller cannot read before, such as a sensitive one, shows its new value alone.
+ * An update of the record named `record` as one change: `Update Task #42 "Fix the sign-in lockout"`, and each field that
+ * changes as `In flight -> Done`. A field the caller cannot read before, such as a sensitive one, shows its new value alone.
  */
-export const updateApproval = (text: WriteTexts, described: Described, key: RecordKeyInput, current: Row, data: Row): ApprovalRequest => {
+export const updateChange = (text: WriteTexts, described: Described, record: string, current: Row, data: Row) => {
   const changed = Object.entries(data).filter(([name, value]) => !Object.hasOwn(current, name) || !same(current[name], value))
-  const fields = changed.map(([name, value]) => {
+  const fields = changed.map(([name, value]): ApprovalField => {
     const after = shownValue(text, described, name, value)
     const before = Object.hasOwn(current, name) ? `${shownValue(text, described, name, current[name])} -> ` : ''
     return { label: fieldLabel(described, name), value: `${before}${after}` }
   })
+  return { action: text.updateAction(record), fields }
+}
+
+/** `Create Task "Fix the sign-in lockout"?`, with each field the new record is given by its label. */
+export const createApproval = (text: WriteTexts, described: Described, data: Row): ApprovalRequest => {
+  const { action, fields } = createChange(text, described, data)
+  return { title: text.asked(action), fields, approveLabel: text.create, rejectLabel: text.reject }
+}
+
+/** `Update Task #42 "Fix the sign-in lockout"?`, with each field that changes, or saying none does. */
+export const updateApproval = (text: WriteTexts, described: Described, key: RecordKeyInput, current: Row, data: Row): ApprovalRequest => {
+  const { action, fields } = updateChange(text, described, recordName(described, key, current), current, data)
   return {
-    title: text.updateTitle(recordName(described, key, current)),
+    title: text.asked(action),
     ...(fields.length > 0 ? { fields } : { body: text.noChanges }),
     approveLabel: text.update,
     rejectLabel: text.reject,
@@ -92,7 +105,7 @@ export const updateApproval = (text: WriteTexts, described: Described, key: Reco
 
 /** `Delete Task #42 "Fix the sign-in lockout"?`, saying whether it can be restored (a soft delete) or is gone for good. */
 export const deleteApproval = (text: WriteTexts, described: Described, key: RecordKeyInput, current: Row, restorable: boolean): ApprovalRequest => ({
-  title: text.deleteTitle(recordName(described, key, current)),
+  title: text.asked(text.deleteAction(recordName(described, key, current))),
   body: restorable ? text.restorable : text.permanent,
   tone: restorable ? 'warning' : 'danger',
   approveLabel: restorable ? text.delete : text.deleteForGood,
