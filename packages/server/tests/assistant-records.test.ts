@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { HttpProblem } from '../src/problem'
-import { defineTool } from '../src/assistant/tools'
+import { countRecordsTool } from '../src/assistant/count-records-tool'
+import { defineTool, type ToolContext } from '../src/assistant/tools'
 import type { ToolRecords } from '../src/assistant/records'
 import type { WriteEvent } from '../src/types'
 import { as, createFixtureDb, createTestApp, json } from '../../../test-support/server'
@@ -128,5 +129,29 @@ describe('ToolContext.records with show_deleted', () => {
     const unsupported = { status: 400, detail: 'Resource "labels" does not soft delete, so show_deleted does not apply' }
     expect(await refusal(acme.get('labels', 1, { show_deleted: true }))).toEqual(unsupported)
     expect(await refusal(acme.list('labels', { show_deleted: true }))).toEqual(unsupported)
+  })
+})
+
+describe('count_records', () => {
+  const filter = 'id >= 2901 AND id <= 3000'
+  const count = async (records: ToolRecords, args: Record<string, unknown>) =>
+    JSON.parse(await countRecordsTool().run({ resource: 'companies', filter, ...args }, { records } as unknown as ToolContext)) as unknown
+  const aggregate = async (roles: string) =>
+    (await createTestApp(fixture).request(`/api/v1/companies:aggregate?group_by=status&filter=${encodeURIComponent(filter)}`, { headers: as(1, roles) })).json()
+
+  it('counts by status what the filter finds of the records the caller may read, as the REST aggregate does', async () => {
+    // A sales person reads open companies only.
+    const sales = await count(await recordsFor(1, 'ai,sales'), { group_by: 'status' }) as { groups: Array<{ value: string; count: number }> }
+    expect(sales).toEqual(await aggregate('sales'))
+    expect(sales.groups.map((group) => group.value)).toEqual(['open'])
+    expect(await count(await recordsFor(1, 'ai,sales'), {})).toEqual({ count: sales.groups[0]!.count })
+
+    const admin = await recordsFor(1, 'admin')
+    const all = await count(admin, { group_by: 'status' }) as { groups: Array<{ count: number }> }
+    expect(all).toEqual(await aggregate('admin'))
+    // 3000 is soft-deleted, so 99 of the 100 are there to count.
+    expect(await count(admin, {})).toEqual({ count: 99 })
+    expect(all.groups.reduce((sum, group) => sum + group.count, 0)).toBe(99)
+    expect(await count(admin, { show_deleted: true })).toEqual({ count: 100 })
   })
 })

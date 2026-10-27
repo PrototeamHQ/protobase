@@ -1,4 +1,5 @@
 import { encodeKey } from '@protobase/schema/internal'
+import { aggregate } from '../aggregate-groups'
 import { runBatch, type BatchResult } from '../batch/run-batch'
 import type { BatchOperation } from '../batch/schema'
 import type { Deps } from '../deps'
@@ -37,12 +38,20 @@ export type RecordPage = {
   total_size?: number
 }
 
+/** The parameters of the REST API's `:aggregate` that count records per value of a field, as values. */
+export type AggregateParams = { group_by: string; filter?: string; limit?: number; label?: string }
+
+/** Records per value of `group_by` as the REST API's `:aggregate` gives them, largest group first. */
+export type RecordGroups = { group_by: string; groups: Array<{ value: unknown; count: number; label?: string }> }
+
 /**
  * The app's resources as the session's user: their access rules, tenant scope, validation and write hooks apply as
  * in the REST API. A refusal or a missing record rejects with an `HttpProblem`, which a tool can turn into text.
  */
 export type ToolRecords = {
   list: (resource: string, params?: ListParams) => Promise<RecordPage>
+  /** Counts per value of a field, as `GET /{resource}:aggregate` does, under the same access rules as `list`. */
+  aggregate: (resource: string, params: AggregateParams) => Promise<RecordGroups>
   /** With `show_deleted`, also finds a soft-deleted record, as the REST API's `show_deleted` does. */
   get: (resource: string, key: RecordKeyInput, options?: { show_deleted?: boolean }) => Promise<ToolRecord>
   create: (resource: string, data: Row) => Promise<ToolRecord>
@@ -85,6 +94,7 @@ export const assistantRecords = (deps: Deps, session: Session): ToolRecords => {
 
   return {
     list: async (resource, params = {}) => (await listRecords(deps, entryOf(resource), session, params, filterLength)).body,
+    aggregate: async (resource, params) => (await aggregate(deps, entryOf(resource), session, params)).body as RecordGroups,
     get: async (resource, input, { show_deleted } = {}) => {
       const { entry, key } = keyOf(resource, input)
       const { record, etag } = await readRecord(deps, entry, session, key, show_deleted)
@@ -107,4 +117,4 @@ export const assistantRecords = (deps: Deps, session: Session): ToolRecords => {
 const withoutAdmin = () => Promise.reject(new Error('This assistant has no records: ToolContext.records works in the built-in assistant'))
 
 /** Records for a turn without an admin around it, such as in a backend of its own: every call fails. */
-export const noRecords: ToolRecords = { list: withoutAdmin, get: withoutAdmin, create: withoutAdmin, update: withoutAdmin, delete: withoutAdmin, softDeleteField: withoutAdmin, batch: withoutAdmin }
+export const noRecords: ToolRecords = { list: withoutAdmin, aggregate: withoutAdmin, get: withoutAdmin, create: withoutAdmin, update: withoutAdmin, delete: withoutAdmin, softDeleteField: withoutAdmin, batch: withoutAdmin }

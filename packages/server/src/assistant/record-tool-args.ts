@@ -1,9 +1,12 @@
+import { QueryError } from '@protobase/query'
+import { queryProblem } from '../error-handler'
 import { HttpProblem } from '../problem'
 import type { RecordKeyInput } from './records'
 
 /** A refusal the model can act on (no such resource, not allowed, a bad filter) is its to read; anything else fails the call. */
 export const refused = (error: unknown) => {
-  if (error instanceof HttpProblem && error.status < 500) return JSON.stringify({ error: error.slug, message: error.detail })
+  const problem = error instanceof QueryError ? queryProblem(error) : error
+  if (problem instanceof HttpProblem && problem.status < 500) return JSON.stringify({ error: problem.slug, message: problem.detail })
   throw error
 }
 

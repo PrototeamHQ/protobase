@@ -16,7 +16,8 @@ const queryStatus: Partial<Record<QueryErrorCode, number>> = {
   missing_extension: 501,
 }
 
-const queryProblem = (error: QueryError) => {
+/** The problem a query-layer refusal, such as an unknown field or an out-of-range option, stands for. */
+export const queryProblem = (error: QueryError) => {
   const status = queryStatus[error.code] ?? 400
   return new HttpProblem(status, error.code.replaceAll('_', '-'), titles[status] ?? 'Not Implemented', error.message)
 }

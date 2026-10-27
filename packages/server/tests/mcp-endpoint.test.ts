@@ -75,7 +75,7 @@ const served = async (admin?: AdminOptions, email = 'ana@example.com') => {
   return { app, mcp: tokens.access_token, own }
 }
 
-const records = ['list_resources', 'list_records', 'get_record']
+const records = ['list_resources', 'list_records', 'count_records', 'get_record']
 
 describe('the MCP endpoint', () => {
   it('asks for a token with a challenge naming its metadata, and refuses the app\'s own tokens', async () => {

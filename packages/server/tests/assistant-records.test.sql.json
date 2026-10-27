@@ -340,5 +340,89 @@
       {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"companies\" as \"t\" where \"t\".\"organization_id\" = $1 and (\"t\".\"id\" >= $2 and \"t\".\"id\" <= $3) limit $4) as \"found\"","params":["1","2995","3105","10001"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["6"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
+  },
+  "count_records > counts by status what the filter finds of the records the caller may read, as the REST aggregate does": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"companies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and \"t\".\"status\" = $2 and (\"t\".\"id\" >= $3 and \"t\".\"id\" <= $4) group by \"t\".\"status\" order by count(*) desc, \"t\".\"status\" asc limit $5","params":["1","open","2901","3000","100"],"result":{"command":"SELECT","rowCount":1,"columns":[["value",25],["n",25]],"rows":[["open","33"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"companies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and \"t\".\"status\" = $2 and (\"t\".\"id\" >= $3 and \"t\".\"id\" <= $4) group by \"t\".\"status\" order by count(*) desc, \"t\".\"status\" asc limit $5","params":["1","open","2901","3000","100"],"result":{"command":"SELECT","rowCount":1,"columns":[["value",25],["n",25]],"rows":[["open","33"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"companies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"status\" as \"status\", \"t\".\"revenue\" as \"revenue\", \"t\".\"notes\" as \"notes\", \"t\".\"meta\" as \"meta\", \"t\".\"created_at\" as \"createdAt\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"deleted_at\" as \"deletedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and \"t\".\"status\" = $2 and (\"t\".\"id\" >= $3 and \"t\".\"id\" <= $4) order by \"t\".\"id\" asc limit $5","params":["1","open","2901","3000","2"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[
+        ["2901","1","Company 2901","open","901.00",null,null,"2026-04-12 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","2901"],
+        ["2904","1","Company 2904","open","904.00",null,null,"2026-04-15 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","2904"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and \"t\".\"status\" = $2 and (\"t\".\"id\" >= $3 and \"t\".\"id\" <= $4)","params":["1","open","2901","3000"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Index Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Scan Direction\": \"Forward\",\n      \"Index Name\": \"companies_pkey\",\n      \"Relation Name\": \"companies\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.28,\n      \"Total Cost\": 17.15,\n      \"Plan Rows\": 28,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Index Cond\": \"((t.id >= 2901) AND (t.id <= 3000))\",\n      \"Filter\": \"((t.deleted_at IS NULL) AND (t.organization_id = 1) AND (t.status = 'open'::text))\"\n    }\n  }\n]"]]}},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and \"t\".\"status\" = $2 and (\"t\".\"id\" >= $3 and \"t\".\"id\" <= $4) limit $5) as \"found\"","params":["1","open","2901","3000","10001"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["33"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"companies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and (\"t\".\"id\" >= $2 and \"t\".\"id\" <= $3) group by \"t\".\"status\" order by count(*) desc, \"t\".\"status\" asc limit $4","params":["1","2901","3000","100"],"result":{"command":"SELECT","rowCount":3,"columns":[["value",25],["n",25]],"rows":[
+        ["lost","33"],
+        ["open","33"],
+        ["won","33"]
+      ]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"companies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and (\"t\".\"id\" >= $2 and \"t\".\"id\" <= $3) group by \"t\".\"status\" order by count(*) desc, \"t\".\"status\" asc limit $4","params":["1","2901","3000","100"],"result":{"command":"SELECT","rowCount":3,"columns":[["value",25],["n",25]],"rows":[
+        ["lost","33"],
+        ["open","33"],
+        ["won","33"]
+      ]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"status\" as \"status\", \"t\".\"revenue\" as \"revenue\", \"t\".\"notes\" as \"notes\", \"t\".\"meta\" as \"meta\", \"t\".\"created_at\" as \"createdAt\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"deleted_at\" as \"deletedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and (\"t\".\"id\" >= $2 and \"t\".\"id\" <= $3) order by \"t\".\"id\" asc limit $4","params":["1","2901","3000","2"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[
+        ["2901","1","Company 2901","open","901.00",null,null,"2026-04-12 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","2901"],
+        ["2902","1","Company 2902","won","902.00",null,null,"2026-04-13 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","2902"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and (\"t\".\"id\" >= $2 and \"t\".\"id\" <= $3)","params":["1","2901","3000"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Index Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Scan Direction\": \"Forward\",\n      \"Index Name\": \"companies_pkey\",\n      \"Relation Name\": \"companies\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.28,\n      \"Total Cost\": 16.90,\n      \"Plan Rows\": 85,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Index Cond\": \"((t.id >= 2901) AND (t.id <= 3000))\",\n      \"Filter\": \"((t.deleted_at IS NULL) AND (t.organization_id = 1))\"\n    }\n  }\n]"]]}},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and (\"t\".\"id\" >= $2 and \"t\".\"id\" <= $3) limit $4) as \"found\"","params":["1","2901","3000","10001"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["99"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"status\" as \"status\", \"t\".\"revenue\" as \"revenue\", \"t\".\"notes\" as \"notes\", \"t\".\"meta\" as \"meta\", \"t\".\"created_at\" as \"createdAt\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"deleted_at\" as \"deletedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"companies\" as \"t\" where \"t\".\"organization_id\" = $1 and (\"t\".\"id\" >= $2 and \"t\".\"id\" <= $3) order by \"t\".\"id\" asc limit $4","params":["1","2901","3000","2"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[
+        ["2901","1","Company 2901","open","901.00",null,null,"2026-04-12 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","2901"],
+        ["2902","1","Company 2902","won","902.00",null,null,"2026-04-13 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","2902"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"companies\" as \"t\" where \"t\".\"organization_id\" = $1 and (\"t\".\"id\" >= $2 and \"t\".\"id\" <= $3)","params":["1","2901","3000"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Index Only Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Scan Direction\": \"Forward\",\n      \"Index Name\": \"companies_organization_id_id_idx\",\n      \"Relation Name\": \"companies\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.28,\n      \"Total Cost\": 6.22,\n      \"Plan Rows\": 86,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Index Cond\": \"((t.organization_id = 1) AND (t.id >= 2901) AND (t.id <= 3000))\"\n    }\n  }\n]"]]}},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"companies\" as \"t\" where \"t\".\"organization_id\" = $1 and (\"t\".\"id\" >= $2 and \"t\".\"id\" <= $3) limit $4) as \"found\"","params":["1","2901","3000","10001"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["100"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
   }
 }

@@ -28,7 +28,7 @@ const contextWith = (records: Partial<ToolRecords>) =>
 
 describe('record tools', () => {
   it('are all read-only, in order', () => {
-    expect(readRecordTools().map((tool) => [tool.name, tool.annotations?.readOnlyHint])).toEqual([['list_resources', true], ['list_records', true], ['get_record', true]])
+    expect(readRecordTools().map((tool) => [tool.name, tool.annotations?.readOnlyHint])).toEqual([['list_resources', true], ['list_records', true], ['count_records', true], ['get_record', true]])
   })
 
   it('list_resources describes each readable resource with the labels its view gives', async () => {
