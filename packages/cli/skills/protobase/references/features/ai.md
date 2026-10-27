@@ -11,6 +11,7 @@ Fields and actions filled by a model, the assistant beside the admin, and MCP.
 - [Assistant tools](../reference/assistant.md#the-apps-own-tools): Your own tools for the assistant, acting on records as the user.
 - [MCP server](../reference/mcp.md#the-tools): AI clients connect to the app over MCP as the signed-in person, and list, find and read records within that person's access, soft-deleted ones too when asked.
 - [MCP result size](../reference/mcp.md#result-size): Every tool result fits what AI clients take, as valid JSON: long values are cut and named, a page holds fewer records, and the client reads the rest in pieces.
+- [MCP app icon](../reference/mcp.md#the-apps-icon): AI clients show the app's own icon beside its name when someone adds its MCP endpoint.
 - [MCP writes](../reference/mcp.md#writes): When turned on, for every resource or only those you list, AI clients create, update and delete records after the person approves each write.
 - [MCP writes without approval](../reference/mcp.md#writes-without-approval): Roles you name, such as service accounts, write over MCP without being asked to approve each write; everyone else is still asked.
 - [MCP comments](../reference/mcp.md#comments): AI clients read a record's comments, and with MCP writes on add one after the person approves it.

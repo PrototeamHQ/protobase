@@ -124,6 +124,7 @@ export type { ToolComments, ToolComment, ToolCommentPage } from './comments/tool
 export type { BatchOperation } from './batch/schema'
 export type { BatchResult } from './batch/run-batch'
 export { mcpServer, type McpServerInput } from './mcp/mcp-server'
+export { mcpIcons } from './web-app/mcp-icons'
 export { mcpTools, type McpToolsInput } from './mcp/mcp-tools'
 export type { McpWrites } from './mcp/mcp-writes'
 export { mcpGate, sessionOf, type McpGateInput } from './mcp/mcp-gate'

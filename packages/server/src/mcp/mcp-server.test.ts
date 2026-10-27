@@ -39,7 +39,7 @@ const write = defineTool({
   },
 })
 
-type Served = Partial<Pick<McpServerInput, 'tools' | 'context' | 'rolesWithoutApproval' | 'approvals'>>
+type Served = Partial<Pick<McpServerInput, 'info' | 'tools' | 'context' | 'rolesWithoutApproval' | 'approvals'>>
 
 const approvals = mcpApprovals()
 const authInfo = { token: 't', clientId: 'client', scopes: ['mcp'], resource: new URL('http://localhost/api/mcp') }
@@ -72,6 +72,13 @@ const modern = (params: { name: string; arguments: object; inputResponses?: obje
 const cannotAsk = { content: [{ type: 'text', text: 'This client cannot ask you to approve a change, so nothing was written; use a client that supports MCP elicitation.' }], isError: true }
 
 describe('mcpServer', () => {
+  it('names its icons to the client that connects', async () => {
+    const icons = [{ src: 'https://app.example/protobase.favicon.svg', mimeType: 'image/svg+xml', sizes: ['any'] }]
+    const params = { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'client', version: '1.0.0' } }
+    const { serverInfo } = await call(() => {}, 'initialize', params, { info: { name: 'App', version: '1.0.0', icons } })
+    expect(serverInfo).toEqual({ name: 'App', version: '1.0.0', icons })
+  })
+
   it('lists the tools with their schemas and hints', async () => {
     const { tools } = await call(() => {}, 'tools/list', {})
     expect(tools).toMatchObject([

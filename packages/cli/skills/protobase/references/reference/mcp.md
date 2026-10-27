@@ -29,6 +29,10 @@ Give the client the endpoint's address. It finds the app's sign-in from there, o
 
   Some take the address on the command line instead, as a server with the HTTP transport, and sign in when you first use it.
 
+## The app's icon
+
+The endpoint names the app's [icon](app-identity.md#the-icons) to the client when it connects (`serverInfo.icons`), at absolute addresses on the app's origin: the project's 192 pixel, touch and 512 pixel PNGs it has, then its `protobase.favicon.svg`, or Protobase's without one. A client that draws server icons shows it beside the app's name.
+
 ## The tools
 
 Each tool reads as the signed-in person: their role's access rules, row filters, tenant and hidden fields apply as in the [REST API](api.md#access).
@@ -143,7 +147,7 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 `@protobase/server` exports the pieces the endpoint is made of, for an MCP server of your own with tools of your own:
 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session, request)` builds for its caller; `request` is the HTTP request, such as for the language the person reads.
-- `mcpServer({ info, tools, context, report, rolesWithoutApproval, approvals })`: an MCP server offering [assistant tools](assistant.md#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`, with the `locale` its approvals are asked in (English when absent): each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`. `approvals` is `mcpApprovals()`, built once and passed to every server the endpoint builds: it keeps the approvals asked for until they are answered or expire.
+- `mcpServer({ info, tools, context, report, rolesWithoutApproval, approvals })`: an MCP server named by `info`, its `name`, `version` and `icons`, such as `mcpIcons(origin, icons)`, the app's icons on `origin`, and offering [assistant tools](assistant.md#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`, with the `locale` its approvals are asked in (English when absent): each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`. `approvals` is `mcpApprovals()`, built once and passed to every server the endpoint builds: it keeps the approvals asked for until they are answered or expire.
 - `mcpTools({ db, sql, writes, commented })`: the default tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`, and `commented` names the resources with comments.
 - `readRecordTools()`, or `listResourcesTool()`, `listRecordsTool()` and `getRecordTool()`: the read tools alone; `readOnlyQueryTool(db)` is `run_read_only_query`, and `readWriteQueryTool(db)` proposes one write statement that the user approves before it runs.
 - `commentTools({ commented }, writes)`, or `listCommentsTool({ commented })` and `addCommentTool({ commented, resources })`: the comment tools on the resources named in `commented`, which call the context's `comments`, and `add_comment` only when `writes` is not `false`.
