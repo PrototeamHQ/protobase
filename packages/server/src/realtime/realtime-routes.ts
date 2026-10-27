@@ -6,6 +6,7 @@ import type { Entry } from '../registry'
 import { broadcastHub } from './broadcast-hub'
 import { bufferedOf } from './buffered-amount'
 import type { ChangeHub } from './change-hub'
+import type { ChannelAccess } from './channel-access'
 import { vsnOf } from './phoenix-message'
 import { presenceHub } from './presence-hub'
 import { realtimeSocket } from './realtime-socket'
@@ -17,6 +18,7 @@ export type RealtimeRoutesOptions = {
   caller: (request: Request) => Promise<Caller>
   live: readonly Entry[]
   hub: ChangeHub
+  access: ChannelAccess
   report: (error: unknown) => void
 }
 
@@ -29,7 +31,7 @@ const keyRequest = (apikey: string, token?: string) => new Request('http://realt
  * key is refused before the upgrade, with 401. A socket whose raw socket is not one of npm `ws`, such as Bun's own `ws`
  * shim's, is closed at once with 1011, since its unsent bytes cannot be counted (`realtimeLimits.maxUnsentBytes`).
  */
-export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, report }: RealtimeRoutesOptions) => {
+export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, access, report }: RealtimeRoutesOptions) => {
   const app = new Hono()
   const broadcasts = broadcastHub()
   const presences = presenceHub()
@@ -62,6 +64,7 @@ export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, report }: 
             hub,
             broadcasts,
             presences,
+            access,
             nextId,
             report,
           })

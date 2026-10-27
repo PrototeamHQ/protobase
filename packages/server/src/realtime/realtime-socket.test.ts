@@ -4,6 +4,7 @@ import type { Caller } from '../api-keys/resolve-caller'
 import { unauthorized } from '../problem'
 import { buildRegistry } from '../registry'
 import { broadcastHub } from './broadcast-hub'
+import type { ChannelAccess } from './channel-access'
 import type { ChangeHub, ChangeSink } from './change-hub'
 import { presenceHub } from './presence-hub'
 import type { Vsn } from './phoenix-message'
@@ -13,6 +14,9 @@ const { entries } = buildRegistry([resource('todos').table('todos').fields({ id:
 
 const now = Date.parse('2026-08-01T00:00:00Z')
 const alice = (exp: number): Caller => ({ role: 'authenticated', claims: { sub: 'alice', exp } })
+
+// No policies on realtime.messages: every private channel is refused.
+const noAccess: ChannelAccess = { read: async () => new Map(), write: async () => false }
 
 const open = ({ broadcasts = broadcastHub(), presences = presenceHub(), vsn = '2.0.0' as Vsn, idleMs = 60_000 } = {}) => {
   const frames: unknown[] = []
@@ -26,7 +30,7 @@ const open = ({ broadcasts = broadcastHub(), presences = presenceHub(), vsn = '2
     throw unauthorized('The bearer token is invalid or expired')
   }
   let id = 0
-  const socket = realtimeSocket({ vsn, send: (frame) => frames.push(typeof frame === 'string' ? JSON.parse(frame) : [...new Uint8Array(frame)]), buffered: () => 0, close, resolve, live: entries, hub, broadcasts, presences, nextId: () => ++id, report: (error) => { throw error }, idleMs, now: () => Date.now() })
+  const socket = realtimeSocket({ vsn, send: (frame) => frames.push(typeof frame === 'string' ? JSON.parse(frame) : [...new Uint8Array(frame)]), buffered: () => 0, close, resolve, live: entries, hub, broadcasts, presences, access: noAccess, nextId: () => ++id, report: (error) => { throw error }, idleMs, now: () => Date.now() })
   const send = async (message: unknown[] | ArrayBuffer) => {
     socket.message(message instanceof ArrayBuffer ? message : JSON.stringify(message))
     await vi.advanceTimersByTimeAsync(0)
@@ -67,7 +71,7 @@ describe('realtimeSocket', () => {
     expect(frames.map((frame) => (frame as unknown[])[4])).toEqual([
       { status: 'error', response: { reason: 'The bearer token is invalid or expired' } },
       { status: 'error', response: { reason: expect.stringMatching(/^Unable to subscribe to changes/) } },
-      { status: 'error', response: { reason: 'Not implemented: private channels' } },
+      { status: 'error', response: { reason: 'Unauthorized: You do not have permissions to read from this Channel topic: c' } },
       { status: 'error', response: { reason: 'unmatched topic' } },
     ])
     expect(sinks).toHaveLength(0)

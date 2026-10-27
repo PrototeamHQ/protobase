@@ -1,6 +1,6 @@
 ---
 title: Supabase Realtime
-description: The Realtime-compatible /api/sb/realtime/v1 that supabase-js's channel() joins, for postgres_changes checked under the subscriber's RLS policies, broadcasts and presence.
+description: The Realtime-compatible /api/sb/realtime/v1 that supabase-js's channel() joins, for postgres_changes checked under the subscriber's RLS policies, broadcasts and presence, on public and private channels.
 ---
 
 An app with API keys also serves `/api/sb/realtime/v1/websocket`, the socket that supabase-js's `channel()` joins. An app moved from Supabase keeps its `postgres_changes` listeners, broadcasts and presence: point the client at the app's `/api/sb` and give it the publishable key.
@@ -23,7 +23,7 @@ The server serves the socket when the host gives `createAdmin` its WebSocket upg
 
 ## Which tables
 
-A channel may listen to the tables of the resources with [`.live()`](/reference/live/), by `schema` (`*` for any), `table` (every live table of the schema when left out), `event` (`INSERT`, `UPDATE`, `DELETE` or `*`) and `filter`. A table that is not live is refused when the channel joins, with Supabase's message; [`import supabase`](/reference/cli/#import-supabase) makes the tables of the project's `supabase_realtime` publication live. A filter is Supabase's: `column=operator.value`, with `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in.(a,b)`, `like`, `ilike`, `match`, `imatch`, `is` and `isdistinct`, `not.` before the operator, and several conditions joined by commas, all of which must hold. Postgres compares each value as the column's type. <gap>A channel cannot `select` columns because that is not supported yet.</gap> <gap>A channel cannot be private because private channels are not supported yet.</gap>
+A channel may listen to the tables of the resources with [`.live()`](/reference/live/), by `schema` (`*` for any), `table` (every live table of the schema when left out), `event` (`INSERT`, `UPDATE`, `DELETE` or `*`) and `filter`. A table that is not live is refused when the channel joins, with Supabase's message; [`import supabase`](/reference/cli/#import-supabase) makes the tables of the project's `supabase_realtime` publication live. A filter is Supabase's: `column=operator.value`, with `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in.(a,b)`, `like`, `ilike`, `match`, `imatch`, `is` and `isdistinct`, `not.` before the operator, and several conditions joined by commas, all of which must hold. Postgres compares each value as the column's type. <gap>A channel cannot `select` columns because that is not supported yet.</gap>
 
 ## Broadcast and presence
 
@@ -46,6 +46,40 @@ A broadcast reaches the topic's other channels, and the sender's own with `self`
 Limits, near Supabase's Free plan, apply per socket and per topic. A socket sends at most 100 broadcast and presence messages a second, joins at most 100 times a second and holds at most 100 channels; on each channel it sends at most 5 presence updates in 30 seconds, also counted across a rejoin. A topic takes 100 broadcasts a second, whoever sends them, so one busy sender can use up a topic's budget. A topic is at most 255 bytes, and a tracked presence at most 10 000 bytes of JSON. A message over a limit gets an error reply and goes to no one, where Supabase would close the channel. A frame over 256 KiB closes the socket with 1009. It closes with 1008 when the client leaves more than 4 MiB unread, or sends more than 300 messages or 4 MiB while earlier ones wait, such as behind a token check.
 
 Broadcasts and presence go between the channels of one serving process, which is how a cloud app runs; <gap>Several processes behind one address do not reach each other's channels, because broadcasts and presence are not shared between processes.</gap> <gap>Sending without a joined channel, which supabase-js does over `POST /api/sb/realtime/v1/api/broadcast`, is not supported.</gap>
+
+## Private channels
+
+A channel joined with `private: true` is authorized as Supabase Realtime Authorization does it: by the row security policies on `realtime.messages`, which say who may receive and who may send each extension's messages, `broadcast` or `presence`, and `realtime.topic()`, the channel's topic without its `realtime:` prefix:
+
+```sql
+create policy "members hear their rooms" on realtime.messages for select to authenticated
+  using (realtime.messages.extension in ('broadcast', 'presence') and exists (
+    select 1 from public.room_members m where m.user_id = (select auth.uid()) and 'room:' || m.room_id = (select realtime.topic())));
+
+create policy "members send to their rooms" on realtime.messages for insert to authenticated
+  with check (exists (
+    select 1 from public.room_members m where m.user_id = (select auth.uid()) and 'room:' || m.room_id = (select realtime.topic())));
+```
+
+```ts
+const room = supabase.channel('room:42', { config: { private: true } })
+```
+
+When a channel joins, the server checks, under the subscriber's role and claims, whether it may select a `broadcast` message of the topic, and a `presence` one when the channel listens to presence. A channel that may receive neither is refused with Supabase's `Unauthorized: You do not have permissions to read from this Channel topic: room:42`; one that may receive only one of them does not hear the other. The first broadcast and the first presence track a channel sends check whether it may insert such a message; one it may not is answered with an error and goes to no one. What a check finds holds until the channel's next token, which checks again, and a new token that takes away what the old one allowed ends the channel, with `You no longer have permission to read from this Channel topic: room:42`. A policy that fails, such as one calling a function that raises, allows nothing.
+
+[`import supabase`](/reference/cli/#import-supabase) carries a project's policies on `realtime.messages` over. A project that writes its own makes the table first, with Supabase's columns, in a migration:
+
+```sql
+create schema realtime;
+create table realtime.messages (topic text not null, extension text not null, payload jsonb, event text, private boolean,
+  updated_at timestamp not null default now(), inserted_at timestamp not null default now(), id uuid not null default gen_random_uuid() primary key);
+create function realtime.topic() returns text language sql stable as $$ select nullif(current_setting('realtime.topic', true), '')::text $$;
+alter table realtime.messages enable row level security;
+grant usage on schema realtime to anon, authenticated;
+grant select, insert on realtime.messages to anon, authenticated;
+```
+
+Each check inserts its messages in a transaction it rolls back, so the table stays empty: the app's database role must own it, or bypass row security, to insert the message a join checks. Without `realtime.messages`, every private channel is refused.
 
 ## What a subscriber receives
 
