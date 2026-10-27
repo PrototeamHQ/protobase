@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -60,5 +60,16 @@ describe('.protobase/tsconfig.json', () => {
     await write({ 'package.json': JSON.stringify({ name: 'app', dependencies: { '@protobase/server': '*' } }) })
     await writeProjectTypes(projectDir)
     expect(JSON.parse(await readFile(path.join(projectDir, '.protobase/tsconfig.json'), 'utf8'))).toEqual({ compilerOptions: {} })
+  })
+
+  // Vite reloads every module on a write to a tsconfig.json, so a second command must not touch a running dev server's.
+  it('leaves an unchanged file unwritten', async () => {
+    await write({ 'package.json': JSON.stringify({ name: 'app', dependencies: { '@protobase/server': '*' } }) })
+    await writeProjectTypes(projectDir)
+    const file = path.join(projectDir, '.protobase/tsconfig.json')
+    const written = (await stat(file, { bigint: true })).mtimeNs
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await writeProjectTypes(projectDir)
+    expect((await stat(file, { bigint: true })).mtimeNs).toBe(written)
   })
 })

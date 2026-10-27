@@ -67,7 +67,8 @@ export const cliTypePaths = (ownDir = cliDir): Record<string, string[]> =>
  * Writes `.protobase/tsconfig.json` in `projectDir`, which the project's tsconfig.json extends: in a bundled project
  * its `paths` give the @protobase packages and those the serve runtime supplies the types of the CLI that builds the
  * app, with nothing installed; a locked project's installed packages type themselves, so it holds no paths. The
- * folder ignores itself in git, since the paths are this machine's.
+ * folder ignores itself in git, since the paths are this machine's. An unchanged file is left alone: Vite reloads every
+ * module on any write to a tsconfig.json, so another command rewriting it would rebuild a running dev server's API.
  */
 export const writeProjectTypes = async (projectDir: string) => {
   const folder = path.join(projectDir, protobaseFolder)
@@ -75,5 +76,8 @@ export const writeProjectTypes = async (projectDir: string) => {
   const ignore = path.join(folder, '.gitignore')
   if (!existsSync(ignore)) await writeFile(ignore, '*\n')
   const compilerOptions = projectPackages(projectDir).mode === 'bundled' ? { paths: cliTypePaths() } : {}
-  await writeFile(path.join(projectDir, typesFile), `${JSON.stringify({ compilerOptions }, null, 2)}\n`)
+  const file = path.join(projectDir, typesFile)
+  const content = `${JSON.stringify({ compilerOptions }, null, 2)}\n`
+  if (existsSync(file) && readFileSync(file, 'utf8') === content) return
+  await writeFile(file, content)
 }
