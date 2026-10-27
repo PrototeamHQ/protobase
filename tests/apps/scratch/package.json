@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "db:migrate": "bun db/migrate.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "db:migrate": "protobase run db/migrate.ts",
+    "typecheck": "protobase types && tsc --noEmit",
+    "test": "protobase types && vitest run",
     "protobase": "protobase",
     "build": "protobase build",
     "serve": "protobase build && protobase serve dist",

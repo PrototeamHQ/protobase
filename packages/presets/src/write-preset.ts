@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { presetPath } from './preset-files'
-import { caretRange, presetPackage } from './preset-package'
+import { caretRange, presetPackage, presetTsconfig } from './preset-package'
 import type { Preset } from './presets'
 
 const root = path.join(import.meta.dirname, '..', '..', '..')
@@ -20,7 +20,15 @@ const writePackage = (sourceDir: string, range: string, outDir: string) => {
 
 const lock = (outDir: string) => execFileSync('bun', ['install', '--lockfile-only'], { cwd: outDir, stdio: 'inherit' })
 
-/** Writes one preset's files to `outDir`, without a lockfile: a standalone copy of its example with the @protobase packages in `range`. */
+const writeTsconfig = (sourceDir: string, outDir: string) => {
+  const source = JSON.parse(readFileSync(path.join(sourceDir, 'tsconfig.json'), 'utf8'))
+  writeFileSync(path.join(outDir, 'tsconfig.json'), `${JSON.stringify(presetTsconfig(source), null, 2)}\n`)
+}
+
+/**
+ * Writes one preset's files to `outDir`, without a lockfile: a standalone copy of its example with the @protobase
+ * packages in `range`, bundled, and a tsconfig.json that extends what `protobase types` writes.
+ */
 export const writePresetFiles = (preset: Preset, range: string, outDir: string) => {
   const sourceDir = path.join(root, preset.source)
   rmSync(outDir, { recursive: true, force: true })
@@ -31,6 +39,7 @@ export const writePresetFiles = (preset: Preset, range: string, outDir: string) 
     copyFileSync(path.join(sourceDir, file), path.join(outDir, target))
   }
   writePackage(sourceDir, range, outDir)
+  writeTsconfig(sourceDir, outDir)
 }
 
 /**

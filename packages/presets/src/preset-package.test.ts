@@ -1,20 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { caretRange, presetPackage } from './preset-package'
+import { caretRange, presetPackage, presetTsconfig } from './preset-package'
 
 describe('presetPackage', () => {
-  it('pins every workspace dependency to the range and keeps the rest', () => {
+  it('pins every workspace dependency to the range and lists the @protobase packages in devDependencies, bundled', () => {
     const source = {
       name: 'erp',
       scripts: { test: 'vitest run' },
-      dependencies: { '@protobase/cli': 'workspace:*', kysely: '^0.29.6' },
-      devDependencies: { '@protobase/schema': 'workspace:*', vitest: '^5.0.3' },
+      dependencies: { '@protobase/server': 'workspace:*', kysely: '^0.29.6', '@protobase/cli': 'workspace:*' },
+      devDependencies: { vitest: '^5.0.3', '@protobase/schema': 'workspace:*' },
     }
-    expect(presetPackage(source, '^0.2.0')).toEqual({
+    const preset = presetPackage(source, '^0.2.0')
+    expect(preset).toEqual({
       name: 'erp',
       scripts: { test: 'vitest run' },
-      dependencies: { '@protobase/cli': '^0.2.0', kysely: '^0.29.6' },
-      devDependencies: { '@protobase/schema': '^0.2.0', vitest: '^5.0.3' },
+      dependencies: { kysely: '^0.29.6' },
+      devDependencies: { '@protobase/cli': '^0.2.0', '@protobase/schema': '^0.2.0', '@protobase/server': '^0.2.0', vitest: '^5.0.3' },
     })
+    expect(Object.keys(preset.devDependencies!)).toEqual(['@protobase/cli', '@protobase/schema', '@protobase/server', 'vitest'])
+  })
+
+  it('leaves out dependencies when only @protobase packages were in it', () => {
+    expect(presetPackage({ dependencies: { '@protobase/server': 'workspace:*' } }, '^0.2.0')).toEqual({ devDependencies: { '@protobase/server': '^0.2.0' } })
   })
 
   it('leaves a package without dependencies as it is', () => {
@@ -35,5 +41,13 @@ describe('caretRange', () => {
 
   it('refuses what is not a version', () => {
     expect(() => caretRange('latest')).toThrow('latest')
+  })
+})
+
+describe('presetTsconfig', () => {
+  it("extends what protobase types writes, ahead of the example's own options", () => {
+    const preset = presetTsconfig({ compilerOptions: { strict: true }, exclude: ['dist'] })
+    expect(preset).toEqual({ extends: './.protobase/tsconfig.json', compilerOptions: { strict: true }, exclude: ['dist'] })
+    expect(Object.keys(preset)[0]).toBe('extends')
   })
 })
