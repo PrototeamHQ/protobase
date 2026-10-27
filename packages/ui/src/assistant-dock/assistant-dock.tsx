@@ -26,7 +26,7 @@ export type AssistantDockProps = {
  * messages and clicks back.
  */
 export const AssistantDock = ({ state, offline, error, onSend, onAction, onClose, client }: AssistantDockProps) => {
-  const input = useRef<HTMLInputElement>(null)
+  const input = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
     if (state.placeholder) input.current?.focus()
   }, [state.placeholder])

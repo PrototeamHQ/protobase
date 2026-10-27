@@ -1,3 +1,5 @@
-export { ChatMessage } from './chat-message'
+export { chatDayLabel, sameChatDay } from './chat-day'
+export { ChatDivider, type ChatDividerProps } from './chat-divider'
+export { ChatMessage, type ChatAuthor, type ChatMessageProps } from './chat-message'
 export { ChatThread, type ChatThreadProps } from './chat-thread'
 export { Composer, type ComposerProps } from './composer'

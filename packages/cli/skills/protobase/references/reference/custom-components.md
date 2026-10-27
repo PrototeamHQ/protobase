@@ -269,6 +269,47 @@ export const PresetShots = () => (
 )
 ```
 
+## Chat parts
+
+A chat between people, such as a team's channels, is built from the parts the [assistant](assistant.md#in-the-ui) uses, all from `@protobase/ui`:
+
+| | |
+| --- | --- |
+| `ChatThread` | The scrolling list of messages: `length`, the number of messages, and `empty`, shown while there are none. A reader at the end follows new messages; one who scrolled back stays where they are. `onLoadEarlier` adds **Load earlier messages** at the top, with `loadingEarlier` while they come; the earlier messages keep the reader on the message they were reading. It scrolls inside itself, so the composer under it stays in view. |
+| `ChatMessage` | One message. `author` (`{ id, name }`) draws it on the left beside the author's avatar, under their name and `time`, an ISO timestamp shown on the viewer's clock; `avatar` replaces the initials, such as with a photo, and `continued` leaves out avatar, name and time for a message that follows the same author's. `from: 'user' \| 'assistant'` draws an assistant chat's sides instead. `footer` adds a small line under either, such as whether it was read. |
+| `ChatDivider` | A line across the chat with a label: `label` for a day, such as `chatDayLabel(time)` ("Today", "Yesterday" or the date, on the viewer's calendar) between two messages for which `sameChatDay(a, b)` is false; `tone="new"` for the red **New messages** line. |
+| `Composer` | The box under the chat, which grows with its text: Enter or the button sends, Shift+Enter starts a new line. `onSend` gets the trimmed text and the ids of the people it mentions. With `searchPeople`, a function that returns the `{ id, name }` people whose name matches the text typed after `@`, such as a channel's members, typing `@` lists them above the box: the arrows move, Enter or Tab picks, Escape closes. `busy` keeps the text from being sent. |
+| `MentionBox`, `MentionedText` | The text box with `@` mentions that the composer and [comments](comments.md) are built from, for a box of your own: `value` and `onChange` hold the text and the people picked (`emptyDraft` to start), and `mentionedIds(text, picked)` the ids still mentioned. `MentionedText` shows a message's `text` with each `@name` of its `mentions` picked out. |
+
+The messages' author comes from the server: give the resource [`.author()`](data-config.md#resource), and each create stores the signed-in user's id, never a value the client sends.
+
+```tsx
+import { Fragment } from 'react'
+import { ChatDivider, ChatMessage, ChatThread, Composer, MentionedText, chatDayLabel, sameChatDay } from '@protobase/ui'
+
+export const Channel = ({ messages, members, onSend, onLoadEarlier }: ChannelProps) => (
+  <div className="flex h-full flex-col">
+    <ChatThread length={messages.length} onLoadEarlier={onLoadEarlier}>
+      {messages.map((message, index) => {
+        const previous = messages[index - 1]
+        const newDay = !previous || !sameChatDay(previous.sent_at, message.sent_at)
+        return (
+          <Fragment key={message.id}>
+            {newDay && <ChatDivider label={chatDayLabel(message.sent_at)} />}
+            <ChatMessage author={message.author} time={message.sent_at} continued={!newDay && previous?.author.id === message.author.id}>
+              <MentionedText text={message.body} mentions={message.mentions} />
+            </ChatMessage>
+          </Fragment>
+        )
+      })}
+    </ChatThread>
+    <div className="p-3">
+      <Composer placeholder="Message #general" onSend={onSend} searchPeople={members} />
+    </div>
+  </div>
+)
+```
+
 ## Components in the chat
 
 The same components draw the assistant's [widget parts](assistant.md#widget-parts): a part names a component, and the dock draws it with the part's props, so one component can sit on a page and in the chat. In the chat there is no record around it, so a component that needs `useLayoutRecord()` works only on pages; take ids as props instead. Besides the API hooks, a widget can read the assistant backend with [`useBackendData`](assistant.md#reading-the-backend-from-a-widget).

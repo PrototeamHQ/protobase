@@ -1,23 +1,75 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { cn } from '../lib/cn'
+import { Button } from '../primitives/button'
+import { isAtEnd, scrollAfterChange, type ThreadPlace } from './thread-scroll'
+import { text } from './messages'
 
 export type ChatThreadProps = {
   children: ReactNode
   /** Shown centred while the chat is empty. */
   empty?: ReactNode
-  /** Changes whenever the chat grows, which scrolls it to the end. */
+  /** The number of messages, which changes whenever the chat grows. */
   length: number
+  /** Loads the messages before the first, offered as a button at the top while given. */
+  onLoadEarlier?: () => void
+  /** The earlier messages are on their way. */
+  loadingEarlier?: boolean
 }
 
-/** The scrolling list of a chat's messages, kept at the newest one as messages arrive. */
-export const ChatThread = ({ children, empty, length }: ChatThreadProps) => {
+/** The message the reader is reading: the first whose bottom shows. */
+const readPlace = (box: HTMLElement, list: HTMLElement): ThreadPlace<Element> => {
+  const top = box.getBoundingClientRect().top
+  const element = [...list.children].find((child) => child.getBoundingClientRect().bottom > top)
+  return { atEnd: isAtEnd(box), first: list.firstElementChild ?? undefined, ...(element && { anchor: { element, top: element.getBoundingClientRect().top - top } }) }
+}
+
+/**
+ * The scrolling list of a chat's messages. A reader at the end follows new messages; one who scrolled back stays where
+ * they are, and earlier messages loaded above keep them on the message they were reading. It scrolls inside itself,
+ * not with the page, since a chat keeps its composer in view beneath it.
+ */
+export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarlier }: ChatThreadProps) => {
+  const box = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const element = list.current
-    if (element) element.scrollTop = element.scrollHeight
+  const place = useRef<ThreadPlace<Element>>({ atEnd: true, first: undefined })
+  const remember = () => {
+    if (box.current && list.current) place.current = readPlace(box.current, list.current)
+  }
+
+  useLayoutEffect(() => {
+    const element = box.current
+    if (!element || !list.current) return
+    const before = place.current
+    const anchorTop = before.anchor && before.anchor.element.isConnected ? before.anchor.element.getBoundingClientRect().top - element.getBoundingClientRect().top : undefined
+    const next = scrollAfterChange(before, { first: list.current.firstElementChild ?? undefined, anchorTop, scrollTop: element.scrollTop, scrollHeight: element.scrollHeight })
+    if (next !== undefined) element.scrollTop = next
+    remember()
   }, [length])
+
+  // A chat that shows its end keeps showing it as it or its messages change size, such as a composer growing beneath it
+  useEffect(() => {
+    const element = box.current
+    if (!element || !list.current) return
+    const observer = new ResizeObserver(() => {
+      if (place.current.atEnd) element.scrollTop = element.scrollHeight
+    })
+    observer.observe(element)
+    observer.observe(list.current)
+    return () => observer.disconnect()
+  }, [])
+
+  const showsEmpty = length === 0 && Boolean(empty)
   return (
-    <div ref={list} role="log" aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-      {length === 0 && empty ? <div className="m-auto max-w-60 text-center text-muted-foreground">{empty}</div> : children}
+    <div ref={box} onScroll={remember} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 [overflow-anchor:none]">
+      {onLoadEarlier && (
+        <Button size="sm" className="self-center" loading={loadingEarlier} onClick={onLoadEarlier}>
+          {text('loadEarlier')}
+        </Button>
+      )}
+      {showsEmpty && <div className="m-auto max-w-60 text-center text-muted-foreground">{empty}</div>}
+      <div ref={list} role="log" aria-live="polite" className={cn('flex flex-col gap-4', showsEmpty && 'hidden')}>
+        {children}
+      </div>
     </div>
   )
 }

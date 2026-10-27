@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { ActionCard } from '../action-card'
+import { ChatDivider } from './chat-divider'
 import { ChatMessage } from './chat-message'
 import { ChatThread } from './chat-thread'
 import { Composer } from './composer'
@@ -20,6 +21,39 @@ export const Thread: StoryObj = {
   ),
 }
 
+const ann = { id: 'ann', name: 'Ann de Vries' }
+const bo = { id: 'bo', name: 'Bo Jansen' }
+
+/** A chat between people: each message under its author's name and time, a day line between days, a line above the new ones. */
+export const People: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <ChatThread length={4}>
+      <ChatDivider label="Yesterday" />
+      <ChatMessage author={ann} time="2026-10-26T15:02:00Z">The printer on the second floor is out of toner.</ChatMessage>
+      <ChatMessage author={ann} time="2026-10-26T15:03:00Z" continued>Who orders it?</ChatMessage>
+      <ChatDivider tone="new" />
+      <ChatMessage author={bo} time="2026-10-27T08:15:00Z" footer="Read">I did, it comes tomorrow.</ChatMessage>
+      <ChatMessage from="user" footer="Sent">Thanks both.</ChatMessage>
+    </ChatThread>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getAllByRole('separator').map((line) => line.getAttribute('aria-label'))).toEqual(['Yesterday', 'New messages'])
+    // Times show on the viewer's clock, Amsterdam's in the play tests
+    const first = canvas.getByText('The printer on the second floor is out of toner.').closest('[data-from="person"]')!
+    expect(first.textContent).toBe('ADAnn de Vries16:02The printer on the second floor is out of toner.')
+    expect(within(first as HTMLElement).getByText('16:02')).toHaveAttribute('datetime', '2026-10-26T15:02:00Z')
+    // A message that follows the same author's leaves out their avatar, name and time
+    expect(canvas.getByText('Who orders it?').closest('[data-from="person"]')!.textContent).toBe('Who orders it?')
+    expect(canvas.getByText('I did, it comes tomorrow.').closest('[data-from="person"]')!.textContent).toBe('BJBo Jansen09:15I did, it comes tomorrow.Read')
+    // The user's bubble keeps its look, with the footer under it
+    const bubble = canvas.getByText('Thanks both.')
+    expect(bubble).toHaveAttribute('data-from', 'user')
+    expect(bubble.nextElementSibling).toHaveTextContent('Sent')
+  },
+}
+
 export const Empty: StoryObj = { render: () => <ChatThread length={0} empty="Ask a question about this app.">{null}</ChatThread> }
 
 const send = fn()
@@ -33,7 +67,7 @@ export const ComposerSends: StoryObj = {
     const box = canvas.getByRole('textbox', { name: 'Message' })
     expect(canvas.getByRole('button', { name: 'Send' })).toBeDisabled()
     await userEvent.type(box, '  How many orders?  {Enter}')
-    expect(send).toHaveBeenCalledWith('How many orders?')
+    expect(send).toHaveBeenCalledWith('How many orders?', [])
     expect(box).toHaveValue('')
   },
 }
