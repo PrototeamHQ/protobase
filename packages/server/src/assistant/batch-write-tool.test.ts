@@ -18,14 +18,10 @@ const batch = [
   { op: 'delete', resource: 'links', key: [3, 'a'] },
 ]
 
+const current = { record: { id: 3, title: 'Ship', done: false, notes: 'Long' }, etag: '"v0"' }
+
 // Every records method, so a test can tell that none of them ran.
-const recordsWith = (run: ToolRecords['batch']) => ({
-  list: vi.fn(),
-  get: vi.fn(async () => ({ record: { id: 3, title: 'Ship', done: false, notes: 'Long' }, etag: '"v0"' })),
-  create: vi.fn(),
-  update: vi.fn(),
-  batch: vi.fn(run),
-})
+const recordsWith = (run: ToolRecords['batch']) => ({ list: vi.fn(), get: vi.fn(async () => current), create: vi.fn(), update: vi.fn(), batch: vi.fn(run) })
 
 const contextWith = (answer: ApprovalAnswer | Error, run: ToolRecords['batch'] = async () => results as never, models: Array<Partial<ResourceModel>> = []) => {
   const approve = vi.fn(async (_request: ApprovalRequest) => {
@@ -45,6 +41,12 @@ const contextWith = (answer: ApprovalAnswer | Error, run: ToolRecords['batch'] =
 
 const untouched = (records: ReturnType<typeof recordsWith>) => {
   for (const method of Object.values(records)) expect(method).not.toHaveBeenCalled()
+}
+
+// Read what the approval names, and wrote nothing.
+const unwritten = ({ get, ...writes }: ReturnType<typeof recordsWith>) => {
+  expect(get).toHaveBeenCalled()
+  for (const method of Object.values(writes)) expect(method).not.toHaveBeenCalled()
 }
 
 describe('batch_write', () => {
@@ -90,14 +92,37 @@ describe('batch_write', () => {
   it.each(['rejected', 'expired'] as const)('writes nothing when %s', async (answer) => {
     const { context, records } = contextWith(answer)
     expect(await batchWriteTool().run({ operations: batch }, context)).toBe(`The user did not approve this batch (${answer}); nothing was written.`)
-    untouched(records)
+    unwritten(records)
   })
 
-  it('writes and reads nothing when the client cannot be asked yet', async () => {
+  it('writes nothing when the client cannot be asked yet', async () => {
     const needed = new Error('The user has not answered the approval yet')
     const { context, records } = contextWith(needed)
     await expect(batchWriteTool().run({ operations: batch }, context)).rejects.toBe(needed)
-    untouched(records)
+    unwritten(records)
+  })
+
+  it('names each record it updates or deletes as the caller reads it, in their language', async () => {
+    const { context, approve, records } = contextWith('rejected')
+    await batchWriteTool().run({ operations: batch }, { ...context, locale: 'nl' })
+    expect(records.get.mock.calls).toEqual([['tasks', 3], ['links', [3, 'a']]])
+    expect(approve.mock.calls[0]![0]).toMatchObject({ title: '3 schrijfacties in één transactie uitvoeren?', approveLabel: 'Alles opslaan' })
+    expect(approve.mock.calls[0]![0].fields!.map(({ label }) => label)).toEqual(['1. Tasks aanmaken', '2. Tasks #3 bijwerken', '3. Links #3,a verwijderen'])
+  })
+
+  it('refuses a record changed since its etag before asking, naming the operation', async () => {
+    const { context, approve, records } = contextWith('approved')
+    records.get.mockResolvedValue({ ...current, etag: '"v1"' })
+    expect(JSON.parse(await batchWriteTool().run({ operations: batch }, context))).toMatchObject({ error: 'precondition-failed', operation: 1, op: 'update', resource: 'tasks' })
+    expect(approve).not.toHaveBeenCalled()
+    expect(records.batch).not.toHaveBeenCalled()
+  })
+
+  it('names a record the caller may not read by its key', async () => {
+    const { context, approve, records } = contextWith('rejected')
+    records.get.mockRejectedValue(notFound('No such record'))
+    await batchWriteTool().run({ operations: batch }, context)
+    expect(approve.mock.calls[0]![0].fields![1]!.label).toBe('2. Update Tasks #3')
   })
 
   it('gives a refused operation back with its index, saying nothing was written', async () => {
@@ -123,9 +148,9 @@ describe('batch_write', () => {
   it('says a delete cannot be undone unless its resource soft deletes', async () => {
     const hard = contextWith('rejected')
     await batchWriteTool().run({ operations: batch }, hard.context)
-    expect(hard.approve.mock.calls[0]![0].body).toMatch(/^1 delete cannot be undone:\n1 delete in "links"/)
+    expect(hard.approve.mock.calls[0]![0].body).toMatch(/^1 delete cannot be undone/)
 
-    const soft = contextWith('rejected', undefined, [{ name: 'links', softDelete: 'deletedAt' }])
+    const soft = contextWith('rejected', undefined, [{ name: 'links', softDelete: 'deletedAt', primaryKey: ['id'], fields: {} }])
     await batchWriteTool().run({ operations: batch }, soft.context)
     expect(soft.approve.mock.calls[0]![0].body).not.toMatch(/cannot be undone/)
   })

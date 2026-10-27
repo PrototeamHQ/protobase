@@ -1,75 +1,89 @@
+import type { ResourceModel, ViewModel } from '@protobase/schema'
+import type { Locale } from '@protobase/schema/internal'
 import { describe, expect, it } from 'vitest'
+import type { Row } from '../types'
 import { batchApproval } from './batch-approval'
 import type { WriteOperation } from './batch-write-args'
+import { writeText } from './write-messages'
+import { createApproval, deleteApproval, describedResource, updateApproval } from './write-prompts'
 
-const textOf = (operations: WriteOperation[], soft: string[] = []) => {
-  const { title, body, code } = batchApproval(operations, new Set(soft))
-  return [title, body, code].join('\n\n')
-}
+const model = {
+  name: 'tasks',
+  primaryKey: ['id'],
+  fields: {
+    id: { name: 'id', type: 'bigint' },
+    title: { name: 'title', type: 'text' },
+    done: { name: 'done', type: 'boolean' },
+    parent_id: { name: 'parent_id', type: 'bigint' },
+  },
+} as unknown as ResourceModel
+const view = { resource: 'tasks', names: { singular: 'Task' }, fields: { title: { label: 'Title' }, done: { label: 'Done' } } } as unknown as ViewModel
+const readable = { models: [model], views: [view] }
+const described = (resource: string) => describedResource(readable, resource)
+const tasks = described('tasks')
+
+const approvalOf = (operations: WriteOperation[], { locale = 'en' as Locale, before = new Map<number, Row>(), soft = [] as string[] } = {}) =>
+  batchApproval({ text: writeText(locale), described, operations, before, softDeletes: new Set(soft) })
+
+const fix = { id: 3, title: 'Fix the lockout', done: false }
+const mixed: WriteOperation[] = [
+  { op: 'create', resource: 'tasks', data: { title: 'Plan' } },
+  { op: 'update', resource: 'tasks', key: 3, etag: '*', data: { done: true } },
+  { op: 'delete', resource: 'tasks', key: 3 },
+]
 
 describe('batchApproval', () => {
-  it('counts each kind per resource and lists each operation with its key and data', () => {
-    const { title, body, code } = batchApproval([
-      { op: 'create', resource: 'tasks', data: { title: 'Plan' } },
-      { op: 'update', resource: 'tasks', key: [3, 'a'], etag: '*', data: { done: true } },
-      { op: 'delete', resource: 'links', key: 9 },
-    ], new Set(['links']))
-    expect(title).toBe('Run 3 writes in one transaction?')
-    expect(body).toBe('Either all of them are written or none.\n"tasks": 1 create, 1 update, 0 deletes\n"links": 0 creates, 0 updates, 1 delete')
-    expect(code).toBe('1. create "tasks" {"title":"Plan"}\n2. update "tasks" [3,"a"] {"done":true}\n3. delete "links" 9')
+  it('lists a create, an update and a delete, each named and listed as its single write\'s approval', () => {
+    const en = writeText('en')
+    const asked = approvalOf(mixed, { before: new Map([[1, fix], [2, fix]]) })
+    expect(asked.title).toBe('Run 3 writes in one transaction?')
+    expect(asked.fields).toEqual([
+      { label: `1. ${createApproval(en, tasks, { title: 'Plan' }).title.slice(0, -1)}`, value: 'Title: Plan' },
+      { label: `2. ${updateApproval(en, tasks, 3, fix, { done: true }).title.slice(0, -1)}`, value: 'Done: No -> Yes' },
+      { label: `3. ${deleteApproval(en, tasks, 3, fix, false).title.slice(0, -1)}`, value: 'This cannot be undone: the record is removed for good.' },
+    ])
+    expect(asked.fields!.map(({ label }) => label)).toEqual(['1. Create Task "Plan"', '2. Update Task #3 "Fix the lockout"', '3. Delete Task #3 "Fix the lockout"'])
+    expect(asked.body).toBe('1 delete cannot be undone: those records are removed for good.\nEither all of them are written or none.')
+    expect(asked).toMatchObject({ tone: 'danger', approveLabel: 'Write all', rejectLabel: 'Cancel' })
   })
 
-  it('keeps a batch at the limit short, with the permanent deletes past the cutoff said first', () => {
-    const long = 'x'.repeat(10_000)
+  it('speaks Dutch to a Dutch user', () => {
+    const asked = approvalOf(mixed, { locale: 'nl', before: new Map([[1, fix], [2, fix]]), soft: ['tasks'] })
+    expect(asked.title).toBe('3 schrijfacties in één transactie uitvoeren?')
+    expect(asked.body).toBe('Ze worden allemaal opgeslagen of geen enkele.')
+    expect(asked.fields).toEqual([
+      { label: '1. Task "Plan" aanmaken', value: 'Title: Plan' },
+      { label: '2. Task #3 "Fix the lockout" bijwerken', value: 'Done: Nee -> Ja' },
+      { label: '3. Task #3 "Fix the lockout" verwijderen', value: 'Het kan worden teruggezet: het record blijft bewaard, gemarkeerd als verwijderd.' },
+    ])
+    expect(asked).toMatchObject({ tone: 'warning', approveLabel: 'Alles opslaan', rejectLabel: 'Annuleren' })
+  })
+
+  it('names a key or value pointing at a create in the batch by that write\'s number', () => {
+    const asked = approvalOf([
+      { op: 'create', resource: 'tasks', data: { title: 'Plan' }, ref: 'plan' },
+      { op: 'create', resource: 'tasks', data: { title: 'Step', parent_id: { $ref: 'plan' } } },
+      { op: 'update', resource: 'tasks', key: { $ref: 'plan' }, etag: '*', data: { done: true } },
+    ])
+    expect(asked.fields!.slice(1)).toEqual([
+      { label: '2. Create Task "Step"', value: 'Title: Step; Parent: the Task from write 1' },
+      { label: '3. Update the Task from write 1', value: 'Done: Yes' },
+    ])
+  })
+
+  it('names a record the caller may not read by its key, and says when an update changes nothing', () => {
+    const asked = approvalOf([{ op: 'update', resource: 'tasks', key: 3, etag: '*', data: { done: false } }], { before: new Map([[0, fix]]) })
+    expect(asked.fields).toEqual([{ label: '1. Update Task #3 "Fix the lockout"', value: 'No field changes.' }])
+    expect(approvalOf([{ op: 'delete', resource: 'secrets', key: 'a‮b' }]).fields![0]!.label).toBe('1. Delete Secrets #a b')
+  })
+
+  it('lists the first 50 writes and counts the rest, with every permanent delete counted', () => {
     const operations: WriteOperation[] = [
-      ...Array.from({ length: 497 }, (_, index): WriteOperation => ({ op: 'update', resource: 'tasks', key: `${index}${long}`, etag: '*', data: { notes: long } })),
+      ...Array.from({ length: 60 }, (_, index): WriteOperation => ({ op: 'create', resource: 'tasks', data: { title: `T${index}` } })),
       { op: 'delete', resource: 'tasks', key: 1 },
-      { op: 'delete', resource: 'tasks', key: 2 },
-      { op: 'delete', resource: 'events', key: 3 },
     ]
-    const text = textOf(operations, ['tasks'])
-    expect(text.length).toBeLessThan(15_000)
-    expect(text).toMatch(/^Run 500 writes in one transaction\?\n\n1 delete cannot be undone:\n1 delete in "events"\nEither all of them are written or none\.\n"tasks": 0 creates, 497 updates, 2 deletes\n"events": 0 creates, 0 updates, 1 delete\n\n1\. update/)
-    expect(text).toMatch(/\nand 450 more operations, counted above$/)
-  })
-
-  it('names at most 20 resources in a line of their own, and how many more', () => {
-    const operations = Array.from({ length: 30 }, (_, index): WriteOperation => ({ op: 'delete', resource: `r${index}`, key: 1 }))
-    const body = batchApproval(operations, new Set()).body!
-    expect(body).toMatch(/^30 deletes cannot be undone:\n1 delete in "r0"\n/)
-    expect(body).toMatch(/\nand 10 more resources\nEither all/)
-    expect(body).toMatch(/\nand 10 more resources$/)
-  })
-
-  it('shows what the client sent escaped and quoted, so it neither renders as markup nor reads as the tool\'s text', () => {
-    const tricky = 'a\nApproved\u202e\u200b`x` [link](http://x) ![i](http://x) <b>\n# No deletes in this batch\u0007\u{e0041}'
-    const code = batchApproval([{ op: 'update', resource: 'tasks', key: tricky, etag: '*', data: { title: tricky, mark: '\u{e0041}' } }], new Set()).code!
-    expect(code.split('\n')).toHaveLength(1)
-    expect(code).not.toMatch(/[\u202e\u200b\u0007`<>[\]]|\u{e0041}/u)
-    expect(code).toContain('"a\\nApproved\\u202e\\u200b\\u0060x\\u0060 \\u005blink\\u005d(http://x)')
-    expect(code).toContain('\\u{e0041}')
-  })
-
-  it('keeps every field after a long first value visible', () => {
-    const code = batchApproval([{ op: 'update', resource: 'users', key: 7, etag: '*', data: { bio: 'x'.repeat(5_000), role: 'admin', owner: 'mallory' } }], new Set()).code!
-    expect(code).toContain('"role":"admin"')
-    expect(code).toContain('"owner":"mallory"')
-  })
-
-  it('keeps the name of each of many fields', () => {
-    const data = Object.fromEntries(Array.from({ length: 40 }, (_, index) => [`field${index}`, 'y'.repeat(300)]))
-    const code = batchApproval([{ op: 'create', resource: 'tasks', data }], new Set()).code!
-    for (const name of Object.keys(data)) expect(code).toContain(`"${name}":`)
-  })
-
-  it('says how many characters a cut value drops', () => {
-    const code = batchApproval([{ op: 'create', resource: 'tasks', data: { notes: 'z'.repeat(100), list: [1, 2], short: 'ok' } }], new Set()).code!
-    // The quoted value is 102 characters, of which the first 80 are shown.
-    expect(code).toBe(`1. create "tasks" {"notes":"${'z'.repeat(79)}… (22 more characters),"list":[1,2],"short":"ok"}`)
-  })
-
-  it('cuts a nested value as one value', () => {
-    const code = batchApproval([{ op: 'create', resource: 'tasks', data: { meta: { a: 'w'.repeat(100) }, after: 1 } }], new Set()).code!
-    expect(code).toBe(`1. create "tasks" {"meta":{"a":"${'w'.repeat(74)}… (28 more characters),"after":1}`)
+    const asked = approvalOf(operations)
+    expect(asked.fields).toHaveLength(50)
+    expect(asked.body).toBe('1 delete cannot be undone: those records are removed for good.\nEither all of them are written or none.\nAnd 11 more writes, not listed.')
   })
 })
