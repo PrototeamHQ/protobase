@@ -712,3 +712,26 @@ describe('turning MCP off', () => {
     expect((await second.refresh(registered.clientId, registered.tokens.refresh_token!)).status).toBe(200)
   })
 })
+
+// Each app served takes the next client address, so a test added before others changes their recordings.
+describe('a client that asks for consent each time (prompt=consent), as Claude does', () => {
+  it('is asked on the connect page and gets a code, from someone signed in or signing in on the way', async () => {
+    const { signIn, authorize, resume, answer, connect, exchange, queryOf } = await serve()
+    const consent = { prompt: 'consent', scope: 'mcp offline_access' }
+    const signedIn = await exchange(cimdClientId, await connect(await signIn('ana@example.com'), cimdClientId, consent))
+    expect(signedIn.status, await signedIn.clone().text()).toBe(200)
+
+    const { location, verifier } = await authorize(undefined, cimdClientId, consent)
+    expect(location.startsWith('/-/connect?')).toBe(true)
+    const cookie = await signIn('bo@example.com')
+    const resumed = await resume(cookie, queryOf(location))
+    expect(resumed.status, await resumed.clone().text()).toBe(200)
+    const { url } = (await resumed.json()) as { url: string }
+    expect(url.startsWith('/-/connect?')).toBe(true)
+    const allowed = await answer(cookie, queryOf(url))
+    expect(allowed.status, await allowed.clone().text()).toBe(200)
+    const code = new URL(((await allowed.json()) as { url: string }).url).searchParams.get('code')
+    expect(code).toBeTruthy()
+    expect((await exchange(cimdClientId, { code: code!, verifier })).status).toBe(200)
+  })
+})
