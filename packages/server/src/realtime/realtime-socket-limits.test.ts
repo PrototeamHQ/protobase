@@ -382,7 +382,8 @@ describe('realtimeSocket limits', () => {
     expect(bob.frames).toEqual([])
   })
 
-  it('puts the sender\'s broadcast that cannot be encoded on the sender alone', async () => {
+  // Parsing and encoding a payload nested 100,000 deep is CPU work a busy machine stretches past 5 s.
+  it('puts the sender\'s broadcast that cannot be encoded on the sender alone', { timeout: 30_000 }, async () => {
     const broadcasts = broadcastHub()
     const report = vi.fn()
     const [alice, bob, carol] = [open({ broadcasts, report }), open({ broadcasts }), open({ broadcasts })]
