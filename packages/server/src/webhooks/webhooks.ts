@@ -4,7 +4,7 @@ import { coalesce } from '../changes/coalesce'
 import { EventCodeError } from '../changes/event-code-error'
 import { eventMatcher } from '../changes/match-events'
 import { deleteOutbox, readOutbox } from '../changes/outbox'
-import { resourceChange, type ResourceChange } from '../changes/resource-change'
+import { currentChange, resourceChange, type ResourceChange } from '../changes/resource-change'
 import type { Deps } from '../deps'
 import type { ApiFunction } from '../functions/define-function'
 import { callerRecords } from '../functions/records'
@@ -15,7 +15,7 @@ import { FatalJobError } from '../jobs/run-job'
 import { attemptDelivery, type AttemptResult } from './attempt'
 import { maxTries, nextRetryDelay } from './retry-schedule'
 import { subscriptionProblems, subscriptionRouter } from './route-events'
-import { subscriberEvents } from './subscriber-view'
+import { eventChange, subscriberEvents } from './subscriber-view'
 import type { SubscriptionDefinition, SubscriptionEvent } from './subscription'
 import { tableSubscriptionName } from './table/options'
 import { sendTestJob } from './table/schema-sql'
@@ -93,7 +93,8 @@ const deliveryGroup = ({ subscription, change }: Delivery) => `${subscription.na
  *   only: the others still receive it, and the retry delivers to that subscription alone. Any other error fails the
  *   whole dispatch, which is retried.
  * - `webhooks.deliver`, one try of an unordered delivery; a failure queues the next try on the Standard Webhooks
- *   schedule, or Retry-After, and the last one is kept as failed.
+ *   schedule, or Retry-After, and the last one is kept as failed. Each try, and each of the job below, shapes its event
+ *   again for the subscription as it is now, and sends nothing when it may no longer read the record.
  * - `webhooks.deliver-ordered`, the ordered deliveries of one dispatch for one subscription and record, retried with
  *   doubling waits up to a day, holding back the record's later deliveries to that subscription meanwhile.
  *
@@ -145,7 +146,27 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
     const found = id === undefined ? byName.get(name) : await table?.subscriptions.find(db, id)
     if (!found) throw new FatalJobError(`The subscription "${name}" no longer exists`)
     if (found.options.enabled === false) throw new FatalJobError(`The subscription "${name}" is disabled`)
+    // A table subscription as it is now, such as one whose owner holds no roles any more.
+    const problems = id === undefined ? [] : subscriptionProblems([found], models, [])
+    if (problems.length > 0) throw new FatalJobError(problems.join('; '))
     return found
+  }
+
+  // Without the model, which fields are sensitive is unknown: a stored change or event of a removed resource is not sent.
+  const modelOf = (resource: string) => {
+    const model = deps.registry.find(resource)?.model
+    if (!model) throw new FatalJobError(`The resource "${resource}" no longer exists`)
+    return model
+  }
+
+  // A stored event shaped again for the subscription as it is now: the fields sensitive now left out, under its current
+  // access rules and roles, under the same id. `undefined` when it may not read the record any more.
+  const reshaper = () => {
+    const eventOf = subscriberEvents(deps)
+    return async (subscription: SubscriptionDefinition, stored: SubscriptionEvent) => {
+      const shaped = await eventOf(subscription, eventChange(modelOf(stored.data.resource), stored), stored.type)
+      return shaped && { ...shaped, id: stored.id }
+    }
   }
 
   const deliver = defineJob<DeliveryPayload>({
@@ -157,12 +178,14 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
     concurrency: parallelAttempts,
     run: async (payload, { db, signal }) => {
       const subscription = await subscriptionOf(payload.subscription, db)
-      const result = await attempt(subscription, payload.event, db, payload.attempt, signal)
-      report(payload.subscription, payload.event, payload.attempt, result)
+      const event = await reshaper()(subscription, payload.event)
+      if (!event) return
+      const result = await attempt(subscription, event, db, payload.attempt, signal)
+      report(payload.subscription, event, payload.attempt, result)
       if (result.ok) return
       const delay = result.final ? undefined : nextRetryDelay(payload.attempt, result.retryAfterMs)
       if (delay === undefined) throw new FatalJobError(result.error)
-      await deliver.enqueue(db, { ...payload, attempt: payload.attempt + 1, lastError: result.error }, { key: deliveryKey(payload), delay })
+      await deliver.enqueue(db, { ...payload, event, attempt: payload.attempt + 1, lastError: result.error }, { key: deliveryKey(payload), delay })
     },
   })
 
@@ -177,7 +200,14 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
     concurrency: parallelAttempts,
     run: async (payload, { db, signal, job }) => {
       const subscription = await subscriptionOf(payload.subscription, db)
-      for (const event of payload.events) {
+      // Every event shaped before the first is sent, so one that cannot be shaped sends none.
+      const reshape = reshaper()
+      const events: SubscriptionEvent[] = []
+      for (const stored of payload.events) {
+        const event = await reshape(subscription, stored)
+        if (event) events.push(event)
+      }
+      for (const event of events) {
         const result = await attempt(subscription, event, db, job.attempt, signal)
         report(payload.subscription, event, job.attempt, result)
         if (result.ok) continue
@@ -188,13 +218,16 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
   })
 
   // The deliveries of one change, against the subscriptions as they are now: each of its events, to each subscription
-  // that takes it and may read it, or only to `only`. A subscription whose access check throws is a failure, with none
-  // of its deliveries of the change; the change's events and routing throw an `EventCodeError` when the app's code does.
-  const changeDeliveries = async (db: Db) => {
-    const route = subscriptionRouter(await current(db), models)
+  // that takes it and may read it. With `only`, routed among the subscription of that name alone, so another
+  // subscription's `when` is never run, and to none when no current one has it. A subscription whose access check
+  // throws is a failure, with none of its deliveries of the change; the change's events and routing throw an
+  // `EventCodeError` when the app's code does.
+  const changeDeliveries = async (db: Db, only?: string) => {
+    const all = await current(db)
+    const route = subscriptionRouter(only === undefined ? all : all.filter(({ name }) => name === only), models)
     const eventOf = subscriberEvents(deps)
-    return async (change: ResourceChange, only?: string) => {
-      const routes = route(change, matchers.get(change.resource)!(change)).filter(({ subscription }) => only === undefined || subscription.name === only)
+    return async (change: ResourceChange) => {
+      const routes = route(change, matchers.get(change.resource)!(change))
       const deliveries: Delivery[] = []
       const failures: Failure[] = []
       const failed = new Set<string>()
@@ -231,8 +264,9 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
     name: 'webhooks.dispatch-change',
     maxAttempts: 1,
     timeout: '5 minutes',
-    run: async ({ change, subscription: only }, { db }) => {
-      const { deliveries, failures } = await (await changeDeliveries(db))(change, only)
+    run: async ({ change: kept, subscription: only }, { db }) => {
+      const change = currentChange(modelOf(kept.resource), kept)
+      const { deliveries, failures } = await (await changeDeliveries(db, only))(change)
       if (only !== undefined && failures.length > 0) throw failures[0]!.error
       await db.transaction().execute(async (trx) => {
         for (const { subscription, event } of deliveries.filter(({ subscription }) => !subscription.options.ordered)) {
