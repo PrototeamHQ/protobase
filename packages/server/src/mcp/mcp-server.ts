@@ -1,4 +1,4 @@
-import { CLIENT_CAPABILITIES_META_KEY, fromJsonSchema, McpServer, type CallToolResult, type ClientCapabilities, type InputRequiredResult, type ServerContext } from '@modelcontextprotocol/server'
+import { CLIENT_CAPABILITIES_META_KEY, fromJsonSchema, McpServer, type CallToolResult, type ClientCapabilities, type Icon, type InputRequiredResult, type ServerContext } from '@modelcontextprotocol/server'
 import { checkedTools } from '../assistant/checked-tools'
 import type { AssistantTool, ToolContext } from '../assistant/tools'
 import { ApprovalNeeded, approvalAsked, approvedUnasked, mcpApproval, writesUnasked } from './mcp-approval'
@@ -7,8 +7,8 @@ import { callHash, callScope, scopeHash } from './mcp-call-hash'
 import { isStatementTimeout } from '../statement-timeout'
 
 export type McpServerInput = {
-  /** The name, version and title the server tells clients when they connect. */
-  info: { name: string; version: string; title?: string }
+  /** The name, version, title and icons the server tells clients when they connect, each icon an absolute URL. */
+  info: { name: string; version: string; title?: string; icons?: Icon[] }
   tools: AssistantTool[]
   /** What each tool gets as its context, for the caller of the request; `approve` comes from each call's own answers. */
   context: Omit<ToolContext, 'approve'>

@@ -104,6 +104,7 @@ import { collectionRoutes } from './routes/collection'
 import { docsRoutes } from './routes/docs'
 import { metaRoutes } from './routes/meta'
 import { webManifestRoute } from './web-app/web-manifest-route'
+import { mcpIcons } from './web-app/mcp-icons'
 import { faviconPath } from './web-app/web-manifest'
 import { recordRoutes } from './routes/record'
 import { runtimeUrl } from './runtime/runtime-settings'
@@ -156,7 +157,7 @@ export type CreateAdminInput = {
   app?: AppIdentity
   /**
    * The icons the project has of its own, as `protobase build` and `protobase dev` find them beside its favicon: the
-   * web manifest names its PNGs, and `/meta` the favicon when it is the project's, which the sidebar's logo draws.
+   * web manifest and the MCP server name its PNGs, and `/meta` the favicon when it is the project's, which the sidebar's logo draws.
    */
   icons?: AppIcons
   /**
@@ -367,9 +368,10 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented })
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
+    const info = { name: appName, version: '1.0.0', icons: mcpIcons(resource, icons) }
     const server = (session: Session, request: Request | undefined) => {
       const context = mcpToolContext(deps, meta, session, { locale: request ? requestLocale(locale, request) : locale, requestURL: request?.url ?? resource })
-      return mcpServer({ info: { name: appName, version: '1.0.0' }, tools: tools(session), context, report, rolesWithoutApproval: rolesWithoutApproval(writes), approvals })
+      return mcpServer({ info, tools: tools(session), context, report, rolesWithoutApproval: rolesWithoutApproval(writes), approvals })
     }
     mcpRoutes(app, { path: auth.mcp.path, handler: mcpHandler({ authenticate: mcpAuthenticate, resource: auth.mcp.resource, scope: auth.mcp.scope, server }) })
   }
