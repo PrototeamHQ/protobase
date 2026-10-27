@@ -10,6 +10,7 @@ import { ensureExports, type Registration } from './index-file'
 import { assignNames } from './resource-names'
 import { planResource, type Decision } from './resource-plan'
 import { protobaseSchemas, type ProtobaseSchema } from './protobase-tables'
+import { referencedTables, type Referenced } from './referenced'
 import type { Decide } from './prompt'
 import { dependencyOrder } from './table-order'
 import { isExcluded, matchesTarget, type Target } from './targets'
@@ -41,6 +42,8 @@ export type ScaffoldPlan = {
   skipped: ProtobaseSchema[]
   // "schema.table" of the `live` tables whose resource has `.live()` now.
   live: string[]
+  // The tables written although the target or excludes leave them out, as the written ones point to them.
+  referenced: Referenced[]
 }
 
 const decideAll = async (table: DbTable, columns: DbTable['columns'], context: ProposalContext, input: ScaffoldInput) => {
@@ -77,7 +80,9 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
     table,
     resourceNameOf: (schema, name) => names.get(`${schema}.${name}`) ?? name,
   })
-  const targets = dependencyOrder(tables.filter((table) => wanted(table) && !isProtobase(table)))
+  const candidates = tables.filter((table) => !isProtobase(table))
+  const { tables: included, referenced } = referencedTables(candidates, candidates.filter(wanted), (key) => byTable.has(key))
+  const targets = dependencyOrder(included)
 
   const changes: FileChange[] = []
   const drift: Drift[] = []
@@ -143,7 +148,7 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
   if (exports.length > 0 || indexBefore === undefined) {
     changes.push(...change(indexFile, indexBefore, ensureExports(indexBefore ?? '', exports)))
   }
-  return { changes, drift, warnings, skipped, live }
+  return { changes, drift, warnings, skipped, live, referenced }
 }
 
 // With no config/index.ts yet, every resource already on disk is registered too.

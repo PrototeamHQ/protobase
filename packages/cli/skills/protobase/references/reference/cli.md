@@ -49,7 +49,7 @@ The serve runtime is bundled by `protobase build-serve` into one JavaScript file
 protobase scaffold [connection string | --env VAR] [target] [options]
 ```
 
-Without a connection string or `--env`, the URL is `DATABASE_URL`, from the environment or the nearest `.env` at or above the current directory, as `dev` reads it. `target` is `all` (default), `schema`, `schema.table` or `schema.table.column`. Tables are introspected from `pg_catalog`; `config/<resource>/data.ts` is created or extended.
+Without a connection string or `--env`, the URL is `DATABASE_URL`, from the environment or the nearest `.env` at or above the current directory, as `dev` reads it. `target` is `all` (default), `schema`, `schema.table` or `schema.table.column`. Tables are introspected from `pg_catalog`; `config/<resource>/data.ts` is created or extended. A table that a written one points to with a foreign key is written too, outside the target or excluded, unless it has a resource already, since the app refuses a relation to a resource it does not have; a line names each.
 
 Protobase's own tables are left out, since they hold password hashes, OAuth tokens and signing keys: the auth store, which is the `auth` schema or another schema with the store's `auth_migrations` table, or with Better Auth's `session`, `account` and `verification` tables whose sessions point at a user table (in `public`, only the tables of the store's [migrations](auth.md#migrations) and that user table, whatever it is called), and pg-boss's `jobs` schema. A line names each one skipped. The auth store is left out whatever the target names; a target naming the `jobs` schema scaffolds it anyway. A resource an earlier run made over one of them gets a warning to remove it, and `dev` and `serve` refuse to start with a resource over the auth store.
 
@@ -109,7 +109,7 @@ The URL comes as for [`scaffold`](#scaffold): the connection string, the variabl
 
 Imports `config/index.ts` and the views of `config/*/ui.ts`, as the config module has them by convention, and checks every exported resource against the database:
 
-- error: missing table or column, field type that does not fit the column (a file field needs a text column), table without a usable key, configured key not backed by a unique index
+- error: missing table or column, field type that does not fit the column (a file field needs a text column), table without a usable key, configured key not backed by a unique index, relation to a resource the config does not declare
 - error: a read the [scan guard](api.md#safety) refuses, because no index serves a column it filters, sorts, searches or counts by. Doctor reads each table's indexes from the catalog, as the server does, and judges with the scan guard's own rule every read the API takes and the app makes: a filter on each `.filterable()` field, a sort by each `.sortable()` one, `search()` over the search fields, a role's own records (`.owner()`) and the names a relation shows; each view's list in its order and with the filter it opens with, its filter widgets and their counts, its chart, its map, board, calendar and timeline, its card photos, its order by hand, its related sections, galleries and charts, its named lists, its recent records and a saved search's new records; and each block of a [composed page](layouts.md) that lists records, and each `Chart` block's grouped and split fields. Each error is an index to add, with every request that needs it and where it comes from:
 
   ```

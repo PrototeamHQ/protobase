@@ -74,6 +74,7 @@ export const runScaffold = async (options: ScaffoldOptions, out: (text: string) 
   if (plan.changes.length === 0) out('Nothing to do, config is up to date.\n')
   else if (options.dryRun) out(`${plan.changes.length} file(s) would change; nothing was written (--dry-run).\n`)
   for (const schema of plan.skipped) out(skippedLine(schema))
+  for (const { table, by } of plan.referenced) out(`included ${table}, which ${by.join(', ')} ${by.length === 1 ? 'points' : 'point'} to\n`)
   for (const warning of plan.warnings) out(`warning: ${warning}\n`)
   if (plan.drift.length > 0) {
     out('\nDrift:\n')
