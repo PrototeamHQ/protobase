@@ -11,6 +11,7 @@ import { convertedCronJobs } from './cron-plan'
 import { providerCounts } from './identity-providers'
 import { importState, type ImportManifest } from './import-state'
 import { loadScript, qualified } from './load-script'
+import { authStorageSchemas } from './platform-schemas'
 import { writeMigration } from './migration-files'
 import { runPgTool } from './pg-tools'
 import { importReport } from './report'
@@ -18,9 +19,6 @@ import { existingTables, filledTables, otherTables } from './target-checks'
 import { accountsMigration } from './users-migrations'
 
 export type LoadOptions = { targetUrl: string; projectDir: string; migrationsDir: string; configDir: string }
-
-/** Schemas the import restores that scaffolding leaves alone: Supabase Auth's and Storage's own tables are no resources. */
-const platformSchemas = ['auth', 'storage']
 
 /**
  * Fails unless every dumped table exists on the target, created by the applied migration, and holds no rows yet, and
@@ -76,7 +74,7 @@ export const runLoadPhase = async (options: LoadOptions, out: (text: string) => 
   if (replay) await rm(replay)
   out(`loaded ${manifest.tables.reduce((sum, table) => sum + table.rows, 0)} rows into ${manifest.tables.length} tables; each count matches the source\n`)
 
-  const schemas = manifest.schemas.filter((schema) => !platformSchemas.includes(schema))
+  const schemas = manifest.schemas.filter((schema) => !authStorageSchemas.includes(schema))
   const sql = connect(options.targetUrl)
   const excludes = await otherTables(sql, schemas, manifest.tables).finally(() => sql.end())
   const realtime = manifest.realtimeTables.map((table) => `${table.schema}.${table.table}`)

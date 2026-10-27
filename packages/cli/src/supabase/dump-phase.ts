@@ -12,11 +12,12 @@ import { importPlan, probedExtensions } from './import-plan'
 import { importState, type ImportManifest } from './import-state'
 import { writeMigration } from './migration-files'
 import { runPgTool } from './pg-tools'
+import { databaseMarkers, missingMarkers } from './platform-schemas'
 import { realtimeMigration, realtimePolicies } from './realtime-policies'
 import { replayScript } from './replay'
 import { schemaMigration } from './schema-migration'
 import { refuseSsoUsers, ssoUserCount } from './sso-users'
-import { appSchemas, cronJobs, cronTimezone, databaseMarkers, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, pgsodiumColumns, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
+import { appSchemas, cronJobs, cronTimezone, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, pgsodiumColumns, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
 import { authStoreMigrations } from './store-migrations'
 import { ensureApiRoles, existingSchemas, existingTables } from './target-checks'
 import { creatableExtensions } from './target-extensions'
@@ -27,7 +28,7 @@ export type DumpOptions = { sourceUrl: string; targetUrl: string; projectDir: st
 /** Fails unless the database at `sql` is Supabase's: its auth and storage schemas, and its own admin role. */
 const checkSupabase = async (sql: Sql) => {
   const markers = await databaseMarkers(sql)
-  const missing = [...['auth', 'storage'].filter((schema) => !markers.schemas.includes(schema)).map((schema) => `schema ${schema}`), ...(markers.roles.includes('supabase_admin') ? [] : ['role supabase_admin'])]
+  const missing = missingMarkers(markers)
   if (missing.length > 0) throw new Error(`The source database is not a Supabase database: it lacks the ${missing.join(' and ')}`)
   return markers
 }
