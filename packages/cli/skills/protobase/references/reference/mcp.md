@@ -14,7 +14,7 @@ An app can serve an MCP endpoint: a person adds its address to an AI client that
 export default defineConfig({ auth: { mcp: true } })
 ```
 
-Every auth store has the OAuth tables, so turning it on needs no migration. The endpoint is `https://<app>/api/mcp`, or the path `mcp.path` names. How clients register, how people sign in and allow them, and how they disconnect them is in [OAuth for MCP clients](auth.md#oauth-for-mcp-clients).
+Every auth store has the OAuth tables, so turning it on needs no migration. The endpoint is `https://<app>/api/mcp`, or the path `auth.mcp.path` names. How clients register, how people sign in and allow them, and how they disconnect them is in [OAuth for MCP clients](auth.md#oauth-for-mcp-clients).
 
 ## Connecting a client
 
@@ -55,7 +55,7 @@ It runs one `SELECT` in a read-only transaction, as the app's database role, **o
 
 ### Writes
 
-`mcpEndpoint.writes` also offers three tools that change records, to everyone signed in:
+`mcpEndpoint.writes` also offers four tools that change records, to everyone signed in:
 
 ```ts
 export default defineConfig({ auth: { mcp: true }, mcpEndpoint: { writes: true } })
@@ -117,7 +117,7 @@ A batch is checked before the person is asked: an operation other than a create,
 
 ## Browsers and hosts
 
-A client in a browser may call the endpoint from any origin: it sends its token, never cookies. A request addressed to another host than the app's `baseURL` is refused, against DNS rebinding.
+A client in a browser may call the endpoint from any origin: it sends its token, never cookies. A request addressed to another host than that of the app's [`url`](config/app.md#url) is refused, against DNS rebinding.
 
 The endpoint serves each request on its own, without an MCP session: a `GET` or `DELETE` answers 405.
 
@@ -128,13 +128,14 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session)` builds for its caller.
 - `mcpServer({ info, tools, context, report, rolesWithoutApproval, approvals })`: an MCP server offering [assistant tools](assistant.md#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`: each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`. `approvals` is `mcpApprovals()`, built once and passed to every server the endpoint builds: it keeps the approvals asked for until they are answered or expire.
 - `mcpTools({ db, sql, writes })`: the default tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`.
+- `readRecordTools()`, or `listResourcesTool()`, `listRecordsTool()` and `getRecordTool()`: the read tools alone; `readOnlyQueryTool(db)` is `run_read_only_query`, and `readWriteQueryTool(db)` proposes one write statement that the user approves before it runs.
 - `writeRecordTools({ resources })`, or `createRecordTool(...)`, `updateRecordTool(...)` and `deleteRecordTool(...)`: the single write tools alone, on the listed resources or, without `resources`, on any; `batchWriteTool({ resources })` is `batch_write` alone.
 - `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.
 - `mcpToolContext(...)`, `mcpRoutes(app, { path, handler })` and `sessionOf(authInfo)`: the tools' context as the app builds it, the routes with open CORS, and the session a request was admitted with.
 
-To serve your own endpoint at `mcp.path` instead, set `mcpEndpoint: false` (`createAdmin`'s `options.mcp`) and mount yours in front of `createAdmin`'s app. The OAuth provider and its discovery stay, `createAdmin` answers 404 at the path and under it, and its `authenticate` needs no `forAudience`.
+A host that builds its own server around `createAdmin`, rather than running the project with `protobase dev` or `protobase serve`, can serve its own endpoint at `auth.mcp.path` instead: `mcpEndpoint: false` (`createAdmin`'s `options.mcp`) turns Protobase's off, and the host mounts its own in front of `createAdmin`'s app. The OAuth provider and its discovery stay, and `createAdmin` answers 404 at the path and under it. `protobase dev` and `protobase serve` have no place to mount another endpoint, so in a project served by them `mcpEndpoint: false` only turns the endpoint off.
 
-A tool of your own goes on the server `server` returns, with the context its tools get:
+A tool of your own goes on the server `server` returns, with the context its tools get. `authenticate` is the host's own `Authenticator`: it verifies the client's access token for the endpoint's address, its audience, and returns a session with the `client` the token was issued to:
 
 ```ts
 import { defineTool, mcpApprovals, mcpHandler, mcpServer, type Session, type ToolContext } from '@protobase/server'
@@ -157,9 +158,9 @@ const context = (session: Session): Omit<ToolContext, 'approve'> => ({
 const approvals = mcpApprovals()
 
 const handler = mcpHandler({
-  authenticate: authenticate.forAudience(auth.mcp.resource),
-  resource: auth.mcp.resource,
-  scope: auth.mcp.scope,
+  authenticate: verifyMcpToken,
+  resource: 'https://admin.example.com/api/mcp',
+  scope: 'mcp',
   server: (session) => mcpServer({ info: { name: 'My app', version: '1.0.0' }, tools: [ping], context: context(session), report: console.error, approvals }),
 })
 ```

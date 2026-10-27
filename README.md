@@ -14,9 +14,11 @@ npm packages under the `@protobase` scope, all at one version, built from `packa
 - `@protobase/layout`: composed pages, with the JSX runtime for `@jsxImportSource @protobase/layout`
 - `@protobase/query`: the Kysely queries behind lists, filters, counts and aggregates
 - `@protobase/server`: the REST API as a Hono app, with Better Auth sign-in
+- `@protobase/config`: `defineConfig` and the types of `protobase.config.ts`, and the JSON Schema of `protobase.config.json`
 - `@protobase/client`: a typed fetch client for the API
 - `@protobase/ui`: the admin app, and the hooks and components for `protobase.ui.tsx`
 - `@protobase/cli`: the `protobase` command (scaffold, doctor, dev, build, serve)
+- `@protobase/mobile`: the Capacitor packages and native plugins that `protobase mobile` builds an app's iOS and Android projects with
 
 Beside them, `create-protobase` starts a new app from a preset (scratch, the default, ERP or real estate), asking
 which in a terminal, with a Postgres in Docker for development (`bun run db:up`), then prints the next steps:

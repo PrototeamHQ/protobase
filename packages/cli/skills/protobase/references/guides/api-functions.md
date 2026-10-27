@@ -402,7 +402,7 @@ export default defineFunction({ longQueries: true }, async (request, { db }) => 
 ```
 
 - **Up to 30 seconds** per query, the most any query of an app may run. Work longer than that belongs in steps, such as a [job](../reference/jobs.md) per batch, which takes `longQueries` too.
-- **One connection kept for it.** Under `protobase dev` and `serve`, those queries run on a connection of their own, which asks for the longer timeout when it logs in, so long work never takes the connections pages need; a second long call waits for it. A PgBouncer of your own in front of the database must list `statement_timeout` in `track_extra_parameters` to pass that on; Protobase Cloud's does. With a `db` the project exports itself, the option changes nothing.
+- **One connection kept for it.** Under `protobase dev` and `serve`, those queries run on a connection of their own, which asks for the longer timeout when it logs in, so long work never takes the connections pages need; a second long call waits for it. A PgBouncer of your own in front of the database must list `statement_timeout` in `track_extra_parameters` to pass that on; Protobase Cloud's does.
 - **`records` keep the API's limit,** [`statementTimeoutMs`](../reference/api.md#safety).
 - **A query past its limit** is stopped, and the call answers `504 statement-timeout` naming the call, its limit and the way out, such as `POST /api/functions/import ran a query longer than the database's statement timeout, so the database stopped it. Make the query faster, such as with an index or a narrower filter, or give it longQueries: true, whose queries may run up to 30 s.` It goes to the app's error hook, `hooks/error.ts`, and the [error tracker](../reference/api.md#error-reporting).
 

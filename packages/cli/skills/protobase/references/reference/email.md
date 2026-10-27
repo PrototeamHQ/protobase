@@ -32,7 +32,7 @@ A project that delivers its mail another way exports a mailer, `{ send({ to, sub
 
 The auth emails (sign-in, two-factor and sign-up codes, the note to an address that asked to sign up while it has an account, password reset, invitations and staff sign-in notices) and the email to someone a [comment mentions](comments.md#mentions) are built with React Email's components: a heading, the message, one code or button, and a footer naming the app.
 
-- They name the app by [`appName`](auth.md#configuration), and link it on the origin the request came to: the footer links its home page, and the note to an address that has an account links its sign-in page.
+- They name the app by its [`name`](config/app.md#name), and link it on the origin the request came to: the footer links its home page, and the note to an address that has an account links its sign-in page.
 - The plain-text part has each code on a line of its own and each link in full.
 - React Email and the templates are loaded when the first auth email is sent, so an app that sends none never loads them and the server starts as fast without them.
 
@@ -45,7 +45,7 @@ bun add react-email react
 bun add -d @types/react
 ```
 
-```tsx title="config/emails/repair-ready.tsx"
+```tsx title="emails/repair-ready.tsx"
 import { defineEmail } from '@protobase/server'
 import { Body, Button, Container, Head, Heading, Html, Preview, Text } from 'react-email'
 
@@ -132,7 +132,7 @@ A **job** is the usual place: it runs after the write that asked for it has comm
 
 ```ts title="jobs/email-repair-ready.ts"
 import { FatalJobError, type JobRun } from '@protobase/server'
-import { repairReady } from '../repair-ready'
+import { repairReady } from '../emails/repair-ready'
 
 // Enqueued by the write hook of a repair that became ready (hooks/email-ready-repair.ts), so the email goes out only
 // once the write has committed, and a refused message is retried.
@@ -180,7 +180,7 @@ An **[API function](../guides/api-functions.md)** may send directly, as the answ
 ```ts title="functions/resend-repair-ready.ts"
 import { z } from 'zod'
 import { defineFunction, readJson } from '@protobase/server'
-import { repairReady } from './repair-ready'
+import { repairReady } from '../emails/repair-ready'
 
 const Input = z.object({ repairId: z.number().int().positive() })
 

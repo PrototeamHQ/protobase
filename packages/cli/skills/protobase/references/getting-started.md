@@ -4,7 +4,7 @@
 
 Start an app with npm create protobase, install the repository, run the ERP, real estate and property portal examples and learn the development commands.
 
-Protobase is a config-driven admin panel framework for existing Postgres databases. Data config lives in `data.ts`, UI config in `ui.ts`; a Hono server serves the API and a React app renders the admin. Coding agents get the guides and reference of the installed version with [`protobase skill install`](reference/cli.md#skill).
+Protobase is a config-driven admin panel framework for existing Postgres databases. Each resource's data config lives in `config/<resource>/data.ts` and its UI config in `ui.ts`, all exported from `config/index.ts`; the rest of the app, its sign-in, jobs, files and API settings, is one object of data in [`protobase.config.ts`](reference/config.md). A Hono server serves the API and a React app renders the admin. Coding agents get the guides and reference of the installed version with [`protobase skill install`](reference/cli.md#skill).
 
 An app's own React code, its components, field types and actions, is a [plugin](reference/plugins.md): built on its own against a plugin API that Protobase's releases keep, and loaded by the admin app when it starts. Protobase maintains the admin app, the API and the server, and a plugin keeps working as the app moves to newer releases, with their fixes and features, without changes of its own. Below 1.0 a new minor version may still change the config, and the bundle is built again for it; the plugins' code stays as it is (see [Who maintains what](reference/plugins.md#who-maintains-what)).
 
@@ -27,6 +27,19 @@ bun run db:migrate
 bun run protobase users create you@example.com --generate-password
 bun run dev                         # http://localhost:5173
 ```
+
+### The first table
+
+A scratch app starts without resources, so `protobase doctor` refuses it until it has one. A table comes in through a migration, the next file in `db/migrations/`, and `scaffold` writes its resource from the database:
+
+```sh
+# db/migrations/007_customers.sql: create table customers (id bigint generated always as identity primary key, name text not null);
+bun run db:migrate
+bun run protobase scaffold --ui --yes --exclude public.schema_migrations
+bun run protobase doctor
+```
+
+`scaffold` writes `config/customers/data.ts` and `ui.ts` and exports them from `config/index.ts`, where Protobase finds every resource, view and page; `--exclude public.schema_migrations` leaves out the table the migrate script records its migrations in. `bun run dev` shows the new list at once. The [Data config](reference/data-config.md) and [UI config](reference/ui-config.md) say what else a resource can be.
 
 ## Admin over an existing database
 
@@ -95,7 +108,7 @@ bun run --cwd tests/apps/property-portal dev              # http://localhost:517
 | `bun run test:db` | builds the template databases the database tests clone for each run (`protobase_test_template`, `real_estate_test_template`, `property_portal_test_template`, all at small scale, and the empty, auth and jobs `snapshot_*_test_template` the real-Postgres and end-to-end tests clone), when missing or older than what they are built from; without them those tests skip. `bun run test:db postgres` builds the Postgres suite's (`protobase_medium_test_template`, the ERP at medium scale), `bun run test:db snapshots` the ones `test:record` records on (`snapshot_*_test_template`). Tests never use the `protobase`, `real_estate` or `property_portal` databases |
 | `bun run typecheck` | `tsc --noEmit` |
 | `bun run check:boundaries` | dependency-cruiser package rules |
-| `bun run check` | typecheck + test + test:integration + check:boundaries |
+| `bun run check` | typecheck, the unit, snapshot, integration and end-to-end tests a change affects (all of them without `CHECK_BASE`), and check:boundaries |
 | `bun run storybook` | Storybook on port 6006 |
 | `bun run build-storybook` | static Storybook build; its toolbar switches every story between light and dark |
 | `bun run screenshots` / `bun run screenshots:dark` | screenshots of the stories tagged `website`, in light into `screenshots/`, in dark into `screenshots/dark/` |
@@ -105,4 +118,4 @@ bun run --cwd tests/apps/property-portal dev              # http://localhost:517
 | `bun run release --dry-run` | the next version and its changelog, from the commits since the last release (see [Versioning](reference/versioning.md)) |
 | `bun run docs:check` | opens every page of the built site in Chromium and fails on console errors and failed requests; `BASE=https://docs.protobase.net` checks the live site |
 
-Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, and `cli` for the `protobase` command); `packages/presets` writes the projects a new app starts from and is not published; `packages/create-protobase` is `npm create protobase`, with every preset. See [Architecture](reference/architecture.md) for the layout and import rules.
+Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, `config` for `protobase.config.ts`, `mobile` for `protobase mobile`, and `cli` for the `protobase` command); `packages/presets` writes the projects a new app starts from and is not published; `packages/create-protobase` is `npm create protobase`, with every preset. See [Architecture](reference/architecture.md) for the layout and import rules.

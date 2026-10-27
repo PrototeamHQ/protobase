@@ -59,7 +59,7 @@ export const ticketNotes = resource('ticket_notes')
   .access({ delete: deskOnly })
 ```
 
-Only the desk's own admins delete: the [access rule](/reference/access/) holds for everyone who reaches the desk's API, the shop's people included.
+The tables come first, as a migration of the desk's (a new file in `db/migrations/`, applied with `bun run db:migrate`), and the resources are exported from the desk's `config/index.ts`, where Protobase finds them: `export * from './tickets/data'`. Only the desk's own admins delete: the [access rule](/reference/access/) holds for everyone who reaches the desk's API, the shop's people included.
 
 ```ts
 // desk: config/tickets/ui.ts

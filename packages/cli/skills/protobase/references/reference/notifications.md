@@ -55,12 +55,12 @@ A field that does not belong to the kind, a missing one, an unknown one such as 
 Who may call them:
 
 - Only someone signed in as themselves, with the token of their own sign-in. Visitors are refused with a `401`, and staff signed in as the user, outside apps acting for the user (such as an MCP client) and tokens minted with `issueToken` with a `403`.
-- An app with its own `authenticate` marks a user's own sign-in on the session it returns, `signIn: { staff: false }`; without that mark, its sessions are refused.
+- An app with its own authenticator ([`auth/authenticate.ts`](config/sign-in.md#authenticate)) marks a user's own sign-in on the session it returns, `signIn: { staff: false }`; without that mark, its sessions are refused.
 - With Protobase's auth, every token the endpoints take names its sign-in session; one that names none is refused with a `403`.
 
 A device is one token, or one endpoint for a browser. An Android or iOS token someone else had moves to the caller, as a new device with a new id that keeps nothing of the previous user's, so a shared phone notifies whoever signed in on it last. A browser's endpoint never moves: registering one another user holds is a `409` of type `device-held` that stores nothing, and the browser subscribes again for a new endpoint, as [the browser helper](#in-the-browser) does. A user keeps up to 20 devices: registering one more removes their least recently seen. Deleting a user removes their devices.
 
-With Protobase's auth, a device belongs to the sign-in session it was registered in. Once that session ends, the device gets no more push and is removed at the next send: when the user signs out, someone signs in on the same browser, the user signs out everywhere, a password change signs out their other devices, an admin ends their sessions or bans them, or the session expires. Registering the device again ties it to the session of that request, which the browser helper does on its own for the same user. With an app's own `authenticate`, a device stays its user's until it is removed with `DELETE`.
+With Protobase's auth, a device belongs to the sign-in session it was registered in. Once that session ends, the device gets no more push and is removed at the next send: when the user signs out, someone signs in on the same browser, the user signs out everywhere, a password change signs out their other devices, an admin ends their sessions or bans them, or the session expires. Registering the device again ties it to the session of that request, which the browser helper does on its own for the same user. With an app's own authenticator, a device stays its user's until it is removed with `DELETE`.
 
 The path comes from `devicesPath('/api', id)`, and the name of its id parameter from `deviceIdParam`, both exported by `@protobase/server`.
 
@@ -110,7 +110,7 @@ The text you send shows on lock screens, where anyone holding the device can rea
 
 A send checks no permission. A device send reaches the devices whatever user holds them. So check ids taken from a request against the caller first, such as a device id against the caller's own devices.
 
-A user send reaches the user's devices as they are when the job runs. A device that moved to someone else, or was removed, gets nothing. With Protobase's auth, a device whose sign-in session has [ended](#devices) is removed instead; a send whose devices' sessions cannot be read pushes to none of them and is retried. With an app's own `authenticate`, a device keeps receiving its user's notifications until it is removed. When a push service reports a device gone, the device is removed. A device whose push service asks to try again later is tried once more, on the job's next try, and then given up on without being removed. <gap>A push service's own wait before a retry cannot set when the device is tried again because retries follow the job's backoff and timing them per device is not implemented.</gap> A sender that fails is retried with its devices, up to 5 tries of the job. Devices of a kind without a sender are skipped. Without any sender, a send for the inbox is kept in the history and a send that is not does nothing.
+A user send reaches the user's devices as they are when the job runs. A device that moved to someone else, or was removed, gets nothing. With Protobase's auth, a device whose sign-in session has [ended](#devices) is removed instead; a send whose devices' sessions cannot be read pushes to none of them and is retried. With an app's own authenticator, a device keeps receiving its user's notifications until it is removed. When a push service reports a device gone, the device is removed. A device whose push service asks to try again later is tried once more, on the job's next try, and then given up on without being removed. <gap>A push service's own wait before a retry cannot set when the device is tried again because retries follow the job's backoff and timing them per device is not implemented.</gap> A sender that fails is retried with its devices, up to 5 tries of the job. Devices of a kind without a sender are skipped. Without any sender, a send for the inbox is kept in the history and a send that is not does nothing.
 
 ## History
 
@@ -133,7 +133,7 @@ The list gives 20 at a time, or as many as `?limit=` says, up to 50. A full page
 
 `title` and `body` are plain text: show them as text, never as HTML. `url` is a path on the app, such as `/tasks/42`, or an absolute URL on one of the app's own origins; anything else, another site, `javascript:` or `data:`, is answered as `null`. A notification's `url` and `data` are kept until its user is removed, so leave one-time links and secrets out of inbox notifications.
 
-The same people may call them as may [register devices](#devices): only someone signed in as themselves. With Protobase's auth, deleting a user removes their history; an app that deletes users otherwise calls `historyStore(db, options).removeAllForUser(userId)` as it deletes one, with the config's `notifications`.
+The same people may call them as may [register devices](#devices): only someone signed in as themselves. With Protobase's auth, deleting a user removes their history; an app that deletes users otherwise calls `historyStore(db, notifications).removeAllForUser(userId)` as it deletes one, with the config's `notifications` (the history table's names), or the `removeAllForUser` of its own `notifications/history-store.ts`.
 
 The paths come from `historyPath('/api')`, `historyPath('/api', 'unread')`, `historyPath('/api', 'read')` and `historyPath('/api', { read: id })`, and the name of the id parameter from `historyIdParam`, all exported by `@protobase/server`.
 
@@ -148,7 +148,7 @@ With notifications on, every signed-in user sees a bell in the top bar with how 
 The panel also offers to turn push on for this device, where the device can receive it: a browser with Web Push, when the app has [its keys](#web-push). The browser asks for permission only once the user clicks "Turn on", never when a page loads. Once push is on, the panel says so with a way to turn it off. When the browser blocks notifications, the panel says so and how to allow them again, and offers to turn push on once they are allowed.
 
 - The count is read again every half minute while the page shows, on a return to it and when the panel opens, and shows `99+` above 99.
-- Visitors and staff signed in as a user see no bell, since the history is the user's own. Neither does a user of an app with its own `authenticate` that does not mark their [own sign-in](#devices).
+- Visitors and staff signed in as a user see no bell, since the history is the user's own. Neither does a user of an app with its own authenticator that does not mark their [own sign-in](#devices).
 - The panel's text comes in the app's [language](languages.md).
 
 ## Without the bell
@@ -235,7 +235,9 @@ export default store
 
 Every method takes and returns plain data: the user id as text, and devices as `{ id, userId, kind, token, p256dh, auth, environment, appId, userAgent, sessionId, createdAt, lastSeenAt }`, with `token` the endpoint for a browser and `sessionId` the sign-in session it was registered in. A method given an empty user id, id or token throws. `listByIds` and `removeGone` act on any user's devices, for the code that sends; the endpoints never call them. A store missing a method stops startup, naming it.
 
-When Protobase's auth deletes a user, by an admin or with `protobase users delete`, it calls the store's `removeAllForUser` before anything is deleted, so a store that throws stops the deletion, and once more afterwards. An app that deletes users otherwise calls `deviceStore(db, options).removeAllForUser(userId)` as it deletes one, with the config's `notifications`.
+When Protobase's auth deletes a user, by an admin or with `protobase users delete`, it calls the store's `removeAllForUser` before anything is deleted, so a store that throws stops the deletion, and once more afterwards. An app that deletes users otherwise calls `deviceStore(db, notifications).removeAllForUser(userId)` as it deletes one, with the config's `notifications` (the devices table's names), or the `removeAllForUser` of its own `notifications/store.ts`.
+
+The built-in stores are `postgresDeviceStore(db, notifications)` and `postgresHistoryStore(db, notifications)` of `@protobase/server`, for a store of your own that wraps one of them.
 
 The history store is an interface with a Postgres default too, the [history table](#table-names), and your own is the default export of `notifications/history-store.ts`:
 
@@ -255,11 +257,11 @@ const historyStore: HistoryStore = {
 export default historyStore
 ```
 
-A notification is `{ id, userId, title, body, url, data, createdAt, readAt }`, and `before` is the `{ createdAt, id }` of the last one of the page before. Each method touches only the given user's notifications, and throws on an empty user id or id. An id is letters, digits, `-` and `_`, at most 64 characters, as it goes into a path. `record` keeps only what `historyLimits` allows: a title of up to 256 characters, a body and a url of up to 2048, and `data` of up to 4096 bytes of JSON. The endpoints answer with an error, showing nothing of it, when a store gives back another user's notification. A store missing a method stops startup, naming it. Deleting a user calls its `removeAllForUser` as it does the device store's; an app that deletes users otherwise calls `historyStore(db, options).removeAllForUser(userId)`.
+A notification is `{ id, userId, title, body, url, data, createdAt, readAt }`, and `before` is the `{ createdAt, id }` of the last one of the page before. Each method touches only the given user's notifications, and throws on an empty user id or id. An id is letters, digits, `-` and `_`, at most 64 characters, as it goes into a path. `record` keeps only what `historyLimits` allows: a title of up to 256 characters, a body and a url of up to 2048, and `data` of up to 4096 bytes of JSON. The endpoints answer with an error, showing nothing of it, when a store gives back another user's notification. A store missing a method stops startup, naming it. Deleting a user calls its `removeAllForUser` as it does the device store's; an app that deletes users otherwise calls its `removeAllForUser` itself.
 
 ### Senders
 
-A sender delivers notifications to the devices of the kinds it names, through their push service. Web Push is built in; your own senders, such as from a package, are the default export of `notifications/senders.ts`, an array, and they replace the built-in ones, at most one for each kind:
+A sender delivers notifications to the devices of the kinds it names, through their push service. Web Push is built in; your own senders, such as from a package, are the default export of `notifications/senders.ts`, an array, and they replace the built-in ones, at most one for each kind. To keep Web Push beside them, list it too: `webPushSender(readVapidSettings(process.env)!)` from `@protobase/server` is the built-in sender, and `readVapidSettings` reads the [VAPID variables](#web-push), `undefined` when none is set:
 
 ```ts
 // notifications/senders.ts

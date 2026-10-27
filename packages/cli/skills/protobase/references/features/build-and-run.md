@@ -19,4 +19,5 @@ Develop, build and run an app, on servers, in containers and on phones.
 - [Separate worker](../reference/cli.md#worker): Jobs and event delivery in their own process.
 - [Container images](../guides/deploy.md#images): A runtime image for each release, for amd64 and arm64.
 - [Self-hosted image](../guides/deploy.md#a-self-hosted-image): One image with the app inside that serves, migrates and creates the first admin.
+- [Protobase Cloud deploys](../guides/deploy.md#protobase-cloud): A push to the app's GitHub branch builds it, migrates and checks its database in one transaction, and switches to the new version once it answers its health check.
 - [Mobile apps](../guides/mobile-app.md) (beta): Runs an app on iOS and Android, also on your own iPhone, with sign-in, and builds signed store releases from a section in its config.

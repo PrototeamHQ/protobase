@@ -1,9 +1,9 @@
 ---
 title: Deploy
-description: Ship a project as one bundle folder and run it with the serve runtime.
+description: Ship a project as one bundle folder and run it with the serve runtime, on a host of your own or on Protobase Cloud from a push to GitHub.
 ---
 
-A project ships as one bundle folder; the host runs protobase around it.
+A project ships as one bundle folder; the host runs protobase around it. An app on Protobase Cloud deploys from a push to its GitHub branch instead, which builds and serves the bundle for it (see [Protobase Cloud](#protobase-cloud)).
 
 ```sh
 bun run --cwd tests/apps/erp protobase build    # the bundle to ship: tests/apps/erp/dist/
@@ -27,7 +27,7 @@ dist/
                           plugins and the app's version
 ```
 
-The host serves `public/` itself and sends only the manifest's `api` paths to the runtime (`/api` and the two OAuth discovery documents of [MCP clients](/reference/auth/#oauth-for-mcp-clients), and `/.well-known/webauthn`, for an app on [several origins](/reference/auth/#several-origins)), so loading the UI never needs a running container. With the UI it sends `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`, as `protobase serve` does, so no other site frames the app's pages. The runtime serves the API alone; `protobase serve dist` serves the whole folder the same way, to check a bundle locally. The host passes `DATABASE_URL`, `PORT` (default 8787) and optionally `PROTOBASE_DB_CONNECTIONS` (the connections the app may open, so its functions and jobs leave one to requests, see [`serve`](/reference/cli/#serve)), `REQUEST_LOG`, `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` (the mail server and sender for [password reset](/reference/auth/#password-reset) and emailed sign-in codes) `PROTOBASE_APP_NAME` (the app's name in that mail, see [`appName`](/reference/auth/#configuration)) `PROTOBASE_SIGN_IN_*` (a provider people with an account sign in with, the [platform sign-in provider](/reference/auth/#platform-sign-in-provider)) `PROTOBASE_OPERATOR_*` (the provider its staff sign in with for [staff sign-in](/reference/auth/#staff-sign-in)), `PROTOBASE_ORIGINS` and `PROTOBASE_PASSKEY_DOMAIN` (the app's [other origins](/reference/auth/#several-origins) and its passkey domain) `PROTOBASE_CORS_ORIGINS` (the websites that may call its API, see [CORS](/reference/api/#cors)), `PROTOBASE_TRUSTED_PROXIES` (the proxies in front of the runtime, whose `X-Forwarded-For` names the client the sign-in limits count, see [Client addresses](/reference/auth/#client-addresses)) and `PROTOBASE_SENTRY_DSN` (the app's [error tracker](/reference/api/#error-reporting)), `PROTOBASE_URL` and `PROTOBASE_SECRET` (the app's address and secret, unless its config sets [`url` and `secret`](/reference/config/app/)), plus the project's own settings, which its config reads where it serves. The runtime and the config module are plain JavaScript for Bun: no install, no TypeScript, no writes. The runtime supplies protobase and the dependencies it runs on the server (`pg`, `postgres`, `kysely`, `better-auth`, ...), so the config module carries only the project's code and the other packages it uses. The manifest's `protobase` is the version the project is pinned to, and the host serves the bundle on the runtime of that version (see [Versioning](/reference/versioning/#bundles-and-runtimes)). The manifest format and the routing rules are in the CLI reference: [`build`](/reference/cli/#build), [`build-serve`](/reference/cli/#build-serve) and [`serve`](/reference/cli/#serve).
+The host serves `public/` itself and sends only the manifest's `api` paths to the runtime (`/api` and the two OAuth discovery documents of [MCP clients](/reference/auth/#oauth-for-mcp-clients)), and `/.well-known/webauthn` for an app on [several origins](/reference/auth/#several-origins), which the manifest does not list, so loading the UI never needs a running container. With the UI it sends `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`, as `protobase serve` does, so no other site frames the app's pages. The runtime serves the API alone; `protobase serve dist` serves the whole folder the same way, to check a bundle locally. The host passes `DATABASE_URL`, `PORT` (default 8787) and optionally `PROTOBASE_DB_CONNECTIONS` (the connections the app may open, so its functions and jobs leave one to requests, see [`serve`](/reference/cli/#serve)), `REQUEST_LOG`, `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` (the mail server and sender for [password reset](/reference/auth/#password-reset) and emailed sign-in codes) `PROTOBASE_APP_NAME` (the app's name in that mail, see [`name`](/reference/config/app/#name)) `PROTOBASE_SIGN_IN_*` (a provider people with an account sign in with, the [platform sign-in provider](/reference/auth/#platform-sign-in-provider)) `PROTOBASE_OPERATOR_*` (the provider its staff sign in with for [staff sign-in](/reference/auth/#staff-sign-in)), `PROTOBASE_ORIGINS` and `PROTOBASE_PASSKEY_DOMAIN` (the app's [other origins](/reference/auth/#several-origins) and its passkey domain) `PROTOBASE_CORS_ORIGINS` (the websites that may call its API, see [CORS](/reference/api/#cors)), `PROTOBASE_TRUSTED_PROXIES` (the proxies in front of the runtime, whose `X-Forwarded-For` names the client the sign-in limits count, see [Client addresses](/reference/auth/#client-addresses)) and `PROTOBASE_SENTRY_DSN` (the app's [error tracker](/reference/api/#error-reporting)), `PROTOBASE_URL` and `PROTOBASE_SECRET` (the app's address and secret, unless its config sets [`url` and `secret`](/reference/config/app/)), plus the project's own settings, which its config reads where it serves. The runtime and the config module are plain JavaScript for Bun: no install, no TypeScript, no writes. The runtime supplies protobase and the dependencies it runs on the server (`pg`, `postgres`, `kysely`, `better-auth`, ...), so the config module carries only the project's code and the other packages it uses. The manifest's `protobase` is the version the project is pinned to, and the host serves the bundle on the runtime of that version (see [Versioning](/reference/versioning/#bundles-and-runtimes)). The manifest format and the routing rules are in the CLI reference: [`build`](/reference/cli/#build), [`build-serve`](/reference/cli/#build-serve) and [`serve`](/reference/cli/#serve).
 
 ## Migrations
 
@@ -43,7 +43,7 @@ Every release pushes two public images to GitHub's registry, for `linux/amd64` a
 | `ghcr.io/prototeamhq/protobase-dev:<version>` | Bun and the presets at `/opt/protobase/presets/<name>` (`erp`, `real-estate`, `scratch`), with the dependencies they share installed in `/workspace` and Bun's cache in `/opt/bun-cache`. It has no Node: the presets' scripts and the `protobase` command run on Bun. It runs as `bun` (1000) |
 
 ```sh
-docker run -v "$PWD/dist:/app:ro" -p 127.0.0.1:8787:8787 -e DATABASE_URL -e PROTOBASE_URL -e PROTOBASE_SECRET ghcr.io/prototeamhq/protobase:0.2.0
+docker run -v "$PWD/dist:/app:ro" -p 127.0.0.1:8787:8787 -e DATABASE_URL -e PROTOBASE_URL -e PROTOBASE_SECRET ghcr.io/prototeamhq/protobase:"$VERSION"   # the version of the @protobase/cli that built dist/
 ```
 
 In `protobase-dev`, copy a preset into `/workspace` and `bun install --frozen-lockfile` has nothing to do; installed anywhere else, it comes from the cache, without the network.
@@ -61,8 +61,9 @@ docker build -f docker/protobase-dev/Dockerfile -t protobase-dev dist/images/pro
 A product built on Protobase ships to self-hosters as one image: the runtime image with the bundle inside. Build the bundle with `protobase build --bun`, then:
 
 ```dockerfile
-# The runtime of the @protobase/cli version that built dist/.
-FROM ghcr.io/prototeamhq/protobase:0.2.0
+# The runtime of the @protobase/cli version that built dist/: docker build --build-arg VERSION=<that version> .
+ARG VERSION
+FROM ghcr.io/prototeamhq/protobase:${VERSION}
 COPY dist /app
 CMD ["/app"]
 ```
@@ -188,3 +189,18 @@ docker compose up -d
 Stop any `protobase worker` processes before `migrate` too.
 
 When a migration fails, `migrate` exits with an error and its transaction is rolled back, so the schema is unchanged. Set `APP_VERSION` back and `docker compose start app` brings the old version back on it. A plain `docker compose up -d` with the new version also stops the old one before `migrate`, but after a failure nothing serves until `APP_VERSION` is set back and `up -d` runs again. Going back after a migration that succeeded needs the backup.
+
+## Protobase Cloud
+
+An app on Protobase Cloud whose code is on GitHub follows one branch of its repository, the default branch unless the app was linked to another. A push to that branch deploys it; nothing else does, and a change on another branch, a tag or a pull request deploys nothing.
+
+1. Protobase Cloud builds the branch's newest commit. While a build runs, later pushes wait, and the next build takes the newest commit then, so quick pushes give one build.
+2. The build installs the packages with `bun install --frozen-lockfile` and runs `protobase build`. It runs neither the project's typecheck nor its tests.
+3. The deploy stops the app's writes, then runs the project's `db:migrate`, the auth schema's migration and `protobase doctor --env DATABASE_URL` in one database transaction, which commits only when all of them pass. Pages keep reading meanwhile; a write, sign-in included, answers that the app is being updated.
+4. Writes come back, the new version starts on its own and must answer `/health` with its startup checks, and only then does the app switch to it.
+
+When a step fails, the previous version keeps serving on the database as it was, except after a failed start, which comes after the migrations committed: they stay applied. Each build reports on GitHub as the check run `Protobase deploy` on the commit it built, with the step that failed and the end of its output. A commit whose build failed is not built again: the fix is a new push.
+
+Since the deploy runs neither the typecheck nor the tests, and refuses what `doctor` refuses, check a change before pushing it: the project's typecheck and tests, `protobase doctor --env DATABASE_URL` on a database with the migrations applied, and `protobase build`. The migrations run in one transaction, so a statement Postgres refuses in one, such as `create index concurrently`, fails the deploy. Protobase Cloud also pushes to the branch itself, for an update of the app's Protobase packages, so pull before pushing.
+
+[`protobase skill install`](/reference/cli/#skill) writes the `protobase-cloud` agent skill into the project, with how to check that a change went live and why a deploy failed, step by step.

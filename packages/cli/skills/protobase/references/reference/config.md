@@ -57,7 +57,7 @@ export default defineConfig(({ command, env }) => ({
 
 | | |
 | --- | --- |
-| `command` | `dev`, `build`, `serve` (also `protobase worker` and the serve runtime's `migrate` and `create-admin`), or `tool`, any other command over the project, such as `migration`, `users` or `doctor` |
+| `command` | `dev`, `build`, `serve` (also `protobase worker` and the serve runtime's `create-admin`; the runtime's `migrate` never reads the config), or `tool`, any other command over the project, such as `migration`, `users` or `doctor` |
 | `env` | `process.env`, with the project's `.env` loaded |
 | `root` | the project's folder |
 
@@ -87,7 +87,7 @@ export default defineConfig(({ env }) => ({
 }))
 ```
 
-A JSON config reads one with an `$env` value: `{ "$env": "NAME" }`, with `"default"` for when the variable is unset or empty, and `"split": ","` for a list of its non-empty parts, each trimmed. A value whose variable is unset and has no default is left out, as if the key were not written. A TypeScript config may write `$env` values too, but its types do not know them; `env` is the typed way.
+A JSON config reads one with an `$env` value: `{ "$env": "NAME" }`, with `"default"` for when the variable is unset or empty, and `"split": ","` for a list of its non-empty parts, each trimmed. A value whose variable is unset and has no default is left out, as if the key were not written (an item of a list stays, as `undefined`). An `$env` value is always text, the variable's or the `default` as written: `"30"` is not the number 30, and `"false"` is not `false`, so a key that takes a number or a boolean takes it written in the config, or from a TypeScript config that converts it. A TypeScript config may write `$env` values too, but its types do not know them; `env` is the typed way.
 
 The app's database is `DATABASE_URL`'s, with the pool size of `PROTOBASE_DB_CONNECTIONS`; neither is a key of the config.
 
@@ -118,21 +118,21 @@ Every command reads the config, in a few milliseconds: reading it runs the confi
 
 ## Where the code is
 
-Protobase loads each file below only when the app needs it, never while the config is read. Hooks of the project's own get the app's database, `{ db }` (Kysely, as jobs get it), as their last argument. A job named in the config without its `jobs/<name>.ts`, or a write hook without its `hooks/<name>.ts`, stops the app at start with an error that names the file.
+Protobase loads each file below only when the app needs it, never while the config is read. Sign-in's hooks in `auth/hooks.ts` get the app's database, `{ db }` (Kysely, as jobs get it), as their last argument; a write hook gets the write's transaction. A job named in the config without its `jobs/<name>.ts`, or a write hook without its `hooks/<name>.ts`, stops the app at start with an error that names the file.
 
 The resources and roles have no key of their own:
 
 | File | What it holds | See |
 | --- | --- | --- |
-| `config/index.ts`, `config/<dir>/ui.ts` | the resources, views and pages, as exports | [Data config](data-config.md) |
-| `config/roles.ts` | the `roles` export, made with `defineRoles` | [Access](access.md) |
-| `functions/<name>.ts` | an API function, as its default export | [API functions](../guides/api-functions.md) |
+| `config/index.ts`, `config/<dir>/ui.ts` | the resources, views and pages, and the [webhook subscriptions](webhooks.md), as exports | [Data config](data-config.md) |
+| `config/roles.ts` | the `roles` export (or the default export), made with `defineRoles` | [Access](access.md) |
+| `functions/<name>.ts`, or `functions/<name>/index.ts` for a function of several files | an API function, as its default export; a file or folder whose name starts with `_` or `.`, a test and a `.d.ts` are not functions | [API functions](../guides/api-functions.md) |
 
 The other files belong to an option, and are described with it:
 
 | File | Option |
 | --- | --- |
-| `auth/hooks.ts`, `auth/mailer.ts`, `emails/` | [`auth`](config/sign-in.md#auth) |
+| `auth/hooks.ts`, `auth/mailer.ts` | [`auth`](config/sign-in.md#auth) |
 | `auth/authenticate.ts` | [`authenticate`](config/sign-in.md#authenticate) |
 | `hooks/<name>.ts` | [`writeHooks`](config/api.md#writehooks) |
 | `hooks/error.ts`, `audit/queue.ts` | [Code of the API](config/api.md#code-of-the-api) |
@@ -144,7 +144,7 @@ The other files belong to an option, and are described with it:
 
 ## Extensions
 
-`protobase dev --extend <dir>` and `protobase build --extend <dir>` merge an extension's folder into the app, before the project. The extension's folder has a config and code of its own, found by the same paths in that folder.
+`protobase dev --extend <dir>` and `protobase build --extend <dir>` merge an extension's folder into the app, before the project, and so do `protobase migration` and `protobase mobile` with the same option. The extension's folder has a config and code of its own, found by the same paths in that folder; its config is a `protobase.config.ts`, since an extension's `protobase.config.json` is not read.
 
 ```tsx
 // protobase.ui.tsx
@@ -159,7 +159,9 @@ export default defineUi({ extends: [tasksUi] })
 | resources, views and pages of `config/` | all kept | an error naming both folders |
 | user menu | at most one among all folders | an error |
 | assistant tools of `assistant/tools.ts` | the extensions' first, in order, then the app's | an error naming the tool and both folders |
-| `jobs`, functions, file providers | all kept, by name | an error naming the name and both folders |
+| `jobs`, functions, file providers (`files.providers`) | all kept, by name | an error naming the name and both folders |
+| `files.trustedHosts` | all kept | |
+| the other keys of `files` | each the app's own; otherwise the last config that sets it | |
 | `writeHooks` | all run, in the same order | |
 | `config/roles.ts`, `auth/authenticate.ts`, `audit/queue.ts`, `hooks/error.ts`, `webhooks/owner-roles.ts`, `notifications/*.ts` | the app's own; otherwise the last extension's | |
 | `auth/hooks.ts`, `auth/mailer.ts` | those of the last folder whose config sets `auth`; otherwise the app's | |

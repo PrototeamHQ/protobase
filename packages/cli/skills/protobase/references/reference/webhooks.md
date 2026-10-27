@@ -4,12 +4,12 @@
 
 Subscriptions that deliver resource events to URLs, API functions and code, signed with Standard Webhooks, retried and shaped for who receives them.
 
-A **subscription** delivers the [events](events.md) of resources as they happen: to a URL, to one of the app's [API functions](../guides/api-functions.md), or to code of its own. Subscriptions are config: export them from the config module like resources, so the server has them and the admin UI never does. A URL or secret usually comes from the environment.
+A **subscription** delivers the [events](events.md) of resources as they happen: to a URL, to one of the app's [API functions](../guides/api-functions.md), or to code of its own. Subscriptions are config: export them from `config/index.ts` like resources, so the server has them and the admin UI never does. A URL or secret usually comes from the environment.
 
 ```ts title="docs-examples/events/subscriptions.ts"
 import { subscription } from '@protobase/server'
 
-// Where the events of docs-examples/events/orders.ts go: exported from the config module, like the resource.
+// Where the events of docs-examples/events/orders.ts go: exported from config/index.ts, like the resource.
 
 /** A Slack message per order, to an incoming webhook whose URL is in the environment; off without it. */
 export const newOrdersToSlack = subscription('newOrdersToSlack', {
@@ -42,7 +42,7 @@ export const rushOrders = subscription('rushOrders', {
 
 ## subscription()
 
-`subscription(name, options)`: the name is unique across the app and its [extensions](config.md#extensions), letters, digits, `_` and `-`. Each has one target:
+`subscription(name, options)`: the name is unique across the app and its [extensions](config.md#extensions), and starts with a letter followed by letters, digits, `_` and `-`. Each has one target:
 
 | Target | |
 | --- | --- |
@@ -59,7 +59,7 @@ export const rushOrders = subscription('rushOrders', {
 | `payload` | `thin` leaves `after` and `before` out, for a receiver that reads the record through the API. Default `full`. |
 | `ordered` | One delivery at a time per record, in commit order. Default false. |
 | `enabled` | Default true; `false` keeps the subscription in the config without delivering. |
-| `secret` | `whsec_` and base64: signs the requests of a URL or function target. Without it they are unsigned. `newWebhookSecret()` makes one. |
+| `secret` | `whsec_` and base64: signs the requests of a URL or function target. Without it they are unsigned. `newWebhookSecret()` makes one. An array of secrets signs with each of them, for a rotation. |
 | `headers` | Extra request headers, such as an API key the receiver wants. |
 | `body` | `(event) => ...`: what is sent instead of the event, such as Slack's `{ text }`. |
 
@@ -131,5 +131,5 @@ A subscription is **disabled by itself** when its receiver answers `410 Gone`, o
 | `webhooks` | |
 | --- | --- |
 | `schema` | The schema of its tables, for a database that has a `webhooks` schema already. Default `webhooks`. |
-| `deliveryLog` | Also keeps every try, successes too, for 30 days, listed as Webhook delivery log: status, try, status code, the first 2 KB of the answer and how long it took. Default false. |
+| `deliveryLog` | Also keeps every try, successes too, for 30 days, listed as Webhook delivery log: status, try, status code, for a failed try the error with up to 200 characters of the answer, and how long it took. Default false. |
 | `allowPrivateAddresses` | Lets URLs reach private addresses, for development and tests. Default false. |

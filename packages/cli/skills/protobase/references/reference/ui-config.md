@@ -59,7 +59,7 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.signIn({ title, description, benefits?, icon?, signUp? })` | What a visitor who is not signed in is told about the resource, in place of its list and by a card's favorite button. See [Sign-in prompts](#sign-in-prompts). |
 | `.form((r) => ({ name, fields, thanks, title?, perMinute? }))` | A public form at `/-/forms/<name>` that creates a record for anyone, signed in or not, behind a rate limit and a bot check. See [Public forms](forms.md). |
 
-A browser tab names what it shows, then the app's name ([`appName`](auth.md#configuration)): `Nordlicht GmbH · Companies · Protobase` on a record page, the plural on a list, `New company · Companies · Protobase` on the create form, and a composed page's title on that page.
+A browser tab names what it shows, then the app's name ([`name`](config/app.md#name)): `Nordlicht GmbH · Companies · Protobase` on a record page, the plural on a list, `New company · Companies · Protobase` on the create form, and a composed page's title on that page.
 
 A click on a row of a list's table opens its record. Its title cell, the `.title` column or else the first, is a link to the record, so Cmd- or Ctrl-click, a middle click and the browser's link menu open it in a new tab or copy its address; embedded lists and the table of a list sorted by hand do the same.
 

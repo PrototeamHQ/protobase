@@ -40,7 +40,7 @@ The card shows the active subscription. `plan.name` and `plan.price` reach throu
 
 The two header buttons are named actions of the subscriptions view, each with its own kind of behaviour. The views of the billing schema declare every action this page uses:
 
-```ts title="config/billing/views.ts"
+```ts title="config/billing/ui.ts"
 import { view } from '@protobase/schema'
 import type { billingProfiles, invoices, paymentMethods, plans, subscriptions } from './billing-config'
 
@@ -73,7 +73,7 @@ export const invoicesView = view<typeof invoices>('invoices')
   .actions((a) => [a.action('download', { label: 'Download PDF' })])
 ```
 
-`a.update('cancel', ...)` sets `status` after its `confirm` question. `a.link` opens its `href`, with `{plan}` filled in from the record: a path in the app (`/plans`) stays in the app, anything else (`https:`, `mailto:`) leaves it. Cancel the plan in the story and the card says there is no active plan, because its `filter` no longer matches.
+`a.update('cancel', ...)` sets `status` after its `confirm` question. `a.link` opens its `href`, with `{plan}` filled in from the record: an `href` leaves the app (`https:`, `mailto:`), while a place in the app is a `to`, such as `{ kind: 'record', resource: 'plans', key: '{plan}' }`; a path in the app as an `href` is refused. Cancel the plan in the story and the card says there is no active plan, because its `filter` no longer matches.
 
 ## 2. Who we bill
 
@@ -260,7 +260,7 @@ export const billing = page(
 
 Two things here are not built-in blocks.
 
-`SeatHistory` is a **custom component**. `component('SeatHistory')` declares it for the layout, with its props typed, and the element stays data: `{ type: 'SeatHistory', props: { months: 6 }, custom: true }`. The React code lives in the app, exported under the same name from `protobase.ui.tsx` at the project root, which the admin bundles with itself. Inside a RecordCard, `useLayoutRecord()` gives it the record.
+`SeatHistory` is a **custom component**. `component('SeatHistory')` declares it for the layout, with its props typed, and the element stays data: `{ type: 'SeatHistory', props: { months: 6 }, custom: true }`. The React code lives in the app, exported under the same name from `protobase.ui.tsx` at the project root, which `protobase build` builds into a [plugin](../reference/plugins.md) the admin app loads. Inside a RecordCard, `useLayoutRecord()` gives it the record.
 
 "Download PDF" is a named action without built-in behaviour (`a.action('download', ...)`), so it runs the handler registered under its name, with the record, the API client and the router. The ERP example has one of each, its component in a file of its own:
 
@@ -281,7 +281,7 @@ const send = async ({ record, recordKey, etag, client }: ActionContext) => {
 export default defineUi({ actions: { send } })
 ```
 
-The rest is familiar: a paged `Table` of invoices spanning two of the three columns, a count of open invoices, and a `Link` inside the text of a card.
+The rest is familiar: a `Table` of the latest invoices, with a link to all of them, spanning two of the three columns, a count of open invoices, and a `Link` inside the text of a card.
 
 If the app has no component registered under a name, the page says so where the component would be, and an action without a handler is disabled:
 

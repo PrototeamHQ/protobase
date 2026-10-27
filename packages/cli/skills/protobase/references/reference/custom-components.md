@@ -67,6 +67,7 @@ The element stays data, `{ type: 'OrdersPerDay', props: { days: 30 }, children: 
 `protobase.ui.tsx` exports the React component under the same name. It gets the props, and the rendered children when the element has any. Inside it:
 
 - the hooks of `@protobase/ui` (`useList`, `useRecord`, `useSeries`, `useFacets`, `useHistogram`, `useClient`, ...) read the API with the user's token, under the same access rules as everything else;
+- `useUpdateRecord` rejects with an error that `isConflict(error)` recognises when someone changed the record since it was read (a `412`), so the component can load it again;
 - `useLayoutRecord()` gives the record around it in a `RecordCard` or `CardRow` (`{ model, record, key, etag, permissions }`), and `undefined` elsewhere.
 
 A component that asks for a one-time code uses `OtpInput` from `@protobase/ui`, the field of the app's own code pages: a box per digit drawn over one real input, so pasting a whole code into any box, the system's code autofill from a mail or a text message, and the phone's digit keyboard all work. It takes `value` and `onChange`, `length` (6 by default), `invalid` and `disabled`, and `onComplete` gets the code once its last digit is in, to check it at once. Ask for a code on a step of its own, before anything else.
@@ -298,7 +299,7 @@ When the app has an [assistant](assistant.md), its button follows the project's 
 
 `bell` replaces the [notification bell](notifications.md#the-bell) of the top bar with your own, drawn where it would be, and takes no props either; [the bell's slot](notifications.md#the-bells-slot) lists the hooks it reads the user's notifications with. With a bell from a plugin and one from the project, the project's shows.
 
-`logo` replaces Protobase's logo at the top of the sidebar with the app's own. It gets `compact`, true when the sidebar shows only icons, so it draws a mark alone, `workspace`, the name of the user's organization that Protobase's logo shows under it, `appName`, the app's [name](auth.md#configuration), which Protobase's logo shows beside its mark, and `appIcon`, the path of the project's own [icon](app-identity.md#the-icons) when it has one (`ShellLogoProps`). Its colors follow the [theme](theme.md), and a `dark:` class gives dark its own. When it throws, Protobase's logo shows instead. The tab's icon is [the favicon](theme.md#logo-and-favicon).
+`logo` replaces Protobase's logo at the top of the sidebar with the app's own. It gets `compact`, true when the sidebar shows only icons, so it draws a mark alone, `workspace`, the name of the user's organization that Protobase's logo shows under it, `appName`, the app's [name](config/app.md#name), which Protobase's logo shows beside its mark, and `appIcon`, the path of the project's own [icon](app-identity.md#the-icons) when it has one (`ShellLogoProps`). Its colors follow the [theme](theme.md), and a `dark:` class gives dark its own. When it throws, Protobase's logo shows instead. The tab's icon is [the favicon](theme.md#logo-and-favicon).
 
 ```tsx
 import { defineUi, type ShellLogoProps } from '@protobase/ui'
@@ -315,6 +316,6 @@ export default defineUi({ shell: { logo: Logo } })
 
 ## Without protobase dev
 
-`<App ui={...} />` from `@protobase/ui` takes the same object, for an app that mounts the admin itself, and so do stories.
+`<App ui={...} />` from `@protobase/ui` takes the same object, for an app that mounts the admin itself, and so do stories. Outside `<App>`, `<ApiProvider baseUrl="/api/v1" token={...}>` gives components the API client and the query cache the hooks read through, as `<App>` does.
 
 Below 1.0, a project built before 0.12 had its `protobase.ui.tsx` built into the admin app; [Moving onto the plugin build](../guides/plugin-build.md) says what changes.

@@ -11,7 +11,7 @@ Run the CLI as the project does: `npx protobase <command>`, or `bun run protobas
 
 ## Everyday workflow
 
-1. Run `protobase dev`: one process and one port, the admin app and the API; changes to config, layouts and functions show without a restart.
+1. Run `protobase dev`: one port for the admin app and the API, which runs in a process of its own; changes to config, layouts and functions show without a restart.
 2. Change the config (`data.ts`, `ui.ts`, layouts) or the app's code.
 3. Database changes go through the project's migrations, never through startup: `protobase migration` writes the migrations a config feature needs, the project applies them with its own migrate script. See [references/reference/cli.md](references/reference/cli.md#migration).
 

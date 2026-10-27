@@ -25,7 +25,7 @@ export const bookRepair = page(
 )
 ```
 
-Its `roles` say who may book: they are the people who get the page, and so **New**.
+Its `roles` say who may book: they are the people who get the page, and so **New**. Protobase finds pages among the exports of `config/index.ts`, so export it there: `export { bookRepair } from './pages/book-repair'`.
 
 ## 2. The component
 
@@ -93,7 +93,7 @@ export const repairsView = view<typeof repairs>('repairs')
 
 ## 4. Create through a function
 
-With its own page, the shop can make the [API function](/guides/api-functions/) `book-repair` the only way in: it checks the answers, plans the job and inserts the repair with `db`, which skips the access rules. The resource's API then refuses creates:
+With its own page, the shop can make the [API function](/guides/api-functions/) `book-repair`, the default export of `functions/book-repair.ts`, the only way in: it checks the answers, plans the job and inserts the repair with `db`, which skips the access rules. The resource's API then refuses creates:
 
 ```ts
 // config/repairs/data.ts

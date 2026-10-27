@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { defineFunction, readJson } from '@protobase/server'
-import { repairReady } from './repair-ready'
+import { repairReady } from '../emails/repair-ready'
 
 const Input = z.object({ repairId: z.number().int().positive() })
 

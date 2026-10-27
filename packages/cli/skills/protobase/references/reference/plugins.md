@@ -40,7 +40,7 @@ Each place a plugin can fill is an extension point. The config names it, or a pl
 | [Field type](#field-types) | `r.field.widget('name', props)` in a view's `fields` | `fields: { name: { of, display, editor?, cell? } }` | `{ field, value, props }`, and `onChange`, `invalid` for the editor | The field as it shows without one |
 | Widget part (the [assistant](assistant.md#widget-parts)) | A widget part's name | A PascalCase export | The part's props | The part's fallback card |
 | [Action handler](custom-components.md#action-handlers) | `a.action('name')` in a view | `actions: { name }` | `ActionContext` | The button is disabled |
-| [Shell slot](custom-components.md#shell-slots) | Nothing: drawn on every page | `shell: { actions, rightPanel, logo }` | Nothing; `logo` gets `compact` and `workspace` | Not drawn; Protobase's logo for `logo` |
+| [Shell slot](custom-components.md#shell-slots) | Nothing: drawn on every page | `shell: { actions, rightPanel, logo, bell }` | Nothing; `logo` gets `compact`, `workspace`, `appName` and `appIcon` | Not drawn; Protobase's logo for `logo`, its notification bell for `bell` |
 | [Before sign-in](#before-sign-in) | `beforeSignIn: true` where the plugin is listed | `beforeSignIn` | `children`, `params`, `removeParams`, `signedIn` | The pages as they are without it |
 
 Components and cards share one namespace of names, which `component('Name')` joins to the export; field types and action handlers each have their own. Props that name fields go through the same walker as everything else in `/api/meta`, so a user who may not read a field never gets it in a component's props; a field type's `props` are plain data, and a field the user may not read is left out of the view, field type and all.
@@ -150,7 +150,7 @@ Each part gets:
 ## Building
 
 ```sh
-protobase build-plugin [dir] [--out <dir>] [--name <name>]
+protobase build-plugin [dir] [--out <dir>] [--name <name>] [--source-maps]
 ```
 
 Builds the plugin in `dir` (default: the current folder) into `--out` (default: `dist` in it):

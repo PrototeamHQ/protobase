@@ -59,7 +59,7 @@ The action runs at `POST /api/v1/{resource}/{key}:generate` with `{ "action": "<
 | `404` | `not-found` | The caller's view has no AI action of that name, or there is no such record. |
 | `403` | `ai-forbidden` | The caller may not read a field the prompt reads, or update the field it writes. |
 | `422` | `ai-no-value` | Every field the prompt reads is empty, or the model answered nothing. |
-| `502` | `ai-unavailable` | The model failed or took more than 60 seconds. The user sees only that; the endpoint's message goes to the app's error reporting (`onUnhandledError`). |
+| `502` | `ai-unavailable` | The model failed or took more than 60 seconds. The user sees only that; the endpoint's message goes to the app's error reporting (its [`hooks/error.ts`](/reference/config/api/#code-of-the-api)). |
 | `503` | `ai-not-configured` | No model is set; startup normally catches this first. |
 
 Every check is made before the model is asked.

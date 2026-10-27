@@ -1,6 +1,6 @@
 import { subscription } from '@protobase/server'
 
-// Where the events of docs-examples/events/orders.ts go: exported from the config module, like the resource.
+// Where the events of docs-examples/events/orders.ts go: exported from config/index.ts, like the resource.
 
 /** A Slack message per order, to an incoming webhook whose URL is in the environment; off without it. */
 export const newOrdersToSlack = subscription('newOrdersToSlack', {

@@ -76,7 +76,7 @@ import { StepsDisplay, StepsEditor } from './components/order-steps'
 export { OrdersPerDay } from './components/orders-per-day'
 
 export default definePlugin({
-  actions: { send },
+  // ...the plugin's other entries, such as its actions
   fields: { steps: { of: ['enum'], display: StepsDisplay, editor: StepsEditor } },
 })
 ```

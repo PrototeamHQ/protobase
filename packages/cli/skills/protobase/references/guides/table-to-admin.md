@@ -12,7 +12,7 @@ This guide follows that admin from nothing to something the front desk and the w
 
 Everything starts with the data config: what the tables are, as they are. `protobase scaffold` writes it from the database, and Pip tidies it up:
 
-```ts title="config/data.ts"
+```ts title="config/bike-shop/data.ts"
 import { f, resource } from '@protobase/schema'
 
 // Pip's bike shop: customers bring bikes in, the workshop repairs them. Two tables of a Postgres database the
@@ -56,11 +56,11 @@ export const repairs = resource('repairs')
   .validate((repair) => (repair.status === 'collected' && !repair.paid ? [{ field: 'paid', message: 'A bike leaves the shop paid' }] : undefined))
 ```
 
-The fields follow the columns, with what the database does not say added: which fields can be filtered and sorted, which ones the database fills in (`dbDefault`), which are read-only. `notes` lives in a column called `internal_notes`, and `legacy_ref: null` keeps an old column out for good. The `validate` rule holds the shop's one firm rule: a bike does not leave unpaid.
+`scaffold` writes a file per table, `config/repairs/data.ts` and `config/customers/data.ts`, and exports each from `config/index.ts`, where Protobase finds the resources; Pip keeps both in one file, exported the same way: `export * from './bike-shop/data'`. The fields follow the columns, with what the database does not say added: which fields can be filtered and sorted, which ones the database fills in (`dbDefault`), which are read-only. `notes` lives in a column called `internal_notes`, and `legacy_ref: null` keeps an old column out for good. The `validate` rule holds the shop's one firm rule: a bike does not leave unpaid.
 
-For the admin to list repairs, a view is enough, even an empty one:
+For the admin to list repairs, a view is enough, even an empty one. A `ui.ts` in a folder of `config/` is found by its path, without an export:
 
-```ts title="config/ui.ts"
+```ts title="config/bike-shop/ui.ts"
 import { view } from '@protobase/schema'
 import type { customers, repairs } from './data'
 
@@ -77,7 +77,7 @@ That is already a working admin: every column, sorting, paging, a record page an
 
 The list shows everything, including the problem descriptions nobody reads in a list. The front desk wants the repair number, whose bike, what state it is in, and who is on it, newest first.
 
-```ts title="config/ui.ts"
+```ts title="config/bike-shop/ui.ts"
 import { view } from '@protobase/schema'
 import type { customers, repairs } from './data'
 
@@ -111,7 +111,7 @@ export const repairsView = view<typeof repairs>('repairs')
 
 On Saturdays the desk asks the same questions over and over: what is ready, what is Sem working on, what came in this week, what is not paid. Filters answer them in one click.
 
-```ts title="config/ui.ts"
+```ts title="config/bike-shop/ui.ts"
 import { customersView, repairsView as named } from './step-2'
 
 // Step 3: the filters the front desk reaches for, and a chart of bookings above the list.
@@ -135,7 +135,7 @@ From here on each step starts from the view of the step before (`named` is step 
 
 The record page still lists every field in one long column. The paper card the desk uses has three parts: the bike and its problem, the workshop's side, and the money. The layout copies it.
 
-```ts title="config/ui.ts"
+```ts title="config/bike-shop/ui.ts"
 import { l } from '@protobase/schema'
 import { customersView, repairsView as filtered } from './step-3'
 
@@ -170,7 +170,7 @@ l.related('Parts used', { resource: 'repair_parts', field: 'repair_id', when: 'e
 
 Two things happen to every repair: it becomes ready, and it gets collected (and paid). Typing a status into a dropdown is how mistakes happen, so they become buttons. And the mechanics would rather not see prices at all.
 
-```ts title="config/ui.ts"
+```ts title="config/bike-shop/ui.ts"
 import { l } from '@protobase/schema'
 import { customersView, repairsView as laidOut } from './step-4'
 

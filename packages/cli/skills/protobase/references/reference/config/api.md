@@ -11,7 +11,7 @@ The keys of the API, at the top level of [`protobase.config.ts`](../config.md). 
 - **Type:** `string`
 - **Default:** `/api/v1`
 
-The path of the REST API on the app's origin.
+The path of the REST API on the app's origin. A bundle serves only `/api/v1`: `protobase serve`, the serve runtime and `protobase worker` refuse a config with another path, so another one works in `protobase dev` and in a server of the app's own around `createAdmin`.
 
 ```ts
 export default defineConfig({ apiPath: '/api/v2' })
@@ -117,7 +117,7 @@ export default defineConfig({ writeHooks: ['queue-sent-invoice'] })
 - **Type:** `{ sql?: boolean; writes?: boolean | { resources?: string[]; rolesWithoutApproval?: string[] } } | false`
 - **Default:** the read tools only: `list_resources`, `list_records` and `get_record`
 
-The MCP endpoint's tools; [`auth.mcp`](sign-in.md#authmcp) turns the endpoint on. `sql: true` also offers admins and the `ai` role `run_read_only_query`, which reads the whole database outside the access rules. `writes: true` offers `create_record` and `update_record` through the REST API's rules, each approved by the person in their client; `writes.resources` limits them to the resources named, and `writes.rolesWithoutApproval` lets holders of those roles, such as a service account, write without the approval. `false` is for a host that serves its own MCP endpoint at `auth.mcp.path`, in front of this app. See [MCP](../mcp.md#the-tools).
+The MCP endpoint's tools; [`auth.mcp`](sign-in.md#authmcp) turns the endpoint on. `sql: true` also offers admins and the `ai` role `run_read_only_query`, which reads the whole database outside the access rules. `writes: true` offers `create_record`, `update_record`, `delete_record` and `batch_write` through the REST API's rules, each approved by the person in their client; `writes.resources` limits them to the resources named, and `writes.rolesWithoutApproval` lets holders of those roles, such as a service account, write without the approval. `false` is for a host that serves its own MCP endpoint at `auth.mcp.path`, in front of this app. See [MCP](../mcp.md#the-tools).
 
 ```ts
 export default defineConfig({ auth: { mcp: true }, mcpEndpoint: { writes: { resources: ['tasks'] } } })

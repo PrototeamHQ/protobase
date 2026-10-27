@@ -37,7 +37,7 @@ const { exitCode, stdout, stderr } = await runCommand(['doctor', '--env', 'DATAB
 
 The serve runtime is bundled by `protobase build-serve` into one JavaScript file for Bun, so production needs neither `node_modules` nor the CLI (see [serve](#serve)).
 
-The CLI reads the database with `default_transaction_read_only = on`, so it can never write.
+`scaffold` and `doctor` read the database with `default_transaction_read_only = on`, so they can never write, and so does `dev`'s check of the connection. The commands that manage the app's data do write: `users`, `organizations`, `encryption apply`, `files cleanup` and `import supabase`.
 
 ## `scaffold`
 
@@ -51,6 +51,7 @@ Protobase's own tables are left out, since they hold password hashes, OAuth toke
 
 | Option | Effect |
 | --- | --- |
+| `--env <variable>` | read the connection string from this variable instead of `DATABASE_URL` |
 | `--config <dir>` | config folder, default `config` |
 | `--yes` | accept every proposal, no prompts (required without a TTY) |
 | `--dry-run` | print a diff, write nothing |
@@ -331,10 +332,10 @@ Bundles the serve runtime (`@protobase/cli`'s `src/serve/main.ts`) and all its d
 ```sh
 bun --no-install protobase-serve.js [serve] <bundle>                 # the folder: the app and the API; the config module: the API
 bun --no-install protobase-serve.js migrate <bundle>                 # apply the bundle's migrations to DATABASE_URL
-bun --no-install protobase-serve.js create-admin <bundle> <email>    # --generate-password or --password-stdin
+bun --no-install protobase-serve.js create-admin <bundle> <email>    # [--name <name>] [--generate-password | --password-stdin]
 ```
 
-`migrate` runs none of the app's code and needs only `DATABASE_URL`; `create-admin` loads the app with its settings and refuses an auth schema that is behind. Given the folder, the runtime serves the bundle's own copy of the app. [Deploy](/guides/deploy/#a-self-hosted-image) puts the three in a self-hosted image.
+`migrate` runs none of the app's code and needs only `DATABASE_URL`; `create-admin` loads the app with its settings and refuses an auth schema that is behind; without `--generate-password` or `--password-stdin` it asks for the password at a hidden prompt. Given the folder, the runtime serves the bundle's own copy of the app. [Deploy](/guides/deploy/#a-self-hosted-image) puts the three in a self-hosted image.
 
 ## `serve`
 
@@ -361,7 +362,14 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the OpenID Connect provider of the operator's staff, for [staff sign-in](/reference/auth/#staff-sign-in) as people of the app; all three or none. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional ([Operator provider](/reference/auth/#operator-provider)) |
 | `PROTOBASE_ORIGINS`, `PROTOBASE_PASSKEY_DOMAIN` | the other origins the app is served on, comma separated, and the host new passkeys are made for ([Several origins](/reference/auth/#several-origins)) |
 | `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins ([CORS](/reference/api/#cors)) |
+| `PROTOBASE_PREVIOUS_SECRETS` | the app's secrets before `PROTOBASE_SECRET`, newest first, comma separated, which still decrypt what they encrypted, unless the config sets [`previousSecrets`](/reference/config/app/#previoussecrets) |
+| `PROTOBASE_TRUSTED_ORIGINS` | extra origins that may call the auth endpoints, comma separated, unless the config sets [`auth.trustedOrigins`](/reference/config/sign-in/#authtrustedorigins) |
+| `PROTOBASE_PUBLISHABLE_KEY`, `PROTOBASE_SECRET_KEY` | the app's [API keys](/reference/config/api/#apikeys), unless the config sets `apiKeys` |
+| `PROTOBASE_PLUGINS`, `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` | [plugins](/reference/plugins/#loading) a hosting platform adds to the app, their `plugin.json` URLs comma separated; the second also load before sign-in |
+| `PROTOBASE_FORMS_SECRET` | the secret [public forms](/reference/forms/#bot-check) sign their bot checks with, over the app's secret |
+| `PROTOBASE_VAPID_PUBLIC_KEY`, `PROTOBASE_VAPID_PRIVATE_KEY`, `PROTOBASE_VAPID_SUBJECT` | the key pair and contact of [Web Push](/reference/notifications/#web-push), from [`notifications vapid-keys`](#notifications-vapid-keys) |
 | `PROTOBASE_ASSISTANT_URL`, `PROTOBASE_ASSISTANT_API_KEY`, `PROTOBASE_ASSISTANT_MODEL`, `PROTOBASE_ASSISTANT_BASE_URL` | the [assistant](/reference/assistant/#which-backend): a backend elsewhere, or the built-in one on OpenRouter or another OpenAI-compatible endpoint; without them there is none |
+| `PROTOBASE_ASSISTANT_CHATS` | the folder the built-in assistant keeps its conversations in; default `.protobase/chats` |
 | `PROTOBASE_RUNTIME_URL` | the endpoint behind the top bar's [runtime update button](/reference/versioning/#runtime-updates), such as a hosting platform's; without it there is no button |
 | `PROTOBASE_SENTRY_DSN` | the DSN of a Sentry-compatible error tracker the app's server and admin app send their errors to, after the config's `errorReporting` ([Error reporting](/reference/api/#error-reporting)); without it nothing is sent |
 | `PROTOBASE_MAP_STYLE_URL` | the URL of the MapLibre style the record page's [maps](/reference/ui-config/#maps) are drawn with, after the config's `maps`; without it there are no maps |
@@ -400,7 +408,7 @@ With a `mobile` section, the server serves the [mobile app](/guides/mobile-app/)
 protobase worker <bundle>   # a bundle from `protobase build`: its folder or its protobase.config.js
 ```
 
-Runs the bundle's [jobs](/reference/jobs/), and the delivery of its [events](/reference/webhooks/#delivery-and-retries), and nothing else, until SIGTERM or SIGINT, which let running jobs finish for 30 seconds as `serve` does. It checks the bundle's version and the jobs schema at start like `serve`, reads the `.env` nearest the current directory and needs `DATABASE_URL`. Run it beside a `serve` with `PROTOBASE_JOBS=false`, from the same bundle. `protobase worker running <n> jobs` means it is ready.
+Runs the bundle's [jobs](/reference/jobs/), and the delivery of its [events](/reference/webhooks/#delivery-and-retries), and nothing else, until SIGTERM or SIGINT, which let running jobs finish for 30 seconds as `serve` does. It checks the bundle's version and the jobs schema at start like `serve`, reads the `.env` nearest the current directory and needs `DATABASE_URL`. Run it beside a `serve` with `PROTOBASE_JOBS=false`, from the same bundle. It refuses a bundle with nothing to run: no jobs, and no resource with events, history, comments or an AI field, whose jobs are Protobase's own. Like `serve`, it reports a crash to the app's [error tracker](/reference/api/#error-reporting). `protobase worker running <n> jobs` means it is ready.
 
 ## `files cleanup`
 
@@ -432,7 +440,7 @@ Encrypts every plaintext value of the encrypted fields with the current key, enc
 
 `--rebind <resource>[.<field>]` with `--from-table <table>` (as `.table()` wrote it) or `--from-column <column>` also takes values sealed where the field was before a rename, and seals them where it is now; running it again rebinds nothing more. It refuses a former place another resource still encrypts.
 
-Run it at update time, after the migrations and before the new version serves, and again once an old version that wrote plaintext has stopped. It works over one database connection, so a project's own `db` with a pool of one is enough.
+Run it at update time, after the migrations and before the new version serves, and again once an old version that wrote plaintext has stopped. It works over one database connection.
 
 ## `notifications vapid-keys`
 
@@ -446,7 +454,7 @@ Prints a fresh key pair for [Web Push](/reference/notifications/#web-push) as `P
 
 ```sh
 protobase users create <email> [--name <name>] [--role <role>] [--password-stdin | --generate-password | --no-password] [--github-id <id>]
-                       [--organization <slug> [--org-role <role>] [--app-roles <a,b>]]
+                       [--organization <organization> [--org-role <role>] [--app-roles <a,b>]]
 protobase users list
 protobase users roles
 protobase users set-role <email> <role>
@@ -454,13 +462,13 @@ protobase users disable <email>   # and: enable <email>
 protobase users delete <email> [--yes]
 ```
 
-Run inside a project with sign-in on (its config's `auth`, on unless `false`). There is no web setup page, and [open sign-up](/reference/auth/#open-sign-up), when a project turns it on, waits for the first admin: the first admin is created here. The first user is always an admin, whatever `--role` says; later users get `--role`, or the project's default role (`auth: { roles, defaultRole }` in its config). `protobase users roles` lists the roles of the project; anything else is refused with that list. `set-role` also takes comma separated roles (`sales,accountant`). `--github-id` links the new user to a GitHub user id (the number, not the login), so signing in with GitHub, the app's own provider or the [platform's](/reference/auth/#platform-sign-in-provider), finds them whatever address GitHub reports; an id that signs in another user already is refused. `createUser(auth, { ..., accounts: [{ providerId, accountId }] })` does the same from code.
+Run inside a project with sign-in on (its config's `auth`, on unless `false`, or unless the config leaves `auth` out and sets `authenticate.jwksUrl`). Like `organizations`, `token` and `auth migration`, it reads the `.env` nearest the project and needs `DATABASE_URL`. There is no web setup page, and [open sign-up](/reference/auth/#open-sign-up), when a project turns it on, waits for the first admin: the first admin is created here. The first user is always an admin, whatever `--role` says; later users get `--role`, or the project's default role (`auth: { roles, defaultRole }` in its config). `protobase users roles` lists the roles of the project; anything else is refused with that list. `set-role` also takes comma separated roles (`sales,accountant`). `--github-id` links the new user to a GitHub user id (the number, not the login), so signing in with GitHub, the app's own provider or the [platform's](/reference/auth/#platform-sign-in-provider), finds them whatever address GitHub reports; an id that signs in another user already is refused. `createUser(auth, { ..., accounts: [{ providerId, accountId }] })` does the same from code.
 
 The password is typed at a hidden prompt with confirmation, read from stdin with `--password-stdin` (for scripts, e.g. `pass show erp | protobase users create me@example.com --password-stdin`), or generated with `--generate-password` and printed once; it must be 12 to 128 characters, the length the app requires of every new password. `--no-password` makes an account without one, which signs in by [emailed code](/reference/auth/#emailed-sign-in-codes), passkey or a sign-in provider, as with an app whose [sign-in policy](/reference/auth/#sign-in-policy) turns passwords off. A password is never accepted as an argument, since it would end up in shell history. `users list` prints email, role and creation date (and `disabled` for banned users), never credentials.
 
 `delete` asks you to type the email back (or pass `--yes`), and needs a terminal otherwise. `delete`, `set-role` and `disable` refuse to touch the last admin, so the project cannot lock itself out. `disable` bans the user and revokes their sessions; tokens already issued stop working on their next request, and `protobase token` refuses disabled users. With [MCP](/reference/auth/#oauth-for-mcp-clients) on, it also disconnects their MCP clients. `enable` lifts the ban; the clients have to be allowed again. `protobase dev` prints the command that creates the first admin at startup while the user table is empty (see [`dev`](#dev)).
 
-With [organizations](/reference/auth/#organizations), `--role` is the user's global role (none by default) and `--organization` adds the new user to an organization, with `--org-role` (`owner`, `admin`, or `member`, the default) and `--app-roles` there.
+With [organizations](/reference/auth/#organizations), `--role` is the user's global role (none by default) and `--organization` adds the new user to an organization, by its slug or id, with `--org-role` (`owner`, `admin`, or `member`, the default) and `--app-roles` there.
 
 ## `organizations`
 
@@ -526,7 +534,7 @@ protobase mobile build <ios|android> --app-version <x.y.z> --build-number <n> [-
                        [--team <id> [--certificate <name> --profile <name>]]
 ```
 
-Builds the project in the current directory as an iOS or Android app with Capacitor, from the `mobile` section of its `protobase.config.ts`; without one it stops and says what to add. See [A mobile app](/guides/mobile-app/).
+Builds the project in the current directory as an iOS or Android app with Capacitor, from the `mobile` section of its `protobase.config.ts`; without one it stops and says what to add. `--extend <dir>` (repeatable) merges an [extension](/reference/config/#extensions)'s `protobase.config.ts` and `protobase.ui.tsx` before the project's, as `build` does. See [A mobile app](/guides/mobile-app/).
 
 - It installs `@protobase/mobile`, of the CLI's version, which pins Capacitor and its plugins, with the section's `plugins` into `.protobase/mobile/` with npm, when that changed, and on every run for a package from a local folder, given as `file:` or a path such as `../my-plugin`, which npm copies. When such a folder's dependencies are not the versions installed, it removes the workspace's `node_modules` and `package-lock.json` so npm resolves them again, and stops when a pin is still not met, as when two packages pin one dependency at different versions. It builds the app's files as [`build`](#build) does and keeps only `public/`, its `index.html` naming the API origin; writes `capacitor.config.json`, compiling in only the section's plugins; and generates the platform's native project again, replacing the last one.
 - `--api` is the server the app calls, the app's `url` by default: an http or https origin, plain http only to `localhost`, `127.0.0.1` and, on iOS, `[::1]`, or on Android `10.0.2.2`. An Android app calling `localhost` gets the port forwarded.
@@ -562,10 +570,10 @@ Copies the agent skills of this CLI's version into the current project, or only 
 ```sh
 bun run db:up && bun run --cwd tests/apps/erp db:migrate && bun run --cwd tests/apps/erp db:seed --scale small
 bun run --cwd tests/apps/erp protobase scaffold postgres://protobase:protobase@localhost:55432/protobase \
-  --yes --ui --exclude auth --exclude public.schema_migrations --exclude public.seed_info
+  --yes --ui --exclude public.schema_migrations --exclude public.seed_info
 bun run --cwd tests/apps/erp protobase doctor postgres://protobase:protobase@localhost:55432/protobase
 ```
 
-Always pass `--exclude auth`: the ERP keeps Better Auth's users, sessions and signing keys in the `auth` schema of the same database, and scaffolding them would expose credentials through the admin API.
+The ERP keeps Better Auth's users, sessions and signing keys in the `auth` schema of the same database; scaffold leaves that store out on its own, so they are never exposed through the admin API. `--exclude` leaves out the migrations' and the seed's own bookkeeping tables.
 
 The integration test (`packages/cli/tests/scaffold/scaffold.integration.test.ts`) scaffolds into a temp folder and is skipped when the database is unreachable.

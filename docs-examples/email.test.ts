@@ -4,8 +4,8 @@ import { FatalJobError, type FunctionContext, type JobContext, type MailMessage,
 import emailReadyRepair from './email/hooks/email-ready-repair'
 import emailRepairReady from './email/jobs/email-repair-ready'
 import config from './email/protobase.config'
-import { repairReady } from './email/repair-ready'
-import resendRepairReady from './email/resend-repair-ready'
+import { repairReady } from './email/emails/repair-ready'
+import resendRepairReady from './email/functions/resend-repair-ready'
 
 // The documentation shows these files; this keeps what it says about them true.
 

@@ -11,7 +11,7 @@ The keys of the app itself, at the top level of [`protobase.config.ts`](/referen
 - **Default:** `Protobase`
 - **Environment variable:** `PROTOBASE_APP_NAME`, which overrides it
 
-The app's name: sign-in prompts and passkeys show it, the mail it sends names the app with it and is sent as it, and the sidebar, the browser tabs and the [installed app](/reference/installable-app/) are called by it. A deployment renames the app with `PROTOBASE_APP_NAME`, which wins over the config. See [App identity](/reference/app-identity/#the-name).
+The app's name: sign-in prompts and passkeys show it, the mail it sends names the app with it and is sent as it, and the sidebar, the browser tabs and the [installed app](/reference/installable-app/) are called by it. A deployment renames the app with `PROTOBASE_APP_NAME`, which wins over the config. The name reaches the app through its sign-in, so with sign-in off (`auth: false`, or an `authenticate.jwksUrl` without `auth`) the app shows `PROTOBASE_APP_NAME`, else `Protobase`, and only [`protobase mobile`](/reference/cli/#mobile) reads `name` itself. See [App identity](/reference/app-identity/#the-name).
 
 ```ts
 export default defineConfig({ name: 'Property Finder' })
@@ -35,7 +35,7 @@ export default defineConfig({ url: 'https://admin.example.com' })
 - **Default:** `PROTOBASE_SECRET`
 - **Environment variable:** `PROTOBASE_SECRET`
 
-The app's secret, made with `openssl rand -base64 32`: it signs session cookies, upload tickets, download links and public forms' bot checks, and encrypts the token signing keys. Sign-in needs it, and file fields too unless [`files.secret`](/reference/config/files/#filessecret) names another. Keep it out of the config's source and read it from the environment, which the default does.
+The app's secret, made with `openssl rand -base64 32`: it signs session cookies, upload tickets, download links and public forms' bot checks, and encrypts the token signing keys. Sign-in needs it, and file fields too unless [`files.secret`](/reference/config/files/#filessecret) names another; public forms sign their bot checks with `PROTOBASE_FORMS_SECRET` instead when it is set. Keep it out of the config's source and read it from the environment, which the default does.
 
 ```ts
 export default defineConfig(({ env }) => ({ secret: env.ADMIN_SECRET }))

@@ -17,7 +17,7 @@ import { Page, Stat, page } from '@protobase/layout'
 export const overview = page('overview', <Page title="Overview"><Stat label="Orders" resource="orders" /></Page>, { nav: { group: 'Sales', order: 0 } })
 ```
 
-The comment makes `@protobase/layout/jsx-runtime` compile the file instead of React's runtime, and it is how the build recognises a layout file, so every layout file needs it. Export the page from the config module like a resource or view, for example `export { overview } from './overview/page'` in `config/index.ts`; `configExports` tells pages from views.
+The comment makes `@protobase/layout/jsx-runtime` compile the file instead of React's runtime, and it is how the build recognises a layout file, so every layout file needs it. Export the page from `config/index.ts` like a resource or view, for example `export { overview } from './overview/page'` in `config/index.ts`; `configExports` tells pages from views.
 
 `page(name, tree, options?)`:
 
@@ -29,7 +29,7 @@ The comment makes `@protobase/layout/jsx-runtime` compile the file instead of Re
 | `options.icon` | One of the [user menu icons](user-menu.md), or `layout-dashboard` (the default). |
 | `options.roles` | Only users with one of these roles get the page. Without it, everyone who can sign in does. |
 
-A page can also sit in the [user menu](user-menu.md) with `m.page(name)`; it then leaves the sidebar. The admin opens on the first entry of the sidebar as the user sees it, so on the first page there in `nav.order`, not the first page the config exports: a config module's exports are in alphabetical order.
+A page can also sit in the [user menu](user-menu.md) with `m.page(name)`; it then leaves the sidebar. The admin opens on the first entry of the sidebar as the user sees it, so on the first page there in `nav.order`, not the first page the config exports: `config/index.ts`'s exports are in alphabetical order.
 
 ## The element tree
 

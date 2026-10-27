@@ -4,7 +4,7 @@
 
 Every built-in layout block, its props and what it does, with examples from the ERP's sales overview.
 
-Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](layouts.md#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, `RecordCards`, `Tabs` and `Tab`, `Settings`, and `Users`, which the [Users page](auth.md#users-page) uses, appears in the ERP example's sales overview:
+Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](layouts.md#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. The ERP example's sales overview uses `Page`, `Grid`, `Card`, `Stat`, `Table`, `RecordCard`, `CardRow`, `Field`, `Chart`, `Action`, `ModalForm` and `Show`; of the others, the property portal's home uses `RecordRow`, and the [Users page](auth.md#users-page) `Users`:
 
 ```tsx title="tests/apps/erp/config/overview/page.tsx"
 /** @jsxImportSource @protobase/layout */

@@ -107,7 +107,7 @@ export type ProtobaseConfig = AppKeys &
   }
 
 /**
- * Which command reads the config: `dev`, `build`, `serve` (also a worker and a bundle's migrations), or `tool`, any
+ * Which command reads the config: `dev`, `build`, `serve` (also a worker and the serve runtime's `create-admin`), or `tool`, any
  * other command over the project, such as `migration`, `users` or `doctor`.
  */
 export type ConfigCommand = 'dev' | 'build' | 'serve' | 'tool'

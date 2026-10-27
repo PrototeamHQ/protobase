@@ -9,13 +9,16 @@ A Bun workspace of npm packages under the `@protobase` scope, in `packages/<name
 
 | Package | Folder | Entry points | Runs in | Depends on |
 | --- | --- | --- | --- | --- |
-| `@protobase/schema` | `packages/schema` | `@protobase/schema` | anywhere | no other `@protobase` package |
+| `@protobase/schema` | `packages/schema` | `@protobase/schema`, `@protobase/schema/png-icons`; `@protobase/schema/internal` for the other packages only | anywhere | no other `@protobase` package |
 | `@protobase/layout` | `packages/layout` | `@protobase/layout`, `@protobase/layout/jsx-runtime`, `@protobase/layout/jsx-dev-runtime` | anywhere | `schema` |
 | `@protobase/query` | `packages/query` | `@protobase/query` | server | `schema` |
 | `@protobase/client` | `packages/client` | `@protobase/client` | anywhere with `fetch` | `schema`, `layout` |
-| `@protobase/ui` | `packages/ui` | `@protobase/ui`; the admin app in `src/app` | browser | `schema`, `layout`, `client` |
-| `@protobase/server` | `packages/server` | `@protobase/server` | server | `schema`, `layout`, `query` |
-| `@protobase/cli` | `packages/cli` | the `protobase` command (`bin/protobase.mjs`) | Node and Bun | `schema`, `layout`, `query`, `server`, `ui` |
+| `@protobase/ui` | `packages/ui` | `@protobase/ui`, `@protobase/ui/theme.css`, `@protobase/ui/styles.css`; the admin app in `src/app` | browser | `schema`, `layout`, `client` |
+| `@protobase/server` | `packages/server` | `@protobase/server`, `@protobase/server/auth-store`, `@protobase/server/config-exports`, `@protobase/server/email`, `@protobase/server/vapid`; `@protobase/server/internal` for the other packages only | server | `schema`, `layout`, `query` |
+| `@protobase/config` | `packages/config` | `@protobase/config`, `@protobase/config/schema.json` | anywhere | types of `server` only: it runs nothing besides `defineConfig` |
+| `@protobase/cli` | `packages/cli` | the `protobase` command (`bin/protobase.mjs`), `@protobase/cli/auth`, `@protobase/cli/runner` | Node and Bun | `config`, `schema`, `layout`, `query`, `server`, `ui` |
+| `@protobase/mobile` | `packages/mobile` | none: the Capacitor packages and native plugins `protobase mobile` installs on first use | the app's iOS and Android projects | none |
+| `create-protobase` | `packages/create-protobase` | the `create-protobase` command, for `npm create protobase` | Node | none |
 | `@protobase/presets` | `packages/presets` | none: private, `bun run presets:write` writes a project per preset | Bun | none; each preset depends on the `@protobase` packages of the major it is written at, locked at that version |
 | `tests/apps/*` | | none | any | `@protobase/*` entry points only |
 
@@ -26,9 +29,11 @@ The JSX runtime belongs to `@protobase/layout` because a layout file names one p
 Every package lists the packages it imports in its `package.json` (`workspace:*` for its `@protobase` dependencies), so it installs and works on its own. Rules, enforced by `bun run check:boundaries` (`.dependency-cruiser.cjs`):
 
 - A package imports only the `@protobase` packages in the table above, so `@protobase/ui` never reaches `query`, `server` or `cli`, and `@protobase/layout` only `schema`: layouts are built in the config, checked on the server and rendered in the browser.
+- `@protobase/config` imports types only, so reading a config loads nothing but it and the config.
 - A package imports another by its name and entry point, never by a path into its source.
 - A package's code (not its tests and stories) imports only what its `package.json` lists in `dependencies`.
 - Examples, their tests and `test-support/` import the packages by name, never by path.
+- Only an encrypted field's reveal and the `encryption` commands decrypt its values.
 - No circular dependencies.
 
 In this repository, entry points export TypeScript source directly and the CLI runs its source on Bun, or on Node through [tsx](https://tsx.is), so nothing needs a build. The published packages are built to JavaScript in `dist` by `bun run build` and `bun pm pack` (`scripts/publish.mjs`) (see [CLI](/reference/cli/#how-it-runs)). The other builds are for deployment: the serve runtime, `packages/cli/src/serve/main.ts` bundled with its dependencies into `dist/protobase-serve.js` by `protobase build-serve`, the shell, a production build of the admin app (`packages/ui/src/app`) shipped in `@protobase/ui`'s `dist/shell` and the protobase image, and a project's bundle, its config module plus a copy of the shell and the project's `protobase.ui.tsx` built as a [plugin](/reference/plugins/), by `protobase build` (see [CLI](/reference/cli/#build)).
@@ -57,6 +62,6 @@ Filters are Google AIP-160 text. Parsing, printing, `order_by` and the generic c
 
 ## Documentation
 
-`website/` is this site. `bun run docs:dev` serves it on port 4321; `bun run docs:build` writes `website/dist/` and fails on a broken internal link or anchor, so CI runs it on every pull request, followed by `bun run docs:check`, which opens every page in Chromium and fails on a console error or a failed request. Pages are Markdown or MDX in `website/src/content/docs/`, and the sidebar is listed in `website/astro.config.mjs`.
+`website/` is this site. `bun run docs:dev` serves it on port 4321; `bun run docs:build` writes `website/dist/` and fails on a broken internal link or anchor, so CI runs it on every pull request, followed by `bun run docs:check`, which opens every page in Chromium and fails on a console error or a failed request. Pages are Markdown or MDX in `website/src/content/docs/`, and the sidebar is listed in `website/sidebar.mjs`.
 
 Every push to `main` builds the site and deploys it, and so does running the workflow by hand (`gh workflow run docs.yml`); either way it deploys to the Cloudflare Pages project `protobase-docs`, served at `docs.protobase.net` (`.github/workflows/docs.yml`). The workflow reads the Cloudflare account id from the repository variable `CLOUDFLARE_ACCOUNT_ID` and a token with Cloudflare Pages edit permission from the repository secret `CLOUDFLARE_API_TOKEN`.

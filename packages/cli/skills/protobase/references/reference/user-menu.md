@@ -6,7 +6,7 @@ The user menu at the bottom of the sidebar, with the app's own account pages and
 
 The signed-in user sits at the bottom of the sidebar. Clicking them opens a menu with their name and email, which link to their account, the app's own pages, the theme switch, and "Sign out". Account pages (organization, billing, users) and help links belong here rather than among the working resources.
 
-Export one [`userMenu(...)`](https://docs.protobase.net/api/schema/functions/usermenu/) from the config module:
+Export one [`userMenu(...)`](https://docs.protobase.net/api/schema/functions/usermenu/) from `config/index.ts`:
 
 ```ts
 // tests/apps/erp/config/user-menu.ts, re-exported from config/index.ts
@@ -28,9 +28,9 @@ export const accountMenu = userMenu((m) => [
 
 `accounts` is the built-in [Users page](auth.md#users-page), which the config exports as `usersPage` from `@protobase/layout`; without the export, `createAdmin` refuses the item. Items keep their order. A line splits the menu into groups: these items, then the [organization](auth.md#organizations) pages when the app has organizations, then the person's own: "Account" for everyone (their [account page](auth.md#account-page): profile, [passkeys](auth.md#passkeys) and [two-factor authentication](auth.md#two-factor-authentication)) and "Sign-in policy" for admins (the [sign-in policy](auth.md#sign-in-policy), and the log of [staff sign-ins](auth.md#staff-sign-in)); then the [theme switch](theme.md#light-dark-or-the-system), and "Sign out" always comes last. `icon` is one of `bell`, `book-open`, `bookmark`, `building`, `credit-card`, `external-link`, `file-text`, `heart`, `key`, `layout-dashboard`, `life-buoy`, `mail`, `receipt`, `settings`, `shield`, `users`. A resource item without one uses the resource's sidebar icon, and a link item uses `external-link`.
 
-Every caller gets the menu through `/meta`, without the resources and pages they cannot see, so a user who cannot read `organizations` has no "Organization" item. Links are shown to everyone. `createAdmin` refuses to start when an item names a resource or page that does not exist, and `configExports` refuses a config module that exports two menus.
+Every caller gets the menu through `/meta`, without the resources and pages they cannot see, so a user who cannot read `organizations` has no "Organization" item. Links are shown to everyone. `createAdmin` refuses to start when an item names a resource or page that does not exist, and `configExports` refuses a config that exports two menus.
 
-`protobase dev`, `protobase build` and `protobase serve` pick the menu up from the config module. With `createAdmin` directly, pass it as `userMenu`:
+`protobase dev`, `protobase build` and `protobase serve` pick the menu up from `config/index.ts`. With `createAdmin` directly, pass it as `userMenu`:
 
 ```ts
 const { resources, views, userMenu } = configExports(config)

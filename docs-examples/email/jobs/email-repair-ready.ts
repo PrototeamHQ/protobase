@@ -1,5 +1,5 @@
 import { FatalJobError, type JobRun } from '@protobase/server'
-import { repairReady } from '../repair-ready'
+import { repairReady } from '../emails/repair-ready'
 
 // Enqueued by the write hook of a repair that became ready (hooks/email-ready-repair.ts), so the email goes out only
 // once the write has committed, and a refused message is retried.

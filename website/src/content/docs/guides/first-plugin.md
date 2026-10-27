@@ -142,7 +142,7 @@ export const salesOverview = page(
 )
 ```
 
-`{ plugin: 'sales-tools' }` tells `protobase build` that the project's own `protobase.ui.tsx` does not have the component, so it does not fail on it. Start the app with `bun run protobase dev` and sign in: the start page shows the card with the five newest drafts, and `sales-tools 1.0.0` under them. `/api/meta` named the plugin, the app read its `plugin.json`, saw that it fits, and loaded its module and stylesheet.
+`{ plugin: 'sales-tools' }` tells `protobase build` that the project's own `protobase.ui.tsx` does not have the component, so it does not fail on it. The ERP exports the page from `config/index.ts` already (`export { salesOverview } from './overview/page'`); in another app, add that export, since Protobase finds pages there. Start the app with `bun run protobase dev` and sign in: the start page shows the card with the five newest drafts, and `sales-tools 1.0.0` under them. `/api/meta` named the plugin, the app read its `plugin.json`, saw that it fits, and loaded its module and stylesheet.
 
 ## 6. Change the plugin, not the app
 

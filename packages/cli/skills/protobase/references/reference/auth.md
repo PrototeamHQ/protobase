@@ -38,7 +38,7 @@ Each version's statements are followed by its row in `auth_migrations`. The file
 
 Every store has the tables of every feature, whether the app turns the feature on or not: [passkeys](#passkeys), [two-factor authentication](#two-factor-authentication), [organizations](#organizations) and the [OAuth provider for MCP](#oauth-for-mcp-clients). Turning a feature on or off needs no migration and drops nothing; the columns a feature adds to the user and session tables are empty until it is on. SAML providers and open sign-up keep nothing in the store.
 
-The store's tables and columns are snake_case, like the app's (`sign_in_policy.platform_sign_in`, `session.user_id`); the code and the API keep Better Auth's camelCase names. The names the app configures, the store's schema (`schemaName`), the [user table](#an-existing-users-table) and its columns, and uuid ids (`generateUserId: 'uuid'`), are the ones in effect when the file is written. Changing one later is a migration of the project's own, such as a rename.
+The store's tables and columns are snake_case, like the app's (`sign_in_policy.platform_sign_in`, `session.user_id`); the code and the API keep Better Auth's camelCase names. The names the app configures, the store's schema ([`auth.schema`](config/sign-in.md#authschema)), the [user table](#an-existing-users-table) and its columns, and uuid ids (`generateUserId: 'uuid'`), are the ones in effect when the file is written. Changing one later is a migration of the project's own, such as a rename.
 
 The server never changes the schema, and never compares it with what Better Auth needs. `protobase serve` and `protobase dev` read `auth_migrations` at startup and refuse to start while a version of this Protobase is not applied, naming it and `protobase auth migration`, or while the store has a version newer than this Protobase knows. The examples' `db:migrate` applies all pending files in one transaction, so a migration that fails leaves the database as the running version expects it. The host must guarantee the rest: nothing but the migrations writes while they run, and the new version serves only after they succeeded. Only [`protobase dev`](cli.md#dev), on the developer's machine, compares the store's tables with what the app's Better Auth needs, and warns at startup about each table, column or index that drifted, such as one changed by hand.
 
@@ -72,7 +72,7 @@ The store's migrations make the user table only when it is missing, and add each
 | `PROTOBASE_SECRET` | the app's secret, the default of `secret`: signs cookies and encrypts the token keys; `openssl rand -base64 32`; never committed (`.env.example` has a placeholder) |
 | `PROTOBASE_PREVIOUS_SECRETS` | the app's secrets before `PROTOBASE_SECRET`, newest first, comma separated, the default of `previousSecrets`; see [Changing the secret](#changing-the-secret) |
 | `PROTOBASE_URL` | the app's public URL, the default of `url` (in `protobase dev`, the dev server's own); issuer and audience of the tokens; when tunnelling, the https tunnel URL |
-| `PROTOBASE_TRUSTED_ORIGINS` | extra comma separated origins, the default of `auth.trustedOrigins`; a dev tunnel needs its exact host here, such as `https://my-tunnel.trycloudflare.com`, since no wildcard is trusted |
+| `PROTOBASE_TRUSTED_ORIGINS` | extra comma separated origins, the default of `auth.trustedOrigins`; a dev tunnel needs its exact host here, such as `https://my-tunnel.trycloudflare.com`, since none is trusted by default; an entry with `*` trusts every host it matches |
 | `PROTOBASE_ORIGINS` | the other origins the app is served on, comma separated, passed by the platform; see [Several origins](#several-origins) |
 | `PROTOBASE_PASSKEY_DOMAIN` | the host new [passkeys](#passkeys) are made for, passed by the platform; default the host of the app's `url` |
 | `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins, passed by the platform; see [CORS](api.md#cors) |
@@ -128,14 +128,14 @@ Accounts are never created over the web while the store is empty: there is no se
 
 ```ts
 import { loadProjectAuth } from '@protobase/cli/auth'
-import { createUser, hasUsers, listUsers } from '@protobase/server'
+import { createUser, deleteUser, hasUsers, listUsers, setUserBanned, setUserRole } from '@protobase/server'
 
 const auth = await loadProjectAuth(process.cwd())            // the project's folder; its .env is loaded too
 
 await createUser(auth, { email, password?, name?, role? }) // the first user is always an admin; later ones default to `user`
 await hasUsers(auth)                                         // boolean
 await listUsers(auth)                                        // [{ id, email, role, banned, createdAt }], never passwords
-await setUserRole(auth, { email, role })                     // 'admin' | 'user'
+await setUserRole(auth, { email, role })                     // a role of auth.roles, or several comma separated
 await setUserBanned(auth, { email, banned })                 // banning ends the user's sessions and blocks sign-in
 await deleteUser(auth, email)                                // with sessions and accounts
 ```
@@ -586,6 +586,19 @@ It is Better Auth's organization plugin, with its tables named in snake_case (`o
 **Deleting** an organization (Better Auth's `delete`, owners only) is refused with `409 ORGANIZATION_HAS_RECORDS` while a `.tenant` resource has rows in it; `deleteRecords: 'cascade'` leaves it to the project's foreign keys. The `beforeOrganizationDeleted` [hook](#hooks) may refuse too.
 
 **Ids.** The `generateOrganizationId` [hook](#hooks) makes a new organization's id, by default a UUID; `.tenant` columns hold it, so `text` or `uuid`. An app whose tenant columns are integers takes the next value of its own organizations sequence instead, and adds its own row in `onOrganizationCreated`, as the ERP example does (`tests/apps/erp/auth/hooks.ts`). An app that ran as one organization keeps its tenant value: `protobase organizations create "Acme" --owner you@example.com --id 1 --members all` makes that organization, with every user in it: superusers as owners, everyone else as a member, their global roles moved onto the membership.
+
+**On the host.** The [`protobase organizations`](cli.md#organizations) commands call these functions of `@protobase/server`, which a script of the project's own, such as a seed, calls with the sign-in of [`loadProjectAuth`](#first-run). The host acts as a superuser, so it may give any role; `organization` is a slug or an id:
+
+```ts
+import { addAppRoleToOwners, addMember, createOrganization, listOrganizations, removeMember, setMemberRoles } from '@protobase/server'
+
+await createOrganization(auth, { name, slug, owner: email, id? })                     // the owner holds every app role
+await addMember(auth, { organization, email, role?, appRoles? })                      // role: owner, admin or member (default)
+await setMemberRoles(auth, { organization, email, role?, appRoles? })
+await removeMember(auth, { organization, email })                                     // refuses the last owner
+await listOrganizations(auth)                                                         // oldest first, with members' emails and roles
+await addAppRoleToOwners(auth, appRole)                                               // a role the project added later, to every owner
+```
 
 The app's own pages are under the profile menu: the switcher, "Manage organizations" (theirs, a new one, and for global roles any one), "Organization" (details, leaving, handing over, deleting), and for owners and admins "Members" and "Invitations". The client has them as `session.organizations` (`list`, `current`, `switchTo`, `members`, `invite`, ...).
 

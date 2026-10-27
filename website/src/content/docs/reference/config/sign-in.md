@@ -20,7 +20,6 @@ Sign-in runs the project's own code from these files, each loaded when Protobase
 
 - `auth/hooks.ts`: the hooks, as named exports typed with `AuthHooks` from `@protobase/server`: `generateUserId`, `onUserCreated`, `generateOrganizationId`, `onOrganizationCreated`, `beforeOrganizationDeleted` and `organizationHooks`. Each gets the app's database, `{ db }`, as its last argument. See [Hooks](/reference/auth/#hooks).
 - `auth/mailer.ts`: a mailer of the project's own, as its default export, in place of the SMTP mailer: sign-in's mail and the jobs' `mail` both go through it. See [Email](/reference/email/).
-- `emails/`: the templates of sign-in's mail. See [Templates](/reference/email/#templates).
 
 With [extensions](/reference/config/#extensions), the hooks and the mailer are those of the last folder whose config sets `auth`.
 
@@ -263,7 +262,7 @@ export default defineConfig({ auth: { origins: ['https://admin.shop.com'], passk
 - **Default:** `PROTOBASE_TRUSTED_ORIGINS`, comma separated
 - **Environment variable:** `PROTOBASE_TRUSTED_ORIGINS`
 
-Extra origins that may call the auth endpoints, such as the exact host of a dev tunnel; no wildcard is trusted. `url` and `origins` always are. Set in the config, it replaces the variable's list.
+Extra origins that may call the auth endpoints, such as the exact host of a dev tunnel; none is trusted by default. An entry with `*`, such as `https://*.example.com`, trusts every host it matches, so list only hosts you control. `url` and `origins` always are. Set in the config, it replaces the variable's list.
 
 ```ts
 export default defineConfig(({ env }) => ({
@@ -353,7 +352,7 @@ export default defineConfig({ authenticate: { jwksUrl: 'https://auth.example.com
 - **Type:** `{ refreshMs?: number; minReloadMs?: number }`
 - **Default:** `{ refreshMs: 600000, minReloadMs: 30000 }`
 
-How long the key set is kept: reloaded whole every `refreshMs`, so removed keys stop working, and when a token names an unknown key, at most every `minReloadMs`.
+How long the app's own key set is kept, when the tokens are those of `auth`: reloaded whole every `refreshMs`, so removed keys stop working, and when a token names an unknown key, at most every `minReloadMs`. A key set at `jwksUrl` is cached by its own rules, and `cache` does not change them.
 
 ```ts
 export default defineConfig({ authenticate: { cache: { refreshMs: 60_000 } } })

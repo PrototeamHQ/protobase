@@ -8,7 +8,7 @@ Until 0.12, `protobase build` built the whole admin app into each bundle, with t
 
 ## 1. Update and rebuild
 
-Move the project's `@protobase` packages to 0.12 or newer, as for any release, and build:
+Move the project's `@protobase` packages to 0.12, as for any release, and build; `^0.12` takes 0.12's patches only, since below 1.0 a new minor is a release of its own, moved to the same way once the project builds on 0.12:
 
 ```sh
 bun add @protobase/cli@^0.12 @protobase/server@^0.12 @protobase/schema@^0.12 @protobase/layout@^0.12 @protobase/ui@^0.12
