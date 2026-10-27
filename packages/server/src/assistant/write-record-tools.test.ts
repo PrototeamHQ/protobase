@@ -10,7 +10,7 @@ const readable = {
   models: [{
     name: 'tasks',
     primaryKey: ['id'],
-    fields: { id: { name: 'id', type: 'bigint' }, title: { name: 'title', type: 'text' }, status: { name: 'status', type: 'enum' }, due_on: { name: 'due_on', type: 'date' } },
+    fields: { id: { name: 'id', type: 'bigint' }, title: { name: 'title', type: 'text' }, status: { name: 'status', type: 'enum' }, due_on: { name: 'due_on', type: 'date' }, updated_at: { name: 'updated_at', type: 'timestamp', readOnly: true } },
   }],
   views: [{ resource: 'tasks', names: { singular: 'Task', plural: 'Tasks' }, fields: { status: { label: 'Status', valueLabels: { in_flight: 'In flight', done: 'Done' } } } }],
 } as unknown as ReadableResources
@@ -38,9 +38,9 @@ describe('write record tools', () => {
   })
 
   it('create_record asks naming the new record and each of its fields by label, then creates it', async () => {
-    const create = vi.fn(async () => saved)
-    const { context, approve } = contextWith('approved', { create })
     const data = { title: 'Fix the sign-in lockout', status: 'in_flight', due_on: null }
+    const create = vi.fn(async () => ({ record: { id: 42, ...data }, etag: '"v1"' }))
+    const { context, approve } = contextWith('approved', { create })
     const result = await createRecordTool().run({ resource: 'tasks', data }, context)
     expect(approve).toHaveBeenCalledWith({
       title: 'Create Task "Fix the sign-in lockout"?',
@@ -49,7 +49,7 @@ describe('write record tools', () => {
       rejectLabel: 'Cancel',
     })
     expect(create).toHaveBeenCalledWith('tasks', data)
-    expect(JSON.parse(result)).toEqual(saved)
+    expect(JSON.parse(result)).toEqual({ key: 42, etag: '"v1"', record: data })
   })
 
   it('create_record names a resource the caller cannot read by its name in words', async () => {
@@ -71,7 +71,7 @@ describe('write record tools', () => {
   })
 
   it('update_record asks naming the record, with each changed field before and after, then passes key, data and etag', async () => {
-    const update = vi.fn(async () => saved)
+    const update = vi.fn(async () => ({ record: { ...task.record, ...data }, etag: '"v2"' }))
     const get = vi.fn(async () => task)
     const { context, approve } = contextWith('approved', { update, get })
     const data = { status: 'done', title: 'Fix the sign-in lockout', due_on: '2026-11-01' }
@@ -84,7 +84,31 @@ describe('write record tools', () => {
       rejectLabel: 'Cancel',
     })
     expect(update).toHaveBeenCalledWith('tasks', 42, data, { etag: '"v1"' })
-    expect(JSON.parse(result)).toEqual(saved)
+    expect(JSON.parse(result)).toEqual({ key: 42, etag: '"v2"', record: data })
+  })
+
+  it('update_record of one field of a large record returns its key, new etag, that field and the read-only fields it changed', async () => {
+    const large = { ...task.record, notes: 'x'.repeat(100_000), updated_at: '2026-10-01T00:00:00Z' }
+    const update = vi.fn(async () => ({ record: { ...large, status: 'done', updated_at: '2026-10-27T09:00:00Z' }, etag: '"v2"' }))
+    const { context } = contextWith('approved', { update, get: async () => ({ record: large, etag: '"v1"' }) })
+    const result = await updateRecordTool().run({ resource: 'tasks', key: 42, data: { status: 'done' } }, context)
+    expect(result.length).toBeLessThan(1000)
+    expect(JSON.parse(result)).toEqual({ key: 42, etag: '"v2"', record: { status: 'done', updated_at: '2026-10-27T09:00:00Z' } })
+  })
+
+  it('create_record and update_record return the fields asked for too, and the whole record for *', async () => {
+    const written = { record: { id: 42, title: 'Plan', status: 'done', notes: 'Long' }, etag: '"v2"' }
+    const { context } = contextWith('approved', { create: async () => written, update: async () => written })
+    expect(JSON.parse(await createRecordTool().run({ resource: 'tasks', data: { title: 'Plan' }, fields: ['status'] }, context))).toEqual({ key: 42, etag: '"v2"', record: { title: 'Plan', status: 'done' } })
+    expect(JSON.parse(await updateRecordTool().run({ resource: 'tasks', key: 42, data: { status: 'done' }, fields: ['*'] }, context))).toEqual({ key: 42, ...written })
+  })
+
+  it('create_record and update_record refuse fields that are not a list of names before asking', async () => {
+    const { context, approve } = contextWith('approved', {})
+    const refusal = { error: 'invalid-parameter', message: 'Invalid parameter fields: pass a list of field names, or ["*"] for all' }
+    expect(JSON.parse(await createRecordTool().run({ resource: 'tasks', data: {}, fields: 'notes' }, context))).toEqual(refusal)
+    expect(JSON.parse(await updateRecordTool().run({ resource: 'tasks', key: 42, data: {}, fields: [1] }, context))).toEqual(refusal)
+    expect(approve).not.toHaveBeenCalled()
   })
 
   it('update_record says when no field changes, and asks in Dutch for a user who reads Dutch', async () => {
@@ -157,8 +181,8 @@ describe('write record tools', () => {
       const create = vi.fn(async () => saved)
       const update = vi.fn(async () => saved)
       const { context } = contextWith('approved', { create, update })
-      expect(JSON.parse(await createRecordTool(only).run({ resource: 'tasks', data: { name: 'Acme' } }, context))).toEqual(saved)
-      expect(JSON.parse(await updateRecordTool(only).run({ resource: 'tasks', key: 7, data: { name: 'Acme' } }, context))).toEqual(saved)
+      expect(JSON.parse(await createRecordTool(only).run({ resource: 'tasks', data: { name: 'Acme' } }, context))).toEqual({ key: 7, etag: '"v1"', record: { name: 'Acme' } })
+      expect(JSON.parse(await updateRecordTool(only).run({ resource: 'tasks', key: 7, data: { name: 'Acme' } }, context))).toEqual({ key: 7, etag: '"v1"', record: { name: 'Acme' } })
       expect(create).toHaveBeenCalledWith('tasks', { name: 'Acme' })
       expect(update).toHaveBeenCalledWith('tasks', 7, { name: 'Acme' }, { etag: undefined })
     })

@@ -5,10 +5,12 @@
  */
 import { HttpProblem } from '../problem'
 import { batchApproval } from './batch-approval'
+import { batchEcho, recordsBefore } from './batch-echo'
 import { batchOperationsOf, type WriteOperation } from './batch-write-args'
 import { cutRecordNote } from './budgeted-page'
 import { forcedJson } from './result-budget'
 import { defineTool, type ToolContext } from './tools'
+import { fieldsParameter } from './write-echo'
 import type { WriteRecordToolsInput } from './write-record-tools'
 
 const writes = { readOnlyHint: false, destructiveHint: true, openWorldHint: false }
@@ -62,6 +64,7 @@ const operationsParameter = (input: WriteRecordToolsInput) => ({
       etag: { type: 'string', description: 'The etag the record was read with: required on an update ("*" for any version), optional on a delete.' },
       data: { type: 'object', description: 'A create\'s or update\'s field names to values; a value { "$ref": "<name>" } is the key of a record created earlier in the batch.' },
       ref: { type: 'string', description: 'A create\'s name, for later operations to point at.' },
+      fields: fieldsParameter,
     },
   },
 })
@@ -70,19 +73,20 @@ const operationsParameter = (input: WriteRecordToolsInput) => ({
 export const batchWriteTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'batch_write',
-    description: `Creates, updates and deletes records across resources in one transaction: either all are written or none, and an update or delete with an etag fails the batch when its record changed since. Returns { results } with each created or updated record and its new etag. The user approves the batch in their client first; nothing is written without it.${input.resources ? ` It writes only ${input.resources.join(', ')}.` : ''}`,
+    description: `Creates, updates and deletes records across resources in one transaction: either all are written or none, and an update or delete with an etag fails the batch when its record changed since. Returns { results }: each created or updated record's key, new etag and, in record, the fields written and the read-only fields the batch changed. The user approves the batch in their client first; nothing is written without it.${input.resources ? ` It writes only ${input.resources.join(', ')}.` : ''}`,
     parameters: { type: 'object', properties: { operations: operationsParameter(input) }, required: ['operations'] },
     annotations: writes,
     run: async (args, context) => {
       const parsed = batchOperationsOf(args)
       if ('problem' in parsed) return refusal('invalid-argument', `${parsed.problem}; nothing was written.`)
-      const { operations } = parsed
+      const { operations, fields } = parsed
       const outsideRefusal = outside(input, operations)
       if (outsideRefusal) return outsideRefusal
       const softDeleteRefusal = await softDeleteSet(context, operations).catch(refused)
       if (softDeleteRefusal) return softDeleteRefusal
       const answer = await context.approve(batchApproval(operations, await softDeletesFor(context, operations)))
       if (answer !== 'approved') return `The user did not approve this batch (${answer}); nothing was written.`
-      return context.records.batch(operations).then((results) => forcedJson({ results }, cutRecordNote), refused)
+      const befores = await recordsBefore(context, operations)
+      return context.records.batch(operations).then(async (results) => forcedJson({ results: await batchEcho(context, operations, results, befores, fields) }, cutRecordNote), refused)
     },
   })

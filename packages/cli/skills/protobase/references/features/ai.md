@@ -13,6 +13,7 @@ Fields and actions filled by a model, the assistant beside the admin, and MCP.
 - [MCP result size](../reference/mcp.md#result-size): Every tool result fits what AI clients take, as valid JSON: long values are cut and named, a page holds fewer records, and the client reads the rest in pieces.
 - [MCP app icon](../reference/mcp.md#the-apps-icon): AI clients show the app's own icon beside its name when someone adds its MCP endpoint.
 - [MCP writes](../reference/mcp.md#writes): When turned on, for every resource or only those you list, AI clients create, update and delete records after the person approves each write.
+- [Small MCP write results](../reference/mcp.md#what-a-write-returns): A write over MCP returns the record's key, new ETag, the fields written and the read-only fields that changed, not the whole record; `fields` asks for more.
 - [MCP writes without approval](../reference/mcp.md#writes-without-approval): Roles you name, such as service accounts, write over MCP without being asked to approve each write; everyone else is still asked.
 - [MCP comments](../reference/mcp.md#comments): AI clients read a record's comments, and with MCP writes on add one after the person approves it.
 - [MCP batch writes](../reference/mcp.md#batch-writes): When MCP writes are on, AI clients make many creates, updates and deletes across resources in one transaction, after the person approves the batch.
