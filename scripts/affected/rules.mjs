@@ -42,6 +42,8 @@ export const edges = [
   { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
   // The test that each command exits once done starts the CLI's sources through its own runner, in the ERP.
   { from: ['packages/cli/tests/project/command-exit.integration.test.ts'], starts: ['packages/cli/tests/support/exit-check.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
+  // The test of `protobase run` starts the CLI from source in a project of its own.
+  { from: ['packages/cli/tests/run/run-script.integration.test.ts'], starts: ['packages/cli/bin/protobase-source.mjs'] },
   // The in-memory runner's test runs it in a Bun process of its own.
   { from: ['packages/cli/tests/runner/runner.integration.test.ts'], starts: ['packages/cli/src/runner.ts'] },
   // The JSON Schema of protobase.config.json is made from the types of every package's sources, read by path, and its
@@ -58,6 +60,7 @@ export const edges = [
   // Modules the CLI loads by path (module-file.ts).
   { from: ['packages/cli/src/build/entry-code.ts'], loads: ['packages/cli/src/project/convention.ts'] },
   { from: ['packages/cli/src/build/serve-runtime.ts'], loads: ['packages/cli/src/serve/main.ts'] },
+  { from: ['packages/cli/src/run/run-script.ts'], loads: ['packages/cli/src/run/preload.ts'] },
   { from: ['packages/cli/src/dev/api-child.ts'], starts: ['packages/cli/src/dev/api-process.ts'] },
   { from: ['packages/cli/src/dev/api-process.ts'], loads: ['packages/cli/src/dev/entry.ts', 'packages/cli/src/dev/api-support.ts'] },
   // A deploy bundle copies the @protobase packages.

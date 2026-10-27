@@ -35,7 +35,11 @@ const uiSection = (value: string): UiSection => {
 
 const collectSection = (value: string, previous: UiSection[]) => [...previous, uiSection(value)]
 
-export const program = new Command('protobase').description('Protobase command line').version(protobaseVersion, '-v, --version', 'print the Protobase version')
+export const program = new Command('protobase')
+  .description('Protobase command line')
+  .version(protobaseVersion, '-v, --version', 'print the Protobase version')
+  // A command's options follow it, so `run` passes the ones after its script to the script.
+  .enablePositionalOptions()
 
 // Before any command runs; --help and --version run anywhere.
 program.hook('preAction', () => checkProjectVersion(process.cwd()))
@@ -146,6 +150,18 @@ program
     const { typesFile, writeProjectTypes } = await import('./project/project-types')
     await writeProjectTypes(process.cwd())
     out(`wrote ${typesFile}\n`)
+  })
+
+program
+  .command('run')
+  .description("Run a project script, such as a seed, under Bun; a bundled project's script gets the CLI's @protobase packages")
+  .argument('<file>', 'the script')
+  .argument('[args...]', "the script's own arguments")
+  .passThroughOptions()
+  .allowUnknownOption()
+  .action(async (file: string, args: string[]) => {
+    const { runScript } = await import('./run/run-script')
+    process.exitCode = await runScript(process.cwd(), file, args)
   })
 
 program

@@ -308,6 +308,14 @@ Writes `.protobase/tsconfig.json`, which the project's `tsconfig.json` extends (
 
 `.protobase/` ignores itself in git: the paths are this machine's. Write the file again after installing another CLI; `dev` and `build` do it on every run.
 
+## `run`
+
+```sh
+protobase run <file> [args...]   # e.g. "db:seed": "protobase run seed/cli.ts"
+```
+
+Runs one of the project's scripts, such as a seed or a migration, under Bun in a process of its own, in the current directory, with the arguments after the file, options included, passed to the script and its exit code passed back. In a bundled project the script's imports of the `@protobase` packages and of every package the serve runtime supplies (`kysely`, `pg`, `postgres`, `zod`, ...) get the CLI's own copies, as a bundle gets the runtime's, with nothing installed: a preload registers them as Bun's virtual modules. A locked project's script imports its installed packages. Bun never installs a missing package for it (`--no-install`), so a script that imports a package the project lacks fails as missing. It needs `bun` on `PATH`.
+
 ## `build-plugin`
 
 ```sh

@@ -13,7 +13,8 @@
   "sideEffects": [
     "./dist/dev/entry.js",
     "./dist/dev/api-process.js",
-    "./dist/serve/main.js"
+    "./dist/serve/main.js",
+    "./dist/run/preload.js"
   ],
   "engines": {
     "node": ">=22.12.0"
