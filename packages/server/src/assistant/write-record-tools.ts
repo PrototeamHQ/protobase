@@ -5,11 +5,9 @@
  * with the user's answer. Given `resources`, they change only those, and refuse any other before asking.
  */
 import type { Row } from '../types'
-import { cutRecordNote } from './budgeted-page'
 import { deleteRecordTool } from './delete-record-tool'
 import { approvalTexts, recordBefore } from './record-before'
 import { keyOf, keyParameter, refused, resourceOf } from './record-tool-args'
-import { forcedJson } from './result-budget'
 import { defineTool } from './tools'
 import { echoFieldsOf, fieldsParameter, invalidFields, writeEcho } from './write-echo'
 import { createApproval, updateApproval } from './write-prompts'
@@ -44,7 +42,7 @@ export const createRecordTool = (input: WriteRecordToolsInput = {}) =>
       const { text, described } = await approvalTexts(context, resource)
       const answer = await context.approve(createApproval(text, described, data))
       if (answer !== 'approved') return notApproved(answer)
-      return context.records.create(resource, data).then((written) => forcedJson(writeEcho(described.model, written, data, undefined, fields), cutRecordNote), refused)
+      return context.records.create(resource, data).then((written) => JSON.stringify(writeEcho(described.model, written, data, undefined, fields)), refused)
     },
   })
 
@@ -84,7 +82,7 @@ export const updateRecordTool = (input: WriteRecordToolsInput = {}) =>
       const { text, described } = await approvalTexts(context, resource)
       const answer = await context.approve(updateApproval(text, described, key, before?.record ?? {}, data))
       if (answer !== 'approved') return notApproved(answer)
-      return context.records.update(resource, key, data, { etag }).then((written) => forcedJson(writeEcho(described.model, written, data, before?.record, fields), cutRecordNote), refused)
+      return context.records.update(resource, key, data, { etag }).then((written) => JSON.stringify(writeEcho(described.model, written, data, before?.record, fields)), refused)
     },
   })
 
