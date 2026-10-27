@@ -34,7 +34,7 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       - name: Find whether the push cuts a release
         id: plan
@@ -58,7 +58,7 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       - name: Lint the pushed commits
         env:
@@ -92,7 +92,7 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       # Only checked commits are released: when main moved on, the run of the newer push releases it all.
       - name: Check that main is still the checked commit
@@ -136,12 +136,12 @@ jobs:
           ref: refs/tags/${{ inputs.tag || needs.release.outputs.tag }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 24.22.1
           registry-url: https://registry.npmjs.org
       - run: npm install -g npm@^11.5.1
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       - name: Stamp the tag's version into the packages
         env:
@@ -164,7 +164,7 @@ jobs:
           ref: refs/tags/${{ inputs.tag || needs.release.outputs.tag }}
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       - name: Stamp the tag's version into the packages
         env:

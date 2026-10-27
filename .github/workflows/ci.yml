@@ -55,7 +55,7 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       # A branch's commits land on main as they are, where the release workflow refuses any that commitlint does, so they
       # are linted here first: a pull request's from its base, a task branch's from where it forked from main. A branch
@@ -133,7 +133,7 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       # Before the site's gate, which reads the module graph through Vitest.
       - run: bun install --frozen-lockfile
       - *check-base
@@ -184,7 +184,7 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       - *check-base
       - name: Find whether the changes reach the Postgres suite
         id: postgres
@@ -269,7 +269,7 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       - *check-base
       - name: Find whether the changes reach the snapshot recordings
         id: snapshots
@@ -361,7 +361,7 @@ jobs:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       - *check-base
       - name: Point the test at the service's Postgres

@@ -82,7 +82,7 @@ The rest of this page works in a clone of this repository, on its example apps i
 
 ## Setup
 
-Requires Bun 1.4.2, which installs the repository and runs its scripts and tests, and Node 22.12 or later (`.nvmrc`) for the smoke test on Node.
+Requires Bun 1.4.4, which installs the repository and runs its scripts and tests, and Node 22.12 or later (`.nvmrc`) for the smoke test on Node.
 
 ```sh
 bun install
