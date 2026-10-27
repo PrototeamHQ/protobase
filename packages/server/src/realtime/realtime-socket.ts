@@ -180,7 +180,7 @@ export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub,
     const member: BroadcastMember = { self: broadcast.self === true, private: config.private === true, receive: (event, payload) => hear(topic, channel, event, payload) }
     // Supabase tracks a channel that names no key under a key of its own.
     const key = typeof presence.key === 'string' && presence.key !== '' ? presence.key : randomUUID()
-    const seat = presences.join(topic, { key, get listens() { return listens && gate.hears('presence') }, receive: (diff) => toChannel(topic, channel, 'presence_diff', diff) })
+    const seat = presences.join(topic, { key, private: config.private === true, get listens() { return listens && gate.hears('presence') }, receive: (diff) => toChannel(topic, channel, 'presence_diff', diff) })
     const offBroadcast = broadcasts.join(topic, member)
     const offChanges = parsed.bindings.length > 0 ? hub.add({ caller: () => channel.caller, bindings: parsed.bindings, send: (payload) => toChannel(topic, channel, 'postgres_changes', payload) }) : () => {}
     const channel: Channel = {

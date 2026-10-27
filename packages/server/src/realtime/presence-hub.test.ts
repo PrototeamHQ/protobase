@@ -8,9 +8,10 @@ describe('presenceHub', () => {
     const hub = presenceHub()
     const heard: PresenceDiff[] = []
     const deaf: PresenceDiff[] = []
-    const alice = hub.join('realtime:room', { key: 'alice', listens: true, receive: (diff) => heard.push(plain(diff)) })
-    const bob = hub.join('realtime:room', { key: 'bob', listens: false, receive: (diff) => deaf.push(diff) })
-    hub.join('realtime:other', { key: 'carol', listens: true, receive: () => expect.unreachable() })
+    const alice = hub.join('realtime:room', { key: 'alice', private: false, listens: true, receive: (diff) => heard.push(plain(diff)) })
+    const bob = hub.join('realtime:room', { key: 'bob', private: false, listens: false, receive: (diff) => deaf.push(diff) })
+    hub.join('realtime:other', { key: 'carol', private: false, listens: true, receive: () => expect.unreachable() })
+    hub.join('realtime:room', { key: 'dave', private: true, listens: true, receive: () => expect.unreachable() })
 
     bob.track({ status: 'online' })
     alice.track({ status: 'online' })
@@ -32,7 +33,7 @@ describe('presenceHub', () => {
   })
 
   it('keeps a key such as __proto__ as a key', () => {
-    const seat = presenceHub().join('realtime:room', { key: '__proto__', listens: false, receive: () => {} })
+    const seat = presenceHub().join('realtime:room', { key: '__proto__', private: false, listens: false, receive: () => {} })
     seat.track({ a: 1 })
     expect(JSON.stringify(seat.state())).toBe('{"__proto__":{"metas":[{"a":1,"phx_ref":"1"}]}}')
   })

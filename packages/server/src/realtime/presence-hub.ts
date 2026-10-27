@@ -7,9 +7,10 @@ export type PresenceState = Record<string, { metas: PresenceMeta[] }>
 /** Phoenix Presence's `presence_diff`: the presences that joined and left, by key. */
 export type PresenceDiff = { joins: PresenceState; leaves: PresenceState }
 
-/** A joined channel as presence knows it: the key it tracks under, whether it hears the diffs, and where they go. */
+/** A joined channel as presence knows it: the key it tracks under, whether it joined private, whether it hears the diffs, and where they go. */
 export type PresenceMember = {
   key: string
+  private: boolean
   listens: boolean
   receive: (diff: PresenceDiff) => void
 }
@@ -25,10 +26,11 @@ const stateOf = (tracked: readonly (readonly [string, PresenceMeta])[]): Presenc
  * The presences of a process by topic, in-process like broadcasts: each joined channel tracks at most one, under its
  * key, and channels that listen hear every join and leave on their topic, their own included, as Phoenix Presence
  * sends them. Tracking again replaces the presence: a leave of the old one and a join of the new. Refs count up, unique
- * in the process.
+ * in the process. Private and public channels of a topic do not see each other, as with broadcasts.
  */
 export const presenceHub = () => {
-  const topics = new Map<string, Map<PresenceMember, PresenceMeta | undefined>>()
+  const publicTopics = new Map<string, Map<PresenceMember, PresenceMeta | undefined>>()
+  const privateTopics = new Map<string, Map<PresenceMember, PresenceMeta | undefined>>()
   let lastRef = 0
 
   const tell = (members: Map<PresenceMember, PresenceMeta | undefined>, diff: PresenceDiff) => {
@@ -38,6 +40,7 @@ export const presenceHub = () => {
   return {
     /** Puts the member on the topic, with what it may do there until it leaves. */
     join: (topic: string, member: PresenceMember) => {
+      const topics = member.private ? privateTopics : publicTopics
       const members = topics.get(topic) ?? new Map<PresenceMember, PresenceMeta | undefined>()
       topics.set(topic, members.set(member, undefined))
 

@@ -72,9 +72,9 @@ describe('broadcastApi', () => {
     expect(room.events).toHaveLength(realtimeLimits.topicBroadcastsPerSecond - 1)
   })
 
-  it('sends a private message to the private channels of a topic the caller may send on, and drops the others', async () => {
+  it('sends a private message to the private channels of a topic the caller may send on, a public one to the public channels, and drops the others', async () => {
     const { heard, batch, checked, reported } = setup()
-    const [open, openPrivate, closedPrivate, brokenPrivate] = [heard('open'), heard('open', true), heard('closed', true), heard('broken', true)]
+    const [open, openPrivate, closed, closedPrivate, brokenPrivate] = [heard('open'), heard('open', true), heard('closed'), heard('closed', true), heard('broken', true)]
     const response = await batch([
       { topic: 'open', event: 'a', payload: {}, private: true },
       { topic: 'open', event: 'b', payload: {}, private: true },
@@ -85,7 +85,8 @@ describe('broadcastApi', () => {
     expect(response.status).toBe(202)
     expect(openPrivate.events).toEqual([['a', {}], ['b', {}]])
     expect(open.events).toEqual([])
-    expect(closedPrivate.events).toEqual([['e', {}]])
+    expect(closed.events).toEqual([['e', {}]])
+    expect(closedPrivate.events).toEqual([])
     expect(brokenPrivate.events).toEqual([])
     expect(checked).toEqual(['open', 'closed', 'broken'])
     expect(reported).toEqual([expect.objectContaining({ code: 'P0001' })])

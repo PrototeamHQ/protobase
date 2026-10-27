@@ -52,7 +52,18 @@ describe('broadcastHub', () => {
     expect(carol.heard).toEqual([['next', {}]])
   })
 
-  it('publishes broadcasts without a sender to every member, and a private one to the private members only', () => {
+  it('keeps a topic\'s private members apart from its public ones', () => {
+    const hub = broadcastHub()
+    const [open, closed, closedToo] = [member(false), member(false, true), member(false, true)]
+    hub.join('realtime:room', open.listener)
+    hub.join('realtime:room', closed.listener)
+    hub.join('realtime:room', closedToo.listener)
+    hub.send('realtime:room', open.listener, 'public', {})
+    hub.send('realtime:room', closed.listener, 'private', {})
+    expect([open.heard, closed.heard, closedToo.heard]).toEqual([[], [], [['private', {}]]])
+  })
+
+  it('publishes broadcasts without a sender to the public members of the topic, or the private ones', () => {
     const hub = broadcastHub()
     const [open, closed, elsewhere] = [member(false), member(false, true), member(false)]
     hub.join('realtime:room', open.listener)
@@ -63,7 +74,7 @@ describe('broadcastHub', () => {
       { topic: 'realtime:room', event: 'private', payload: { n: 2 }, private: true },
     ])).toBe(true)
     expect(open.heard).toEqual([['public', { n: 1 }]])
-    expect(closed.heard).toEqual([['public', { n: 1 }], ['private', { n: 2 }]])
+    expect(closed.heard).toEqual([['private', { n: 2 }]])
     expect(elsewhere.heard).toEqual([])
   })
 

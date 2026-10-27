@@ -129,4 +129,22 @@ describe('realtimeSocket on private channels', () => {
       ['phx_reply', { status: 'error', response: { reason: 'unmatched topic' } }],
     ])
   })
+
+  it('keeps the public channels of a topic apart from its private ones, so neither hears the other\'s broadcasts or presence', async () => {
+    const access = policyAccess({ alice: ['read broadcast room', 'read presence room', 'write broadcast room', 'write presence room'] })
+    const broadcasts = broadcastHub()
+    const presences = presenceHub()
+    const alice = open(access, broadcasts, presences)
+    const anon = open(access, broadcasts, presences)
+    await alice.send(['1', '1', 'realtime:room', 'phx_join', join('alice')])
+    await anon.send(['1', '1', 'realtime:room', 'phx_join', { config: { broadcast: { self: false }, presence: { key: 'anon', enabled: true } } }])
+    await anon.send(['1', '2', 'realtime:room', 'presence', { type: 'presence', event: 'track', payload: {} }])
+    await anon.send(['1', '3', 'realtime:room', 'broadcast', { type: 'broadcast', event: 'spoof', payload: {} }])
+    await alice.send(['1', '2', 'realtime:room', 'presence', { type: 'presence', event: 'track', payload: {} }])
+    await alice.send(['1', '3', 'realtime:room', 'broadcast', { type: 'broadcast', event: 'hi', payload: {} }])
+
+    expect(payloads(alice.frames).map(([event]) => event)).toEqual(['phx_reply', 'presence_state', 'presence_diff', 'phx_reply', 'phx_reply'])
+    expect(payloads(alice.frames)[1]).toEqual(['presence_state', {}])
+    expect(payloads(anon.frames).map(([event]) => event)).toEqual(['phx_reply', 'presence_state', 'presence_diff', 'phx_reply'])
+  })
 })
