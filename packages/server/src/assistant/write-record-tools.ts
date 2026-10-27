@@ -18,7 +18,7 @@ import { forbiddenText, notApproved, onlyNote, outside, resourceParameterFor, ty
 export type { WriteRecordToolsInput }
 
 const writes = { readOnlyHint: false, destructiveHint: false, openWorldHint: false }
-const dataParameter = { type: 'object', description: 'Field names to values, as list_resources gives the fields.' }
+const dataParameter = { type: 'object', description: 'Field names to values, as describe_resource gives the fields.' }
 
 const dataOf = (value: unknown) => (typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Row) : undefined)
 
@@ -58,7 +58,7 @@ export const updateRecordTool = (input: WriteRecordToolsInput = {}) =>
       properties: {
         resource: resourceParameterFor(input),
         key: keyParameter,
-        data: { ...dataParameter, description: 'The fields to change, names to new values, as list_resources gives the fields.' },
+        data: { ...dataParameter, description: 'The fields to change, names to new values, as describe_resource gives the fields.' },
         etag: { type: 'string', description: 'The etag get_record gave, to fail when the record changed since.' },
         fields: fieldsParameter,
       },

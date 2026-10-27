@@ -61,7 +61,7 @@ const served = async (admin: AdminOptions) => {
   return { app, mcp: tokens.access_token, rest }
 }
 
-const records = ['list_resources', 'list_records', 'count_records', 'get_record']
+const records = ['list_resources', 'describe_resource', 'list_records', 'count_records', 'get_record']
 const writes = ['create_record', 'update_record', 'delete_record', 'batch_write']
 
 describe('record comments over MCP', () => {

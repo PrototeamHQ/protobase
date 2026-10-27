@@ -9,7 +9,7 @@ Fields and actions filled by a model, the assistant beside the admin, and MCP.
 - [Assistant](../reference/assistant.md): A chat beside the admin that answers questions about the app, reads its data and proposes changes for approval.
 - [Choice of model](../reference/assistant.md#which-backend): The assistant runs on OpenRouter or any OpenAI-compatible endpoint, also a local one.
 - [Assistant tools](../reference/assistant.md#the-apps-own-tools): Your own tools for the assistant, acting on records as the user.
-- [MCP server](../reference/mcp.md#the-tools): AI clients connect to the app over MCP as the signed-in person, and list, find and read records within that person's access, soft-deleted ones too when asked.
+- [MCP server](../reference/mcp.md#the-tools): AI clients connect to the app over MCP as the signed-in person: they list the resources in a small first call, describe one resource's fields when they need them, and find and read records within that person's access, soft-deleted ones too when asked.
 - [MCP counts](../reference/mcp.md#the-tools): AI clients count the records a filter finds, in all or per value of a field such as a status, without reading the records.
 - [MCP result size](../reference/mcp.md#result-size): Every tool result fits what AI clients take, as valid JSON: long values are cut and named, a page holds fewer records, and the client reads the rest in pieces.
 - [MCP app icon](../reference/mcp.md#the-apps-icon): AI clients show the app's own icon beside its name when someone adds its MCP endpoint.

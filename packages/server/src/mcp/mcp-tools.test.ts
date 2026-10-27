@@ -5,7 +5,7 @@ import type { McpWrites } from './mcp-writes'
 
 const db = {} as Db
 const names = (sql: boolean, roles: string[], writes: McpWrites = false) => mcpTools({ db, sql, writes })({ user: { id: 1, roles } }).map((tool) => tool.name)
-const records = ['list_resources', 'list_records', 'count_records', 'get_record']
+const records = ['list_resources', 'describe_resource', 'list_records', 'count_records', 'get_record']
 
 describe('mcpTools', () => {
   it('offers read-only SQL only with sql on, to a caller who sees the assistant', () => {
