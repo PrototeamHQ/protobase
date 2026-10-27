@@ -17,12 +17,13 @@ type Decide = (...args: never[]) => Promise<unknown>
  * from the project it writes; it is no dependency of this package, so its shape is written out here.
  */
 export type ScaffoldModule = {
-  listTables(url: string): Promise<{ tables: DatabaseTable[]; skipped: string[] }>
+  listTables(url: string): Promise<{ tables: DatabaseTable[]; skipped: string[]; supabaseSchemas: string[] }>
   runScaffold(
     options: { url: string; configDir: string; yes: boolean; dryRun: boolean; ui: ('names' | 'list')[]; excludes: string[]; decide?: Decide },
     out: (text: string) => void,
   ): Promise<unknown>
   asking(ask: (text: string) => Promise<string>, write: (text: string) => void): Decide
+  useSupabaseUsers(projectDir: string, out: (text: string) => void): Promise<void>
 }
 
 // The `@protobase/cli/scaffold` the project in `dir` installed, so its tables are imported by the CLI that runs it.
@@ -71,6 +72,7 @@ export const databaseSteps = ({ templateDir, secret, tools, terminal, loadScaffo
     await install(dir, manager)
   },
   listTables: async (dir, url) => (await loadScaffold(dir)).listTables(url),
+  useSupabaseUsers: async (dir) => (await loadScaffold(dir)).useSupabaseUsers(path.resolve(dir), terminal.print),
   importTables: async (dir, url, { excluded, ui, review }) => {
     if (review && !terminal.ask) throw new Error('reviewing each column needs a terminal')
     const scaffold = await loadScaffold(dir)

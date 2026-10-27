@@ -60,6 +60,8 @@ Then it runs that `scaffold` in the project and prints the next steps. Without a
 
 It never writes to the database. The first of the next steps does: `bun run db:migrate` adds the `auth` schema that sign-in keeps its users in, and the `migrations` schema, where the script records the migrations it applied in `migrations.applied`. A `public.schema_migrations` another migration tool keeps is left as it is.
 
+On a Supabase database, which it knows by its `auth` and `storage` schemas and its `supabase_admin` role, as [`import supabase`](/reference/cli/#import-supabase) does, the `auth` schema is Supabase Auth's, not Protobase's. It leaves out `auth`, `storage` and the platform's other schemas, such as `realtime` and `supabase_migrations`, as Supabase's own tables, and signs the project in on Supabase's `auth.users`, as the import does: it points `protobase.config.ts` at `auth.users` and writes migrations in place of those of Protobase's own user table, the columns Better Auth needs on `auth.users`, Better Auth's tables next to it, and each user's account with their Supabase password and social providers. `bun run db:migrate` then applies them, and Supabase's users sign in with their own passwords. <gap>A user who signs up through Supabase Auth after that cannot sign in to the app with their password because carrying later sign-ups over is not implemented.</gap>
+
 ```sh
 cd shop
 bun run db:migrate                  # the first write to the database

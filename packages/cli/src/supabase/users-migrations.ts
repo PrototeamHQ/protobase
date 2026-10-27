@@ -1,11 +1,11 @@
 import { accountIdSql, accountProviderSql, carriesAccountSql, confirmedOwnerSql } from './identity-providers'
 
 // Better Auth signs in on Supabase's own auth.users, so every foreign key, trigger and policy naming it keeps working.
-// Its planner cannot add a required column to a table with rows, so the import writes two migrations of its own around
-// the one `protobase auth migration` writes: the columns first, nullable, before the data is loaded, and once it is,
-// what fills them and makes each user's accounts.
+// Its planner cannot add a required column to a table with rows, so `protobase import supabase` and `npm create
+// protobase` on a Supabase database write two migrations of their own around the one `protobase auth migration` writes:
+// the columns first, nullable, and after it what fills them and makes each user's accounts.
 
-/** The import's first run: the user columns Better Auth needs that GoTrue's auth.users lacks, empty for now. */
+/** The user columns Better Auth needs that GoTrue's auth.users lacks, empty for now. */
 export const usersColumnsMigration = () => `-- The columns Better Auth needs on Supabase's auth.users, written by \`protobase import supabase\`.
 -- Empty until the import's accounts migration fills them from what Supabase recorded; NULL where it recorded nothing.
 alter table auth.users
@@ -21,7 +21,7 @@ alter table auth.users
 alter table auth.users alter column role set default 'authenticated', alter column aud set default 'authenticated';
 `
 
-/** The import's second run, once the data is loaded and Better Auth's tables are planned: the users' columns and accounts. */
+/** Once auth.users has its rows and Better Auth's tables are planned: the users' columns and accounts. */
 export const accountsMigration = () => `-- Supabase's users signing in with Better Auth, written by \`protobase import supabase\` once their rows were loaded.
 
 -- The user columns, from what Supabase Auth recorded. A ban lasts until banned_until, as on Supabase: Better Auth lifts

@@ -9,7 +9,7 @@ import { databaseNextSteps, type Tools } from './next-steps'
 /** A terminal: `ask` asks a question and resolves to the answer, and is missing without one. */
 export type Terminal = { ask?: (text: string) => Promise<string>; print: (text: string) => void }
 
-/** What becomes of the tables: `tables` become resources, the `excluded` do not, each written as schema.table. */
+/** What becomes of the tables: `tables` become resources, the `excluded` do not, each written as schema.table or schema. */
 export type ImportChoices = {
   tables: string[]
   excluded: string[]
@@ -30,8 +30,10 @@ export type DatabaseSteps = {
   writeProject: (dir: string, url: string) => Promise<void>
   install: (dir: string, manager: PackageManager) => Promise<void>
   // The tables of the database the project's `protobase scaffold` writes resources over, and those it leaves out, each
-  // with why.
-  listTables: (dir: string, url: string) => Promise<{ tables: DatabaseTable[]; skipped: string[] }>
+  // with why; on a Supabase database, the platform's schemas it has, auth among them, which are Supabase's.
+  listTables: (dir: string, url: string) => Promise<{ tables: DatabaseTable[]; skipped: string[]; supabaseSchemas: string[] }>
+  // Signs the project in on Supabase's auth.users, as `protobase import supabase` does, which prints the files it writes.
+  useSupabaseUsers: (dir: string) => Promise<void>
   // Runs the project's `protobase scaffold` on the choices, which prints the files it writes.
   importTables: (dir: string, url: string, choices: ImportChoices) => Promise<void>
   tools: Tools
@@ -73,12 +75,19 @@ export const createFromDatabase = async (url: string, dir: string | undefined, t
   print(`\nWrote the project to ${folder}. Installing its packages with ${manager}...\n`)
   await steps.install(folder, manager)
 
-  const { tables, skipped } = await steps.listTables(folder, url)
+  const { tables, skipped, supabaseSchemas } = await steps.listTables(folder, url)
+  const supabase = supabaseSchemas.length > 0
+  if (supabase) {
+    print(`\n${database} is a Supabase database: the project signs in on Supabase's own auth.users.\n`)
+    await steps.useSupabaseUsers(folder)
+  }
   if (tables.length === 0) {
     print(`\n${database} has no tables to import${skipped.length > 0 ? `: it leaves out ${skipped.join(', ')}` : ''}. The project starts without resources.\n`)
   } else {
     print(tableMenu(database, tables, skipped))
-    await steps.importTables(folder, url, await askChoices(tables, terminal))
+    const choices = await askChoices(tables, terminal)
+    // Supabase's schemas are excluded by name, since scaffold would otherwise take auth for Protobase's auth store.
+    await steps.importTables(folder, url, { ...choices, excluded: [...choices.excluded, ...supabaseSchemas] })
   }
-  print(`\nCreated a Protobase project in ${folder} on the database ${database}, which it has only read. Next:\n\n${databaseNextSteps(folder, steps.tools)}`)
+  print(`\nCreated a Protobase project in ${folder} on the database ${database}, which it has only read. Next:\n\n${databaseNextSteps(folder, steps.tools, supabase)}`)
 }

@@ -10,7 +10,7 @@ const tables: DatabaseTable[] = [
 ]
 
 // The steps as fakes that record what the wizard did, in order, and a terminal that answers in turn.
-const run = async (answers: string[] | undefined, options: { dir?: string; tables?: DatabaseTable[]; bun?: boolean } = {}) => {
+const run = async (answers: string[] | undefined, options: { dir?: string; tables?: DatabaseTable[]; bun?: boolean; supabaseSchemas?: string[] } = {}) => {
   const done: string[] = []
   const imports: ImportChoices[] = []
   const asked: string[] = []
@@ -19,7 +19,8 @@ const run = async (answers: string[] | undefined, options: { dir?: string; table
     checkConnection: async (to) => (done.push(`check ${to}`), { database: 'shop', version: '18.1' }),
     writeProject: async (dir, to) => void done.push(`write ${dir} on ${to}`),
     install: async (dir, manager) => void done.push(`install ${dir} with ${manager}`),
-    listTables: async (dir) => (done.push(`list from ${dir}`), { tables: options.tables ?? tables, skipped: ['public.order_totals: a view'] }),
+    listTables: async (dir) => (done.push(`list from ${dir}`), { tables: options.tables ?? tables, skipped: ['public.order_totals: a view'], supabaseSchemas: options.supabaseSchemas ?? [] }),
+    useSupabaseUsers: async (dir) => void done.push(`sign in on auth.users in ${dir}`),
     importTables: async (dir, _, choices) => void (done.push(`import into ${dir}`), imports.push(choices)),
     tools: { bun: options.bun ?? true, docker: false },
   }
@@ -81,5 +82,24 @@ describe('createFromDatabase', () => {
     const { done, printed } = await run(['', ''], { tables: [] })
     expect(done.some((step) => step.startsWith('import'))).toBe(false)
     expect(printed).toContain('shop has no tables to import: it leaves out public.order_totals: a view. The project starts without resources.\n')
+  })
+
+  it("on a Supabase database, signs the project in on Supabase's auth.users and keeps scaffold off its schemas", async () => {
+    const { done, imports, printed } = await run(['', '1', '', ''], { supabaseSchemas: ['auth', 'realtime', 'storage'] })
+    expect(done).toEqual([`check ${url}`, `write shop on ${url}`, 'install shop with bun', 'list from shop', 'sign in on auth.users in shop', 'import into shop'])
+    expect(imports[0]!.excluded).toEqual(['public.orders', 'public.order_lines', 'auth', 'realtime', 'storage'])
+    expect(printed).toContain("shop is a Supabase database: the project signs in on Supabase's own auth.users.\n")
+    expect(printed).toContain("bun run db:migrate     # the first write to the database: Better Auth's tables next to auth.users")
+  })
+
+  it("signs the project in on Supabase's auth.users even when it has no tables to import", async () => {
+    const { done } = await run(['', ''], { tables: [], supabaseSchemas: ['auth', 'storage'] })
+    expect(done).toContain('sign in on auth.users in shop')
+  })
+
+  it('leaves auth to the project on any other database', async () => {
+    const { done, printed } = await run(['', '', '', ''])
+    expect(done.some((step) => step.startsWith('sign in'))).toBe(false)
+    expect(printed).toContain('bun run db:migrate     # the first write to the database: the auth schema')
   })
 })

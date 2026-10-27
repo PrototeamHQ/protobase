@@ -56,6 +56,11 @@ describe('scaffold of a database with Protobase in it', () => {
     expect(await scaffolded([table('public', 'schema_migrations', ['id', 'version']), table('migrations', 'steps')])).toEqual(['/config/steps/data.ts', '/config/schema_migrations/data.ts'])
   })
 
+  it('says nothing of a schema it was told to leave out, such as Supabase Auth\'s auth', async () => {
+    const result = await planScaffold({ tables: [...store('auth'), table('public', 'orders')], existing: [], configDir: '/config', target: {}, excludes: ['auth'], decide: async (proposal) => proposal, ui: [], readText: async () => undefined })
+    expect(result.skipped).toEqual([])
+  })
+
   it('never scaffolds the auth store, even when the target names its schema or one of its tables', async () => {
     expect(await scaffolded(store('auth'), { schema: 'auth' })).toEqual([])
     expect(await scaffolded([...store('public'), table('public', 'orders')], { schema: 'public' })).toEqual(['/config/orders/data.ts'])
