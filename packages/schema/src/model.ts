@@ -322,6 +322,8 @@ export type FieldViewModel = {
   helpWhen?: HelpWhen
   /** When the field shows on the record page: always, the default, only on its form or only on its read view. */
   when?: ShowWhen
+  /** The question a form or a list cell asks before the field's value first changes; cancelling keeps the value. */
+  confirm?: string
   /** How the value is shown. */
   format?: FieldFormat
   /** A text that runs over several lines: forms edit it in a box that grows with it, and its line breaks show. */

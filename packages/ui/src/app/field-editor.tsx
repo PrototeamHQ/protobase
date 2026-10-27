@@ -22,6 +22,7 @@ import { numeric, numericInputProps } from './numeric-input'
 import { ContactLink } from '../live/contact-link'
 import { contactFormat, contactInputProps } from '../live/contact-links'
 import { text as appText } from './messages'
+import { useChangeConfirm } from './change-confirm/use-change-confirm'
 
 export type FieldEditorProps = {
   field: FieldModel
@@ -112,11 +113,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
   )
 }
 
-/**
- * A field on a form: its field type's editor when the view chooses one that has an editor and the field may change,
- * its display when it may not, and the built-in input or value otherwise, and when the field type throws.
- */
-export const FieldEditor = (props: FieldEditorProps) => {
+const ChosenEditor = (props: FieldEditorProps) => {
   const { field, hints, value, stored, invalid, locked, onChange } = props
   const shown = useShownWidget(field, hints)
   const builtIn = <BuiltInEditor {...props} />
@@ -125,4 +122,19 @@ export const FieldEditor = (props: FieldEditorProps) => {
   // A file is uploaded and a relation chosen as the app does it; their field types only show them.
   if (field.type === 'file' || field.type === 'relation') return builtIn
   return <WidgetPart shown={shown} part="editor" field={field} value={fromDraft(field, value)} invalid={Boolean(invalid)} onChange={(next) => onChange(toFieldDraft(field, next))} fallback={builtIn} />
+}
+
+/**
+ * A field on a form: its field type's editor when the view chooses one that has an editor and the field may change,
+ * its display when it may not, and the built-in input or value otherwise, and when the field type throws. A field with
+ * `.confirm()` asks its question before its value first changes.
+ */
+export const FieldEditor = (props: FieldEditorProps) => {
+  const confirm = useChangeConfirm(props)
+  return (
+    <>
+      <ChosenEditor {...props} onChange={confirm.onChange} />
+      {confirm.dialog}
+    </>
+  )
 }
