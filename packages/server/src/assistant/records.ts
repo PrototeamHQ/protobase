@@ -65,17 +65,23 @@ export type ToolRecords = {
 // Filters passed as values are not limited by a URL's length, as in `:search`.
 const filterLength = 200_000
 
+/** The admin's resource named `resource`; a 404 when there is none. */
+export const toolEntry = (deps: Deps, resource: string) => {
+  const entry = deps.registry.find(resource)
+  if (!entry) throw notFound(`There is no resource "${resource}"`)
+  return entry
+}
+
+/** The resource named `resource` and a record's key in it, as a tool passes them. */
+export const toolKey = (deps: Deps, resource: string, key: RecordKeyInput) => {
+  const entry = toolEntry(deps, resource)
+  return { entry, key: decodeKeyText(entry, Array.isArray(key) ? encodeKey(key) : String(key)) }
+}
+
 /** `ToolRecords` over the admin's resources for `session`. */
 export const assistantRecords = (deps: Deps, session: Session): ToolRecords => {
-  const entryOf = (resource: string) => {
-    const entry = deps.registry.find(resource)
-    if (!entry) throw notFound(`There is no resource "${resource}"`)
-    return entry
-  }
-  const keyOf = (resource: string, key: RecordKeyInput) => {
-    const entry = entryOf(resource)
-    return { entry, key: decodeKeyText(entry, Array.isArray(key) ? encodeKey(key) : String(key)) }
-  }
+  const entryOf = (resource: string) => toolEntry(deps, resource)
+  const keyOf = (resource: string, key: RecordKeyInput) => toolKey(deps, resource, key)
 
   return {
     list: async (resource, params = {}) => (await listRecords(deps, entryOf(resource), session, params, filterLength)).body,

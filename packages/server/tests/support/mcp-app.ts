@@ -4,7 +4,7 @@ import type { AdminOptions } from '../../src/admin-options'
 import { betterAuthAuthenticator, type BetterAuthAuthenticator } from '../../src/better-auth/authenticator'
 import { buildAuth, type CreateAuthOptions } from '../../src/better-auth/create-auth'
 import { createUser, setUserRole } from '../../src/better-auth/users'
-import { createAdmin } from '../../src/create-admin'
+import { createAdmin, type CreateAdminInput } from '../../src/create-admin'
 import type { Authenticator } from '../../src/types'
 import { allResources, createFixtureDb } from '../../../../test-support/server'
 import { openSnapshotDb, settled, type SnapshotDb } from '../../../../test-support/sql-snapshot'
@@ -69,6 +69,8 @@ export type ServeMcpOptions = {
   existing?: SnapshotDb
   /** `createAdmin`'s options. */
   admin?: AdminOptions
+  /** The resources the app serves, the fixture's by default. */
+  resources?: CreateAdminInput['resources']
   /** Wraps the app's `betterAuthAuthenticator` before `createAdmin`, as a host with its own role mapping does. */
   authenticate?: (own: BetterAuthAuthenticator) => Authenticator
 }
@@ -77,7 +79,7 @@ export type ServeMcpOptions = {
  * An app with MCP on, on a copy of the migrated store, with Ana (sales and accountant) and Root (admin); on `existing`,
  * a store served before, with its users as they are.
  */
-export const serveMcp = async ({ fixture, migrated }: McpStores, { auth: options = {}, existing, admin, authenticate: wrap = (own) => own }: ServeMcpOptions = {}) => {
+export const serveMcp = async ({ fixture, migrated }: McpStores, { auth: options = {}, existing, admin, resources = allResources, authenticate: wrap = (own) => own }: ServeMcpOptions = {}) => {
   const store = existing ?? (await migrated.clone())
   const auth = await authOn(store, options)
   if (!existing) {
@@ -87,7 +89,7 @@ export const serveMcp = async ({ fixture, migrated }: McpStores, { auth: options
     await createUser(auth, { email: 'bo@example.com', password, role: 'sales' })
   }
   const authenticate = betterAuthAuthenticator({ auth })
-  const app = createAdmin({ resources: allResources, db: fixture.db, authenticate: wrap(authenticate), auth, ...(admin && { options: admin }) })
+  const app = createAdmin({ resources, db: fixture.db, authenticate: wrap(authenticate), auth, ...(admin && { options: admin }) })
   const address = `198.51.100.${++client}`
 
   type Init = { body?: unknown; form?: Record<string, string>; cookie?: string; headers?: Record<string, string>; method?: string; from?: string | null }
