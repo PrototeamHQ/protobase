@@ -55,11 +55,13 @@ Running the workflow by hand with a tag (`gh workflow run release.yml -f tag=v0.
 
 ## Bundles and runtimes
 
-The CLI makes one version check, when it starts: its own version must be in the caret range of the project's, the version of the `@protobase` packages installed in the current directory, which semver calls compatible with it. From 1.0 on that is the same major, and below 1.0, where a minor may break, the same minor, never older than the project's. A 0.14.2 CLI runs a 0.14.0 project and refuses a 0.15.0 or a 1.2.0 one before any command runs:
+The CLI makes one version check, when it starts. The project's `package.json` lists its `@protobase` packages at one version specifier, the same for every one of them, and semver must say the CLI's version satisfies it. A `^0.14.0` project runs on a 0.14.2 CLI and is refused by a 0.15.0 or a 1.2.0 one before any command runs:
 
 ```
-error: This project is on Protobase 1.2.0, and this CLI is Protobase 0.14.2: run it with a Protobase ^1.2.0 CLI
+error: This project asks for Protobase ^0.14.0, and this CLI is Protobase 0.15.0: run it with a CLI whose version ^0.14.0 holds
 ```
+
+The copies installed for the project must also be ones the CLI runs: its version in their caret range, which from 1.0 on is the same major and below 1.0, where a minor may break, the same minor, never older. A specifier that is no range, such as `workspace:*`, says no version, so only the installed copies are checked. A project that lists no `@protobase` package, or has no `package.json`, has nothing to check.
 
 Within its caret range the CLI stays backwards compatible, so a platform builds every app with the newest CLI in the caret range of the app's version. Nothing else compares versions: not the build, not the serve runtime. `protobase build` writes the version the project is pinned to, the `@protobase/cli` its lockfile installed, into [the manifest](/reference/cli/#the-manifest) as `protobase`, whichever CLI built the bundle, and a host serves the bundle on the runtime of that version. The check is `checkProjectVersion` in `packages/cli/src/version/project-version.ts`.
 
