@@ -4,6 +4,7 @@ import type { Deps } from '../deps'
 import type { NoticeFeed } from '../live/notice-feed'
 import { changeChecker } from './change-checker'
 import { changeHub } from './change-hub'
+import { channelAccess } from './channel-access'
 import { realtimeRoutes } from './realtime-routes'
 
 export type RealtimeAppOptions = {
@@ -17,11 +18,13 @@ export type RealtimeAppOptions = {
 
 /**
  * `/api/sb/realtime/v1`: the `postgres_changes` of the live resources, each checked under the subscriber's role, claims and
- * the tables' RLS policies before it is sent, and broadcasts and presence between the channels of the process.
+ * the tables' RLS policies before it is sent, and broadcasts and presence between the channels of the process, on a
+ * private channel as the policies on `realtime.messages` allow.
  */
 export const realtimeApp = ({ deps, feed, upgradeWebSocket, caller, report }: RealtimeAppOptions) => {
   const live = deps.registry.entries.filter((entry) => entry.model.live)
   const check = changeChecker({ db: deps.db, statementTimeoutMs: deps.statementTimeoutMs, report })
   const hub = changeHub({ feed, check, entry: (resource) => live.find((entry) => entry.name === resource), report })
-  return realtimeRoutes({ upgradeWebSocket, caller, live, hub, report })
+  const access = channelAccess({ db: deps.db, statementTimeoutMs: deps.statementTimeoutMs })
+  return realtimeRoutes({ upgradeWebSocket, caller, live, hub, access, report })
 }

@@ -6,12 +6,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { npmWs as ws } from '../../tests/support/npm-ws'
 import type { Caller } from '../api-keys/resolve-caller'
 import type { ChangeHub } from './change-hub'
+import type { ChannelAccess } from './channel-access'
 import { realtimeLimits } from './realtime-limits'
 import { realtimeRoutes } from './realtime-routes'
 
 
 const anon: Caller = { role: 'anon', claims: { role: 'anon' } }
 const hub: ChangeHub = { add: () => () => {} }
+const access: ChannelAccess = { read: async () => new Map(), write: async () => false }
 const url = '/websocket?apikey=sb_publishable_x&vsn=2.0.0'
 const joinWithPresence = (key: string) => JSON.stringify(['1', '1', 'realtime:room', 'phx_join', { config: { presence: { key, enabled: true } } }])
 
@@ -26,7 +28,7 @@ describe('realtimeRoutes', () => {
       return new Response()
     })
     const report = vi.fn()
-    const app = realtimeRoutes({ upgradeWebSocket: fake, caller: async () => anon, live: [], hub, report })
+    const app = realtimeRoutes({ upgradeWebSocket: fake, caller: async () => anon, live: [], hub, access, report })
     const socket = (raw: unknown) => {
       const sent: unknown[] = []
       const close = vi.fn()
@@ -57,7 +59,7 @@ describe('realtimeRoutes', () => {
   })
 
   it('leaves the channels of a socket that ws closed for a frame over the cap, without waiting for its close', async () => {
-    const app = new Hono().route('/', realtimeRoutes({ upgradeWebSocket, caller: async () => anon, live: [], hub, report: (error) => { throw error } }))
+    const app = new Hono().route('/', realtimeRoutes({ upgradeWebSocket, caller: async () => anon, live: [], hub, access, report: (error) => { throw error } }))
     const server = createAdaptorServer({ fetch: app.fetch, websocket: { server: new ws.WebSocketServer({ noServer: true, maxPayload: realtimeLimits.maxFrameBytes }) } })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     cleanups.push(() => server.close())

@@ -28,7 +28,7 @@ const open = ({ broadcasts = broadcastHub(), presences = presenceHub(), buffered
   const frames: unknown[][] = []
   // How many frames the socket had sent when it was closed, with the code.
   const closes: [code: number | undefined, sent: number][] = []
-  const socket = realtimeSocket({ vsn: '2.0.0', send: (frame) => frames.push(read(frame)), buffered, close: (code) => closes.push([code, frames.length]), resolve, live: [], hub: { add: () => () => {} }, broadcasts, presences, nextId: () => 1, report })
+  const socket = realtimeSocket({ vsn: '2.0.0', send: (frame) => frames.push(read(frame)), buffered, close: (code) => closes.push([code, frames.length]), resolve, live: [], hub: { add: () => () => {} }, broadcasts, presences, access: { read: async () => new Map(), write: async () => false }, nextId: () => 1, report })
   const send = async (message: unknown[] | string | ArrayBuffer | object) => {
     socket.message(Array.isArray(message) ? JSON.stringify(message) : message)
     await vi.advanceTimersByTimeAsync(0)

@@ -6,6 +6,8 @@ import type { Entry } from '../registry'
 import { decodeBroadcastPush, encodeBroadcast, fitsFrame } from './broadcast-frame'
 import type { BroadcastHub, BroadcastMember } from './broadcast-hub'
 import type { ChangeHub } from './change-hub'
+import type { ChannelAccess } from './channel-access'
+import { privateGate, publicGate, readRefusalText, type ChannelGate } from './channel-gate'
 import { fixedWindow, fixedWindows } from './fixed-window'
 import { decodeMessage, encodeMessage, reply, type PhoenixMessage, type Vsn } from './phoenix-message'
 import { parseBindings } from './postgres-changes'
@@ -25,6 +27,8 @@ export type RealtimeSocketOptions = {
   hub: ChangeHub
   broadcasts: BroadcastHub
   presences: PresenceHub
+  /** What private channels may do, by the policies on `realtime.messages`. */
+  access: ChannelAccess
   /** The next binding id, unique in the process. */
   nextId: () => number
   report: (error: unknown) => void
@@ -36,6 +40,7 @@ export type RealtimeSocketOptions = {
 type Channel = {
   joinRef: string | null
   caller: Caller
+  gate: ChannelGate
   /** Whether each broadcast it sends gets a reply. */
   ack: boolean
   member: BroadcastMember
@@ -72,7 +77,8 @@ const refusal = (error: unknown) => {
  * One WebSocket of `/api/sb/realtime/v1`, speaking Phoenix channels as realtime-js expects: heartbeats, channel joins with
  * `postgres_changes` bindings and an access token, token refreshes on an open channel, broadcasts with their `self`
  * and `ack` options, presence tracking, and leaves. A channel's token ends it when it expires, unless a newer one came
- * first. Messages are handled one at a time, in order. Private channels are refused for now.
+ * first. Messages are handled one at a time, in order. A private channel joins, hears, broadcasts and tracks presence
+ * only as the policies on `realtime.messages` allow (see `privateGate`), checked again at each new token.
  *
  * It holds a client to `realtimeLimits`: a push over a rate, a channel over the cap or a presence meta too big gets an
  * error reply where Supabase would close the channel, and is not relayed. Rates count per socket, presence per socket
@@ -81,7 +87,7 @@ const refusal = (error: unknown) => {
  * earlier messages wait. A close, the client's or the server's, leaves every channel, a join still checking its token
  * included, and drops whatever is still queued.
  */
-export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub, broadcasts, presences, nextId, report, idleMs = 60_000, now = Date.now }: RealtimeSocketOptions) => {
+export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub, broadcasts, presences, access, nextId, report, idleMs = 60_000, now = Date.now }: RealtimeSocketOptions) => {
   const channels = new Map<string, Channel>()
   let queue = Promise.resolve()
   let queuedMessages = 0
@@ -121,6 +127,7 @@ export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub,
   // A vsn 2.0.0 client reads broadcasts as binary frames; a vsn 1.0.0 one reads text only, which cannot carry the bytes
   // of a binary broadcast, so it does not hear those.
   const hear = (topic: string, channel: Channel, event: string, payload: unknown) => {
+    if (!channel.gate.hears('broadcast')) return
     if (vsn === '2.0.0') return deliver(encodeBroadcast(topic, event, payload))
     if (payload instanceof ArrayBuffer) return
     toChannel(topic, channel, 'broadcast', { type: 'broadcast', event, payload })
@@ -157,25 +164,29 @@ export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub,
     if (!channels.has(message.topic) && channels.size >= realtimeLimits.channelsPerSocket) return push(reply(message, 'error', { reason: 'ChannelRateLimitReached: Too many channels' }))
     leave(message.topic)
     const config = isRecord(message.payload.config) ? message.payload.config : {}
-    if (config.private === true) return push(reply(message, 'error', { reason: 'Not implemented: private channels' }))
     const broadcast = isRecord(config.broadcast) ? config.broadcast : {}
     const presence = isRecord(config.presence) ? config.presence : {}
+    const listens = presence.enabled === true
+    const gate = config.private === true ? privateGate(access, message.topic, listens, report) : publicGate
     const caller = await resolve(tokenOf(message.payload)).catch(refusal)
     if (!open) return
     if (typeof caller === 'string') return push(reply(message, 'error', { reason: caller }))
+    const refused = await gate.authorize(caller)
+    if (!open) return
+    if (refused) return push(reply(message, 'error', { reason: `Unauthorized: ${readRefusalText(message.topic, refused)}` }))
     const parsed = parseBindings(config.postgres_changes, live, nextId)
     if (typeof parsed === 'string') return push(reply(message, 'error', { reason: parsed }))
     const { topic } = message
     const member: BroadcastMember = { self: broadcast.self === true, receive: (event, payload) => hear(topic, channel, event, payload) }
     // Supabase tracks a channel that names no key under a key of its own.
     const key = typeof presence.key === 'string' && presence.key !== '' ? presence.key : randomUUID()
-    const listens = presence.enabled === true
-    const seat = presences.join(topic, { key, listens, receive: (diff) => toChannel(topic, channel, 'presence_diff', diff) })
+    const seat = presences.join(topic, { key, get listens() { return listens && gate.hears('presence') }, receive: (diff) => toChannel(topic, channel, 'presence_diff', diff) })
     const offBroadcast = broadcasts.join(topic, member)
     const offChanges = parsed.bindings.length > 0 ? hub.add({ caller: () => channel.caller, bindings: parsed.bindings, send: (payload) => toChannel(topic, channel, 'postgres_changes', payload) }) : () => {}
     const channel: Channel = {
       joinRef: message.joinRef,
       caller,
+      gate,
       ack: broadcast.ack === true,
       member,
       presence: seat,
@@ -188,7 +199,7 @@ export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub,
     channels.set(topic, channel)
     expireAt(topic, channel)
     push(reply(message, 'ok', { postgres_changes: parsed.replies }))
-    if (listens) toChannel(topic, channel, 'presence_state', seat.state())
+    if (listens && gate.hears('presence')) toChannel(topic, channel, 'presence_state', seat.state())
     if (parsed.bindings.length > 0) {
       toChannel(message.topic, channel, 'system', { extension: 'postgres_changes', status: 'ok', message: 'Subscribed to PostgreSQL', channel: message.topic.replace(/^realtime:/, '') })
     }
@@ -199,27 +210,40 @@ export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub,
     const channel = channels.get(message.topic)
     if (!channel) return
     if (typeof caller === 'string') return end(message.topic, caller)
+    const refused = await channel.gate.authorize(caller)
+    if (channels.get(message.topic) !== channel) return
+    if (refused) return end(message.topic, readRefusalText(message.topic, refused))
     channel.caller = caller
     expireAt(message.topic, channel)
   }
 
-  const sendBroadcast = (message: PhoenixMessage, channel: Channel) => {
+  const sendBroadcast = async (message: PhoenixMessage, channel: Channel) => {
     const { event, payload } = message.payload
     if (!events()) return push(reply(message, 'error', { reason: tooFast }))
     if (typeof event !== 'string') return push(reply(message, 'error', { reason: 'A broadcast needs an event' }))
     if (!fitsFrame(message.topic) || !fitsFrame(event)) return push(reply(message, 'error', { reason: 'A broadcast topic and event are at most 255 bytes each' }))
+    const allowed = await channel.gate.mayWrite(channel.caller, 'broadcast')
+    if (channels.get(message.topic) !== channel) return
+    // Supabase's own reply to a broadcast the policies refuse, as to a track below.
+    if (!allowed) return push(reply(message, 'error', { error: 'unauthorized' }))
     if (!broadcasts.send(message.topic, channel.member, event, payload)) return push(reply(message, 'error', { reason: `${tooFast} on this topic` }))
     if (channel.ack) push(reply(message, 'ok', {}))
   }
 
-  const updatePresence = (message: PhoenixMessage, channel: Channel) => {
+  const updatePresence = async (message: PhoenixMessage, channel: Channel) => {
     const { event, payload } = message.payload
     if (!events()) return push(reply(message, 'error', { reason: tooFast }))
     if (!presenceRate(message.topic)) return push(reply(message, 'error', { reason: 'Client presence rate limit exceeded' }))
-    if (event === 'track' && isRecord(payload) && Buffer.byteLength(JSON.stringify(payload)) > realtimeLimits.maxPresenceBytes) return push(reply(message, 'error', { reason: 'Track message size exceeded' }))
-    if (event === 'track' && isRecord(payload)) channel.presence.track(payload)
-    else if (event === 'untrack') channel.presence.untrack()
-    else return push(reply(message, 'error', { reason: 'A presence message tracks an object or untracks' }))
+    if (event === 'untrack') {
+      channel.presence.untrack()
+      return push(reply(message, 'ok', {}))
+    }
+    if (event !== 'track' || !isRecord(payload)) return push(reply(message, 'error', { reason: 'A presence message tracks an object or untracks' }))
+    if (Buffer.byteLength(JSON.stringify(payload)) > realtimeLimits.maxPresenceBytes) return push(reply(message, 'error', { reason: 'Track message size exceeded' }))
+    const allowed = await channel.gate.mayWrite(channel.caller, 'presence')
+    if (channels.get(message.topic) !== channel) return
+    if (!allowed) return push(reply(message, 'error', {}))
+    channel.presence.track(payload)
     push(reply(message, 'ok', {}))
   }
 
