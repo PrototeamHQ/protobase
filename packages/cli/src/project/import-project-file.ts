@@ -23,10 +23,11 @@ const bunLoads = (projectDir: string) => process.versions.bun !== undefined && s
 
 /**
  * Imports one of the files of the project in `projectDir`, TypeScript: Bun loads it itself, Node through Vite's module
- * runner, or a package's file as it is. A bundled project's file always goes through the runner.
+ * runner, or a package's file as it is. A bundled project's file always goes through the runner. `protobase dev` loads
+ * this module through Vite, which leaves these imports of a path as they are.
  */
 export const importProjectFile = async (file: string, projectDir: string): Promise<Record<string, unknown>> =>
-  inPackage(file) ? import(pathToFileURL(file).href) : bunLoads(projectDir) ? import(file) : runnerImport(file, projectDir)
+  inPackage(file) ? import(/* @vite-ignore */ pathToFileURL(file).href) : bunLoads(projectDir) ? import(/* @vite-ignore */ file) : runnerImport(file, projectDir)
 
 /**
  * Imports several of the project's files in order, so that the modules they share are loaded once. Bun's module cache

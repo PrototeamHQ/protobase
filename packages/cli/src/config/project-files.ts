@@ -47,6 +47,6 @@ export const sourceFiles = (projectDir: string, importModules: ImportModules): P
     }),
     functions: Object.fromEntries(functionFiles(projectDir).map(({ name, file }) => [name, one(file)])),
     module: (file) => (existsSync(path.join(projectDir, file)) ? one(path.join(projectDir, file)) : undefined),
-    package: (name) => import(pathToFileURL(createRequire(path.join(projectDir, 'package.json')).resolve(name)).href),
+    package: (name) => import(/* @vite-ignore */ pathToFileURL(createRequire(path.join(projectDir, 'package.json')).resolve(name)).href),
   }
 }
