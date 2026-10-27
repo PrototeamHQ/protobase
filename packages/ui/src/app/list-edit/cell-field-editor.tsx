@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from
 import type { FieldModel, FieldViewModel } from '@protobase/schema'
 import { differs, toFieldDraft, toPatchValue } from '../../live/field-values'
 import { FieldEditor } from '../field-editor'
+import { inChangeConfirm } from '../change-confirm/use-change-confirm'
 
 export type CellFieldEditorProps = {
   field: FieldModel
@@ -39,6 +40,8 @@ export const CellFieldEditor = ({ field, hints, resource, stored, onSave, close 
   }
 
   const onKeyDown = (event: KeyboardEvent) => {
+    // The keys of the question a change asks are its dialog's own
+    if (inChangeConfirm(event.target)) return
     if (event.key === 'Enter') {
       event.preventDefault()
       finish(true)
@@ -53,7 +56,7 @@ export const CellFieldEditor = ({ field, hints, resource, stored, onSave, close 
   }
 
   const onBlur = (event: FocusEvent) => {
-    if (!ref.current?.contains(event.relatedTarget as Node | null)) finish(true)
+    if (!ref.current?.contains(event.relatedTarget as Node | null) && !inChangeConfirm(event.relatedTarget)) finish(true)
   }
 
   const onChange = (next: unknown) => {

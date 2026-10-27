@@ -34,6 +34,16 @@ export class FieldView<N extends string = string, V = unknown> {
   }
 
   /**
+   * Asks `question` before a person changes the value in a form or a list cell, such as a flag that is easy to set by
+   * mistake: once as the value first moves away from the saved one, not on every key. Cancelling keeps the value. See
+   * [Confirming a change](website/src/content/docs/reference/ui-config.mdx#confirming-a-change).
+   */
+  confirm(question: string) {
+    if (question.trim() === '') throw new Error(`Field "${this.name}": .confirm() needs the question to ask`)
+    return this.with({ confirm: question })
+  }
+
+  /**
    * How the value shows: `badge` for statuses, `code` in monospace, `percent` with a % sign; for a text field, `email`,
    * `phone` and `url` as a mail, call or open link, edited with an email, phone or address keyboard on a mobile screen.
    */

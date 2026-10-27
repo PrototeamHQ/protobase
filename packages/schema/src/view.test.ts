@@ -379,6 +379,12 @@ describe('view builder', () => {
     expect(hinted.fields).toEqual({ price: { suffix: ' per month', icon: 'ruler' }, status: { valueColors: { draft: '#999', live: '#00a651' }, badgeShape: 'arrow' } })
   })
 
+  it('carries the question a change asks as a field hint, and refuses an empty one', () => {
+    const hinted = view<typeof article>('article').fields((r) => ({ featured: r.featured.confirm('Feature this article on the home page?') })).toModel()
+    expect(hinted.fields).toEqual({ featured: { confirm: 'Feature this article on the home page?' } })
+    expect(() => view<typeof article>('article').fields((r) => ({ featured: r.featured.confirm(' ') }))).toThrow('Field "featured": .confirm() needs the question to ask')
+  })
+
   it('carries multiline as a field hint', () => {
     const hinted = view<typeof article>('article').fields((r) => ({ title: r.title.multiline().label('Body') })).toModel()
     expect(hinted.fields).toEqual({ title: { multiline: true, label: 'Body' } })
