@@ -25,7 +25,7 @@ export type SamlSignIn = { id: string; name: string }
  * `sendSignUpCode`); `socialProviders` the ids of the sign-in providers, for example
  * `github`; `platformSignIn` the one of them the platform adds; `samlProviders` the app's SAML identity providers; `staffSignIn` the operator provider's name when its staff
  * can sign in as people; `organizations` when the app has them; `anonymous` when visitors may browse what the project's
- * anonymous role reads without signing in; `mcp` when MCP clients can connect, so the account page lists them; `plugins`
+ * anonymous role reads without signing in; `mcp` when MCP clients can connect, with the `url` of the app's MCP endpoint, so the account page shows it and lists the clients; `plugins`
  * those the app loads before anyone signs in; `locale` the language the app sets for everyone, which the screens before
  * `/meta` are in.
  */
@@ -48,7 +48,7 @@ export type SetupStatus = {
   /** With organizations: who may create them, and every role with its label, `membership` for those a member can hold. */
   organizations?: { create: 'admins' | 'everyone'; roles: RoleLabel[] }
   anonymous?: boolean
-  mcp?: boolean
+  mcp?: { url: string }
   plugins?: PluginRef[]
   locale?: Locale
 }

@@ -18,6 +18,8 @@ Every auth store has the OAuth tables, so turning it on needs no migration. The 
 
 ## Connecting a client
 
+Signed-in people find the endpoint's address in the app: "Account" in the user menu, then Connected apps (`/-/account/apps`), shows it with a button that copies it and an "Add to Claude" link that opens Claude's dialog for a custom connector with the app's name and the address filled in. The tab shows only when MCP is on, and only on an account page that keeps the [`ConnectedApps` block](auth.md#account-page).
+
 Give the client the endpoint's address. It finds the app's sign-in from there, opens it in the browser, and the person signs in and allows it on the app's connect page.
 
 - A chat assistant usually takes a remote MCP server, or custom connector, in its settings: add one with the address.

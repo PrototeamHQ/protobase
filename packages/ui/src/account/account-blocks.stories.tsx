@@ -2,6 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { AuthError, createStaticSession, type AuthSession } from '@protobase/client'
 import { AuthProvider } from '../auth/auth-provider'
+import { MetaContext } from '../data/meta-context'
+import type { MetaData } from '../data/meta-data'
 import { ConnectedAccountsBlock } from './blocks/connected-accounts-block'
 import { ConnectedAppsBlock } from './blocks/connected-apps-block'
 import { DevicesBlock } from './blocks/devices-block'
@@ -60,6 +62,7 @@ export const AccountBlocks: StoryObj<{ updateName: (name: string) => Promise<voi
     expect(canvas.queryByRole('region', { name: 'Connected accounts' })).toBeNull()
     expect(await canvas.findByRole('region', { name: 'Devices' })).toBeVisible()
     expect(canvas.queryByRole('region', { name: 'Connected apps' })).toBeNull()
+    expect(canvas.queryByRole('region', { name: 'MCP address' })).toBeNull()
 
     await userEvent.click(profile.getByRole('button', { name: 'Change name' }))
     const dialog = within(document.body)
@@ -114,5 +117,34 @@ export const ChangeEmail: StoryObj<{ requestEmailChange: (newEmail: string) => P
     await userEvent.type(dialog.getByLabelText('Code'), '246810')
     expect(await profile.findByText('ana@new.example')).toBeVisible()
     expect(dialog.queryByRole('dialog')).toBeNull()
+  },
+}
+
+const shop: MetaData = { etag: '"shop"', appName: 'Shop & Co', resources: {}, views: {}, pages: {}, permissions: {} }
+
+/** A signed-in session on an app whose MCP endpoint is at the custom path `/tools/mcp`. */
+const mcpSession = (): AuthSession => {
+  const base = createStaticSession('story-token', { id: 'u-ana', email: 'ana@shop.example', name: 'Ana de Vries', role: 'sales' })
+  return { ...base, status: async () => ({ ...(await base.status()), mcp: { url: 'https://shop.example/tools/mcp' } }) }
+}
+
+/** With MCP on, the Connected apps block shows the endpoint's address to copy and a link that adds it to Claude, above the apps. */
+export const McpAddress: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <MetaContext.Provider value={shop}>
+      <AuthProvider session={mcpSession()}>
+        <ConnectedAppsBlock />
+      </AuthProvider>
+    </MetaContext.Provider>
+  ),
+  play: async ({ canvasElement }) => {
+    const section = within(await within(canvasElement).findByRole('region', { name: 'MCP address' }))
+    expect(section.getByText('https://shop.example/tools/mcp')).toBeVisible()
+    expect(section.getByRole('button', { name: 'Copy the MCP address' })).toBeVisible()
+    const add = new URL(section.getByRole('link', { name: 'Add to Claude' }).getAttribute('href')!)
+    expect(add.searchParams.get('connectorUrl')).toBe('https://shop.example/tools/mcp')
+    expect(add.searchParams.get('connectorName')).toBe('Shop & Co')
+    expect(await within(canvasElement).findByRole('region', { name: 'Connected apps' })).toBeVisible()
   },
 }

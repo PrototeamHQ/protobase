@@ -14,3 +14,4 @@ Fields and actions filled by a model, the assistant beside the admin, and MCP.
 - [MCP writes without approval](../reference/mcp.md#writes-without-approval): Roles you name, such as service accounts, write over MCP without being asked to approve each write; everyone else is still asked.
 - [MCP batch writes](../reference/mcp.md#batch-writes): When MCP writes are on, AI clients make many creates, updates and deletes across resources in one transaction, after the person approves the batch.
 - [Connected apps](../reference/auth.md#oauth-for-mcp-clients): People allow an AI client to sign in, and disconnect it later.
+- [MCP address](../reference/mcp.md#connecting-a-client): Signed-in people find the app's MCP address on their account page, copy it or add it to Claude in one click.
