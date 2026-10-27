@@ -3,7 +3,7 @@ import type { DbTable } from '../db/model'
 import type { Target } from './targets'
 
 // Protobase's own tables, which hold password hashes, OAuth tokens and signing keys, and are no admin pages.
-export type ProtobaseSchema = { schema: string; what: 'auth store' | 'job queue'; tables: DbTable[] }
+export type ProtobaseSchema = { schema: string; what: 'auth store' | 'job queue' | 'record of migrations'; tables: DbTable[] }
 
 // Better Auth's core tables, which a store an earlier Protobase made without a record of migrations has too, with its
 // sessions pointing at its user table.
@@ -35,13 +35,19 @@ const authStore = (schema: string, tables: DbTable[]) => {
 const jobQueue = (schema: string, tables: DbTable[]) =>
   schema === 'jobs' && ['job', 'version'].every((name) => tables.some((table) => table.name === name)) ? tables : []
 
+// The table `protobase migrate` and the presets' db/migrate.ts record their applied migrations in.
+const migrationRecord = (schema: string, tables: DbTable[]) =>
+  schema === 'migrations' && tables.some((table) => table.name === 'applied') ? tables : []
+
 // The schemas of Protobase's own tables. The auth store, which holds password hashes, sessions and tokens, is left out
-// whatever the target names; the job queue is scaffolded when the target names its schema.
+// whatever the target names; the job queue and the record of migrations are scaffolded when the target names their schema.
 export const protobaseSchemas = (tables: DbTable[], target: Target): ProtobaseSchema[] =>
   [...bySchema(tables)].flatMap(([schema, own]): ProtobaseSchema[] => {
     const store = authStore(schema, own)
     if (store.length > 0) return [{ schema, what: 'auth store', tables: store }]
     if (target.schema === schema) return []
     const queue = jobQueue(schema, own)
-    return queue.length > 0 ? [{ schema, what: 'job queue', tables: queue }] : []
+    if (queue.length > 0) return [{ schema, what: 'job queue', tables: queue }]
+    const record = migrationRecord(schema, own)
+    return record.length > 0 ? [{ schema, what: 'record of migrations', tables: record }] : []
   })

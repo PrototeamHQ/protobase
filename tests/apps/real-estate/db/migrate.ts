@@ -16,12 +16,13 @@ const files = (await readdir(directory)).filter((file) => file.endsWith('.sql'))
 
 const applied = await sql.begin(async (tx) => {
   await tx`select pg_advisory_xact_lock(${lockKey})`
-  await tx`create table if not exists public.schema_migrations (name text primary key, applied_at timestamptz not null default now())`
-  const done = new Set((await tx`select name from public.schema_migrations`).map((row) => row.name))
+  await tx`create schema if not exists migrations`
+  await tx`create table if not exists migrations.applied (name text primary key, applied_at timestamptz not null default now())`
+  const done = new Set((await tx`select name from migrations.applied`).map((row) => row.name))
   const pending = files.filter((file) => !done.has(file))
   for (const file of pending) {
     await tx.unsafe(await readFile(directory + file, 'utf8'))
-    await tx`insert into public.schema_migrations (name) values (${file})`
+    await tx`insert into migrations.applied (name) values (${file})`
   }
   return pending
 })

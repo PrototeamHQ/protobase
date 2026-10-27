@@ -34,11 +34,11 @@ A scratch app starts without resources, so `protobase doctor` refuses it until i
 ```sh
 # db/migrations/007_customers.sql: create table customers (id bigint generated always as identity primary key, name text not null);
 bun run db:migrate
-bun run protobase scaffold --ui --yes --exclude public.schema_migrations
+bun run protobase scaffold --ui --yes
 bun run protobase doctor
 ```
 
-`scaffold` writes `config/customers/data.ts` and `ui.ts` and exports them from `config/index.ts`, where Protobase finds every resource, view and page; `--exclude public.schema_migrations` leaves out the table the migrate script records its migrations in. `bun run dev` shows the new list at once. The [Data config](/reference/data-config/) and [UI config](/reference/ui-config/) say what else a resource can be.
+`scaffold` writes `config/customers/data.ts` and `ui.ts` and exports them from `config/index.ts`, where Protobase finds every resource, view and page. `bun run dev` shows the new list at once. The [Data config](/reference/data-config/) and [UI config](/reference/ui-config/) say what else a resource can be.
 
 ### On an existing database
 
@@ -58,7 +58,7 @@ It connects read-only and names the database and its Postgres version, then asks
 
 Then it runs that `scaffold` in the project and prints the next steps. Without a terminal it asks nothing: the folder is the database's name, and every table gets a resource and a `ui.ts`. Quote the URL, as a shell reads `?` and `&` in it. `--preset` is refused with a URL: the project starts from scratch.
 
-It never writes to the database. The first of the next steps does: `bun run db:migrate` adds the `auth` schema that sign-in keeps its users in, and `public.schema_migrations`, where the script records the migrations it applied.
+It never writes to the database. The first of the next steps does: `bun run db:migrate` adds the `auth` schema that sign-in keeps its users in, and the `migrations` schema, where the script records the migrations it applied in `migrations.applied`. A `public.schema_migrations` another migration tool keeps is left as it is.
 
 ```sh
 cd shop

@@ -38,7 +38,7 @@ export const databaseNextSteps = (dir: string, tools: Tools) =>
   withBun(
     [
       `cd ${dir}`,
-      'bun run db:migrate     # the first write to the database: the auth schema, and public.schema_migrations',
+      'bun run db:migrate     # the first write to the database: the auth schema, and migrations.applied',
       'bun run protobase users create you@example.com --generate-password',
       'bun run dev            # http://localhost:5173',
     ],

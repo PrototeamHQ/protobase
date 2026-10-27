@@ -57,7 +57,7 @@ Seed consistency: no overlapping leases, payments never exceed their charge, eve
 
 ## Layout
 
-- `db/migrations/NNN_name.sql`: plain SQL, applied in order and recorded in `public.schema_migrations` by `db/migrate.ts`. The database itself comes from its host: `bun run db:up` here.
+- `db/migrations/NNN_name.sql`: plain SQL, applied in order and recorded in `migrations.applied` by `db/migrate.ts`. The database itself comes from its host: `bun run db:up` here.
 - `seed/`: `world.ts` allocates ids per organization, `builders/` rebuild a property, unit, lease, rent ledger or ticket from its ordinal alone, `steps/` stream one module each. `base.ts` is the base seed.
 - `AGENTS.md`: the rules for the assistant that changes an app made from this example, which is also the real estate preset (`packages/presets`; the preset leaves this README out).
 - `config/`: one folder per table (`data.ts`, `ui.ts`), the roles, and the overview page (occupancy, arrears, open tickets).

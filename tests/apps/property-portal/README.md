@@ -111,7 +111,7 @@ Both photo fields store a `card` (800×600) and a `thumb` (96×96) WebP beside e
 ## Layout
 
 - `auth/`: the accounts (`auth.ts`), and who has one and what a new one is (`accounts.ts`).
-- `db/migrations/NNN_name.sql`: plain SQL, applied in order by `db/migrate.ts` and recorded in `public.schema_migrations`. The server never migrates.
+- `db/migrations/NNN_name.sql`: plain SQL, applied in order by `db/migrate.ts` and recorded in `migrations.applied`. The server never migrates.
 - `config/`: one folder per table (`data.ts`, `ui.ts`), the roles, the home page and the maps' aerial photo layers (`map-layers.ts`); `config/saved_searches/filter.ts` reads a search's filter against the listings. `config/roles.test.ts` checks who sees and writes what, `config/config.test.ts` runs the server's startup checks.
 - `jobs/`: the alert jobs, with the matching rule tested next to them.
 - `emails/`: the alert mails as React Email templates, tested next to them.

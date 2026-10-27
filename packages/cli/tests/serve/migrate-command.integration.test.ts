@@ -89,7 +89,7 @@ describe.skipIf(!reachable)('protobase-serve migrate', () => {
     expect(applied.stderr).toBe('')
     expect(applied.stdout).toBe('applying 001_one.sql\napplied 1 migrations\n')
     expect(applied.status).toBe(0)
-    expect(await tables(databaseUrl)).toEqual(['one', 'schema_migrations'])
+    expect(await tables(databaseUrl)).toEqual(['one'])
 
     const again = await migrate(bundle, { DATABASE_URL: databaseUrl })
     expect(again.stdout).toBe('the database is up to date\n')
