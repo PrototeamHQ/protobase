@@ -38,8 +38,9 @@ export type AccessResult = boolean | string | FilterExpr
 
 /**
  * A rule at the resource level. Without a record it decides the operation and may return a row
- * filter; with `(ctx, record, input)` it is a record-level check. Rules that need the record
- * may throw a `TypeError` when it is missing, which marks the operation as record-checked.
+ * filter; with `(ctx, record, input)` it is a record-level check. A rule that reads the record or
+ * input when called without them, or throws a `TypeError`, marks the operation as record-checked;
+ * a list is then refused, since it does not run the rule on each row.
  */
 export type AccessFn<R = any> = (
   ctx: AccessContext,

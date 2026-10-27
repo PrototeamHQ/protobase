@@ -190,6 +190,18 @@ export const apps = resource('apps')
 - **Rows of another organization are read-only in the list.** Their `permissions` say `update: false` and `delete: false`. The admin app opens one by switching the session to its organization first: a record page the session's organization does not have looks the record up across the lists, for a resource with a key of one filterable field, so the page and everything on it are read in the record's own organization.
 - **Where the memberships come from.** The authenticator of the app's sign-in (`auth`) reads them from the store, once per request that lists across organizations. An [authenticator](auth.md#tokens-and-roles) of your own gives them as the session's `memberships`, a function answering `[{ tenant, roles }]`, and must answer only organizations the person is a member of. Without it, as with `authenticate: { jwksUrl }` instead of `auth`, a list reads the session's organization alone.
 
+## Rules that read the record
+
+A rule that reads its record, such as `read: (ctx, record) => record.owner_id === ctx.user.id`, is checked against the stored row wherever one record is read or written: a get, a reveal, history, comments, and every update and delete. The resolver calls each rule once without the record to learn whether it needs one; reading the record then, even as `record?.status` or through a default parameter, counts.
+
+A list cannot run such a rule on each row without breaking its pages and counts, so a caller for whom the `read` or `list` rule reads the record may not list: a list, `:search`, `:seek`, their counts, aggregates, charts and map, exports, the labels of the records other lists point at, and the assistant's and MCP's list tool answer `403`, and a blocked delete does not name the resource. An explicit `list` rule beside such a `read` is refused too, since nothing proves it is as narrow. A caller whose verdict does not depend on the record, such as an admin under `ctx.user.roles.includes('admin') || record.owner_id === ctx.user.id`, lists as usual. To list, write the rule as a row filter, which a get and a list apply alike:
+
+```ts
+.access({ read: (ctx) => where.eq('owner_id', ctx.user.id) })
+```
+
+<gap>A resource whose read rule reads the record cannot be listed because declaring a row filter as the rule's list form is not implemented.</gap> <gap>A rollup of a readable record counts and adds up related records that their read rule or row filter hides because rollups are not computed per caller.</gap> These rules apply to `/api/v1` and what is built on it; `/api/sb/rest/v1` and its realtime use the tables' grants and RLS policies only.
+
 ## Restricted model and row filters
 
 [`resolveAccess`](https://docs.protobase.net/api/schema/functions/resolveaccess/) returns everything a request may do. Use [`restrictModel(model, access)`](https://docs.protobase.net/api/schema/functions/restrictmodel/) for everything user-facing (checking filters and sorts, queries, OpenAPI, `/meta`): hidden fields are gone, so they cannot be referenced, searched, sorted or leaked. Key columns always stay, because records are addressed by them.
