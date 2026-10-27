@@ -19,10 +19,10 @@ describe('scripts/features-check.ts', () => {
     site = await mkdtemp(path.join(tmpdir(), 'protobase-features-'))
     await write(
       'website/sidebar.mjs',
-      `export const startHere = ['features']
-export const features = ['features/lists']
+      `export const features = ['features/lists']
 export const guides = ['guides/tutorial']
-export const reference = ['reference/ui-config', 'reference/architecture']`,
+export const reference = ['reference/ui-config']
+export const architecture = ['reference/architecture']`,
     )
     await write('website/src/content/docs/features.md', page('Features', '- [Lists](/features/lists/): The list page.'))
     await write('website/src/content/docs/features/lists.md', page('Lists', '- [Filters](/reference/ui-config/#filters-and-the-chart): Value menus.'))
@@ -104,10 +104,10 @@ export const reference = ['reference/ui-config', 'reference/architecture']`,
     await write('website/src/content/docs/reference/maps.md', page('Maps', '## Pins'))
     await write(
       'website/sidebar.mjs',
-      `export const startHere = ['features']
-export const features = ['features/lists']
+      `export const features = ['features/lists']
 export const guides = ['guides/tutorial']
-export const reference = ['reference/ui-config', 'reference/architecture', 'reference/maps']`,
+export const reference = ['reference/ui-config', 'reference/maps']
+export const architecture = ['reference/architecture']`,
     )
     expect(await problems()).toEqual(['website/sidebar.mjs: no feature entry links reference/maps: add the features it explains to their area page'])
   })

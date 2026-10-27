@@ -1,5 +1,9 @@
 // The hand-written pages in the sidebar's order, which the site and the protobase skill (scripts/protobase-skill.ts) share.
-export const startHere = ['getting-started', 'features', 'guides/deploy']
+// Getting started is the sidebar's first entry, outside any group.
+export const gettingStarted = 'getting-started'
+
+// The features page, which opens the Features group and links every area page below.
+export const featuresPage = 'features'
 
 // One page per area of the features page (features.md), each listing that area's features. scripts/features-check.ts
 // holds every one of them to the entry grammar and refuses a page under features/ that is not here.
@@ -48,6 +52,7 @@ export const guides = [
   'guides/create-page',
   'guides/personal-setting',
   'guides/mobile-app',
+  'guides/deploy',
 ]
 
 export const reference = [
@@ -60,7 +65,6 @@ export const reference = [
   'reference/config/files',
   'reference/data-config',
   'reference/ui-config',
-  'reference/architecture',
   'reference/api',
   'reference/supabase-rest',
   'reference/supabase-storage',
@@ -94,5 +98,7 @@ export const reference = [
   'reference/assistant',
   'reference/mcp',
   'reference/cli',
-  'reference/versioning',
 ]
+
+// Pages that give background on how Protobase itself is built and released, rather than on building an app with it.
+export const architecture = ['reference/architecture', 'reference/versioning']

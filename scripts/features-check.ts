@@ -31,8 +31,8 @@ const notFeatures = ['reference/architecture']
 // The problems of the features pages of the repository at `root`, each naming its file and line.
 export async function pageProblems(root: string) {
   const docs = path.join(root, 'website/src/content/docs')
-  const sidebar: Record<'features' | 'guides' | 'reference' | 'startHere', string[]> = await import(pathToFileURL(path.join(root, 'website/sidebar.mjs')).href)
-  const { features, guides, reference, startHere } = sidebar
+  const sidebar: Record<'architecture' | 'features' | 'guides' | 'reference', string[]> = await import(pathToFileURL(path.join(root, 'website/sidebar.mjs')).href)
+  const { architecture, features, guides, reference } = sidebar
   const problems: string[] = []
   const anchors = new Map<string, Set<string> | undefined>()
   const headingsOf = (page: string) => {
@@ -45,7 +45,6 @@ export async function pageProblems(root: string) {
     const page = `features/${file.replace(/\.mdx?$/, '')}`
     if (!features.includes(page)) problems.push(`website/src/content/docs/${page}: not in the sidebar: add it to \`features\` in website/sidebar.mjs`)
   }
-  if (!startHere.includes('features')) problems.push('website/sidebar.mjs: the features page is not in `startHere`')
 
   const index = readFileSync(path.join(docs, 'features.md'), 'utf8')
   const indexed = new Set([...index.matchAll(/\]\(\/(features\/[a-z0-9-]+)\/\)/g)].map((match) => match[1]))
@@ -86,15 +85,14 @@ export async function pageProblems(root: string) {
     }
   }
 
-  for (const page of [...startHere, ...reference]) {
-    if (page === 'features' || notFeatures.includes(page) || linkedPages.has(page)) continue
+  for (const page of [...reference, ...architecture]) {
+    if (notFeatures.includes(page) || linkedPages.has(page)) continue
     problems.push(`website/sidebar.mjs: no feature entry links ${page}: add the features it explains to their area page`)
   }
   for (const page of guides) {
     if (!pageFile(docs, page)) problems.push(`website/sidebar.mjs: ${page} has no page`)
   }
 
-  // deploy is a guide too, though the sidebar lists it under startHere.
   const guidesIndex = path.join(docs, 'guides/index.mdx')
   if (!existsSync(guidesIndex)) return [...problems, 'website/src/content/docs/guides/index.mdx: no guides page']
   const listed = new Set([...readFileSync(guidesIndex, 'utf8').matchAll(/href="\/(guides\/[a-z0-9-]+)\/"/g)].map((match) => match[1]))

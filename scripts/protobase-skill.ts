@@ -10,7 +10,7 @@
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { pageMarkdown } from '../website/src/markdown/page-markdown'
-import { features, guides, reference, startHere } from '../website/sidebar.mjs'
+import { architecture, features, featuresPage, gettingStarted, guides, reference } from '../website/sidebar.mjs'
 import { linked } from './skill-links'
 
 const root = join(import.meta.dir, '..')
@@ -46,7 +46,7 @@ async function markdownFiles(dir: string): Promise<string[]> {
   return nested.flat().filter((file) => file.endsWith('.md'))
 }
 
-const pages = await Promise.all([...startHere, ...features, ...guides, ...reference].map(readPage))
+const pages = await Promise.all([gettingStarted, featuresPage, ...features, ...guides, ...reference, ...architecture].map(readPage))
 const paths = new Set(pages.map((page) => page.path))
 const expected = new Map(
   pages.map((page) => [
