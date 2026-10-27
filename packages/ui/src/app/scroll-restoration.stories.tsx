@@ -21,17 +21,30 @@ const phone360 = { name: 'Phone 360', styles: { width: '360px', height: '740px' 
 
 const page = () => document.scrollingElement ?? document.documentElement
 const index = () => (window.history.state as { protobaseIndex: number }).protobaseIndex
+const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
 
 /** Where the document is scrolled once the page at `path` is shown, after a frame for anything still moving it. */
 const shownAt = async (path: string, top: number) => {
   await waitFor(() => expect(window.location.pathname).toBe(path))
-  await new Promise((resolve) => requestAnimationFrame(resolve))
+  await frame()
   await waitFor(() => expect(Math.round(page().scrollTop)).toBe(top))
+}
+
+/** Waits until the page's height holds for a few frames, so no block still loading above moves the scroll position. */
+const settled = async () => {
+  let height = -1
+  let still = 0
+  while (still < 5) {
+    await frame()
+    still = page().scrollHeight === height ? still + 1 : 0
+    height = page().scrollHeight
+  }
 }
 
 /** Scrolls the page down to `wanted`, or as far as it goes when it is shorter; returns where it is. */
 const scrollDown = async (wanted: number) => {
   await waitFor(() => expect(page().scrollHeight).toBeGreaterThan(window.innerHeight))
+  await settled()
   page().scrollTop = wanted
   const top = Math.round(page().scrollTop)
   expect(top).toBeGreaterThan(0)
