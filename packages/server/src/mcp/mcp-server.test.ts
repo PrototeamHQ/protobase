@@ -5,6 +5,7 @@ import { defineTool, type ToolContext } from '../assistant/tools'
 import { writeRecordTools } from '../assistant/write-record-tools'
 import { forbidden } from '../problem'
 import { mcpApprovals } from './mcp-approval-store'
+import { mcpInstructions } from './mcp-instructions'
 import { mcpServer, type McpServerInput } from './mcp-server'
 
 // The SDK's fromJsonSchema, watched: each call compiles its schema into a cache the SDK never empties.
@@ -87,6 +88,12 @@ describe('mcpServer', () => {
       { name: 'write' },
       { name: 'slow' },
     ])
+  })
+
+  it('tells a client how to read records when it connects', async () => {
+    const result = await call(() => {}, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'client', version: '1.0.0' } })
+    expect(result.instructions).toBe(mcpInstructions)
+    expect(result.instructions).toContain('"fields": ["id", "status", "title"]')
   })
 
   it('answers a call with the text the tool returns, run with the context', async () => {

@@ -9,6 +9,7 @@ description: Fields and actions filled by a model, the assistant beside the admi
 - [Choice of model](/reference/assistant/#which-backend): The assistant runs on OpenRouter or any OpenAI-compatible endpoint, also a local one.
 - [Assistant tools](/reference/assistant/#the-apps-own-tools): Your own tools for the assistant, acting on records as the user.
 - [MCP server](/reference/mcp/#the-tools): AI clients connect to the app over MCP as the signed-in person: they list the resources in a small first call, describe one resource's fields when they need them, and find and read records within that person's access, soft-deleted ones too when asked.
+- [MCP read fields](/reference/mcp/#reading-only-what-is-needed): AI clients read only the fields they name, a plain list returns the columns of the app's table, and the server tells clients how to keep reads small.
 - [MCP counts](/reference/mcp/#the-tools): AI clients count the records a filter finds, in all or per value of a field such as a status, without reading the records.
 - [MCP app icon](/reference/mcp/#the-apps-icon): AI clients show the app's own icon beside its name when someone adds its MCP endpoint.
 - [MCP writes](/reference/mcp/#writes): When turned on, for every resource or only those you list, AI clients create, update and delete records after the person approves each write.

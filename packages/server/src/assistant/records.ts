@@ -7,6 +7,7 @@ import { decodeKeyText } from '../key'
 import { listRecords } from '../list-service'
 import { notFound } from '../problem'
 import { readRecord } from '../read-service'
+import { recordFields } from './record-fields'
 import type { Row, Session } from '../types'
 import { runWrite } from '../write-pipeline'
 
@@ -52,8 +53,11 @@ export type ToolRecords = {
   list: (resource: string, params?: ListParams) => Promise<RecordPage>
   /** Counts per value of a field, as `GET /{resource}:aggregate` does, under the same access rules as `list`. */
   aggregate: (resource: string, params: AggregateParams) => Promise<RecordGroups>
-  /** With `show_deleted`, also finds a soft-deleted record, as the REST API's `show_deleted` does. */
-  get: (resource: string, key: RecordKeyInput, options?: { show_deleted?: boolean }) => Promise<ToolRecord>
+  /**
+   * With `show_deleted`, also finds a soft-deleted record, as the REST API's `show_deleted` does. With `fields`, the
+   * record holds those fields only, each checked against the fields the caller may read.
+   */
+  get: (resource: string, key: RecordKeyInput, options?: { show_deleted?: boolean; fields?: string[] }) => Promise<ToolRecord>
   create: (resource: string, data: Row) => Promise<ToolRecord>
   /** With `etag`, fails with 412 when the record changed since it was read; without, it updates any version. */
   update: (resource: string, key: RecordKeyInput, data: Row, options?: { etag?: string }) => Promise<ToolRecord>
@@ -95,10 +99,10 @@ export const assistantRecords = (deps: Deps, session: Session): ToolRecords => {
   return {
     list: async (resource, params = {}) => (await listRecords(deps, entryOf(resource), session, params, filterLength)).body,
     aggregate: async (resource, params) => (await aggregate(deps, entryOf(resource), session, params)).body as RecordGroups,
-    get: async (resource, input, { show_deleted } = {}) => {
+    get: async (resource, input, { show_deleted, fields } = {}) => {
       const { entry, key } = keyOf(resource, input)
       const { record, etag } = await readRecord(deps, entry, session, key, show_deleted)
-      return { record, etag }
+      return { record: recordFields(entry.model, record, fields), etag }
     },
     create: async (resource, data) => runWrite(deps, entryOf(resource), session, { operation: 'create', body: data }),
     update: async (resource, input, data, { etag } = {}) => {
