@@ -329,3 +329,62 @@ jobs:
       - if: steps.committed.outputs.differ == 'true'
         name: Fail when a recording differs from the committed one
         run: git diff --stat -- '*.sql.json' && exit 1
+
+  # A Supabase project moved by the real `protobase import supabase` and served to supabase-js
+  # (tests/supabase-move/client/): from Supabase's Postgres image, started as in record, into the service's Postgres.
+  # pg_dump and psql come from Docker's postgres:18 (tests/supabase-move/client/pg-tools/). A push runs it when its
+  # changes reach the test (scripts/affected-tests.mjs); a pull request and a run by hand always do.
+  supabase-move:
+    if: github.event_name != 'schedule'
+    concurrency:
+      group: supabase-move-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      cancel-in-progress: true
+    runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: protobase
+          POSTGRES_PASSWORD: protobase
+          POSTGRES_DB: protobase
+        ports:
+          - 5432
+        options: >-
+          --shm-size 1g
+          --health-cmd "pg_isready -U protobase -d protobase"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - *check-base
+      - name: Point the test at the service's Postgres
+        env:
+          POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
+      - name: Start Supabase's Postgres and point the test at it
+        env:
+          SUPABASE_POSTGRES: supabase-move-postgres-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb"
+          docker run --detach --rm --name "$SUPABASE_POSTGRES" --publish 5432 \
+            --volume "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb:/docker-entrypoint-initdb.d:ro" \
+            -e POSTGRES_PASSWORD=protobase supabase/postgres:17.11.0.006
+          until docker exec "$SUPABASE_POSTGRES" pg_isready -U supabase_admin -d postgres -h 127.0.0.1 -q; do sleep 2; done
+          for file in test-support/supabase-postgres/*.sql; do
+            docker exec -i "$SUPABASE_POSTGRES" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q < "$file"
+          done
+          port=$(docker port "$SUPABASE_POSTGRES" 5432/tcp | head -n1 | sed 's/.*://')
+          echo "TEST_SUPABASE_POSTGRES_URL=postgres://supabase_admin:protobase@localhost:$port/postgres" >> "$GITHUB_ENV"
+      - run: bun scripts/affected-tests.mjs --project supabase-move
+      - if: always()
+        name: Remove Supabase's Postgres
+        env:
+          SUPABASE_POSTGRES: supabase-move-postgres-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker rm --force "$SUPABASE_POSTGRES" || true
