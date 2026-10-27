@@ -12,6 +12,7 @@ import { importPlan, probedExtensions } from './import-plan'
 import { importState, type ImportManifest } from './import-state'
 import { writeMigration } from './migration-files'
 import { runPgTool } from './pg-tools'
+import { realtimeMigration, realtimePolicies } from './realtime-policies'
 import { replayScript } from './replay'
 import { schemaMigration } from './schema-migration'
 import { refuseSsoUsers, ssoUserCount } from './sso-users'
@@ -75,7 +76,7 @@ const readSource = async (sql: Sql, targetUrl: string) => {
     hypertables: await hypertables(sql, schemas),
     routinesLeftOut: await routinesIn(sql, schemas, plan.missing.languages),
   } satisfies Partial<ImportManifest>
-  return { manifest, plan, replay: replayScript({ secrets: secrets ?? [], queues: replayed, cronJobs: rescheduled }) }
+  return { manifest, plan, realtimePolicies: await realtimePolicies((text, params) => sql.unsafe(text, params as never[])), replay: replayScript({ secrets: secrets ?? [], queues: replayed, cronJobs: rescheduled }) }
 }
 
 /**
@@ -102,8 +103,9 @@ const pattern = (name: string) => `"${name.replaceAll('"', '""')}"`
 /**
  * The import's first run: dumps the Supabase database's schemas and data as of one snapshot, writes the schema as
  * the project's next migration, with the extensions the project's database can create, and the columns Better Auth
- * needs on auth.users as the one after, points the app's Better Auth setup at auth.users in place of the user table
- * the project's auth migrations make, removing them, and keeps the data dump, the replay of Vault's secrets, pgmq's
+ * needs on auth.users as the one after, then `realtime.messages` with its policies, which authorize private Realtime
+ * channels, when the source has any, points the app's Better Auth setup at auth.users in place of the user table the
+ * project's auth migrations make, removing them, and keeps the data dump, the replay of Vault's secrets, pgmq's
  * queues and pg_cron's jobs and what the report needs in `supabase-import/` for the run that loads it, once the
  * project's migrations are applied.
  */
@@ -123,8 +125,9 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     const [exported] = await reserved<{ snapshot: string }[]>`select pg_export_snapshot() as snapshot`
     const snapshot = exported!.snapshot
     refuseSsoUsers(await ssoUserCount((text) => reserved.unsafe(text)))
-    const { manifest: source, plan, replay } = await readSource(reserved, options.targetUrl)
-    const created = await checkTarget(options.targetUrl, source.schemas, source.tables)
+    const { manifest: source, plan, realtimePolicies: policies, replay } = await readSource(reserved, options.targetUrl)
+    // realtime.messages comes over only with policies to keep: without them, no private channel may join anyway.
+    const created = await checkTarget(options.targetUrl, policies.length > 0 ? [...source.schemas, 'realtime'] : source.schemas, source.tables)
     if (created.length > 0) out(`created the roles ${created.join(', ')} in the project's database\n`)
 
     await state.prepare()
@@ -140,6 +143,7 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     await mkdir(options.migrationsDir, { recursive: true })
     const file = await writeMigration(options.migrationsDir, 'supabase_schema', migration.text)
     const usersFile = await writeMigration(options.migrationsDir, 'supabase_users', usersColumnsMigration())
+    const realtimeFile = policies.length > 0 ? await writeMigration(options.migrationsDir, 'supabase_realtime', realtimeMigration(policies)) : undefined
     await authConfig.write()
     for (const store of storeMigrations) await rm(path.join(options.migrationsDir, store))
     const packages = await writeFunctions(options.projectDir, functions)
@@ -147,6 +151,7 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     const relative = (to: string) => path.relative(options.projectDir, to)
     out(`wrote ${relative(path.join(options.migrationsDir, file))}, the schemas ${source.schemas.join(', ')}\n`)
     out(`wrote ${relative(path.join(options.migrationsDir, usersFile))}, the columns Better Auth needs on auth.users, and pointed ${relative(authConfig.file)} at it\n`)
+    if (realtimeFile) out(`wrote ${relative(path.join(options.migrationsDir, realtimeFile))}, realtime.messages with its ${policies.length} policies, which authorize private Realtime channels\n`)
     for (const store of storeMigrations) out(`removed ${relative(path.join(options.migrationsDir, store))}: auth.users replaces Protobase's own user table it made\n`)
     if (functions.functions.length > 0) out(`converted ${functions.functions.length} Edge Functions into functions/${packages.length > 0 ? `, adding ${packages.length} packages to package.json: install them` : ''}\n`)
     out(`dumped ${source.tables.length} tables' data into ${path.relative(options.projectDir, state.data)}, which git ignores\n`)
