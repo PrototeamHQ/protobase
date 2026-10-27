@@ -1,33 +1,16 @@
 import type { Sql } from '../db/connect'
 import type { SourceExtension } from './extensions'
 import type { DumpedTable } from './load-script'
-
-/**
- * Schemas of a Supabase database that belong to the platform rather than the app: its services' own (Realtime, Vault,
- * GraphQL, webhooks, migrations, the pooler) and those of its extensions, which the migration makes with them (pgmq's
- * holds only its own tables, but is no member of it). auth and storage are the platform's too, but the app's tables
- * point at them and its triggers and policies live in them, so the import carries them over.
- */
-const platformSchemas = ['extensions', 'graphql', 'graphql_public', 'realtime', '_realtime', 'vault', 'pgsodium', 'pgsodium_masks', 'supabase_functions', 'supabase_migrations', 'cron', 'net', 'pgmq', 'pgbouncer', '_analytics', 'pgtle']
+import { serviceSchemas } from './platform-schemas'
 
 /** The tables in auth and storage that record the platform's own migrations, which Protobase never runs. */
 export const platformMigrationTables = ['auth.schema_migrations', 'storage.migrations']
-
-/** What marks a database as Supabase's: its auth, storage and migrations schemas and its roles. */
-export const databaseMarkers = async (sql: Sql) => {
-  const [row] = await sql<{ schemas: string[]; roles: string[] }[]>`
-    select
-      array(select nspname::text from pg_namespace where nspname in ('auth', 'storage', 'supabase_migrations') order by 1) as schemas,
-      array(select rolname::text from pg_roles where rolname in ('anon', 'authenticated', 'service_role', 'supabase_admin') order by 1) as roles
-  `
-  return row!
-}
 
 /** auth, storage and every schema the app made, which the dumps take. */
 export const appSchemas = async (sql: Sql) => {
   const rows = await sql<{ name: string }[]>`
     select n.nspname as name from pg_namespace n
-    where not starts_with(n.nspname, 'pg_') and n.nspname <> 'information_schema' and n.nspname <> all(${platformSchemas})
+    where not starts_with(n.nspname, 'pg_') and n.nspname <> 'information_schema' and n.nspname <> all(${serviceSchemas})
       and not exists (select 1 from pg_depend d where d.classid = 'pg_namespace'::regclass and d.objid = n.oid and d.deptype = 'e')
     order by 1
   `
