@@ -41,8 +41,19 @@ export const openPostgresDatabase = async (key: SnapshotTemplateKey): Promise<Po
   const url = databaseUrl(database)
   const pool = new pg.Pool({ connectionString: url, max: 5 })
   const dialect = new PostgresDialect({ pool })
+  // pool.end() resolves once it has asked its clients to end, before their connections close; dropping the database
+  // `with (force)` then would terminate a backend still open, and its idle client's 57P01 reaches the pool uncaught.
+  const open = new Set<pg.PoolClient>()
+  const waiting: (() => void)[] = []
+  pool.on('connect', (client) => open.add(client))
+  pool.on('remove', (client) => {
+    open.delete(client)
+    if (!open.size) waiting.splice(0).forEach((resolve) => resolve())
+  })
+  const allClosed = () => (open.size ? new Promise<void>((resolve) => waiting.push(resolve)) : Promise.resolve())
   const close = async () => {
-    if (!pool.ended) await pool.end()
+    if (!pool.ending) await pool.end()
+    await allClosed()
     await dropDatabase(database)
   }
   if (TestRunner.getCurrentTest()) onTestFinished(close)
