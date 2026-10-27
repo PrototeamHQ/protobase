@@ -1,7 +1,7 @@
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { describe, expect, it, vi } from 'vitest'
 import { badRequest, forbidden, notFound } from '../problem'
-import { getRecordTool, listRecordsTool, listResourcesTool, readRecordTools } from './record-tools'
+import { describeResourceTool, getRecordTool, listRecordsTool, listResourcesTool, readRecordTools } from './record-tools'
 import type { ToolRecords } from './records'
 import type { ToolContext } from './tools'
 
@@ -15,7 +15,7 @@ const deals = {
     company: { name: 'company', type: 'relation', nullable: true, readOnly: false, filterable: false, sortable: false, relation: { resource: 'companies', columns: ['company_id'] } },
   },
 } as unknown as ResourceModel
-const dealsView = { resource: 'deals', names: { singular: 'Deal', plural: 'Deals' }, help: 'Open sales', fields: { stage: { label: 'Stage', help: 'Where it is' } } } as unknown as ViewModel
+const dealsView = { resource: 'deals', names: { singular: 'Deal', plural: 'Deals' }, help: 'Open sales\nWon and lost ones too', fields: { stage: { label: 'Stage', help: 'Where it is' } } } as unknown as ViewModel
 
 const contextWith = (records: Partial<ToolRecords>) =>
   ({
@@ -28,14 +28,25 @@ const contextWith = (records: Partial<ToolRecords>) =>
 
 describe('record tools', () => {
   it('are all read-only, in order', () => {
-    expect(readRecordTools().map((tool) => [tool.name, tool.annotations?.readOnlyHint])).toEqual([['list_resources', true], ['list_records', true], ['count_records', true], ['get_record', true]])
+    expect(readRecordTools().map((tool) => [tool.name, tool.annotations?.readOnlyHint])).toEqual([['list_resources', true], ['describe_resource', true], ['list_records', true], ['count_records', true], ['get_record', true]])
   })
 
-  it('list_resources describes each readable resource with the labels its view gives', async () => {
-    expect(JSON.parse(await listResourcesTool().run({}, contextWith({})))).toEqual([{
+  it('list_resources lists each readable resource with its label and the first line of its help, without fields', async () => {
+    expect(JSON.parse(await listResourcesTool().run({}, contextWith({})))).toEqual([{ name: 'deals', label: 'Deals', help: 'Open sales', key: ['id'], soft_delete: true }])
+  })
+
+  it('list_resources stays a short line per resource however many fields they have', async () => {
+    const fields = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`field_${i}`, { ...deals.fields.stage!, name: `field_${i}` }]))
+    const models = Array.from({ length: 35 }, (_, i) => ({ ...deals, name: `resource_${i}`, fields }))
+    const context = { ...contextWith({}), resources: async () => ({ models, views: [] }) }
+    expect((await listResourcesTool().run({}, context)).length).toBeLessThan(35 * 80)
+  })
+
+  it('describe_resource describes one resource with the labels, help and values its view gives', async () => {
+    expect(JSON.parse(await describeResourceTool().run({ resource: 'deals' }, contextWith({})))).toEqual({
       name: 'deals',
       label: 'Deals',
-      help: 'Open sales',
+      help: 'Open sales\nWon and lost ones too',
       key: ['id'],
       soft_delete: true,
       fields: [
@@ -43,7 +54,12 @@ describe('record tools', () => {
         { name: 'stage', type: 'enum', label: 'Stage', help: 'Where it is', values: ['open', 'won'], optional: false, read_only: false, filterable: true, sortable: false },
         { name: 'company', type: 'relation', links_to: 'companies', optional: true, read_only: false, filterable: false, sortable: false },
       ],
-    }])
+    })
+  })
+
+  it('describe_resource refuses a resource the caller may not read as text', async () => {
+    expect(JSON.parse(await describeResourceTool().run({ resource: 'payroll' }, contextWith({})))).toEqual({ error: 'not-found', message: 'No resource payroll you may read; list_resources lists them.' })
+    expect(await describeResourceTool().run({}, contextWith({}))).toBe('Pass the resource as { "resource": "<name>" }.')
   })
 
   it('list_records passes the arguments through, with 20 records a page when none is given', async () => {

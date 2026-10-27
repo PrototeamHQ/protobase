@@ -117,7 +117,7 @@ export type { ToolRecords, ToolRecord, RecordKeyInput, ListParams, RecordPage, A
 export { requestApproval, type ApprovalRequest, type ApprovalAnswer } from './assistant/approval'
 export { streamChatCompletion, ModelError, type ChatMessage, type ChatTextPart, type ToolCall, type ToolSpec, type Completion, type CompletionOptions, type ModelSettings, type ReasoningDetail, type ReasoningEffort } from './assistant/chat-completions'
 export { readOnlyQueryTool, readWriteQueryTool } from './assistant/query-tools'
-export { listResourcesTool, listRecordsTool, getRecordTool, readRecordTools } from './assistant/record-tools'
+export { listResourcesTool, describeResourceTool, listRecordsTool, getRecordTool, readRecordTools } from './assistant/record-tools'
 export { countRecordsTool } from './assistant/count-records-tool'
 export { createRecordTool, updateRecordTool, writeRecordTools, type WriteRecordToolsInput } from './assistant/write-record-tools'
 export { deleteRecordTool } from './assistant/delete-record-tool'

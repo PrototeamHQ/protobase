@@ -75,7 +75,7 @@ const served = async (admin?: AdminOptions, email = 'ana@example.com') => {
   return { app, mcp: tokens.access_token, own }
 }
 
-const records = ['list_resources', 'list_records', 'count_records', 'get_record']
+const records = ['list_resources', 'describe_resource', 'list_records', 'count_records', 'get_record']
 
 describe('the MCP endpoint', () => {
   it('asks for a token with a challenge naming its metadata, and refuses the app\'s own tokens', async () => {
@@ -141,11 +141,12 @@ describe('the MCP endpoint', () => {
     expect(await call(app, mcp, 'list_records', { resource: 'companies' })).toEqual({ error: 'tenant-required', message: ((await refused.json()) as { detail: string }).detail })
   })
 
-  it('lists the resources the person may read, with their fields', async () => {
+  it('lists the resources the person may read, and describes one with its fields', async () => {
     const { app, mcp } = await served()
-    const described = (await call(app, mcp, 'list_resources', {})) as Array<{ name: string; key: string[]; fields: Array<{ name: string }> }>
-    expect(described.map((entry) => entry.name)).toEqual(['organizations', 'companies', 'labels', 'lineItems', 'events'])
-    expect(described[0]).toEqual({
+    const listed = (await call(app, mcp, 'list_resources', {})) as Array<{ name: string }>
+    expect(listed.map((entry) => entry.name)).toEqual(['organizations', 'companies', 'labels', 'lineItems', 'events'])
+    expect(listed[0]).toEqual({ name: 'organizations', key: ['id'], soft_delete: false })
+    expect(await call(app, mcp, 'describe_resource', { resource: 'organizations' })).toEqual({
       name: 'organizations',
       key: ['id'],
       soft_delete: false,

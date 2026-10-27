@@ -1,4 +1,5 @@
 import type { FieldModel, ResourceModel, ViewModel } from '@protobase/schema'
+import { notFound } from '../problem'
 import { invalidShowDeleted, keyOf, keyParameter, refused, resourceOf, resourceParameter, showDeletedOf, showDeletedParameter } from './record-tool-args'
 import type { ListParams, ToolRecord } from './records'
 import { budgetedPage, cutRecordNote } from './budgeted-page'
@@ -27,25 +28,53 @@ const fieldEntry = (field: FieldModel, view: ViewModel | undefined) => {
   }
 }
 
-const resourceEntry = (model: ResourceModel, view: ViewModel | undefined) => ({
+/** The first line of a view's help: list_resources stays a line per resource however long the help is. */
+const firstLine = (text: string) => text.split('\n', 1)[0]!.trim()
+
+const resourceSummary = (model: ResourceModel, view: ViewModel | undefined) => ({
   name: model.name,
   ...(view?.names && { label: view.names.plural }),
-  ...(view?.help && { help: view.help }),
+  ...(view?.help && { help: firstLine(view.help) }),
   key: model.primaryKey,
   soft_delete: model.softDelete !== undefined,
+})
+
+const resourceDetail = (model: ResourceModel, view: ViewModel | undefined) => ({
+  ...resourceSummary(model, view),
+  ...(view?.help && { help: view.help }),
   fields: Object.values(model.fields).map((field) => fieldEntry(field, view)),
 })
 
-const described = ({ models, views }: ReadableResources) => models.map((model) => resourceEntry(model, views.find((view) => view.resource === model.name)))
+const viewOf = ({ views }: ReadableResources, model: ResourceModel) => views.find((view) => view.resource === model.name)
 
-/** Lists the resources the caller may read, with their fields, labels and which fields filters and sorts take. */
+/** Lists the resources the caller may read, small enough for a first call: names, labels and a line of help each, without fields. */
 export const listResourcesTool = () =>
   defineTool({
     name: 'list_resources',
-    description: 'Lists the resources you may read, as JSON: each with its name, label, key fields, whether it soft deletes (soft_delete) and fields (name, type, label, enum values, the resource a relation links to, and whether it is optional, read-only, filterable and sortable). Filters and order_by in list_records take only fields marked filterable or sortable.',
+    description: 'Lists the resources you may read, as JSON: each with its name, label, the first line of its help, key fields and whether it soft deletes (soft_delete). describe_resource gives a resource\'s fields.',
     parameters: { type: 'object', properties: {} },
     annotations: readOnly,
-    run: async (_args, context) => JSON.stringify(described(await context.resources())),
+    run: async (_args, context) => {
+      const resources = await context.resources()
+      return JSON.stringify(resources.models.map((model) => resourceSummary(model, viewOf(resources, model))))
+    },
+  })
+
+/** Describes one resource the caller may read, with its fields, their labels, help and values, and which fields filters and sorts take. */
+export const describeResourceTool = () =>
+  defineTool({
+    name: 'describe_resource',
+    description: 'Describes one resource you may read, as JSON: its name, label, help, key fields, whether it soft deletes (soft_delete) and fields (name, type, label, help, enum values, the resource a relation links to, and whether it is optional, read-only, filterable and sortable). Filters and order_by in list_records take only fields marked filterable or sortable.',
+    parameters: { type: 'object', properties: { resource: resourceParameter }, required: ['resource'] },
+    annotations: readOnly,
+    run: async (args, context) => {
+      const name = resourceOf(args)
+      if (!name) return 'Pass the resource as { "resource": "<name>" }.'
+      const resources = await context.resources()
+      const model = resources.models.find((candidate) => candidate.name === name)
+      if (!model) return refused(notFound(`No resource ${name} you may read; list_resources lists them.`))
+      return JSON.stringify(resourceDetail(model, viewOf(resources, model)))
+    },
   })
 
 /** Finds records of a resource with the REST API's filters, sorting and pages, under the caller's access rules. */
@@ -111,7 +140,7 @@ export const getRecordTool = () =>
   })
 
 /**
- * `list_resources`, `list_records`, `count_records` and `get_record`: reading and counting the app's records as the
- * caller, through the REST API's rules.
+ * `list_resources`, `describe_resource`, `list_records`, `count_records` and `get_record`: reading and counting the
+ * app's records as the caller, through the REST API's rules.
  */
-export const readRecordTools = () => [listResourcesTool(), listRecordsTool(), countRecordsTool(), getRecordTool()]
+export const readRecordTools = () => [listResourcesTool(), describeResourceTool(), listRecordsTool(), countRecordsTool(), getRecordTool()]
