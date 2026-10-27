@@ -4,6 +4,7 @@ import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { Button } from '../primitives/button'
 import { ChatMessage } from './chat-message'
 import { ChatThread } from './chat-thread'
+import { Composer } from './composer'
 
 const meta = { title: 'Components/Chat/Scrolling', parameters: { layout: 'centered' }, decorators: [(Story) => <div className="flex h-[480px] w-[380px] flex-col border border-border bg-surface"><Story /></div>] } satisfies Meta
 export default meta
@@ -26,6 +27,30 @@ const Conversation = () => {
       </ChatThread>
       <div className="border-t border-border p-3">
         <Button onClick={() => setLast(last + 1)}>Receive</Button>
+      </div>
+    </>
+  )
+}
+
+// Messages 1 to 30 and a composer, whose sent message arrives a moment after it is sent, as from a server.
+const Sending = () => {
+  const [messages, setMessages] = useState(Array.from({ length: 30 }, (_, index) => `Message ${index + 1}`))
+  const [sent, setSent] = useState(0)
+  const send = (message: string) => {
+    setSent((count) => count + 1)
+    setTimeout(() => setMessages((current) => [...current, message]), 100)
+  }
+  return (
+    <>
+      <ChatThread length={messages.length} followKey={sent}>
+        {messages.map((message) => (
+          <ChatMessage key={message} author={author}>
+            {message}
+          </ChatMessage>
+        ))}
+      </ChatThread>
+      <div className="border-t border-border p-3">
+        <Composer onSend={send} />
       </div>
     </>
   )
@@ -77,5 +102,21 @@ export const LoadsEarlier: StoryObj = {
     expect(top('Message 11')).toBeCloseTo(reading, 0)
     // The first message has no earlier ones to load
     expect(canvas.queryByRole('button', { name: 'Load earlier messages' })).toBeNull()
+  },
+}
+
+/** A reader who scrolled back and sends a message goes to the end and sees it arrive. */
+export const SendingFollows: StoryObj = {
+  tags: ['play'],
+  render: () => <Sending />,
+  play: async ({ canvasElement }) => {
+    const { canvas, box, atEnd } = parts(canvasElement)
+    await waitFor(() => expect(atEnd()).toBe(true))
+    box.scrollTop = 0
+    await waitFor(() => expect(atEnd()).toBe(false))
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Message' }), 'My reply{Enter}')
+    await waitFor(() => expect(canvas.getByText('My reply')).toBeInTheDocument())
+    await waitFor(() => expect(atEnd()).toBe(true))
   },
 }

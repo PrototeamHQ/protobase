@@ -25,6 +25,18 @@ describe('scrollAfterChange', () => {
     expect(scrollAfterChange({ atEnd: true, first: 'm1', anchor: { element: 'm1', top: 40 } }, loaded)).toBe(600)
   })
 
+  it('goes to the end when the follow key changes, wherever the reader was', () => {
+    expect(scrollAfterChange({ atEnd: false, first: 'm1', anchor: { element: 'm4', top: 40 }, followKey: 0 }, { ...now, followKey: 1 })).toBe(1200)
+    // The reader sent while earlier messages came in above: the end still wins
+    expect(scrollAfterChange({ atEnd: false, first: 'm1', anchor: { element: 'm1', top: 40 }, followKey: 0 }, { first: 'm0', anchorTop: 640, scrollTop: 0, scrollHeight: 1800, followKey: 1 })).toBe(1800)
+  })
+
+  it('leaves a reader who scrolled back in place for a message with an unchanged follow key', () => {
+    expect(scrollAfterChange({ atEnd: false, first: 'm1', anchor: { element: 'm4', top: 40 }, followKey: 1 }, { ...now, followKey: 1 })).toBeUndefined()
+    const loaded = { first: 'm0', anchorTop: 640, scrollTop: 0, scrollHeight: 1800, followKey: 1 }
+    expect(scrollAfterChange({ atEnd: false, first: 'm1', anchor: { element: 'm1', top: 40 }, followKey: 1 }, loaded)).toBe(600)
+  })
+
   it('goes to the end of a chat that shows its first messages', () => {
     expect(scrollAfterChange({ atEnd: true, first: undefined }, now)).toBe(1200)
   })

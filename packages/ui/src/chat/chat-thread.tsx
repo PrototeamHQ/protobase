@@ -14,26 +14,29 @@ export type ChatThreadProps = {
   onLoadEarlier?: () => void
   /** The earlier messages are on their way. */
   loadingEarlier?: boolean
+  /** Changes when the reader sends a message, such as a count of their sends: each change goes to the end wherever they were, and the message that arrives next follows. */
+  followKey?: string | number
 }
 
 /** The message the reader is reading: the first whose bottom shows. */
-const readPlace = (box: HTMLElement, list: HTMLElement): ThreadPlace<Element> => {
+const readPlace = (box: HTMLElement, list: HTMLElement, followKey: unknown): ThreadPlace<Element> => {
   const top = box.getBoundingClientRect().top
   const element = [...list.children].find((child) => child.getBoundingClientRect().bottom > top)
-  return { atEnd: isAtEnd(box), first: list.firstElementChild ?? undefined, ...(element && { anchor: { element, top: element.getBoundingClientRect().top - top } }) }
+  const anchor = element && { anchor: { element, top: element.getBoundingClientRect().top - top } }
+  return { atEnd: isAtEnd(box), first: list.firstElementChild ?? undefined, followKey, ...anchor }
 }
 
 /**
  * The scrolling list of a chat's messages. A reader at the end follows new messages; one who scrolled back stays where
- * they are, and earlier messages loaded above keep them on the message they were reading. It scrolls inside itself,
- * not with the page, since a chat keeps its composer in view beneath it.
+ * they are until `followKey` changes, and earlier messages loaded above keep them on the message they were reading. It
+ * scrolls inside itself, not with the page, since a chat keeps its composer in view beneath it.
  */
-export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarlier }: ChatThreadProps) => {
+export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarlier, followKey }: ChatThreadProps) => {
   const box = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
-  const place = useRef<ThreadPlace<Element>>({ atEnd: true, first: undefined })
+  const place = useRef<ThreadPlace<Element>>({ atEnd: true, first: undefined, followKey })
   const remember = () => {
-    if (box.current && list.current) place.current = readPlace(box.current, list.current)
+    if (box.current && list.current) place.current = readPlace(box.current, list.current, followKey)
   }
 
   useLayoutEffect(() => {
@@ -41,10 +44,10 @@ export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarl
     if (!element || !list.current) return
     const before = place.current
     const anchorTop = before.anchor && before.anchor.element.isConnected ? before.anchor.element.getBoundingClientRect().top - element.getBoundingClientRect().top : undefined
-    const next = scrollAfterChange(before, { first: list.current.firstElementChild ?? undefined, anchorTop, scrollTop: element.scrollTop, scrollHeight: element.scrollHeight })
+    const next = scrollAfterChange(before, { first: list.current.firstElementChild ?? undefined, anchorTop, scrollTop: element.scrollTop, scrollHeight: element.scrollHeight, followKey })
     if (next !== undefined) element.scrollTop = next
     remember()
-  }, [length])
+  }, [length, followKey])
 
   // A chat that shows its end keeps showing it as it or its messages change size, such as a composer growing beneath it
   useEffect(() => {
