@@ -31,7 +31,7 @@ Give the client the endpoint's address. It finds the app's sign-in from there, o
 
 ## The app's icon
 
-The endpoint names the app's [icon](app-identity.md#the-icons) to the client when it connects (`serverInfo.icons`), at absolute addresses on the app's origin: the project's 192 pixel, touch and 512 pixel PNGs it has, then its `protobase.favicon.svg`, or Protobase's without one. A client that draws server icons shows it beside the app's name.
+The endpoint names the app's [icon](app-identity.md#the-icons) to the client when it connects (`serverInfo.icons`), at absolute addresses on the app's origin: the project's 192 pixel, touch and 512 pixel PNGs it has, then its `protobase.favicon.svg`, or Protobase's without one. A client that draws server icons shows it beside the app's name. <gap>An app without PNGs of its own cannot offer clients that draw no SVG an icon because PNG versions of Protobase's icon are not implemented.</gap>
 
 ## The tools
 
