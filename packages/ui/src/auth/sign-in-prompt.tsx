@@ -32,7 +32,7 @@ const Benefits = ({ benefits }: { benefits: string[] | undefined }) =>
 // opens in a new tab; without one, "Create an account" opens the route's sign-up step when the server has open sign-up.
 // A visitor is most likely new, so making an account is the primary action, last in the row, and "Sign in" the
 // secondary one; without a way to make an account, "Sign in" is the primary action.
-const Actions = ({ prompt }: { prompt: SignInPromptModel }) => {
+export const SignInPromptActions = ({ prompt }: { prompt: SignInPromptModel }) => {
   const { canSignUp } = useAuth()
   const { link } = useSignInAddress()
   const primary = buttonClass({ variant: 'primary' })
@@ -76,7 +76,7 @@ export const SignInPrompt = (props: SignInPromptProps) => {
         actions={
           <>
             <Button onClick={props.onClose}>{text('notNow')}</Button>
-            <Actions prompt={prompt} />
+            <SignInPromptActions prompt={prompt} />
           </>
         }
       >
@@ -98,7 +98,7 @@ export const SignInPrompt = (props: SignInPromptProps) => {
       </div>
       <Benefits benefits={prompt.benefits} />
       <div className="mt-2 flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:justify-center [&>*]:min-h-11 sm:[&>*]:min-h-0">
-        <Actions prompt={prompt} />
+        <SignInPromptActions prompt={prompt} />
       </div>
     </section>
   )

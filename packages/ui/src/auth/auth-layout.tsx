@@ -7,18 +7,20 @@ export type AuthLayoutProps = {
   description?: string
   /** How wide the card is: `sm`, the default, for a few short inputs; `md` for a form with longer ones. */
   size?: 'sm' | 'md'
+  /** The path of the app's own icon, shown in place of Protobase's mark. */
+  icon?: string
   children: ReactNode
 }
 
 /**
- * The frame of the sign-in and first-run pages and of public forms: logo, title and a card. On a page as short as a
+ * The frame of the sign-in and first-run pages and of public forms: logo, or the app's own icon, title and a card. On a page as short as a
  * phone's above its keyboard the logo and most of the margins go, so the card still shows whole above the keyboard.
  */
-export const AuthLayout = ({ title, description, size = 'sm', children }: AuthLayoutProps) => (
+export const AuthLayout = ({ title, description, size = 'sm', icon, children }: AuthLayoutProps) => (
   <div className="flex min-h-full w-full items-center justify-center bg-surface px-4 pb-[calc(2.5rem+var(--pb-safe-bottom))] pt-[calc(2.5rem+var(--pb-safe-top))] short:pb-[calc(1rem+var(--pb-safe-bottom))] short:pt-[calc(1rem+var(--pb-safe-top))]">
     <div className={cn('w-full', size === 'sm' ? 'max-w-sm' : 'max-w-lg')}>
       <div className="mb-6 flex flex-col items-center text-center short:mb-4">
-        <LogoMark className="size-10 short:hidden" />
+        {icon ? <img src={icon} alt="" className="size-10 object-contain short:hidden" /> : <LogoMark className="size-10 short:hidden" />}
         <h1 className="mt-4 text-xl font-semibold tracking-tight short:mt-0">{title}</h1>
         {description && <p className="mt-1 text-muted-foreground">{description}</p>}
       </div>

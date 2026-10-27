@@ -1,11 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
-import { AuthError, createStaticSession, type AuthSession, type ConnectingClient } from '@protobase/client'
+import { AuthError, createStaticSession, type AuthSession, type Client, type ConnectingClient, type MetaResult } from '@protobase/client'
+import { App } from '../app/app'
+import { fakeApi } from '../app/testing/fake-api'
 import { AuthProvider } from '../auth/auth-provider'
 import { Router } from '../app/router'
 import { ConnectPage, type ConnectPageProps } from './connect-page'
 
-const meta = { title: 'Connect an app', decorators: [(Story) => <div className="min-h-[480px] bg-surface"><Story /></div>] } satisfies Meta
+const meta = { title: 'Connect an app', parameters: { layout: 'fullscreen' }, decorators: [(Story) => <div className="h-screen"><Story /></div>] } satisfies Meta
 export default meta
 
 // What the server signs: the authorization request, its expiry and signature.
@@ -15,10 +17,10 @@ const signed = (clientId: string, redirectUri: string) =>
 type Args = { client: ConnectingClient; redirectUri: string; refusal?: AuthError; assign: (url: string) => void; isFramed?: () => boolean; resumed?: string }
 
 /** Sanne, signed in, on the connect page with the request a client's authorize sent there. */
-const ConnectStory = ({ client, redirectUri, refusal, assign, isFramed, resumed }: Args) => {
+const sessionFor = ({ client, redirectUri, refusal, resumed }: Pick<Args, 'client' | 'redirectUri' | 'refusal' | 'resumed'>): AuthSession => {
   const query = signed(client.client_id, redirectUri)
   const base = createStaticSession('story-token', { id: 'u-sanne', email: 'sanne@veldhuis-supply.example', name: 'Sanne Veldhuis', role: 'user' })
-  const session: AuthSession = {
+  return {
     ...base,
     connect: {
       resume: async () => (refusal ? Promise.reject(refusal) : { url: resumed ?? `/-/connect?${query}` }),
@@ -26,6 +28,11 @@ const ConnectStory = ({ client, redirectUri, refusal, assign, isFramed, resumed 
       answer: async (accept) => ({ url: `${redirectUri}?${accept ? 'code=c0de' : 'error=access_denied'}&state=st4te` }),
     },
   }
+}
+
+const ConnectStory = ({ client, redirectUri, refusal, assign, isFramed, resumed }: Args) => {
+  const query = signed(client.client_id, redirectUri)
+  const session = sessionFor({ client, redirectUri, refusal, resumed })
   const props: ConnectPageProps = { email: 'sanne@veldhuis-supply.example', appName: 'Veldhuis Supply', assign, ...(isFramed && { isFramed }) }
   return (
     <AuthProvider session={session}>
@@ -165,5 +172,49 @@ export const AllowedBeforeWithALookalikeRedirect: StoryObj<Args> = {
     await waitFor(() => expect(args.assign).toHaveBeenCalledWith(lookalike))
     expect(within(canvasElement).queryByText(/Published by/)).toBeNull()
     expect(within(canvasElement).queryByRole('button', { name: 'Allow' })).toBeNull()
+  },
+}
+
+// The whole app at `/-/connect`: the page is alone, with the app's name and icon and no sidebar or top bar, for someone
+// signed in and for a visitor, who signs in first.
+const InTheApp = ({ visitor }: { visitor?: boolean }) => {
+  const exampleChat = { client_id: 'https://chat.example/oauth/client-metadata', client_name: 'Example Chat' }
+  const member = sessionFor({ client: exampleChat, redirectUri: 'https://chat.example/oauth/redirect' })
+  const session: AuthSession = visitor ? { ...member, status: async () => ({ ...(await member.status()), anonymous: true }), session: async () => undefined } : member
+  const { client } = fakeApi({ resources: [], rows: {} })
+  const withIdentity = async (): Promise<MetaResult> => {
+    const own = await client.meta()
+    if (own.status !== 'modified') return own
+    return { ...own, meta: { ...own.meta, appName: 'Veldhuis Supply', appIcon: '/favicon.svg' } }
+  }
+  const app: Client = { ...client, meta: withIdentity }
+  return <App client={app} auth={session} initialUrl={`/-/connect?${signed(exampleChat.client_id, 'https://chat.example/oauth/redirect')}`} />
+}
+
+const withoutShell = (canvasElement: HTMLElement) => {
+  expect(canvasElement.querySelector('img[src="/favicon.svg"]')).not.toBeNull()
+  expect(within(canvasElement).queryByRole('navigation')).toBeNull()
+  expect(canvasElement.querySelector('header')).toBeNull()
+}
+
+export const AloneInTheApp: StoryObj = {
+  tags: ['play'],
+  render: () => <InTheApp />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByText('Allow an app to act as you in Veldhuis Supply?')).toBeVisible()
+    expect(canvas.getByText('Published by chat.example.')).toBeVisible()
+    withoutShell(canvasElement)
+  },
+}
+
+export const VisitorAloneInTheApp: StoryObj = {
+  tags: ['play'],
+  render: () => <InTheApp visitor />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByText('Sign in to connect an app')).toBeVisible()
+    expect(canvas.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', expect.stringContaining('/-/sign-in'))
+    withoutShell(canvasElement)
   },
 }

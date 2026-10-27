@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { AuthError, type ConnectingClient } from '@protobase/client'
-import { Notice } from '../app/meta-gate'
 import { useRouter } from '../app/router'
 import { authMessage } from '../auth/auth-messages'
+import { AuthLayout } from '../auth/auth-layout'
 import { useAuth } from '../auth/auth-provider'
 import { Button } from '../primitives/button'
 import { Spinner } from '../primitives/spinner'
@@ -48,7 +48,16 @@ const TargetText = ({ target }: { target: RedirectTarget }) =>
     </>
   )
 
-const Request = ({ asking, appName, email, onAnswer, onSignOut }: { asking: Asking; appName: string; email: string; onAnswer: (accept: boolean) => Promise<void>; onSignOut: () => void }) => {
+// What the page tells instead of asking, alone on the page as the sign-in pages are.
+const Notice = ({ title, icon, children }: { title: string; icon: string | undefined; children: ReactNode }) => (
+  <AuthLayout title={title} icon={icon}>
+    <p className="text-muted-foreground">{children}</p>
+  </AuthLayout>
+)
+
+type RequestProps = { asking: Asking; appName: string; appIcon: string | undefined; email: string; onAnswer: (accept: boolean) => Promise<void>; onSignOut: () => void }
+
+const Request = ({ asking, appName, appIcon, email, onAnswer, onSignOut }: RequestProps) => {
   const [busy, setBusy] = useState(false)
   const armed = useArmedAfterFocus(allowDelayMs)
   const answer = (accept: boolean) => {
@@ -60,10 +69,9 @@ const Request = ({ asking, appName, email, onAnswer, onSignOut }: { asking: Aski
   const publisher = clientPublisher(asking.client.client_id)
   const { target } = asking
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-4 px-4 py-10">
-      <section aria-label="Allow an app" className="rounded-lg border bg-background p-5">
-        <h1 className="text-[16px] font-semibold">Allow an app to act as you in {appName}?</h1>
-        <p className="mt-3">
+    <AuthLayout title={`Allow an app to act as you in ${appName}?`} icon={appIcon} size="md">
+      <section aria-label="Allow an app">
+        <p>
           An app that calls itself{' '}
           <bdi className="inline-block max-w-full truncate align-bottom font-medium" title={name}>
             “{name ?? 'no name'}”
@@ -98,13 +106,13 @@ const Request = ({ asking, appName, email, onAnswer, onSignOut }: { asking: Aski
           </button>
         </p>
       </section>
-    </div>
+    </AuthLayout>
   )
 }
 
-type ConnectingProps = { oauthQuery: string; appName: string; email: string; assign: (url: string) => void }
+type ConnectingProps = { oauthQuery: string; appName: string; appIcon: string | undefined; email: string; assign: (url: string) => void }
 
-const Connecting = ({ oauthQuery, appName, email, assign }: ConnectingProps) => {
+const Connecting = ({ oauthQuery, appName, appIcon, email, assign }: ConnectingProps) => {
   const { session, signOut } = useAuth()
   const { path, basePath } = useRouter()
   const go = goWith(assign)
@@ -142,21 +150,23 @@ const Connecting = ({ oauthQuery, appName, email, assign }: ConnectingProps) => 
     }
   }
 
-  if (state.kind === 'failed') return <Notice title="This app cannot be connected">{state.message}</Notice>
+  if (state.kind === 'failed') return <Notice title="This app cannot be connected" icon={appIcon}>{state.message}</Notice>
   if (state.kind === 'loading') {
     return (
-      <div className="flex min-h-48 items-center justify-center gap-2 text-muted-foreground">
+      <div className="flex min-h-full w-full items-center justify-center gap-2 bg-surface text-muted-foreground">
         <Spinner /> Loading
       </div>
     )
   }
-  return <Request asking={state.asking} appName={appName} email={email} onAnswer={(accept) => answer(accept, state.asking)} onSignOut={() => void signOut()} />
+  return <Request asking={state.asking} appName={appName} appIcon={appIcon} email={email} onAnswer={(accept) => answer(accept, state.asking)} onSignOut={() => void signOut()} />
 }
 
 export type ConnectPageProps = {
   /** The signed-in person's address, shown so they see who they allow the app to act as. */
   email: string
   appName: string
+  /** The path of the app's own icon, shown at the top of the page in place of Protobase's mark. */
+  appIcon?: string
   /** Whether the page runs inside another page's frame; the window's own answer unless a story sets it. */
   isFramed?: () => boolean
   /** Sends the browser on, to the client or a fresh sign-in; `location.assign` unless a story sets it. */
@@ -165,15 +175,15 @@ export type ConnectPageProps = {
 
 /**
  * The connect page: someone signed in allows an outside app, such as an MCP client, to act as them, from the request
- * the server signed and sent here. Inside another page's frame it shows only that it cannot be used there and calls
+ * the server signed and sent here. It stands alone on the page, as the sign-in pages do, without the app's shell. Inside another page's frame it shows only that it cannot be used there and calls
  * nothing, whatever headers the host sent; Allow takes a click only once the page has been in front for a moment.
  */
-export const ConnectPage = ({ email, appName, isFramed = isFramedWindow, assign = (url) => window.location.assign(url) }: ConnectPageProps) => {
+export const ConnectPage = ({ email, appName, appIcon, isFramed = isFramedWindow, assign = (url) => window.location.assign(url) }: ConnectPageProps) => {
   const [framed] = useState(isFramed)
   const { oauthQuery } = useConnectAddress()
   if (framed) {
     return (
-      <Notice title="This page cannot be used inside another site">
+      <Notice title="This page cannot be used inside another site" icon={appIcon}>
         <a href={window.location.href} target="_blank" rel="noopener" className="underline underline-offset-2">
           Open it on its own
         </a>{' '}
@@ -181,6 +191,6 @@ export const ConnectPage = ({ email, appName, isFramed = isFramedWindow, assign 
       </Notice>
     )
   }
-  if (!oauthQuery) return <Notice title="Nothing to connect">Connect again from your app.</Notice>
-  return <Connecting key={oauthQuery} oauthQuery={oauthQuery} appName={appName} email={email} assign={assign} />
+  if (!oauthQuery) return <Notice title="Nothing to connect" icon={appIcon}>Connect again from your app.</Notice>
+  return <Connecting key={oauthQuery} oauthQuery={oauthQuery} appName={appName} appIcon={appIcon} email={email} assign={assign} />
 }
