@@ -6,17 +6,18 @@
 export const fixedWindows = (max: number, windowMs: number, now = () => Date.now()) => {
   let start = -Infinity
   let counts = new Map<string, number>()
-  return (key: string) => {
+  /** Takes as many as each key names, only when they all fit: whether they did. */
+  const all = (takes: ReadonlyMap<string, number>) => {
     const at = now()
     if (at - start >= windowMs) {
       start = at
       counts = new Map()
     }
-    const count = counts.get(key) ?? 0
-    if (count >= max) return false
-    counts.set(key, count + 1)
+    for (const [key, n] of takes) if ((counts.get(key) ?? 0) + n > max) return false
+    for (const [key, n] of takes) counts.set(key, (counts.get(key) ?? 0) + n)
     return true
   }
+  return Object.assign((key: string) => all(new Map([[key, 1]])), { all })
 }
 
 /** `fixedWindows` for one key. */

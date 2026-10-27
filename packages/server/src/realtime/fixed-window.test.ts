@@ -13,6 +13,15 @@ describe('fixedWindows', () => {
     expect([take('a'), take('b'), take('a'), take('a')]).toEqual([true, true, true, false])
   })
 
+  it('takes several keys at once only when every one of them fits', () => {
+    const take = fixedWindows(2, 100, () => 0)
+    take('a')
+    expect(take.all(new Map([['b', 2], ['a', 2]]))).toBe(false)
+    expect([take('b'), take('b'), take('b')]).toEqual([true, true, false])
+    expect(take.all(new Map([['a', 1], ['c', 2]]))).toBe(true)
+    expect([take('a'), take('c')]).toEqual([false, false])
+  })
+
   it('has a one-key form', () => {
     let at = 0
     const take = fixedWindow(1, 10, () => at)

@@ -143,6 +143,25 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime with supabase-
     expect(await bob.channel.untrack()).toBe('ok')
     await vi.waitFor(() => expect(names(alice.channel)).toEqual([['alice', ['alice']]]), { timeout: 5_000, interval: 50 })
   })
+
+  it('lets a server that joins no channel broadcast to the room over REST, with send() and httpSend(), and refuses a wrong key', async () => {
+    const bob = await enter('bob')
+    const outside = (await signIn('carol')).channel('chat')
+    // send()'s note that it falls back to REST on a channel that has not joined.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    onTestFinished(() => warn.mockRestore())
+    expect(await outside.send({ type: 'broadcast', event: 'message', payload: { text: 'From the server' } })).toBe('ok')
+    expect(await outside.httpSend('message', { text: 'Again' })).toEqual({ success: true })
+    await vi.waitFor(() => expect(bob.heard).toEqual([{ text: 'From the server' }, { text: 'Again' }]), { timeout: 5_000, interval: 50 })
+
+    const stranger = createClient(`${url}/api/sb`, 'sb_publishable_of_another_app')
+    clients.push(stranger)
+    expect(await stranger.channel('chat').send({ type: 'broadcast', event: 'message', payload: { text: 'Nope' } })).toBe('error')
+    // Bob would have heard the stranger's before this one.
+    expect(await outside.httpSend('message', { text: 'Last' })).toEqual({ success: true })
+    await vi.waitFor(() => expect(bob.heard).toHaveLength(3), { timeout: 5_000, interval: 50 })
+    expect(bob.heard.at(-1)).toEqual({ text: 'Last' })
+  })
 })
 
 describe.skipIf(!(await postgresTemplateReady('jobs')) || !(await postgresTemplateReady('auth')))('Realtime with supabase-js signed in through /api/sb/auth/v1', () => {

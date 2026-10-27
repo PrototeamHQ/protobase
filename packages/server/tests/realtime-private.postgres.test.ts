@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { createAdmin, jwtVerifier } from '@protobase/server'
 import { npmWs } from './support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
@@ -120,5 +120,20 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('Private Realtime channe
     await vi.waitFor(() => expect(bob.heard).toEqual([{ text: 'After' }]), { timeout: 5_000, interval: 50 })
     expect(alice.heard).toEqual([])
     expect(keys(alice.channel)).not.toContain('bob')
+  })
+
+  it('sends a private REST broadcast from a member the policies let send, and drops or refuses one from a member they do not', async () => {
+    const bob = await enter('bob')
+    const fromAlice = (await clientOf('alice')).channel('room', { config: { private: true } })
+    const fromBob = (await clientOf('bob')).channel('room', { config: { private: true } })
+    // send()'s note that it falls back to REST on a channel that has not joined.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    onTestFinished(() => warn.mockRestore())
+    // Supabase answers a batch whose private messages the policies refuse as sent, and drops them.
+    expect(await fromBob.send({ type: 'broadcast', event: 'message', payload: { text: 'Dropped' } })).toBe('ok')
+    await expect(fromBob.httpSend('message', { text: 'Refused' })).rejects.toThrow('Unauthorized')
+    expect(await fromAlice.send({ type: 'broadcast', event: 'message', payload: { text: 'From Alice' } })).toBe('ok')
+    expect(await fromAlice.httpSend('message', { text: 'Again' })).toEqual({ success: true })
+    await vi.waitFor(() => expect(bob.heard).toEqual([{ text: 'From Alice' }, { text: 'Again' }]), { timeout: 5_000, interval: 50 })
   })
 })
