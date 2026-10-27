@@ -8,6 +8,7 @@ import type { Caller } from '../api-keys/resolve-caller'
 import { broadcastHub } from './broadcast-hub'
 import type { ChangeHub } from './change-hub'
 import type { ChannelAccess } from './channel-access'
+import { presenceHub } from './presence-hub'
 import { realtimeLimits } from './realtime-limits'
 import { realtimeRoutes } from './realtime-routes'
 
@@ -29,7 +30,7 @@ describe('realtimeRoutes', () => {
       return new Response()
     })
     const report = vi.fn()
-    const app = realtimeRoutes({ upgradeWebSocket: fake, caller: async () => anon, live: [], hub, broadcasts: broadcastHub(), database: { follow: () => () => {} }, access, report })
+    const app = realtimeRoutes({ upgradeWebSocket: fake, caller: async () => anon, live: [], hub, broadcasts: broadcastHub(), presences: presenceHub(), database: { follow: () => () => {} }, access, report })
     const socket = (raw: unknown) => {
       const sent: unknown[] = []
       const close = vi.fn()
@@ -60,7 +61,7 @@ describe('realtimeRoutes', () => {
   })
 
   it('leaves the channels of a socket that ws closed for a frame over the cap, without waiting for its close', async () => {
-    const app = new Hono().route('/', realtimeRoutes({ upgradeWebSocket, caller: async () => anon, live: [], hub, broadcasts: broadcastHub(), database: { follow: () => () => {} }, access, report: (error) => { throw error } }))
+    const app = new Hono().route('/', realtimeRoutes({ upgradeWebSocket, caller: async () => anon, live: [], hub, broadcasts: broadcastHub(), presences: presenceHub(), database: { follow: () => () => {} }, access, report: (error) => { throw error } }))
     const server = createAdaptorServer({ fetch: app.fetch, websocket: { server: new ws.WebSocketServer({ noServer: true, maxPayload: realtimeLimits.maxFrameBytes }) } })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     cleanups.push(() => server.close())

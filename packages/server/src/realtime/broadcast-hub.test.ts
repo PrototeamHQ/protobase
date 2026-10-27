@@ -91,4 +91,16 @@ describe('broadcastHub', () => {
     expect(hub.publish([batch('realtime:other'), batch('realtime:room')])).toBe(true)
     expect([room.heard, other.heard]).toEqual([[['b', {}]], [['b', {}]]])
   })
+
+  it('delivers a broadcast from another process whatever the rate, to the topic\'s channels of its kind only', () => {
+    const hub = broadcastHub({ now: () => 0 })
+    const [open, closed, sender] = [member(false), member(false, true), member(false)]
+    hub.join('realtime:room', open.listener)
+    hub.join('realtime:room', closed.listener)
+    hub.join('realtime:room', sender.listener)
+    for (let n = 0; n < realtimeLimits.topicBroadcastsPerSecond; n++) hub.send('realtime:room', sender.listener, 'a', n)
+    hub.deliver({ topic: 'realtime:room', event: 'b', payload: 1, private: false }, sender.listener)
+    expect(open.heard.at(-1)).toEqual(['b', 1])
+    expect([closed.heard, sender.heard]).toEqual([[], []])
+  })
 })

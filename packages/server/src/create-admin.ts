@@ -21,6 +21,7 @@ import { apiKeyCaller } from './api-keys/resolve-caller'
 import { jwtVerifier } from './auth/jwt'
 import { unauthorized } from './problem'
 import { realtimeApp } from './realtime/realtime-app'
+import type { RealtimeOptions } from './realtime/relay/realtime-options'
 import { restRoutes } from './rest/rest-routes'
 import { storageRoutes } from './storage/storage-routes'
 import { shownAppName } from './app-name'
@@ -145,6 +146,8 @@ export type CreateAdminInput = {
   subscriptions?: SubscriptionDefinition[]
   /** Webhook subscriptions made in the admin app, from `webhooks: {}` (see `WebhooksOptions`). */
   webhooks?: WebhooksOptions
+  /** How `/api/sb/realtime/v1` is served: by one process or several (see `RealtimeOptions`). */
+  realtime?: RealtimeOptions
   /** Each user's devices and the endpoints that register them, from `notifications: {}` (see `NotificationsOptions`). */
   notifications?: NotificationsOptions
   /**
@@ -193,7 +196,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, notifications, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, realtime, notifications, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -397,7 +400,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     // `from()` and `rpc()` under the tables' RLS.
     app.route(restPath, restRoutes({ deps, caller, report }))
     // `postgres_changes` of the live resources under the tables' RLS, broadcasts and presence.
-    if (upgradeWebSocket) app.route(realtimePath, realtimeApp({ deps, feed, upgradeWebSocket, caller, report }))
+    if (upgradeWebSocket) app.route(realtimePath, realtimeApp({ deps, feed, upgradeWebSocket, caller, report, ...(realtime && { options: realtime }) }))
     // `storage` under the storage schema's RLS.
     if (files?.storage) {
       const storage = { db, statementTimeoutMs: deps.statementTimeoutMs, ...(deps.actorSetting && { actorSetting: deps.actorSetting }), store: files.providers[files.storage.provider]!.store, signer: files.signer, maxBytes: files.storage.maxBytes, caller }

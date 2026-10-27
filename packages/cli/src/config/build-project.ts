@@ -1,6 +1,6 @@
 import type { PostgresPool } from 'kysely'
 import type { Db } from '@protobase/query'
-import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, WebhooksOptions } from '@protobase/server'
+import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, WebhooksOptions } from '@protobase/server'
 import { buildAppAuth, buildAuthenticator } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
 import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks } from './project-parts'
@@ -57,6 +57,7 @@ export type BuiltProject = {
   events?: EventsOptions
   history?: HistoryOptions
   webhooks?: WebhooksOptions
+  realtime?: RealtimeOptions
   notifications?: NotificationsOptions
   jobs: JobDefinition[]
   /** The app's own mailer (`projectMailer`), which the jobs send with as sign-in does. */
@@ -91,6 +92,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     ...(config.events && { events: config.events }),
     ...(config.history && { history: config.history }),
     ...(webhooks && { webhooks }),
+    ...(config.realtime && { realtime: config.realtime }),
     ...(notifications && { notifications }),
     ...(mailer && { mailer }),
     ...(config.mobile && { mobile: config.mobile }),

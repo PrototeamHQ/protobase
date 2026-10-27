@@ -68,7 +68,7 @@ export const databaseBroadcasts = ({ db, statementTimeoutMs, broadcasts, interva
       const rows = await takeMessages(db, statementTimeoutMs)
       for (const row of rows) {
         const publication = publicationOfRow(row)
-        if (publication) broadcasts.publish([publication])
+        if (publication) await broadcasts.publish([publication])
       }
       if (rows.length < batchSize) return
     }

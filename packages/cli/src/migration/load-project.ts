@@ -32,6 +32,7 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
     ...(auth && { auth }),
     ...(config.events && { events: config.events }),
     ...(webhooks && { webhooks }),
+    ...(config.realtime && { realtime: config.realtime }),
     ...(notifications && { notifications }),
     jobs,
     // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.

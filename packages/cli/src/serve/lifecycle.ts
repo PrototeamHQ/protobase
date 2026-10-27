@@ -2,7 +2,7 @@ import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import pg from 'pg'
-import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkNotificationsSchema, checkQueryRunner, checkResourcesOutsideAuthStore, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
+import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkWebhooksSchema, configExports, createFileCleanup, relayed, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { openAppDatabase } from '../project/pg-db'
 import { buildProject, type AppDatabase } from '../config/build-project'
@@ -69,6 +69,7 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
     if (env.startupChecks && assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : [])
     if (env.startupChecks) checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
     if (env.startupChecks && project.webhooks) await checkWebhooksSchema(db, project.webhooks)
+    if (env.startupChecks && relayed(project.realtime)) await checkRealtimeRelay(db)
     if (env.startupChecks && project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)
     const { admin, jobs: definitions } = projectAdmin(project, db, ui, reporter, upgradeWebSocket)
     if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)

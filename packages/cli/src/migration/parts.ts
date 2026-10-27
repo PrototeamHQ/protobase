@@ -1,4 +1,4 @@
-import { authSchemaMigration, changesMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, notificationsMigration, queryRunnerMigration, webhooksMigration } from '@protobase/server'
+import { authSchemaMigration, changesMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, webhooksMigration } from '@protobase/server'
 import { authMigrationTitle } from '../auth/migration-file'
 import type { MigrationProject } from './load-project'
 
@@ -33,5 +33,6 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
     ...(project.notifications && !(project.notifications.store && project.notifications.historyStore)
       ? [{ name: 'notifications', title: 'The tables of notifications', sql: () => notificationsMigration(project.db, project.notifications, project.auth) }]
       : []),
+    ...(relayed(project.realtime) ? [{ name: 'realtime_relay', title: 'The relay of Realtime broadcasts and presence between the processes serving the app', sql: () => realtimeRelayMigration(project.db) }] : []),
   ]
 }
