@@ -52,9 +52,10 @@ jobs:
         env:
           IMAGE: ${{ inputs.image }}
           PLATFORM: ${{ matrix.platform }}
+          TAG: ${{ inputs.tag }}
         run: |
           mkdir -p "$RUNNER_TEMP/digests"
-          docker buildx build --platform "$PLATFORM" --file "docker/$IMAGE/Dockerfile" \
+          docker buildx build --platform "$PLATFORM" --file "docker/$IMAGE/Dockerfile" --build-arg "PROTOBASE_VERSION=${TAG#v}" \
             --output "type=image,name=ghcr.io/prototeamhq/$IMAGE,push-by-digest=true,name-canonical=true,push=true" \
             --metadata-file "$RUNNER_TEMP/metadata.json" "dist/images/$IMAGE"
           bun -p "require('$RUNNER_TEMP/metadata.json')['containerimage.digest']" > "$RUNNER_TEMP/digests/$IMAGE"

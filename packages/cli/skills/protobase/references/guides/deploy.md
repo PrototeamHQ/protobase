@@ -41,7 +41,7 @@ Every release pushes two public images to GitHub's registry, for `linux/amd64` a
 | Image | What it holds |
 | --- | --- |
 | `ghcr.io/prototeamhq/protobase:<version>` | the serve runtime, compiled with Bun into `/opt/protobase/protobase-serve`, which serves the API of the bundle mounted at `/app` (and, given the folder, its app too, see [a self-hosted image](#a-self-hosted-image)); the release's prebuilt admin app at `/opt/protobase/shell`, which a host may serve for the bundle's [shell paths](../reference/plugins.md#the-shell) instead of the bundle's copy; Bun for its healthcheck on `/health`, and the C++ runtime native add-ons link. It runs as `nonroot` (65532) and writes nothing, so it runs with a read-only root filesystem |
-| `ghcr.io/prototeamhq/protobase-dev:<version>` | Bun and the presets at `/opt/protobase/presets/<name>` (`erp`, `real-estate`, `scratch`), with the dependencies they share installed in `/workspace` and Bun's cache in `/opt/bun-cache`. It has no Node: the presets' scripts and the `protobase` command run on Bun. It runs as `bun` (1000) |
+| `ghcr.io/prototeamhq/protobase-dev:<version>` | Bun, the `protobase` command of that version installed globally (in `/opt/protobase/cli`, on `PATH`), and the presets at `/opt/protobase/presets/<name>` (`erp`, `real-estate`, `scratch`), with the dependencies they share installed in `/workspace` and Bun's cache in `/opt/bun-cache`. The global `protobase` builds a bundled project with nothing installed and hands a locked one over to the CLI it installed (see [Versioning](../reference/versioning.md#bundles-and-runtimes)). It has no Node: the presets' scripts and the `protobase` command run on Bun. It runs as `bun` (1000) |
 
 ```sh
 docker run -v "$PWD/dist:/app:ro" -p 127.0.0.1:8787:8787 -e DATABASE_URL -e PROTOBASE_URL -e PROTOBASE_SECRET ghcr.io/prototeamhq/protobase:"$VERSION"   # the version of the @protobase/cli that built dist/
@@ -54,7 +54,7 @@ The Dockerfiles are `docker/protobase/Dockerfile` and `docker/protobase-dev/Dock
 ```sh
 bun run images:context    # dist/images/protobase and dist/images/protobase-dev
 docker build -f docker/protobase/Dockerfile -t protobase dist/images/protobase
-docker build -f docker/protobase-dev/Dockerfile -t protobase-dev dist/images/protobase-dev
+docker build -f docker/protobase-dev/Dockerfile --build-arg PROTOBASE_VERSION="$(bun -p "require('./package.json').version")" -t protobase-dev dist/images/protobase-dev
 ```
 
 ## A self-hosted image
