@@ -150,6 +150,7 @@ describe('the MCP endpoint', () => {
       name: 'organizations',
       key: ['id'],
       soft_delete: false,
+      list_fields: ['id', 'name'],
       fields: [
         { name: 'id', type: 'integer', optional: false, read_only: true, filterable: true, sortable: true },
         { name: 'name', type: 'text', optional: false, read_only: false, filterable: false, sortable: false },

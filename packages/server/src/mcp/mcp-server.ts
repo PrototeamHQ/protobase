@@ -4,11 +4,14 @@ import type { AssistantTool, ToolContext } from '../assistant/tools'
 import { ApprovalNeeded, approvalAsked, approvedUnasked, mcpApproval, writesUnasked } from './mcp-approval'
 import type { McpApprovals } from './mcp-approval-store'
 import { callHash, callScope, scopeHash } from './mcp-call-hash'
+import { mcpInstructions } from './mcp-instructions'
 import { isStatementTimeout } from '../statement-timeout'
 
 export type McpServerInput = {
   /** The name, version, title and icons the server tells clients when they connect, each icon an absolute URL. */
   info: { name: string; version: string; title?: string; icons?: Icon[] }
+  /** What the server tells clients about using it when they connect; `mcpInstructions`, on reading records, by default. */
+  instructions?: string
   tools: AssistantTool[]
   /** What each tool gets as its context, for the caller of the request; `approve` comes from each call's own answers. */
   context: Omit<ToolContext, 'approve'>
@@ -47,8 +50,8 @@ const stopped = (tool: string): CallToolResult => ({
  * counts only for the call it was asked for, once, while it lasts; for a user holding one of `rolesWithoutApproval` it
  * is approved at once, and the client is never asked.
  */
-export const mcpServer = ({ info, tools, context, report, rolesWithoutApproval = [], approvals }: McpServerInput) => {
-  const server = new McpServer(info)
+export const mcpServer = ({ info, instructions = mcpInstructions, tools, context, report, rolesWithoutApproval = [], approvals }: McpServerInput) => {
+  const server = new McpServer(info, { instructions })
   const unasked = writesUnasked(rolesWithoutApproval, context.session.user.roles)
   for (const tool of checkedTools(tools)) {
     const config = { description: tool.description, inputSchema: inputSchemaOf(tool.parameters), ...(tool.annotations && { annotations: tool.annotations }) }

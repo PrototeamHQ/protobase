@@ -41,14 +41,30 @@ Each tool reads as the signed-in person: their role's access rules, row filters,
 | Tool | What it does |
 | --- | --- |
 | `list_resources` | The resources the person may read, kept small for a client's first call: each one's name, label, the first line of its help, key and whether it soft deletes (`soft_delete`), without its fields. |
-| `describe_resource` | One resource the person may read, with its fields: each field's type, label, help, enum values, the resource a relation links to, and whether it is optional, read-only and taken by filters and sorts. |
-| `list_records` | A page of a resource's records: `filter` in the API's [filter syntax](/reference/api/#filters), `order_by`, `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page. `show_deleted: true` also returns soft-deleted records. |
+| `describe_resource` | One resource the person may read, with its fields: each field's type, label, help, enum values, the resource a relation links to, and whether it is optional, read-only and taken by filters and sorts. It also names the resource's `list_fields`, what `list_records` returns when not told which. |
+| `list_records` | A page of a resource's records: `fields`, `filter` in the API's [filter syntax](/reference/api/#filters), `order_by`, `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page and `total_size_estimate`, an estimate rather than an exact count. `show_deleted: true` also returns soft-deleted records. |
 | `count_records` | How many records a `filter` finds, without returning them: `{ count }` as the API's `count=exact` counts, or `{ more_than: 10000, estimate }` when more match. With `group_by`, a filterable field, the count per value instead, as [`:aggregate`](/reference/api/#routes) gives it: `{ group_by, groups: [{ value, count }] }`, largest first, adding up to what the filter finds, the first `limit` (100 by default, at most 1,000), with `label` naming a relation's values by a field of the records they link to. A date or timestamp `group_by` counts per day over the last 30 days. `show_deleted: true` also counts soft-deleted records. |
-| `get_record` | One record by its key, with its ETag. A composite key is passed as the values of its fields, in order. `show_deleted: true` also finds a soft-deleted record. |
+| `get_record` | One record by its key, with its ETag, holding the `fields` asked for or, without them, every field. A composite key is passed as the values of its fields, in order. `show_deleted: true` also finds a soft-deleted record. |
 
 `show_deleted` works as the [REST API](/reference/api/#routes)'s: it applies only to a resource with a soft delete, and is refused on any other. <gap>`count_records` cannot count soft-deleted records per value because `:aggregate` does not implement `show_deleted`.</gap> Soft-deleted records come under the same access rules, tenant and hidden fields as the rest, and carry the field their deletion set.
 
-A refusal, such as a resource the person may not read or a bad filter, comes back to the client as text it can act on, `{ "error": ..., "message": ... }`.
+### Reading only what is needed
+
+Records can hold long texts, such as a description or notes, and a page of them can run past what a client can take in. So `list_records` and `get_record` take `fields`, the field names to return, as an [AIP-157](https://google.aip.dev/157) read mask does, with `["*"]` for every field.
+
+Without `fields`, `list_records` returns the record's key and the columns of the resource's table in the app: the list's `columns` of the person's view, or its first six fields when the view has no list. `describe_resource` names them as the resource's `list_fields`, and the page names the fields it left out in `omitted_fields`. `get_record` returns every field unless told which.
+
+The server tells each client this when it connects, in its instructions, and the tool descriptions repeat it: name the fields needed, filter on the fields marked filterable, which are indexed, rather than paging through records to search them, and keep pages small. For example, the open tasks, newest first, ten at a time, then the brief of one of them:
+
+```json
+{ "resource": "tasks", "fields": ["id", "status", "title"], "filter": "status = \"open\"", "order_by": "created_at desc", "page_size": 10 }
+```
+
+```json
+{ "resource": "tasks", "key": "42", "fields": ["brief"] }
+```
+
+A refusal, such as a resource the person may not read, a bad filter or a field the person may not read, comes back to the client as text it can act on, `{ "error": ..., "message": ... }`.
 
 ### Comments
 
@@ -154,7 +170,7 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 `@protobase/server` exports the pieces the endpoint is made of, for an MCP server of your own with tools of your own:
 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session, request)` builds for its caller; `request` is the HTTP request, such as for the language the person reads.
-- `mcpServer({ info, tools, context, report, rolesWithoutApproval, approvals })`: an MCP server named by `info`, its `name`, `version` and `icons`, such as `mcpIcons(origin, icons)`, the app's icons on `origin`, and offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`, with the `locale` its approvals are asked in (English when absent): each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`. `approvals` is `mcpApprovals()`, built once and passed to every server the endpoint builds: it keeps the approvals asked for until they are answered or expire.
+- `mcpServer({ info, instructions, tools, context, report, rolesWithoutApproval, approvals })`: an MCP server named by `info`, its `name`, `version` and `icons`, such as `mcpIcons(origin, icons)`, the app's icons on `origin`, and offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`, with the `locale` its approvals are asked in (English when absent): each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`. `approvals` is `mcpApprovals()`, built once and passed to every server the endpoint builds: it keeps the approvals asked for until they are answered or expire. `instructions` is what it tells clients when they connect, by default `mcpInstructions`, the advice on reading records above.
 - `mcpTools({ db, sql, writes, commented })`: the default tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`, and `commented` names the resources with comments.
 - `readRecordTools()`, or `listResourcesTool()`, `describeResourceTool()`, `listRecordsTool()` and `getRecordTool()`: the read tools alone; `readOnlyQueryTool(db)` is `run_read_only_query`, and `readWriteQueryTool(db)` proposes one write statement that the user approves before it runs.
 - `commentTools({ commented }, writes)`, or `listCommentsTool({ commented })` and `addCommentTool({ commented, resources })`: the comment tools on the resources named in `commented`, which call the context's `comments`, and `add_comment` only when `writes` is not `false`.

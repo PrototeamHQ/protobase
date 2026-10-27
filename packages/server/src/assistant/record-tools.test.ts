@@ -13,9 +13,10 @@ const deals = {
     id: { name: 'id', type: 'integer', nullable: false, readOnly: true, filterable: true, sortable: true },
     stage: { name: 'stage', type: 'enum', nullable: false, readOnly: false, filterable: true, sortable: false, enumValues: ['open', 'won'] },
     company: { name: 'company', type: 'relation', nullable: true, readOnly: false, filterable: false, sortable: false, relation: { resource: 'companies', columns: ['company_id'] } },
+    notes: { name: 'notes', type: 'text', nullable: true, readOnly: false, filterable: false, sortable: false },
   },
 } as unknown as ResourceModel
-const dealsView = { resource: 'deals', names: { singular: 'Deal', plural: 'Deals' }, help: 'Open sales\nWon and lost ones too', fields: { stage: { label: 'Stage', help: 'Where it is' } } } as unknown as ViewModel
+const dealsView = { resource: 'deals', names: { singular: 'Deal', plural: 'Deals' }, help: 'Open sales\nWon and lost ones too', fields: { stage: { label: 'Stage', help: 'Where it is' } }, list: { columns: ['stage', 'company'] } } as unknown as ViewModel
 
 const contextWith = (records: Partial<ToolRecords>) =>
   ({
@@ -49,10 +50,12 @@ describe('record tools', () => {
       help: 'Open sales\nWon and lost ones too',
       key: ['id'],
       soft_delete: true,
+      list_fields: ['id', 'stage', 'company'],
       fields: [
         { name: 'id', type: 'integer', optional: false, read_only: true, filterable: true, sortable: true },
         { name: 'stage', type: 'enum', label: 'Stage', help: 'Where it is', values: ['open', 'won'], optional: false, read_only: false, filterable: true, sortable: false },
         { name: 'company', type: 'relation', links_to: 'companies', optional: true, read_only: false, filterable: false, sortable: false },
+        { name: 'notes', type: 'text', optional: true, read_only: false, filterable: false, sortable: false },
       ],
     })
   })
@@ -65,16 +68,40 @@ describe('record tools', () => {
   it('list_records passes the arguments through, with 20 records a page when none is given', async () => {
     const list = vi.fn(async () => ({ items: [{ id: 1 }], next_page_token: '', total_size_estimate: 1 }))
     const context = contextWith({ list })
-    expect(JSON.parse(await listRecordsTool().run({ resource: 'deals', filter: 'stage = "open"', order_by: 'id desc', page_token: 't' }, context))).toMatchObject({ items: [{ id: 1 }] })
-    expect(list).toHaveBeenLastCalledWith('deals', { filter: 'stage = "open"', order_by: 'id desc', page_token: 't', page_size: 20 })
-    await listRecordsTool().run({ resource: 'deals', page_size: 7 }, context)
-    expect(list).toHaveBeenLastCalledWith('deals', { page_size: 7 })
+    expect(JSON.parse(await listRecordsTool().run({ resource: 'deals', fields: ['id', 'notes'], filter: 'stage = "open"', order_by: 'id desc', page_token: 't' }, context))).toEqual({ items: [{ id: 1 }], next_page_token: '', total_size_estimate: 1 })
+    expect(list).toHaveBeenLastCalledWith('deals', { filter: 'stage = "open"', order_by: 'id desc', page_token: 't', fields: ['id', 'notes'], page_size: 20 })
+    await listRecordsTool().run({ resource: 'deals', fields: ['id'], page_size: 7 }, context)
+    expect(list).toHaveBeenLastCalledWith('deals', { fields: ['id'], page_size: 7 })
   })
 
-  it('get_record reads a record by its key', async () => {
+  it('list_records returns the key and the table columns unless fields names others, and says which it leaves out', async () => {
+    const list = vi.fn(async () => ({ items: [{ id: 1 }], next_page_token: '', total_size_estimate: 1 }))
+    const page = JSON.parse(await listRecordsTool().run({ resource: 'deals' }, contextWith({ list })))
+    expect(list).toHaveBeenLastCalledWith('deals', { fields: ['id', 'stage', 'company'], page_size: 20 })
+    expect(page.omitted_fields).toEqual(['notes'])
+  })
+
+  it('list_records returns every field for ["*"]', async () => {
+    const list = vi.fn(async () => ({ items: [{ id: 1 }], next_page_token: '', total_size_estimate: 1 }))
+    const page = JSON.parse(await listRecordsTool().run({ resource: 'deals', fields: ['*'] }, contextWith({ list })))
+    expect(list).toHaveBeenLastCalledWith('deals', { page_size: 20 })
+    expect(page.omitted_fields).toBeUndefined()
+  })
+
+  it('list_records leaves the fields to the API for a resource it cannot describe', async () => {
+    const list = vi.fn(async () => ({ items: [], next_page_token: '', total_size_estimate: 0 }))
+    await listRecordsTool().run({ resource: 'companies' }, contextWith({ list }))
+    expect(list).toHaveBeenLastCalledWith('companies', { page_size: 20 })
+  })
+
+  it('get_record reads a record by its key, with the fields asked for', async () => {
     const get = vi.fn(async () => ({ record: { id: 3 }, etag: '"e"' }))
     expect(JSON.parse(await getRecordTool().run({ resource: 'deals', key: ['a', 2] }, contextWith({ get })))).toEqual({ record: { id: 3 }, etag: '"e"' })
-    expect(get).toHaveBeenCalledWith('deals', ['a', 2], { show_deleted: false })
+    expect(get).toHaveBeenLastCalledWith('deals', ['a', 2], { show_deleted: false })
+    await getRecordTool().run({ resource: 'deals', key: 3, fields: ['id'] }, contextWith({ get }))
+    expect(get).toHaveBeenLastCalledWith('deals', 3, { show_deleted: false, fields: ['id'] })
+    await getRecordTool().run({ resource: 'deals', key: 3, fields: ['*'] }, contextWith({ get }))
+    expect(get).toHaveBeenLastCalledWith('deals', 3, { show_deleted: false })
   })
 
   it('list_resources says a resource without a soft delete does not soft delete', async () => {
@@ -88,9 +115,9 @@ describe('record tools', () => {
     const get = vi.fn(async () => ({ record: { id: 3, deleted_at: '2026-08-01T00:00:00Z' }, etag: '"e"' }))
     const context = contextWith({ list, get })
     await listRecordsTool().run({ resource: 'deals', show_deleted: true }, context)
-    expect(list).toHaveBeenLastCalledWith('deals', { page_size: 20, show_deleted: true })
+    expect(list).toHaveBeenLastCalledWith('deals', { fields: ['id', 'stage', 'company'], page_size: 20, show_deleted: true })
     await listRecordsTool().run({ resource: 'deals', show_deleted: false }, context)
-    expect(list).toHaveBeenLastCalledWith('deals', { page_size: 20 })
+    expect(list).toHaveBeenLastCalledWith('deals', { fields: ['id', 'stage', 'company'], page_size: 20 })
     expect(JSON.parse(await getRecordTool().run({ resource: 'deals', key: 3, show_deleted: true }, context))).toEqual({ record: { id: 3, deleted_at: '2026-08-01T00:00:00Z' }, etag: '"e"' })
     expect(get).toHaveBeenLastCalledWith('deals', 3, { show_deleted: true })
   })
