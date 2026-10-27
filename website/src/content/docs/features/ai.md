@@ -10,7 +10,6 @@ description: Fields and actions filled by a model, the assistant beside the admi
 - [Assistant tools](/reference/assistant/#the-apps-own-tools): Your own tools for the assistant, acting on records as the user.
 - [MCP server](/reference/mcp/#the-tools): AI clients connect to the app over MCP as the signed-in person: they list the resources in a small first call, describe one resource's fields when they need them, and find and read records within that person's access, soft-deleted ones too when asked.
 - [MCP counts](/reference/mcp/#the-tools): AI clients count the records a filter finds, in all or per value of a field such as a status, without reading the records.
-- [MCP result size](/reference/mcp/#result-size): Every tool result fits what AI clients take, as valid JSON: long values are cut and named, a page holds fewer records, and the client reads the rest in pieces.
 - [MCP app icon](/reference/mcp/#the-apps-icon): AI clients show the app's own icon beside its name when someone adds its MCP endpoint.
 - [MCP writes](/reference/mcp/#writes): When turned on, for every resource or only those you list, AI clients create, update and delete records after the person approves each write.
 - [Small MCP write results](/reference/mcp/#what-a-write-returns): A write over MCP returns the record's key, new ETag, the fields written and the read-only fields that changed, not the whole record; `fields` asks for more.

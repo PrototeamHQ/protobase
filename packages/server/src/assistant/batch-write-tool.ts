@@ -9,8 +9,6 @@ import { batchApproval, shownOperations } from './batch-approval'
 import { batchBefore } from './batch-before'
 import { batchEcho, recordsBefore } from './batch-echo'
 import { batchOperationsOf, type WriteOperation } from './batch-write-args'
-import { cutRecordNote } from './budgeted-page'
-import { forcedJson } from './result-budget'
 import { defineTool, type ToolContext } from './tools'
 import { fieldsParameter } from './write-echo'
 import { writeText } from './write-messages'
@@ -100,6 +98,6 @@ export const batchWriteTool = (input: WriteRecordToolsInput = {}) =>
       const answer = await context.approve(approval)
       if (answer !== 'approved') return `The user did not approve this batch (${answer}); nothing was written.`
       const befores = await recordsBefore(context, operations)
-      return context.records.batch(operations).then(async (results) => forcedJson({ results: await batchEcho(context, operations, results, befores, fields) }, cutRecordNote), refused)
+      return context.records.batch(operations).then(async (results) => JSON.stringify({ results: await batchEcho(context, operations, results, befores, fields) }), refused)
     },
   })
