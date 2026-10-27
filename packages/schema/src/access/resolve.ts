@@ -1,6 +1,7 @@
 import { checkFilter, evaluateFilter, type EvaluateOptions } from '../filter'
 import type { CheckedFilter, FilterExpr, ResourceModel } from '../model'
 import { andResults, normalize } from './combine'
+import { recordProbe } from './record-probe'
 import { anonymousRole } from './role-entry'
 import type { Rule } from './rule'
 import type { AccessAction, AccessContext, AccessFn, AccessUser, FieldAccess } from './types'
@@ -102,13 +103,17 @@ const checked = (model: ResourceModel, expr: FilterExpr, operation: string) => {
   return result.filter
 }
 
-// A rule that needs the record throws a TypeError when called without one.
+// A rule is called with a probe for the record and the input: one that reads either, or throws a TypeError without
+// them, needs the record. The probe stays armed until an async rule settles.
 const decide = async (rule: AccessFn, ctx: AccessContext) => {
+  const probe = recordProbe()
   try {
-    return normalize(await rule(ctx))
+    return normalize(await rule({ ...ctx, record: probe.value }, probe.value, probe.value))
   } catch (error) {
     if (error instanceof TypeError) return 'record' as const
     throw error
+  } finally {
+    probe.disarm()
   }
 }
 
