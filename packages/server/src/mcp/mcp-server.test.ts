@@ -200,7 +200,7 @@ describe('mcpServer', () => {
         if (resource === 'notes') throw forbidden('access-denied', 'You may not create notes')
         return { record: { id: 7 }, etag: '"v1"' }
       })
-      const records = { ...service, records: { create } as unknown as ToolRecords }
+      const records = { ...service, records: { create } as unknown as ToolRecords, resources: async () => ({ models: [], views: [] }) }
       const served = { tools: writeRecordTools({ resources: ['tasks', 'notes'] }), context: records, rolesWithoutApproval: ['service'] }
       const text = async (resource: string) => ((await call(() => {}, 'tools/call', { name: 'create_record', arguments: { resource, data: { title: 'x' } } }, served)).content as Array<{ text: string }>)[0]!.text
       expect(JSON.parse(await text('people'))).toEqual({ error: 'forbidden', message: 'Writes over MCP reach only tasks, notes, not people; nothing was written.' })

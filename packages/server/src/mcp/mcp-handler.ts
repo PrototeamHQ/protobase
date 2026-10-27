@@ -3,8 +3,11 @@ import type { Session } from '../types'
 import { mcpGate, sessionOf, type McpGateInput } from './mcp-gate'
 
 export type McpHandlerInput = McpGateInput & {
-  /** Builds the server for the caller of one request, such as `mcpServer(...)` with tools of your own registered on it. */
-  server: (session: Session) => McpServer | Promise<McpServer>
+  /**
+   * Builds the server for the caller of one request, such as `mcpServer(...)` with tools of your own registered on it;
+   * `request` is the HTTP request it serves, such as for the language its user reads.
+   */
+  server: (session: Session, request: Request | undefined) => McpServer | Promise<McpServer>
 }
 
 /**
@@ -15,7 +18,7 @@ export type McpHandlerInput = McpGateInput & {
 export const mcpHandler = ({ server, ...gate }: McpHandlerInput) => {
   const hostname = new URL(gate.resource).hostname
   const admit = mcpGate(gate)
-  const handler = createMcpHandler((context) => server(sessionOf(context.authInfo)), { legacy: 'stateless' })
+  const handler = createMcpHandler((context) => server(sessionOf(context.authInfo), context.requestInfo), { legacy: 'stateless' })
   return async (request: Request): Promise<Response> => {
     const wrongHost = hostHeaderValidationResponse(request, [hostname])
     if (wrongHost) return wrongHost

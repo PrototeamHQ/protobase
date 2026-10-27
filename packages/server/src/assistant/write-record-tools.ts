@@ -1,13 +1,15 @@
 /**
  * `create_record`, `update_record` and `delete_record`: changing the app's records as the caller, through the REST API's
- * access rules, `validate` and write hooks, each after the user approves it. A tool served over MCP calls `approve`
- * before it changes anything, and at most once: MCP runs it again from the start with the user's answer. Given
- * `resources`, they change only those, and refuse any other before asking.
+ * access rules, `validate` and write hooks, each after the user approves it, seeing in their language what changes. A
+ * tool served over MCP calls `approve` before it changes anything, and at most once: MCP runs it again from the start
+ * with the user's answer. Given `resources`, they change only those, and refuse any other before asking.
  */
 import type { Row } from '../types'
 import { deleteRecordTool } from './delete-record-tool'
+import { approvalTexts, recordBefore } from './record-before'
 import { keyOf, keyParameter, refused, resourceOf } from './record-tool-args'
 import { defineTool } from './tools'
+import { createApproval, updateApproval } from './write-prompts'
 import { forbiddenText, notApproved, onlyNote, outside, resourceParameterFor, type WriteRecordToolsInput } from './write-tool-limits'
 
 export type { WriteRecordToolsInput }
@@ -34,7 +36,8 @@ export const createRecordTool = (input: WriteRecordToolsInput = {}) =>
       if (!resource || !data) return 'Pass the resource and data as { "resource": "<name>", "data": { "<field>": <value> } }.'
       const refusal = outside(input, resource)
       if (refusal) return refusal
-      const answer = await context.approve({ title: `Create a record in ${resource}?`, code: JSON.stringify(data, null, 2), approveLabel: 'Create' })
+      const { text, described } = await approvalTexts(context, resource)
+      const answer = await context.approve(createApproval(text, described, data))
       if (answer !== 'approved') return notApproved(answer)
       return context.records.create(resource, data).then((record) => JSON.stringify(record), refused)
     },
@@ -67,10 +70,12 @@ export const updateRecordTool = (input: WriteRecordToolsInput = {}) =>
       const softDelete = await context.records.softDeleteField(resource).then((field) => ({ field }), refused)
       if (typeof softDelete === 'string') return softDelete
       if (softDelete.field && Object.hasOwn(data, softDelete.field)) return forbiddenText(`update_record does not set ${softDelete.field}, which deleting sets; delete with delete_record. Nothing was written.`)
-      const shownKey = Array.isArray(key) ? key.join(',') : String(key)
-      const answer = await context.approve({ title: `Update ${resource} ${shownKey}?`, code: JSON.stringify(data, null, 2), approveLabel: 'Update' })
-      if (answer !== 'approved') return notApproved(answer)
       const etag = typeof args.etag === 'string' && args.etag ? args.etag : undefined
+      const before = await recordBefore(context, resource, key, etag)
+      if (typeof before === 'string') return before
+      const { text, described } = await approvalTexts(context, resource)
+      const answer = await context.approve(updateApproval(text, described, key, before?.record ?? {}, data))
+      if (answer !== 'approved') return notApproved(answer)
       return context.records.update(resource, key, data, { etag }).then((record) => JSON.stringify(record), refused)
     },
   })

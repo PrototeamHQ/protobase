@@ -1,11 +1,20 @@
 import { describe, expect, it, vi } from 'vitest'
-import { forbidden, notFound } from '../problem'
+import { badRequest, forbidden, notFound } from '../problem'
 import type { ApprovalAnswer } from './approval'
 import type { ToolRecords } from './records'
-import type { ToolContext } from './tools'
+import type { ReadableResources, ToolContext } from './tools'
 import { createRecordTool, updateRecordTool, writeRecordTools } from './write-record-tools'
 
 const saved = { record: { id: 7, name: 'Acme' }, etag: '"v1"' }
+const readable = {
+  models: [{
+    name: 'tasks',
+    primaryKey: ['id'],
+    fields: { id: { name: 'id', type: 'bigint' }, title: { name: 'title', type: 'text' }, status: { name: 'status', type: 'enum' }, due_on: { name: 'due_on', type: 'date' } },
+  }],
+  views: [{ resource: 'tasks', names: { singular: 'Task', plural: 'Tasks' }, fields: { status: { label: 'Status', valueLabels: { in_flight: 'In flight', done: 'Done' } } } }],
+} as unknown as ReadableResources
+const task = { record: { id: 42, title: 'Fix the sign-in lockout', status: 'in_flight', due_on: null }, etag: '"v1"' }
 
 const contextWith = (answer: ApprovalAnswer, records: Partial<ToolRecords>) => {
   const approve = vi.fn(async () => answer)
@@ -13,8 +22,8 @@ const contextWith = (answer: ApprovalAnswer, records: Partial<ToolRecords>) => {
     session: { user: { id: 1, roles: ['sales'] } },
     show: () => {},
     approve,
-    records: { softDeleteField: async () => undefined, ...records } as ToolRecords,
-    resources: async () => ({ models: [], views: [] }),
+    records: { softDeleteField: async () => undefined, get: async () => task, ...records } as ToolRecords,
+    resources: async () => readable,
   } satisfies ToolContext
   return { context, approve }
 }
@@ -28,13 +37,25 @@ describe('write record tools', () => {
     ])
   })
 
-  it('create_record asks with the resource and data, then creates the record', async () => {
+  it('create_record asks naming the new record and each of its fields by label, then creates it', async () => {
     const create = vi.fn(async () => saved)
     const { context, approve } = contextWith('approved', { create })
-    const result = await createRecordTool().run({ resource: 'companies', data: { name: 'Acme' } }, context)
-    expect(approve).toHaveBeenCalledWith({ title: 'Create a record in companies?', code: JSON.stringify({ name: 'Acme' }, null, 2), approveLabel: 'Create' })
-    expect(create).toHaveBeenCalledWith('companies', { name: 'Acme' })
+    const data = { title: 'Fix the sign-in lockout', status: 'in_flight', due_on: null }
+    const result = await createRecordTool().run({ resource: 'tasks', data }, context)
+    expect(approve).toHaveBeenCalledWith({
+      title: 'Create Task "Fix the sign-in lockout"?',
+      fields: [{ label: 'Title', value: 'Fix the sign-in lockout' }, { label: 'Status', value: 'In flight' }, { label: 'Due on', value: 'empty' }],
+      approveLabel: 'Create',
+      rejectLabel: 'Cancel',
+    })
+    expect(create).toHaveBeenCalledWith('tasks', data)
     expect(JSON.parse(result)).toEqual(saved)
+  })
+
+  it('create_record names a resource the caller cannot read by its name in words', async () => {
+    const { context, approve } = contextWith('approved', { create: async () => saved })
+    await createRecordTool().run({ resource: 'stock_moves', data: { qty: 3 } }, context)
+    expect(approve).toHaveBeenCalledWith(expect.objectContaining({ title: 'Create Stock moves?', fields: [{ label: 'Qty', value: '3' }] }))
   })
 
   it.each(['rejected', 'expired'] as const)('create_record writes nothing when %s', async (answer) => {
@@ -49,13 +70,49 @@ describe('write record tools', () => {
     expect(JSON.parse(await createRecordTool().run({ resource: 'companies', data: {} }, context))).toEqual({ error: 'forbidden', message: 'You may not create companies' })
   })
 
-  it('update_record asks with the key, then passes key, data and etag', async () => {
+  it('update_record asks naming the record, with each changed field before and after, then passes key, data and etag', async () => {
     const update = vi.fn(async () => saved)
-    const { context, approve } = contextWith('approved', { update })
-    const result = await updateRecordTool().run({ resource: 'members', key: [3, 'a'], data: { name: 'Acme' }, etag: '"v0"' }, context)
-    expect(approve).toHaveBeenCalledWith(expect.objectContaining({ title: 'Update members 3,a?', approveLabel: 'Update' }))
-    expect(update).toHaveBeenCalledWith('members', [3, 'a'], { name: 'Acme' }, { etag: '"v0"' })
+    const get = vi.fn(async () => task)
+    const { context, approve } = contextWith('approved', { update, get })
+    const data = { status: 'done', title: 'Fix the sign-in lockout', due_on: '2026-11-01' }
+    const result = await updateRecordTool().run({ resource: 'tasks', key: 42, data, etag: '"v1"' }, context)
+    expect(get).toHaveBeenCalledWith('tasks', 42)
+    expect(approve).toHaveBeenCalledWith({
+      title: 'Update Task #42 "Fix the sign-in lockout"?',
+      fields: [{ label: 'Status', value: 'In flight -> Done' }, { label: 'Due on', value: 'empty -> 2026-11-01' }],
+      approveLabel: 'Update',
+      rejectLabel: 'Cancel',
+    })
+    expect(update).toHaveBeenCalledWith('tasks', 42, data, { etag: '"v1"' })
     expect(JSON.parse(result)).toEqual(saved)
+  })
+
+  it('update_record says when no field changes, and asks in Dutch for a user who reads Dutch', async () => {
+    const { context, approve } = contextWith('approved', { update: async () => saved })
+    await updateRecordTool().run({ resource: 'tasks', key: 42, data: { status: 'in_flight' } }, { ...context, locale: 'nl' })
+    expect(approve).toHaveBeenCalledWith({ title: 'Task #42 "Fix the sign-in lockout" bijwerken?', body: 'Er verandert geen veld.', approveLabel: 'Bijwerken', rejectLabel: 'Annuleren' })
+  })
+
+  it('update_record shows only the new values of a record the caller may not read', async () => {
+    const update = vi.fn(async () => saved)
+    const { context, approve } = contextWith('approved', { update, get: () => Promise.reject(forbidden('access-denied', 'You may not read tasks')) })
+    await updateRecordTool().run({ resource: 'tasks', key: [3, 'a'], data: { status: 'done' } }, context)
+    expect(approve).toHaveBeenCalledWith(expect.objectContaining({ title: 'Update Task #3,a?', fields: [{ label: 'Status', value: 'Done' }] }))
+    expect(update).toHaveBeenCalledTimes(1)
+  })
+
+  it('update_record refuses a record changed since the etag, or a read refused for another reason, before asking', async () => {
+    const update = vi.fn(async () => saved)
+    const stale = contextWith('approved', { update })
+    expect(JSON.parse(await updateRecordTool().run({ resource: 'tasks', key: 42, data: { status: 'done' }, etag: '"v0"' }, stale.context))).toEqual({
+      error: 'precondition-failed',
+      message: 'The record changed since it was read; fetch it again',
+    })
+    const bad = contextWith('approved', { update, get: () => Promise.reject(badRequest('invalid-key', 'The key must be a number')) })
+    expect(JSON.parse(await updateRecordTool().run({ resource: 'tasks', key: 'x', data: { status: 'done' } }, bad.context))).toEqual({ error: 'invalid-key', message: 'The key must be a number' })
+    expect(stale.approve).not.toHaveBeenCalled()
+    expect(bad.approve).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
   })
 
   it('update_record refuses to set the field a delete sets, without asking', async () => {

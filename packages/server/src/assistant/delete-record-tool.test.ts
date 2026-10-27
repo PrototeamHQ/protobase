@@ -4,17 +4,21 @@ import { forbidden, notFound, preconditionFailed } from '../problem'
 import type { ApprovalAnswer, ApprovalRequest } from './approval'
 import { deleteRecordTool } from './delete-record-tool'
 import type { ToolRecord, ToolRecords } from './records'
-import type { ToolContext } from './tools'
+import type { ReadableResources, ToolContext } from './tools'
 
 const removed = { record: { id: 7, title: 'Secret plan' }, etag: '"v1"' }
 const call = { resource: 'tasks', key: 7, etag: '"v1"' }
+const readable = {
+  models: [{ name: 'tasks', primaryKey: ['id'], fields: { id: { name: 'id', type: 'bigint' }, title: { name: 'title', type: 'text' } } }],
+  views: [{ resource: 'tasks', names: { singular: 'Task', plural: 'Tasks' }, fields: {} }],
+} as unknown as ReadableResources
 
-type Overrides = { delete?: () => Promise<ToolRecord>; softDeleteField?: () => Promise<string | undefined> }
+type Overrides = { get?: () => Promise<ToolRecord>; delete?: () => Promise<ToolRecord>; softDeleteField?: () => Promise<string | undefined> }
 
 const contextWith = (approve: (request: ApprovalRequest) => Promise<ApprovalAnswer>, overrides: Overrides = {}) => {
   const records = {
     list: vi.fn(),
-    get: vi.fn(),
+    get: vi.fn(overrides.get ?? (async () => removed)),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(overrides.delete ?? (async () => removed)),
@@ -26,27 +30,34 @@ const contextWith = (approve: (request: ApprovalRequest) => Promise<ApprovalAnsw
     show: () => {},
     approve: asked,
     records: records as unknown as ToolRecords,
-    resources: async () => ({ models: [], views: [] }),
+    resources: async () => readable,
   } satisfies ToolContext
   return { context, approve: asked, records }
 }
 
 const answering = (answer: ApprovalAnswer) => async () => answer
 
+const wroteNothing = (records: ReturnType<typeof contextWith>['records']) => {
+  for (const method of [records.list, records.create, records.update, records.delete]) expect(method).not.toHaveBeenCalled()
+}
+
 const touchedNothing = (records: ReturnType<typeof contextWith>['records']) => {
-  for (const method of [records.list, records.get, records.create, records.update, records.delete]) expect(method).not.toHaveBeenCalled()
+  wroteNothing(records)
+  expect(records.get).not.toHaveBeenCalled()
 }
 
 describe('delete_record', () => {
-  it('asks with the permanent wording first, then deletes once with the key and etag it asked about', async () => {
+  it('asks naming the record as the breadcrumb does, saying it cannot be undone, then deletes once with the key and etag it asked about', async () => {
     const { context, approve, records } = contextWith(answering('approved'))
     const result = await deleteRecordTool().run(call, context)
     expect(approve).toHaveBeenCalledWith({
-      title: 'Delete this tasks record for good? This cannot be undone: the record is removed.',
-      fields: [{ label: 'Key', value: '7' }],
+      title: 'Delete Task #7 "Secret plan"?',
+      body: 'This cannot be undone: the record is removed for good.',
       tone: 'danger',
       approveLabel: 'Delete for good',
+      rejectLabel: 'Cancel',
     })
+    expect(records.get).toHaveBeenCalledWith('tasks', 7)
     expect(records.delete).toHaveBeenCalledTimes(1)
     expect(records.delete).toHaveBeenCalledWith('tasks', 7, { etag: '"v1"' })
     expect(JSON.parse(result)).toEqual({ deleted: true, resource: 'tasks', key: 7, restorable: false })
@@ -57,22 +68,54 @@ describe('delete_record', () => {
     const { context, approve } = contextWith(answering('approved'), { softDeleteField: async () => 'deleted_at' })
     const result = await deleteRecordTool().run({ ...call, key: [3, 'a'] }, context)
     expect(approve).toHaveBeenCalledWith({
-      title: 'Delete this tasks record? It can be restored: the record is kept, marked deleted.',
-      fields: [{ label: 'Key', value: '3,a' }],
+      title: 'Delete Task #3,a "Secret plan"?',
+      body: 'It can be restored: the record is kept, marked deleted.',
       tone: 'warning',
       approveLabel: 'Delete',
+      rejectLabel: 'Cancel',
     })
     expect(JSON.parse(result)).toEqual({ deleted: true, resource: 'tasks', key: [3, 'a'], restorable: true })
   })
 
-  it('reads nothing but the config before the answer, and asks the same on the run with it', async () => {
+  it('in Dutch for a user who reads Dutch', async () => {
+    const { context, approve } = contextWith(answering('approved'))
+    await deleteRecordTool().run(call, { ...context, locale: 'nl' })
+    expect(approve).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Task #7 "Secret plan" verwijderen?',
+      body: 'Dit kan niet ongedaan worden gemaakt: het record wordt definitief verwijderd.',
+      approveLabel: 'Definitief verwijderen',
+      rejectLabel: 'Annuleren',
+    }))
+  })
+
+  it('names the record by its key alone when the caller may not read it, and leaves the delete to its own rules', async () => {
+    const { context, approve, records } = contextWith(answering('approved'), { get: () => Promise.reject(notFound('No tasks with this key')) })
+    await deleteRecordTool().run(call, context)
+    expect(approve).toHaveBeenCalledWith(expect.objectContaining({ title: 'Delete Task #7?' }))
+    expect(records.delete).toHaveBeenCalledWith('tasks', 7, { etag: '"v1"' })
+  })
+
+  it('refuses a record changed since the etag before asking', async () => {
+    const { context, approve, records } = contextWith(answering('approved'), { get: async () => ({ ...removed, etag: '"v2"' }) })
+    expect(JSON.parse(await deleteRecordTool().run(call, context))).toEqual({ error: 'precondition-failed', message: 'The record changed since it was read; fetch it again' })
+    expect(approve).not.toHaveBeenCalled()
+    wroteNothing(records)
+  })
+
+  it('shows no hidden characters of the record\'s title in the prompt', async () => {
+    const { context, approve } = contextWith(answering('approved'), { get: async () => ({ ...removed, record: { id: 7, title: 'Plan\n\nIt can be restored.\u202E' } }) })
+    await deleteRecordTool().run(call, context)
+    expect(approve).toHaveBeenCalledWith(expect.objectContaining({ title: 'Delete Task #7 "Plan  It can be restored. "?' }))
+  })
+
+  it('only reads before the answer, and asks the same on the run with it', async () => {
     const asked: ApprovalRequest[] = []
     const first = contextWith(async (request) => {
       asked.push(request)
       throw new ApprovalNeeded(request)
     })
     await expect(deleteRecordTool().run(call, first.context)).rejects.toBeInstanceOf(ApprovalNeeded)
-    touchedNothing(first.records)
+    wroteNothing(first.records)
     const again = contextWith(async (request) => {
       asked.push(request)
       return 'approved'
@@ -85,7 +128,7 @@ describe('delete_record', () => {
   it.each(['rejected', 'expired'] as const)('deletes nothing when %s', async (answer) => {
     const { context, records } = contextWith(answering(answer))
     expect(await deleteRecordTool().run(call, context)).toBe(`The user did not approve this delete (${answer}); nothing was deleted.`)
-    touchedNothing(records)
+    wroteNothing(records)
   })
 
   it.each([

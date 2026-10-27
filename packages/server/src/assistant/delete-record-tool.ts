@@ -1,11 +1,13 @@
 /**
  * `delete_record`: deleting one record as the caller, through the REST API's delete path (its access rules, ETag check,
- * write hooks and soft delete), after the user approves it. Before asking it only reads the resource's config, since
- * MCP runs it again from the start with the user's answer.
+ * write hooks and soft delete), after the user approves it. Before asking it only reads: the resource's config and the
+ * record the approval names, since MCP runs it again from the start with the user's answer.
  */
+import { approvalTexts, recordBefore } from './record-before'
 import type { RecordKeyInput } from './records'
 import { keyOf, keyParameter, refused, resourceOf } from './record-tool-args'
 import { defineTool } from './tools'
+import { deleteApproval } from './write-prompts'
 import { onlyNote, outside, resourceParameterFor, type WriteRecordToolsInput } from './write-tool-limits'
 
 const parameterNames = ['resource', 'key', 'etag']
@@ -25,16 +27,6 @@ const deleteKeyOf = (value: unknown): RecordKeyInput | undefined => {
 const etagOf = (value: unknown) => (typeof value === 'string' && /^"[\x21\x23-\x2b\x2d-\x7e]+"$/.test(value) ? value : undefined)
 
 const usage = 'Pass only the resource, key and etag as { "resource": "<name>", "key": "<key>", "etag": "<the etag get_record gave>" }; nothing was deleted.'
-
-// The fixed sentence on whether the record can be restored comes before the key the client sent.
-const approvalOf = (resource: string, shownKey: string, softDelete: string | undefined) => ({
-  title: softDelete
-    ? `Delete this ${resource} record? It can be restored: the record is kept, marked deleted.`
-    : `Delete this ${resource} record for good? This cannot be undone: the record is removed.`,
-  fields: [{ label: 'Key', value: shownKey }],
-  tone: softDelete ? ('warning' as const) : ('danger' as const),
-  approveLabel: softDelete ? 'Delete' : 'Delete for good',
-})
 
 /** Deletes one record by its key and ETag once the user approves it, under the caller's access rules. */
 export const deleteRecordTool = (input: WriteRecordToolsInput = {}) =>
@@ -61,8 +53,10 @@ export const deleteRecordTool = (input: WriteRecordToolsInput = {}) =>
       if (refusal) return refusal
       const softDelete = await context.records.softDeleteField(resource).then((field) => ({ field }), refused)
       if (typeof softDelete === 'string') return softDelete
-      const shownKey = Array.isArray(key) ? key.join(',') : String(key)
-      const answer = await context.approve(approvalOf(resource, shownKey, softDelete.field))
+      const before = await recordBefore(context, resource, key, etag)
+      if (typeof before === 'string') return before
+      const { text, described } = await approvalTexts(context, resource)
+      const answer = await context.approve(deleteApproval(text, described, key, before?.record ?? {}, softDelete.field !== undefined))
       if (answer !== 'approved') return `The user did not approve this delete (${answer}); nothing was deleted.`
       const deleted = () => JSON.stringify({ deleted: true, resource, key, restorable: softDelete.field !== undefined })
       return context.records.delete(resource, key, { etag }).then(deleted, refused)

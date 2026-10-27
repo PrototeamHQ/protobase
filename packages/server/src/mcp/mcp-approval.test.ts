@@ -73,6 +73,15 @@ describe('approvalAsked', () => {
     expect(await approvalAsked(request, capabilities, ask)).toEqual(refusal)
     expect(ask).not.toHaveBeenCalled()
   })
+
+  it('refuses in the user\'s language, and names the button in it when the request does not', async () => {
+    expect(await approvalAsked(request, {}, ask, 'nl')).toEqual({
+      content: [{ type: 'text', text: 'Deze client kan je niet vragen een wijziging goed te keuren, dus er is niets opgeslagen; gebruik een client die MCP-elicitation ondersteunt.' }],
+      isError: true,
+    })
+    const asked = await approvalAsked({ title: 'Iets?' }, { elicitation: {} }, ask, 'nl')
+    expect(asked).toMatchObject({ inputRequests: { 'approve-n1': { params: { requestedSchema: { properties: { approve: { title: 'Goedkeuren' } } } } } } })
+  })
 })
 
 describe('writesUnasked', () => {

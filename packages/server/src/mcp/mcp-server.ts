@@ -68,7 +68,7 @@ export const mcpServer = ({ info, tools, context, report, rolesWithoutApproval =
       } catch (error) {
         if (!(error instanceof ApprovalNeeded)) throw error
         const { scope, call } = bound()
-        return approvalAsked(error.request, capabilitiesOf(ctx.mcpReq.envelope), () => approvals.ask(scope, call))
+        return approvalAsked(error.request, capabilitiesOf(ctx.mcpReq.envelope), () => approvals.ask(scope, call), context.locale)
       }
     }
     server.registerTool(tool.name, config, async (args, ctx): Promise<CallToolResult | InputRequiredResult> => {

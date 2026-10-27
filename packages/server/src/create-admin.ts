@@ -94,6 +94,7 @@ import { functionRoutes } from './functions/routes'
 import { supabaseFunctionRoutes } from './functions/supabase-routes'
 import { upgradeAuthenticator } from './functions/upgrade-caller'
 import { localeSetting } from './locale/locale-option'
+import { requestLocale } from './locale/request-locale'
 import { mapSettings } from './maps/map-settings'
 import { createMeta } from './meta'
 import { buildRegistry } from './registry'
@@ -364,8 +365,10 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes })
     const approvals = mcpApprovals()
-    const server = (session: Session) =>
-      mcpServer({ info: { name: appName, version: '1.0.0' }, tools: tools(session), context: mcpToolContext(deps, meta, session), report, rolesWithoutApproval: rolesWithoutApproval(writes), approvals })
+    const server = (session: Session, request: Request | undefined) => {
+      const context = mcpToolContext(deps, meta, session, request ? requestLocale(locale, request) : locale)
+      return mcpServer({ info: { name: appName, version: '1.0.0' }, tools: tools(session), context, report, rolesWithoutApproval: rolesWithoutApproval(writes), approvals })
+    }
     mcpRoutes(app, { path: auth.mcp.path, handler: mcpHandler({ authenticate: mcpAuthenticate, resource: auth.mcp.resource, scope: auth.mcp.scope, server }) })
   }
   const upgradeAuthenticate = upgradeAuthenticator({ authenticate, ...(auth && { origins: auth.origins, sessionToken: betterAuthSessionToken(auth) }) })

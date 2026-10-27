@@ -4,6 +4,7 @@ import { batchWriteTool } from '../assistant/batch-write-tool'
 import type { ToolRecords } from '../assistant/records'
 import { defineTool, type AssistantTool } from '../assistant/tools'
 import { writeRecordTools } from '../assistant/write-record-tools'
+import { requestLocale } from '../locale/request-locale'
 import { forbidden } from '../problem'
 import type { Session } from '../types'
 import { approvalLifetime, mcpApprovals, type McpApprovals } from './mcp-approval-store'
@@ -13,6 +14,7 @@ const resource = new URL('http://localhost/api/mcp')
 const ann: Session = { user: { id: 1, roles: ['sales'] }, client: { id: 'client', scopes: ['mcp'] } }
 
 const records = {
+  get: vi.fn(async () => ({ record: { id: 1, title: 'old' }, etag: '"v1"' })),
   create: vi.fn(async () => ({ record: { id: 1 }, etag: '"v1"' })),
   update: vi.fn(async () => ({ record: { id: 1 }, etag: '"v2"' })),
   delete: vi.fn(async () => undefined),
@@ -22,7 +24,7 @@ const records = {
 const writes = () => records.create.mock.calls.length + records.update.mock.calls.length + records.delete.mock.calls.length + records.batch.mock.calls.length
 const report = vi.fn()
 
-type Caller = { session?: Session; resource?: URL; approvals?: McpApprovals; tools?: AssistantTool[] }
+type Caller = { session?: Session; resource?: URL; approvals?: McpApprovals; tools?: AssistantTool[]; acceptLanguage?: string }
 type Round = { requestState?: unknown; inputResponses?: object }
 
 let approvals: McpApprovals
@@ -36,7 +38,10 @@ afterEach(() => vi.useRealTimers())
 const send = async (name: string, args: object, round: Round = {}, caller: Caller = {}) => {
   const context = { session: caller.session ?? ann, records: records as unknown as ToolRecords, resources: async () => ({ models: [], views: [] }), show: () => {} }
   const tools = caller.tools ?? [...writeRecordTools(), batchWriteTool()]
-  const handler = createMcpHandler(() => mcpServer({ info: { name: 'App', version: '1.0.0' }, tools, context, report, approvals: caller.approvals ?? approvals }), { legacy: 'stateless' })
+  const handler = createMcpHandler(
+    ({ requestInfo }) => mcpServer({ info: { name: 'App', version: '1.0.0' }, tools, context: { ...context, locale: requestLocale(undefined, requestInfo!) }, report, approvals: caller.approvals ?? approvals }),
+    { legacy: 'stateless' },
+  )
   const params = {
     name,
     arguments: args,
@@ -49,7 +54,14 @@ const send = async (name: string, args: object, round: Round = {}, caller: Calle
   }
   const response = await handler.fetch(new Request('http://localhost/api/mcp', {
     method: 'POST',
-    headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json', 'mcp-protocol-version': '2026-07-28', 'mcp-method': 'tools/call', 'mcp-name': name },
+    headers: {
+      accept: 'application/json, text/event-stream',
+      'content-type': 'application/json',
+      'mcp-protocol-version': '2026-07-28',
+      'mcp-method': 'tools/call',
+      'mcp-name': name,
+      ...(caller.acceptLanguage && { 'accept-language': caller.acceptLanguage }),
+    },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params }),
   }), { authInfo: { token: 't', clientId: 'client', scopes: ['mcp'], resource: caller.resource ?? resource } })
   const text = await response.text()
@@ -143,6 +155,13 @@ describe.each(Object.entries(calls))('%s over MCP', (name, args) => {
 })
 
 describe('an MCP approval', () => {
+  it('asks in the language the request accepts, saying a delete is for good', async () => {
+    const { result } = await send('delete_record', calls.delete_record!, {}, { acceptLanguage: 'nl-BE, en;q=0.5' })
+    const { params } = Object.values(result.inputRequests as Record<string, { params: { message: string; requestedSchema: { properties: { approve: { title: string } } } } }>)[0]!
+    expect(params.message).toBe('Tasks #1 verwijderen?\n\nDit kan niet ongedaan worden gemaakt: het record wordt definitief verwijderd.')
+    expect(params.requestedSchema.properties.approve.title).toBe('Definitief verwijderen')
+  })
+
   it('holds only for the batch it was asked for, even one that differs past what it shows', async () => {
     const batchA = { operations: operations(60, 'a') }
     const batchB = { operations: operations(60, 'b') }

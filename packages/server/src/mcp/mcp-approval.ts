@@ -1,5 +1,7 @@
 import { inputRequired, inputResponse, type CallToolResult, type ClientCapabilities, type InputRequiredResult } from '@modelcontextprotocol/server'
+import type { Locale } from '@protobase/schema/internal'
 import type { ApprovalAnswer, ApprovalRequest } from '../assistant/approval'
+import { defineMessages } from '../locale/messages'
 import type { AskedApproval } from './mcp-approval-store'
 
 /** Thrown by `approve` over MCP when the request carries no answer yet: the server then asks the client for one. */
@@ -53,24 +55,32 @@ const asksForms = (capabilities: ClientCapabilities | undefined) => {
 const messageOf = (request: ApprovalRequest) =>
   [request.title, request.body, request.fields?.map(({ label, value }) => `${label}: ${value}`).join('\n'), request.code].filter(Boolean).join('\n\n')
 
-const cannotAsk: CallToolResult = {
-  content: [{ type: 'text', text: 'This client cannot ask you to approve a change, so nothing was written; use a client that supports MCP elicitation.' }],
-  isError: true,
-}
+const text = defineMessages({
+  en: {
+    cannotAsk: 'This client cannot ask you to approve a change, so nothing was written; use a client that supports MCP elicitation.',
+    approve: 'Approve',
+  },
+  nl: {
+    cannotAsk: 'Deze client kan je niet vragen een wijziging goed te keuren, dus er is niets opgeslagen; gebruik een client die MCP-elicitation ondersteunt.',
+    approve: 'Goedkeuren',
+  },
+})
+
+const cannotAsk = (locale: Locale): CallToolResult => ({ content: [{ type: 'text', text: text(locale).cannotAsk }], isError: true })
 
 /**
  * The answer to a call whose tool asked for approval: a form asking the user to approve `request` when the client can
- * show one, filed under the nonce of the state `ask` mints for the call, else a refusal. A 2025-protocol request
- * declares no capabilities per request, so it is always refused.
+ * show one, filed under the nonce of the state `ask` mints for the call, else a refusal in `locale`. A 2025-protocol
+ * request declares no capabilities per request, so it is always refused.
  */
-export const approvalAsked = async (request: ApprovalRequest, capabilities: ClientCapabilities | undefined, ask: () => Promise<AskedApproval>): Promise<CallToolResult | InputRequiredResult> => {
-  if (!asksForms(capabilities)) return cannotAsk
+export const approvalAsked = async (request: ApprovalRequest, capabilities: ClientCapabilities | undefined, ask: () => Promise<AskedApproval>, locale: Locale = 'en'): Promise<CallToolResult | InputRequiredResult> => {
+  if (!asksForms(capabilities)) return cannotAsk(locale)
   const { state, nonce } = await ask()
   return inputRequired({
     inputRequests: {
       [approvalKey(nonce)]: inputRequired.elicit({
         message: messageOf(request),
-        requestedSchema: { type: 'object', properties: { approve: { type: 'boolean', title: request.approveLabel ?? 'Approve' } }, required: ['approve'] },
+        requestedSchema: { type: 'object', properties: { approve: { type: 'boolean', title: request.approveLabel ?? text(locale).approve } }, required: ['approve'] },
       }),
     },
     requestState: state,

@@ -1,4 +1,5 @@
 import type { AssistantPart, ResourceModel, ViewModel } from '@protobase/schema'
+import type { Locale } from '@protobase/schema/internal'
 import type { Session } from '../types'
 import type { ApprovalAnswer, ApprovalRequest } from './approval'
 import type { Conversation } from './conversations'
@@ -9,6 +10,8 @@ export type ReadableResources = { models: ResourceModel[]; views: ViewModel[] }
 
 export type ToolContext = {
   session: Session
+  /** The language the user reads, for the texts a tool shows them such as its approvals; English when absent. */
+  locale?: Locale
   /** The dock's conversation; absent over MCP. */
   conversation?: Conversation
   /** Adds a part, such as a table of results, to the assistant message the turn is writing. */

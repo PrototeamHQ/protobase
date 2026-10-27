@@ -26,4 +26,6 @@ Numbers, amounts and dates use the conventions of the language: English as writt
 
 Every built-in screen is translated: the shell with its sidebar, top bar, search, notification bell, profile menu and bottom bar; the list page with all its displays (table, cards, board, calendar, timeline and map), filters, search, sort, imports and exports; the record page with its actions, related lists, history, comments, gallery, saving, conflicts and deleting; the create page and composed pages; saved searches and favorites; the sign-in, sign-up and two-factor screens, the account and sign-in policy pages, and the organization, people and invitation pages; public forms; and the messages, toasts and confirmations around them. So are counts, relative times ("5 minutes ago"), yes, no and the other values the app writes itself, and the notices shown while the app loads.
 
-The texts a plugin or the server writes itself, such as an error message the API sends back or why a plugin could not be loaded, show as they are written.
+The approvals an AI client asks for over [MCP](mcp.md#writes) are translated too, with their buttons and the refusal for a client that cannot ask: in the app's `locale`, or else in the language the client's request accepts.
+
+The other texts a plugin or the server writes itself, such as an error message the API sends back or why a plugin could not be loaded, show as they are written.
