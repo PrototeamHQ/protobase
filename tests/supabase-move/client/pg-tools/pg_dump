@@ -1,0 +1,5 @@
+#!/bin/sh
+# PostgreSQL's pg_dump of docker-compose.yml's postgres:18, for a machine without the client tools: on the host's network,
+# in the current directory, where `protobase import supabase` keeps its files. It writes them as the container's
+# user, which rootless Podman maps to the caller and Docker leaves readable to them.
+exec docker run --rm -i --network host -e PGPASSWORD -v "$PWD:$PWD" -w "$PWD" postgres:18 pg_dump "$@"

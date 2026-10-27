@@ -40,6 +40,10 @@ const exampleDatabase = (example) => ({ from: [`tests/examples/${example}/**`], 
 export const edges = [
   // The CLI's tests start the CLI from source in the ERP, or in a project beside it.
   { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
+  // The Supabase move's test imports into a new scratch app and serves it with `protobase dev`, with pg_dump and psql
+  // of its own, from a Supabase project it makes from its SQL and the import's fixtures.
+  { from: ['tests/supabase-move/client/moved-app.ts'], starts: ['packages/cli/bin/protobase-source.mjs'], loads: cliModuleFiles, reads: ['tests/apps/scratch/**', 'tests/supabase-move/client/project/**', 'tests/supabase-move/client/pg-tools/**'] },
+  { from: ['tests/supabase-move/client/source-database.ts'], reads: ['tests/supabase-move/client/source.sql', 'packages/cli/tests/supabase/fixtures/supabase-schema.sql', 'packages/cli/tests/supabase/fixtures/gotrue-users.sql'] },
   // The test that each command exits once done starts the CLI's sources through its own runner, in the ERP.
   { from: ['packages/cli/tests/project/command-exit.integration.test.ts'], starts: ['packages/cli/tests/support/exit-check.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
   // The tests of `protobase run` and of the hand-over start the CLI from source in a project of their own.
