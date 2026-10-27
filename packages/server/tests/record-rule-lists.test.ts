@@ -1,5 +1,5 @@
 import { Kysely } from 'kysely'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource, where, type AccessFn } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { json, signTestToken, testAuthenticator } from '../../../test-support/server'
@@ -41,8 +41,21 @@ const orders = resource('orders')
     delete: (_, record: any = {}) => record.status !== 'shipped',
   })
 
+// Only a read rule, reading an encrypted field as text: the stored row would give it the `encrypted` marker.
+const given: unknown[] = []
+const accounts = resource('accounts')
+  .table('accounts')
+  .fields({ id: f.integer().readOnly().filterable().sortable(), name: f.text().filterable(), iban: f.text().optional().encrypted() })
+  .primaryKey((r) => r.id)
+  .search((r) => [r.name])
+  .access({ read: (_, record) => {
+    given.push(record)
+    return (record as { iban: string }).iban.startsWith('NL')
+  } })
+
 let db: Kysely<any>
 let app: ReturnType<typeof createAdmin>
+let encrypting: ReturnType<typeof createAdmin>
 beforeAll(async () => {
   const pg = await openSnapshotDb('empty')
   const table = (name: string) => `create table ${name} (id integer primary key, folder_id integer references folders (id), name text not null, owner_id text not null, status text not null);
@@ -60,9 +73,17 @@ beforeAll(async () => {
     insert into invoices values (1, 1), (2, 2);
     create table orders (id integer primary key, status text not null);
     insert into orders values (1, 'shipped'), (2, 'draft');
+    create table accounts (id integer generated always as identity primary key, name text not null, iban text);
+    create index on accounts (name);
   `)
   db = new Kysely({ dialect: pg.dialect })
   app = createAdmin({ resources: [folders, items, owned, filtered, invoices, orders], db, authenticate: testAuthenticator })
+  vi.stubEnv('PROTOBASE_ENCRYPTION_KEY', Buffer.from(Array.from({ length: 32 }, (_, i) => i)).toString('base64'))
+  try {
+    encrypting = createAdmin({ resources: [accounts], db, authenticate: testAuthenticator, options: { rowPermissions: false } })
+  } finally {
+    vi.unstubAllEnvs()
+  }
 })
 afterAll(async () => { await db.destroy() })
 
@@ -123,6 +144,26 @@ describe('a resource whose read rule reads the record', () => {
     const response = await app.request('/api/v1/folders/1', { method: 'DELETE', headers: { ...as('a'), 'if-match': '*' } })
     expect(response.status).toBe(409)
     expect(await response.text()).not.toContain('blockedBy')
+  })
+})
+
+describe('a read rule that reads an encrypted field as text, with row permissions off', () => {
+  it('refuses every list without running the rule on a row, and no answer holds the value or the error', async () => {
+    for (const [name, iban] of [['dutch', 'NL91ABNA0417164300'], ['german', 'DE89370400440532013000']]) {
+      expect((await encrypting.request('/api/v1/accounts', json({ name, iban }, as('a')))).status).toBe(201)
+    }
+    given.length = 0
+    const responses = await Promise.all([
+      encrypting.request('/api/v1/accounts', { headers: as('a') }),
+      encrypting.request('/api/v1/accounts:search', json({ filter: 'name = "dutch" OR name = "german"' }, as('a'))),
+      encrypting.request('/api/v1/accounts:seek?position=0', { headers: as('a') }),
+    ])
+    for (const response of responses) {
+      expect(response.status).toBe(403)
+      const text = await response.text()
+      for (const value of ['dutch', 'german', 'NL91', 'pbenc:', 'encrypted', 'TypeError', '"items"']) expect(text).not.toContain(value)
+    }
+    expect(given.every((record) => JSON.stringify(record) === '{}')).toBe(true)
   })
 })
 
