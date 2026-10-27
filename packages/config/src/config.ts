@@ -11,6 +11,7 @@ import type {
   JobDeclaration,
   MobileConfig,
   NotificationsOptions,
+  RealtimeOptions,
   WebhooksOptions,
 } from '@protobase/server'
 
@@ -100,6 +101,8 @@ export type ProtobaseConfig = AppKeys &
     history?: HistoryOptions
     /** Webhook subscriptions made in the admin app (see `WebhooksOptions`); `{}` turns them on. */
     webhooks?: Omit<WebhooksOptions, 'ownerRoles'>
+    /** How supabase-js's Realtime is served: `{ processes: 'many' }` when several processes serve the app (see `RealtimeOptions`). */
+    realtime?: RealtimeOptions
     /** Each user's devices and inbox (see `NotificationsOptions`); `{}` turns them on. */
     notifications?: Omit<NotificationsOptions, 'store' | 'historyStore' | 'senders'>
     /** The app's iOS and Android build (see `MobileConfig`). */

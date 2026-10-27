@@ -10,7 +10,7 @@ import type { ChangeHub } from './change-hub'
 import type { ChannelAccess } from './channel-access'
 import type { DatabaseBroadcasts } from './database-broadcasts'
 import { vsnOf } from './phoenix-message'
-import { presenceHub } from './presence-hub'
+import type { PresenceHub } from './presence-hub'
 import { realtimeSocket } from './realtime-socket'
 
 export type RealtimeRoutesOptions = {
@@ -21,7 +21,8 @@ export type RealtimeRoutesOptions = {
   live: readonly Entry[]
   hub: ChangeHub
   broadcasts: BroadcastHub
-  /** The database's broadcasts to `broadcasts`, read while a socket is open. */
+  presences: PresenceHub
+  /** The database's broadcasts to `broadcasts`, and the other processes' when there are any, read while a socket is open. */
   database: Pick<DatabaseBroadcasts, 'follow'>
   access: ChannelAccess
   report: (error: unknown) => void
@@ -32,15 +33,14 @@ const keyRequest = (apikey: string, token?: string) => new Request('http://realt
 
 /**
  * `GET /api/sb/realtime/v1/websocket?apikey=…&vsn=…`: Supabase Realtime's socket, for `postgres_changes` of the live
- * resources, and broadcasts and presence between the sockets of this process (see `realtimeSocket`). A missing or wrong
+ * resources, and broadcasts and presence between the channels on a topic (see `realtimeSocket`). A missing or wrong
  * key is refused before the upgrade, with 401. A socket whose raw socket is not one of npm `ws`, such as Bun's own `ws`
  * shim's, is closed at once with 1011, since its unsent bytes cannot be counted (`realtimeLimits.maxUnsentBytes`).
  * `POST /api/sb/realtime/v1/api/broadcast` sends to the same channels without a socket (see `broadcastApi`), and so
  * does the database (see `databaseBroadcasts`).
  */
-export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, broadcasts, database, access, report }: RealtimeRoutesOptions) => {
+export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, broadcasts, presences, database, access, report }: RealtimeRoutesOptions) => {
   const app = new Hono()
-  const presences = presenceHub()
   let lastId = 0
   const nextId = () => ++lastId
   app.route('/api/broadcast', broadcastApi({ caller, broadcasts, access, report }))
@@ -56,9 +56,10 @@ export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, broadcasts
       const apikey = c.req.query('apikey')!
       let socket: ReturnType<typeof realtimeSocket> | undefined
       let unfollow = () => {}
+      // The channels leave first, so that with several processes their presences' leaves are written before the relay stops.
       const closed = () => {
-        unfollow()
         socket?.closed()
+        unfollow()
       }
       return {
         onOpen: (_event, ws) => {

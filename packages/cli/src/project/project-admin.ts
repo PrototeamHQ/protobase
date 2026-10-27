@@ -30,6 +30,7 @@ export const projectAdmin = (project: BuiltProject, db: Db, ui?: BundleUi, repor
     ...(project.events && { events: project.events }),
     ...(project.history && { history: project.history }),
     ...(project.webhooks && { webhooks: project.webhooks }),
+    ...(project.realtime && { realtime: project.realtime }),
     ...(project.notifications && { notifications: project.notifications }),
     ...(project.mobile && { mobile: project.mobile }),
     ...(project.app && { app: project.app }),

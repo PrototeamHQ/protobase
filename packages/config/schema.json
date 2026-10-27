@@ -658,6 +658,17 @@
         }
       ]
     },
+    "realtime": {
+      "description": "How supabase-js's Realtime is served: `{ processes: 'many' }` when several processes serve the app (see `RealtimeOptions`).",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/RealtimeOptions"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
     "notifications": {
       "description": "Each user's devices and inbox (see `NotificationsOptions`); `{}` turns them on.",
       "anyOf": [
@@ -3406,6 +3417,26 @@
           "anyOf": [
             {
               "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "RealtimeOptions": {
+      "type": "object",
+      "properties": {
+        "processes": {
+          "description": "`'one'`, the default, when one process serves the app: broadcasts and presence go between its channels in memory.\n`'many'` when several processes serve it behind one address: they go between the processes through the\n`realtime_relay` schema of the app's database, which `protobase migration` writes.",
+          "anyOf": [
+            {
+              "enum": [
+                "one",
+                "many"
+              ]
             },
             {
               "$ref": "#/definitions/EnvValue"

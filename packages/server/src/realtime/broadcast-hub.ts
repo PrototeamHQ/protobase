@@ -10,8 +10,8 @@ export type BroadcastMember = {
 }
 
 /**
- * The channels of a process by topic, which hear each other's broadcasts in-process: a cloud app runs as one process,
- * so channels of other processes are not reached. Private and public channels of a topic do not hear each other, as on
+ * The channels of a process by topic, which hear each other's broadcasts in-process; with several processes,
+ * `relayedHubs` carries them between them through this hub's `deliver`. Private and public channels of a topic do not hear each other, as on
  * Supabase, so a public channel cannot reach past the policies of a private one. A topic takes `realtimeLimits.topicBroadcastsPerSecond`, whoever sends
  * them; its window is kept here, so a topic left empty and joined again does not start a new one.
  */
@@ -20,6 +20,13 @@ export const broadcastHub = ({ now = () => Date.now() }: { now?: () => number } 
   const privateTopics = new Map<string, Set<BroadcastMember>>()
   const topicsOf = (isPrivate: boolean) => (isPrivate ? privateTopics : publicTopics)
   const rate = fixedWindows(realtimeLimits.topicBroadcastsPerSecond, 1000, now)
+
+  /** Sends a broadcast to the topic's members, whatever the rate, but not to `from` unless it hears its own. */
+  const deliver = (publication: Publication, from?: BroadcastMember) => {
+    for (const member of topicsOf(publication.private).get(publication.topic) ?? []) {
+      if (member !== from || member.self) member.receive(publication.event, publication.payload, publication.meta)
+    }
+  }
 
   return {
     /** Puts the member on the topic until the returned function takes it off. */
@@ -38,9 +45,7 @@ export const broadcastHub = ({ now = () => Date.now() }: { now?: () => number } 
      */
     send: (topic: string, from: BroadcastMember, event: string, payload: unknown) => {
       if (!rate(topic)) return false
-      for (const member of topicsOf(from.private).get(topic) ?? []) {
-        if (member !== from || member.self) member.receive(event, payload)
-      }
+      deliver({ topic, event, payload, private: from.private }, from)
       return true
     },
     /**
@@ -51,11 +56,10 @@ export const broadcastHub = ({ now = () => Date.now() }: { now?: () => number } 
       const takes = new Map<string, number>()
       for (const { topic } of publications) takes.set(topic, (takes.get(topic) ?? 0) + 1)
       if (!rate.all(takes)) return false
-      for (const publication of publications) {
-        for (const member of topicsOf(publication.private).get(publication.topic) ?? []) member.receive(publication.event, publication.payload, publication.meta)
-      }
+      for (const publication of publications) deliver(publication)
       return true
     },
+    deliver,
   }
 }
 
@@ -71,4 +75,9 @@ export type Publication = {
   meta?: BroadcastMeta
 }
 
-export type BroadcastHub = ReturnType<typeof broadcastHub>
+/** What the socket, the broadcast API and the database send broadcasts through: `broadcastHub`, or `relayedHubs`'. */
+export type BroadcastHub = {
+  join: (topic: string, member: BroadcastMember) => () => void
+  send: (topic: string, from: BroadcastMember, event: string, payload: unknown) => boolean | Promise<boolean>
+  publish: (publications: readonly Publication[]) => boolean | Promise<boolean>
+}

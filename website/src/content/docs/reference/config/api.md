@@ -1,6 +1,6 @@
 ---
 title: API options
-description: The config keys of the REST API, its path, keys, CORS, access defaults, query limits, error reporting, write hooks, MCP tools, remote resources and runtime updates, and the files of the API's own hooks.
+description: The config keys of the REST API, its path, keys, CORS, access defaults, query limits, error reporting, write hooks, MCP tools, remote resources, runtime updates and Realtime across processes, and the files of the API's own hooks.
 ---
 
 The keys of the API, at the top level of [`protobase.config.ts`](/reference/config/). The API itself is described in [REST API](/reference/api/).
@@ -146,6 +146,17 @@ The endpoint that reports the app's runtime version and updates it, such as a ho
 
 ```ts
 export default defineConfig({ runtimeUpdates: false })
+```
+
+## realtime
+
+- **Type:** `{ processes?: 'one' | 'many' }`
+- **Default:** `{ processes: 'one' }`
+
+How [Supabase Realtime](/reference/supabase-realtime/) is served. With `'one'`, one process serves the app, and broadcasts and presence go between its channels in memory. Set `'many'` when several processes serve the app behind one address: broadcasts and presence then go between the processes through the `realtime_relay` schema of the app's database, which [`protobase migration`](/reference/cli/#migration) writes and the server checks at start. See [Several processes](/reference/supabase-realtime/#several-processes).
+
+```ts
+export default defineConfig({ realtime: { processes: 'many' } })
 ```
 
 ## Code of the API

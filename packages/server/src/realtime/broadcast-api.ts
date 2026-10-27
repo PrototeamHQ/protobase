@@ -33,7 +33,7 @@ const parsedJson = async (c: Context) => {
 /**
  * `POST /api/broadcast` and `POST /api/broadcast/:topic/events/:event`, Supabase Realtime's broadcast API, which
  * supabase-js's `send()` on a channel that has not joined and `httpSend()` call: they send to the channels joined on a
- * topic in this process, as a broadcast sent on the socket, under the same topic rate. A request is admitted by the
+ * topic, as a broadcast sent on the socket, under the same topic rate. A request is admitted by the
  * app's key and the token in its bearer, as the socket is, and its body is at most a socket's frame. A private message
  * reaches private channels only, and only when the caller may send broadcasts on its topic by the policies on
  * `realtime.messages`: the batch drops one it may not, as Supabase does, and the single message is refused with 403.
@@ -72,7 +72,7 @@ export const broadcastApi = ({ caller, broadcasts, access, report }: BroadcastAp
   app.post('/', admitted, limited, async (c) => {
     if (typeOf(c) !== 'application/json') throw broadcastProblem(415, 'json-only', 'Unsupported Media Type', 'Send the messages as application/json')
     const publications = await allowed(c.var.caller, batchOf(await parsedJson(c)))
-    if (!broadcasts.publish(publications)) throw tooFast()
+    if (!(await broadcasts.publish(publications))) throw tooFast()
     return c.body(null, 202)
   })
 
@@ -87,7 +87,7 @@ export const broadcastApi = ({ caller, broadcasts, access, report }: BroadcastAp
     }
     const publication = publicationOf(c.req.param('topic'), c.req.param('event'), payload, c.req.query('private') === 'true')
     if ((await allowed(c.var.caller, [publication])).length === 0) throw broadcastProblem(403, 'unauthorized', 'Forbidden', 'Unauthorized')
-    if (!broadcasts.publish([publication])) throw tooFast()
+    if (!(await broadcasts.publish([publication]))) throw tooFast()
     return c.body(null, 202)
   })
 

@@ -174,6 +174,9 @@ export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub,
     const refused = await gate.authorize(caller)
     if (!open) return
     if (refused) return push(reply(message, 'error', { reason: `Unauthorized: ${readRefusalText(message.topic, refused)}` }))
+    // With several processes, once their presences are known, so that the channel's `presence_state` holds them.
+    await presences.ready()
+    if (!open) return
     const parsed = parseBindings(config.postgres_changes, live, nextId)
     if (typeof parsed === 'string') return push(reply(message, 'error', { reason: parsed }))
     const { topic } = message
@@ -226,7 +229,7 @@ export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub,
     if (channels.get(message.topic) !== channel) return
     // Supabase's own reply to a broadcast the policies refuse, as to a track below.
     if (!allowed) return push(reply(message, 'error', { error: 'unauthorized' }))
-    if (!broadcasts.send(message.topic, channel.member, event, payload)) return push(reply(message, 'error', { reason: `${tooFast} on this topic` }))
+    if (!(await broadcasts.send(message.topic, channel.member, event, payload))) return push(reply(message, 'error', { reason: `${tooFast} on this topic` }))
     if (channel.ack) push(reply(message, 'ok', {}))
   }
 
