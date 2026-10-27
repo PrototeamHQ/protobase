@@ -199,6 +199,17 @@ export default defineConfig({
         },
       },
       {
+        // A Supabase project moved by the real import and served to supabase-js, on Supabase's Postgres image and the
+        // tests' Postgres: `bun run test:supabase-move` (tests/supabase-move/client/client.test.ts).
+        extends: true,
+        test: {
+          name: 'supabase-move',
+          include: ['tests/supabase-move/client/**/*.test.ts'],
+          testTimeout: 60_000,
+          hookTimeout: 300_000,
+        },
+      },
+      {
         extends: true,
         test: {
           name: 'e2e',
