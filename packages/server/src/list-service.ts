@@ -17,7 +17,7 @@ import type { Session } from './types'
 
 // `count=exact` counts no further than this, so a broad filter never reads every match to count it: above it the total
 // is the planner's estimate alone.
-const exactCountLimit = 10_000
+export const exactCountLimit = 10_000
 
 /**
  * AIP-132 list, the `:search` variant and (with `jump`) `:seek`: both take the same parameters, from the query string or a JSON body.

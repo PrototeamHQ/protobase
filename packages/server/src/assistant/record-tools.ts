@@ -4,6 +4,7 @@ import type { ListParams, ToolRecord } from './records'
 import { budgetedPage, cutRecordNote } from './budgeted-page'
 import { fieldPiece, pieceParameters, readsPiece } from './record-field-piece'
 import { forcedJson } from './result-budget'
+import { countRecordsTool } from './count-records-tool'
 import { defineTool, type ReadableResources } from './tools'
 
 const readOnly = { readOnlyHint: true, openWorldHint: false }
@@ -109,5 +110,8 @@ export const getRecordTool = () =>
     },
   })
 
-/** `list_resources`, `list_records` and `get_record`: reading the app's records as the caller, through the REST API's rules. */
-export const readRecordTools = () => [listResourcesTool(), listRecordsTool(), getRecordTool()]
+/**
+ * `list_resources`, `list_records`, `count_records` and `get_record`: reading and counting the app's records as the
+ * caller, through the REST API's rules.
+ */
+export const readRecordTools = () => [listResourcesTool(), listRecordsTool(), countRecordsTool(), getRecordTool()]

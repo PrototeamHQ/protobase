@@ -114,7 +114,7 @@ export default defineConfig({ writeHooks: ['queue-sent-invoice'] })
 ## mcpEndpoint
 
 - **Type:** `{ sql?: boolean; writes?: boolean | { resources?: string[]; rolesWithoutApproval?: string[] } } | false`
-- **Default:** the read tools only: `list_resources`, `list_records` and `get_record`
+- **Default:** the read tools only: `list_resources`, `list_records`, `count_records` and `get_record`
 
 The MCP endpoint's tools; [`auth.mcp`](/reference/config/sign-in/#authmcp) turns the endpoint on. `sql: true` also offers admins and the `ai` role `run_read_only_query`, which reads the whole database outside the access rules. `writes: true` offers `create_record`, `update_record`, `delete_record` and `batch_write` through the REST API's rules, each approved by the person in their client; `writes.resources` limits them to the resources named, and `writes.rolesWithoutApproval` lets holders of those roles, such as a service account, write without the approval. `false` is for a host that serves its own MCP endpoint at `auth.mcp.path`, in front of this app. See [MCP](/reference/mcp/#the-tools).
 
