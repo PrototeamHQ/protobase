@@ -36,6 +36,7 @@ export const ListScreen = (props: ListScreenProps) => {
         <PageHeader
           title={props.title}
           subtitle={props.subtitle}
+          subtitleBelow
           actions={
             <>
               <Button>

@@ -296,6 +296,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       <PageHeader
         title={heading?.title ?? plural}
         subtitle={heading ? heading.subtitle : view?.help}
+        subtitleBelow
         actions={
           <>
             {displaySwitch(!desktop)}
