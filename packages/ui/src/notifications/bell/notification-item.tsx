@@ -23,8 +23,8 @@ const row = 'flex w-full gap-2.5 px-3 py-2.5 text-left'
 
 /**
  * One notification of the panel: unread ones in bold beside a dot, its text, and how long ago it came. A notification
- * with a url is a link to it, followed in the app for the app's own pages and opened in a new tab for another site;
- * one without is not a link.
+ * with a url is a link to it, followed in the app for the app's own pages and loaded in this tab for any other; one
+ * without is not a link. The history never answers a url on another site.
  */
 export const NotificationItem = ({ item, target, onNavigate, onOpen, now }: NotificationItemProps) => {
   const unread = item.readAt === null
@@ -37,7 +37,6 @@ export const NotificationItem = ({ item, target, onNavigate, onOpen, now }: Noti
         <time dateTime={item.createdAt} className="mt-0.5 block text-xs text-faint-foreground">
           {formatRelativeTime((now - Date.parse(item.createdAt)) / 1000)}
         </time>
-        {target?.kind === 'external' && <span className="sr-only">{text('opensNewTab')}</span>}
       </span>
     </>
   )
@@ -55,7 +54,7 @@ export const NotificationItem = ({ item, target, onNavigate, onOpen, now }: Noti
     )
   }
   return (
-    <a href={target.href} onClick={opened} onAuxClick={middle} className={cn(row, 'hover:bg-muted')} {...(target.kind === 'external' && { target: '_blank', rel: 'noopener' })}>
+    <a href={target.href} onClick={opened} onAuxClick={middle} className={cn(row, 'hover:bg-muted')}>
       {content}
     </a>
   )

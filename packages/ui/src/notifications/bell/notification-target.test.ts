@@ -16,9 +16,9 @@ describe('notificationTarget', () => {
     expect(notificationTarget('/administration', admin)).toEqual({ kind: 'page', href: '/administration' })
   })
 
-  it('opens another origin in a new tab', () => {
-    expect(notificationTarget('https://api.example.com/x', at)).toEqual({ kind: 'external', href: 'https://api.example.com/x' })
-    expect(notificationTarget('http://app.example.com/x', at)).toEqual({ kind: 'external', href: 'http://app.example.com/x' })
+  it("loads another of the app's origins in this tab", () => {
+    expect(notificationTarget('https://admin.example.com/x', at)).toEqual({ kind: 'page', href: 'https://admin.example.com/x' })
+    expect(notificationTarget('http://app.example.com/x', at)).toEqual({ kind: 'page', href: 'http://app.example.com/x' })
   })
 
   it('has no link without a url, or for another scheme', () => {

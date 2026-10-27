@@ -16,7 +16,7 @@ const allowed = { create: true, update: true, delete: true, conditional: [] }
 
 const notes = [
   inboxNote('n1', 2, { title: 'SO-2 was shipped', body: 'The carrier picked it up this morning.', url: '/orders/o2' }),
-  inboxNote('n2', 50, { title: 'The price list for next year is ready', url: 'https://docs.example.com/prices' }),
+  inboxNote('n2', 50, { title: 'The price list for next year is ready', url: '/documents/prices' }),
   inboxNote('n3', 60 * 26, { title: 'Welcome to the app', body: 'Turn on notifications to hear about your orders on this device.' }),
   inboxNote('n4', 60 * 24 * 3, { title: 'SO-1 is waiting for you', url: '/orders/o1', read: true }),
 ]
@@ -56,9 +56,6 @@ export const Panel: StoryObj = {
     expect(canvas.getByRole('button', { name: 'Mark all as read' })).toBeVisible()
     expect(canvas.getByRole('button', { name: 'Show more' })).toBeVisible()
     expect(canvas.getByRole('link', { name: /SO-2 was shipped/ })).toHaveAttribute('href', '/orders/o2')
-    const external = canvas.getByRole('link', { name: /price list.*opens in a new tab/ })
-    expect(external).toHaveAttribute('target', '_blank')
-    expect(external).toHaveAttribute('rel', 'noopener')
     expect(canvas.queryByRole('link', { name: /Welcome/ })).toBeNull()
     expect(canvas.getByRole('button', { name: 'Turn on' })).toBeVisible()
   },

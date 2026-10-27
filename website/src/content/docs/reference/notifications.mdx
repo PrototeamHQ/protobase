@@ -144,7 +144,7 @@ The paths come from `historyPath('/api')`, `historyPath('/api', 'unread')`, `his
 The bell lists notifications only in its panel; there is no page of all notifications.
 :::
 
-With notifications on, every signed-in user sees a bell in the top bar with how many of their notifications are unread. Its panel is their inbox: the newest notifications [sent](#sending) with the inbox flag on, never those sent without it, the unread ones in bold, each with how long ago it came. Opening one marks it read and goes to its page: in the app for your own pages, in a new tab for other sites. A notification without a `url` is not a link. "Mark all as read" marks those the panel shows read, and "Show more" brings older ones.
+With notifications on, every signed-in user sees a bell in the top bar with how many of their notifications are unread. Its panel is their inbox: the newest notifications [sent](#sending) with the inbox flag on, never those sent without it, the unread ones in bold, each with how long ago it came. Opening one marks it read and goes to its page in the app, in the same tab: inbox links stay within the app, since the [history](#history) never answers a `url` on another site. A notification without a `url` is not a link. "Mark all as read" marks those the panel shows read, and "Show more" brings older ones.
 
 The panel also offers to turn push on for this device, where the device can receive it: a browser with Web Push, when the app has [its keys](#web-push). The browser asks for permission only once the user clicks "Turn on", never when a page loads. Once push is on, the panel says so with a way to turn it off. When the browser blocks notifications, the panel says so and how to allow them again, and offers to turn push on once they are allowed.
 
