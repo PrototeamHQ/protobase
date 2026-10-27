@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthError, createAuthSession, tokenExpiry } from './auth'
 import { createClient } from './client'
 import { ApiError } from './problem'
@@ -207,11 +207,23 @@ describe('bearer tokens on API calls', () => {
 })
 
 describe('the connect page calls', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
   const answering = (body: unknown, status = 200) => createAuthSession({ origin: 'http://localhost', fetch: (async () => json(body, { status })) as typeof fetch })
 
   it('resolve with where to go next', async () => {
     expect(await answering({ redirect: true, url: '/-/connect?sig=x' }).connect.resume('sig=x')).toEqual({ url: '/-/connect?sig=x' })
     expect(await answering({ redirect: true, url: 'http://127.0.0.1:3000/cb?code=c' }).connect.answer(true, 'sig=x')).toEqual({ url: 'http://127.0.0.1:3000/cb?code=c' })
+  })
+
+  // The provider answers the page's own calls with `redirect: true`: going there at once would load the page again on a
+  // newly signed request, which it would pick up and be sent back with, without end.
+  it('leave the browser where it is, for the page to go on', async () => {
+    const href = vi.fn()
+    vi.stubGlobal('window', { location: { set href(url: string) { href(url) } } })
+    await answering({ redirect: true, url: '/-/connect?sig=y' }).connect.resume('sig=x')
+    await answering({ redirect: true, url: 'http://127.0.0.1:3000/cb?code=c' }).connect.answer(true, 'sig=x')
+    expect(href).not.toHaveBeenCalled()
   })
 
   it("reject with the provider's OAuth error as the code, and Protobase's own refusals as theirs", async () => {
