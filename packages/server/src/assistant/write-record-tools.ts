@@ -11,6 +11,7 @@ import { approvalTexts, recordBefore } from './record-before'
 import { keyOf, keyParameter, refused, resourceOf } from './record-tool-args'
 import { forcedJson } from './result-budget'
 import { defineTool } from './tools'
+import { echoFieldsOf, fieldsParameter, invalidFields, writeEcho } from './write-echo'
 import { createApproval, updateApproval } from './write-prompts'
 import { forbiddenText, notApproved, onlyNote, outside, resourceParameterFor, type WriteRecordToolsInput } from './write-tool-limits'
 
@@ -25,10 +26,10 @@ const dataOf = (value: unknown) => (typeof value === 'object' && value !== null 
 export const createRecordTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'create_record',
-    description: `Creates a record of a resource and returns it as JSON ({ record, etag }). The user approves each write in their client first; nothing is written without it.${onlyNote(input)}`,
+    description: `Creates a record of a resource and returns its key, new etag and, in record, the fields written and the read-only fields the write changed, as JSON ({ key, etag, record }). The user approves each write in their client first; nothing is written without it.${onlyNote(input)}`,
     parameters: {
       type: 'object',
-      properties: { resource: resourceParameterFor(input), data: dataParameter },
+      properties: { resource: resourceParameterFor(input), data: dataParameter, fields: fieldsParameter },
       required: ['resource', 'data'],
     },
     annotations: writes,
@@ -36,12 +37,14 @@ export const createRecordTool = (input: WriteRecordToolsInput = {}) =>
       const resource = resourceOf(args)
       const data = dataOf(args.data)
       if (!resource || !data) return 'Pass the resource and data as { "resource": "<name>", "data": { "<field>": <value> } }.'
+      const fields = echoFieldsOf(args.fields)
+      if (!fields) return invalidFields
       const refusal = outside(input, resource)
       if (refusal) return refusal
       const { text, described } = await approvalTexts(context, resource)
       const answer = await context.approve(createApproval(text, described, data))
       if (answer !== 'approved') return notApproved(answer)
-      return context.records.create(resource, data).then((record) => forcedJson(record, cutRecordNote), refused)
+      return context.records.create(resource, data).then((written) => forcedJson(writeEcho(described.model, written, data, undefined, fields), cutRecordNote), refused)
     },
   })
 
@@ -49,7 +52,7 @@ export const createRecordTool = (input: WriteRecordToolsInput = {}) =>
 export const updateRecordTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'update_record',
-    description: `Updates fields of one record of a resource by its key and returns it as JSON ({ record, etag }). Pass the etag get_record gave to fail when someone changed the record since. The user approves each write in their client first; nothing is written without it.${onlyNote(input)}`,
+    description: `Updates fields of one record of a resource by its key and returns its key, new etag and, in record, the fields written and the read-only fields the write changed, as JSON ({ key, etag, record }). Pass the etag get_record gave to fail when someone changed the record since. The user approves each write in their client first; nothing is written without it.${onlyNote(input)}`,
     parameters: {
       type: 'object',
       properties: {
@@ -57,6 +60,7 @@ export const updateRecordTool = (input: WriteRecordToolsInput = {}) =>
         key: keyParameter,
         data: { ...dataParameter, description: 'The fields to change, names to new values, as list_resources gives the fields.' },
         etag: { type: 'string', description: 'The etag get_record gave, to fail when the record changed since.' },
+        fields: fieldsParameter,
       },
       required: ['resource', 'key', 'data'],
     },
@@ -66,6 +70,8 @@ export const updateRecordTool = (input: WriteRecordToolsInput = {}) =>
       const key = keyOf(args.key)
       const data = dataOf(args.data)
       if (!resource || key === undefined || !data) return 'Pass the resource, key and data as { "resource": "<name>", "key": "<key>", "data": { "<field>": <value> } }.'
+      const fields = echoFieldsOf(args.fields)
+      if (!fields) return invalidFields
       const refusal = outside(input, resource)
       if (refusal) return refusal
       // A delete or a restore goes only through delete_record's approval and delete rule, or the app
@@ -78,7 +84,7 @@ export const updateRecordTool = (input: WriteRecordToolsInput = {}) =>
       const { text, described } = await approvalTexts(context, resource)
       const answer = await context.approve(updateApproval(text, described, key, before?.record ?? {}, data))
       if (answer !== 'approved') return notApproved(answer)
-      return context.records.update(resource, key, data, { etag }).then((record) => forcedJson(record, cutRecordNote), refused)
+      return context.records.update(resource, key, data, { etag }).then((written) => forcedJson(writeEcho(described.model, written, data, before?.record, fields), cutRecordNote), refused)
     },
   })
 

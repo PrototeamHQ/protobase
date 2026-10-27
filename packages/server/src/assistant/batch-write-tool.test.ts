@@ -7,7 +7,8 @@ import type { ToolRecords } from './records'
 import type { ToolContext } from './tools'
 
 const results = [
-  { op: 'create', resource: 'tasks', record: { id: 7, title: 'Plan' }, etag: '"v1"' },
+  { op: 'create', resource: 'tasks', ref: 'task', record: { id: 7, title: 'Plan', done: false, notes: 'Long' }, etag: '"v1"' },
+  { op: 'update', resource: 'tasks', record: { id: 3, title: 'Ship', done: true, notes: 'Long' }, etag: '"v1"' },
   { op: 'delete', resource: 'links', deleted: true },
 ]
 
@@ -18,7 +19,13 @@ const batch = [
 ]
 
 // Every records method, so a test can tell that none of them ran.
-const recordsWith = (run: ToolRecords['batch']) => ({ list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), batch: vi.fn(run) })
+const recordsWith = (run: ToolRecords['batch']) => ({
+  list: vi.fn(),
+  get: vi.fn(async () => ({ record: { id: 3, title: 'Ship', done: false, notes: 'Long' }, etag: '"v0"' })),
+  create: vi.fn(),
+  update: vi.fn(),
+  batch: vi.fn(run),
+})
 
 const contextWith = (answer: ApprovalAnswer | Error, run: ToolRecords['batch'] = async () => results as never, models: Array<Partial<ResourceModel>> = []) => {
   const approve = vi.fn(async (_request: ApprovalRequest) => {
@@ -47,7 +54,37 @@ describe('batch_write', () => {
     expect(approve).toHaveBeenCalledTimes(1)
     expect(approve).toHaveBeenCalledWith(expect.objectContaining({ title: 'Run 3 writes in one transaction?', approveLabel: 'Write all' }))
     expect(records.batch).toHaveBeenCalledWith(batch)
-    expect(JSON.parse(result)).toEqual({ results })
+    expect(JSON.parse(result)).toEqual({
+      results: [
+        { op: 'create', resource: 'tasks', ref: 'task', etag: '"v1"', record: { title: 'Plan' } },
+        { op: 'update', resource: 'tasks', etag: '"v1"', record: { done: true } },
+        { op: 'delete', resource: 'links', deleted: true },
+      ],
+    })
+  })
+
+  it('gives each record back by its key with the read-only fields the batch changed, and the fields an operation asks for', async () => {
+    const tasks = { name: 'tasks', primaryKey: ['id'], fields: { id: { readOnly: true }, done: {}, notes: {}, title: {} } } as unknown as ResourceModel
+    for (const [name, field] of Object.entries(tasks.fields)) Object.assign(field, { name, readOnly: field.readOnly ?? false })
+    const { context, records } = contextWith('approved', undefined, [tasks])
+    const operations = [{ ...batch[0], fields: ['done'] }, { ...batch[1], fields: ['*'] }, batch[2]]
+    const result = await batchWriteTool().run({ operations }, context)
+    expect(records.batch).toHaveBeenCalledWith(batch)
+    expect(records.get).toHaveBeenCalledWith('tasks', 3)
+    expect(JSON.parse(result)).toEqual({
+      results: [
+        { op: 'create', resource: 'tasks', ref: 'task', key: 7, etag: '"v1"', record: { id: 7, title: 'Plan', done: false } },
+        { op: 'update', resource: 'tasks', key: 3, etag: '"v1"', record: results[1]!.record },
+        { op: 'delete', resource: 'links', deleted: true },
+      ],
+    })
+  })
+
+  it('refuses an operation whose fields are not a list of names, before asking', async () => {
+    const { context, records } = contextWith('approved')
+    const result = await batchWriteTool().run({ operations: [{ ...batch[0], fields: 'done' }] }, context)
+    expect(JSON.parse(result)).toEqual({ error: 'invalid-argument', message: 'operations[0] has fields that are not a list of field names; nothing was written.' })
+    untouched(records)
   })
 
   it.each(['rejected', 'expired'] as const)('writes nothing when %s', async (answer) => {
@@ -166,7 +203,8 @@ describe('batch_write', () => {
       { op: 'delete', resource: 'tasks', key: '1?hard=true' },
       { op: 'delete', resource: 'tasks', key: '%2F#x', etag: '' },
     ]
-    const { context, records } = contextWith('approved')
+    const written = [{ op: 'update', resource: 'tasks', record: { id: 1 }, etag: '"v1"' }, { op: 'delete', resource: 'tasks', deleted: true }, { op: 'delete', resource: 'tasks', deleted: true }]
+    const { context, records } = contextWith('approved', async () => written as never)
     await batchWriteTool().run({ operations }, context)
     expect(records.batch).toHaveBeenCalledWith(operations)
     expect('etag' in records.batch.mock.calls[0]![0][1]!).toBe(false)

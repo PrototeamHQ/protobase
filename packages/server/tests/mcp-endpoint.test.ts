@@ -169,10 +169,10 @@ describe('the MCP endpoint', () => {
     expect(events).toEqual([])
     const answer = { requestState: asked.requestState as string, inputResponses: { [key!]: { action: 'accept', content: { approve: true } } } }
     const approved = await resultOf(await modernCall(app, mcp, { name: 'create_record', arguments: args, ...answer }, { elicitation: {} }))
-    const created = JSON.parse((approved.content as Array<{ text: string }>)[0]!.text) as { record: { id: number; name: string }; etag: string }
-    expect(created).toMatchObject({ record: { name: 'Approved Org' }, etag: expect.any(String) })
+    const created = JSON.parse((approved.content as Array<{ text: string }>)[0]!.text) as { key: number; record: { name: string }; etag: string }
+    expect(created).toMatchObject({ key: expect.any(Number), record: { name: 'Approved Org' }, etag: expect.any(String) })
     expect(events).toEqual([{ operation: 'create', resource: 'organizations' }])
-    expect(await call(app, mcp, 'get_record', { resource: 'organizations', key: created.record.id })).toEqual(created)
+    expect(await call(app, mcp, 'get_record', { resource: 'organizations', key: created.key })).toMatchObject({ record: created.record, etag: created.etag })
   })
 
   // A token carries the role its user acts with: Ana's first, sales; Root's, admin.
@@ -189,14 +189,15 @@ describe('the MCP endpoint', () => {
 
   it('refuses an update or a delete with an etag the record changed since, and leaves it as it is', async () => {
     const { app, mcp } = await served(unattended)
-    const first = (await call(app, mcp, 'create_record', { resource: 'organizations', data: { name: 'Stale Org' } })) as { record: { id: number }; etag: string }
-    const key = first.record.id
-    const updated = await call(app, mcp, 'update_record', { resource: 'organizations', key, data: { name: 'Fresh Org' }, etag: first.etag })
-    expect(updated).toMatchObject({ record: { name: 'Fresh Org' } })
+    const first = (await call(app, mcp, 'create_record', { resource: 'organizations', data: { name: 'Stale Org' } })) as { key: number; etag: string }
+    const { key } = first
+    const updated = await call(app, mcp, 'update_record', { resource: 'organizations', key, data: { name: 'Fresh Org' }, etag: first.etag, fields: ['*'] })
+    expect(updated).toMatchObject({ key, record: { name: 'Fresh Org' } })
     const stale = { resource: 'organizations', key, etag: first.etag }
     expect(await call(app, mcp, 'update_record', { ...stale, data: { name: 'Overwritten Org' } })).toMatchObject({ error: 'precondition-failed' })
     expect(await call(app, mcp, 'delete_record', stale)).toMatchObject({ error: 'precondition-failed' })
-    expect(await call(app, mcp, 'get_record', { resource: 'organizations', key })).toEqual(updated)
+    const { key: _key, ...whole } = updated as { key: number }
+    expect(await call(app, mcp, 'get_record', { resource: 'organizations', key })).toEqual(whole)
   })
 
   const organizationsNamed = async (name: string) => (await stores.fixture.pg.query(`select id from organizations where name = $1`, [name])).rows

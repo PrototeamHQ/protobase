@@ -79,8 +79,8 @@ export default defineConfig({ auth: { mcp: true }, mcpEndpoint: { writes: true }
 
 | Tool | What it does |
 | --- | --- |
-| `create_record` | Creates a record of a resource from `data`, field names to values, and returns it with its ETag. |
-| `update_record` | Changes the fields in `data` of one record by its key, and returns it with its new ETag. With the `etag` that `get_record` gave, it fails when someone changed the record since. It does not set the field a soft delete sets: a delete goes through `delete_record`. |
+| `create_record` | Creates a record of a resource from `data`, field names to values, and returns its key and ETag with the fields it wrote, see [What a write returns](#what-a-write-returns). |
+| `update_record` | Changes the fields in `data` of one record by its key, and returns its key and new ETag with the fields it set. With the `etag` that `get_record` gave, it fails when someone changed the record since. It does not set the field a soft delete sets: a delete goes through `delete_record`. |
 | `delete_record` | Deletes one record by its key and the `etag` that `get_record` gave, and fails when someone changed the record since. A resource with a [soft delete](/reference/data-config/) keeps the record, deleted; any other loses it for good. |
 | `batch_write` | Creates, updates and deletes records across resources in one transaction, see [Batch writes](#batch-writes). |
 
@@ -97,6 +97,16 @@ mcpEndpoint: { writes: { resources: ['tasks'] } }
 ```
 
 The write tools then name those resources in their descriptions, and refuse a write to any other before asking, with `{ "error": "forbidden", "message": ... }` saying which resources they write; nothing is written. A name the app has no resource for stops the server at startup. The list only narrows the writes: the person's access rules still apply on the listed resources.
+
+#### What a write returns
+
+A write returns its record small, so changing one field of a large record does not send the whole record back:
+
+```json
+{ "key": 42, "etag": "\"7\"", "record": { "status": "done", "updated_at": "2026-10-27T09:00:00Z" } }
+```
+
+`key` is the record's key as the tools take it, the values of its key fields in order when it has several; `etag` is its new ETag, for a later write. `record` holds the fields the write set, as stored, and the [read-only](/reference/data-config/#field-options) fields that changed with it, such as a formula, a rollup or an update time; a create counts every read-only field that has a value. A `fields` argument, a list of field names, adds those fields, and `["*"]` returns the whole record. A field the person may not read stays out, and for a resource they may not read at all the key and the read-only fields stay out too.
 
 #### Writes without approval
 
@@ -125,7 +135,7 @@ No role is exempt unless named. The roles are checked against the signed-in user
 ] }
 ```
 
-An update needs the `etag` the record was read with, or `"*"` for any version; a delete's `etag` is optional, and without one it deletes any version. A create may name itself with `ref`, and a later operation's key or data value `{ "$ref": "<name>" }` is that record's key. The result is `{ "results": [...] }`, as the REST batch answers: each created or updated record with its new ETag, so the client can go on writing.
+An update needs the `etag` the record was read with, or `"*"` for any version; a delete's `etag` is optional, and without one it deletes any version. A create may name itself with `ref`, and a later operation's key or data value `{ "$ref": "<name>" }` is that record's key. The result is `{ "results": [...] }`, one per operation in order: a create or an update gives its `op`, `resource`, a create's `ref`, and its record as [a write returns it](#what-a-write-returns), with an operation's own `fields` for more, and a delete `{ "op": "delete", "resource": ..., "deleted": true }`. The read-only fields an update changed are told against the record as read just before the batch runs; an update of a record created in the same batch, by `$ref`, counts every read-only field that has a value.
 
 The person approves the batch once, seeing each write in it: how many creates, updates and deletes it makes on each resource, then each operation with its key and data, the first 50 in full and the rest counted. The approval says plainly when deletes in it cannot be undone, which is every delete on a resource that does not [soft delete](/reference/data-config/#resource).
 

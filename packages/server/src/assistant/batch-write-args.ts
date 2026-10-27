@@ -1,15 +1,17 @@
 /**
  * The `batch_write` tool's arguments, checked before anything is asked or written: only creates, updates and deletes,
  * only the fields each takes, an update's ETag always given, and no more operations than the REST batch takes. A
- * delete's ETag passes exactly as sent, so one left out stays left out.
+ * delete's ETag passes exactly as sent, so one left out stays left out. A create's or update's `fields`, what to give
+ * back of its record, comes apart from the operation the REST batch runs.
  */
 import { maxOperations, type BatchOperation } from '../batch/schema'
+import { echoFieldsOf } from './write-echo'
 
 export type WriteOperation = Extract<BatchOperation, { op: 'create' | 'update' | 'delete' }>
 
 const fieldsOf = {
-  create: ['op', 'resource', 'data', 'ref'],
-  update: ['op', 'resource', 'key', 'etag', 'data'],
+  create: ['op', 'resource', 'data', 'ref', 'fields'],
+  update: ['op', 'resource', 'key', 'etag', 'data', 'fields'],
   delete: ['op', 'resource', 'key', 'etag'],
 }
 
@@ -33,6 +35,7 @@ const problemOf = (value: unknown, index: number) => {
   if (unknown.length > 0) return `${at} has fields a ${op} does not take: ${unknown.map((name) => JSON.stringify(name)).join(', ')}`
   if (!isText(value.resource)) return `${at} needs the resource's name`
   if (op !== 'delete' && !isObject(value.data)) return `${at} needs its data as an object of field names to values`
+  if (op !== 'delete' && !echoFieldsOf(value.fields)) return `${at} has fields that are not a list of field names`
   if (op === 'create') return value.ref === undefined || isText(value.ref) ? undefined : `${at} has a ref that is not a name`
   if (!isKey(value.key)) return `${at} needs the record's key: a string, a number, a list of them, or { "$ref": "<name>" }`
   if (op === 'update' && !isText(value.etag)) return `${at} needs the etag the record was read with, or "*" to update any version`
@@ -40,8 +43,8 @@ const problemOf = (value: unknown, index: number) => {
   return undefined
 }
 
-/** The operations to run, or why the batch is refused, naming the operation at fault. */
-export const batchOperationsOf = (args: Record<string, unknown>): { operations: WriteOperation[] } | { problem: string } => {
+/** The operations to run, each with the fields to give back of its record, or why the batch is refused, naming the operation at fault. */
+export const batchOperationsOf = (args: Record<string, unknown>): { operations: WriteOperation[]; fields: string[][] } | { problem: string } => {
   const unknown = Object.keys(args).filter((name) => name !== 'operations')
   if (unknown.length > 0) return { problem: `The batch takes only "operations", not ${unknown.map((name) => JSON.stringify(name)).join(', ')}` }
   const operations = args.operations
@@ -53,5 +56,7 @@ export const batchOperationsOf = (args: Record<string, unknown>): { operations: 
   }
   const refs = operations.flatMap((operation) => (operation.ref === undefined ? [] : [operation.ref]))
   if (new Set(refs).size !== refs.length) return { problem: 'Each create may use a ref name once' }
-  return { operations: operations as WriteOperation[] }
+  const fields = operations.map((operation) => echoFieldsOf(operation.fields)!)
+  const run = operations.map(({ fields: _fields, ...operation }) => operation)
+  return { operations: run as WriteOperation[], fields }
 }
