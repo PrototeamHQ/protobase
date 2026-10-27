@@ -10,6 +10,7 @@ description: Describe the tables of an existing Postgres database as resources, 
 - [Composite keys and relations](/reference/data-config/#keys-and-relations): Records can have keys of several columns, and relations can point at them. The admin shows a related record by its name and links to it.
 - [Soft delete](/reference/data-config/#resource): Deleting a record marks it with a timestamp instead of removing it. Lists leave it out, and it can be restored.
 - [Tenants](/reference/data-config/#resource): A tenant column keeps each organization's records apart. Every query is limited to the caller's tenant, and new records get it set.
+- [Record authors](/reference/data-config/#resource): A record can keep who created it. The server sets it to the signed-in user on every create, and no request can set or change it.
 - [Record search](/reference/data-config/#resource): You choose which fields text search and the global search look in. Partial words match, and phone numbers match by their last digits.
 - [Manual order](/reference/data-config/#resource): Records can be kept in an order set by hand, also per parent record, such as the lines of an invoice.
 - [Record validation](/reference/data-config/#resource): A rule over the whole record runs on every create and update and reports each problem on the field it concerns.

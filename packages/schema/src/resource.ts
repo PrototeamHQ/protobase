@@ -115,6 +115,20 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   }
 
   /**
+   * The field holding the id of the user who created the record, such as a chat message's sender: every create sets it
+   * to the signed-in user's id, and no request may write it, so it is never the client's word. A create by no user
+   * leaves it empty.
+   *
+   * @example
+   * ```ts
+   * .author((r) => r.author_id)
+   * ```
+   */
+  author(pick: (r: FieldRefs<F>) => Ref) {
+    return this.next({ author: pick(this.refs()).name })
+  }
+
+  /**
    * The integer field holding the records' order, 1 the first, which a list's **Reorder** button changes by dragging the
    * records; a move renumbers them 1, 2, 3, ... in one batch `reorder`. With `within`, a relation, each parent's records
    * have an order of their own, as an invoice's items do, sorted in the parent's related section. The field must be

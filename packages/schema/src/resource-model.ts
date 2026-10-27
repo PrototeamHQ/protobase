@@ -19,6 +19,7 @@ export type ResourceState = {
   search?: string[]
   searchMatch?: Record<string, SearchMatch>
   owner?: string
+  author?: string
   position?: { field: string; within?: string; after?: PositionAfterModel }
   parents?: ParentModel[]
   events?: EventSpec[]
@@ -97,6 +98,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.search && { search: [...state.search] }),
     ...(state.searchMatch && Object.keys(state.searchMatch).length > 0 && { searchMatch: { ...state.searchMatch } }),
     ...(state.owner && { owner: state.owner }),
+    ...(state.author && { author: state.author }),
     ...(state.history && { history: true as const }),
     ...(state.comments && { comments: true as const }),
     ...(state.live && { live: true as const }),

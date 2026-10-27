@@ -190,7 +190,8 @@ export const resolveAccess = async (
       if (await verdict(rules?.read, fieldContext('read'), true, `The read rule of field "${name}"`)) readableFields.push(name)
     }
     for (const operation of ['create', 'update'] as const) {
-      if (!allowed[operation] || field.readOnly || !inList(lists[operation], name)) continue
+      // The author is the server's to set (`.author()`), never a request's
+      if (!allowed[operation] || field.readOnly || name === model.author || !inList(lists[operation], name)) continue
       if (await verdict(rules?.[operation], fieldContext(operation), true, `The ${operation} rule of field "${name}"`)) writable[operation].push(name)
     }
   }

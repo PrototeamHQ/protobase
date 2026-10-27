@@ -136,6 +136,8 @@ export type ResourceModel = {
   searchMatch?: Record<string, SearchMatch>
   /** The field holding the owning user's id; `.own` capability scopes filter on it. */
   owner?: string
+  /** The field holding the id of the user who created the record (`.author()`): creates set it, no request may. */
+  author?: string
   /** The integer field holding the records' order by hand (`.position()`), 1 the first. */
   position?: {
     /** The integer field, 1 the first record. */

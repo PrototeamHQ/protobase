@@ -6,7 +6,7 @@ import type { Registry } from './registry'
 const holds = (field: KeyType, id: KeyType) => field === 'text' || field === id || (field === 'bigint' && id === 'integer')
 
 /**
- * Stops startup on an `.owner()` field that cannot hold the ids of the signed-in users. The authenticator's
+ * Stops startup on an `.owner()` or `.author()` field that cannot hold the ids of the signed-in users. The authenticator's
  * `userIdType` declares their type; without it, the auth instance's users have Better Auth's own ids, random text,
  * unless `generateUserId` makes the ids. Without either, the ids come from the app's own authenticator, which this
  * cannot see.
@@ -19,7 +19,13 @@ export const checkOwnerFields = (registry: Registry, userIdType: KeyType | undef
 
 const checkAgainst = (registry: Registry, userIdType: KeyType, fix: (ownerType: KeyType) => string) => {
   for (const entry of registry.entries) {
-    if (entry.ownerType === undefined || holds(entry.ownerType, userIdType)) continue
-    throw new Error(`${entry.name}.${entry.model.owner} is the owner of its records, so it holds the signed-in user's id, but it holds ${entry.ownerType} values and ${fix(entry.ownerType)}`)
+    const fields = [
+      { role: 'owner', name: entry.model.owner, type: entry.ownerType },
+      { role: 'author', name: entry.model.author, type: entry.authorType },
+    ]
+    for (const { role, name, type } of fields) {
+      if (type === undefined || holds(type, userIdType)) continue
+      throw new Error(`${entry.name}.${name} is the ${role} of its records, so it holds the signed-in user's id, but it holds ${type} values and ${fix(type)}`)
+    }
   }
 }
