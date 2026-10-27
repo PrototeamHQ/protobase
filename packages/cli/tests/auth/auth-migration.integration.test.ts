@@ -349,8 +349,8 @@ describe.skipIf(!reachable)("a project's migrate step", () => {
   const state = async (databaseUrl: string) => {
     const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
     // A failed first run rolls back the bookkeeping table too.
-    const [found] = await sql<{ exists: boolean }[]>`select to_regclass('public.schema_migrations') is not null as exists`
-    const applied = found!.exists ? (await sql`select name from public.schema_migrations order by name`).map((row) => row.name) : []
+    const [found] = await sql<{ exists: boolean }[]>`select to_regclass('migrations.applied') is not null as exists`
+    const applied = found!.exists ? (await sql`select name from migrations.applied order by name`).map((row) => row.name) : []
     const tables = (await sql`select table_name from information_schema.tables where table_schema = 'public' and table_name like 'shop_%' order by 1`).map((row) => row.table_name)
     await sql.end()
     return { applied, tables }

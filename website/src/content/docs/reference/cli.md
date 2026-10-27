@@ -50,7 +50,7 @@ protobase scaffold [connection string | --env VAR] [target] [options]
 
 Without a connection string or `--env`, the URL is `DATABASE_URL`, from the environment or the nearest `.env` at or above the current directory, as `dev` reads it. `target` is `all` (default), `schema`, `schema.table` or `schema.table.column`. Tables are introspected from `pg_catalog`; `config/<resource>/data.ts` is created or extended. A table that a written one points to with a foreign key is written too, outside the target or excluded, unless it has a resource already, since the app refuses a relation to a resource it does not have; a line names each.
 
-Protobase's own tables are left out, since they hold password hashes, OAuth tokens and signing keys: the auth store, which is the `auth` schema or another schema with the store's `auth_migrations` table, or with Better Auth's `session`, `account` and `verification` tables whose sessions point at a user table (in `public`, only the tables of the store's [migrations](/reference/auth/#migrations) and that user table, whatever it is called), and pg-boss's `jobs` schema. A line names each one skipped. The auth store is left out whatever the target names; a target naming the `jobs` schema scaffolds it anyway. A resource an earlier run made over one of them gets a warning to remove it, and `dev` and `serve` refuse to start with a resource over the auth store.
+Protobase's own tables are left out, since they hold password hashes, OAuth tokens and signing keys: the auth store, which is the `auth` schema or another schema with the store's `auth_migrations` table, or with Better Auth's `session`, `account` and `verification` tables whose sessions point at a user table (in `public`, only the tables of the store's [migrations](/reference/auth/#migrations) and that user table, whatever it is called), pg-boss's `jobs` schema, and the `migrations` schema whose `applied` table records the migrations applied. A line names each one skipped. The auth store is left out whatever the target names; a target naming the `jobs` or `migrations` schema scaffolds it anyway. A resource an earlier run made over one of them gets a warning to remove it, and `dev` and `serve` refuse to start with a resource over the auth store.
 
 | Option | Effect |
 | --- | --- |
@@ -593,10 +593,10 @@ Copies the agent skills of this CLI's version into the current project, or only 
 ```sh
 bun run db:up && bun run --cwd tests/apps/erp db:migrate && bun run --cwd tests/apps/erp db:seed --scale small
 bun run --cwd tests/apps/erp protobase scaffold postgres://protobase:protobase@localhost:55432/protobase \
-  --yes --ui --exclude public.schema_migrations --exclude public.seed_info
+  --yes --ui --exclude public.seed_info
 bun run --cwd tests/apps/erp protobase doctor postgres://protobase:protobase@localhost:55432/protobase
 ```
 
-The ERP keeps Better Auth's users, sessions and signing keys in the `auth` schema of the same database; scaffold leaves that store out on its own, so they are never exposed through the admin API. `--exclude` leaves out the migrations' and the seed's own bookkeeping tables.
+The ERP keeps Better Auth's users, sessions and signing keys in the `auth` schema of the same database; scaffold leaves that store out on its own, so they are never exposed through the admin API. `--exclude` leaves out the seed's own bookkeeping table.
 
 The integration test (`packages/cli/tests/scaffold/scaffold.integration.test.ts`) scaffolds into a temp folder and is skipped when the database is unreachable.

@@ -16,6 +16,7 @@ const store = (schema: string, user = 'user', more: string[] = []) => [
   ...['account', 'verification', 'jwks', ...more].map((name) => table(schema, name)),
 ]
 const queue = ['job', 'version', 'queue'].map((name) => table('jobs', name))
+const record = table('migrations', 'applied', ['id', 'applied_at'])
 
 const plan = (tables: DbTable[], target = {}, existing: ExistingResource[] = []) =>
   planScaffold({ tables, existing, configDir: '/config', target, excludes: [], decide: async (proposal) => proposal, ui: ['names', 'list'], readText: async () => undefined })
@@ -45,10 +46,14 @@ describe('protobaseSchemas', () => {
 })
 
 describe('scaffold of a database with Protobase in it', () => {
-  it('writes no resources for the auth store or the job queue, and says it skipped them', async () => {
-    const result = await plan([...store('auth'), ...queue, table('public', 'orders'), table('public', 'session')])
+  it('writes no resources for the auth store, the job queue or the record of migrations, and says it skipped them', async () => {
+    const result = await plan([...store('auth'), ...queue, record, table('public', 'orders'), table('public', 'session')])
     expect(result.changes.map((change) => change.path).filter((file) => file.endsWith('data.ts'))).toEqual(['/config/orders/data.ts', '/config/session/data.ts'])
-    expect(result.skipped.map((each) => each.schema)).toEqual(['auth', 'jobs'])
+    expect(result.skipped.map((each) => [each.schema, each.what])).toEqual([['auth', 'auth store'], ['jobs', 'job queue'], ['migrations', 'record of migrations']])
+  })
+
+  it("scaffolds another migration tool's public.schema_migrations, and an app's own migrations schema", async () => {
+    expect(await scaffolded([table('public', 'schema_migrations', ['id', 'version']), table('migrations', 'steps')])).toEqual(['/config/steps/data.ts', '/config/schema_migrations/data.ts'])
   })
 
   it('never scaffolds the auth store, even when the target names its schema or one of its tables', async () => {
@@ -57,8 +62,9 @@ describe('scaffold of a database with Protobase in it', () => {
     expect(await scaffolded([...store('public'), table('public', 'orders')], { schema: 'public', table: 'session' })).toEqual([])
   })
 
-  it('still scaffolds the job queue when the target names its schema', async () => {
+  it('still scaffolds the job queue and the record of migrations when the target names their schema', async () => {
     expect(await scaffolded(queue, { schema: 'jobs' })).toContain('/config/job/data.ts')
+    expect(await scaffolded([record], { schema: 'migrations' })).toEqual(['/config/applied/data.ts'])
   })
 
   it('warns about a resource an earlier run made over the auth store', async () => {

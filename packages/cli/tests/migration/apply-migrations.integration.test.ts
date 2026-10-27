@@ -87,12 +87,37 @@ describe.skipIf(!reachable)('applyMigrations', () => {
 
     expect(await applyMigrations(sql, dir, (text) => printed.push(text))).toEqual(['001_one.sql', '002_more.sql'])
     expect(printed).toEqual(['applying 001_one.sql\n', 'applying 002_more.sql\n', 'applied 2 migrations\n'])
-    expect((await sql`select name from public.schema_migrations order by name`).map((row) => row.name)).toEqual(['001_one.sql', '002_more.sql'])
+    expect((await sql`select name from migrations.applied order by name`).map((row) => row.name)).toEqual(['001_one.sql', '002_more.sql'])
     expect((await sql`select column_name from information_schema.columns where table_name = 'one' order by column_name`).map((row) => row.column_name)).toEqual(['id', 'name'])
 
     printed.length = 0
     expect(await applyMigrations(sql, dir, (text) => printed.push(text))).toEqual([])
     expect(printed).toEqual(['the database is up to date\n'])
+  })
+
+  it("leaves another migration tool's version-keyed public.schema_migrations and its rows as they were", async () => {
+    const sql = connect(await createDatabase())
+    await sql`create table public.schema_migrations (version character varying not null primary key)`
+    await sql`insert into public.schema_migrations values ('20240101000000'), ('20240202000000')`
+    const dir = await migrationsDir({ '001_one.sql': 'create table one ();\n' })
+
+    expect(await applyMigrations(sql, dir, quiet)).toEqual(['001_one.sql'])
+    expect(await sql`select * from public.schema_migrations order by version`).toEqual([{ version: '20240101000000' }, { version: '20240202000000' }])
+    expect((await sql`select name from migrations.applied`).map((row) => row.name)).toEqual(['001_one.sql'])
+  })
+
+  it('takes over the record an earlier Protobase kept in public.schema_migrations, applying nothing twice', async () => {
+    const sql = connect(await createDatabase())
+    await sql`create table public.schema_migrations (name text primary key, applied_at timestamptz not null default now())`
+    await sql`create table one ()`
+    await sql`insert into public.schema_migrations (name, applied_at) values ('001_one.sql', '2026-01-01T00:00:00Z')`
+    const dir = await migrationsDir({ '001_one.sql': 'create table one ();\n', '002_two.sql': 'create table two ();\n' })
+
+    expect(await applyMigrations(sql, dir, quiet)).toEqual(['002_two.sql'])
+    const record = await sql`select name, applied_at from migrations.applied order by name`
+    expect(record.map((row) => row.name)).toEqual(['001_one.sql', '002_two.sql'])
+    expect(record[0]!.applied_at).toEqual(new Date('2026-01-01T00:00:00Z'))
+    expect((await sql`select name from public.schema_migrations`).map((row) => row.name)).toEqual(['001_one.sql'])
   })
 
   it('leaves the schema unchanged when a migration fails', async () => {
