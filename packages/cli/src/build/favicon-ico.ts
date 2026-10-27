@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { pngIcons } from '@protobase/schema/png-icons'
-import { faviconFile } from './favicon'
+import { faviconFile } from './favicon-file'
 
 /** The path browsers and favicon services ask a site's icon at when its page names none, such as before they load it. */
 export const faviconIcoPath = '/favicon.ico'
