@@ -22,8 +22,8 @@ export type BundleShell = { protobase: string; pluginApi: number; paths: string[
 export type BundleManifest = {
   // The format of this file.
   version: 3
-  // The Protobase version the project is pinned to, as its lockfile installed it, whichever CLI built the bundle: the
-  // runtime a host serves the bundle on.
+  // The Protobase version of the copies the bundle was built with, the building CLI's in a bundled project and the
+  // installed ones in a locked project: the runtime a host serves the bundle on.
   protobase: string
   // The config module for the serve runtime, relative to the bundle.
   server: string
