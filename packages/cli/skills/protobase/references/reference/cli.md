@@ -294,7 +294,7 @@ The bundle then runs on linux only: `protobase serve` of it on macOS cannot load
 ```dockerfile
 FROM debian:trixie-slim AS libs
 RUN d=/usr/lib/$(uname -m)-linux-gnu && mkdir -p /out$d && cp -a $d/libstdc++.so.6* $d/libgcc_s.so.1 /out$d/
-FROM oven/bun:1.4.2-distroless
+FROM oven/bun:1.4.4-distroless
 COPY --from=libs /out/ /
 ```
 

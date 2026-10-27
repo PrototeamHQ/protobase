@@ -4,7 +4,7 @@
 # app a host serves for the bundle's shell paths instead of its copy; Bun itself for the healthcheck; and the C++
 # runtime that native add-ons in a bundle's node_modules link (libstdc++, libgcc_s). Context: dist/images/protobase
 # (bun run images:context), from the release's @protobase packages on npm.
-ARG BUN_VERSION=1.4.2
+ARG BUN_VERSION=1.4.4
 
 # Built by the Bun the image runs, so its bytecode always matches. It never reads .env or bunfig.toml from its working
 # directory, /app. It does read package.json files: without them a compiled Bun resolves a package in the bundle's

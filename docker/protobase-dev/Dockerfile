@@ -4,7 +4,7 @@
 # /opt/bun-cache, without the network. The global CLI builds a bundled project with nothing installed and hands a
 # locked one over to its own. There is no Node: the presets' scripts and the protobase CLI run on Bun.
 # Context: dist/images/protobase-dev (bun run images:context); PROTOBASE_VERSION is the release's version.
-ARG BUN_VERSION=1.4.2
+ARG BUN_VERSION=1.4.4
 FROM oven/bun:${BUN_VERSION}
 ARG PROTOBASE_VERSION
 LABEL org.opencontainers.image.source=https://github.com/PrototeamHQ/protobase
