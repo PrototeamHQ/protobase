@@ -2,9 +2,10 @@ import { existsSync } from 'node:fs'
 import { copyFile } from 'node:fs/promises'
 import path from 'node:path'
 import { adminAppDir } from '../project/admin-app'
+import { faviconFile } from './favicon-file'
 
-/** The project's favicon, at its root, and where a bundle's `public` folder has it: the app links it at `/protobase.favicon.svg`. */
-export const faviconFile = 'protobase.favicon.svg'
+// In a file of its own, so the serve runtime names it without loading @protobase/ui (see `adminAppDir`).
+export { faviconFile }
 
 // Protobase's own, beside the app's index.html in @protobase/ui's src and dist alike, for a project that has none.
 const defaultFavicon = path.join(adminAppDir, 'favicon.svg')
