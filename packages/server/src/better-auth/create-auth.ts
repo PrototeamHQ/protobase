@@ -17,6 +17,7 @@ import { readOperatorSettings, resolveOperator, type OperatorProvider, type Reso
 import { defaultInvitationSeconds, defaultInvitationUrl } from './invitations/invitation-link-hook'
 import { lastAdminGuardPlugin } from './last-admin-guard'
 import { leakedPasswordsPlugin } from './leaked-passwords'
+import { lockedAccountsPlugin, readLockedAccounts } from './locked-accounts'
 import { userDeletion, type UserDeletion } from './user-deletion'
 import { revokeMcpGrants } from './mcp/revoke-grants'
 import type { mcpAuthPlugins } from './mcp/mcp-auth-plugins'
@@ -219,6 +220,8 @@ const platformOrigins = () => readOrigins(globalThis.process?.env ?? {})
 
 const platformPasskeyDomain = () => readPasskeyDomain(globalThis.process?.env ?? {})
 
+const platformLockedAccounts = () => readLockedAccounts(globalThis.process?.env ?? {})
+
 const tokenLifetime = '15m'
 
 export { authBasePath }
@@ -264,6 +267,8 @@ type Resolved = {
   mobile?: MobileRequests
   /** What runs when a user is deleted (see `userDeletion`). */
   deletion?: UserDeletion
+  /** The addresses of the accounts no one changes or deletes, from `PROTOBASE_LOCKED_ACCOUNTS` (see `lockAccounts`). */
+  lockedAccounts?: string[]
 } & AuthPlugins
 
 /**
@@ -295,7 +300,7 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], ...plugins }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   const hosts = passkeyHosts([options.baseURL, ...origins])
@@ -364,6 +369,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(options.encryptOAuthTokens && { encryptOAuthTokens: true }),
     },
     plugins: [
+      // First, so every other plugin writes through the adapter it guards.
+      ...(lockedAccounts.length > 0 ? [lockedAccountsPlugin(lockedAccounts)] : []),
       // Without a default role the plugin's own default is a name outside the list, which the hook below refuses.
       admin({ schema: pluginNames.admin, defaultRole: defaultRole ?? 'unassigned', roles: Object.fromEntries(roles.map((role) => [role, role === 'admin' ? adminAc : userAc])) }),
       jwt(jwtOptions),
@@ -496,7 +503,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
   const mobile = mobileRequests()
   const deletion = userDeletion()
-  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...((organizations || mcp) && { context }) })
+  const lockedAccounts = platformLockedAccounts()
+  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...((organizations || mcp) && { context }) })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
