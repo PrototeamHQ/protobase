@@ -1,12 +1,13 @@
-import { QueryError } from '@protobase/query'
-import { queryProblem } from '../error-handler'
-import { HttpProblem } from '../problem'
+import { problemOf } from '../error-handler'
 import type { RecordKeyInput } from './records'
 
-/** A refusal the model can act on (no such resource, not allowed, a bad filter) is its to read; anything else fails the call. */
+/**
+ * A refusal the model can act on (no such resource, not allowed, a bad filter, a record a database constraint rejects)
+ * is its to read, as the REST API's problem words it; anything else fails the call.
+ */
 export const refused = (error: unknown) => {
-  const problem = error instanceof QueryError ? queryProblem(error) : error
-  if (problem instanceof HttpProblem && problem.status < 500) return JSON.stringify({ error: problem.slug, message: problem.detail })
+  const problem = problemOf(error)
+  if (problem && problem.status < 500) return JSON.stringify({ error: problem.slug, message: problem.detail })
   throw error
 }
 
