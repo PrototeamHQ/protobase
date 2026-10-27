@@ -49,12 +49,12 @@ describe('.protobase/tsconfig.json', () => {
     expect(await readFile(path.join(projectDir, '.protobase/.gitignore'), 'utf8')).toBe('*\n')
     expect(typecheck()).toMatchObject({ status: 0, stdout: '' })
 
-    await writeFile(path.join(projectDir, 'data.ts'), `${data}export const wrong: string = defineConfig({ name: 'Shop' })\n`)
-    expect(typecheck().stdout).toContain("data.ts(7,14): error TS2322: Type 'WithJobs<{}>' is not assignable to type 'string'.")
-
-    await writeFile(path.join(projectDir, 'data.ts'), `${data}import 'left-pad'\n`)
-    expect(typecheck().stdout).toContain("Cannot find module or type declarations for side-effect import of 'left-pad'")
-  }, 60_000)
+    // Both mistakes in one check: each run type-checks the whole CLI's types afresh, which takes most of a minute on CI.
+    await writeFile(path.join(projectDir, 'data.ts'), `${data}export const wrong: string = defineConfig({ name: 'Shop' })\nimport 'left-pad'\n`)
+    const mistakes = typecheck().stdout
+    expect(mistakes).toContain("data.ts(7,14): error TS2322: Type 'WithJobs<{}>' is not assignable to type 'string'.")
+    expect(mistakes).toContain("Cannot find module or type declarations for side-effect import of 'left-pad'")
+  }, 120_000)
 
   it("holds no paths in a locked project, whose installed packages type themselves", async () => {
     await write({ 'package.json': JSON.stringify({ name: 'app', dependencies: { '@protobase/server': '*' } }) })
