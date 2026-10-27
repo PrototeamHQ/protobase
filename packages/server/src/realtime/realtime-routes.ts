@@ -3,6 +3,7 @@ import type { UpgradeWebSocket } from 'hono/ws'
 import type { Caller } from '../api-keys/resolve-caller'
 import { HttpProblem } from '../problem'
 import type { Entry } from '../registry'
+import { broadcastApi } from './broadcast-api'
 import { broadcastHub } from './broadcast-hub'
 import { bufferedOf } from './buffered-amount'
 import type { ChangeHub } from './change-hub'
@@ -30,6 +31,7 @@ const keyRequest = (apikey: string, token?: string) => new Request('http://realt
  * resources, and broadcasts and presence between the sockets of this process (see `realtimeSocket`). A missing or wrong
  * key is refused before the upgrade, with 401. A socket whose raw socket is not one of npm `ws`, such as Bun's own `ws`
  * shim's, is closed at once with 1011, since its unsent bytes cannot be counted (`realtimeLimits.maxUnsentBytes`).
+ * `POST /api/sb/realtime/v1/api/broadcast` sends to the same channels without a socket (see `broadcastApi`).
  */
 export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, access, report }: RealtimeRoutesOptions) => {
   const app = new Hono()
@@ -37,6 +39,7 @@ export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, access, re
   const presences = presenceHub()
   let lastId = 0
   const nextId = () => ++lastId
+  app.route('/api/broadcast', broadcastApi({ caller, broadcasts, access, report }))
   app.get(
     '/websocket',
     async (c, next) => {

@@ -45,7 +45,19 @@ A broadcast reaches the topic's other channels, and the sender's own with `self`
 
 Limits, near Supabase's Free plan, apply per socket and per topic. A socket sends at most 100 broadcast and presence messages a second, joins at most 100 times a second and holds at most 100 channels; on each channel it sends at most 5 presence updates in 30 seconds, also counted across a rejoin. A topic takes 100 broadcasts a second, whoever sends them, so one busy sender can use up a topic's budget. A topic is at most 255 bytes, and a tracked presence at most 10 000 bytes of JSON. A message over a limit gets an error reply and goes to no one, where Supabase would close the channel. A frame over 256 KiB closes the socket with 1009. It closes with 1008 when the client leaves more than 4 MiB unread, or sends more than 300 messages or 4 MiB while earlier ones wait, such as behind a token check.
 
-Broadcasts and presence go between the channels of one serving process, which is how a cloud app runs; <gap>Several processes behind one address do not reach each other's channels, because broadcasts and presence are not shared between processes.</gap> <gap>Sending without a joined channel, which supabase-js does over `POST /api/sb/realtime/v1/api/broadcast`, is not supported.</gap>
+Broadcasts and presence go between the channels of one serving process, which is how a cloud app runs; <gap>Several processes behind one address do not reach each other's channels, because broadcasts and presence are not shared between processes.</gap>
+
+### Broadcast without a channel
+
+A backend or an edge function broadcasts without joining a channel, as on Supabase: supabase-js's `httpSend()`, and `send()` on a channel that has not joined, send it over `POST /api/sb/realtime/v1/api/broadcast`. The request carries the app's key in `apikey` and, for a user, their token in its bearer, as the socket does, and is answered `202`; one without a key of the app is refused with `401`.
+
+```ts
+const room = supabase.channel('room')
+await room.httpSend('cursor', { x: 1, y: 2 })
+await supabase.removeChannel(room)
+```
+
+`POST /api/sb/realtime/v1/api/broadcast` takes Supabase's batch, `{ "messages": [{ "topic": "room", "event": "cursor", "payload": { "x": 1 }, "private": false }] }`, of at most 100 messages, each with an object payload. `httpSend()` sends one message to `POST /api/sb/realtime/v1/api/broadcast/<topic>/events/<event>`, `?private=true` for a private one, with a JSON object or, as `application/octet-stream`, binary bytes. A message reaches the channels joined on its topic in this process, under a broadcast's limits: a body is at most 256 KiB, a topic and an event at most 255 bytes each, and a request that would take a topic over its 100 broadcasts a second is refused with `429` and reaches no one. A private message reaches only the private channels of its topic, that may receive broadcasts, and only when the caller may send broadcasts there by the [policies on `realtime.messages`](#private-channels): a batch drops one it may not send, as Supabase does, and `httpSend()` is refused with `403`.
 
 ## Private channels
 

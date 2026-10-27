@@ -10,5 +10,5 @@ Apps written for other systems that keep working on Protobase, and moving their 
 - [Supabase client API](../reference/supabase-rest.md): supabase-js `from()` and `rpc()` calls keep working, under the tables' RLS policies.
 - [Supabase Auth](../reference/auth.md#supabase-js-and-supabasessr): `supabase.auth` and `@supabase/ssr` calls keep working.
 - [Supabase Storage](../reference/supabase-storage.md): supabase-js storage calls keep working, over the app's file storage.
-- [Supabase Realtime](../reference/supabase-realtime.md): Database changes, broadcast and presence through supabase-js channels, private ones authorized by the policies on `realtime.messages`.
+- [Supabase Realtime](../reference/supabase-realtime.md): Database changes, broadcast and presence through supabase-js channels, private ones authorized by the policies on `realtime.messages`, and broadcasts sent from a server without joining a channel.
 - [Edge Functions](../guides/api-functions.md#functions-moved-from-supabase): Functions moved from Supabase answer at their old addresses.
