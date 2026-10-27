@@ -55,50 +55,48 @@ export const guides = [
   'guides/deploy',
 ]
 
-export const reference = [
-  'reference/config',
-  'reference/config/app',
-  'reference/config/sign-in',
-  'reference/config/api',
-  'reference/config/admin-app',
-  'reference/config/jobs-and-events',
-  'reference/config/files',
-  'reference/data-config',
-  'reference/ui-config',
-  'reference/api',
-  'reference/supabase-rest',
-  'reference/supabase-storage',
-  'reference/files',
-  'reference/events',
-  'reference/webhooks',
-  'reference/history',
-  'reference/comments',
-  'reference/live',
-  'reference/supabase-realtime',
-  'reference/ai',
-  'reference/forms',
-  'reference/jobs',
-  'reference/email',
-  'reference/notifications',
-  'reference/access',
-  'reference/auth',
-  'reference/client',
-  'reference/layouts',
-  'reference/blocks',
-  'reference/custom-components',
-  'reference/plugins',
-  'reference/remote-resources',
-  'reference/theme',
-  'reference/app-identity',
-  'reference/languages',
-  'reference/installable-app',
-  'reference/sidebar',
-  'reference/user-menu',
-  'reference/bottom-bar',
-  'reference/assistant',
-  'reference/mcp',
-  'reference/cli',
+// The reference pages, grouped by the area of an app they work on. Each group is a collapsible group inside Reference.
+export const referenceGroups = [
+  {
+    label: 'Project config',
+    items: [
+      'reference/config',
+      'reference/config/app',
+      'reference/config/sign-in',
+      'reference/config/api',
+      'reference/config/admin-app',
+      'reference/config/jobs-and-events',
+      'reference/config/files',
+    ],
+  },
+  {
+    label: 'Data',
+    items: ['reference/data-config', 'reference/files', 'reference/history', 'reference/comments', 'reference/live', 'reference/ai'],
+  },
+  { label: 'Access and sign-in', items: ['reference/access', 'reference/auth'] },
+  { label: 'API', items: ['reference/api', 'reference/client', 'reference/mcp'] },
+  { label: 'Events and jobs', items: ['reference/events', 'reference/webhooks', 'reference/jobs'] },
+  { label: 'Email, notifications and forms', items: ['reference/email', 'reference/notifications', 'reference/forms'] },
+  {
+    label: 'Admin UI',
+    items: [
+      'reference/ui-config',
+      'reference/layouts',
+      'reference/blocks',
+      'reference/custom-components',
+      'reference/plugins',
+      'reference/remote-resources',
+      'reference/assistant',
+    ],
+  },
+  { label: 'Navigation', items: ['reference/sidebar', 'reference/user-menu', 'reference/bottom-bar'] },
+  { label: 'Look and language', items: ['reference/theme', 'reference/app-identity', 'reference/languages', 'reference/installable-app'] },
+  { label: 'Migrating to Protobase', items: ['reference/supabase-rest', 'reference/supabase-storage', 'reference/supabase-realtime'] },
+  { label: 'Command line', items: ['reference/cli'] },
 ]
+
+// Every reference page in sidebar order, for the protobase skill and the docs checks.
+export const reference = referenceGroups.flatMap((group) => group.items)
 
 // Pages that give background on how Protobase itself is built and released, rather than on building an app with it.
 export const architecture = ['reference/architecture', 'reference/versioning']
