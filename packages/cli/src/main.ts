@@ -98,7 +98,8 @@ program
   .option('--cache-dir <dir>', "Vite's dependency cache, so parallel dev servers do not share one")
   .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
   .action(async (opts) => {
-    const [{ runDev }, { resolveExtensions }] = await Promise.all([import('./dev/run'), import('./project/extensions')])
+    const [{ runDev }, { resolveExtensions }, { writeProjectTypes }] = await Promise.all([import('./dev/run'), import('./project/extensions'), import('./project/project-types')])
+    await writeProjectTypes(process.cwd())
     const server = await runDev(
       {
         extensions: resolveExtensions(opts.extend),
@@ -123,13 +124,28 @@ program
   .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
   .option('--source-maps', 'end each script with a //# debugId= comment and write its source map, carrying the same id, beside it', false)
   .action(async (opts) => {
-    const [{ buildDeployBundle }, { manifestFile }, { resolveExtensions }] = await Promise.all([import('./build/deploy-bundle'), import('./bundle/manifest'), import('./project/extensions')])
+    const [{ buildDeployBundle }, { manifestFile }, { resolveExtensions }, { writeProjectTypes }] = await Promise.all([
+      import('./build/deploy-bundle'),
+      import('./bundle/manifest'),
+      import('./project/extensions'),
+      import('./project/project-types'),
+    ])
     const extensions = resolveExtensions(opts.extend)
+    await writeProjectTypes(process.cwd())
     const onWarning = (message: string) => process.stderr.write(`warning: ${message}\n`)
     const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun, extensions, sourceMaps: opts.sourceMaps, onWarning })
     const packages = manifest.nodeModules ? `, ${manifest.nodeModules}/` : ''
     const plugins = manifest.plugins.length > 0 ? ` with plugins ${manifest.plugins.map((plugin) => plugin.name).join(', ')}` : ''
     out(`built ${opts.out}: ${manifest.server}${packages}, ${manifest.public}/${plugins} and ${manifestFile} (api ${manifest.api.join(', ')})\n`)
+  })
+
+program
+  .command('types')
+  .description("Write .protobase/tsconfig.json, which the project's tsconfig.json extends: the types of the @protobase packages the project builds with")
+  .action(async () => {
+    const { typesFile, writeProjectTypes } = await import('./project/project-types')
+    await writeProjectTypes(process.cwd())
+    out(`wrote ${typesFile}\n`)
   })
 
 program
