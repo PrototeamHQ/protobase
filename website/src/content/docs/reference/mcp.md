@@ -44,6 +44,8 @@ Each tool reads as the signed-in person: their role's access rules, row filters,
 
 The result of each tool that returns records, and of `run_read_only_query`, stays within 40,000 characters of JSON, below what clients take as one tool result, and stays valid JSON when it is cut. Over that, long text values are cut first, each named in `cut_fields` with its path and full length, such as `{ "field": "items[3].body", "length": 52341 }`. When that is not enough, `list_records` returns fewer records, with the `next_page_token` that goes on after the last one, and `run_read_only_query` fewer rows, marked `truncated`. A `note` then says how to read the rest: `get_record` with `field` and `offset` for a cut field, or `OFFSET` and `substring` in SQL.
 
+<gap>`list_resources` and the app's own tools cannot cut a result to the size budget because a budget outside the record and SQL tools is not implemented.</gap> An app with very many resources, or a tool of its own, keeps its results small itself.
+
 A refusal, such as a resource the person may not read or a bad filter, comes back to the client as text it can act on, `{ "error": ..., "message": ... }`.
 
 ### Comments
