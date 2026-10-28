@@ -8,8 +8,11 @@ export type StorageSource = { url: string; key: string }
 /** Fetches an object's bytes; the response is the caller's to read. */
 export type Download = (bucket: string, name: string) => Promise<Response>
 
-/** Downloads from the Supabase project `source` with its secret key, which goes in the request's headers only. */
+/**
+ * Downloads from the Supabase project `source` with its secret key, which goes in the request's headers only. A redirect
+ * is not followed, since fetch would send the `apikey` header on to another host too: the 3xx answer fails that object.
+ */
 export const supabaseDownload =
   (source: StorageSource): Download =>
   (bucket, name) =>
-    fetch(objectUrl(source.url, bucket, name), { headers: { apikey: source.key, authorization: `Bearer ${source.key}` } })
+    fetch(objectUrl(source.url, bucket, name), { headers: { apikey: source.key, authorization: `Bearer ${source.key}` }, redirect: 'manual' })
