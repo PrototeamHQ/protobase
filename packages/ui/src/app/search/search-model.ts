@@ -4,6 +4,7 @@ import type { SearchResultGroup } from '../../app-shell'
 import type { MetaData } from '../../data/meta-data'
 import { recordKey, recordTitleField } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
+import { recordTitleOf, titleFieldsOf, type RecordTitleOf } from '../titles/record-title-of'
 import { text } from './messages'
 
 const where = createWhere()
@@ -38,10 +39,14 @@ export const searchPlaceholder = (targets: SearchTarget[]) => {
 /** The list filter for the text: the server's partial-word `search(...)` over the resource's search fields. */
 export const searchFilter = (text: string) => printFilter(where.search(text.trim()))
 
-/** The fields a result's bold line joins: the view's `searchResult.title`, else the record's title field. */
+// The result's bold line is the view's derived title, when it has one and no `searchResult.title`
+const derivesTitle = (target: SearchTarget) => !target.view?.searchResult?.title?.length && target.view?.titleFrom !== undefined
+
+/** The fields a result's bold line joins: the view's `searchResult.title`, else the record's title field, none for a derived title. */
 export const titleFields = (target: SearchTarget) => {
   const fields = target.view?.searchResult?.title
-  return fields?.length ? fields : [recordTitleField(target.model, target.view)]
+  if (fields?.length) return fields
+  return derivesTitle(target) ? [] : [recordTitleField(target.model, target.view)]
 }
 
 /** The second line's field, unless the search matched another: the view's `searchResult.subtitle`, else the first search field not in the title. */
@@ -50,10 +55,11 @@ export const subtitleField = (target: SearchTarget) => {
   return target.view?.searchResult?.subtitle ?? target.model.search?.find((name) => !title.includes(name))
 }
 
-/** The fields a result needs: the key, the title, the subtitle and the search fields, which say what the text matched. */
+/** The fields a result needs: the key, the title or those its derived title reads, the subtitle and the search fields, which say what the text matched. */
 export const searchFields = (target: SearchTarget) => {
   const subtitle = subtitleField(target)
-  const lineFields = [...titleFields(target), ...(subtitle ? [subtitle] : []), ...(target.model.search ?? [])]
+  const derived = derivesTitle(target) ? titleFieldsOf(target.model, target.view) : []
+  const lineFields = [...titleFields(target), ...derived, ...(subtitle ? [subtitle] : []), ...(target.model.search ?? [])]
   return [...new Set([...target.model.primaryKey, ...lineFields.filter((name) => Object.hasOwn(target.model.fields, name))])]
 }
 
@@ -67,9 +73,10 @@ const shown = (target: SearchTarget, row: Record<string, unknown>, name: string)
 /**
  * A row as a result for `text`: its title fields joined by spaces (the key when they are empty) over a subtitle, which is
  * the search field explaining the match when neither the title nor the default subtitle does (a phone number searched
- * for), else the default subtitle. `basePath` is where the app is served, so the link opens it in a new tab too.
+ * for), else the default subtitle. `basePath` is where the app is served, so the link opens it in a new tab too; `titleOf`
+ * titles a view's derived title for the reader.
  */
-export const toHit = (target: SearchTarget, row: Record<string, unknown>, text: string, basePath = ''): SearchHit => {
+export const toHit = (target: SearchTarget, row: Record<string, unknown>, text: string, basePath = '', titleOf: RecordTitleOf = recordTitleOf({}, { user: undefined, member: () => undefined })): SearchHit => {
   const key = encodeKey(recordKey(target.model, row))
   const title = titleFields(target)
   const fallback = subtitleField(target)
@@ -77,7 +84,7 @@ export const toHit = (target: SearchTarget, row: Record<string, unknown>, text: 
   const subtitle = field ? shown(target, row, field) : ''
   return {
     id: key,
-    title: title.map((name) => shown(target, row, name)).filter(Boolean).join(' ') || key,
+    title: derivesTitle(target) ? titleOf(target.model, target.view, row, key) : title.map((name) => shown(target, row, name)).filter(Boolean).join(' ') || key,
     ...(subtitle && { subtitle }),
     href: appPath({ kind: 'record', resource: target.model.name, key }, basePath),
   }

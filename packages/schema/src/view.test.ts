@@ -599,6 +599,14 @@ describe('view builder', () => {
     expect(() => view<typeof article>('article').title((r) => r.title).toModel(other)).toThrow('title field "title" does not exist')
   })
 
+  it('a title derived by a named rule from the fields it reads', () => {
+    expect(view<typeof article>('article').titleFrom('headline', (r) => [r.title, r.status]).toModel(article.toModel()).titleFrom).toEqual({ rule: 'headline', fields: ['title', 'status'] })
+    const other = resource('other').table('o').fields({ id: f.integer() }).primaryKey((r) => r.id).toModel()
+    expect(() => view<typeof article>('article').titleFrom('headline', (r) => [r.title]).toModel(other)).toThrow('titleFrom field "title" does not exist')
+    expect(() => view<typeof article>('article').titleFrom('', (r) => [r.title])).toThrow('titleFrom needs the name of a rule')
+    expect(() => view<typeof article>('article').titleFrom('headline', () => [])).toThrow('titleFrom "headline" reads no fields')
+  })
+
   it('search result title of several fields and a subtitle', () => {
     const build = (v = view<typeof article>('article')) => v.searchResult((r) => ({ title: [r.title, r.status], subtitle: r.price }))
     expect(build().toModel(article.toModel()).searchResult).toEqual({ title: ['title', 'status'], subtitle: 'price' })

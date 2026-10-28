@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import type { MetaData } from '../../data/meta-data'
 import { setAppLocale } from '../../locale/active-locale'
+import { recordTitleOf } from '../titles/record-title-of'
 import { searchFields, searchFilter, searchPlaceholder, searchTargets, subtitleField, titleFields, toHit } from './search-model'
 
 const model = (name: string, extra: Partial<ResourceModel> = {}) => ({ name, table: { name }, primaryKey: ['id'], fields: {}, search: ['name'], ...extra }) as ResourceModel
@@ -62,6 +63,24 @@ describe('hits', () => {
     expect(toHit(lines, { partNo: 'CH 11', size: 'L', name: 'Chain' }, 'chain')).toEqual({ id: 'CH%2011,L', title: 'Chain', href: '/stock/CH%252011%2CL' })
     expect(toHit(lines, { partNo: 'CH', size: 'L', name: null }, 'ch').title).toBe('CH,L')
     expect(toHit(lines, { partNo: 'CH', size: 'L', name: 'Chain' }, 'chain', '/admin').href).toBe('/admin/stock/CH%2CL')
+  })
+})
+
+describe('a derived title', () => {
+  const fields = { id: { name: 'id', type: 'text' }, member_ids: { name: 'member_ids', type: 'json' }, last_text: { name: 'last_text', type: 'text' } }
+  const chats = model('direct_messages', { fields: fields as never, search: ['last_text'] })
+  const target = (extra: Partial<ViewModel> = {}) => searchTargets(meta([chats], [view('direct_messages', { titleFrom: { rule: 'others', fields: ['member_ids'] }, ...extra })]))[0]!
+  const titleOf = recordTitleOf({ others: (row, reader) => (row.member_ids as string[]).filter((id) => id !== reader.user?.id).join(', ') }, { user: { id: 'u-maya' } as never, member: () => undefined })
+  const row = { id: 'dm-1', member_ids: ['u-maya', 'u-sam'], last_text: 'See you' }
+
+  it('asks for the fields it reads and titles the result for the reader, by the key without it', () => {
+    expect(searchFields(target())).toEqual(['id', 'member_ids', 'last_text'])
+    expect(toHit(target(), row, 'see', '', titleOf)).toEqual({ id: 'dm-1', title: 'u-sam', subtitle: 'See you', href: '/direct_messages/dm-1' })
+    expect(toHit(target(), row, 'see').title).toBe('dm-1')
+  })
+
+  it("gives way to the view's own search result title", () => {
+    expect(toHit(target({ searchResult: { title: ['last_text'] } }), row, 'see', '', titleOf).title).toBe('See you')
   })
 })
 

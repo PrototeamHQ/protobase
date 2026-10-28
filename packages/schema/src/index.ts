@@ -78,6 +78,7 @@ export type {
   ActionInputModel,
   ViewModel,
   SearchResultModel,
+  TitleFromModel,
   NamedListModel,
   NavModel,
   NavRecentModel,

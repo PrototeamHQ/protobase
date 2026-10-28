@@ -5,6 +5,7 @@ import type { ShellLogoProps } from '../../app-shell/logo'
 import type { FieldWidget } from '../field-types/field-widget'
 import type { BoardDrop } from '../displays/board-drop'
 import type { DropRule } from '../hand-order/drop-rule'
+import type { TitleRule } from '../titles/title-rule'
 
 /**
  * What a named action's handler gets: the record it runs on (inside a RecordCard or CardRow), the API, and a way to move.
@@ -49,7 +50,7 @@ export type BeforeSignInProps = {
  * The project's own React code for composed pages: custom components by the name their layout declares
  * (`component('UsageChart')`) or a widget part names, handlers for named actions that have no built-in behaviour,
  * field types by the name a view's `.widget(name)` chooses, drop rules by the name a list's `drag.rule` gives, board
- * drops by the name a list's `drag.board` gives, and the shell's slots. `extends` lists UI configs merged in before it (see `mergeUi`), or whole `protobase.ui.tsx` modules
+ * drops by the name a list's `drag.board` gives, title rules by the name a view's `.titleFrom` gives, and the shell's slots. `extends` lists UI configs merged in before it (see `mergeUi`), or whole `protobase.ui.tsx` modules
  * (`import * as tasksUi from '...'`), their exported components included; `name` names it in their errors.
  */
 export type ProjectUi = {
@@ -63,6 +64,8 @@ export type ProjectUi = {
   dropRules?: Record<string, DropRule>
   /** Which columns of a board take a card and what a drop there writes, by the name a view's `drag.board` gives (see `BoardDrop`). */
   boardDrops?: Record<string, BoardDrop>
+  /** A record's title for the person reading it, by the name a view's `.titleFrom` gives (see `TitleRule`). */
+  titles?: Record<string, TitleRule>
   /**
    * Rendered in the shell on every page: `actions` at the end of the top bar, `rightPanel` beside the page, `logo`
    * at the top of the sidebar in place of Protobase's (see `ShellLogoProps`), and `bell` in the top bar in place of the

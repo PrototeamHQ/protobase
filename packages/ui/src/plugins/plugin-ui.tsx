@@ -46,6 +46,7 @@ export const pluginUi = (plugin: PluginInfo, module: Record<string, unknown>): P
     ...(ui.actions && { actions: ui.actions }),
     ...(ui.dropRules && { dropRules: ui.dropRules }),
     ...(ui.boardDrops && { boardDrops: ui.boardDrops }),
+    ...(ui.titles && { titles: ui.titles }),
     ...(fields && { fields }),
     ...(shell && { shell }),
     ...(beforeSignIn && { beforeSignIn }),

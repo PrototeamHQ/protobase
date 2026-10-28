@@ -27,7 +27,7 @@ const actionFields = (run: ActionRun | undefined) => {
 const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
   const sensitive = (name: string) => Boolean(model.fields[name]?.sensitive)
   const uses: Array<[string, string[]]> = [
-    ['the title', view.title === undefined ? [] : [view.title]],
+    ['the title', [...(view.title === undefined ? [] : [view.title]), ...(view.titleFrom?.fields ?? [])]],
     ['the search result', [...(view.searchResult?.title ?? []), ...(view.searchResult?.subtitle ? [view.searchResult.subtitle] : [])]],
     ['a list column, sort or search', [...(view.list?.columns ?? []), ...(view.list?.sort ?? []).map(([name]) => name), ...(view.list?.search ?? [])]],
     ['a list display', (view.list?.displays ?? []).flatMap(displayFields)],

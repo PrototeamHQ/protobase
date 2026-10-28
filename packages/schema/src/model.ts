@@ -1342,6 +1342,17 @@ export type SearchResultModel = {
 }
 
 /**
+ * A record's title derived in the browser, for the person reading it: the project UI's `titles[rule]` gets the record's
+ * `fields` and the reader, such as the names of a conversation's other members. Presentation only: it is no field,
+ * filter or sort key. `unreadable` marks one that reads a field the caller cannot read, which then titles by the key.
+ */
+export type TitleFromModel = {
+  rule: string
+  fields: string[]
+  unreadable?: true
+}
+
+/**
  * How the admin shows a resource: its names, list, filters, record page and actions, built by `view(...)` and sent to
  * each user in `/meta` without what they cannot see. See [Views](website/src/content/docs/reference/ui-config.mdx).
  */
@@ -1352,6 +1363,8 @@ export type ViewModel = {
   roles?: string[]
   /** Field used as the record's display title in breadcrumbs, relation links and search results. */
   title?: string
+  /** A title the browser derives per reader in place of `title`, by a rule of the project's UI (see `TitleFromModel`). */
+  titleFrom?: TitleFromModel
   /** A record in the global search: a title of one or more fields joined by spaces, over a subtitle field by default. */
   searchResult?: SearchResultModel
   /** Where the resource sits in the sidebar. */

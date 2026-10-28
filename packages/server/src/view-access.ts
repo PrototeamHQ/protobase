@@ -1,6 +1,6 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
-import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TabModel, ViewModel } from '@protobase/schema'
+import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -238,6 +238,8 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     resource: s.data,
     roles: s.data,
     title: s.field,
+    // A derived title reading a field the caller cannot read titles their records by the key, naming none of its fields
+    titleFrom: s.map<TitleFromModel>((from) => (from.fields.every((name) => Object.hasOwn(model.fields, name)) ? from : { rule: from.rule, fields: [], unreadable: true })),
     searchResult: s.object<SearchResultModel>({ title: s.list(s.field, { nonEmpty: true }), subtitle: s.field }),
     nav,
     names: s.data,
@@ -268,7 +270,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
 
 /**
  * The view with every reference to a field the caller cannot read removed: list columns, sort, search and displays,
- * field hints, filter widgets, record sections, maps, galleries and custom components' props, the chart, title and search result, the
+ * field hints, filter widgets, record sections, maps, galleries and custom components' props, the chart, title, derived title and search result, the
  * actions that set or read one, and the sidebar's `recent` group. Nothing in it may name a hidden field. Related sections, charts of related records, related list columns
  * and links are checked against `models`, the caller's view of every resource, and so are `searchesOf`, cards' favorite
  * buttons and the "Save search" button; the buttons stay for a visitor when their resource is one of `prompted`, those

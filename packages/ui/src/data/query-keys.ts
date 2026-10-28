@@ -29,6 +29,8 @@ export const keys = {
   /** The records or buckets a map shows; `filter` holds its bounding box. */
   map: (resource: string, position: string, zoom: number, filter: string, orderBy: string) => ['map', resource, position, zoom, filter, orderBy] as const,
   relatedLabel: (resource: string, id: string) => ['related-label', resource, id] as const,
+  /** The fields a record pointed at is read with for its view to derive its title. */
+  titleRow: (resource: string, id: string, fields: string) => ['title-row', resource, id, fields] as const,
   labels: (resource: string, ids: string) => ['labels', resource, ids] as const,
   /** The names of the records a `RecordPicker` holds. */
   pickedLabels: (resource: string, ids: string) => ['picked-labels', resource, ids] as const,

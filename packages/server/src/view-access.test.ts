@@ -164,6 +164,13 @@ describe('pruneView', () => {
     expect(pruneView(named, all.repairs, all)).toEqual(named)
   })
 
+  it('keeps a derived title whose fields the caller reads, and keeps it naming none when they cannot read one', () => {
+    const derived = view<typeof repairs>('repairs').titleFrom('costs', (r) => [r.number, r.costPrice]).toModel()
+    expect(pruneView(derived, all.repairs, all).titleFrom).toEqual({ rule: 'costs', fields: ['number', 'costPrice'] })
+    const hidden = without({ repairs: ['costPrice'] })
+    expect(pruneView(derived, hidden.repairs!, hidden).titleFrom).toEqual({ rule: 'costs', fields: [], unreadable: true })
+  })
+
   it('keeps a sidebar group without a status unless its order or filter names a hidden field', () => {
     const titles = view<typeof repairs>('repairs').nav({ recent: { orderBy: 'number asc' } }).toModel()
     const byCost = view<typeof repairs>('repairs').nav({ recent: { orderBy: 'costPrice desc' } }).toModel()

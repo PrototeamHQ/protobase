@@ -7,6 +7,7 @@ import { useClient } from '../data/api-provider'
 import type { MetaData } from '../data/meta-data'
 import { keys } from '../data/query-keys'
 import { recentRecords, recentRequest, recentRowDiffers } from './nav-recent'
+import { useRecordTitle } from './titles/record-titles'
 import { userMenuResources } from './user-menu-from-meta'
 
 type Group = { model: ResourceModel; request: ReturnType<typeof recentRequest> }
@@ -43,6 +44,7 @@ const useFollowRecords = (groups: Group[]) => {
  */
 export const useNavRecent = (meta: MetaData, basePath: string, active: { resource?: string; key?: string }): Record<string, NavRecent> => {
   const client = useClient()
+  const titleOf = useRecordTitle()
   const groups = useMemo(() => {
     const inMenu = userMenuResources(meta)
     return Object.values(meta.views).flatMap((view) => {
@@ -64,7 +66,7 @@ export const useNavRecent = (meta: MetaData, basePath: string, active: { resourc
       if (result.isPending) return [model.name, { state: 'loading' }]
       if (result.isError) return [model.name, { state: 'error' }]
       const activeKey = active.resource === model.name ? active.key : undefined
-      return [model.name, { state: 'ready', records: recentRecords(model, view, recent, result.data.items, basePath, activeKey) }]
+      return [model.name, { state: 'ready', records: recentRecords(model, view, recent, result.data.items, basePath, activeKey, titleOf) }]
     }),
   )
 }

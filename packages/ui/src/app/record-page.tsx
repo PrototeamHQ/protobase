@@ -10,7 +10,7 @@ import { displayValue, valueTitle } from '../live/display-value'
 import { fromDraft, isRequiredOnEdit, toDraft } from '../live/field-values'
 import { auditField } from '../live/audit-fields'
 import { humanize } from '../live/naming'
-import { recordTitle } from '../live/model-helpers'
+import { useRecordTitle } from './titles/record-titles'
 import { toneFor } from '../live/columns-from-model'
 import { Button, buttonClass } from '../primitives/button'
 import { Skeleton } from '../primitives/skeleton'
@@ -115,7 +115,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   const meta = useAdminMeta()
   const { address, go } = useAppAddress()
   const view = meta.views[model.name]
-  const title = recordTitle(model, view, stored.record, recordKey)
+  const title = useRecordTitle()(model, view, stored.record, recordKey)
   const { state: auth } = useAuth()
   const linesModel = useMemo(() => findLinesResource(meta.resources, model), [meta.resources, model])
   const linesData = useLines(linesModel, model, recordKey)
@@ -176,7 +176,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     const target = pickTarget(name)
     if (!target || !isChosen(next)) return editor.change(name, next)
     // The picker knows the chosen record's name, so the form shows it without asking the server
-    queryClient.setQueryData(keys.relatedLabel(target.name, next.key), next.label)
+    queryClient.setQueryData(keys.relatedLabel(target.name, next.key), { label: next.label })
     editor.change(name, keyValue(target, next.key))
   }
   const { fields: fieldTypes } = useProjectUi()

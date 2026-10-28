@@ -14,7 +14,6 @@ import { useLiveUpdates } from '../data/use-live-updates'
 import { useOpenedRecord } from '../data/use-record'
 import { PublicFormPage } from '../forms/public-form-page'
 import { useFormAddress } from '../forms/use-form-address'
-import { recordTitle } from '../live/model-helpers'
 import { humanize } from '../live/naming'
 import { ThemeProvider, useTheme } from '../theme/theme-provider'
 import { setFallbackLocale } from '../locale/active-locale'
@@ -50,6 +49,7 @@ import { PluginGate, usePluginsOff } from '../plugins/plugin-gate'
 import { PluginSourceProvider } from '../plugins/plugin-source'
 import { PluginNotice } from '../plugins/plugin-notice'
 import { RecordPage } from './record-page'
+import { RecordTitles, useRecordTitle } from './titles/record-titles'
 import { SourceNotice } from './source-notice'
 import { sourceStatusOf } from '../data/with-sources'
 import { useGlobalSearch } from './search/use-global-search'
@@ -136,7 +136,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const group = groups.find((entry) => entry.items.some((item) => item.id === place))
   const model = resource ? meta.resources[resource] : undefined
   const record = useOpenedRecord(shown?.resource ?? '', shown?.key ?? '', Boolean(model && shown))
-  const title = model && shown && record.data ? recordTitle(model, view, record.data.record, shown.key) : undefined
+  const titleOf = useRecordTitle()
+  const title = model && shown && record.data ? titleOf(model, view, record.data.record, shown.key) : undefined
   // Until the record (or the source it is drawn from) has loaded, its crumb is a skeleton; a failed load falls back to the key.
   const titleLoading = Boolean(shown) && (record.isLoading || drawnFrom?.state === 'loading')
   const { shell } = useProjectUi()
@@ -269,7 +270,9 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
             <ConnectRoute />
           ) : (
             <PluginGate ui={ui}>
-              <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
+              <RecordTitles>
+                <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
+              </RecordTitles>
             </PluginGate>
           )}
         </ToastProvider>

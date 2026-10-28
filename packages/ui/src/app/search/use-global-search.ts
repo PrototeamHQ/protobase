@@ -5,6 +5,7 @@ import { useClient } from '../../data/api-provider'
 import { useRouter } from '../router'
 import { useDebounced } from '../../lib/use-debounced'
 import { useAdminMeta } from '../meta-gate'
+import { useRecordTitle } from '../titles/record-titles'
 import { navigationHits } from './navigation-hits'
 import { hitsPerResource, minimumQuery, searchFields, searchFilter, searchPlaceholder, searchTargets, toHit } from './search-model'
 
@@ -18,6 +19,7 @@ export const useGlobalSearch = () => {
   const meta = useAdminMeta()
   const client = useClient()
   const { basePath } = useRouter()
+  const titleOf = useRecordTitle()
   const targets = useMemo(() => searchTargets(meta), [meta])
   const [text, setText] = useState('')
   const typed = text.trim()
@@ -38,7 +40,7 @@ export const useGlobalSearch = () => {
     const result = results[index]
     if (!searching || !result) return []
     if (result.error) return [{ id: target.model.name, label: target.label, hits: [], failed: true }]
-    const hits = (result.data?.items ?? []).map((row) => toHit(target, row, query, basePath))
+    const hits = (result.data?.items ?? []).map((row) => toHit(target, row, query, basePath, titleOf))
     return hits.length > 0 ? [{ id: target.model.name, label: target.label, hits }] : []
   })
   const groups = [...navigation, ...records]

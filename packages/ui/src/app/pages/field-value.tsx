@@ -1,11 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { FieldFormat, FieldModel, ResourceModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
-import { keys } from '../../data/query-keys'
 import { displayValue, valueTitle } from '../../live/display-value'
 import { FileImage } from '../../live/file-image'
 import { fileShown, shownImage } from '../../live/file-values'
-import { fetchLabels } from '../../live/relation-labels'
+import { relationTitle, relationTitleQuery } from '../titles/relation-title'
+import { useRecordTitle } from '../titles/record-titles'
 import { cn } from '../../lib/cn'
 import { useAdminMeta } from '../meta-gate'
 import { AppLink } from '../use-app-address'
@@ -17,23 +17,26 @@ import { isMarkdown } from '../../markdown/markdown-hint'
 import { ContactLink } from '../../live/contact-link'
 import { contactFormat } from '../../live/contact-links'
 
-const RelationValue = ({ field, value, known }: { field: FieldModel; value: unknown; known?: string }) => {
-  const { resources, views } = useAdminMeta()
+// A relation's target named as the record page names it, read unless the page already knows the name
+const RelationLink = ({ target, id, known }: { target: ResourceModel; id: string; known?: string }) => {
+  const { views } = useAdminMeta()
   const client = useClient()
   const queryClient = useQueryClient()
-  const target = field.relation ? resources[field.relation.resource] : undefined
-  const id = String(value)
-  const label = useQuery({
-    queryKey: keys.relatedLabel(target?.name ?? '', id),
-    enabled: Boolean(target) && known === undefined,
-    queryFn: async () => (await fetchLabels(queryClient, client, target!, [id], views[target!.name])).get(id) ?? id,
-  })
-  if (!target) return <span>{id}</span>
+  const titleOf = useRecordTitle()
+  const view = views[target.name]
+  const label = useQuery({ ...relationTitleQuery(queryClient, client, target, view, id), enabled: known === undefined })
   return (
     <AppLink to={{ kind: 'record', resource: target.name, key: id }} className="font-medium text-primary-text hover:underline">
-      {known ?? label.data ?? id}
+      {known ?? relationTitle(label.data, titleOf, target, view, id) ?? id}
     </AppLink>
   )
+}
+
+const RelationValue = ({ field, value, known }: { field: FieldModel; value: unknown; known?: string }) => {
+  const { resources } = useAdminMeta()
+  const target = field.relation ? resources[field.relation.resource] : undefined
+  if (!target) return <span>{String(value)}</span>
+  return <RelationLink target={target} id={String(value)} known={known} />
 }
 
 type FieldValueProps = { model: ResourceModel; field: FieldModel; value: unknown; format?: FieldFormat; relationLabel?: string }

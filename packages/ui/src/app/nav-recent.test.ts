@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { NavRecentModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { recentRecords, recentRequest, recentRowDiffers } from './nav-recent'
+import { recordTitleOf } from './titles/record-title-of'
 
 const model = { name: 'services', table: { name: 'services' }, primaryKey: ['id'], fields: { id: { name: 'id', type: 'text' }, name: { name: 'name', type: 'text' }, state: { name: 'state', type: 'enum' } } } as unknown as ResourceModel
 const view = { resource: 'services', title: 'name', list: { columns: ['name'], sort: [['name', 'asc']] }, fields: {}, filters: [], layout: [], actions: [] } as unknown as ViewModel
+const stored = recordTitleOf({}, { user: undefined, member: () => undefined })
 const recent: NavRecentModel = { status: 'state', tones: { running: 'success', failed: 'danger', deploying: 'warning' }, pulse: ['deploying'] }
 
 describe('recentRequest', () => {
@@ -13,6 +15,11 @@ describe('recentRequest', () => {
 
   it('asks for no status field in a group without one', () => {
     expect(recentRequest(model, view, { limit: 20 })).toMatchObject({ pageSize: 20, fields: ['id', 'name'] })
+  })
+
+  it('asks for the fields a derived title reads', () => {
+    const derived = { ...view, titleFrom: { rule: 'members', fields: ['state'] } } as ViewModel
+    expect(recentRequest(model, derived, { limit: 5 }).fields).toEqual(['id', 'name', 'state'])
   })
 
   it('uses the configured filter, order and limit', () => {
@@ -28,20 +35,26 @@ describe('recentRecords', () => {
   ]
 
   it('titles, links and colours each record', () => {
-    expect(recentRecords(model, view, recent, rows, '/admin', 's2')).toEqual([
+    expect(recentRecords(model, view, recent, rows, '/admin', 's2', stored)).toEqual([
       { id: 's1', label: 'api', href: '/admin/services/s1', status: { label: 'running', tone: 'success', pulse: false }, active: false },
       { id: 's2', label: 'worker', href: '/admin/services/s2', status: { label: 'deploying', tone: 'warning', pulse: true }, active: true },
       { id: 's/3', label: 's/3', href: '/admin/services/s%2F3', status: { label: 'paused', tone: 'neutral', pulse: false }, active: false },
     ])
   })
 
+  it("titles each record for the reader by the view's derived title", () => {
+    const derived = { ...view, titleFrom: { rule: 'owner', fields: ['name'] } } as ViewModel
+    const titleOf = recordTitleOf({ owner: (row, reader) => `${row.name} for ${reader.user?.name}` }, { user: { id: 'u-maya', name: 'Maya' } as never, member: () => undefined })
+    expect(recentRecords(model, derived, { orderBy: 'name asc' }, rows, '/admin', undefined, titleOf).map((record) => record.label)).toEqual(['api for Maya', 'worker for Maya', 'null for Maya'])
+  })
+
   it('leaves the status out in a group without a status field', () => {
-    expect(recentRecords(model, view, { orderBy: 'name asc' }, rows, '/admin', 's1')[0]).toEqual({ id: 's1', label: 'api', href: '/admin/services/s1', active: true })
+    expect(recentRecords(model, view, { orderBy: 'name asc' }, rows, '/admin', 's1', stored)[0]).toEqual({ id: 's1', label: 'api', href: '/admin/services/s1', active: true })
   })
 
   it("shows the status by the view's value label", () => {
     const labelled = { ...view, fields: { state: { valueLabels: { deploying: 'Rolling out' } } } } as ViewModel
-    expect(recentRecords(model, labelled, recent, rows, '/admin', undefined)[1]).toMatchObject({ status: { label: 'Rolling out', tone: 'warning', pulse: true } })
+    expect(recentRecords(model, labelled, recent, rows, '/admin', undefined, stored)[1]).toMatchObject({ status: { label: 'Rolling out', tone: 'warning', pulse: true } })
   })
 })
 

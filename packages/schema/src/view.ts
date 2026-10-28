@@ -103,6 +103,18 @@ export class ViewBuilder<R extends {
   }
 
   /**
+   * A title derived per reader in the browser, in place of `title`: `rule` names a function of the project's UI
+   * `titles`, which gets the record with the `fields` picked and the signed-in reader, such as the names of the members
+   * other than the reader. The record's key shows while it returns nothing. Throws when a field does not exist.
+   */
+  titleFrom(rule: string, pick: (r: FieldRefs<FieldsOf<R>>) => Ref[]) {
+    const fields = pick(this.refs()).map((ref) => ref.name)
+    if (rule === '') throw new Error(`View "${this.state.resource}": titleFrom needs the name of a rule`)
+    if (fields.length === 0) throw new Error(`View "${this.state.resource}": titleFrom "${rule}" reads no fields`)
+    return this.next({ titleFrom: { rule, fields } })
+  }
+
+  /**
    * How a record shows in the global search: a bold `title` of one or more fields joined by spaces (default: `title`)
    * and a `subtitle` field under it, replaced by the search field the text matched when that is neither.
    */
@@ -370,12 +382,14 @@ export class ViewBuilder<R extends {
     return this.next({ searchesOf: searches })
   }
 
-  /** With the resource's model, also verifies the title, search result and list display fields, related column names, a gallery's image, `listOf`, `searchesOf`, the sidebar's `recent` group and `tenant`, and the forms' fields. */
+  /** With the resource's model, also verifies the title and `titleFrom`, search result and list display fields, related column names, a gallery's image, `listOf`, `searchesOf`, the sidebar's `recent` group and `tenant`, and the forms' fields. */
   toModel(resource?: ResourceModel): ViewModel {
-    const { title, nav, searchResult, list, listOf } = this.state
+    const { title, titleFrom, nav, searchResult, list, listOf } = this.state
     if (resource && title !== undefined && !Object.hasOwn(resource.fields, title)) {
       throw new Error(`View "${this.state.resource}": title field "${title}" does not exist on the resource`)
     }
+    const unknownTitleField = resource ? titleFrom?.fields.find((name) => !Object.hasOwn(resource.fields, name)) : undefined
+    if (unknownTitleField !== undefined) throw new Error(`View "${this.state.resource}": titleFrom field "${unknownTitleField}" does not exist on the resource`)
     const missing = resource ? [...(searchResult?.title ?? []), ...(searchResult?.subtitle ? [searchResult.subtitle] : [])].filter((name) => !Object.hasOwn(resource.fields, name)) : []
     if (missing.length > 0) throw new Error(`View "${this.state.resource}": search result field "${missing[0]}" does not exist on the resource`)
     for (const display of resource ? (list?.displays ?? []) : []) {
