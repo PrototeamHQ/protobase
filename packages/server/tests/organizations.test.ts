@@ -281,6 +281,29 @@ describe('managing members', () => {
     })
   })
 
+  it("answers the people of the organization one works in to its members only, by user id and name, never an address", async () => {
+    const app = await serve({}, { people: true })
+    const sanne = await app.signIn('sanne@example.com')
+    const { members } = await (await app.request('/api/auth/organization/list-members?organizationId=1', { cookie: sanne })).json()
+    const userIdOf = (email: string) => members.find((member: { user: { email: string } }) => member.user.email === email).userId
+    const acme = { people: [{ id: userIdOf('bo@example.com'), name: 'bo' }, { id: userIdOf('sanne@example.com'), name: 'sanne' }] }
+    const answer = await app.request('/api/auth/organization/people', { cookie: sanne })
+    const body = await answer.text()
+    expect(JSON.parse(body)).toEqual(acme)
+    expect(body).not.toContain('@example.com')
+    // Another organization's id in the request changes nothing: the session's organization decides
+    expect(await (await app.request('/api/auth/organization/people?organizationId=2', { cookie: sanne })).json()).toEqual(acme)
+    expect(JSON.stringify(await (await app.request('/api/auth/organization/people', { cookie: await app.signIn('root@example.com') })).json())).not.toContain(userIdOf('sanne@example.com'))
+    // A global role that enters an organization without being a member of it does not get them
+    const ana = await app.signIn('ana@example.com')
+    expect((await app.request('/api/auth/organization/people', { cookie: ana })).status).toBe(403)
+    expect((await app.request('/api/auth/organization/switch', { cookie: ana, body: { organizationId: '1' } })).status).toBe(200)
+    expect((await app.request('/api/auth/organization/people', { cookie: ana })).status).toBe(403)
+    expect((await app.request('/api/auth/organization/people')).status).toBe(401)
+    expect((await app.request('/api/auth/organization/remove-member', { cookie: await app.signIn('bo@example.com'), body: { memberIdOrEmail: 'sanne@example.com', organizationId: '1' } })).status).toBe(200)
+    expect((await app.request('/api/auth/organization/people', { cookie: sanne })).status).toBe(403)
+  })
+
   it('hands ownership over in one step', async () => {
     const app = await serve({}, { people: true })
     const bo = await app.signIn('bo@example.com')
