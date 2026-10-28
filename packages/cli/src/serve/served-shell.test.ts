@@ -17,6 +17,14 @@ describe('servedShell', () => {
     expect(await servedShell(undefined)).toEqual({ note: "the bundle's copy of the app" })
   })
 
+  it('names the native packages the shell runs on when its protobase.shell.json names them', async () => {
+    const native = { '@capacitor/core': '8.5.3', '@protobase/mobile': 'native-1' }
+    const named = await mkdtemp(path.join(tmpdir(), 'protobase-own-shell-'))
+    await writeFile(path.join(named, 'protobase.shell.json'), JSON.stringify({ protobase: '0.15.0', pluginApi: 1, paths: ['/index.html'], native }))
+    expect((await servedShell(named)).native).toEqual(native)
+    await rm(named, { recursive: true, force: true })
+  })
+
   it('refuses a folder that holds no shell', async () => {
     await expect(servedShell(tmpdir())).rejects.toThrow(`${tmpdir()} holds no shell: it has no protobase.shell.json`)
   })

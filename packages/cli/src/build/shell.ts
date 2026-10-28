@@ -16,9 +16,17 @@ import { serviceWorkerFile } from './service-worker-code'
 import { readPackageJson, type PackageJson } from './packages/package-dir'
 import { moveSourceMaps } from './source-maps'
 import { shellCodeSplitting } from './shell-chunks'
+import { pinnedNative } from '../mobile/pinned-packages'
 
-/** What a shell folder holds beside its files: the `BundleShell` a bundle's manifest copies. */
+/** What a shell folder holds beside its files: the `ShellManifest`. */
 export const shellManifestFile = 'protobase.shell.json'
+
+/**
+ * What protobase.shell.json says of the shell: the `BundleShell` a bundle's manifest copies, and the native packages it
+ * runs on in the mobile app (those its release's @protobase/mobile pins, `pinnedNative`), which the fingerprint of its
+ * mobile release names, so a host that serves it can fingerprint that release. A shell built before it names none.
+ */
+export type ShellManifest = BundleShell & { native?: Record<string, string> }
 
 /** The shell's files, as URL paths: its page, its content-hashed assets and its service worker. */
 export const shellPaths = ['/index.html', '/assets', `/${serviceWorkerFile}`]
@@ -43,7 +51,7 @@ const shellIdentity = async (): Promise<BundleShell> => {
 
 /**
  * The admin app as a production build, the same for every project: index.html and content-hashed files under assets/,
- * with protobase.shell.json saying which version it is. Asset URLs are absolute, so index.html works as the answer to
+ * with protobase.shell.json saying which version it is and the native packages it runs on. Asset URLs are absolute, so index.html works as the answer to
  * any deep link. It calls /api on its own origin and loads the project's UI, like every plugin, from what `/meta`
  * names, and links the project's theme at /protobase.theme.css and its favicon at /protobase.favicon.svg, and registers its service worker. The modules plugins share with it have entries of
  * their own, which index.html's import map names. With `sourceMapsDir`, each script ends with a `//# debugId=` comment
@@ -76,15 +84,16 @@ export const buildShell = async (outDir: string, sourceMapsDir?: string) => {
     await moveSourceMaps(outDir, sourceMapsDir)
   }
   const shell = await shellIdentity()
-  await writeFile(path.join(outDir, shellManifestFile), `${JSON.stringify(shell, null, 2)}\n`)
+  const manifest: ShellManifest = { ...shell, native: pinnedNative }
+  await writeFile(path.join(outDir, shellManifestFile), `${JSON.stringify(manifest, null, 2)}\n`)
   return shell
 }
 
 /** The shell in `dir`, as its protobase.shell.json describes it. */
-export const readShell = async (dir: string): Promise<BundleShell> => {
+export const readShell = async (dir: string): Promise<ShellManifest> => {
   const file = path.join(dir, shellManifestFile)
   if (!existsSync(file)) throw new Error(`${dir} holds no shell: it has no ${shellManifestFile}`)
-  return JSON.parse(await readFile(file, 'utf8')) as BundleShell
+  return JSON.parse(await readFile(file, 'utf8')) as ShellManifest
 }
 
 /** The shell `protobase serve` has of its own: the installed @protobase/ui's, none when the CLI runs from sources. */
@@ -98,7 +107,8 @@ export const installedShellDir = path.extname(uiEntry) === '.js' ? prebuiltShell
 export const shellForBuild = async (sourceMaps: boolean): Promise<{ dir: string; sourceMapsDir?: string; shell: BundleShell; scratch?: string }> => {
   if (installedShellDir) {
     if (sourceMaps && !existsSync(prebuiltShellSourceMapsDir)) throw new Error(`The installed @protobase/ui ships no source maps of its shell (${prebuiltShellSourceMapsDir}); install a version that does, or build without --source-maps`)
-    return { dir: installedShellDir, ...(sourceMaps && { sourceMapsDir: prebuiltShellSourceMapsDir }), shell: await readShell(installedShellDir) }
+    const { native: _, ...shell } = await readShell(installedShellDir)
+    return { dir: installedShellDir, ...(sourceMaps && { sourceMapsDir: prebuiltShellSourceMapsDir }), shell }
   }
   const scratch = await mkdtemp(path.join(tmpdir(), 'protobase-shell-'))
   const dir = path.join(scratch, 'shell')

@@ -282,7 +282,7 @@ The plugin starts the session itself, with a request that sets the app's session
 
 ## The shell
 
-The shell is the admin app: `index.html` and its `assets/`, the same for every project on a release. Each release ships it prebuilt in `@protobase/ui`'s `dist/shell/` and in the [protobase image](/guides/deploy/#images) at `/opt/protobase/shell/`, with a `protobase.shell.json` naming its Protobase version and plugin API. A bundle carries a copy, so any static host can serve it, and its manifest names that copy's version and paths (`shell` in [the manifest](/reference/cli/#the-manifest)).
+The shell is the admin app: `index.html` and its `assets/`, the same for every project on a release. Each release ships it prebuilt in `@protobase/ui`'s `dist/shell/` and in the [protobase image](/guides/deploy/#images) at `/opt/protobase/shell/`, with a `protobase.shell.json` naming its Protobase version and plugin API, and as `native` the native packages it runs on in the [mobile app](/guides/mobile-app/), which the fingerprint of its [mobile release](/reference/cli/#mobile-releases) names. A bundle carries a copy, so any static host can serve it, and its manifest names that copy's version and paths (`shell` in [the manifest](/reference/cli/#the-manifest)).
 
 A host that keeps the shells of its releases can serve the shell of a newer one for those paths; the app still turns off a plugin that does not load in it. The plugins, the theme and the API stay the bundle's. `protobase serve` does this with its own shell (see [serve](/reference/cli/#serve)). The app then has the newer release's fixes with nothing rebuilt; only a change of the server config's format, a new minor below 1.0, still needs a [rebuild](/reference/versioning/#bundles-and-runtimes).
 

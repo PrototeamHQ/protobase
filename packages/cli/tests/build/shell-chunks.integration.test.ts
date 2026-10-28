@@ -2,7 +2,8 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { buildShell } from '../../src/build/shell'
+import { buildShell, readShell } from '../../src/build/shell'
+import { pinnedNative } from '../../src/mobile/pinned-packages'
 
 // A lazy chunk that imports `app` or `vendor` is downloaded again whenever they change: on every release for `app`.
 const largeChunk = 50_000
@@ -63,5 +64,9 @@ describe('the built shell’s chunk graph', () => {
     const lazy = [...chunks.values()].filter((chunk) => !initial.has(chunk.file) && chunk.size > largeChunk)
     expect(lazy.length).toBeGreaterThan(0)
     expect(lazy.filter((chunk) => importsChunk(chunk, 'app') || importsChunk(chunk, 'vendor')).map((chunk) => chunk.file)).toEqual([])
+  })
+
+  it('names in protobase.shell.json the native packages it runs on in the mobile app', async () => {
+    expect((await readShell(dir)).native).toEqual(pinnedNative)
   })
 })
