@@ -10,8 +10,8 @@ const fakeBridge = (platform: string, answer: unknown = { status: 200, headers: 
 }
 
 describe('nativeAuthFetch', () => {
-  it('signs in through ProtobaseAuth on Android, which names the origin and keeps redirects and Set-Cookie natively', async () => {
-    const { bridge, nativePromise } = fakeBridge('android')
+  it.each(platforms)('signs in through ProtobaseAuth on %s, which names the origin and keeps redirects and Set-Cookie natively', async (platform) => {
+    const { bridge, nativePromise } = fakeBridge(platform)
     const body = JSON.stringify({ email: 'ada@example.com', otp: '123456' })
     await nativeAuthFetch(bridge, api)(`${api}/api/auth/sign-in/email-otp`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-extra': 'yes', origin: 'https://evil.example' }, body })
     // The page's origin header is passed on for ProtobaseAuth to drop.
@@ -23,21 +23,7 @@ describe('nativeAuthFetch', () => {
     })
   })
 
-  it('signs in through native HTTP on iOS, naming the Capacitor origin and keeping redirects for the page to see', async () => {
-    const { bridge, nativePromise } = fakeBridge('ios')
-    const body = JSON.stringify({ email: 'ada@example.com', otp: '123456' })
-    await nativeAuthFetch(bridge, api)(`${api}/api/auth/sign-in/email-otp`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-extra': 'yes', origin: 'https://evil.example' }, body })
-    expect(nativePromise).toHaveBeenCalledWith('CapacitorHttp', 'request', {
-      url: `${api}/api/auth/sign-in/email-otp`,
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-extra': 'yes', origin: 'capacitor://localhost' },
-      data: body,
-      responseType: 'text',
-      disableRedirects: true,
-    })
-  })
-
-  it.each(['ios', 'android'])('sends no body with a GET on %s', async (platform) => {
+  it.each(platforms)('sends no body with a GET on %s', async (platform) => {
     const { bridge, nativePromise } = fakeBridge(platform)
     await nativeAuthFetch(bridge, api)(`${api}/api/auth/token`)
     expect(nativePromise.mock.calls[0]![2]).not.toHaveProperty('data')

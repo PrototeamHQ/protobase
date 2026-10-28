@@ -67,7 +67,6 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   await writeCapacitorConfig(ws, capacitorConfig({ appId: mobile.appId, appName, fingerprint, plugins, allowances, apiOrigin: url.origin, platform }))
   const cap = capacitorRunner(ws, env, run)
   await generatePlatform(ws, platform, allowances, cap)
-  // iOS gets the plugin in a later release; until then its app signs in as before.
   if (platform === 'android') {
     await guardLiveUpdate(ws)
     await checkProtobasePlugin(ws)

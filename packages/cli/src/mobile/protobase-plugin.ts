@@ -40,17 +40,46 @@ export const checkProtobasePlugin = async (ws: string) => {
   throw new Error(`The Android app lacks Protobase's native plugin (${missing.join(', ')}): delete ${ws} and run the command again`)
 }
 
-/** The class of Protobase's iOS plugin, which gives the page back the bounce Capacitor turns off. */
-export const protobaseIosPlugin = 'ProtobaseBounce'
+/**
+ * The classes of Protobase's iOS plugin, by `@objc` name: the bounce Capacitor turns off, and ProtobaseAuth, which keeps
+ * page script away from the session.
+ */
+export const protobaseIosPluginClasses = ['ProtobaseBounce', 'ProtobaseAuthPlugin']
+
+/** The Swift package product `cap add ios` compiles @protobase/mobile into, by the name @capacitor/cli's fixName gives. */
+export const protobaseIosProduct = 'ProtobaseMobile'
+
+// A file `cap add ios` writes, or `undefined` when it is missing.
+const readIosFile = (ws: string, ...parts: string[]) => readFile(path.join(ws, 'ios', 'App', ...parts), 'utf8').catch((error: NodeJS.ErrnoException): undefined => {
+  if (error.code === 'ENOENT') return
+  throw error
+})
+
+// The class list of a capacitor.config.json; an unparsable one lists nothing.
+const iosClassList = (text: string | undefined) => {
+  if (text === undefined) return []
+  let parsed: { packageClassList?: unknown } | null
+  try {
+    parsed = JSON.parse(text)
+  } catch (error) {
+    if (error instanceof SyntaxError) return []
+    throw error
+  }
+  const classes = parsed?.packageClassList
+  return Array.isArray(classes) ? classes.filter((name): name is string => typeof name === 'string') : []
+}
 
 /**
- * Checks the class list `cap add ios` writes: it refuses the live updater, which has no guard on iOS yet, and an app
- * without Protobase's iOS plugin, as a workspace left from an earlier CLI may build.
+ * Checks what `cap add ios` writes: the class list, which must name Protobase's plugin classes and not the live updater,
+ * which has no guard on iOS yet, and the app's Swift package, which must compile Protobase's product in; a class listed
+ * without its product is skipped at launch without a word. A workspace left from an earlier CLI may lack either.
  */
 export const checkIosPlugins = async (ws: string) => {
-  const config = JSON.parse(await readFile(path.join(ws, 'ios', 'App', 'App', 'capacitor.config.json'), 'utf8')) as { packageClassList?: string[] }
-  const classes = config.packageClassList ?? []
+  const stale = (what: string) => new Error(`The iOS app lacks Protobase's native plugin (${what}): delete ${ws} and run the command again`)
+  const classes = iosClassList(await readIosFile(ws, 'App', 'capacitor.config.json'))
   if (classes.includes('LiveUpdatePlugin')) throw new Error('The iOS app lists LiveUpdatePlugin, which has no guard against page script on iOS yet')
-  if (classes.includes(protobaseIosPlugin)) return
-  throw new Error(`The iOS app lacks Protobase's native plugin (${protobaseIosPlugin}): delete ${ws} and run the command again`)
+  const missing = protobaseIosPluginClasses.filter((name) => !classes.includes(name))
+  if (missing.length > 0) throw stale(missing.join(', '))
+  const manifest = await readIosFile(ws, 'CapApp-SPM', 'Package.swift')
+  if (!manifest?.includes(`.product(name: "${protobaseIosProduct}"`)) throw stale(protobaseIosProduct)
 }

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { ChildOptions } from './child-process'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
-import { protobaseIosPlugin, protobasePluginClasses } from './protobase-plugin'
+import { protobaseIosPluginClasses, protobasePluginClasses } from './protobase-plugin'
 import { mobileOpen, mobileRun } from './run'
 
 let root = ''
@@ -37,7 +37,7 @@ const stockLiveUpdate = { pkg: '@capawesome/capacitor-live-update', classpath: '
 // npm and Capacitor as they leave the workspace, Protobase's plugin compiled into Android, recording every call; `cap
 // add` lists the plugins given, by default Protobase's on Android, and Capacitor's App and Protobase's on iOS.
 const fakeRun =
-  (calls: Array<{ command: string; args: string[] } & ChildOptions>, { android = protobasePlugins, ios = ['AppPlugin', protobaseIosPlugin] } = {}) =>
+  (calls: Array<{ command: string; args: string[] } & ChildOptions>, { android = protobasePlugins, ios = ['AppPlugin', ...protobaseIosPluginClasses] } = {}) =>
   async (command: string, args: string[], options: ChildOptions) => {
     calls.push({ command, args, ...options })
     const modules = path.join(options.cwd, 'node_modules')
@@ -56,6 +56,7 @@ const fakeRun =
       const configuration = '\t\t\t\tCODE_SIGN_STYLE = Automatic;\n'
       write(path.join(options.cwd, 'ios/App/App.xcodeproj/project.pbxproj'), `${configuration}${configuration}`)
       write(path.join(options.cwd, 'ios/App/App/capacitor.config.json'), JSON.stringify({ packageClassList: ios }))
+      write(path.join(options.cwd, 'ios/App/CapApp-SPM/Package.swift'), '.product(name: "ProtobaseMobile", package: "ProtobaseMobile")')
     }
   }
 
@@ -132,8 +133,18 @@ describe('mobileRun', () => {
   it('refuses the live updater on iOS before it runs the app', async () => {
     const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
     const dir = project("{ appId: 'com.example.shop' }")
-    const deps = { run: fakeRun(calls, { ios: ['AppPlugin', protobaseIosPlugin, 'LiveUpdatePlugin'] }), build, fetch }
+    const deps = { run: fakeRun(calls, { ios: ['AppPlugin', ...protobaseIosPluginClasses, 'LiveUpdatePlugin'] }), build, fetch }
     await expect(mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, deps)).rejects.toThrow('The iOS app lists LiveUpdatePlugin')
+    expect(calls.map(({ args }) => args[1])).not.toContain('run')
+  })
+
+  it("refuses a stale iOS workspace without Protobase's plugin class before it runs the app", async () => {
+    const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
+    const dir = project("{ appId: 'com.example.shop' }")
+    const deps = { run: fakeRun(calls, { ios: ['AppPlugin', 'ProtobaseBounce'] }), build, fetch }
+    await expect(mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, deps)).rejects.toThrow(
+      "The iOS app lacks Protobase's native plugin (ProtobaseAuthPlugin)",
+    )
     expect(calls.map(({ args }) => args[1])).not.toContain('run')
   })
 

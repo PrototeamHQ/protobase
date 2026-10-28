@@ -7,7 +7,7 @@ import { mobileBuild } from './build'
 import type { ChildOptions } from './child-process'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
-import { protobaseIosPlugin, protobasePluginClasses } from './protobase-plugin'
+import { protobaseIosPluginClasses, protobasePluginClasses } from './protobase-plugin'
 
 const storePassword = 'store-pw-5f1c'
 const keyPassword = 'key-pw-9a2e'
@@ -65,7 +65,8 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
     } else {
       write(path.join(ws, 'ios/App/App.xcodeproj/project.pbxproj'), pbxproj)
       write(path.join(ws, 'ios/App/App/Info.plist'), '<plist version="1.0">\n<dict>\n</dict>\n</plist>\n')
-      write(path.join(ws, 'ios/App/App/capacitor.config.json'), JSON.stringify({ packageClassList: ['AppPlugin', protobaseIosPlugin] }))
+      write(path.join(ws, 'ios/App/App/capacitor.config.json'), JSON.stringify({ packageClassList: ['AppPlugin', ...protobaseIosPluginClasses] }))
+      write(path.join(ws, 'ios/App/CapApp-SPM/Package.swift'), '.product(name: "ProtobaseMobile", package: "ProtobaseMobile")')
     }
   }
   if (command === 'node' && args[1] === 'build') write(path.join(ws, 'ios/App/output/App.ipa'), 'ipa')
@@ -189,6 +190,19 @@ describe('mobileBuild ios', () => {
     const calls: Call[] = []
     await mobileBuild(input(dir, 'ios', { ios: { team: 'ABCDE12345', manual: { certificate: 'Apple Distribution', profile: 'Shop App Store' } } }), () => {}, { run: fakeRun(calls), build: webBuild, fetch })
     expect(short(calls[2] as Call)).toEqual(['node', 'build', 'ios', '--xcode-team-id', 'ABCDE12345', '--xcode-signing-style', 'manual', '--xcode-signing-certificate', 'Apple Distribution', '--xcode-provisioning-profile', 'Shop App Store'])
+  })
+
+  it("refuses a stale workspace without Protobase's Swift package before Xcode builds", async () => {
+    const dir = project()
+    const calls: Call[] = []
+    const stale = async (command: string, args: string[], options: ChildOptions) => {
+      await fakeRun(calls)(command, args, options)
+      if (args[1] === 'add') rmSync(path.join(options.cwd, 'ios/App/CapApp-SPM/Package.swift'))
+    }
+    await expect(mobileBuild(input(dir, 'ios', { ios: { team: 'ABCDE12345' } }), () => {}, { run: stale, build: webBuild, fetch })).rejects.toThrow(
+      `The iOS app lacks Protobase's native plugin (ProtobaseMobile): delete ${ws(dir)} and run the command again`,
+    )
+    expect(calls.map(({ args }) => args[1])).not.toContain('build')
   })
 
   it('refuses a release without a team or an https server before npm runs', async () => {

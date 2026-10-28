@@ -24,19 +24,6 @@ const isPlatform = (platform: string): platform is keyof typeof capacitorOrigin 
 const allowedUrl = (url: URL, apiOrigin: string) =>
   url.origin === apiOrigin && !url.username && !url.password && url.pathname.startsWith(`${authBasePath}/`) && !encodedSeparator.test(url.pathname)
 
-type NativeRequest = { url: string; method: string; headers: Record<string, string>; data?: string }
-
-/**
- * The native call of a sign-in request: on Android Protobase's own ProtobaseAuth plugin, which checks the address,
- * names the Capacitor origin, refuses redirects and keeps Set-Cookie from the page itself; on iOS, until it has that
- * plugin too, Capacitor's native HTTP with the origin named here.
- */
-const nativeAuthCall = (platform: keyof typeof capacitorOrigin, { url, method, headers, data }: NativeRequest): [string, string, object] => {
-  const withData = data === undefined ? {} : { data }
-  if (platform === 'android') return ['ProtobaseAuth', 'request', { url, method, headers, ...withData }]
-  return ['CapacitorHttp', 'request', { url, method, headers: { ...headers, origin: capacitorOrigin[platform] }, ...withData, responseType: 'text', disableRedirects: true }]
-}
-
 const bodyOf = ({ status, headers, data }: NativeResponse) => {
   if (nullBodyStatuses.includes(status)) return null
   // Native code hands JSON back parsed, a top-level string without its quotes, so JSON is always written out again.
@@ -46,8 +33,9 @@ const bodyOf = ({ status, headers, data }: NativeResponse) => {
 }
 
 /**
- * A `fetch` for the app's sign-in, at `<apiOrigin>/api/auth/...` only, through native HTTP (`nativeAuthCall`): the
- * session cookie lives in the device's cookie jar, which native HTTP sends and keeps, and the request names the
+ * A `fetch` for the app's sign-in, at `<apiOrigin>/api/auth/...` only, through native HTTP in Protobase's own
+ * ProtobaseAuth plugin, which checks the address again, refuses redirects and keeps Set-Cookie from the page itself:
+ * the session cookie lives in the device's cookie jar, which native HTTP sends and keeps, and the request names the
  * Capacitor origin of the platform, which the server trusts for sign-in with a mobile section. The page cannot set
  * `Cookie`, so the cookie comes from the native jar alone. Any other address is refused before the bridge is called.
  */
@@ -59,13 +47,12 @@ export const nativeAuthFetch = (bridge: NativeBridge, apiOrigin: string): typeof
     const url = new URL(request.url)
     if (!allowedUrl(url, apiOrigin)) throw new Error(`Native sign-in requests go to ${apiOrigin}${authBasePath}/ only, not ${request.url}`)
     const withBody = request.method !== 'GET' && request.method !== 'HEAD'
-    const call = nativeAuthCall(platform, {
+    const answer = (await bridge.nativePromise('ProtobaseAuth', 'request', {
       url: url.href,
       method: request.method,
       headers: Object.fromEntries(request.headers),
       ...(withBody && { data: await request.text() }),
-    })
-    const answer = (await bridge.nativePromise(...call)) as NativeResponse
+    })) as NativeResponse
     // Set-Cookie is left to the native cookie jar; a Response would drop it anyway.
     const headers = Object.entries(answer.headers).filter(([name]) => name.toLowerCase() !== 'set-cookie')
     return new Response(bodyOf(answer), { status: answer.status, headers })
