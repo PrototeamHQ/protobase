@@ -1,3 +1,4 @@
+import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from 'kysely'
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import type { ResourceChange } from '../changes/resource-change'
@@ -128,5 +129,22 @@ describe('eventChange', () => {
     const thin = subscriptionEvent(update, 'viewers.updated', { thin: true })
     expect(await subscriberEvents(deps)(viewer, eventChange(model, thin), thin.type)).toEqual({ ...thin, data: { ...thin.data, changed: ['name', 'api_secret'] } })
     expect(await subscriberEvents(deps)(as, eventChange(model, thin), thin.type)).toBeUndefined()
+  })
+})
+
+describe('subscriberEvents of a resource that keeps to its parents', () => {
+  // A database that finds no row: the role reads no channel a message names
+  const empty = new Kysely<unknown>({ dialect: { createAdapter: () => new PostgresAdapter(), createDriver: () => new DummyDriver(), createIntrospector: (db) => new PostgresIntrospector(db), createQueryCompiler: () => new PostgresQueryCompiler() } })
+  const channels = resource('channels').table('channels').fields({ id: f.integer(), name: f.text() }).primaryKey((r) => r.id)
+    .access({ read: (ctx) => roles(ctx).includes('viewer') })
+  const messages = resource('messages').table('messages').fields({ id: f.integer(), channel_id: f.relation('channels').optional() }).primaryKey((r) => r.id)
+    .parent((r) => r.channel_id, 'read')
+  const chat = { db: empty, registry: buildRegistry([channels, messages]), accessOptions: {}, settingsResources: new Set() } as unknown as Deps
+
+  it('delivers a record naming no parent, and none under a parent the role does not read', async () => {
+    const events = subscriberEvents(chat)
+    expect(await events(viewer, change('messages', { id: 1, channel_id: null }), 'messages.created')).toBeDefined()
+    expect(await events(viewer, change('messages', { id: 1, channel_id: 2 }), 'messages.created')).toBeUndefined()
+    expect(await events(as, change('messages', { id: 1, channel_id: 2 }), 'messages.created')).toBeUndefined()
   })
 })

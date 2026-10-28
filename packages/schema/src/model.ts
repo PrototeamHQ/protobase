@@ -655,7 +655,7 @@ export type ParentAccess = 'read' | 'update'
 /**
  * A record that a resource's records belong to through a relation field, such as an operation's VM: creating, changing,
  * deleting or undeleting a record needs `access` on the record `field` points at, checked with the caller's own access
- * rules on that resource. See
+ * rules on that resource; with `read`, every read of its records keeps to those whose parent the caller reads. See
  * [Records that belong to another](website/src/content/docs/reference/access.mdx#records-that-belong-to-another).
  */
 export type ParentModel = {

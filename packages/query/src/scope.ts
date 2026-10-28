@@ -1,5 +1,5 @@
 import { sql, type Expression, type SqlBool } from 'kysely'
-import type { CheckedFilter, ResourceModel } from '@protobase/schema'
+import type { CheckedFilter, FieldModel, ResourceModel } from '@protobase/schema'
 import { columnRef } from './columns'
 import { QueryError } from './errors'
 
@@ -10,10 +10,18 @@ import { QueryError } from './errors'
  *   each tenant to its own access. An empty list sees no rows.
  * - `rowFilter`: a filter from access rules, ANDed in before the user's filter. It is checked against the FULL model,
  *   so it may use hidden or non-filterable columns the user's own (restricted) model does not expose.
+ * - `parents`: the relations whose record each row belongs to (`.parent(fk, 'read')`), keeping the rows whose parent the
+ *   caller reads; ANDed in with `rowFilter`.
  * - `fullModel`: that full model. Soft delete, tenant and `rowFilter` resolve against it; everything the user
  *   supplies (filter, sort, columns, fields) resolves against the model argument. Defaults to the model argument.
  */
-export type Scope = { tenantValue?: string | number; tenantValues?: readonly (string | number)[]; rowFilter?: CheckedFilter; fullModel?: ResourceModel }
+export type Scope = { tenantValue?: string | number; tenantValues?: readonly (string | number)[]; rowFilter?: CheckedFilter; parents?: readonly ParentRead[]; fullModel?: ResourceModel }
+
+/**
+ * A relation whose parent the caller must read for a row to be seen: `field` of the full model, and the parent's full
+ * model, key and the caller's scope on it; without `parent` the caller reads no parent, so only a null `field` is seen.
+ */
+export type ParentRead = { field: FieldModel; parent?: { model: ResourceModel; key: FieldModel; scope: Scope } }
 
 export const fullModelOf = (model: ResourceModel, scope?: Scope) => scope?.fullModel ?? model
 

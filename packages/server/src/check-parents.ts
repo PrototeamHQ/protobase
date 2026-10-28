@@ -13,3 +13,12 @@ export const checkParents = (registry: Registry) => {
   }))
   if (problems.length > 0) throw new Error(`The parents cannot find the records they point at:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }
+
+/**
+ * The resources whose lists would read across tenants (`tenantAcross`) but keep to the parents the caller reads, which
+ * are resolved in the caller's own tenant only: they list that tenant alone.
+ */
+export const parentWarnings = (registry: Registry) =>
+  registry.entries
+    .filter(({ model }) => model.tenantAcross && model.parents?.some((parent) => parent.access === 'read'))
+    .map(({ name }) => `"${name}" keeps to the parents its readers read (.parent(..., 'read')), so its lists read the caller's own tenant only: tenantAcross is ignored`)

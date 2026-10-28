@@ -1,4 +1,5 @@
 import { checkRecord, evaluateFilter, type ResourceModel } from '@protobase/schema'
+import { readsParent } from '@protobase/query'
 import { EventCodeError } from '../changes/event-code-error'
 import { currentRecord, type ResourceChange } from '../changes/resource-change'
 import type { Deps } from '../deps'
@@ -87,11 +88,22 @@ const withUnknownFields = (model: ResourceModel, record: Row) => {
   return { record: unknown, check }
 }
 
-// Whether the session may read the record: the operation, its row filter and a rule that needs the record.
+// Whether the session reads every parent the record names (`.parent(fk, 'read')`), looked up in the database as it is now.
+const readsParents = async (access: RequestAccess, record: Row) => {
+  for (const read of access.parents) {
+    const value = record[read.field.name]
+    if (value === null || value === undefined) continue
+    if (!(await readsParent(access.deps.db, read, value as string | number))) return false
+  }
+  return true
+}
+
+// Whether the session may read the record: the operation, its row filter, its parents and a rule that needs the record.
 const decide = async (access: RequestAccess, record: Row) => {
   const { resolved, session, entry } = access
   if (!resolved.operations.read) return false
   if (resolved.rowFilter.read && evaluateFilter(resolved.rowFilter.read, record) !== true) return false
+  if (!(await readsParents(access, record))) return false
   if (!resolved.recordChecks.includes('read')) return true
   const context = { user: session.user, ...(session.organization && { organization: session.organization }) }
   return checkRecord(entry.source, context, 'read', record, undefined, access.deps.accessOptions)

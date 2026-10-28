@@ -74,7 +74,7 @@ import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
 import { checkOwnerFields } from './check-owners'
 import { checkRoleLimits } from './check-roles'
-import { checkParents } from './check-parents'
+import { checkParents, parentWarnings } from './check-parents'
 import { checkPositionAfter } from './check-position-after'
 import { checkViews } from './check-views'
 import { liveRoutes } from './live/live-route'
@@ -237,6 +237,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   if (options.mcp) checkMcpWrites(registry, declaredRoles(auth, options.roles), options.mcp.writes)
   checkPositionAfter(registry)
   checkParents(registry)
+  for (const warning of parentWarnings(registry)) console.warn(warning)
   const resourceModels = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
   checkPages([...pageModels, accountModel], {
     models: resourceModels,

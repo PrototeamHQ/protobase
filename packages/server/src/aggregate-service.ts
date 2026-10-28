@@ -1,7 +1,7 @@
 import { sql } from 'kysely'
 import { z } from 'zod'
 import { facetCounts, histogram, series, withoutField } from '@protobase/query'
-import { tenantCondition, type Granularity, type Scope } from '@protobase/query'
+import { parentCondition, tenantCondition, type Granularity, type Scope } from '@protobase/query'
 import { checkedFilter } from './filter-input'
 import type { Deps } from './deps'
 import type { ResourceModel } from '@protobase/schema'
@@ -72,7 +72,7 @@ const earliest = async (deps: Deps, access: RequestAccess, fieldName: string, sc
   const target = access.model.fields[fieldName]!
   // A list across tenants names them all, as the query layer reads them
   const across = scope.tenantValues ? [tenantCondition(access.full, scope)!] : []
-  const conditions = [...scopeConditions(access.full, scope.tenantValue), ...across, ...filterCondition(access.full, scope.rowFilter)]
+  const conditions = [...scopeConditions(access.full, scope.tenantValue), ...across, ...filterCondition(access.full, scope.rowFilter), ...(scope.parents ?? []).map(parentCondition)]
   const result = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) =>
     sql<{ lowest: string | null }>`select min(${columnId(target)})::text as lowest from ${tableId(access.full)} as t${whereClause(conditions)}`.execute(trx))
   return result.rows[0]?.lowest ?? undefined

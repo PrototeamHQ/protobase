@@ -1,5 +1,5 @@
 import { sql, type Expression } from 'kysely'
-import type { Db } from '@protobase/query'
+import { parentCondition, type Db, type ParentRead } from '@protobase/query'
 import type { CheckedFilter, FieldModel } from '@protobase/schema'
 import { storedValue } from './encryption/stored-value'
 import { etagOf } from './etag'
@@ -23,6 +23,8 @@ const rowsOf = async (db: Db, query: ReturnType<typeof sql>) => (await query.exe
 
 export type FetchOptions = Shape & {
   filter?: CheckedFilter
+  /** The parents the caller must read for the row to be seen (`.parent(fk, 'read')`). */
+  parents?: readonly ParentRead[]
   deleted?: DeletedRows
   /** `true` takes FOR UPDATE, for the row the write changes; `'no-key-update'` FOR NO KEY UPDATE, for a parent it checks. */
   lock?: boolean | 'no-key-update'
@@ -30,10 +32,13 @@ export type FetchOptions = Shape & {
 
 const lockClause = (lock: FetchOptions['lock']) => lock === 'no-key-update' ? sql` for no key update` : lock ? sql` for update` : sql``
 
-/** The row of the caller's tenant with this key (live unless `deleted` says otherwise), optionally narrowed by a filter. */
+/**
+ * The row of the caller's tenant with this key (live unless `deleted` says otherwise), optionally narrowed by a filter
+ * and the parents the caller reads.
+ */
 export const fetchRecord = async (db: Db, entry: Entry, key: readonly (string | number)[], tenant?: TenantValue, options: FetchOptions = {}) => {
-  const { filter, deleted, lock = false, ...shape } = options
-  const conditions = [...scopeConditions(entry.model, tenant, deleted), ...keyConditions(entry.model, key), ...filterCondition(entry.model, filter)]
+  const { filter, parents = [], deleted, lock = false, ...shape } = options
+  const conditions = [...scopeConditions(entry.model, tenant, deleted), ...keyConditions(entry.model, key), ...filterCondition(entry.model, filter), ...parents.map(parentCondition)]
   const query = sql`select ${returningList(entry, shape.fields)} from ${tableId(entry.model)} as t${whereClause(conditions)} limit 1${lockClause(lock)}`
   return stored(entry, (await rowsOf(db, query))[0], shape)
 }

@@ -7,8 +7,8 @@ const filterOn = (field: FieldModel) => (field.type === 'json' ? holds(field) : 
 
 /**
  * What the API takes of a resource from any caller, whatever the views show: a filter on each `.filterable()` field, a
- * sort by each `.sortable()` one, `search("...")` over its search fields, and the rows of a role limited to its own
- * records, which `.owner()` names.
+ * sort by each `.sortable()` one, `search("...")` over its search fields, the rows of a role limited to its own
+ * records, which `.owner()` names, and the records whose parent the caller reads, which `.parent(fk, 'read')` names.
  */
 export const fieldShapes = (model: ResourceModel): ReadShape[] => {
   const fields = Object.values(model.fields)
@@ -18,8 +18,19 @@ export const fieldShapes = (model: ResourceModel): ReadShape[] => {
     ...fields.filter((field) => field.filterable).map((field): ReadShape => ({ resource: model.name, request: `${at}?filter=${field.name} = …`, from: `"${field.name}" is filterable`, query: { filter: filterOn(field) } })),
     ...(model.search?.length ? [{ resource: model.name, request: `${at}?filter=search("…")`, from: `the search over ${model.search.join(', ')}`, query: { filter: searchFor } }] : []),
     ...ownerShapes(model),
+    ...parentShapes(model),
   ]
 }
+
+// Every read keeps to the records whose parent the caller reads, by the relation `.parent(fk, 'read')` names.
+const parentShapes = (model: ResourceModel): ReadShape[] =>
+  (model.parents ?? []).filter((parent) => parent.access === 'read').map(({ field }) => ({
+    resource: model.name,
+    request: `GET /${model.name}`,
+    from: `its records keep to the "${field}" parents the caller reads`,
+    query: {},
+    scope: { parents: [{ field: model.fields[field]! }] },
+  }))
 
 const ownerShapes = (model: ResourceModel): ReadShape[] => {
   const owner = model.owner === undefined ? undefined : model.fields[model.owner]

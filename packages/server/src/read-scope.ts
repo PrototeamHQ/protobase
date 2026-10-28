@@ -22,11 +22,12 @@ const listsAsMuch = (own: RequestAccess, other: RequestAccess) =>
   other.resolved.operations.list && Object.keys(own.model.fields).every((name) => Object.hasOwn(other.model.fields, name))
 
 // The other tenants a list of an `across` resource reads: those the person is a member of, each read as their access
-// there allows. None when the caller cannot see the tenant field, which `restrictModel` then drops with `tenantAcross`.
+// there allows. None when the caller cannot see the tenant field, which `restrictModel` then drops with `tenantAcross`,
+// nor for a resource whose records keep to the parents the caller reads, which are resolved in the own tenant only.
 const otherTenants = async (access: RequestAccess): Promise<TenantRead[]> => {
   const { deps, entry, session } = access
   const own = session.tenant
-  if (!access.model.tenantAcross || own === undefined || !session.memberships) return []
+  if (!access.model.tenantAcross || own === undefined || !session.memberships || access.parents.length > 0) return []
   const memberships = new Map((await session.memberships()).filter((membership) => !sameTenant(membership.tenant, own)).map((membership) => [String(membership.tenant), membership]))
   const reads = await Promise.all([...memberships.values()].map(async (membership) => {
     const other = await requestAccess(deps, entry, memberSession(session, membership))
