@@ -36,8 +36,9 @@ export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHe
   const itemHeight = Math.ceil(Math.max(minHeight(itemWidth), measured.get(itemWidth) ?? 0))
   const rowHeight = itemHeight + cardGap
 
-  // Keep the same records in view across a change of columns or card height, once the list has reached the top of the
-  // view
+  // Keep the same records in view across a change of columns or card height, once the list has started and reached the
+  // top of the view: before it starts, the page can be scrolled to where it was left at the guessed height, and the
+  // start, not the anchor, puts it at its record
   const layout: CardLayout = { columns, rowHeight }
   const anchor = useRef({ layout, top: 0 })
   const changed = anchor.current.top > 0 && (anchor.current.layout.columns !== columns || anchor.current.layout.rowHeight !== rowHeight)
@@ -48,7 +49,7 @@ export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHe
   const scroll = useVirtualRows<HTMLUListElement>({ total: Math.ceil(total / columns), rowHeight, initialIndex: placeRow(startIndex, columns), settle, ready, onScroll })
   useLayoutEffect(() => {
     if (changed) scroll.scrollTo(scroll.top)
-    anchor.current = { layout, top: scroll.top }
+    anchor.current = { layout, top: scroll.started() ? scroll.top : 0 }
   })
   const range = recordRange(scroll.first, scroll.last, columns, total)
   const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, revision: source.revision, latencyMs: 0 }, range.start, range.end)

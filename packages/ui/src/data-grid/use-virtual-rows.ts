@@ -39,7 +39,8 @@ const viewRows = (view: View, total: number, rowHeight: number) => {
  * scrolling ancestor, or the page. Only the rows in view, and `overscan` more on each side, are drawn: `ref` goes on the
  * list's element, `geometry.contentHeight` tall, and each drawn row sits at `offset` from its top. Nothing listens for
  * wheel or touch: the list follows the scroll position, and draws again only when other rows come into view.
- * `first` and `last` are the indexes of the drawn rows, overscan included.
+ * `first` and `last` are the indexes of the drawn rows, overscan included; `started` says whether the list has started
+ * at `initialIndex`, read after the list's layout effects.
  */
 export const useVirtualRows = <T extends HTMLElement>({ total, rowHeight, initialIndex, inset = 0, settle, ready = true, onScroll }: VirtualRowsOptions) => {
   const ref = useRef<T>(null)
@@ -134,9 +135,11 @@ export const useVirtualRows = <T extends HTMLElement>({ total, rowHeight, initia
     [read, measure],
   )
 
+  const started = useCallback(() => !start.current.pending, [])
+
   const drawn = viewRows(view, total, rowHeight)
   const top = settle ? settle(drawn.top) : drawn.top
   const { first, last } = settle ? rowsInView(total, top, rowHeight, view.height, overscan) : drawn
   const rows = Array.from({ length: last - first + 1 }, (_, offset) => ({ index: first + offset, offset: rowOffset(drawn.geometry, first + offset, top, view.position) }))
-  return { ref, height: view.height, top, geometry: drawn.geometry, rows, first, last, scrollTo }
+  return { ref, height: view.height, top, geometry: drawn.geometry, rows, first, last, scrollTo, started }
 }
