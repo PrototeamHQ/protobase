@@ -77,7 +77,10 @@ const condition = (segment: string): FilterCondition | string => {
     return { column, operator, value: `{${value.slice(1, -1)}}`, negate }
   }
   if (operator === 'is' && !isKeyword.has(value)) return 'invalid value for is filter: must be null, true, false, or unknown'
-  return { column, operator, value: unquote(value), negate }
+  const unquoted = unquote(value)
+  // Postgres raises this only once a row's text reaches the pattern's end, so no check at join could catch it.
+  if ((operator === 'like' || operator === 'ilike') && /(?:^|[^\\])(?:\\\\)*\\$/.test(unquoted)) return `invalid filter "${trimmed}": a like pattern must not end with an escape character`
+  return { column, operator, value: unquoted, negate }
 }
 
 /** The conditions of a filter, all of which a row must meet; an error message for one Supabase refuses too. */
@@ -87,6 +90,9 @@ export const parseFilter = (filter: string | undefined): FilterCondition[] | str
   const error = parsed.find((item) => typeof item === 'string')
   return error ?? (parsed as FilterCondition[])
 }
+
+/** The bind parameters a filter's conditions take: one each, but none for `is`. */
+export const filterParameters = (conditions: readonly FilterCondition[]) => conditions.filter((item) => item.operator !== 'is').length
 
 // One condition on the row `alias`, the value bound as a parameter whose type Postgres takes from the column.
 const conditionSql = (alias: string, { column, operator, value, negate }: FilterCondition) => {

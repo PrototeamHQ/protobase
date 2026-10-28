@@ -18,3 +18,14 @@ export const readTransaction = <T>(db: Db, timeoutMs: number, run: (trx: Db) => 
     await sql`set transaction read only`.execute(trx)
     return run(trx)
   }, settings)
+
+/** A read-only transaction whose statements all read one snapshot (REPEATABLE READ), cancelled after `timeoutMs` each. */
+export const snapshotReadTransaction = <T>(db: Db, timeoutMs: number, run: (trx: Db) => Promise<T>) =>
+  db
+    .transaction()
+    .setIsolationLevel('repeatable read')
+    .setAccessMode('read only')
+    .execute(async (trx) => {
+      await sql`select set_config('statement_timeout', ${String(timeoutMs)}, true)`.execute(trx)
+      return run(trx)
+    })

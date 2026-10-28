@@ -7,10 +7,12 @@ import { decodeBroadcastPush, encodeBroadcast, fitsFrame, type BroadcastMeta } f
 import type { BroadcastHub, BroadcastMember } from './broadcast-hub'
 import type { ChangeHub } from './change-hub'
 import type { ChannelAccess } from './channel-access'
+import { busyText, type FilterCheck } from './filter-check'
 import { privateGate, publicGate, readRefusalText, type ChannelGate } from './channel-gate'
 import { fixedWindow, fixedWindows } from './fixed-window'
 import { decodeMessage, encodeMessage, reply, type PhoenixMessage, type Vsn } from './phoenix-message'
-import { parseBindings } from './postgres-changes'
+import { parseBindings, type ChangeBinding } from './postgres-changes'
+import { callerSettings } from '../rest/caller-settings'
 import type { PresenceHub, PresenceSeat } from './presence-hub'
 import { realtimeLimits } from './realtime-limits'
 
@@ -25,6 +27,8 @@ export type RealtimeSocketOptions = {
   /** The live resources, which channels may listen to. */
   live: readonly Entry[]
   hub: ChangeHub
+  /** Whether Postgres takes a channel's filters under a caller: the refusal text when it does not. */
+  checkFilters: FilterCheck
   broadcasts: BroadcastHub
   presences: PresenceHub
   /** What private channels may do, by the policies on `realtime.messages`. */
@@ -40,6 +44,7 @@ export type RealtimeSocketOptions = {
 type Channel = {
   joinRef: string | null
   caller: Caller
+  bindings: ChangeBinding[]
   gate: ChannelGate
   /** Whether each broadcast it sends gets a reply. */
   ack: boolean
@@ -87,7 +92,7 @@ const refusal = (error: unknown) => {
  * earlier messages wait. A close, the client's or the server's, leaves every channel, a join still checking its token
  * included, and drops whatever is still queued.
  */
-export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub, broadcasts, presences, access, nextId, report, idleMs = 60_000, now = Date.now }: RealtimeSocketOptions) => {
+export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub, checkFilters, broadcasts, presences, access, nextId, report, idleMs = 60_000, now = Date.now }: RealtimeSocketOptions) => {
   const channels = new Map<string, Channel>()
   let queue = Promise.resolve()
   let queuedMessages = 0
@@ -179,16 +184,21 @@ export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub,
     if (!open) return
     const parsed = parseBindings(config.postgres_changes, live, nextId)
     if (typeof parsed === 'string') return push(reply(message, 'error', { reason: parsed }))
+    // Before the bindings join the callers they are checked with, so that a filter Postgres refuses fails no other's check.
+    const refusedFilters = await checkFilters(caller, parsed.bindings)
+    if (!open) return
+    if (refusedFilters !== undefined) return push(reply(message, 'error', { reason: refusedFilters }))
     const { topic } = message
     const member: BroadcastMember = { self: broadcast.self === true, private: config.private === true, receive: (event, payload, meta) => hear(topic, channel, event, payload, meta) }
     // Supabase tracks a channel that names no key under a key of its own.
     const key = typeof presence.key === 'string' && presence.key !== '' ? presence.key : randomUUID()
     const seat = presences.join(topic, { key, private: config.private === true, get listens() { return listens && gate.hears('presence') }, receive: (diff) => toChannel(topic, channel, 'presence_diff', diff) })
     const offBroadcast = broadcasts.join(topic, member)
-    const offChanges = parsed.bindings.length > 0 ? hub.add({ caller: () => channel.caller, bindings: parsed.bindings, send: (payload) => toChannel(topic, channel, 'postgres_changes', payload) }) : () => {}
+    const offChanges = parsed.bindings.length > 0 ? hub.add({ caller: () => channel.caller, bindings: parsed.bindings, send: (payload) => toChannel(topic, channel, 'postgres_changes', payload), fail: (reason) => channels.get(topic) === channel && end(topic, reason) }) : () => {}
     const channel: Channel = {
       joinRef: message.joinRef,
       caller,
+      bindings: parsed.bindings,
       gate,
       ack: broadcast.ack === true,
       member,
@@ -216,8 +226,15 @@ export const realtimeSocket = ({ vsn, send, buffered, close, resolve, live, hub,
     const refused = await channel.gate.authorize(caller)
     if (channels.get(message.topic) !== channel) return
     if (refused) return end(message.topic, readRefusalText(message.topic, refused))
+    const changed = JSON.stringify(callerSettings(caller)) !== JSON.stringify(callerSettings(channel.caller))
     channel.caller = caller
     expireAt(message.topic, channel)
+    if (!changed) return
+    // The new caller applies at once, and its filters are checked under it after: refused, the channel ends. When too
+    // many checks are waiting, the change checks' own fallback ends it instead, should one of its filters fail there.
+    const refusedFilters = await checkFilters(caller, channel.bindings)
+    if (channels.get(message.topic) !== channel || refusedFilters === undefined || refusedFilters === busyText) return
+    end(message.topic, refusedFilters)
   }
 
   const sendBroadcast = async (message: PhoenixMessage, channel: Channel) => {

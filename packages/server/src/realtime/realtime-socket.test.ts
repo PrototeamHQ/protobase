@@ -6,6 +6,7 @@ import { buildRegistry } from '../registry'
 import { broadcastHub } from './broadcast-hub'
 import type { ChannelAccess } from './channel-access'
 import type { ChangeHub, ChangeSink } from './change-hub'
+import type { FilterCheck } from './filter-check'
 import { presenceHub } from './presence-hub'
 import type { Vsn } from './phoenix-message'
 import { realtimeSocket } from './realtime-socket'
@@ -18,7 +19,7 @@ const alice = (exp: number): Caller => ({ role: 'authenticated', claims: { sub: 
 // No policies on realtime.messages: every private channel is refused.
 const noAccess: ChannelAccess = { read: async () => new Map(), write: async () => false }
 
-const open = ({ broadcasts = broadcastHub(), presences = presenceHub(), vsn = '2.0.0' as Vsn, idleMs = 60_000 } = {}) => {
+const open = ({ broadcasts = broadcastHub(), presences = presenceHub(), vsn = '2.0.0' as Vsn, idleMs = 60_000, checkFilters = (async () => undefined) as FilterCheck } = {}) => {
   const frames: unknown[] = []
   const sinks: ChangeSink[] = []
   const hub: ChangeHub = { add: (sink) => (sinks.push(sink), () => sinks.splice(sinks.indexOf(sink), 1)) }
@@ -30,7 +31,7 @@ const open = ({ broadcasts = broadcastHub(), presences = presenceHub(), vsn = '2
     throw unauthorized('The bearer token is invalid or expired')
   }
   let id = 0
-  const socket = realtimeSocket({ vsn, send: (frame) => frames.push(typeof frame === 'string' ? JSON.parse(frame) : [...new Uint8Array(frame)]), buffered: () => 0, close, resolve, live: entries, hub, broadcasts, presences, access: noAccess, nextId: () => ++id, report: (error) => { throw error }, idleMs, now: () => Date.now() })
+  const socket = realtimeSocket({ vsn, send: (frame) => frames.push(typeof frame === 'string' ? JSON.parse(frame) : [...new Uint8Array(frame)]), buffered: () => 0, close, resolve, live: entries, hub, checkFilters, broadcasts, presences, access: noAccess, nextId: () => ++id, report: (error) => { throw error }, idleMs, now: () => Date.now() })
   const send = async (message: unknown[] | ArrayBuffer) => {
     socket.message(message instanceof ArrayBuffer ? message : JSON.stringify(message))
     await vi.advanceTimersByTimeAsync(0)
@@ -75,6 +76,51 @@ describe('realtimeSocket', () => {
       { status: 'error', response: { reason: 'unmatched topic' } },
     ])
     expect(sinks).toHaveLength(0)
+  })
+
+  it('refuses a join whose filters Postgres refuses under its caller, before its bindings reach the hub', async () => {
+    const checkFilters = vi.fn<FilterCheck>(async () => 'refused filters')
+    const { frames, sinks, send } = open({ checkFilters })
+    await send(['1', '1', 'realtime:a', 'phx_join', joinPayload('alice-1')])
+    expect(checkFilters).toHaveBeenCalledWith(alice(now / 1000 + 60), [expect.objectContaining({ filter: 'user_id=eq.alice' })])
+    expect(frames).toEqual([['1', '1', 'realtime:a', 'phx_reply', { status: 'error', response: { reason: 'refused filters' } }]])
+    expect(sinks).toHaveLength(0)
+  })
+
+  it('checks the filters again under a new caller, applied at once, and ends the channel when they are refused', async () => {
+    let release = (_refusal: string | undefined) => {}
+    const checkFilters = vi.fn<FilterCheck>(async () => undefined)
+    const { frames, sinks, send } = open({ checkFilters })
+    await send(['1', '1', 'realtime:a', 'phx_join', joinPayload('alice-1')])
+    await send(['1', '2', 'realtime:a', 'access_token', { access_token: 'alice-1' }])
+    expect(checkFilters).toHaveBeenCalledTimes(1)
+    checkFilters.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)))
+    frames.splice(0)
+    await send(['1', '3', 'realtime:a', 'access_token', {}])
+    expect(checkFilters).toHaveBeenLastCalledWith({ role: 'anon', claims: { role: 'anon' } }, [expect.objectContaining({ filter: 'user_id=eq.alice' })])
+    expect(sinks[0]!.caller().role).toBe('anon')
+    release('refused filters')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(frames).toEqual([
+      ['1', null, 'realtime:a', 'system', { extension: 'system', status: 'error', message: 'refused filters' }],
+      ['1', null, 'realtime:a', 'phx_close', {}],
+    ])
+    expect(sinks).toHaveLength(0)
+  })
+
+  it('ends a channel the hub fails, and not one that replaced it', async () => {
+    const { frames, sinks, send } = open()
+    await send(['1', '1', 'realtime:a', 'phx_join', joinPayload('alice-1')])
+    const first = sinks[0]!
+    await send(['2', '2', 'realtime:a', 'phx_join', joinPayload('alice-1')])
+    frames.splice(0)
+    first.fail('gone')
+    expect(frames).toEqual([])
+    sinks[0]!.fail('gone')
+    expect(frames).toEqual([
+      ['2', null, 'realtime:a', 'system', { extension: 'system', status: 'error', message: 'gone' }],
+      ['2', null, 'realtime:a', 'phx_close', {}],
+    ])
   })
 
   it('takes a newer token on an open channel, and ends the channel when its token expires or is refused', async () => {

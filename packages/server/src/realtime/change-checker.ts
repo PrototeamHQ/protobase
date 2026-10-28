@@ -6,9 +6,12 @@ import type { Caller } from '../api-keys/resolve-caller'
 import { quoteIdent, tableSql } from '../changes/capture-sql'
 import type { Entry } from '../registry'
 import { callerSettings } from '../rest/caller-settings'
-import { readTransaction } from '../transactions'
+import { snapshotReadTransaction } from '../transactions'
 import type { Row } from '../types'
 import { filterSql, type FilterCondition } from './change-filter'
+import { filterChunks } from './filter-chunks'
+import { evaluateFilters } from './filter-evaluation'
+import { attempt } from './savepoint-attempt'
 
 /** A column as a change names it to realtime-js, which converts values by `type`. */
 export type ChangeColumn = { name: string; type: string }
@@ -25,8 +28,10 @@ export type SeenRow = { record: Row; oldRecord: Row; matches: boolean[] }
 /**
  * What a caller sees of a resource: the columns its role may select, the current rows of `keys` that its role and the
  * table's RLS policies let it select, by key, and the deleted records by key, which no policy can check any more.
+ * `failed` holds the indexes of the filters Postgres refused, such as one on a column dropped since its join: they
+ * match nothing.
  */
-export type ResourceView = { columns: ChangeColumn[]; rows: Map<string, SeenRow>; deleted: Map<string, SeenRow> }
+export type ResourceView = { columns: ChangeColumn[]; rows: Map<string, SeenRow>; deleted: Map<string, SeenRow>; failed: Set<number> }
 
 export type ChangeCheckerOptions = {
   db: Db
@@ -53,28 +58,40 @@ const listed = (alias: string, columns: readonly string[]) => sql.raw(columns.ma
 
 const keyTexts = (alias: string, entry: Entry) => sql.raw(keyColumns(entry).map((column, index) => `${alias}.${quoteIdent(column)}::text as "k${index}"`).join(', '))
 
-const filterColumns = (alias: string, filters: readonly FilterCondition[][]) =>
-  filters.length === 0 ? sql`` : sql`, ${sql.join(filters.map((conditions, index) => sql`${filterSql(alias, conditions)} as ${sql.ref(`f${index}`)}`))}`
+// The filters of `indexes`, each a column named by its index among all the resource's filters.
+const filterColumns = (alias: string, filters: readonly FilterCondition[][], indexes: readonly number[]) =>
+  indexes.length === 0 ? sql`` : sql`, ${sql.join(indexes.map((index) => sql`${filterSql(alias, filters[index]!)} as ${sql.ref(`f${index}`)}`))}`
 
 type CheckedRow = Record<string, unknown> & { record?: Row; old_record: Row }
 
+const keyOf = (entry: Entry, row: CheckedRow) => encodeKey(keyColumns(entry).map((_, index) => row[`k${index}`] as string))
+
 const seen = (entry: Entry, filters: readonly FilterCondition[][], rows: readonly CheckedRow[]) =>
-  new Map(
-    rows.map((row) => [
-      encodeKey(keyColumns(entry).map((_, index) => row[`k${index}`] as string)),
-      { record: row.record ?? {}, oldRecord: row.old_record, matches: filters.map((_, index) => row[`f${index}`] === true) },
-    ]),
-  )
+  new Map(rows.map((row): [string, SeenRow] => [keyOf(entry, row), { record: row.record ?? {}, oldRecord: row.old_record, matches: filters.map(() => false) }]))
+
+// The matches of the filters of `indexes` onto the rows already seen; a row only a later query read is left out.
+const merge = (entry: Entry, into: Map<string, SeenRow>, rows: readonly CheckedRow[], indexes: readonly number[]) => {
+  for (const row of rows) {
+    const found = into.get(keyOf(entry, row))
+    if (found) for (const index of indexes) found.matches[index] = row[`f${index}`] === true
+  }
+}
+
+const nothing = (columns: ChangeColumn[] = []): ResourceView => ({ columns, rows: new Map(), deleted: new Map(), failed: new Set() })
 
 /**
- * Checks which changes callers may see, for every group in one read-only transaction: per group it sets the role and
- * claims as `/api/sb/rest/v1` does, then reads the current rows by key, so the table's RLS policies decide, and evaluates
- * each filter in Postgres, as the column's type compares. The transaction holds one pooled connection only while it
- * runs. A group whose check fails is checked again in a transaction of its own, so it costs only its own callers the
- * batch.
+ * Checks which changes callers may see, for every group in one read-only transaction that reads one snapshot: per group
+ * it sets the role and claims as `/api/sb/rest/v1` does, then reads the current rows by key, so the table's RLS policies
+ * decide, and evaluates each filter in Postgres, as the column's type compares, at most `filterChunkLimits` filters per
+ * query. The transaction holds one pooled connection only while it runs.
+ *
+ * Each query runs in a savepoint. A resource whose rows cannot be read even without filters, such as after a REVOKE,
+ * shows its group nothing of that resource; a filter Postgres refuses fails alone (`ResourceView.failed`), found by
+ * halving its chunk. Any other error, such as a lost connection, fails the transaction: each group is then checked
+ * again in a transaction of its own, so it costs only its own callers the batch.
  */
 export const changeChecker = ({ db, statementTimeoutMs, report }: ChangeCheckerOptions) => {
-  // The columns each role may select of each resource's table, read once.
+  // The columns each role may select of each resource's table, read again after a read that the role was refused.
   const columnCache = new Map<string, ChangeColumn[]>()
 
   const columnsOf = async (trx: Db, entry: Entry, role: string) => {
@@ -87,11 +104,8 @@ export const changeChecker = ({ db, statementTimeoutMs, report }: ChangeCheckerO
     return rows
   }
 
-  const view = async (trx: Db, role: string, check: ResourceCheck): Promise<ResourceView> => {
-    const columns = await columnsOf(trx, check.entry, role)
-    const names = columns.map((column) => column.name)
-    // A role that may not select the key sees no change of the table, as on Supabase.
-    if (!keyColumns(check.entry).every((column) => names.includes(column))) return { columns, rows: new Map(), deleted: new Map() }
+  // The current rows and deleted records of the check, with the filters of `indexes`.
+  const read = async (trx: Db, names: readonly string[], check: ResourceCheck, indexes: readonly number[]) => {
     const table = sql.raw(tableSql(check.entry.model))
     const key = listed('t', keyColumns(check.entry))
     const rows =
@@ -99,21 +113,65 @@ export const changeChecker = ({ db, statementTimeoutMs, report }: ChangeCheckerO
         ? []
         : (
             await sql<CheckedRow>`select ${keyTexts('t', check.entry)}, (select to_jsonb(v) from (select ${listed('t', names)}) v) as record,
-              (select to_jsonb(v) from (select ${key}) v) as old_record${filterColumns('t', check.filters)}
+              (select to_jsonb(v) from (select ${key}) v) as old_record${filterColumns('t', check.filters, indexes)}
               from ${table} t where (${key}) in (select ${listed('k', keyColumns(check.entry))} from jsonb_populate_recordset(null::${table}, ${keyRows(check.entry, check.keys)}::jsonb) k)`.execute(trx)
           ).rows
     const deleted =
       check.deleted.length === 0
         ? []
         : (
-            await sql<CheckedRow>`select ${keyTexts('k', check.entry)}, (select to_jsonb(v) from (select ${listed('k', keyColumns(check.entry))}) v) as old_record${filterColumns('k', check.filters)}
+            await sql<CheckedRow>`select ${keyTexts('k', check.entry)}, (select to_jsonb(v) from (select ${listed('k', keyColumns(check.entry))}) v) as old_record${filterColumns('k', check.filters, indexes)}
               from jsonb_populate_recordset(null::${table}, ${keyRows(check.entry, check.deleted)}::jsonb) k`.execute(trx)
           ).rows
-    return { columns, rows: seen(check.entry, check.filters, rows), deleted: seen(check.entry, check.filters, deleted) }
+    return { rows, deleted }
+  }
+
+  const view = async (trx: Db, role: string, check: ResourceCheck): Promise<ResourceView> => {
+    const cacheKey = `${check.entry.name}\0${role}`
+    let columns = await columnsOf(trx, check.entry, role)
+    // A role that may not select the key sees no change of the table, as on Supabase.
+    const keyed = () => keyColumns(check.entry).every((column) => columns.some(({ name }) => name === column))
+    if (!keyed()) return nothing(columns)
+    const [first = [], ...rest] = filterChunks(check.filters)
+    // The rows come from the first query that reads them, with its filters. When it fails, the columns are read again,
+    // in case one was dropped or revoked, and the rows with no filter: failing too, the group sees nothing of the resource.
+    let base = await attempt(trx, 'change_check', () => read(trx, columns.map(({ name }) => name), check, first))
+    const failedFirst = base.ok ? undefined : first
+    if (!base.ok) {
+      columnCache.delete(cacheKey)
+      columns = await columnsOf(trx, check.entry, role)
+      if (!keyed()) return nothing(columns)
+      base = await attempt(trx, 'change_check', () => read(trx, columns.map(({ name }) => name), check, []))
+    }
+    if (!base.ok) {
+      columnCache.delete(cacheKey)
+      report(base.error)
+      return nothing(columns)
+    }
+    const names = columns.map(({ name }) => name)
+    const rows = seen(check.entry, check.filters, base.value.rows)
+    const deleted = seen(check.entry, check.filters, base.value.deleted)
+    if (failedFirst === undefined) {
+      merge(check.entry, rows, base.value.rows, first)
+      merge(check.entry, deleted, base.value.deleted, first)
+    }
+    const failed = await evaluateFilters(
+      rest,
+      async (indexes) => {
+        const result = await attempt(trx, 'change_check', () => read(trx, names, check, indexes))
+        if (result.ok) {
+          merge(check.entry, rows, result.value.rows, indexes)
+          merge(check.entry, deleted, result.value.deleted, indexes)
+        }
+        return result
+      },
+      failedFirst,
+    )
+    return { columns, rows, deleted, failed }
   }
 
   const checkGroups = (groups: readonly CheckGroup[]) =>
-    readTransaction(db, statementTimeoutMs, async (trx) => {
+    snapshotReadTransaction(db, statementTimeoutMs, async (trx) => {
       const views: ResourceView[][] = []
       for (const group of groups) {
         // The app's role sets none: `none` goes back to the connection's own, and an empty user to none.
@@ -127,14 +185,14 @@ export const changeChecker = ({ db, statementTimeoutMs, report }: ChangeCheckerO
       return views
     })
 
-  const nothing = (group: CheckGroup) => group.resources.map((): ResourceView => ({ columns: [], rows: new Map(), deleted: new Map() }))
+  const nothingOf = (group: CheckGroup) => group.resources.map(() => nothing())
 
   return async (groups: readonly CheckGroup[]): Promise<ResourceView[][]> => {
     if (groups.length === 0) return []
     return checkGroups(groups).catch(async (error: unknown) => {
       if (groups.length === 1) {
         report(error)
-        return [nothing(groups[0]!)]
+        return [nothingOf(groups[0]!)]
       }
       const views: ResourceView[][] = []
       for (const group of groups) {
@@ -143,7 +201,7 @@ export const changeChecker = ({ db, statementTimeoutMs, report }: ChangeCheckerO
             (checked) => checked[0]!,
             (failed: unknown) => {
               report(failed)
-              return nothing(group)
+              return nothingOf(group)
             },
           ),
         )

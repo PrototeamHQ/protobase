@@ -29,7 +29,7 @@ const policyAccess = (policy: Record<string, string[]>): ChannelAccess & { check
 
 const open = (access: ChannelAccess, broadcasts = broadcastHub(), presences = presenceHub()) => {
   const frames: { event: string; payload: unknown }[] = []
-  const socket = realtimeSocket({ vsn: '1.0.0', send: (frame) => frames.push(JSON.parse(frame as string)), buffered: () => 0, close: () => {}, resolve: callerOf, live: [], hub: { add: () => () => {} }, broadcasts, presences, access, nextId: () => 1, report: (error) => { throw error } })
+  const socket = realtimeSocket({ vsn: '1.0.0', send: (frame) => frames.push(JSON.parse(frame as string)), buffered: () => 0, close: () => {}, resolve: callerOf, live: [], hub: { add: () => () => {} }, checkFilters: async () => undefined, broadcasts, presences, access, nextId: () => 1, report: (error) => { throw error } })
   // vsn 1.0.0, whose messages are objects, so a broadcast arrives as text.
   const send = async ([join_ref, ref, topic, event, payload]: unknown[]) => {
     socket.message(JSON.stringify({ join_ref, ref, topic, event, payload }))
