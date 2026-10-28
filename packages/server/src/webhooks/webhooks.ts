@@ -17,6 +17,7 @@ import { maxTries, nextRetryDelay } from './retry-schedule'
 import { subscriptionProblems, subscriptionRouter } from './route-events'
 import { eventChange, subscriberEvents } from './subscriber-view'
 import type { SubscriptionDefinition, SubscriptionEvent } from './subscription'
+import type { ChannelSender } from '../channels/channel-sender'
 import { tableSubscriptionName } from './table/options'
 import { sendTestJob } from './table/schema-sql'
 import type { TableSubscriptions } from './table/table-subscriptions'
@@ -26,6 +27,8 @@ export type WebhooksInput = {
   deps: Deps
   subscriptions: readonly SubscriptionDefinition[]
   functions: Record<string, ApiFunction>
+  /** What a function the subscriptions call broadcasts to record channels with. */
+  channels: ChannelSender
   /** The schema of the outbox (`EventsOptions.schema`). */
   schema: string
   /** Where each delivery's outcome is written: the server log. */
@@ -102,7 +105,7 @@ const deliveryGroup = ({ subscription, change }: Delivery) => `${subscription.na
  *
  * No jobs without a resource with events or history; the subscriptions must name declared events.
  */
-export const createWebhooks = ({ deps, subscriptions, functions, schema, log, table }: WebhooksInput) => {
+export const createWebhooks = ({ deps, subscriptions, functions, channels, schema, log, table }: WebhooksInput) => {
   const entries = deps.registry.entries
   const models = entries.map((entry) => entry.model)
   const problems = subscriptionProblems(subscriptions, models, Object.keys(functions))
@@ -123,7 +126,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
     const id = tableId(subscription)
     const started = performance.now()
     const checkUrl = id === undefined ? undefined : table?.checkUrl
-    const result = await attemptDelivery(subscription, event, { db, functions, records, attempt: tried, signal, ...(checkUrl && { checkUrl }) })
+    const result = await attemptDelivery(subscription, event, { db, functions, records, channels, attempt: tried, signal, ...(checkUrl && { checkUrl }) })
     if (id !== undefined) await table!.subscriptions.record(db, id, event, tried, result, performance.now() - started)
     return result
   }

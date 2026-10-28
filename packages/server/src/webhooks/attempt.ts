@@ -1,3 +1,4 @@
+import type { ChannelSender } from '../channels/channel-sender'
 import type { Db } from '@protobase/query'
 import { invokeFunction, type ApiFunction, type FunctionCaller, type PublicFunctionContext } from '../functions/define-function'
 import type { FunctionRecords } from '../functions/records'
@@ -15,6 +16,7 @@ export type AttemptContext = {
   db: Db
   functions: Record<string, ApiFunction>
   records: (session: Session) => FunctionRecords
+  channels: ChannelSender
   /** 1 for the first try. */
   attempt: number
   signal: AbortSignal
@@ -56,7 +58,7 @@ const callFunction = async (name: string, subscription: SubscriptionDefinition, 
   const acceptWebSocket = () => {
     throw new Error(`The function "${name}" accepted a WebSocket, but a webhook delivery is no upgrade`)
   }
-  const functionContext: PublicFunctionContext = { name, db: context.db, caller: async () => caller, acceptWebSocket, calls: { join: async () => acceptWebSocket() } }
+  const functionContext: PublicFunctionContext = { name, db: context.db, channels: context.channels, caller: async () => caller, acceptWebSocket, calls: { join: async () => acceptWebSocket() } }
   return invokeFunction(name, fn, await request('http://protobase.internal/', event, options, signal), fn.options.public ? functionContext : { ...functionContext, ...caller })
 }
 

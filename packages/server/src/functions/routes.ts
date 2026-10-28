@@ -12,6 +12,7 @@ import { forbidden, notFound } from '../problem'
 import { namingTimeouts } from '../statement-timeout'
 import type { Authenticator, Session } from '../types'
 import { socketAcceptor } from './accept-socket'
+import type { ChannelSender } from '../channels/channel-sender'
 import { invokeFunction, type ApiFunction, type FunctionCaller, type FunctionContext, type PublicFunctionContext } from './define-function'
 import { functionGate, requireGate, type FunctionGate } from './function-gate'
 import type { FunctionRecords } from './records'
@@ -28,6 +29,8 @@ export type FunctionRoutesInput = {
   records: (session: Session) => FunctionRecords
   /** The app's read of encrypted fields, which a protected function's context binds to the function and its caller. */
   decryptField: FieldDecrypter
+  /** What a function broadcasts to record channels with. */
+  channels: ChannelSender
   onError: ErrorHandler
   /** After a call ended, its writes through `db` committed: has the change dispatcher deliver them now, as after an API write. */
   wake: () => void
@@ -60,7 +63,7 @@ const isUpgrade = (request: Request) => request.headers.get('upgrade')?.toLowerC
  * A function may answer an upgrade with a socket, only once it returned. While it is open, its caller is checked again
  * every minute: a protected function's always, a public one's once `caller()` resolved.
  */
-export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, decryptField, onError, wake, upgradeWebSocket, upgradeAuthenticate = authenticate, calls: callsOptions, report }: FunctionRoutesInput) => {
+export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, channels, decryptField, onError, wake, upgradeWebSocket, upgradeAuthenticate = authenticate, calls: callsOptions, report }: FunctionRoutesInput) => {
   const calls = callsAccess(callsOptions)
   const app = new Hono().basePath(basePath)
   app.onError(onError)
@@ -97,7 +100,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
           if (admitted) await recheckCaller(name, gate, c.req.raw, admitted)
         }
         const acceptor = socketAcceptor({ c, upgradeWebSocket, report, recheck })
-        const context: PublicFunctionContext = { name, db, caller: resolveCaller, acceptWebSocket: acceptor.accept, calls }
+        const context: PublicFunctionContext = { name, db, channels, caller: resolveCaller, acceptWebSocket: acceptor.accept, calls }
         return acceptor.answer(name, await invokeFunction(name, fn, request, context))
       }
       const caller = await callerOf(c.req.raw)
@@ -106,7 +109,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
       const acceptor = socketAcceptor({ c, upgradeWebSocket, report, recheck })
       const { user } = caller.session
       const reader = { function: name, actor: { id: user.id, roles: [...user.roles] }, origin: auditOrigin(c.req.raw.headers) }
-      const context: FunctionContext = { name, db, ...caller, caller: async () => caller, decryptField: decryptField(reader), acceptWebSocket: acceptor.accept, calls }
+      const context: FunctionContext = { name, db, channels, ...caller, caller: async () => caller, decryptField: decryptField(reader), acceptWebSocket: acceptor.accept, calls }
       return acceptor.answer(name, await invokeFunction(name, fn, request, context))
     }))
   }

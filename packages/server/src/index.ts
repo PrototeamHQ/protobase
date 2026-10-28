@@ -169,6 +169,7 @@ export type { CallBackend, CallsOptions, LiveKitBackend } from './calls/calls-op
 export type { CallsAccess } from './calls/calls-access'
 export type { CallMember } from './calls/call-member'
 export type { FunctionRecords } from './functions/records'
+export type { ChannelBroadcast, ChannelSender } from './channels/channel-sender'
 export { functionApp, type FunctionEnv, type PublicFunctionEnv } from './functions/function-app'
 export { readJson, type StandardSchema } from './functions/read-json'
 export { verifySignature, verifyStandardWebhook, type SignatureOptions, type StandardWebhookOptions } from './functions/verify-signature'

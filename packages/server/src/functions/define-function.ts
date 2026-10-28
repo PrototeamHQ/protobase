@@ -3,6 +3,7 @@ import type { Capability } from '@protobase/schema'
 import type { Caller } from '../api-keys/resolve-caller'
 import type { CallsAccess } from '../calls/calls-access'
 import type { DecryptField } from '../encryption/decrypt-field-types'
+import type { ChannelSender } from '../channels/channel-sender'
 import type { Session } from '../types'
 import type { SocketEvents } from './function-socket'
 import type { FunctionRecords } from './records'
@@ -13,6 +14,8 @@ export type PublicFunctionContext = {
   name: string
   /** The database itself, with no access rules, row filters or tenant scope: privileged work only. */
   db: Db
+  /** Broadcasts to the channel of a record, as the server, to whoever is on it (see `/api/channels`). */
+  channels: ChannelSender
   /** The caller, through the app's own `authenticate`: rejects with a 401 problem when the request carries no valid token. */
   caller: () => Promise<FunctionCaller>
   /**

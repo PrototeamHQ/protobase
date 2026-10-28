@@ -21,6 +21,9 @@ import { apiKeyCaller } from './api-keys/resolve-caller'
 import { jwtVerifier } from './auth/jwt'
 import { unauthorized } from './problem'
 import { realtimeApp } from './realtime/realtime-app'
+import { realtimeHubs } from './realtime/realtime-hubs'
+import { channelRoutes } from './channels/channel-routes'
+import { channelSender } from './channels/channel-sender'
 import { startRealtimePrune } from './realtime/realtime-prune'
 import { relayed, type RealtimeOptions } from './realtime/relay/realtime-options'
 import { restRoutes } from './rest/rest-routes'
@@ -386,7 +389,15 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   }
   const upgradeAuthenticate = upgradeAuthenticator({ authenticate, ...(auth && { origins: auth.origins, sessionToken: betterAuthSessionToken(auth) }) })
   const decryptField = fieldDecrypter(deps)
-  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), decryptField, onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(calls && { calls }), report }))
+  // The broadcasts and presences of both realtime APIs, apart, through one relay with several processes.
+  const hubs = realtimeHubs(deps, realtime, report)
+  const channels = channelSender(registry, hubs.records.broadcasts)
+  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), channels, decryptField, onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(calls && { calls }), report }))
+  // Channels named by records, with presence and broadcasts, for whoever may read the record, a visitor too.
+  if (upgradeWebSocket) {
+    const visitors = (caller: Authenticator) => withAnonymous(caller, options.roles)
+    app.route(systemPath || '/', channelRoutes({ deps, upgradeWebSocket, authenticate: visitors(authenticate), authenticateUpgrade: visitors(upgradeAuthenticate), onError, hubs: hubs.records, follow: hubs.follow, report }))
+  }
   // supabase-js's `functions.invoke`, admitted by the app's keys and the tokens of `/api/sb/auth/v1`.
   const verifyGoTrue = auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens'))
   app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), onError }))
@@ -411,7 +422,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     // `from()` and `rpc()` under the tables' RLS.
     app.route(restPath, restRoutes({ deps, caller, report }))
     // `postgres_changes` of the live resources under the tables' RLS, broadcasts and presence.
-    if (upgradeWebSocket) app.route(realtimePath, realtimeApp({ deps, feed, upgradeWebSocket, caller, report, ...(realtime && { options: realtime }) }))
+    if (upgradeWebSocket) app.route(realtimePath, realtimeApp({ deps, feed, upgradeWebSocket, caller, report, hubs }))
     // `storage` under the storage schema's RLS.
     if (files?.storage) {
       const storage = { db, statementTimeoutMs: deps.statementTimeoutMs, ...(deps.actorSetting && { actorSetting: deps.actorSetting }), store: files.providers[files.storage.provider]!.store, signer: files.signer, maxBytes: files.storage.maxBytes, caller }
@@ -428,7 +439,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   // Before the system endpoints, which want a token for everything under them
   app.route(systemPath || '/', webManifestRoute(appName, identity, icons))
   app.route(deps.systemPath || '/', system)
-  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
+  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), report })
   return Object.assign(app, { startRealtimePrune: prune, decryptField, jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth))] : [])] })
 }

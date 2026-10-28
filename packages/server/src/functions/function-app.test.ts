@@ -14,6 +14,7 @@ const serveApp = (app: ReturnType<typeof functionApp<PublicFunctionEnv>>, onUnha
     access: {},
     db: {} as Db,
     records: () => ({}) as never,
+    channels: { broadcast: async () => {} },
     onError: createErrorHandler(onUnhandledError),
     wake: () => {},
     decryptField: () => async () => null,

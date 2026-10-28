@@ -22,12 +22,13 @@ const authenticate = (request: Request) => {
 }
 
 const records = (session: Session) => ({ as: session.user.id }) as unknown as FunctionRecords
+const channels = { broadcast: async () => {} }
 
 // Each bound read says who it is for, so a test sees which reader the context was given.
 const decryptField = vi.fn((reader: FieldReader) => async () => JSON.stringify(reader))
 
 const serve = (functions: Record<string, ApiFunction>, onUnhandledError = vi.fn(), wake = vi.fn()) => ({
-  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, decryptField, onError: createErrorHandler(onUnhandledError), wake, report: onUnhandledError }),
+  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, channels, decryptField, onError: createErrorHandler(onUnhandledError), wake, report: onUnhandledError }),
   onUnhandledError,
   wake,
 })
@@ -119,7 +120,7 @@ describe('functionRoutes', () => {
 
   it('refuses a function without roles to every caller but those holding *, once the app defines roles', async () => {
     const roles = defineRoles({ admin: ['*'], sales: ['*.read'] })
-    const app = functionRoutes({ basePath: '/api/functions', functions: { start: defineFunction(() => new Response('started')) }, authenticate, access: { roles }, db, records, decryptField, onError: createErrorHandler(vi.fn()), wake: vi.fn(), report: vi.fn() })
+    const app = functionRoutes({ basePath: '/api/functions', functions: { start: defineFunction(() => new Response('started')) }, authenticate, access: { roles }, db, records, channels, decryptField, onError: createErrorHandler(vi.fn()), wake: vi.fn(), report: vi.fn() })
     expect((await app.request('/api/functions/start', as('bob'))).status).toBe(200)
     const refused = await app.request('/api/functions/start', as('ann'))
     expect(refused.status).toBe(403)
@@ -219,7 +220,7 @@ describe('functionRoutes WebSocket upgrades', () => {
       return new Response(null, { status: 299 })
     }) as unknown as UpgradeWebSocket
     const onUnhandledError = vi.fn()
-    const app = functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, decryptField, onError: createErrorHandler(onUnhandledError), wake: vi.fn(), report: onUnhandledError, upgradeWebSocket, upgradeAuthenticate })
+    const app = functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, channels, decryptField, onError: createErrorHandler(onUnhandledError), wake: vi.fn(), report: onUnhandledError, upgradeWebSocket, upgradeAuthenticate })
     return { app, upgrades }
   }
 

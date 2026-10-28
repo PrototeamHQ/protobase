@@ -44,6 +44,7 @@ export const startCallServer = async (calls: CallsOptions, page: { html: string;
     records: () => ({}) as FunctionRecords,
     onError: createErrorHandler((error) => void errors.push(error)),
     wake: () => {},
+    channels: { broadcast: async () => {} },
     decryptField: () => async () => null,
     upgradeWebSocket,
     calls,

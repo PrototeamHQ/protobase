@@ -26,6 +26,7 @@ const serveOwn = async (maxMessageBytes?: number) => {
     access: {},
     db: {} as Db,
     records: () => ({}) as FunctionRecords,
+    channels: { broadcast: async () => {} },
     onError: createErrorHandler(() => {}),
     wake: () => {},
     decryptField: () => async () => null,
