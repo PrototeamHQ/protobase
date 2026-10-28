@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { Button } from '../primitives/button'
+import { chatDayLabel, sameChatDay } from './chat-day'
+import { ChatDivider } from './chat-divider'
 import { ChatMessage } from './chat-message'
 import { ChatThread } from './chat-thread'
 import { Composer } from './composer'
@@ -29,6 +31,28 @@ const Conversation = () => {
         <Button onClick={() => setLast(last + 1)}>Receive</Button>
       </div>
     </>
+  )
+}
+
+// Messages 11 to 40 with a day divider above each new day, as the Chat parts reference draws them, and ten earlier ones
+// on load: on the day of message 11, or on the day before when `earlierDay` is set.
+const DayConversation = ({ earlierDay = false }: { earlierDay?: boolean }) => {
+  const [first, setFirst] = useState(11)
+  const sent = (number: number) => (earlierDay && number <= 10 ? '2026-10-22T12:00:00Z' : '2026-10-23T12:00:00Z')
+  const numbers = Array.from({ length: 40 - first + 1 }, (_, index) => first + index)
+  return (
+    <ChatThread length={numbers.length} onLoadEarlier={first > 1 ? () => setFirst(1) : undefined}>
+      {numbers.map((number, index) => {
+        const previous = numbers[index - 1]
+        const newDay = previous === undefined || !sameChatDay(sent(previous), sent(number))
+        return (
+          <Fragment key={number}>
+            {newDay && <ChatDivider label={chatDayLabel(sent(number))} />}
+            <ChatMessage author={author}>Message {number}</ChatMessage>
+          </Fragment>
+        )
+      })}
+    </ChatThread>
   )
 }
 
@@ -102,6 +126,39 @@ export const LoadsEarlier: StoryObj = {
     expect(top('Message 11')).toBeCloseTo(reading, 0)
     // The first message has no earlier ones to load
     expect(canvas.queryByRole('button', { name: 'Load earlier messages' })).toBeNull()
+  },
+}
+
+// At the top, where the button is, the day divider above message 11 shows first; the reader keeps message 11 in place.
+const loadsEarlierUnderDivider = async (canvasElement: HTMLElement) => {
+  const { canvas, box, top } = parts(canvasElement)
+  box.scrollTop = 0
+  await waitFor(() => expect(top('Message 11')).toBeGreaterThan(0))
+  await new Promise((resolve) => requestAnimationFrame(resolve))
+  const reading = top('Message 11')
+  await userEvent.click(canvas.getByRole('button', { name: 'Load earlier messages' }))
+  await waitFor(() => expect(canvas.getByText('Message 1')).toBeInTheDocument())
+  expect(top('Message 11')).toBeCloseTo(reading, 0)
+  return canvas
+}
+
+/** Earlier messages of the same day move the day divider above them, and the reader still keeps their place. */
+export const LoadsEarlierOfTheSameDay: StoryObj = {
+  tags: ['play'],
+  render: () => <DayConversation />,
+  play: async ({ canvasElement }) => {
+    const canvas = await loadsEarlierUnderDivider(canvasElement)
+    expect(canvas.getAllByRole('separator')).toHaveLength(1)
+  },
+}
+
+/** Earlier messages of the day before leave the divider in place, and the reader keeps their place. */
+export const LoadsEarlierOfAnotherDay: StoryObj = {
+  tags: ['play'],
+  render: () => <DayConversation earlierDay />,
+  play: async ({ canvasElement }) => {
+    const canvas = await loadsEarlierUnderDivider(canvasElement)
+    expect(canvas.getAllByRole('separator')).toHaveLength(2)
   },
 }
 
