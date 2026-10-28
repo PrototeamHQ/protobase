@@ -294,6 +294,11 @@ export type AppAddress =
       open?: readonly string[]
       /** The title of the record page's tab shown; the first tab when omitted. */
       tab?: string
+      /**
+       * The record's standard page, with its form, related records, Edit and Delete, on a view whose record page is a
+       * component of the app's own (`.record({ component })`). A view without one ignores it.
+       */
+      standard?: boolean
     }
   | {
       /** The form for a new record. */
@@ -1436,6 +1441,8 @@ export type ViewModel = {
   export?: false | ExportModel
   /** The page that creates the resource's records, in place of the create form. */
   create?: CreateModel
+  /** The component of the app's own that is the whole record page, in place of the standard one. */
+  record?: RecordPageModel
   /** Public forms that create its records for people without an account, each at `/-/forms/<name>`. */
   forms?: FormModel[]
   /** Other lists of the resource, each with its own sidebar entry and address. */
@@ -1490,6 +1497,12 @@ export type FormModel = {
 export type CreateModel = {
   /** The composed page shown at `/<resource>/new`, which the list's New button opens. */
   page: string
+}
+
+/** The record page as a component of the app's own (`.record(...)`), filling the content area. */
+export type RecordPageModel = {
+  /** The component, by the name `protobase.ui.tsx` exports it under. */
+  component: string
 }
 
 /** The list page's Export (`.export(...)`): how many rows a file may hold. */

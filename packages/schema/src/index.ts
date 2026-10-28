@@ -39,6 +39,7 @@ export type {
   SaveSearchModel,
   ExportModel,
   CreateModel,
+  RecordPageModel,
   SearchesOfModel,
   SignInPromptModel,
   SignInViewModel,

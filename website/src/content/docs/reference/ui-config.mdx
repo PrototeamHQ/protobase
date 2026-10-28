@@ -510,6 +510,20 @@ Without a layout the record page shows one section with every field the user may
 
 A record opened from a list, by its row or its card, shows the fields the list loaded at once, with placeholders for the others, and takes input once the whole record has loaded; actions, custom components, maps and galleries wait for it. What the page shows is read again whenever the browser tab or window regains focus, as are the lists, unless the record has unsaved changes, which keep the version they were made to.
 
+### Full-area record pages
+
+`.record({ component })` makes the record page at `/<resource>/<key>` a [custom component](/reference/custom-components/#full-area-record-pages) of the app's own, for a record that is used rather than filled in, such as a chat channel. The component fills the content area, at full width beside the sidebar and down to the bottom bar on a phone, and the page does not scroll, so the component scrolls its own parts, such as messages above a box that stays at the bottom. The sidebar, the top bar with its breadcrumb naming the record, the bottom bar and a right panel stay; the heading, Save, the action rail, the sections, the related records and the Details card are not drawn. A record that does not exist, or that the user may not read, shows the record page's usual notice, and the component is never drawn.
+
+```ts
+export const ChannelChat = component('ChannelChat')
+
+view<typeof channels>('channels').record({ component: ChannelChat })
+```
+
+The standard record page, with the layout's sections, the related records, Edit and Delete, stays at the record's address with `?standard=true` (`{ kind: 'record', resource, key, standard: true }`), which the component links to. Links to the record, from relations, search and notifications, open the component's page. Without the component, from a plugin that is off for instance, and when it throws, the standard page shows instead.
+
+<StoryFrame id="record-page-full-area-record-page--repair-notes-page" title="A repair's notes filling the page, with a link to its details" height={560} />
+
 ### Read view and edit
 
 `.recordMode(mode)` says how the record page opens to a user who may change the record:

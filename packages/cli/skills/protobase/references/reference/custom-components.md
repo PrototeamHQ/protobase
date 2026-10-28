@@ -140,6 +140,29 @@ export const CustomerRepairs = ({ limit }: { limit: number }) => {
 
 A list that should stay live polls: `useList('repairs', { refetchInterval: 5000 })` refetches every 5 seconds. It is TanStack Query's `refetchInterval`, so it also takes `false` to stop, or a function of the query, and pauses while the tab is in the background.
 
+## Full-area record pages
+
+A view can make a component the whole record page with [`.record({ component })`](ui-config.md#full-area-record-pages). It gets the record from `useLayoutRecord()`, as a record section does, and fills the area beside the sidebar and under the top bar, where the page does not scroll: a list in it scrolls in a box of its own with `min-h-0 flex-1 overflow-y-auto`, and what follows the list stays at the bottom. It links to the record's standard page, which keeps the form, the related records, Edit and Delete:
+
+```tsx
+// components/channel-chat.tsx, exported from protobase.ui.tsx: export { ChannelChat } from './components/channel-chat'
+import { AppLink, useLayoutRecord } from '@protobase/ui'
+
+export const ChannelChat = () => {
+  const { model, key, record } = useLayoutRecord()!
+  return (
+    <section className="flex min-h-0 flex-col">
+      <header className="flex justify-between border-b px-4 py-2">
+        {String(record.name)}
+        <AppLink to={{ kind: 'record', resource: model.name, key, standard: true }}>Details</AppLink>
+      </header>
+      <ol className="min-h-0 flex-1 overflow-y-auto">{/* the messages */}</ol>
+      {/* the composer */}
+    </section>
+  )
+}
+```
+
 ## Record cards
 
 A cards display can draw each card's content with a component, declared in the view with `d.cards(fields, { card })`. The card stays a link to the record, with the display's frame; the component draws what is inside it from `row`, the record with the fields the display names, so name every field the card shows:

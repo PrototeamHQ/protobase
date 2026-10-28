@@ -235,6 +235,13 @@ describe('view builder', () => {
     expect(() => view<typeof article>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({}, { card: Built })] }))).toThrow('d.cards card takes a component declared with component(...), not the built-in block Card')
   })
 
+  it('draws the whole record page with a component of the project or a plugin, given by its name', () => {
+    const ChannelChat = Object.assign(() => null, { blockName: 'ChannelChat', custom: true })
+    expect(view<typeof article>('article').record({ component: ChannelChat }).toModel(article.toModel()).record).toEqual({ component: 'ChannelChat' })
+    const Built = Object.assign(() => null, { blockName: 'Card', custom: false })
+    expect(() => view<typeof article>('article').record({ component: Built })).toThrow('record component takes a component declared with component(...), not the built-in block Card')
+  })
+
   it("names where a card's further photos come from, as data the caller's photos cannot change", () => {
     const photos = { resource: 'article_photos', field: 'article_id', image: 'photo', sort: 'position' }
     const model = view<typeof article>('article')

@@ -5,6 +5,7 @@
 The page of one record, with its sections, related records, galleries, charts and editing.
 
 - [Record page layout](../reference/ui-config.md#the-record-page): Sections, a summary sidebar, related tables, maps, charts, galleries, history, comments and your own components.
+- [Full-area record pages](../reference/ui-config.md#full-area-record-pages) (beta): A view draws its record pages with a component of its own that fills the area beside the sidebar and under the top bar, such as a chat channel, and links to the standard page.
 - [Read view and edit](../reference/ui-config.md#read-view-and-edit): A record opens as a read-only fact sheet or a form, and Edit opens the form at its own address.
 - [Unsaved edits](../reference/ui-config.md#editing-a-record): Unsaved changes to a record stay in the browser and can be resumed, and leaving a form, a dialog or a comment with changes asks first.
 - [Record forms](../reference/ui-config.md#editing-a-record): Relations are picked from a list that narrows as you type, numbers are read as the browser's language writes them, and a refused save says under each field what is wrong.

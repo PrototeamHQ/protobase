@@ -21,6 +21,10 @@ describe('currentAddress', () => {
     expect(currentAddress({ kind: 'record', resource: 'lines', key: ['a,b', 2] }, () => defaults)).toEqual({ kind: 'record', resource: 'lines', key: 'a%2Cb,2' })
   })
 
+  it("keeps a record's standard page", () => {
+    expect(currentAddress({ kind: 'record', resource: 'channels', key: 7, standard: true }, () => defaults)).toEqual({ kind: 'record', resource: 'channels', key: '7', standard: true })
+  })
+
   it("keeps a record's form as edit", () => {
     expect(currentAddress({ kind: 'record', resource: 'listings', key: 42, edit: true }, () => defaults)).toEqual({ kind: 'record', resource: 'listings', key: '42', edit: true })
   })

@@ -262,6 +262,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     import: s.data,
     export: s.data,
     create: s.data,
+    record: s.data,
     // Public forms have a route of their own, which serves each to anyone; `/meta` never carries them
     forms: s.map<FormModel[]>(() => undefined),
     lists: s.list(s.object<NamedListModel>({ name: s.data, names: s.data, nav, help: s.data, list: listShape(resource, model, models, prompted), filters: s.list(widgetShape), chart })),

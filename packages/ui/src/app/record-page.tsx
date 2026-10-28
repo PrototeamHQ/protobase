@@ -18,6 +18,7 @@ import { cn } from '../lib/cn'
 import { Field, GroupSection, KeyFacts, MetadataCard, RecordHeader, RecordTabs, Section, SpecTable } from '../record-view'
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
+import { FullAreaRecord } from './full-area-record'
 import { MapSection } from './map/map-section'
 import { RecordChartSection } from './record-chart/record-chart-section'
 import { RecordActions } from './pages/record-actions'
@@ -83,7 +84,8 @@ const layoutFor = (model: ResourceModel, view: ViewModel | undefined, read: bool
 }
 
 export const RecordPage = ({ resource, recordKey }: { resource: string; recordKey: string }) => {
-  const { resources } = useAdminMeta()
+  const { resources, views } = useAdminMeta()
+  const { address } = useAppAddress()
   const model = resources[resource]
   const record = useOpenedRecord(resource, recordKey)
   if (!model) return <Notice title={appText('notFound')}>{appText('noResource', resource)}</Notice>
@@ -91,7 +93,13 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
   if (record.error) return <div className="p-8">{isApiError(record.error) && record.error.status === 404 ? <RecordNotFound model={model} recordKey={recordKey} /> : <ErrorBanner title={text('couldNotLoad')} error={record.error} />}</div>
   // A record opened from a list shows that row's fields until it has loaded; the loaded record draws the page anew, so
   // its form starts from the whole record
-  return <LoadedRecord key={record.isPlaceholderData ? 'preview' : 'loaded'} model={model} recordKey={recordKey} stored={record.data} preview={record.isPlaceholderData} />
+  const standard = <LoadedRecord key={record.isPlaceholderData ? 'preview' : 'loaded'} model={model} recordKey={recordKey} stored={record.data} preview={record.isPlaceholderData} />
+  const fullArea = views[resource]?.record
+  if (!fullArea || (address?.kind === 'record' && address.standard)) return standard
+  // The app's component reads fields a list row may not have, so it waits for the whole record
+  if (record.isPlaceholderData) return <Notice title={text('loading')}>{text('fetching')}</Notice>
+  const { record: fields, etag, permissions } = record.data
+  return <FullAreaRecord component={fullArea.component} scope={{ model, record: fields, key: recordKey, etag, permissions }} standard={standard} />
 }
 
 // A record the session's organization does not have may be in another of the person's organizations, which opens it
@@ -145,8 +153,10 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   const openGroups = address?.kind === 'record' ? address.open : undefined
   const atEdit = address?.kind === 'record' && address.edit === true
   const addressedTab = address?.kind === 'record' ? address.tab : undefined
+  // The standard page of a view whose record page is the app's own component stays the standard page as it changes
+  const standard = address?.kind === 'record' && address.standard === true
   const recordAt = (open: readonly string[] = [], edit = false, tab?: string) =>
-    ({ kind: 'record' as const, resource: model.name, key: recordKey, ...(edit && { edit }), ...(open.length > 0 && { open }), ...(tab && { tab }) })
+    ({ kind: 'record' as const, resource: model.name, key: recordKey, ...(edit && { edit }), ...(open.length > 0 && { open }), ...(tab && { tab }), ...(standard && { standard }) })
   // Edit, Cancel and the save keep the groups the person opened and the tab they are on
   const readAddress = recordAt(openGroups, false, addressedTab)
   const editAddress = recordAt(openGroups, true, addressedTab)

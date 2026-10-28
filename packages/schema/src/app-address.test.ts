@@ -96,6 +96,14 @@ describe('readAppPath', () => {
     expect(readAppPath('/listings/42?open=&open=More&open=More', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42', open: ['More'] })
   })
 
+  it("writes a record's standard page as standard=true, after the form's words, and reads only true as it", () => {
+    const address: AppAddress = { kind: 'record', resource: 'listings', key: '42', edit: true, tab: 'Money', standard: true }
+    expect(appPath(address)).toBe('/listings/42?edit=true&tab=Money&standard=true')
+    expect(readAppPath(appPath(address), pages)).toEqual(address)
+    expect(appPath({ kind: 'record', resource: 'listings', key: 42, standard: false })).toBe('/listings/42')
+    expect(readAppPath('/listings/42?standard=1', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
+  })
+
   it('reads only edit=true as the form', () => {
     expect(readAppPath('/listings/42?edit=1', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
     expect(readAppPath('/listings/42?edit=false', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })

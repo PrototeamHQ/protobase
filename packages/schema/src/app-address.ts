@@ -32,6 +32,8 @@ export const addressWords = {
   open: 'open',
   /** A record page's shown tab, by title. */
   tab: 'tab',
+  /** A record's standard page, `standard=true`, on a view whose record page is a component of the app's own. */
+  standard: 'standard',
 } as const
 
 const listWords = ['list', 'display', 'filter', 'orderBy', 'filterLayout', 'savedSearch'] as const
@@ -87,6 +89,7 @@ const recordQuery = (address: Extract<AppAddress, { kind: 'record' }>) => {
   if (address.edit) query.set(addressWords.edit, 'true')
   for (const title of address.open ?? []) query.append(addressWords.open, title)
   if (address.tab) query.set(addressWords.tab, address.tab)
+  if (address.standard) query.set(addressWords.standard, 'true')
   const text = query.toString()
   return text ? `?${text}` : ''
 }
@@ -141,7 +144,8 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
   if (second !== undefined) {
     const open = [...new Set(url.searchParams.getAll(addressWords.open).filter((title) => title !== ''))]
     const tab = url.searchParams.get(addressWords.tab) || undefined
-    return { kind: 'record', resource: first, key: second, ...(url.searchParams.get(addressWords.edit) === 'true' && { edit: true }), ...(open.length > 0 && { open }), ...(tab && { tab }) }
+    const standard = url.searchParams.get(addressWords.standard) === 'true'
+    return { kind: 'record', resource: first, key: second, ...(url.searchParams.get(addressWords.edit) === 'true' && { edit: true }), ...(open.length > 0 && { open }), ...(tab && { tab }), ...(standard && { standard }) }
   }
   const params = url.searchParams
   const list = params.get(addressWords.list) || undefined

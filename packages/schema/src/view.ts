@@ -6,6 +6,7 @@ import type {
   HelpWhen,
   LayoutItemModel,
   RecordMode,
+  RecordPageModel,
   SaveFeedback,
   SortSpec,
   NamedListModel,
@@ -29,7 +30,7 @@ import { actions } from './view-actions'
 import { chartModel, type ChartInput } from './view-chart'
 import { formModel, type FormInput } from './view-form'
 import { columns as listColumns, isListColumn, type ListColumn } from './view-columns'
-import { boardErrors, datesErrors, displayErrors, displayFields, displays } from './view-displays'
+import { boardErrors, customComponent, datesErrors, displayErrors, displayFields, displays, type ComponentRef } from './view-displays'
 import { FieldView } from './view-field'
 import { widgets } from './view-widgets'
 
@@ -351,6 +352,19 @@ export class ViewBuilder<R extends {
    */
   create(options: CreateModel) {
     return this.next({ create: { ...options } })
+  }
+
+  /**
+   * The record page at `/<resource>/<key>` is `component`, a component of the app's own declared with `component(...)`
+   * and exported from `protobase.ui.tsx`, filling the content area beside the sidebar and under the top bar, where the
+   * page does not scroll. It reads the record with `useLayoutRecord()`. The standard record page stays at the record's
+   * address with `standard: true`, which the component links to; it shows instead while the component is missing or
+   * when it throws. Throws when `component` is a built-in block. See
+   * [Full-area record pages](website/src/content/docs/reference/ui-config.mdx#full-area-record-pages).
+   */
+  record(options: { component: ComponentRef<never> }) {
+    const record: RecordPageModel = { component: customComponent(options.component, 'record component') }
+    return this.next({ record })
   }
 
   /**
