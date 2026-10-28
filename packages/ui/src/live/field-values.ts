@@ -1,4 +1,4 @@
-import type { FieldModel } from '@protobase/schema'
+import type { FieldModel, FieldViewModel } from '@protobase/schema'
 import { localeDecimal, parseNumberText, type DecimalSeparator } from '../format/number-text'
 import { fileDiffers, filePatchValue } from './file-values'
 
@@ -7,12 +7,31 @@ export const toDraft = (value: unknown) => (value === null || value === undefine
 
 const textEdited = new Set(['text', 'integer', 'bigint', 'decimal', 'date', 'currency', 'country'])
 
-export const isEditable = (field: FieldModel) => !field.readOnly && field.type !== 'json' && field.type !== 'uuid' && field.type !== 'timestamp' && field.type !== 'relation'
+const uneditable = new Set(['uuid', 'timestamp', 'relation'])
+
+/**
+ * Whether a form edits the field: not read-only, nor of a type it shows only. JSON is edited only by the field type the
+ * view's `hints` choose for it (`.widget(name)`), as there is no built-in input for it.
+ */
+export const isEditable = (field: FieldModel, hints?: FieldViewModel) => {
+  if (field.readOnly || uneditable.has(field.type)) return false
+  return field.type !== 'json' || hints?.widget !== undefined
+}
 
 /** A field a record's form cannot leave empty: written through the API, never null and no boolean, which always holds a value. */
 export const isRequiredOnEdit = (field: FieldModel) => !field.readOnly && !field.nullable && field.type !== 'boolean'
 
 const numeric = new Set(['integer', 'bigint', 'decimal'])
+
+// A JSON draft as the value it holds; text that is no JSON, such as one an address gives, as a JSON string
+const jsonValue = (text: string): unknown => {
+  try {
+    return JSON.parse(text)
+  } catch (error) {
+    if (error instanceof SyntaxError) return text
+    throw error
+  }
+}
 
 // A number as typed in the browser's language, `12,50` or `1.234` in Dutch, as the API writes it; other text as it is,
 // for the server to refuse
@@ -32,6 +51,7 @@ export const toPatchValue = (field: FieldModel, draft: unknown, decimal = locale
   // A relation holds the other record's key, a number when that key is one
   if (field.type === 'relation') return typeof draft === 'number' ? draft : text
   if (textEdited.has(field.type) || field.type === 'enum') return text
+  if (field.type === 'json') return jsonValue(text)
   throw new Error(`Not implemented: editing ${field.type} fields`)
 }
 

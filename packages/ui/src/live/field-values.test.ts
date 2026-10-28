@@ -78,4 +78,18 @@ describe('field values', () => {
     expect(isEditable(field('relation'))).toBe(false)
     expect(isEditable(field('json'))).toBe(false)
   })
+
+  it('edits JSON only through a field type the view chooses, and sends it as the value it holds', () => {
+    const members = { widget: { name: 'members' } }
+    expect(isEditable(field('json'), members)).toBe(true)
+    expect(isEditable(field('json', { readOnly: true }), members)).toBe(false)
+    expect(isEditable(field('timestamp'), members)).toBe(false)
+    const ids = field('json', { nullable: true })
+    expect(toPatchValue(ids, toFieldDraft(ids, ['u-1', 'u-2']))).toEqual(['u-1', 'u-2'])
+    expect(fromDraft(ids, toFieldDraft(ids, []))).toEqual([])
+    expect(fromDraft(ids, toFieldDraft(ids, null))).toBeNull()
+    expect(toPatchValue(ids, 'not json')).toBe('not json')
+    expect(differs(ids, toFieldDraft(ids, ['u-1']), ['u-1', 'u-2'])).toBe(true)
+    expect(differs(ids, toFieldDraft(ids, ['u-1']), ['u-1'])).toBe(false)
+  })
 })

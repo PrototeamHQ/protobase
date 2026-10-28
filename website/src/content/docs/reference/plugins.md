@@ -125,7 +125,7 @@ view<typeof repairs>('repairs').fields((r) => ({ status: r.status.widget('steps'
 | --- | --- |
 | `of` | The storage types it shows, from `f.*`: `'text'`, `'integer'`, `'decimal'`, `'enum'`, `'boolean'`, `'date'`, ... A field of another type shows as it would without the field type. |
 | `display` | Shows a value: on the record page when the field may not change, in the record's summary, on cards and in page elements. |
-| `editor` | Edits a value, on the record page and the create form, when the field may change. Without it, the field keeps its built-in input. Files and relations are uploaded and chosen as the app does it; their field types only show them. |
+| `editor` | Edits a value, on the record page and the create form, when the field may change. Without it, the field keeps its built-in input. A JSON field has no built-in input: it is on these forms only when the view picks a field type for it, and only that field type's editor changes it. Files and relations are uploaded and chosen as the app does it; their field types only show them. |
 | `cell` | Shows a value in a table cell; `display` when left out. |
 
 Each part gets:
@@ -145,6 +145,20 @@ Each part gets:
 **Fallbacks.** Each part draws inside an error boundary whose fallback is the field's built-in rendering, so a field type that throws costs only its own field, which still shows its value. A plugin that is off leaves every field it would draw as it shows without it.
 
 [Adding a field type](/guides/field-type/) builds one step by step.
+
+### Members
+
+`members` is a field type Protobase brings, for a JSON field that holds an array of user ids, such as who may read a private channel. No plugin registers it; a view picks it as it picks any other:
+
+```ts
+// config/channels/data.ts
+resource('channels').fields({ id: f.uuid(), name: f.text(), member_ids: f.json() })
+
+// config/channels/ui.ts
+view<typeof channels>('channels').fields((r) => ({ member_ids: r.member_ids.widget('members') }))
+```
+
+The create form and the record's form pick the members of the organization the session works in by name: typing narrows them, each choice is a token whose button takes it off again, and choosing a chosen member takes them off too. It stores their user ids, the ids `.author()` stores and [`useMembers()`](/reference/custom-components/#members-names) gives, never membership ids. The record page, cards and the list's table show each member by avatar and name; an id that is no longer a member shows as an unknown member. A JSON field is on a form only through a field type that edits it, so without the hint `member_ids` stays read-only. The field needs [organizations](/reference/auth/#organizations); in an app without them it says so in place of the members. <gap>The members picker cannot search on the server because a server-side people resource is not implemented, so it loads the whole list in the browser, as `useMembers()` does.</gap> A plugin that registers a field type named `members` replaces it, and the server refuses to start when a view picks it for a field that is no JSON.
 
 ## Building
 

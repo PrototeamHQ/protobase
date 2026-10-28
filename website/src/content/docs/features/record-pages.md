@@ -8,6 +8,7 @@ description: The page of one record, with its sections, related records, galleri
 - [Unsaved edits](/reference/ui-config/#editing-a-record): Unsaved changes to a record stay in the browser and can be resumed, and leaving a form, a dialog or a comment with changes asks first.
 - [Record forms](/reference/ui-config/#editing-a-record): Relations are picked from a list that narrows as you type, numbers are read as the browser's language writes them, and a refused save says under each field what is wrong.
 - [Titles per reader](/reference/ui-config/#titles-per-reader): A record without a name of its own, such as a direct message, is titled for each reader from its fields, such as after the other members, in the sidebar, breadcrumbs, heading, browser tab, relation links and search.
+- [Member fields](/reference/plugins/#members): A field that holds a list of people, such as a private channel's members, picks the organization's members by name on forms and shows them by avatar and name.
 - [Save feedback](/reference/ui-config/#the-record-page): A view shows saving on the Save button instead of in a toast.
 - [Save conflicts](/reference/ui-config/#editing-a-record): When someone else changed a record while you edited it, Save shows their value beside yours for each field you both changed, and you keep yours or take theirs.
 - [Groups and tabs](/reference/ui-config/#groups): Parts of a record page sit under headings that open on click, or in tabs, and the open ones are kept in the address.
