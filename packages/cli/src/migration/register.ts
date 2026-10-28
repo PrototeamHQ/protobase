@@ -1,11 +1,24 @@
 import path from 'node:path'
 import type { Command } from 'commander'
+import { resolveConnectionUrl } from '../db/connection-url'
+import { loadNearestEnvFile } from '../dev/env'
 
 const out = (text: string) => process.stdout.write(text)
 
 const collect = (value: string, previous: string[]) => [...previous, value]
 
 export const registerMigration = (program: Command) => {
+  program
+    .command('migrate')
+    .description("Apply the project's db/migrations/*.sql not applied yet, in one transaction, as the runtime's migrate applies a bundle's")
+    .argument('[connection]', 'connection string (default: DATABASE_URL from the environment or .env)')
+    .option('--env <variable>', 'read the connection string from this environment variable')
+    .action(async (connection: string | undefined, opts) => {
+      loadNearestEnvFile(process.cwd())
+      const { migrateProject } = await import('./migrate-project')
+      await migrateProject(process.cwd(), () => resolveConnectionUrl(connection, opts.env), out)
+    })
+
   program
     .command('migration')
     .description("Write what the database still needs for every feature the config enables (auth, events, jobs) as the project's next SQL migrations")

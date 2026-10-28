@@ -7,6 +7,7 @@ description: Develop, build and run an app, on servers, in containers and on pho
 - [Dev server](/reference/cli/#dev): The admin app and the API on one port, with changes shown without a restart.
 - [Editor types](/reference/cli/#types): `protobase types` gives the editor and `tsc` the types of the CLI that builds the app, with nothing installed.
 - [Project scripts](/reference/cli/#run): `protobase run` runs a seed or a migration script on the CLI's packages.
+- [Migrate command](/reference/cli/#migrate): `protobase migrate` applies the project's SQL migrations in one transaction, with nothing installed.
 - [Migrations from config](/reference/cli/#migration): Writes the SQL migrations for what the config turns on, as files of the project.
 - [User and organization commands](/reference/cli/#users): Create users, set roles and manage organizations from the terminal.
 - [Encryption commands](/reference/cli/#encryption-status): Report and fix plaintext or old-key values of encrypted fields.

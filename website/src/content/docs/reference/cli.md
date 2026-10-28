@@ -506,6 +506,14 @@ protobase organizations add-app-role <role> --to owners
 
 For a project with [organizations](/reference/auth/#organizations); `<organization>` is a slug or an id. The host acts as a superuser, so it may give any role. `create` makes `--owner` the owner with every app role; `--id` keeps an existing tenant value, and `--members all` adds every other user, superusers as owners and everyone else as a member with their global roles moved onto the membership, for an app that ran as one organization. `remove-member` and `set-roles` refuse to leave an organization without an owner. `add-app-role` gives a role the project added later to every owner.
 
+## `migrate`
+
+```sh
+protobase migrate [connection string | --env VAR]
+```
+
+Applies the project's `db/migrations/*.sql` that the database has not applied yet, in file name order, as the runtime's [`migrate`](#build-serve) applies a bundle's: in one transaction behind the same lock, recorded in the same `migrations.applied` (see [Deploy](/guides/deploy/#migrations)), so a database either one migrated is current for the other. It prints each file it applies, or that the database is up to date; a project without `db/migrations` applies nothing and says so. It runs none of the project's code, so a project with only `protobase.config.ts`, no `package.json` and nothing installed, migrates as well. The URL comes as for [`scaffold`](#scaffold), and is needed only when there are migrations. A project that still has a `db/migrate.ts` recording in `public.schema_migrations` first copies in the presets' current `db/migrate.ts` and `drop.ts`, so the two keep one record.
+
 ## `migration`
 
 ```sh
