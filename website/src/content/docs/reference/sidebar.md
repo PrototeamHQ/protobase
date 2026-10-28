@@ -106,7 +106,7 @@ export default defineUi({ marks: { unread: useUnreadMarks } })
 | `count` | A small badge at the end of the row, the pill of the notification bell's count; `99+` above 99, none at 0. |
 | `label` | Added to the record's name for screen readers and its tooltip, such as "3 mentions". |
 
-The records keep the group's order. A mark is presentation only: it is no field, filter or sort key, and the server computes nothing for it; what it counts comes from the requests the hook makes as the reader. Icon sidebars show no records, so no marks either. A group whose name no UI config registers, such as a plugin's that is turned off, shows its records unmarked.
+The records keep the group's order. A mark is presentation only: it is no field, filter or sort key, and the server computes nothing for it; what it counts comes from the requests the hook makes as the reader. Icon sidebars show no records, so no marks either. A group whose name no UI config registers, such as a plugin's that is turned off, shows its records unmarked. <gap>A marks hook that throws cannot be confined to its own group because an error boundary around a group's marks is not implemented, so it stops the sidebar as a throwing component would.</gap>
 
 ### Checks
 
