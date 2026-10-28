@@ -6,6 +6,7 @@ import { broadcastHub } from './broadcast-hub'
 import { changeChecker } from './change-checker'
 import { changeHub } from './change-hub'
 import { channelAccess } from './channel-access'
+import { filterCheck } from './filter-check'
 import { databaseBroadcasts } from './database-broadcasts'
 import { presenceHub } from './presence-hub'
 import { realtimeRoutes } from './realtime-routes'
@@ -39,6 +40,7 @@ export const realtimeApp = ({ deps, feed, upgradeWebSocket, caller, report, opti
   const live = deps.registry.entries.filter((entry) => entry.model.live)
   const check = changeChecker({ db: deps.db, statementTimeoutMs: deps.statementTimeoutMs, report })
   const hub = changeHub({ feed, check, entry: (resource) => live.find((entry) => entry.name === resource), report })
+  const checkFilters = filterCheck({ db: deps.db, statementTimeoutMs: deps.statementTimeoutMs })
   const access = channelAccess({ db: deps.db, statementTimeoutMs: deps.statementTimeoutMs })
   const { broadcasts, presences, follow } = hubsOf(deps, options, report)
   const database = databaseBroadcasts({ db: deps.db, statementTimeoutMs: deps.statementTimeoutMs, broadcasts, report })
@@ -52,5 +54,5 @@ export const realtimeApp = ({ deps, feed, upgradeWebSocket, caller, report, opti
       }
     },
   }
-  return realtimeRoutes({ upgradeWebSocket, caller, live, hub, broadcasts, presences, database: followed, access, report })
+  return realtimeRoutes({ upgradeWebSocket, caller, live, hub, checkFilters, broadcasts, presences, database: followed, access, report })
 }

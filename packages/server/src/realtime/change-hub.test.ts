@@ -35,6 +35,7 @@ const fakeCheck = vi.fn(async (groups: readonly CheckGroup[]) =>
         columns: [{ name: 'id', type: 'int4' }],
         rows: new Map(check.keys.filter((key) => rows[key]?.user_id === sub).map((key) => [key, seen(key)])),
         deleted: new Map(check.deleted.map((key) => [key, { record: {}, oldRecord: { id: Number(key) }, matches: check.filters.map(() => false) }])),
+        failed: new Set<number>(),
       }
     }),
   ),
@@ -44,7 +45,8 @@ const sink = (caller: Caller, requested: unknown[], ids: { next: number }) => {
   const parsed = parseBindings(requested, entries, () => ++ids.next)
   if (typeof parsed === 'string') throw new Error(parsed)
   const sent: ChangePayload[] = []
-  return { sink: { caller: () => caller, bindings: parsed.bindings, send: (payload: ChangePayload) => sent.push(payload) }, sent }
+  const failures: string[] = []
+  return { sink: { caller: () => caller, bindings: parsed.bindings, send: (payload: ChangePayload) => sent.push(payload), fail: (message: string) => failures.push(message) }, sent, failures }
 }
 
 describe('changeHub', () => {
@@ -73,5 +75,36 @@ describe('changeHub', () => {
     ])
     for (const remove of removes) remove()
     await vi.waitFor(() => expect(stop).toHaveBeenCalledTimes(1))
+  })
+
+  it('ends only the channels of a filter Postgres refused, delivers the others, and checks it no more', async () => {
+    const { feed, push } = fakeFeed()
+    // Every row is seen and filter 0 matches; the filter `user_id=eq.bad` fails.
+    const check = vi.fn(async (groups: readonly CheckGroup[]) =>
+      groups.map((group) =>
+        group.resources.map((resource): ResourceView => ({
+          columns: [{ name: 'id', type: 'int4' }],
+          rows: new Map(resource.keys.map((key) => [key, { record: { id: Number(key) }, oldRecord: { id: Number(key) }, matches: resource.filters.map((conditions) => conditions[0]!.value === 'alice') }])),
+          deleted: new Map(),
+          failed: new Set(resource.filters.flatMap((conditions, index) => (conditions[0]!.value === 'bad' ? [index] : []))),
+        })),
+      ),
+    )
+    const hub = changeHub({ feed, check, entry: () => todos, report: (error) => { throw error } })
+    const ids = { next: 0 }
+    const bad = sink(bob, [{ event: '*', schema: 'public', table: 'todos', filter: 'user_id=eq.bad' }], ids)
+    const good = sink(bob, [{ event: '*', schema: 'public', table: 'todos', filter: 'user_id=eq.alice' }], ids)
+    const all = sink(bob, [{ event: '*', schema: 'public', table: 'todos' }], ids)
+    for (const { sink: added } of [bad, good, all]) hub.add(added)
+    push([notice('1', '1', 'create')])
+    await vi.waitFor(() => expect(bad.failures).toEqual(['Unable to listen to changes with the filter "user_id=eq.bad": the database refused it']))
+    expect(bad.sent).toEqual([])
+    expect(good.sent).toHaveLength(1)
+    expect(all.sent).toHaveLength(1)
+    expect(good.failures).toEqual([])
+    push([notice('2', '2', 'create')])
+    await vi.waitFor(() => expect(all.sent).toHaveLength(2))
+    expect(check.mock.calls[1]![0][0]!.resources[0]!.filters).toEqual([[expect.objectContaining({ value: 'alice' })]])
+    expect(bad.failures).toHaveLength(1)
   })
 })

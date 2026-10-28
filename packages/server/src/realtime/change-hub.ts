@@ -12,6 +12,8 @@ export type ChangeSink = {
   caller: () => Caller
   bindings: ChangeBinding[]
   send: (payload: ChangePayload) => void
+  /** Ends the channel with `message`, once Postgres refused one of its filters; the hub has removed it. */
+  fail: (message: string) => void
 }
 
 export type ChangeHubOptions = {
@@ -23,6 +25,9 @@ export type ChangeHubOptions = {
 }
 
 type Change = { notice: Notice; entry: Entry; type: ChangeEvent }
+
+/** Why a channel ends when Postgres refuses its filter at a check: it names that filter only. */
+export const failedFilterText = (filter: string) => `Unable to listen to changes with the filter "${filter}": the database refused it`
 
 const unique = <T>(items: readonly T[]) => [...new Set(items)]
 
@@ -40,6 +45,7 @@ const groupChecks = (sinks: readonly ChangeSink[], changes: readonly Change[]) =
         entry,
         bindings,
         filters,
+        filterIndex: new Map(filters.map(([filter], index) => [filter, index])),
         keys: unique(of.filter((change) => change.type !== 'DELETE').map((change) => change.notice.key)),
         deleted: unique(of.filter((change) => change.type === 'DELETE').map((change) => change.notice.key)),
       }
@@ -50,7 +56,7 @@ const groupChecks = (sinks: readonly ChangeSink[], changes: readonly Change[]) =
  * Where the open sockets of a process hear of changes: it follows the notice feed while any channel listens, and
  * checks each batch of notices for all channels at once, one batch at a time, so Realtime holds at most one pooled
  * connection per process, and only while a check runs. Channels whose callers have the same role and claims, such as a
- * user's tabs, are checked as one.
+ * user's tabs, are checked as one. A channel one of whose filters Postgres refuses is removed and ended.
  */
 export const changeHub = ({ feed, check, entry, report }: ChangeHubOptions) => {
   const sinks = new Set<ChangeSink>()
@@ -87,17 +93,36 @@ export const changeHub = ({ feed, check, entry, report }: ChangeHubOptions) => {
         const view: ResourceView = views[groupIndex]![resourceIndex]!
         const row = (type === 'DELETE' ? view.deleted : view.rows).get(notice.key)
         if (!row) return
-        const { filters } = checks[resourceIndex]!
+        const { filterIndex } = checks[resourceIndex]!
         for (const sink of members) {
           if (!sinks.has(sink)) continue
           const ids = sink.bindings
             .filter((binding) => watches(binding, changed) && (binding.event === '*' || binding.event === type))
-            .filter((binding) => binding.conditions.length === 0 || row.matches[filters.findIndex(([filter]) => filter === binding.filter)])
+            .filter((binding) => binding.conditions.length === 0 || row.matches[filterIndex.get(binding.filter!)!])
             .map((binding) => binding.id)
           if (ids.length > 0) sink.send(changePayload(changed, notice, type, view.columns, row, ids))
         }
       })
     }
+    planned.forEach(({ members, checks }, groupIndex) => {
+      checks.forEach(({ entry: checked, filters }, resourceIndex) => {
+        for (const index of views[groupIndex]![resourceIndex]!.failed) {
+          const [filter] = filters[index]!
+          for (const sink of members) {
+            if (!sinks.has(sink) || !sink.bindings.some((binding) => watches(binding, checked) && binding.filter === filter)) continue
+            remove(sink)
+            sink.fail(failedFilterText(filter))
+          }
+        }
+      })
+    })
+  }
+
+  const remove = (sink: ChangeSink) => {
+    sinks.delete(sink)
+    if (sinks.size > 0 || !subscription) return
+    void subscription.then((subscribed) => subscribed?.stop())
+    subscription = undefined
   }
 
   const run = async () => {
@@ -124,12 +149,7 @@ export const changeHub = ({ feed, check, entry, report }: ChangeHubOptions) => {
         subscription = undefined
         return undefined
       })
-      return () => {
-        sinks.delete(sink)
-        if (sinks.size > 0 || !subscription) return
-        void subscription.then((subscribed) => subscribed?.stop())
-        subscription = undefined
-      }
+      return () => remove(sink)
     },
   }
 }

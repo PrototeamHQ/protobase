@@ -8,6 +8,7 @@ import type { BroadcastHub } from './broadcast-hub'
 import { bufferedOf } from './buffered-amount'
 import type { ChangeHub } from './change-hub'
 import type { ChannelAccess } from './channel-access'
+import type { FilterCheck } from './filter-check'
 import type { DatabaseBroadcasts } from './database-broadcasts'
 import { vsnOf } from './phoenix-message'
 import type { PresenceHub } from './presence-hub'
@@ -20,6 +21,7 @@ export type RealtimeRoutesOptions = {
   caller: (request: Request) => Promise<Caller>
   live: readonly Entry[]
   hub: ChangeHub
+  checkFilters: FilterCheck
   broadcasts: BroadcastHub
   presences: PresenceHub
   /** The database's broadcasts to `broadcasts`, and the other processes' when there are any, read while a socket is open. */
@@ -39,7 +41,7 @@ const keyRequest = (apikey: string, token?: string) => new Request('http://realt
  * `POST /api/sb/realtime/v1/api/broadcast` sends to the same channels without a socket (see `broadcastApi`), and so
  * does the database (see `databaseBroadcasts`).
  */
-export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, broadcasts, presences, database, access, report }: RealtimeRoutesOptions) => {
+export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, checkFilters, broadcasts, presences, database, access, report }: RealtimeRoutesOptions) => {
   const app = new Hono()
   let lastId = 0
   const nextId = () => ++lastId
@@ -76,6 +78,7 @@ export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, broadcasts
             resolve: (token) => caller(keyRequest(apikey, token)),
             live,
             hub,
+            checkFilters,
             broadcasts,
             presences,
             access,

@@ -22,6 +22,13 @@ describe('parseFilter', () => {
     expect(parseFilter('done=is.maybe')).toBe('invalid value for is filter: must be null, true, false, or unknown')
     expect(parseFilter('id')).toBe('invalid filter "id": use column=operator.value')
   })
+
+  it('refuses a like pattern that ends with an escape character, which Postgres refuses only once a row reaches it', () => {
+    expect(parseFilter('title=like.a\\')).toBe('invalid filter "title=like.a\\": a like pattern must not end with an escape character')
+    expect(parseFilter('title=ilike.a\\\\\\')).toMatch(/must not end with an escape character/)
+    expect(parseFilter('title=like.a\\\\')).toEqual([{ column: 'title', operator: 'like', value: 'a\\\\', negate: false }])
+    expect(parseFilter('title=eq.a\\')).toEqual([{ column: 'title', operator: 'eq', value: 'a\\', negate: false }])
+  })
 })
 
 describe('filterSql', () => {
