@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { expect, waitFor, within } from 'storybook/test'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession, type AuthSession, type OrganizationPerson } from '@protobase/client'
 import { f, resource, view } from '@protobase/schema'
 import { App } from '../app'
@@ -22,9 +22,21 @@ const directMessagesView = view<typeof directMessages>('direct_messages')
   .titleFrom('memberNames', (r) => [r.member_ids])
   .nav({ recent: { orderBy: 'id asc' } })
 
+// Messages point at the conversation they were sent in, which their list, picker and filter name for each reader.
+const messages = resource('messages')
+  .table('messages')
+  .fields({ id: f.text().readOnly().filterable().sortable(), body: f.text(), direct_message_id: f.relation('direct_messages').filterable() })
+  .primaryKey((r) => r.id)
+
+const messagesView = view<typeof messages>('messages')
+  .names({ singular: 'Message', plural: 'Messages' })
+  .list((r) => ({ columns: [r.body, r.direct_message_id] }))
+  .filters((r, w) => [w.facets(r.direct_message_id)])
+
 const people: OrganizationPerson[] = [
   { id: 'u-maya', name: 'Maya Jansen' },
   { id: 'u-sam', name: 'Sam Okafor' },
+  { id: 'u-lin', name: 'Lin Park' },
 ]
 
 const memberNames: TitleRule = (record, reader) => {
@@ -51,14 +63,30 @@ const sessionOf = (id: string, name: string, names: Promise<void>): AuthSession 
   }
 }
 
-const Chat = ({ id, name, held }: { id: string; name: string; held?: boolean }) => {
+const rows = {
+  direct_messages: [
+    { id: 'dm-1', member_ids: ['u-maya', 'u-sam'] },
+    { id: 'dm-2', member_ids: ['u-maya', 'u-lin'] },
+  ],
+  messages: [
+    { id: 'm-1', body: 'Lunch?', direct_message_id: 'dm-1' },
+    { id: 'm-2', body: 'Notes are in', direct_message_id: 'dm-2' },
+  ],
+}
+
+const Chat = ({ id, name, held, url = '/direct_messages/dm-1' }: { id: string; name: string; held?: boolean; url?: string }) => {
   const [gate] = useState(() => {
     let release = () => {}
     const names = held ? new Promise<void>((resolve) => (release = resolve)) : Promise.resolve()
     return { names, release }
   })
   const [client] = useState(
-    () => fakeApi({ resources: [directMessages.toModel()], views: [directMessagesView.toModel(directMessages.toModel())], rows: { direct_messages: [{ id: 'dm-1', member_ids: ['u-maya', 'u-sam'] }] } }).client,
+    () =>
+      fakeApi({
+        resources: [directMessages.toModel(), messages.toModel()],
+        views: [directMessagesView.toModel(directMessages.toModel()), messagesView.toModel(messages.toModel())],
+        rows: structuredClone(rows),
+      }).client,
   )
   return (
     <div className="h-screen">
@@ -67,7 +95,7 @@ const Chat = ({ id, name, held }: { id: string; name: string; held?: boolean }) 
           Load names
         </button>
       )}
-      <App client={client} auth={sessionOf(id, name, gate.names)} ui={ui} initialUrl="/direct_messages/dm-1" />
+      <App client={client} auth={sessionOf(id, name, gate.names)} ui={ui} initialUrl={url} />
     </div>
   )
 }
@@ -104,5 +132,62 @@ export const KeyWhileNamesLoad: StoryObj = {
     await expectTitled(canvasElement, 'dm-1')
     within(canvasElement).getByRole('button', { name: 'Load names' }).click()
     await expectTitled(canvasElement, 'Sam Okafor')
+  },
+}
+
+// The row of the message sent in the conversation with Sam names that conversation `title`.
+const expectListed = async (canvasElement: HTMLElement, title: string) => {
+  const grid = within(await within(canvasElement).findByRole('grid'))
+  await waitFor(() => expect(within(grid.getByText('Lunch?').closest('[role="row"]') as HTMLElement).getByText(title)).toBeVisible())
+}
+
+/** Maya's list of messages names the conversation each was sent in after its other member. */
+export const ListMayaSeesSam: StoryObj = {
+  tags: ['play'],
+  render: () => <Chat id="u-maya" name="Maya Jansen" url="/messages" />,
+  play: async ({ canvasElement }) => expectListed(canvasElement, 'Sam Okafor'),
+}
+
+/** Sam's list names the same conversation after Maya. */
+export const ListSamSeesMaya: StoryObj = {
+  tags: ['play'],
+  render: () => <Chat id="u-sam" name="Sam Okafor" url="/messages" />,
+  play: async ({ canvasElement }) => expectListed(canvasElement, 'Maya Jansen'),
+}
+
+/** Until the members' names load, the list names the conversation by its key. */
+export const ListKeyWhileNamesLoad: StoryObj = {
+  tags: ['play'],
+  render: () => <Chat id="u-maya" name="Maya Jansen" url="/messages" held />,
+  play: async ({ canvasElement }) => {
+    await expectListed(canvasElement, 'dm-1')
+    within(canvasElement).getByRole('button', { name: 'Load names' }).click()
+    await expectListed(canvasElement, 'Sam Okafor')
+  },
+}
+
+/** The picker on a message names Maya's conversations after their other members. */
+export const PickerTitled: StoryObj = {
+  tags: ['play'],
+  render: () => <Chat id="u-maya" name="Maya Jansen" url="/messages/m-1" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const picker = await canvas.findByDisplayValue('Sam Okafor')
+    await userEvent.click(picker)
+    expect(await canvas.findByRole('option', { name: 'Lin Park' })).toBeVisible()
+    expect(canvas.getByRole('option', { name: 'Sam Okafor' })).toBeVisible()
+  },
+}
+
+/** The list's filter names the conversations it narrows to after their other members. */
+export const FilterTitled: StoryObj = {
+  tags: ['play'],
+  render: () => <Chat id="u-maya" name="Maya Jansen" url="/messages" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Direct message' }))
+    const list = within(await canvas.findByRole('listbox', { name: 'Direct message' }))
+    expect(await list.findByRole('option', { name: /^Sam Okafor/ })).toBeVisible()
+    expect(await list.findByRole('option', { name: /^Lin Park/ })).toBeVisible()
   },
 }
