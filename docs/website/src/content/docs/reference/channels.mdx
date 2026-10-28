@@ -53,7 +53,7 @@ An entry leaves at once when its connection leaves the channel or closes, as whe
 
 ## Broadcasts
 
-A broadcast reaches every other connection on the channel, and the sender's own with `self`, at once. Nothing is stored: a broadcast reaches who is on the channel when it is sent, and nobody else.
+A broadcast reaches every other connection on the channel, and the sender's own with `self`, at once. Nothing is stored: a broadcast reaches who is on the channel when it is sent, and nobody else. <gap>A broadcast cannot carry binary bytes because binary frames on record channels are not implemented.</gap>
 
 ## From the server
 
