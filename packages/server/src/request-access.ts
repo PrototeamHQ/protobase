@@ -3,7 +3,8 @@ import type { Deps } from './deps'
 import { maskEncrypted } from './encryption/mask-stored'
 import { checkedFilter } from './filter-input'
 import { checkOwnerId } from './owner-id'
-import type { Scope } from '@protobase/query'
+import { parentReads } from './parent-reads'
+import type { ParentRead, Scope } from '@protobase/query'
 import { forbidden, notFound, unauthorized } from './problem'
 import type { Entry } from './registry'
 import { tenantScope } from './tenant'
@@ -23,6 +24,8 @@ export type RequestAccess = {
   readable: ResourceModel
   /** Readable fields without the sensitive ones: everything a request names and every response carries. */
   model: ResourceModel
+  /** The parents the caller must read for a record to be seen (`.parent(fk, 'read')`); every read keeps to them. */
+  parents: ParentRead[]
   deps: Deps
 }
 
@@ -65,14 +68,22 @@ const ownOnly = (resolved: ResolvedAccess, entry: Entry, session: Session): Reso
   return { ...resolved, rowFilter: { read: narrowed('read'), create: narrowed('create'), update: narrowed('update'), delete: narrowed('delete') } }
 }
 
-/** `form` is the public form a visitor sends, the only way a caller without a token creates. */
-export const requestAccess = async (deps: Deps, entry: Entry, session: Session, form?: FormModel): Promise<RequestAccess> => {
+/**
+ * `form` is the public form a visitor sends, the only way a caller without a token creates. `chain` holds the resources
+ * whose parents led to this one (see `parentReads`).
+ */
+export const requestAccess = async (deps: Deps, entry: Entry, session: Session, form?: FormModel, chain: readonly string[] = []): Promise<RequestAccess> => {
   const all = await resolveAccess(entry.source, { user: { id: session.user.id, roles: session.user.roles }, ...organizationOf(session) }, deps.accessOptions)
   const allowed = form ? throughForm(all, form) : withoutAnonymousCreate(all, session)
   const resolved = deps.settingsResources.has(entry.name) ? ownOnly(allowed, entry, session) : allowed
   checkOwnerId(entry, session.user, resolved)
   const readable = restrictModel(entry.model, resolved)
-  return { entry, session, resolved, full: entry.model, readable, model: withoutSensitive(readable), deps }
+  const parentAccess = async (parent: Entry, along: readonly string[]) => {
+    const access = await requestAccess(deps, parent, session, undefined, along)
+    return { resolved: access.resolved, full: access.full, scope: ownScope(access) }
+  }
+  const parents = await parentReads(entry, session, chain, parentAccess, deps.registry.find)
+  return { entry, session, resolved, full: entry.model, readable, model: withoutSensitive(readable), parents, deps }
 }
 
 const hasNoAccess = (resolved: ResolvedAccess) => !Object.values(resolved.operations).some(Boolean)
@@ -121,11 +132,14 @@ export const andFilters = (filters: Array<CheckedFilter | undefined>): CheckedFi
 export const targetFilter = (access: RequestAccess, operation: 'read' | 'create' | 'update' | 'delete') =>
   operation === 'read' ? access.resolved.rowFilter.read : andFilters([access.resolved.rowFilter.read, access.resolved.rowFilter[operation]])
 
-/** The query-layer scope of the caller's own tenant: it, the access row filter against the full model, soft delete from the full model. */
+/**
+ * The query-layer scope of the caller's own tenant: it, the access row filter and the parents the caller reads against
+ * the full model, soft delete from the full model.
+ */
 export const ownScope = (access: RequestAccess, fullModel: ResourceModel = access.full): Scope => {
   const tenant = tenantScope(access.entry, access.session)
   const rowFilter = access.resolved.rowFilter.read
-  return { ...(tenant && { tenantValue: tenant.tenantValue }), ...(rowFilter && { rowFilter }), fullModel }
+  return { ...(tenant && { tenantValue: tenant.tenantValue }), ...(rowFilter && { rowFilter }), ...(access.parents.length > 0 && { parents: access.parents }), fullModel }
 }
 
 // Filters from access rules are trusted: they may use columns that are neither filterable nor readable, except an

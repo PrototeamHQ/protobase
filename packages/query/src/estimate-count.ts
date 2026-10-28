@@ -31,7 +31,7 @@ const tableReltuples = async (db: Db, model: ResourceModel) => {
  */
 export const estimateCount = async (db: Db, model: ResourceModel, filter?: CheckedFilter, scope?: Scope) => {
   const full = fullModelOf(model, scope)
-  if (filter || scope?.rowFilter || full.softDelete || full.tenant || model.softDelete || model.tenant) return planEstimate(db, model, filter, scope)
+  if (filter || scope?.rowFilter || scope?.parents?.length || full.softDelete || full.tenant || model.softDelete || model.tenant) return planEstimate(db, model, filter, scope)
   const reltuples = await tableReltuples(db, model)
   return reltuples >= 0 ? Math.round(reltuples) : planEstimate(db, model)
 }

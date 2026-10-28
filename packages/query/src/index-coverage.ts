@@ -9,8 +9,11 @@ import type { TableIndex, TableIndexes } from './table-indexes'
  * column's digits (`regexp_replace(column, '[^0-9]', '', 'g')`) for a `digitsEnd` search field; `gin` for JSON.
  */
 export type IndexNeed = 'btree' | 'trigram' | 'digits' | 'gin'
-/** Where a column is read: the caller's filter, the access rule's row filter, the sort, or a facet's grouping. */
-export type ColumnUse = 'filter' | 'access' | 'sort' | 'facet'
+/**
+ * Where a column is read: the caller's filter, the access rule's row filter, the relation to a parent the caller must
+ * read (`.parent(fk, 'read')`), the sort, or a facet's grouping.
+ */
+export type ColumnUse = 'filter' | 'access' | 'parent' | 'sort' | 'facet'
 /** A column read without an index that serves it, and a statement that adds one. */
 export type UncoveredColumn = { field: string; column: string; use: ColumnUse; need: IndexNeed; suggestion: string }
 /** What a read does with the table: the filter it keeps rows by, the order it walks them in, a field it groups by. */
@@ -123,8 +126,9 @@ const unique = (columns: UncoveredColumn[]) =>
 /**
  * The columns a read of the resource would read without an index serving them; empty when every one is served. The
  * filter's and the access row filter's columns each need an index of the kind their operator uses, the sort's first
- * field and a grouped field a btree index. Tenant, soft delete and `=` terms pin columns, so a later key of a btree
- * index serves under them. A plain view or a foreign table has no indexes of its own and is not judged.
+ * field, a grouped field and each relation to a parent the caller must read a btree index; the parent's own reads are
+ * judged against its table by a call of their own. Tenant, soft delete and `=` terms pin columns, so a later key of a
+ * btree index serves under them. A plain view or a foreign table has no indexes of its own and is not judged.
  */
 export const uncoveredColumns = (model: ResourceModel, table: TableIndexes, query: CoverageQuery, scope?: Scope): UncoveredColumn[] => {
   if (table.kind !== 'table') return []
@@ -141,6 +145,7 @@ export const uncoveredColumns = (model: ResourceModel, table: TableIndexes, quer
   const groupField = query.groupBy !== undefined ? model.fields[query.groupBy] : undefined
   return unique([
     ...(scope?.rowFilter ? walk(ctx('access', full), scope.rowFilter, pinned, false) : []),
+    ...(scope?.parents ?? []).flatMap((read) => need(ctx('parent', full), read.field, 'btree', pinned)),
     ...(query.filter ? walk(ctx('filter'), query.filter, pinned, false) : []),
     ...(sortField ? need(ctx('sort'), sortField, 'btree', pinned) : []),
     ...(groupField ? need(ctx('facet'), groupField, 'btree', pinned) : []),

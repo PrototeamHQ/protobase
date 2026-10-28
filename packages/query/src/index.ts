@@ -17,5 +17,7 @@ export { tableIndexes, type IndexKey, type TableIndex, type TableIndexes } from 
 export { uncoveredColumns, indexServes, type ColumnUse, type CoverageQuery, type IndexNeed, type UncoveredColumn } from './index-coverage'
 export { QueryError, type QueryErrorCode } from './errors'
 export type { Db } from './db'
-export { tenantCondition, type Scope } from './scope'
+export { tenantCondition, type ParentRead, type Scope } from './scope'
+export { parentCondition } from './read-conditions'
+export { readsParent } from './reads-parent'
 export { seekToPosition, type SeekRequest } from './seek-to-position'

@@ -183,6 +183,14 @@ describe('readShapes', () => {
     expect(shapes.find((shape) => shape.from === '"owner_id" is the owner')).toMatchObject({ resource: 'agencies', query: {}, scope: { rowFilter: { kind: 'compare', field: { name: 'owner_id' } } } })
   })
 
+  it('keeps every read of a resource with a read parent to the relation, but not one with an update parent', () => {
+    const offices = resource('offices').table('market.offices')
+      .fields({ id: f.integer(), agency_id: f.relation('agencies'), place_id: f.relation('places') })
+      .primaryKey((r) => r.id).parent((r) => r.agency_id, 'read').parent((r) => r.place_id, 'update')
+    const found = readShapes({ models: [offices.toModel()], views: [], pages: [] }).filter((shape) => shape.scope?.parents)
+    expect(found).toMatchObject([{ resource: 'offices', request: 'GET /offices', from: 'its records keep to the "agency_id" parents the caller reads', query: {}, scope: { parents: [{ field: { name: 'agency_id' } }] } }])
+  })
+
   it('reads a list that opens on a filter with that filter', () => {
     const opening = view<typeof places>('places').list((r) => ({ columns: [r.name], filter: 'country = "NL"' }))
     const found = readShapes({ models: [places.toModel()], views: [opening.toModel()], pages: [] })

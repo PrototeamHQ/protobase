@@ -150,8 +150,9 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   /**
    * A relation whose record each record belongs to, and the access on it writing them needs: creating a record, changing
    * it (the parent it leaves and the one it moves to), deleting and undeleting it all need `access` on the parent,
-   * checked with the caller's own access rules on its resource and locked until the write commits. A null relation
-   * checks nothing; each call adds a check. See
+   * checked with the caller's own access rules on its resource and locked until the write commits. With `read`, every
+   * read of its records (lists, counts, aggregates, gets and labels) also keeps to those whose parent the caller reads
+   * there. A null relation checks nothing; each call adds a check. See
    * [Records that belong to another](website/src/content/docs/reference/access.mdx#records-that-belong-to-another).
    *
    * @example
