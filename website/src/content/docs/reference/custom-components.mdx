@@ -276,6 +276,31 @@ export const Channel = ({ messages, sent, members, onSend, onLoadEarlier }: Chan
 )
 ```
 
+### Members' names
+
+The author is a user id, and `useMembers()` from `@protobase/ui` turns it into a name: the members of the organization the signed-in person works in, `{ id, name, image? }` by name, with `id` the user id that `.author()` stores and that `onSend`'s mentions hold. Every member reads it, owners, admins and members alike; it holds no email addresses. It is a TanStack Query result (`data`, `isLoading`, `error`) with `member(id)`, which finds one and, for an id it does not know, such as a newcomer's first message, reads the list again once it is 10 seconds old; it is also read again when the window regains focus and the list is 30 seconds old. It needs [organizations](/reference/auth/#organizations): without them, `error` says so.
+
+```tsx
+import { ChatMessage, Composer, MentionedText, useMembers } from '@protobase/ui'
+
+export const Message = ({ message }: { message: { author_id: string; body: string; mentions: string[]; sent_at: string } }) => {
+  const { member } = useMembers()
+  return (
+    <ChatMessage author={{ id: message.author_id, name: member(message.author_id)?.name ?? '' }} time={message.sent_at}>
+      <MentionedText text={message.body} mentions={message.mentions.map((id) => ({ name: member(id)?.name }))} />
+    </ChatMessage>
+  )
+}
+
+export const ChannelComposer = ({ onSend }: { onSend: (text: string, mentions: string[]) => void }) => {
+  const { data: members = [] } = useMembers()
+  const searchPeople = async (query: string) => members.filter((person) => person.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+  return <Composer onSend={onSend} searchPeople={searchPeople} />
+}
+```
+
+`searchPeople` filters the list in the browser and shows at most 8, as comments' mentions do. The whole list loads in the browser, which suits a team, not thousands of members. Someone who has left the organization is no longer in it, so old messages lose their name. A person who works in an organization without being a member of it, through a global role, gets no list.
+
 ## Components in the chat
 
 The same components draw the assistant's [widget parts](/reference/assistant/#widget-parts): a part names a component, and the dock draws it with the part's props, so one component can sit on a page and in the chat. In the chat there is no record around it, so a component that needs `useLayoutRecord()` works only on pages; take ids as props instead. Besides the API hooks, a widget can read the assistant backend with [`useBackendData`](/reference/assistant/#reading-the-backend-from-a-widget).

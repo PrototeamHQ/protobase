@@ -22,6 +22,9 @@ export type CurrentOrganization = {
   globalRoles: string[]
 }
 
+/** A member as every member of the organization sees them: their user id, name and photo, without their address. */
+export type OrganizationPerson = { id: string; name: string; image?: string }
+
 export type OrganizationMember = { id: string; userId: string; name: string; email: string; role: OrganizationRole; appRoles: string[]; createdAt: string }
 
 /** `organizationName` comes with the person's own invitations, which span organizations. */
@@ -118,6 +121,9 @@ export const organizationsClient = (client: BetterAuthClient, refreshToken: () =
 
     members: async (organizationId: string) =>
       (await call<{ members: RawMember[] }>('/organization/list-members', 'Could not read the members', { query: { organizationId, limit: '1000' } })).members.map(member),
+
+    /** The people of the organization the session works in, for any of its members; rejects for anyone else. */
+    people: async () => (await call<{ people: OrganizationPerson[] }>('/organization/people', 'Could not read the people')).people,
 
     setRole: (organizationId: string, memberId: string, role: OrganizationRole) =>
       call<unknown>('/organization/update-member-role', 'Could not change the role', { body: { organizationId, memberId, role } }),

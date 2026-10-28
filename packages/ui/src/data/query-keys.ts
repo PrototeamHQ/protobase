@@ -43,6 +43,8 @@ export const keys = {
   inboxUnread: ['inbox', 'unread'] as const,
   /** The pages of the user's notification history. */
   inboxPages: ['inbox', 'pages'] as const,
+  /** The people of the organization the session of this user works in (`useMembers`). */
+  members: (userId: string) => ['members', userId] as const,
   /** A public form, as `/-/forms/<name>` draws it. */
   publicForm: (name: string) => ['public-form', name] as const,
 }

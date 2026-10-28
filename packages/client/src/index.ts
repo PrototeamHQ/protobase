@@ -55,7 +55,7 @@ export { createAuthSession, AuthError, tokenExpiry, type AuthSession, type AuthS
 export { createStaticSession } from './static-session'
 export type { AuthUser, PlatformSignIn, RoleLabel, SamlSignIn, SetupStatus, SignInMethod, SignInResult, TwoFactorMethod } from './auth-types'
 export type { AppUser, UserInvitation, UserInvitationSent, UsersClient, UsersFound } from './users'
-export type { CurrentOrganization, InvitationPreview, InvitationSent, Organization, OrganizationInvitation, OrganizationMember, OrganizationRole, OrganizationsClient, OrganizationsFound } from './organizations'
+export type { CurrentOrganization, InvitationPreview, InvitationSent, Organization, OrganizationInvitation, OrganizationMember, OrganizationPerson, OrganizationRole, OrganizationsClient, OrganizationsFound } from './organizations'
 export type { ActiveRole, RoleOption, RolesClient } from './roles'
 export type { DeviceSession } from './account-profile'
 export type { AccountSecurity, AccountSignIn, AuthenticatorSetup, ConnectedApp, Passkey, RequiredSetup } from './account-security'
