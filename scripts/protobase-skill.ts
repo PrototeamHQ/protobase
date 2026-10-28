@@ -1,13 +1,14 @@
 // Writes the references of the protobase agent skill, packages/cli/skills/protobase/references/, from the docs site's
 // pages: one Markdown file per page of the sidebar, with links between pages made relative and the rest absolute to
-// https://docs.protobase.net. packages/cli/skills/protobase/SKILL.md is written by hand; here it is only checked: every
-// generated file needs a pointer in it, or for a features area page in the features page, and every reference link in
-// it needs a file. `protobase skill install` copies the
-// skill out of @protobase/cli. With --check nothing is written and it fails when the committed files differ from what
-// would be written, which CI runs so the skill cannot fall behind the docs.
+// https://docs.protobase.net. The references are not committed: `bun install` (prepare) writes them for this checkout and
+// the CLI's build writes them before it is packed, so the docs are their only source. packages/cli/skills/protobase/SKILL.md
+// is written by hand; here it is only checked: every generated file needs a pointer in it, or for a features area page in
+// the features page, and every reference link in it needs a file. `protobase skill install` copies the skill out of
+// @protobase/cli. With --check nothing is written and it fails when a page cannot be made Markdown or SKILL.md and the
+// pages do not point at each other, which CI runs.
 //
 //   bun run docs:skill [--check]
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { pageMarkdown } from '../website/src/markdown/page-markdown'
 import { architecture, features, featuresPage, gettingStarted, guides, reference } from '../website/sidebar.mjs'
@@ -40,12 +41,6 @@ const existing = async (...paths: string[]) => {
   throw new Error(`no page at ${paths.join(' or ')}`)
 }
 
-async function markdownFiles(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true }).catch(() => [])
-  const nested = await Promise.all(entries.map((entry) => (entry.isDirectory() ? markdownFiles(join(dir, entry.name)) : [join(dir, entry.name)])))
-  return nested.flat().filter((file) => file.endsWith('.md'))
-}
-
 const pages = await Promise.all([gettingStarted, featuresPage, ...features, ...guides, ...reference, ...architecture].map(readPage))
 const paths = new Set(pages.map((page) => page.path))
 const expected = new Map(
@@ -70,29 +65,15 @@ for (const file of expected.keys()) {
   if (!pointed.has(file)) problems.push(`${file.slice(skillDir.length + 1)} has no pointer: add a pointer to it in packages/cli/skills/protobase/SKILL.md`)
 }
 
-if (process.argv.includes('--check')) {
-  const onDisk = await markdownFiles(referencesDir)
-  for (const [file, text] of expected) {
-    const committed = await readFile(file, 'utf8').catch(() => undefined)
-    if (committed === undefined) problems.push(`${file.slice(root.length + 1)} is missing: run \`bun run docs:skill\` and commit it`)
-    else if (committed !== text) problems.push(`${file.slice(root.length + 1)} does not match the docs: run \`bun run docs:skill\` and commit it`)
-  }
-  for (const file of onDisk) {
-    if (!expected.has(file)) problems.push(`${file.slice(root.length + 1)} is not in the sidebar any more: run \`bun run docs:skill\` and commit it`)
-  }
-  if (problems.length) {
-    console.error(problems.join('\n'))
-    process.exit(1)
-  }
-} else {
+if (!process.argv.includes('--check')) {
   await rm(referencesDir, { recursive: true, force: true })
   for (const [file, text] of expected) {
     await mkdir(dirname(file), { recursive: true })
     await writeFile(file, text)
   }
   console.log(`${expected.size} reference pages in packages/cli/skills/protobase/references`)
-  if (problems.length) {
-    console.error(problems.join('\n'))
-    process.exit(1)
-  }
+}
+if (problems.length) {
+  console.error(problems.join('\n'))
+  process.exit(1)
 }

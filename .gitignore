@@ -9,3 +9,4 @@ screenshots
 .protobase
 website/src/content/docs/api
 .build-test-*
+packages/cli/skills/protobase/references

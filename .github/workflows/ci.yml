@@ -84,7 +84,8 @@ jobs:
       # bunfig.toml has `bun run` put a node that is Bun first on PATH, so the checks run on Bun. Bun skips that without a
       # word when another user owns its /tmp/bun-node-* directory, as on a shared server, and they would run on Node.
       - run: bun run sh -c 'node -e "process.versions.bun || (console.error(\"bun run starts Node, not Bun\"), process.exit(1))"'
-      # The protobase skill is generated from the docs and served by the site: it fails here when it falls behind them.
+      # The protobase skill's references are generated from the docs, not committed: this fails when a page cannot be made
+      # Markdown or the hand-written SKILL.md and the pages do not point at each other.
       - run: bun run docs:skill --check
       # The features pages keep their grammar, link real headings and cover every reference page (CONTRIBUTING.md,
       # Features and docs). Its --release-rule, that a release with a feature changes the docs, is not on yet.
@@ -117,7 +118,12 @@ jobs:
       - run: node --run test:smoke
       # Every package built, declarations included, and packed as the release workflow publishes it, so a package that
       # cannot build or be packed fails before a release is cut. The tests run on the sources, so nothing builds earlier.
-      - run: node scripts/publish.mjs --pack
+      # The CLI's build writes the protobase skill's references, which are not committed, so its tarball must carry them.
+      - run: |
+          set -o pipefail
+          node scripts/publish.mjs --pack | tee "$RUNNER_TEMP/pack.log"
+          tar tzf "$(grep -o '[^ ]*protobase-cli-[^ ]*\.tgz' "$RUNNER_TEMP/pack.log")" > "$RUNNER_TEMP/cli-files.txt"
+          grep -qx 'package/skills/protobase/references/reference/access.md' "$RUNNER_TEMP/cli-files.txt"
 
   # The documentation site and Storybook built and checked, beside check: a push runs it when its changes reach them
   # (scripts/affected-site.mjs); a pull request and a run by hand always do.
