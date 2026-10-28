@@ -28,13 +28,17 @@ type DatabaseError = { code: string; table?: string; schema?: string }
 export const isDatabaseError = (error: unknown): error is DatabaseError =>
   error instanceof Error && /^[0-9A-Z]{5}$/.test(String((error as unknown as { code?: unknown }).code))
 
+/** The 409 of a unique violation, with the key of the record holding the values (`existing.key`) when the caller may read it. */
+export const takenProblem = (key?: string) =>
+  new HttpProblem(409, 'conflict', 'Conflict', 'A record with the same unique value already exists', key === undefined ? {} : { existing: { key } })
+
 // Constraint and column names are left out: they can name a column the caller may not see.
 const databaseProblem = (error: DatabaseError): HttpProblem | undefined => {
   // SQLSTATE 25006: the database is read-only, as during a deploy's write freeze; the write can be sent again shortly.
   if (error.code === '25006') return new HttpProblem(503, 'read-only', 'Service Unavailable', 'The app is read-only while it is being updated', {}, { 'Retry-After': '5' })
   // SQLSTATE 57014: Postgres stopped a query at its statement timeout; the error handler names the request that ran it.
   if (error.code === '57014') return new HttpProblem(504, 'statement-timeout', 'Gateway Timeout', 'A query ran longer than its statement timeout, so the database stopped it')
-  if (error.code === '23505') return new HttpProblem(409, 'conflict', 'Conflict', 'A record with the same unique value already exists')
+  if (error.code === '23505') return takenProblem()
   if (error.code === '23503') return new HttpProblem(409, 'conflict', 'Conflict', 'The record points at, or is pointed at by, another record')
   // SQLSTATE 40P01: two writes locked the same records in opposite orders; Postgres rolled this one back, nothing written.
   if (error.code === '40P01') return new HttpProblem(409, 'conflict', 'Conflict', 'The record was written at the same time as another; send it again')

@@ -43,13 +43,38 @@ export const fetchRecord = async (db: Db, entry: Entry, key: readonly (string | 
   return stored(entry, (await rowsOf(db, query))[0], shape)
 }
 
-export const insertRecord = async (db: Db, entry: Entry, values: Row, shape: Shape = {}) => {
+const insertBody = (entry: Entry, values: Row) => {
   const fields = Object.keys(values).map((name) => entry.model.fields[name]!)
-  const body = fields.length === 0
+  return fields.length === 0
     ? sql`default values`
     : sql`(${sql.join(fields.map(columnId))}) values (${sql.join(fields.map((field) => storedValue(field, values[field.name])))})`
-  const query = sql`insert into ${tableId(entry.model)} ${body} returning ${returningList(entry, shape.fields)}`
+}
+
+export const insertRecord = async (db: Db, entry: Entry, values: Row, shape: Shape = {}) => {
+  const query = sql`insert into ${tableId(entry.model)} ${insertBody(entry, values)} returning ${returningList(entry, shape.fields)}`
   return (await stored(entry, (await rowsOf(db, query))[0], shape))!
+}
+
+/** The setting `insertUnlessTaken` leaves the taken row's key in, as a JSON array of text, for the rest of the transaction. */
+export const takenKeySetting = 'protobase.taken_key'
+
+/**
+ * Inserts the row unless another row already holds its values of the unique key `unique` (field names), and then gives
+ * `undefined` and leaves that row's key in `takenKeySetting`, its parts as text. The conflict's `do update` never
+ * updates: its condition only records the key and is false, so no update trigger fires; Postgres still locks the taken
+ * row until the transaction ends, and asks for the update privilege. A violation of any other unique key raises 23505
+ * as a plain insert does. `values` must name at least one field, the column the never-run update would set.
+ */
+export const insertUnlessTaken = async (db: Db, entry: Entry, values: Row, unique: readonly string[], shape: Shape = {}) => {
+  const { model } = entry
+  const first = Object.keys(values)[0]
+  if (first === undefined) throw new Error(`A ${entry.name} record with no values given cannot open an existing one`)
+  const set = columnId(model.fields[first]!)
+  const target = sql.join(unique.map((name) => columnId(model.fields[name]!)))
+  const key = sql.join(model.primaryKey.map((name) => sql`t.${columnId(model.fields[name]!)}::text`))
+  const taken = sql`set_config(${takenKeySetting}, json_build_array(${key})::text, true)`
+  const query = sql`insert into ${tableId(model)} as t ${insertBody(entry, values)} on conflict (${target}) do update set ${set} = t.${set} where ${taken} is null returning ${returningList(entry, shape.fields)}`
+  return stored(entry, (await rowsOf(db, query))[0], shape)
 }
 
 // A version or updated_at column that the table maintains itself is bumped here too, so ETags change even without a trigger.
