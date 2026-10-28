@@ -1,6 +1,6 @@
-import { isRecordCondition, type FieldModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { isRecordCondition, type FieldModel, type FieldViewModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { layoutItems } from '@protobase/schema/internal'
-import { isEditable, toPatchValue } from '../../live/field-values'
+import { isEditable, toDraft, toPatchValue } from '../../live/field-values'
 import { whenShown } from '../record-mode/record-mode'
 import { text } from './messages'
 
@@ -13,9 +13,9 @@ export type Chosen = { key: string; label: string }
 
 export const isChosen = (value: unknown): value is Chosen => typeof value === 'object' && value !== null && 'key' in value
 
-/** Fields the user can set on a new record: not read-only, not the tenant, and not structured data. */
-export const isCreatable = (model: ResourceModel, field: FieldModel) =>
-  field.name !== model.tenant && !field.readOnly && (field.type === 'relation' || isEditable(field))
+/** Fields the user can set on a new record: not read-only, not the tenant, and no JSON but through a field type (`isEditable`). */
+export const isCreatable = (model: ResourceModel, field: FieldModel, hints?: FieldViewModel) =>
+  field.name !== model.tenant && !field.readOnly && (field.type === 'relation' || isEditable(field, hints))
 
 /**
  * The view's sections limited to creatable fields, plus a section for any creatable field the layout leaves out. The
@@ -23,7 +23,7 @@ export const isCreatable = (model: ResourceModel, field: FieldModel) =>
  * creatable field among them lands in that last section. A write-only field is on the form only where a section names it.
  */
 export const createSections = (model: ResourceModel, view: ViewModel | undefined): CreateSection[] => {
-  const creatable = Object.values(model.fields).filter((field) => isCreatable(model, field)).map((field) => field.name)
+  const creatable = Object.values(model.fields).filter((field) => isCreatable(model, field, view?.fields[field.name])).map((field) => field.name)
   const placed = new Set<string>()
   const sections = layoutItems(view?.layout ?? []).flatMap((item) => {
     if (item.kind !== 'section' || isRecordCondition(item.when) || !whenShown(item.when, true)) return []
@@ -95,7 +95,7 @@ export const initialDraft = (model: ResourceModel, sections: CreateSection[], gi
         const fallback = field.default
         if (numberDefault(field) !== undefined) return []
         if (!fallback || !('value' in fallback) || fallback.value === null || fallback.value === undefined) return []
-        return [[name, typeof fallback.value === 'boolean' ? fallback.value : String(fallback.value)]]
+        return [[name, typeof fallback.value === 'boolean' ? fallback.value : toDraft(fallback.value)]]
       }),
     ),
   )

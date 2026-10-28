@@ -111,7 +111,9 @@ export class FieldView<N extends string = string, V = unknown> {
 
   /**
    * Shows and edits the field with the field type a plugin registers under `name` (`definePlugin({ fields })`), given
-   * `props`, such as `r.score.widget('rating', { max: 5 })`. Without that plugin, or when the field type does not show
+   * `props`, such as `r.score.widget('rating', { max: 5 })`, or with the built-in `members`, which picks an
+   * organization's members into a JSON array of user ids (see
+   * [Members](website/src/content/docs/reference/plugins.md#members)). Without that field type, or when it does not show
    * this field's storage type, the field shows as it would without it.
    */
   widget(name: string, props?: Record<string, JsonValue>) {

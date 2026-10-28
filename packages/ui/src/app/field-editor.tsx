@@ -118,7 +118,7 @@ const ChosenEditor = (props: FieldEditorProps) => {
   const shown = useShownWidget(field, hints)
   const builtIn = <BuiltInEditor {...props} />
   if (!shown) return builtIn
-  if (locked || !isEditable(field)) return <WidgetPart shown={shown} part="display" field={field} value={stored} fallback={builtIn} />
+  if (locked || !isEditable(field, hints)) return <WidgetPart shown={shown} part="display" field={field} value={stored} fallback={builtIn} />
   // A file is uploaded and a relation chosen as the app does it; their field types only show them.
   if (field.type === 'file' || field.type === 'relation') return builtIn
   return <WidgetPart shown={shown} part="editor" field={field} value={fromDraft(field, value)} invalid={Boolean(invalid)} onChange={(next) => onChange(toFieldDraft(field, next))} fallback={builtIn} />

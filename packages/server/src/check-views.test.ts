@@ -74,6 +74,12 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [view<typeof payments>('payments').titleFrom('account', (r) => [r.iban]).toModel()])).toThrow('sensitive field "iban" cannot be in the title')
   })
 
+  it('refuses the built-in members field type on a field that is no JSON, unless a plugin registers its own', () => {
+    const shown = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.widget('members') })).toModel()
+    expect(() => checkViews(registry, [shown])).toThrow('View "payments": field "reference" is text, and its field type "members" shows only json')
+    expect(() => checkViews(registry, [shown], [], { members: ['text'] })).not.toThrow()
+  })
+
   it('wants links to go to addresses the app has, or out of it', () => {
     const linked = (to: AppAddress) => view<typeof payments>('payments').actions((a) => [a.link('go', { label: 'Go', to })]).toModel()
     expect(() => checkViews(registry, [linked({ kind: 'list', resource: 'payments', filter: 'method = "{method}"' })])).not.toThrow()

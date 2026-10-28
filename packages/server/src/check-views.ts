@@ -1,6 +1,6 @@
 import { conditionProblems } from '@protobase/layout'
 import { isRecordCondition, type ActionRun, type CardPhotosModel, type GalleryModel, type ResourceModel, type ViewModel } from '@protobase/schema'
-import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, datesErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields, updateSetErrors, viewOfList } from '@protobase/schema/internal'
+import { actionInputErrors, addressErrors, builtInFieldTypes, addressPlaceholders, boardErrors, datesErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields, updateSetErrors, viewOfList } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -128,10 +128,11 @@ const unknownFieldErrors = (view: ViewModel, model: ResourceModel) => {
   ]
 }
 
-// A field type shows the storage types it names; one the app's plugins do not register is not known here.
-const widgetErrors = (view: ViewModel, model: ResourceModel, fieldTypes: Readonly<Record<string, readonly string[]>>) =>
+// A field type shows the storage types it names; one neither built in nor registered by the app's plugins is not known here.
+const widgetErrors = (view: ViewModel, model: ResourceModel, registered: Readonly<Record<string, readonly string[]>>) =>
   Object.entries(view.fields).flatMap(([name, hints]) => {
-    const of = hints.widget && fieldTypes[hints.widget.name]
+    const fieldTypes: Readonly<Record<string, readonly string[]>> = { ...builtInFieldTypes, ...registered }
+    const of = hints.widget && Object.hasOwn(fieldTypes, hints.widget.name) ? fieldTypes[hints.widget.name] : undefined
     const field = model.fields[name]
     if (!of || !field || of.includes(field.type)) return []
     return [`field "${name}" is ${field.type}, and its field type "${hints.widget!.name}" shows only ${of.join(', ')}`]
@@ -188,7 +189,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
 /**
  * Fails at startup when a view uses a sensitive field where it would show empty, a display or custom section names a
  * field the resource does not have, labels or colours values its enum does not have, shows a field with a field type of
- * `fieldTypes` (each with the storage types it shows) that does not show it,
+ * `fieldTypes` (each with the storage types it shows) or a built-in one that does not show it,
  * edits a list column in its cell that is not a field with an editor of one line the API may write,
  * has a section, related section or sidebar whose `when` condition names what the app does not have, a related section or related list column, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
  * `searchesOf` that do not fit the resources, cards

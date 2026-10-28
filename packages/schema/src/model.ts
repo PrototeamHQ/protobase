@@ -350,8 +350,9 @@ export type FieldViewModel = {
   /** `arrow` draws the field's badges as arrows pointing right, as on a rating scale such as the EU energy label. */
   badgeShape?: BadgeShape
   /**
-   * The field type a plugin registers (`definePlugin({ fields })`) that shows and edits this field, with its props;
-   * without that plugin, or for a storage type it does not show, the field shows as it would without it.
+   * The field type a plugin registers (`definePlugin({ fields })`), or a built-in one such as `members`, that shows and
+   * edits this field, with its props; without it, or for a storage type it does not show, the field shows as it would
+   * without it.
    */
   widget?: FieldWidgetModel
 }
