@@ -80,6 +80,7 @@
     "useRecord",
     "useResourceClient",
     "useSeries",
+    "useSignedInUser",
     "useUnreadNotifications",
     "useUpdateRecord"
   ]

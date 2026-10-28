@@ -24,6 +24,7 @@ export { useListDisplay, type ListDisplay } from './app/displays/display-context
 export type { ListDisplayRow, RecordCardProps } from './app/displays/list-displays'
 export { RecordLink } from './app/displays/record-link'
 export { useApiToken } from './auth/use-api-token'
+export { useSignedInUser, type SignedInUser } from './auth/use-signed-in-user'
 export { useMembers, type MembersResult } from './people/use-members'
 export { usePushNotifications } from './notifications/push/use-push-notifications'
 export { useInbox, useMarkNotificationsRead, useUnreadNotifications } from './notifications/bell/use-inbox'
