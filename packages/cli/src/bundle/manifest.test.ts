@@ -35,6 +35,11 @@ describe('parseManifest', () => {
     expect(parseManifest({ ...manifest, mobile: { plugins: {} } }, 'm.json')).toEqual({ ...manifest, mobile: { plugins: {} } })
   })
 
+  it('keeps when the bundle and its shell were built', () => {
+    const built = { ...manifest, builtAt: 1_800_000_000_000, shell: { ...shell, builtAt: 1_700_000_000_000 } }
+    expect(parseManifest(built, 'm.json')).toEqual(built)
+  })
+
   it('refuses another version and missing or malformed fields', () => {
     expect(() => parseManifest({ ...manifest, version: 2 }, 'm.json')).toThrow('m.json is not a version 3 bundle manifest; rebuild it with `protobase build`')
     expect(() => parseManifest(null, 'm.json')).toThrow('not a version 3 bundle manifest')
@@ -43,6 +48,9 @@ describe('parseManifest', () => {
     expect(() => parseManifest({ ...manifest, shell: { ...shell, paths: '/assets' } }, 'm.json')).toThrow('m.json needs a shell with its protobase version, pluginApi and paths')
     expect(() => parseManifest({ ...manifest, native: { '@capacitor/core': 8 } }, 'm.json')).toThrow('m.json has a native that is not a map of package names to versions')
     expect(() => parseManifest({ ...manifest, mobile: {} }, 'm.json')).toThrow('m.json has a mobile that is not { plugins } with a map of package names to versions')
+    expect(() => parseManifest({ ...manifest, builtAt: '1800000000000' }, 'm.json')).toThrow('m.json has a builtAt that is no time in ms')
+    expect(() => parseManifest({ ...manifest, builtAt: -1 }, 'm.json')).toThrow('m.json has a builtAt that is no time in ms')
+    expect(() => parseManifest({ ...manifest, shell: { ...shell, builtAt: 1.5 } }, 'm.json')).toThrow('m.json needs a shell with its protobase version, pluginApi and paths')
     expect(() => parseManifest({ ...manifest, nodeModules: true }, 'm.json')).toThrow('m.json has a nodeModules that is no path')
     expect(() => parseManifest({ ...manifest, migrations: ['001.sql'] }, 'm.json')).toThrow('m.json has a migrations that is no path')
   })

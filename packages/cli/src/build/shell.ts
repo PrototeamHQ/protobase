@@ -42,11 +42,11 @@ export const prebuiltShellSourceMapsDir = path.join(uiPackageDir, 'dist', 'shell
 
 type UiPackageJson = PackageJson & { protobase?: { pluginApi?: number } }
 
-// The Protobase version and plugin API of the @protobase/ui the CLI builds the shell from.
+// The Protobase version and plugin API of the @protobase/ui the CLI builds the shell from, built now.
 const shellIdentity = async (): Promise<BundleShell> => {
   const ui = (await readPackageJson(uiPackageDir)) as UiPackageJson
   if (!ui.version || ui.protobase?.pluginApi === undefined) throw new Error(`${uiPackageDir} names no version or plugin API`)
-  return { protobase: ui.version, pluginApi: ui.protobase.pluginApi, paths: shellPaths }
+  return { protobase: ui.version, pluginApi: ui.protobase.pluginApi, paths: shellPaths, builtAt: Date.now() }
 }
 
 /**

@@ -14,10 +14,10 @@ export type BundlePlugin = { name: string; path: string; api: number; protobase:
 
 /**
  * The prebuilt app the bundle's `public` holds a copy of: the Protobase version and plugin API it is, and the paths
- * that are its files. A host that has a shell of its own serves those paths from it instead, when every plugin of the
- * bundle loads in it.
+ * that are its files, and when it was built (ms; a shell built before it names none). A host that has a shell of its
+ * own serves those paths from it instead, when every plugin of the bundle loads in it.
  */
-export type BundleShell = { protobase: string; pluginApi: number; paths: string[] }
+export type BundleShell = { protobase: string; pluginApi: number; paths: string[]; builtAt?: number }
 
 export type BundleMobile = { plugins: Record<string, string> }
 
@@ -27,6 +27,9 @@ export type BundleManifest = {
   // The Protobase version of the copies the bundle was built with, the building CLI's in a bundled project and the
   // installed ones in a locked project: the runtime a host serves the bundle on.
   protobase: string
+  // When `protobase build` built it (ms), the first part of its mobile release's order. A bundle built before it names
+  // none, and offers no signed mobile release.
+  builtAt?: number
   // The config module for the serve runtime, relative to the bundle.
   server: string
   // The app and its plugins, relative to the bundle.
@@ -89,7 +92,9 @@ const isPlugin = (value: unknown): value is BundlePlugin =>
   (value.fields === undefined || isFieldTypes(value.fields))
 
 const isShell = (value: unknown): value is BundleShell =>
-  isObject(value) && typeof value.protobase === 'string' && Number.isInteger(value.pluginApi) && isStringList(value.paths)
+  isObject(value) && typeof value.protobase === 'string' && Number.isInteger(value.pluginApi) && isStringList(value.paths) && (value.builtAt === undefined || isTime(value.builtAt))
+
+const isTime = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0
 
 const isVersions = (value: unknown): value is Record<string, string> => isObject(value) && Object.values(value).every((item) => typeof item === 'string')
 
@@ -102,12 +107,13 @@ export type BundleLayout = Omit<BundleManifest, 'protobase'>
 export const parseManifest = (value: unknown, file: string): BundleLayout => {
   const manifest = value as Partial<BundleManifest> | null
   if (manifest?.version !== 3) throw new Error(`${file} is not a version 3 bundle manifest; rebuild it with \`protobase build\``)
-  const { server, public: publicDir, api, spa, plugins, theme, shell, icons, native, mobile, nodeModules, migrations } = manifest
+  const { builtAt, server, public: publicDir, api, spa, plugins, theme, shell, icons, native, mobile, nodeModules, migrations } = manifest
   if (typeof server !== 'string' || typeof publicDir !== 'string' || typeof spa !== 'string' || typeof theme !== 'string' || !isStringList(api)) {
     throw new Error(`${file} needs server, public, spa and theme paths and an api list`)
   }
   if (!Array.isArray(plugins) || !plugins.every(isPlugin)) throw new Error(`${file} needs a plugins list, each with a name, path, api and protobase`)
   if (!isShell(shell)) throw new Error(`${file} needs a shell with its protobase version, pluginApi and paths`)
+  if (builtAt !== undefined && !isTime(builtAt)) throw new Error(`${file} has a builtAt that is no time in ms`)
   if (icons !== undefined && !isIcons(icons)) throw new Error(`${file} has icons that are not a favicon flag and a list of PNG icons`)
   if (native !== undefined && !isVersions(native)) throw new Error(`${file} has a native that is not a map of package names to versions`)
   if (mobile !== undefined && !(isObject(mobile) && isVersions(mobile.plugins))) throw new Error(`${file} has a mobile that is not { plugins } with a map of package names to versions`)
@@ -115,6 +121,7 @@ export const parseManifest = (value: unknown, file: string): BundleLayout => {
   if (migrations !== undefined && typeof migrations !== 'string') throw new Error(`${file} has a migrations that is no path`)
   return {
     version: 3,
+    ...(builtAt !== undefined && { builtAt }),
     server,
     public: publicDir,
     api,

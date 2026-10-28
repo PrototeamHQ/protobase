@@ -81,6 +81,7 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
   const manifest: BundleManifest = {
     version: 3,
     protobase,
+    builtAt: Date.now(),
     ...bundleLayout,
     api: [...bundleLayout.api],
     plugins,
