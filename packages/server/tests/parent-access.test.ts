@@ -129,7 +129,14 @@ describe('creating a record under a parent', () => {
   it('needs update on the VM: the owner creates, anyone else gets the answer a refused create gets, never a 409', async () => {
     expect((await send('POST', '/operations', 'alice', { vm_id: 1, kind: 'reboot' })).status).toBe(201)
     // Bob's VM, a missing one, a soft-deleted one, a locked one, and alice's VM of another tenant
-    for (const vm_id of [2, 999, 3, 4, 5]) await expectRefused(await send('POST', '/operations', 'alice', { vm_id, kind: 'stop' }), 'create')
+    // The same whole answer for each: nothing tells a missing VM from a forbidden one
+    const answers = []
+    for (const vm_id of [2, 999, 3, 4, 5]) {
+      const response = await send('POST', '/operations', 'alice', { vm_id, kind: 'stop' })
+      answers.push([response.status, await response.text()])
+    }
+    expect(JSON.parse(answers[0]![1] as string)).toMatchObject(refusal('create'))
+    expect(answers.map((answer) => JSON.stringify(answer))).toEqual(Array(5).fill(JSON.stringify(answers[0])))
     // A caller with no permission on VMs at all gets the same answer
     for (const vm_id of [1, 999]) await expectRefused(await send('POST', '/operations', 'carol', { vm_id, kind: 'stop' }, 'stranger'), 'create')
     expect(await rows('select vm_id, kind from operations where id >= 100 order by id')).toEqual([{ vm_id: 1, kind: 'reboot' }])
