@@ -5,6 +5,7 @@ import type { FileOptions } from './files/file-options'
 import type { FieldModel, ParentModel, PositionAfterModel, ResourceModel, SearchMatch } from './model'
 import { promptFields } from './ai-prompt'
 import { computedProblems } from './computed/computed-problems'
+import { openExistingProblems } from './open-existing-problems'
 import { snakeCase } from './naming'
 import type { FieldsInput } from './refs'
 
@@ -26,6 +27,7 @@ export type ResourceState = {
   history?: boolean
   comments?: boolean
   live?: boolean
+  openExisting?: string[]
 }
 
 export const parseTable = (table: string) => {
@@ -104,6 +106,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.live && { live: true as const }),
     ...(state.position && { position: { ...state.position } }),
     ...(state.parents && { parents: state.parents.map((parent) => ({ ...parent })) }),
+    ...(state.openExisting && { openExisting: [...state.openExisting] }),
   }
 }
 
@@ -213,7 +216,7 @@ const aiProblems = (model: ResourceModel) =>
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...aiProblems(model), ...computedProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

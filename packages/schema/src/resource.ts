@@ -115,6 +115,21 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   }
 
   /**
+   * A unique key of the table, as its fields, whose conflict on create opens the record already holding those values:
+   * the API's 409 names that record's key (`existing.key`) to a caller who may read it, and the create form opens it.
+   * The fields must be exactly the columns of a unique index or constraint, such as one over a generated column. See
+   * [Opening an existing record](website/src/content/docs/reference/data-config.mdx#opening-an-existing-record).
+   *
+   * @example
+   * ```ts
+   * .openExisting((r) => [r.organization_id, r.member_key])
+   * ```
+   */
+  openExisting(pick: (r: FieldRefs<F>) => Ref[]) {
+    return this.next({ openExisting: pick(this.refs()).map((ref) => ref.name) })
+  }
+
+  /**
    * The field holding the id of the user who created the record, such as a chat message's sender: every create sets it
    * to the signed-in user's id, and no request may write it, so it is never the client's word. A create by no user
    * leaves it empty.

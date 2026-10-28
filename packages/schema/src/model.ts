@@ -157,6 +157,11 @@ export type ResourceModel = {
   comments?: true
   /** Whether open pages refresh as soon as its records change (`.live()`). */
   live?: true
+  /**
+   * The fields of a unique key whose conflict on create answers the record already holding those values, to a caller
+   * who may read it (`.openExisting()`).
+   */
+  openExisting?: string[]
 }
 
 /** What happened to a record: `delete` and `undelete` include setting and clearing a soft delete field. */
