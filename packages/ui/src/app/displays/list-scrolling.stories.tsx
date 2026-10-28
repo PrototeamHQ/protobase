@@ -142,7 +142,9 @@ const firstInView = (canvasElement: HTMLElement, items: () => HTMLElement[]) => 
 const checkComingBack = async (canvasElement: HTMLElement, items: () => HTMLElement[], back: () => Promise<void>) => {
   const canvas = within(canvasElement)
   await waitFor(() => expect(items().length).toBeGreaterThan(0))
+  await listStarted()
   page().scrollTop = 20_000
+  await waitFor(() => expect(page().scrollTop).toBeGreaterThan(10_000))
   await waitFor(() => expect(firstInView(canvasElement, items)?.text).toMatch(/R-\d+/))
   const left = firstInView(canvasElement, items)!
   const opened = items().find((item) => item.textContent === left.text)!
