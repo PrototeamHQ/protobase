@@ -1,5 +1,0 @@
-#!/bin/sh
-# Refuses a commit while the protobase skill's references fall behind the docs, which CI checks too (see CONTRIBUTING.md).
-if bun scripts/protobase-skill.ts --check >&2; then exit 0; fi
-echo "pre-commit: the skill's references fall behind the docs; run bun run docs:skill and commit packages/cli/skills/protobase" >&2
-exit 1

@@ -6,7 +6,7 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "prepare": "bun scripts/install-git-hooks.mjs",
+    "prepare": "bun scripts/install-git-hooks.mjs && bun scripts/protobase-skill.ts",
     "db:up": "test -f .env || cp .env.example .env; docker compose up -d --wait && bun scripts/local-databases.mjs",
     "db:down": "docker compose down",
     "test": "vitest run --project 'unit*' --project 'snapshot*'",
