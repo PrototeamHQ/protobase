@@ -85,7 +85,8 @@ describe('prepareWorkspace with a local folder', () => {
     installed(ws, 'is-number', '7.0.0')
     chmodSync(path.join(ws, 'node_modules'), 0o555)
     const seen: Array<{ args: string[]; modules: boolean; lock: boolean }> = []
-    await expect(prepareWorkspace(ws, packageJson, fakeNpm(ws, '6.0.0', seen))).rejects.toThrow(expect.objectContaining({ code: 'EACCES' }))
+    // Node reports the refused removal as EACCES, Bun as ENOTEMPTY.
+    await expect(prepareWorkspace(ws, packageJson, fakeNpm(ws, '6.0.0', seen))).rejects.toThrow(expect.objectContaining({ code: expect.stringMatching(/^(EACCES|ENOTEMPTY)$/) }))
     expect(seen).toEqual([])
     chmodSync(path.join(ws, 'node_modules'), 0o755)
     await prepareWorkspace(ws, packageJson, fakeNpm(ws, '6.0.0', seen))
