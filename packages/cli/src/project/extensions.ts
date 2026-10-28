@@ -2,6 +2,7 @@ import { existsSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import type { Plugin } from 'vite'
 import { adminAppDir } from './admin-app'
+import { protobaseFolder } from './protobase-folder'
 
 // An extension's folder (`--extend <dir>`) and the configs it holds: a protobase.config.ts, a protobase.ui.tsx or both.
 export type Extension = { dir: string; config?: string; ui?: string }
@@ -43,13 +44,21 @@ export const extensionImports = (projectDir: string, extensions: Extension[]): P
 // The admin app's stylesheet, beside its app folder in @protobase/ui's src and dist alike.
 const appStyles = path.join(path.dirname(adminAppDir), 'styles.css')
 
-// Tailwind finds the classes the project uses by scanning the working directory; an extension's folder lies elsewhere,
-// so the app's stylesheet names it as a source too.
-export const extensionStyles = (extensions: Extension[]): Plugin => ({
-  name: 'protobase-extension-styles',
+// The project's build output (`protobase build`'s default `--out`) and generated files are not its sources.
+const projectSources = (projectDir: string, extensions: Extension[]) => [
+  `@source ${JSON.stringify(projectDir)};`,
+  `@source not ${JSON.stringify(path.join(projectDir, 'dist'))};`,
+  `@source not ${JSON.stringify(path.join(projectDir, protobaseFolder))};`,
+  ...extensions.map((extension) => `@source ${JSON.stringify(extension.dir)};`),
+]
+
+// Tailwind scans the dev server's root, the admin app's folder, and the folder its stylesheet names, never the project's;
+// so the app's stylesheet names the project's folder and each extension's as sources too. Tailwind skips node_modules.
+export const projectStyles = (projectDir: string, extensions: Extension[]): Plugin => ({
+  name: 'protobase-project-styles',
   enforce: 'pre',
   transform: (code, id) => {
-    if (extensions.length === 0 || id.replace(/\?.*$/, '') !== appStyles) return undefined
-    return `${code}\n${extensions.map((extension) => `@source ${JSON.stringify(extension.dir)};`).join('\n')}\n`
+    if (id.replace(/\?.*$/, '') !== appStyles) return undefined
+    return `${code}\n${projectSources(projectDir, extensions).join('\n')}\n`
   },
 })
