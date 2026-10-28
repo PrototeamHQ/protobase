@@ -5,7 +5,7 @@
 The sidebar, the user menu, the bottom bar on phones and the global search.
 
 - [Sidebar](../reference/sidebar.md): Resources and pages in groups, in the order you set.
-- [Recent records](../reference/sidebar.md#recent-records): A sidebar entry lists a few records under it, with status dots or as titles alone.
+- [Recent records](../reference/sidebar.md#recent-records): A sidebar entry lists a few records under it, with status dots or as titles alone, and marked per reader, such as unread ones in bold with a count.
 - [Create link](../reference/sidebar.md#create-link): A sidebar entry links to its create form, such as "New message" under Direct messages, for whoever may create.
 - [The current organization](../reference/sidebar.md#the-current-organization): A sidebar entry opens its list on the organization you work in, which you can clear to see every organization you are a member of.
 - [User menu](../reference/user-menu.md): Account pages, help links, security settings, the theme switch and Sign out.

@@ -6,7 +6,8 @@ import type { NavRecent } from '../app-shell'
 import { useClient } from '../data/api-provider'
 import type { MetaData } from '../data/meta-data'
 import { keys } from '../data/query-keys'
-import { recentRecords, recentRequest, recentRowDiffers } from './nav-recent'
+import { recentMarks, recentRecords, recentRequest, recentRowDiffers } from './nav-recent'
+import { useProjectUi } from './pages/project-ui'
 import { useRecordTitle } from './titles/record-titles'
 import { userMenuResources } from './user-menu-from-meta'
 
@@ -40,19 +41,20 @@ const useFollowRecords = (groups: Group[]) => {
 /**
  * The records of every sidebar group (`nav.recent`), one list request each, under the `list` query key so that any
  * write to the resource refreshes them, as does reading one of their records anew. The server applies the caller's
- * access, as on the list page.
+ * access, as on the list page. A group that names `marks` gets the project UI's hook, which the sidebar calls.
  */
 export const useNavRecent = (meta: MetaData, basePath: string, active: { resource?: string; key?: string }): Record<string, NavRecent> => {
   const client = useClient()
   const titleOf = useRecordTitle()
+  const { marks } = useProjectUi()
   const groups = useMemo(() => {
     const inMenu = userMenuResources(meta)
     return Object.values(meta.views).flatMap((view) => {
       const model = meta.resources[view.resource]
       const recent = view.nav?.recent
-      return model && recent && !view.nav?.hidden && !inMenu.has(model.name) ? [{ model, view, recent, request: recentRequest(model, view, recent) }] : []
+      return model && recent && !view.nav?.hidden && !inMenu.has(model.name) ? [{ model, view, recent, request: recentRequest(model, view, recent), useMarks: recentMarks(model.name, recent, marks) }] : []
     })
-  }, [meta])
+  }, [meta, marks])
   useFollowRecords(groups)
   const results = useQueries({
     queries: groups.map((group) => ({
@@ -61,12 +63,12 @@ export const useNavRecent = (meta: MetaData, basePath: string, active: { resourc
     })),
   })
   return Object.fromEntries(
-    groups.map(({ model, view, recent }, index) => {
+    groups.map(({ model, view, recent, useMarks }, index) => {
       const result = results[index]!
       if (result.isPending) return [model.name, { state: 'loading' }]
       if (result.isError) return [model.name, { state: 'error' }]
       const activeKey = active.resource === model.name ? active.key : undefined
-      return [model.name, { state: 'ready', records: recentRecords(model, view, recent, result.data.items, basePath, activeKey, titleOf) }]
+      return [model.name, { state: 'ready', records: recentRecords(model, view, recent, result.data.items, basePath, activeKey, titleOf), ...(useMarks && { useMarks }) }]
     }),
   )
 }

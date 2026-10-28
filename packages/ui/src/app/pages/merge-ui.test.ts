@@ -56,6 +56,14 @@ describe('mergeUi', () => {
     expect(() => mergeUi(defineUi({ name: 'a', titles: { members } }), defineUi({ name: 'b', titles: { members: topic } }))).toThrow('The title rule "members" is defined twice, by a and by b; rename one of them')
   })
 
+  it('keeps every marks hook, refusing a name defined twice', () => {
+    const unread = () => ({ general: { strong: true } })
+    const starred = () => undefined
+    expect(mergeUi(defineUi({ extends: [defineUi({ marks: { unread } })], marks: { starred } })).marks).toEqual({ unread, starred })
+    expect(mergeUi(defineUi({ components: {} }))).not.toHaveProperty('marks')
+    expect(() => mergeUi(defineUi({ name: 'a', marks: { unread } }), defineUi({ name: 'b', marks: { unread: starred } }))).toThrow('The marks hook "unread" is defined twice, by a and by b; rename one of them')
+  })
+
   it('extends a whole protobase.ui.tsx module, its components exported by name included', () => {
     const Board = text('board')
     const merged = mergeUi(defineUi({ name: 'app', extends: [{ Board, default: cloud }] }))

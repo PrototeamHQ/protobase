@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { NavRecentModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { recentRecords, recentRequest, recentRowDiffers } from './nav-recent'
+import { recentMarks, recentRecords, recentRequest, recentRowDiffers } from './nav-recent'
 import { recordTitleOf } from './titles/record-title-of'
 
 const model = { name: 'services', table: { name: 'services' }, primaryKey: ['id'], fields: { id: { name: 'id', type: 'text' }, name: { name: 'name', type: 'text' }, state: { name: 'state', type: 'enum' } } } as unknown as ResourceModel
@@ -72,3 +72,20 @@ describe('recentRowDiffers', () => {
     expect(recentRowDiffers(model, fields, rows, 's9', { id: 's9', name: 'other', state: 'running' })).toBe(false)
   })
 })
+
+describe('recentMarks', () => {
+  const unread = (resource: string) => (resource === 'services' ? { s1: { strong: true, count: 2 } } : undefined)
+
+  it("calls the project UI's hook the group names with the group's resource", () => {
+    const useMarks = recentMarks('services', { marks: 'unread' }, { unread })
+    expect(useMarks?.()).toEqual({ s1: { strong: true, count: 2 } })
+  })
+
+  it('marks nothing for a group without marks, or one naming a hook no UI config registers', () => {
+    expect(recentMarks('services', {}, { unread })).toBeUndefined()
+    expect(recentMarks('services', { marks: 'starred' }, { unread })).toBeUndefined()
+    expect(recentMarks('services', { marks: 'unread' }, undefined)).toBeUndefined()
+    expect(recentMarks('services', { marks: 'toString' }, {})).toBeUndefined()
+  })
+})
+

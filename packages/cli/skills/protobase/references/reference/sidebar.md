@@ -69,6 +69,7 @@ export const channelsView = view<typeof channels>('channels').nav({ recent: { or
 | `filter` | Which records qualify, as AIP-160 text, exactly as `?filter=` on the list API. Use it to leave out finished or inactive records, or to keep them while they are recent: `status != "stopped" OR updated_at > now() - 7d`. |
 | `orderBy` | AIP-132 order, as `?order_by=`; the list's `sort` when omitted. |
 | `limit` | How many records, 1 to 20; 3 when omitted. |
+| `marks` | The name of a hook in the UI config's `marks` that marks each record for the person reading, such as an unread conversation in bold with a count. See [Marks per reader](#marks-per-reader). Optional. |
 
 The entry then works like this:
 
@@ -79,9 +80,38 @@ The entry then works like this:
 
 The records come from the list API with the caller's token, so they follow the same access rules as the list page: row filters such as `.own` apply, and when the list is refused the group says it could not load. Any write to the resource made in the admin refreshes them, and so does returning to the window, unless a record has unsaved changes, so statuses changed elsewhere show up. A record read anew, by its record page or by project code refetching `useRecord`, refreshes its group too when it shows another status or title than the group's row.
 
+### Marks per reader
+
+A record can stand out for the person reading, such as a channel with messages they have not read: in bold, with a count at the end of its row. The group names a hook under `marks` in `protobase.ui.tsx`, and the sidebar calls it with the resource's name while it shows the records. It returns each record's mark by the record's key as its address carries it, or `undefined` while it loads, so it can read the API as the reader with `useList`, `useClient` or live updates, and its marks follow them:
+
+```tsx
+// protobase.views.ts
+view<typeof channels>('channels').nav({ recent: { orderBy: 'name asc', limit: 20, marks: 'unread' } })
+
+// protobase.ui.tsx
+import { defineUi, useList } from '@protobase/ui'
+
+const useUnreadMarks = () => {
+  // unread_channels: a resource of the project's own, one row per channel the reader has unread messages in
+  const unread = useList('unread_channels', { pageSize: 100 })
+  if (unread.isPending) return
+  return Object.fromEntries(unread.items.map((row) => [String(row.channel_id), { strong: true, count: Number(row.mentions), label: `${row.mentions} mentions` }]))
+}
+
+export default defineUi({ marks: { unread: useUnreadMarks } })
+```
+
+| Mark | Meaning |
+| --- | --- |
+| `strong` | The record's title shows bold and in the foreground colour, not muted. |
+| `count` | A small badge at the end of the row, the pill of the notification bell's count; `99+` above 99, none at 0. |
+| `label` | Added to the record's name for screen readers and its tooltip, such as "3 mentions". |
+
+The records keep the group's order. A mark is presentation only: it is no field, filter or sort key, and the server computes nothing for it; what it counts comes from the requests the hook makes as the reader. Icon sidebars show no records, so no marks either. A group whose name no UI config registers, such as a plugin's that is turned off, shows its records unmarked.
+
 ### Checks
 
-`createAdmin` refuses to start when a group does not fit its resource: an unknown `status` field, `pulse` without a `status`, a tone outside the palette, a `limit` outside 1 to 20, or a `filter` or `orderBy` the list API would reject (unknown, non-filterable or non-sortable fields, bad syntax). `view.toModel(resourceModel)` runs the same checks.
+`createAdmin` refuses to start when a group does not fit its resource: an unknown `status` field, `pulse` without a `status`, a tone outside the palette, a `limit` outside 1 to 20, `marks` without a name, or a `filter` or `orderBy` the list API would reject (unknown, non-filterable or non-sortable fields, bad syntax). `view.toModel(resourceModel)` runs the same checks.
 
 `/meta` drops the group, and keeps the rest of `nav`, for a caller who cannot read a field it uses (its status when it has one, or a field in its filter or order), so it never names a hidden field.
 

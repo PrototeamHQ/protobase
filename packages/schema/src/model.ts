@@ -1231,6 +1231,11 @@ export type NavRecentModel = {
   orderBy?: string
   /** How many records to show, 1 to 20; 3 when omitted. */
   limit?: number
+  /**
+   * Marks each record for the person reading, such as bold with a count of unread messages: the name of a hook in the
+   * project UI's `marks`, which the sidebar calls in the browser. Presentation only: it is no field, filter or sort key.
+   */
+  marks?: string
 }
 
 /** Where a resource sits in the sidebar (`.nav(...)`); see [Sidebar](website/src/content/docs/reference/sidebar.md). */
