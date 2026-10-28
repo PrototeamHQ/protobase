@@ -36,6 +36,10 @@ description: Finish a move from Supabase to Protobase after `protobase import su
 
 Nothing to do: each table's count matched the source before the load committed.
 
+### API keys
+
+Unless `protobase.config.ts` sets `apiKeys`, add `PROTOBASE_PUBLISHABLE_KEY` and `PROTOBASE_SECRET_KEY` to `.env.example` with empty values: the user enters the keys, never you. Then point every `createClient` at the app's `/api/sb` with the publishable key, in place of the Supabase project's URL and anon key, reading both from the app's own settings, not the Supabase ones. See [Supabase client API](../protobase/references/reference/supabase-rest.md#keys-and-roles).
+
 ### Sign-in
 
 Passwords need nothing: the import's migrations carry them over. For each provider listed with accounts:

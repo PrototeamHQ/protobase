@@ -1,6 +1,7 @@
 import { convertedCronJobs, type PlannedCronJob } from './cron-plan'
 import { providerFate, type ProviderCount } from './identity-providers'
 import type { ImportManifest } from './import-state'
+import { apiKeysSection } from './report-api-keys'
 
 /** Protobase Cloud's Starter plan holds this much data; the import reports a larger database, it does not refuse it. */
 const starterBytes = 500 * 1024 * 1024
@@ -115,6 +116,7 @@ export const importReport = (manifest: ImportManifest, doctor: string | undefine
     '## Rows loaded\n\nEach count matched the source before the load committed.\n\n| Table | Rows |\n| --- | --- |\n' +
       manifest.tables.map((table) => `| ${table.schema}.${table.table} | ${table.rows} |`).join('\n') +
       '\n',
+    apiKeysSection(),
     signInSection(providers),
     section(
       'Made again',

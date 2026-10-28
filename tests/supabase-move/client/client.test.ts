@@ -68,6 +68,7 @@ describe('a Supabase project moved with protobase import supabase', () => {
     ])
     expect(app.report).toContain('run `protobase migration` and apply it')
     expect(app.report).toMatch(/## Packages added[\s\S]*@supabase\/supabase-js/)
+    expect(app.report).toMatch(/## API keys[\s\S]*PROTOBASE_PUBLISHABLE_KEY[\s\S]*createClient\('https:\/\/<the app's origin>\/api\/sb'/)
   })
 
   it('signs each imported user in with the password they had on Supabase, and refuses a wrong one', async () => {

@@ -1,3 +1,4 @@
+import { apiKeyVariables } from '@protobase/server'
 import { describe, expect, it } from 'vitest'
 import type { ImportManifest } from './import-state'
 import { importReport } from './report'
@@ -73,6 +74,15 @@ describe('importReport', () => {
     expect(report).toMatch(/## Realtime tables\n\n[^\n]+\n\n- public\.logs\n\n/)
     expect(importReport(manifest, undefined, true, [], [])).not.toContain('## Live tables')
     expect(importReport(manifest, undefined, true, ['public.todos'], [])).toContain('## Realtime tables\n\nNone.')
+  })
+
+  it("says to set the app's API keys and to point the clients at /api/sb with the publishable key", () => {
+    const report = importReport(manifest, undefined, true, [], [])
+    expect(report).toContain('## API keys\n\n')
+    expect(report).toContain(`\`apiKeys\` in \`protobase.config.ts\`, \`{ publishable_key, secret_key }\`, or else \`${apiKeyVariables.publishable_key}\` and \`${apiKeyVariables.secret_key}\` in the app's environment`)
+    expect(report).toContain('Without either, or with `apiKeys: false`, the app serves none of them.')
+    expect(report).toContain("anon or publishable key and is safe in a browser; the secret key takes the place of its service_role or secret key")
+    expect(report).toContain("createClient('https://<the app's origin>/api/sb', '<the publishable key>')")
   })
 
   it('lists the rows loaded and what needs a person, with the size against the Starter plan', () => {
