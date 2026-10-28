@@ -77,6 +77,20 @@ const folders = resource('folders')
   .access({ read: (ctx) => where.eq('owner_id', ctx.user!.id as string) })
   .parent((r) => r.parent_id, 'read')
 
+// A thread: a reply is read under its channel and under the message it answers, which keeps to that one's channel
+const replies = resource('replies')
+  .table('replies')
+  .fields({
+    id: f.integer().filterable().sortable(),
+    tenant_id: f.integer().readOnly(),
+    channel_id: f.relation('channels').optional().filterable(),
+    thread_id: f.relation('replies').optional().filterable(),
+  })
+  .primaryKey((r) => r.id)
+  .tenant((r) => r.tenant_id)
+  .parent((r) => r.thread_id, 'read')
+  .parent((r) => r.channel_id, 'read')
+
 let pg: SnapshotDb
 let db: Kysely<any>
 let app: ReturnType<typeof createAdmin>
@@ -103,6 +117,9 @@ beforeAll(async () => {
     create table folders (id integer primary key, owner_id text not null, parent_id integer references folders);
     create index on folders (owner_id);
     create index on folders (parent_id);
+    create table replies (id integer primary key, tenant_id integer not null, channel_id integer references channels, thread_id integer references replies);
+    create index on replies (channel_id);
+    create index on replies (thread_id);
     insert into channels values
       (1, 1, 'public', '[]', null), (2, 1, 'private', '["alice"]', null), (3, 1, 'private', '["alice", "bob"]', '2026-07-01'),
       (4, 2, 'public', '[]', null);
@@ -115,9 +132,10 @@ beforeAll(async () => {
     insert into rooms values (1, true), (2, false);
     insert into posts values (1, 1), (2, 2), (3, null);
     insert into folders values (1, 'alice', null), (2, 'alice', 1), (3, 'bob', null), (4, 'alice', 3);
+    insert into replies values (1, 1, 2, null), (2, 1, null, 1);
   `)
   db = new Kysely({ dialect: pg.dialect })
-  app = createAdmin({ resources: [channels, directMessages, messages, reactions, pins, rooms, posts, folders], db, authenticate: testAuthenticator })
+  app = createAdmin({ resources: [channels, directMessages, messages, reactions, pins, rooms, posts, folders, replies], db, authenticate: testAuthenticator })
 })
 afterAll(async () => { await db.destroy() })
 
@@ -184,5 +202,12 @@ describe('a child under .parent(fk, "read")', () => {
   it('checks a resource that is its own parent one level up', async () => {
     expect(await ids('/folders?order_by=id', 'alice')).toEqual([1, 2])
     expect(await ids('/folders?order_by=id', 'bob')).toEqual([3])
+  })
+
+  it("keeps a reply linked only to its thread to the thread's channel", async () => {
+    expect(await ids('/replies?order_by=id', 'bob')).toEqual([])
+    expect((await get('/replies/2', 'bob')).status).toBe(404)
+    expect(await ids('/replies?order_by=id', 'alice')).toEqual([1, 2])
+    expect((await get('/replies/2', 'alice')).status).toBe(200)
   })
 })
