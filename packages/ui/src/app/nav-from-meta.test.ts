@@ -140,6 +140,31 @@ describe('navFromMeta', () => {
     expect(groups.flatMap((group) => group.items.map((item) => [item.id, item.recent]))).toEqual([['orders', { state: 'loading' }]])
   })
 
+  it('links an entry to its create form for a caller who may create, as nav.create asks', () => {
+    const permissions = (create: boolean) => ({ create, update: true, delete: true, conditional: [] })
+    const view = (resource: string, nav: object, extra = {}) => ({ resource, names: { singular: 'Message', plural: 'Messages' }, fields: {}, filters: [], layout: [], actions: [], nav, ...extra }) as unknown as ViewModel
+    const meta = {
+      etag: '"x"',
+      appName: 'Protobase',
+      permissions: { direct_messages: permissions(true), notes: permissions(true), posts: permissions(false), drafts: permissions(false) },
+      resources: { direct_messages: model('direct_messages', 'chat'), notes: model('notes', 'chat'), posts: model('posts', 'chat'), drafts: model('drafts', 'chat') },
+      views: {
+        direct_messages: view('direct_messages', { create: true }),
+        notes: view('notes', { create: { label: 'Write a note' } }),
+        posts: view('posts', { create: true }),
+        drafts: view('drafts', { create: true }, { create: { page: 'compose' } }),
+      },
+      pages: { compose: { name: 'compose', title: 'Compose', nav: { hidden: true }, tree: { type: 'Page', props: { title: 'Compose' }, children: [] } } },
+    }
+    const links = Object.fromEntries(navFromMeta(meta, '/admin').flatMap((group) => group.items.map((item) => [item.id, item.create])))
+    expect(links).toEqual({
+      direct_messages: { label: 'New message', href: '/admin/direct_messages/new' },
+      notes: { label: 'Write a note', href: '/admin/notes/new' },
+      posts: undefined,
+      drafts: { label: 'New message', href: '/admin/drafts/new' },
+    })
+  })
+
   it('puts pages first, in their group or under Pages, and honours their nav', () => {
     const view = (resource: string, nav: object = {}) => ({ resource, fields: {}, filters: [], layout: [], actions: [], nav }) as unknown as ViewModel
     const page = (name: string, nav?: object) => ({ name, title: name.toUpperCase(), tree: { type: 'Page', props: { title: name }, children: [] }, ...(nav && { nav }) })

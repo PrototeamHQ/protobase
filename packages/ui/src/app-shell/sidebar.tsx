@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from 'react'
+import { Fragment, type ComponentType, type ReactNode } from 'react'
 import { LogIn } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
@@ -6,6 +6,7 @@ import { Logo, type ShellLogoProps } from './logo'
 import { navGroups as defaultGroups, type NavGroup } from './nav'
 import { ProfileMenu, type ProfileMenuItem, type ProfileOrganizations, type ProfileRoles, type ShellUser } from './profile-menu'
 import { ThemeSwitch, type ProfileTheme } from './theme-switch'
+import { SidebarCreateLink } from './sidebar-create-link'
 import { SidebarGroup } from './sidebar-group'
 import { SidebarItem } from './sidebar-item'
 import { isTextMode, sidebarWidth, type SidebarMode } from './sidebar-mode'
@@ -79,13 +80,16 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, f
               ) : (
                 index > 0 && <div className="mx-auto mb-1 h-px w-6 bg-border" />
               )}
-              {group.items.map((item) =>
-                item.recent && isTextMode(mode) ? (
-                  <SidebarGroup key={item.id} item={item} recent={item.recent} mode={mode} active={item.id === activeItem} onNavigate={onNavigate} />
-                ) : (
-                  <SidebarItem key={item.id} item={item} mode={mode} active={item.id === activeItem} onNavigate={onNavigate} />
-                ),
-              )}
+              {group.items.map((item) => (
+                <Fragment key={item.id}>
+                  {item.recent && isTextMode(mode) ? (
+                    <SidebarGroup item={item} recent={item.recent} mode={mode} active={item.id === activeItem} onNavigate={onNavigate} />
+                  ) : (
+                    <SidebarItem item={item} mode={mode} active={item.id === activeItem} onNavigate={onNavigate} />
+                  )}
+                  {item.create && isTextMode(mode) && <SidebarCreateLink create={item.create} mode={mode} onNavigate={onNavigate} />}
+                </Fragment>
+              ))}
             </div>
           ))}
         </div>

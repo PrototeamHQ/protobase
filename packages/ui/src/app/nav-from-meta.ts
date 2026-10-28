@@ -1,6 +1,8 @@
-import { appPath } from '@protobase/schema'
-import type { NavGroup, NavRecent } from '../app-shell'
-import type { MetaData } from '../data/meta-data'
+import { appPath, type NavModel, type ViewModel } from '@protobase/schema'
+import type { NavGroup, NavItem, NavRecent } from '../app-shell'
+import { allowEverything, type MetaData } from '../data/meta-data'
+import { createOffered } from './create/create-offered'
+import { text as createText } from './create/messages'
 import { humanize } from '../live/naming'
 import { LayoutDashboard } from 'lucide-react'
 import { iconFor } from './icons'
@@ -19,10 +21,17 @@ const schemaGroup = (schema = 'public') => {
   return groupLabels[schema] ? appText(groupLabels[schema]) : humanize(schema)
 }
 
+/** The link under an entry whose `nav.create` asks for one, to whoever the list would offer New. */
+const createLink = (meta: MetaData, view: ViewModel, nav: NavModel | undefined, singular: string, basePath: string): Pick<NavItem, 'create'> => {
+  if (!nav?.create || !createOffered(view, meta.pages, meta.permissions[view.resource] ?? allowEverything)) return {}
+  const label = nav.create === true ? createText('title', singular) : nav.create.label
+  return { create: { label, href: appPath({ kind: 'create', resource: view.resource }, basePath) } }
+}
+
 /**
  * One sidebar group per `nav.group` (default: the database schema, none for `public`, and "Pages" for pages); `nav.hidden` and a place in
  * the user menu leave an entry out, `nav.order` sorts within a group, and `recent` (from `useNavRecent`) makes an entry
- * collapsible. Groups with pages come first, so a dashboard leads the sidebar. The resources of a source that cannot be
+ * collapsible, and `create` links to the create form under it. Groups with pages come first, so a dashboard leads the sidebar. The resources of a source that cannot be
  * read are listed under its label, each with the problem. A visitor also gets the resources whose views ask them to sign
  * in, where those views place them, under "Account" without a group. Each named list of a view is an entry of its
  * own, placed by its own `nav`.
@@ -58,6 +67,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
           icon: iconFor(model.name),
           href: appPath({ kind: 'list', resource: model.name }, basePath),
           ...(recent[model.name] && { recent: recent[model.name] }),
+          ...createLink(meta, view, view.nav, view.names?.singular ?? humanize(model.name), basePath),
         },
         view.nav?.order,
       )
@@ -71,6 +81,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
           label: named.names.plural,
           icon: iconFor(model.name),
           href: appPath({ kind: 'list', resource: model.name, list: named.name }, basePath),
+          ...createLink(meta, view, named.nav, named.names.singular, basePath),
         },
         named.nav?.order,
       )
