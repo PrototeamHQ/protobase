@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
 import { Button } from '../primitives/button'
-import { isAtEnd, scrollAfterChange, type ThreadPlace } from './thread-scroll'
+import { readPlace } from './read-place'
+import { scrollAfterChange, type ThreadPlace } from './thread-scroll'
 import { text } from './messages'
 
 export type ChatThreadProps = {
@@ -16,14 +17,6 @@ export type ChatThreadProps = {
   loadingEarlier?: boolean
   /** Changes when the reader sends a message, such as a count of their sends: each change goes to the end wherever they were, and the message that arrives next follows. */
   followKey?: string | number
-}
-
-/** The message the reader is reading: the first whose bottom shows. */
-const readPlace = (box: HTMLElement, list: HTMLElement, followKey: unknown): ThreadPlace<Element> => {
-  const top = box.getBoundingClientRect().top
-  const element = [...list.children].find((child) => child.getBoundingClientRect().bottom > top)
-  const anchor = element && { anchor: { element, top: element.getBoundingClientRect().top - top } }
-  return { atEnd: isAtEnd(box), first: list.firstElementChild ?? undefined, followKey, ...anchor }
 }
 
 /**
