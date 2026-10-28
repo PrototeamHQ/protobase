@@ -73,6 +73,7 @@
     "useList",
     "useListDisplay",
     "useMarkNotificationsRead",
+    "useMembers",
     "useMeta",
     "usePlugin",
     "usePushNotifications",

@@ -85,6 +85,7 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     remove: unsupported('delete an organization'),
     leave: unsupported('leave an organization'),
     members: async () => [],
+    people: async () => [],
     setRole: unsupported('change a role'),
     setAppRoles: unsupported('change app roles'),
     removeMember: unsupported('remove a member'),
