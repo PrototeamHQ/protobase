@@ -577,6 +577,10 @@ view<typeof repairs>('repairs').create({ page: 'book-repair' })
 
 [A create page of your own](../guides/create-page.md) builds one step by step.
 
+### Opening the existing record
+
+The create form at `/<resource>/new`, not a page of the app's own, can open the record a create repeats. When the resource has [`.openExisting()`](data-config.md#opening-an-existing-record), and the server answers the create form's save with that record's key, the form opens that record at its own address, as it opens a record it created, with no error. A start of a direct message with the same people opens the conversation there is. A user who may not read that record gets the usual "Could not save" toast, as for any record with the same unique value.
+
 ## Sign-in prompts
 
 `.signIn({ title, description, benefits?, icon?, signUp? })` on a view tells a visitor who is not signed in what they could do with the resource once signed in. Where a signed-in user sees the list, the visitor sees the prompt: an icon (`icon`, as for field hints, a sign-in icon by default), `title`, `description` and a line per `benefits`, with **Sign in**, which opens the sign-in page and comes back to the same address. A card's [favorite button](#favorites) that saves to the resource, and a list's [Save search](#saved-searches) button that saves to it, open the same prompt as a dialog, with **Not now** to close it. With [open sign-up](auth.md#open-sign-up) on the server, the prompt also offers **Create an account**, which opens the app's own sign-up page. `signUp: { label, href }` names a page elsewhere instead, `https://`, `http://` or `mailto:`, opened in a new tab.

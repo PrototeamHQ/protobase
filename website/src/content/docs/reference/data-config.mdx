@@ -30,6 +30,7 @@ A **resource** describes one table of a database you already have: its columns a
 | `.search((r) => [r.number, r.name])` | The fields that `search("...")` and bare words in a filter match, and what the admin's [global search](/reference/client/#global-search) looks in. Every word of the text must appear in one of them, ignoring case, and part of a word is enough: `port` finds "Portfolio". `r.phone.digitsEnd()` matches only the end of a field's digits instead, ignoring spaces, `+` and dashes, and only words written like phone numbers: `9623`, `47069623` and `+31 6 47069623` find "+31 6 47069623", `4706` and `+316` do not. Each field needs a pg_trgm index (`using gin (name gin_trgm_ops)`), a `digitsEnd` one on `regexp_replace(phone, '[^0-9]', '', 'g')`, or the API refuses the search. |
 | `.position((r) => r.position, { within?, after? })` | The integer field holding the records' order by hand, 1 the first, which a list's **Reorder** button changes by dragging; with `within: (r) => r.invoice_id`, a filterable relation, each parent's records have an order of their own, sorted in its related section; with `after`, a record never ranks above the records it depends on. The field must be sortable. See [Reordering by hand](/reference/ui-config/#reordering-by-hand) and [Ranked after what they depend on](/reference/ui-config/#ranked-after-what-they-depend-on). |
 | `.parent((r) => r.vm_id, 'update')` | The relation whose record each record belongs to, and the access on it (`'read'` or `'update'`) that creating, changing, deleting and undeleting a record needs, checked with the caller's own rules on that resource. With `'read'`, every read of its records also keeps to those whose parent the caller reads. The relation is one column, to a resource with a key of one field. See [Records that belong to another](/reference/access/#records-that-belong-to-another). |
+| `.openExisting((r) => [r.organization_id, r.member_key])` | A unique key of the table whose conflict on create opens the record already holding those values, such as a direct message with the same members. See [Opening an existing record](#opening-an-existing-record). |
 | `.validate((record) => issues)` | A rule over the whole record, run after the field checks on every create and update. It returns `[{ field, message }]` or `undefined`; issues answer `400` with the field named. |
 | `.access({ ... })` | Rules per operation. See [Access](#access). |
 | `.events((e, r) => [...])` | What changes of its records mean, such as `orders.created`, captured in the database for every write. See [Events](/reference/events/). |
@@ -219,6 +220,32 @@ What a move leaves behind: webhooks already sent carried the old values to their
 ### What it protects against
 
 It protects the values from database dumps, backups, replicas, and readers of raw SQL and realtime changes, who see only ciphertext. It does not protect them from whoever holds the key or the app's environment, or can run code in the server. Someone who can write to the database can change a row's tenant or roles, or put back an older value of the same record and field, from a backup say, which still opens. The ciphertext shows whether a value is empty, its length and when it changed. A key seals at most about 2³² values safely, as each gets a random IV; rotating starts a new key's count.
+
+## Opening an existing record
+
+A resource whose records are unique by some of their values, such as a direct message by its members, can have a create that repeats those values open the record that holds them instead of failing. `.openExisting()` names the unique key, as its fields:
+
+```ts
+resource('direct_messages')
+  .table('direct_messages')
+  .fields({
+    id: f.integer().readOnly().dbDefault(),
+    organization_id: f.relation('organizations'),
+    member_ids: f.json(),
+    // generated always as (...) stored: the members sorted, without repeats
+    member_key: f.text().readOnly().dbDefault(),
+  })
+  .primaryKey((r) => r.id)
+  .tenant((r) => r.organization_id)
+  .openExisting((r) => [r.organization_id, r.member_key])
+```
+
+- The fields are exactly the columns of a unique index or constraint that covers every row, in any order, such as `unique (organization_id, member_key)`; a column the database generates counts. A create that conflicts on another unique key answers as without the option. Without such an index every create of the resource fails with a server error naming it, and [`protobase doctor`](/reference/cli/#doctor) reports it.
+- A create that conflicts on the key answers the [`409` `conflict`](/reference/api/#errors) any unique violation answers, with `existing: { key }`, the key of the record holding those values, but only when the caller may read that record: in their tenant, inside their row filter and the parents they read, and passing a record-level read rule, as a `GET` of it checks. Otherwise the answer is the same plain `409`, so it never tells anyone that a record they cannot see exists. A soft-deleted record counts as one they cannot read.
+- The create finds the record with `insert ... on conflict (...) do update ... where` a condition that only notes its key and is false, so nothing is updated and no update trigger runs, but the app's database role needs the update privilege on the table, as for any `on conflict do update`.
+- Two creates of the same values at the same moment both end on one record: the second waits for the first and then answers with its key.
+- The [create form](/reference/ui-config/#opening-the-existing-record) then opens that record instead of saying it could not save.
+- An encrypted or file field cannot be part of the key: the API stores those as values that never match another record's.
 
 ## Keys and relations
 
