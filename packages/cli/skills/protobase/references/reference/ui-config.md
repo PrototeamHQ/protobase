@@ -657,7 +657,7 @@ export const ChannelChat = component('ChannelChat')
 view<typeof channels>('channels').record({ component: ChannelChat })
 ```
 
-The standard record page, with the layout's sections, the related records, Edit and Delete, stays at the record's address with `?standard=true` (`{ kind: 'record', resource, key, standard: true }`), which the component links to. Links to the record, from relations, search and notifications, open the component's page. Without the component, from a plugin that is off for instance, and when it throws, the standard page shows instead.
+The standard record page, with the layout's sections, the related records, Edit and Delete, stays at the record's address with `?standard=true` (`{ kind: 'record', resource, key, standard: true }`), which the component links to. Links to the record, from relations, search and notifications, open the component's page. Without the component, from a plugin that is off for instance, and when it throws, the standard page shows instead. <gap>A full-area record component cannot take props from the view because props for `.record` are not implemented.</gap>
 
 ### Read view and edit
 
