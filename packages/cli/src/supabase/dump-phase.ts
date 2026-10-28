@@ -16,7 +16,7 @@ import { databaseMarkers, missingMarkers } from './platform-schemas'
 import { realtimeMigration, realtimePolicies } from './realtime-policies'
 import { replayScript } from './replay'
 import { schemaMigration } from './schema-migration'
-import { refuseSsoUsers, ssoUserCount } from './sso-users'
+import { countSsoUsers, refuseSsoUsers } from './sso-users'
 import { appSchemas, cronJobs, cronTimezone, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, pgsodiumColumns, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
 import { authStoreMigrations } from './store-migrations'
 import { ensureApiRoles, existingSchemas, existingTables } from './target-checks'
@@ -126,7 +126,7 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     await reserved`begin isolation level repeatable read read only`
     const [exported] = await reserved<{ snapshot: string }[]>`select pg_export_snapshot() as snapshot`
     const snapshot = exported!.snapshot
-    refuseSsoUsers(await ssoUserCount((text) => reserved.unsafe(text)))
+    refuseSsoUsers(await countSsoUsers((text) => reserved.unsafe(text)))
     const { manifest: source, plan, realtimePolicies: policies, replay } = await readSource(reserved, options.targetUrl)
     // The realtime schema always comes over, for the triggers and SQL that broadcast from the database.
     const created = await checkTarget(options.targetUrl, [...source.schemas, 'realtime'], source.tables)
