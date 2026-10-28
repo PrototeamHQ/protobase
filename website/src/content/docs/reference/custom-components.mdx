@@ -299,7 +299,7 @@ export const ChannelComposer = ({ onSend }: { onSend: (text: string, mentions: s
 }
 ```
 
-`searchPeople` filters the list in the browser and shows at most 8, as comments' mentions do. The whole list loads in the browser, which suits a team, not thousands of members. Someone who has left the organization is no longer in it, so old messages lose their name. A person who works in an organization without being a member of it, through a global role, gets no list.
+`searchPeople` filters the list in the browser and shows at most 8, as comments' mentions do. <gap>`useMembers()` cannot page or search on the server because a server-side people resource is not implemented, so the whole list loads in the browser, which suits a team, not thousands of members.</gap> <gap>Old messages of someone who has left the organization cannot show their name because looking up former members is not implemented.</gap> A person who works in an organization without being a member of it, through a global role, gets no list.
 
 ## Components in the chat
 
