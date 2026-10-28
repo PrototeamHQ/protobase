@@ -22,6 +22,13 @@ export const isUniqueSet = (table: DbTable, columns: readonly string[]) =>
     return index.unique && !index.partial && indexed && indexed.every((column) => columns.includes(column))
   })
 
+// A unique, non-partial index on exactly these columns, in any order, as an `on conflict (columns)` needs.
+export const hasUniqueIndexOn = (table: DbTable, columns: readonly string[]) =>
+  table.indexes.some((index) => {
+    const indexed = plainColumns(index.columns)
+    return index.unique && !index.partial && indexed?.length === columns.length && indexed.every((column) => columns.includes(column))
+  })
+
 // The table's indexes in the shape @protobase/query judges coverage on. Introspection keeps no expression text, so an
 // expression key's definition is empty: only the `digits` need reads it.
 export const coverageIndexes = (table: DbTable): TableIndex[] =>
