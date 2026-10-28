@@ -8,7 +8,10 @@ const messages = resource('messages').table('messages')
   .fields({ id: f.integer(), channel_id: f.relation('channels'), author_id: f.relation('channels') })
   .primaryKey((r) => r.id).parent((r) => r.channel_id, 'read').parent((r) => r.author_id, 'update')
 const folders = resource('folders').table('folders').fields({ id: f.integer(), parent_id: f.relation('folders').optional() }).primaryKey((r) => r.id).parent((r) => r.parent_id, 'read')
-const registry = buildRegistry([channels, messages, folders])
+const replies = resource('replies').table('replies')
+  .fields({ id: f.integer(), channel_id: f.relation('channels').optional(), thread_id: f.relation('replies').optional() })
+  .primaryKey((r) => r.id).parent((r) => r.thread_id, 'read').parent((r) => r.channel_id, 'read')
+const registry = buildRegistry([channels, messages, folders, replies])
 const entry = (name: string) => registry.find(name)!
 
 const reads = (resolved: Partial<ResolvedAccess>) => ({ operations: { read: true, list: true, create: false, update: false, delete: false }, recordChecks: [], readableFields: [], writableFields: { create: [], update: [] }, rowFilter: {}, ...resolved })
@@ -36,5 +39,12 @@ describe('parentReads', () => {
     await parentReads(entry('folders'), { user: { id: 'a', roles: [] } }, [], resolving(reads({}), calls), registry.find)
     expect(calls).toEqual([['folders', ['folders']]])
     expect(await parentReads(entry('folders'), { user: { id: 'a', roles: [] } }, ['folders'], resolving(reads({})), registry.find)).toEqual([])
+  })
+
+  it('follows the other parents of a resource reached as its own parent, never one met earlier', async () => {
+    const calls: [string, readonly string[]][] = []
+    await parentReads(entry('replies'), { user: { id: 'a', roles: [] }, tenant: 1 }, ['replies'], resolving(reads({}), calls), registry.find)
+    expect(calls).toEqual([['channels', ['replies', 'replies']]])
+    expect(await parentReads(entry('replies'), { user: { id: 'a', roles: [] } }, ['replies', 'channels'], resolving(reads({})), registry.find)).toEqual([])
   })
 })
