@@ -24,6 +24,8 @@ export type ProblemDetails = {
   operation?: number
   /** For a delete other records still point at: their resource, and its field pointing at the record, as far as the caller may know. */
   blockedBy?: { resource: string; field?: string }
+  /** For a create refused by a resource's `.openExisting()` unique key: the key of the record holding those values, when the caller may read it. */
+  existing?: { key: string }
   /** For `strong-sign-in-required`: how many minutes old the strong sign-in may be. */
   minutes?: number
 }
@@ -52,6 +54,11 @@ export class ApiError extends Error {
   /** For a delete other records still point at: their resource, and the field to filter its list by. */
   get blockedBy() {
     return this.problem.blockedBy
+  }
+
+  /** For a create refused by a resource's `.openExisting()` unique key: the record holding those values, when the caller may read it. */
+  get existing() {
+    return this.problem.existing
   }
 
   get errors() {

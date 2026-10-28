@@ -2,13 +2,14 @@ import type { Db } from '@protobase/query'
 import type { FormModel } from '@protobase/schema'
 import type { Deps } from './deps'
 import { blockedDelete } from './blocked-delete'
+import { insertOrOpen } from './open-existing'
 import { isDatabaseError } from './error-handler'
 import { attachFiles, scheduleRemovedFiles } from './files/attach'
 import type { ScheduledDelete } from './files/cleanup-schedule'
 import { badRequest, HttpProblem } from './problem'
 import { bindingOf, pendingBinding } from './encryption/binding'
 import { encryptedValuesOf, hasEncryptedValues, sealValues } from './encryption/seal-values'
-import { deleteRecord, fetchRecord, insertRecord, restoreRecord, updateRecord, type Shape, type StoredRecord } from './records'
+import { deleteRecord, fetchRecord, restoreRecord, updateRecord, type Shape, type StoredRecord } from './records'
 import { requestAccess, requireOperation, targetFilter, writableFields, type RequestAccess } from './request-access'
 import { tenantScope } from './tenant'
 import { actorSettings, wakeDispatch } from './changes/actor'
@@ -64,7 +65,7 @@ const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown,
   const parents = checkParents(trx, access, 'create')
   await parents(row)
   const shape = { etagFields: Object.keys(access.model.fields) }
-  const inserted = await insertRecord(trx, entry, sealValues(deps.encryption, full, row, (field) => pendingBinding(full, field)), shape)
+  const inserted = await insertOrOpen(trx, access, sealValues(deps.encryption, full, row, (field) => pendingBinding(full, field)), shape)
   const created = await bindEncrypted(trx, deps, access, row, inserted, shape)
   await assertWritten(trx, access, created, 'create', access.resolved.rowFilter.create, filter)
   await parents(created.record)
