@@ -422,10 +422,22 @@ The app's address and secret are `PROTOBASE_URL` and `PROTOBASE_SECRET` unless i
 
 ### Mobile releases
 
-With a `mobile` section, the server serves the [mobile app](/guides/mobile-app/) a newer copy of its files, for its live updater, so the app gets UI changes without a store release. The release is what the server serves the web, composed at startup: every file of `public/`, with the server's own shell where `protobase serve` uses it, and `index.html` naming the API origin, the app's `url` (https, or plain http to `localhost`, `127.0.0.1` or `[::1]`). There is none when the server serves the API alone, has no such `url`, or the bundle names no `native`.
+:::caution[In development]
+<gap>The mobile app cannot install a release yet because its live updater is not implemented.</gap>
+:::
+
+With a `mobile` section, the server serves the [mobile app](/guides/mobile-app/) a newer copy of its files, for its live updater, so the app gets UI changes without a store release. The release is what the server serves the web, composed at startup: every file of `public/`, with the server's own shell where `protobase serve` uses it, and `index.html` naming the API origin, the app's `url` (https, or plain http to `localhost`, `127.0.0.1` or `[::1]`). There is none when the server serves the API alone, has no such `url`, or the bundle names no `native`. Where `protobase serve` serves its own shell, the release's fingerprint names the `native` of that shell's `protobase.shell.json`, and there is none when it names none.
 
 - `GET /api/mobile/release?fingerprint=<native fingerprint>&shell_version=<x.y.z>` answers `{ "bundleId", "url", "required" }`: the release's id, a hash of its files, and its absolute base URL, both `null` when the release does not run on the asking binary, whose native fingerprint must equal the release's. `required` is true when the shell the app runs no longer works with the server's API: below 1.0 another minor, from 1.0 another major. A missing fingerprint or a shell version that is no x.y.z version gets 400.
 - `GET /api/mobile/releases/<bundleId>?href=<file>` serves the release's file `<file>`, such as `assets/index-abc123.js`, and with `href=capawesome-live-update-manifest.json` its manifest, a JSON array of `{ "href", "checksum", "sizeInBytes" }`. Each comes with its sha256 in hex in `X-Checksum` and, with `PROTOBASE_MOBILE_SIGNING_KEY`, its signature in `X-Signature`. Any other file, or another release's id, gets 404.
+
+A host that serves bundles without running their config, such as a router in front of many apps or a static host, serves the same release from the files it already serves with `@protobase/server/mobile-release`, which loads none of the rest of the server: `protobase serve` composes its own release with the same exports.
+
+- `nativeFingerprint(native, plugins)`: the release's fingerprint, from the manifest's `native` (or that of the shell the host serves) and `mobile.plugins`. It is a contract across versions: a binary one Protobase release built is matched by a host that runs another.
+- `withApiOrigin(html, origin)`: the `spa` page naming the API origin, the app's `url`.
+- `composeRelease(files, signingKey?)`: the release of `{ href, content }` files, every file the host serves the web with the page above in place of `spa`, with its id and the signed checksums.
+- `readSigningKey(env)`: the signing key in `PROTOBASE_MOBILE_SIGNING_KEY` of the env object given, the app's own, never the process's.
+- `mobileReleaseApp({ release, serverVersion })`: a Hono app answering the two routes above for `{ ...release, fingerprint, origin }`.
 
 ## `worker`
 

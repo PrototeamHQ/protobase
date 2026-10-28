@@ -1,8 +1,7 @@
 import type { KeyObject } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import { composeRelease, type MobileConfig, type OfferedRelease } from '@protobase/server'
-import { nativeFingerprint } from '../mobile/fingerprint'
-import { withApiOrigin } from '../mobile/api-origin-page'
+import type { MobileConfig } from '@protobase/server'
+import { composeRelease, nativeFingerprint, withApiOrigin, type OfferedRelease } from '@protobase/server/mobile-release'
 import type { ServedSite } from './app'
 import { siteFiles } from './site-files'
 

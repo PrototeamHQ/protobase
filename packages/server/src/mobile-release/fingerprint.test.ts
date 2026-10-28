@@ -12,4 +12,9 @@ describe('nativeFingerprint', () => {
     expect(nativeFingerprint(pinned, { '@capacitor/camera': '^8.1.0', a: '1.0.0' })).not.toBe(one)
     expect(nativeFingerprint(pinned)).toBe(nativeFingerprint(pinned, {}))
   })
+
+  // Binaries one version builds are matched by hosts that run another: the fingerprint of an input never changes.
+  it('pins a known input to a known fingerprint', () => {
+    expect(nativeFingerprint({ ...pinned, '@protobase/mobile': 'native-1' }, { '@capacitor/camera': '^8.0.1' })).toBe('375015551d0fe567')
+  })
 })

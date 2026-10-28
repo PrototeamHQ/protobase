@@ -1,5 +1,6 @@
 import type { KeyObject } from 'node:crypto'
-import { readDbConnections, readSigningKey } from '@protobase/server'
+import { readDbConnections } from '@protobase/server'
+import { readSigningKey } from '@protobase/server/mobile-release'
 import { readTrustedProxies } from './client-address'
 
 // The environment the platform provides. The app's own settings (PROTOBASE_URL, PROTOBASE_SECRET, ...) are its config's.

@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { nativeFingerprint } from '../mobile/fingerprint'
+import { nativeFingerprint } from '@protobase/server/mobile-release'
 import { releaseOrigin, servedRelease } from './mobile-release'
 
 describe('releaseOrigin', () => {

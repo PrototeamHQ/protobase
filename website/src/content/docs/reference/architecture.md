@@ -14,7 +14,7 @@ A Bun workspace of npm packages under the `@protobase` scope, in `packages/<name
 | `@protobase/query` | `packages/query` | `@protobase/query` | server | `schema` |
 | `@protobase/client` | `packages/client` | `@protobase/client` | anywhere with `fetch` | `schema`, `layout` |
 | `@protobase/ui` | `packages/ui` | `@protobase/ui`, `@protobase/ui/theme.css`, `@protobase/ui/styles.css`; the admin app in `src/app` | browser | `schema`, `layout`, `client` |
-| `@protobase/server` | `packages/server` | `@protobase/server`, `@protobase/server/auth-store`, `@protobase/server/config-exports`, `@protobase/server/email`, `@protobase/server/vapid`; `@protobase/server/internal` for the other packages only | server | `schema`, `layout`, `query` |
+| `@protobase/server` | `packages/server` | `@protobase/server`, `@protobase/server/auth-store`, `@protobase/server/config-exports`, `@protobase/server/email`, `@protobase/server/mobile-release`, `@protobase/server/vapid`; `@protobase/server/internal` for the other packages only | server | `schema`, `layout`, `query` |
 | `@protobase/config` | `packages/config` | `@protobase/config`, `@protobase/config/schema.json` | anywhere | types of `server` only: it runs nothing besides `defineConfig` |
 | `@protobase/cli` | `packages/cli` | the `protobase` command (`bin/protobase.mjs`), `@protobase/cli/auth`, `@protobase/cli/runner`, `@protobase/cli/scaffold` | Node and Bun | `config`, `schema`, `layout`, `query`, `server`, `ui` |
 | `@protobase/mobile` | `packages/mobile` | none: the Capacitor packages and native plugins `protobase mobile` installs on first use | the app's iOS and Android projects | none |

@@ -1,12 +1,11 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { releaseManifestFile } from '@protobase/schema/internal'
-import { releaseManifest } from '@protobase/server'
+import { releaseManifest, withApiOrigin } from '@protobase/server/mobile-release'
 import { bundleLayout } from '../bundle/manifest'
 import { buildDeployBundle, type DeployBundleInput } from '../build/deploy-bundle'
 import type { Extension } from '../project/extensions'
 import { siteFiles } from '../serve/site-files'
-import { withApiOrigin } from './api-origin-page'
 
 /** The workspace folder Capacitor copies into the app (its `webDir`): only the files a bundle serves from `public/`. */
 export const webPartDir = 'web'

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { logger } from 'hono/logger'
-import { jobsDrainApp, mobileReleaseApp, webauthnPath, type Admin, type JobsRuntime, type MobileReleaseAppInput } from '@protobase/server'
+import { jobsDrainApp, webauthnPath, type Admin, type JobsRuntime } from '@protobase/server'
+import { mobileReleaseApp, type MobileReleaseAppInput } from '@protobase/server/mobile-release'
 import { isApiPath } from '../bundle/manifest'
 import { serveStaticSite, type StaticSite } from './static-site'
 
