@@ -13,6 +13,7 @@ description: Describe the tables of an existing Postgres database as resources, 
 - [Record authors](/reference/data-config/#resource): A record can keep who created it. The server sets it to the signed-in user on every create, and no request can set or change it.
 - [Record search](/reference/data-config/#resource): You choose which fields text search and the global search look in. Partial words match, and phone numbers match by their last digits.
 - [Manual order](/reference/data-config/#resource): Records can be kept in an order set by hand, also per parent record, such as the lines of an invoice.
+- [Opening an existing record](/reference/data-config/#opening-an-existing-record): A create that repeats a record's unique values, such as a direct message with the same people, opens that record instead of failing, for whoever may read it; anyone else gets the usual conflict, which does not say the record exists.
 - [Record validation](/reference/data-config/#resource): A rule over the whole record runs on every create and update and reports each problem on the field it concerns.
 - [Rollups and formulas](/reference/data-config/#rollups-and-formulas) (beta): Fields that hold counts, sums, averages, minimums or maximums of related records, or values calculated from the record's own numbers, kept current by the database.
 - [Sensitive fields](/reference/data-config/#sensitive-fields): Values such as bank account numbers are left out of every response and shown masked. A permitted user reveals one value at a time, and each reveal is audited.

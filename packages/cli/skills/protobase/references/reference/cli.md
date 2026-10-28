@@ -109,7 +109,7 @@ The URL comes as for [`scaffold`](#scaffold): the connection string, the variabl
 
 Imports `config/index.ts` and the views of `config/*/ui.ts`, as the config module has them by convention, and checks every exported resource against the database:
 
-- error: missing table or column, field type that does not fit the column (a file field needs a text column), table without a usable key, configured key not backed by a unique index, relation to a resource the config does not declare
+- error: missing table or column, field type that does not fit the column (a file field needs a text column), table without a usable key, configured key not backed by a unique index, `.openExisting()` fields that are not the columns of a unique index, relation to a resource the config does not declare
 - error: a read the [scan guard](api.md#safety) refuses, because no index serves a column it filters, sorts, searches or counts by. Doctor reads each table's indexes from the catalog, as the server does, and judges with the scan guard's own rule every read the API takes and the app makes: a filter on each `.filterable()` field, a sort by each `.sortable()` one, `search()` over the search fields, a role's own records (`.owner()`) and the names a relation shows; each view's list in its order and with the filter it opens with, its filter widgets and their counts, its chart, its map, board, calendar and timeline, its card photos, its order by hand, its related sections, galleries and charts, its named lists, its recent records and a saved search's new records; and each block of a [composed page](layouts.md) that lists records, and each `Chart` block's grouped and split fields. Each error is an index to add, with every request that needs it and where it comes from:
 
   ```
