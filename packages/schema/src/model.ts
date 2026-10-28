@@ -1244,6 +1244,16 @@ export type NavModel = {
    * filter and the recent records' filter as `tenantField = "<tenant>"`, which the person can clear or change.
    */
   tenant?: 'current'
+  /**
+   * A link under the entry to the resource's create form (its create page when the view has one), for whoever may
+   * create; `true` reads "New <singular>", `{ label }` its own text.
+   */
+  create?:
+    | true
+    | {
+        /** The link's text, in place of "New <singular>". */
+        label: string
+      }
 }
 
 /** An entry in the menu under the signed-in user, at the bottom of the sidebar. */

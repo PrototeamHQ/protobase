@@ -179,6 +179,12 @@ describe('pruneView', () => {
     expect(pruneView(byCost, hidden.repairs!, hidden).nav).toEqual({})
   })
 
+  it("keeps the sidebar entry's create link, for the admin to offer to whoever may create", () => {
+    const labelled = view<typeof repairs>('repairs').nav({ create: { label: 'Book a repair' } }).toModel()
+    expect(pruneView(labelled, all.repairs, all).nav).toEqual({ create: { label: 'Book a repair' } })
+    expect(pruneView(view<typeof repairs>('repairs').nav({ create: true }).toModel(), all.repairs, all).nav).toEqual({ create: true })
+  })
+
   it('never sends a hidden field, wherever a view names it: lists, displays, sections and custom props', () => {
     const Board = Object.assign((props: { by: string; size: number }) => props, { blockName: 'Board', custom: true })
     const Margin = Object.assign((props: { cost: string }) => props, { blockName: 'Margin', custom: true })
