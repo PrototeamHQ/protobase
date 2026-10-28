@@ -5,9 +5,10 @@ import { mobileReleaseApp, type MobileReleaseAppInput } from '@protobase/server/
 import { isApiPath } from '../bundle/manifest'
 import { serveStaticSite, type StaticSite } from './static-site'
 
-// A bundle's UI, served for every path outside its `api` prefixes, and the native packages its shell runs on in the
+// A bundle's UI, served for every path outside its `api` prefixes, when the bundle was built (`builtAt`, ms), and the
+// native packages its shell runs on in the
 // mobile app, when it names them.
-export type ServedSite = StaticSite & { api: string[]; native?: Record<string, string> }
+export type ServedSite = StaticSite & { api: string[]; builtAt?: number; native?: Record<string, string> }
 
 export type ServeAppInput = {
   /** The project's admin API (`projectAdmin`). */

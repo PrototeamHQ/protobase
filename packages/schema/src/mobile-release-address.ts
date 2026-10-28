@@ -19,6 +19,23 @@ export const mobileReleasesPath = '/api/mobile/releases'
 export const releaseManifestFile = 'capawesome-live-update-manifest.json'
 
 /**
+ * A signed release's statement, `{ payload, signature }`: `payload` the lowercase hex of the JSON `ReleaseBinding`,
+ * and `signature` the lowercase hex of the SHA256withRSA of `releaseStatementContext` followed by those decoded bytes. It binds the
+ * manifest to the release's order, app, binary and shell, which the per-file signatures say nothing of.
+ */
+export const releaseStatementFile = 'protobase-release.json'
+
+/** What a statement's signature covers ahead of its payload, so no signed file of the app reads as a statement. */
+export const releaseStatementContext = 'protobase-mobile-release\n'
+
+/**
+ * What a statement binds a release to: its manifest's sha256 in hex, its `order` (compared element by element, a
+ * device takes only a release above its own), the app id and native fingerprint of the binaries it runs on, and the
+ * Protobase version of the server, whose shells it works with.
+ */
+export type ReleaseBinding = { manifest: string; order: number[]; appId: string; fingerprint: string; shellVersion: string }
+
+/**
  * The base URL path of the release `bundleId`: the updater fetches `<base>?href=<file>` for its manifest and each file.
  * The id sits in the path because the iOS updater replaces the base URL's whole query when it adds `href`.
  */

@@ -10,7 +10,7 @@ export type StaticSite = {
   spa: string
   // A shell of the server's own (absolute `dir`): it answers its `paths`, the root and navigations instead of the copy
   // in publicDir.
-  shell?: { dir: string; paths: string[] }
+  shell?: { dir: string; paths: string[]; builtAt?: number }
 }
 
 const missing = ['ENOENT', 'ENOTDIR']

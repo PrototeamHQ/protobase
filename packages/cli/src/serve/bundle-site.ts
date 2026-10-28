@@ -8,5 +8,6 @@ export const bundleSite = (dir: string, manifest: BundleLayout): ServedSite => (
   publicDir: path.resolve(dir, manifest.public),
   spa: manifest.spa,
   api: manifest.api,
+  ...(manifest.builtAt !== undefined && { builtAt: manifest.builtAt }),
   ...(manifest.native && { native: manifest.native }),
 })

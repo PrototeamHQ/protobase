@@ -11,5 +11,5 @@ export const shellVariable = 'PROTOBASE_SHELL'
 export const servedShell = async (ownDir: string | undefined): Promise<{ shell?: { dir: string; paths: string[] }; native?: Record<string, string>; note: string }> => {
   if (ownDir === undefined) return { note: "the bundle's copy of the app" }
   const own = await readShell(ownDir)
-  return { shell: { dir: ownDir, paths: own.paths }, ...(own.native && { native: own.native }), note: `the app of Protobase ${own.protobase} from ${ownDir}` }
+  return { shell: { dir: ownDir, paths: own.paths, ...(own.builtAt !== undefined && { builtAt: own.builtAt }) }, ...(own.native && { native: own.native }), note: `the app of Protobase ${own.protobase} from ${ownDir}` }
 }
