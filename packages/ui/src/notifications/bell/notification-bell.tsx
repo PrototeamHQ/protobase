@@ -1,7 +1,7 @@
 import { Bell } from 'lucide-react'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Badge } from '../../primitives/badge'
+import { CountBadge } from '../../primitives/count-badge'
 import { Button } from '../../primitives/button'
 import { usePopoverMenu } from '../../primitives/popover-menu'
 import { useRouter } from '../../app/router'
@@ -10,7 +10,7 @@ import { NotificationPanel } from './notification-panel'
 import { notificationTarget } from './notification-target'
 import { PushControl } from './push-control'
 import { historyRefused, useInbox, useMarkNotificationsRead, useUnreadNotifications } from './use-inbox'
-import { bellLabel, unreadBadge } from './unread-label'
+import { bellLabel } from './unread-label'
 
 /**
  * The top bar's bell: how many of the signed-in user's notifications are unread, and the panel it opens, their inbox,
@@ -24,7 +24,6 @@ export const NotificationBell = () => {
   const push = usePushNotifications()
   const { navigate, basePath } = useRouter()
   const [now, setNow] = useState(Date.now)
-  const badge = unreadBadge(unread.data)
   const label = bellLabel(unread.data)
   const origin = window.location.origin
   // An app whose own sign-in does not mark the user's own sessions keeps the history from them: no bell then
@@ -44,11 +43,7 @@ export const NotificationBell = () => {
     <>
       <Button ref={button} size="icon" variant="ghost" aria-label={label} title={label} aria-haspopup="dialog" aria-expanded={open} onClick={toggle} className="relative max-md:size-9">
         <Bell className="size-4 max-md:size-5" />
-        {badge && (
-          <Badge tone="red" dot={false} className="pointer-events-none absolute -top-1 -right-1.5 h-4 min-w-4 justify-center px-1 text-[10px] font-semibold max-md:top-0 max-md:right-0">
-            {badge}
-          </Badge>
-        )}
+        <CountBadge count={unread.data} className="pointer-events-none absolute -top-1 -right-1.5 max-md:top-0 max-md:right-0" />
       </Button>
       {open &&
         createPortal(
