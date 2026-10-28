@@ -118,7 +118,8 @@
       {"repeated":9},
       {"repeated":9},
       {"repeated":9},
-      {"sql":"delete from \"jobs\".\"job\" where singleton_key = $1 and state < 'active' and not (name = any($2::text[]))","params":["protobase.schedule","{}"],"result":{"command":"DELETE","rowCount":0,"columns":[],"rows":[]}}
+      {"sql":"delete from \"jobs\".\"job\" where singleton_key = $1 and state < 'active' and not (name = any($2::text[]))","params":["protobase.schedule","{}"],"result":{"command":"DELETE","rowCount":0,"columns":[],"rows":[]}},
+      {"sql":"select to_regclass('realtime.messages') is not null as found","result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["f"]]}}
     ]
   },
   "startServe with resource events > starts without reading the triggers with PROTOBASE_STARTUP_CHECKS=false": {
@@ -198,7 +199,8 @@
       {"repeated":9},
       {"repeated":9},
       {"repeated":9},
-      {"sql":"delete from \"jobs\".\"job\" where singleton_key = $1 and state < 'active' and not (name = any($2::text[]))","params":["protobase.schedule","{}"],"result":{"command":"DELETE","rowCount":0,"columns":[],"rows":[]}}
+      {"sql":"delete from \"jobs\".\"job\" where singleton_key = $1 and state < 'active' and not (name = any($2::text[]))","params":["protobase.schedule","{}"],"result":{"command":"DELETE","rowCount":0,"columns":[],"rows":[]}},
+      {"sql":"select to_regclass('realtime.messages') is not null as found","result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["f"]]}}
     ]
   }
 }

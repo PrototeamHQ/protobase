@@ -6,6 +6,7 @@ import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
 import { buildProject } from '../config/build-project'
 import { devJobs } from './dev-jobs'
+import { devRealtimePrune } from './dev-prune'
 import { devDatabase, loadDevConfig } from './project'
 import { withDevServiceWorker } from './service-worker-route'
 import { setMissing, supabaseEnv } from './supabase-env'
@@ -59,6 +60,8 @@ const { admin, jobs } = projectAdmin(project, db, ui, reporter, upgradeWebSocket
 // The project's jobs and the delivery of its events, run in this server; a behind jobs schema stops startup with the
 // command that writes its migration.
 await devJobs(db, jobs, project.mailer)
+// The old rows of the realtime tables, pruned while the dev server runs, whether or not a socket is open.
+devRealtimePrune(admin)
 
 // The push worker, with notifications() alone.
 export default withDevServiceWorker(new Hono(), Boolean(project.notifications)).route('/', admin)

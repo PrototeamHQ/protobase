@@ -51,7 +51,7 @@ const closeServer = (server: Server) =>
 // start while the auth schema, the change capture of resources with events, the rollup and formula columns, the built-in assistant's query role or the jobs schema is behind, which it only
 // reads: the project's migrations change them, before the new version serves. `startupChecks` false skips those reads,
 // for a restart of a bundle that already started on this database. With jobs it runs them too, unless
-// `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`. With a mobile section
+// `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`, and it prunes the realtime tables (startRealtimePrune). With a mobile section
 // it serves the app's files to the mobile app's live updater, composed once here (see servedRelease).
 export const startServe = async ({ config, env, openDb = (url) => openAppDatabase(pg, url, env.dbConnections), site, ui, reporter }: ServeOptions): Promise<RunningServer> => {
   if (!env.databaseUrl) throw new Error('No database: set DATABASE_URL')
@@ -85,9 +85,11 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
       await jobs?.stop()
       throw error
     })
-    return { server, sockets, jobs, resources, files: project.files }
+    // The old rows of the realtime tables, pruned while this process serves, whether or not a socket is open.
+    const prune = admin.startRealtimePrune()
+    return { server, sockets, jobs, prune, resources, files: project.files }
   }
-  const { server, sockets, jobs, resources, files } = await startJobsAndListen().catch(async (error: Error) => {
+  const { server, sockets, jobs, prune, resources, files } = await startJobsAndListen().catch(async (error: Error) => {
     await db.destroy()
     throw error
   })
@@ -99,6 +101,7 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
     await closed
     await backgroundSettled()
     await timer?.stop()
+    await prune.stop()
     await jobs?.stop()
     await db.destroy()
   }

@@ -3,6 +3,7 @@ import type { Hono } from 'hono'
 import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { KeyType, ResourceModel, ViewModel } from '@protobase/schema'
+import type { RealtimePrune } from './realtime/realtime-prune'
 
 export type TenantValue = string | number
 
@@ -115,5 +116,8 @@ export type ViewSource = { toModel(): ViewModel }
 
 export type PageSource = { toModel(): PageModel }
 
-/** The admin API, and the jobs it needs a worker to run: the delivery of resource events. */
-export type Admin = Hono<AdminEnv> & { jobs: JobDefinition[] }
+/**
+ * The admin API, the jobs it needs a worker to run (the delivery of resource events), and the pruning of the realtime
+ * tables a serving process starts once it listens and stops as it closes.
+ */
+export type Admin = Hono<AdminEnv> & { jobs: JobDefinition[]; startRealtimePrune: () => RealtimePrune }

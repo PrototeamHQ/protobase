@@ -21,7 +21,8 @@ import { apiKeyCaller } from './api-keys/resolve-caller'
 import { jwtVerifier } from './auth/jwt'
 import { unauthorized } from './problem'
 import { realtimeApp } from './realtime/realtime-app'
-import type { RealtimeOptions } from './realtime/relay/realtime-options'
+import { startRealtimePrune } from './realtime/realtime-prune'
+import { relayed, type RealtimeOptions } from './realtime/relay/realtime-options'
 import { restRoutes } from './rest/rest-routes'
 import { storageRoutes } from './storage/storage-routes'
 import { shownAppName } from './app-name'
@@ -422,5 +423,6 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route(systemPath || '/', webManifestRoute(appName, identity, icons))
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
-  return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth))] : [])] })
+  const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), report })
+  return Object.assign(app, { startRealtimePrune: prune, jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth))] : [])] })
 }

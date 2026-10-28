@@ -47,7 +47,8 @@ const takeMessages = (db: Db, statementTimeoutMs: number) =>
     return rows
   })
 
-const tableExists = async (db: Db) =>
+/** Whether the database has `realtime.messages`, which an app without Supabase's realtime schema lacks. */
+export const messagesTableExists = async (db: Db) =>
   (await sql<{ found: boolean }>`select to_regclass('realtime.messages') is not null as found`.execute(db)).rows[0]!.found
 
 /**
@@ -63,7 +64,7 @@ export const databaseBroadcasts = ({ db, statementTimeoutMs, broadcasts, interva
   let running = false
 
   const read = async () => {
-    if (!(await tableExists(db))) return
+    if (!(await messagesTableExists(db))) return
     for (;;) {
       const rows = await takeMessages(db, statementTimeoutMs)
       for (const row of rows) {
