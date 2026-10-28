@@ -3,6 +3,7 @@ import { cn } from '../lib/cn'
 import { Button } from '../primitives/button'
 import { readPlace } from './read-place'
 import { scrollAfterChange, type ThreadPlace } from './thread-scroll'
+import { useReadToEnd } from './use-read-to-end'
 import { text } from './messages'
 
 export type ChatThreadProps = {
@@ -17,19 +18,35 @@ export type ChatThreadProps = {
   loadingEarlier?: boolean
   /** Changes when the reader sends a message, such as a count of their sends: each change goes to the end wherever they were, and the message that arrives next follows. */
   followKey?: string | number
+  /**
+   * Called while the page shows and the reader is at the end of the thread: when it opens or a message arrives there,
+   * when they scroll to the end, and when the page shows again with them there. Moves a read position, for one.
+   */
+  onReadToEnd?: () => void
 }
 
+// The first "New messages" line of a list, as `ChatDivider tone="new"` draws it.
+const newLineOf = (list: Element) => list.querySelector('[data-chat-divider][data-tone="new"]')
+
 /**
- * The scrolling list of a chat's messages. A reader at the end follows new messages; one who scrolled back stays where
- * they are until `followKey` changes, and earlier messages loaded above keep them on the message they were reading. It
- * scrolls inside itself, not with the page, since a chat keeps its composer in view beneath it.
+ * The scrolling list of a chat's messages. It opens on its `ChatDivider tone="new"` line when it has one, else at the
+ * end. A reader at the end follows new messages; one who scrolled back stays where they are until `followKey` changes,
+ * and earlier messages loaded above keep them on the message they were reading. It scrolls inside itself, not with the
+ * page, since a chat keeps its composer in view beneath it.
  */
-export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarlier, followKey }: ChatThreadProps) => {
+export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarlier, followKey, onReadToEnd }: ChatThreadProps) => {
   const box = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
   const place = useRef<ThreadPlace<Element>>({ atEnd: true, first: undefined, followKey })
   const remember = () => {
     if (box.current && list.current) place.current = readPlace(box.current, list.current, followKey)
+  }
+  const readToEnd = () => place.current.atEnd && place.current.first !== undefined
+  const tellRead = useReadToEnd(onReadToEnd, readToEnd)
+  const scrolled = () => {
+    const wasAtEnd = place.current.atEnd
+    remember()
+    if (!wasAtEnd && readToEnd()) tellRead()
   }
 
   useLayoutEffect(() => {
@@ -37,9 +54,12 @@ export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarl
     if (!element || !list.current) return
     const before = place.current
     const anchorTop = before.anchor && before.anchor.element.isConnected ? before.anchor.element.getBoundingClientRect().top - element.getBoundingClientRect().top : undefined
-    const next = scrollAfterChange(before, { first: list.current.firstElementChild ?? undefined, anchorTop, scrollTop: element.scrollTop, scrollHeight: element.scrollHeight, followKey })
+    const newLine = newLineOf(list.current)
+    const newLineTop = newLine ? newLine.getBoundingClientRect().top - element.getBoundingClientRect().top : undefined
+    const next = scrollAfterChange(before, { first: list.current.firstElementChild ?? undefined, anchorTop, scrollTop: element.scrollTop, scrollHeight: element.scrollHeight, followKey, newLineTop })
     if (next !== undefined) element.scrollTop = next
     remember()
+    if (readToEnd()) tellRead()
   }, [length, followKey])
 
   // A chat that shows its end keeps showing it as it or its messages change size, such as a composer growing beneath it
@@ -56,7 +76,7 @@ export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarl
 
   const showsEmpty = length === 0 && Boolean(empty)
   return (
-    <div ref={box} onScroll={remember} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 [overflow-anchor:none]">
+    <div ref={box} onScroll={scrolled} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 [overflow-anchor:none]">
       {onLoadEarlier && (
         <Button size="sm" className="self-center" loading={loadingEarlier} onClick={onLoadEarlier}>
           {text('loadEarlier')}

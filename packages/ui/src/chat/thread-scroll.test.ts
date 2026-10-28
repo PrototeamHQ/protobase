@@ -40,4 +40,15 @@ describe('scrollAfterChange', () => {
   it('goes to the end of a chat that shows its first messages', () => {
     expect(scrollAfterChange({ atEnd: true, first: undefined }, now)).toBe(1200)
   })
+
+  it('opens a chat that gets its first messages on its "New messages" line, or at the end without one', () => {
+    expect(scrollAfterChange({ atEnd: true, first: undefined }, { ...now, scrollTop: 0, newLineTop: 700 })).toBe(684)
+    expect(scrollAfterChange({ atEnd: true, first: undefined }, { ...now, scrollTop: 0, newLineTop: 10 })).toBe(0)
+    expect(scrollAfterChange({ atEnd: true, first: undefined }, { ...now, scrollTop: 0 })).toBe(1200)
+  })
+
+  it('leaves the "New messages" line once the chat has messages: a reader at the end follows the next', () => {
+    expect(scrollAfterChange({ atEnd: true, first: 'm1', anchor: { element: 'm7', top: 40 } }, { ...now, newLineTop: 300 })).toBe(1200)
+    expect(scrollAfterChange({ atEnd: false, first: 'm1', anchor: { element: 'm4', top: 40 } }, { ...now, newLineTop: 300 })).toBeUndefined()
+  })
 })
