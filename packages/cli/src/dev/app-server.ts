@@ -4,7 +4,7 @@ import { createServer, searchForWorkspaceRoot, type Plugin } from 'vite'
 import { layoutCheck } from '../build/layout-check'
 import { uiPackageDir } from '../project/admin-app'
 import { bundledImports, bundledPackageDirs } from '../project/bundled-imports'
-import { extensionImports, extensionStyles, type Extension } from '../project/extensions'
+import { extensionImports, projectStyles, type Extension } from '../project/extensions'
 import { faviconLink } from '../project/favicon-link'
 import { projectUiPlugin } from '../project/project-ui'
 import { sharedModulesPlugin } from '../project/shared-modules'
@@ -75,7 +75,7 @@ export const createAppServer = (options: AppServerOptions, plugins: Plugin[]) =>
       projectUiPlugin(options.projectDir, options.extensions),
       ...(bundled ? [bundledImports(projectDirs)] : []),
       extensionImports(options.projectDir, options.extensions),
-      extensionStyles(options.extensions),
+      projectStyles(options.projectDir, options.extensions),
       layoutCheck(),
       react(),
       tailwindcss(),
