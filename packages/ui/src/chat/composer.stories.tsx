@@ -114,7 +114,8 @@ export const Attachments: StoryObj = {
   render: () => <WithFiles />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const box = canvas.getByRole('combobox', { name: 'Message' })
+    // Without people to search, the box is a plain text box
+    const box = canvas.getByRole('textbox', { name: 'Message' })
     const sendButton = canvas.getByRole('button', { name: 'Send' })
     expect(sendButton).toBeDisabled()
 
