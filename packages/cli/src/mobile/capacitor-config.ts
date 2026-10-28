@@ -9,6 +9,8 @@ export type CapacitorConfigInput = {
   appId: string
   appName: string
   fingerprint: string
+  /** The Protobase version of the shell the binary is built with. */
+  shellVersion: string
   /** The extra plugins' npm names: the only ones compiled into the app. */
   plugins: string[]
   allowances: HttpAllowances
@@ -25,23 +27,30 @@ const protobasePlugin = '@protobase/mobile'
 // page as tall as the screen, such as the sign-in page, stays in view above it instead of scrolling half out of view.
 const keyboardPlugin = '@capacitor/keyboard'
 
+const liveUpdatePlugin = '@capawesome/capacitor-live-update'
+
 /**
  * The app's `capacitor.config.json`, every key it sets named here. It never sets `server.url`, the hostname or the
  * schemes (the API's CORS list names Capacitor's default origins), or WebView debugging (on in debug builds only).
- * `plugins` configures ProtobaseAuth and the keyboard plugin alone, so CapacitorHttp and CapacitorCookies stay off;
- * the keyboard plugin resizes natively, its default, and fills the space beside the keyboard's rounded corners with the
- * page's background instead of black. Protobase's plugin is compiled in last, so its stand-ins replace any plugin of
- * the same name. Service workers get nothing from the local server on Android, which they would reach past the
- * WebViewClient that guards it. The file ships outside the app's web part, so the fingerprint in the user agent and
- * ProtobaseAuth's origins are beyond page script and a live update.
+ * `plugins` configures ProtobaseAuth, the keyboard plugin and, with the live updater, the binary's fingerprint and shell
+ * version its guard takes a release only for, so CapacitorHttp and CapacitorCookies stay off; the keyboard plugin
+ * resizes natively, its default, and fills the space beside the keyboard's rounded corners with the page's background
+ * instead of black. Protobase's plugin is compiled in last, so its stand-ins replace any plugin of the same name.
+ * Service workers get nothing from the local server on Android, which they would reach past the WebViewClient that
+ * guards it. The file ships outside the app's web part, so the fingerprint in the user agent and ProtobaseAuth's
+ * origins are beyond page script and a live update.
  */
-export const capacitorConfig = ({ appId, appName, fingerprint, plugins, allowances, apiOrigin, platform }: CapacitorConfigInput) => ({
+export const capacitorConfig = ({ appId, appName, fingerprint, shellVersion, plugins, allowances, apiOrigin, platform }: CapacitorConfigInput) => ({
   appId,
   appName,
   webDir: webPartDir,
   appendUserAgent: `ProtobaseNative/${fingerprint}`,
   includePlugins: [...plugins, keyboardPlugin, protobasePlugin],
-  plugins: { ProtobaseAuth: { apiOrigin, origin: capacitorOrigin[platform] }, Keyboard: { autoBackdropColor: 'dom' } },
+  plugins: {
+    ProtobaseAuth: { apiOrigin, origin: capacitorOrigin[platform] },
+    Keyboard: { autoBackdropColor: 'dom' },
+    ...(plugins.includes(liveUpdatePlugin) && { LiveUpdate: { fingerprint, shellVersion } }),
+  },
   ...(allowances.cleartext && { server: { cleartext: true } }),
   android: { resolveServiceWorkerRequests: false, ...(allowances.mixedContent && { allowMixedContent: true }) },
 })

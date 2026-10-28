@@ -8,6 +8,7 @@ const base = {
   appId: 'com.example.shop',
   appName: 'Shop',
   fingerprint: '0123456789abcdef',
+  shellVersion: '0.14.2',
   plugins: [],
   allowances: { cleartext: false, mixedContent: false },
   apiOrigin: 'https://shop.example.com',
@@ -29,6 +30,11 @@ describe('capacitorConfig', () => {
 
   it('compiles in the configured plugins, and Protobase\'s after them', () => {
     expect(capacitorConfig({ ...base, plugins: ['@capacitor/camera', 'x'] }).includePlugins).toEqual(['@capacitor/camera', 'x', '@capacitor/keyboard', '@protobase/mobile'])
+  })
+
+  it("gives the live updater, when compiled in, the binary's fingerprint and shell version", () => {
+    expect(capacitorConfig({ ...base, plugins: ['@capawesome/capacitor-live-update'] }).plugins.LiveUpdate).toEqual({ fingerprint: '0123456789abcdef', shellVersion: '0.14.2' })
+    expect(capacitorConfig(base).plugins).not.toHaveProperty('LiveUpdate')
   })
 
   it.each([
