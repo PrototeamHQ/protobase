@@ -36,11 +36,14 @@ const relationColumns = (resources: Record<string, ResourceModel>, model: Resour
     return target ? [{ name, target }] : []
   })
 
-/** What a list call asks `labels` for: each relation among `columns` to a single-key resource, by the field that names its records. */
+/**
+ * What a list call asks `labels` for: each relation among `columns` to a single-key resource, by the field that names its
+ * records. A resource whose view derives its titles per reader is named by the browser instead, so none is asked for it.
+ */
 export const listLabels = (resources: Record<string, ResourceModel>, views: Record<string, ViewModel>, model: ResourceModel, columns: string[]) =>
   Object.fromEntries(
     relationColumns(resources, model, columns)
-      .filter(({ target }) => target.primaryKey.length === 1)
+      .filter(({ target }) => target.primaryKey.length === 1 && !views[target.name]?.titleFrom)
       .map(({ name, target }) => [name, labelFieldOf(target, views[target.name])]),
   )
 

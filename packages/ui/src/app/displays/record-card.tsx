@@ -9,6 +9,8 @@ import { useSeedRecord } from '../record-preview'
 import { shownWidget } from '../field-types/shown-widget'
 import { WidgetPart } from '../field-types/widget-part'
 import { namedIcon } from '../named-icon'
+import { useAdminMeta } from '../meta-gate'
+import { RelationTitleText } from '../titles/relation-title-text'
 import { CustomBoundary } from '../pages/custom-boundary'
 import { FavoriteButton } from '../saved/favorite-button'
 import { useProjectUi } from '../pages/project-ui'
@@ -55,10 +57,14 @@ const MetaValue = ({ icon, children }: { icon: string | undefined; children: Rea
 export const RecordCard = ({ model, view, display, row, swipe = true, mark }: RecordCardProps) => {
   const { image, title, subtitle, amount, badge, meta, footer, flags } = cardFields(model, view, display)
   const label = (name: string) => view?.fields[name]?.label ?? humanize(name)
-  const text = (name: string) => {
+  const { resources, views } = useAdminMeta()
+  const text = (name: string): ReactNode => {
     const field = model.fields[name]
     if (!field) return ''
     const value = row.record[name]
+    // A relation to a resource whose view derives its titles names its record for the reader
+    const target = field.type === 'relation' && field.relation ? resources[field.relation.resource] : undefined
+    if (target && views[target.name]?.titleFrom && value != null) return <RelationTitleText target={target} id={String(value)} />
     // Markdown reads as its text on a card's one-line parts
     if (row.labels[name] === undefined && isMarkdown(field, view?.fields[name]) && typeof value === 'string' && value !== '') return markdownExcerpt(value)
     return row.labels[name] ?? displayValue(field, value, view?.fields[name])

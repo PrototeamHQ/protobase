@@ -1,11 +1,10 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { createWhere, printFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
+import type { ResourceModel, ViewModel } from '@protobase/schema'
 import type { Client } from '@protobase/client'
 import { keys } from '../../data/query-keys'
 import { fetchLabels } from '../../live/relation-labels'
+import { readTitleRows, titleRowKey } from '../../live/title-rows'
 import type { RecordTitleOf } from './record-title-of'
-
-const where = createWhere()
 
 /** What names a record a relation points at: its label, or for a view that derives titles, the fields the rule reads. */
 type RelationTitleData = { label: string } | { row: Record<string, unknown> | null }
@@ -19,13 +18,9 @@ export const relationTitleQuery = (queryClient: QueryClient, client: Client, tar
   if (!from) {
     return { queryKey: keys.relatedLabel(target.name, id), queryFn: async () => ({ label: (await fetchLabels(queryClient, client, target, [id], view)).get(id) ?? id }) }
   }
-  const keyField = target.primaryKey[0]!
   return {
-    queryKey: keys.titleRow(target.name, id, from.fields.join(',')),
-    queryFn: async () => {
-      const page = await client.list(target.name, { filter: printFilter(where.in(keyField, [id])), fields: [keyField, ...from.fields], pageSize: 1 })
-      return { row: page.items[0] ?? null }
-    },
+    queryKey: titleRowKey(target, id, from.fields),
+    queryFn: async () => ({ row: (await readTitleRows(client, target, from.fields, [id])).get(id) ?? null }),
   }
 }
 

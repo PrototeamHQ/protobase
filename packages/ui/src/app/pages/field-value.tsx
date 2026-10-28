@@ -1,11 +1,8 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { FieldFormat, FieldModel, ResourceModel } from '@protobase/schema'
-import { useClient } from '../../data/api-provider'
 import { displayValue, valueTitle } from '../../live/display-value'
 import { FileImage } from '../../live/file-image'
 import { fileShown, shownImage } from '../../live/file-values'
-import { relationTitle, relationTitleQuery } from '../titles/relation-title'
-import { useRecordTitle } from '../titles/record-titles'
+import { useRelationTitle } from '../titles/use-relation-title'
 import { cn } from '../../lib/cn'
 import { useAdminMeta } from '../meta-gate'
 import { AppLink } from '../use-app-address'
@@ -19,15 +16,10 @@ import { contactFormat } from '../../live/contact-links'
 
 // A relation's target named as the record page names it, read unless the page already knows the name
 const RelationLink = ({ target, id, known }: { target: ResourceModel; id: string; known?: string }) => {
-  const { views } = useAdminMeta()
-  const client = useClient()
-  const queryClient = useQueryClient()
-  const titleOf = useRecordTitle()
-  const view = views[target.name]
-  const label = useQuery({ ...relationTitleQuery(queryClient, client, target, view, id), enabled: known === undefined })
+  const title = useRelationTitle(target, id, known === undefined)
   return (
     <AppLink to={{ kind: 'record', resource: target.name, key: id }} className="font-medium text-primary-text hover:underline">
-      {known ?? relationTitle(label.data, titleOf, target, view, id) ?? id}
+      {known ?? title ?? id}
     </AppLink>
   )
 }

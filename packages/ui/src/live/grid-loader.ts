@@ -8,6 +8,7 @@ import { recordId } from './model-helpers'
 import { loadRelatedColumn, type RelatedColumnLoad } from './related-column-rows'
 import { listLabels, withLabels } from './relation-labels'
 import { listPhotos, withPhotos } from './row-photos'
+import { seedTitleRows } from './title-rows'
 
 export type GridLoaderOptions = {
   queryClient: QueryClient
@@ -30,7 +31,8 @@ export type LoadedPage = { rows: GridRow[]; total: number; nextPageToken: string
 /**
  * Loads fixed-size pages by number. The page after a cached or loading one follows that page's `next_page_token`; a
  * jump to a page whose predecessor is neither asks `:seek` for the page at that row position, so the pages of one jump
- * are read on from a single seek. Every page is cached by TanStack Query, with the records of its related columns.
+ * are read on from a single seek. Every page is cached by TanStack Query, with the records of its related columns; the
+ * fields the derived titles of the records its relations point at read are cached per record (see `seedTitleRows`).
  */
 export const createGridLoader = ({ queryClient, client, resources, views, model, columns, filter, orderBy, related = [] }: GridLoaderOptions) => {
   // A page with related columns holds more than the same rows without, which an embedded list of them loads
@@ -67,7 +69,10 @@ export const createGridLoader = ({ queryClient, client, resources, views, model,
     if (result.items.length === 0 && page > 0) return { rows: [], total: 0, nextPageToken: '' }
     const ids = result.items.map((record) => recordId(model, record))
     const labelled = withLabels(resources, model, columns, withPhotos(model, result.items, result.photos), result.labels)
-    const shown = await Promise.all(related.map((load) => loadRelatedColumn({ client, resources, views, load, owners: ids })))
+    const [shown] = await Promise.all([
+      Promise.all(related.map((load) => loadRelatedColumn({ client, resources, views, load, owners: ids }))),
+      seedTitleRows(queryClient, client, resources, views, model, columns, result.items),
+    ])
     const rows = labelled.map((record, index) => ({
       ...record,
       ...Object.fromEntries(related.map((load, column) => [load.column.name, shown[column]!.get(ids[index]!) ?? []])),

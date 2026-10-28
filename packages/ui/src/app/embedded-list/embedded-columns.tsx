@@ -6,6 +6,7 @@ import { humanize } from '../../live/naming'
 import { displayRow } from '../displays/list-displays'
 import type { FieldWidget } from '../field-types/field-widget'
 import { withFieldTypeCells } from '../field-types/field-type-cells'
+import { withRelationTitleCells } from '../titles/relation-title-cells'
 import { FieldValue } from '../pages/field-value'
 import { scopeOf } from '../pages/use-layout-data'
 import { usePathValue } from '../pages/use-path-value'
@@ -32,6 +33,6 @@ const pathColumn = (model: ResourceModel, column: string, { resources, views }: 
 
 /** The list page's columns for `names`: fields of `model` as its table draws them, and paths through relations. */
 export const embeddedColumns = (model: ResourceModel, view: ViewModel | undefined, names: string[], meta: Meta): ColumnSpec[] => {
-  const fields = new Map(withFieldTypeCells(columnsFromModel(model, view, [], names.filter((name) => !isPath(name))), model, view, meta.fieldTypes).map((spec) => [spec.id, spec]))
+  const fields = new Map(withRelationTitleCells(withFieldTypeCells(columnsFromModel(model, view, [], names.filter((name) => !isPath(name))), model, view, meta.fieldTypes), model, meta.resources, meta.views).map((spec) => [spec.id, spec]))
   return names.flatMap((name) => (isPath(name) ? [pathColumn(model, name, meta)] : (fields.get(name) ?? [])))
 }

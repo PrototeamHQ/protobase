@@ -47,6 +47,7 @@ import { listedResource } from './current-address'
 import { navItemId } from './nav-from-meta'
 import { AppLink, useAppAddress, type ListAddress } from './use-app-address'
 import { withFieldTypeCells } from './field-types/field-type-cells'
+import { withRelationTitleCells } from './titles/relation-title-cells'
 import { relatedColumnLoads } from './related-dots/dot-card'
 import { withRelatedDotsColumns } from './related-dots/related-dots-columns'
 import { useProjectUi } from './pages/project-ui'
@@ -108,7 +109,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const view = viewOfList(meta.views[resource], address.list)
   const fields = useMemo(() => widgetFields(view, model), [view, model])
   const { fields: fieldTypes } = useProjectUi()
-  const columns = useMemo(() => withRelatedDotsColumns(withFieldTypeCells(columnsFromModel(model, view), model, view, fieldTypes), model, view, meta.resources, meta.views), [model, view, fieldTypes, meta.resources, meta.views])
+  const columns = useMemo(() => withRelatedDotsColumns(withRelationTitleCells(withFieldTypeCells(columnsFromModel(model, view), model, view, fieldTypes), model, meta.resources, meta.views), model, view, meta.resources, meta.views), [model, view, fieldTypes, meta.resources, meta.views])
 
   const filterText = address.filter
   const parsed = useMemo(() => textToState(fields, filterText), [fields, filterText])

@@ -1,8 +1,9 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import type { Client } from '@protobase/client'
-import type { ResourceModel } from '@protobase/schema'
+import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { createGridLoader } from './grid-loader'
+import { titleRowKey } from './title-rows'
 
 const model = { name: 'orders', table: { name: 'orders' }, primaryKey: ['id'], fields: { id: { name: 'id', type: 'integer' }, status: { name: 'status', type: 'enum' } } } as unknown as ResourceModel
 
@@ -109,5 +110,23 @@ describe('createGridLoader', () => {
   it('keys rows by their primary key', async () => {
     const { loader } = setup()
     expect((await loader.page(0)).rows[0]).toMatchObject({ id: '0', status: 'draft' })
+  })
+
+  it('asks no label for a relation to a resource whose view derives its titles, and caches what its titles read with the page', async () => {
+    const directMessages = { name: 'direct_messages', primaryKey: ['id'], fields: { id: { name: 'id', type: 'text' }, member_ids: { name: 'member_ids', type: 'json' } } } as unknown as ResourceModel
+    const messages = { name: 'messages', primaryKey: ['id'], fields: { id: { name: 'id', type: 'text' }, direct_message_id: { name: 'direct_message_id', type: 'relation', relation: { resource: 'direct_messages' } } } } as unknown as ResourceModel
+    const views = { direct_messages: { resource: 'direct_messages', titleFrom: { rule: 'memberNames', fields: ['member_ids'] } } as ViewModel }
+    const list = vi.fn(async (resource: string, _params: object) =>
+      resource === 'messages'
+        ? { items: [{ id: 'm-1', direct_message_id: 'dm-1' }], nextPageToken: '', totalSizeEstimate: 1 }
+        : { items: [{ id: 'dm-1', member_ids: ['u-maya', 'u-sam'] }], nextPageToken: '', totalSizeEstimate: 1 },
+    )
+    const queryClient = new QueryClient()
+    const loader = createGridLoader({ queryClient, client: { list } as unknown as Client, resources: { messages, direct_messages: directMessages }, views, model: messages, columns: ['direct_message_id'], filter: '', orderBy: 'id asc' })
+    const page = await loader.page(0)
+    expect(list.mock.calls[0]![1]).toMatchObject({ labels: {} })
+    expect(page.rows[0]).toMatchObject({ direct_message_id: { id: 'dm-1', name: 'dm-1' } })
+    expect(list).toHaveBeenCalledTimes(2)
+    expect(queryClient.getQueryData(titleRowKey(directMessages, 'dm-1', ['member_ids']))).toEqual({ row: { id: 'dm-1', member_ids: ['u-maya', 'u-sam'] } })
   })
 })
