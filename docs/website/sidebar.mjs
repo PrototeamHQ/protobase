@@ -72,7 +72,7 @@ export const referenceGroups = [
   },
   {
     label: 'Data',
-    items: ['reference/data-config', 'reference/files', 'reference/history', 'reference/comments', 'reference/live', 'reference/ai'],
+    items: ['reference/data-config', 'reference/files', 'reference/history', 'reference/comments', 'reference/live', 'reference/channels', 'reference/ai'],
   },
   { label: 'Access and sign-in', items: ['reference/access', 'reference/auth'] },
   { label: 'API', items: ['reference/api', 'reference/client', 'reference/mcp', 'reference/calls'] },

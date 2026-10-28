@@ -28,7 +28,9 @@ It is live data, not multiplayer editing: two people editing the same record sti
 | `changes` | `changes`: `[{ resource, key, operation }]` in commit order, `operation` being `create`, `update`, `delete` or `undelete`. |
 | `resync` | Changes went by that are no longer kept: read everything shown again. |
 
-Connecting again with `?after=<cursor>` catches up on what was missed while disconnected. [`client.live({ onChanges, onResync })`](/reference/client/) of `@protobase/client` follows the stream and connects again by itself, as the app does.
+Connecting again with `?after=<cursor>` catches up on what was missed while disconnected. [`client.live({ onChanges, onResync })`](/reference/client/) of `@protobase/client` follows the stream and connects again by itself, as the app does. However many callers of one client follow it, they share one stream, so a page with many live views holds one connection, which matters under HTTP/1.1, where a browser opens at most six to a host.
+
+Who is on a record's page and what they send each other, which no change of a record says, goes over the record's [channel](/reference/channels/).
 
 ## The table
 

@@ -1,4 +1,4 @@
-/** How `/api/sb/realtime/v1` is served (`realtime` in `protobase.config.ts`). */
+/** How `/api/channels` and `/api/sb/realtime/v1` are served (`realtime` in `protobase.config.ts`). */
 export type RealtimeOptions = {
   /**
    * `'one'`, the default, when one process serves the app: broadcasts and presence go between its channels in memory.

@@ -1,0 +1,92 @@
+---
+title: Channels
+description: Every record has a channel, where the pages that have it open see who else is there and send each other short-lived events, for whoever may read the record.
+---
+
+Every record of the app has a channel. The pages on it see who else is there and what each of them tracks, such as online or away (presence), and send each other events that are never stored, such as typing (broadcasts). Whoever may read the record may join its channel; nothing else needs to be set up. A record everyone may read, a visitor of the anonymous role included, makes an open channel.
+
+:::caution[Beta]
+SQL cannot send to a channel, and a broadcast carries JSON only, not binary bytes.
+:::
+
+## From a page
+
+`client.channel(resource, key)` of [`@protobase/client`](/reference/client/) joins the record's channel:
+
+```ts
+const room = client.channel('rooms', 42)
+
+room.onStatus((status) => console.log(status.state))
+room.onPresence((entries) => console.log(entries.map((entry) => `${entry.user}: ${JSON.stringify(entry.state)}`)))
+room.on('typing', ({ user, payload }) => console.log(user, 'is typing', payload))
+
+await room.track({ status: 'online' })
+await room.send('typing', { on: true })
+
+room.leave()
+```
+
+| | |
+| --- | --- |
+| `status()`, `onStatus(listener)` | `joining`, also while the connection is down; `joined`; `refused`, with its `error`, for a record there is none of or the caller may not read; `closed`, with its `error`, when the server left the channel, such as once the caller may no longer read the record. A refused or closed channel is not joined again. |
+| `presence()`, `onPresence(listener)` | Every connection on the channel that tracks a state, this one included, as `{ id, user, state }`; the listener gets the whole presence and, for a change, its `{ joins, updates, leaves }`. |
+| `track(state)`, `untrack()` | Tracks this connection's JSON state on the channel, replaces it, or takes it out. A state tracked before the channel joined is tracked once it does, and again after a reconnect. |
+| `send(event, payload, { self?, ack? })` | Broadcasts a JSON payload to the others on the channel; `self` hears it too, and with `ack` it resolves once the server took it, or rejects with a `ChannelRefusal`. |
+| `on(event, listener)` | Hears the channel's broadcasts of `event`, each `{ event, payload, user }`, and `server: true` for one the app's own code sent. |
+| `leave()` | Lets the channel go. |
+
+Every channel of one client shares one WebSocket, opened with the first channel and closed after the last, and connects again by itself after a drop, joining its channels again. With [live updates](/reference/live/#the-stream), a page holds two connections however many live views and channels it has.
+
+## Access
+
+A caller may join a record's channel when they may read the record, as `GET /api/v1/<resource>/<key>` decides it: the resource's read access, the tenant, the row filter and a record-level read rule. Anyone else is refused with `not-found`, `There is no such record`, exactly as for a key or a resource the app does not have, so a channel tells nobody which records there are. A soft-deleted record has no channel.
+
+Access holds while joined. A broadcast or a track trusts the last check for 5 seconds, and is checked again after that. Every 10 seconds, the server checks the connection's session again, and the read access to each of its channels' records. A member who may no longer read a record is out of its channel within 10 seconds: it gets `closed` with `not-found`, its presence leaves, and it hears nothing more. A session that signs in nobody any more, or someone else, closes the socket with `1008`.
+
+`user` on every presence and broadcast is the user's id, from the session, `null` for a visitor; the server never takes it from what the client sends.
+
+## Presence
+
+A connection tracks one state on each channel, at most 10 000 bytes of JSON, and an entry keeps its `id` while it is tracked: tracking again is an update. A joining connection gets the channel's whole presence, then each join, update and leave.
+
+An entry leaves at once when its connection leaves the channel or closes, as when its page closes, and within 12 seconds when its connection drops without closing, as when the network goes away: the client pings every 5 seconds, and the server closes a connection it heard nothing from for 12 seconds. A client that hears no answer to its pings for 10 seconds connects again.
+
+## Broadcasts
+
+A broadcast reaches every other connection on the channel, and the sender's own with `self`, at once. Nothing is stored: a broadcast reaches who is on the channel when it is sent, and nobody else.
+
+## From the server
+
+An [API function](/guides/api-functions/) broadcasts with its context's `channels`, as the server: its broadcasts have `user: null` and `server: true`, and it needs no read access. It rejects with a `404` problem for a resource or key the app does not have, `422` for an event over 255 bytes or a payload over 256 KiB, and `429` over the channel's broadcasts.
+
+```ts
+import { defineFunction } from '@protobase/server'
+
+export default defineFunction(async (request, { channels }) => {
+  await channels.broadcast({ resource: 'rooms', key: '42', event: 'announcement', payload: { text: 'Standup in 5 minutes' } })
+  return new Response(null, { status: 204 })
+})
+```
+
+`POST /api/channels/<resource>/<key>/broadcast` with `{ "event": "…", "payload": … }` broadcasts as its caller, who must read the record, under the same limits, answered `202`. <gap>SQL cannot broadcast to a channel because a database send for record channels is not implemented.</gap>
+
+## The socket
+
+`GET /api/channels` is the WebSocket `@protobase/client` opens, with the subprotocol `protobase.channels`. A browser opens it with its session cookie; a client with a bearer token offers it as a second subprotocol, `bearer.<token>`, and hands over a new one with `{ "type": "token", "token": "…" }`, which the next check of the session uses. A page of another origin than the app's is refused with `403`. Each frame is JSON text:
+
+| The client sends | |
+| --- | --- |
+| `{ type: 'join', ref, resource, key }` | Its reply names the `channel`, `<resource>/<key>`, that the other messages use, then a `presence` message has the whole presence. |
+| `{ type: 'track', ref, channel, state }`, `{ type: 'untrack', ref, channel }` | |
+| `{ type: 'send', ref, channel, event, payload, self?, ack? }` | Gets a reply when refused, and with `ack` when taken. |
+| `{ type: 'leave', ref, channel }`, `{ type: 'ping' }` | A ping is answered with `{ type: 'pong' }`. |
+
+The server sends `reply` (`{ ref, ok: true }` or `{ ref, ok: false, error: { code, message } }`), `presence` (`{ channel, entries }`), `presence_diff` (`{ channel, joins, updates, leaves }`), `broadcast` (`{ channel, event, payload, user, server? }`), `closed` (`{ channel, error }`) and `error` for a frame that is no message.
+
+## Limits
+
+They are the limits of the [Realtime-compatible socket](/reference/supabase-realtime/#broadcast-and-presence), apart from the shorter idle time. A connection sends at most 100 broadcasts and presence updates a second (`too-many-messages`), joins at most 100 times a second (`too-many-joins`) and holds at most 100 channels (`too-many-channels`); on each channel it tracks or untracks at most 5 times in 30 seconds (`too-many-presence-updates`). A channel takes 100 broadcasts a second, every sender's together (`channel-too-busy`). A channel name, `<resource>/<key>`, is at most 255 bytes (`name-too-long`), an event at most 255 bytes (`event-too-long`) and a tracked state at most 10 000 bytes of JSON (`presence-too-large`). A refused message goes to no one. A frame over 256 KiB closes the socket with `1009`; it closes with `1008` when the client leaves more than 4 MiB unread, or sends more than 300 messages or 4 MiB while earlier ones wait.
+
+## Several processes
+
+With [`realtime: { processes: 'many' }`](/reference/config/api/#realtime), the channels of a record meet whichever process each connection joined: presence and broadcasts go between the processes through the `realtime_relay` schema, as the [Realtime-compatible socket's do](/reference/supabase-realtime/#several-processes), within about 100 ms, and a channel's 100 broadcasts a second are counted across all of them. The record channels and the compatible socket's topics never hear each other, whatever their names. The presence of a process that is killed leaves about 15 to 20 seconds after its last heartbeat. The serve runtime needs WebSockets of npm `ws`, as for the compatible socket: `protobase dev` and `protobase serve` have them.

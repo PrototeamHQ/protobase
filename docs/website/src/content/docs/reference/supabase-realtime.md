@@ -27,7 +27,7 @@ A channel may listen to the tables of the resources with [`.live()`](/reference/
 
 ## Broadcast and presence
 
-Channels on the same topic exchange broadcasts and see each other's presence, as on Supabase, private channels among themselves and public ones among themselves:
+Channels on the same topic exchange broadcasts and see each other's presence, as on Supabase, private channels among themselves and public ones among themselves. A new app has Protobase's own [channels](/reference/channels/) for this, which belong to records and admit whoever may read the record, with no policies to write; the two never hear each other.
 
 ```ts
 const room = supabase.channel('room', { config: { broadcast: { self: false, ack: true }, presence: { key: 'alice' } } })

@@ -57,9 +57,10 @@ The second argument of a handler (`c.env` in a [Hono app](#hono-apps)):
 | `decryptField(resource, key, field)` | An [encrypted field](/reference/data-config/#reading-in-jobs-and-functions)'s value, skipping access rules like `db`; each read is audited, naming the function and the caller. |
 | `acceptWebSocket(events)` | Answers a WebSocket upgrade with a socket; return its response. See [WebSockets](#websockets). |
 | `calls.join(member)` | The events of a member's socket in a call, for `acceptWebSocket`. See [Calls](/reference/calls/). |
+| `channels` | `channels.broadcast({ resource, key, event, payload })` sends to whoever is on a record's [channel](/reference/channels/#from-the-server), as the server. |
 | `name` | The function's name. |
 
-A [public function](#public-functions-and-webhooks) has only `db`, `caller()`, `acceptWebSocket`, `calls` and `name`.
+A [public function](#public-functions-and-webhooks) has only `db`, `caller()`, `acceptWebSocket`, `calls`, `channels` and `name`.
 
 ## Reading and writing records as the caller
 
