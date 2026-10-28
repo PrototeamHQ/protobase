@@ -5,6 +5,7 @@ import { bundleLayout, bundleMigrations, bundleNodeModules, manifestFile, type B
 import { buildBundlePlugins } from './bundle-plugins'
 import { copyMigrations } from './bundle-migrations'
 import { buildConfigBundle } from './config-bundle'
+import { bundleMobile } from './bundle-mobile'
 import { bundleProtobaseVersion } from '../version/project-version'
 import { copyPackages } from './packages/copy-packages'
 import { shellForBuild, shellManifestFile } from './shell'
@@ -56,8 +57,8 @@ const copyShell = async (publicDir: string, sourceMaps: boolean) => {
 // public/ the prebuilt app (the shell), the project's protobase.ui.tsx and extensions' UI configs as plugins, its
 // theme, checked and minified, and its icons; the project's db/migrations as migrations/; and the manifest saying which
 // paths go to the server, which Protobase version the bundle runs on, its plugins, theme, shell and migrations,
-// which icons are the project's own, and the native packages the shell runs on in the mobile app. Of the project's server config
-// only the config folder runs at build time, to check its views against its resources; when it declares custom
+// which icons are the project's own, the native packages the shell runs on in the mobile app, and with a mobile section
+// its plugins. Of the project's server config only the config folder runs at build time, to check its views against its resources; when it declares custom
 // components, or extensions have UI configs, the UI is loaded once to check its names against the config's and each
 // other's.
 export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [], sourceMaps = false, onWarning }: DeployBundleInput): Promise<BundleManifest> => {
@@ -65,7 +66,8 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
   await removeOwnFolder(outDir, bundleNodeModules, 'nodeModules')
   await removeOwnFolder(outDir, bundleMigrations, 'migrations')
   const components = new Set<string>()
-  const native = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
+  const { native, mobile } = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
+  const mobileSection = bundleMobile(mobile)
   await checkViews(projectDir)
   await checkUi(projectDir, extensions, components)
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []
@@ -85,6 +87,7 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
     shell,
     icons,
     native: pinnedNative,
+    ...(mobileSection && { mobile: mobileSection }),
     ...(packages.length > 0 ? { nodeModules: bundleNodeModules } : {}),
     ...(migrations ? { migrations } : {}),
   }

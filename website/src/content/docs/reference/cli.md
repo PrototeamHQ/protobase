@@ -210,6 +210,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
   ],
   "shell": { "protobase": "0.12.0", "pluginApi": 1, "paths": ["/index.html", "/assets", "/protobase.sw.js"] },
   "native": { "@capacitor/core": "8.5.3", "@capacitor/ios": "8.5.3" },
+  "mobile": { "plugins": { "@capacitor/camera": "^8.0.1" } },
   "nodeModules": "node_modules",
   "migrations": "migrations"
 }
@@ -220,6 +221,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 - `plugins` are the bundle's own plugins, in the order the app merges them: the extensions', then the project's (`app`). Each names its `plugin.json`, the plugin API and Protobase versions it is built for, and the [field types](/reference/plugins/#field-types) it registers with the storage types each shows, which the serve runtime checks the views against at startup. `/api/meta` names them to everyone, before any other plugin.
 - `shell` is the admin app `public/` holds a copy of: its Protobase version and plugin API, and its files as URL paths. A host with a shell of its own may serve its own for those paths instead (see [The UI](#the-ui)), so the app gets that release's fixes without a rebuild.
 - `native` is the native code, name to version, that `shell` runs on in the [mobile app](/guides/mobile-app/): the native packages `@protobase/mobile` pins, and `@protobase/mobile` itself at its native contract, such as `native-1`, which Protobase raises when its own native code changes. The fingerprint of the bundle's [mobile release](#mobile-releases) names them. A bundle built before it serves no mobile release.
+- `mobile` is present only when the project's config has a `mobile` section, so a host learns that the app has a mobile build without running the config: the section's `plugins`, name to the spec it gives, `{}` when it gives none, which the fingerprint of the mobile release names besides `native`. The build checks the section as `protobase mobile` does.
 - `theme` is the project's [theme](/reference/theme/), which the app links at `/protobase.theme.css`. It is always there, empty when the project has none.
 - `nodeModules` is present only when the config module imports [native packages](#native-packages). It is always the `node_modules` folder beside `server`, where Bun and Node resolve the module's imports from, and holds plain packages: JavaScript, `package.json` files and native binaries for linux x64 and arm64 (glibc), which the runtime loads with `dlopen`. A host keeps it next to the server module and must not mount it `noexec` (an add-on there then fails with `failed to map segment from shared object`). Its binaries link nothing but glibc, `libstdc++.so.6`, `libgcc_s.so.1` and libraries in the bundle itself, so the run image must have those three. Without `nodeModules`, the server module is the only file the runtime reads.
 - `migrations` is present only when the project has a `db/migrations` folder: its `.sql` files, which the runtime's `migrate` applies (see [Deploy](/guides/deploy/)). A host never serves it.

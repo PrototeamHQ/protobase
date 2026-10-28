@@ -32,6 +32,7 @@ describe('parseManifest', () => {
     expect(parseManifest({ ...manifest, nodeModules: 'node_modules' }, 'm.json')).toEqual({ ...manifest, nodeModules: 'node_modules' })
     expect(parseManifest({ ...manifest, migrations: 'migrations' }, 'm.json')).toEqual({ ...manifest, migrations: 'migrations' })
     expect(parseManifest({ ...manifest, native: { '@capacitor/core': '8.5.3' } }, 'm.json')).toEqual({ ...manifest, native: { '@capacitor/core': '8.5.3' } })
+    expect(parseManifest({ ...manifest, mobile: { plugins: {} } }, 'm.json')).toEqual({ ...manifest, mobile: { plugins: {} } })
   })
 
   it('refuses another version and missing or malformed fields', () => {
@@ -41,6 +42,7 @@ describe('parseManifest', () => {
     expect(() => parseManifest({ ...manifest, plugins: [{ ...plugin, api: '1' }] }, 'm.json')).toThrow('m.json needs a plugins list, each with a name, path, api and protobase')
     expect(() => parseManifest({ ...manifest, shell: { ...shell, paths: '/assets' } }, 'm.json')).toThrow('m.json needs a shell with its protobase version, pluginApi and paths')
     expect(() => parseManifest({ ...manifest, native: { '@capacitor/core': 8 } }, 'm.json')).toThrow('m.json has a native that is not a map of package names to versions')
+    expect(() => parseManifest({ ...manifest, mobile: {} }, 'm.json')).toThrow('m.json has a mobile that is not { plugins } with a map of package names to versions')
     expect(() => parseManifest({ ...manifest, nodeModules: true }, 'm.json')).toThrow('m.json has a nodeModules that is no path')
     expect(() => parseManifest({ ...manifest, migrations: ['001.sql'] }, 'm.json')).toThrow('m.json has a migrations that is no path')
   })

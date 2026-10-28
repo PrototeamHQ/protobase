@@ -184,10 +184,10 @@ describe('buildDeployBundle', () => {
     expect(await readFile(path.join(outDir, 'public/index.html'), 'utf8')).toContain('<link rel="apple-touch-icon" href="/protobase.apple-touch-icon.png">')
   }, buildTimeout)
 
-  it('carries a native package in node_modules and names it in the manifest, until a build without one', async () => {
+  it('carries a native package in node_modules and names it and the mobile section in the manifest, until a build without them', async () => {
     projectDir = await createProject({
       'config/index.ts': things,
-      'protobase.config.ts': `export default { writeHooks: ['hash'] }\n`,
+      'protobase.config.ts': `export default { writeHooks: ['hash'], mobile: { appId: 'com.example.shop', plugins: { '@capacitor/camera': '^8.0.1' } } }\n`,
       'hooks/hash.ts': `import { hash } from 'native-hash'\nexport default async () => void hash\n`,
     })
     await writePackage(projectDir, { name: 'native-hash', dependencies: { 'node-gyp-build': '^4' } }, prebuildifyFiles)
@@ -196,13 +196,15 @@ describe('buildDeployBundle', () => {
     const manifest = await buildDeployBundle({ projectDir, outDir })
 
     expect(manifest.nodeModules).toBe('node_modules')
-    expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8')).nodeModules).toBe('node_modules')
+    expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toMatchObject({ nodeModules: 'node_modules', mobile: { plugins: { '@capacitor/camera': '^8.0.1' } } })
     expect((await readdir(path.join(outDir, 'node_modules'))).sort()).toEqual(['native-hash', 'node-gyp-build'])
     expect((await readdir(path.join(outDir, 'node_modules/native-hash/prebuilds'))).sort()).toEqual(['linux-arm64', 'linux-x64'])
 
     await writeFile(path.join(projectDir, 'protobase.config.ts'), 'export default {}\n')
     await rm(path.join(projectDir, 'hooks'), { recursive: true })
-    expect((await buildDeployBundle({ projectDir, outDir })).nodeModules).toBeUndefined()
+    const without = await buildDeployBundle({ projectDir, outDir })
+    expect(without.nodeModules).toBeUndefined()
+    expect(without.mobile).toBeUndefined()
     expect(existsSync(path.join(outDir, 'node_modules'))).toBe(false)
   }, buildTimeout)
 

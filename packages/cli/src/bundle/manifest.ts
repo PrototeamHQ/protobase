@@ -19,6 +19,8 @@ export type BundlePlugin = { name: string; path: string; api: number; protobase:
  */
 export type BundleShell = { protobase: string; pluginApi: number; paths: string[] }
 
+export type BundleMobile = { plugins: Record<string, string> }
+
 export type BundleManifest = {
   // The format of this file.
   version: 3
@@ -44,6 +46,9 @@ export type BundleManifest = {
   // The native packages, name → version, that the bundle's copy of the shell runs on in the mobile app (those
   // @protobase/mobile pins), which the fingerprint of its mobile release names. A bundle built before it names none.
   native?: Record<string, string>
+  // With the project's `mobile` section, and only then, what of it the fingerprint of the mobile release names besides
+  // `native`: its plugins, name → the spec it gives, empty when it gives none.
+  mobile?: BundleMobile
   // The packages the config module loads from disk, native add-ons and what they need: a node_modules folder beside
   // `server`, relative to the bundle. Only in a bundle that has some.
   nodeModules?: string
@@ -97,7 +102,7 @@ export type BundleLayout = Omit<BundleManifest, 'protobase'>
 export const parseManifest = (value: unknown, file: string): BundleLayout => {
   const manifest = value as Partial<BundleManifest> | null
   if (manifest?.version !== 3) throw new Error(`${file} is not a version 3 bundle manifest; rebuild it with \`protobase build\``)
-  const { server, public: publicDir, api, spa, plugins, theme, shell, icons, native, nodeModules, migrations } = manifest
+  const { server, public: publicDir, api, spa, plugins, theme, shell, icons, native, mobile, nodeModules, migrations } = manifest
   if (typeof server !== 'string' || typeof publicDir !== 'string' || typeof spa !== 'string' || typeof theme !== 'string' || !isStringList(api)) {
     throw new Error(`${file} needs server, public, spa and theme paths and an api list`)
   }
@@ -105,6 +110,7 @@ export const parseManifest = (value: unknown, file: string): BundleLayout => {
   if (!isShell(shell)) throw new Error(`${file} needs a shell with its protobase version, pluginApi and paths`)
   if (icons !== undefined && !isIcons(icons)) throw new Error(`${file} has icons that are not a favicon flag and a list of PNG icons`)
   if (native !== undefined && !isVersions(native)) throw new Error(`${file} has a native that is not a map of package names to versions`)
+  if (mobile !== undefined && !(isObject(mobile) && isVersions(mobile.plugins))) throw new Error(`${file} has a mobile that is not { plugins } with a map of package names to versions`)
   if (nodeModules !== undefined && typeof nodeModules !== 'string') throw new Error(`${file} has a nodeModules that is no path`)
   if (migrations !== undefined && typeof migrations !== 'string') throw new Error(`${file} has a migrations that is no path`)
   return {
@@ -118,6 +124,7 @@ export const parseManifest = (value: unknown, file: string): BundleLayout => {
     shell,
     ...(icons && { icons }),
     ...(native && { native }),
+    ...(mobile && { mobile }),
     ...(nodeModules === undefined ? {} : { nodeModules }),
     ...(migrations === undefined ? {} : { migrations }),
   }

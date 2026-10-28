@@ -190,7 +190,7 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
       'resources.ts': things,
     })
     const outFile = path.join(projectDir, 'dist/protobase.config.js')
-    expect(await buildConfigBundle({ projectDir, outFile })).toEqual([])
+    expect((await buildConfigBundle({ projectDir, outFile })).native).toEqual([])
 
     const code = await readFile(outFile, 'utf8')
     for (const id of ['pg', 'postgres', 'kysely/helpers/postgres', 'zod']) expect(code).toContain(`from "${id}"`)
@@ -267,7 +267,7 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
       'index.js': `import { hash } from 'native-hash'\nexport const greet = () => 'hello from plain-lib ' + typeof hash\n`,
     })
     const outFile = path.join(projectDir, 'dist/protobase.config.js')
-    expect(await buildConfigBundle({ projectDir, outFile })).toEqual([{ name: 'native-hash', dir: await realpath(native) }])
+    expect((await buildConfigBundle({ projectDir, outFile })).native).toEqual([{ name: 'native-hash', dir: await realpath(native) }])
 
     const code = await readFile(outFile, 'utf8')
     expect(code).toContain('from "native-hash"')
