@@ -13,6 +13,11 @@ describe('isApiWebSocket', () => {
     expect(isApiWebSocket('/realtime/v1/websocket')).toBe(false)
   })
 
+  it('takes the record channels’ socket', () => {
+    for (const url of ['/api/channels', '/api/channels?x=1']) expect(isApiWebSocket(url)).toBe(true)
+    for (const url of ['/api/channels/rooms/1/broadcast', '/api/channelsx']) expect(isApiWebSocket(url)).toBe(false)
+  })
+
   it('takes the sockets of the app’s functions, below their names too', () => {
     for (const url of ['/api/functions/chat', '/api/functions/chat?ticket=x', '/api/functions/console/vm/7']) expect(isApiWebSocket(url)).toBe(true)
     for (const url of ['/api/functions', '/api/functions/', '/api/functionsx/chat', '/api/v1/tasks']) expect(isApiWebSocket(url)).toBe(false)

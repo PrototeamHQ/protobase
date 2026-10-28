@@ -2,9 +2,10 @@ import type { IncomingMessage } from 'node:http'
 import type { Duplex } from 'node:stream'
 import { isAllowedHost } from './allowed-host'
 
-// The API's WebSocket addresses, realtime's and the app's functions'; every other upgrade, such as Vite's HMR socket,
-// stays Vite's.
-export const isApiWebSocket = (url: string) => /^\/api\/sb\/realtime\/v1\/websocket(\?|$)/.test(url) || /^\/api\/functions\/[^/?#]+(\/|\?|$)/.test(url)
+// The API's WebSocket addresses, realtime's, the record channels' and the app's functions'; every other upgrade, such as
+// Vite's HMR socket, stays Vite's.
+export const isApiWebSocket = (url: string) =>
+  /^\/api\/sb\/realtime\/v1\/websocket(\?|$)/.test(url) || /^\/api\/channels(\?|$)/.test(url) || /^\/api\/functions\/[^/?#]+(\/|\?|$)/.test(url)
 
 export type Upgrade = (request: IncomingMessage, socket: Duplex, head: Buffer) => void
 
