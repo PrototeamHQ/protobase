@@ -70,6 +70,10 @@ The derived title names the record wherever `.title` would: the sidebar's [recen
 
 <gap>An export of shown values and a chart grouped by a relation cannot name a record by its derived title because titling them per reader is not implemented.</gap>
 
+### Sidebar marks per reader
+
+`.nav({ recent: { marks: 'unread' } })` marks a sidebar group's records for the person reading by a hook under `marks` in `protobase.ui.tsx`, such as an unread channel in bold with a count of its mentions: `defineUi({ marks: { unread: useUnreadMarks } })`, where `useUnreadMarks(resource)` returns `{ strong?, count?, label? }` by record key. Like a derived title it is presentation only. See [Marks per reader](/reference/sidebar/#marks-per-reader).
+
 A click on a row of a list's table opens its record. Its title cell, the `.title` column or else the first, is a link to the record, so Cmd- or Ctrl-click, a middle click and the browser's link menu open it in a new tab or copy its address; embedded lists and the table of a list sorted by hand do the same.
 
 Field hints:

@@ -1,8 +1,9 @@
-import type { NavRecord } from '../app-shell'
+import type { NavRecord, RecordMark } from '../app-shell'
 import { appPath, enumLabel, type NavRecentModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { defaultRecentLimit, encodeKey } from '@protobase/schema/internal'
 import { recordKey, recordTitleField } from '../live/model-helpers'
 import { defaultOrderBy } from './list-order'
+import type { MarksHook } from './marks/marks-hook'
 import { titleFieldsOf, type RecordTitleOf } from './titles/record-title-of'
 
 /** The list request behind a sidebar group: its filter, order (the list's sort when unset), size, and only the fields it shows, those its derived title reads included. */
@@ -51,4 +52,14 @@ export const recentRecords = (
 export const recentRowDiffers = (model: ResourceModel, fields: string[], rows: Record<string, unknown>[], key: string, record: Record<string, unknown>) => {
   const row = rows.find((entry) => encodeKey(recordKey(model, entry)) === key)
   return row !== undefined && fields.some((field) => !Object.is(row[field], record[field]))
+}
+
+/**
+ * The hook that marks a group's records for the reader: the project UI's `marks` hook the group names, called with its
+ * resource. None when the group names no marks, or a name no UI config registers, such as a plugin that is turned off.
+ */
+export const recentMarks = (resource: string, recent: NavRecentModel, hooks: Record<string, MarksHook> | undefined): (() => Record<string, RecordMark> | undefined) | undefined => {
+  if (recent.marks === undefined || !hooks || !Object.hasOwn(hooks, recent.marks)) return
+  const hook = hooks[recent.marks]!
+  return () => hook(resource)
 }

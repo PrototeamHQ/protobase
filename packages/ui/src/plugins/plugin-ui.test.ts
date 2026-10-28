@@ -8,13 +8,15 @@ import { pluginUi } from './plugin-ui'
 const plugin = { name: 'app', url: 'https://cdn.example.com/app/plugin.json', settings: {} }
 
 describe('pluginUi', () => {
-  it('keeps the drop rules, board drops, shell logo and bell of the module', () => {
+  it('keeps the drop rules, board drops, marks hooks, shell logo and bell of the module', () => {
     const drop: BoardDrop = { done: async () => undefined }
     const rule: DropRule = () => undefined
     const Logo = () => createElement('span', null, 'logo')
     const Bell = () => createElement('span', null, 'bell')
-    const ui = pluginUi(plugin, { default: { boardDrops: { park: drop }, dropRules: { r: rule }, shell: { logo: Logo, bell: Bell } } })
+    const unread = () => undefined
+    const ui = pluginUi(plugin, { default: { boardDrops: { park: drop }, dropRules: { r: rule }, marks: { unread }, shell: { logo: Logo, bell: Bell } } })
     expect(ui.boardDrops).toEqual({ park: drop })
+    expect(ui.marks).toEqual({ unread })
     expect(ui.dropRules).toEqual({ r: rule })
     expect(ui.shell?.logo?.displayName).toBe('app:shell.logo')
     expect(ui.shell?.bell?.displayName).toBe('app:shell.bell')

@@ -33,4 +33,5 @@ export const navRecentErrors = (recent: NavRecentModel, model: ResourceModel): s
   ...(recent.limit === undefined || (Number.isInteger(recent.limit) && recent.limit >= 1 && recent.limit <= maxLimit) ? [] : [`limit must be a whole number from 1 to ${maxLimit}`]),
   ...(recent.filter === undefined ? [] : filterErrors(model, recent.filter).map((error) => `filter: ${error.message}`)),
   ...(recent.orderBy === undefined ? [] : orderByErrors(model, recent.orderBy).map((error) => `orderBy: ${error.message}`)),
+  ...(recent.marks === undefined || (typeof recent.marks === 'string' && recent.marks !== '') ? [] : ['marks needs the name of a hook in the project UI\'s marks']),
 ]

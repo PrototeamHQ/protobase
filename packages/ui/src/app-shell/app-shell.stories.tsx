@@ -106,6 +106,32 @@ export const RecentRecordsWithoutStatus: Story = {
   },
 }
 
+const unreadMarks = () => ({ general: { strong: true, count: 3, label: '3 mentions' }, support: { strong: true }, random: { count: 120 } })
+
+const withUnread: NavGroup[] = navGroups.map((group) => ({
+  ...group,
+  items: group.items.map((item) => (item.id === 'customers' ? { ...item, label: 'Channels', recent: { state: 'ready', records: channels, useMarks: unreadMarks } } : item)),
+}))
+
+/** Records marked for the reader, such as unread channels: bold, with a count at the end of the row, in the group's order. */
+export const RecentRecordsMarked: Story = {
+  tags: ['play'],
+  args: { navGroups: withUnread, activeItem: 'customers' },
+  beforeEach: () => localStorage.removeItem(navOpenStorageKey('customers')),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const list = canvas.getByRole('list', { name: 'Recent channels' })
+    const links = within(list).getAllByRole('link')
+    expect(links.map((link) => link.getAttribute('aria-label') ?? link.textContent)).toEqual(['general, 3 mentions', 'random', 'support', 'View all'])
+    expect(getComputedStyle(links[0]!).fontWeight).toBe('700')
+    expect(getComputedStyle(links[2]!).fontWeight).toBe('700')
+    expect(getComputedStyle(links[1]!).fontWeight).toBe('500')
+    expect(links[0]).toHaveTextContent(/general\s*3$/)
+    expect(links[1]).toHaveTextContent(/random\s*99\+$/)
+    expect(links[2]).toHaveTextContent(/^support$/)
+  },
+}
+
 /** Icon sidebars have no room for records: the entry stays a plain link. */
 export const RecentRecordsIcon: Story = {
   tags: ['play'],

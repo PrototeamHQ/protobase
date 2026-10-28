@@ -5,7 +5,7 @@ import type { NavItem, NavRecent } from './nav'
 import { navOpenStorageKey, readNavOpen, writeNavOpen } from './nav-open-storage'
 import { SidebarItem } from './sidebar-item'
 import { subRow, subRowIndent } from './sidebar-rows'
-import { StatusDot } from './status-dot'
+import { SidebarRecords } from './sidebar-records'
 import { text } from './messages'
 
 export type SidebarGroupProps = {
@@ -17,8 +17,9 @@ export type SidebarGroupProps = {
 }
 
 /**
- * A sidebar entry with a few of its records under it. The label opens the list, the chevron shows or hides the
- * records (remembered in this browser), and "View all" at the end opens the list too.
+ * A sidebar entry with a few of its records under it, each marked for the reader when the group has marks. The label
+ * opens the list, the chevron shows or hides the records (remembered in this browser), and "View all" at the end opens
+ * the list too.
  */
 export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: SidebarGroupProps) => {
   const storageKey = navOpenStorageKey(item.id)
@@ -54,21 +55,7 @@ export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: Sidebar
           {recent.state === 'error' && (
             <li className={cn('flex items-center text-faint-foreground', subRow[mode])}>{text('couldNotLoad')}</li>
           )}
-          {recent.state === 'ready' &&
-            recent.records.map((record) => (
-              <li key={record.id}>
-                <a
-                  {...link(record.href)}
-                  aria-label={record.status ? `${record.label}, ${record.status.label}` : record.label}
-                  title={record.status ? `${record.label} (${record.status.label})` : record.label}
-                  aria-current={record.active ? 'page' : undefined}
-                  className={cn('flex min-w-0 items-center rounded-md font-medium transition-colors', subRow[mode], record.active ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
-                >
-                  {record.status && <StatusDot tone={record.status.tone} pulse={record.status.pulse} />}
-                  <span className="truncate">{record.label}</span>
-                </a>
-              </li>
-            ))}
+          {recent.state === 'ready' && <SidebarRecords records={recent.records} useMarks={recent.useMarks} mode={mode} onNavigate={onNavigate} />}
           <li>
             <a {...link(href)} className={cn('flex items-center rounded-md text-faint-foreground transition-colors hover:bg-muted hover:text-foreground', subRow[mode])}>
               {text('viewAll')}

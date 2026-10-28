@@ -40,11 +40,19 @@ export const navGroups: NavGroup[] = [
 /** One record under a sidebar entry: its title, where it opens, and its status as shown with its dot, when the group has a status. */
 export type NavRecord = { id: string; label: string; href: string; status?: { label: string; tone: StatusTone; pulse: boolean }; active: boolean }
 
+/**
+ * How a record under a sidebar entry stands out for the person reading, such as an unread conversation: `strong` draws
+ * its title bold, `count` a badge at the end of its row (none at 0), and `label`, such as "3 mentions", is added to its
+ * name for screen readers and its tooltip.
+ */
+export type RecordMark = { strong?: boolean; count?: number; label?: string }
+
 /** The records a collapsible entry lists, as far as they have loaded. */
 export type NavRecent =
   | { state: 'loading' }
   | { state: 'error' }
-  | { state: 'ready'; records: NavRecord[] }
+  /** `useMarks`, a React hook the group calls while it shows the records, marks them by their `id`. */
+  | { state: 'ready'; records: NavRecord[]; useMarks?: () => Record<string, RecordMark> | undefined }
 
 export type NavItem = {
   id: string
