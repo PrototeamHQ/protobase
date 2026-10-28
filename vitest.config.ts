@@ -27,6 +27,7 @@ const mocking = [
   'packages/cli/src/runner.test.ts',
   'packages/cli/src/serve/crash-reports.test.ts',
   'packages/cli/src/serve/signals.test.ts',
+  'packages/cli/src/supabase/register.test.ts',
   'packages/cli/src/supabase/functions/samples.test.ts',
   'packages/client/src/sign-in-flows.test.ts',
   'packages/server/src/dropped-connections.test.ts',

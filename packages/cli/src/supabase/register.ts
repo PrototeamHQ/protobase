@@ -1,6 +1,7 @@
 import path from 'node:path'
 import type { Command } from 'commander'
 import { loadNearestEnvFile } from '../dev/env'
+import { projectUrl } from './storage-url'
 
 const out = (text: string) => process.stdout.write(text)
 
@@ -8,14 +9,6 @@ const variable = (name: string) => {
   const value = process.env[name]
   if (!value) throw new Error(`Environment variable ${name} is not set`)
   return value
-}
-
-// The Supabase project's URL, such as https://<ref>.supabase.co, which the storage report names, so never with credentials.
-const projectUrl = (text: string) => {
-  const url = URL.canParse(text) ? new URL(text) : undefined
-  if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:')) throw new Error('--storage-url is not a URL; write it like https://<ref>.supabase.co')
-  if (url.username || url.password) throw new Error('--storage-url must not hold credentials; put the secret key in the variable --storage-key-env names')
-  return `${url.origin}${url.pathname.replace(/\/+$/, '')}`
 }
 
 export const registerImport = (program: Command) => {
@@ -35,6 +28,7 @@ export const registerImport = (program: Command) => {
     .option('--storage-key-env <variable>', "environment variable holding the Supabase project's secret key, for --storage-url", 'SUPABASE_SERVICE_ROLE_KEY')
     .option('--yes', "copy Storage's files even when they exceed the file provider's max_bytes", false)
     .action(async (source: string | undefined, opts) => {
+      const storageUrl = opts.storageUrl ? projectUrl(opts.storageUrl) : undefined
       if (source && opts.sourceEnv) throw new Error('Pass either a connection string or --source-env, not both')
       const projectDir = process.cwd()
       loadNearestEnvFile(projectDir)
@@ -46,7 +40,7 @@ export const registerImport = (program: Command) => {
           projectDir,
           migrationsDir: path.resolve(opts.dir),
           configDir: path.resolve(opts.config),
-          storage: opts.storageUrl ? { url: projectUrl(opts.storageUrl), key: variable(opts.storageKeyEnv) } : undefined,
+          storage: storageUrl ? { url: storageUrl, key: variable(opts.storageKeyEnv) } : undefined,
           yes: opts.yes,
         },
         out,
