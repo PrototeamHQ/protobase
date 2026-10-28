@@ -1,4 +1,4 @@
-import { isUniqueSet, keyColumns } from '../db/keys'
+import { hasUniqueIndexOn, isUniqueSet, keyColumns } from '../db/keys'
 import { tableKey, type DbTable } from '../db/model'
 import { checkEnumValues } from '../infer/check-values'
 import { typesCompatible } from '../infer/compat'
@@ -89,11 +89,26 @@ const checkKey = (model: ResourceModel, table: DbTable): Issue[] => {
   ]
 }
 
+// A create's conflict on the key is found by `on conflict (columns)`, which Postgres refuses without such an index.
+const checkOpenExisting = (model: ResourceModel, table: DbTable): Issue[] => {
+  if (!model.openExisting || table.kind !== 'table') return []
+  const columns = model.openExisting.map((name) => model.fields[name]!.column)
+  if (hasUniqueIndexOn(table, columns)) return []
+  return [
+    {
+      severity: 'error',
+      resource: model.name,
+      message: `openExisting (${columns.join(', ')}) is not the columns of a unique index, so every create would fail`,
+      suggestion: `ALTER TABLE ${quoteIdent(table.schema)}.${quoteIdent(table.name)} ADD UNIQUE (${columns.map(quoteIdent).join(', ')});`,
+    },
+  ]
+}
+
 export const checkResource = (model: ResourceModel, tables: DbTable[]): Issue[] => {
   const schema = model.table.schema ?? 'public'
   const table = tables.find((t) => t.schema === schema && t.name === model.table.name)
   if (!table) {
     return [{ severity: 'error', resource: model.name, message: `table ${schema}.${model.table.name} does not exist` }]
   }
-  return [...Object.keys(model.fields).flatMap((name) => checkField(model, table, name)), ...checkKey(model, table)]
+  return [...Object.keys(model.fields).flatMap((name) => checkField(model, table, name)), ...checkKey(model, table), ...checkOpenExisting(model, table)]
 }

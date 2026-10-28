@@ -81,4 +81,15 @@ describe('checkResource', () => {
     const issues = checkResource(model({ id: f.integer(), title: f.text() }, 'title'), [table])
     expect(issues[0]).toMatchObject({ message: 'primary key (title) is not backed by a unique index' })
   })
+
+  it('checks that the fields of .openExisting() are the columns of a unique index', () => {
+    const opening = resource('items').table('shop.items').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
+    const unique = { name: 'items_title_id', columns: ['title', 'id'], unique: true, primary: false, partial: false, method: 'btree', opclasses: ['text_ops', 'int4_ops'] }
+    expect(checkResource(opening.openExisting((r) => [r.id]).toModel(), [table])).toEqual([])
+    expect(checkResource(opening.openExisting((r) => [r.id, r.title]).toModel(), [{ ...table, indexes: [...table.indexes, unique] }])).toEqual([])
+    const [issue] = checkResource(opening.openExisting((r) => [r.title]).toModel(), [table])
+    expect(issue).toMatchObject({ severity: 'error', message: 'openExisting (title) is not the columns of a unique index, so every create would fail', suggestion: 'ALTER TABLE shop.items ADD UNIQUE (title);' })
+    const partial = { ...unique, columns: ['title'], partial: true }
+    expect(checkResource(opening.openExisting((r) => [r.title]).toModel(), [{ ...table, indexes: [...table.indexes, partial] }])).toHaveLength(1)
+  })
 })
