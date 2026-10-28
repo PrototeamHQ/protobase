@@ -7,6 +7,7 @@ import { humanize } from '../live/naming'
 import { PickerCombobox, usePickerSearch } from './picker/picker-combobox'
 import { relationOptionsQuery, titleMatches } from './relation-options'
 import { text as appText } from './messages'
+import { useRecordTitle } from './titles/record-titles'
 
 export type RelationPickerProps = {
   target: ResourceModel
@@ -33,13 +34,18 @@ export const RelationPicker = ({ target, view, value, label, chosen = [value], s
   const labelField = labelFieldOf(target, view)
   // The scan guard refuses a filter no index serves; the picker then narrows the records itself.
   const [refused, setRefused] = useState(false)
-  const query = relationOptionsQuery(target, labelField, search.text, refused)
-  const rows = useList(target.name, { filter: query.filter, fields: [keyField, labelField], enabled: search.open })
+  // A view that derives its titles names each option for the reader, from the fields its rule reads; without search
+  // fields, its options are matched by that name, which only the browser knows
+  const titleOf = useRecordTitle()
+  const query = relationOptionsQuery(target, labelField, search.text, refused || (view?.titleFrom !== undefined && !target.search?.length))
+  const fields = [...new Set([keyField, labelField, ...(view?.titleFrom?.fields ?? [])])]
+  const nameOf = (item: Record<string, unknown>) => (view?.titleFrom ? titleOf(target, view, item, String(item[keyField])) : String(item[labelField]))
+  const rows = useList(target.name, { filter: query.filter, fields, enabled: search.open })
   const expensive = query.filter !== undefined && rows.error instanceof ApiError && rows.error.slug === 'expensive-query'
   useEffect(() => {
     if (expensive) setRefused(true)
   }, [expensive])
-  const items = query.local ? rows.items.filter((item) => titleMatches(item[labelField], search.text)) : rows.items
+  const items = query.local ? rows.items.filter((item) => titleMatches(nameOf(item), search.text)) : rows.items
   const { fetchNextPage } = rows
   // `cancelRefetch: false` keeps a page already on its way instead of asking for it again.
   const loadMore = useCallback(() => fetchNextPage({ cancelRefetch: false }), [fetchNextPage])
@@ -47,7 +53,7 @@ export const RelationPicker = ({ target, view, value, label, chosen = [value], s
   return (
     <PickerCombobox
       search={search}
-      options={items.map((item) => ({ key: String(item[keyField]), label: String(item[labelField]) }))}
+      options={items.map((item) => ({ key: String(item[keyField]), label: nameOf(item) }))}
       chosen={chosen}
       several={several}
       closedText={label ?? value}
