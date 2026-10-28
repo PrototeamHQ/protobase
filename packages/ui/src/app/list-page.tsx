@@ -48,6 +48,7 @@ import { navItemId } from './nav-from-meta'
 import { AppLink, useAppAddress, type ListAddress } from './use-app-address'
 import { withFieldTypeCells } from './field-types/field-type-cells'
 import { withRelationTitleCells } from './titles/relation-title-cells'
+import { useRecordTitle } from './titles/record-titles'
 import { relatedColumnLoads } from './related-dots/dot-card'
 import { withRelatedDotsColumns } from './related-dots/related-dots-columns'
 import { useProjectUi } from './pages/project-ui'
@@ -121,7 +122,8 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const scoped = scope ? [...extras, scope] : extras
-  const config = useFilterConfig({ model, resources: meta.resources, views: meta.views, view, state, extras: scoped })
+  const titleOf = useRecordTitle()
+  const config = useFilterConfig({ model, resources: meta.resources, views: meta.views, view, state, extras: scoped, titleOf })
   const loadFilter = scope ? stateToText(fields, state, scoped) : parsed.ok ? filterText : ''
   // One load serves the table and every display, labelled for the relations any of them shows
   const loaded = useMemo(() => loadedFields(model, view, columns.map((column) => column.id)), [model, view, columns])

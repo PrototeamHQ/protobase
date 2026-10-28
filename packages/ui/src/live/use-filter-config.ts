@@ -9,7 +9,9 @@ import { labelFieldOf } from './model-helpers'
 import { humanize } from './naming'
 import { labelKeys, matchOptions } from './reference-options'
 import { fetchLabels } from './relation-labels'
+import { readTitleRows, derivedTitleFields } from './title-rows'
 import { useReferenceSearch } from './use-reference-search'
+import type { RecordTitleOf } from '../app/titles/record-title-of'
 import { rangeFormat, rangeHistogram, widgetFields } from './view-fields'
 
 export type FilterConfigParams = {
@@ -19,6 +21,8 @@ export type FilterConfigParams = {
   view: ViewModel | undefined
   state: FilterState
   extras: FilterExpr[]
+  /** How the reader's titles name the records a relation facet's values point at, where the target's view derives its titles. */
+  titleOf: RecordTitleOf
 }
 
 const histogramBuckets = 24
@@ -27,7 +31,7 @@ const histogramBuckets = 24
  * The panel's config for a view: facet counts come from `:facets` and each range's bounds from `:histogram`, each
  * computed with every other active filter applied but not its own, so choosing one value does not hide the rest.
  */
-export const useFilterConfig = ({ model, resources, views, view, state, extras }: FilterConfigParams): FilterConfig => {
+export const useFilterConfig = ({ model, resources, views, view, state, extras, titleOf }: FilterConfigParams): FilterConfig => {
   const client = useClient()
   const queryClient = useQueryClient()
   const skeleton = widgetFields(view, model)
@@ -36,6 +40,8 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
     const field = model.fields[name]
     return field?.type === 'relation' && field.relation ? resources[field.relation.resource] : undefined
   }
+  // A target whose view derives its titles is named in the browser, from the fields its rule reads
+  const derives = (target: ResourceModel | undefined) => Boolean(target && views[target.name]?.titleFrom)
 
   // A facet group counts its field's values; a flags group counts each of its fields, of which it shows the true ones.
   // A relation's facets come named by the records they point at
@@ -44,27 +50,47 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
     queries: counted.map(({ group, field }) => {
       const filter = stateToText(skeleton, { ...state, facets: { ...state.facets, [group]: [] } }, extras)
       const target = targetOf(field)
-      const label = target?.primaryKey.length === 1 ? labelFieldOf(target, views[target.name]) : undefined
+      const label = target?.primaryKey.length === 1 && !derives(target) ? labelFieldOf(target, views[target.name]) : undefined
       return { queryKey: keys.facets(model.name, field, filter), queryFn: () => client.facets(model.name, field, { filter, limit: 50, ...(label && { label }) }) }
     }),
   })
   const counts = (group: string, field: string) => facetQueries[counted.findIndex((entry) => entry.group === group && entry.field === field)]?.data
 
+  const countedKeys = (group: string) => (counts(group, group) ?? []).flatMap((facet) => (facet.value === null ? [] : [String(facet.value)]))
   const labelQueries = useQueries({
     queries: skeleton.facets.map((group) => {
       const target = targetOf(group.id)
-      const ids = labelKeys((counts(group.id, group.id) ?? []).flatMap((facet) => (facet.value === null ? [] : [String(facet.value)])), state.facets[group.id] ?? [])
+      const ids = labelKeys(countedKeys(group.id), state.facets[group.id] ?? [])
       return {
         queryKey: keys.labels(`facet:${model.name}.${group.id}`, ids.join(',')),
-        enabled: Boolean(target) && ids.length > 0,
+        enabled: Boolean(target) && !derives(target) && ids.length > 0,
         queryFn: async () => [...(await fetchLabels(queryClient, client, target!, ids, views[target!.name]))],
       }
     }),
   })
+  const titleQueries = useQueries({
+    queries: skeleton.facets.map((group) => {
+      const target = targetOf(group.id)
+      const fields = target && derives(target) ? derivedTitleFields(target, views[target.name]) : undefined
+      // The counted values come unnamed, as the server cannot title them for the reader
+      const ids = [...new Set([...countedKeys(group.id), ...(state.facets[group.id] ?? [])])]
+      return {
+        queryKey: keys.labels(`facet-title:${model.name}.${group.id}`, ids.join(',')),
+        enabled: fields !== undefined && ids.length > 0,
+        queryFn: async () => [...(await readTitleRows(client, target!, fields!, ids))],
+      }
+    }),
+  })
+  // The facet values of a target whose view derives its titles, titled for the reader
+  const titled = (group: string, index: number) => {
+    const target = targetOf(group)
+    return (titleQueries[index]?.data ?? []).map(([id, row]): [string, string] => [id, titleOf(target!, views[target!.name], row, id)])
+  }
 
   const searches = useReferenceSearch(
     skeleton.facets.map((group) => ({ id: group.id, target: group.combobox ? targetOf(group.id) : undefined })),
     views,
+    titleOf,
   )
 
   const ranges = skeleton.ranges ?? []
@@ -83,7 +109,7 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
     }
     const field = model.fields[group.id]
     const named = (counts(group.id, group.id) ?? []).flatMap((facet): Array<[string, string]> => (facet.label === undefined ? [] : [[String(facet.value), facet.label]]))
-    const names = new Map([...named, ...(labelQueries[index]?.data ?? [])])
+    const names = new Map([...named, ...(labelQueries[index]?.data ?? []), ...titled(group.id, index)])
     const values = (counts(group.id, group.id) ?? []).flatMap((facet): FacetOption[] =>
       facet.value === null
         ? []
