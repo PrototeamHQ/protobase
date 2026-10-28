@@ -15,7 +15,8 @@ export const spacedTables = ['frames', 'presences'] as const
 
 /**
  * - `frames`: what a process sends, a broadcast or a presence diff, read by the others and pruned after a minute.
- * - `space` in `frames` and `presences`: the channels they are of (`RelaySpace`).
+ * - `space` in `frames` and `presences`: the channels they are of (`RelaySpace`), `topics` for a row written without
+ *   one, as by a process of a version before the record channels.
  * - `presences`: what each process's channels track, which a process that starts reads.
  * - `processes`: each process's last heartbeat; a process silent too long has its presences removed.
  * - `rates`: each topic's broadcasts in the current second, every process's together.
@@ -28,7 +29,7 @@ create table if not exists ${relaySchema}.frames (
   kind text not null check (kind in ('broadcast', 'presence')),
   topic text not null,
   private boolean not null,
-  space text not null check (space in ('topics', 'records')),
+  space text not null default 'topics' check (space in ('topics', 'records')),
   event text,
   payload json,
   bytes bytea,
@@ -48,7 +49,7 @@ create table if not exists ${relaySchema}.presences (
   ref text not null,
   topic text not null,
   private boolean not null,
-  space text not null check (space in ('topics', 'records')),
+  space text not null default 'topics' check (space in ('topics', 'records')),
   key text not null,
   meta json not null,
   primary key (process, ref)
@@ -60,6 +61,5 @@ create table if not exists ${relaySchema}.rates (
   count integer not null
 );
 
--- A relay schema written before the record channels: what was in it, and what a process of the version before still
--- writes while the new one starts, is the topics'.
+-- A relay schema written before the record channels gets the column too.
 ${spacedTables.map((table) => `alter table ${relaySchema}.${table} add column if not exists space text not null default 'topics' check (space in ('topics', 'records'));`).join('\n')}`
