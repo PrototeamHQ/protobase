@@ -5,11 +5,12 @@ import { writeTransaction } from '../../transactions'
 import type { Publication } from '../broadcast-hub'
 import type { PresenceDiff } from '../presence-hub'
 import { realtimeLimits } from '../realtime-limits'
+import type { RelaySpace } from './relay-schema-sql'
 
 /** What another process sent: a broadcast, or the joins and leaves of its channels' presences. */
-export type RelayedFrame = { id: bigint } & ({ kind: 'broadcast'; publication: Publication } | { kind: 'presence'; topic: string; private: boolean; diff: PresenceDiff })
+export type RelayedFrame = { id: bigint; space: RelaySpace } & ({ kind: 'broadcast'; publication: Publication } | { kind: 'presence'; topic: string; private: boolean; diff: PresenceDiff })
 
-type FrameRow = { id: string; own: boolean; kind: 'broadcast' | 'presence'; topic: string; private: boolean; event: string | null; payload: unknown; bytes: Buffer | null; meta: { id: string } | null }
+type FrameRow = { id: string; own: boolean; kind: 'broadcast' | 'presence'; space: RelaySpace; topic: string; private: boolean; event: string | null; payload: unknown; bytes: Buffer | null; meta: { id: string } | null }
 
 /** Frames read in one query at most. */
 export const frameBatch = 1000
@@ -23,7 +24,7 @@ const jsonOf = (payload: unknown) => (payload instanceof ArrayBuffer ? null : (J
  * Counts the broadcasts into each topic's second, every process's together, and adds them as frames, all of them or,
  * when a topic would take more than its broadcasts for this second, none: `false` then.
  */
-export const admitBroadcasts = async (db: Db, statementTimeoutMs: number, self: string, publications: readonly Publication[]) => {
+export const admitBroadcasts = async (db: Db, statementTimeoutMs: number, self: string, space: RelaySpace, publications: readonly Publication[]) => {
   if (publications.length === 0) return true
   const takes = new Map<string, number>()
   for (const { topic } of publications) takes.set(topic, (takes.get(topic) ?? 0) + 1)
@@ -36,8 +37,8 @@ export const admitBroadcasts = async (db: Db, statementTimeoutMs: number, self: 
       returning topic`.execute(trx)
     // Rolls back the counts of the topics that fit.
     if (rows.length < takes.size) throw new Refused()
-    await sql`insert into realtime_relay.frames (process, kind, topic, private, event, payload, bytes, meta)
-      select ${self}::uuid, 'broadcast', topic, private, event, payload::json, decode(bytes, 'base64'), meta::json
+    await sql`insert into realtime_relay.frames (process, kind, space, topic, private, event, payload, bytes, meta)
+      select ${self}::uuid, 'broadcast', ${space}::text, topic, private, event, payload::json, decode(bytes, 'base64'), meta::json
       from unnest(${publications.map((p) => p.topic)}::text[], ${publications.map((p) => p.private)}::boolean[], ${publications.map((p) => p.event)}::text[],
         ${publications.map((p) => jsonOf(p.payload))}::text[], ${publications.map((p) => bytesOf(p.payload))}::text[], ${publications.map((p) => (p.meta ? JSON.stringify(p.meta) : null))}::text[])
         with ordinality as f(topic, private, event, payload, bytes, meta, position)
@@ -52,9 +53,10 @@ export const admitBroadcasts = async (db: Db, statementTimeoutMs: number, self: 
 
 const frameOf = (row: FrameRow): RelayedFrame => {
   const id = BigInt(row.id)
-  if (row.kind === 'presence') return { id, kind: 'presence', topic: row.topic, private: row.private, diff: row.payload as PresenceDiff }
+  const { space } = row
+  if (row.kind === 'presence') return { id, space, kind: 'presence', topic: row.topic, private: row.private, diff: row.payload as PresenceDiff }
   const payload = row.bytes ? new Uint8Array(row.bytes).buffer : row.payload
-  return { id, kind: 'broadcast', publication: { topic: row.topic, event: row.event!, payload, private: row.private, ...(row.meta && { meta: row.meta }) } }
+  return { id, space, kind: 'broadcast', publication: { topic: row.topic, event: row.event!, payload, private: row.private, ...(row.meta && { meta: row.meta }) } }
 }
 
 /**
@@ -62,7 +64,7 @@ const frameOf = (row: FrameRow): RelayedFrame => {
  * other processes' frames, to deliver.
  */
 export const readFrames = async (db: Db, self: string, after: bigint, gaps: readonly bigint[]) => {
-  const { rows } = await sql<FrameRow>`select id::text as id, process = ${self}::uuid as own, kind, topic, private, event,
+  const { rows } = await sql<FrameRow>`select id::text as id, process = ${self}::uuid as own, kind, space, topic, private, event,
       case when process <> ${self}::uuid then payload end as payload, case when process <> ${self}::uuid then bytes end as bytes, meta
     from realtime_relay.frames where id > ${String(after)}::bigint or id = any(${gaps.map(String)}::bigint[])
     order by id limit ${frameBatch}`.execute(db)

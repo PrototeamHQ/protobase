@@ -40,7 +40,7 @@ export const presenceReplica = () => {
 
   return {
     /** Starts over from the presences a snapshot read. */
-    load: (tracked: readonly TrackedPresence[]) => {
+    load: (tracked: readonly Omit<TrackedPresence, 'space'>[]) => {
       topics = new Map()
       for (const presence of tracked) add(presence.topic, presence.private, presence.key, presence.meta)
     },

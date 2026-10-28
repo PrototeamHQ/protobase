@@ -5,6 +5,7 @@ import type { Publication } from '../broadcast-hub'
 import type { PresenceChange } from '../presence-hub'
 import { frameCursor, type FrameCursor } from './frame-cursor'
 import { admitBroadcasts, pruneFrames, readFrames, type RelayedFrame } from './relay-frame-sql'
+import type { RelaySpace } from './relay-schema-sql'
 import { beat, presenceSnapshot, restorePresences, retireSelf, retireStale, writePresence, type TrackedPresence } from './relay-presence-sql'
 
 export type RealtimeRelayOptions = {
@@ -131,9 +132,9 @@ export const realtimeRelay = ({ db, statementTimeoutMs, heard, loaded, tracked, 
     /** Resolves once the other processes' presences are read, or their snapshot failed. */
     ready: () => run?.ready ?? Promise.resolve(),
     /** Counts and adds the broadcasts as frames, all of them or, over a topic's rate, none: `false` then. */
-    broadcast: (publications: readonly Publication[]) => admitBroadcasts(db, statementTimeoutMs, self, publications),
+    broadcast: (space: RelaySpace, publications: readonly Publication[]) => admitBroadcasts(db, statementTimeoutMs, self, space, publications),
     /** Writes a change of this process's presences, after those before it. */
-    changed: (change: PresenceChange) => void inTurn(() => writePresence(db, self, change)),
+    changed: (space: RelaySpace, change: PresenceChange) => void inTurn(() => writePresence(db, self, space, change)),
   }
 }
 

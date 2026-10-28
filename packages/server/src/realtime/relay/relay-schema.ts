@@ -1,13 +1,16 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import { migrationCommand } from '../../changes/capture-schema'
-import { relaySchema, relaySchemaSql, relayTables } from './relay-schema-sql'
+import { relaySchema, relaySchemaSql, relayTables, spacedTables } from './relay-schema-sql'
 
-// Only reads the catalogue.
+// Only reads the catalogue: every table, and the `space` column of those that have one.
 const relayCurrent = async (db: Db) => {
   const names = relayTables.map((table) => `${relaySchema}.${table}`)
   const { rows } = await sql<{ found: boolean }>`select bool_and(to_regclass(name) is not null) as found from unnest(${names}::text[]) as name`.execute(db)
-  return rows[0]!.found
+  if (!rows[0]!.found) return false
+  const spaced = await sql<{ count: number }>`select count(*)::int as count from information_schema.columns
+    where table_schema = ${relaySchema} and table_name = any(${[...spacedTables]}::text[]) and column_name = 'space'`.execute(db)
+  return spaced.rows[0]!.count === spacedTables.length
 }
 
 /** The SQL that adds the `realtime_relay` schema `realtime: { processes: 'many' }` needs; `undefined` when it is there. */
