@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import type { ProblemError } from '@protobase/client'
+import { isApiError, type ProblemError } from '@protobase/client'
 import type { AppAddress } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { humanize } from '../../live/naming'
@@ -13,7 +13,7 @@ import { useNavigationGuard } from '../router'
 import { useAppAddress } from '../use-app-address'
 import { fieldErrors, fieldMessage } from '../field-errors'
 import { useFocusFirstInvalid } from '../use-focus-first-invalid'
-import { useLiveSave } from '../use-live-save'
+import { nothingSaved, useLiveSave } from '../use-live-save'
 import { CreateRecordForm } from './create-record-form'
 import { createBody, createSections, hasDatabaseDefault, initialDraft, numberDefault, isChosen, isRequired, type Draft } from './create-values'
 import { text as appText } from '../messages'
@@ -81,6 +81,12 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
       try {
         created = await client.create(resource, createBody(model, meta.resources, draft))
       } catch (error) {
+        // The record it repeats, under a unique key the resource opens instead (`.openExisting()`), opens as a new one would
+        const existing = isApiError(error) ? error.existing : undefined
+        if (existing) {
+          setNewRecord({ kind: 'record', resource, key: existing.key })
+          return nothingSaved
+        }
         const found = fieldErrors(error)
         setErrors(found)
         if (Object.keys(found).length > 0) setRejections((count) => count + 1)

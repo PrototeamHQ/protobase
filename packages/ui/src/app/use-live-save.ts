@@ -9,10 +9,14 @@ export type SavePhase = 'idle' | 'saving' | 'saved'
 
 const savedForMs = 2000
 
+/** What a save's action resolves to when it wrote nothing and needs no word, such as a create that opens the record it repeats. */
+export const nothingSaved = Symbol('nothing saved')
+
 /**
  * Shows the outcome of a save the way the view asks: a toast (spinner, then check) or the state of
- * the Save button. API errors are reported and not rethrown; anything else propagates. `run` resolves to whether the
- * save went through.
+ * the Save button. API errors are reported and not rethrown; anything else propagates. An action that resolves to
+ * `nothingSaved` wrote nothing and says nothing: its toast goes away. `run` resolves to whether the save went through
+ * or wrote nothing.
  */
 export const useLiveSave = (mode: SaveMode, subject: string) => {
   const toast = useToast()
@@ -26,7 +30,11 @@ export const useLiveSave = (mode: SaveMode, subject: string) => {
     setMessage(undefined)
     if (mode === 'button') setPhase('saving')
     try {
-      await action()
+      if ((await action()) === nothingSaved) {
+        if (id !== undefined) toast.dismiss(id)
+        if (mode === 'button') setPhase('idle')
+        return true
+      }
       if (id !== undefined) toast.update(id, { state: 'success', title: text('subjectSaved', subject) })
       if (mode === 'button') {
         setPhase('saved')
