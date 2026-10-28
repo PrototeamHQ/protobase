@@ -20,15 +20,85 @@ on:
     - cron: '17 4 * * 1'
 
 jobs:
+  # The typecheck, the unit and snapshot tests, the dependency boundaries and the packing: the checks that need no
+  # Postgres. `integration` runs the rest of `bun run check` beside it.
   check:
     if: github.event_name != 'schedule'
     # A second push of an fm/** branch replaces the run still queued or running for it, so a stale run holds no runner.
     # Every other run gets a group of its own, so main, pull requests and the release workflow's call are never cancelled.
     concurrency:
-      group: ci-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      group: check-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     # Pushes to main and to fm/** branches run on the runner the CHECK_RUNNER variable names, when it is set; pull
     # requests, which forks can open, always run on GitHub's runners. See CONTRIBUTING.md.
+    runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The history and tags, to find what a push changed.
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      # A branch's commits land on main as they are, where the release workflow refuses any that commitlint does, so they
+      # are linted here first: a pull request's from its base, a task branch's from where it forked from main. A branch
+      # whose head main already holds has no commits of its own, and commitlint refuses a range from a commit to itself.
+      - name: Lint the branch's commits
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/'))
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          from="${BASE:-$(git merge-base origin/main "$HEAD")}"
+          if [ "$(git rev-parse "$from")" = "$(git rev-parse "$HEAD")" ]; then exit 0; fi
+          bun x --bun commitlint --from "$from" --to "$HEAD" --verbose
+      # bunfig.toml has `bun run` put a node that is Bun first on PATH, so the checks run on Bun. Bun skips that without a
+      # word when another user owns its /tmp/bun-node-* directory, as on a shared server, and they would run on Node.
+      - &bun-node
+        run: bun run sh -c 'node -e "process.versions.bun || (console.error(\"bun run starts Node, not Bun\"), process.exit(1))"'
+      # The protobase skill's references are generated from the docs, not committed: this fails when a page cannot be made
+      # Markdown or the hand-written SKILL.md and the pages do not point at each other.
+      - run: bun run docs:skill --check
+      # The features pages keep their grammar, link real headings and cover every reference page (CONTRIBUTING.md,
+      # Features and docs). Its --release-rule, that a release with a feature changes the docs, is not on yet.
+      - run: bun run features:check
+      # A push to main, which the release workflow checks, or to an fm/** branch runs only the tests and steps its
+      # changes affect (scripts/affected-tests.mjs, see CONTRIBUTING.md): on main the changes since the last release, on
+      # a branch those since it left main. Without CHECK_BASE, as on a pull request or a run by hand, everything runs.
+      - &check-base
+        name: Find the commit the push's changes count from
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/main ]; then
+            base=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD 2>/dev/null || true)
+            if [ -z "$base" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then base=$BEFORE; fi
+          else
+            base=$(git merge-base origin/main HEAD)
+          fi
+          echo "CHECK_BASE=$base" >> "$GITHUB_ENV"
+      - run: bun run check:unit
+      - &setup-node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      # Every package built, declarations included, and packed as the release workflow publishes it, so a package that
+      # cannot build or be packed fails before a release is cut. The tests run on the sources, so nothing builds earlier.
+      # The CLI's build writes the protobase skill's references, which are not committed, so its tarball must carry them.
+      - run: |
+          set -o pipefail
+          node scripts/publish.mjs --pack | tee "$RUNNER_TEMP/pack.log"
+          tar tzf "$(grep -o '[^ ]*protobase-cli-[^ ]*\.tgz' "$RUNNER_TEMP/pack.log")" > "$RUNNER_TEMP/cli-files.txt"
+          grep -qx 'package/skills/protobase/references/reference/access.md' "$RUNNER_TEMP/cli-files.txt"
+
+  # The integration, smoke and end-to-end tests, on Postgres, beside check.
+  integration:
+    if: github.event_name != 'schedule'
+    concurrency:
+      group: integration-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     # The integration tests' Postgres, as docker-compose.yml runs it locally: same image and user. Its host port is a free
     # one Docker picks, not docker-compose.yml's fixed one, so each job's database is its own and one left behind by an
@@ -51,24 +121,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The history and tags, to find what a push changed.
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
-      # A branch's commits land on main as they are, where the release workflow refuses any that commitlint does, so they
-      # are linted here first: a pull request's from its base, a task branch's from where it forked from main. A branch
-      # whose head main already holds has no commits of its own, and commitlint refuses a range from a commit to itself.
-      - name: Lint the branch's commits
-        if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/'))
-        env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          from="${BASE:-$(git merge-base origin/main "$HEAD")}"
-          if [ "$(git rev-parse "$from")" = "$(git rev-parse "$HEAD")" ]; then exit 0; fi
-          bun x --bun commitlint --from "$from" --to "$HEAD" --verbose
       # The tests reach the server on the port the service was given (scripts/test-db/templates.ts).
       - name: Point the tests at the service's Postgres
         env:
@@ -81,56 +138,24 @@ jobs:
           docker exec ${{ job.services.postgres.id }} psql -U protobase -d protobase -v ON_ERROR_STOP=1
           -c "alter system set fsync = off" -c "alter system set synchronous_commit = off"
           -c "alter system set full_page_writes = off" -c "select pg_reload_conf()"
-      # bunfig.toml has `bun run` put a node that is Bun first on PATH, so the checks run on Bun. Bun skips that without a
-      # word when another user owns its /tmp/bun-node-* directory, as on a shared server, and they would run on Node.
-      - run: bun run sh -c 'node -e "process.versions.bun || (console.error(\"bun run starts Node, not Bun\"), process.exit(1))"'
-      # The protobase skill's references are generated from the docs, not committed: this fails when a page cannot be made
-      # Markdown or the hand-written SKILL.md and the pages do not point at each other.
-      - run: bun run docs:skill --check
-      # The features pages keep their grammar, link real headings and cover every reference page (CONTRIBUTING.md,
-      # Features and docs). Its --release-rule, that a release with a feature changes the docs, is not on yet.
-      - run: bun run features:check
+      - *bun-node
       # The template databases each integration run clones; with CI set, a missing one fails the run instead of skipping.
       - run: bun run test:db
       # A self-hosted runner has no root to install Chromium's system packages, so its server provides them.
       - run: bun x --bun playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
-      # A push to main, which the release workflow checks, or to an fm/** branch runs only the tests and steps its
-      # changes affect (scripts/affected-tests.mjs, see CONTRIBUTING.md): on main the changes since the last release, on
-      # a branch those since it left main. Without CHECK_BASE, as on a pull request or a run by hand, everything runs.
-      - &check-base
-        name: Find the commit the push's changes count from
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
-        env:
-          BEFORE: ${{ github.event.before }}
-        run: |
-          if [ "$GITHUB_REF" = refs/heads/main ]; then
-            base=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD 2>/dev/null || true)
-            if [ -z "$base" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then base=$BEFORE; fi
-          else
-            base=$(git merge-base origin/main HEAD)
-          fi
-          echo "CHECK_BASE=$base" >> "$GITHUB_ENV"
-      - run: bun run check
-      # check ran the smoke test on Bun; the CLI is supported on Node as well, so it runs there too.
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
+      - *check-base
+      - run: bun run check:integration
+      # check:integration ran the smoke test on Bun; the CLI is supported on Node as well, so it runs there too.
+      - *setup-node
       - run: node --run test:smoke
-      # Every package built, declarations included, and packed as the release workflow publishes it, so a package that
-      # cannot build or be packed fails before a release is cut. The tests run on the sources, so nothing builds earlier.
-      # The CLI's build writes the protobase skill's references, which are not committed, so its tarball must carry them.
-      - run: |
-          set -o pipefail
-          node scripts/publish.mjs --pack | tee "$RUNNER_TEMP/pack.log"
-          tar tzf "$(grep -o '[^ ]*protobase-cli-[^ ]*\.tgz' "$RUNNER_TEMP/pack.log")" > "$RUNNER_TEMP/cli-files.txt"
-          grep -qx 'package/skills/protobase/references/reference/access.md' "$RUNNER_TEMP/cli-files.txt"
 
-  # The documentation site and Storybook built and checked, beside check: a push runs it when its changes reach them
-  # (scripts/affected-site.mjs); a pull request and a run by hand always do.
-  site:
+  # Storybook built, its play tests and layout snapshots, and the documentation site built and checked, as two jobs
+  # beside check: a push runs them when its changes reach them (scripts/affected-site.mjs); a pull request and a run by
+  # hand always do.
+  storybook:
     if: github.event_name != 'schedule'
     concurrency:
-      group: site-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      group: storybook-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     steps:
@@ -143,17 +168,40 @@ jobs:
       # Before the site's gate, which reads the module graph through Vitest.
       - run: bun install --frozen-lockfile
       - *check-base
-      - name: Find whether the changes reach the site or Storybook
+      - &affected-site
+        name: Find whether the changes reach the site or Storybook
         id: site
         run: bun scripts/affected-site.mjs
       - if: steps.site.outputs.run == 'true'
         run: bun x --bun playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
       - if: steps.site.outputs.run == 'true'
-        run: bun run docs:build
+        run: bun run build-storybook
       - if: steps.site.outputs.run == 'true'
         run: bun scripts/play-tests.mjs
       - if: steps.site.outputs.run == 'true'
         run: bun scripts/dom-snapshots.mjs --no-screenshots
+
+  docs:
+    if: github.event_name != 'schedule'
+    concurrency:
+      group: docs-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      cancel-in-progress: true
+    runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - *check-base
+      - *affected-site
+      - if: steps.site.outputs.run == 'true'
+        run: bun x --bun playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
+      # The site carries the built Storybook under /storybook, so docs:build builds it here as well.
+      - if: steps.site.outputs.run == 'true'
+        run: bun run docs:build
       - if: steps.site.outputs.run == 'true'
         run: bun run docs:check
 
