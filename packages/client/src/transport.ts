@@ -1,3 +1,4 @@
+import type { SocketLike } from './channel-connection'
 import { readProblem } from './problem'
 
 export type ClientOptions = {
@@ -14,6 +15,8 @@ export type ClientOptions = {
   token?: (options: { refresh: boolean }) => Promise<string | undefined>
   /** Called when a request is still 401 after the retry: the session is over. */
   onUnauthenticated?: () => void
+  /** Opens the socket of `client.channel`; the global `WebSocket` by default. */
+  webSocket?: (url: string, protocols: string[]) => SocketLike
 }
 
 export type Request = {

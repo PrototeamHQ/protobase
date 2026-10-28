@@ -5,6 +5,9 @@ import { originOf, photosWithOrigin, withFileOrigin } from './file-urls'
 import { createTransport, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
 import { followLive, type LiveHandlers } from './live'
+import { sharedLive } from './shared-live'
+import { channelsClient } from './channels'
+import type { SocketLike } from './channel-connection'
 import { devicesClient } from './devices'
 import { notificationHistoryClient } from './notification-history'
 import type { Aggregate, AggregateParams, BatchOp, BatchResult, CommentPage, Facet, FormChallenge, FormProof, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, MentionableUser, Meta, MetaResult, PublicForm, RecordComment, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
@@ -12,6 +15,13 @@ import type { Aggregate, AggregateParams, BatchOp, BatchResult, CommentPage, Fac
 type Json = Record<string, any>
 
 const nameOf = (resource: ResourceRef) => (typeof resource === 'string' ? resource : resource.toModel().name)
+
+// `/api/channels` beside the API, as a WebSocket URL on the API's origin, the page's for a relative one.
+const channelsUrl = (baseUrl = '/api/v1') => {
+  const url = new URL(`${baseUrl.replace(/\/[^/]*$/, '')}/channels`, globalThis.location?.href)
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  return url.toString()
+}
 
 const keyPath = (resource: ResourceRef, key: KeyValue | readonly KeyValue[]) => `/${nameOf(resource)}/${encodeKey(key)}`
 
@@ -350,7 +360,18 @@ export const createClient = (options: ClientOptions = {}) => {
    * Hears which records of the `.live()` resources the caller may read change, as they do, until the returned function
    * is called (`GET /api/live`); it connects again by itself.
    */
-  const live = (handlers: LiveHandlers) => followLive(send, handlers)
+  const live = sharedLive((handlers: LiveHandlers) => followLive(send, handlers))
+
+  /**
+   * The channel of a record (`/api/channels`): who else is on it and what they track (presence), and the events they
+   * send (broadcasts), for whoever may read the record. Every channel of the client shares one socket.
+   */
+  const { channel } = channelsClient({
+    url: () => channelsUrl(options.baseUrl),
+    ...(options.token && { token: () => options.token!({ refresh: false }) }),
+    socket: options.webSocket ?? ((url, protocols) => new WebSocket(url, protocols) as unknown as SocketLike),
+    retryDelay: (attempt) => Math.min(30_000, 1000 * 2 ** attempt),
+  })
 
   /** The signed-in user's own devices, where they receive push (see `devicesClient`). */
   const devices = devicesClient(send)
@@ -358,7 +379,7 @@ export const createClient = (options: ClientOptions = {}) => {
   /** The signed-in user's own notification history, their inbox (see `notificationHistoryClient`). */
   const notifications = notificationHistoryClient(send)
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, devices, notifications }
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, devices, notifications }
 }
 
 export type Client = ReturnType<typeof createClient>

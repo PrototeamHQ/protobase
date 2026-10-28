@@ -21,7 +21,7 @@ type Opened = ReturnType<typeof connect>
 const denied = new Map<string, Set<string>>()
 const readable = async (session: Session, record: ChannelRecord) => !denied.get(String(session.user.id))?.has(record.name)
 
-const connect = (user: string, { broadcasts = broadcastHub(), presences = presenceHub(), buffered = () => 0, reauthenticate = async () => sessionOf(user) } = {}) => {
+const connect = (user: string, { broadcasts = broadcastHub(), presences = presenceHub(), buffered = (): number => 0, reauthenticate = async (_token?: string) => sessionOf(user) } = {}) => {
   const frames: ServerMessage[] = []
   const close = vi.fn()
   const socket = channelSocket({

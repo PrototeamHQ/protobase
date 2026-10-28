@@ -43,6 +43,7 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
     formChallenge: (name) => own.formChallenge(name),
     submitForm: (name, values, proof) => own.submitForm(name, values, proof),
     live: (handlers) => own.live(handlers),
+    channel: (resource, key) => own.channel(resource, key),
     devices: own.devices,
     notifications: own.notifications,
   }
