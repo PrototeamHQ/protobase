@@ -28,6 +28,14 @@ describe('navRecentErrors', () => {
     expect(navRecentErrors(recent({ status: 'state' }), model)).toEqual(['status field "state" does not exist'])
   })
 
+  it('accepts a group without a status, which lists titles alone', () => {
+    expect(navRecentErrors({ orderBy: 'name asc', limit: 20 }, model)).toEqual([])
+  })
+
+  it('refuses pulse without a status', () => {
+    expect(navRecentErrors({ pulse: ['deploying'] }, model)).toEqual(['pulse needs a status field'])
+  })
+
   it('rejects tones outside the palette', () => {
     expect(navRecentErrors(recent({ tones: { running: 'green' as StatusTone } }), model)).toEqual(['tone "green" for "running" is not one of neutral, info, success, warning, danger'])
   })
@@ -49,6 +57,13 @@ describe('view nav.recent', () => {
     expect(built.nav).toEqual({ group: 'Runtime', recent: { status: 'status', tones: { running: 'success' }, limit: 3 } })
     // @ts-expect-error unknown status field
     view<typeof service>('services').nav({ recent: { status: 'nope', tones: {} } })
+  })
+
+  it('keeps a group without a status, and types pulse only beside one', () => {
+    const built = view<typeof service>('services').nav({ recent: { orderBy: 'name asc', limit: 20 } }).toModel(model)
+    expect(built.nav).toEqual({ recent: { orderBy: 'name asc', limit: 20 } })
+    // @ts-expect-error pulse needs a status
+    view<typeof service>('services').nav({ recent: { pulse: ['deploying'] } })
   })
 
   it('throws from toModel when the group does not fit the resource', () => {

@@ -66,12 +66,12 @@ export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: Sidebar
               <li key={record.id}>
                 <a
                   {...link(record.href)}
-                  aria-label={`${record.label}, ${record.status}`}
-                  title={`${record.label} (${record.status})`}
+                  aria-label={record.status ? `${record.label}, ${record.status.label}` : record.label}
+                  title={record.status ? `${record.label} (${record.status.label})` : record.label}
                   aria-current={record.active ? 'page' : undefined}
                   className={cn('flex min-w-0 items-center rounded-md font-medium transition-colors', row[mode], record.active ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
                 >
-                  <StatusDot tone={record.tone} pulse={record.pulse} />
+                  {record.status && <StatusDot tone={record.status.tone} pulse={record.status.pulse} />}
                   <span className="truncate">{record.label}</span>
                 </a>
               </li>

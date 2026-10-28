@@ -11,6 +11,10 @@ describe('recentRequest', () => {
     expect(recentRequest(model, view, recent)).toEqual({ filter: '', orderBy: 'name asc', pageSize: 3, fields: ['id', 'name', 'state'] })
   })
 
+  it('asks for no status field in a group without one', () => {
+    expect(recentRequest(model, view, { limit: 20 })).toMatchObject({ pageSize: 20, fields: ['id', 'name'] })
+  })
+
   it('uses the configured filter, order and limit', () => {
     expect(recentRequest(model, view, { ...recent, filter: 'state != "stopped"', orderBy: 'name desc', limit: 5 })).toMatchObject({ filter: 'state != "stopped"', orderBy: 'name desc', pageSize: 5 })
   })
@@ -25,15 +29,19 @@ describe('recentRecords', () => {
 
   it('titles, links and colours each record', () => {
     expect(recentRecords(model, view, recent, rows, '/admin', 's2')).toEqual([
-      { id: 's1', label: 'api', href: '/admin/services/s1', status: 'running', tone: 'success', pulse: false, active: false },
-      { id: 's2', label: 'worker', href: '/admin/services/s2', status: 'deploying', tone: 'warning', pulse: true, active: true },
-      { id: 's/3', label: 's/3', href: '/admin/services/s%2F3', status: 'paused', tone: 'neutral', pulse: false, active: false },
+      { id: 's1', label: 'api', href: '/admin/services/s1', status: { label: 'running', tone: 'success', pulse: false }, active: false },
+      { id: 's2', label: 'worker', href: '/admin/services/s2', status: { label: 'deploying', tone: 'warning', pulse: true }, active: true },
+      { id: 's/3', label: 's/3', href: '/admin/services/s%2F3', status: { label: 'paused', tone: 'neutral', pulse: false }, active: false },
     ])
+  })
+
+  it('leaves the status out in a group without a status field', () => {
+    expect(recentRecords(model, view, { orderBy: 'name asc' }, rows, '/admin', 's1')[0]).toEqual({ id: 's1', label: 'api', href: '/admin/services/s1', active: true })
   })
 
   it("shows the status by the view's value label", () => {
     const labelled = { ...view, fields: { state: { valueLabels: { deploying: 'Rolling out' } } } } as ViewModel
-    expect(recentRecords(model, labelled, recent, rows, '/admin', undefined)[1]).toMatchObject({ status: 'Rolling out', tone: 'warning', pulse: true })
+    expect(recentRecords(model, labelled, recent, rows, '/admin', undefined)[1]).toMatchObject({ status: { label: 'Rolling out', tone: 'warning', pulse: true } })
   })
 })
 

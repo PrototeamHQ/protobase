@@ -2,7 +2,7 @@
 
 # Sidebar
 
-How sidebar entries are grouped, and how an entry lists recent records with status dots.
+How sidebar entries are grouped, and how an entry lists recent records, with status dots or without.
 
 The admin's sidebar has one entry per resource view, grouped by `nav.group` (default: the database schema, with no group name for `public`) and sorted by `nav.order`, then by the order `config/index.ts` exports them, in `protobase dev` and in a built bundle alike. The app opens on the first entry. A view's [named lists](ui-config.md#more-than-one-list) are entries of their own, placed by their own `nav`. `nav({ hidden: true })` leaves a resource out, for line and link tables; a resource in the [user menu](user-menu.md) is left out too. [Composed pages](layouts.md#setup) have entries of their own, and groups that hold pages come first. A [remote resource](remote-resources.md) has its entry where its source's view places it; while its source cannot be reached, it sits under the source's label, marked "Cannot reach" with the source's name.
 
@@ -37,11 +37,17 @@ export const ordersView = view<typeof orders>('orders')
   })
 ```
 
+Without a `status`, each record is its title alone, with no dot, such as a chat's channels:
+
+```ts
+export const channelsView = view<typeof channels>('channels').nav({ recent: { orderBy: 'name asc', limit: 20 } })
+```
+
 | Key | Meaning |
 | --- | --- |
-| `status` | The field whose value picks each record's dot. Typed against the resource's fields. |
-| `tones` | Dot colour per status value: `neutral`, `info`, `success`, `warning` or `danger`. Values not listed are `neutral`. |
-| `pulse` | Status values whose dot pulses, for states in progress (a deploy running, an order being picked). |
+| `status` | The field whose value picks each record's dot. Typed against the resource's fields. Optional: without it, records have no dot, as a chat's channels. |
+| `tones` | Dot colour per status value: `neutral`, `info`, `success`, `warning` or `danger`. Values not listed are `neutral`. Optional. |
+| `pulse` | Status values whose dot pulses, for states in progress (a deploy running, an order being picked). Needs `status`. |
 | `filter` | Which records qualify, as AIP-160 text, exactly as `?filter=` on the list API. Use it to leave out finished or inactive records, or to keep them while they are recent: `status != "stopped" OR updated_at > now() - 7d`. |
 | `orderBy` | AIP-132 order, as `?order_by=`; the list's `sort` when omitted. |
 | `limit` | How many records, 1 to 20; 3 when omitted. |
@@ -57,8 +63,8 @@ The records come from the list API with the caller's token, so they follow the s
 
 ### Checks
 
-`createAdmin` refuses to start when a group does not fit its resource: an unknown `status` field, a tone outside the palette, a `limit` outside 1 to 20, or a `filter` or `orderBy` the list API would reject (unknown, non-filterable or non-sortable fields, bad syntax). `view.toModel(resourceModel)` runs the same checks.
+`createAdmin` refuses to start when a group does not fit its resource: an unknown `status` field, `pulse` without a `status`, a tone outside the palette, a `limit` outside 1 to 20, or a `filter` or `orderBy` the list API would reject (unknown, non-filterable or non-sortable fields, bad syntax). `view.toModel(resourceModel)` runs the same checks.
 
-`/meta` drops the group, and keeps the rest of `nav`, for a caller who cannot read a field it uses (its status, or a field in its filter or order), so it never names a hidden field.
+`/meta` drops the group, and keeps the rest of `nav`, for a caller who cannot read a field it uses (its status when it has one, or a field in its filter or order), so it never names a hidden field.
 
 `EMAIL=... PASSWORD=... bun scripts/e2e-shell.mjs` checks the groups and the user menu in a browser against a running `bun run --cwd tests/apps/erp dev` (`BASE` for another address), comparing them with what the API gives that user.

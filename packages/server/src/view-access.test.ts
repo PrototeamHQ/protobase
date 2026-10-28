@@ -164,6 +164,14 @@ describe('pruneView', () => {
     expect(pruneView(named, all.repairs, all)).toEqual(named)
   })
 
+  it('keeps a sidebar group without a status unless its order or filter names a hidden field', () => {
+    const titles = view<typeof repairs>('repairs').nav({ recent: { orderBy: 'number asc' } }).toModel()
+    const byCost = view<typeof repairs>('repairs').nav({ recent: { orderBy: 'costPrice desc' } }).toModel()
+    const hidden = without({ repairs: ['costPrice'] })
+    expect(pruneView(titles, hidden.repairs!, hidden).nav).toEqual({ recent: { orderBy: 'number asc' } })
+    expect(pruneView(byCost, hidden.repairs!, hidden).nav).toEqual({})
+  })
+
   it('never sends a hidden field, wherever a view names it: lists, displays, sections and custom props', () => {
     const Board = Object.assign((props: { by: string; size: number }) => props, { blockName: 'Board', custom: true })
     const Margin = Object.assign((props: { cost: string }) => props, { blockName: 'Margin', custom: true })

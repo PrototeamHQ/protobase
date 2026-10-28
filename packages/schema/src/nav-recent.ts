@@ -25,8 +25,9 @@ const orderByErrors = (model: ResourceModel, source: string) => {
 
 /** What is wrong with a sidebar group's config for this model; empty when the group can be shown. */
 export const navRecentErrors = (recent: NavRecentModel, model: ResourceModel): string[] => [
-  ...(Object.hasOwn(model.fields, recent.status) ? [] : [`status field "${recent.status}" does not exist`]),
-  ...Object.entries(recent.tones)
+  ...(recent.status === undefined || Object.hasOwn(model.fields, recent.status) ? [] : [`status field "${recent.status}" does not exist`]),
+  ...(recent.status === undefined && recent.pulse !== undefined ? ['pulse needs a status field'] : []),
+  ...Object.entries(recent.tones ?? {})
     .filter(([, tone]) => !(statusTones as readonly string[]).includes(tone))
     .map(([value, tone]) => `tone "${tone}" for "${value}" is not one of ${statusTones.join(', ')}`),
   ...(recent.limit === undefined || (Number.isInteger(recent.limit) && recent.limit >= 1 && recent.limit <= maxLimit) ? [] : [`limit must be a whole number from 1 to ${maxLimit}`]),

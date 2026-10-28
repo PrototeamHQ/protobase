@@ -52,12 +52,12 @@ const searchesOfErrors = (searches: SearchesOfModel, resource: ResourceModel) =>
 }
 
 /**
- * `nav(...)` with `recent.status` limited to the resource's fields.
+ * `nav(...)` with `recent.status` limited to the resource's fields, and `recent.pulse` only beside a status.
  *
  * @inline
  */
 type NavInput<R extends { readonly $fields: unknown }> = Omit<NavModel, 'recent'> & {
-  recent?: Omit<NavRecentModel, 'status'> & { status: keyof FieldsOf<R> & string }
+  recent?: Omit<NavRecentModel, 'status' | 'pulse'> & ({ status: keyof FieldsOf<R> & string; pulse?: string[] } | { status?: never; pulse?: never })
 }
 
 /** The `r` of `.fields((r) => ...)`: a field view per field of the resource, to give hints such as `.label()`. */

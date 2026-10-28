@@ -36,7 +36,7 @@ const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
     ['the sidebar', layoutItems(view.layout).flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))],
     ['a map', layoutItems(view.layout).flatMap((item) => (item.kind === 'map' ? [item.latitude, item.longitude] : []))],
     ['a gallery', layoutItems(view.layout).flatMap((item) => (item.kind === 'gallery' && item.image !== undefined ? [item.image] : []))],
-    ['the recent records', view.nav?.recent ? [view.nav.recent.status] : []],
+    ['the recent records', view.nav?.recent?.status === undefined ? [] : [view.nav.recent.status]],
     ['an action', view.actions.flatMap((action) => [...actionFields(action.run), ...actionWhenFields(action.when)])],
   ]
   return uses.flatMap(([place, names]) => [...new Set(names.filter(sensitive))].map((name) => `sensitive field "${name}" cannot be in ${place}`))

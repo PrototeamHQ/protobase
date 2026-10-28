@@ -1213,11 +1213,11 @@ export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
 
 /** A collapsible list of a few records under the resource's sidebar entry, each with a status dot. */
 export type NavRecentModel = {
-  /** The field whose value picks each record's dot. */
-  status: string
+  /** The field whose value picks each record's dot; without it, each record is its title alone, with no dot. */
+  status?: string
   /** Dot colour per status value; values not listed are `neutral`. */
-  tones: Record<string, StatusTone>
-  /** Status values whose dot pulses, for states that are in progress. */
+  tones?: Record<string, StatusTone>
+  /** Status values whose dot pulses, for states that are in progress; needs `status`. */
   pulse?: string[]
   /** AIP-160 filter choosing the records that qualify, as the list API takes it. */
   filter?: string

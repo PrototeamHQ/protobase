@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { StatusTone } from '@protobase/schema'
 import { CreditCard, LifeBuoy, UserRound } from 'lucide-react'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { AppShell } from './app-shell'
@@ -35,7 +36,7 @@ export const IconTooltip: Story = { args: { sidebarMode: 'icon-tooltip' } }
 export const IconExpand: Story = { args: { sidebarMode: 'icon-expand' } }
 export const ProfileMenuOpen: Story = { args: { profileMenuOpen: true } }
 
-const record = (id: string, label: string, status: string, tone: NavRecord['tone'], pulse = false, active = false): NavRecord => ({ id, label, href: `#orders/${id}`, status, tone, pulse, active })
+const record = (id: string, label: string, status: string, tone: StatusTone, pulse = false, active = false): NavRecord => ({ id, label, href: `#orders/${id}`, status: { label: status, tone, pulse }, active })
 
 const recentOrders = [record('o1', 'SO-1042', 'picking', 'warning', true), record('o2', 'SO-1041', 'confirmed', 'info', false, true), record('o3', 'SO-1038', 'on hold', 'danger')]
 
@@ -80,6 +81,28 @@ export const RecentRecords: Story = {
     expect(localStorage.getItem(navOpenStorageKey('orders'))).toBe('false')
     await userEvent.click(toggle)
     expect(localStorage.getItem(navOpenStorageKey('orders'))).toBeNull()
+  },
+}
+
+const channels: NavRecord[] = ['general', 'random', 'support'].map((name) => ({ id: name, label: name, href: `#channels/${name}`, active: name === 'random' }))
+
+const withChannels: NavGroup[] = navGroups.map((group) => ({
+  ...group,
+  items: group.items.map((item) => (item.id === 'customers' ? { ...item, label: 'Channels', recent: { state: 'ready', records: channels } } : item)),
+}))
+
+/** A group without a status, such as a chat's channels: each record is its title alone, with no dot. */
+export const RecentRecordsWithoutStatus: Story = {
+  tags: ['play'],
+  args: { navGroups: withChannels, activeItem: 'customers' },
+  beforeEach: () => localStorage.removeItem(navOpenStorageKey('customers')),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const list = canvas.getByRole('list', { name: 'Recent channels' })
+    const links = within(list).getAllByRole('link')
+    expect(links.map((link) => link.getAttribute('aria-label') ?? link.textContent)).toEqual(['general', 'random', 'support', 'View all'])
+    expect(list.querySelector('[data-tone]')).toBeNull()
+    expect(links[1]).toHaveAttribute('aria-current', 'page')
   },
 }
 

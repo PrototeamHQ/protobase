@@ -37,8 +37,8 @@ export const navGroups: NavGroup[] = [
   },
 ]
 
-/** One record under a sidebar entry: its title, where it opens, its status as shown and its status dot. */
-export type NavRecord = { id: string; label: string; href: string; status: string; tone: StatusTone; pulse: boolean; active: boolean }
+/** One record under a sidebar entry: its title, where it opens, and its status as shown with its dot, when the group has a status. */
+export type NavRecord = { id: string; label: string; href: string; status?: { label: string; tone: StatusTone; pulse: boolean }; active: boolean }
 
 /** The records a collapsible entry lists, as far as they have loaded. */
 export type NavRecent =
