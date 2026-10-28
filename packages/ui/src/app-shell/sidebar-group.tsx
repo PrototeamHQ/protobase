@@ -4,6 +4,7 @@ import { cn } from '../lib/cn'
 import type { NavItem, NavRecent } from './nav'
 import { navOpenStorageKey, readNavOpen, writeNavOpen } from './nav-open-storage'
 import { SidebarItem } from './sidebar-item'
+import { subRow, subRowIndent } from './sidebar-rows'
 import { StatusDot } from './status-dot'
 import { text } from './messages'
 
@@ -14,14 +15,6 @@ export type SidebarGroupProps = {
   active: boolean
   onNavigate?: (href: string) => void
 }
-
-const row = {
-  'text-large': 'h-8 gap-2.5 px-2.5',
-  'text-small': 'h-7 gap-2 px-2 text-body',
-}
-
-/** Lines the records up under the entry's icon. */
-const indent = { 'text-large': 'ml-[20px]', 'text-small': 'ml-[17px]' }
 
 /**
  * A sidebar entry with a few of its records under it. The label opens the list, the chevron shows or hides the
@@ -54,12 +47,12 @@ export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: Sidebar
         </button>
       </div>
       {open && (
-        <ul id={listId} aria-label={text('recent', item.label.toLowerCase())} className={cn('flex flex-col gap-0.5 border-l pl-1.5', indent[mode])}>
+        <ul id={listId} aria-label={text('recent', item.label.toLowerCase())} className={cn('flex flex-col gap-0.5 border-l pl-1.5', subRowIndent[mode])}>
           {recent.state === 'loading' && (
-            <li className={cn('flex items-center text-faint-foreground', row[mode])}>{text('loading')}</li>
+            <li className={cn('flex items-center text-faint-foreground', subRow[mode])}>{text('loading')}</li>
           )}
           {recent.state === 'error' && (
-            <li className={cn('flex items-center text-faint-foreground', row[mode])}>{text('couldNotLoad')}</li>
+            <li className={cn('flex items-center text-faint-foreground', subRow[mode])}>{text('couldNotLoad')}</li>
           )}
           {recent.state === 'ready' &&
             recent.records.map((record) => (
@@ -69,7 +62,7 @@ export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: Sidebar
                   aria-label={record.status ? `${record.label}, ${record.status.label}` : record.label}
                   title={record.status ? `${record.label} (${record.status.label})` : record.label}
                   aria-current={record.active ? 'page' : undefined}
-                  className={cn('flex min-w-0 items-center rounded-md font-medium transition-colors', row[mode], record.active ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
+                  className={cn('flex min-w-0 items-center rounded-md font-medium transition-colors', subRow[mode], record.active ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
                 >
                   {record.status && <StatusDot tone={record.status.tone} pulse={record.status.pulse} />}
                   <span className="truncate">{record.label}</span>
@@ -77,7 +70,7 @@ export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: Sidebar
               </li>
             ))}
           <li>
-            <a {...link(href)} className={cn('flex items-center rounded-md text-faint-foreground transition-colors hover:bg-muted hover:text-foreground', row[mode])}>
+            <a {...link(href)} className={cn('flex items-center rounded-md text-faint-foreground transition-colors hover:bg-muted hover:text-foreground', subRow[mode])}>
               {text('viewAll')}
             </a>
           </li>
