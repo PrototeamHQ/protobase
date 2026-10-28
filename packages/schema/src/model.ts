@@ -1347,8 +1347,11 @@ export type SearchResultModel = {
  * filter or sort key. `unreadable` marks one that reads a field the caller cannot read, which then titles by the key.
  */
 export type TitleFromModel = {
+  /** The name of the function under the project UI's `titles`. */
   rule: string
+  /** The fields the rule reads, which every request that titles a record asks for. */
   fields: string[]
+  /** Set in `/meta` for a caller who cannot read one of the fields, which it then leaves out. */
   unreadable?: true
 }
 

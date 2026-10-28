@@ -34,6 +34,7 @@ export const repairsView = view<typeof repairs>('repairs')
 | --- | --- |
 | `.names({ singular, plural })` | "New repair", "Repairs" in the sidebar, breadcrumbs and browser tabs. Default: the resource name in words. |
 | `.title((r) => r.number)` | The field that names a record: in breadcrumbs, browser tabs, the record page's heading, relation links and search results. |
+| `.titleFrom(rule, (r) => [r.member_ids])` | A title derived in the browser for the person reading it, in place of `.title`, by the function `rule` names in the UI config's `titles`, from the fields picked. See [Titles per reader](#titles-per-reader). |
 | `.searchResult((r) => ({ title?, subtitle? }))` | A record in the [global search](/reference/client/#global-search): `title` is one field or several joined by spaces (`[r.first_name, r.last_name]`, default: `.title`), `subtitle` the line under it (default: the first search field not in the title), replaced by the search field the text matched when neither line shows it. |
 | `.list((r, d, c) => ({ columns, sort?, search?, filter?, editable?, displays?, default? }))` | The list's columns in order, fields or [related records](#related-records-in-a-list) (`c.related`); the `filter` it [opens with](#a-filter-the-list-opens-with); its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; the columns [edited in their cell](#editing-in-the-list); other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
 | `.fields((r) => ({ name: r.name.label(...) }))` | Hints per field, below. Calls add up. |
@@ -45,6 +46,29 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.form((r) => ({ name, fields, thanks, title?, perMinute? }))` | A public form at `/-/forms/<name>` that creates a record for anyone, signed in or not, behind a rate limit and a bot check. See [Public forms](/reference/forms/). |
 
 A browser tab names what it shows, then the app's name ([`name`](/reference/config/app/#name)): `Nordlicht GmbH · Companies · Protobase` on a record page, the plural on a list, `New company · Companies · Protobase` on the create form, and a composed page's title on that page.
+
+### Titles per reader
+
+Some records hold no name of their own, such as a direct message, which holds its members' user ids. With `.titleFrom`, each reader sees such a record named for them: Maya sees the conversation as "Sam Okafor", Sam the same record as "Maya Jansen". The view names a function under `titles` in `protobase.ui.tsx` and the fields it reads; the function gets the record and the reader, the signed-in `user` and `member(id)`, the organization's members by user id as [`useMembers()`](/reference/custom-components/#members-names) gives them, and returns the title:
+
+```tsx
+// protobase.views.ts
+view<typeof directMessages>('direct_messages').titleFrom('memberNames', (r) => [r.member_ids])
+
+// protobase.ui.tsx
+export default defineUi({
+  titles: {
+    memberNames: (record, { user, member }) => {
+      const others = (record.member_ids as string[]).filter((id) => id !== user?.id).map((id) => member(id)?.name)
+      return others.every(Boolean) ? others.join(', ') : undefined
+    },
+  },
+})
+```
+
+The derived title names the record wherever `.title` would: the sidebar's [recent records](/reference/sidebar/#recent-records), whose list request reads the picked fields too, the breadcrumb, the record page's heading, the browser tab, the links of a record page's relation fields, related cards and the global search, unless the view's `.searchResult` gives a title. The record's key shows while the function returns nothing, such as while the members' names load, and when the reader cannot read a field it picks, or the UI config registers no function of that name. It is presentation only: no field, filter or sort reads it, and the search does not match it. Other members' names come only with organizations; without them, `member` finds no one.
+
+<gap>A relation column in a list, a relation picker and a relation filter cannot show a derived title because derived titles for the labels a list reads with its rows are not implemented.</gap>
 
 A click on a row of a list's table opens its record. Its title cell, the `.title` column or else the first, is a link to the record, so Cmd- or Ctrl-click, a middle click and the browser's link menu open it in a new tab or copy its address; embedded lists and the table of a list sorted by hand do the same.
 
