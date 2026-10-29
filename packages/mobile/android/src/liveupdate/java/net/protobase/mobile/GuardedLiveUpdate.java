@@ -1,8 +1,10 @@
 package net.protobase.mobile;
 
 import android.app.Activity;
+import android.content.res.AssetManager;
 import android.content.SharedPreferences;
 import android.util.Base64;
+import com.getcapacitor.Bridge;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Logger;
 import com.getcapacitor.Plugin;
@@ -12,7 +14,9 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import io.capawesome.capacitorjs.plugins.liveupdate.LiveUpdatePlugin;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -23,8 +27,10 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -171,33 +177,42 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
         downloader.execute(() -> download(call, bundleId));
     }
 
+    // Answers the call once what the download left is deleted, so its caller never sees it.
     private void download(PluginCall call, String bundleId) {
-        File bundles = BundlesFolder.of(getContext());
         File downloads = new File(getContext().getFilesDir(), DOWNLOADS);
         File dir = new File(downloads, UUID.randomUUID().toString());
+        String refusal = null;
         try {
-            if (!dir.mkdirs() || !(bundles.isDirectory() || bundles.mkdirs())) throw new IOException("Cannot create " + dir);
-            String current = bundleIdOf(getBridge().getServerBasePath());
-            long[] highest;
-            synchronized (order) {
-                highest = highestOrder();
-            }
-            ReleaseStatement statement = new ReleaseDownload(releasesUrl, publicKey, binary).download(bundleId, dir, current == null ? null : new File(bundles, current), builtInOrder, highest);
-            File target = new File(bundles, bundleId);
-            // The same release downloaded before stays; setNextBundle checks it anyway.
-            if (!target.exists() && !dir.renameTo(target)) throw new IOException("Cannot move " + dir);
-            synchronized (order) {
-                if (ReleaseOrder.compare(statement.order, highestOrder()) > 0) {
-                    prefs().edit().putString(HIGHEST_ORDER, ReleaseOrder.format(statement.order)).commit();
-                }
-            }
-            call.resolve();
+            downloadInto(dir, bundleId);
         } catch (BundleRefused e) {
-            call.reject("LiveUpdate.downloadBundle refused release " + bundleId + ": " + e.getMessage());
+            refusal = "LiveUpdate.downloadBundle refused release " + bundleId + ": " + e.getMessage();
         } catch (IOException e) {
-            call.reject("LiveUpdate.downloadBundle could not download release " + bundleId);
+            refusal = "LiveUpdate.downloadBundle could not download release " + bundleId;
         } finally {
             BundleRemoval.delete(downloads, dir);
+        }
+        if (refusal == null) call.resolve();
+        else call.reject(refusal);
+    }
+
+    // Downloads release `bundleId` into `dir`, then moves it into the bundles folder and raises the highest order.
+    private void downloadInto(File dir, String bundleId) throws BundleRefused, IOException {
+        File bundles = BundlesFolder.of(getContext());
+        if (!dir.mkdirs() || !(bundles.isDirectory() || bundles.mkdirs())) throw new IOException("Cannot create " + dir);
+        String current = bundleIdOf(getBridge().getServerBasePath());
+        OwnFiles own = current == null ? builtInFiles() : OwnFiles.inFolder(new File(bundles, current));
+        long[] highest;
+        synchronized (order) {
+            highest = highestOrder();
+        }
+        ReleaseStatement statement = new ReleaseDownload(releasesUrl, publicKey, binary).download(bundleId, dir, own, builtInOrder, highest);
+        File target = new File(bundles, bundleId);
+        // The same release downloaded before stays; setNextBundle checks it anyway.
+        if (!target.exists() && !dir.renameTo(target)) throw new IOException("Cannot move " + dir);
+        synchronized (order) {
+            if (ReleaseOrder.compare(statement.order, highestOrder()) > 0) {
+                prefs().edit().putString(HIGHEST_ORDER, ReleaseOrder.format(statement.order)).commit();
+            }
         }
     }
 
@@ -228,6 +243,20 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
             clear(call).put("bundleId", id);
             super.setNextBundle(call);
         }
+    }
+
+    // The binary's own files, in the assets folder Capacitor serves them from, as the manifest the CLI writes beside them lists them; none without one, as in a binary built before it.
+    private OwnFiles builtInFiles() throws IOException {
+        AssetManager assets = getContext().getAssets();
+        ReleaseManifest manifest;
+        try (InputStream in = assets.open(Bridge.DEFAULT_WEB_ASSET_DIR + "/" + ReleaseManifest.FILE)) {
+            manifest = ReleaseManifest.parse(Bounded.read(in, ReleaseManifest.MAX_BYTES, "the built-in manifest"), new File(Bridge.DEFAULT_WEB_ASSET_DIR));
+        } catch (FileNotFoundException | BundleRefused e) {
+            return OwnFiles.NONE;
+        }
+        Map<String, String> hrefs = new HashMap<>();
+        for (ReleaseManifest.Item item : manifest.items) hrefs.put(item.checksum, item.href);
+        return checksum -> hrefs.containsKey(checksum) ? assets.open(Bridge.DEFAULT_WEB_ASSET_DIR + "/" + hrefs.get(checksum)) : null;
     }
 
     // The running bundle's order: the built-in one's, or what its statement says, checked against the key.

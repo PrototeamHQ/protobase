@@ -6,10 +6,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.KeyPair;
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.After;
 import org.junit.Before;
@@ -43,8 +45,12 @@ public class ReleaseDownloadTest {
     // The binary's own files, older than every release below.
     private static final long[] BUILT_IN = { 4, 0 };
 
+    private ReleaseStatement download(String id, OwnFiles own, long[] builtIn, long[] highest) throws Exception {
+        return new ReleaseDownload(server.url(), KEY.getPublic(), TestRelease.BINARY).download(id, dir, own, builtIn, highest);
+    }
+
     private ReleaseStatement download(String id, File current, long[] builtIn, long[] highest) throws Exception {
-        return new ReleaseDownload(server.url(), KEY.getPublic(), TestRelease.BINARY).download(id, dir, current, builtIn, highest);
+        return download(id, current == null ? OwnFiles.NONE : OwnFiles.inFolder(current), builtIn, highest);
     }
 
     private ReleaseStatement download(String id, File current, long[] highest) throws Exception {
@@ -52,7 +58,7 @@ public class ReleaseDownloadTest {
     }
 
     private ReleaseStatement download(String id) throws Exception {
-        return download(id, null, ReleaseOrder.NONE);
+        return download(id, (File) null, ReleaseOrder.NONE);
     }
 
     @Test
@@ -76,7 +82,7 @@ public class ReleaseDownloadTest {
     public void refusesAnOlderReleaseThanOneTheAppDownloaded() throws Exception {
         TestRelease older = TestRelease.of(KEY, new long[] { 5, 0 }, OLD);
         server.serve(older);
-        refused("older than a release the app downloaded", () -> download(older.bundleId, null, new long[] { 6, 0 }));
+        refused("older than a release the app downloaded", () -> download(older.bundleId, (File) null, new long[] { 6, 0 }));
         assertFalse(new File(dir, "index.html").exists());
     }
 
@@ -84,8 +90,8 @@ public class ReleaseDownloadTest {
     public void refusesAReleaseNotNewerThanTheBuiltInFilesBeforeWritingAnyFile() throws Exception {
         TestRelease older = TestRelease.of(KEY, new long[] { 5, 0 }, OLD);
         server.serve(older);
-        refused("not newer than the app's built-in files", () -> download(older.bundleId, null, new long[] { 6, 0 }, ReleaseOrder.NONE));
-        refused("not newer than the app's built-in files", () -> download(older.bundleId, null, new long[] { 5, 0 }, ReleaseOrder.NONE));
+        refused("not newer than the app's built-in files", () -> download(older.bundleId, (File) null, new long[] { 6, 0 }, ReleaseOrder.NONE));
+        refused("not newer than the app's built-in files", () -> download(older.bundleId, (File) null, new long[] { 5, 0 }, ReleaseOrder.NONE));
         assertFalse(new File(dir, "index.html").exists());
     }
 
@@ -96,6 +102,23 @@ public class ReleaseDownloadTest {
         // The same size as the file the manifest names, so only its checksum tells them apart.
         server.answers.put(release.bundleId + "?assets/a.js", "a(3)".getBytes(StandardCharsets.UTF_8));
         refused("its assets/a.js is not the file its manifest names", () -> download(release.bundleId));
+    }
+
+    @Test
+    public void copiesTheFilesTheBinaryHasAndFetchesOnlyTheOthers() throws Exception {
+        TestRelease release = TestRelease.of(KEY, new long[] { 6, 0 }, NEW);
+        server.serve(release);
+        // The binary's own files, by checksum, as GuardedLiveUpdate opens them from its assets.
+        Map<String, byte[]> own = new HashMap<>();
+        for (byte[] content : OLD.values()) own.put(Sha256.of(content), content);
+        // A copy that does not hash to what it is listed under is fetched instead.
+        own.put(Sha256.of(NEW.get("index.html")), "<!doctype html>evil".getBytes(StandardCharsets.UTF_8));
+        download(release.bundleId, checksum -> own.containsKey(checksum) ? new ByteArrayInputStream(own.get(checksum)) : null, BUILT_IN, ReleaseOrder.NONE);
+        assertTrue(server.asked.contains(release.bundleId + "?assets/a.js"));
+        assertTrue(server.asked.contains(release.bundleId + "?index.html"));
+        assertFalse(server.asked.contains(release.bundleId + "?assets/b.js"));
+        assertEquals("<!doctype html>new", new String(Files.readAllBytes(new File(dir, "index.html").toPath()), StandardCharsets.UTF_8));
+        BundleCheck.check(dir, release.bundleId, KEY.getPublic(), TestRelease.BINARY);
     }
 
     @Test

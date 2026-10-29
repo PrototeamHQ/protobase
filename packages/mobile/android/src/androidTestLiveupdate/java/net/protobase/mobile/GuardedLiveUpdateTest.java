@@ -321,4 +321,16 @@ public class GuardedLiveUpdateTest {
         release.layOut(bundles);
         return setNext(release.bundleId);
     }
+
+    @Test
+    public void copiesTheFilesTheBinaryHasOnItsFirstDownload() throws Exception {
+        // The test app's own index.html, which its assets' manifest lists.
+        TestRelease release = release(2, TestRelease.files("index.html", "<!doctype html>\n<title>built-in</title>\n", "assets/a.js", "a(2)"));
+        server.serve(release);
+        server.answers.remove(release.bundleId + "?index.html");
+        assertNull(download(release.bundleId));
+        assertFalse(server.asked.contains(release.bundleId + "?index.html"));
+        assertTrue(server.asked.contains(release.bundleId + "?assets/a.js"));
+        assertNull(setNext(release.bundleId));
+    }
 }
