@@ -177,7 +177,7 @@ return acceptWebSocket(
     record: { resource: 'conversations', key: id },
     member: String(session.user.id),
     publish: true,
-    ring: { users: conversation.member_ids, title: `${session.user.name} is calling`, body: conversation.title },
+    ring: { users: conversation.member_ids, title: `Call in ${conversation.title}` },
   }),
 )
 ```
