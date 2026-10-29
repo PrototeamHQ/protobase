@@ -22,7 +22,7 @@
     "android/build.gradle",
     "icon"
   ],
-  "nativeContract": 4,
+  "nativeContract": 5,
   "capacitor": {
     "ios": {
       "src": "ios"
