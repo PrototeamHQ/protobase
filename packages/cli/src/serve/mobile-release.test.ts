@@ -4,8 +4,8 @@ import path from 'node:path'
 import { generateKeyPairSync } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { releaseStatementFile } from '@protobase/schema/internal'
-import { nativeFingerprint } from '@protobase/server/mobile-release'
-import { releaseOrder, releaseOrigin, servedRelease } from './mobile-release'
+import { nativeFingerprint, releaseOrder } from '@protobase/server/mobile-release'
+import { releaseOrigin, servedRelease } from './mobile-release'
 
 const serverVersion = '0.14.2'
 
@@ -50,28 +50,14 @@ describe('servedRelease', () => {
     return JSON.parse(Buffer.from(payload, 'hex').toString()) as Record<string, unknown>
   }
 
-  it('signed, states its order, the app id, the fingerprint and the server version', async () => {
+  it('signed, states the order releaseOrder computes, the app id, the fingerprint and the server version', async () => {
     const { privateKey: signingKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
     const release = await servedRelease({ site: { ...site(), builtAt: 5 }, mobile, issuer: 'https://shop.example.com', signingKey, serverVersion })
-    expect(statement(release)).toMatchObject({ order: [5, 0], appId: mobile.appId, fingerprint: nativeFingerprint(native, mobile.plugins), shellVersion: serverVersion })
+    expect(statement(release)).toMatchObject({ order: releaseOrder({ builtAt: 5 }), appId: mobile.appId, fingerprint: nativeFingerprint(native, mobile.plugins), shellVersion: serverVersion })
   })
 
   it('signed, is none for a bundle that names no build time', async () => {
     const { privateKey: signingKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
     expect(await servedRelease({ site: site(), mobile, issuer: 'https://shop.example.com', signingKey, serverVersion })).toBeUndefined()
-  })
-})
-
-describe('releaseOrder', () => {
-  const site = { publicDir: '/app', spa: 'index.html', api: ['/api'] }
-
-  it("is the bundle's build time, then the served shell's own, 0 with the bundle's copy", () => {
-    expect(releaseOrder({ ...site, builtAt: 5 })).toEqual([5, 0])
-    expect(releaseOrder({ ...site, builtAt: 5, shell: { dir: '/shell', paths: [], builtAt: 7 } })).toEqual([5, 7])
-  })
-
-  it('is none when the bundle or the served shell names no build time', () => {
-    expect(releaseOrder(site)).toBeUndefined()
-    expect(releaseOrder({ ...site, builtAt: 5, shell: { dir: '/shell', paths: [] } })).toBeUndefined()
   })
 })

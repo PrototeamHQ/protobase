@@ -1,7 +1,7 @@
 import type { KeyObject } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import type { MobileConfig } from '@protobase/server'
-import { composeRelease, nativeFingerprint, withApiOrigin, type OfferedRelease } from '@protobase/server/mobile-release'
+import { composeRelease, nativeFingerprint, releaseOrder, withApiOrigin, type OfferedRelease } from '@protobase/server/mobile-release'
 import type { ServedSite } from './app'
 import { siteFiles } from './site-files'
 
@@ -19,17 +19,6 @@ export const releaseOrigin = (issuer: string | undefined) => {
 }
 
 export type ServedReleaseInput = { site?: ServedSite; mobile?: MobileConfig; issuer?: string; signingKey?: KeyObject; serverVersion: string }
-
-/**
- * The order of the site's release: when its bundle was built, then when the server's own shell it serves instead of the
- * bundle's copy was built, 0 with the copy. `undefined` when the bundle or that shell names no build time.
- */
-export const releaseOrder = (site: ServedSite) => {
-  if (site.builtAt === undefined) return
-  if (!site.shell) return [site.builtAt, 0]
-  if (site.shell.builtAt === undefined) return
-  return [site.builtAt, site.shell.builtAt]
-}
 
 /**
  * The release of the app's files a server offers its mobile app: every file the site serves, its SPA page naming the

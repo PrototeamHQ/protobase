@@ -5,4 +5,5 @@ export { composeRelease, releaseManifest, type MobileRelease, type ReleaseFile, 
 export { mobileReleaseApp, type MobileReleaseAppInput, type OfferedRelease } from './mobile-release/release-app'
 export { mobileSigningKeyVariable, readSigningKey } from './mobile-release/signing-key'
 export { nativeFingerprint } from './mobile-release/fingerprint'
+export { formatReleaseOrder, releaseOrder, type ReleaseOrderInput } from './mobile-release/release-order'
 export { withApiOrigin } from './mobile-release/api-origin-page'
