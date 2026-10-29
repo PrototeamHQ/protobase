@@ -21,7 +21,7 @@ export const runEverything = [
 ]
 
 // Files that are no module and that no test reads.
-export const readByNoTest = ['**/*.md', '**/*.mdx', '**/LICENSE', '**/.gitignore', '**/.env.example', '.githooks/**', 'docker/**', 'website/**', 'scripts/dom-snapshots/layouts/**', 'scripts/release-speed/config.json']
+export const readByNoTest = ['**/*.md', '**/*.mdx', '**/LICENSE', '**/.gitignore', '**/.env.example', '.githooks/**', 'docker/**', 'docs/website/**', 'scripts/dom-snapshots/layouts/**', 'scripts/release-speed/config.json']
 
 // Tests that run on every push, whatever it changed: the ERP built and served by the CLI, as on Node after the tests.
 export const alwaysRun = ['tests/smoke/**']
@@ -84,7 +84,7 @@ export const edges = [
   { from: ['tests/release/release.test.ts'], starts: ['scripts/release.mjs'], reads: ['.versionrc.json'] },
   { from: ['tests/release/publish-pack.test.ts'], starts: ['scripts/publish.mjs'] },
   // The API reference check, TypeDoc on the schema's entry point with the website's options and link plugin.
-  { from: ['tests/docs/api-check.test.ts'], loads: ['packages/schema/src/index.ts', 'website/typedoc-doc-pages.mjs'], reads: ['website/typedoc*.json'] },
+  { from: ['tests/docs/api-check.test.ts'], loads: ['packages/schema/src/index.ts', 'docs/website/typedoc-doc-pages.mjs'], reads: ['docs/website/typedoc*.json'] },
 ]
 
 // The documentation site and Storybook, which `bun run docs:build` builds and the play tests, layout snapshots and
@@ -92,7 +92,7 @@ export const edges = [
 // does not show, the schema API reference, the site's pages and the example code they show, and the scripts that check them.
 export const site = {
   loads: ['packages/*/src/**/*.stories.tsx', '.storybook/*', 'packages/schema/src/index.ts'],
-  reads: ['packages/**/*.css', 'website/**', 'docs-examples/**', 'tests/apps/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,check-docs,static-server}.mjs'],
+  reads: ['packages/**/*.css', 'docs/website/**', 'docs-examples/**', 'tests/apps/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,check-docs,static-server}.mjs'],
 }
 
 // What the Postgres suite (`bun run test:postgres`, tests/postgres) checks that the snapshot recordings cannot show, so

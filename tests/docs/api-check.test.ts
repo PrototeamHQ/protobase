@@ -5,11 +5,11 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const root = path.resolve(__dirname, '../..')
-const website = path.join(root, 'website')
+const website = path.join(root, 'docs/website')
 
 const run = (cwd: string, ...args: string[]) => spawnSync('bun', ['run', ...args], { cwd, encoding: 'utf8' })
 
-// `bun run docs:api-check`: TypeDoc's validation of the API reference with website/typedoc.json, as docs:build runs it.
+// `bun run docs:api-check`: TypeDoc's validation of the API reference with docs/website/typedoc.json, as docs:build runs it.
 // A TypeDoc run takes seconds, longer on a runner whose cores the jobs beside it share.
 describe('docs:api-check', { timeout: 30_000 }, () => {
   it('passes on the schema package', () => {

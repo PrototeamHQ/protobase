@@ -36,7 +36,7 @@ export type Validator<F> = (record: RecordOf<F>) => Issue<F>[] | undefined
 
 /**
  * A resource as `resource(name)` builds it. Every method returns a new builder, so a resource is one chain. See
- * [resource()](website/src/content/docs/reference/data-config.mdx#resource).
+ * [resource()](docs/website/src/content/docs/reference/data-config.mdx#resource).
  */
 export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   /** The fields, for the compiler only, which {@link InferRecord} reads; never set. */
@@ -92,7 +92,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   /**
    * The field that separates tenants: every query is limited to the caller's tenant, creates set it, and a request body
    * may not. With `across: 'memberships'`, its lists also read the other tenants the caller is a member of, each as the
-   * caller's role there allows; see [Lists across organizations](website/src/content/docs/reference/access.mdx#lists-across-organizations).
+   * caller's role there allows; see [Lists across organizations](docs/website/src/content/docs/reference/access.mdx#lists-across-organizations).
    */
   tenant(pick: (r: FieldRefs<F>) => Ref, options: TenantOptions = {}) {
     return this.next({ tenant: pick(this.refs()).name, ...(options.across && { tenantAcross: options.across }) })
@@ -118,7 +118,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    * A unique key of the table, as its fields, whose conflict on create opens the record already holding those values:
    * the API's 409 names that record's key (`existing.key`) to a caller who may read it, and the create form opens it.
    * The fields must be exactly the columns of a unique index or constraint, such as one over a generated column. See
-   * [Opening an existing record](website/src/content/docs/reference/data-config.mdx#opening-an-existing-record).
+   * [Opening an existing record](docs/website/src/content/docs/reference/data-config.mdx#opening-an-existing-record).
    *
    * @example
    * ```ts
@@ -149,7 +149,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    * have an order of their own, as an invoice's items do, sorted in the parent's related section. The field must be
    * sortable and `within` filterable. With `after`, a record never ranks above the records it depends on through a join
    * resource (see {@link PositionAfterModel}), which `reorder` checks. See
-   * [Reordering by hand](website/src/content/docs/reference/ui-config.mdx#reordering-by-hand).
+   * [Reordering by hand](docs/website/src/content/docs/reference/ui-config.mdx#reordering-by-hand).
    *
    * @example
    * ```ts
@@ -168,7 +168,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    * checked with the caller's own access rules on its resource and locked until the write commits. With `read`, every
    * read of its records (lists, counts, aggregates, gets and labels) also keeps to those whose parent the caller reads
    * there. A null relation checks nothing; each call adds a check. See
-   * [Records that belong to another](website/src/content/docs/reference/access.mdx#records-that-belong-to-another).
+   * [Records that belong to another](docs/website/src/content/docs/reference/access.mdx#records-that-belong-to-another).
    *
    * @example
    * ```ts
@@ -181,7 +181,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
 
   /**
    * The events changes to its records raise, captured in the database for every write, from the API or elsewhere. See
-   * [Declaring events](website/src/content/docs/reference/events.mdx#declaring-events).
+   * [Declaring events](docs/website/src/content/docs/reference/events.mdx#declaring-events).
    *
    * @example
    * ```ts
@@ -200,7 +200,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   /**
    * Keeps every change of its records, from the API or elsewhere: the fields before and after, and who made it. The
    * record page shows it as History, and admins list every change as Activity. See
-   * [Record history](website/src/content/docs/reference/history.mdx).
+   * [Record history](docs/website/src/content/docs/reference/history.mdx).
    */
   history() {
     return this.next({ history: true })
@@ -209,7 +209,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   /**
    * Lets the people who may read a record comment on it, and mention others who may read it too, who get an email. The
    * record page shows the thread with `l.comments()`, and admins list every comment as Comments. See
-   * [Record comments](website/src/content/docs/reference/comments.mdx).
+   * [Record comments](docs/website/src/content/docs/reference/comments.mdx).
    */
   comments() {
     return this.next({ comments: true })
@@ -218,7 +218,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   /**
    * Refreshes the pages open on its records and lists as soon as they change, from the API or elsewhere: the server
    * tells each open app which records changed, never their values, and the app reads them again as its user. See
-   * [Live updates](website/src/content/docs/reference/live.mdx).
+   * [Live updates](docs/website/src/content/docs/reference/live.mdx).
    */
   live() {
     return this.next({ live: true })
@@ -245,7 +245,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   /**
    * Rules per operation (`list`, `read`, `create`, `update`, `delete`). A rule returns `true`, `false`, or a filter that
    * limits the rows. An operation without a rule needs its capability when the app has roles. See
-   * [Access](website/src/content/docs/reference/access.mdx).
+   * [Access](docs/website/src/content/docs/reference/access.mdx).
    *
    * @example
    * ```ts
@@ -265,7 +265,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    * secret another service keeps, or a file of settings built from several. `POST /{resource}/{key}:reveal` with
    * `{ "field": "<name>" }` answers one for a caller who may read the record, after the same audit event as a field's
    * reveal. Each call adds names, which no field may have. See
-   * [Computed reveals](website/src/content/docs/reference/data-config.mdx#computed-reveals).
+   * [Computed reveals](docs/website/src/content/docs/reference/data-config.mdx#computed-reveals).
    *
    * @example
    * ```ts
@@ -326,7 +326,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
 /**
  * A resource: one table of an existing database, its columns as fields, its key and the rules around it. `name` is its
  * address (`/api/v1/<name>`) and how other config refers to it. See
- * [Data config](website/src/content/docs/reference/data-config.mdx).
+ * [Data config](docs/website/src/content/docs/reference/data-config.mdx).
  *
  * @example
  * ```ts

@@ -1,0 +1,257 @@
+---
+title: MCP
+description: The app's MCP endpoint, through which a person's AI client lists resources, finds and reads records and their comments, and, when turned on, creates and updates them with that person's access and approval, besides the app's own tools.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import hostServer from '../../../../../../docs-examples/mcp/host-server.ts?raw'
+
+An app can serve an MCP endpoint: a person adds its address to an AI client that speaks MCP, such as a chat assistant or a code editor, signs in on the app and allows the client. The client then works with that person's access: it lists the resources and fields they may read, finds records with the API's filters, sorting and pages, and reads one record.
+
+## Turning it on
+
+`auth.mcp` in `protobase.config.ts` turns it on:
+
+```ts
+export default defineConfig({ auth: { mcp: true } })
+```
+
+Every auth store has the OAuth tables, so turning it on needs no migration. The endpoint is `https://<app>/api/mcp`, or the path `auth.mcp.path` names. How clients register, how people sign in and allow them, and how they disconnect them is in [OAuth for MCP clients](/reference/auth/#oauth-for-mcp-clients).
+
+## Connecting a client
+
+Signed-in people find the endpoint's address in the app: "Account" in the user menu, then Connected apps (`/-/account/apps`), shows it with a button that copies it and an "Add to Claude" link that opens Claude's dialog for a custom connector with the app's name and the address filled in. The tab shows only when MCP is on, and only on an account page that keeps the [`ConnectedApps` block](/reference/auth/#account-page).
+
+Give the client the endpoint's address. It finds the app's sign-in from there, opens it in the browser, and the person signs in and allows it on the app's connect page.
+
+- A chat assistant usually takes a remote MCP server, or custom connector, in its settings: add one with the address.
+- A code editor or agent usually reads its MCP servers from a JSON file, in this shape or close to it:
+
+  ```json
+  { "mcpServers": { "my-app": { "url": "https://my-app.example.com/api/mcp" } } }
+  ```
+
+  Some take the address on the command line instead, as a server with the HTTP transport, and sign in when you first use it.
+
+## The app's icon
+
+The endpoint names the app's [icon](/reference/app-identity/#the-icons) to the client when it connects (`serverInfo.icons`), at absolute addresses on the app's origin: the project's 192 pixel, touch and 512 pixel PNGs it has, then its `protobase.favicon.svg`, or Protobase's without one. A client that draws server icons shows it beside the app's name. <gap>An app without PNGs of its own cannot offer clients that draw no SVG an icon because PNG versions of Protobase's icon are not implemented.</gap>
+
+## The tools
+
+Each tool reads as the signed-in person: their role's access rules, row filters, tenant and hidden fields apply as in the [REST API](/reference/api/#access).
+
+| Tool | What it does |
+| --- | --- |
+| `list_resources` | The resources the person may read, kept small for a client's first call: each one's name, label, the first line of its help, key and whether it soft deletes (`soft_delete`), without its fields. |
+| `describe_resource` | One resource the person may read, with its fields: each field's type, label, help, enum values, the resource a relation links to, and whether it is optional, read-only and taken by filters and sorts. It also names the resource's `list_fields`, what `list_records` returns when not told which. |
+| `list_records` | A page of a resource's records: `fields`, `filter` in the API's [filter syntax](/reference/api/#filters), `order_by`, `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page and `total_size_estimate`, an estimate rather than an exact count. `show_deleted: true` also returns soft-deleted records. |
+| `count_records` | How many records a `filter` finds, without returning them: `{ count }` as the API's `count=exact` counts, or `{ more_than: 10000, estimate }` when more match. With `group_by`, a filterable field, the count per value instead, as [`:aggregate`](/reference/api/#routes) gives it: `{ group_by, groups: [{ value, count }] }`, largest first, adding up to what the filter finds, the first `limit` (100 by default, at most 1,000), with `label` naming a relation's values by a field of the records they link to. A date or timestamp `group_by` counts per day over the last 30 days. `show_deleted: true` also counts soft-deleted records. |
+| `get_record` | One record by its key, with its ETag, holding the `fields` asked for or, without them, every field. A composite key is passed as the values of its fields, in order. `show_deleted: true` also finds a soft-deleted record. |
+
+`show_deleted` works as the [REST API](/reference/api/#routes)'s: it applies only to a resource with a soft delete, and is refused on any other. <gap>`count_records` cannot count soft-deleted records per value because `:aggregate` does not implement `show_deleted`.</gap> Soft-deleted records come under the same access rules, tenant and hidden fields as the rest, and carry the field their deletion set.
+
+### Reading only what is needed
+
+Records can hold long texts, such as a description or notes, and a page of them can run past what a client can take in. So `list_records` and `get_record` take `fields`, the field names to return, as an [AIP-157](https://google.aip.dev/157) read mask does, with `["*"]` for every field.
+
+Without `fields`, `list_records` returns the record's key and the columns of the resource's table in the app: the list's `columns` of the person's view, or its first six fields when the view has no list. `describe_resource` names them as the resource's `list_fields`, and the page names the fields it left out in `omitted_fields`. `get_record` returns every field unless told which.
+
+The server tells each client this when it connects, in its instructions, and the tool descriptions repeat it: name the fields needed, filter on the fields marked filterable, which are indexed, rather than paging through records to search them, and keep pages small. For example, the open tasks, newest first, ten at a time, then the brief of one of them:
+
+```json
+{ "resource": "tasks", "fields": ["id", "status", "title"], "filter": "status = \"open\"", "order_by": "created_at desc", "page_size": 10 }
+```
+
+```json
+{ "resource": "tasks", "key": "42", "fields": ["brief"] }
+```
+
+A refusal, such as a resource the person may not read, a bad filter or a field the person may not read, comes back to the client as text it can act on, `{ "error": ..., "message": ... }`.
+
+### Comments
+
+When a resource takes [comments](/reference/comments/), the endpoint also offers `list_comments`, and with [writes](#writes) on, `add_comment`. They go through the same service as the REST API's comments, as the person: whoever may read a record may read its comments and add one, and everyone else gets the same refusal as from `GET` or `POST /api/v1/{resource}/{key}:comments`. An app without a resource with comments offers neither.
+
+| Tool | What it does |
+| --- | --- |
+| `list_comments` | A page of a record's comments, newest first, each as `{ author, created_at, text }`, the author's `name` beside their `id` when the app's auth knows it. `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page. |
+| `add_comment` | Adds `text` as the person's comment on one record, and returns it as `list_comments` gives it. |
+
+`add_comment` is a write: the person approves each comment first, seeing the record's name and the whole comment, unless they hold one of the [roles without approval](#writes-without-approval). With writes limited to some resources, it comments only on those. A comment it adds mentions nobody, so it sends no emails. An empty comment, one over 10,000 characters, a resource without comments, and a record the person may not read, or one that is soft-deleted, are refused before asking.
+
+### SQL for admins
+
+`mcpEndpoint.sql` also offers `run_read_only_query`, as in the [assistant](/reference/assistant/#the-built-in-backend), to people with the `admin` or `ai` role:
+
+```ts
+export default defineConfig({ auth: { mcp: true }, mcpEndpoint: { sql: true } })
+```
+
+It runs one `SELECT` in a read-only transaction, as the app's database role, **outside the access rules and tenant scoping**: whoever has one of those roles reads the whole database through it. Give those roles only to people who may see all of the data.
+
+### Writes
+
+`mcpEndpoint.writes` also offers four tools that change records, to everyone signed in:
+
+```ts
+export default defineConfig({ auth: { mcp: true }, mcpEndpoint: { writes: true } })
+```
+
+| Tool | What it does |
+| --- | --- |
+| `create_record` | Creates a record of a resource from `data`, field names to values, and returns its key and ETag with the fields it wrote, see [What a write returns](#what-a-write-returns). |
+| `update_record` | Changes the fields in `data` of one record by its key, and returns its key and new ETag with the fields it set. With the `etag` that `get_record` gave, it fails when someone changed the record since. It does not set the field a soft delete sets: a delete goes through `delete_record`. |
+| `delete_record` | Deletes one record by its key and the `etag` that `get_record` gave, and fails when someone changed the record since. A resource with a [soft delete](/reference/data-config/) keeps the record, deleted; any other loses it for good. |
+| `batch_write` | Creates, updates and deletes records across resources in one transaction, see [Batch writes](#batch-writes). |
+
+Each write goes through the REST API as the person: their role's access rules, `validate`, write hooks, events and webhooks apply, so the client can do only what the person may do in the app.
+
+Before each write the client asks the person to approve it, through MCP's form elicitation. The approval names the record as the record page's breadcrumb does, by the resource's label, its key and its title, such as `Update Task #42 "Fix the sign-in lockout"?`. An update lists each field it changes by its label, with its value before and after (`Status: In flight -> Done`); a create lists the new record's fields by their labels; a delete says whether the record can be restored, and for a resource without a soft delete says plainly that it cannot be undone. Enum values show by their labels, a [sensitive](/reference/data-config/#sensitive-fields) field's value is hidden, and a value is cut at 200 characters. A record or field the person may not read is named by its key or its name in words, and an update or delete of a record changed since its `etag` is refused before asking. The approval, its button and the refusal for a client that cannot ask are in the person's [language](/reference/languages/): the app's `locale`, or else the one the client's request accepts (`Accept-Language`). Nothing is written until they approve, and declining writes nothing. A client's own setting that always allows a tool is not this approval. An approval holds only for the call it was asked for, with the same arguments, by the same person in the same app, organization and client, and only once, within 10 minutes; any other call is asked again. A client that cannot ask, one without form elicitation or one on the 2025 protocol, gets each write refused with a message saying so.
+
+<gap>An approval cannot be answered on another server instance or after a restart because a shared approval store is not implemented.</gap> Behind a load balancer, send an MCP client's calls to the same instance.
+
+To offer the writes on some resources only, list them:
+
+```ts
+mcpEndpoint: { writes: { resources: ['tasks'] } }
+```
+
+The write tools then name those resources in their descriptions, and refuse a write to any other before asking, with `{ "error": "forbidden", "message": ... }` saying which resources they write; nothing is written. A name the app has no resource for stops the server at startup. The list only narrows the writes: the person's access rules still apply on the listed resources.
+
+#### What a write returns
+
+A write returns its record small, so changing one field of a large record does not send the whole record back:
+
+```json
+{ "key": 42, "etag": "\"7\"", "record": { "status": "done", "updated_at": "2026-10-27T09:00:00Z" } }
+```
+
+`key` is the record's key as the tools take it, the values of its key fields in order when it has several; `etag` is its new ETag, for a later write. `record` holds the fields the write set, as stored, and the [read-only](/reference/data-config/#field-options) fields that changed with it, such as a formula, a rollup or an update time; a create counts every read-only field that has a value. A `fields` argument, a list of field names, adds those fields, and `["*"]` returns the whole record. A field the person may not read stays out, and for a resource they may not read at all the key and the read-only fields stay out too.
+
+#### Writes without approval
+
+An app that runs service accounts over MCP, such as a backend job or an agent with no person present, names their roles in `mcpEndpoint.writes`:
+
+```ts
+mcpEndpoint: { writes: { resources: ['tasks'], rolesWithoutApproval: ['service'] } }
+```
+
+A user with one of those roles creates, updates and deletes records over MCP without the approval step: the client is never asked, so a client that cannot ask writes too. Their role's access rules and the listed resources still limit every write as before, so a job with no person present can keep the app's data over MCP and do nothing there it could not do through the REST API. Everyone else is still asked before each write. Taking the role away, banning or deleting the account stops its tokens at their next request, not when they expire.
+
+No role is exempt unless named. The roles are checked against the signed-in user, not against the client, and a user holding several is exempt when any of them is named. A name that is not one of the app's roles, or is `anonymous`, stops the server at startup. Naming a role a person signs in with lets any client that person allows write as them unasked.
+
+<gap>A deleted record cannot be restored over MCP.</gap> There is no SQL that writes.
+
+#### Batch writes
+
+`batch_write` takes a list of creates, updates and deletes, each naming its resource, with the key and ETag for an update or delete, and runs them in order in one transaction, as the REST API's [batch writes](/reference/api/#batch-writes) do: either all of them are written or none, and a record changed since its ETag fails the whole batch.
+
+```json
+{ "operations": [
+  { "op": "create", "resource": "tasks", "data": { "title": "Plan the release" }, "ref": "task" },
+  { "op": "create", "resource": "task_links", "data": { "task_id": { "$ref": "task" }, "url": "https://example.com" } },
+  { "op": "update", "resource": "tasks", "key": 12, "etag": "\"3\"", "data": { "status": "done" } },
+  { "op": "delete", "resource": "task_links", "key": 40, "etag": "\"1\"" }
+] }
+```
+
+An update needs the `etag` the record was read with, or `"*"` for any version; a delete's `etag` is optional, and without one it deletes any version. A create may name itself with `ref`, and a later operation's key or data value `{ "$ref": "<name>" }` is that record's key. The result is `{ "results": [...] }`, one per operation in order: a create or an update gives its `op`, `resource`, a create's `ref`, and its record as [a write returns it](#what-a-write-returns), with an operation's own `fields` for more, and a delete `{ "op": "delete", "resource": ..., "deleted": true }`. The read-only fields an update changed are told against the record as read just before the batch runs; an update of a record created in the same batch, by `$ref`, counts every read-only field that has a value.
+
+The person approves the batch once, in their language, seeing each write in it named and listed as the approval of a single write names and lists it: `2. Update Task #42 "Fix the sign-in lockout"` with each field it changes, a create with the new record's fields, and a delete saying whether it can be restored. A key or value pointing at a create in the batch is named by that write's number, such as `the Task from write 1`. The first 50 writes are listed and the rest counted. The approval says plainly how many deletes in it cannot be undone, which is every delete on a resource that does not [soft delete](/reference/data-config/#resource), and an update or delete among the listed writes of a record changed since its `etag` is refused before asking.
+
+A batch is checked before the person is asked: an operation other than a create, update or delete, a field an operation does not take, an update without an ETag or more than 500 operations come back as `{ "error": "invalid-argument", "message": ... }` naming the operation, and with writes limited to some resources an operation on any other refuses the whole batch. An update does not set the field a soft delete sets, as `update_record` does not: a delete goes through a delete operation. A refusal while it runs, such as an operation the person may not do or a stale ETag, comes back with the REST batch's `operation` (its index), `op` and `resource`. Either way nothing is written.
+
+## The app's own tools
+
+`mcp/tools.ts` adds tools of the app's own, offered after the built-in ones to everyone signed in, whatever `mcpEndpoint.writes` says. Its default export is an array of `defineTool(...)` from `@protobase/server`, the same shape as the [assistant's own tools](/reference/assistant/#the-apps-own-tools): a `name` of 1 to 64 letters, digits, `_` or `-`, a `description` the client's model reads, `parameters`, the JSON Schema of its arguments, which the endpoint checks each call against, `annotations`, MCP's tool hints such as `readOnlyHint`, optionally a `title` and `_meta`, which `tools/list` gives clients as they are, and `run(args, context)`, which returns the text the client reads. The file is found when the app starts, under `protobase dev` and `protobase serve` alike, and only with `auth.mcp` on; with `mcpEndpoint: false` it offers nothing.
+
+`context` holds the caller's `session`, the `locale` they read, `approve(request)`, `resources()`, the resources they may read, and `records`, the app's records **as that person**: their role's access rules, tenant, hidden fields, `validate` and write hooks apply, as in the REST API and the built-in tools. Its methods are the assistant's, listed [there](/reference/assistant/#the-apps-own-tools); a refusal rejects with an `HttpProblem`. `show` does nothing over MCP, and there is no `conversation`.
+
+A tool refuses by throwing an `HttpProblem` with a status below 500, such as `notFound(detail)` or `forbidden(slug, detail)`, or by letting through the one `records` rejects with: the client gets `{ "error": <slug>, "message": <detail> }` as an error result, as from the built-in tools, and nothing is reported. Anything else a tool throws is reported to the app's error handler and reaches the client as "The server failed to answer.", or, for a query the database stopped at its statement timeout, as a message naming the tool. `refusalOf(error)` from `@protobase/server` gives that `{ error, message }` text for a refusal and `undefined` otherwise, and `refused(error)` gives it or throws the error again, for a tool that returns a refusal as its result rather than as an error.
+
+Nothing cuts a tool's result, as nothing cuts the built-in tools': a tool that can return a lot takes a limit or the fields to return, as `list_records` takes `page_size` and `fields`. <gap>A tool result larger than an AI client takes cannot be refused with a message naming what to leave out because a size guard is not implemented.</gap>
+
+A tool that reads:
+
+```ts
+// mcp/tools.ts
+import { defineTool } from '@protobase/server'
+
+const openTasks = defineTool({
+  name: 'open_tasks',
+  description: "The person's open tasks, newest first: id, title and due date.",
+  parameters: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 50 } } },
+  annotations: { readOnlyHint: true },
+  run: async (args, { records }) => {
+    const page = await records.list('tasks', { filter: 'status = "open"', order_by: 'created_at desc', page_size: Number(args.limit ?? 10), fields: ['id', 'title', 'due_on'] })
+    return JSON.stringify(page)
+  },
+})
+```
+
+A tool that changes data asks first, through `approve`, before it changes anything:
+
+```ts
+const closeTask = defineTool({
+  name: 'close_task',
+  description: 'Marks one task done.',
+  parameters: { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] },
+  annotations: { readOnlyHint: false },
+  run: async (args, { approve, records }) => {
+    const { record, etag } = await records.get('tasks', Number(args.id))
+    const answer = await approve({ title: `Close task #${args.id} "${record.title}"?`, fields: [{ label: 'Status', value: 'Done' }], approveLabel: 'Close' })
+    if (answer !== 'approved') return JSON.stringify({ closed: false })
+    await records.update('tasks', Number(args.id), { status: 'done' }, { etag })
+    return JSON.stringify({ closed: true })
+  },
+})
+
+export default [openTasks, closeTask]
+```
+
+`approve` asks the person through MCP's form elicitation, as the [built-in writes](#writes) do: the client calls the tool again from the start with their answer, so everything before `approve` runs twice and must change nothing. It resolves with `'approved'` only when they approve; declining resolves otherwise, and a client that cannot ask gets the call refused with a message saying so, before anything after `approve` runs. An approval holds once, for the same call with the same arguments, by the same person in the same app, organization and client. A user holding one of [`rolesWithoutApproval`](#writes-without-approval) is approved at once, for these tools too. **A tool that never calls `approve` writes unasked**: whatever it does through `records`, the person's access rules still limit, but nobody is asked first.
+
+With [extensions](/reference/config/#extensions), each folder's `mcp/tools.ts` adds its tools, the extensions' first, in order, then the app's. A name two of them use, or one of the built-in tools' names, such as `get_record` or `create_record`, even one the config leaves off, stops the server at startup, naming it.
+
+`assistant/tools.ts` stays the dock's: it offers nothing over MCP, since the dock serves only the `admin` and `ai` roles while MCP serves everyone signed in. To offer the dock's tools over MCP too, on purpose, export them from `mcp/tools.ts` as well:
+
+```ts
+// mcp/tools.ts
+import assistantTools from '../assistant/tools'
+
+export default [...assistantTools]
+```
+
+A host calling `createAdmin` itself passes the tools as `options.mcp.tools`; the JSON config's `mcpEndpoint` takes none.
+
+## Browsers and hosts
+
+A client in a browser may call the endpoint from any origin: it sends its token, never cookies. A request addressed to another host than that of the app's [`url`](/reference/config/app/#url) is refused, against DNS rebinding.
+
+The endpoint serves each request on its own, without an MCP session: a `GET` or `DELETE` answers 405.
+
+## Building on it
+
+`@protobase/server` exports the pieces the endpoint is made of, for an MCP server of your own with tools of your own:
+
+- `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session, request)` builds for its caller; `request` is the HTTP request, such as for the language the person reads.
+- `mcpServer({ info, instructions, tools, context, report, rolesWithoutApproval, approvals })`: an MCP server named by `info`, its `name`, `version` and `icons`, such as `mcpIcons(origin, icons)`, the app's icons on `origin`, and offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema, its `annotations`, MCP's tool hints, and its `title` and `_meta`, and each refusing as [the app's own tools](#the-apps-own-tools) do. `context` is the tools' context without `approve`, with the `locale` its approvals are asked in (English when absent): each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`. It is a `ToolContext`, with the app's `records`, `resources()` and `show`, unless every tool is declared with a smaller one, such as `defineTool<BaseToolContext>(...)`, whose context is only `session`, `locale` and `approve`: a host without app records then passes `{ session }`. `report` gets what a tool throws other than a refusal. `approvals` is `mcpApprovals()`, built once and passed to every server the endpoint builds: it keeps the approvals asked for until they are answered or expire. `instructions` is what it tells clients when they connect, by default `mcpInstructions`, the advice on reading records above.
+- `mcpTools({ db, sql, writes, commented, own })`: the endpoint's tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`, `commented` names the resources with comments, and `own` are [the app's own tools](#the-apps-own-tools), offered after the rest.
+- `readRecordTools()`, or `listResourcesTool()`, `describeResourceTool()`, `listRecordsTool()` and `getRecordTool()`: the read tools alone; `readOnlyQueryTool(db)` is `run_read_only_query`, and `readWriteQueryTool(db)` proposes one write statement that the user approves before it runs.
+- `commentTools({ commented }, writes)`, or `listCommentsTool({ commented })` and `addCommentTool({ commented, resources })`: the comment tools on the resources named in `commented`, which call the context's `comments`, and `add_comment` only when `writes` is not `false`.
+- `writeRecordTools({ resources })`, or `createRecordTool(...)`, `updateRecordTool(...)` and `deleteRecordTool(...)`: the single write tools alone, on the listed resources or, without `resources`, on any; `batchWriteTool({ resources })` is `batch_write` alone.
+- `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.
+- `mcpToolContext(...)`, with the records' comments as `comments`, `mcpRoutes(app, { path, handler })` and `sessionOf(authInfo)`: the tools' context as the app builds it, the routes with open CORS, and the session a request was admitted with.
+
+A host that builds its own server around `createAdmin`, rather than running the project with `protobase dev` or `protobase serve`, can serve its own endpoint at `auth.mcp.path` instead: `mcpEndpoint: false` (`createAdmin`'s `options.mcp`) turns Protobase's off, and the host mounts its own in front of `createAdmin`'s app. The OAuth provider and its discovery stay, and `createAdmin` answers 404 at the path and under it. `protobase dev` and `protobase serve` have no place to mount another endpoint, so in a project served by them `mcpEndpoint: false` only turns the endpoint off.
+
+A tool of your own goes on the server `server` returns, with the context its tools get. `authenticate` is the host's own `Authenticator`, such as [`jwtAuthenticator(...)`](/reference/auth/): it verifies the client's access token for the endpoint's address, its audience, and returns a session with the `client` the token was issued to. A host with no app records, such as a console that reads its own database, declares its tools with `BaseToolContext` and passes `{ session }`; here a tool with a `title` and `_meta`, which refuses another person's project and asks before it archives one:
+
+<Code code={hostServer} lang="ts" title="mcp-endpoint.ts" />
+
+A host that wants the person's records in the app instead serves the app's endpoint and passes its tools as `options.mcp.tools` on `createAdmin`, as in [the app's own tools](#the-apps-own-tools).
+
+A tool that changes something calls `context.approve(...)` before it changes anything, and only once: over MCP the client asks the person, then calls the tool again from the start with their answer, and `approve` then resolves with it.
+
+`mcpServer` returns the SDK's `McpServer`, so `registerTool` on it adds a tool written against the SDK directly.

@@ -5,7 +5,7 @@ import { customComponent, type ComponentRef, type ViewProps } from './view-displ
 
 /**
  * The items of a record page, for a view's `.layout((r) => [...])`, exported as `l`. See
- * [The record page](website/src/content/docs/reference/ui-config.mdx#the-record-page).
+ * [The record page](docs/website/src/content/docs/reference/ui-config.mdx#the-record-page).
  *
  * @example
  * ```ts
@@ -18,7 +18,7 @@ import { customComponent, type ComponentRef, type ViewProps } from './view-displ
  *
  * Every item shows on both the form and the read view unless its `when` says `editing` (the form and the create form)
  * or `reading` (the read view and the locked form). See
- * [Form and read view](website/src/content/docs/reference/ui-config.mdx#form-and-read-view).
+ * [Form and read view](docs/website/src/content/docs/reference/ui-config.mdx#form-and-read-view).
  */
 export const layout = {
   /**
@@ -26,7 +26,7 @@ export const layout = {
    * shown only while the record is edited with `helpWhen: 'editing'` (the view's `.helpWhen(...)` when omitted).
    * `presentation: 'facts'` shows the read view's fields as a row of key facts, as a listing on a real estate site does:
    * each value under its field's `.icon(...)`, or under its label without one, leaving out the empty ones. See
-   * [Key facts](website/src/content/docs/reference/ui-config.mdx#key-facts).
+   * [Key facts](docs/website/src/content/docs/reference/ui-config.mdx#key-facts).
    */
   section: (title: string, fields: Ref[], o: { help?: string; helpWhen?: HelpWhen; presentation?: SectionPresentation; when?: RecordWhen } = {}): LayoutItemModel => ({
     kind: 'section',
@@ -43,7 +43,7 @@ export const layout = {
    * `image` of the records of `photos.resource` whose relation `photos.field` points at the record, in `photos.sort`
    * order, as a cards display's `photos` names them. In the lightbox, a user who may read a photo's record opens its
    * details. Throws without `image` or `photos`. See
-   * [Galleries](website/src/content/docs/reference/ui-config.mdx#galleries).
+   * [Galleries](docs/website/src/content/docs/reference/ui-config.mdx#galleries).
    */
   gallery: (title: string, o: { image?: Ref; photos?: CardPhotosModel; when?: ShowWhen }): LayoutItemModel => {
     if (!o.image && !o.photos) throw new Error(`l.gallery "${title}" needs an image field, photos or both`)
@@ -64,7 +64,7 @@ export const layout = {
   /**
    * A heading over sections and related tables in the main column; `collapsed: true` keeps it closed until the person
    * opens it, or a link to the record does (the address names the open groups by title). Throws on any other item. See
-   * [Groups](website/src/content/docs/reference/ui-config.mdx#groups).
+   * [Groups](docs/website/src/content/docs/reference/ui-config.mdx#groups).
    */
   group: (title: string, items: LayoutItemModel[], o: { collapsed?: boolean; when?: RecordWhen } = {}): LayoutItemModel => {
     const wrong = items.find((item) => item.kind !== 'section' && item.kind !== 'related')
@@ -81,7 +81,7 @@ export const layout = {
    * A tab of the record page holding main-column items: sections, groups, related tables, custom components, maps,
    * charts, galleries, history and comments. A view's tabs stand together and show as one strip, the first tab open unless the
    * address names another; items before and after them show on every tab. Throws on a sidebar item or another tab. See
-   * [Tabs](website/src/content/docs/reference/ui-config.mdx#tabs).
+   * [Tabs](docs/website/src/content/docs/reference/ui-config.mdx#tabs).
    */
   tab: (title: string, items: LayoutItemModel[]): LayoutItemModel => {
     const wrong = items.find((item) => item.kind === 'sidebar' || item.kind === 'tab' || ((item.kind === 'custom' || item.kind === 'map') && item.sidebar))
@@ -109,7 +109,7 @@ export const layout = {
    * machine's metric samples, over their timestamp `at`: per minute over the last hour, per 5 minutes over the last day
    * and per hour over the last week, the average or the maximum of each bucket, opening on `range` (default `1h`). A
    * bucket without a sample is a gap. Throws without a series. See
-   * [Charts of related records](website/src/content/docs/reference/ui-config.mdx#charts-of-related-records).
+   * [Charts of related records](docs/website/src/content/docs/reference/ui-config.mdx#charts-of-related-records).
    */
   chart: (title: string, o: { resource: string; field: string; at: string; series: string[]; range?: RecordChartRange; help?: string; when?: ShowWhen }): LayoutItemModel => {
     if (o.series.length === 0) throw new Error(`l.chart "${title}" needs at least one series`)
@@ -128,7 +128,7 @@ export const layout = {
   /**
    * The record's changes, newest first: who made each, when, and the fields before and after, only those the user may
    * read. `limit` changes show before Show more (default 10). Needs `.history()` on the resource; a view without a
-   * layout shows it last by itself. See [Record history](website/src/content/docs/reference/history.mdx).
+   * layout shows it last by itself. See [Record history](docs/website/src/content/docs/reference/history.mdx).
    */
   history: (title = 'History', o: { limit?: number; when?: ShowWhen } = {}): LayoutItemModel => {
     if (o.limit !== undefined && (!Number.isInteger(o.limit) || o.limit < 1)) throw new Error(`l.history "${title}": limit must be a positive whole number`)
@@ -142,7 +142,7 @@ export const layout = {
   /**
    * The record's comments, oldest first, with who wrote each and when, and a box to write one; `@` mentions someone who
    * may read the record. Needs `.comments()` on the resource; a view without a layout shows it last by itself. See
-   * [Record comments](website/src/content/docs/reference/comments.mdx).
+   * [Record comments](docs/website/src/content/docs/reference/comments.mdx).
    */
   comments: (title = 'Comments', o: { when?: ShowWhen } = {}): LayoutItemModel =>
     ({

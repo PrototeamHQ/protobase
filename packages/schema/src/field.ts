@@ -94,7 +94,7 @@ export const fieldRegistry = z.registry<FieldMeta>()
 
 /**
  * A field of a resource, holding values of type `V`, as `f` builds it. Every option returns a new field, so they chain
- * in any order. See [Field options](website/src/content/docs/reference/data-config.mdx#field-options).
+ * in any order. See [Field options](docs/website/src/content/docs/reference/data-config.mdx#field-options).
  */
 export class Field<V> {
   /** The Zod schema a value is checked with on every create and update: the type's, nullable and defaulted as set. */
@@ -153,7 +153,7 @@ export class Field<V> {
    * Stored encrypted with the app's own key (`PROTOBASE_ENCRYPTION_KEY`): the database only ever holds ciphertext. It is
    * sensitive too, so only its reveal decrypts it, and record rules, validators and hooks get a set stored value as
    * {@link encrypted}, never the value. Only `f.text()` takes it. See
-   * [Encrypted fields](website/src/content/docs/reference/data-config.mdx#encrypted-fields).
+   * [Encrypted fields](docs/website/src/content/docs/reference/data-config.mdx#encrypted-fields).
    */
   encrypted() {
     if (this.meta.type !== 'text') throw new Error('.encrypted() takes only f.text() fields')
@@ -164,7 +164,7 @@ export class Field<V> {
    * Revealing it needs a strong sign-in: one that proved a passkey or a second step, made or confirmed in the last
    * `minutes` (15 by default). Otherwise the reveal is refused with `403 strong-sign-in-required`, and the record page
    * asks the person to confirm it's them first. It is sensitive too. See
-   * [Recent strong sign-in](website/src/content/docs/reference/data-config.mdx#recent-strong-sign-in).
+   * [Recent strong sign-in](docs/website/src/content/docs/reference/data-config.mdx#recent-strong-sign-in).
    */
   strongSignIn(o: { minutes?: number } = {}) {
     const minutes = o.minutes ?? 15
@@ -209,7 +209,7 @@ export class Field<V> {
 
   /**
    * A job fills the field from `prompt`, `{field}` replaced by the record's values, after a create, and after an update
-   * that changes a field the prompt names, as the user who wrote; see [AI fields and actions](website/src/content/docs/reference/ai.mdx).
+   * that changes a field the prompt names, as the user who wrote; see [AI fields and actions](docs/website/src/content/docs/reference/ai.mdx).
    */
   ai(o: { prompt: string }) {
     const error = promptError(o.prompt)
@@ -221,7 +221,7 @@ export class Field<V> {
    * The database keeps the field: a column a trigger on `from`'s table sets to `fn` of the records whose `via` points at
    * this record, in the transaction that writes them. `count` and `sum` are 0 without records; `avg`, `min` and `max`
    * are empty, so their fields are `.optional()`. Empty values are left out, as in SQL. Read-only; `protobase migration`
-   * writes the column and its trigger. See [Rollups and formulas](website/src/content/docs/reference/data-config.mdx#rollups-and-formulas).
+   * writes the column and its trigger. See [Rollups and formulas](docs/website/src/content/docs/reference/data-config.mdx#rollups-and-formulas).
    *
    * @example
    * ```ts
@@ -236,7 +236,7 @@ export class Field<V> {
    * The database computes the field from the record's other number fields: a generated column. `expression` takes
    * numbers, fields, `+ - * /`, parentheses, `coalesce(a, b, ...)` and `round(x, digits)`, computed exactly as decimals and
    * stored as the field's type. Read-only; `protobase migration` writes the column. See
-   * [Rollups and formulas](website/src/content/docs/reference/data-config.mdx#rollups-and-formulas).
+   * [Rollups and formulas](docs/website/src/content/docs/reference/data-config.mdx#rollups-and-formulas).
    *
    * @example
    * ```ts

@@ -2,7 +2,7 @@ import type { FieldAccess } from './access/types'
 import { Field, type FieldMeta } from './field'
 import { checkedAccept, checkedProvider, checkedVariant, checkedVariants, parseSize, type FileOptions, type FileProcessor, type ImageVariant, type ImageVariantOptions } from './files/file-options'
 
-/** `f.file()`: a text column holding a file's URI, uploaded through `:upload`. See [Files](website/src/content/docs/reference/files.mdx). */
+/** `f.file()`: a text column holding a file's URI, uploaded through `:upload`. See [Files](docs/website/src/content/docs/reference/files.mdx). */
 export class FileField<V> extends Field<V> {
   /** Allowed types, checked against the type detected from the content: `['image/*', 'application/pdf']`. */
   accept(types: readonly string[]) {
@@ -54,7 +54,7 @@ export class FileField<V> extends Field<V> {
   /**
    * Also takes an https URL of a file elsewhere, such as `https://images.example.com/photos/42.jpg`, stored as it is:
    * never uploaded, without variants, and drawn from that address. See
-   * [External URLs](website/src/content/docs/reference/files.mdx#external-urls).
+   * [External URLs](docs/website/src/content/docs/reference/files.mdx#external-urls).
    */
   externalUrls() {
     return this.withFile({ external: true })

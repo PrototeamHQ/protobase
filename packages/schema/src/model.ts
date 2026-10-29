@@ -1,14 +1,14 @@
 import type { Rollup } from './computed/rollup'
 import type { ImageVariant } from './files/file-options'
 
-/** A field's storage type, as `f.*` declares it; see [Field types](website/src/content/docs/reference/data-config.mdx#field-types). */
+/** A field's storage type, as `f.*` declares it; see [Field types](docs/website/src/content/docs/reference/data-config.mdx#field-types). */
 export type FieldType =
   | 'text' | 'integer' | 'bigint' | 'decimal' | 'boolean' | 'date' | 'timestamp'
   | 'uuid' | 'enum' | 'json' | 'relation' | 'file' | 'currency' | 'country'
 
 /**
  * A field of a resource as the server and the app see it, built from its `f.*` builder and options; see
- * [Field options](website/src/content/docs/reference/data-config.mdx#field-options).
+ * [Field options](docs/website/src/content/docs/reference/data-config.mdx#field-options).
  */
 export type FieldModel = {
   /** The field's name: in URLs, the API, filters and sorts. */
@@ -80,7 +80,7 @@ export type FieldModel = {
   }
 }
 
-/** A file field's settings, as `/meta` gives them; see [Files](website/src/content/docs/reference/files.mdx). */
+/** A file field's settings, as `/meta` gives them; see [Files](docs/website/src/content/docs/reference/files.mdx). */
 export type FileFieldModel = {
   /** The content types an upload may have, exact or `type/*`; any when empty. */
   accept: string[]
@@ -105,7 +105,7 @@ export type SearchMatch = 'digitsEnd'
 
 /**
  * A resource as the server and the app see it: a table, its fields and what the API does with them, built by
- * `resource(...).toModel()`; see [resource()](website/src/content/docs/reference/data-config.mdx#resource).
+ * `resource(...).toModel()`; see [resource()](docs/website/src/content/docs/reference/data-config.mdx#resource).
  */
 export type ResourceModel = {
   /** The resource's name: its address (`/api/v1/<name>`, `/<name>` in the admin) and how other config refers to it. */
@@ -171,7 +171,7 @@ export type EventOperation = 'create' | 'update' | 'delete' | 'undelete'
  * An event a resource declares. It fires for a change whose operation is listed and that passes every condition:
  * `when` on the record after the change, `from` on the record before it, `becomes` turning true (false or no record
  * before, true after), one of the `changed` fields changing, and a code predicate when `match` is set. See
- * [Declaring events](website/src/content/docs/reference/events.mdx#declaring-events).
+ * [Declaring events](docs/website/src/content/docs/reference/events.mdx#declaring-events).
  */
 export type EventModel = {
   /** `<resource>.<name>`, such as `orders.created`. */
@@ -248,7 +248,7 @@ export type TimelineView = {
  * A place in the app: a resource's list, one of its records, its create form, or a composed page. A record's `key` is
  * its one value or its parts, as the record API takes them; `readAppPath` gives it back as the API's text form. A create
  * form's `values` fill in fields of the new record by name, as text (`{ listing_id: '42' }`). A list's `map` is where its
- * map display looks, its `calendar` the month or week its calendar display shows, and its `timeline` the period its timeline display shows. See [Addresses](website/src/content/docs/reference/layouts.md#addresses).
+ * map display looks, its `calendar` the month or week its calendar display shows, and its `timeline` the period its timeline display shows. See [Addresses](docs/website/src/content/docs/reference/layouts.md#addresses).
  */
 export type AppAddress =
   | {
@@ -324,7 +324,7 @@ export type AppAddress =
  */
 export type FieldFormat = 'relative' | 'absolute' | 'compact' | 'percent' | 'badge' | 'code' | 'email' | 'phone' | 'url'
 
-/** A view's hints for one field (`.fields((r) => ...)`); see [Names and columns](website/src/content/docs/reference/ui-config.mdx#names-and-columns). */
+/** A view's hints for one field (`.fields((r) => ...)`); see [Names and columns](docs/website/src/content/docs/reference/ui-config.mdx#names-and-columns). */
 export type FieldViewModel = {
   /** What the field is called, instead of its name in words. */
   label?: string
@@ -370,14 +370,14 @@ export type FieldViewModel = {
 /**
  * When a help line shows: `always`, the default, or only while the record is `editing`: on its form and the create
  * form, not on the record page's read view or its locked form. See
- * [The record page](website/src/content/docs/reference/ui-config.mdx#the-record-page).
+ * [The record page](docs/website/src/content/docs/reference/ui-config.mdx#the-record-page).
  */
 export type HelpWhen = 'always' | 'editing'
 
 /**
  * When a record page's field or layout item shows: `always`, the default; only while the record is `editing`, on its
  * form and the create form; or only while `reading` it, on the read view and the locked form. See
- * [Form and read view](website/src/content/docs/reference/ui-config.mdx#form-and-read-view).
+ * [Form and read view](docs/website/src/content/docs/reference/ui-config.mdx#form-and-read-view).
  */
 export type ShowWhen = 'always' | 'editing' | 'reading'
 
@@ -401,7 +401,7 @@ export type FieldWidgetModel = {
  * (`map`), or a project component (`custom`) drawing the rows the list page loads. A card's `amount` is the first of its fields with
  * a value, `footer` its fields with a value joined by bullets, and `flags` boolean fields shown as small badges of their
  * labels when true. `name` is what the address names (`?display=cards`); `label` and `icon` are its switch's. See
- * [List displays](website/src/content/docs/reference/ui-config.mdx#list-displays).
+ * [List displays](docs/website/src/content/docs/reference/ui-config.mdx#list-displays).
  */
 export type ListDisplayModel =
   | {
@@ -539,7 +539,7 @@ export type ListDisplayModel =
  * Where a card's further photos come from: the records of `resource` whose relation `field` points at the card's record,
  * in `sort` order, each shown by its file field `image`. They come with the list's records, in the same request, so
  * an index on `field` and the sorted fields serves them. See
- * [Card photos](website/src/content/docs/reference/ui-config.mdx#card-photos).
+ * [Card photos](docs/website/src/content/docs/reference/ui-config.mdx#card-photos).
  */
 export type CardPhotosModel = {
   /** The resource holding the photos. */
@@ -556,7 +556,7 @@ export type CardPhotosModel = {
  * The button in a card's top right corner that saves its record for the signed-in user: a record of `resource` whose
  * relation `field` points at the card's record, created on a press and deleted on the next. The resource has an owner,
  * so each user lists and saves their own. A visitor who is not signed in gets the resource's sign-in prompt instead
- * (`.signIn(...)` on its view). See [Favorites](website/src/content/docs/reference/ui-config.mdx#favorites).
+ * (`.signIn(...)` on its view). See [Favorites](docs/website/src/content/docs/reference/ui-config.mdx#favorites).
  */
 export type CardFavoriteModel = {
   /** The resource holding the saved records, such as favorites. */
@@ -571,7 +571,7 @@ export type CardFavoriteModel = {
  * What a visitor who is not signed in is told about a resource they could use once signed in (`.signIn(...)`): on its
  * list page, in place of the list, and in the dialog of a card's favorite button or a list's "Save search" button
  * that saves to it. See
- * [Sign-in prompts](website/src/content/docs/reference/ui-config.mdx#sign-in-prompts).
+ * [Sign-in prompts](docs/website/src/content/docs/reference/ui-config.mdx#sign-in-prompts).
  */
 export type SignInPromptModel = {
   /** The heading, such as "Keep the homes you like". */
@@ -603,7 +603,7 @@ export type SignInViewModel = Pick<ViewModel, 'resource' | 'names' | 'nav'> & {
 /**
  * The "Save search" button of a list page: it saves the list's filter as a record of `resource`, the signed-in user's
  * own, whose view lists them (`.searchesOf(...)`). A visitor who is not signed in gets the resource's sign-in prompt
- * instead. See [Saved searches](website/src/content/docs/reference/ui-config.mdx#saved-searches).
+ * instead. See [Saved searches](docs/website/src/content/docs/reference/ui-config.mdx#saved-searches).
  */
 export type SaveSearchModel = {
   /** The resource holding the saved searches, whose view has `searchesOf` for this one. */
@@ -615,7 +615,7 @@ export type SaveSearchModel = {
 /**
  * What a saved search is (`.searchesOf(...)`): the list page shows each of the user's searches, with its filters, its
  * `controls`, and the first records of `resource` it finds, newest first, and a link to all of them. See
- * [Saved searches](website/src/content/docs/reference/ui-config.mdx#saved-searches).
+ * [Saved searches](docs/website/src/content/docs/reference/ui-config.mdx#saved-searches).
  */
 export type SearchesOfModel = {
   /** The resource searched, such as listings. */
@@ -667,7 +667,7 @@ export type ParentAccess = 'read' | 'update'
  * A record that a resource's records belong to through a relation field, such as an operation's VM: creating, changing,
  * deleting or undeleting a record needs `access` on the record `field` points at, checked with the caller's own access
  * rules on that resource; with `read`, every read of its records keeps to those whose parent the caller reads. See
- * [Records that belong to another](website/src/content/docs/reference/access.mdx#records-that-belong-to-another).
+ * [Records that belong to another](docs/website/src/content/docs/reference/access.mdx#records-that-belong-to-another).
  */
 export type ParentModel = {
   /** The relation field that points at the parent record. */
@@ -694,7 +694,7 @@ export type ListModel = {
   relatedColumns?: RelatedColumnModel[]
   /**
    * The fields among `columns` edited in their cell, by a user who may change the record and the field; see
-   * [Editing in the list](website/src/content/docs/reference/ui-config.mdx#editing-in-the-list).
+   * [Editing in the list](docs/website/src/content/docs/reference/ui-config.mdx#editing-in-the-list).
    */
   editable?: string[]
   /** What dragging changes, each off unless the list turns it on; see `ListDragModel`. */
@@ -703,7 +703,7 @@ export type ListModel = {
 
 /**
  * What a user may change by dragging in a list, each for a user who may update the field it writes. See
- * [Dragging in the list](website/src/content/docs/reference/ui-config.mdx#dragging-in-the-list).
+ * [Dragging in the list](docs/website/src/content/docs/reference/ui-config.mdx#dragging-in-the-list).
  */
 export type ListDragModel = {
   /**
@@ -727,7 +727,7 @@ export type ListDragModel = {
 /**
  * A list column of the records of another resource that point at each row, directly or through a join resource, as a
  * dot per record in its status's colour, each opening the record (`c.related(...)`). See
- * [Related records in a list](website/src/content/docs/reference/ui-config.mdx#related-records-in-a-list).
+ * [Related records in a list](docs/website/src/content/docs/reference/ui-config.mdx#related-records-in-a-list).
  */
 export type RelatedColumnModel = {
   /** The column's name in the list's `columns`, which no field of the resource has. */
@@ -753,7 +753,7 @@ export type DatePreset = 'today' | 'yesterday' | '24h' | '7d' | '30d' | '90d' | 
 
 /**
  * A filter widget above a list (`.filters((r, w) => ...)`), on a filterable field; see
- * [Filters and the chart](website/src/content/docs/reference/ui-config.mdx#filters-and-the-chart).
+ * [Filters and the chart](docs/website/src/content/docs/reference/ui-config.mdx#filters-and-the-chart).
  */
 export type FilterWidgetModel = (
   | {
@@ -806,7 +806,7 @@ export type RelatedPresentation = 'cards'
  * Records of another resource on the record page: those whose `field` holds this record's key or, with `through`,
  * those whose `field` holds one of the `key` values of the `through` records that point at this record (a join table).
  * With `from`, those whose `field` holds the value of that field of this record.
- * See [Related records](website/src/content/docs/reference/ui-config.mdx#related-records).
+ * See [Related records](docs/website/src/content/docs/reference/ui-config.mdx#related-records).
  */
 export type RelatedModel = {
   /** A related records section. */
@@ -881,7 +881,7 @@ export type CustomSectionModel = {
 /**
  * A map of the record's position, its `latitude` and `longitude` fields in decimal degrees (WGS84), centred on a marker
  * at `zoom`: in the main column under `title`, or with `sidebar` as a sidebar card. The app draws it with the map style
- * its server names, and leaves it out without one. See [Maps](website/src/content/docs/reference/ui-config.mdx#maps).
+ * its server names, and leaves it out without one. See [Maps](docs/website/src/content/docs/reference/ui-config.mdx#maps).
  */
 export type MapSectionModel = {
   /** A map section. */
@@ -907,7 +907,7 @@ export type RecordChartRange = '1h' | '24h' | '7d'
  * Line graphs of numeric fields of the records of `resource` that point at the record through `field`, over their
  * timestamp `at`: the average or the maximum of each per minute over the last hour, per 5 minutes over the last day
  * and per hour over the last week, read through the aggregate API with the caller's access. A bucket without a sample
- * is a gap. See [Charts of related records](website/src/content/docs/reference/ui-config.mdx#charts-of-related-records).
+ * is a gap. See [Charts of related records](docs/website/src/content/docs/reference/ui-config.mdx#charts-of-related-records).
  */
 export type RecordChartModel = {
   /** A chart of related records. */
@@ -932,7 +932,7 @@ export type RecordChartModel = {
 
 /**
  * The record's changes, newest first, with who made each and the fields before and after: only fields the caller may
- * read. Needs `.history()` on the resource. See [Record history](website/src/content/docs/reference/history.mdx).
+ * read. Needs `.history()` on the resource. See [Record history](docs/website/src/content/docs/reference/history.mdx).
  */
 export type HistorySectionModel = {
   /** A history section. */
@@ -947,7 +947,7 @@ export type HistorySectionModel = {
 
 /**
  * The record's comments, oldest first, each with its author and time, and a box to write a new one that mentions people
- * with `@`. Needs `.comments()` on the resource. See [Record comments](website/src/content/docs/reference/comments.mdx).
+ * with `@`. Needs `.comments()` on the resource. See [Record comments](docs/website/src/content/docs/reference/comments.mdx).
  */
 export type CommentsSectionModel = {
   /** A comments section. */
@@ -961,7 +961,7 @@ export type CommentsSectionModel = {
 /** How a section shows its fields on the read view: `facts` as a row of key facts; label/value rows when omitted. */
 export type SectionPresentation = 'facts'
 
-/** A titled group of fields on the record page; see [The record page](website/src/content/docs/reference/ui-config.mdx#the-record-page). */
+/** A titled group of fields on the record page; see [The record page](docs/website/src/content/docs/reference/ui-config.mdx#the-record-page). */
 export type SectionModel = {
   /** A titled group of fields in the main column, editable where the user may write. */
   kind: 'section'
@@ -982,7 +982,7 @@ export type SectionModel = {
   when?: RecordWhen
 }
 
-/** An item of the record page (`.layout((r) => ...)` with `l`); see [The record page](website/src/content/docs/reference/ui-config.mdx#the-record-page). */
+/** An item of the record page (`.layout((r) => ...)` with `l`); see [The record page](docs/website/src/content/docs/reference/ui-config.mdx#the-record-page). */
 export type LayoutItemModel =
   | SectionModel
   | {
@@ -1003,7 +1003,7 @@ export type LayoutItemModel =
   | CommentsSectionModel
   | TabModel
 
-/** A titled group of sections and related tables on the record page, closed until opened with `collapsed`; see [Groups](website/src/content/docs/reference/ui-config.mdx#groups). */
+/** A titled group of sections and related tables on the record page, closed until opened with `collapsed`; see [Groups](docs/website/src/content/docs/reference/ui-config.mdx#groups). */
 export type GroupModel = {
   /** A group of sections and related tables. */
   kind: 'group'
@@ -1020,7 +1020,7 @@ export type GroupModel = {
 /** An item a group may hold. */
 export type GroupItemModel = SectionModel | RelatedModel
 
-/** A tab of the record page, holding main-column items; a view's tabs stand together as one strip. See [Tabs](website/src/content/docs/reference/ui-config.mdx#tabs). */
+/** A tab of the record page, holding main-column items; a view's tabs stand together as one strip. See [Tabs](docs/website/src/content/docs/reference/ui-config.mdx#tabs). */
 export type TabModel = {
   /** A tab of the record page. */
   kind: 'tab'
@@ -1046,7 +1046,7 @@ export type TabItemModel =
  * A record's photos as tiles in the main column under `title`, one large and the next few smaller, opening a lightbox
  * that steps through them all: first the record's own file field `image`, then the `image` of the records of
  * `photos.resource` whose relation `photos.field` points at it, in `photos.sort` order, as a cards display's `photos`
- * names them. See [Galleries](website/src/content/docs/reference/ui-config.mdx#galleries).
+ * names them. See [Galleries](docs/website/src/content/docs/reference/ui-config.mdx#galleries).
  */
 export type GalleryModel = {
   /** A gallery of photos. */
@@ -1143,7 +1143,7 @@ export type ActionRun =
       writes: string
     }
 
-/** A named action of a view (`.actions((a) => ...)`); see [Named actions](website/src/content/docs/reference/layouts.md#named-actions). */
+/** A named action of a view (`.actions((a) => ...)`); see [Named actions](docs/website/src/content/docs/reference/layouts.md#named-actions). */
 export type ActionModel = {
   /** The action's name, which `<Action name="..." />` and handlers use. */
   name: string
@@ -1184,7 +1184,7 @@ export type ActionModel = {
  */
 export type ActionInputKind = 'text' | 'integer' | 'decimal' | 'boolean' | 'date' | 'choice' | 'custom'
 
-/** One input of a named action's dialog (`inputs: (i) => [...]`); see [Named actions](website/src/content/docs/reference/ui-config.mdx#actions-that-ask-for-input). */
+/** One input of a named action's dialog (`inputs: (i) => [...]`); see [Named actions](docs/website/src/content/docs/reference/ui-config.mdx#actions-that-ask-for-input). */
 export type ActionInputModel = {
   /** The input's name: the key of its answer in the handler's `values`, and how `when` names it. */
   name: string
@@ -1243,7 +1243,7 @@ export type NavRecentModel = {
   marks?: string
 }
 
-/** Where a resource sits in the sidebar (`.nav(...)`); see [Sidebar](website/src/content/docs/reference/sidebar.md). */
+/** Where a resource sits in the sidebar (`.nav(...)`); see [Sidebar](docs/website/src/content/docs/reference/sidebar.md). */
 export type NavModel = {
   /** Hide the resource from the sidebar, for line or link tables. */
   hidden?: boolean
@@ -1304,7 +1304,7 @@ export type UserMenuItemModel =
       icon?: string
     }
 
-/** The menu under the signed-in user (`userMenu(...)`); see [User menu](website/src/content/docs/reference/user-menu.md). */
+/** The menu under the signed-in user (`userMenu(...)`); see [User menu](docs/website/src/content/docs/reference/user-menu.md). */
 export type UserMenuModel = {
   /** Its entries, in order, before the built-in account pages and "Sign out". */
   items: UserMenuItemModel[]
@@ -1345,7 +1345,7 @@ export type BottomBarItemModel =
 
 /**
  * A bottom bar for the users holding one of `roles`; `label` names it in the role view switcher. See
- * [Bottom bar](website/src/content/docs/reference/bottom-bar.md).
+ * [Bottom bar](docs/website/src/content/docs/reference/bottom-bar.md).
  */
 export type BottomBarModel = {
   /** The bar's name, where someone with several switches between them. */
@@ -1383,7 +1383,7 @@ export type TitleFromModel = {
 
 /**
  * How the admin shows a resource: its names, list, filters, record page and actions, built by `view(...)` and sent to
- * each user in `/meta` without what they cannot see. See [Views](website/src/content/docs/reference/ui-config.mdx).
+ * each user in `/meta` without what they cannot see. See [Views](docs/website/src/content/docs/reference/ui-config.mdx).
  */
 export type ViewModel = {
   /** The resource it shows. */
@@ -1478,7 +1478,7 @@ export type NamedListModel = {
 /**
  * A public form (`.form(...)`): anyone, signed in or not, opens it at `/-/forms/<name>` and creates a record with its
  * fields, through the `anonymous` role's `create`, behind a rate limit and a bot check. See
- * [Public forms](website/src/content/docs/reference/forms.mdx).
+ * [Public forms](docs/website/src/content/docs/reference/forms.mdx).
  */
 export type FormModel = {
   /** Its address in the app, `/-/forms/<name>`; unique across the app. */
@@ -1605,7 +1605,7 @@ export type CompareOp = '=' | '!=' | '<' | '<=' | '>' | '>='
 
 /**
  * A filter's syntax tree: AIP-160 with the functions the API adds (`search`, `similar`, `regex`, `isNull`, `in`); see
- * [Filters](website/src/content/docs/reference/api.md#filters). `F` is how a field is represented: a `FieldPath` when
+ * [Filters](docs/website/src/content/docs/reference/api.md#filters). `F` is how a field is represented: a `FieldPath` when
  * parsed (`FilterExpr`), a `FieldModel` once checked (`CheckedFilter`).
  */
 export type FilterOf<F> =

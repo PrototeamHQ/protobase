@@ -1,6 +1,6 @@
 # Version management
 
-How a project chooses the Protobase it runs on, and how that version moves locally, in CI and on Protobase Cloud. This is a design document: it records the decided model and marks what is built today and what is planned. The user-facing pages (`website/src/content/docs/reference/versioning.md`, `reference/cli.md`) describe only what is built.
+How a project chooses the Protobase it runs on, and how that version moves locally, in CI and on Protobase Cloud. This is a design document: it records the decided model and marks what is built today and what is planned. The user-facing pages (`docs/website/src/content/docs/reference/versioning.md`, `reference/cli.md`) describe only what is built.
 
 The facts about today are those of Protobase 0.49.2 and Protobase Cloud's matching release. Release timing, including when 1.0 is cut, is out of scope.
 

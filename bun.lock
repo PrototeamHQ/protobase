@@ -53,6 +53,24 @@
         "zod": "^4.6.5",
       },
     },
+    "docs/website": {
+      "name": "website",
+      "version": "0.0.0",
+      "dependencies": {
+        "@astrojs/starlight": "^0.42.6",
+        "@fontsource-variable/instrument-sans": "^5.3.0",
+        "@fontsource/ibm-plex-mono": "^5.3.0",
+        "astro": "^7.3.8",
+        "sharp": "^0.35.5",
+        "starlight-links-validator": "^0.26.0",
+        "starlight-typedoc": "^0.23.1",
+        "typedoc": "^0.28.20",
+        "typedoc-plugin-markdown": "^4.13.1",
+      },
+      "devDependencies": {
+        "wrangler": "^4.149.0",
+      },
+    },
     "packages/cli": {
       "name": "@protobase/cli",
       "version": "0.14.2",
@@ -373,24 +391,6 @@
         "@types/react": "^19.3.0",
         "typescript": "^6.0.3",
         "vitest": "^5.0.3",
-      },
-    },
-    "website": {
-      "name": "website",
-      "version": "0.0.0",
-      "dependencies": {
-        "@astrojs/starlight": "^0.42.6",
-        "@fontsource-variable/instrument-sans": "^5.3.0",
-        "@fontsource/ibm-plex-mono": "^5.3.0",
-        "astro": "^7.3.8",
-        "sharp": "^0.35.5",
-        "starlight-links-validator": "^0.26.0",
-        "starlight-typedoc": "^0.23.1",
-        "typedoc": "^0.28.20",
-        "typedoc-plugin-markdown": "^4.13.1",
-      },
-      "devDependencies": {
-        "wrangler": "^4.149.0",
       },
     },
   },
@@ -2565,7 +2565,7 @@
 
     "webpack-virtual-modules": ["webpack-virtual-modules@0.6.2", "", {}, "sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ=="],
 
-    "website": ["website@workspace:website"],
+    "website": ["website@workspace:docs/website"],
 
     "when-exit": ["when-exit@2.1.5", "", {}, "sha512-VGkKJ564kzt6Ms1dbgPP/yuIoQCrsFAnRbptpC5wOEsDaNsbCB2bnfnaA8i/vRs5tjUSEOtIuvl9/MyVsvQZCg=="],
 

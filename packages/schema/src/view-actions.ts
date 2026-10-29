@@ -84,7 +84,7 @@ export const actions = {
   },
   /**
    * Has the model write the `writes` field of the record from `prompt`, `{field}` replaced by the record's values, as the
-   * user who clicks; see [AI fields and actions](website/src/content/docs/reference/ai.mdx). The prompt may name the
+   * user who clicks; see [AI fields and actions](docs/website/src/content/docs/reference/ai.mdx). The prompt may name the
    * field it writes, to rewrite or translate it in place.
    */
   ai: (name: string, o: ActionOptions & { prompt: string; writes: string }): ActionModel => {

@@ -21,7 +21,7 @@ export type UserMenuSource = {
 
 /**
  * The pages under the signed-in user, at the bottom of the sidebar, above the built-in "Sign out": `m.resource`,
- * `m.page` and `m.link`. Export it from the config module. See [User menu](website/src/content/docs/reference/user-menu.md).
+ * `m.page` and `m.link`. Export it from the config module. See [User menu](docs/website/src/content/docs/reference/user-menu.md).
  */
 export const userMenu = (build: (m: typeof items) => UserMenuItemModel[]): UserMenuSource => {
   const model: UserMenuModel = { items: build(items) }

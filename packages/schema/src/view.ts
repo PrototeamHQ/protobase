@@ -71,7 +71,7 @@ export type FieldViews<R extends {
 
 /**
  * A view of a resource, as `view(...)` starts it: how the admin shows it. Each method returns a new view, so one view
- * can build on another. See [UI config](website/src/content/docs/reference/ui-config.mdx).
+ * can build on another. See [UI config](docs/website/src/content/docs/reference/ui-config.mdx).
  */
 export class ViewBuilder<R extends {
   /** The resource's fields, as `resource(...)` declares them. */
@@ -127,9 +127,9 @@ export class ViewBuilder<R extends {
 
   /**
    * Where the resource sits in the sidebar; `recent` lists a few of its records under the entry (see
-   * [Sidebar](website/src/content/docs/reference/sidebar.md#recent-records)), and `tenant: 'current'` opens it on the
-   * caller's own tenant (see [The current organization](website/src/content/docs/reference/sidebar.md#the-current-organization)),
-   * and `create` links to the create form under it (see [Create link](website/src/content/docs/reference/sidebar.md#create-link)).
+   * [Sidebar](docs/website/src/content/docs/reference/sidebar.md#recent-records)), and `tenant: 'current'` opens it on the
+   * caller's own tenant (see [The current organization](docs/website/src/content/docs/reference/sidebar.md#the-current-organization)),
+   * and `create` links to the create form under it (see [Create link](docs/website/src/content/docs/reference/sidebar.md#create-link)).
    */
   nav(nav: NavInput<R>) {
     return this.next({ nav })
@@ -152,7 +152,7 @@ export class ViewBuilder<R extends {
    * columns that are `editable` in their cell, and other `displays` to switch to (`d.cards`, `d.map`, `d.board`, `d.calendar`, `d.timeline`, `d.custom`), one of which
    * may be the `default` the list opens in, and what `drag` lets a user change by dragging, nothing unless it says.
    * Throws when display or column names collide, `default` names none or an editable field is not among the columns. See
-   * [Editing in the list](website/src/content/docs/reference/ui-config.mdx#editing-in-the-list).
+   * [Editing in the list](docs/website/src/content/docs/reference/ui-config.mdx#editing-in-the-list).
    */
   list(
     build: (
@@ -206,7 +206,7 @@ export class ViewBuilder<R extends {
    * fresh view and sets its `names` (the sidebar entry, required), `nav`, `help`, `list`, `filters` and `chart`, none of
    * which come from the view's own list. Its records open at the resource's own address. Throws on a name that does not
    * fit an address or repeats, on anything else set, on `nav.recent`, and in `toModel` when the view has `listOf` or
-   * `searchesOf`. See [More than one list](website/src/content/docs/reference/ui-config.mdx#more-than-one-list).
+   * `searchesOf`. See [More than one list](docs/website/src/content/docs/reference/ui-config.mdx#more-than-one-list).
    */
   namedList(name: string, build: (v: ViewBuilder<R>) => ViewBuilder<R>) {
     const where = `View "${this.state.resource}": named list "${name}"`
@@ -252,7 +252,7 @@ export class ViewBuilder<R extends {
    * `fields` a visitor fills in, the `thanks` shown once it is sent, a `title` (the view's singular name by default) and
    * how many submissions one client may send `perMinute` (default 5). The `anonymous` role must grant `create` of those
    * fields; the form is the only way it creates. Each call adds a form. Throws on a name that does not fit an address, no
-   * or repeated fields, or an empty `thanks`. See [Public forms](website/src/content/docs/reference/forms.mdx).
+   * or repeated fields, or an empty `thanks`. See [Public forms](docs/website/src/content/docs/reference/forms.mdx).
    */
   form(build: (r: FieldRefs<FieldsOf<R>>) => FormInput) {
     return this.next({ forms: [...(this.state.forms ?? []), formModel(build(this.refs()))] })
@@ -262,7 +262,7 @@ export class ViewBuilder<R extends {
    * How the record page opens to a user who may change the record: `edit`, the default, as its form; `read` as a read
    * view, its sections as tables of labels and values, with an Edit button to the form; `locked` as the form, locked
    * until Edit is pressed. A user who may not change it gets the read view in every mode. The form has its own address
-   * (`edit: true`), so it opens in a new tab and Back leaves it. See [The record page](website/src/content/docs/reference/ui-config.mdx#read-view-and-edit).
+   * (`edit: true`), so it opens in a new tab and Back leaves it. See [The record page](docs/website/src/content/docs/reference/ui-config.mdx#read-view-and-edit).
    */
   recordMode(recordMode: RecordMode) {
     return this.next({ recordMode })
@@ -284,7 +284,7 @@ export class ViewBuilder<R extends {
   /**
    * Whether the list page offers Import, which creates or updates records from an .xlsx or CSV file the user picks
    * (`true`, the default, to users who may create records); `.import(false)` turns it off. See
-   * [Importing records](website/src/content/docs/reference/ui-config.mdx#importing-records).
+   * [Importing records](docs/website/src/content/docs/reference/ui-config.mdx#importing-records).
    */
   import(enabled: boolean) {
     return this.next({ import: enabled })
@@ -311,9 +311,9 @@ export class ViewBuilder<R extends {
    * What a visitor who is not signed in is told about this resource, which they could use once signed in: on its list
    * page, in place of the list, and in the dialog of a card's favorite button or a list's "Save search" button that
    * saves here. The page offers "Sign in", and a way to make an account: the page `signUp` names, or the app's own sign-up
-   * when the server has [open sign-up](website/src/content/docs/reference/auth.md#open-sign-up). With it, the resource keeps its place in the bottom
+   * when the server has [open sign-up](docs/website/src/content/docs/reference/auth.md#open-sign-up). With it, the resource keeps its place in the bottom
    * bar and the sidebar of visitors. Throws when `signUp.href` is not `https:`, `http:` or `mailto:`. See
-   * [Sign-in prompts](website/src/content/docs/reference/ui-config.mdx#sign-in-prompts).
+   * [Sign-in prompts](docs/website/src/content/docs/reference/ui-config.mdx#sign-in-prompts).
    */
   signIn(prompt: SignInPromptModel) {
     if (prompt.signUp && !isMenuHref(prompt.signUp.href)) throw new Error(`View "${this.state.resource}": signIn signUp.href must start with https://, http:// or mailto:`)
@@ -324,7 +324,7 @@ export class ViewBuilder<R extends {
    * A "Save search" button on the list page while its filter narrows it: it saves the filter as a record of `resource`,
    * the signed-in user's own, whose view lists them with `.searchesOf(...)`, and takes it off again while pressed. A
    * visitor is told what signing in gives, when that view has `.signIn(...)`. See
-   * [Saved searches](website/src/content/docs/reference/ui-config.mdx#saved-searches).
+   * [Saved searches](docs/website/src/content/docs/reference/ui-config.mdx#saved-searches).
    */
   saveSearch(search: SaveSearchModel) {
     return this.next({ saveSearch: { ...search } })
@@ -334,7 +334,7 @@ export class ViewBuilder<R extends {
    * Whether the list page offers Export, which saves its rows as an Excel or CSV file built in the browser: `false`
    * takes it away, `{ maxRows }` limits how many rows a file holds. A list offers it by default. It only shapes the
    * page: the rows and fields a file holds are those the list API gives the user. Throws when `maxRows` is not a
-   * positive whole number. See [Exports](website/src/content/docs/reference/ui-config.mdx#exports).
+   * positive whole number. See [Exports](docs/website/src/content/docs/reference/ui-config.mdx#exports).
    */
   export(options: false | ExportModel) {
     if (options && options.maxRows !== undefined && !(Number.isInteger(options.maxRows) && options.maxRows > 0)) {
@@ -348,7 +348,7 @@ export class ViewBuilder<R extends {
    * shows it with the address's `values`, and the list's New button opens it for whoever may open the page, whatever the
    * resource's `create` access. So the resource's API can refuse creates (`create: never`) while the page creates
    * through an API function. The server refuses a page that does not exist when it starts. See
-   * [Create pages](website/src/content/docs/reference/ui-config.mdx#create-pages).
+   * [Create pages](docs/website/src/content/docs/reference/ui-config.mdx#create-pages).
    */
   create(options: CreateModel) {
     return this.next({ create: { ...options } })
@@ -360,7 +360,7 @@ export class ViewBuilder<R extends {
    * page does not scroll. It reads the record with `useLayoutRecord()`. The standard record page stays at the record's
    * address with `standard: true`, which the component links to; it shows instead while the component is missing or
    * when it throws. Throws when `component` is a built-in block. See
-   * [Full-area record pages](website/src/content/docs/reference/ui-config.mdx#full-area-record-pages).
+   * [Full-area record pages](docs/website/src/content/docs/reference/ui-config.mdx#full-area-record-pages).
    */
   record(options: { component: ComponentRef<never> }) {
     const record: RecordPageModel = { component: customComponent(options.component, 'record component') }
@@ -373,7 +373,7 @@ export class ViewBuilder<R extends {
    * `unseen`, newest first, those new since the user last opened its results marked) and a link to all of them. Throws in
    * `toModel` when `filter` or `name` is not a text field, `unseen.seenAt` not a timestamp or a control not an enum or
    * boolean field.
-   * See [Saved searches](website/src/content/docs/reference/ui-config.mdx#saved-searches).
+   * See [Saved searches](docs/website/src/content/docs/reference/ui-config.mdx#saved-searches).
    */
   searchesOf(
     pick: (r: FieldRefs<FieldsOf<R>>) => {
@@ -476,7 +476,7 @@ export class ViewBuilder<R extends {
 
 /**
  * Starts the view of a resource: how the admin shows it. Pass the resource's type, so every field reference (`r.status`)
- * is checked against it. See [UI config](website/src/content/docs/reference/ui-config.mdx).
+ * is checked against it. See [UI config](docs/website/src/content/docs/reference/ui-config.mdx).
  *
  * @example
  * ```ts

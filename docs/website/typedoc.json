@@ -1,0 +1,17 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "@protobase/schema",
+  "entryPoints": ["../../packages/schema/src/index.ts"],
+  "tsconfig": "./typedoc.tsconfig.json",
+  "basePath": "../..",
+  "plugin": ["./typedoc-doc-pages.mjs"],
+  "excludeExternals": true,
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "packagesRequiringDocumentation": ["@protobase/schema"],
+  "intentionallyNotExported": ["Prettify", "ActiveFields", "FieldsOf"],
+  "validation": { "notExported": true, "notDocumented": true, "invalidLink": true, "invalidPath": true },
+  "treatValidationWarningsAsErrors": true,
+  "sort": ["kind", "instance-first", "alphabetical-ignoring-documents"]
+}

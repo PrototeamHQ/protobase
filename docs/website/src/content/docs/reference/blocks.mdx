@@ -1,0 +1,386 @@
+---
+title: Blocks
+description: Every built-in layout block, its props and what it does, with examples from the ERP's sales overview.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import erpPage from '../../../../../../tests/apps/erp/config/overview/page.tsx?raw'
+
+Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. The ERP example's sales overview uses `Page`, `Grid`, `Card`, `Stat`, `Table`, `RecordCard`, `CardRow`, `Field`, `Chart`, `Action`, `ModalForm` and `Show`; of the others, the property portal's home uses `RecordRow`, and the [Users page](/reference/auth/#users-page) `Users`:
+
+<Code code={erpPage} lang="tsx" title="tests/apps/erp/config/overview/page.tsx" />
+
+## Layout
+
+### Page
+
+The root of every page, and only the root.
+
+| Prop | |
+| --- | --- |
+| `title` | Heading, and the page's name in the sidebar and breadcrumbs. Required. |
+| `description` | A line under the title. |
+| `actions` | Elements beside the title, such as a `ModalForm`. |
+
+### Grid
+
+Columns that collapse to one on a phone, or to two when the grid holds only `Stat`s. A child's `span` (1 to 4) makes it wider.
+
+| Prop | |
+| --- | --- |
+| `columns` | 1 to 4; default 2. |
+| `span` | Its own width when it sits in another grid. |
+
+```tsx
+<Grid columns={4}>
+  <Stat label="Draft orders" resource="orders" filter="status = 'draft'" />
+  ...
+</Grid>
+```
+
+### Card
+
+A box with a heading. Text and `Link`s inside it run together as paragraphs.
+
+| Prop | |
+| --- | --- |
+| `title`, `description` | The heading. |
+| `actions` | Elements in the heading. |
+| `span` | Width in a grid. |
+
+```tsx
+<Card title="No orders yet">Create the first order from Orders; this page fills up as the team sells.</Card>
+```
+
+### Link
+
+A link in text: `to` an address in the app, or an `href` that leaves it (`https:` opens in a new tab, `mailto:` in the mail app). Its text is its children.
+
+```tsx
+<Link to={{ kind: 'list', resource: 'invoices', filter: "status = 'overdue'" }}>Overdue invoices</Link>
+```
+
+| Prop | |
+| --- | --- |
+| `to` | An [address](/reference/layouts/#addresses). Inside a record, `{field}` in its key, filter or order is the record's value. |
+| `href` | A link that leaves the app. A path in the app is refused when the config loads: give it as `to`. |
+
+One of the two is required. A link to a resource or field the user cannot see is left out of their page.
+
+### Tabs and Tab
+
+`Tabs` splits a page into tabs, each at its own address: the first at the page's (`/<page>`), each other at its name below it (`/<page>/<name>`). Only the shown tab's elements are drawn, so the others load nothing. On a phone the tabs are a select. `Tabs` takes no props and holds only `Tab`s; it sits directly in the `Page`, once per page, with other elements before or after it if you like.
+
+| `Tab` prop | |
+| --- | --- |
+| `name` | The tab's address, after the page's, and how a [link](/reference/layouts/#addresses) opens it (`{ kind: 'page', page, tab }`). Lowercase first letter, then letters, digits and dashes; one per tab. Required. |
+| `label` | The tab's word in the row of tabs, and before the page's title in the browser tab. Required. |
+
+```tsx
+<Page title="Settings">
+  <Tabs>
+    <Tab name="general" label="General">
+      <Card title="Opening hours">Monday to Friday, 8:00 to 17:30.</Card>
+    </Tab>
+    <Tab name="billing" label="Billing">
+      <Table title="Invoices" resource="invoices" />
+    </Tab>
+  </Tabs>
+</Page>
+```
+
+A tab whose every element a user may not see is left out of their page, and so are tabs left with none. An address with a tab name the page has no tab for (or not for this user) shows the tabs and says so.
+
+## Data
+
+### Stat
+
+One number or value with a label. Exactly one of `value`, `resource` and `field`.
+
+| Prop | |
+| --- | --- |
+| `label` | Required. |
+| `value` | A fixed value. |
+| `resource`, `filter` | Counts the matching records the user can see; the card links to that filtered list. |
+| `field` | A field of the record, through relations (`plan.name`). |
+| `format` | Instead of the view's [format](/reference/ui-config/#names-and-columns), such as `badge`. |
+| `description` | A line under the value. |
+| `span` | Width in a grid. |
+
+```tsx
+<Stat label="Delivered, not paid" resource="orders" filter="status = 'delivered' AND paid = false" />
+```
+
+### Table
+
+The first records of a list, drawn the way the resource's list page draws them: its table, or one of the view's [list displays](/reference/ui-config/#list-displays) such as cards, with the same switch between them when the view has several. A row or card opens the record, and **View all** opens the list with the same filter and order. On a phone a view with a cards display opens in it, as one row of cards that scrolls sideways; a display the viewer picks is kept for them in the browser.
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
+| `columns` | Field names for the table; default the view's list columns. |
+| `limit` | How many records it shows; default 10. It has no pages: the rest are in the list. Before 0.13 this was `pageSize`, rows per page; rename it. |
+| `display` | The display it opens in, such as `cards`; default the list's. |
+| `title`, `description`, `actions` | The heading. |
+| `empty` | Text when nothing matches; default "Nothing here yet.". |
+| `span` | Width in a grid. |
+
+```tsx
+<Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} limit={5} empty="Nothing is overdue." />
+```
+
+### RecordCard
+
+One record and what is inside it: the one `recordKey` names (the key as the record's URL has it), else the first that matches `filter` in `sort` order. Its children and its heading `actions` work on that record.
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter`, `sort` | Which record. `resource` is required. |
+| `recordKey` | A fixed record instead. |
+| `title`, `description`, `actions` | The heading. |
+| `empty` | Text when no record matches. |
+| `span` | Width in a grid. |
+
+```tsx
+<RecordCard title="Biggest unpaid delivery" resource="orders" filter="status = 'delivered' AND paid = false" sort="total desc" actions={<Action name="markPaid" variant="primary" />}>
+  <Field name="number" />
+  <Field name="company_id.city" label="City" />
+</RecordCard>
+```
+
+### CardRow
+
+Up to `limit` records side by side, each a small card made from the children, which work on that card's record. The heading's `actions` do not have a record: use them for a `ModalForm mode="create"`.
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter`, `sort` | Which records, in which order. `resource` is required. |
+| `limit` | How many; default 12. |
+| `title`, `description`, `actions` | The heading. |
+| `empty` | Text when nothing matches. |
+| `span` | Width in a grid. |
+
+### RecordRow
+
+What a filter finds, the way a home page shows it: the filter's chips, as the list's filter panel names them, how many records match, the records as the cards of the resource's [cards display](/reference/ui-config/#list-displays) in one row, and **View all**, which opens the list with the same filter and order. The row scrolls sideways by touch, trackpad or its arrow buttons; only the cards near the view are drawn, and the records load through the list API in pages as it scrolls. Each card opens its record. A resource without a cards display gets cards of the title alone.
+
+It follows the resource's view as its list page does. Of a resource whose view has [`listOf`](/reference/ui-config/#favorites), such as favorites, it shows the records the user's saved ones point at, as their own resource's cards, and **View all** opens the favorites. Of one whose view has [`searchesOf`](/reference/ui-config/#saved-searches), it shows a row for each of the user's saved searches, under its name or its filters, with the records new to them marked **New** and **View all results**, as their list page shows them. `filter` and `sort` do not apply to those two.
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
+| `limit` | How many records it shows at most; default every one that matches. |
+| `display` | The cards display whose cards it draws; default the view's first. |
+| `title`, `description`, `actions` | The heading. |
+| `empty` | Text when nothing matches; default "No … match.", with the view's plural. |
+| `span` | Width in a grid. |
+
+```tsx
+<RecordRow title="For rent" resource="listings" filter="for_rent = true AND status = 'available'" sort="published_at desc" />
+```
+
+### RecordCards
+
+What a filter finds as the cards of a record page's [related records as cards](/reference/ui-config/#related-records-as-cards), stacked full width under a heading that has no card around it, so the page shows no card inside another: each record's title linking to its page, its `fields` under their labels, a value taller than a few lines cut short with **Show more**, and a button for each of `cardActions`, run as on the record page. Below the cards, **View all** opens the list with the same filter and order, beside a note such as "The first 10 of 37." when there are more.
+
+With `layout="carousel"` the cards sit side by side in one row that scrolls sideways, by touch, trackpad, mouse wheel or its scrollbar, and snaps each card to its left edge. Each card is `cardWidth` of the block's width, so the next one peeks in, but never narrower than 12rem, so narrow cards stay readable on a phone. The cards are top aligned and keep their fields and buttons.
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
+| `layout` | `stack` (default) or `carousel`. |
+| `cardWidth` | In a carousel, the width of each card as a share of the block's: `1/4`, `1/3`, `1/2` or `2/3` (default). |
+| `fields` | The fields each card shows, through relations too (`task_id.title`); default the list's columns. |
+| `cardActions` | Named actions of the resource's view, as buttons on each card. |
+| `limit` | How many; default 10. |
+| `display` | The list display **View all** opens; default the list's. |
+| `title`, `description`, `actions` | The heading. |
+| `empty` | Text when nothing matches. |
+| `span` | Width in a grid. |
+
+```tsx
+<RecordCards title="Waiting on you" resource="task_preconditions" filter="state = 'waiting'" fields={['task_id', 'plan']} cardActions={['approve', 'request_changes']} />
+<RecordCards title="Runners" resource="runners" layout="carousel" cardWidth="1/4" fields={['state']} />
+```
+
+### Field
+
+A label over a value of the record, formatted as on the record page: statuses as badges with the view's value labels, relations as the related record's name (linked), the view's prefix and decimals.
+
+| Prop | |
+| --- | --- |
+| `name` | A field, through relations (`company_id.city`). Required. |
+| `label` | Default: the view's label, else the name in words. `false` shows the value alone. |
+| `format` | Instead of the view's [format](/reference/ui-config/#names-and-columns). |
+
+### Progress
+
+A bar for `value` out of `max`, with both numbers. It turns amber from 90%.
+
+| Prop | |
+| --- | --- |
+| `value` | A number, or the name of a field of the record. Required. |
+| `max` | A number or a field; default 100. |
+| `label`, `span` | |
+
+```tsx
+<Progress label="Seats" value="seats_used" max="plan.seats" />
+```
+
+### Chart
+
+Counts, sums or averages of the records that match `filter`, per value of a field or per hour, day, week, month or year of a date field, in a card. It reads [`:aggregate`](/reference/api/#routes), so only what the user may see is counted, and the grouped field needs an index ([scan guard](/reference/api/#safety)).
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter` | The records it counts. `resource` is required. |
+| `groupBy` | A filterable field. Values, such as an enum, a boolean or a relation (named by the related record), are ranked bars or a donut, each linking to its records; a date or timestamp field is a bar or line per bucket, empty ones included. Required. |
+| `splitBy` | With a date `groupBy`: a field of values that splits each bucket, as stacked bars or a line per value; its 8 largest values over the range, the rest as Other for a count or sum. An index must serve it. A stacked bar takes no average. |
+| `type` | `bar` (the default), `line` for a date `groupBy`, `donut` for one of values. |
+| `sum`, `average` | A numeric field each group adds up or averages, with its prefix, suffix and decimals, instead of counting. One of the two; a donut takes no average. |
+| `granularity`, `range` | A date `groupBy`'s bucket, `hour` to `year` (default `day`), and how far back it reaches: `7d`, `30d` (the default), `90d`, `1y` or `all`. |
+| `limit` | How many values it shows, the largest; default 10. |
+| `title`, `description`, `actions`, `empty`, `span` | As on `Table`. |
+
+```tsx
+<Chart title="Orders by status" resource="orders" groupBy="status" type="donut" />
+<Chart title="Revenue by customer" resource="orders" groupBy="company_id" sum="total" filter="status != 'cancelled'" limit={5} />
+<Chart title="Invoiced per month" resource="invoices" groupBy="issued_at" granularity="month" range="1y" type="line" sum="total" />
+<Chart title="Revenue per day by status" resource="orders" groupBy="created_at" splitBy="status" sum="total" />
+```
+
+Each value takes its colour from the view's `valueColors`, else an enum value's place among its values, from the [chart tokens](/reference/theme/#tokens). A chart whose field the user cannot read is left out of their page, and a field it cannot group or add up stops the server at startup.
+
+## Behaviour
+
+### Action
+
+A button for a [named action](/reference/layouts/#named-actions) of the view, on the record around it.
+
+| Prop | |
+| --- | --- |
+| `name` | The action's name in the view. Required. |
+| `resource` | Outside a record: the resource whose view declares it. |
+| `label` | Default: the action's label. |
+| `variant` | `primary`, `secondary` (default), `danger` or `ghost`. |
+
+### ModalForm
+
+A button that opens a form in a dialog. `create` makes a record of `resource`; `edit` changes the record around it (or `resource` with `recordKey`), sending only the changed fields with the record's ETag. The editors are the record page's, and errors from the server show on their fields. It is not shown to a user who may not create or update, and it keeps only the fields they may write.
+
+| Prop | |
+| --- | --- |
+| `mode` | `create` or `edit`. Required. |
+| `label` | The button. Required. |
+| `fields` | The fields of the form, writable ones only. Required. |
+| `resource` | Default: the record's resource. |
+| `recordKey` | Edit this record. |
+| `title` | The dialog's title; default the label. |
+| `values` | Sent with every create, such as `{ status: 'lead' }` or a parent's key. |
+| `variant` | As for `Action`. |
+
+```tsx
+<ModalForm mode="create" label="Add lead" resource="companies" fields={['name', 'city', 'country_code', 'email']} values={{ status: 'lead' }} />
+```
+
+### Show
+
+Its children while [`when`](/reference/layouts/#conditions) holds.
+
+| Prop | |
+| --- | --- |
+| `when` | A condition. Required. |
+
+```tsx
+<Show when="orders.count = 0">
+  <Card title="No orders yet">...</Card>
+</Show>
+```
+
+## Accounts
+
+### Users
+
+Everyone who can sign in, for admins: find them by address, tick their roles, block or unblock them, invite someone by email and add an account. It takes no props or children. The [Users page](/reference/auth/#users-page) is a `Page` with it alone; a page of your own can put it beside other blocks, with `roles: ['admin']`, since the server refuses everyone else.
+
+```tsx
+<Page title="People">
+  <Users />
+</Page>
+```
+
+### Account blocks
+
+`Profile`, `Password`, `Passkeys`, `TwoFactor`, `ConnectedAccounts`, `Devices`, `ConnectedApps` and `DeleteAccount` are the parts of the signed-in person's own account: their name and address (which they can change, the address with an [emailed code](/reference/auth/#changing-the-address)), their [password](/reference/auth/#name-password-and-devices) (changed, or set for the first time), their [passkeys](/reference/auth/#passkeys), [two-factor authentication](/reference/auth/#two-factor-authentication), the sign-in providers they linked, the devices signed in as them (each one but this one to [sign out](/reference/auth/#name-password-and-devices)), the apps such as MCP clients they allowed to act as them, below the app's MCP address to connect one, and the [deletion of their account](/reference/auth/#deleting-the-account). Each takes no props or children, reads its own data, and leaves itself out where it does not apply: `ConnectedAccounts` without an OAuth sign-in provider, `ConnectedApps` without MCP, `DeleteAccount` with `auth.accountDeletion: false`. They act on whoever is signed in, so they are allowed on the page named `account` alone; anywhere else stops the config. That page is the [account page](/reference/auth/#account-page) at `/-/account`, which `accountTabs` helps build from the standard tabs.
+
+```tsx
+export const account = page('account',
+  <Page title="Account">
+    <Profile />
+    <Passkeys />
+    <TwoFactor />
+  </Page>)
+```
+
+### Settings
+
+The signed-in person's own record of `resource` as settings, one field under the other with its label and help: a switch for a boolean, a select for an enum, an input for the other types. A switch or a select saves as soon as it changes; typed values save with **Save**, or Enter. Until the person saves for the first time there is no record, and each field shows its `.default(...)`; the first save creates the record, owned by them, and later saves update it with its ETag. Errors from the server show on their fields.
+
+| Prop | |
+| --- | --- |
+| `resource` | A resource whose `.owner(...)` field is its key, so each person has one record. Required. |
+| `fields` | The fields it shows; default every field a person can set: not the key, read-only, sensitive or file fields. |
+| `title`, `description` | Its heading. |
+| `span` | As for `Card`. |
+
+**Each person's own, admins too.** Every caller of the API, an admin holding `*` included, reads and writes only the records of the resource they own, wherever they ask: the block, the resource's list and record pages, exports, the API and API functions. A caller without a token gets nothing of it. Only SQL of your own and the built-in assistant's [SQL tools](/reference/assistant/#the-built-in-backend), which run outside the access rules for every resource, read every row. The roles still decide who has settings at all: give each role that should `<resource>.read.own`, `.create.own` and `.update.own`. Someone who may read but not write sees the values, not controls; someone who may not read gets no block, and a field they may not read is left out.
+
+The startup check stops the config when the resource has no `.owner(...)`, when its owner is not its whole key, when it has a [tenant](/reference/data-config/#resource) (settings are each person's own, not an organization's), when it has no field a person can set, and when `fields` names an unknown, key, sensitive or file field.
+
+A person's notification choices, in a tab of the [account page](/reference/auth/#account-page); the guide [Add a personal setting](/guides/personal-setting/) walks through the ERP example's. The table has one row per person, keyed by their user id, which is text with Better Auth:
+
+```sql
+-- db/migrations/012_preferences.sql
+create table preferences (
+  user_id text primary key,
+  digest text not null default 'weekly' check (digest in ('daily', 'weekly', 'never')),
+  mentions boolean not null default true
+);
+```
+
+```ts
+// config/preferences/data.ts
+export const preferences = resource('preferences')
+  .table('preferences')
+  .fields({ user_id: f.text(), digest: f.enum(['daily', 'weekly', 'never']).default('weekly'), mentions: f.boolean().default(true) })
+  .primaryKey((r) => r.user_id)
+  .owner((r) => r.user_id)
+
+// config/preferences/ui.ts: labels, help and the values' words, and no sidebar entry
+export const preferencesView = view<typeof preferences>('preferences')
+  .nav({ hidden: true })
+  .fields((r) => ({
+    digest: r.digest.label('Email digest').help('A summary of what changed in your orders.').valueLabels({ daily: 'Every day', weekly: 'Every week', never: 'Never' }),
+    mentions: r.mentions.label('Email me when someone mentions me'),
+  }))
+
+// roles: everyone who signs in has their own
+member: ['preferences.read.own', 'preferences.create.own', 'preferences.update.own', ...]
+```
+
+```tsx
+// config/account.tsx
+export const account = page('account',
+  <Page title="Account">
+    <Tabs>
+      {accountTabs.profile}
+      {accountTabs.security}
+      <Tab name="notifications" label="Notifications">
+        <Settings resource="preferences" title="Notifications" description="What we email you about." />
+      </Tab>
+    </Tabs>
+  </Page>)
+```
+
+Other code reads the choices with SQL, such as a job that sends the digest: `select user_id from preferences where digest = 'daily'`. Someone who never saved has no row, so it reads the default for them: `coalesce(digest, 'weekly')` over a left join from the users.
+

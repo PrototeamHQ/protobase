@@ -14,7 +14,7 @@ export const columns = {
    * `through`, through a join resource, as a related section's. Each record is a dot in the colour its `status` value
    * has in its view's `valueColors`, in `sort` order, and a link to the record, showing its card on hover or focus. The
    * name must not be a field of the resource. See
-   * [Related records in a list](website/src/content/docs/reference/ui-config.mdx#related-records-in-a-list).
+   * [Related records in a list](docs/website/src/content/docs/reference/ui-config.mdx#related-records-in-a-list).
    */
   related: (name: string, o: Omit<RelatedColumnModel, 'name'>): ListColumn => ({ kind: 'related', name, ...structuredClone(o) }),
 }

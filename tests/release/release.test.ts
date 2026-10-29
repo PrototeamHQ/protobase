@@ -131,8 +131,8 @@ describe('scripts/release.mjs', () => {
 
   describe('the features release rule', () => {
     const changeDocs = async (message: string) => {
-      await mkdir(path.join(repo, 'website/src/content/docs'), { recursive: true })
-      await writeFile(path.join(repo, 'website/src/content/docs/page.md'), message)
+      await mkdir(path.join(repo, 'docs/website/src/content/docs'), { recursive: true })
+      await writeFile(path.join(repo, 'docs/website/src/content/docs/page.md'), message)
       git('add', '.')
       commit(message)
     }
@@ -166,8 +166,8 @@ describe('scripts/release.mjs', () => {
     it('does not count changes to the generated API reference as docs', async () => {
       commit('feat: the first feature')
       tag('v0.1.0')
-      await mkdir(path.join(repo, 'website/src/content/docs/api'), { recursive: true })
-      await writeFile(path.join(repo, 'website/src/content/docs/api/index.md'), 'generated')
+      await mkdir(path.join(repo, 'docs/website/src/content/docs/api'), { recursive: true })
+      await writeFile(path.join(repo, 'docs/website/src/content/docs/api/index.md'), 'generated')
       git('add', '.')
       commit('feat: a feature with only a regenerated API reference')
       expect(() => dryRun('--features-release-rule')).toThrow('features with no docs change since v0.1.0')

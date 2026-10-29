@@ -1,0 +1,90 @@
+---
+title: Events
+description: Events a resource declares, and how the database captures every change they are raised from, through the API or not.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import orders from '../../../../../../docs-examples/events/orders.ts?raw'
+
+A resource can declare **events**: what a change of its records means, such as an order that was created or became large. The changes are captured in the database itself, by triggers, in the transaction that writes them. Writes through the API count, and so do writes from psql, other services, cron SQL and the database's own triggers and generated columns.
+
+The app's [jobs](/reference/jobs/) then turn the captured changes into events and deliver them to [subscriptions](/reference/webhooks/): URLs, the app's API functions or code of its own. A resource with [history](/reference/history/) is captured the same way, and its changes are kept.
+
+<Code code={orders} lang="ts" title="docs-examples/events/orders.ts" />
+
+## Declaring events
+
+[`.events((e, r) => [...])`](/api/schema/interfaces/resourcebuilder/#events) returns the resource's events, built with the [helpers of `e`](/api/schema/type-aliases/eventhelpers/). Each is named `<resource>.<name>`, such as `orders.statusChanged`; names are camelCase and unique per resource.
+
+| | |
+| --- | --- |
+| `e.crud()` | `created`, `updated` and `deleted`, plus `undeleted` when the resource has a `.softDelete()` field. |
+| `e.created(name?, { when, match })` | A record was created. The name defaults to `created`. |
+| `e.updated(name?, { when, from, changed, match })` | A record was updated. The name defaults to `updated`. |
+| `e.deleted(name?, { from, match })` | A record was deleted, or its soft delete field was set. |
+| `e.undeleted(name?, { when, from, match })` | A record's soft delete field was cleared; needs `.softDelete()`. |
+| `e.becomes(name, condition)` | The condition turned true: a create that meets it, or an update after which it holds and before which it did not. |
+
+The options combine with AND:
+
+| Option | |
+| --- | --- |
+| `when` | A filter on the record after the change. |
+| `from` | A filter on the record before the change. |
+| `changed: [r.status]` | One of these fields changed. It works on sensitive fields too. |
+| `match` | A function of the change that returns `true` for the event, for what a filter cannot say. |
+
+Filters use the language of [access rules](/reference/access/) and views, on any field, filterable or not. They are checked against the resource when the config loads, so a typo stops startup. A filter cannot use a sensitive field, since captured records never hold their values (use `changed`). <gap>An event filter cannot use `search()`, `similar()` or a field of another resource.</gap>
+
+`match` sees the change as the event does: `operation` (`create`, `update`, `delete` or `undelete`), `before` and `after` (the records by field name, without sensitive fields), `changed` (field names), `actor` (`{ id, roles }` for a write through the API, `null` otherwise), `source` (`api` or `database`), `tenant` and `transaction`.
+
+## What one change is
+
+- **One per record and transaction.** A batch or a transaction of several statements gives one change per record, with `before` as it was at the start and `after` as it is at commit.
+- **What leaves nothing:** an update that changes no field, an update that ends where it started, an insert deleted in the same transaction, a rolled-back transaction or savepoint, and a change to a column that is not a field.
+- **A delete and an insert of the same key** in one transaction is an update.
+- **Soft deletes:** setting the soft delete field is a delete, clearing it an undelete.
+- Time passing is not a change. Something that should happen when a date is reached is a scheduled job.
+
+## How changes are captured
+
+`protobase migration` adds a `changes` schema to the database, with:
+
+- **`changes.outbox`**, one row per changed row, written in the writer's transaction, so it commits or rolls back with the change. A dispatch job reads the committed rows and deletes them once their events are delivered or queued.
+- **`changes.capture()`**, the trigger function. It runs as its owner, with a fixed search path, so a role that writes the table needs no rights on `changes`: another service writing as its own role keeps working once a resource has events.
+- **Two triggers per resource with events, history or [live updates](/reference/live/)**, on its table: `<table>_changes` for inserts and deletes, and `<table>_changes_update` for updates that change the row.
+
+The first row a transaction captures also enqueues a `changes.dispatch` job with `jobs.enqueue()`, in the same transaction, so a resource with events needs the [`jobs` schema](/reference/jobs/#the-jobs-schema) too. Dispatch jobs run one at a time, in the app's workers. After a write through the API commits, or an API function returns, the server has its own worker look for that job at once, so its events usually go out within milliseconds; a write from elsewhere waits for the next poll, two seconds at most.
+
+A trigger keeps the columns of the resource's fields, minus sensitive ones, whose names it lists in `changed` when they change. Columns that are not fields, such as a password hash, are never captured. One table can have events for one resource.
+
+Two transaction settings steer the capture:
+
+- **`changes.actor`**: the API sets it in every write transaction, to the caller's id and roles. A write without it has no actor.
+- **`changes.capture`**: `set local changes.capture = 'off'` captures nothing for the rest of the transaction, for a script such as a recount whose changes mean nothing to anyone.
+
+For a database that already has a schema named `changes`, pick another name in `protobase.config.ts`; the settings take the same prefix:
+
+```ts
+export default defineConfig({ events: { schema: 'row_changes' } })
+```
+
+## Migrations and startup
+
+[`protobase migration`](/reference/cli/#migration) compares the database with the resources' events and writes what it lacks as the project's next migrations: the jobs schema, then the `changes` schema, the function, and a trigger pair per resource with events. Apply it with the project's other migrations. A trigger changes when the resource's fields do, a field that became sensitive for instance, so run the command after changing the config. Once a resource has no events, the next migration drops its triggers; it never drops a table.
+
+`protobase dev` and `protobase serve` do not start while a resource with events lacks its triggers, or has out-of-date ones, or the jobs schema is missing, and name the command to run. `dev` checks again whenever it reloads the config. Neither changes the schema itself.
+
+## The outbox
+
+| Column | |
+| --- | --- |
+| `id` | Grows with every row, so a record's changes are in commit order. |
+| `transaction` | The writing transaction's id. |
+| `resource` | The resource whose table changed. |
+| `op` | `INSERT`, `UPDATE` or `DELETE`. |
+| `old`, `new` | The row before and after, by column name, without sensitive columns. 64-bit integers and decimals keep every digit when events are built from them. |
+| `changed` | The columns an update changed, sensitive ones included. |
+| `actor` | `{ "id": ..., "roles": [...] }` for a write through the API; `null` otherwise. |
+| `database_role` | The role that wrote: the one `set role` chose, else the session's. |
+| `dispatch_after`, `created_at` | When the row may be dispatched, and when its transaction started: an event's `timestamp`. |
