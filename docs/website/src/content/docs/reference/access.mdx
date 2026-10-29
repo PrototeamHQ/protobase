@@ -40,10 +40,22 @@ A field is readable when the role's list allows it and the field's own [rule](#f
 
 ### Wildcards in has, can and holds
 
-A wildcard in a role grants everything it stands for: `*.read` reads every resource. What a check asks for is different, so the checks take wildcards in one place only:
+A wildcard in a role grants everything it stands for: `*.read` reads every resource, except those that hold secrets and take only [named grants](#resources-that-need-named-grants). What a check asks for is different, so the checks take wildcards in one place only:
 
 - `roles.has(user, 'vms.update')` and `roles.can('vms.update')` ask for one capability, in any scope or limit the role holds it. They refuse a wildcard, at compile time and when called, since `vms.*` would pass for a role holding only `vms.read`: ask for each capability instead.
 - `roles.holds(user, 'vms.*')` asks for all of it, in every row and field: a role holding `*` or `vms.*` passes, one holding `vms.read`, `*.read`, `vms.update.own` or a `vms.update` limited to fields or rows does not. A scope asks for those rows at least: `orders.read.own` passes for a role holding `orders.read.own`, `orders.read` or `*.read`. API functions' `capability` is checked this way.
+
+### Resources that need named grants
+
+A resource with `.explicitGrants()` is left out of wildcards over resources: only `*` itself and capabilities that name it, such as `webhook_subscriptions.read` or `webhook_subscriptions.*`, grant it, never `*.read` or `*.*`. A role written as "read everything" then reads nothing of it. The [webhook resources](/reference/webhooks/#subscriptions-in-the-admin-app) are such resources, since their URLs and secrets let whoever reads them call the receivers. Mark a resource of your own this way when its records hold secrets.
+
+```ts
+defineRoles({
+  admin: ['*'],
+  viewer: ['*.read'], // reads no webhook subscription
+  integrations: ['*.read', 'webhook_subscriptions.*', 'webhook_deliveries.read', 'webhook_deliveries.update'],
+})
+```
 
 ## Anonymous access
 

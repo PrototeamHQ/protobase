@@ -157,6 +157,8 @@ export type ResourceModel = {
   comments?: true
   /** Whether open pages refresh as soon as its records change (`.live()`). */
   live?: true
+  /** Whether role wildcards such as `*.read` leave it out, so only `*` and capabilities naming it grant it (`.explicitGrants()`). */
+  explicitGrants?: true
   /**
    * The fields of a unique key whose conflict on create answers the record already holding those values, to a caller
    * who may read it (`.openExisting()`).

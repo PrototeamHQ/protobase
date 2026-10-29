@@ -27,8 +27,8 @@ export type ResolveOptions = {
   roles?: {
     /** The rule allowing a capability, as `defineRoles` makes it. */
     can: (capability: any) => Rule
-    /** The fields the user's roles list for a capability, or `undefined` for every field. */
-    fields?: (user: AccessUser, capability: string) => readonly string[] | undefined
+    /** The fields the user's roles list for a capability on the resource, or `undefined` for every field. */
+    fields?: (user: AccessUser, capability: string, model: ResourceModel) => readonly string[] | undefined
     /** The roles by name, to tell whether the project has an `anonymous` role. */
     definitions?: Record<string, unknown>
     /** Whether the user's roles grant all of a capability, as `defineRoles` makes it; the gate of API functions. */
@@ -177,7 +177,7 @@ export const resolveAccess = async (
   const fieldRules = source.fieldAccess()
   const fieldContext = (operation: AccessAction) => ({ ...ctx, model, operation })
   // The fields the roles list for each capability; `undefined` leaves every field to its rule.
-  const listed = (operation: 'read' | 'create' | 'update') => options.roles?.fields?.(ctx.user, capabilityOf(model, operation))
+  const listed = (operation: 'read' | 'create' | 'update') => options.roles?.fields?.(ctx.user, capabilityOf(model, operation), model)
   const lists = { read: listed('read'), create: listed('create'), update: listed('update') }
   const inList = (list: readonly string[] | undefined, name: string) => list === undefined || list.includes(name)
   const names = Object.keys(model.fields)

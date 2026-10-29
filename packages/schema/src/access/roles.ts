@@ -1,4 +1,4 @@
-import type { FilterExpr } from '../model'
+import type { FilterExpr, ResourceModel } from '../model'
 import { andResults, orResults, where } from './combine'
 import { grantsOf, holdsAll, parseCapability, parseExactCapability, type Capability, type ExactCapability, type Grant } from './capability'
 import { heldCapabilities, type HeldCapability, type RoleEntry } from './role-entry'
@@ -20,6 +20,10 @@ export type RoleLimit = HeldCapability & {
 }
 
 const rolesOf = (user: AccessUser) => user.roles ?? []
+
+// A resource with `.explicitGrants()` takes `*` and capabilities naming it, never a wildcard over resources such as `*.read`.
+const reaches = (held: HeldCapability, model: ResourceModel | undefined) =>
+  !model?.explicitGrants || held.capability === '*' || parseCapability(held.capability).name !== '*'
 
 /**
  * Defines roles as bundles of capability strings. Pass the resource and area names as the type
@@ -98,23 +102,25 @@ export const defineRoles = <Name extends string = string>(
 
     /**
      * The fields the user's roles allow for a capability: the union of their lists, or `undefined` when a role grants
-     * it without a list (every field) or none grants it.
+     * it without a list (every field) or none grants it. With the resource's model, as `can` has it, wildcards over
+     * resources count only where the resource takes them.
      */
-    fields: (user: AccessUser, capability: string): readonly string[] | undefined => {
+    fields: (user: AccessUser, capability: string, model?: ResourceModel): readonly string[] | undefined => {
       const wanted = parseCapability(capability)
-      const matching = heldBy(user).filter((held) => grantsOf(held.capability, wanted).length > 0)
+      const matching = heldBy(user).filter((held) => reaches(held, model) && grantsOf(held.capability, wanted).length > 0)
       if (matching.length === 0 || matching.some((held) => !held.fields)) return undefined
       return [...new Set(matching.flatMap((held) => held.fields!))]
     },
 
     /**
      * A rule that allows when the user's roles grant the capability: `true` for an unscoped
-     * grant, a row filter for `.own`, `.team` and a limit's filter, `false` otherwise. Refuses a wildcard.
+     * grant, a row filter for `.own`, `.team` and a limit's filter, `false` otherwise. Refuses a wildcard. On a resource
+     * with `.explicitGrants()`, a role's wildcard over resources such as `*.read` grants nothing.
      */
     can: (capability: ExactCapability<Name>): Rule => {
       const wanted = parseExactCapability(capability)
       return rule(async (ctx) => {
-        const matching = heldBy(ctx.user ?? {}).flatMap((held) => grantsOf(held.capability, wanted).map((grant) => ({ grant, filter: held.filter })))
+        const matching = heldBy(ctx.user ?? {}).filter((held) => reaches(held, ctx.model)).flatMap((held) => grantsOf(held.capability, wanted).map((grant) => ({ grant, filter: held.filter })))
         if (matching.some(({ grant, filter }) => grant === 'all' && !filter)) return true
         // Each grant's rows within its entry's filter, ORed; a scope granted twice without a filter counts once.
         const unfiltered = [...new Set(matching.filter(({ filter }) => !filter).map(({ grant }) => grant))].map((grant) => ({ grant, filter: undefined }))

@@ -27,6 +27,7 @@ export type ResourceState = {
   history?: boolean
   comments?: boolean
   live?: boolean
+  explicitGrants?: boolean
   openExisting?: string[]
 }
 
@@ -104,6 +105,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.history && { history: true as const }),
     ...(state.comments && { comments: true as const }),
     ...(state.live && { live: true as const }),
+    ...(state.explicitGrants && { explicitGrants: true as const }),
     ...(state.position && { position: { ...state.position } }),
     ...(state.parents && { parents: state.parents.map((parent) => ({ ...parent })) }),
     ...(state.openExisting && { openExisting: [...state.openExisting] }),

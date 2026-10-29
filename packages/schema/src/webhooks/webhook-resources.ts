@@ -3,7 +3,10 @@ import { layout as l } from '../layout'
 import { resource } from '../resource'
 import { view } from '../view'
 
-/** Webhook subscriptions: a row per subscription someone made in the admin app, scoped to their tenant. */
+/**
+ * Webhook subscriptions: a row per subscription someone made in the admin app, scoped to their tenant. Their URLs and
+ * secrets let anyone call the receivers, so a role's wildcard such as `*.read` reaches none of the webhook resources.
+ */
 const subscriptionsResource = (schema: string) =>
   resource('webhook_subscriptions')
     .table(`${schema}.subscriptions`)
@@ -35,6 +38,7 @@ const subscriptionsResource = (schema: string) =>
     .tenant((r) => r.tenant_id)
     .owner((r) => r.owner_id)
     .search((r) => [r.name, r.url])
+    .explicitGrants()
 
 const subscriptionsView = view<ReturnType<typeof subscriptionsResource>>('webhook_subscriptions')
   .names({ singular: 'Webhook subscription', plural: 'Webhook subscriptions' })
@@ -85,6 +89,7 @@ const deliveriesResource = (schema: string) =>
     })
     .primaryKey((r) => r.id)
     .tenant((r) => r.tenant_id)
+    .explicitGrants()
     .access({ create: () => false, delete: () => false })
 
 const deliveriesView = view<ReturnType<typeof deliveriesResource>>('webhook_deliveries')
@@ -116,6 +121,7 @@ const deliveryLogResource = (schema: string) =>
     })
     .primaryKey((r) => r.id)
     .tenant((r) => r.tenant_id)
+    .explicitGrants()
     .access({ create: () => false, update: () => false, delete: () => false })
 
 const deliveryLogView = view<ReturnType<typeof deliveryLogResource>>('webhook_delivery_log')

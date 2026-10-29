@@ -224,6 +224,15 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
     return this.next({ live: true })
   }
 
+  /**
+   * Leaves it out of role wildcards over resources such as `*.read`: with roles, only `*` itself and capabilities that
+   * name it, such as `webhook_subscriptions.read`, grant it. For resources whose records hold secrets, which a role
+   * written as "read everything" should not reach. See [Resources that need named grants](docs/website/src/content/docs/reference/access.mdx#resources-that-need-named-grants).
+   */
+  explicitGrants() {
+    return this.next({ explicitGrants: true })
+  }
+
   /** The code predicates (`match`) of its events, by event name. */
   eventMatches() {
     return eventMatches(this.toModel(), this.state.events ?? [])

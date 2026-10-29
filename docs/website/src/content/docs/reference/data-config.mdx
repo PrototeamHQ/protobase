@@ -34,6 +34,7 @@ A **resource** describes one table of a database you already have: its columns a
 | `.validate((record) => issues)` | A rule over the whole record, run after the field checks on every create and update. It returns `[{ field, message }]` or `undefined`; issues answer `400` with the field named. |
 | `.access({ ... })` | Rules per operation. See [Access](#access). |
 | `.events((e, r) => [...])` | What changes of its records mean, such as `orders.created`, captured in the database for every write. See [Events](/reference/events/). |
+| `.explicitGrants()` | Leaves the resource out of role wildcards such as `*.read`: only `*` and capabilities that name it grant it. For resources whose records hold secrets. See [Resources that need named grants](/reference/access/#resources-that-need-named-grants). |
 | `.history()` | Keeps every change of its records with who made it, shown on the record page and listed for admins as Activity. See [Record history](/reference/history/). |
 | `.comments()` | Lets whoever may read a record comment on it and @mention others who may, who are emailed; shown on the record page and listed for admins. See [Record comments](/reference/comments/). |
 
