@@ -78,7 +78,7 @@ export const createFromDatabase = async (url: string, dir: string | undefined, t
   const { tables, skipped, supabaseSchemas } = await steps.listTables(folder, url)
   const supabase = supabaseSchemas.length > 0
   if (supabase) {
-    print(`\n${database} is a Supabase database: the project signs in on Supabase's own auth.users.\n`)
+    print(`\n${database} is a Supabase database: the project signs Supabase's users in through a view over auth.users, and changes nothing in Supabase's auth schema.\n`)
     await steps.useSupabaseUsers(folder)
   }
   if (tables.length === 0) {

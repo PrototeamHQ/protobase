@@ -3,7 +3,7 @@ import path from 'node:path'
 import postgres from 'postgres'
 import { connect, type Sql } from '../db/connect'
 import { isSchedule } from '@protobase/server'
-import { planAuthConfig } from './auth-config'
+import { importedUsersConfig, planAuthConfig } from './auth-config'
 import { checkoutMarkers } from './checkout'
 import { cronPlan } from './cron-plan'
 import { planFunctions } from './functions/plan-functions'
@@ -112,7 +112,7 @@ const pattern = (name: string) => `"${name.replaceAll('"', '""')}"`
  * project's migrations are applied.
  */
 export const runDumpPhase = async (options: DumpOptions, out: (text: string) => void) => {
-  const authConfig = await planAuthConfig(options.projectDir)
+  const authConfig = await planAuthConfig(options.projectDir, importedUsersConfig)
   const storeMigrations = await authStoreMigrations(options.migrationsDir)
   const checkout = checkoutMarkers(options.projectDir)
   if (checkout.length > 0) out(`found the Supabase project's ${checkout.join(', ')}\n`)

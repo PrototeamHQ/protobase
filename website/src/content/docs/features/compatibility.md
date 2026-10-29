@@ -6,6 +6,7 @@ description: Apps written for other systems that keep working on Protobase, and 
 ## Supabase
 
 - [Supabase import](/reference/cli/#import-supabase): Moves a Supabase project into Protobase, with schema, data, users, functions, storage and scheduled jobs.
+- [Create a project on a Supabase database](/getting-started/#on-an-existing-database) (beta): your Supabase users sign in to the new project with their own passwords, and Supabase's own auth schema stays as Supabase set it up.
 - [Supabase client API](/reference/supabase-rest/): supabase-js `from()` and `rpc()` calls keep working, under the tables' RLS policies.
 - [Supabase Auth](/reference/auth/#supabase-js-and-supabasessr): `supabase.auth` and `@supabase/ssr` calls keep working.
 - [Supabase Storage](/reference/supabase-storage/): supabase-js storage calls keep working, over the app's file storage.

@@ -1,9 +1,10 @@
 import { accountIdSql, accountProviderSql, carriesAccountSql, confirmedOwnerSql } from './identity-providers'
 
-// Better Auth signs in on Supabase's own auth.users, so every foreign key, trigger and policy naming it keeps working.
-// Its planner cannot add a required column to a table with rows, so `protobase import supabase` and `npm create
-// protobase` on a Supabase database write two migrations of their own around the one `protobase auth migration` writes:
-// the columns first, nullable, and after it what fills them and makes each user's accounts.
+// On the copy of a Supabase database `protobase import supabase` makes, Better Auth signs in on auth.users itself, so
+// every foreign key, trigger and policy naming it keeps working. Its planner cannot add a required column to a table
+// with rows, so the import writes two migrations of its own around the one `protobase auth migration` writes: the
+// columns first, nullable, and after it what fills them and makes each user's accounts. `create protobase`, on a
+// Supabase database it shares with Supabase Auth, writes `sharedUsersMigration` instead.
 
 /** The user columns Better Auth needs that GoTrue's auth.users lacks, empty for now. */
 export const usersColumnsMigration = () => `-- The columns Better Auth needs on Supabase's auth.users, written by \`protobase import supabase\`.
