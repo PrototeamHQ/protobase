@@ -66,6 +66,19 @@ services:
       postgres:
         condition: service_healthy
 
+  # A LiveKit server for the calls bridge's contract test (`bun run calls:up`, then `bun run test:calls`), with the
+  # signal and media ports on the host: only started with the calls profile. LIVEKIT_IMAGE tries another version.
+  livekit:
+    image: ${LIVEKIT_IMAGE:-livekit/livekit-server:v1.13.11}
+    profiles: [calls]
+    command: --config /livekit.yaml
+    ports:
+      - '7880:7880'
+      - '7881:7881'
+      - '7882:7882/udp'
+    volumes:
+      - ./docker/livekit/livekit.yaml:/livekit.yaml:ro
+
 volumes:
   pgdata:
   supabase-pgdata:

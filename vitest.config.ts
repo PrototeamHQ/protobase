@@ -221,6 +221,17 @@ export default defineConfig({
         },
       },
       {
+        // The calls bridge's contract with LiveKit's signal protocol: Chromium members in a call through a function's
+        // socket, against the LiveKit server `bun run calls:up` starts: `bun run test:calls`.
+        extends: true,
+        test: {
+          name: 'calls',
+          include: ['tests/calls/**/*.test.ts'],
+          testTimeout: 60_000,
+          hookTimeout: 120_000,
+        },
+      },
+      {
         extends: true,
         test: {
           name: 'presets',
