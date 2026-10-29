@@ -1,6 +1,6 @@
 ---
 title: Jobs and events options
-description: The config keys of what the app does in the background and records as it changes, jobs, events, history, webhooks and notifications, with their types and defaults, and the files where a job's run and the stores of its own go.
+description: The config keys of what the app does in the background and records as it changes, jobs, events, history, webhooks, notifications and status, with their types and defaults, and the files where a job's run and the stores of its own go.
 ---
 
 The keys of the app's background work and of what it keeps as records change, at the top level of [`protobase.config.ts`](/reference/config/).
@@ -263,4 +263,26 @@ The history table, each user's inbox: its name, and its columns named otherwise 
 
 ```ts
 export default defineConfig({ notifications: { history: { table: 'inbox_items' } } })
+```
+
+## status
+
+- **Type:** `{ schema?: string }`
+- **Default:** off; `{}` turns it on
+
+People set their own status, busy, do not disturb or a text of their own, which the people they share an organization with see, and do not disturb holds their pushes. It needs `auth` with organizations, and its table is written by `protobase migration`. See [Status](/reference/status/).
+
+```ts
+export default defineConfig({ auth: { organizations: true }, status: {} })
+```
+
+## status.schema
+
+- **Type:** `string`
+- **Default:** `status`
+
+The schema of the statuses table.
+
+```ts
+export default defineConfig({ status: { schema: 'presence' } })
 ```
