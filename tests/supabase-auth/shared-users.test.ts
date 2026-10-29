@@ -7,6 +7,7 @@ import { f, resource } from '@protobase/schema'
 import { authSchemaDrift, authStoreTables, checkQueryRunner, checkResourcesOutsideAuthStore, createUser, deleteUser, queryRunnerMigration, setUserBanned, type AdminAuth } from '@protobase/server'
 import { betterAuthAuthenticator } from '@protobase/server/internal'
 import { authCatalogue } from './auth-catalogue'
+import { authOn, importedUsers, kyselyOn, over, publicKeyTable } from './guard-layouts'
 import { createSharedProject } from './shared-project'
 import { supabaseBan, supabaseCodeSignIn, supabasePasswordSignIn, supabaseSignUp, supabaseUpdateOwnUser } from './supabase-auth'
 
@@ -97,7 +98,7 @@ describe.skipIf(!stackUrl)('a project on a Supabase database it shares with Supa
   })
 
   it('writes the config and migrations under create protobase, and the migrations apply as postgres', async () => {
-    expect(await project.config()).toContain("users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', keyTable: { schema: 'auth', table: 'users' } }")
+    expect(await project.config()).toContain("users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'], keyTable: { schema: 'auth', table: 'users' } }")
     expect(Object.keys(project.migrations)).toEqual(['001_auth.sql', '002_supabase_users.sql'])
     expect(project.migrations['001_auth.sql']).toMatch(/^-- .*, written by `create protobase`\./)
     expect(project.migrations['002_supabase_users.sql']).toMatch(/^-- .*, written by `create protobase`:/)
@@ -138,7 +139,7 @@ describe.skipIf(!stackUrl)('a project on a Supabase database it shares with Supa
     it("never lets the assistant's query role read auth.users, the view or the copied password hashes", async () => {
       const db = new Kysely<any>({ dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: asRole('postgres'), max: 1 }) }) })
       const tables = authStoreTables(auth)
-      expect(tables).toEqual(expect.arrayContaining([{ schema: 'auth', name: 'users' }, { schema: 'app_auth', name: 'users' }, { schema: 'app_auth', name: 'account' }]))
+      expect(tables.tables).toEqual(expect.arrayContaining([{ schema: 'auth', name: 'users' }, { schema: 'app_auth', name: 'users' }, { schema: 'app_auth', name: 'account' }]))
       await app.unsafe((await queryRunnerMigration(db, [], tables))!)
       const [role] = await app`select left(current_database(), 57) || '_query' as name`
       const [reads] = await app`select has_table_privilege(${role!.name}, 'auth.users', 'SELECT') as users, has_table_privilege(${role!.name}, 'app_auth.users', 'SELECT') as view,
@@ -160,6 +161,98 @@ describe.skipIf(!stackUrl)('a project on a Supabase database it shares with Supa
         await expect(checkResourcesOutsideAuthStore(db, [over(table)], auth)).rejects.toThrow(`(${table})`)
       }
       await db.destroy()
+    })
+
+    describe("Supabase Auth's other tables", () => {
+      // Supabase Auth's tables that hold secrets, a table it keeps no secret in, and one it might add later.
+      const supabaseTables = ['identities', 'refresh_tokens', 'mfa_factors', 'sessions', 'one_time_tokens', 'saml_providers', 'sso_providers', 'mfa_challenges', 'flow_state', 'audit_log_entries']
+      const guarded = [...supabaseTables, 'not_yet_known'].map((name) => `auth.${name}`)
+      // Names of auth.identities a developer could write that Postgres does not fold into it: each names no table,
+      // as the API's queries name it too, quoting each part.
+      const unfolded = ['Auth.Identities', 'auth.IDENTITIES', '"auth"."identities"']
+      let db: Kysely<any>
+      let role: string
+      const reads = async (table: string) => (await app`select has_table_privilege(${role}, ${table}, 'SELECT') as reads`)[0]!.reads as boolean
+      const authUsage = async () => (await app`select has_schema_privilege(${role}, 'auth', 'USAGE') as usage`)[0]!.usage as boolean
+
+      beforeAll(async () => {
+        db = kyselyOn(asRole('postgres'))
+        await admin`create table auth.not_yet_known (id uuid primary key)`
+        await app`create table public.notes (id uuid primary key)`
+        role = (await app`select left(current_database(), 57) || '_query' as name`)[0]!.name
+      })
+
+      afterAll(async () => {
+        await admin`drop table if exists auth.not_yet_known`
+        await db?.destroy()
+      })
+
+      it('refuses a resource over each of them at startup, and still over auth.users and the store', async () => {
+        for (const table of [...guarded, 'auth.users', 'app_auth.users', 'app_auth.account']) {
+          await expect(checkResourcesOutsideAuthStore(db, [over(table)], auth)).rejects.toThrow(`(${table})`)
+        }
+        await expect(checkResourcesOutsideAuthStore(db, [over('public.notes')], auth)).resolves.toBeUndefined()
+      })
+
+      it('refuses one the search path finds in auth, and finds no table under a name Postgres does not fold', async () => {
+        const searching = kyselyOn(asRole('postgres'), 'auth,public')
+        await expect(checkResourcesOutsideAuthStore(searching, [over('identities')], auth)).rejects.toThrow('(auth.identities)')
+        await searching.destroy()
+        for (const table of unfolded) {
+          const [row] = await app`select to_regclass(${table.split('.').map((part) => `"${part.replaceAll('"', '""')}"`).join('.')}) as found`
+          expect(row!.found, table).toBeNull()
+        }
+      })
+
+      it("grants the query role none of them, nor usage on auth, while it grants the app's own tables", async () => {
+        const models = [...guarded, ...unfolded, 'public.notes'].map(over)
+        await app.unsafe((await queryRunnerMigration(db, models, authStoreTables(auth)))!)
+        for (const table of guarded) expect(await reads(table), table).toBe(false)
+        expect(await authUsage()).toBe(false)
+        expect(await reads('public.notes')).toBe(true)
+        await expect(checkQueryRunner(db, authStoreTables(auth))).resolves.toBeUndefined()
+      })
+
+      // postgres may grant select on Supabase Auth's tables, as a migration made before the guard did for a resource
+      // over one, but not usage on auth, which only Supabase may grant.
+      it('takes back a grant on auth.identities the query role holds from before', async () => {
+        await app`grant select on auth.identities to ${app(role)}`
+        expect(await reads('auth.identities')).toBe(true)
+        await app.unsafe((await queryRunnerMigration(db, [over('public.notes')], authStoreTables(auth)))!)
+        expect(await reads('auth.identities')).toBe(false)
+        expect(await authUsage()).toBe(false)
+      })
+
+      it('refuses to start while the query role can read one of them', async () => {
+        await admin`grant usage on schema auth to ${admin(role)}`
+        await app`grant select on auth.identities to ${app(role)}`
+        await expect(checkQueryRunner(db, authStoreTables(auth))).rejects.toThrow('can read the auth schema')
+        await app`revoke select on auth.identities from ${app(role)}`
+        await admin`revoke usage on schema auth from ${admin(role)}`
+        await expect(checkQueryRunner(db, authStoreTables(auth))).resolves.toBeUndefined()
+      })
+
+      it("refuses them in import supabase's layout too, the store in auth beside them", async () => {
+        const imported = authOn(asRole('postgres'), 'auth', importedUsers)
+        for (const table of ['auth.identities', 'auth.refresh_tokens', 'auth.mfa_factors', 'auth.users']) {
+          await expect(checkResourcesOutsideAuthStore(db, [over(table)], imported.auth)).rejects.toThrow(`(${table})`)
+        }
+        await expect(checkResourcesOutsideAuthStore(db, [over('public.notes')], imported.auth)).resolves.toBeUndefined()
+        const plan = (await queryRunnerMigration(db, ['auth.identities', 'public.notes'].map(over), authStoreTables(imported.auth))) ?? ''
+        expect(plan).not.toContain("'auth'")
+        await imported.close()
+      })
+
+      it("guards no schema of a project that names none, even with its key table in the schema of its own resources", async () => {
+        await app`create table public.people (id uuid primary key)`
+        const plain = authOn(asRole('postgres'), 'app_auth', publicKeyTable)
+        await expect(checkResourcesOutsideAuthStore(db, [over('public.people')], plain.auth)).rejects.toThrow('(public.people)')
+        await expect(checkResourcesOutsideAuthStore(db, [over('public.notes')], plain.auth)).resolves.toBeUndefined()
+        expect(await queryRunnerMigration(db, [over('public.notes')], authStoreTables(plain.auth))).toBeUndefined()
+        expect(await reads('public.notes')).toBe(true)
+        await app`drop table public.people`
+        await plain.close()
+      })
     })
 
     it('reads no password, token or app metadata of auth.users into the view, which runs with the reader\'s rights', async () => {
