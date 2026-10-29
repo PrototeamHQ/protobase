@@ -1,4 +1,4 @@
-import { authSchemaMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, sqlSends, webhooksMigration } from '@protobase/server'
+import { authSchemaMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, sqlSends, statusMigration, webhooksMigration } from '@protobase/server'
 import { authMigrationTitle } from '../auth/migration-file'
 import type { MigrationProject } from './load-project'
 
@@ -33,6 +33,7 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
     ...(project.notifications && !(project.notifications.store && project.notifications.historyStore)
       ? [{ name: 'notifications', title: 'The tables of notifications', sql: () => notificationsMigration(project.db, project.notifications, project.auth) }]
       : []),
+    ...(project.status ? [{ name: 'status', title: "The statuses table of people's own status", sql: () => statusMigration(project.db, project.status!, project.auth) }] : []),
     ...(relayed(project.realtime) ? [{ name: 'realtime_relay', title: 'The relay of Realtime broadcasts and presence between the processes serving the app', sql: () => realtimeRelayMigration(project.db) }] : []),
     ...(sqlSends(project.realtime) ? [{ name: 'channel_sends', title: "SQL's broadcasts to the record channels, channels.send()", sql: () => channelSendsMigration(project.db) }] : []),
   ]

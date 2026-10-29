@@ -59,6 +59,8 @@ export type CallerMeta = {
    * browsers subscribe for Web Push with, when the app's notifications deliver to browsers: public, as any VAPID key is.
    */
   notifications?: { bell?: true; webPushKey?: string }
+  /** With `status: {}`: people set their own status, and see the statuses of those they share an organization with. */
+  status?: true
   /** The language the admin app's screens are in, when the app sets one for everyone. */
   locale?: Locale
   /** The hosts besides the app's own whose images the admin app draws with the page's referrer, when there are any. */
@@ -142,6 +144,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       ...(deps.errorReporting && { errorReporting: deps.errorReporting }),
       ...(deps.maps && { maps: deps.maps }),
       ...((deps.bell || deps.webPushKey) && { notifications: { ...(deps.bell && { bell: true as const }), ...(deps.webPushKey && { webPushKey: deps.webPushKey }) } }),
+      ...(deps.status && { status: true as const }),
       ...(deps.locale && { locale: deps.locale }),
       ...(deps.files && deps.files.trustedHosts.length > 0 && { files: { trustedHosts: deps.files.trustedHosts } }),
       ...(plugins.length > 0 && { plugins }),

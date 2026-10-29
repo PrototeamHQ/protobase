@@ -30,4 +30,8 @@ describe('the migration parts', () => {
     expect(names(migrationParts({ ...project([]), realtime: { processes: 'many', sqlSends: true } }))).toEqual(['changes', 'computed', 'realtime_relay', 'channel_sends'])
     expect(names(migrationParts({ ...project([]), realtime: { sqlSends: false } }))).toEqual(['changes', 'computed'])
   })
+  it('add the statuses table only with status', () => {
+    expect(names(migrationParts({ ...project([]), status: {} }))).toEqual(['changes', 'computed', 'status'])
+    expect(names(migrationParts(project([])))).not.toContain('status')
+  })
 })

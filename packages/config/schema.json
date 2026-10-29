@@ -979,6 +979,17 @@
         }
       ]
     },
+    "status": {
+      "description": "People set their own status and see those they share an organization with (see `StatusOptions`); `{}` turns it on, and it needs organizations.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/StatusOptions"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
     "calls": {
       "description": "The media server behind the calls functions admit members to with `calls.join` (see `CallsOptions`).",
       "anyOf": [
@@ -3529,6 +3540,23 @@
           "anyOf": [
             {
               "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "StatusOptions": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "description": "The schema of the statuses table; default `status`.",
+          "anyOf": [
+            {
+              "type": "string"
             },
             {
               "$ref": "#/definitions/EnvValue"

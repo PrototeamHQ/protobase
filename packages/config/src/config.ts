@@ -13,6 +13,7 @@ import type {
   MobileConfig,
   NotificationsOptions,
   RealtimeOptions,
+  StatusOptions,
   WebhooksOptions,
 } from '@protobase/server'
 
@@ -109,6 +110,8 @@ export type ProtobaseConfig = AppKeys &
     realtime?: RealtimeOptions
     /** Each user's devices and inbox (see `NotificationsOptions`); `{}` turns them on. */
     notifications?: Omit<NotificationsOptions, 'store' | 'historyStore' | 'senders'>
+    /** People set their own status and see those they share an organization with (see `StatusOptions`); `{}` turns it on, and it needs organizations. */
+    status?: StatusOptions
     /** The media server behind the calls functions admit members to with `calls.join` (see `CallsOptions`). */
     calls?: CallsOptions
     /** The app's iOS and Android build (see `MobileConfig`). */

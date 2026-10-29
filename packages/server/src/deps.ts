@@ -53,6 +53,8 @@ export type Deps = {
   maps?: MapSettings
   /** Whether the shell draws the notification bell: notifications are on and their `ui` is not false. */
   bell?: boolean
+  /** Whether people set their own status (`status: {}`), which `/meta` names to everyone. */
+  status?: boolean
   /** The VAPID public key browsers subscribe for Web Push with, when notifications have a web sender, which `/meta` names to everyone. */
   webPushKey?: string
   /** The language the admin app's screens are in for everyone, which `/meta` names to everyone. */

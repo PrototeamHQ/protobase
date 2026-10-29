@@ -34,11 +34,12 @@ const recordOnce = (db: Db, options: NotificationsOptions, job: JobContext['job'
 
 /**
  * The job that delivers what `sendNotification` sends, through `senders` (guarded, see `notificationSenders`) and the
- * stores `options` configure; with `liveSessions`, as with Protobase's auth, only to devices whose session stands. A
+ * stores `options` configure; with `liveSessions`, as with Protobase's auth, only to devices whose session stands, and
+ * with `quiet`, as with `status`, to no device of a user on do not disturb. A
  * try resumes where the last one stopped (see `deliver`); once delivered, the job keeps no message. A few tries only: a
  * device that keeps asking for a retry is given up on the second time.
  */
-export const pushJob = (options: NotificationsOptions, senders: readonly PushSender[], liveSessions?: DeliverySteps['liveSessions']) =>
+export const pushJob = (options: NotificationsOptions, senders: readonly PushSender[], liveSessions?: DeliverySteps['liveSessions'], quiet?: (db: Db, userIds: readonly string[]) => Promise<Set<string>>) =>
   defineJob({
     name: pushJobName,
     payload: pushPayload,
@@ -54,6 +55,7 @@ export const pushJob = (options: NotificationsOptions, senders: readonly PushSen
         hold: () => holdJob(db, job),
         complete: () => replaceJobData(db, job, { complete: true }),
         ...(liveSessions && { liveSessions }),
+        ...(quiet && { quiet: (userIds: readonly string[]) => quiet(db, userIds) }),
       })
     },
   })

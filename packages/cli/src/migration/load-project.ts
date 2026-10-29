@@ -1,5 +1,6 @@
 import pg from 'pg'
 import { assistantSettings, authStoreTables, configExports } from '@protobase/server'
+import { checkStatusOptions } from '@protobase/server/internal'
 import { projectAuth } from '../config/build-project'
 import type { MergedConfig } from '../config/merge-config'
 import { projectJobs, projectNotifications, projectResources, projectWebhooks } from '../config/project-parts'
@@ -34,6 +35,7 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
     ...(webhooks && { webhooks }),
     ...(config.realtime && { realtime: config.realtime }),
     ...(notifications && { notifications }),
+    ...(config.status && { status: checkStatusOptions(config.status) }),
     jobs,
     // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.
     readOnlyQueries: assistantSettings(config.assistant, process.env)?.kind === 'built-in',

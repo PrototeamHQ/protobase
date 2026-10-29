@@ -4,6 +4,7 @@ import type { JWTPayload } from 'jose'
 import { accountPage, accountPageName, checkPages, settingsResources, withSettingsFields } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
+import { statusPath } from '@protobase/schema/internal'
 import { aiModel } from './ai/ai-model'
 import { hasAiActions, hasAiFields } from './ai/ai-fields'
 import { fillHook } from './ai/fill-hook'
@@ -73,6 +74,10 @@ import { devicesPath, historyPath } from './notifications/paths'
 import { deviceRoutes } from './notifications/routes'
 import { notificationSenders, webPushKey } from './notifications/senders-of'
 import { pushJob } from './notifications/push-job'
+import { onDoNotDisturb } from './status/do-not-disturb'
+import { checkStatusAuth, statusNames, type StatusOptions } from './status/options'
+import { statusRoutes } from './status/routes'
+import { storeSchema } from './better-auth/store/store-names'
 import { liveSessions } from './better-auth/live-sessions'
 import type { SubscriptionDefinition } from './webhooks/subscription'
 import { visitorsBrowse, withAnonymous } from './anonymous'
@@ -158,6 +163,8 @@ export type CreateAdminInput = {
   realtime?: RealtimeOptions
   /** Each user's devices and the endpoints that register them, from `notifications: {}` (see `NotificationsOptions`). */
   notifications?: NotificationsOptions
+  /** People's own status, from `status: {}` (see `StatusOptions`): it needs `auth` with organizations. */
+  status?: StatusOptions
   /** The media server behind the calls functions admit members to with `calls.join` (see `CallsOptions`). */
   calls?: CallsOptions
   /**
@@ -206,7 +213,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, realtime, notifications, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, realtime, notifications, status, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -260,6 +267,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const maps = mapSettings(options.maps, globalThis.process?.env ?? {})
   // At startup, so a wrong VAPID variable stops the server; the sending code calls them through these.
   const senders = notifications ? notificationSenders(notifications) : []
+  // Who sees a status follows organizations, so an app without them stops here.
+  if (status) checkStatusAuth(auth)
+  const statusTables = status && auth && { statuses: statusNames(status), members: { schema: storeSchema(auth), table: 'member' } }
   const pushKey = webPushKey(senders)
   const locale = localeSetting(options.locale)
   const plugins = pluginOptions(options.plugins, globalThis.process?.env ?? {}, bundlePlugins)
@@ -299,6 +309,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(maps && { maps }),
     ...(notifications && notifications.ui !== false && { bell: true }),
     ...(pushKey && { webPushKey: pushKey }),
+    ...(statusTables && { status: true }),
     ...(locale && { locale }),
     plugins,
     sources,
@@ -420,6 +431,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     if (auth) removeHistoryWithUsers(auth, history)
     app.route(historyPath(systemPath), guarded((routes) => void routes.route('/', historyRoutes(history, auth?.origins ?? []))))
   }
+  if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))
   if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
   // The notices are read only while a page or channel listens.
   const feed = tableFeed({ db, schema: changes, report })
@@ -449,5 +461,5 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), sqlSends: sqlSends(realtime), report })
-  return Object.assign(app, { startRealtimePrune: prune, decryptField, jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth))] : [])] })
+  return Object.assign(app, { startRealtimePrune: prune, decryptField, jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
 }

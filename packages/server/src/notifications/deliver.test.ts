@@ -30,7 +30,7 @@ const recordingSender = (answers: Record<string, PushAnswer['result'] | 'throw'>
 }
 
 // A job in memory: its stores, its progress between tries and whether it completed.
-const harness = (options: { devices?: DeviceStore; senders?: PushSender[]; liveSessions?: DeliverySteps['liveSessions'] } = {}) => {
+const harness = (options: { devices?: DeviceStore; senders?: PushSender[]; liveSessions?: DeliverySteps['liveSessions']; quiet?: DeliverySteps['quiet'] } = {}) => {
   const memory = memoryDeviceStore()
   const devices = options.devices ?? memory
   const history = memoryHistoryStore()
@@ -54,6 +54,7 @@ const harness = (options: { devices?: DeviceStore; senders?: PushSender[]; liveS
       completed = true
     },
     ...(options.liveSessions && { liveSessions: options.liveSessions }),
+    ...(options.quiet && { quiet: options.quiet }),
   })
   const run = (to: NotificationRecipients, message: PushMessage = { title: 'Hi' }) => deliver(checkedSend(to, message), progress, steps())
   // Another send: a job of its own, with no progress.
@@ -63,7 +64,7 @@ const harness = (options: { devices?: DeviceStore; senders?: PushSender[]; liveS
   }
   // A device registered for a test, which these always keep.
   const register = async (userId: string, device: NewDevice) => (await devices.register(userId, device))!
-  return { devices, register, stored: () => [...memory.devices.values()], history, run, nextSend, completed: () => completed, goStale: () => (stale = true) }
+  return { devices, register, stored: () => [...memory.devices.values()], history, run, nextSend, completed: () => completed, goStale: () => (stale = true), progress: () => progress }
 }
 
 const entriesOf = (history: ReturnType<typeof memoryHistoryStore>) => [...history.entries.values()]
@@ -282,6 +283,45 @@ describe('deliver', () => {
       expect(push.tokens()).toEqual([])
       expect(job.stored()).toHaveLength(2)
       expect(job.completed()).toBe(false)
+    })
+  })
+
+  describe('with do not disturb', () => {
+    it("keeps the send in everyone's history, pushes to no device of a user on do not disturb and to the others as usual", async () => {
+      const push = recordingSender()
+      const asked: string[][] = []
+      const job = harness({ senders: [push.sender], quiet: async (userIds) => (asked.push([...userIds]), new Set(['a'])) })
+      await job.register('a', newDevice('a-phone'))
+      await job.register('a', newDevice('a-tablet'))
+      await job.register('b', newDevice('b-phone'))
+      await job.run({ userIds: ['a', 'b'], inbox: true }, { title: 'Update' })
+      expect(entriesOf(job.history).map((entry) => entry.userId)).toEqual(['a', 'b'])
+      expect(push.tokens()).toEqual(['b-phone'])
+      expect(asked).toEqual([['a'], ['b']])
+      expect(job.completed()).toBe(true)
+    })
+
+    it('pushes nothing on a later try to a user whose do not disturb ended in between', async () => {
+      const push = recordingSender({ 'b-phone': 'throw' })
+      let quiet = new Set(['a'])
+      const job = harness({ senders: [push.sender], quiet: async () => quiet })
+      await job.register('a', newDevice('a-phone'))
+      await job.register('b', newDevice('b-phone'))
+      await expect(job.run({ userIds: ['a', 'b'], inbox: true })).rejects.toThrow('1 deliveries are retried')
+      quiet = new Set()
+      await expect(job.run({ userIds: ['a', 'b'], inbox: true })).rejects.toThrow('1 deliveries are retried')
+      expect(push.tokens()).toEqual(['b-phone', 'b-phone'])
+      expect(entriesOf(job.history)).toHaveLength(2)
+    })
+
+    it('holds a device send to a device of a user on do not disturb too', async () => {
+      const push = recordingSender()
+      const job = harness({ senders: [push.sender], quiet: async () => new Set(['a']) })
+      const a = await job.register('a', newDevice('a-phone'))
+      const b = await job.register('b', newDevice('b-phone'))
+      await job.run({ deviceIds: [a.id, b.id] })
+      expect(push.tokens()).toEqual(['b-phone'])
+      expect(job.completed()).toBe(true)
     })
   })
 })

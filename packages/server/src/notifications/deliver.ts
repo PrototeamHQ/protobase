@@ -27,6 +27,8 @@ export type DeliverySteps = {
    * gets push only while the session it was registered in stands for its user; one without a session counts as ended.
    */
   liveSessions?: (ids: readonly string[]) => Promise<Map<string, string>>
+  /** Which of these users are on do not disturb now (see `onDoNotDisturb`): their devices get nothing pushed. */
+  quiet?: (userIds: readonly string[]) => Promise<Set<string>>
 }
 
 // What a try left undone or found wrong, counted by kind and never by id.
@@ -40,7 +42,8 @@ const listed = (counts: Map<string, number>) => [...counts].map(([method, count]
  * One try of a send, resuming from `given`: for a user send, each user's history entry when the send is for the inbox
  * (once, as `record` marks it), then the user's devices as the store lists them now; for a device send, the devices
  * with those ids now. A device the store gives that is not the user's, or not one asked for, gets nothing. With
- * `liveSessions`, a device whose session no longer stands is removed instead of pushed to. Each kind's
+ * `liveSessions`, a device whose session no longer stands is removed instead of pushed to; with `quiet`, a device of a
+ * user on do not disturb gets nothing, now or on a later try, though the history keeps the entry. Each kind's
  * devices go to its sender in one batch; a kind without a sender is skipped. An answer of `gone` removes the device,
  * `retry` leaves it to the next try once and gives up on it the second time, and any other is done. A sender that
  * throws leaves its batch to the next try. The try then throws, counting what is left, so the job retries it, or
@@ -95,8 +98,22 @@ export const deliver = async ({ to, message }: CheckedSend, given: Progress, ste
     return pending.filter(stands)
   }
 
+  // The devices of users who are not on do not disturb. The others' are done with, and saved so, so no later try
+  // pushes them once do not disturb ends.
+  const undisturbed = async (devices: Device[]) => {
+    const { quiet } = steps
+    const pending = devices.filter((device) => !done.has(device.id))
+    if (!quiet || pending.length === 0) return pending
+    const held = await quiet([...new Set(pending.map((device) => device.userId))])
+    const kept = pending.filter((device) => !held.has(device.userId))
+    if (kept.length === pending.length) return kept
+    for (const device of pending.filter((device) => held.has(device.userId))) markDone(device.id)
+    await steps.save(progress)
+    return kept
+  }
+
   const push = async (given: Device[]) => {
-    const devices = await standing(given)
+    const devices = await undisturbed(await standing(given))
     for (const device of devices) if (!steps.senders.some((sender) => sender.kinds.includes(device.kind))) markDone(device.id)
     for (const sender of steps.senders) {
       const batch = devices.filter((device) => sender.kinds.includes(device.kind) && !done.has(device.id))

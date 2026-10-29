@@ -6,8 +6,8 @@ import type { Session } from '../types'
  * Refused: visitors, outside apps acting for the user (an MCP client), and every session whose authenticator does not
  * mark it as the user's own sign-in (`Session.signIn`), staff signed in as the user included.
  */
-export const ownSignInUser = (session: Session) => {
-  const refuse = () => forbidden('own-sign-in-only', 'Only someone signed in as themselves can reach their devices and notifications')
+export const ownSignInUser = (session: Session, what = 'reach their devices and notifications') => {
+  const refuse = () => forbidden('own-sign-in-only', `Only someone signed in as themselves can ${what}`)
   if (session.anonymous || session.client || session.signIn?.staff !== false) throw refuse()
   const userId = String(session.user.id)
   if (userId === '' || session.user.id === undefined || session.user.id === null) throw refuse()

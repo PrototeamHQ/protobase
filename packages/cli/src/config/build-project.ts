@@ -1,7 +1,7 @@
 import type { PostgresPool } from 'kysely'
 import type { Db } from '@protobase/query'
-import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, WebhooksOptions } from '@protobase/server'
-import { buildAppAuth, buildAuthenticator, checkCallsOptions } from '@protobase/server/internal'
+import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, StatusOptions, WebhooksOptions } from '@protobase/server'
+import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
 import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks } from './project-parts'
 
@@ -59,6 +59,7 @@ export type BuiltProject = {
   webhooks?: WebhooksOptions
   realtime?: RealtimeOptions
   notifications?: NotificationsOptions
+  status?: StatusOptions
   calls?: CallsOptions
   jobs: JobDefinition[]
   /** The app's own mailer (`projectMailer`), which the jobs send with as sign-in does. */
@@ -95,6 +96,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     ...(webhooks && { webhooks }),
     ...(config.realtime && { realtime: config.realtime }),
     ...(notifications && { notifications }),
+    ...(config.status && { status: checkStatusOptions(config.status) }),
     ...(config.calls && { calls: checkCallsOptions(config.calls) }),
     ...(mailer && { mailer }),
     ...(config.mobile && { mobile: config.mobile }),

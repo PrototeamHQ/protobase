@@ -10,14 +10,14 @@ import { deviceSessionColumnSql, devicesTableSql, qualified } from './schema-sql
 /** Auth's users table, as the store names it: devices point at it. */
 export const authUsersTable = (auth: AdminAuth) => ({ schema: storeSchema(auth), table: auth.options.user?.modelName ?? 'user' })
 
-type UsersTable = ReturnType<typeof authUsersTable>
+export type UsersTable = ReturnType<typeof authUsersTable>
 
-const regclass = async (db: Db, name: string) => (await sql<{ oid: number | null }>`select to_regclass(${name})::oid as oid`.execute(db)).rows[0]!.oid
+export const regclass = async (db: Db, name: string) => (await sql<{ oid: number | null }>`select to_regclass(${name})::oid as oid`.execute(db)).rows[0]!.oid
 
-// The type of the users table's id, which the devices' user column takes.
-const userIdType = async (db: Db, users: UsersTable) => {
+// The type of the users table's id, which the user column of a feature's rows takes, such as notifications' devices.
+export const userIdType = async (db: Db, users: UsersTable, of = { feature: 'notifications', rows: 'devices' }) => {
   const oid = await regclass(db, qualified(users))
-  if (oid === null) throw new Error(`notifications: auth's users table ${qualified(users)} is not in the app's database, so devices cannot point at it`)
+  if (oid === null) throw new Error(`${of.feature}: auth's users table ${qualified(users)} is not in the app's database, so ${of.rows} cannot point at it`)
   const { rows } = await sql<{ type: string }>`select format_type(atttypid, atttypmod) as type from pg_attribute where attrelid = ${oid} and attname = 'id'`.execute(db)
   return rows[0]!.type
 }
