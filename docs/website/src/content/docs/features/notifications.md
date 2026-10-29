@@ -12,4 +12,5 @@ description: A bell in the top bar and push to browsers and phones, for what you
 - [Web Push](/reference/notifications/#web-push) (beta): Notifications reach desktop and Android browsers and home-screen web apps on iPhone through Web Push, with keys you generate.
 - Push on Android (coming soon): Notifications reach the Android build of the app on a user's phones.
 - Push on iOS (coming soon): Notifications reach the iOS build of the app on a user's iPhones and iPads.
+- [Do not disturb](/reference/status/#do-not-disturb) (beta): While someone is on do not disturb, sends push nothing to their devices and keep inbox notifications in the bell for later.
 - [Notification bell](/reference/notifications/#the-bell) (beta): The top bar shows how many inbox notifications are unread; its panel opens each one, marks them read and turns push on or off for this device.

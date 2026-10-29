@@ -7,7 +7,7 @@ description: The sidebar, the user menu, the bottom bar on phones and the global
 - [Recent records](/reference/sidebar/#recent-records): A sidebar entry lists a few records under it, with status dots or as titles alone, and marked per reader, such as unread ones in bold with a count.
 - [Create link](/reference/sidebar/#create-link): A sidebar entry links to its create form, such as "New message" under Direct messages, for whoever may create.
 - [The current organization](/reference/sidebar/#the-current-organization): A sidebar entry opens its list on the organization you work in, which you can clear to see every organization you are a member of.
-- [User menu](/reference/user-menu/): Account pages, help links, security settings, the theme switch and Sign out.
+- [User menu](/reference/user-menu/): Account pages, help links, security settings, setting a status, the theme switch and Sign out.
 - [Bottom bar](/reference/bottom-bar/): On phones, tabs along the bottom for each role's main screens.
 - [Global search](/reference/client/#global-search): A search box, also on Cmd+K or Ctrl+K, finds records in every resource and jumps to pages and New forms.
 - Breadcrumbs: The top bar shows the group, list and record you are on, each a link back.

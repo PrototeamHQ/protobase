@@ -24,6 +24,7 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Staff sign-in](/reference/auth/#staff-sign-in): The team that runs an app signs in as a person to help them, with a reason and a log entry.
 - [Roles](/reference/auth/#roles): A user holds one or more roles and switches between them without signing in again.
 - [Organizations](/reference/auth/#organizations): People work in one organization at a time, see only its records, and are invited with their own roles.
+- [Status](/reference/status/) (beta): People set themselves busy or do not disturb, with a text of their own such as "Having lunch" and a time it clears, from the user menu; the people they share an organization with see it beside their name.
 - [API tokens](/reference/auth/#tokens-and-roles): A signed-in session gets short-lived tokens for the API.
 - [Immediate revocation](/reference/auth/#when-a-token-stops-working): A ban, removed role or ended session takes effect on the next request.
 - [Signing key rotation](/reference/auth/#signing-keys): The keys that sign the tokens are replaced every 30 days on their own, and old ones keep verifying the tokens they signed for a week.
