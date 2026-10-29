@@ -208,7 +208,7 @@ describe.each(callBrowsers)('peer-to-peer calls on records, in %s', (name) => {
 })
 
 // Chromium and Firefox in one call, Chromium's member first by id, so their offers cross with Chromium the side that
-// would give way.
+// would give way; a second Chromium makes a third member.
 describe('peer-to-peer calls between Chromium and Firefox', () => {
   let database: PostgresDatabase
   let server: Awaited<ReturnType<typeof startCallServer>>
@@ -217,7 +217,7 @@ describe('peer-to-peer calls between Chromium and Firefox', () => {
   beforeAll(async () => {
     database = await callsDatabase()
     server = await startCallServer({ calls: { backend: { kind: 'peer' } }, db: database.db, page: await callPage() })
-    browsers.push(await launchCallBrowser('chromium'), await launchCallBrowser('firefox'))
+    browsers.push(await launchCallBrowser('chromium'), await launchCallBrowser('firefox'), await launchCallBrowser('chromium'))
   })
 
   afterAll(async () => {
@@ -251,6 +251,33 @@ describe('peer-to-peer calls between Chromium and Firefox', () => {
     for (const page of [alice, bob]) {
       await vi.waitFor(async () => expect((await page.evaluate(() => window.member.received())).video.frames).toBeGreaterThan(10), waitLong)
     }
+    expect(server.errors).toEqual([])
+  })
+
+  it('sends every pair of three members their media when all join at once and send as soon as they are in', async () => {
+    const meeting = `meeting-${crypto.randomUUID()}`
+    // Each sends right after joining, as the call view does, so the offers of most pairs cross.
+    const pages = await Promise.all(
+      ['ann', 'bob', 'cat'].map(async (name, index) => {
+        const page = await browsers[index]!.newPage()
+        await page.goto(`${server.origin}/`)
+        await page.waitForFunction(() => window.member !== undefined)
+        await page.evaluate(async (q) => {
+          await window.member.join(q)
+          await window.member.publish(['camera', 'microphone'])
+        }, `as=${name}&call=${meeting}`)
+        return page
+      }),
+    )
+    // Video frames are decoded on both connections of every member.
+    await vi.waitFor(async () => {
+      for (const page of pages) {
+        const frames = await page.evaluate(() => window.member.framesEach())
+        expect(frames).toHaveLength(2)
+        for (const decoded of frames) expect(decoded).toBeGreaterThan(10)
+      }
+    }, waitLong)
+    await Promise.all(pages.map((page) => page.close()))
     expect(server.errors).toEqual([])
   })
 })

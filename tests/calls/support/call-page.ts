@@ -84,6 +84,13 @@ const member = {
     }
     return totals
   },
+  /** The video frames each open peer connection decoded, one count per connection. */
+  framesEach: () =>
+    Promise.all(
+      connections
+        .filter((connection) => connection.connectionState !== 'closed' && connection.signalingState !== 'closed')
+        .map(async (connection) => [...(await connection.getStats()).values()].reduce((frames, report) => frames + (report.type === 'inbound-rtp' && report.kind === 'video' ? (report.framesDecoded ?? 0) : 0), 0)),
+    ),
   /** The width of the newest decoded frame of one remote video track, as its element shows it. */
   shownWidth: (sid: string) => (document.querySelector<HTMLVideoElement>(`[data-sid="${sid}"]`)?.videoWidth ?? 0),
 }
