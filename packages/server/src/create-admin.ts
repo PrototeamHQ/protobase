@@ -326,6 +326,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
         notices: changes,
         channels: () => channels,
         notifications: Boolean(notifications),
+        ...(auth?.origins[0] && { origin: auth.origins[0] }),
         ...(statusTables && { doNotDisturb: (ringDb: Db, userIds: readonly string[]) => onDoNotDisturb(ringDb, statusTables.statuses, userIds) }),
       }),
     }),

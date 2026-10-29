@@ -19,22 +19,24 @@ export type CallsWiring = {
   doNotDisturb?: (db: Db, userIds: readonly string[]) => Promise<Set<string>>
   /** With notifications: a ring is kept in the bell, and pushed to devices. */
   notifications: boolean
+  /** The app's address, such as `https://chat.example.com`, which a ring's entry in the bell leads into. */
+  origin?: string
 }
 
 /** An app's calls over its resources: the runtime loaded at the first use, so an app that never calls loads none of it. */
 export const callsService = (deps: () => Deps, options: CallsOptions, wiring: CallsWiring): CallsService => {
   let runtime: Promise<CallsRuntime> | undefined
   const load = async () => {
-    const [{ callsRuntime }, { ringer }, { sqlRingStore }] = await Promise.all([import('./calls-runtime'), import('./ringer'), import('./ring-store')])
+    const [{ callsRuntime }, { ringer, ringMessage }, { sqlRingStore }] = await Promise.all([import('./calls-runtime'), import('./ringer'), import('./ring-store')])
     const { db, statementTimeoutMs, report, registry } = deps()
-    const recordUrl = ({ resource, key }: { resource: string; key: string }) => appPath({ kind: 'record', resource, key: decodeKey(key, registry.find(resource)!.keyTypes) })
+    const recordUrl = ({ resource, key }: { resource: string; key: string }) =>
+      wiring.origin === undefined ? undefined : new URL(appPath({ kind: 'record', resource, key: decodeKey(key, registry.find(resource)!.keyTypes) }), wiring.origin).href
     const rings = ringer({
       store: sqlRingStore(db, wiring.notices),
       recordUrl,
       ...(wiring.doNotDisturb && { doNotDisturb: (userIds: readonly string[]) => wiring.doNotDisturb!(db, userIds) }),
       ...(wiring.notifications && {
-        notify: async ({ userIds, ...message }) =>
-          sendNotification(db, { userIds, inbox: true }, { ...message, urgency: 'high', ttl: 60, tag: `call-${message.data.call}` }),
+        notify: ({ userIds, ...notification }) => sendNotification(db, { userIds, inbox: true }, ringMessage(notification)),
       }),
     })
     return callsRuntime({

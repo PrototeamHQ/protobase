@@ -186,7 +186,7 @@ return acceptWebSocket(
 | --- | --- |
 | `users` | The user ids rung, 50 at most; the caller is never rung. |
 | `title`, `body` | What the ring and the bell say. |
-| `url` | Where the bell's entry leads; the record's page by default. |
+| `url` | Where the bell's entry leads, an absolute URL; the record's page by default. |
 
 A ring lasts 30 seconds. Accept opens the record's page joining the call, on that device only, after the click; joining the call from any device stops the ring on every page of that person, and so do Decline and the end of the call. The ring reaches open pages over the live stream every page of the app already holds, so it opens no connection of its own.
 

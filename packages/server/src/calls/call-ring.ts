@@ -5,7 +5,7 @@ export type CallRingInput = {
   /** What the ring and the bell say, such as "Ann is calling". */
   title: string
   body?: string
-  /** Where the bell's entry leads; the record's page by default. */
+  /** Where the bell's entry leads, an absolute URL; the record's page by default. */
   url?: string
 }
 
