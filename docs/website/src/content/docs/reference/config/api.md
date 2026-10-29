@@ -150,13 +150,13 @@ export default defineConfig({ runtimeUpdates: false })
 
 ## realtime
 
-- **Type:** `{ processes?: 'one' | 'many' }`
-- **Default:** `{ processes: 'one' }`
+- **Type:** `{ processes?: 'one' | 'many', sqlSends?: boolean }`
+- **Default:** `{ processes: 'one', sqlSends: false }`
 
-How [channels](/reference/channels/) and [Supabase Realtime](/reference/supabase-realtime/) are served. With `'one'`, one process serves the app, and broadcasts and presence go between its channels in memory. Set `'many'` when several processes serve the app behind one address: broadcasts and presence then go between the processes through the `realtime_relay` schema of the app's database, which [`protobase migration`](/reference/cli/#migration) writes and the server checks at start. See [Several processes](/reference/channels/#several-processes).
+How [channels](/reference/channels/) and [Supabase Realtime](/reference/supabase-realtime/) are served. With `'one'`, one process serves the app, and broadcasts and presence go between its channels in memory. Set `'many'` when several processes serve the app behind one address: broadcasts and presence then go between the processes through the `realtime_relay` schema of the app's database, which [`protobase migration`](/reference/cli/#migration) writes and the server checks at start. See [Several processes](/reference/channels/#several-processes). Set `sqlSends: true` to let SQL in the app's database broadcast to channels with `channels.send()`, from the `channels` schema that `protobase migration` writes and the server checks at start. See [From SQL](/reference/channels/#from-sql).
 
 ```ts
-export default defineConfig({ realtime: { processes: 'many' } })
+export default defineConfig({ realtime: { processes: 'many', sqlSends: true } })
 ```
 
 ## calls
