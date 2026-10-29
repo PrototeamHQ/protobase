@@ -4,7 +4,8 @@ import { createPeerConnection as newPeerConnection, type MediaLink, type MediaLi
 import { connectionOf } from './connection-stats'
 import { midsByStreamId } from './msid-tracks'
 
-type Peer = { pc: RTCPeerConnection; polite: boolean; makingOffer: boolean; ignoreOffer: boolean; senders: Map<CallTrackSource, RTCRtpSender> }
+// `makingOffer` is the local offer being set, while it is.
+type Peer = { pc: RTCPeerConnection; polite: boolean; makingOffer?: Promise<void>; ignoreOffer: boolean; senders: Map<CallTrackSource, RTCRtpSender> }
 // Each sent track on a stream of its own, whose id names it: the receiving browser reads it in the description's msid.
 type LocalTrack = { track: MediaStreamTrack; sid: string; stream: MediaStream }
 
@@ -43,28 +44,44 @@ export const peerLink = (self: string, { iceServers, send, onTracks, createPeerC
   }
   const emitTracks = () => onTracks(remote.map((track) => ({ ...track, ...(receivedTrack(track) && { track: receivedTrack(track) }) })))
 
-  const connect = (member: string) => {
+  // The peer's connection, new, sending this member's tracks; the one before it, if any, is closed by the caller.
+  const open = (member: string, peer: Peer) => {
     const pc = createPeerConnection({ iceServers })
-    const peer: Peer = { pc, polite: self < member, makingOffer: false, ignoreOffer: false, senders: new Map() }
-    peers.set(member, peer)
+    peer.pc = pc
+    peer.senders = new Map()
     pc.onnegotiationneeded = async () => {
-      peer.makingOffer = true
+      const making = pc.setLocalDescription()
+      peer.makingOffer = making
       try {
-        await pc.setLocalDescription()
-        send({ type: 'signal', to: member, description: pc.localDescription!.toJSON() as CallDescription })
+        await making
+        if (peer.pc === pc) send({ type: 'signal', to: member, description: pc.localDescription!.toJSON() as CallDescription })
       } finally {
-        peer.makingOffer = false
+        if (peer.makingOffer === making) peer.makingOffer = undefined
       }
     }
     pc.onicecandidate = (event) => {
-      if (event.candidate) send({ type: 'signal', to: member, candidate: event.candidate.toJSON() as CallCandidate })
+      if (event.candidate && peer.pc === pc) send({ type: 'signal', to: member, candidate: event.candidate.toJSON() as CallCandidate })
     }
     pc.oniceconnectionstatechange = () => {
       if (pc.iceConnectionState === 'failed') pc.restartIce()
     }
     pc.ontrack = () => emitTracks()
     for (const [source, sending] of local) peer.senders.set(source, sendOn(pc, sending))
+  }
+  const connect = (member: string) => {
+    const peer = { polite: self < member, ignoreOffer: false } as Peer
+    peers.set(member, peer)
+    open(member, peer)
     return peer
+  }
+  /**
+   * Chromium sometimes gathers no candidates on a connection whose first offer it rolled back, so neither side ever
+   * checks: the side that gives way on a connection never negotiated starts on a new one instead, once its offer is set.
+   */
+  const renew = async (member: string, peer: Peer) => {
+    await peer.makingOffer
+    peer.pc.close()
+    open(member, peer)
   }
   const disconnect = (member: string) => {
     peers.get(member)?.pc.close()
@@ -74,11 +91,14 @@ export const peerLink = (self: string, { iceServers, send, onTracks, createPeerC
   const signal = async (from: string, description?: CallDescription, candidate?: CallCandidate) => {
     // The other member may reach this browser before the list that names them does.
     const peer = peers.get(from) ?? connect(from)
-    const { pc } = peer
     if (description) {
-      const collision = description.type === 'offer' && (peer.makingOffer || pc.signalingState !== 'stable')
+      const collision = description.type === 'offer' && (peer.makingOffer !== undefined || peer.pc.signalingState !== 'stable')
       peer.ignoreOffer = !politeTo(peer, description.sdp) && collision
       if (peer.ignoreOffer) return
+      if (collision && !peer.pc.currentRemoteDescription) await renew(from, peer)
+    }
+    const { pc } = peer
+    if (description) {
       await pc.setRemoteDescription(description)
       if (description.type === 'offer') {
         await pc.setLocalDescription()
