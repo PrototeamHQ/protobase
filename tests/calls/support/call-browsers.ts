@@ -8,12 +8,13 @@ export const callBrowsers = ['chromium', 'firefox'] as const
 export type CallBrowser = (typeof callBrowsers)[number]
 
 /**
- * The browser, with fake devices for the camera and microphone, and, in Firefox, the loopback addresses the members'
- * browsers on this machine reach each other through, unhidden.
+ * The browser, with fake devices for the camera and microphone, and the addresses the members' browsers on this
+ * machine reach each other through unhidden: Firefox's loopback ones, and Chromium's own, which it would otherwise name
+ * by an mDNS name Firefox does not resolve without a STUN server.
  */
 export const launchCallBrowser = (name: CallBrowser): Promise<Browser> =>
   name === 'chromium'
-    ? chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] })
+    ? chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--disable-features=WebRtcHideLocalIpsWithMdns'] })
     : firefox.launch({
         firefoxUserPrefs: {
           'media.navigator.streams.fake': true,

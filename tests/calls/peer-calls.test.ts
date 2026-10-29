@@ -206,3 +206,51 @@ describe.each(callBrowsers)('peer-to-peer calls on records, in %s', (name) => {
     expect([...server.errors, ...other.errors]).toEqual([])
   })
 })
+
+// Chromium and Firefox in one call, Chromium's member first by id, so their offers cross with Chromium the side that
+// would give way.
+describe('peer-to-peer calls between Chromium and Firefox', () => {
+  let database: PostgresDatabase
+  let server: Awaited<ReturnType<typeof startCallServer>>
+  const browsers: Browser[] = []
+
+  beforeAll(async () => {
+    database = await callsDatabase()
+    server = await startCallServer({ calls: { backend: { kind: 'peer' } }, db: database.db, page: await callPage() })
+    browsers.push(await launchCallBrowser('chromium'), await launchCallBrowser('firefox'))
+  })
+
+  afterAll(async () => {
+    await Promise.all(browsers.map((browser) => browser.close()))
+    await server?.close()
+    await database?.close()
+  })
+
+  it("sends both members' media when one joins a call that already sends to them", async () => {
+    const meeting = `meeting-${crypto.randomUUID()}`
+    const open = async (index: number) => {
+      const page = await browsers[index]!.newPage()
+      await page.goto(`${server.origin}/`)
+      await page.waitForFunction(() => window.member !== undefined)
+      return page
+    }
+    const alice = await open(0)
+    await alice.evaluate((q) => window.member.join(q), `as=alice&call=${meeting}`)
+    await alice.evaluate(() => window.member.publish(['camera', 'microphone']))
+    // Bob sends as soon as he is in, as Alice's browser offers him hers.
+    const bob = await open(1)
+    await bob.evaluate(async (q) => {
+      await window.member.join(q)
+      await window.member.publish(['camera', 'microphone'])
+    }, `as=bob&call=${meeting}`)
+    await vi.waitFor(async () => {
+      expect((await alice.evaluate(() => window.member.tracks())).map(({ member, source, receiving }) => `${member} ${source} ${receiving}`).sort()).toEqual(['bob camera true', 'bob microphone true'])
+      expect((await bob.evaluate(() => window.member.tracks())).map(({ member, source, receiving }) => `${member} ${source} ${receiving}`).sort()).toEqual(['alice camera true', 'alice microphone true'])
+    }, waitLong)
+    // Media arrives in both browsers: video frames are decoded on each side.
+    for (const page of [alice, bob]) {
+      await vi.waitFor(async () => expect((await page.evaluate(() => window.member.received())).video.frames).toBeGreaterThan(10), waitLong)
+    }
+    expect(server.errors).toEqual([])
+  })
+})
