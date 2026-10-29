@@ -66,6 +66,7 @@ import { userMenuFromMeta } from './user-menu-from-meta'
 import { slotted } from '../locale/slotted'
 import { text as appText } from './messages'
 import type { NativeBridge } from './native-auth-fetch'
+import { LiveUpdateGate } from './live-update/live-update-gate'
 
 export type AppProps = {
   /** Where `/api/v1` lives. Defaults to the current origin. */
@@ -302,21 +303,24 @@ const PublicFormGate = ({ baseUrl, client, ui, children }: Pick<AppProps, 'baseU
 export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, locale, nativeBridge, ...rest }: AppProps) => {
   // Before `/meta` names the app's language, and when it names none, the screens are in this one
   setFallbackLocale(locale ?? 'en')
+  const apiOrigin = rest.baseUrl && new URL(rest.baseUrl, window.location.href).origin
   return (
     <ThemeProvider>
-      <AuthProvider session={auth} {...(rest.baseUrl && { origin: new URL(rest.baseUrl, window.location.href).origin })} {...(nativeBridge && { nativeBridge })}>
-        <Router basePath={basePath} initialUrl={initialUrl}>
-          <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
-            <AuthLocale>
-              <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
-                <AuthGate workspace={workspace}>
-                  <Authenticated workspace={workspace} {...rest} />
-                </AuthGate>
-              </PublicFormGate>
-            </AuthLocale>
-          </PluginSourceProvider>
-        </Router>
-      </AuthProvider>
+      <LiveUpdateGate nativeBridge={nativeBridge} apiOrigin={apiOrigin}>
+        <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })}>
+          <Router basePath={basePath} initialUrl={initialUrl}>
+            <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
+              <AuthLocale>
+                <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
+                  <AuthGate workspace={workspace}>
+                    <Authenticated workspace={workspace} {...rest} />
+                  </AuthGate>
+                </PublicFormGate>
+              </AuthLocale>
+            </PluginSourceProvider>
+          </Router>
+        </AuthProvider>
+      </LiveUpdateGate>
     </ThemeProvider>
   )
 }

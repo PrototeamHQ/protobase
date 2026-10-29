@@ -6,6 +6,8 @@ export type NativeBridge = {
   getPlatform(): string
   isPluginAvailable(name: string): boolean
   nativePromise(plugin: string, method: string, options: object): Promise<unknown>
+  /** What a plugin's call rejects with. */
+  Exception?: abstract new (...args: never[]) => Error
 }
 
 type NativeResponse = { status: number; headers: Record<string, string>; data: unknown }
