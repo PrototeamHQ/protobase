@@ -39,10 +39,15 @@ describe('buildDeployBundle', () => {
   it('writes the config module, the production app (the shell) and a manifest of the API paths, versions and shell', async () => {
     projectDir = await createProject({ 'config/index.ts': things })
     const outDir = path.join(projectDir, 'dist')
+    const before = Date.now()
     const manifest = await buildDeployBundle({ projectDir, outDir })
 
-    const shell = { protobase: protobaseVersion, pluginApi: 1, paths: ['/index.html', '/assets', '/protobase.sw.js'] }
-    const expected = { version: 3, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api', ...oauthWellKnownPaths], plugins: [], theme: 'protobase.theme.css', shell, icons: { favicon: false, png: [] }, native: pinnedNative }
+    // When the shell and then the bundle were built, which order the bundle's mobile releases.
+    const shell = { protobase: protobaseVersion, pluginApi: 1, paths: ['/index.html', '/assets', '/protobase.sw.js'], builtAt: manifest.shell.builtAt }
+    expect(manifest.shell.builtAt).toBeGreaterThanOrEqual(before)
+    expect(manifest.builtAt).toBeGreaterThanOrEqual(manifest.shell.builtAt!)
+    expect(manifest.builtAt).toBeLessThanOrEqual(Date.now())
+    const expected = { version: 3, protobase: protobaseVersion, builtAt: manifest.builtAt, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api', ...oauthWellKnownPaths], plugins: [], theme: 'protobase.theme.css', shell, icons: { favicon: false, png: [] }, native: pinnedNative }
     expect(manifest).toEqual(expected)
     expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toEqual(expected)
     expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).not.toContain('// @bun')
