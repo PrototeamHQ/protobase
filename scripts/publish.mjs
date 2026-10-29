@@ -112,14 +112,19 @@ const buildAndPack = async (pending) => {
 }
 
 // npm signs the provenance with an identity token it fetches from GitHub's OIDC endpoint before it uploads anything, and
-// that fetch now and then fails with IDENTITY_TOKEN_READ_ERROR, so a publish failing with that code is tried again, up
-// to 3 times; any other failure fails the publish at once.
+// that fetch now and then fails with IDENTITY_TOKEN_READ_ERROR. npm then records the signature in the transparency log,
+// and a slow log answers its own retry of that entry with a 409, TLOG_CREATE_ENTRY_ERROR, before npm uploads the package,
+// which failed the 0.62.2 release; a publish again signs with a new key, so it makes a new entry. A publish failing with
+// either code is tried again, up to 3 times; any other failure fails the publish at once.
+const retriedCodes = ['IDENTITY_TOKEN_READ_ERROR', 'TLOG_CREATE_ENTRY_ERROR']
+
 const publishTarball = async (tarball, attempt = 1) => {
   try {
     await run('npm', ['publish', tarball, '--access', 'public', ...(dryRun ? ['--dry-run'] : [])])
   } catch (error) {
-    if (attempt >= 3 || !error.output?.includes('npm error code IDENTITY_TOKEN_READ_ERROR')) throw error
-    console.log(`npm could not read the identity token for ${tarball}, publishing it again`)
+    const code = retriedCodes.find((code) => error.output?.includes(`npm error code ${code}`))
+    if (attempt >= 3 || !code) throw error
+    console.log(`npm failed to publish ${tarball} with ${code}, publishing it again`)
     await new Promise((resolve) => setTimeout(resolve, 1_000 * attempt))
     await publishTarball(tarball, attempt + 1)
   }

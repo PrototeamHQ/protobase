@@ -83,8 +83,9 @@ describe('scripts/publish.mjs --pack', () => {
 })
 
 // Stands in for npm: `npm view` finds only the name@version in ON_NPM, and `npm publish` of a tarball fails with the
-// error code of IDENTITY_TOKEN_READ_ERROR the first time, as GitHub's OIDC endpoint now and then fails npm's
-// provenance, which failed the 0.38.0 release, or always with FAILURE when set, for every tarball or only those whose
+// error code FIRST_FAILURE the first time, as GitHub's OIDC endpoint now and then fails npm's provenance with
+// IDENTITY_TOKEN_READ_ERROR, which failed the 0.38.0 release, and the transparency log with TLOG_CREATE_ENTRY_ERROR,
+// which failed the 0.62.2 release, or always with FAILURE when set, for every tarball or only those whose
 // path holds FAILING. Each publish logs its start and its end to PUBLISHES; with WAIT_FOR set, it ends only once that
 // many tarballs have started, or after 5 seconds, so publishes one after another show as an end before the last start.
 const fakeNpm = `#!${process.execPath}
@@ -107,7 +108,7 @@ const finish = () => {
     process.exit(1)
   }
   if (before === 0) {
-    console.error('npm error code IDENTITY_TOKEN_READ_ERROR')
+    console.error('npm error code ' + process.env.FIRST_FAILURE)
     process.exit(1)
   }
 }
@@ -126,7 +127,7 @@ describe('scripts/publish.mjs', () => {
   let repo = ''
   afterEach(() => Promise.all([binDir, repo].map((dir) => rm(dir, { recursive: true, force: true }))))
 
-  const publish = async ({ failure = '', failing = '', onNpm = '', waitFor = '', args = [] as string[] } = {}) => {
+  const publish = async ({ firstFailure = 'IDENTITY_TOKEN_READ_ERROR', failure = '', failing = '', onNpm = '', waitFor = '', args = [] as string[] } = {}) => {
     binDir = await mkdtemp(path.join(tmpdir(), 'protobase-fake-npm-'))
     for (const [name, script] of Object.entries({ bun: '#!/bin/sh\n', npm: fakeNpm })) {
       await writeFile(path.join(binDir, name), script)
@@ -136,7 +137,7 @@ describe('scripts/publish.mjs', () => {
     await appendFile(publishes, '')
     repo = await realpath(await mkdtemp(path.join(tmpdir(), 'protobase-publish-')))
     await copyManifests(repo)
-    const env = { ...process.env, PATH: `${binDir}${path.delimiter}${process.env.PATH}`, PUBLISHES: publishes, FAILURE: failure, FAILING: failing, ON_NPM: onNpm, WAIT_FOR: waitFor }
+    const env = { ...process.env, PATH: `${binDir}${path.delimiter}${process.env.PATH}`, PUBLISHES: publishes, FIRST_FAILURE: firstFailure, FAILURE: failure, FAILING: failing, ON_NPM: onNpm, WAIT_FOR: waitFor }
     const result = spawnSync(process.execPath, [path.join(root, 'scripts/publish.mjs'), ...args], { cwd: repo, env, encoding: 'utf8' })
     const log = (await readFile(publishes, 'utf8')).split('\n').filter(Boolean)
     const lines = log.filter((line) => line.startsWith('start ')).map((line) => line.slice('start '.length))
@@ -145,6 +146,15 @@ describe('scripts/publish.mjs', () => {
 
   it('publishes a tarball again when npm could not read the identity token', async () => {
     const { result, lines } = await publish()
+
+    expect(result.status).toBe(0)
+    const published = result.stdout.match(/^published /gm) ?? []
+    expect(published.length).toBeGreaterThan(0)
+    expect(lines).toHaveLength(published.length * 2)
+  })
+
+  it('publishes a tarball again when the transparency log already had its entry', async () => {
+    const { result, lines } = await publish({ firstFailure: 'TLOG_CREATE_ENTRY_ERROR' })
 
     expect(result.status).toBe(0)
     const published = result.stdout.match(/^published /gm) ?? []
