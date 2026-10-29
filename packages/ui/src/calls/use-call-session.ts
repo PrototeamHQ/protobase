@@ -32,14 +32,23 @@ export const useCallSession = (url: string) => {
   const own = useRef<(MediaStreamTrack | undefined)[]>([])
   const seen = useRef(new Map<string, number>())
 
+  // The devices as they open: a join clicked before they did waits for them.
+  const opening = useRef<Promise<Devices | undefined>>(Promise.resolve(undefined))
+
   useEffect(() => {
+    let cancelled = false
     gone.current = false
-    void openDevices().then((opened) => {
-      if (gone.current) return stop([opened.microphone, opened.camera])
+    opening.current = openDevices().then((opened) => {
+      if (cancelled) {
+        stop([opened.microphone, opened.camera])
+        return
+      }
       own.current.push(opened.microphone, opened.camera)
       setDevices(opened)
+      return opened
     })
     return () => {
+      cancelled = true
       gone.current = true
       call.current?.leave()
       call.current = undefined
@@ -77,7 +86,8 @@ export const useCallSession = (url: string) => {
     if (!joined) return
     if (gone.current) return joined.leave()
     call.current = joined
-    const sending = { ...(devices?.microphone && { microphone: devices.microphone }), ...(devices?.camera && { camera: devices.camera }) }
+    const opened = await opening.current
+    const sending = { ...(opened?.microphone && { microphone: opened.microphone }), ...(opened?.camera && { camera: opened.camera }) }
     await joined.publish(sending).then(
       () => {
         if (sending.microphone) joined.mute('microphone', !microphoneOn)
@@ -88,7 +98,7 @@ export const useCallSession = (url: string) => {
         setRefusedSending(true)
       },
     )
-  }, [url, devices, microphoneOn, cameraOn])
+  }, [url, microphoneOn, cameraOn])
 
   const toggleMicrophone = useCallback(() => {
     const next = !microphoneOn
