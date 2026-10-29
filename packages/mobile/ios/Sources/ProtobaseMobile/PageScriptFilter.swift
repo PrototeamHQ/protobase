@@ -5,7 +5,9 @@ import WebKit
  * Stands in front of Capacitor's `bridge` script message handler, the way page script calls native code. It drops
  * messages from any frame but the main one of the app's own origin, as Capacitor Android's MessageHandler does, and
  * refuses `CapacitorHttp`, `CapacitorCookies` and `WebView`, which hand over or plant the session, and any plugin id
- * the bridge has not loaded: Capacitor would otherwise load a plugin by class name, such as `CAPHttpPlugin`.
+ * the bridge has not loaded: Capacitor would otherwise load a plugin by class name, such as `CAPHttpPlugin` or the stock
+ * `LiveUpdatePlugin`. `LiveUpdate` passes only when GuardedLiveUpdatePlugin holds the name: an `npx cap sync` lists the
+ * stock class again, which then registers under it beside or instead of the guard.
  */
 final class PageScriptFilter: NSObject, WKScriptMessageHandler {
     private static let handlerName = "bridge"
@@ -32,7 +34,7 @@ final class PageScriptFilter: NSObject, WKScriptMessageHandler {
         }
         guard type == "message" else { return }
         let pluginId = body["pluginId"] as? String ?? ""
-        if !Self.refusedPlugins.contains(pluginId), bridge.plugin(withName: pluginId) != nil {
+        if !Self.refusedPlugins.contains(pluginId), let plugin = bridge.plugin(withName: pluginId), pluginId != "LiveUpdate" || plugin is GuardedLiveUpdatePlugin {
             bridge.webViewDelegationHandler.userContentController(userContentController, didReceive: message)
             return
         }
@@ -47,7 +49,7 @@ final class PageScriptFilter: NSObject, WKScriptMessageHandler {
             "pluginId": pluginId,
             "methodName": body["methodName"] as? String ?? "",
             "success": false,
-            "error": ["message": "\(pluginId) is not available to page script in a Protobase app"],
+            "error": ["message": Refusal.message(pluginId)],
         ]
         guard let json = try? JSONSerialization.data(withJSONObject: answer), let text = String(data: json, encoding: .utf8) else { return }
         webView?.evaluateJavaScript("window.Capacitor.fromNative(\(text))")

@@ -35,7 +35,8 @@ const protobasePlugins = protobasePluginClasses.map((classpath) => ({ pkg: '@pro
 const stockLiveUpdate = { pkg: '@capawesome/capacitor-live-update', classpath: 'io.capawesome.capacitorjs.plugins.liveupdate.LiveUpdatePlugin' }
 
 // npm and Capacitor as they leave the workspace, Protobase's plugin compiled into Android, recording every call; `cap
-// add` lists the plugins given, by default Protobase's on Android, and Capacitor's App and Protobase's on iOS.
+// add` lists the plugins given, by default Protobase's on Android, and Capacitor's App and Protobase's on iOS, and
+// compiles the live updater into the iOS app when it lists its class.
 const fakeRun =
   (calls: Array<{ command: string; args: string[] } & ChildOptions>, { android = protobasePlugins, ios = ['AppPlugin', ...protobaseIosPluginClasses] } = {}) =>
   async (command: string, args: string[], options: ChildOptions) => {
@@ -56,7 +57,8 @@ const fakeRun =
       const configuration = '\t\t\t\tCODE_SIGN_STYLE = Automatic;\n'
       write(path.join(options.cwd, 'ios/App/App.xcodeproj/project.pbxproj'), `${configuration}${configuration}`)
       write(path.join(options.cwd, 'ios/App/App/capacitor.config.json'), JSON.stringify({ packageClassList: ios }))
-      write(path.join(options.cwd, 'ios/App/CapApp-SPM/Package.swift'), '.product(name: "ProtobaseMobile", package: "ProtobaseMobile")')
+      const liveUpdate = ios.includes('LiveUpdatePlugin') ? '\n.product(name: "CapawesomeCapacitorLiveUpdate", package: "CapawesomeCapacitorLiveUpdate")' : ''
+      write(path.join(options.cwd, 'ios/App/CapApp-SPM/Package.swift'), `.product(name: "ProtobaseMobile", package: "ProtobaseMobile")${liveUpdate}`)
     }
   }
 
@@ -130,12 +132,21 @@ describe('mobileRun', () => {
     expect(listed).toEqual([{ pkg: '@protobase/mobile', classpath: 'net.protobase.mobile.GuardedLiveUpdate' }, ...protobasePlugins])
   })
 
-  it('refuses the live updater on iOS before it runs the app', async () => {
+  it("lists Protobase's guard alone for the live updater on iOS, and runs the app", async () => {
     const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
     const dir = project("{ appId: 'com.example.shop' }")
-    const deps = { run: fakeRun(calls, { ios: ['AppPlugin', ...protobaseIosPluginClasses, 'LiveUpdatePlugin'] }), build, fetch }
-    await expect(mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, deps)).rejects.toThrow('The iOS app lists LiveUpdatePlugin')
-    expect(calls.map(({ args }) => args[1])).not.toContain('run')
+    const deps = { run: fakeRun(calls, { ios: ['AppPlugin', ...protobaseIosPluginClasses, 'GuardedLiveUpdatePlugin', 'LiveUpdatePlugin'] }), build, fetch }
+    await mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, deps)
+    const listed = JSON.parse(readFileSync(path.join(dir, '.protobase/mobile/ios/App/App/capacitor.config.json'), 'utf8'))
+    expect(listed.packageClassList).toEqual(['AppPlugin', ...protobaseIosPluginClasses, 'GuardedLiveUpdatePlugin'])
+    expect(calls.map(({ args }) => args[1])).toContain('run')
+  })
+
+  it("drops Protobase's guard from an iOS app without the live updater", async () => {
+    const dir = project("{ appId: 'com.example.shop' }")
+    await mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, { run: fakeRun([], { ios: ['AppPlugin', ...protobaseIosPluginClasses, 'GuardedLiveUpdatePlugin'] }), build, fetch })
+    const listed = JSON.parse(readFileSync(path.join(dir, '.protobase/mobile/ios/App/App/capacitor.config.json'), 'utf8'))
+    expect(listed.packageClassList).toEqual(['AppPlugin', ...protobaseIosPluginClasses])
   })
 
   it("refuses a stale iOS workspace without Protobase's plugin class before it runs the app", async () => {

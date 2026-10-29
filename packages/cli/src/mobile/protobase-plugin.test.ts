@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { checkIosPlugins, checkProtobasePlugin, guardLiveUpdate, protobaseIosPluginClasses, protobaseIosProduct, protobasePluginClasses } from './protobase-plugin'
+import { checkIosPlugins, checkProtobasePlugin, guardedIosLiveUpdate, guardIosLiveUpdate, guardLiveUpdate, liveUpdateIosProduct, protobaseIosPluginClasses, protobaseIosProduct, protobasePluginClasses } from './protobase-plugin'
 
 let ws = ''
 afterEach(() => rmSync(ws, { recursive: true, force: true }))
@@ -64,26 +64,64 @@ describe('guardLiveUpdate', () => {
   })
 })
 
+const product = '.product(name: "ProtobaseMobile", package: "ProtobaseMobile")'
+const liveUpdateProduct = `.product(name: "${liveUpdateIosProduct}", package: "${liveUpdateIosProduct}")`
+// What `cap add ios` writes: the class list (raw text, or none) and the app's Swift package (or none).
+const iosWorkspace = ({ config, manifest = product }: { config?: string; manifest?: string | null }) => {
+  ws = mkdtempSync(path.join(tmpdir(), 'protobase-plugin-'))
+  mkdirSync(path.join(ws, 'ios', 'App', 'App'), { recursive: true })
+  mkdirSync(path.join(ws, 'ios', 'App', 'CapApp-SPM'), { recursive: true })
+  if (config !== undefined) writeFileSync(path.join(ws, 'ios', 'App', 'App', 'capacitor.config.json'), config)
+  if (manifest !== null) writeFileSync(path.join(ws, 'ios', 'App', 'CapApp-SPM', 'Package.swift'), `dependencies: [\n${manifest}\n]`)
+  return ws
+}
+const iosListing = (classes: unknown) => JSON.stringify({ appId: 'com.example.shop', packageClassList: classes })
+const iosListed = () => JSON.parse(readFileSync(path.join(ws, 'ios', 'App', 'App', 'capacitor.config.json'), 'utf8'))
+
+describe('guardIosLiveUpdate', () => {
+  it("lists the guard alone in the stock class's place, keeping the rest of the file and the order", async () => {
+    await guardIosLiveUpdate(iosWorkspace({ config: iosListing(['AppPlugin', 'LiveUpdatePlugin', ...protobaseIosPluginClasses, guardedIosLiveUpdate]) }))
+    expect(iosListed()).toEqual({ appId: 'com.example.shop', packageClassList: ['AppPlugin', guardedIosLiveUpdate, ...protobaseIosPluginClasses] })
+  })
+
+  it('lists the guard for the stock class from an @protobase/mobile that has none listed', async () => {
+    await guardIosLiveUpdate(iosWorkspace({ config: iosListing(['LiveUpdatePlugin', ...protobaseIosPluginClasses]) }))
+    expect(iosListed().packageClassList).toEqual([guardedIosLiveUpdate, ...protobaseIosPluginClasses])
+  })
+
+  it('drops the guard from an app without the live updater', async () => {
+    await guardIosLiveUpdate(iosWorkspace({ config: iosListing(['AppPlugin', ...protobaseIosPluginClasses, guardedIosLiveUpdate]) }))
+    expect(iosListed().packageClassList).toEqual(['AppPlugin', ...protobaseIosPluginClasses])
+  })
+
+  it('leaves a missing or unparsable file for the check to refuse', async () => {
+    await expect(guardIosLiveUpdate(iosWorkspace({}))).resolves.toBeUndefined()
+    await guardIosLiveUpdate(iosWorkspace({ config: '{"packageClassList": [' }))
+    expect(readFileSync(path.join(ws, 'ios', 'App', 'App', 'capacitor.config.json'), 'utf8')).toBe('{"packageClassList": [')
+  })
+})
+
 describe('checkIosPlugins', () => {
-  const product = '.product(name: "ProtobaseMobile", package: "ProtobaseMobile")'
-  // What `cap add ios` writes: the class list (raw text, or none) and the app's Swift package (or none).
-  const iosWorkspace = ({ config, manifest = product }: { config?: string; manifest?: string | null }) => {
-    ws = mkdtempSync(path.join(tmpdir(), 'protobase-plugin-'))
-    mkdirSync(path.join(ws, 'ios', 'App', 'App'), { recursive: true })
-    mkdirSync(path.join(ws, 'ios', 'App', 'CapApp-SPM'), { recursive: true })
-    if (config !== undefined) writeFileSync(path.join(ws, 'ios', 'App', 'App', 'capacitor.config.json'), config)
-    if (manifest !== null) writeFileSync(path.join(ws, 'ios', 'App', 'CapApp-SPM', 'Package.swift'), `dependencies: [\n${manifest}\n]`)
-    return ws
-  }
-  const listing = (classes: unknown) => JSON.stringify({ appId: 'com.example.shop', packageClassList: classes })
+  const listing = iosListing
   const stale = (what: string, at: string) => `The iOS app lacks Protobase's native plugin (${what}): delete ${at} and run the command again`
 
   it("passes an app with Protobase's plugin classes and product, without the live updater", async () => {
     await expect(checkIosPlugins(iosWorkspace({ config: listing(['AppPlugin', 'SplashScreenPlugin', ...protobaseIosPluginClasses]) }))).resolves.toBeUndefined()
   })
 
-  it('refuses the live updater, naming its class', async () => {
-    await expect(checkIosPlugins(iosWorkspace({ config: listing(['AppPlugin', ...protobaseIosPluginClasses, 'LiveUpdatePlugin']) }))).rejects.toThrow('The iOS app lists LiveUpdatePlugin')
+  it('refuses the stock live updater, naming its class', async () => {
+    const config = listing(['AppPlugin', ...protobaseIosPluginClasses, guardedIosLiveUpdate, 'LiveUpdatePlugin'])
+    await expect(checkIosPlugins(iosWorkspace({ config, manifest: `${product}\n${liveUpdateProduct}` }))).rejects.toThrow('The iOS app lists LiveUpdatePlugin, which hands page script the live updater unguarded')
+  })
+
+  it("passes the guard with the live updater's product", async () => {
+    const config = listing(['AppPlugin', ...protobaseIosPluginClasses, guardedIosLiveUpdate])
+    await expect(checkIosPlugins(iosWorkspace({ config, manifest: `${product}\n${liveUpdateProduct}` }))).resolves.toBeUndefined()
+  })
+
+  it("refuses the guard without the live updater's product", async () => {
+    const config = listing(['AppPlugin', ...protobaseIosPluginClasses, guardedIosLiveUpdate])
+    await expect(checkIosPlugins(iosWorkspace({ config }))).rejects.toThrow(`lists ${guardedIosLiveUpdate} without the live updater's ${liveUpdateIosProduct}`)
   })
 
   it('refuses an app without ProtobaseAuthPlugin, naming the workspace to delete', async () => {
@@ -119,10 +157,10 @@ describe("Protobase's iOS plugin", () => {
     expect(manifest).toContain(`.library(name: "${protobaseIosProduct}", targets: ["ProtobaseMobile"])`)
   })
 
-  it('declares exactly the classes the check requires', () => {
+  it('declares exactly the classes the check requires, and the guard the CLI lists for the live updater', () => {
     const declared = readdirSync(sources)
       .filter((name) => name.endsWith('.swift'))
       .flatMap((name) => readFileSync(path.join(sources, name), 'utf8').match(/@objc\(([A-Za-z0-9_-]+)\)/)?.[1] ?? [])
-    expect(declared.sort()).toEqual([...protobaseIosPluginClasses].sort())
+    expect(declared.sort()).toEqual([...protobaseIosPluginClasses, guardedIosLiveUpdate].sort())
   })
 })

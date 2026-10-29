@@ -16,7 +16,7 @@ import { checkMobileConfig } from './mobile-config'
 import { signForDevelopment } from './development-signing'
 import { checkInstalledPlugins, checkPinnedNative, pinnedNative } from './pinned-packages'
 import type { Platform } from './platform'
-import { checkIosPlugins, checkProtobasePlugin, guardLiveUpdate } from './protobase-plugin'
+import { checkIosPlugins, checkProtobasePlugin, guardIosLiveUpdate, guardLiveUpdate } from './protobase-plugin'
 import { buildWebPart, placeholderWebPart, type WebPartInput } from './web-part'
 import { mobileSpec, prepareWorkspace, workspaceDir, workspacePackageJson } from './workspace'
 
@@ -70,7 +70,10 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   if (platform === 'android') {
     await guardLiveUpdate(ws)
     await checkProtobasePlugin(ws)
-  } else await checkIosPlugins(ws)
+  } else {
+    await guardIosLiveUpdate(ws)
+    await checkIosPlugins(ws)
+  }
   return { ws, url, fingerprint, cap, env, appId: mobile.appId }
 }
 

@@ -55,31 +55,63 @@ const readIosFile = (ws: string, ...parts: string[]) => readFile(path.join(ws, '
   throw error
 })
 
-// The class list of a capacitor.config.json; an unparsable one lists nothing.
-const iosClassList = (text: string | undefined) => {
-  if (text === undefined) return []
-  let parsed: { packageClassList?: unknown } | null
+const iosConfigParts = ['App', 'capacitor.config.json'] as const
+
+// A capacitor.config.json's content, or `undefined` when it is unparsable.
+const parseIosConfig = (text: string): { packageClassList?: unknown } | null | undefined => {
   try {
-    parsed = JSON.parse(text)
+    return JSON.parse(text)
   } catch (error) {
-    if (error instanceof SyntaxError) return []
+    if (error instanceof SyntaxError) return
     throw error
   }
-  const classes = parsed?.packageClassList
-  return Array.isArray(classes) ? classes.filter((name): name is string => typeof name === 'string') : []
+}
+
+// The class list of a capacitor.config.json, or `undefined` when there is none.
+const iosClasses = (config: { packageClassList?: unknown } | null | undefined) => {
+  const classes = config?.packageClassList
+  return Array.isArray(classes) ? classes.filter((name): name is string => typeof name === 'string') : undefined
+}
+
+/** The stock live updater's iOS class, and Protobase's guard that takes its place, by `@objc` name. */
+export const stockIosLiveUpdate = 'LiveUpdatePlugin'
+export const guardedIosLiveUpdate = 'GuardedLiveUpdatePlugin'
+
+/** The Swift package product `cap add ios` compiles the live updater into, by the name @capacitor/cli's fixName gives. */
+export const liveUpdateIosProduct = 'CapawesomeCapacitorLiveUpdate'
+
+/**
+ * Puts Protobase's guarded live updater in the stock one's place in the class list `cap add ios` writes, so page script
+ * reaches only what the shell needs; listing both would run two updaters. `cap add ios` lists the guard in every app, as
+ * it lists each `@objc(...)` class of @protobase/mobile's Swift files, so an app without the live updater loses it.
+ */
+export const guardIosLiveUpdate = async (ws: string) => {
+  const text = await readIosFile(ws, ...iosConfigParts)
+  const config = text === undefined ? undefined : parseIosConfig(text)
+  const classes = iosClasses(config)
+  if (!config || !classes) return
+  const guarded = classes.includes(stockIosLiveUpdate)
+    ? classes.map((name) => (name === stockIosLiveUpdate ? guardedIosLiveUpdate : name)).filter((name, index, all) => all.indexOf(name) === index)
+    : classes.filter((name) => name !== guardedIosLiveUpdate)
+  await writeFile(path.join(ws, 'ios', 'App', ...iosConfigParts), JSON.stringify({ ...config, packageClassList: guarded }, null, '\t'))
 }
 
 /**
- * Checks what `cap add ios` writes: the class list, which must name Protobase's plugin classes and not the live updater,
- * which has no guard on iOS yet, and the app's Swift package, which must compile Protobase's product in; a class listed
- * without its product is skipped at launch without a word. A workspace left from an earlier CLI may lack either.
+ * Checks what `cap add ios` writes: the class list, which must name Protobase's plugin classes and not the stock live
+ * updater, and the app's Swift package, which must compile Protobase's product in, and the live updater's when the
+ * guard is listed; a class listed without its product is skipped at launch without a word. A workspace left from an
+ * earlier CLI may lack either.
  */
 export const checkIosPlugins = async (ws: string) => {
   const stale = (what: string) => new Error(`The iOS app lacks Protobase's native plugin (${what}): delete ${ws} and run the command again`)
-  const classes = iosClassList(await readIosFile(ws, 'App', 'capacitor.config.json'))
-  if (classes.includes('LiveUpdatePlugin')) throw new Error('The iOS app lists LiveUpdatePlugin, which has no guard against page script on iOS yet')
+  const text = await readIosFile(ws, ...iosConfigParts)
+  const classes = (text === undefined ? undefined : iosClasses(parseIosConfig(text))) ?? []
+  if (classes.includes(stockIosLiveUpdate)) throw new Error(`The iOS app lists ${stockIosLiveUpdate}, which hands page script the live updater unguarded: run protobase mobile again instead of cap sync`)
   const missing = protobaseIosPluginClasses.filter((name) => !classes.includes(name))
   if (missing.length > 0) throw stale(missing.join(', '))
   const manifest = await readIosFile(ws, 'CapApp-SPM', 'Package.swift')
   if (!manifest?.includes(`.product(name: "${protobaseIosProduct}"`)) throw stale(protobaseIosProduct)
+  if (classes.includes(guardedIosLiveUpdate) && !manifest.includes(`.product(name: "${liveUpdateIosProduct}"`)) {
+    throw new Error(`The iOS app lists ${guardedIosLiveUpdate} without the live updater's ${liveUpdateIosProduct}: run protobase mobile again`)
+  }
 }
