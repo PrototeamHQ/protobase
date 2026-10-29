@@ -245,7 +245,7 @@ resource('direct_messages')
     organization_id: f.relation('organizations'),
     member_ids: f.json(),
     // generated always as (...) stored: the members sorted, without repeats
-    member_key: f.text().readOnly().dbDefault(),
+    member_key: f.text().readOnly(),
   })
   .primaryKey((r) => r.id)
   .tenant((r) => r.organization_id)
