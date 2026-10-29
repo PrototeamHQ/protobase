@@ -61,6 +61,7 @@ import { webhookTable } from './webhooks/table/webhook-table'
 import { subscriptionUrlCheck, subscriptionWriteCheck } from './webhooks/table/validate-hook'
 import type { WebhooksOptions } from './webhooks/table/options'
 import type { NotificationsOptions } from './notifications/options'
+import type { CallsOptions } from './calls/calls-options'
 import { deviceStore, removeDevicesWithUsers } from './notifications/device-store-of'
 import { historyStore, removeHistoryWithUsers } from './notifications/history-store-of'
 import { historyRoutes } from './notifications/history-routes'
@@ -153,6 +154,8 @@ export type CreateAdminInput = {
   realtime?: RealtimeOptions
   /** Each user's devices and the endpoints that register them, from `notifications: {}` (see `NotificationsOptions`). */
   notifications?: NotificationsOptions
+  /** The media server behind the calls functions admit members to with `calls.join` (see `CallsOptions`). */
+  calls?: CallsOptions
   /**
    * The app's iOS and Android build (see `MobileConfig`): the API answers its Capacitor origins through CORS, and sign-in
    * at `/api/auth` trusts the Capacitor origin a request names, without CORS, as the app calls it through native HTTP.
@@ -199,7 +202,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, realtime, notifications, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, realtime, notifications, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -383,7 +386,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   }
   const upgradeAuthenticate = upgradeAuthenticator({ authenticate, ...(auth && { origins: auth.origins, sessionToken: betterAuthSessionToken(auth) }) })
   const decryptField = fieldDecrypter(deps)
-  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), decryptField, onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, report }))
+  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), decryptField, onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(calls && { calls }), report }))
   // supabase-js's `functions.invoke`, admitted by the app's keys and the tokens of `/api/sb/auth/v1`.
   const verifyGoTrue = auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens'))
   app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), onError }))

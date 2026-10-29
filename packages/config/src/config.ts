@@ -4,6 +4,7 @@ import type {
   AssistantOptions,
   AuthenticateSettings,
   AuthSettings,
+  CallsOptions,
   EventsOptions,
   FileProviderSettings,
   FilesOptions,
@@ -108,6 +109,8 @@ export type ProtobaseConfig = AppKeys &
     realtime?: RealtimeOptions
     /** Each user's devices and inbox (see `NotificationsOptions`); `{}` turns them on. */
     notifications?: Omit<NotificationsOptions, 'store' | 'historyStore' | 'senders'>
+    /** The media server behind the calls functions admit members to with `calls.join` (see `CallsOptions`). */
+    calls?: CallsOptions
     /** The app's iOS and Android build (see `MobileConfig`). */
     mobile?: MobileConfig
   }

@@ -5,6 +5,8 @@ import type { Db } from '@protobase/query'
 import type { ResolveOptions } from '@protobase/schema'
 import { auditOrigin } from '../audit/origin'
 import { runInBackground } from '../background-work'
+import { callsAccess } from '../calls/calls-access'
+import type { CallsOptions } from '../calls/calls-options'
 import type { FieldDecrypter } from '../encryption/decrypt-field-types'
 import { forbidden, notFound } from '../problem'
 import { namingTimeouts } from '../statement-timeout'
@@ -36,6 +38,8 @@ export type FunctionRoutesInput = {
   upgradeWebSocket?: UpgradeWebSocket
   /** The caller of an upgrade request, which may come with a cookie instead of a token; defaults to `authenticate`. */
   upgradeAuthenticate?: Authenticator
+  /** The app's calls, which functions admit members to; without them, `calls.join` rejects. */
+  calls?: CallsOptions
   report: (error: unknown) => void
 }
 
@@ -56,7 +60,8 @@ const isUpgrade = (request: Request) => request.headers.get('upgrade')?.toLowerC
  * A function may answer an upgrade with a socket, only once it returned. While it is open, its caller is checked again
  * every minute: a protected function's always, a public one's once `caller()` resolved.
  */
-export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, decryptField, onError, wake, upgradeWebSocket, upgradeAuthenticate = authenticate, report }: FunctionRoutesInput) => {
+export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, decryptField, onError, wake, upgradeWebSocket, upgradeAuthenticate = authenticate, calls: callsOptions, report }: FunctionRoutesInput) => {
+  const calls = callsAccess(callsOptions)
   const app = new Hono().basePath(basePath)
   app.onError(onError)
   const sessionOf = (request: Request) => (isUpgrade(request) ? upgradeAuthenticate(request) : authenticate(request))
@@ -92,7 +97,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
           if (admitted) await recheckCaller(name, gate, c.req.raw, admitted)
         }
         const acceptor = socketAcceptor({ c, upgradeWebSocket, report, recheck })
-        const context: PublicFunctionContext = { name, db, caller: resolveCaller, acceptWebSocket: acceptor.accept }
+        const context: PublicFunctionContext = { name, db, caller: resolveCaller, acceptWebSocket: acceptor.accept, calls }
         return acceptor.answer(name, await invokeFunction(name, fn, request, context))
       }
       const caller = await callerOf(c.req.raw)
@@ -101,7 +106,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
       const acceptor = socketAcceptor({ c, upgradeWebSocket, report, recheck })
       const { user } = caller.session
       const reader = { function: name, actor: { id: user.id, roles: [...user.roles] }, origin: auditOrigin(c.req.raw.headers) }
-      const context: FunctionContext = { name, db, ...caller, caller: async () => caller, decryptField: decryptField(reader), acceptWebSocket: acceptor.accept }
+      const context: FunctionContext = { name, db, ...caller, caller: async () => caller, decryptField: decryptField(reader), acceptWebSocket: acceptor.accept, calls }
       return acceptor.answer(name, await invokeFunction(name, fn, request, context))
     }))
   }

@@ -56,7 +56,7 @@ const callFunction = async (name: string, subscription: SubscriptionDefinition, 
   const acceptWebSocket = () => {
     throw new Error(`The function "${name}" accepted a WebSocket, but a webhook delivery is no upgrade`)
   }
-  const functionContext: PublicFunctionContext = { name, db: context.db, caller: async () => caller, acceptWebSocket }
+  const functionContext: PublicFunctionContext = { name, db: context.db, caller: async () => caller, acceptWebSocket, calls: { join: async () => acceptWebSocket() } }
   return invokeFunction(name, fn, await request('http://protobase.internal/', event, options, signal), fn.options.public ? functionContext : { ...functionContext, ...caller })
 }
 
