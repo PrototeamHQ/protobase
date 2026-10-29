@@ -12,12 +12,12 @@ const unique = <T>(items: T[], equal: (a: T, b: T) => boolean) => items.filter((
 
 /**
  * What the query role must be given and what taken back so that it reads exactly the resources' tables, never an auth
- * table, with usage on the schemas those are in. `resources` and `authTables` are the tables that exist, `granted`
- * what the role holds now.
+ * table nor any table of a guarded schema, with usage on the schemas those are in. `resources` and `authTables` are the
+ * tables that exist, `granted` what the role holds now.
  */
-export const plannedGrants = ({ resources, authTables, granted }: { resources: FoundTable[]; authTables: FoundTable[]; granted: { tables: FoundTable[]; schemas: string[] } }): QueryGrants => {
+export const plannedGrants = ({ resources, authTables, guardedSchemas, granted }: { resources: FoundTable[]; authTables: FoundTable[]; guardedSchemas: string[]; granted: { tables: FoundTable[]; schemas: string[] } }): QueryGrants => {
   const tables = unique(
-    resources.filter((table) => !authTables.some((auth) => same(table, auth))),
+    resources.filter((table) => !guardedSchemas.includes(table.schema) && !authTables.some((auth) => same(table, auth))),
     same,
   )
   const schemas = [...new Set(tables.map((table) => table.schema))]

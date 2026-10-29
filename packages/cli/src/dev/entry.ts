@@ -35,7 +35,7 @@ await checkChanges(db, resources.map((resource) => resource.toModel()), project.
 await checkComments(db, resources.map((resource) => resource.toModel()))
 await checkComputed(db, resources.map((resource) => resource.toModel()))
 // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.
-if (assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : [])
+if (assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
 // AI fields and actions call the model of PROTOBASE_ASSISTANT_API_KEY, which other commands need not have.
 checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
 if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)

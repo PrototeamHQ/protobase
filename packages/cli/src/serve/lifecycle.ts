@@ -66,7 +66,7 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
     if (env.startupChecks) await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
     if (env.startupChecks) await checkComments(db, resources.map((resource) => resource.toModel()))
     if (env.startupChecks) await checkComputed(db, resources.map((resource) => resource.toModel()))
-    if (env.startupChecks && assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : [])
+    if (env.startupChecks && assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
     if (env.startupChecks) checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
     if (env.startupChecks && project.webhooks) await checkWebhooksSchema(db, project.webhooks)
     if (env.startupChecks && relayed(project.realtime)) await checkRealtimeRelay(db)

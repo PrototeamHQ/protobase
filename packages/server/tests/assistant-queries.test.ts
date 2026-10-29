@@ -8,7 +8,7 @@ import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 const model = (name: string) => resource(name).table(name).fields({ id: f.integer() }).primaryKey((r) => r.id).toModel()
 const models = [model('notes'), model('locked'), model('numbers')]
 // `secrets.session` stands in for the auth store; `hidden` is a table no resource reads.
-const authTables = [{ schema: 'secrets', name: 'session' }]
+const authTables = { tables: [{ schema: 'secrets', name: 'session' }], schemas: [] }
 
 let db: Kysely<any>
 let checkedBefore: Promise<void>

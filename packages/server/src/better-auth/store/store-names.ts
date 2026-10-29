@@ -9,7 +9,7 @@ import type { UserTable } from '../user-table'
 export type StoreNames = {
   /** The store's schema; the connection's current one when undefined. */
   schema: string | undefined
-  users: Pick<UserTable, 'modelName' | 'column' | 'metadata' | 'keyTable'>
+  users: Pick<UserTable, 'modelName' | 'column' | 'metadata' | 'keyTable' | 'guardedSchemas'>
   /** Every id column is a uuid Postgres makes, instead of text. */
   uuidIds: boolean
 }

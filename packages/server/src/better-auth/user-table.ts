@@ -40,15 +40,21 @@ export type UserTableOptions = {
    * nothing of the user table, which the app's own migration makes, and every foreign key points at this table.
    */
   keyTable?: { schema: string; table: string }
+  /**
+   * Schemas the other system that made the user table keeps its sign-in data in, such as `['auth']` for Supabase Auth's
+   * identities, sessions, refresh tokens and two-factor secrets: every table in them, today's or one added later,
+   * counts among the store's tables. Name only a schema that holds none of the app's own tables.
+   */
+  guardedSchemas?: string[]
 }
 
 /** The user table's names, from `auth.users` option; unknown columns are an error. */
-export const userTable = ({ table = 'user', columns = {}, metadata, keyTable }: UserTableOptions = {}) => {
+export const userTable = ({ table = 'user', columns = {}, metadata, keyTable, guardedSchemas = [] }: UserTableOptions = {}) => {
   const unknown = Object.keys(columns).find((name) => !(name in userFields))
   if (unknown !== undefined) throw new Error(`users.columns names "${unknown}", which is not a column of the user table: ${Object.keys(userFields).join(', ')}`)
   const column = (name: UserColumn) => columns[name] ?? name
   const fieldNames = Object.fromEntries(Object.entries(userFields).map(([name, field]) => [field, column(name as UserColumn)])) as Record<string, string>
-  return { modelName: table, column, fieldNames, metadata, keyTable }
+  return { modelName: table, column, fieldNames, metadata, keyTable, guardedSchemas }
 }
 
 export type UserTable = ReturnType<typeof userTable>

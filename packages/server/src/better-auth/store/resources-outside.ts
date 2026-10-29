@@ -1,6 +1,6 @@
 import { sql, type Kysely } from 'kysely'
 import type { ResourceModel } from '@protobase/schema'
-import { authStoreTables } from '../auth-tables'
+import { authStoreTables, type TableName } from '../auth-tables'
 import type { AdminAuth } from '../create-auth'
 import { storeDb } from './store-db'
 
@@ -8,7 +8,6 @@ import { storeDb } from './store-db'
 // the Supabase-compatible endpoints, realtime and MCP, reads them through the app's resources only, so a store no
 // resource is over is one none of them reads, whatever its tables are called.
 
-type TableName = { schema?: string; name: string }
 type Found = { n: number; schema: string; name: string; database: string }
 
 const quoted = (name: string) => `"${name.replaceAll('"', '""')}"`
@@ -21,12 +20,17 @@ const resolve = async (db: Kysely<any>, tables: readonly TableName[]) =>
       join pg_class c on c.oid = to_regclass(t.name) join pg_namespace ns on ns.oid = c.relnamespace order by t.n`.execute(db)
   ).rows
 
-/** Refuses a resource over a table of the admin store: the user table, a feature's table or the record of migrations. */
+/**
+ * Refuses a resource over a table of the admin store: the user table, a feature's table or the record of migrations,
+ * or any table of a guarded schema (`users.guardedSchemas`), by the schema the catalogue finds the table in.
+ */
 export const checkResourcesOutsideAuthStore = async (db: Kysely<any>, models: readonly ResourceModel[], auth: AdminAuth) => {
   if (models.length === 0) return
-  const store = await resolve(storeDb(auth), authStoreTables(auth))
+  const { tables, schemas } = authStoreTables(auth)
+  const store = await resolve(storeDb(auth), tables)
   const same = (a: Found, b: Found) => a.database === b.database && a.schema === b.schema && a.name === b.name
-  const over = (await resolve(db, models.map((model) => model.table))).filter((table) => store.some((own) => same(own, table)))
+  const guarded = (table: Found) => schemas.includes(table.schema) || store.some((own) => same(own, table))
+  const over = (await resolve(db, models.map((model) => model.table))).filter(guarded)
   if (over.length === 0) return
   const named = over.map((table) => `${models[table.n - 1]!.name} (${table.schema}.${table.name})`).join(', ')
   throw new Error(`Resources over the auth store's tables, which hold password hashes, sessions and tokens: ${named}. Remove them from the config; the auth store is read through Better Auth alone.`)

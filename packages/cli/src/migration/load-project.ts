@@ -37,7 +37,7 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
     jobs,
     // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.
     readOnlyQueries: assistantSettings(config.assistant, process.env)?.kind === 'built-in',
-    authTables: auth ? authStoreTables(auth) : [],
+    authTables: auth ? authStoreTables(auth) : { tables: [], schemas: [] },
     close: async () => {
       await database.db.destroy()
     },

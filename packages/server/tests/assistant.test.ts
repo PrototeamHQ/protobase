@@ -31,7 +31,7 @@ beforeAll(async () => {
   await pg.exec('create table tasks (id integer generated always as identity primary key, title text not null, status text not null)')
   await pg.exec('create table proposals (id integer generated always as identity primary key, title text not null, status text not null, decided_by text)')
   db = new Kysely({ dialect: pg.dialect })
-  await pg.exec((await queryRunnerMigration(db, [tasks.toModel(), proposals.toModel()], []))!)
+  await pg.exec((await queryRunnerMigration(db, [tasks.toModel(), proposals.toModel()], { tables: [], schemas: [] }))!)
   chats = await mkdtemp(path.join(tmpdir(), 'protobase-assistant-'))
 })
 afterAll(async () => {

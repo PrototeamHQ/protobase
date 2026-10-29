@@ -5,7 +5,7 @@ import { migrationParts, type MigrationPart } from './parts'
 import type { MigrationProject } from './load-project'
 
 const tickets = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
-const project = (models: MigrationProject['models'], readOnlyQueries = false) => ({ models, db: {} as MigrationProject['db'], jobs: [], readOnlyQueries, authTables: [], close: async () => {} }) satisfies MigrationProject
+const project = (models: MigrationProject['models'], readOnlyQueries = false) => ({ models, db: {} as MigrationProject['db'], jobs: [], readOnlyQueries, authTables: { tables: [], schemas: [] }, close: async () => {} }) satisfies MigrationProject
 const names = (parts: MigrationPart[]) => parts.map((part) => part.name)
 
 describe('the migration parts', () => {

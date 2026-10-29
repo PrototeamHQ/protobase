@@ -33,7 +33,7 @@ describe.skipIf(!reachable)('assistant queries on Postgres over node-postgres', 
       create sequence ${schema}.tickets;
     `).execute(db)
     const notes = resource('notes').table(`${schema}.notes`).fields({ id: f.integer() }).primaryKey((r) => r.id).toModel()
-    await sql.raw((await queryRunnerMigration(db, [notes], []))!).execute(db)
+    await sql.raw((await queryRunnerMigration(db, [notes], { tables: [], schemas: [] }))!).execute(db)
   })
   afterAll(async () => {
     // Roles belong to the whole server, so the query role goes with the database.
