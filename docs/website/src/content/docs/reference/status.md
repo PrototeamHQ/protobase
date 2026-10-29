@@ -47,7 +47,7 @@ A status is `{ userId, availability, text, clearsAt }`, with `availability` one 
 
 ## Who sees it
 
-The members of every organization the person is in see their status. Someone who shares no organization with them gets nothing, as for a person they cannot see: `GET /api/status/people` leaves them out. A visitor, signed in as no one, is refused with a `401`.
+The members of every organization the person is in see their status. Someone who shares no organization with them gets nothing, as for a person they cannot see: `GET /api/status/people` leaves them out. A visitor, signed in as no one, is refused with a `401`. <gap>`GET /api/status/people` cannot page because paging statuses is not implemented, so it answers every status set by those who share an organization with the caller, which suits a team, not thousands of people.</gap>
 
 ## How it clears
 
