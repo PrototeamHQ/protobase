@@ -12,6 +12,7 @@ import { devicesClient } from './devices'
 import { statusClient } from './status'
 import { notificationHistoryClient } from './notification-history'
 import { recordCallsClient } from './record-calls'
+import { ringsClient } from './rings'
 import type { Aggregate, AggregateParams, BatchOp, BatchResult, CommentPage, Facet, FormChallenge, FormProof, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, MentionableUser, Meta, MetaResult, PublicForm, RecordComment, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
 
 type Json = Record<string, any>
@@ -390,7 +391,10 @@ export const createClient = (options: ClientOptions = {}) => {
   /** People's own status, and that of those who share an organization with the signed-in person (see `statusClient`). */
   const status = statusClient(send)
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, devices, notifications, status, calls, watchCalls }
+  /** The calls that ring the signed-in user, and declining one (see `ringsClient`). */
+  const rings = ringsClient(send)
+
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, devices, notifications, status, calls, watchCalls, rings }
 }
 
 export type Client = ReturnType<typeof createClient>
