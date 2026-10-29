@@ -2,6 +2,7 @@ import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { capacitorOrigin } from '@protobase/schema/internal'
 import type { HttpAllowances } from './api-origin'
+import type { LiveUpdateSettings } from './live-update-settings'
 import type { Platform } from './platform'
 import { webPartDir } from './web-part'
 
@@ -11,8 +12,10 @@ export type CapacitorConfigInput = {
   fingerprint: string
   /** The Protobase version of the shell the binary is built with. */
   shellVersion: string
-  /** The extra plugins' npm names: the only ones compiled into the app. */
+  /** The extra plugins' npm names: with the live updater, the only ones compiled into the app. */
   plugins: string[]
+  /** With them, the live updater is compiled in (see `liveUpdateSettings`). */
+  liveUpdate?: LiveUpdateSettings
   allowances: HttpAllowances
   /** The origin of the API the app calls, the only one ProtobaseAuth signs in with. */
   apiOrigin: string
@@ -29,27 +32,34 @@ const keyboardPlugin = '@capacitor/keyboard'
 
 const liveUpdatePlugin = '@capawesome/capacitor-live-update'
 
+// How long a live update has to start, the shell calling ready(), before the app goes back to its own files.
+const readyTimeout = 10_000
+
 /**
  * The app's `capacitor.config.json`, every key it sets named here. It never sets `server.url`, the hostname or the
  * schemes (the API's CORS list names Capacitor's default origins), or WebView debugging (on in debug builds only).
- * `plugins` configures ProtobaseAuth, the keyboard plugin and, with the live updater, the binary's fingerprint and shell
- * version its guard takes a release only for, so CapacitorHttp and CapacitorCookies stay off; the keyboard plugin
+ * `plugins` configures ProtobaseAuth, the keyboard plugin and, with the live updater, what its guard needs: the key
+ * releases are signed with, where they come from, the binary's fingerprint, shell version and the order of its own
+ * files, background updates off, a rolled-back bundle blocked and `readyTimeout`, within which the shell must call
+ * ready() or the app goes back to its own files. CapacitorHttp and CapacitorCookies stay off; the keyboard plugin
  * resizes natively, its default, and fills the space beside the keyboard's rounded corners with the page's background
  * instead of black. Protobase's plugin is compiled in last, so its stand-ins replace any plugin of the same name.
  * Service workers get nothing from the local server on Android, which they would reach past the WebViewClient that
  * guards it. The file ships outside the app's web part, so the fingerprint in the user agent and ProtobaseAuth's
  * origins are beyond page script and a live update.
  */
-export const capacitorConfig = ({ appId, appName, fingerprint, shellVersion, plugins, allowances, apiOrigin, platform }: CapacitorConfigInput) => ({
+export const capacitorConfig = ({ appId, appName, fingerprint, shellVersion, plugins, liveUpdate, allowances, apiOrigin, platform }: CapacitorConfigInput) => ({
   appId,
   appName,
   webDir: webPartDir,
   appendUserAgent: `ProtobaseNative/${fingerprint}`,
-  includePlugins: [...plugins, keyboardPlugin, protobasePlugin],
+  includePlugins: [...plugins, ...(liveUpdate ? [liveUpdatePlugin] : []), keyboardPlugin, protobasePlugin],
   plugins: {
     ProtobaseAuth: { apiOrigin, origin: capacitorOrigin[platform] },
     Keyboard: { autoBackdropColor: 'dom' },
-    ...(plugins.includes(liveUpdatePlugin) && { LiveUpdate: { fingerprint, shellVersion } }),
+    ...(liveUpdate && {
+      LiveUpdate: { ...liveUpdate, readyTimeout, autoUpdateStrategy: 'none', autoDeleteBundles: true, autoBlockRolledBackBundles: true, fingerprint, shellVersion },
+    }),
   },
   ...(allowances.cleartext && { server: { cleartext: true } }),
   android: { resolveServiceWorkerRequests: false, ...(allowances.mixedContent && { allowMixedContent: true }) },

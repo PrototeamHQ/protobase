@@ -6,6 +6,11 @@ export type MobileConfig = {
   appId: string
   /** Extra native Capacitor plugins the app needs, as npm name → version range, such as `{ '@capacitor/camera': '^8.0.0' }`. */
   plugins?: Record<string, string>
+  /**
+   * The public key of the RSA key in `PROTOBASE_MOBILE_SIGNING_KEY`, PEM or base64 SPKI, which `protobase mobile keys`
+   * prints: with it the Android app updates itself, taking only releases signed with that key.
+   */
+  publicKey?: string
 }
 
 /** The origins Capacitor's WebView serves the app's files on: `capacitor://localhost` on iOS, `https://localhost` on Android. */

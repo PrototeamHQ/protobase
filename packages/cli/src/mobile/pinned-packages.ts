@@ -26,7 +26,7 @@ const liveUpdate = '@capawesome/capacitor-live-update'
 
 /** Why the plugin `key`, a package that is or names `name`, may not be listed; `undefined` when it may. */
 export const pinnedProblem = (key: string, name = key) => {
-  if (name === liveUpdate) return `mobile.plugins lists ${key}, ${liveUpdate}: live updates come with Protobase's updater, which does not enable the plugin yet; remove it from mobile.plugins`
+  if (name === liveUpdate) return `mobile.plugins lists ${key}, ${liveUpdate}: live updates come with Protobase's updater, which mobile.publicKey turns on; remove it from mobile.plugins`
   if (pinnedPackages.has(name)) return `mobile.plugins lists ${key}, which ${name === key ? 'comes' : `installs ${name}, which comes`} with Protobase at a fixed version: remove it from mobile.plugins`
   return undefined
 }

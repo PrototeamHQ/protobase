@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -7,6 +8,7 @@ import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
 import { protobaseIosPluginClasses, protobasePluginClasses } from './protobase-plugin'
 import { mobileOpen, mobileRun } from './run'
+import { fakeWebBuild } from './web-build-fixture'
 
 let root = ''
 afterEach(() => {
@@ -65,7 +67,7 @@ const fakeRun =
 // native-run's list with one iPhone connected.
 const capture = async () => JSON.stringify({ devices: [{ id: '00008110-0001', name: 'iPhone' }], virtualDevices: [{ id: 'SIM-1' }], errors: [] })
 
-const build = async ({ outDir }: { outDir: string }) => write(path.join(outDir, 'public', 'index.html'), '<head></head>')
+const build = fakeWebBuild()
 
 // The server's web manifest, naming the app.
 const fetch = async () => Response.json({ name: 'mobile-lab' }, { headers: { 'content-type': 'application/manifest+json' } })
@@ -123,6 +125,21 @@ describe('mobileRun', () => {
     const dir = project("{ appId: 'com.example.shop' }")
     await expect(mobileRun({ projectDir: dir, platform: 'android', api: 'http://localhost:3000', team: 'ABCDE12345', extensions: [] }, () => {}, { run: fakeRun(calls), build, fetch })).rejects.toThrow('--team is for iOS')
     expect(calls).toEqual([])
+  })
+
+  it('compiles the live updater into an Android app with mobile.publicKey and built-in files that name their build time, never into iOS', async () => {
+    const publicKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).publicKey.export({ format: 'pem', type: 'spki' })
+    const dir = project(`{ appId: 'com.example.shop', publicKey: ${JSON.stringify(publicKey)} }`)
+    const config = () => JSON.parse(readFileSync(path.join(dir, '.protobase/mobile/capacitor.config.json'), 'utf8'))
+    const deps = { run: fakeRun([]), build: fakeWebBuild({ builtAt: 1_800_000_000_000 }), fetch }
+    await mobileRun({ projectDir: dir, platform: 'android', api: 'https://api.example.com', extensions: [] }, () => {}, deps)
+    expect(config().includePlugins).toContain('@capawesome/capacitor-live-update')
+    expect(config().plugins.LiveUpdate).toMatchObject({ builtInOrder: '1800000000000,0', releasesUrl: 'https://api.example.com/api/mobile/releases', readyTimeout: 10_000 })
+    await mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, { ...deps, run: fakeRun([], { ios: ['AppPlugin', ...protobaseIosPluginClasses] }) })
+    expect(config().includePlugins).not.toContain('@capawesome/capacitor-live-update')
+    expect(config().plugins).not.toHaveProperty('LiveUpdate')
+    await mobileRun({ projectDir: dir, platform: 'android', api: 'https://api.example.com', extensions: [] }, () => {}, { ...deps, build: fakeWebBuild() })
+    expect(config().plugins).not.toHaveProperty('LiveUpdate')
   })
 
   it("lists Protobase's guard in the stock live updater's place on Android", async () => {

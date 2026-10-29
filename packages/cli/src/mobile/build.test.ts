@@ -8,6 +8,7 @@ import type { ChildOptions } from './child-process'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
 import { protobaseIosPluginClasses, protobasePluginClasses } from './protobase-plugin'
+import { fakeWebBuild } from './web-build-fixture'
 
 const storePassword = 'store-pw-5f1c'
 const keyPassword = 'key-pw-9a2e'
@@ -79,7 +80,7 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
 // The server's web manifest, naming the app.
 const fetch = async () => Response.json({ name: 'mobile-lab' }, { headers: { 'content-type': 'application/manifest+json' } })
 
-const webBuild = async ({ outDir }: { outDir: string }) => write(path.join(outDir, 'public', 'index.html'), '<head></head>')
+const webBuild = fakeWebBuild()
 
 const version = { version: '1.2.3', build: '7' }
 const input = (dir: string, platform: 'android' | 'ios', more = {}) => ({ projectDir: dir, platform, extensions: [], api: 'https://api.example.com', version, outDir: path.join(dir, 'mobile-release'), ...more })
