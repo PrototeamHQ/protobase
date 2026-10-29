@@ -121,7 +121,28 @@ Only Gradle gets them, for the length of the build: npm, its install scripts and
 
 **iOS**, on a Mac with Xcode: `--team` is your Apple Developer team id, shown in your account's membership details. Xcode signs with the certificates and profiles of the account you added in its settings. For manual signing, pass `--certificate <name>` and `--profile <name>` too. If automatic signing finds no profile for a new app, run `protobase mobile open ios`, pick the team in Signing & Capabilities and archive once from Xcode (Product, Archive), which creates the profile; then build again.
 
-## 7. What the stores accept
+## 7. Live updates
+
+An Android app updates its files itself from your server, so it gets UI changes without a store release. Make a key pair once:
+
+```sh
+protobase mobile keys
+```
+
+Set `PROTOBASE_MOBILE_SIGNING_KEY` from its first line on the server, as a secret, and put the public key in the mobile section, which is safe to commit:
+
+```ts
+mobile: {
+  appId: 'com.example.shop',
+  publicKey: `-----BEGIN PUBLIC KEY-----
+...
+-----END PUBLIC KEY-----`,
+},
+```
+
+Build the binary again. Each deploy of the app then reaches it: it downloads the files that changed in the background and runs them at its next start, and a release that fails to start goes back to the files the binary carries. Releases come from a server of the same Protobase minor as the binary (below 1.0); a newer minor needs a store release. See [the live updater](/reference/cli/#the-live-updater). <gap>The iOS app cannot update itself because its guarded live updater is not implemented.</gap>
+
+## 8. What the stores accept
 
 You submit the app under your own developer account, on both stores: Apple rejects apps from a template or app generation service unless the provider of the app's content submits them ([App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) 4.2.6).
 

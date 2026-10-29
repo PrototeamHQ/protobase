@@ -97,12 +97,13 @@ export default defineConfig({ backgroundColor: '#ffffff' })
 
 ## mobile
 
-- **Type:** `{ appId: string; plugins?: Record<string, string> }`
+- **Type:** `{ appId: string; plugins?: Record<string, string>; publicKey?: string }`
 
 The app's iOS and Android build: with it, `protobase mobile` builds the app with Capacitor, and the API also allows the app's Capacitor origins (`capacitor://localhost`, `https://localhost`) for [CORS](/reference/config/api/#cors). See [A mobile app](/guides/mobile-app/).
 
 - `appId`: the app's id on both iOS and Android, such as `com.example.shop`: two or more dot-separated parts, each a letter then letters and digits.
 - `plugins`: extra native Capacitor plugins, by npm name and version range. A range fetched over plain `http:` or `git:` is refused.
+- `publicKey`: the public key, PEM, of the RSA key the server signs the app's [releases](/reference/cli/#the-live-updater) with, from [`protobase mobile keys`](/reference/cli/#mobile): with it the Android app updates itself. Anything but an RSA public key of at least 2048 bits stops the build.
 
 ```ts
 export default defineConfig({
