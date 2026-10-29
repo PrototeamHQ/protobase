@@ -134,7 +134,7 @@ describe('mobileRun', () => {
     const deps = { run: fakeRun([]), build: fakeWebBuild({ builtAt: 1_800_000_000_000 }), fetch }
     await mobileRun({ projectDir: dir, platform: 'android', api: 'https://api.example.com', extensions: [] }, () => {}, deps)
     expect(config().includePlugins).toContain('@capawesome/capacitor-live-update')
-    expect(config().plugins.LiveUpdate).toMatchObject({ builtInOrder: '1800000000000,0', releasesUrl: 'https://api.example.com/api/mobile/releases', readyTimeout: 10_000 })
+    expect(config().plugins.LiveUpdate).toMatchObject({ builtInOrder: '1800000000000,0', releasesUrl: 'https://api.example.com/api/mobile/releases', readyTimeout: 30_000 })
     await mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, { ...deps, run: fakeRun([], { ios: ['AppPlugin', ...protobaseIosPluginClasses] }) })
     expect(config().includePlugins).not.toContain('@capawesome/capacitor-live-update')
     expect(config().plugins).not.toHaveProperty('LiveUpdate')

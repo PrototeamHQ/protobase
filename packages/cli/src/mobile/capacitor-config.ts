@@ -32,8 +32,9 @@ const keyboardPlugin = '@capacitor/keyboard'
 
 const liveUpdatePlugin = '@capawesome/capacitor-live-update'
 
-// How long a live update has to start, the shell calling ready(), before the app goes back to its own files.
-const readyTimeout = 10_000
+// How long a live update has to start, the shell calling ready(), before the app goes back to its own files and blocks
+// it: a slow or busy phone took up to 10 s on an emulator of one core, so a good release keeps a wide margin.
+const readyTimeout = 30_000
 
 /**
  * The app's `capacitor.config.json`, every key it sets named here. It never sets `server.url`, the hostname or the

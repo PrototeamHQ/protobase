@@ -437,7 +437,7 @@ With a `mobile` section, the server serves the [mobile app](/guides/mobile-app/)
 
 An Android app built with `mobile.publicKey` updates itself from the server it calls. The shell asks `GET /api/mobile/release` when the app starts and each time it comes back to the foreground, in the background, and downloads a release it does not run, only the files that changed, then runs it at the next cold start. The session stays in the device's cookie store, so the user stays signed in across the switch.
 
-- Once the shell has drawn, it tells the updater the release started. A release that does not within 10 seconds goes back to the app's own files at once and is never taken again.
+- Once the shell has drawn, it tells the updater the release started. A release that does not within 30 seconds goes back to the app's own files at once and is never taken again.
 - No answer, any status but 200, a body that is not the answer, or an answer naming no release changes nothing: the app keeps the files it runs, and never goes back to its own files because of the answer, which is not signed.
 - At launch, a required update holds the app with a notice while the release downloads, then reloads into it; a refused release, a failed download or a minute without one lets the app go on with the files it runs. <gap>A required update across a Protobase minor below 1.0, or a major, cannot reach a phone by live update because taking a release of another shell version than the binary's is not implemented, so such a fix, a security fix included, reaches it only through a store release.</gap>
 - The binary pins the public key: a new key needs a new store release, and a server whose `PROTOBASE_MOBILE_SIGNING_KEY` is not its private half serves releases the app refuses.

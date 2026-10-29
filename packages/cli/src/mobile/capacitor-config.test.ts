@@ -39,7 +39,7 @@ describe('capacitorConfig', () => {
     expect(config.includePlugins).toEqual(['@capacitor/camera', '@capawesome/capacitor-live-update', '@capacitor/keyboard', '@protobase/mobile'])
     expect(config.plugins.LiveUpdate).toEqual({
       ...liveUpdate,
-      readyTimeout: 10_000,
+      readyTimeout: 30_000,
       autoUpdateStrategy: 'none',
       autoDeleteBundles: true,
       autoBlockRolledBackBundles: true,
