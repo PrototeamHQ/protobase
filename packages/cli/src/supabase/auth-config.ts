@@ -10,8 +10,9 @@ import { exportedConfigObject } from './config-object'
 
 /** The `auth` settings for Supabase's auth.users as the user table, on a copy of the database the import owns. */
 export const supabaseUsers = {
-  // Supabase's `role` holds the Postgres role, so the app's roles go to a column of their own.
-  users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' },
+  // Supabase's `role` holds the Postgres role, so the app's roles go to a column of their own. Every table of `auth`,
+  // where Supabase Auth keeps identities, sessions, refresh tokens and two-factor secrets, is the store's own.
+  users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] },
   passwordHashes: ['bcrypt'],
   generateUserId: 'uuid',
 } satisfies Partial<AuthSettings>
@@ -35,7 +36,8 @@ export const importedUsersConfig: UsersConfig = {
   comment: [
     "Supabase's own auth.users as the app's user table, written by `protobase import supabase`: every foreign key,",
     'trigger and policy naming it keeps working. Its passwords are bcrypt hashes, its ids UUIDs, and its `role` the',
-    "Postgres role, so the app's roles go to a column of their own.",
+    "Postgres role, so the app's roles go to a column of their own. No resource may be over a table of auth, where",
+    'Supabase Auth keeps its sessions, tokens and secrets, and the assistant never reads one.',
   ],
 }
 
@@ -45,7 +47,8 @@ export const sharedUsersConfig: UsersConfig = {
     `Supabase's users, read through the view ${sharedUsersSchema}.users over auth.users, written by \`create protobase\`: the app`,
     `keeps only its own sign-in data, in ${sharedUsersSchema}, and Supabase's auth schema stays as Supabase set it up. Their`,
     "passwords are bcrypt hashes, their ids UUIDs, and `role` in auth.users the Postgres role, so the app's roles go to a",
-    'column of their own.',
+    'column of their own. No resource may be over a table of auth, where Supabase Auth keeps its sessions, tokens and',
+    'secrets, and the assistant never reads one.',
   ],
 }
 
