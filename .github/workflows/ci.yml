@@ -5,7 +5,7 @@ on:
   push:
     # fm/** are the task branches that workers push to have the checks run on CHECK_RUNNER's runner.
     branches: [production, 'fm/**']
-  # The release workflow runs these checks before it releases, the Postgres suite in full when it will cut a release.
+  # The release workflow runs these checks before it releases, with the Postgres suite in full.
   workflow_call:
     inputs:
       postgres:
@@ -208,16 +208,16 @@ jobs:
   # The real-Postgres tests beyond what every push needs (`bun run test:postgres`): the ERP at medium scale and the
   # planner's statistics on it, and the jobs and event delivery through PgBouncer. A push runs it when its snapshot
   # recordings differ from those at CHECK_BASE, or when it changes what recordings cannot show (`postgresSuite`,
-  # scripts/affected-postgres.mjs); a release that cuts a tag runs it in full; a pull request, a run by hand and the
-  # weekly run always do. It runs after `record`, whose answer it needs, whatever `record` found.
+  # scripts/affected-postgres.mjs); a pull request, a run by hand and the weekly run always do. It runs after `record`,
+  # whose answer it needs, whatever `record` found. A release runs it in full as `postgres-full` instead.
   postgres:
     needs: record
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && !inputs.postgres }}
     concurrency:
       group: postgres-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
-    services:
+    services: &postgres-services
       postgres:
         image: postgres:18
         env:
@@ -243,18 +243,21 @@ jobs:
       - name: Find whether the changes reach the Postgres suite
         id: postgres
         env:
-          POSTGRES_FULL: ${{ inputs.postgres && 'true' || 'false' }}
+          POSTGRES_FULL: 'false'
           RECORDINGS: ${{ needs.record.outputs.recordings }}
         run: bun scripts/affected-postgres.mjs
-      - if: steps.postgres.outputs.run == 'true'
+      - &postgres-install
+        if: steps.postgres.outputs.run == 'true'
         run: bun install --frozen-lockfile
-      - if: steps.postgres.outputs.run == 'true'
+      - &postgres-url
+        if: steps.postgres.outputs.run == 'true'
         name: Point the tests at the service's Postgres
         env:
           POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
         run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
       # As in check: each `drop database` forces a checkpoint, here behind the medium template's writes; no fsync keeps it quick.
-      - if: steps.postgres.outputs.run == 'true'
+      - &postgres-durability
+        if: steps.postgres.outputs.run == 'true'
         name: Turn off the service Postgres' durability
         run: >-
           docker exec ${{ job.services.postgres.id }} psql -U protobase -d protobase -v ON_ERROR_STOP=1
@@ -264,7 +267,8 @@ jobs:
       # cloud's does, which the image has no variable for. It is started here rather than as a service so it reaches
       # Postgres by address: on the shared self-hosted runner, looking up the service name now and then stalls while
       # other jobs create and remove their networks, and the PgBouncer tests then find no pooler.
-      - if: steps.postgres.outputs.run == 'true'
+      - &pgbouncer
+        if: steps.postgres.outputs.run == 'true'
         name: Start PgBouncer in front of that Postgres and point the tests at it
         env:
           POSTGRES_ID: ${{ job.services.postgres.id }}
@@ -279,22 +283,55 @@ jobs:
             sh -c "sed -i '/^track_extra_parameters/d; /^\[pgbouncer\]/a track_extra_parameters = statement_timeout' /etc/pgbouncer/pgbouncer.ini && exec pgbouncer /etc/pgbouncer/pgbouncer.ini"
           port=$(docker port "$PGBOUNCER" 5432/tcp | head -n1 | sed 's/.*://')
           echo "TEST_PGBOUNCER_URL=postgres://protobase:protobase@localhost:$port/postgres" >> "$GITHUB_ENV"
-      - if: steps.postgres.outputs.run == 'true'
+      - &postgres-templates
+        if: steps.postgres.outputs.run == 'true'
         run: bun run test:db postgres
-      - if: steps.postgres.outputs.run == 'true'
+      - &postgres-suite
+        if: steps.postgres.outputs.run == 'true'
         run: bun run test:postgres
-      - if: always() && steps.postgres.outputs.run == 'true'
+      - &pgbouncer-remove
+        if: always() && steps.postgres.outputs.run == 'true'
         name: Remove PgBouncer
         env:
           PGBOUNCER: pgbouncer-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$PGBOUNCER" || true
+
+  # The Postgres suite in full, as the last fail-safe before a release (the release workflow's `postgres: true`), with
+  # the same steps as `postgres`. It needs no answer from `record`, so it starts beside the other checks.
+  postgres-full:
+    if: ${{ inputs.postgres }}
+    concurrency:
+      group: postgres-full-${{ github.run_id }}
+      cancel-in-progress: true
+    runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    services: *postgres-services
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Find whether the changes reach the Postgres suite
+        id: postgres
+        env:
+          POSTGRES_FULL: 'true'
+        run: bun scripts/affected-postgres.mjs
+      - *postgres-install
+      - *postgres-url
+      - *postgres-durability
+      - *pgbouncer
+      - *postgres-templates
+      - *postgres-suite
+      - *pgbouncer-remove
 
   # The snapshot tests' recordings (`bun run test:record`): every snapshot test run again on real Postgres, its SQL and
   # answers written to its `*.sql.json`. A recording that differs from the committed one means Postgres now answers the
   # same queries differently (a schema, fixture or Postgres change), which replay alone cannot see, and fails the job;
   # the new recordings are uploaded to commit. A push runs it when it changes what the recordings are made from
   # (scripts/affected-snapshots.mjs); a pull request, a run by hand and the weekly run, for a moved postgres:18, always do.
-  # It tells the Postgres job whether the recordings changed. It runs beside check, on a runner of its own.
+  # It tells the Postgres job whether the recordings changed. It runs beside check, on a runner of its own, and in a
+  # release beside the full Postgres suite, which still waits for it before the release is cut.
   record:
     outputs:
       recordings: ${{ steps.recordings.outputs.recordings }}
