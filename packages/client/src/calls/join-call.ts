@@ -1,4 +1,5 @@
 import type { CallClientMessage, CallLeftReason, CallRosterMember, CallServerMessage, CallTrackSource } from '@protobase/schema/internal'
+import type { CallConnection } from './connection-stats'
 import type { CallTrack, MediaLink, MediaLinkInput, PublishOptions } from './media-link'
 import { peerLink } from './peer-link'
 import { sfuLink } from './sfu-link'
@@ -47,6 +48,8 @@ export type Call = {
   leave: () => void
   /** The tracks of other members the member hears now. */
   tracks: () => CallTrack[]
+  /** How each of the member's connections fares now: to each other member, or to the media server. */
+  connections: () => Promise<CallConnection[]>
 }
 
 const backoff = (attempt: number) => Math.min(10_000, 500 * 2 ** attempt)
@@ -223,6 +226,7 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
       end('ended')
     },
     tracks: () => remote,
+    connections: async () => (link ? link.connections() : []),
   }
 
   setState({ state: 'connecting' })

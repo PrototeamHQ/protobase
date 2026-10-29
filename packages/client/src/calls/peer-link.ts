@@ -1,5 +1,6 @@
 import type { CallCandidate, CallDescription, CallRemoteTrack, CallServerMessage, CallTrackSource } from '@protobase/schema/internal'
 import { createPeerConnection as newPeerConnection, type MediaLink, type MediaLinkInput } from './media-link'
+import { connectionOf } from './connection-stats'
 import { midsByStreamId } from './msid-tracks'
 
 type Peer = { pc: RTCPeerConnection; polite: boolean; makingOffer: boolean; ignoreOffer: boolean; senders: Map<CallTrackSource, RTCRtpSender> }
@@ -159,6 +160,7 @@ export const peerLink = (self: string, { iceServers, send, onTracks, createPeerC
     }),
     resumed: async () => {},
     sending: () => new Map([...local].map(([source, { track }]) => [source, { track, simulcast: false }])),
+    connections: () => Promise.all([...peers].map(([member, peer]) => connectionOf(peer.pc, member))),
     close: () => {
       publishing?.reject(new Error('The call ended'))
       for (const member of [...peers.keys()]) disconnect(member)

@@ -1,3 +1,4 @@
+import type { CallConnection } from './connection-stats'
 import type { CallClientMessage, CallRemoteTrack, CallResume, CallServerMessage, CallTrackSource } from '@protobase/schema/internal'
 
 /** A track of another member, with its media once the browser receives it. */
@@ -31,6 +32,8 @@ export type MediaLink = {
   resumeState: (participant: string) => Promise<Omit<CallResume, 'call'> | undefined>
   /** After a resume: offers what changed while the session was lost. */
   resumed: () => Promise<void>
+  /** How each of the member's connections fares now. */
+  connections: () => Promise<CallConnection[]>
   /** The tracks the member sends, by source, to publish again after a rejoin. */
   sending: () => Map<CallTrackSource, { track: MediaStreamTrack; simulcast: boolean }>
   close: () => void

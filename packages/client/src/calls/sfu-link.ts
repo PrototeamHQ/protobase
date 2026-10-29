@@ -1,4 +1,5 @@
 import type { CallCandidate, CallRemoteTrack, CallResume, CallServerMessage, CallTrackRequest, CallTrackSource, CallVideoLayer } from '@protobase/schema/internal'
+import { connectionOf } from './connection-stats'
 import { createPeerConnection as newPeerConnection, type MediaLink, type MediaLinkInput, type PublishOptions } from './media-link'
 import { negotiation } from './negotiation'
 
@@ -185,6 +186,7 @@ export const sfuLink = ({ iceServers, send, onTracks, onUnpublished, createPeerC
     },
     /** The tracks the member sends, by source, to publish again after a rejoin. */
     sending: () => new Map([...local.values()].map((track) => [track.source, { track: track.track, simulcast: track.simulcast }])),
+    connections: async () => [await connectionOf(pc)],
     close: () => {
       publishing?.reject(new Error('The call ended'))
       offers.reset()
