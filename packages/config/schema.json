@@ -659,7 +659,7 @@
       ]
     },
     "realtime": {
-      "description": "How supabase-js's Realtime is served: `{ processes: 'many' }` when several processes serve the app (see `RealtimeOptions`).",
+      "description": "How the record channels and supabase-js's Realtime are served: `{ processes: 'many' }` when several processes serve the app, `{ sqlSends: true }` to broadcast to channels from SQL (see `RealtimeOptions`).",
       "anyOf": [
         {
           "$ref": "#/definitions/RealtimeOptions"
@@ -3518,6 +3518,17 @@
                 "one",
                 "many"
               ]
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "sqlSends": {
+          "description": "`true` lets SQL in the app's database broadcast to the record channels with `channels.send()`, from the `channels`\nschema `protobase migration` writes.",
+          "anyOf": [
+            {
+              "type": "boolean"
             },
             {
               "$ref": "#/definitions/EnvValue"

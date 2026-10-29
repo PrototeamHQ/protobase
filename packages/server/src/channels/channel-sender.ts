@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { HttpProblem, notFound } from '../problem'
 import { fitsFrame } from '../realtime/broadcast-frame'
-import type { BroadcastHub } from '../realtime/broadcast-hub'
+import type { BroadcastHub, Publication } from '../realtime/broadcast-hub'
 import { realtimeLimits } from '../realtime/realtime-limits'
 import type { Registry } from '../registry'
 import { bytesOf } from './binary-frame'
@@ -43,13 +43,17 @@ export const broadcastRecord = (registry: Pick<Registry, 'find'>, { resource, ke
   return found
 }
 
-/**
- * Publishes a checked broadcast, refused with 429 when the channel took its broadcasts for this second. A typed array's
- * bytes go as an `ArrayBuffer` of their own.
- */
+/** A checked broadcast as the hub publishes it; a typed array's bytes go as an `ArrayBuffer` of their own. */
+export const publicationTo = (record: ChannelRecord, event: string, sent: Sent): Publication => ({
+  topic: record.name,
+  event,
+  payload: packSent({ ...sent, payload: bytesOf(sent.payload) ?? sent.payload }),
+  private: false,
+})
+
+/** Publishes a checked broadcast, refused with 429 when the channel took its broadcasts for this second. */
 export const publishTo = async (broadcasts: BroadcastHub, record: ChannelRecord, event: string, sent: Sent) => {
-  const payload = packSent({ ...sent, payload: bytesOf(sent.payload) ?? sent.payload })
-  if (await broadcasts.publish([{ topic: record.name, event, payload, private: false }])) return
+  if (await broadcasts.publish([publicationTo(record, event, sent)])) return
   throw new HttpProblem(429, channelRefusals.channelTooBusy.code, 'Too Many Requests', channelRefusals.channelTooBusy.message)
 }
 

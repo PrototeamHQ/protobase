@@ -24,8 +24,9 @@ import { realtimeApp } from './realtime/realtime-app'
 import { realtimeHubs } from './realtime/realtime-hubs'
 import { channelRoutes } from './channels/channel-routes'
 import { channelSender } from './channels/channel-sender'
+import { databaseSends } from './channels/database-sends'
 import { startRealtimePrune } from './realtime/realtime-prune'
-import { relayed, type RealtimeOptions } from './realtime/relay/realtime-options'
+import { relayed, sqlSends, type RealtimeOptions } from './realtime/relay/realtime-options'
 import { restRoutes } from './rest/rest-routes'
 import { storageRoutes } from './storage/storage-routes'
 import { shownAppName } from './app-name'
@@ -153,7 +154,7 @@ export type CreateAdminInput = {
   subscriptions?: SubscriptionDefinition[]
   /** Webhook subscriptions made in the admin app, from `webhooks: {}` (see `WebhooksOptions`). */
   webhooks?: WebhooksOptions
-  /** How `/api/sb/realtime/v1` is served: by one process or several (see `RealtimeOptions`). */
+  /** How `/api/sb/realtime/v1` and `/api/channels` are served: by one process or several, and whether SQL sends to channels (see `RealtimeOptions`). */
   realtime?: RealtimeOptions
   /** Each user's devices and the endpoints that register them, from `notifications: {}` (see `NotificationsOptions`). */
   notifications?: NotificationsOptions
@@ -396,7 +397,14 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   // Channels named by records, with presence and broadcasts, for whoever may read the record, a visitor too.
   if (upgradeWebSocket) {
     const visitors = (caller: Authenticator) => withAnonymous(caller, options.roles)
-    app.route(systemPath || '/', channelRoutes({ deps, upgradeWebSocket, authenticate: visitors(authenticate), authenticateUpgrade: visitors(upgradeAuthenticate), onError, hubs: hubs.records, follow: hubs.follow, report }))
+    // SQL's sends, with `sqlSends`, are read like the other processes' broadcasts: while a socket is open.
+    const sends = sqlSends(realtime) ? databaseSends({ db, statementTimeoutMs: deps.statementTimeoutMs, registry, broadcasts: hubs.records.broadcasts, report }) : undefined
+    const follow = () => {
+      const unrelay = hubs.follow()
+      const unsend = sends?.follow()
+      return () => (unsend?.(), unrelay())
+    }
+    app.route(systemPath || '/', channelRoutes({ deps, upgradeWebSocket, authenticate: visitors(authenticate), authenticateUpgrade: visitors(upgradeAuthenticate), onError, hubs: hubs.records, follow, report }))
   }
   // supabase-js's `functions.invoke`, admitted by the app's keys and the tokens of `/api/sb/auth/v1`.
   const verifyGoTrue = auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens'))
@@ -440,6 +448,6 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route(systemPath || '/', webManifestRoute(appName, identity, icons))
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
-  const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), report })
+  const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), sqlSends: sqlSends(realtime), report })
   return Object.assign(app, { startRealtimePrune: prune, decryptField, jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth))] : [])] })
 }
