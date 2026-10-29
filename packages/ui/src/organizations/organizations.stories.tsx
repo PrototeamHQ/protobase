@@ -72,6 +72,40 @@ export const MembersWithLimitedRoles: StoryObj<MembersArgs> = {
   },
 }
 
+/** With the app's presence: each member's online or away dot before their status; someone it leaves out shows none. */
+export const MembersWithPresence: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <WithSession session={sessionWith({ members: async () => members })}>
+      <MembersPage current={sanneAsAdmin} statuses={[{ userId: 'u-bo', availability: 'busy', text: 'Having lunch', clearsAt: null }]} presence={{ 'u-bo': 'online', 'u-sanne': 'away' }} />
+    </WithSession>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText('Jan Smit')
+    const marks = (name: string) => within(canvas.getByText(name).closest('li')!).queryAllByRole('img').map((mark) => mark.getAttribute('aria-label'))
+    expect(marks('Bo Jansen')).toEqual(['Online', 'Busy'])
+    expect(within(canvas.getByText('Bo Jansen').closest('li')!).getByText('Having lunch')).toBeVisible()
+    expect(marks('Sanne de Vries (you)')).toEqual(['Away'])
+    expect(marks('Jan Smit')).toEqual([])
+  },
+}
+
+/** Without the app's presence or statuses, the members show their names alone, as before. */
+export const MembersWithoutPresence: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <WithSession session={sessionWith({ members: async () => members })}>
+      <MembersPage current={sanneAsAdmin} />
+    </WithSession>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText('Jan Smit')
+    expect(canvas.queryAllByRole('img')).toEqual([])
+  },
+}
+
 type InviteArgs = { invite: Organizations['invite'] }
 
 /** Inviting someone as a manager's grant allows: Accountant, which she does not hold herself. Without mail the link shows. */

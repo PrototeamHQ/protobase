@@ -80,6 +80,7 @@
     "useMeta",
     "useOwnStatus",
     "usePlugin",
+    "usePresence",
     "usePushNotifications",
     "useRecord",
     "useResourceClient",

@@ -10,37 +10,37 @@ export default meta
 
 const inAnHour = () => new Date(Date.now() + 3_600_000).toISOString()
 
-/** Each mark beside a name: busy, do not disturb, a custom text in full or on hover, and an app's own online dot first. */
+/** Each mark beside a name: busy, do not disturb, a custom text in full or on hover, and the online or away dot first. */
 export const Marks: StoryObj = {
   tags: ['play'],
-  render: () => {
-    const online = <span role="img" aria-label="Online" className="size-2 rounded-full bg-success" />
-    return (
+  render: () => (
       <ul className="flex w-72 flex-col gap-2">
         <li className="flex items-center gap-2">Ana <StatusMark status={{ availability: 'busy', text: null, clearsAt: null }} /></li>
         <li className="flex items-center gap-2">Bo <StatusMark status={{ availability: 'do_not_disturb', text: 'Focus time', clearsAt: inAnHour() }} /></li>
-        <li className="flex items-center gap-2">Cas <StatusMark status={{ availability: 'automatic', text: 'On vacation 🌴 <b>not bold</b>', clearsAt: null }} presence={online} /></li>
+        <li className="flex items-center gap-2">Cas <StatusMark status={{ availability: 'automatic', text: 'On vacation 🌴 <b>not bold</b>', clearsAt: null }} presence="online" /></li>
         <li className="flex items-center gap-2">Dee <StatusMark status={{ availability: 'busy', text: 'Having lunch', clearsAt: null }} textShown="hover" /></li>
-        <li className="flex items-center gap-2">Eli <StatusMark status={{ availability: 'busy', text: 'Gone', clearsAt: '2020-01-01T00:00:00.000Z' }} presence={online} /></li>
+        <li className="flex items-center gap-2">Eli <StatusMark status={{ availability: 'busy', text: 'Gone', clearsAt: '2020-01-01T00:00:00.000Z' }} presence="away" /></li>
+        <li className="flex items-center gap-2">Fay <StatusMark presence="online" /></li>
       </ul>
-    )
-  },
+  ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const [ana, bo, cas, dee, eli] = canvas.getAllByRole('listitem')
+    const [ana, bo, cas, dee, eli, fay] = canvas.getAllByRole('listitem')
     expect(within(ana!).getByRole('img', { name: 'Busy' })).toBeVisible()
     expect(within(bo!).getByRole('img', { name: 'Do not disturb' })).toBeVisible()
     expect(within(bo!).getByText('Focus time')).toBeVisible()
-    // The text is shown as text, never as HTML, after the app's own mark.
+    // The text is shown as text, never as HTML, after the online dot.
     expect(within(cas!).getByText('On vacation 🌴 <b>not bold</b>')).toBeVisible()
     expect(cas!.querySelector('b')).toBeNull()
     expect(within(cas!).getAllByRole('img').map((mark) => mark.getAttribute('aria-label'))).toEqual(['Online'])
     // On hover only: the mark carries the text.
     expect(within(dee!).queryByText('Having lunch', { selector: 'span' })).toBeNull()
     expect(within(dee!).getByRole('img', { name: 'Busy' }).closest('[title]')).toHaveAttribute('title', 'Having lunch')
-    // Past its clear time: only the app's own mark is left.
-    expect(within(eli!).getAllByRole('img').map((mark) => mark.getAttribute('aria-label'))).toEqual(['Online'])
+    // Past its clear time: only the away dot is left.
+    expect(within(eli!).getAllByRole('img').map((mark) => mark.getAttribute('aria-label'))).toEqual(['Away'])
     expect(within(eli!).queryByText('Gone', { selector: 'span' })).toBeNull()
+    // No status at all: the dot alone.
+    expect(within(fay!).getByRole('img', { name: 'Online' })).toHaveAttribute('title', 'Online')
   },
 }
 

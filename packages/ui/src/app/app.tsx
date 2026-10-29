@@ -29,6 +29,8 @@ import { startErrorReporting } from './error-reporting'
 import { MetaGate, Notice, useAdminMeta } from './meta-gate'
 import { InvitationsPage } from '../organizations/invitations-page'
 import { MembersPage } from '../organizations/members-page'
+import { usePresence } from '../presence/presence'
+import { PresenceProvider } from '../presence/presence-provider'
 import { OrganizationPage } from '../organizations/organization-page'
 import { invitationsPath, managesOrganization, membersPath, organizationMenuItems, organizationPageTitle, organizationPath, organizationsPath } from '../organizations/organization-paths'
 import { OrganizationsPage } from '../organizations/organizations-page'
@@ -153,6 +155,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const status = useStatusMenu(Boolean(meta.status && user && !staff))
   // Everyone's statuses, which the members page shows beside their names.
   const statuses = useStatuses().data
+  // Who is online or away, from the app's own presence, which the members page shows beside their statuses.
+  const presence = usePresence()
   // The assistant is there when `/meta` names one, which it does only for the admin and ai roles.
   const [assistantOpen, setAssistantOpen] = useState(false)
   const assistantUrl = meta.assistant?.url
@@ -202,7 +206,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
     ) : organizationPage && path === organizationPath ? (
       <OrganizationPage current={current} basePath={basePath} onChanged={organizations.reload} />
     ) : organizationPage && (path === membersPath || path === invitationsPath) ? (
-      !managesOrganization(current) ? <Notice title={appText('ownersOnly')}>{appText('onlyOwners')}</Notice> : path === membersPath ? <MembersPage current={current} statuses={statuses} /> : <InvitationsPage current={current} />
+      !managesOrganization(current) ? <Notice title={appText('ownersOnly')}>{appText('onlyOwners')}</Notice> : path === membersPath ? <MembersPage current={current} statuses={statuses} presence={presence} /> : <InvitationsPage current={current} />
     ) : (organizationPage && path === organizationsPath) || outsideOrganizations ? (
       <OrganizationsPage state={organizations} basePath={basePath} />
     ) : !address ? (
@@ -279,9 +283,11 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
             <ConnectRoute />
           ) : (
             <PluginGate ui={ui}>
-              <RecordTitles>
-                <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
-              </RecordTitles>
+              <PresenceProvider>
+                <RecordTitles>
+                  <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
+                </RecordTitles>
+              </PresenceProvider>
             </PluginGate>
           )}
         </ToastProvider>

@@ -2,12 +2,12 @@ import { createElement } from 'react'
 import { Hash } from 'lucide-react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
-import type { NavRecord, RecordMark } from './nav'
+import type { NavRecord, ShownMark } from './nav'
 import { SidebarGroup } from './sidebar-group'
 
 vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined, removeItem: () => undefined })
 
-const render = (records: NavRecord[], marks?: Record<string, RecordMark>) =>
+const render = (records: NavRecord[], marks?: Record<string, ShownMark>) =>
   renderToStaticMarkup(createElement(SidebarGroup, { item: { id: 'channels', label: 'Channels', icon: Hash }, recent: { state: 'ready', records, ...(marks && { useMarks: () => marks }) }, mode: 'text-large', active: false }))
 
 // The markup of one record's row, from its link to the end of it.

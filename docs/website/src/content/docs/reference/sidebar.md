@@ -105,8 +105,20 @@ export default defineUi({ marks: { unread: useUnreadMarks } })
 | `strong` | The record's title shows bold and in the foreground colour, not muted. |
 | `count` | A small badge at the end of the row, the pill of the notification bell's count; `99+` above 99, none at 0. |
 | `label` | Added to the record's name for screen readers and its tooltip, such as "3 mentions". |
+| `person` | The user id of the one person the record stands for, such as the other person in a direct message. The row shows their online or away dot, from the app's [presence](/reference/status/#in-the-app), and their busy or do-not-disturb mark beside its title, and adds them and their status text to its name and tooltip. |
 
-The records keep the group's order. A mark is presentation only: it is no field, filter or sort key, and the server computes nothing for it; what it counts comes from the requests the hook makes as the reader. Icon sidebars show no records, so no marks either. A group whose name no UI config registers, such as a plugin's that is turned off, shows its records unmarked. <gap>A marks hook that throws cannot be confined to its own group because an error boundary around a group's marks is not implemented, so it stops the sidebar as a throwing component would.</gap>
+A direct message's mark names the other person:
+
+```tsx
+const useConversationMarks = () => {
+  // conversation_partners: a resource of the project's own, the other person in each of the reader's direct messages
+  const partners = useList('conversation_partners', { pageSize: 100 })
+  if (partners.isPending) return
+  return Object.fromEntries(partners.items.map((row) => [String(row.conversation_id), { person: String(row.user_id) }]))
+}
+```
+
+A row shows one person's presence; a row for a group names no one and shows none. The records keep the group's order. A mark is presentation only: it is no field, filter or sort key, and the server computes nothing for it; what it counts comes from the requests the hook makes as the reader. Icon sidebars show no records, so no marks either. A group whose name no UI config registers, such as a plugin's that is turned off, shows its records unmarked. <gap>A marks hook that throws cannot be confined to its own group because an error boundary around a group's marks is not implemented, so it stops the sidebar as a throwing component would.</gap>
 
 ### Checks
 

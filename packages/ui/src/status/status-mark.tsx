@@ -1,14 +1,15 @@
 import { CircleMinus, Clock } from 'lucide-react'
-import type { ReactNode } from 'react'
 import { heldStatus, type PersonStatus } from '@protobase/schema/internal'
 import { cn } from '../lib/cn'
+import type { Presence } from '../presence/presence'
+import { PresenceDot } from '../presence/presence-dot'
 import { text } from './messages'
 
 export type StatusMarkProps = {
   /** The person's status, as `useMembers()` or `client.status` gives it; nothing shows once its clear time has passed. */
   status?: Pick<PersonStatus, 'availability' | 'text' | 'clearsAt'> | null | undefined
-  /** The app's own mark, such as its online or away dot from its presence, drawn first. */
-  presence?: ReactNode
+  /** Whether the person is online or away, from the app's presence (see `usePresence`), drawn first as a dot; none without. */
+  presence?: Presence | null | undefined
   /** The custom text in `full`, or only on `hover` of the mark, as a tooltip; default `full`. */
   textShown?: 'full' | 'hover'
   className?: string
@@ -26,7 +27,7 @@ export const AvailabilityMark = ({ availability, title }: { availability: Person
 }
 
 /**
- * A person's status beside their name: the app's `presence` mark first, then a mark for busy or do not disturb, then
+ * A person's status beside their name: their `presence` dot first, then a mark for busy or do not disturb, then
  * the custom text, as text and never HTML, cut short with an ellipsis and in full on hover. Draws only `presence` when
  * the person has no status that holds now.
  */
@@ -36,7 +37,7 @@ export const StatusMark = ({ status, presence, textShown = 'full', className }: 
   const words = held?.text ?? undefined
   return (
     <span className={cn('inline-flex min-w-0 items-center gap-1 text-muted-foreground', className)} title={words}>
-      {presence}
+      {presence && <PresenceDot presence={presence} />}
       {held && <AvailabilityMark availability={held.availability} {...(textShown === 'hover' && words && { title: words })} />}
       {held && textShown === 'hover' && held.availability === 'automatic' && words && <span role="img" aria-label={words} className="size-1.5 shrink-0 rounded-full bg-faint-foreground" />}
       {words && textShown === 'full' && <span className="truncate text-xs">{words}</span>}

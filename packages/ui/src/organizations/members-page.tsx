@@ -5,6 +5,7 @@ import { PageHeader } from '../app-shell'
 import { authMessage } from '../auth/auth-messages'
 import { useAuth } from '../auth/auth-provider'
 import { PersonRow } from '../people/person-row'
+import { presenceOf, type Presence, type PresenceByUser } from '../presence/presence'
 import { StatusMark } from '../status/status-mark'
 import { Button } from '../primitives/button'
 import { Spinner } from '../primitives/spinner'
@@ -16,7 +17,7 @@ import { text } from './messages'
 /** The organization roles the person may set: owners every one, admins those below owner. */
 export const assignableOrganizationRoles = (current?: CurrentOrganization): OrganizationRole[] => (current?.role === 'owner' ? ['owner', 'admin', 'member'] : ['admin', 'member'])
 
-const MemberRow = ({ member, current, status, onChanged }: { member: OrganizationMember; current: CurrentOrganization; status?: PersonStatus | undefined; onChanged: () => void }) => {
+const MemberRow = ({ member, current, status, presence, onChanged }: { member: OrganizationMember; current: CurrentOrganization; status?: PersonStatus | undefined; presence?: Presence | undefined; onChanged: () => void }) => {
   const { session, organizations } = useAuth()
   const organizationId = current.organization!.id
   const { busy, error, run } = useAction()
@@ -32,7 +33,7 @@ const MemberRow = ({ member, current, status, onChanged }: { member: Organizatio
       email={member.email}
       self={self}
       error={error}
-      {...(status && { status: <StatusMark status={status} /> })}
+      {...((status || presence) && { status: <StatusMark status={status} presence={presence} /> })}
       actions={
         <>
           <select
@@ -60,9 +61,10 @@ const MemberRow = ({ member, current, status, onChanged }: { member: Organizatio
 /**
  * The members of the organization one works in, for its owners and admins: organization roles, which decide who
  * manages it, and app roles, which decide what each sees and does; only roles the person may give can change. In an
- * app with status, `statuses` puts each member's beside their name (see `useStatuses`).
+ * app with status, `statuses` puts each member's beside their name (see `useStatuses`), and `presence`, the app's, puts
+ * whether they are online or away before it (see `usePresence`).
  */
-export const MembersPage = ({ current, statuses }: { current?: CurrentOrganization; statuses?: readonly PersonStatus[] | undefined }) => {
+export const MembersPage = ({ current, statuses, presence }: { current?: CurrentOrganization; statuses?: readonly PersonStatus[] | undefined; presence?: PresenceByUser | undefined }) => {
   const { session } = useAuth()
   const [members, setMembers] = useState<OrganizationMember[]>()
   const [error, setError] = useState<string>()
@@ -79,7 +81,7 @@ export const MembersPage = ({ current, statuses }: { current?: CurrentOrganizati
         <SectionError message={error} />
         {members ? (
           <ul className="divide-y rounded-md border">
-            {members.map((member) => <MemberRow key={`${member.id}/${member.role}/${member.appRoles.join()}`} member={member} current={current} status={statuses?.find((status) => status.userId === member.userId)} onChanged={load} />)}
+            {members.map((member) => <MemberRow key={`${member.id}/${member.role}/${member.appRoles.join()}`} member={member} current={current} status={statuses?.find((status) => status.userId === member.userId)} presence={presenceOf(presence, member.userId)} onChanged={load} />)}
           </ul>
         ) : (
           !error && <div className="flex items-center gap-2 text-muted-foreground"><Spinner /> {text('loading')}</div>

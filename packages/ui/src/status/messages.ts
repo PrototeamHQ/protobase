@@ -26,6 +26,8 @@ export const text = defineMessages({
     clear: 'Clear status',
     couldNotSave: 'Could not save your status',
     until: (time: string) => `Until ${time}`,
+    online: 'Online',
+    away: 'Away',
   },
   nl: {
     setStatus: 'Status instellen',
@@ -52,5 +54,7 @@ export const text = defineMessages({
     clear: 'Status wissen',
     couldNotSave: 'Je status kon niet worden opgeslagen',
     until: (time: string) => `Tot ${time}`,
+    online: 'Online',
+    away: 'Afwezig',
   },
 })

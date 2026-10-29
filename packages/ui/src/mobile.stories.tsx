@@ -3,6 +3,8 @@ import { ArrowLeftRight, Boxes, LifeBuoy, ShoppingCart, StickyNote } from 'lucid
 import { useState, type ReactNode } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { AppShell, type BottomBarTab } from './app-shell'
+import { withDirectMessages } from './app-shell/direct-messages-fixtures'
+import { navOpenStorageKey } from './app-shell/nav-open-storage'
 import { AssistantButton } from './app/assistant-shell'
 import { AssistantDock } from './assistant-dock'
 import { conversation } from './assistant-dock/fixtures'
@@ -78,6 +80,31 @@ export const NavigationDrawer: Story = {
     await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
     expect(document.body.style.overflow).toBe('')
     expect(menu).toHaveFocus()
+  },
+}
+
+/** In the phone drawer, a direct message's row shows the other person's online dot and busy mark, named on the row. */
+export const DirectMessagesDrawer: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  beforeEach: () => localStorage.removeItem(navOpenStorageKey('customers')),
+  render: () => (
+    <div className="h-screen">
+      <AppShell sidebarMode="text-small" navGroups={withDirectMessages} activeItem="customers" breadcrumb={['Direct messages']} user={adminUser}>
+        <div className="p-4 text-muted-foreground">Direct messages</div>
+      </AppShell>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Open navigation' }))
+    const drawer = await canvas.findByRole('dialog', { name: 'Navigation' })
+    const ann = within(within(drawer).getByRole('list', { name: 'Recent direct messages' })).getByRole('link', { name: 'Ann, Online, Busy, Having lunch' })
+    expect(within(ann).getByRole('img', { name: 'Online' })).toBeVisible()
+    expect(within(ann).getByRole('img', { name: 'Busy' })).toBeVisible()
+    // The marks sit inside the drawer, the count still at the row's end.
+    expect(ann.getBoundingClientRect().right).toBeLessThanOrEqual(drawer.getBoundingClientRect().right)
+    expect(ann).toHaveTextContent(/^Ann.*2$/)
   },
 }
 
