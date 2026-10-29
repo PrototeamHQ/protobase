@@ -3,6 +3,9 @@ title: MCP
 description: The app's MCP endpoint, through which a person's AI client lists resources, finds and reads records and their comments, and, when turned on, creates and updates them with that person's access and approval, besides the app's own tools.
 ---
 
+import { Code } from '@astrojs/starlight/components'
+import hostServer from '../../../../../docs-examples/mcp/host-server.ts?raw'
+
 An app can serve an MCP endpoint: a person adds its address to an AI client that speaks MCP, such as a chat assistant or a code editor, signs in on the app and allows the client. The client then works with that person's access: it lists the resources and fields they may read, finds records with the API's filters, sorting and pages, and reads one record.
 
 ## Turning it on
@@ -161,15 +164,19 @@ A batch is checked before the person is asked: an operation other than a create,
 
 ## The app's own tools
 
-`mcp/tools.ts` adds tools of the app's own, offered after the built-in ones to everyone signed in, whatever `mcpEndpoint.writes` says. Its default export is an array of `defineTool(...)` from `@protobase/server`, the same shape as the [assistant's own tools](/reference/assistant/#the-apps-own-tools): a `name` of 1 to 64 letters, digits, `_` or `-`, a `description` the client's model reads, `parameters`, the JSON Schema of its arguments, which the endpoint checks each call against, `annotations`, MCP's tool hints such as `readOnlyHint`, and `run(args, context)`, which returns the text the client reads. The file is found when the app starts, under `protobase dev` and `protobase serve` alike, and only with `auth.mcp` on; with `mcpEndpoint: false` it offers nothing.
+`mcp/tools.ts` adds tools of the app's own, offered after the built-in ones to everyone signed in, whatever `mcpEndpoint.writes` says. Its default export is an array of `defineTool(...)` from `@protobase/server`, the same shape as the [assistant's own tools](/reference/assistant/#the-apps-own-tools): a `name` of 1 to 64 letters, digits, `_` or `-`, a `description` the client's model reads, `parameters`, the JSON Schema of its arguments, which the endpoint checks each call against, `annotations`, MCP's tool hints such as `readOnlyHint`, optionally a `title` and `_meta`, which `tools/list` gives clients as they are, and `run(args, context)`, which returns the text the client reads. The file is found when the app starts, under `protobase dev` and `protobase serve` alike, and only with `auth.mcp` on; with `mcpEndpoint: false` it offers nothing.
 
 `context` holds the caller's `session`, the `locale` they read, `approve(request)`, `resources()`, the resources they may read, and `records`, the app's records **as that person**: their role's access rules, tenant, hidden fields, `validate` and write hooks apply, as in the REST API and the built-in tools. Its methods are the assistant's, listed [there](/reference/assistant/#the-apps-own-tools); a refusal rejects with an `HttpProblem`. `show` does nothing over MCP, and there is no `conversation`.
+
+A tool refuses by throwing an `HttpProblem` with a status below 500, such as `notFound(detail)` or `forbidden(slug, detail)`, or by letting through the one `records` rejects with: the client gets `{ "error": <slug>, "message": <detail> }` as an error result, as from the built-in tools, and nothing is reported. Anything else a tool throws is reported to the app's error handler and reaches the client as "The server failed to answer.", or, for a query the database stopped at its statement timeout, as a message naming the tool. `refusalOf(error)` from `@protobase/server` gives that `{ error, message }` text for a refusal and `undefined` otherwise, and `refused(error)` gives it or throws the error again, for a tool that returns a refusal as its result rather than as an error.
+
+Nothing cuts a tool's result, as nothing cuts the built-in tools': a tool that can return a lot takes a limit or the fields to return, as `list_records` takes `page_size` and `fields`.
 
 A tool that reads:
 
 ```ts
 // mcp/tools.ts
-import { defineTool, HttpProblem } from '@protobase/server'
+import { defineTool } from '@protobase/server'
 
 const openTasks = defineTool({
   name: 'open_tasks',
@@ -177,10 +184,7 @@ const openTasks = defineTool({
   parameters: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 50 } } },
   annotations: { readOnlyHint: true },
   run: async (args, { records }) => {
-    const page = await records.list('tasks', { filter: 'status = "open"', order_by: 'created_at desc', page_size: Number(args.limit ?? 10), fields: ['id', 'title', 'due_on'] }).catch((error: unknown) => {
-      if (error instanceof HttpProblem) return { error: error.slug, message: error.message }
-      throw error
-    })
+    const page = await records.list('tasks', { filter: 'status = "open"', order_by: 'created_at desc', page_size: Number(args.limit ?? 10), fields: ['id', 'title', 'due_on'] })
     return JSON.stringify(page)
   },
 })
@@ -221,8 +225,6 @@ export default [...assistantTools]
 
 A host calling `createAdmin` itself passes the tools as `options.mcp.tools`; the JSON config's `mcpEndpoint` takes none.
 
-<gap>An app's own MCP tool cannot have its result kept within a size budget, nor its refusals turned into `{ error, message }`, because neither is implemented for tools outside the built-in ones.</gap> Until then a tool keeps its own results small and catches its own refusals, as `open_tasks` above does; anything else it throws reaches the client as "The server failed to answer.".
-
 ## Browsers and hosts
 
 A client in a browser may call the endpoint from any origin: it sends its token, never cookies. A request addressed to another host than that of the app's [`url`](/reference/config/app/#url) is refused, against DNS rebinding.
@@ -234,7 +236,7 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 `@protobase/server` exports the pieces the endpoint is made of, for an MCP server of your own with tools of your own:
 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session, request)` builds for its caller; `request` is the HTTP request, such as for the language the person reads.
-- `mcpServer({ info, instructions, tools, context, report, rolesWithoutApproval, approvals })`: an MCP server named by `info`, its `name`, `version` and `icons`, such as `mcpIcons(origin, icons)`, the app's icons on `origin`, and offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`, with the `locale` its approvals are asked in (English when absent): each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`. `approvals` is `mcpApprovals()`, built once and passed to every server the endpoint builds: it keeps the approvals asked for until they are answered or expire. `instructions` is what it tells clients when they connect, by default `mcpInstructions`, the advice on reading records above.
+- `mcpServer({ info, instructions, tools, context, report, rolesWithoutApproval, approvals })`: an MCP server named by `info`, its `name`, `version` and `icons`, such as `mcpIcons(origin, icons)`, the app's icons on `origin`, and offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema, its `annotations`, MCP's tool hints, and its `title` and `_meta`, and each refusing as [the app's own tools](#the-apps-own-tools) do. `context` is the tools' context without `approve`, with the `locale` its approvals are asked in (English when absent): each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`. It is a `ToolContext`, with the app's `records`, `resources()` and `show`, unless every tool is declared with a smaller one, such as `defineTool<BaseToolContext>(...)`, whose context is only `session`, `locale` and `approve`: a host without app records then passes `{ session }`. `report` gets what a tool throws other than a refusal. `approvals` is `mcpApprovals()`, built once and passed to every server the endpoint builds: it keeps the approvals asked for until they are answered or expire. `instructions` is what it tells clients when they connect, by default `mcpInstructions`, the advice on reading records above.
 - `mcpTools({ db, sql, writes, commented, own })`: the endpoint's tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`, `commented` names the resources with comments, and `own` are [the app's own tools](#the-apps-own-tools), offered after the rest.
 - `readRecordTools()`, or `listResourcesTool()`, `describeResourceTool()`, `listRecordsTool()` and `getRecordTool()`: the read tools alone; `readOnlyQueryTool(db)` is `run_read_only_query`, and `readWriteQueryTool(db)` proposes one write statement that the user approves before it runs.
 - `commentTools({ commented }, writes)`, or `listCommentsTool({ commented })` and `addCommentTool({ commented, resources })`: the comment tools on the resources named in `commented`, which call the context's `comments`, and `add_comment` only when `writes` is not `false`.
@@ -244,35 +246,11 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 
 A host that builds its own server around `createAdmin`, rather than running the project with `protobase dev` or `protobase serve`, can serve its own endpoint at `auth.mcp.path` instead: `mcpEndpoint: false` (`createAdmin`'s `options.mcp`) turns Protobase's off, and the host mounts its own in front of `createAdmin`'s app. The OAuth provider and its discovery stay, and `createAdmin` answers 404 at the path and under it. `protobase dev` and `protobase serve` have no place to mount another endpoint, so in a project served by them `mcpEndpoint: false` only turns the endpoint off.
 
-A tool of your own goes on the server `server` returns, with the context its tools get. `authenticate` is the host's own `Authenticator`: it verifies the client's access token for the endpoint's address, its audience, and returns a session with the `client` the token was issued to:
+A tool of your own goes on the server `server` returns, with the context its tools get. `authenticate` is the host's own `Authenticator`, such as [`jwtAuthenticator(...)`](/reference/auth/): it verifies the client's access token for the endpoint's address, its audience, and returns a session with the `client` the token was issued to. A host with no app records, such as a console that reads its own database, declares its tools with `BaseToolContext` and passes `{ session }`; here a tool with a `title` and `_meta`, which refuses another person's project and asks before it archives one:
 
-```ts
-import { defineTool, mcpApprovals, mcpHandler, mcpServer, type Session, type ToolContext } from '@protobase/server'
+<Code code={hostServer} lang="ts" title="mcp-endpoint.ts" />
 
-const ping = defineTool({
-  name: 'ping',
-  description: 'Answers pong.',
-  parameters: { type: 'object', properties: {} },
-  annotations: { readOnlyHint: true },
-  run: async () => 'pong',
-})
-
-const context = (session: Session): Omit<ToolContext, 'approve'> => ({
-  session,
-  records: myRecords(session),
-  resources: async () => ({ models: [], views: [] }),
-  show: () => {},
-})
-
-const approvals = mcpApprovals()
-
-const handler = mcpHandler({
-  authenticate: verifyMcpToken,
-  resource: 'https://admin.example.com/api/mcp',
-  scope: 'mcp',
-  server: (session) => mcpServer({ info: { name: 'My app', version: '1.0.0' }, tools: [ping], context: context(session), report: console.error, approvals }),
-})
-```
+A host that wants the person's records in the app instead serves the app's endpoint and passes its tools as `options.mcp.tools` on `createAdmin`, as in [the app's own tools](#the-apps-own-tools).
 
 A tool that changes something calls `context.approve(...)` before it changes anything, and only once: over MCP the client asks the person, then calls the tool again from the start with their answer, and `approve` then resolves with it.
 
