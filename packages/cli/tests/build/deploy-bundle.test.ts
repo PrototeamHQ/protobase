@@ -201,7 +201,7 @@ describe('buildDeployBundle', () => {
     const manifest = await buildDeployBundle({ projectDir, outDir })
 
     expect(manifest.nodeModules).toBe('node_modules')
-    expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toMatchObject({ nodeModules: 'node_modules', mobile: { plugins: { '@capacitor/camera': '^8.0.1' } } })
+    expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toMatchObject({ nodeModules: 'node_modules', mobile: { appId: 'com.example.shop', plugins: { '@capacitor/camera': '^8.0.1' } } })
     expect((await readdir(path.join(outDir, 'node_modules'))).sort()).toEqual(['native-hash', 'node-gyp-build'])
     expect((await readdir(path.join(outDir, 'node_modules/native-hash/prebuilds'))).sort()).toEqual(['linux-arm64', 'linux-x64'])
 

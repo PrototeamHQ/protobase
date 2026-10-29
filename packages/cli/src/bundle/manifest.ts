@@ -19,7 +19,9 @@ export type BundlePlugin = { name: string; path: string; api: number; protobase:
  */
 export type BundleShell = { protobase: string; pluginApi: number; paths: string[]; builtAt?: number }
 
-export type BundleMobile = { plugins: Record<string, string> }
+// `appId` is the app id the binaries are built with, which a signed release's statement binds; a bundle built before it
+// names none, and a host that takes it from here offers such a bundle no signed release.
+export type BundleMobile = { appId?: string; plugins: Record<string, string> }
 
 export type BundleManifest = {
   // The format of this file.
@@ -50,7 +52,7 @@ export type BundleManifest = {
   // @protobase/mobile pins), which the fingerprint of its mobile release names. A bundle built before it names none.
   native?: Record<string, string>
   // With the project's `mobile` section, and only then, what of it the fingerprint of the mobile release names besides
-  // `native`: its plugins, name → the spec it gives, empty when it gives none.
+  // `native`: its plugins, name → the spec it gives, empty when it gives none; and its app id.
   mobile?: BundleMobile
   // The packages the config module loads from disk, native add-ons and what they need: a node_modules folder beside
   // `server`, relative to the bundle. Only in a bundle that has some.
@@ -116,7 +118,9 @@ export const parseManifest = (value: unknown, file: string): BundleLayout => {
   if (builtAt !== undefined && !isTime(builtAt)) throw new Error(`${file} has a builtAt that is no time in ms`)
   if (icons !== undefined && !isIcons(icons)) throw new Error(`${file} has icons that are not a favicon flag and a list of PNG icons`)
   if (native !== undefined && !isVersions(native)) throw new Error(`${file} has a native that is not a map of package names to versions`)
-  if (mobile !== undefined && !(isObject(mobile) && isVersions(mobile.plugins))) throw new Error(`${file} has a mobile that is not { plugins } with a map of package names to versions`)
+  if (mobile !== undefined && !(isObject(mobile) && isVersions(mobile.plugins) && (mobile.appId === undefined || typeof mobile.appId === 'string'))) {
+    throw new Error(`${file} has a mobile that is not { appId, plugins } with an app id and a map of package names to versions`)
+  }
   if (nodeModules !== undefined && typeof nodeModules !== 'string') throw new Error(`${file} has a nodeModules that is no path`)
   if (migrations !== undefined && typeof migrations !== 'string') throw new Error(`${file} has a migrations that is no path`)
   return {
