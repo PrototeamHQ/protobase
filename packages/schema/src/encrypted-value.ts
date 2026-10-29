@@ -8,7 +8,7 @@ export type Encrypted = {
  * What record rules, validators and write hooks get in place of an `.encrypted()` field's stored value when it is set;
  * an empty one is `null`. It is the same for every value and carries nothing of it: test it with `== null` or
  * `=== encrypted`, while comparing it loosely or reading it as text throws. See
- * [Encrypted fields](website/src/content/docs/reference/data-config.mdx#encrypted-fields).
+ * [Encrypted fields](docs/website/src/content/docs/reference/data-config.mdx#encrypted-fields).
  */
 export const encrypted: Encrypted = Object.freeze(
   Object.create(null, {

@@ -40,10 +40,10 @@
     "test:stories": "storybook build && bun scripts/play-tests.mjs",
     "test:dom": "storybook build && bun scripts/dom-snapshots.mjs",
     "test:dom:update": "storybook build && bun scripts/dom-snapshots.mjs --update",
-    "docs:dev": "bun run --cwd website dev",
-    "docs:build": "bun run build-storybook && bun run --cwd website build && cp -R storybook-static website/dist/storybook",
+    "docs:dev": "bun run --cwd docs/website dev",
+    "docs:build": "bun run build-storybook && bun run --cwd docs/website build && cp -R storybook-static docs/website/dist/storybook",
     "docs:check": "bun scripts/check-docs.mjs",
-    "docs:api-check": "bun run --cwd website api-check",
+    "docs:api-check": "bun run --cwd docs/website api-check",
     "docs:skill": "bun scripts/protobase-skill.ts",
     "config:schema": "bun scripts/config-schema/write.ts",
     "features:check": "bun scripts/features-check.ts",
@@ -102,6 +102,6 @@
   "workspaces": [
     "packages/*",
     "tests/apps/*",
-    "website"
+    "docs/website"
   ]
 }

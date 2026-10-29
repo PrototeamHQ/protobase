@@ -7,6 +7,6 @@ coverage
 .env
 screenshots
 .protobase
-website/src/content/docs/api
+docs/website/src/content/docs/api
 .build-test-*
 packages/cli/skills/protobase/references

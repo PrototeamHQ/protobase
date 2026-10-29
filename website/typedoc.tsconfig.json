@@ -1,5 +1,0 @@
-{
-  "extends": "../tsconfig.json",
-  "include": ["../packages/schema/src"],
-  "exclude": ["../packages/schema/src/**/*.test.ts"]
-}

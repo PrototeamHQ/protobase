@@ -22,13 +22,13 @@ docs: the record page runs named actions too
 
 ## Features and docs
 
-Every feature of Protobase is listed on the docs site: `website/src/content/docs/features.md` links one page per area, and each area page under `website/src/content/docs/features/` lists that area's features, one line each, with `## Subarea` headings where an area has them:
+Every feature of Protobase is listed on the docs site: `docs/website/src/content/docs/features.md` links one page per area, and each area page under `docs/website/src/content/docs/features/` lists that area's features, one line each, with `## Subarea` headings where an area has them:
 
 ```
 - [Name](/page/#anchor) (stability): what someone gets, in one or two plain sentences.
 ```
 
-The link goes to the heading of the docs page that explains the feature; a feature that no page explains yet has its name without a link. A stable feature has no stability; the others say `(beta)`, `(in development)` or `(coming soon)`. A new area page goes into `features` in `website/sidebar.mjs` and gets a line in `features.md`.
+The link goes to the heading of the docs page that explains the feature; a feature that no page explains yet has its name without a link. A stable feature has no stability; the others say `(beta)`, `(in development)` or `(coming soon)`. A new area page goes into `features` in `docs/website/sidebar.mjs` and gets a line in `features.md`.
 
 - A feature ships with its docs: the change that adds or changes it updates the page that explains it and, for a new feature, adds its entry.
 - Nothing is documented that is not built, unless it is marked coming soon, and only while a task builds it.
@@ -41,7 +41,7 @@ The link goes to the heading of the docs page that explains the feature; a featu
 
 The [schema API reference](https://docs.protobase.net/api/schema/) is generated from the doc comments of `@protobase/schema`'s entry point (`packages/schema/src/index.ts`) by TypeDoc and starlight-typedoc while the site builds; the guides and reference pages beside it are written by hand. Every item the entry point exports, and every member of what it exports, such as each builder method, needs a doc comment: `bun run docs:build` fails on one without, as on a broken `{@link}`. Helpers only the `@protobase` packages use are exported from `@protobase/schema/internal` instead, which the reference leaves out. `bun run docs:api-check` runs the same check in seconds, with the same options, and fails with the same messages.
 
-A doc comment links a guide or reference page by its file, from the repository's root: `[Access](website/src/content/docs/reference/access.mdx#capabilities)` becomes a link to `/reference/access/#capabilities`. A link to a file that does not exist, or that is no page of the site, fails the build, and so does an anchor the page does not have. The options are in `website/typedoc.json`, the link handling in `website/typedoc-doc-pages.mjs`.
+A doc comment links a guide or reference page by its file, from the repository's root: `[Access](docs/website/src/content/docs/reference/access.mdx#capabilities)` becomes a link to `/reference/access/#capabilities`. A link to a file that does not exist, or that is no page of the site, fails the build, and so does an anchor the page does not have. The options are in `docs/website/typedoc.json`, the link handling in `docs/website/typedoc-doc-pages.mjs`.
 
 ## Layout snapshots
 

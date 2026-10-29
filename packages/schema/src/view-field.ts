@@ -36,7 +36,7 @@ export class FieldView<N extends string = string, V = unknown> {
   /**
    * Asks `question` before a person changes the value in a form or a list cell, such as a flag that is easy to set by
    * mistake: once as the value first moves away from the saved one, not on every key. Cancelling keeps the value. See
-   * [Confirming a change](website/src/content/docs/reference/ui-config.mdx#confirming-a-change).
+   * [Confirming a change](docs/website/src/content/docs/reference/ui-config.mdx#confirming-a-change).
    */
   confirm(question: string) {
     if (question.trim() === '') throw new Error(`Field "${this.name}": .confirm() needs the question to ask`)
@@ -113,7 +113,7 @@ export class FieldView<N extends string = string, V = unknown> {
    * Shows and edits the field with the field type a plugin registers under `name` (`definePlugin({ fields })`), given
    * `props`, such as `r.score.widget('rating', { max: 5 })`, or with the built-in `members`, which picks an
    * organization's members into a JSON array of user ids (see
-   * [Members](website/src/content/docs/reference/plugins.md#members)). Without that field type, or when it does not show
+   * [Members](docs/website/src/content/docs/reference/plugins.md#members)). Without that field type, or when it does not show
    * this field's storage type, the field shows as it would without it.
    */
   widget(name: string, props?: Record<string, JsonValue>) {

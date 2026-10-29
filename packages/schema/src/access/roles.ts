@@ -30,7 +30,7 @@ const rolesOf = (user: AccessUser) => user.roles ?? []
  * `{ 'products.read': ['sku', 'price'] }`, `{ 'products.read': { fields: ['name'], filter: 'published = true' } }`.
  * The role `anonymous`, when defined, is what requests without a token act as; it may only read listed fields, and
  * create listed fields through a public form.
- * See [Access](website/src/content/docs/reference/access.mdx#capabilities).
+ * See [Access](docs/website/src/content/docs/reference/access.mdx#capabilities).
  *
  * @example
  * ```ts

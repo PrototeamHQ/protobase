@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 // The deploy guide's compose template and commands are what self-hosters copy: these keep its safe defaults from
 // drifting.
-const docs = path.resolve(__dirname, '../../website/src/content/docs')
+const docs = path.resolve(__dirname, '../../docs/website/src/content/docs')
 const guide = readFileSync(path.join(docs, 'guides/deploy.md'), 'utf8')
 const auth = readFileSync(path.join(docs, 'reference/auth.md'), 'utf8')
 const cli = readFileSync(path.join(docs, 'reference/cli.md'), 'utf8')

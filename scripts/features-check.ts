@@ -1,4 +1,4 @@
-// Holds the features pages to their rules (CONTRIBUTING.md, "Features and docs"): website/src/content/docs/features.md
+// Holds the features pages to their rules (CONTRIBUTING.md, "Features and docs"): docs/website/src/content/docs/features.md
 // links one page per area, and each area page under features/ lists that area's features, one entry per line:
 //
 //   - [Name](/page/#anchor) (stability): one or two plain sentences.
@@ -11,7 +11,7 @@
 // guides/index.mdx, must link every guide under guides/.
 //
 // With --release-rule it also refuses a release with a `feat` commit that changes no docs page: from the last vx.y.z tag
-// reachable from HEAD, any `feat` commit but those of the example apps needs a change under website/src/content/docs/
+// reachable from HEAD, any `feat` commit but those of the example apps needs a change under docs/website/src/content/docs/
 // outside api/, which TypeDoc writes. The rule is off until every feature already released is documented.
 //
 //   bun run features:check [--release-rule]
@@ -30,8 +30,8 @@ const notFeatures = ['reference/architecture']
 
 // The problems of the features pages of the repository at `root`, each naming its file and line.
 export async function pageProblems(root: string) {
-  const docs = path.join(root, 'website/src/content/docs')
-  const sidebar: Record<'architecture' | 'features' | 'guides' | 'reference', string[]> = await import(pathToFileURL(path.join(root, 'website/sidebar.mjs')).href)
+  const docs = path.join(root, 'docs/website/src/content/docs')
+  const sidebar: Record<'architecture' | 'features' | 'guides' | 'reference', string[]> = await import(pathToFileURL(path.join(root, 'docs/website/sidebar.mjs')).href)
   const { architecture, features, guides, reference } = sidebar
   const problems: string[] = []
   const anchors = new Map<string, Set<string> | undefined>()
@@ -43,7 +43,7 @@ export async function pageProblems(root: string) {
   const areaFiles = readdirSync(path.join(docs, 'features')).filter((file) => /\.mdx?$/.test(file))
   for (const file of areaFiles) {
     const page = `features/${file.replace(/\.mdx?$/, '')}`
-    if (!features.includes(page)) problems.push(`website/src/content/docs/${page}: not in the sidebar: add it to \`features\` in website/sidebar.mjs`)
+    if (!features.includes(page)) problems.push(`docs/website/src/content/docs/${page}: not in the sidebar: add it to \`features\` in docs/website/sidebar.mjs`)
   }
 
   const index = readFileSync(path.join(docs, 'features.md'), 'utf8')
@@ -52,10 +52,10 @@ export async function pageProblems(root: string) {
   for (const page of features) {
     const file = pageFile(docs, page)
     if (!file) {
-      problems.push(`website/sidebar.mjs: ${page} has no page`)
+      problems.push(`docs/website/sidebar.mjs: ${page} has no page`)
       continue
     }
-    if (!indexed.has(page)) problems.push(`website/src/content/docs/features.md: does not link ${page}`)
+    if (!indexed.has(page)) problems.push(`docs/website/src/content/docs/features.md: does not link ${page}`)
     const relative = path.relative(root, file)
     for (const { line, number } of bodyLines(readFileSync(file, 'utf8'))) {
       const at = `${relative}:${number}`
@@ -87,19 +87,19 @@ export async function pageProblems(root: string) {
 
   for (const page of [...reference, ...architecture]) {
     if (notFeatures.includes(page) || linkedPages.has(page)) continue
-    problems.push(`website/sidebar.mjs: no feature entry links ${page}: add the features it explains to their area page`)
+    problems.push(`docs/website/sidebar.mjs: no feature entry links ${page}: add the features it explains to their area page`)
   }
   for (const page of guides) {
-    if (!pageFile(docs, page)) problems.push(`website/sidebar.mjs: ${page} has no page`)
+    if (!pageFile(docs, page)) problems.push(`docs/website/sidebar.mjs: ${page} has no page`)
   }
 
   const guidesIndex = path.join(docs, 'guides/index.mdx')
-  if (!existsSync(guidesIndex)) return [...problems, 'website/src/content/docs/guides/index.mdx: no guides page']
+  if (!existsSync(guidesIndex)) return [...problems, 'docs/website/src/content/docs/guides/index.mdx: no guides page']
   const listed = new Set([...readFileSync(guidesIndex, 'utf8').matchAll(/href="\/(guides\/[a-z0-9-]+)\/"/g)].map((match) => match[1]))
   const guideFiles = readdirSync(path.join(docs, 'guides')).filter((file) => /\.mdx?$/.test(file) && file !== 'index.mdx')
   for (const file of guideFiles) {
     const page = `guides/${file.replace(/\.mdx?$/, '')}`
-    if (!listed.has(page)) problems.push(`website/src/content/docs/guides/index.mdx: does not link ${page}`)
+    if (!listed.has(page)) problems.push(`docs/website/src/content/docs/guides/index.mdx: does not link ${page}`)
   }
   return problems
 }
@@ -121,11 +121,11 @@ export function releaseProblems(cwd: string) {
     .filter((line) => /^\S+ feat(\((?!(examples|property-portal|erp)\))[^)]*\))?!?: /.test(line))
   if (features.length === 0) return []
   const changed = lastTag
-    ? git('diff', '--name-only', lastTag, 'HEAD', '--', 'website/src/content/docs')
-    : git('ls-tree', '-r', '--name-only', 'HEAD', '--', 'website/src/content/docs')
-  const docs = changed.split('\n').filter((file) => file !== '' && !file.startsWith('website/src/content/docs/api/'))
+    ? git('diff', '--name-only', lastTag, 'HEAD', '--', 'docs/website/src/content/docs')
+    : git('ls-tree', '-r', '--name-only', 'HEAD', '--', 'docs/website/src/content/docs')
+  const docs = changed.split('\n').filter((file) => file !== '' && !file.startsWith('docs/website/src/content/docs/api/'))
   if (docs.length > 0) return []
-  return [`features with no docs change since ${lastTag ?? 'the first commit'}: ${features.join('; ')}. Document them in website/src/content/docs (CONTRIBUTING.md, Features and docs)`]
+  return [`features with no docs change since ${lastTag ?? 'the first commit'}: ${features.join('; ')}. Document them in docs/website/src/content/docs (CONTRIBUTING.md, Features and docs)`]
 }
 
 const pageFile = (docs: string, page: string) =>

@@ -8,7 +8,7 @@ import { serveStatic } from './static-server.mjs'
  * an uncaught exception, a failed request or a story that does not render. Without BASE it serves the local build
  * (`bun run docs:build` first); BASE=https://docs.protobase.net checks the live site.
  */
-const dist = fileURLToPath(new URL('../website/dist', import.meta.url))
+const dist = fileURLToPath(new URL('../docs/website/dist', import.meta.url))
 const local = process.env.BASE ? undefined : await serveStatic(dist)
 const base = process.env.BASE ?? local.base
 

@@ -76,7 +76,7 @@ export const displays = {
    * `approximate` field is true, or its `exact` field false: its marker is drawn hollow and says so, and close enough in
    * an area is drawn around it, the GeoJSON polygon or line its `area` field holds, else a circle of its `radius` field
    * in metres, else one of `defaultRadius`. Named `map` unless `name` says otherwise. See
-   * [Approximate positions](website/src/content/docs/reference/ui-config.mdx#approximate-positions).
+   * [Approximate positions](docs/website/src/content/docs/reference/ui-config.mdx#approximate-positions).
    */
   map: (
     fields: { latitude: Ref; longitude: Ref; approximate?: Ref; exact?: Ref; radius?: Ref; area?: Ref },
@@ -105,7 +105,7 @@ export const displays = {
    * puts the card back and says why; with `drag: { board: 'name' }` only between the columns the UI config's board drop
    * of that name lists, each running its own write; with `drag: { rank: true }` a card moves within its column too. `by` must be
    * a filterable enum field. Named `board` unless `name` says otherwise. See
-   * [Boards](website/src/content/docs/reference/ui-config.mdx#boards).
+   * [Boards](docs/website/src/content/docs/reference/ui-config.mdx#boards).
    */
   board: (fields: { by: Ref; title?: Ref; subtitle?: Ref; badge?: Ref; meta?: Ref[] }, o: Naming = {}): ListDisplayModel => ({
     kind: 'board',
@@ -125,7 +125,7 @@ export const displays = {
    * the arrow keys, saves the record with `start` and `end` moved by the same days, as one update with its ETag, so the
    * resource's access rules and `validate` decide, and a refusal puts the event back and says why. `start` must be a
    * filterable date or timestamp field and `end` a filterable field of the same type. Named `calendar` unless `name`
-   * says otherwise. See [Calendars](website/src/content/docs/reference/ui-config.mdx#calendars).
+   * says otherwise. See [Calendars](docs/website/src/content/docs/reference/ui-config.mdx#calendars).
    */
   calendar: (fields: { start: Ref; end?: Ref; title?: Ref }, o: Naming = {}): ListDisplayModel => ({
     kind: 'calendar',
@@ -143,7 +143,7 @@ export const displays = {
    * moving it with the arrow keys, saves the record with `start` and `end` moved by the same days, as one update with
    * its ETag, so the resource's access rules and `validate` decide, and a refusal puts the bar back and says why.
    * `start` must be a filterable date or timestamp field and `end` a filterable field of the same type. Named
-   * `timeline` unless `name` says otherwise. See [Timelines](website/src/content/docs/reference/ui-config.mdx#timelines).
+   * `timeline` unless `name` says otherwise. See [Timelines](docs/website/src/content/docs/reference/ui-config.mdx#timelines).
    */
   timeline: (fields: { start: Ref; end?: Ref; group?: Ref; title?: Ref }, o: Naming = {}): ListDisplayModel => ({
     kind: 'timeline',

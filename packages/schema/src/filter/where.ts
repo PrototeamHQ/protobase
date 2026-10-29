@@ -113,7 +113,7 @@ export const createWhere = <R extends Source = Anything>() => {
 
 /**
  * Builds a filter in code instead of writing filter text, for any resource; `createWhere` checks names and values
- * against one. The [Filters](website/src/content/docs/reference/api.md#filters) of the API take what it builds.
+ * against one. The [Filters](docs/website/src/content/docs/reference/api.md#filters) of the API take what it builds.
  *
  * @example
  * ```ts

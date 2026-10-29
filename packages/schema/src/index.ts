@@ -1,8 +1,8 @@
 /**
  * Resources, fields, views and access rules: what a Protobase config declares, and the models the server, the client and
- * the admin app read from it. A config builds them with {@link resource} and {@link f} ([Data config](website/src/content/docs/reference/data-config.mdx)),
- * {@link view} and {@link l} ([UI config](website/src/content/docs/reference/ui-config.mdx)), and {@link defineRoles} and {@link rule}
- * ([Access](website/src/content/docs/reference/access.mdx)). It runs anywhere, the browser included, and imports no other
+ * the admin app read from it. A config builds them with {@link resource} and {@link f} ([Data config](docs/website/src/content/docs/reference/data-config.mdx)),
+ * {@link view} and {@link l} ([UI config](docs/website/src/content/docs/reference/ui-config.mdx)), and {@link defineRoles} and {@link rule}
+ * ([Access](docs/website/src/content/docs/reference/access.mdx)). It runs anywhere, the browser included, and imports no other
  * `@protobase` package.
  *
  * @packageDocumentation

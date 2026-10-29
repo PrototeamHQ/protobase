@@ -33,7 +33,7 @@ const make = <V>(def: FieldTypeDef, extra: Partial<FieldMeta> = {}) =>
 
 /**
  * The field builders of a resource's `.fields({ ... })`, one per field type. Each returns a {@link Field} whose options
- * chain in any order. See [Field types](website/src/content/docs/reference/data-config.mdx#field-types).
+ * chain in any order. See [Field types](docs/website/src/content/docs/reference/data-config.mdx#field-types).
  *
  * @example
  * ```ts

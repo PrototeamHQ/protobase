@@ -155,7 +155,7 @@ export type AssistantState = {
  * What the event stream sends. `state` replaces everything and always comes first on a connection; `message` adds a
  * message or replaces the one with its id; `part` adds a part to a message or replaces the one with its id; `patch`
  * changes the top-level fields, `null` clearing one. A backend in place of the built-in one sends these; see
- * [Another backend](website/src/content/docs/reference/assistant.md#another-backend).
+ * [Another backend](docs/website/src/content/docs/reference/assistant.md#another-backend).
  */
 export type AssistantEvent =
   | {
