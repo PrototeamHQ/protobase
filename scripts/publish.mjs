@@ -14,6 +14,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
+import { isTlogConflict, nextStep } from './publish/next-step.mjs'
 
 const { values } = parseArgs({
   options: { 'dry-run': { type: 'boolean' }, pack: { type: 'boolean' }, out: { type: 'string' }, from: { type: 'string' }, tag: { type: 'string' } },
@@ -111,30 +112,31 @@ const buildAndPack = async (pending) => {
   return packed
 }
 
-// npm signs the provenance with an identity token it fetches from GitHub's OIDC endpoint before it uploads anything, and
-// that fetch now and then fails with IDENTITY_TOKEN_READ_ERROR. npm then records the signature in the transparency log,
-// and a slow log answers its own retry of that entry with a 409, TLOG_CREATE_ENTRY_ERROR, before npm uploads the package,
-// which failed the 0.62.2 release; a publish again signs with a new key, so it makes a new entry. A publish failing with
-// either code is tried again, up to 3 times; any other failure fails the publish at once.
-const retriedCodes = ['IDENTITY_TOKEN_READ_ERROR', 'TLOG_CREATE_ENTRY_ERROR']
-
-const publishTarball = async (tarball, attempt = 1) => {
+// Publishes one tarball, trying it again or counting it as published when next-step.mjs says so; it resolves with
+// whether this run uploaded it.
+const publishTarball = async (p, attempt = 1) => {
   try {
-    await run('npm', ['publish', tarball, '--access', 'public', ...(dryRun ? ['--dry-run'] : [])])
+    await run('npm', ['publish', p.tarball, '--access', 'public', ...(dryRun ? ['--dry-run'] : [])])
+    return true
   } catch (error) {
-    const code = retriedCodes.find((code) => error.output?.includes(`npm error code ${code}`))
-    if (attempt >= 3 || !code) throw error
-    console.log(`npm failed to publish ${tarball} with ${code}, publishing it again`)
+    const output = error.output ?? ''
+    const published = isTlogConflict(output) && (await isPublished(p))
+    const step = nextStep({ output, attempt, published })
+    if (step === 'fail') throw error
+    if (step === 'published') {
+      console.log(`${p.name}@${p.version} is already on npm, so its transparency log entry already existed`)
+      return false
+    }
+    console.log(`npm could not publish ${p.name}@${p.version} (attempt ${attempt}), publishing it again`)
     await new Promise((resolve) => setTimeout(resolve, 1_000 * attempt))
-    await publishTarball(tarball, attempt + 1)
+    return publishTarball(p, attempt + 1)
   }
 }
 
 const publishAll = async (pending) => {
   const results = await Promise.allSettled(
-    pending.map(async ({ name, version, tarball }) => {
-      await publishTarball(tarball)
-      console.log(`${dryRun ? 'would publish' : 'published'} ${name}@${version}`)
+    pending.map(async (p) => {
+      if (await publishTarball(p)) console.log(`${dryRun ? 'would publish' : 'published'} ${p.name}@${p.version}`)
     }),
   )
   const failed = pending.filter((_, i) => results[i].status === 'rejected')

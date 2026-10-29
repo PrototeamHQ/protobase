@@ -34,7 +34,7 @@ export const readJobsSchema = async (db: Db) => {
   const functions = await rows<{ name: string; comment: string | null }>(
     db,
     `select p.proname as name, obj_description(p.oid, 'pg_proc') as comment from pg_proc p
-     join pg_namespace n on n.oid = p.pronamespace where n.nspname = $1 and p.proname = any($2)`,
+     join pg_namespace n on n.oid = p.pronamespace where n.nspname = $1 and p.proname = any($2) order by p.proname`,
     [jobsSchema, functionNames],
   )
   const functionsCurrent = functionNames.every((name) => functions.some((found) => found.name === name && found.comment === functionsComment))

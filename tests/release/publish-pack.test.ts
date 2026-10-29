@@ -119,6 +119,9 @@ const readManifest = (dir: string) => JSON.parse(readFileSync(path.join(root, 'p
 const publicPackageCount = () => readdirSync(path.join(root, 'packages')).filter((dir) => !readManifest(dir).private).length
 const schema = readManifest('schema')
 
+// What npm printed when the transparency log refused its own retry of an entry, in the 0.62.2 release.
+const tlogConflict = 'TLOG_CREATE_ENTRY_ERROR\nnpm error error creating tlog entry - (409) an equivalent entry already exists in the transparency log'
+
 describe('scripts/publish.mjs', () => {
   // Each publish tried again waits a second first.
   vi.setConfig({ testTimeout: 30_000 })
@@ -154,7 +157,7 @@ describe('scripts/publish.mjs', () => {
   })
 
   it('publishes a tarball again when the transparency log already had its entry', async () => {
-    const { result, lines } = await publish({ firstFailure: 'TLOG_CREATE_ENTRY_ERROR' })
+    const { result, lines } = await publish({ firstFailure: tlogConflict })
 
     expect(result.status).toBe(0)
     const published = result.stdout.match(/^published /gm) ?? []
