@@ -21,12 +21,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Whether this push cuts a release (scripts/release.mjs --dry-run prints the tag it would cut), before the release job.
+  # The tag this push would cut (scripts/release.mjs --dry-run prints it), or none, so the pack job can start at once.
   plan:
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     outputs:
-      release: ${{ steps.plan.outputs.release }}
+      tag: ${{ steps.plan.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,11 +35,42 @@ jobs:
         with:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
-      - name: Find whether the push cuts a release
+      - name: Find the tag the push would cut
         id: plan
-        run: |
-          tag=$(bun run release --dry-run)
-          if [ -n "$tag" ]; then echo "release=true" >> "$GITHUB_OUTPUT"; else echo "release=false" >> "$GITHUB_OUTPUT"; fi
+        run: echo "tag=$(bun run release --dry-run)" >> "$GITHUB_OUTPUT"
+
+  # The packages, built and packed at the version plan predicts beside the checks, as none of it needs their result, or
+  # at the tag a run by hand names; publish only uploads them, after checking that release cut the same version. It runs
+  # without the identity token npm's trusted publishing needs, which only publish holds.
+  pack:
+    needs: plan
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.plan.outputs.tag != '') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - name: Stamp the version into the packages
+        env:
+          TAG: ${{ inputs.tag || needs.plan.outputs.tag }}
+        run: bun scripts/stamp-version.mjs "$TAG"
+      - name: Build and pack the packages
+        run: node scripts/publish.mjs --pack --out "$RUNNER_TEMP/packages"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: ${{ runner.temp }}/packages
+          if-no-files-found: error
+          retention-days: 1
 
   # The checks start at once, without plan's answer, so they run the Postgres suite in full, as the last fail-safe, on
   # every push, whether or not it cuts a release.
@@ -122,10 +153,11 @@ jobs:
 
   # Trusted publishing: npm trusts this workflow file of this repository for every @protobase package, so there is no
   # npm token; npm 11.5.1 or newer exchanges the job's OIDC token and adds provenance, which Bun's publish cannot yet, so
-  # npm publishes under Node and Bun only builds and packs. A run that cut no release has no tag and publishes nothing.
+  # npm publishes, under Node, the tarballs the pack job packed. A run that cut no release has no tag and publishes
+  # nothing, and a tag other than the version the tarballs were stamped with fails before anything is uploaded.
   publish:
-    needs: release
-    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.release.outputs.tag != '') }}
+    needs: [release, pack]
+    if: ${{ !cancelled() && needs.pack.result == 'success' && (github.event_name == 'workflow_dispatch' || needs.release.outputs.tag != '') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -139,18 +171,15 @@ jobs:
           node-version: 24.22.1
           registry-url: https://registry.npmjs.org
       - run: npm install -g npm@^11.5.1
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v4
         with:
-          bun-version: 1.4.4
-      - run: bun install --frozen-lockfile
-      - name: Stamp the tag's version into the packages
-        env:
-          TAG: ${{ inputs.tag || needs.release.outputs.tag }}
-        run: bun scripts/stamp-version.mjs "$TAG"
+          name: packages
+          path: ${{ runner.temp }}/packages
       - name: Publish the packages
         env:
           NPM_CONFIG_PROVENANCE: 'true'
-        run: node scripts/publish.mjs
+          TAG: ${{ inputs.tag || needs.release.outputs.tag }}
+        run: node scripts/publish.mjs --from "$RUNNER_TEMP/packages" --tag "$TAG"
 
   # npm can take minutes to serve a version it just published, so this waits once, on one runner, before the image
   # builds that need the packages from npm.

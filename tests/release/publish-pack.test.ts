@@ -63,6 +63,23 @@ describe('scripts/publish.mjs --pack', () => {
     expect(packed.stdout.match(/^packed /gm)).toHaveLength(publicPackages.length)
     expect(await readManifests(repo)).toEqual(manifests)
   })
+
+  it('lists every tarball with its package and version in --out', async () => {
+    binDir = await mkdtemp(path.join(tmpdir(), 'protobase-fake-bun-'))
+    await writeFile(path.join(binDir, 'bun'), '#!/bin/sh\n')
+    await chmod(path.join(binDir, 'bun'), 0o755)
+    repo = await realpath(await mkdtemp(path.join(tmpdir(), 'protobase-pack-')))
+    await copyManifests(repo)
+
+    const env = { ...process.env, PATH: `${binDir}${path.delimiter}${process.env.PATH}` }
+    const packed = spawnSync(process.execPath, [path.join(root, 'scripts/publish.mjs'), '--pack', '--out', 'out'], { cwd: repo, env, encoding: 'utf8' })
+
+    expect(packed.status).toBe(0)
+    const listed = JSON.parse(await readFile(path.join(repo, 'out', 'packages.json'), 'utf8'))
+    expect(listed).toContainEqual({ name: schema.name, version: schema.version, tarball: `protobase-schema-${schema.version}.tgz` })
+    expect(listed).toHaveLength(publicPackageCount())
+    expect(packed.stdout).toContain(`packed ${path.join(repo, 'out', `protobase-schema-${schema.version}.tgz`)}\n`)
+  })
 })
 
 // Stands in for npm: `npm view` finds only the name@version in ON_NPM, and `npm publish` of a tarball fails with the
@@ -109,7 +126,7 @@ describe('scripts/publish.mjs', () => {
   let repo = ''
   afterEach(() => Promise.all([binDir, repo].map((dir) => rm(dir, { recursive: true, force: true }))))
 
-  const publish = async ({ failure = '', failing = '', onNpm = '', waitFor = '' } = {}) => {
+  const publish = async ({ failure = '', failing = '', onNpm = '', waitFor = '', args = [] as string[] } = {}) => {
     binDir = await mkdtemp(path.join(tmpdir(), 'protobase-fake-npm-'))
     for (const [name, script] of Object.entries({ bun: '#!/bin/sh\n', npm: fakeNpm })) {
       await writeFile(path.join(binDir, name), script)
@@ -120,7 +137,7 @@ describe('scripts/publish.mjs', () => {
     repo = await realpath(await mkdtemp(path.join(tmpdir(), 'protobase-publish-')))
     await copyManifests(repo)
     const env = { ...process.env, PATH: `${binDir}${path.delimiter}${process.env.PATH}`, PUBLISHES: publishes, FAILURE: failure, FAILING: failing, ON_NPM: onNpm, WAIT_FOR: waitFor }
-    const result = spawnSync(process.execPath, [path.join(root, 'scripts/publish.mjs')], { cwd: repo, env, encoding: 'utf8' })
+    const result = spawnSync(process.execPath, [path.join(root, 'scripts/publish.mjs'), ...args], { cwd: repo, env, encoding: 'utf8' })
     const log = (await readFile(publishes, 'utf8')).split('\n').filter(Boolean)
     const lines = log.filter((line) => line.startsWith('start ')).map((line) => line.slice('start '.length))
     return { result, log, lines }
@@ -167,5 +184,34 @@ describe('scripts/publish.mjs', () => {
     expect(result.stdout.match(/^published /gm)).toHaveLength(publicPackageCount() - 1)
     expect(result.stdout).not.toMatch(/^published @protobase\/schema@/m)
     expect(result.stderr).toContain(`could not publish ${schema.name}@${schema.version}\n`)
+  })
+
+  // The tarballs a pack job listed, here two at 1.2.3 that are never read: the fake npm only logs their paths.
+  let packedDir = ''
+  afterEach(() => rm(packedDir, { recursive: true, force: true }))
+  const packedAt = async (version: string) => {
+    packedDir = await mkdtemp(path.join(tmpdir(), 'protobase-packed-'))
+    const listed = ['schema', 'cli'].map((dir) => ({ name: `@protobase/${dir}`, version, tarball: `protobase-${dir}-${version}.tgz` }))
+    await writeFile(path.join(packedDir, 'packages.json'), JSON.stringify(listed))
+    return packedDir
+  }
+
+  it('publishes exactly the tarballs --from lists, skipping a version npm already has', async () => {
+    const from = await packedAt('1.2.3')
+    const { result, lines } = await publish({ onNpm: '@protobase/schema@1.2.3', args: ['--from', from, '--tag', 'v1.2.3'] })
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('@protobase/schema@1.2.3 is already on npm\n')
+    expect(result.stdout.match(/^published .*$/gm)).toEqual(['published @protobase/cli@1.2.3'])
+    expect(new Set(lines)).toEqual(new Set([path.join(from, 'protobase-cli-1.2.3.tgz')]))
+  })
+
+  it('publishes nothing when the tag is not the version the tarballs were stamped with', async () => {
+    const from = await packedAt('1.2.3')
+    const { result, lines } = await publish({ args: ['--from', from, '--tag', 'v1.3.0'] })
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('v1.3.0 is not the version of @protobase/schema@1.2.3, @protobase/cli@1.2.3, so nothing is published')
+    expect(lines).toEqual([])
   })
 })
