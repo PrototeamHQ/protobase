@@ -308,7 +308,7 @@ docker run --rm -p 127.0.0.1:8787:8787 -e DATABASE_URL -e PROTOBASE_URL -e PROTO
 ## `types`
 
 ```sh
-protobase types   # writes .protobase/tsconfig.json; dev and build write it too
+protobase types   # writes .protobase/tsconfig.json; dev, build and every command that loads the config write it too
 ```
 
 Writes `.protobase/tsconfig.json`, which the project's `tsconfig.json` extends (`"extends": "./.protobase/tsconfig.json"`). In a bundled project its `paths` point each `@protobase` package and each package the serve runtime supplies, by name and by each of its exports (`@protobase/layout/jsx-runtime`, `kysely`, `zod`, ...), at the declarations of the CLI that builds the app, so the editor and `tsc` see the version that runs with nothing installed. There is no catch-all, so a package the project imports and lacks still fails as missing. React carries no types of its own, so the project keeps `@types/react`, as it keeps `@types/node`. A locked project's installed packages type themselves, so its file holds no `paths`. A `paths` of the project's own `tsconfig.json` replaces the generated one, as `extends` does with any option.

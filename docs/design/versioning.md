@@ -124,7 +124,7 @@ An update outside the specifier is a change to the specifier, made by hand, by a
 | Dev in its own process | Built (`packages/cli/src/dev/server-package.ts`): the project's server only when locked; a bundled project's files, API and page get the CLI's copies (`packages/cli/src/project/bundled-imports.ts`). | |
 | Build without an install | Built: a bundled project's files load with the CLI's copies, and its UI plugin builds against the CLI's `@protobase/ui` (`packages/cli/src/build/plugin-build.ts`). A locked project still needs its install. | |
 | `manifest.protobase` | Built: the version of the copies the mode selects (`bundleProtobaseVersion`). | |
-| `.protobase/tsconfig.json` | Built: `protobase types` writes it, and so do `dev` and `build` (`packages/cli/src/project/project-types.ts`). | |
+| `.protobase/tsconfig.json` | Built: `protobase types` writes it, and so do `dev`, `build` and every command that loads the project's config (`packages/cli/src/project/project-types.ts`). | |
 | Scripts | Built: `protobase run <file>` runs a script under Bun, with a bundled project's imports preloaded from the CLI (`packages/cli/src/run`). | Tests: vitest does not reach the CLI's copies yet. |
 | Hand-over | Built: a CLI hands a locked project over to the `@protobase/cli` it installed (`packages/cli/src/hand-over.ts`). | `@protobase/cli/runner` does not hand over. |
 | `protobase-dev` image | Built: the release's CLI installed globally, in `/opt/protobase/cli`. | |
