@@ -92,10 +92,10 @@ export const CallStage = ({ people, state, notices = [], controls, className }: 
       <CallControls {...controls} />
       {people
         .filter((person) => !person.self)
-        .flatMap((person) => [person.microphone, person.screenAudio])
-        .filter((track) => track !== undefined)
-        .map((track) => (
-          <TrackAudio key={track.id} track={track} />
+        .flatMap((person) => [['microphone', person.microphone] as const, ['screen-audio', person.screenAudio] as const].map(([source, track]) => track && { key: `${person.member} ${source}`, track }))
+        .filter((audio) => audio !== undefined)
+        .map(({ key, track }) => (
+          <TrackAudio key={key} track={track} />
         ))}
     </section>
   )
