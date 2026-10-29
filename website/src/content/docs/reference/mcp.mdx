@@ -170,7 +170,7 @@ A batch is checked before the person is asked: an operation other than a create,
 
 A tool refuses by throwing an `HttpProblem` with a status below 500, such as `notFound(detail)` or `forbidden(slug, detail)`, or by letting through the one `records` rejects with: the client gets `{ "error": <slug>, "message": <detail> }` as an error result, as from the built-in tools, and nothing is reported. Anything else a tool throws is reported to the app's error handler and reaches the client as "The server failed to answer.", or, for a query the database stopped at its statement timeout, as a message naming the tool. `refusalOf(error)` from `@protobase/server` gives that `{ error, message }` text for a refusal and `undefined` otherwise, and `refused(error)` gives it or throws the error again, for a tool that returns a refusal as its result rather than as an error.
 
-Nothing cuts a tool's result, as nothing cuts the built-in tools': a tool that can return a lot takes a limit or the fields to return, as `list_records` takes `page_size` and `fields`.
+Nothing cuts a tool's result, as nothing cuts the built-in tools': a tool that can return a lot takes a limit or the fields to return, as `list_records` takes `page_size` and `fields`. <gap>A tool result larger than an AI client takes cannot be refused with a message naming what to leave out because a size guard is not implemented.</gap>
 
 A tool that reads:
 
