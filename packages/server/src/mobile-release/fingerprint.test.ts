@@ -17,4 +17,9 @@ describe('nativeFingerprint', () => {
   it('pins a known input to a known fingerprint', () => {
     expect(nativeFingerprint({ ...pinned, '@protobase/mobile': 'native-1' }, { '@capacitor/camera': '^8.0.1' })).toBe('375015551d0fe567')
   })
+
+  // A release for a newer native contract must never be offered to a binary of an older one.
+  it("changes with @protobase/mobile's native contract", () => {
+    expect(nativeFingerprint({ ...pinned, '@protobase/mobile': 'native-7' })).not.toBe(nativeFingerprint({ ...pinned, '@protobase/mobile': 'native-6' }))
+  })
 })
