@@ -3,6 +3,7 @@ import type { SocketEvents } from '../functions/function-socket'
 import { forbidden } from '../problem'
 import type { Session } from '../types'
 import type { CallMember, CallRecordKey } from './call-member'
+import { checkRing } from './call-ring'
 import type { CallItem } from './call-reads'
 import type { CallsService } from './calls-service-type'
 
@@ -53,7 +54,9 @@ export const callsAccess = (service: CallsService | undefined, caller: () => Pro
       const record = service.recordOf(resource, key)
       const mayRead = () => records.get(resource, key)
       await mayRead()
-      const events = await (await service.runtime()).relay(record, member.member, { publish: member.publish, ...(member.hears && { hears: member.hears }) })
+      const ring = member.ring && checkRing(member.ring)
+      const by = { user: String(session.user.id), ...(ring && { ring }) }
+      const events = await (await service.runtime()).relay(record, member.member, { publish: member.publish, ...(member.hears && { hears: member.hears }) }, by)
       return {
         ...events,
         maxMessageBytes,

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { CallRosterMember } from '@protobase/schema/internal'
 import { fixedWindow } from '../realtime/fixed-window'
 import type { RosterMember } from './call-reads'
+import type { CallRingInput } from './call-ring'
 import type { AdmitInput } from './call-store'
 import type { CallStore } from './calls-store'
 import type { CallRoom, MemberLink, RosterListener, SignalBody } from './media-backend'
@@ -146,6 +147,7 @@ export const callHub = ({ store, manyProcesses, report }: CallHubOptions) => {
       }
       return {
         call: admitted.call,
+        started: admitted.started,
         room,
         listen: async (listener: RosterListener) => {
           local.listener = listener
@@ -177,5 +179,10 @@ export type CallHub = ReturnType<typeof callHub>
 /** A member in a call, as `CallHub.admit` lets them in. */
 export type InCall = Exclude<Awaited<ReturnType<CallHub['admit']>>, { refused: unknown }>
 
-/** Where the relay lets members in: the hub, or a stand-in of it in tests. */
-export type CallDoor = Pick<CallHub, 'admit'>
+/**
+ * Where the relay lets members in: the hub, or a stand-in of it in tests. `user` is the signed-in user the member is,
+ * and `ring` whom the call rings when this join starts it.
+ */
+export type CallDoor = {
+  admit: (input: Parameters<CallHub['admit']>[0] & { user?: string; ring?: CallRingInput }, link: MemberLink) => ReturnType<CallHub['admit']>
+}

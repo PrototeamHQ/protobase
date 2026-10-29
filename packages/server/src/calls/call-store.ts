@@ -27,8 +27,8 @@ export type AdmitInput = {
   maxMinutes: number
 }
 
-/** The member in the call `call`, as the members row `row`; or why not. */
-export type Admission = { call: string; row: string } | { refused: Refusal }
+/** The member in the call `call`, as the members row `row`, with whether their join started it; or why not. */
+export type Admission = { call: string; row: string; started: boolean } | { refused: Refusal }
 
 // Every change to a call and its members first locks the call's row, so admissions, leaves, removals and its end come
 // one after the other: no check of the room or of a removal is ever stale when its write comes.
@@ -50,13 +50,13 @@ const endIfEmpty = async (trx: Db, id: string) => {
 // The record's call going on, started when there is none; one past its end is ended first and another started.
 const liveCall = async (trx: Db, record: CallRecord, member: string, maxMinutes: number) => {
   for (let attempt = 0; attempt < 2; attempt++) {
-    await sql`insert into "calls"."calls" ("id", "resource", "record_key", "started_by", "started_at", "ends_at")
+    const inserted = await sql<{ id: string }>`insert into "calls"."calls" ("id", "resource", "record_key", "started_by", "started_at", "ends_at")
       values (gen_random_uuid(), ${record.resource}, ${record.key}, ${member}, now(), now() + make_interval(mins => ${maxMinutes}))
-      on conflict ("resource", "record_key") where "ended_at" is null do nothing`.execute(trx)
+      on conflict ("resource", "record_key") where "ended_at" is null do nothing returning "id"::text as id`.execute(trx)
     const { rows } = await sql<{ id: string }>`select "id"::text as id from "calls"."calls"
       where "resource" = ${record.resource} and "record_key" = ${record.key} and "ended_at" is null`.execute(trx)
     const call = rows[0] && (await lockCall(trx, rows[0].id))
-    if (call && !call.ended && !call.expired) return call.id
+    if (call && !call.ended && !call.expired) return { id: call.id, started: inserted.rows[0]?.id === call.id }
     if (call && !call.ended) await endCall(trx, call.id)
   }
   throw new Error(`The call on ${record.resource} ${record.key} could not be started`)
@@ -82,6 +82,7 @@ export const admit = (db: Db, timeoutMs: number, input: AdmitInput) =>
   writeTransaction(db, timeoutMs, async (trx): Promise<Admission> => {
     const { record, member, resume } = input
     let call: string
+    let started = false
     if (resume) {
       const resumed = isCallId(resume.call) ? await lockCall(trx, resume.call) : undefined
       if (!resumed || resumed.ended || resumed.resource !== record.resource || resumed.record_key !== record.key) return { refused: 'ended' }
@@ -91,7 +92,9 @@ export const admit = (db: Db, timeoutMs: number, input: AdmitInput) =>
       }
       call = resumed.id
     } else {
-      call = await liveCall(trx, record, member, input.maxMinutes)
+      const live = await liveCall(trx, record, member, input.maxMinutes)
+      call = live.id
+      started = live.started
     }
     await sql`update "calls"."members" set "left_at" = now()
       where "call_id" = ${call}::uuid and "left_at" is null and "seen_at" < now() - make_interval(secs => ${graceSeconds})`.execute(trx)
@@ -104,7 +107,7 @@ export const admit = (db: Db, timeoutMs: number, input: AdmitInput) =>
       maxMembers: input.maxMembers,
     })
     if (refused) return { refused }
-    return { call, row: await enter(trx, call, member, input.process, resume?.tracks ?? []) }
+    return { call, row: await enter(trx, call, member, input.process, resume?.tracks ?? []), started }
   })
 
 /** The member of row `row` left, unless another process took them over; the call ends with its last member. */
@@ -149,4 +152,11 @@ export const heartbeat = async (db: Db, process: string, rows: readonly string[]
   if (rows.length === 0) return
   await sql`update "calls"."members" set "seen_at" = now()
     where "id" = any(${`{${rows.join(',')}}`}::bigint[]) and "process" = ${process}::uuid and "left_at" is null`.execute(db)
+}
+
+/** The record the call is on; `undefined` for an unknown call. */
+export const callRecord = async (db: Db, call: string): Promise<CallRecord | undefined> => {
+  if (!isCallId(call)) return
+  const { rows } = await sql<CallRecord>`select "resource", "record_key" as key from "calls"."calls" where "id" = ${call}::uuid`.execute(db)
+  return rows[0]
 }

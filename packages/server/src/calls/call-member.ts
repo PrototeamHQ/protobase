@@ -1,3 +1,4 @@
+import type { CallRingInput } from './call-ring'
 import type { CallRemoteTrack, CallTrackSource } from '@protobase/schema/internal'
 
 /** What a member may send and hear in a call. */
@@ -22,6 +23,8 @@ export type CallMember = CallRights & {
   member: string
   /** The function's own checks, repeated every minute after the record's, such as whether the caller is still invited. */
   recheck?: () => unknown
+  /** Whom the call rings, on any page of the app they have open, when this join starts it. */
+  ring?: CallRingInput
 }
 
 /** A member in a call as a media plugin knows them: the call by its id, and who they are in it. */

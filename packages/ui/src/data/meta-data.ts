@@ -40,6 +40,8 @@ export type MetaData = {
   bell?: boolean
   /** Whether people set their own status and see those they share an organization with (see `useStatuses`). */
   status?: boolean
+  /** Whether the app has calls, which ring people on any page they have open (see `CallRings`). */
+  calls?: boolean
   /** The language the app's screens are in for everyone, when it sets one (see `AppLocale`). */
   locale?: Locale
   /** The hosts besides the app's own whose images are drawn with the page's referrer (see `FileImage`). */

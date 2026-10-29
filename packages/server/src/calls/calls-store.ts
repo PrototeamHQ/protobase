@@ -2,7 +2,7 @@ import type { Db } from '@protobase/query'
 import type { CallRemoteTrack } from '@protobase/schema/internal'
 import { recordCalls, rosters, type CallItem, type RosterMember } from './call-reads'
 import { takeSignals, writeSignal, type StoredSignal } from './call-signals-sql'
-import { admit, heartbeat, leave, remove, setTracks, type Admission, type AdmitInput, type CallRecord } from './call-store'
+import { admit, callRecord, heartbeat, leave, remove, setTracks, type Admission, type AdmitInput, type CallRecord } from './call-store'
 import { sweepCalls } from './call-sweep'
 
 /** Where calls, their members and the signals between processes are kept: the `calls` schema, or memory in tests. */
@@ -12,7 +12,10 @@ export type CallStore = {
   remove: (call: string, member: string) => Promise<boolean>
   setTracks: (row: string, process: string, tracks: CallRemoteTrack[]) => Promise<void>
   heartbeat: (process: string, rows: readonly string[]) => Promise<void>
-  sweep: () => Promise<void>
+  /** Ends what should have ended: the records whose calls it changed. */
+  sweep: () => Promise<CallRecord[]>
+  /** The record the call is on; `undefined` for an unknown call. */
+  recordOf: (call: string) => Promise<CallRecord | undefined>
   rosters: (calls: readonly string[]) => Promise<Map<string, { ended: boolean; members: RosterMember[] }>>
   recordCalls: (records: readonly CallRecord[]) => Promise<Map<string, CallItem[]>>
   writeSignal: (signal: Omit<StoredSignal, 'id'>) => Promise<void>
@@ -27,6 +30,7 @@ export const sqlCallStore = (db: Db, timeoutMs: number): CallStore => ({
   setTracks: (row, process, tracks) => setTracks(db, row, process, tracks),
   heartbeat: (process, rows) => heartbeat(db, process, rows),
   sweep: () => sweepCalls(db, timeoutMs),
+  recordOf: (call) => callRecord(db, call),
   rosters: (calls) => rosters(db, calls),
   recordCalls: (records) => recordCalls(db, records),
   writeSignal: (signal) => writeSignal(db, signal),
