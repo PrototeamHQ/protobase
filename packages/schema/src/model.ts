@@ -301,6 +301,8 @@ export type AppAddress =
        * component of the app's own (`.record({ component })`). A view without one ignores it.
        */
       standard?: boolean
+      /** `join` when the page joins the record's call, as a ring's Accept and a call mark's Join open it. */
+      call?: 'join'
     }
   | {
       /** The form for a new record. */
