@@ -51,6 +51,10 @@ export const keys = {
   statuses: (userId: string) => ['statuses', userId] as const,
   /** This user's own status (`useOwnStatus`). */
   ownStatus: (userId: string) => ['statuses', userId, 'own'] as const,
+  /** The calls ringing the signed-in user (`useRings`). */
+  rings: ['call-rings'] as const,
+  /** A record's calls, as its call mark shows them (`useRecordCalls`). */
+  recordCalls: (resource: string, key: string) => ['record-calls', resource, key] as const,
   /** A public form, as `/-/forms/<name>` draws it. */
   publicForm: (name: string) => ['public-form', name] as const,
 }

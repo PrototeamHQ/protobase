@@ -42,6 +42,7 @@ import { ComposedPage } from './pages/composed-page'
 import { pageTabs, shownPageTab } from './pages/page-tabs'
 import { CustomBoundary } from './pages/custom-boundary'
 import { ProjectLogo } from './project-logo'
+import { CallRings } from '../calls/call-rings'
 import { ShellBell } from './shell-bell'
 import { ProjectUiContext, useProjectUi, type ProjectUi } from './pages/project-ui'
 import type { PluginLoader } from '../plugins/load-plugin'
@@ -259,6 +260,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
     >
       {content}
       {status.dialog}
+      {meta.calls && user && !staff && <CallRings />}
     </AppShell>
   )
 }

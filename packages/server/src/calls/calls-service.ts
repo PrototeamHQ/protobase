@@ -1,6 +1,6 @@
 import type { Db } from '@protobase/query'
 import { appPath } from '@protobase/schema'
-import { decodeKey, encodeKey } from '@protobase/schema/internal'
+import { callsChannelEvent, decodeKey, encodeKey } from '@protobase/schema/internal'
 import { toolKey } from '../assistant/records'
 import type { ChannelSender } from '../channels/channel-sender'
 import type { Deps } from '../deps'
@@ -20,9 +20,6 @@ export type CallsWiring = {
   /** With notifications: a ring is kept in the bell, and pushed to devices. */
   notifications: boolean
 }
-
-/** The event a record's channel hears its calls on, with `{ items }` as `GET /{resource}/{key}:calls` answers. */
-export const callsEvent = 'calls'
 
 /** An app's calls over its resources: the runtime loaded at the first use, so an app that never calls loads none of it. */
 export const callsService = (deps: () => Deps, options: CallsOptions, wiring: CallsWiring): CallsService => {
@@ -46,7 +43,7 @@ export const callsService = (deps: () => Deps, options: CallsOptions, wiring: Ca
       options,
       report,
       rings,
-      announce: (record, items) => wiring.channels().broadcast({ resource: record.resource, key: record.key, event: callsEvent, payload: { items } }),
+      announce: (record, items) => wiring.channels().broadcast({ resource: record.resource, key: record.key, event: callsChannelEvent, payload: { items } }),
     })
   }
   return {
