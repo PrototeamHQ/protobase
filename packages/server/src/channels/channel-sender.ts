@@ -4,11 +4,12 @@ import { fitsFrame } from '../realtime/broadcast-frame'
 import type { BroadcastHub } from '../realtime/broadcast-hub'
 import { realtimeLimits } from '../realtime/realtime-limits'
 import type { Registry } from '../registry'
+import { bytesOf } from './binary-frame'
 import { channelRecord, type ChannelRecord } from './channel-name'
 import { channelRefusals } from './channel-refusals'
-import type { Sent } from './sent'
+import { packSent, type Sent } from './sent'
 
-/** A broadcast to the channel of a record, from outside a connection. */
+/** A broadcast to the channel of a record, from outside a connection: a JSON payload, or bytes in an `ArrayBuffer` or typed array. */
 export type ChannelBroadcast = { resource: string; key: string; event: string; payload: unknown }
 
 /** What the app's own code broadcasts to record channels with, such as a function's `channels`. */
@@ -23,20 +24,32 @@ export type ChannelSender = {
 
 const invalid = (refusal: { code: string; message: string }) => new HttpProblem(422, refusal.code, 'Unprocessable Content', refusal.message)
 
+const invalidPayload = { code: 'invalid-payload', message: `A payload is JSON or bytes of at most ${realtimeLimits.maxFrameBytes} bytes` }
+
+// A payload's size, its bytes or those of its JSON; NaN, refused as too big, for one that is neither.
+const payloadBytes = (payload: unknown) => {
+  if (payload instanceof ArrayBuffer || ArrayBuffer.isView(payload)) return payload.byteLength
+  const json = JSON.stringify(payload)
+  return json === undefined ? NaN : Buffer.byteLength(json)
+}
+
 /** The record a broadcast names, its event and payload checked, or a problem. */
 export const broadcastRecord = (registry: Pick<Registry, 'find'>, { resource, key, event, payload }: ChannelBroadcast): ChannelRecord => {
   const found = channelRecord(registry, resource, key)
   if (found === 'too-long') throw invalid(channelRefusals.nameTooLong)
   if (!found) throw notFound(channelRefusals.notFound.message)
   if (!fitsFrame(event)) throw invalid(channelRefusals.eventTooLong)
-  const json = JSON.stringify(payload)
-  if (json === undefined || Buffer.byteLength(json) > realtimeLimits.maxFrameBytes) throw invalid({ code: 'invalid-payload', message: `A payload is JSON of at most ${realtimeLimits.maxFrameBytes} bytes` })
+  if (!(payloadBytes(payload) <= realtimeLimits.maxFrameBytes)) throw invalid(invalidPayload)
   return found
 }
 
-/** Publishes a checked broadcast, refused with 429 when the channel took its broadcasts for this second. */
+/**
+ * Publishes a checked broadcast, refused with 429 when the channel took its broadcasts for this second. A typed array's
+ * bytes go as an `ArrayBuffer` of their own.
+ */
 export const publishTo = async (broadcasts: BroadcastHub, record: ChannelRecord, event: string, sent: Sent) => {
-  if (await broadcasts.publish([{ topic: record.name, event, payload: sent, private: false }])) return
+  const payload = packSent({ ...sent, payload: bytesOf(sent.payload) ?? sent.payload })
+  if (await broadcasts.publish([{ topic: record.name, event, payload, private: false }])) return
   throw new HttpProblem(429, channelRefusals.channelTooBusy.code, 'Too Many Requests', channelRefusals.channelTooBusy.message)
 }
 

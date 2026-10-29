@@ -25,7 +25,7 @@ const connect = (user: string, { broadcasts = broadcastHub(), presences = presen
   const frames: ServerMessage[] = []
   const close = vi.fn()
   const socket = channelSocket({
-    send: (frame) => frames.push(JSON.parse(frame) as ServerMessage),
+    send: (frame) => frames.push(JSON.parse(frame as string) as ServerMessage),
     buffered,
     close,
     session: sessionOf(user),
