@@ -7,9 +7,10 @@ export const core: StoreMigration = {
   name: 'core',
   title: "Better Auth's users, sessions, accounts, verifications and signing keys",
   tables: ['session', 'account', 'verification', 'jwks'],
-  statements: ({ table, user, userColumn: column, metadata, id, idRef }) => [
-    ddl`create table if not exists ${user} (id ${id} primary key)`,
-    ddl`alter table ${user}
+  statements: ({ table, user, userDdl, userColumn: column, metadata, id, idRef }) => [
+    ...userDdl([
+      ddl`create table if not exists ${user} (id ${id} primary key)`,
+      ddl`alter table ${user}
   add column if not exists ${column('name')} text not null,
   add column if not exists ${column('email')} text not null unique,
   add column if not exists ${column('email_verified')} boolean not null,
@@ -22,7 +23,8 @@ export const core: StoreMigration = {
   add column if not exists ${column('ban_expires')} timestamptz,
   add column if not exists ${column('last_role')} text,
   add column if not exists ${column('email_confirmed_at')} timestamptz`,
-    ...(metadata ? [ddl`alter table ${user} add column if not exists ${metadata} jsonb`] : []),
+      ...(metadata ? [ddl`alter table ${user} add column if not exists ${metadata} jsonb`] : []),
+    ]),
     ddl`create table ${table('session')} (
   id ${id} primary key,
   expires_at timestamptz not null,

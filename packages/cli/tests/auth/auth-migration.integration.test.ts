@@ -318,6 +318,23 @@ describe.skipIf(!reachable)('the auth store and the app\'s resources', () => {
     await expect(checkResourcesOutsideAuthStore(db, [over('auth.user')], auth)).rejects.toThrow('auth_user (auth.user)')
   })
 
+  // A user view over another system's users, as on a Supabase database: the key table holds every password hash.
+  it('refuses a resource over the key table under a user view, as over the view and the store', async () => {
+    const databaseUrl = await createDatabase()
+    const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
+    pools.push(pool)
+    await pool.query('create schema app_auth; create schema auth; create table auth.users (id uuid primary key, email text, encrypted_password text)')
+    const users = { table: 'users', keyTable: { schema: 'auth', table: 'users' } }
+    const auth = createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: 'app_auth' }, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, generateUserId: 'uuid', users })
+    await pool.query((await authSchemaMigration(auth))!)
+    await pool.query('create view app_auth.users as select id, email from auth.users; create table orders (id text primary key)')
+    const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
+    await expect(checkResourcesOutsideAuthStore(db, [over('orders')], auth)).resolves.toBeUndefined()
+    for (const table of ['auth.users', 'app_auth.users', 'app_auth.account']) {
+      await expect(checkResourcesOutsideAuthStore(db, [over('orders'), over(table)], auth)).rejects.toThrow(`${table.replace('.', '_')} (${table})`)
+    }
+  })
+
   it('keeps protobase serve from starting with a resource over the store', async () => {
     const { databaseUrl } = await migrated()
     const session = resource('session').table('session').fields({ id: f.text() }).primaryKey((r) => r.id)
