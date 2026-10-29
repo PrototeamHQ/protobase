@@ -2144,6 +2144,44 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "keyTable": {
+          "description": "The table that holds the user ids, when `table` is a view over another system's user table, such as\n`{ schema: 'auth', table: 'users' }` under a view over Supabase's `auth.users`: the store's migrations then make\nnothing of the user table, which the app's own migration makes, and every foreign key points at this table.",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "table": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "schema",
+                "table"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
       "additionalProperties": false
