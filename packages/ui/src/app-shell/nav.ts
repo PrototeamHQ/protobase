@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import type { StatusTone } from '@protobase/schema'
+import type { StatusMarkProps } from '../status/status-mark'
 import { BarChart3, Boxes, Building2, CreditCard, FileText, Package, Receipt, Settings, ShoppingCart, Truck, Users, Warehouse } from 'lucide-react'
 
 export const navGroups: NavGroup[] = [
@@ -43,16 +44,20 @@ export type NavRecord = { id: string; label: string; href: string; status?: { la
 /**
  * How a record under a sidebar entry stands out for the person reading, such as an unread conversation: `strong` draws
  * its title bold, `count` a badge at the end of its row (none at 0), and `label`, such as "3 mentions", is added to its
- * name for screen readers and its tooltip.
+ * name for screen readers and its tooltip. `person`, a user id, names the one person the record stands for, such as
+ * the other person in a direct message: the row shows their presence and status beside its title.
  */
-export type RecordMark = { strong?: boolean; count?: number; label?: string }
+export type RecordMark = { strong?: boolean; count?: number; label?: string; person?: string }
+
+/** A record's mark as the sidebar draws it: its person, when it names one, as their presence and status. */
+export type ShownMark = Omit<RecordMark, 'person'> & { person?: Pick<StatusMarkProps, 'status' | 'presence'> }
 
 /** The records a collapsible entry lists, as far as they have loaded. */
 export type NavRecent =
   | { state: 'loading' }
   | { state: 'error' }
   /** `useMarks`, a React hook the group calls while it shows the records, marks them by their `id`. */
-  | { state: 'ready'; records: NavRecord[]; useMarks?: () => Record<string, RecordMark> | undefined }
+  | { state: 'ready'; records: NavRecord[]; useMarks?: () => Record<string, ShownMark> | undefined }
 
 export type NavItem = {
   id: string

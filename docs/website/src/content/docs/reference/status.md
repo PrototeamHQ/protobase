@@ -63,19 +63,59 @@ Your own server code asks the same question with `onDoNotDisturb(db, statusNames
 
 ## In the app
 
-The organization's members page shows each member's status beside their name. `useMembers()` from `@protobase/ui` gives each member their `status` when they have one, beside their name and photo, and `useStatuses()` the statuses alone. `StatusMark` draws a status beside a name: a mark for busy, one for do not disturb, and the text, in full or, with `textShown="hover"`, on hover. Who is online or away is each app's own, from its [presence](/reference/channels/#presence); pass its mark as `presence`, and `StatusMark` draws it first, so the two sit side by side:
+The members page and the sidebar can show who is online or away beside each person's status. Who is online or away is your app's own, from its [presence](/reference/channels/#presence), and you give it to Protobase once, as `presence` in `protobase.ui.tsx`: a React hook that answers each person's presence, `'online'` or `'away'`, by their user id, and leaves out someone with no page open. Protobase calls it once while the app shows, so it may use your own [channels](/reference/channels/) and live updates, and the marks follow it without a reload; Protobase opens no connection of its own for it, and a channel shares the socket the page already has.
 
 ```tsx
-import { StatusMark, useMembers } from '@protobase/ui'
+// protobase.ui.tsx
+import { useEffect, useState } from 'react'
+import { defineUi, useClient, type Presence } from '@protobase/ui'
 
-export const Person = ({ id, online }: { id: string; online: boolean }) => {
+// Each page of the app tracks itself on the channel of its workspace's record: online, or away when the tab is hidden.
+const usePeoplePresence = () => {
+  const client = useClient()
+  const [presence, setPresence] = useState<Record<string, Presence>>()
+  useEffect(() => {
+    const lobby = client.channel('workspaces', 1)
+    const track = () => void lobby.track({ away: document.hidden })
+    const stop = lobby.onPresence((entries) => {
+      const byUser: Record<string, Presence> = {}
+      for (const entry of entries) {
+        const user = entry.user === null ? undefined : String(entry.user)
+        // Someone with one page in view is online, whatever their other pages say.
+        if (user === undefined || byUser[user] === 'online') continue
+        byUser[user] = (entry.state as { away: boolean }).away ? 'away' : 'online'
+      }
+      setPresence(byUser)
+    })
+    track()
+    document.addEventListener('visibilitychange', track)
+    return () => {
+      document.removeEventListener('visibilitychange', track)
+      stop()
+      lobby.leave()
+    }
+  }, [client])
+  return presence
+}
+
+export default defineUi({ presence: usePeoplePresence })
+```
+
+The organization's members page then shows each member as online or away beside their status, and a sidebar record whose mark names a person, such as a direct message, shows that person's presence and status beside its title, with the status text on hover and in the row's name (see [Marks per reader](/reference/sidebar/#marks-per-reader)). Someone the hook leaves out shows no presence, and without the hook nothing shows but the statuses. <gap>A sidebar row cannot show the presence of several people, such as a group conversation's, because a mark naming more than one person is not implemented.</gap>
+
+`useMembers()` from `@protobase/ui` gives each member their `status` when they have one, beside their name and photo, `useStatuses()` the statuses alone, and `usePresence()` the presence your hook gives, by user id. `StatusMark` draws them beside a name: the online or away dot for `presence`, a mark for busy, one for do not disturb, and the text, in full or, with `textShown="hover"`, on hover:
+
+```tsx
+import { StatusMark, useMembers, usePresence } from '@protobase/ui'
+
+export const Person = ({ id }: { id: string }) => {
   const person = useMembers().member(id)
+  const presence = usePresence()?.[id]
   if (!person) return null
-  const dot = <span role="img" aria-label={online ? 'Online' : 'Away'} className={online ? 'size-2 rounded-full bg-success' : 'size-2 rounded-full bg-muted'} />
   return (
     <span className="flex items-center gap-1.5">
       {person.name}
-      <StatusMark status={person.status} presence={dot} textShown="hover" />
+      <StatusMark status={person.status} presence={presence} textShown="hover" />
     </span>
   )
 }

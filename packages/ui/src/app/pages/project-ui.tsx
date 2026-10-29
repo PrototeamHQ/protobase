@@ -7,6 +7,7 @@ import type { BoardDrop } from '../displays/board-drop'
 import type { DropRule } from '../hand-order/drop-rule'
 import type { TitleRule } from '../titles/title-rule'
 import type { MarksHook } from '../marks/marks-hook'
+import type { PresenceHook } from '../../presence/presence'
 
 /**
  * What a named action's handler gets: the record it runs on (inside a RecordCard or CardRow), the API, and a way to move.
@@ -51,7 +52,7 @@ export type BeforeSignInProps = {
  * The project's own React code for composed pages: custom components by the name their layout declares
  * (`component('UsageChart')`) or a widget part names, handlers for named actions that have no built-in behaviour,
  * field types by the name a view's `.widget(name)` chooses, drop rules by the name a list's `drag.rule` gives, board
- * drops by the name a list's `drag.board` gives, title rules by the name a view's `.titleFrom` gives, marks hooks by the name a view's `nav.recent.marks` gives, and the shell's slots. `extends` lists UI configs merged in before it (see `mergeUi`), or whole `protobase.ui.tsx` modules
+ * drops by the name a list's `drag.board` gives, title rules by the name a view's `.titleFrom` gives, marks hooks by the name a view's `nav.recent.marks` gives, the app's presence, and the shell's slots. `extends` lists UI configs merged in before it (see `mergeUi`), or whole `protobase.ui.tsx` modules
  * (`import * as tasksUi from '...'`), their exported components included; `name` names it in their errors.
  */
 export type ProjectUi = {
@@ -69,6 +70,11 @@ export type ProjectUi = {
   titles?: Record<string, TitleRule>
   /** How the sidebar marks a resource's records for the person reading, by the name a view's `nav.recent.marks` gives (see `MarksHook`). */
   marks?: Record<string, MarksHook>
+  /**
+   * Who is online or away, by user id, from the app's own presence (see `PresenceHook`): the members page and the
+   * sidebar rows whose mark names a `person` show it beside each person's status.
+   */
+  presence?: PresenceHook
   /**
    * Rendered in the shell on every page: `actions` at the end of the top bar, `rightPanel` beside the page, `logo`
    * at the top of the sidebar in place of Protobase's (see `ShellLogoProps`), and `bell` in the top bar in place of the

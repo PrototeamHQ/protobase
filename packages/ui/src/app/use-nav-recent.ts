@@ -2,16 +2,22 @@ import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import type { ListPage } from '@protobase/client'
 import type { ResourceModel } from '@protobase/schema'
-import type { NavRecent } from '../app-shell'
+import type { NavRecent, RecordMark } from '../app-shell'
 import { useClient } from '../data/api-provider'
 import type { MetaData } from '../data/meta-data'
 import { keys } from '../data/query-keys'
+import { usePresence } from '../presence/presence'
+import { useStatuses } from '../status/use-statuses'
+import { markPeople } from './marks/mark-people'
 import { recentMarks, recentRecords, recentRequest, recentRowDiffers } from './nav-recent'
 import { useProjectUi } from './pages/project-ui'
 import { useRecordTitle } from './titles/record-titles'
 import { userMenuResources } from './user-menu-from-meta'
 
 type Group = { model: ResourceModel; request: ReturnType<typeof recentRequest> }
+
+// The group's marks hook, with each person a mark names given their presence and status.
+const withPeople = (useMarks: (() => Record<string, RecordMark> | undefined) | undefined) => useMarks && (() => markPeople(useMarks(), usePresence(), useStatuses().data))
 
 const groupKey = ({ model, request }: Group) => keys.navRecent(model.name, request.filter, request.orderBy, request.pageSize)
 
@@ -41,7 +47,8 @@ const useFollowRecords = (groups: Group[]) => {
 /**
  * The records of every sidebar group (`nav.recent`), one list request each, under the `list` query key so that any
  * write to the resource refreshes them, as does reading one of their records anew. The server applies the caller's
- * access, as on the list page. A group that names `marks` gets the project UI's hook, which the sidebar calls.
+ * access, as on the list page. A group that names `marks` gets the project UI's hook, which the sidebar calls, its
+ * marks' people given their presence and status.
  */
 export const useNavRecent = (meta: MetaData, basePath: string, active: { resource?: string; key?: string }): Record<string, NavRecent> => {
   const client = useClient()
@@ -52,7 +59,7 @@ export const useNavRecent = (meta: MetaData, basePath: string, active: { resourc
     return Object.values(meta.views).flatMap((view) => {
       const model = meta.resources[view.resource]
       const recent = view.nav?.recent
-      return model && recent && !view.nav?.hidden && !inMenu.has(model.name) ? [{ model, view, recent, request: recentRequest(model, view, recent), useMarks: recentMarks(model.name, recent, marks) }] : []
+      return model && recent && !view.nav?.hidden && !inMenu.has(model.name) ? [{ model, view, recent, request: recentRequest(model, view, recent), useMarks: withPeople(recentMarks(model.name, recent, marks)) }] : []
     })
   }, [meta, marks])
   useFollowRecords(groups)

@@ -3,6 +3,7 @@ import type { StatusTone } from '@protobase/schema'
 import { CreditCard, LifeBuoy, UserRound } from 'lucide-react'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { AppShell } from './app-shell'
+import { withDirectMessages } from './direct-messages-fixtures'
 import { navGroups, type NavGroup, type NavRecord } from './nav'
 import { navOpenStorageKey } from './nav-open-storage'
 import { sidebarModes } from './sidebar-mode'
@@ -129,6 +130,32 @@ export const RecentRecordsMarked: Story = {
     expect(links[0]).toHaveTextContent(/general\s*3$/)
     expect(links[1]).toHaveTextContent(/random\s*99\+$/)
     expect(links[2]).toHaveTextContent(/^support$/)
+  },
+}
+
+/**
+ * Rows whose mark names a person, such as direct messages: their online or away dot, busy or do not disturb, the
+ * status text on hover and in the row's name; a row naming no one, or someone with neither, looks as before.
+ */
+export const RecentRecordsWithPeople: Story = {
+  tags: ['play'],
+  args: { navGroups: withDirectMessages, activeItem: 'customers' },
+  beforeEach: () => localStorage.removeItem(navOpenStorageKey('customers')),
+  play: async ({ canvasElement }) => {
+    const list = within(canvasElement).getByRole('list', { name: 'Recent direct messages' })
+    const [ann, bo, cas, team] = within(list).getAllByRole('link')
+    expect(ann).toHaveAttribute('aria-label', 'Ann, Online, Busy, Having lunch')
+    expect(ann).toHaveAttribute('title', 'Ann (Online, Busy, Having lunch)')
+    expect(within(ann!).getAllByRole('img').map((mark) => mark.getAttribute('aria-label'))).toEqual(['Online', 'Busy'])
+    expect(within(ann!).getByRole('img', { name: 'Busy' }).closest('[title]')).toHaveAttribute('title', 'Having lunch')
+    expect(within(ann!).queryByText('Having lunch', { selector: 'span' })).toBeNull()
+    expect(ann).toHaveTextContent(/^Ann.*2$/)
+    expect(bo).toHaveAttribute('aria-label', 'Bo, Away, Do not disturb')
+    expect(within(bo!).getAllByRole('img').map((mark) => mark.getAttribute('aria-label'))).toEqual(['Away', 'Do not disturb'])
+    expect(cas).toHaveAttribute('aria-label', 'Cas')
+    expect(within(cas!).queryByRole('img')).toBeNull()
+    expect(team).toHaveAttribute('aria-label', 'Design team')
+    expect(within(team!).queryByRole('img')).toBeNull()
   },
 }
 

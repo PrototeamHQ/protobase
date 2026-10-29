@@ -92,6 +92,14 @@ describe('mergeUi', () => {
     expect(mergeUi(defineUi({ extends: [{ shell: { bell: pluginBell } }] })).shell).toEqual({ bell: pluginBell })
   })
 
+  it("takes one presence hook, the last config's to set one", () => {
+    const own = () => ({ 'u-1': 'online' as const })
+    const plugin = () => undefined
+    expect(mergeUi(defineUi({ extends: [{ presence: plugin }], presence: own })).presence).toBe(own)
+    expect(mergeUi(defineUi({ extends: [{ presence: plugin }] })).presence).toBe(plugin)
+    expect(mergeUi(defineUi({ components: {} }))).not.toHaveProperty('presence')
+  })
+
   it('draws every beforeSignIn component around the pages, the extended configs outermost', () => {
     const around = (label: string) => ({ children }: BeforeSignInProps) => createElement('div', { title: label }, children)
     const { beforeSignIn } = mergeUi(defineUi({ extends: [defineUi({ beforeSignIn: around('cloud') })], beforeSignIn: around('own') }))
