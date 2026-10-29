@@ -479,3 +479,29 @@ jobs:
         env:
           SUPABASE_POSTGRES: supabase-move-postgres-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$SUPABASE_POSTGRES" || true
+
+  # A project made by `npm create protobase` on a Supabase database it shares with Supabase Auth: Supabase's Postgres
+  # image with its own init, so `auth` is owned as on a Supabase project, and Supabase Auth migrating and serving it
+  # (tests/supabase-auth/stack.sh). A push runs it when its changes reach the test (scripts/affected-tests.mjs); a pull
+  # request and a run by hand always do.
+  supabase-auth:
+    if: github.event_name != 'schedule'
+    concurrency:
+      group: supabase-auth-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      cancel-in-progress: true
+    runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - *check-base
+      - name: Start Supabase's Postgres and Supabase Auth, and point the test at them
+        run: tests/supabase-auth/stack.sh start "supabase-auth-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_ENV"
+      - run: bun scripts/affected-tests.mjs --project supabase-auth
+      - if: always()
+        name: Remove Supabase's Postgres and Supabase Auth
+        run: tests/supabase-auth/stack.sh stop "supabase-auth-${{ github.run_id }}-${{ github.run_attempt }}"
