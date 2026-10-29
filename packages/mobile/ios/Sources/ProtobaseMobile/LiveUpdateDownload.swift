@@ -1,19 +1,15 @@
 import Foundation
 
 /**
- * What page script may download: a manifest from the app's own releases URL, `releasesUrl + "/" + bundleId`, with
- * `publicKey` pinned, so the stock code checks the manifest and each file against it with the response's signature
- * (LiveUpdate.swift, downloadAndVerifyFile and verifyFile). A caller's checksum and signature are dropped.
+ * What page script may ask to download: a manifest from the app's own releases URL, `releasesUrl + "/" + bundleId`,
+ * by a bundle id. The guard downloads it itself (ReleaseDownload); a caller's checksum, signature and key are ignored.
  */
 enum LiveUpdateDownload {
-    /** The options the stock code downloads with, or nil when the call is refused. */
-    static func options(_ call: [AnyHashable: Any], _ settings: LiveUpdateSettings) -> [String: Any]? {
-        guard let releasesUrl = settings.releasesUrl, ReleasesUrl.isOwnSource(releasesUrl) else { return nil }
-        guard let publicKey = settings.publicKey, !publicKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+    /** The bundle id the call asks for, or nil when it is refused. */
+    static func bundleId(_ call: [AnyHashable: Any], releasesUrl: String) -> String? {
         guard call["artifactType"] as? String == "manifest", let bundleId = call["bundleId"] as? String else { return nil }
-        let url = releasesUrl + "/" + bundleId
-        guard BundlesFolder.isBundleIdShape(bundleId), call["url"] as? String == url else { return nil }
-        return ["artifactType": "manifest", "bundleId": bundleId, "url": url]
+        guard BundlesFolder.isBundleIdShape(bundleId), call["url"] as? String == releasesUrl + "/" + bundleId else { return nil }
+        return bundleId
     }
 }
 

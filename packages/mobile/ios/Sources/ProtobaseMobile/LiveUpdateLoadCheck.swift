@@ -2,7 +2,8 @@
  * Why the guard refuses to load the live updater, or nil. A stock method the guard does not declare means a plugin
  * upgrade added one: no live updater then rather than an open one. Background updates sync with the vendor's cloud
  * outside every method (LiveUpdate.swift, handleLoad); `autoDeleteBundles` and a `readyTimeout` make ready() drop every
- * bundle but the current and next one and roll back a bundle that never gets ready, so page script cannot pin an older one.
+ * bundle but the current and next one and roll back a bundle that never gets ready, so page script cannot pin an
+ * older one. What the guard takes a release by is checked as it is read (LiveUpdatePins).
  */
 enum LiveUpdateLoadCheck {
     static func refusal(_ settings: LiveUpdateSettings, stockMethods: [String]?, stockResponds: (String) -> Bool) -> String? {
