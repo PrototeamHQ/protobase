@@ -3,7 +3,7 @@
 // npm's CDN caches each package's metadata for up to 5 minutes per Accept header, so a version can be on npm for one
 // package and one request and not yet for another, and npm itself can take minutes to register a version it accepted
 // (17 for 0.23.0 in release run 39261718830): the image contexts, which bun installs from npm, need them all
-// as `bun install` sees them. The release workflow runs it after publishing, before `bun run images:context`.
+// as `bun install` sees them. Each build leg of image.yml runs it after its setup, before `bun run images:context`.
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
