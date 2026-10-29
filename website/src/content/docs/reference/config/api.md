@@ -159,6 +159,19 @@ How [Supabase Realtime](/reference/supabase-realtime/) is served. With `'one'`, 
 export default defineConfig({ realtime: { processes: 'many' } })
 ```
 
+## calls
+
+- **Type:** `{ backend: { kind: 'livekit', url: string, apiKey: string, apiSecret: string } | { kind: 'peer', iceServers?: { urls: string[], username?: string, credential?: string }[] } }`
+- **Default:** none: no calls
+
+The media plugin that carries the audio and video of the calls API functions admit members to with `calls.join`: a LiveKit server, or the members' browsers peer to peer. Without it, `calls.join` rejects and the app loads no calls code. See [Calls](/reference/calls/).
+
+```ts
+export default defineConfig(({ env }) => ({
+  calls: { backend: { kind: 'livekit', url: env.LIVEKIT_URL!, apiKey: env.LIVEKIT_API_KEY!, apiSecret: env.LIVEKIT_API_SECRET! } },
+}))
+```
+
 ## Code of the API
 
 Two files of the project's own change what the API does, each its default export, with no key in the config:

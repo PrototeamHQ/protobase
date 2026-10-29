@@ -56,9 +56,10 @@ The second argument of a handler (`c.env` in a [Hono app](#hono-apps)):
 | `caller()` | Resolves to `{ session, records }`. Public functions use it to ask for a caller when they need one. |
 | `decryptField(resource, key, field)` | An [encrypted field](/reference/data-config/#reading-in-jobs-and-functions)'s value, skipping access rules like `db`; each read is audited, naming the function and the caller. |
 | `acceptWebSocket(events)` | Answers a WebSocket upgrade with a socket; return its response. See [WebSockets](#websockets). |
+| `calls.join(member)` | The events of a member's socket in a call, for `acceptWebSocket`. See [Calls](/reference/calls/). |
 | `name` | The function's name. |
 
-A [public function](#public-functions-and-webhooks) has only `db`, `caller()`, `acceptWebSocket` and `name`.
+A [public function](#public-functions-and-webhooks) has only `db`, `caller()`, `acceptWebSocket`, `calls` and `name`.
 
 ## Reading and writing records as the caller
 
