@@ -232,8 +232,9 @@ export default defineConfig({
         },
       },
       {
-        // The calls bridge's contract with LiveKit's signal protocol: Chromium members in a call through a function's
-        // socket, against the LiveKit server `bun run calls:up` starts: `bun run test:calls`.
+        // The calls' contract with their two plugins: members in Chromium and Firefox in calls on records, kept on a clone
+        // of a Postgres test template, through a function's socket, peer to peer and against the LiveKit server
+        // `bun run calls:up` starts: `bun run test:calls`, after `bun run test:db`.
         extends: true,
         test: {
           name: 'calls',

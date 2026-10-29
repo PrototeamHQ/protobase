@@ -1,9 +1,12 @@
 // One member's page: @protobase/client/calls as an app bundles it, driven by the contract test through `window.member`.
-// Chromium's fake devices stand in for the camera and microphone.
-import { joinCall, type Call, type CallState, type CallTrack, type CallTrackSource } from '@protobase/client/calls'
+// The browsers' fake devices stand in for the camera and microphone.
+import { joinCall, type Call, type CallRosterMember, type CallState, type CallTrack, type CallTrackSource } from '@protobase/client/calls'
 
 let call: Call | undefined
 let pc: RTCPeerConnection | undefined
+const connections: RTCPeerConnection[] = []
+let members: CallRosterMember[] = []
+let left: string | undefined
 let tracks: CallTrack[] = []
 const states: CallState['state'][] = []
 const unpublished: CallTrackSource[] = []
@@ -28,14 +31,29 @@ const member = {
         tracks = list
         show(list)
       },
-      onState: (state) => void states.push(state.state),
+      onState: (state) => {
+        states.push(state.state)
+        if (state.state === 'left') left = state.reason
+      },
+      onMembers: (list) => void (members = list),
       onUnpublished: (source) => void unpublished.push(source),
       onSpeakers: (speakers) => speakers.forEach(({ member: who, level }) => (level > 0 ? speaking.add(who) : speaking.delete(who))),
       retryDelayMs: () => 200,
-      createPeerConnection: (configuration) => (pc = new RTCPeerConnection(configuration)),
+      createPeerConnection: (configuration) => {
+        pc = new RTCPeerConnection(configuration)
+        connections.push(pc)
+        return pc
+      },
     })
     return call.participant
   },
+  /** Joins, or says why the member could not: the reason they left with. */
+  tryJoin: (query: string) => member.join(query).then(() => 'joined', () => left ?? 'no reason'),
+  members: () => members.map((present) => present.member),
+  callId: () => call?.id,
+  left: () => left,
+  /** The peer connections to other members that are not closed. */
+  openConnections: () => connections.filter((connection) => connection.connectionState !== 'closed' && connection.signalingState !== 'closed').length,
   publish: async (sources: CallTrackSource[], simulcast = false) => {
     const media = await navigator.mediaDevices.getUserMedia({ video: sources.includes('camera') && { width: 640, height: 360 }, audio: sources.includes('microphone') })
     if (sources.includes('camera')) local.camera = media.getVideoTracks()[0]!
@@ -76,3 +94,4 @@ declare global {
   }
 }
 window.member = member
+

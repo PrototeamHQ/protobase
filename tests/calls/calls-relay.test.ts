@@ -1,14 +1,15 @@
 import { SignJWT } from 'jose'
-import { chromium, type Browser, type Page } from 'playwright'
+import type { Browser, Page } from 'playwright'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { LiveKitBackend } from '@protobase/server'
-import { bundleBrowserClient } from '../e2e/support/bundle-client'
+import type { PostgresDatabase } from '../../test-support/postgres-database'
+import { callBrowsers, callPage, callsDatabase, launchCallBrowser } from './support/call-browsers'
 import { startCallServer } from './support/call-server'
 
-// The calls relay's contract with its two plugins, the prototype's scenarios: members in Chromium join a call through
-// the app's function socket, and their media flows to and from a real LiveKit server, or between their browsers with
-// the peer plugin. Start LiveKit with `bun run calls:up`; LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET point the
-// test at another.
+// The calls relay's contract with the LiveKit plugin, the prototype's scenarios: members in Chromium and Firefox join
+// the call on a meeting through the app's function socket, and their media flows to and from a real LiveKit server.
+// Start LiveKit with `bun run calls:up`; LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET point the test at another.
+// The peer plugin's contract is peer-calls.test.ts.
 const backend: LiveKitBackend = {
   kind: 'livekit',
   url: process.env.LIVEKIT_URL ?? 'ws://127.0.0.1:7880',
@@ -19,66 +20,63 @@ const httpUrl = backend.url.replace(/^ws/, 'http')
 
 const waitLong = { timeout: 20_000, interval: 250 }
 
-type CallServer = Awaited<ReturnType<typeof startCallServer>>
-let server: CallServer
-let peerServer: CallServer
-let browser: Browser
-const pages: Page[] = []
+describe.each(callBrowsers)('the LiveKit bridge, in %s', (name) => {
+  let database: PostgresDatabase
+  let server: Awaited<ReturnType<typeof startCallServer>>
+  let browser: Browser
+  const pages: Page[] = []
 
-beforeAll(async () => {
-  const reachable = await fetch(httpUrl).then((response) => response.ok, () => false)
-  if (!reachable) throw new Error(`No LiveKit server at ${httpUrl}: start one with bun run calls:up`)
-  const script = await bundleBrowserClient('../../calls/support/call-page.ts')
-  const page = { html: '<!doctype html><title>Call</title><script type="module" src="/client.js"></script>', script }
-  server = await startCallServer({ backend }, page)
-  peerServer = await startCallServer({ backend: { kind: 'peer' } }, page)
-  browser = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--autoplay-policy=no-user-gesture-required'] })
-})
+  beforeAll(async () => {
+    const reachable = await fetch(httpUrl).then((response) => response.ok, () => false)
+    if (!reachable) throw new Error(`No LiveKit server at ${httpUrl}: start one with bun run calls:up`)
+    database = await callsDatabase()
+    server = await startCallServer({ calls: { backend }, db: database.db, page: await callPage() })
+    browser = await launchCallBrowser(name)
+  })
 
-afterEach(async () => {
-  await Promise.all(pages.splice(0).map((page) => page.close()))
-})
+  afterEach(async () => {
+    await Promise.all(pages.splice(0).map((page) => page.close()))
+  })
 
-afterAll(async () => {
-  await browser?.close()
-  await server?.close()
-  await peerServer?.close()
-})
+  afterAll(async () => {
+    await browser?.close()
+    await server?.close()
+    await database?.close()
+  })
 
-const newCall = () => `call-${crypto.randomUUID()}`
+  const newCall = () => `call-${crypto.randomUUID()}`
 
-/** A member's page, joined to the call with the function's query, on the LiveKit server's app or another. */
-const join = async (query: string, on: CallServer = server) => {
-  const page = await browser.newPage()
-  pages.push(page)
-  await page.goto(`${on.origin}/`)
-  await page.waitForFunction(() => window.member !== undefined)
-  await page.evaluate((q) => window.member.join(q), query)
-  return page
-}
+  /** A member's page, joined to the call on the meeting with the function's query. */
+  const join = async (query: string) => {
+    const page = await browser.newPage()
+    pages.push(page)
+    await page.goto(`${server.origin}/`)
+    await page.waitForFunction(() => window.member !== undefined)
+    await page.evaluate((q) => window.member.join(q), query)
+    return page
+  }
 
-const received = (page: Page) => page.evaluate(() => window.member.received())
-const tracksOf = (page: Page) => page.evaluate(() => window.member.tracks())
+  const received = (page: Page) => page.evaluate(() => window.member.received())
+  const tracksOf = (page: Page) => page.evaluate(() => window.member.tracks())
 
-/** Waits until media of the kind keeps arriving: more bytes, and for video more decoded frames, than a moment ago. */
-const flowing = async (page: Page, kind: 'audio' | 'video') => {
-  const before = await received(page)
-  await vi.waitFor(async () => {
-    const now = await received(page)
-    expect(now[kind].bytes).toBeGreaterThan(before[kind].bytes + 1000)
-    if (kind === 'video') expect(now.video.frames).toBeGreaterThan(before.video.frames + 10)
-  }, waitLong)
-}
+  /** Waits until media of the kind keeps arriving: more bytes, and for video more decoded frames, than a moment ago. */
+  const flowing = async (page: Page, kind: 'audio' | 'video') => {
+    const before = await received(page)
+    await vi.waitFor(async () => {
+      const now = await received(page)
+      expect(now[kind].bytes).toBeGreaterThan(before[kind].bytes + 1000)
+      if (kind === 'video') expect(now.video.frames).toBeGreaterThan(before.video.frames + 10)
+    }, waitLong)
+  }
 
-/** A LiveKit admin token for the room, as Protobase's driver would mint one for RoomService. */
-const adminToken = (room: string) =>
-  new SignJWT({ video: { room, roomAdmin: true } })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuer(backend.apiKey)
-    .setExpirationTime('5m')
-    .sign(new TextEncoder().encode(backend.apiSecret))
+  /** A LiveKit admin token for the room, as Protobase's driver would mint one for RoomService. */
+  const adminToken = (room: string) =>
+    new SignJWT({ video: { room, roomAdmin: true } })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuer(backend.apiKey)
+      .setExpirationTime('5m')
+      .sign(new TextEncoder().encode(backend.apiSecret))
 
-describe('the LiveKit bridge', () => {
   it('lets a listener who joins later receive the camera and microphone of a member already publishing', async () => {
     const call = newCall()
     const alice = await join(`as=alice&call=${call}`)
@@ -195,10 +193,12 @@ describe('the LiveKit bridge', () => {
     await alice.evaluate(() => window.member.publish(['camera', 'microphone']))
     const bob = await join(`as=bob&call=${call}&role=listener`)
     await vi.waitFor(async () => expect(await tracksOf(bob)).toHaveLength(2), waitLong)
+    // The LiveKit room is the call on the meeting, by its id.
+    const room = (await alice.evaluate(() => window.member.callId()))!
     const response = await fetch(`${httpUrl}/twirp/livekit.RoomService/UpdateParticipant`, {
       method: 'POST',
-      headers: { authorization: `Bearer ${await adminToken(call)}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ room: call, identity: 'alice', permission: { canPublish: false, canSubscribe: true } }),
+      headers: { authorization: `Bearer ${await adminToken(room)}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ room, identity: 'alice', permission: { canPublish: false, canSubscribe: true } }),
     })
     expect(response.status).toBe(200)
     await vi.waitFor(async () => expect((await alice.evaluate(() => window.member.unpublished())).sort()).toEqual(['camera', 'microphone']), waitLong)
@@ -207,68 +207,5 @@ describe('the LiveKit bridge', () => {
 
   it('reports no server errors', () => {
     expect(server.errors).toEqual([])
-  })
-})
-
-describe('the peer plugin', () => {
-  const joinPeer = (query: string) => join(query, peerServer)
-
-  it('sends media straight between the members\' browsers', async () => {
-    const call = newCall()
-    const alice = await joinPeer(`as=alice&call=${call}`)
-    const bob = await joinPeer(`as=bob&call=${call}`)
-    await alice.evaluate(() => window.member.publish(['camera', 'microphone']))
-    await bob.evaluate(() => window.member.publish(['camera']))
-    await vi.waitFor(async () => {
-      expect((await tracksOf(bob)).map(({ member, source, receiving }) => `${member} ${source} ${receiving}`).sort()).toEqual(['alice camera true', 'alice microphone true'])
-      expect((await tracksOf(alice)).map(({ member, source, receiving }) => `${member} ${source} ${receiving}`)).toEqual(['bob camera true'])
-    }, waitLong)
-    await flowing(bob, 'video')
-    await flowing(bob, 'audio')
-    await flowing(alice, 'video')
-  })
-
-  it('refuses a listener who publishes', async () => {
-    const bob = await joinPeer(`as=bob&call=${newCall()}&role=listener`)
-    expect(await bob.evaluate(() => window.member.publishRefusal())).toBe('The member may not publish these tracks')
-  })
-
-  it('lists only the tracks Protobase lets a member hear', async () => {
-    const call = newCall()
-    const gina = await joinPeer(`as=gina&call=${call}`)
-    const hank = await joinPeer(`as=hank&call=${call}`)
-    await gina.evaluate(() => window.member.publish(['camera', 'microphone']))
-    await hank.evaluate(() => window.member.publish(['camera']))
-    const ivan = await joinPeer(`as=ivan&call=${call}&role=listener&hears=gina`)
-    await vi.waitFor(async () => expect(await tracksOf(ivan)).toEqual([expect.objectContaining({ member: 'gina', source: 'camera', receiving: true })]), waitLong)
-  })
-
-  it('resumes members on new sockets while their browsers keep sending to each other', async () => {
-    const call = newCall()
-    const alice = await joinPeer(`as=alice&call=${call}`)
-    const bob = await joinPeer(`as=bob&call=${call}`)
-    await alice.evaluate(() => window.member.publish(['camera', 'microphone']))
-    await flowing(bob, 'video')
-    peerServer.dropSockets()
-    await vi.waitFor(async () => {
-      for (const page of [alice, bob]) expect(await page.evaluate(() => window.member.states())).toEqual(['connecting', 'joined', 'resuming', 'joined'])
-    }, waitLong)
-    await flowing(bob, 'video')
-    await alice.evaluate(() => window.member.unpublish('camera'))
-    await vi.waitFor(async () => expect((await tracksOf(bob)).map((track) => track.source)).toEqual(['microphone']), waitLong)
-  })
-
-  it('takes a member who leaves out of the others\' tracks', async () => {
-    const call = newCall()
-    const alice = await joinPeer(`as=alice&call=${call}`)
-    const bob = await joinPeer(`as=bob&call=${call}`)
-    await alice.evaluate(() => window.member.publish(['camera']))
-    await vi.waitFor(async () => expect(await tracksOf(bob)).toHaveLength(1), waitLong)
-    await alice.evaluate(() => window.member.leave())
-    await vi.waitFor(async () => expect(await tracksOf(bob)).toEqual([]), waitLong)
-  })
-
-  it('reports no server errors', () => {
-    expect(peerServer.errors).toEqual([])
   })
 })
