@@ -1,9 +1,11 @@
+import { decodeBinaryFrame, encodeBinaryFrame } from './channel-binary-frame'
 import { ChannelRefusal, type ServerMessage } from './channel-types'
 
 /** The part of the browser's `WebSocket` a connection uses, which a test hands its own of. */
 export type SocketLike = {
   readonly readyState: number
-  send(data: string): void
+  binaryType: string
+  send(data: string | ArrayBuffer): void
   close(code?: number): void
   onopen: ((event: unknown) => void) | null
   onmessage: ((event: { data: unknown }) => void) | null
@@ -67,6 +69,7 @@ export const channelConnection = ({ url, token, socket: open, retryDelay, onOpen
     sentToken = offered
     const current = open(url(), offered === undefined ? [protocol] : [protocol, `bearer.${offered}`])
     socket = current
+    current.binaryType = 'arraybuffer'
     current.onopen = () => {
       failures = 0
       heardAt = Date.now()
@@ -79,8 +82,8 @@ export const channelConnection = ({ url, token, socket: open, retryDelay, onOpen
     }
     current.onmessage = ({ data }) => {
       heardAt = Date.now()
-      if (typeof data !== 'string') return
-      const message = JSON.parse(data) as ServerMessage
+      if (typeof data !== 'string' && !(data instanceof ArrayBuffer)) return
+      const message = (typeof data === 'string' ? JSON.parse(data) : decodeBinaryFrame(data)) as ServerMessage
       if (message.type !== 'reply') return onMessage(message)
       const waiting = pending.get(message.ref)
       pending.delete(message.ref)
@@ -101,9 +104,10 @@ export const channelConnection = ({ url, token, socket: open, retryDelay, onOpen
     }
   }
 
-  const sendNow = (message: Record<string, unknown>) => {
+  // With bytes, a binary frame of the message and them as its payload.
+  const sendNow = (message: Record<string, unknown>, bytes?: ArrayBuffer | ArrayBufferView) => {
     if (socket?.readyState !== openState) return false
-    socket.send(JSON.stringify(message))
+    socket.send(bytes === undefined ? JSON.stringify(message) : encodeBinaryFrame(message, bytes))
     return true
   }
 
@@ -124,14 +128,14 @@ export const channelConnection = ({ url, token, socket: open, retryDelay, onOpen
       dropPending()
       current?.close(1000)
     },
-    /** Sends a message with a ref, and resolves with its reply, or rejects with its refusal. */
-    request: (message: Record<string, unknown>) =>
+    /** Sends a message with a ref, and bytes as its payload if any, and resolves with its reply, or rejects with its refusal. */
+    request: (message: Record<string, unknown>, bytes?: ArrayBuffer | ArrayBufferView) =>
       new Promise<Extract<ServerMessage, { type: 'reply'; ok: true }>>((resolve, reject) => {
         const ref = String(++lastRef)
-        if (!sendNow({ ...message, ref })) return reject(new ChannelRefusal('disconnected', 'The connection is down'))
+        if (!sendNow({ ...message, ref }, bytes)) return reject(new ChannelRefusal('disconnected', 'The connection is down'))
         pending.set(ref, { resolve, reject })
       }),
-    /** Sends a message that gets no reply; `false` when the socket is not open. */
+    /** Sends a message that gets no reply, and bytes as its payload if any; `false` when the socket is not open. */
     post: sendNow,
   }
 }

@@ -1,5 +1,6 @@
 import type { KeyValue } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
+import { isBytes } from './channel-binary-frame'
 import { channelConnection, type ConnectionOptions } from './channel-connection'
 import { ChannelRefusal, type ChannelMessage, type ChannelStatus, type PresenceChange, type PresenceEntry, type ServerMessage } from './channel-types'
 
@@ -16,8 +17,9 @@ export type Channel = {
   track: (state: unknown) => Promise<void>
   untrack: () => Promise<void>
   /**
-   * Broadcasts to the others on the channel; with `self` this connection hears it too. With `ack` it resolves once the
-   * server took it, or rejects with its `ChannelRefusal`; without, once it was sent.
+   * Broadcasts to the others on the channel: a JSON payload, or bytes in an `ArrayBuffer` or typed array, which the
+   * others hear as an `ArrayBuffer`. With `self` this connection hears it too. With `ack` it resolves once the server
+   * took it, or rejects with its `ChannelRefusal`; without, once it was sent.
    */
   send: (event: string, payload: unknown, options?: { self?: boolean; ack?: boolean }) => Promise<void>
   /** Hears the channel's broadcasts of `event` until the returned function is called. */
@@ -159,12 +161,14 @@ export const channelsClient = (options: Omit<ConnectionOptions, 'onOpen' | 'onDo
       send: async (event, payload, { self, ack } = {}) => {
         const name = joinedName()
         if (name === undefined) throw notJoined()
-        const message = { type: 'send', channel: name, event, payload, ...(self && { self }) }
+        // Bytes go as a binary frame, the message without the payload its header.
+        const bytes = isBytes(payload) ? payload : undefined
+        const message = { type: 'send', channel: name, event, ...(bytes === undefined && { payload }), ...(self && { self }) }
         if (ack) {
-          await connection.request({ ...message, ack })
+          await connection.request({ ...message, ack }, bytes)
           return
         }
-        if (!connection.post(message)) throw new ChannelRefusal('disconnected', 'The connection is down')
+        if (!connection.post(message, bytes)) throw new ChannelRefusal('disconnected', 'The connection is down')
       },
       on: (event, listener) => {
         const listeners = channel.eventListeners.get(event) ?? new Set()
