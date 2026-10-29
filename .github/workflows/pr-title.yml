@@ -1,0 +1,26 @@
+name: pr-title
+
+# A pull request squash-merged with more than one commit lands on main under its title, with " (#<number>)" added, and
+# the release workflow refuses a commit that commitlint does. ci lints the branch's commits, not the title, so the title
+# is linted here as it would land, and again whenever it is edited, which runs no other check.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - name: Lint the title as the squash-merge commit's header
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: printf '%s (#%s)\n' "$TITLE" "$NUMBER" | bun x --bun commitlint --verbose
