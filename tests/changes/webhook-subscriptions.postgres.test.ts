@@ -243,11 +243,14 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('webhook subscriptions m
   it('sends the ordered deliveries of a job and its retry without a field that became sensitive', async () => {
     receiver.failNext('/lotte', 200, 500)
     const events = [storedEvent(3, 'o1'), storedEvent(3, 'o2'), storedEvent(3, 'o3')]
-    await enqueue('webhooks.deliver-ordered', { subscription: name(), events }, `${name()}:orders:3`)
-    await until(() => expect(sent('o3')).toHaveLength(1), 20_000)
+    const job = await enqueue('webhooks.deliver-ordered', { subscription: name(), events }, `${name()}:orders:3`)
+    // pg-boss waits 5 to 10 s before the first retry and 10 to 20 s before a second (retryDelay times 1 to 2, then 2
+    // to 4), so the job is awaited until it completes: a retry still on its way would reach the next test instead.
+    await until(async () => expect(await state(job)).toBe('completed'), 45_000)
+    expect(sent('o3')).toHaveLength(1)
     expect(sent('o2')).toHaveLength(2)
     expect(receiver.received.some((request) => request.body.includes(captured))).toBe(false)
-  })
+  }, 60_000)
 
   it('fails a kept change or delivery of a resource the app no longer has, sending nothing', async () => {
     const before = receiver.received.length
