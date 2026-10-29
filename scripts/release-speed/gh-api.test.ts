@@ -22,6 +22,16 @@ describe('ghApi', () => {
     expect(gh.waits).toEqual(retryDelays.slice(0, 2))
   })
 
+  it('asks again after a short wait when the connection drops', () => {
+    const gh = scripted(
+      { status: 1, stderr: 'stream error: stream ID 1; CANCEL; received from peer' },
+      { status: 1, stderr: 'Get "https://api.github.com/repos/o/r/actions/runs/1/jobs": read tcp 10.1.0.4:443: read: connection reset by peer' },
+      { status: 0, stdout: '{"jobs":[]}' },
+    )
+    expect(ghApi('actions/runs/1/jobs', gh.run, gh.wait)).toEqual({ jobs: [] })
+    expect(gh.waits).toEqual(retryDelays.slice(0, 2))
+  })
+
   it('fails once every wait is used up', () => {
     const gh = scripted(...Array.from({ length: retryDelays.length + 1 }, () => ({ status: 1, stderr: 'gh: Server Error (HTTP 502)' })))
     let error: unknown
