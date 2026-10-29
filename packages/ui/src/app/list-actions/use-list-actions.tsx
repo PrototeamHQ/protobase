@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import type { ActionModel, ResourceModel } from '@protobase/schema'
-import { fillAddress } from '@protobase/schema/internal'
 import type { BulkAction, GridRow, RowAction } from '../../data-grid'
-import { actionFor, linkTarget, openLink } from '../pages/action-href'
+import { actionFor } from '../pages/action-href'
+import { actionLink } from '../pages/action-link'
 import { isDanger } from '../pages/action-prompt'
-import { actionApplies } from '../pages/action-when'
 import { ConfirmAction } from '../pages/confirm-action'
 import type { LayoutRecord } from '../pages/record-scope'
 import { useActionRunner } from '../pages/use-run-action'
@@ -19,13 +18,13 @@ type Run = { action: ActionModel; row: LayoutRecord } | { action: ActionModel; s
 /**
  * The named actions of `model`'s view for its list, those without inputs (which ask in a dialog of their own): each
  * in the row menu of the rows it shows for, disabled with its reason where `when` disables it, and in red when it is a
- * delete or a danger action; a link is a link there. Updates and handlers marked `bulk` are offered for a selection
+ * delete or a danger action; a link is a link there, and a disabled one a disabled item without one. Updates and handlers marked `bulk` are offered for a selection
  * while one selected row applies, and run on those that do. `prompt` is the question one asks before it runs.
  */
 export const useListActions = (model: ResourceModel) => {
   const { views } = useAdminMeta()
   const runner = useActionRunner(model.name, undefined)
-  const { go, href } = useAppAddress()
+  const app = useAppAddress()
   const [asking, setAsking] = useState<Run>()
   const listed = (views[model.name]?.actions ?? []).filter((action) => !action.inputs?.length)
   const perform = (run: Run) => ('row' in run ? runner.run(run.action, run.row) : runner.runEach(run.action, run.selection, run.skipped))
@@ -38,17 +37,10 @@ export const useListActions = (model: ResourceModel) => {
     const shown = (row: GridRow) => actionFor(action, rowRecord(model, row).record)
     const base = { label: (row: GridRow) => shown(row)?.label ?? action.label, destructive: isDanger(action) }
     const run = action.run
-    if (run?.kind === 'link') {
-      // A link cannot be disabled, so it goes where it does not apply
-      const available = (row: GridRow) => shown(row) !== undefined && actionApplies(action, rowRecord(model, row).record)
-      if ('to' in run) {
-        const address = (row: GridRow) => fillAddress(run.to, rowRecord(model, row).record)
-        return { ...base, available, link: (row) => ({ href: href(address(row)), onFollow: () => go(address(row)) }) }
-      }
-      const target = (row: GridRow) => linkTarget(run.href, rowRecord(model, row).record) ?? ''
-      return { ...base, available, link: (row) => ({ href: target(row), onFollow: () => openLink(target(row)) }) }
-    }
-    return { ...base, available: (row) => shown(row) !== undefined, blocked: (row) => runner.blockedOn(action, rowRecord(model, row)), onSelect: (row) => start({ action, row: rowRecord(model, row) }) }
+    const blocked = (row: GridRow) => runner.blockedOn(action, rowRecord(model, row))
+    const available = (row: GridRow) => shown(row) !== undefined
+    if (run?.kind === 'link') return { ...base, available, blocked, link: (row) => actionLink(run, rowRecord(model, row).record, app) }
+    return { ...base, available, blocked, onSelect: (row) => start({ action, row: rowRecord(model, row) }) }
   })
 
   const bulkActions = listed

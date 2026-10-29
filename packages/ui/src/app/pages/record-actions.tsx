@@ -5,9 +5,11 @@ import { topBarButton, useTopBarSlot } from '../../app-shell'
 import type { LiveRecord } from '../../data/use-record'
 import type { ActionModel, AppAddress, ResourceModel } from '@protobase/schema'
 import { ActionMenu, ActionRail, type RailAction } from '../../record-view'
+import { RouteLink } from '../../primitives/route-link'
 import { actionIcon } from '../action-icon'
 import { AppLink, useAppAddress } from '../use-app-address'
 import { text } from '../record-messages'
+import { actionLink } from './action-link'
 import { ActionPrompt, asksFirst, isDanger } from './action-prompt'
 import { useActionRunner } from './use-run-action'
 
@@ -18,19 +20,26 @@ import { useActionRunner } from './use-run-action'
  * however long the record is, when the shell has a top bar.
  */
 export const RecordActions = ({ model, stored, recordKey, edit, onDelete }: { model: ResourceModel; stored: LiveRecord; recordKey: string; edit?: AppAddress; onDelete?: () => void }) => {
-  const { go } = useAppAddress()
+  const app = useAppAddress()
+  const { go } = app
   const slot = useTopBarSlot()
   const scope = { model, record: stored.record, key: recordKey, etag: stored.etag, permissions: stored.permissions }
   const runner = useActionRunner(model.name, scope, (action) => action.run?.kind === 'delete' && go({ kind: 'list', resource: model.name }, { replace: true }))
   const [asking, setAsking] = useState<ActionModel>()
-  const named = runner.actions.map((action): RailAction => ({
-    name: action.label,
-    icon: actionIcon(action.icon),
-    blocked: runner.blocked(action),
-    running: runner.running === action.name,
-    ...(isDanger(action) && { tone: 'danger' as const }),
-    onRun: () => (asksFirst(action) ? setAsking(action) : void runner.run(action)),
-  }))
+  const named = runner.actions.map((action): RailAction => {
+    const blocked = runner.blocked(action)
+    // A link that can be followed is a link, looking as the rail's buttons do; a disabled one stays a disabled button
+    const link = action.run?.kind === 'link' && !blocked ? actionLink(action.run, stored.record, app) : undefined
+    return {
+      name: action.label,
+      icon: actionIcon(action.icon),
+      blocked,
+      running: runner.running === action.name,
+      ...(isDanger(action) && { tone: 'danger' as const }),
+      onRun: () => (asksFirst(action) ? setAsking(action) : void runner.run(action)),
+      ...(link && { render: ({ className, children, role }) => <RouteLink to={link} role={role} className={className}>{children}</RouteLink> }),
+    }
+  })
   const deletes = runner.actions.some((action) => action.run?.kind === 'delete')
   const actions: RailAction[] = [
     ...(edit ? [{ name: text('edit'), icon: Pencil, render: ({ className, children, role }) => <AppLink to={edit} role={role} className={className}>{children}</AppLink> } satisfies RailAction] : []),

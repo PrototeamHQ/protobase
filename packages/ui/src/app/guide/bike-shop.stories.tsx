@@ -114,7 +114,9 @@ export const Step5Checks: StoryObj = {
     await userEvent.click(canvas.getByRole('button', { name: 'Collected and paid' }))
     await userEvent.click(within(await canvas.findByRole('dialog', { name: 'Collected and paid?' })).getByRole('button', { name: 'Collected and paid' }))
     await waitFor(() => expect(statusSelect(canvas).value).toBe('collected'))
-    await userEvent.click(canvas.getByRole('button', { name: 'Other repairs of this customer' }))
+    const others = canvas.getByRole('link', { name: 'Other repairs of this customer' })
+    expect(others.getAttribute('href')).toMatch(/^\/repairs\?/)
+    await userEvent.click(others)
     await waitFor(() => expect(canvas.getByText(/^\d+ rows$/).textContent).toBe('3 rows'))
   },
 }

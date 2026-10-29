@@ -11,7 +11,7 @@ import { text } from './messages'
  * the server will refuse; `blocked` shows it disabled, with why as its tooltip.
  */
 type RowActionBase = { label: string | ((row: GridRow) => string); destructive?: boolean; available?: (row: GridRow) => boolean; blocked?: (row: GridRow) => string | undefined }
-/** `link` makes the item an ordinary link to where it goes, as every navigation is; `onSelect` runs anything else. */
+/** `link` makes the item an ordinary link to where it goes, as every navigation is, unless it is `blocked`; `onSelect` runs anything else. */
 export type RowAction = RowActionBase & ({ onSelect: (row: GridRow) => void; link?: never } | { link: (row: GridRow) => RouteTarget; onSelect?: never })
 
 const labelOf = (action: RowAction, row: GridRow) => (typeof action.label === 'string' ? action.label : action.label(row))
@@ -41,7 +41,7 @@ export const RowMenu = ({ row, actions }: { row: GridRow; actions: RowAction[] }
               const itemClass = cn('block w-full px-3 py-1.5 text-left hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent', action.destructive && 'text-danger-text')
               return (
                 <li key={index} role="none">
-                  {action.link ? (
+                  {action.link && blocked === undefined ? (
                     <RouteLink role="menuitem" to={action.link(row)} onClick={() => setOpen(false)} className={itemClass}>
                       {label}
                     </RouteLink>
@@ -54,7 +54,7 @@ export const RowMenu = ({ row, actions }: { row: GridRow; actions: RowAction[] }
                       className={itemClass}
                       onClick={() => {
                         setOpen(false)
-                        action.onSelect(row)
+                        action.onSelect?.(row)
                       }}
                     >
                       {label}

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession, type AuthSession } from '@protobase/client'
 import { signInPath } from '@protobase/schema'
 import { themeStorageKey } from '../theme/theme-preference'
@@ -100,8 +100,8 @@ export const PickingTheme: StoryObj = {
   },
 }
 
-// A visitor the view grants the orders' website gets the action rail's button to it, named after its host, opening it
-// in a new tab with neither the opener nor the referrer; an order without a web address has no button.
+// A visitor the view grants the orders' website gets the action rail's link to it, named after its host, opening it
+// in a new tab with neither the opener nor the referrer; an order without a web address has no link.
 const readOnly = { create: false, update: false, delete: false, conditional: [] }
 const websiteLink = { name: 'website', label: 'View on {host}', icon: 'external-link', bulk: false, run: { kind: 'link' as const, href: '{website}' } }
 const websites = { 'SO-1': 'https://www.shop.example/orders/SO-1?ref=a&b=1', 'SO-2': null, 'SO-3': 'javascript:alert(1)' }
@@ -116,13 +116,10 @@ export const LinkToRecordUrl: StoryObj = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const original = window.open
-    const open = fn()
-    window.open = open
-    await userEvent.click(await canvas.findByRole('button', { name: 'View on shop.example' }))
-    window.open = original
-    expect(open).toHaveBeenCalledOnce()
-    expect(open).toHaveBeenCalledWith('https://www.shop.example/orders/SO-1?ref=a&b=1', '_blank', 'noopener,noreferrer')
+    const link = await canvas.findByRole('link', { name: 'View on shop.example' })
+    expect(link).toHaveAttribute('href', 'https://www.shop.example/orders/SO-1?ref=a&b=1')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noreferrer')
   },
 }
 
@@ -137,7 +134,7 @@ export const NoRecordUrl: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole('heading', { name: 'SO-3' })
-    expect(canvas.queryByRole('button', { name: /View on/ })).toBeNull()
+    expect(canvas.queryByRole('link', { name: /View on/ })).toBeNull()
     expect(canvas.queryByRole('heading', { name: 'Actions' })).toBeNull()
   },
 }

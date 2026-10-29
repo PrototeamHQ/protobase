@@ -159,7 +159,7 @@ div | block
                               span | block
                                 span .block font-medium text-foreground | block
                           li | list-item
-                            button .flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-3 text-left hover:bg-surface disabled:cursor-default disabled:opacity-60 md:min-h-0 md:w-full md:items-start md:gap-3 md:rounded-none md:border-0 md:px-4 md:py-3 | flex row nowrap flex-start normal
+                            a .flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-3 text-left hover:bg-surface disabled:cursor-default disabled:opacity-60 md:min-h-0 md:w-full md:items-start md:gap-3 md:rounded-none md:border-0 md:px-4 md:py-3 | flex row nowrap flex-start normal
                               svg .lucide lucide-file-text size-4 shrink-0 md:mt-0.5 text-muted-foreground | block
                               span | block
                                 span .block font-medium text-foreground | block
