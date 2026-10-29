@@ -5,6 +5,10 @@ description: Every record has a channel, where the pages that have it open see w
 
 Every record of the app has a channel. The pages on it see who else is there and what each of them tracks, such as online or away (presence), and send each other events that are never stored, such as typing (broadcasts). Whoever may read the record may join its channel; nothing else needs to be set up. A record everyone may read, a visitor of the anonymous role included, makes an open channel.
 
+:::caution[Beta]
+SQL broadcasts JSON only, not bytes.
+:::
+
 ## From a page
 
 `client.channel(resource, key)` of [`@protobase/client`](/reference/client/) joins the record's channel:
@@ -72,7 +76,7 @@ export default defineFunction(async (request, { channels }) => {
 
 ### From SQL
 
-With [`realtime: { sqlSends: true }`](/reference/config/api/#realtime), SQL in the app's database, such as a trigger, broadcasts JSON to a record's channel with `channels.send(resource, key, event, payload)`:
+With [`realtime: { sqlSends: true }`](/reference/config/api/#realtime), SQL in the app's database, such as a trigger, broadcasts JSON to a record's channel with `channels.send(resource, key, event, payload)`. <gap>SQL cannot broadcast bytes because a binary payload for `channels.send()` is not implemented.</gap>
 
 ```sql
 select channels.send('rooms', '42', 'announcement', '{"text": "Standup in 5 minutes"}');
