@@ -4,7 +4,7 @@ description: Audio and video calls on any record of an app, through a LiveKit se
 ---
 
 :::caution[Beta]
-Calls live on records, with who is in them, removal and their end. A lobby, stage mode, recording, guests and the call UI are not built yet, and calls have been tested in Chromium and Firefox only.
+Calls live on records, with who is in them, removal and their end, a ready-made call view and ringing. The view is made for small peer-to-peer calls, and there are no host controls yet. A lobby, stage mode, recording and guests are not built yet.
 :::
 
 ## Turning them on
@@ -124,6 +124,75 @@ await call.publish({ camera: media.getVideoTracks()[0], microphone: media.getAud
 `call.id` is the call, as the record's calls list it and `calls.remove` takes it. `onSpeakers` gets who speaks how loudly, and `onUnpublished` a source the media server stopped, such as after the member lost the right to send.
 
 A call that is left rejects the join, or ends a joined call, with its reason in `onState`: `ended`, `removed` (by `calls.remove`, or by a check that refused the member), `full`, `refused` (the function refused the caller), or `unavailable`, when the server failed to take the member in `maxRetries` times in a row.
+
+## Call view and ringing
+
+`@protobase/ui` draws a call for you: put a call view beside your own content, show a record's call with Join, and ring the people you name wherever they are in the app. A missed call stays in the bell.
+
+### The call view
+
+`RecordCall` shows the record's call while the page joins it, and nothing otherwise, so you place it beside the record's own content, such as a conversation's messages on a [full-area record page](/reference/custom-components/#full-area-record-pages). `url` is your function's socket, as `joinCall` takes it:
+
+```tsx
+import { CallMark, RecordCall, useMembers } from '@protobase/ui'
+
+export const Conversation = ({ id }: { id: string }) => {
+  const { member } = useMembers()
+  return (
+    <div className="flex h-full">
+      <Messages conversation={id} />
+      <RecordCall resource="conversations" recordKey={id} url={`/api/functions/call?conversation=${id}`} nameOf={(user) => member(user)?.name ?? user} className="w-1/2" />
+    </div>
+  )
+}
+```
+
+The view checks the microphone and camera first, with a preview of the camera, and joins after Join. In the call, everyone shows at the same size, the one speaking ringed, or a screen share large with the people beside it, or under it on a phone. Its controls turn the microphone, the camera and a screen share on and off, the share with the tab's sound where the browser offers it, and Leave goes back to the record. Each person's tile marks a muted microphone and a poor connection, and says when the browser cannot connect to them; the view says Reconnecting while its link to the server is restored, and says in plain words when the call is full, when a microphone or camera is blocked, or when the call ended. It fills its parent, at a desktop's width or a phone's.
+
+| | |
+| --- | --- |
+| `resource`, `recordKey` | The record whose call it is. |
+| `url` | Your function's socket, which admits the member. |
+| `nameOf` | A person's name by the member your function admits them as, such as a user id; the member itself by default. |
+
+`CallView` is the view on its own, with `leave`, where Leave goes, in place of the record: for a call you place without the record's address.
+
+### A record's call
+
+`CallMark` shows a record's call where you put it, such as a conversation's header: Start call while there is none, and "Call in progress · 3 · Join" while one goes on, live. Start call and Join open the record's page joining its call, `/{resource}/{key}?call=join`, which shows `RecordCall`.
+
+```tsx
+<CallMark resource="conversations" recordKey={id} />
+```
+
+The mark follows the record's calls over its [record channel](/reference/channels/), on the one socket a page shares for all its channels, so a page that holds a channel already, such as for typing, opens no other connection for it. `useRecordCalls(resource, key)` gives you the same calls, live, for a mark of your own.
+
+### Ringing
+
+Name the people a call rings in `calls.join`'s `ring`: when that join starts the record's call, each of them is rung on whatever page of the app they have open, with Accept and Decline, and a ring tone once the page may play sound.
+
+```ts
+return acceptWebSocket(
+  await calls.join({
+    record: { resource: 'conversations', key: id },
+    member: String(session.user.id),
+    publish: true,
+    ring: { users: conversation.member_ids, title: `${session.user.name} is calling`, body: conversation.title },
+  }),
+)
+```
+
+| | |
+| --- | --- |
+| `users` | The user ids rung, 50 at most; the caller is never rung. |
+| `title`, `body` | What the ring and the bell say. |
+| `url` | Where the bell's entry leads; the record's page by default. |
+
+A ring lasts 30 seconds. Accept opens the record's page joining the call, on that device only, after the click; joining the call from any device stops the ring on every page of that person, and so do Decline and the end of the call. The ring reaches open pages over the live stream every page of the app already holds, so it opens no connection of its own.
+
+With [notifications](/reference/notifications/), each person rung also gets the call in their bell, where a missed call stays, and as a push on their devices, which reaches a closed app. With [status](/reference/status/), someone on do not disturb is not rung on any page or device; the call waits in their bell. Busy rings as usual.
+
+`client.rings.list()` and `client.rings.decline(call)` of `@protobase/client` read and decline the calls ringing the signed-in user, for a ring of your own.
 
 ## Reconnecting
 
