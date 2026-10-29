@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { ringer, ringSeconds, type RingNotification } from './ringer'
+import { pushMessage } from '../notifications/message'
+import { ringer, ringMessage, ringSeconds, type RingNotification } from './ringer'
 import { memoryRingStore } from './testing/memory-ring-store'
 
 const record = { resource: 'conversations', key: '7' }
-const recordUrl = ({ resource, key }: { resource: string; key: string }) => `/${resource}/${key}`
+const recordUrl = ({ resource, key }: { resource: string; key: string }) => `https://chat.example.com/${resource}/${key}`
 const ring = { users: ['ann', 'bob', 'cat'], title: 'Ann is calling' }
 
 describe('ringer', () => {
@@ -14,7 +15,7 @@ describe('ringer', () => {
     expect(store.rings.map((one) => one.user)).toEqual(['bob', 'cat'])
     expect(store.rings[0]!.until - Date.now()).toBeGreaterThan((ringSeconds - 1) * 1000)
     expect(store.notices).toEqual([['bob', 'cat']])
-    expect(sent).toEqual([{ userIds: ['bob', 'cat'], title: 'Ann is calling', url: '/conversations/7', data: { call: 'c1', resource: 'conversations', key: '7' } }])
+    expect(sent).toEqual([{ userIds: ['bob', 'cat'], title: 'Ann is calling', url: 'https://chat.example.com/conversations/7', data: { call: 'c1', resource: 'conversations', key: '7' } }])
   })
 
   it('rings no one on do not disturb on any page, and still keeps the ring in their bell', async () => {
@@ -38,8 +39,8 @@ describe('ringer', () => {
 
   it("leads the bell's entry where the app says, with the ring's body", async () => {
     const sent: RingNotification[] = []
-    await ringer({ store: memoryRingStore(), recordUrl, notify: async (notification) => void sent.push(notification) }).start('c1', record, 'ann', { ...ring, body: 'Design review', url: '/rooms/7' })
-    expect(sent[0]).toMatchObject({ body: 'Design review', url: '/rooms/7' })
+    await ringer({ store: memoryRingStore(), recordUrl, notify: async (notification) => void sent.push(notification) }).start('c1', record, 'ann', { ...ring, body: 'Design review', url: 'https://chat.example.com/rooms/7' })
+    expect(sent[0]).toMatchObject({ body: 'Design review', url: 'https://chat.example.com/rooms/7' })
   })
 
   it('stops ringing a user who joins or declines, telling only their pages, once', async () => {
@@ -73,5 +74,10 @@ describe('ringer', () => {
     await ringer({ store, recordUrl, notify: async (notification) => void sent.push(notification) }).start('c1', record, 'ann', { users: ['ann'], title: 'Ann is calling' })
     expect(store.notices).toEqual([])
     expect(sent).toEqual([])
+  })
+
+  it('makes a push every sender takes, tagged by its call', () => {
+    const message = ringMessage({ title: 'Ann is calling', url: 'https://chat.example.com/conversations/7', data: { call: '4b1f0a2c-1d2e-4f3a-8b9c-0d1e2f3a4b5c', resource: 'conversations', key: '7' } })
+    expect(pushMessage(message)).toMatchObject({ title: 'Ann is calling', urgency: 'high', ttl: 60, tag: '4b1f0a2c1d2e4f3a8b9c0d1e2f3a4b5c' })
   })
 })
