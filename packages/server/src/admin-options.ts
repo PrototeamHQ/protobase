@@ -2,6 +2,7 @@ import type { ResolveOptions, RoleLimit } from '@protobase/schema'
 import type { CorsOrigins } from './api-cors'
 import type { ApiKeysOptions } from './api-keys/api-key-settings'
 import type { AssistantOptions } from './assistant/assistant-settings'
+import type { AssistantTool } from './assistant/tools'
 import type { ErrorReportingOptions } from './error-reporting/error-reporting-settings'
 import type { LocaleOption } from './locale/locale-option'
 import type { MapOptions } from './maps/map-settings'
@@ -69,10 +70,13 @@ export type AdminOptions = {
    * `writes: { rolesWithoutApproval: ['service'] }` lets a user holding one of those roles, such as a service account
    * with no person present, write without the approval; any other user is still asked. Each must be a role the app's
    * users can hold.
+   * `tools`: the app's own tools, offered after the built-in ones whatever `writes` says, each run as the caller under
+   * their access rules. One that changes data asks through `approve`, which `rolesWithoutApproval` skips too; one that
+   * never calls it writes unasked. A name taken twice, or by a built-in tool, stops startup.
    * `false`: the host serves its own MCP endpoint at `auth.mcp.path`, in front of this app. This app then answers 404
    * there and needs no `forAudience`, while the OAuth provider's discovery stays.
    */
-  mcp?: { sql?: boolean; writes?: McpWrites } | false
+  mcp?: { sql?: boolean; writes?: McpWrites; tools?: AssistantTool[] } | false
   /**
    * The websites whose browser code may call the API (`/api/*` but `/api/auth/*`) besides the app's own origins (see
    * `auth.origins`): a list of origins, or `*` for any. Defaults to the one the platform passes in

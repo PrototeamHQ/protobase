@@ -77,31 +77,34 @@ export const projectRoles = async (config: MergedConfig): Promise<AdminOptions['
   return module && ((module.roles ?? module.default) as AdminOptions['roles'])
 }
 
-/**
- * The assistant's own tools: the default export of every config folder's assistant/tools.ts, the extensions' first, each
- * name once; none while the assistant is off.
- */
-export const projectAssistantTools = async (config: MergedConfig): Promise<AssistantTool[]> => {
-  if (config.assistant === false) return []
+/** The default export of every config folder's `file`, a list of tools, the extensions' first, each name once. */
+const projectTools = async (config: MergedConfig, file: string, kind: string): Promise<AssistantTool[]> => {
   const found = config.sources.flatMap(({ files, label }) => {
-    const load = files.module('assistant/tools.ts')
+    const load = files.module(file)
     return load ? [load().then((module) => (module.default as AssistantTool[]).map((tool) => ({ tool, label })))] : []
   })
   const tools = (await Promise.all(found)).flat()
-  checkUnique('The assistant tool', tools.map(({ tool, label }) => ({ name: tool.name, value: tool, label })))
+  checkUnique(kind, tools.map(({ tool, label }) => ({ name: tool.name, value: tool, label })))
   return tools.map(({ tool }) => tool)
 }
 
+/** The dock assistant's own tools, of every config folder's assistant/tools.ts; none while the assistant is off. */
+export const projectAssistantTools = async (config: MergedConfig) => (config.assistant === false ? [] : projectTools(config, 'assistant/tools.ts', 'The assistant tool'))
+
+/** The MCP endpoint's own tools, of every config folder's mcp/tools.ts; none without `auth.mcp` or with `mcpEndpoint: false`. */
+export const projectMcpTools = async (config: MergedConfig) => (!config.auth || !config.auth.mcp || config.mcpEndpoint === false ? [] : projectTools(config, 'mcp/tools.ts', 'The MCP tool'))
+
 /**
- * The API's options, from the config's top-level keys, with what the conventions find: the roles, write hooks and
- * assistant tools, the audit queue of audit/queue.ts and the error hook of hooks/error.ts.
+ * The API's options, from the config's top-level keys, with what the conventions find: the roles, write hooks,
+ * assistant and MCP tools, the audit queue of audit/queue.ts and the error hook of hooks/error.ts.
  */
 export const projectOptions = async (config: MergedConfig): Promise<AdminOptions> => {
   const { apiPath, mcpEndpoint, runtimeUpdates, remoteResources, locale, apiKeys, statementTimeoutMs, scanGuard, defaultAccess, rowPermissions, errorReporting, assistant, cors, maps, plugins } = config
   const settings = { apiKeys, statementTimeoutMs, scanGuard, defaultAccess, rowPermissions, errorReporting, assistant, cors, maps, plugins, locale, basePath: apiPath, mcp: mcpEndpoint, runtime: runtimeUpdates, sources: remoteResources }
-  const [roles, tools, audit, onUnhandledError] = await Promise.all([
+  const [roles, tools, mcpTools, audit, onUnhandledError] = await Promise.all([
     projectRoles(config),
     projectAssistantTools(config),
+    projectMcpTools(config),
     lastDefault<AuditQueue>(config, 'audit/queue.ts'),
     lastDefault<AdminOptions['onUnhandledError']>(config, 'hooks/error.ts'),
   ])
@@ -112,6 +115,7 @@ export const projectOptions = async (config: MergedConfig): Promise<AdminOptions
     ...(roles && { roles }),
     ...(writeHooks.length > 0 && { writeHooks }),
     ...(tools.length > 0 && { assistant: { ...(options.assistant || {}), tools } }),
+    ...(mcpTools.length > 0 && { mcp: { ...(options.mcp || {}), tools: mcpTools } }),
     ...(audit && { audit }),
     ...(onUnhandledError && { onUnhandledError }),
   }

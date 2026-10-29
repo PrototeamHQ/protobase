@@ -18,4 +18,5 @@ description: Fields and actions filled by a model, the assistant beside the admi
 - [MCP comments](/reference/mcp/#comments): AI clients read a record's comments, and with MCP writes on add one after the person approves it.
 - [MCP batch writes](/reference/mcp/#batch-writes): When MCP writes are on, AI clients make many creates, updates and deletes across resources in one transaction, after the person approves the batch.
 - [Connected apps](/reference/auth/#oauth-for-mcp-clients): People allow an AI client to sign in, and disconnect it later.
+- [MCP tools of your own](/reference/mcp/#the-apps-own-tools) (beta): `mcp/tools.ts` adds your own tools to the MCP endpoint, which AI clients call as the signed-in person, each change after the person approves it; for now a tool keeps its results small and catches its own refusals.
 - [MCP address](/reference/mcp/#connecting-a-client): Signed-in people find the app's MCP address on their account page, copy it or add it to Claude in one click.

@@ -371,7 +371,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented })
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, own: (options.mcp !== false && options.mcp?.tools) || [] })
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
     const info = { name: appName, version: '1.0.0', icons: mcpIcons(resource, icons) }

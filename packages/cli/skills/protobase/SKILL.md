@@ -104,7 +104,7 @@ Reference:
 - When changing the user menu → read [User menu](references/reference/user-menu.md)
 - When adding tabs along the bottom of a phone → read [Bottom bar](references/reference/bottom-bar.md)
 - When configuring the chat beside the admin → read [Assistant](references/reference/assistant.md)
-- When letting AI clients read the app's data over MCP, or building an MCP server of your own → read [MCP](references/reference/mcp.md)
+- When letting AI clients read the app's data over MCP, adding MCP tools of the app's own (`mcp/tools.ts`), or building an MCP server of your own → read [MCP](references/reference/mcp.md)
 - When looking for a command or its options → read [CLI](references/reference/cli.md)
 - When asking how Protobase is versioned and which bundles a runtime runs → read [Versioning](references/reference/versioning.md)
 - When looking for an export of `@protobase/schema` → read the [API reference](https://docs.protobase.net/api/schema/)

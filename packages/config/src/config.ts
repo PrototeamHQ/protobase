@@ -69,8 +69,11 @@ type ApiOptionKeys = Omit<AdminOptions, 'basePath' | 'roles' | 'writeHooks' | 'a
   /** The write hooks by name, run in this order inside each write's transaction; each is `hooks/<name>.ts`. */
   writeHooks?: string[]
   assistant?: Omit<AssistantOptions, 'tools' | 'fetch'> | false
-  /** The MCP endpoint's tools: `sql`, `writes`, or `false` for a host that serves its own (`AdminOptions['mcp']`); `auth.mcp` turns MCP on. */
-  mcpEndpoint?: AdminOptions['mcp']
+  /**
+   * The MCP endpoint's tools: `sql`, `writes`, or `false` for a host that serves its own (`AdminOptions['mcp']`);
+   * `auth.mcp` turns MCP on. The app's own tools are mcp/tools.ts's.
+   */
+  mcpEndpoint?: Omit<Exclude<AdminOptions['mcp'], false | undefined>, 'tools'> | false
   /** The runtime updates endpoint behind the top bar's update button (`AdminOptions['runtime']`). */
   runtimeUpdates?: AdminOptions['runtime']
   /** Other Protobase APIs whose resources the admin app draws as its own (`AdminOptions['sources']`). */

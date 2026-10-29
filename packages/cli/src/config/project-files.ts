@@ -28,7 +28,7 @@ export type ProjectFiles = {
 export const conventionModules = (projectDir: string) => {
   const inFolder = (folder: string) =>
     existsSync(path.join(projectDir, folder)) ? readdirSync(path.join(projectDir, folder)).filter((name) => name.endsWith('.ts') && !/\.(test|d)\.ts$/.test(name)).map((name) => `${folder}/${name}`) : []
-  const files = ['auth/hooks.ts', 'auth/authenticate.ts', 'auth/mailer.ts', 'config/roles.ts', 'assistant/tools.ts', 'audit/queue.ts', 'webhooks/owner-roles.ts', 'notifications/store.ts', 'notifications/history-store.ts', 'notifications/senders.ts']
+  const files = ['auth/hooks.ts', 'auth/authenticate.ts', 'auth/mailer.ts', 'config/roles.ts', 'assistant/tools.ts', 'mcp/tools.ts', 'audit/queue.ts', 'webhooks/owner-roles.ts', 'notifications/store.ts', 'notifications/history-store.ts', 'notifications/senders.ts']
   return [...inFolder('jobs'), ...inFolder('hooks'), ...inFolder('files'), ...files.filter((file) => existsSync(path.join(projectDir, file)))].sort()
 }
 

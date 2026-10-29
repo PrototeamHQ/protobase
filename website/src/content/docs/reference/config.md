@@ -136,6 +136,7 @@ The other files belong to an option, and are described with it:
 | `hooks/<name>.ts` | [`writeHooks`](/reference/config/api/#writehooks) |
 | `hooks/error.ts`, `audit/queue.ts` | [Code of the API](/reference/config/api/#code-of-the-api) |
 | `assistant/tools.ts` | [`assistant`](/reference/config/admin-app/#assistant) |
+| `mcp/tools.ts` | [`mcpEndpoint`](/reference/config/api/#mcpendpoint) |
 | `jobs/<name>.ts` | [`jobs`](/reference/config/jobs-and-events/#jobs) |
 | `webhooks/owner-roles.ts` | [`webhooks`](/reference/config/jobs-and-events/#webhooks) |
 | `notifications/store.ts`, `notifications/history-store.ts`, `notifications/senders.ts` | [`notifications`](/reference/config/jobs-and-events/#notifications) |
@@ -158,6 +159,7 @@ export default defineUi({ extends: [tasksUi] })
 | resources, views and pages of `config/` | all kept | an error naming both folders |
 | user menu | at most one among all folders | an error |
 | assistant tools of `assistant/tools.ts` | the extensions' first, in order, then the app's | an error naming the tool and both folders |
+| MCP tools of `mcp/tools.ts` | the extensions' first, in order, then the app's | an error naming the tool and both folders |
 | `jobs`, functions, file providers (`files.providers`) | all kept, by name | an error naming the name and both folders |
 | `files.trustedHosts` | all kept | |
 | the other keys of `files` | each the app's own; otherwise the last config that sets it | |

@@ -1,6 +1,6 @@
 ---
 title: MCP
-description: The app's MCP endpoint, through which a person's AI client lists resources, finds and reads records and their comments, and, when turned on, creates and updates them with that person's access and approval.
+description: The app's MCP endpoint, through which a person's AI client lists resources, finds and reads records and their comments, and, when turned on, creates and updates them with that person's access and approval, besides the app's own tools.
 ---
 
 An app can serve an MCP endpoint: a person adds its address to an AI client that speaks MCP, such as a chat assistant or a code editor, signs in on the app and allows the client. The client then works with that person's access: it lists the resources and fields they may read, finds records with the API's filters, sorting and pages, and reads one record.
@@ -159,6 +159,70 @@ The person approves the batch once, in their language, seeing each write in it n
 
 A batch is checked before the person is asked: an operation other than a create, update or delete, a field an operation does not take, an update without an ETag or more than 500 operations come back as `{ "error": "invalid-argument", "message": ... }` naming the operation, and with writes limited to some resources an operation on any other refuses the whole batch. An update does not set the field a soft delete sets, as `update_record` does not: a delete goes through a delete operation. A refusal while it runs, such as an operation the person may not do or a stale ETag, comes back with the REST batch's `operation` (its index), `op` and `resource`. Either way nothing is written.
 
+## The app's own tools
+
+`mcp/tools.ts` adds tools of the app's own, offered after the built-in ones to everyone signed in, whatever `mcpEndpoint.writes` says. Its default export is an array of `defineTool(...)` from `@protobase/server`, the same shape as the [assistant's own tools](/reference/assistant/#the-apps-own-tools): a `name` of 1 to 64 letters, digits, `_` or `-`, a `description` the client's model reads, `parameters`, the JSON Schema of its arguments, which the endpoint checks each call against, `annotations`, MCP's tool hints such as `readOnlyHint`, and `run(args, context)`, which returns the text the client reads. The file is found when the app starts, under `protobase dev` and `protobase serve` alike, and only with `auth.mcp` on; with `mcpEndpoint: false` it offers nothing.
+
+`context` holds the caller's `session`, the `locale` they read, `approve(request)`, `resources()`, the resources they may read, and `records`, the app's records **as that person**: their role's access rules, tenant, hidden fields, `validate` and write hooks apply, as in the REST API and the built-in tools. Its methods are the assistant's, listed [there](/reference/assistant/#the-apps-own-tools); a refusal rejects with an `HttpProblem`. `show` does nothing over MCP, and there is no `conversation`.
+
+A tool that reads:
+
+```ts
+// mcp/tools.ts
+import { defineTool, HttpProblem } from '@protobase/server'
+
+const openTasks = defineTool({
+  name: 'open_tasks',
+  description: "The person's open tasks, newest first: id, title and due date.",
+  parameters: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 50 } } },
+  annotations: { readOnlyHint: true },
+  run: async (args, { records }) => {
+    const page = await records.list('tasks', { filter: 'status = "open"', order_by: 'created_at desc', page_size: Number(args.limit ?? 10), fields: ['id', 'title', 'due_on'] }).catch((error: unknown) => {
+      if (error instanceof HttpProblem) return { error: error.slug, message: error.message }
+      throw error
+    })
+    return JSON.stringify(page)
+  },
+})
+```
+
+A tool that changes data asks first, through `approve`, before it changes anything:
+
+```ts
+const closeTask = defineTool({
+  name: 'close_task',
+  description: 'Marks one task done.',
+  parameters: { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] },
+  annotations: { readOnlyHint: false },
+  run: async (args, { approve, records }) => {
+    const { record, etag } = await records.get('tasks', Number(args.id))
+    const answer = await approve({ title: `Close task #${args.id} "${record.title}"?`, fields: [{ label: 'Status', value: 'Done' }], approveLabel: 'Close' })
+    if (answer !== 'approved') return JSON.stringify({ closed: false })
+    await records.update('tasks', Number(args.id), { status: 'done' }, { etag })
+    return JSON.stringify({ closed: true })
+  },
+})
+
+export default [openTasks, closeTask]
+```
+
+`approve` asks the person through MCP's form elicitation, as the [built-in writes](#writes) do: the client calls the tool again from the start with their answer, so everything before `approve` runs twice and must change nothing. It resolves with `'approved'` only when they approve; declining resolves otherwise, and a client that cannot ask gets the call refused with a message saying so, before anything after `approve` runs. An approval holds once, for the same call with the same arguments, by the same person in the same app, organization and client. A user holding one of [`rolesWithoutApproval`](#writes-without-approval) is approved at once, for these tools too. **A tool that never calls `approve` writes unasked**: whatever it does through `records`, the person's access rules still limit, but nobody is asked first.
+
+With [extensions](/reference/config/#extensions), each folder's `mcp/tools.ts` adds its tools, the extensions' first, in order, then the app's. A name two of them use, or one of the built-in tools' names, such as `get_record` or `create_record`, even one the config leaves off, stops the server at startup, naming it.
+
+`assistant/tools.ts` stays the dock's: it offers nothing over MCP, since the dock serves only the `admin` and `ai` roles while MCP serves everyone signed in. To offer the dock's tools over MCP too, on purpose, export them from `mcp/tools.ts` as well:
+
+```ts
+// mcp/tools.ts
+import assistantTools from '../assistant/tools'
+
+export default [...assistantTools]
+```
+
+A host calling `createAdmin` itself passes the tools as `options.mcp.tools`; the JSON config's `mcpEndpoint` takes none.
+
+<gap>An app's own MCP tool cannot have its result kept within a size budget, nor its refusals turned into `{ error, message }`, because neither is implemented for tools outside the built-in ones.</gap> Until then a tool keeps its own results small and catches its own refusals, as `open_tasks` above does; anything else it throws reaches the client as "The server failed to answer.".
+
 ## Browsers and hosts
 
 A client in a browser may call the endpoint from any origin: it sends its token, never cookies. A request addressed to another host than that of the app's [`url`](/reference/config/app/#url) is refused, against DNS rebinding.
@@ -171,7 +235,7 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session, request)` builds for its caller; `request` is the HTTP request, such as for the language the person reads.
 - `mcpServer({ info, instructions, tools, context, report, rolesWithoutApproval, approvals })`: an MCP server named by `info`, its `name`, `version` and `icons`, such as `mcpIcons(origin, icons)`, the app's icons on `origin`, and offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`, with the `locale` its approvals are asked in (English when absent): each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`. `approvals` is `mcpApprovals()`, built once and passed to every server the endpoint builds: it keeps the approvals asked for until they are answered or expire. `instructions` is what it tells clients when they connect, by default `mcpInstructions`, the advice on reading records above.
-- `mcpTools({ db, sql, writes, commented })`: the default tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`, and `commented` names the resources with comments.
+- `mcpTools({ db, sql, writes, commented, own })`: the endpoint's tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`, `commented` names the resources with comments, and `own` are [the app's own tools](#the-apps-own-tools), offered after the rest.
 - `readRecordTools()`, or `listResourcesTool()`, `describeResourceTool()`, `listRecordsTool()` and `getRecordTool()`: the read tools alone; `readOnlyQueryTool(db)` is `run_read_only_query`, and `readWriteQueryTool(db)` proposes one write statement that the user approves before it runs.
 - `commentTools({ commented }, writes)`, or `listCommentsTool({ commented })` and `addCommentTool({ commented, resources })`: the comment tools on the resources named in `commented`, which call the context's `comments`, and `add_comment` only when `writes` is not `false`.
 - `writeRecordTools({ resources })`, or `createRecordTool(...)`, `updateRecordTool(...)` and `deleteRecordTool(...)`: the single write tools alone, on the listed resources or, without `resources`, on any; `batchWriteTool({ resources })` is `batch_write` alone.

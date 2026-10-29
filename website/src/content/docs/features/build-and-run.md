@@ -13,7 +13,7 @@ description: Develop, build and run an app, on servers, in containers and on pho
 - [Encryption commands](/reference/cli/#encryption-status): Report and fix plaintext or old-key values of encrypted fields.
 - [One bundle](/reference/cli/#build): `protobase build` writes one folder with everything the app needs, without a database or secrets. It fails on a view that filters, sorts or searches by a field its resource does not allow.
 - [Source maps](/reference/cli/#source-maps): The bundle and plugins can carry source maps with debug ids, for an error tracker to read browser stack frames.
-- [Extensions](/reference/cli/#extensions): A host adds its own tools and widgets to every app it builds.
+- [Extensions](/reference/cli/#extensions): A host adds its own widgets, dock assistant tools (`assistant/tools.ts`) and MCP tools (`mcp/tools.ts`) to every app it builds.
 - [Native packages](/reference/cli/#native-packages): npm packages with native add-ons are bundled for Linux.
 - [Serve runtime](/reference/cli/#serve): Runs a bundle, set by environment variables, with a health check, startup checks, jobs and a clean shutdown.
 - [Migrations at update time](/guides/deploy/#migrations): The bundle carries the project's migrations, and the runtime applies them in one transaction before the new version serves.

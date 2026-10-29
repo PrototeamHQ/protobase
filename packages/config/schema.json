@@ -413,7 +413,7 @@
       ]
     },
     "mcpEndpoint": {
-      "description": "The MCP endpoint's tools: `sql`, `writes`, or `false` for a host that serves its own (`AdminOptions['mcp']`); `auth.mcp` turns MCP on.",
+      "description": "The MCP endpoint's tools: `sql`, `writes`, or `false` for a host that serves its own (`AdminOptions['mcp']`);\n`auth.mcp` turns MCP on. The app's own tools are mcp/tools.ts's.",
       "anyOf": [
         {
           "const": false

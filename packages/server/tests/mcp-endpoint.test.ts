@@ -3,10 +3,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { AdminOptions } from '../src/admin-options'
 import type { BetterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { setUserRole } from '../src/better-auth/users'
+import { defineTool } from '../src/assistant/tools'
 import { createAdmin } from '../src/create-admin'
 import { mcpHandler } from '../src/mcp/mcp-handler'
 import { mcpServer } from '../src/mcp/mcp-server'
 import { mcpTools } from '../src/mcp/mcp-tools'
+import { HttpProblem } from '../src/problem'
 import { authOn, mcpStores, origin, password, redirectUri, resource, serveMcp, type McpStores } from './support/mcp-app'
 
 // Counted, so a test can tell the generic endpoint was never built.
@@ -177,6 +179,56 @@ describe('the MCP endpoint', () => {
     expect(await call(app, mcp, 'get_record', { resource: 'organizations', key: created.key })).toMatchObject({ record: created.record, etag: created.etag })
   })
 
+  const organizationsNamed = async (name: string) => (await stores.fixture.pg.query(`select id from organizations where name = $1`, [name])).rows
+
+  // The app's own tools: one reading a record, its refusal caught, and one adding an organization once approved.
+  const ownTools = [
+    defineTool({
+      name: 'read_record',
+      description: 'Reads one record.',
+      parameters: { type: 'object', properties: { resource: { type: 'string' }, key: { type: 'integer' } }, required: ['resource', 'key'] },
+      run: async (args, { records }) => {
+        const read = await records.get(String(args.resource), Number(args.key)).catch((error: unknown) => {
+          if (error instanceof HttpProblem) return { refused: error.slug }
+          throw error
+        })
+        return JSON.stringify(read)
+      },
+    }),
+    defineTool({
+      name: 'add_organization',
+      description: 'Adds an organization.',
+      parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+      run: async (args, { approve, records }) => {
+        const answer = await approve({ title: 'Add the organization?', code: String(args.name), approveLabel: 'Add' })
+        if (answer !== 'approved') return JSON.stringify({ added: false })
+        return JSON.stringify((await records.create('organizations', { name: args.name })).record)
+      },
+    }),
+  ]
+
+  it("offers the app's own tools after the built-in ones, run as the person, writing only once they approve", async () => {
+    const { app, mcp } = await served({ mcp: { tools: ownTools } })
+    expect(await toolNames(app, mcp)).toEqual([...records, 'read_record', 'add_organization'])
+    expect(await call(app, mcp, 'read_record', { resource: 'organizations', key: 1 })).toMatchObject({ record: { id: 1, name: expect.any(String) } })
+    // Tenant-scoped, and Ana works in no organization.
+    expect(await call(app, mcp, 'read_record', { resource: 'companies', key: 1 })).toEqual({ refused: 'tenant-required' })
+    const args = { name: 'Own Tool Org' }
+    const legacy = await resultOf(await rpc(app, mcp, 'tools/call', { name: 'add_organization', arguments: args }))
+    expect(legacy).toMatchObject({ isError: true, content: [{ text: expect.stringContaining('cannot ask you to approve') }] })
+    const answered = async (response: object) => {
+      const asked = await resultOf(await modernCall(app, mcp, { name: 'add_organization', arguments: args }, { elicitation: {} }))
+      const [key] = Object.keys(asked.inputRequests as object)
+      const answer = { requestState: asked.requestState as string, inputResponses: { [key!]: response } }
+      const result = await resultOf(await modernCall(app, mcp, { name: 'add_organization', arguments: args, ...answer }, { elicitation: {} }))
+      return JSON.parse((result.content as Array<{ text: string }>)[0]!.text) as unknown
+    }
+    expect(await answered({ action: 'decline' })).toEqual({ added: false })
+    expect(await organizationsNamed('Own Tool Org')).toEqual([])
+    expect(await answered({ action: 'accept', content: { approve: true } })).toMatchObject({ name: 'Own Tool Org' })
+    expect(await organizationsNamed('Own Tool Org')).toHaveLength(1)
+  })
+
   // A token carries the role its user acts with: Ana's first, sales; Root's, admin.
   const unattended = { mcp: { writes: { rolesWithoutApproval: ['sales'] } } }
 
@@ -201,8 +253,6 @@ describe('the MCP endpoint', () => {
     const { key: _key, ...whole } = updated as { key: number }
     expect(await call(app, mcp, 'get_record', { resource: 'organizations', key })).toEqual(whole)
   })
-
-  const organizationsNamed = async (name: string) => (await stores.fixture.pg.query(`select id from organizations where name = $1`, [name])).rows
 
   it('refuses every request at once, writing nothing, once the role exempting its writes is taken away', async () => {
     const { app, mcp } = await served(unattended)

@@ -19,7 +19,7 @@ export type ToolContext = {
   show: (part: AssistantPart) => void
   /** Asks the user to approve with a card in that message (see `requestApproval`). */
   approve: (request: ApprovalRequest) => Promise<ApprovalAnswer>
-  /** The app's resources as the session's user, through their access rules and write hooks (built-in assistant only). */
+  /** The app's resources as the session's user, through their access rules and write hooks. */
   records: ToolRecords
   /** The resources the caller may read, each restricted to their fields, with their views. */
   resources: () => Promise<ReadableResources>
@@ -38,7 +38,7 @@ export type ToolAnnotations = {
 
 /**
  * A function the model may call during a turn. `parameters` is the JSON Schema of its arguments; `run` gets them
- * parsed, but not checked against the schema, and returns what the model reads as the result.
+ * parsed, checked against the schema over MCP but not in the dock, and returns what the model reads as the result.
  */
 export type AssistantTool = {
   name: string

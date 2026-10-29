@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ProtobaseConfig } from '@protobase/config'
 import { Page, page } from '@protobase/layout'
 import { f, resource, userMenu, view } from '@protobase/schema'
-import { configExports, defineFunction } from '@protobase/server'
+import { configExports, defineFunction, defineTool } from '@protobase/server'
 import { mergeConfig, type ConfigSource } from './merge-config'
 import type { ProjectFiles } from './project-files'
 import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks } from './project-parts'
@@ -79,6 +79,22 @@ describe('mergeConfig', () => {
   it("gives the API its options from the config's top-level keys, by their names there", async () => {
     const options = await projectOptions(mergeConfig(source('app', { apiPath: '/api/v1', mcpEndpoint: false, runtimeUpdates: false, remoteResources: false, locale: 'nl', statementTimeoutMs: 500, url: 'https://x.example' })))
     expect(options).toEqual({ basePath: '/api/v1', mcp: false, runtime: false, sources: false, locale: 'nl', statementTimeoutMs: 500 })
+  })
+
+  it("offers every folder's mcp/tools.ts on the MCP endpoint, the extensions' first, and assistant/tools.ts only in the dock", async () => {
+    const tool = (name: string) => defineTool({ name, description: name, parameters: { type: 'object' }, run: async () => name })
+    const [usage, invoice, ask] = [tool('usage'), tool('invoice'), tool('ask')]
+    const mcpOn = { auth: { mcp: true as const }, mcpEndpoint: { sql: true } }
+    const extension = source('cloud', {}, folder({ modules: { 'mcp/tools.ts': [usage] } }))
+    const app = (modules: Record<string, unknown>, config: ProtobaseConfig = mcpOn) => source('app', config, folder({ modules }))
+    const options = await projectOptions(mergeConfig(extension, app({ 'mcp/tools.ts': [invoice], 'assistant/tools.ts': [ask] })))
+    expect(options.mcp).toEqual({ sql: true, tools: [usage, invoice] })
+    expect(options.assistant).toEqual({ tools: [ask] })
+    expect((await projectOptions(mergeConfig(app({ 'assistant/tools.ts': [ask] })))).mcp).toEqual({ sql: true })
+    // Without the endpoint, the file offers nothing.
+    expect((await projectOptions(mergeConfig(app({ 'mcp/tools.ts': [invoice] }, {})))).mcp).toBeUndefined()
+    expect((await projectOptions(mergeConfig(app({ 'mcp/tools.ts': [invoice] }, { auth: { mcp: true }, mcpEndpoint: false })))).mcp).toBe(false)
+    await expect(projectOptions(mergeConfig(extension, app({ 'mcp/tools.ts': [tool('usage')] })))).rejects.toThrow('The MCP tool "usage" is defined twice, by cloud and by app; rename one of them')
   })
 
   it("finds the audit queue, the error hook, custom file providers, webhook owner roles and notification stores in the folders, the app's own last", async () => {

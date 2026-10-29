@@ -1,5 +1,6 @@
 import type { Db } from '@protobase/query'
 import { describe, expect, it } from 'vitest'
+import { defineTool } from '../assistant/tools'
 import { mcpTools } from './mcp-tools'
 import type { McpWrites } from './mcp-writes'
 
@@ -36,6 +37,23 @@ describe('mcpTools', () => {
     expect(tools(false, ['tasks'])).toEqual([...records, 'list_comments'])
     expect(tools(true, ['tasks'])).toEqual([...records, 'create_record', 'update_record', 'delete_record', 'batch_write', 'list_comments', 'add_comment'])
     expect(tools({ resources: ['labels'] }, ['tasks'])).toEqual([...records, 'create_record', 'update_record', 'delete_record', 'batch_write', 'list_comments'])
+  })
+
+  it("offers the app's own tools after the built-in ones, whatever writes says", () => {
+    const tool = (name: string) => defineTool({ name, description: name, parameters: { type: 'object' }, run: async () => name })
+    const own = [tool('send_invoice'), tool('usage')]
+    const tools = (writes: McpWrites) => mcpTools({ db, sql: true, writes, own })({ user: { id: 1, roles: ['admin'] } }).map((entry) => entry.name)
+    expect(tools(false)).toEqual([...records, 'run_read_only_query', 'send_invoice', 'usage'])
+    expect(tools(true)).toEqual([...records, 'create_record', 'update_record', 'delete_record', 'batch_write', 'run_read_only_query', 'send_invoice', 'usage'])
+    expect(mcpTools({ db, sql: true, writes: false, own })({ user: { id: 1, roles: ['sales'] } }).map((entry) => entry.name)).toEqual([...records, 'send_invoice', 'usage'])
+  })
+
+  it("stops startup on an own tool named twice, or named as a built-in tool even one its options leave off", () => {
+    const tool = (name: string) => defineTool({ name, description: name, parameters: { type: 'object' }, run: async () => name })
+    for (const name of ['get_record', 'create_record', 'add_comment', 'run_read_only_query']) {
+      expect(() => mcpTools({ db, sql: false, writes: false, own: [tool(name)] })).toThrow(`The MCP tool "${name}" has the name of a built-in MCP tool; give it another name`)
+    }
+    expect(() => mcpTools({ db, sql: false, writes: false, own: [tool('usage'), tool('usage')] })).toThrow('Two assistant tools are named "usage"')
   })
 
   it('gives every session the same tool objects, so their schemas are compiled once', () => {
