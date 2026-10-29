@@ -104,6 +104,13 @@ describe('readAppPath', () => {
     expect(readAppPath('/listings/42?standard=1', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
   })
 
+  it("writes a record page that joins the record's call as call=join, and reads only join as it", () => {
+    const address: AppAddress = { kind: 'record', resource: 'conversations', key: '7', call: 'join' }
+    expect(appPath(address)).toBe('/conversations/7?call=join')
+    expect(readAppPath(appPath(address), pages)).toEqual(address)
+    expect(readAppPath('/conversations/7?call=start', pages)).toEqual({ kind: 'record', resource: 'conversations', key: '7' })
+  })
+
   it('reads only edit=true as the form', () => {
     expect(readAppPath('/listings/42?edit=1', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
     expect(readAppPath('/listings/42?edit=false', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
