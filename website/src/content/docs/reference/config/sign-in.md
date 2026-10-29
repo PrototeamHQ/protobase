@@ -210,14 +210,14 @@ export default defineConfig({ auth: { accountDeletion: false } })
 
 ## auth.users
 
-- **Type:** `{ table?: string; columns?: Record<string, string>; metadata?: string; keyTable?: { schema: string; table: string } }`
+- **Type:** `{ table?: string; columns?: Record<string, string>; metadata?: string; keyTable?: { schema: string; table: string }; guardedSchemas?: string[] }`
 - **Default:** the table `protobase auth migration` makes
 
-The user table, when another system made it, such as Supabase's `auth.users`: its name, the columns named otherwise than Protobase names them, and a JSON column for each user's metadata. See [An existing users table](/reference/auth/#an-existing-users-table). `keyTable` makes the user table a view of the app's own over another system's, the table it names, which holds the user ids: the store's migrations leave the view to the app and point their foreign keys at that table. See [A view over another system's users](/reference/auth/#a-view-over-another-systems-users).
+The user table, when another system made it, such as Supabase's `auth.users`: its name, the columns named otherwise than Protobase names them, and a JSON column for each user's metadata. See [An existing users table](/reference/auth/#an-existing-users-table). `keyTable` makes the user table a view of the app's own over another system's, the table it names, which holds the user ids: the store's migrations leave the view to the app and point their foreign keys at that table. See [A view over another system's users](/reference/auth/#a-view-over-another-systems-users). `guardedSchemas` names the schemas the other system keeps the rest of its sign-in data in, such as Supabase Auth's `auth`: no resource may be over any table in them, and the assistant's queries never read one.
 
 ```ts
 export default defineConfig({
-  auth: { schema: 'auth', users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' } },
+  auth: { schema: 'auth', users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] } },
 })
 ```
 

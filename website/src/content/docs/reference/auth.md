@@ -51,13 +51,14 @@ The store can use a users table another system made, such as Supabase's `auth.us
 
 ```ts
 auth: {
-  users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' },
+  users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] },
   passwordHashes: ['bcrypt'],
   generateUserId: 'uuid',
 }
 ```
 
 - `users.table` names the table, default `user`. `users.columns` maps a column, by the name Protobase gives it (`name`, `email`, `email_verified`, `email_confirmed_at`, `image`, `created_at`, `updated_at`, `role`, `banned`, `ban_reason`, `ban_expires`, `two_factor_enabled`, `last_role`, `last_organization_id`), to the table's own; here the app's roles go to `app_role`, since Supabase's `role` holds the Postgres role. The other tables keep their names and point at this one.
+- `users.guardedSchemas` names the schemas where the other system keeps the rest of its sign-in data, such as Supabase Auth's `auth`, with its identities, sessions, refresh tokens and two-factor secrets. Every table in them, including one the other system adds later, counts among the store's tables: no resource may be over it and the assistant's queries never read it. Name only a schema that holds none of the app's own tables.
 - `users.metadata` names a JSON column for each user's metadata, which the migrations add as `jsonb` when the table lacks it: `createUser(auth, { ..., metadata: { full_name: 'Carol' } })` writes it, so a trigger that reads `raw_user_meta_data->>'full_name'` sees it.
 - `passwordHashes: ['bcrypt']` also verifies bcrypt hashes (`$2a$`, `$2b$`, `$2y$`), and stores the password again as Better Auth's own scrypt after its first sign-in. The 12-character minimum holds for new passwords only, so a shorter existing one still signs in.
 - `generateUserId: 'uuid'` makes each new user's id a random UUID in the server, for a table whose `id` is a `uuid` without a default, and makes every id column of the other tables a `uuid` too.
@@ -71,13 +72,13 @@ Where the app may not change the other system's users table, as on a Supabase da
 ```ts
 auth: {
   schema: 'app_auth',
-  users: { table: 'users', keyTable: { schema: 'auth', table: 'users' }, columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' },
+  users: { table: 'users', keyTable: { schema: 'auth', table: 'users' }, guardedSchemas: ['auth'], columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' },
   passwordHashes: ['bcrypt'],
   generateUserId: 'uuid',
 }
 ```
 
-The store's migrations then make nothing of the user table, which a migration of the project's own makes as a view with an `instead of` trigger for Better Auth's writes, and every foreign key points at the key table. `protobase dev` compares the view's columns with what Better Auth needs, rather than reporting it as a missing table. The key table counts among the store's tables, so no resource may be over it and the assistant's queries never read it, since it holds the other system's password hashes. On a Supabase database, [`npm create protobase`](/getting-started/#on-an-existing-database) writes these settings and the view.
+The store's migrations then make nothing of the user table, which a migration of the project's own makes as a view with an `instead of` trigger for Better Auth's writes, and every foreign key points at the key table. `protobase dev` compares the view's columns with what Better Auth needs, rather than reporting it as a missing table. The key table counts among the store's tables, so no resource may be over it and the assistant's queries never read it, since it holds the other system's password hashes. The key table's schema is not guarded on its own, since it may hold the app's tables; `users.guardedSchemas` guards the other system's other tables, here Supabase Auth's whole `auth` schema. On a Supabase database, [`npm create protobase`](/getting-started/#on-an-existing-database) writes these settings and the view.
 
 ## Configuration
 
