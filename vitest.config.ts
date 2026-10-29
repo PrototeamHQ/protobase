@@ -212,6 +212,17 @@ export default defineConfig({
         },
       },
       {
+        // A project made by `npm create protobase` on a Supabase database it shares with Supabase Auth, on Supabase's
+        // Postgres image with its own init and Supabase Auth: `tests/supabase-auth/stack.sh start <name>` starts them.
+        extends: true,
+        test: {
+          name: 'supabase-auth',
+          include: ['tests/supabase-auth/**/*.test.ts'],
+          testTimeout: 60_000,
+          hookTimeout: 300_000,
+        },
+      },
+      {
         extends: true,
         test: {
           name: 'e2e',
