@@ -48,9 +48,9 @@ const fakeDocument = ({ withWindow = true } = {}) => {
 
 type Page = ReturnType<typeof fakeDocument>
 
-// Presses every 100 ms for 1.5 s, alternating pointerdown and keydown unless `press` sends others.
+// Presses every 100 ms for 2 s, alternating pointerdown and keydown unless `press` sends others.
 const pressFast = (page: Page, press: (page: Page, index: number) => void = (p, i) => p.press(i % 2 ? 'keydown' : 'pointerdown')) => {
-  for (let index = 0; index < 15; index++) {
+  for (let index = 0; index < 20; index++) {
     press(page, index)
     vi.advanceTimersByTime(100)
   }
