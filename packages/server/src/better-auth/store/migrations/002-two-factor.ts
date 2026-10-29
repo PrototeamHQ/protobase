@@ -7,8 +7,8 @@ export const twoFactor: StoreMigration = {
   name: 'two_factor',
   title: 'The authenticator secrets and backup codes of two-step sign-in',
   tables: ['two_factor'],
-  statements: ({ table, user, userColumn: column, id, idRef }) => [
-    ddl`alter table ${user} add column if not exists ${column('two_factor_enabled')} boolean`,
+  statements: ({ table, user, userDdl, userColumn: column, id, idRef }) => [
+    ...userDdl([ddl`alter table ${user} add column if not exists ${column('two_factor_enabled')} boolean`]),
     ddl`create table ${table('two_factor')} (
   id ${id} primary key,
   secret text not null,

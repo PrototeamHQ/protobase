@@ -34,15 +34,21 @@ export type UserTableOptions = {
   columns?: Partial<Record<UserColumn, string>>
   /** A JSON column that holds each user's metadata, such as `raw_user_meta_data`; none by default. */
   metadata?: string
+  /**
+   * The table that holds the user ids, when `table` is a view over another system's user table, such as
+   * `{ schema: 'auth', table: 'users' }` under a view over Supabase's `auth.users`: the store's migrations then make
+   * nothing of the user table, which the app's own migration makes, and every foreign key points at this table.
+   */
+  keyTable?: { schema: string; table: string }
 }
 
 /** The user table's names, from `auth.users` option; unknown columns are an error. */
-export const userTable = ({ table = 'user', columns = {}, metadata }: UserTableOptions = {}) => {
+export const userTable = ({ table = 'user', columns = {}, metadata, keyTable }: UserTableOptions = {}) => {
   const unknown = Object.keys(columns).find((name) => !(name in userFields))
   if (unknown !== undefined) throw new Error(`users.columns names "${unknown}", which is not a column of the user table: ${Object.keys(userFields).join(', ')}`)
   const column = (name: UserColumn) => columns[name] ?? name
   const fieldNames = Object.fromEntries(Object.entries(userFields).map(([name, field]) => [field, column(name as UserColumn)])) as Record<string, string>
-  return { modelName: table, column, fieldNames, metadata }
+  return { modelName: table, column, fieldNames, metadata, keyTable }
 }
 
 export type UserTable = ReturnType<typeof userTable>

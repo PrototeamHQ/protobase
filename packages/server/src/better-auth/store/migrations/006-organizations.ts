@@ -7,8 +7,8 @@ export const organizations: StoreMigration = {
   name: 'organizations',
   title: 'Organizations, their members and their invitations',
   tables: ['organization', 'member', 'invitation'],
-  statements: ({ table, user, userColumn: column, id, idRef }) => [
-    ddl`alter table ${user} add column if not exists ${column('last_organization_id')} text`,
+  statements: ({ table, user, userDdl, userColumn: column, id, idRef }) => [
+    ...userDdl([ddl`alter table ${user} add column if not exists ${column('last_organization_id')} text`]),
     ddl`alter table ${table('session')} add column active_organization_id text`,
     ddl`create table ${table('organization')} (
   id ${id} primary key,
