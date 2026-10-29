@@ -85,9 +85,11 @@ const replies = resource('replies')
     tenant_id: f.integer().readOnly(),
     channel_id: f.relation('channels').optional().filterable(),
     thread_id: f.relation('replies').optional().filterable(),
+    body: f.text().filterable(),
   })
   .primaryKey((r) => r.id)
   .tenant((r) => r.tenant_id)
+  .search((r) => [r.body])
   .parent((r) => r.thread_id, 'read')
   .parent((r) => r.channel_id, 'read')
 
@@ -117,9 +119,12 @@ beforeAll(async () => {
     create table folders (id integer primary key, owner_id text not null, parent_id integer references folders);
     create index on folders (owner_id);
     create index on folders (parent_id);
-    create table replies (id integer primary key, tenant_id integer not null, channel_id integer references channels, thread_id integer references replies);
+    create table replies (id integer primary key, tenant_id integer not null, channel_id integer references channels, thread_id integer references replies, body text not null);
+    create index on replies (id);
     create index on replies (channel_id);
     create index on replies (thread_id);
+    create index on replies (body);
+    create index on replies using gin (body gin_trgm_ops);
     insert into channels values
       (1, 1, 'public', '[]', null), (2, 1, 'private', '["alice"]', null), (3, 1, 'private', '["alice", "bob"]', '2026-07-01'),
       (4, 2, 'public', '[]', null);
@@ -132,7 +137,7 @@ beforeAll(async () => {
     insert into rooms values (1, true), (2, false);
     insert into posts values (1, 1), (2, 2), (3, null);
     insert into folders values (1, 'alice', null), (2, 'alice', 1), (3, 'bob', null), (4, 'alice', 3);
-    insert into replies values (1, 1, 2, null), (2, 1, null, 1);
+    insert into replies values (1, 1, 2, null, 'private thread'), (2, 1, null, 1, 'private reply');
   `)
   db = new Kysely({ dialect: pg.dialect })
   app = createAdmin({ resources: [channels, directMessages, messages, reactions, pins, rooms, posts, folders, replies], db, authenticate: testAuthenticator })
@@ -205,9 +210,23 @@ describe('a child under .parent(fk, "read")', () => {
   })
 
   it("keeps a reply linked only to its thread to the thread's channel", async () => {
+    const searched = async (sub: string) => {
+      const response = await app.request('/api/v1/replies:search', { method: 'POST', headers: as(sub), body: JSON.stringify({ filter: 'search("reply")' }) })
+      return ((await response.json()).items as { id: number }[]).map((item) => item.id)
+    }
     expect(await ids('/replies?order_by=id', 'bob')).toEqual([])
+    expect(await searched('bob')).toEqual([])
+    expect(await total('/replies:aggregate?group_by=thread_id', 'bob')).toBe(0)
     expect((await get('/replies/2', 'bob')).status).toBe(404)
     expect(await ids('/replies?order_by=id', 'alice')).toEqual([1, 2])
+    expect(await searched('alice')).toEqual([2])
+    expect(await total('/replies:aggregate?group_by=thread_id', 'alice')).toBe(2)
     expect((await get('/replies/2', 'alice')).status).toBe(200)
+  })
+
+  it("refuses a reply under a thread whose channel the caller does not read", async () => {
+    const reply = (sub: string, id: number) => app.request('/api/v1/replies', { method: 'POST', headers: as(sub), body: JSON.stringify({ id, thread_id: 1, body: 'me too' }) })
+    expect((await reply('bob', 3)).status).toBe(403)
+    expect((await reply('alice', 3)).status).toBe(201)
   })
 })
