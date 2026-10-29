@@ -12,14 +12,23 @@ export type PersonRowProps = {
   children?: ReactNode
   /** Why the last change to this person did not go through. */
   error?: string
+  /** Beside the name, such as their status (see `StatusMark`). */
+  status?: ReactNode
 }
 
 /** Someone in a list of people: their name, " (you)" on one's own row, their address, what can be done and their roles. */
-export const PersonRow = ({ name, email, self, actions, children, error }: PersonRowProps) => (
+export const PersonRow = ({ name, email, self, actions, children, error, status }: PersonRowProps) => (
   <li className="flex flex-col gap-2 px-3 py-3">
     <div className="flex flex-wrap items-center gap-2">
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium">{name}{self && ' (you)'}</span>
+        {status ? (
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-medium">{name}{self && ' (you)'}</span>
+            {status}
+          </span>
+        ) : (
+          <span className="block truncate font-medium">{name}{self && ' (you)'}</span>
+        )}
         <span className="block truncate text-xs text-muted-foreground">{email}</span>
       </span>
       {actions}

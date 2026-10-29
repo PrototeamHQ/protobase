@@ -68,6 +68,7 @@ import { text as appText } from './messages'
 import type { NativeBridge } from './native-auth-fetch'
 import { LiveUpdateGate } from './live-update/live-update-gate'
 import { useStatusMenu } from '../status/use-status-menu'
+import { useStatuses } from '../status/use-statuses'
 
 export type AppProps = {
   /** Where `/api/v1` lives. Defaults to the current origin. */
@@ -150,6 +151,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const bell = meta.bell && user && !staff && <ShellBell own={shell?.bell} />
   // The person's own status, which only they set: staff signed in as them see no item.
   const status = useStatusMenu(Boolean(meta.status && user && !staff))
+  // Everyone's statuses, which the members page shows beside their names.
+  const statuses = useStatuses().data
   // The assistant is there when `/meta` names one, which it does only for the admin and ai roles.
   const [assistantOpen, setAssistantOpen] = useState(false)
   const assistantUrl = meta.assistant?.url
@@ -199,7 +202,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
     ) : organizationPage && path === organizationPath ? (
       <OrganizationPage current={current} basePath={basePath} onChanged={organizations.reload} />
     ) : organizationPage && (path === membersPath || path === invitationsPath) ? (
-      !managesOrganization(current) ? <Notice title={appText('ownersOnly')}>{appText('onlyOwners')}</Notice> : path === membersPath ? <MembersPage current={current} /> : <InvitationsPage current={current} />
+      !managesOrganization(current) ? <Notice title={appText('ownersOnly')}>{appText('onlyOwners')}</Notice> : path === membersPath ? <MembersPage current={current} statuses={statuses} /> : <InvitationsPage current={current} />
     ) : (organizationPage && path === organizationsPath) || outsideOrganizations ? (
       <OrganizationsPage state={organizations} basePath={basePath} />
     ) : !address ? (

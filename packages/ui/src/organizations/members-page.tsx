@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AuthError, type CurrentOrganization, type OrganizationMember, type OrganizationRole } from '@protobase/client'
+import { AuthError, type CurrentOrganization, type OrganizationMember, type OrganizationRole, type PersonStatus } from '@protobase/client'
 import { AccountSection, SectionError } from '../account/account-section'
 import { PageHeader } from '../app-shell'
 import { authMessage } from '../auth/auth-messages'
 import { useAuth } from '../auth/auth-provider'
 import { PersonRow } from '../people/person-row'
+import { StatusMark } from '../status/status-mark'
 import { Button } from '../primitives/button'
 import { Spinner } from '../primitives/spinner'
 import { AppRolesPicker } from './app-roles-picker'
@@ -15,7 +16,7 @@ import { text } from './messages'
 /** The organization roles the person may set: owners every one, admins those below owner. */
 export const assignableOrganizationRoles = (current?: CurrentOrganization): OrganizationRole[] => (current?.role === 'owner' ? ['owner', 'admin', 'member'] : ['admin', 'member'])
 
-const MemberRow = ({ member, current, onChanged }: { member: OrganizationMember; current: CurrentOrganization; onChanged: () => void }) => {
+const MemberRow = ({ member, current, status, onChanged }: { member: OrganizationMember; current: CurrentOrganization; status?: PersonStatus | undefined; onChanged: () => void }) => {
   const { session, organizations } = useAuth()
   const organizationId = current.organization!.id
   const { busy, error, run } = useAction()
@@ -31,6 +32,7 @@ const MemberRow = ({ member, current, onChanged }: { member: OrganizationMember;
       email={member.email}
       self={self}
       error={error}
+      {...(status && { status: <StatusMark status={status} /> })}
       actions={
         <>
           <select
@@ -57,9 +59,10 @@ const MemberRow = ({ member, current, onChanged }: { member: OrganizationMember;
 
 /**
  * The members of the organization one works in, for its owners and admins: organization roles, which decide who
- * manages it, and app roles, which decide what each sees and does; only roles the person may give can change.
+ * manages it, and app roles, which decide what each sees and does; only roles the person may give can change. In an
+ * app with status, `statuses` puts each member's beside their name (see `useStatuses`).
  */
-export const MembersPage = ({ current }: { current?: CurrentOrganization }) => {
+export const MembersPage = ({ current, statuses }: { current?: CurrentOrganization; statuses?: readonly PersonStatus[] | undefined }) => {
   const { session } = useAuth()
   const [members, setMembers] = useState<OrganizationMember[]>()
   const [error, setError] = useState<string>()
@@ -76,7 +79,7 @@ export const MembersPage = ({ current }: { current?: CurrentOrganization }) => {
         <SectionError message={error} />
         {members ? (
           <ul className="divide-y rounded-md border">
-            {members.map((member) => <MemberRow key={`${member.id}/${member.role}/${member.appRoles.join()}`} member={member} current={current} onChanged={load} />)}
+            {members.map((member) => <MemberRow key={`${member.id}/${member.role}/${member.appRoles.join()}`} member={member} current={current} status={statuses?.find((status) => status.userId === member.userId)} onChanged={load} />)}
           </ul>
         ) : (
           !error && <div className="flex items-center gap-2 text-muted-foreground"><Spinner /> {text('loading')}</div>
