@@ -65,7 +65,7 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
 
   const { builtInOrder } = live === undefined ? await buildWebPart({ projectDir, ws, extensions, apiOrigin: url.origin, ...(build && { build }), onWarning }) : await placeholderWebPart(ws)
   const fingerprint = nativeFingerprint(pinnedNative, mobile.plugins)
-  const liveUpdate = liveUpdateSettings({ platform, ...(mobile.publicKey && { publicKey: mobile.publicKey }), ...(builtInOrder && { builtInOrder }), apiOrigin: url.origin, live: live !== undefined })
+  const liveUpdate = liveUpdateSettings({ ...(mobile.publicKey && { publicKey: mobile.publicKey }), ...(builtInOrder && { builtInOrder }), apiOrigin: url.origin, live: live !== undefined })
   if (liveUpdate.note) process.stderr.write(`note: ${liveUpdate.note}\n`)
   const config = { appId: mobile.appId, appName, fingerprint, shellVersion: protobaseVersion, plugins, allowances, apiOrigin: url.origin, platform }
   await writeCapacitorConfig(ws, capacitorConfig({ ...config, ...(liveUpdate.settings && { liveUpdate: liveUpdate.settings }) }))

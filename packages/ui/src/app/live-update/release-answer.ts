@@ -1,6 +1,6 @@
 import type { MobileReleaseAnswer } from '@protobase/schema/internal'
 
-// The ids the Android guard takes: one safe path component.
+// The ids the guard takes: one safe path component.
 const bundleIdPattern = /^[A-Za-z0-9_-]{1,64}$/
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)

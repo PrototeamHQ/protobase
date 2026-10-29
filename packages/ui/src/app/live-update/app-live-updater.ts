@@ -15,8 +15,8 @@ export type AppLiveUpdaterInput = {
 }
 
 /**
- * The live updater of the app the page runs in: `undefined` in a browser, and in a binary without the live updater,
- * such as the iOS app, or one built without `mobile.publicKey`. It asks the server only with the binary's fingerprint
+ * The live updater of the app the page runs in: `undefined` in a browser, and in an iOS or Android binary without the
+ * live updater, such as one built without `mobile.publicKey`. It asks the server only with the binary's fingerprint
  * and the API origin the page names; without them it only tells the plugin the files started.
  */
 export const appLiveUpdater = ({ bridge, apiOrigin, userAgent, fetch, onHold }: AppLiveUpdaterInput) => {

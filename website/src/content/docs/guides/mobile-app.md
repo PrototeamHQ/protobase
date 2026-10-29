@@ -123,7 +123,7 @@ Only Gradle gets them, for the length of the build: npm, its install scripts and
 
 ## 7. Live updates
 
-An Android app updates its files itself from your server, so it gets UI changes without a store release. Make a key pair once:
+The app updates its files itself from your server, on Android and iOS alike, so it gets UI changes without a store release. Make a key pair once:
 
 ```sh
 protobase mobile keys
@@ -140,7 +140,7 @@ mobile: {
 },
 ```
 
-Build the binary again. Each deploy of the app then reaches it: it downloads the files that changed in the background and runs them at its next start, and a release that fails to start goes back to the files the binary carries. Releases come from a server of the same Protobase minor as the binary (below 1.0); a newer minor needs a store release. See [the live updater](/reference/cli/#the-live-updater). <gap>The iOS app cannot update itself because its guarded live updater is not implemented.</gap>
+Build the binary again. Each deploy of the app then reaches it: it downloads the files that changed in the background and runs them at its next start, and a release that fails to start goes back to the files the binary carries. Releases come from a server of the same Protobase minor as the binary (below 1.0); a newer minor needs a store release. See [the live updater](/reference/cli/#the-live-updater).
 
 ## 8. What the stores accept
 

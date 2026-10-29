@@ -12,7 +12,7 @@ export type LiveUpdaterInput = {
   bridge: LiveUpdateBridge
   /** The server's answer, `undefined` when it gave none (see `checkRelease`). */
   check: () => Promise<MobileReleaseAnswer | undefined>
-  /** `<api origin>/api/mobile/releases`, which the Android guard takes a release from only. */
+  /** `<api origin>/api/mobile/releases`, which the guard takes a release from only. */
   releasesUrl: string
   /** Called with true while a required update holds the app, and false once it goes on. */
   onHold: (holding: boolean) => void

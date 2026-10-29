@@ -8,7 +8,7 @@ export type MobileConfig = {
   plugins?: Record<string, string>
   /**
    * The public key, PEM, of the RSA key in `PROTOBASE_MOBILE_SIGNING_KEY`, which `protobase mobile keys`
-   * prints: with it the Android app updates itself, taking only releases signed with that key.
+   * prints: with it the Android and iOS app update themselves, taking only releases signed with that key.
    */
   publicKey?: string
 }
