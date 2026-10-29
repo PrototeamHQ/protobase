@@ -1,10 +1,12 @@
 // Publishes every public packages/* package to npm at the version in its package.json, skipping a version npm already
 // has, so a missed or half-done publish can be run again. The packages are built concurrently and packed with Bun
-// (which pins the workspace:* dependencies) one at a time, then the tarballs are published with npm in dependency
-// layers, each layer's packages concurrently, so a package is never on npm before the @protobase packages it needs. npm
-// authenticates with trusted publishing (OIDC) and adds provenance in the release workflow. `--dry-run` runs
-// `npm publish --dry-run`; `--pack` builds and packs every package, whatever npm has, and publishes nothing, which CI
-// runs so a package that cannot be packed fails before a release is cut.
+// (which pins the workspace:* dependencies) one at a time, then every tarball is published with npm at once: npm makes
+// each new version visible after a lag of its own anyway, so publishing in dependency order would not keep a package
+// from being served before the @protobase packages it needs. One failing upload lets the others finish, then fails the
+// script naming it, and running it again publishes only what npm is missing. npm authenticates with trusted publishing
+// (OIDC) and adds provenance in the release workflow. `--dry-run` runs `npm publish --dry-run`; `--pack` builds and
+// packs every package, whatever npm has, and publishes nothing, which CI runs so a package that cannot be packed fails
+// before a release is cut.
 import { spawn } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -42,25 +44,8 @@ const readPackages = () =>
     const packageDir = path.join('packages', dir)
     const manifest = JSON.parse(readFileSync(path.join(packageDir, 'package.json'), 'utf8'))
     if (manifest.private) return []
-    const dependencies = Object.keys({ ...manifest.dependencies, ...manifest.peerDependencies })
-    return [{ dir: packageDir, name: manifest.name, version: manifest.version, dependencies, build: Boolean(manifest.scripts?.build) }]
+    return [{ dir: packageDir, name: manifest.name, version: manifest.version, build: Boolean(manifest.scripts?.build) }]
   })
-
-// Groups the packages into layers, each depending only on packages in the layers before it.
-const toLayers = (packages) => {
-  const names = new Set(packages.map((p) => p.name))
-  const placed = new Set()
-  const layers = []
-  let remaining = packages
-  while (remaining.length > 0) {
-    const layer = remaining.filter((p) => p.dependencies.every((d) => !names.has(d) || placed.has(d)))
-    if (layer.length === 0) throw new Error(`circular @protobase dependencies among ${remaining.map((p) => p.name)}`)
-    for (const p of layer) placed.add(p.name)
-    layers.push(layer)
-    remaining = remaining.filter((p) => !layer.includes(p))
-  }
-  return layers
-}
 
 // Whether npm already has name@version.
 const isPublished = async ({ name, version }) => {
@@ -120,19 +105,21 @@ const publishTarball = async (tarball, attempt = 1) => {
   }
 }
 
-const publishLayers = async () => {
-  for (const layer of toLayers(pending)) {
-    await Promise.all(
-      layer.map(async ({ name, version }) => {
-        await publishTarball(tarballOf.get(name))
-        console.log(`${dryRun ? 'would publish' : 'published'} ${name}@${version}`)
-      }),
-    )
-  }
+const publishAll = async () => {
+  const results = await Promise.allSettled(
+    pending.map(async ({ name, version }) => {
+      await publishTarball(tarballOf.get(name))
+      console.log(`${dryRun ? 'would publish' : 'published'} ${name}@${version}`)
+    }),
+  )
+  const failed = pending.filter((_, i) => results[i].status === 'rejected')
+  if (failed.length === 0) return
+  console.error(`could not publish ${failed.map(({ name, version }) => `${name}@${version}`).join(', ')}`)
+  process.exitCode = 1
 }
 
 if (packOnly) {
   for (const tarball of tarballOf.values()) console.log(`packed ${tarball}`)
 } else {
-  await publishLayers()
+  await publishAll()
 }

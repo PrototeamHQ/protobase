@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { readdirSync, readFileSync } from 'node:fs'
 import { appendFile, chmod, copyFile, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -64,24 +65,41 @@ describe('scripts/publish.mjs --pack', () => {
   })
 })
 
-// Stands in for npm: `npm view` finds no version, and `npm publish` of a tarball fails with the error code of
-// IDENTITY_TOKEN_READ_ERROR the first time, as GitHub's OIDC endpoint now and then fails npm's provenance, which failed
-// the 0.38.0 release, or always with FAILURE when set. Each publish is logged to PUBLISHES.
+// Stands in for npm: `npm view` finds only the name@version in ON_NPM, and `npm publish` of a tarball fails with the
+// error code of IDENTITY_TOKEN_READ_ERROR the first time, as GitHub's OIDC endpoint now and then fails npm's
+// provenance, which failed the 0.38.0 release, or always with FAILURE when set, for every tarball or only those whose
+// path holds FAILING. Each publish logs its start and its end to PUBLISHES; with WAIT_FOR set, it ends only once that
+// many tarballs have started, or after 5 seconds, so publishes one after another show as an end before the last start.
 const fakeNpm = `#!${process.execPath}
 const { appendFileSync, readFileSync } = require('node:fs')
-if (process.argv[2] === 'view') process.exit(1)
+if (process.argv[2] === 'view') {
+  if (process.argv[3] !== process.env.ON_NPM) process.exit(1)
+  console.log(process.argv[3].split('@').pop())
+  process.exit(0)
+}
 const tarball = process.argv[3]
-const before = readFileSync(process.env.PUBLISHES, 'utf8').split('\\n').filter((line) => line === tarball).length
-appendFileSync(process.env.PUBLISHES, tarball + '\\n')
-if (process.env.FAILURE) {
-  console.error('npm error code ' + process.env.FAILURE)
-  process.exit(1)
+const before = readFileSync(process.env.PUBLISHES, 'utf8').split('\\n').filter((line) => line === 'start ' + tarball).length
+appendFileSync(process.env.PUBLISHES, 'start ' + tarball + '\\n')
+const started = () => new Set(readFileSync(process.env.PUBLISHES, 'utf8').split('\\n').filter((line) => line.startsWith('start '))).size
+const waitUntil = Date.now() + 5_000
+const finish = () => {
+  if (started() < Number(process.env.WAIT_FOR) && Date.now() < waitUntil) return setTimeout(finish, 20)
+  appendFileSync(process.env.PUBLISHES, 'end ' + tarball + '\\n')
+  if (process.env.FAILURE && tarball.includes(process.env.FAILING)) {
+    console.error('npm error code ' + process.env.FAILURE)
+    process.exit(1)
+  }
+  if (before === 0) {
+    console.error('npm error code IDENTITY_TOKEN_READ_ERROR')
+    process.exit(1)
+  }
 }
-if (before === 0) {
-  console.error('npm error code IDENTITY_TOKEN_READ_ERROR')
-  process.exit(1)
-}
+finish()
 `
+
+const readManifest = (dir: string) => JSON.parse(readFileSync(path.join(root, 'packages', dir, 'package.json'), 'utf8'))
+const publicPackageCount = () => readdirSync(path.join(root, 'packages')).filter((dir) => !readManifest(dir).private).length
+const schema = readManifest('schema')
 
 describe('scripts/publish.mjs', () => {
   // Each publish tried again waits a second first.
@@ -91,7 +109,7 @@ describe('scripts/publish.mjs', () => {
   let repo = ''
   afterEach(() => Promise.all([binDir, repo].map((dir) => rm(dir, { recursive: true, force: true }))))
 
-  const publish = async (failure?: string) => {
+  const publish = async ({ failure = '', failing = '', onNpm = '', waitFor = '' } = {}) => {
     binDir = await mkdtemp(path.join(tmpdir(), 'protobase-fake-npm-'))
     for (const [name, script] of Object.entries({ bun: '#!/bin/sh\n', npm: fakeNpm })) {
       await writeFile(path.join(binDir, name), script)
@@ -101,10 +119,11 @@ describe('scripts/publish.mjs', () => {
     await appendFile(publishes, '')
     repo = await realpath(await mkdtemp(path.join(tmpdir(), 'protobase-publish-')))
     await copyManifests(repo)
-    const env = { ...process.env, PATH: `${binDir}${path.delimiter}${process.env.PATH}`, PUBLISHES: publishes, FAILURE: failure ?? '' }
+    const env = { ...process.env, PATH: `${binDir}${path.delimiter}${process.env.PATH}`, PUBLISHES: publishes, FAILURE: failure, FAILING: failing, ON_NPM: onNpm, WAIT_FOR: waitFor }
     const result = spawnSync(process.execPath, [path.join(root, 'scripts/publish.mjs')], { cwd: repo, env, encoding: 'utf8' })
-    const lines = (await readFile(publishes, 'utf8')).split('\n').filter(Boolean)
-    return { result, lines }
+    const log = (await readFile(publishes, 'utf8')).split('\n').filter(Boolean)
+    const lines = log.filter((line) => line.startsWith('start ')).map((line) => line.slice('start '.length))
+    return { result, log, lines }
   }
 
   it('publishes a tarball again when npm could not read the identity token', async () => {
@@ -117,10 +136,36 @@ describe('scripts/publish.mjs', () => {
   })
 
   it('fails at once on any other npm error', async () => {
-    const { result, lines } = await publish('E403')
+    const { result, lines } = await publish({ failure: 'E403' })
 
     expect(result.status).toBe(1)
     expect(result.stdout).not.toMatch(/^published /m)
     expect(new Set(lines).size).toBe(lines.length)
+  })
+
+  it('starts every upload before any of them finishes', async () => {
+    const { result, log } = await publish({ waitFor: String(publicPackageCount()) })
+
+    expect(result.status).toBe(0)
+    const firstEnd = log.findIndex((line) => line.startsWith('end '))
+    expect(new Set(log.slice(0, firstEnd)).size).toBe(publicPackageCount())
+  })
+
+  it('skips a version npm already has', async () => {
+    const { result, lines } = await publish({ onNpm: `${schema.name}@${schema.version}` })
+
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain(`${schema.name}@${schema.version} is already on npm\n`)
+    expect(new Set(lines).size).toBe(publicPackageCount() - 1)
+    expect(lines.some((line) => line.includes('protobase-schema-'))).toBe(false)
+  })
+
+  it('lets the other uploads finish when one fails, then fails naming it', async () => {
+    const { result } = await publish({ failure: 'E403', failing: 'protobase-schema-' })
+
+    expect(result.status).toBe(1)
+    expect(result.stdout.match(/^published /gm)).toHaveLength(publicPackageCount() - 1)
+    expect(result.stdout).not.toMatch(/^published @protobase\/schema@/m)
+    expect(result.stderr).toContain(`could not publish ${schema.name}@${schema.version}\n`)
   })
 })
