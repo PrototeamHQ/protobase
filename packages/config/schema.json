@@ -3491,6 +3491,17 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "publicKey": {
+          "description": "The public key, PEM, of the RSA key in `PROTOBASE_MOBILE_SIGNING_KEY`, which `protobase mobile keys`\nprints: with it the Android app updates itself, taking only releases signed with that key.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
       "required": [
