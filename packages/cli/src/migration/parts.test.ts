@@ -26,4 +26,8 @@ describe('the migration parts', () => {
     expect(names(migrationParts({ ...project([]), notifications: { historyStore: {} as HistoryStore } }))).toEqual(['jobs', 'changes', 'computed', 'notifications'])
     expect(names(migrationParts({ ...project([]), notifications: { store: {} as DeviceStore, historyStore: {} as HistoryStore } }))).toEqual(['jobs', 'changes', 'computed'])
   })
+  it('add the relay with several processes, and the sends of SQL to the channels once turned on', () => {
+    expect(names(migrationParts({ ...project([]), realtime: { processes: 'many', sqlSends: true } }))).toEqual(['changes', 'computed', 'realtime_relay', 'channel_sends'])
+    expect(names(migrationParts({ ...project([]), realtime: { sqlSends: false } }))).toEqual(['changes', 'computed'])
+  })
 })
