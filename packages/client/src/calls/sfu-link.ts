@@ -1,3 +1,4 @@
+import { PublishRefused } from './publish-refused'
 import type { CallCandidate, CallRemoteTrack, CallResume, CallServerMessage, CallTrackRequest, CallTrackSource, CallVideoLayer } from '@protobase/schema/internal'
 import { connectionOf } from './connection-stats'
 import { createPeerConnection as newPeerConnection, type MediaLink, type MediaLinkInput, type PublishOptions } from './media-link'
@@ -123,7 +124,7 @@ export const sfuLink = ({ iceServers, send, onTracks, onUnpublished, createPeerC
         publishing?.resolve(message.tracks)
         return
       case 'publish-refused':
-        publishing?.reject(new Error(message.reason))
+        publishing?.reject(new PublishRefused(message.reason))
         return
     }
   }
