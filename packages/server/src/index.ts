@@ -165,6 +165,9 @@ export {
   type PublicFunctionOptions,
 } from './functions/define-function'
 export type { FunctionSocket, SocketEvents } from './functions/function-socket'
+export type { CallBackend, CallsOptions, LiveKitBackend } from './calls/calls-options'
+export type { CallsAccess } from './calls/calls-access'
+export type { CallMember } from './calls/call-member'
 export type { FunctionRecords } from './functions/records'
 export { functionApp, type FunctionEnv, type PublicFunctionEnv } from './functions/function-app'
 export { readJson, type StandardSchema } from './functions/read-json'

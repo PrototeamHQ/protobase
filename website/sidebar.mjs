@@ -26,6 +26,7 @@ export const features = [
   'features/history-comments-and-live-updates',
   'features/events-webhooks-and-jobs',
   'features/notifications',
+  'features/calls',
   'features/email-and-public-forms',
   'features/ai',
   'features/compatibility',
@@ -74,7 +75,7 @@ export const referenceGroups = [
     items: ['reference/data-config', 'reference/files', 'reference/history', 'reference/comments', 'reference/live', 'reference/ai'],
   },
   { label: 'Access and sign-in', items: ['reference/access', 'reference/auth'] },
-  { label: 'API', items: ['reference/api', 'reference/client', 'reference/mcp'] },
+  { label: 'API', items: ['reference/api', 'reference/client', 'reference/mcp', 'reference/calls'] },
   { label: 'Events and jobs', items: ['reference/events', 'reference/webhooks', 'reference/jobs'] },
   { label: 'Email, notifications and forms', items: ['reference/email', 'reference/notifications', 'reference/forms'] },
   {

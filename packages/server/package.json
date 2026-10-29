@@ -50,6 +50,7 @@
     "@better-auth/oauth-provider": "^1.7.12",
     "@better-auth/passkey": "^1.7.12",
     "@better-auth/sso": "^1.7.12",
+    "@livekit/protocol": "1.53.1",
     "@modelcontextprotocol/server": "^2.3.1",
     "@protobase/layout": "workspace:*",
     "@protobase/query": "workspace:*",

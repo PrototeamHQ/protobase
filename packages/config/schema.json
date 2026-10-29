@@ -979,6 +979,17 @@
         }
       ]
     },
+    "calls": {
+      "description": "The media server behind the calls functions admit members to with `calls.join` (see `CallsOptions`).",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/CallsOptions"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
     "mobile": {
       "description": "The app's iOS and Android build (see `MobileConfig`).",
       "anyOf": [
@@ -3455,6 +3466,170 @@
           ]
         }
       },
+      "additionalProperties": false
+    },
+    "CallsOptions": {
+      "type": "object",
+      "properties": {
+        "backend": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LiveKitBackend"
+            },
+            {
+              "$ref": "#/definitions/PeerBackend"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "backend"
+      ],
+      "additionalProperties": false
+    },
+    "LiveKitBackend": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "const": "livekit"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "url": {
+          "description": "Its address, such as `wss://livekit.example.com` or `ws://127.0.0.1:7880`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "apiKey": {
+          "description": "The API key and secret Protobase signs each member's LiveKit token with.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "apiSecret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "url",
+        "apiKey",
+        "apiSecret"
+      ],
+      "additionalProperties": false
+    },
+    "PeerBackend": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "const": "peer"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "iceServers": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/CallIceServer"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "CallIceServer": {
+      "type": "object",
+      "properties": {
+        "urls": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "credential": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "urls"
+      ],
       "additionalProperties": false
     },
     "MobileConfig": {

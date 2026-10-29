@@ -1,0 +1,12 @@
+# LiveKit for the calls contract test and local development: the development key, one UDP port for media, and the
+# loopback address as the address browsers reach it on.
+port: 7880
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  use_external_ip: false
+  node_ip: 127.0.0.1
+keys:
+  devkey: secretsecretsecretsecretsecretsecret
+logging:
+  level: info

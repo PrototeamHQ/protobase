@@ -1,6 +1,7 @@
 import type { Db } from '@protobase/query'
 import type { Capability } from '@protobase/schema'
 import type { Caller } from '../api-keys/resolve-caller'
+import type { CallsAccess } from '../calls/calls-access'
 import type { DecryptField } from '../encryption/decrypt-field-types'
 import type { Session } from '../types'
 import type { SocketEvents } from './function-socket'
@@ -22,6 +23,8 @@ export type PublicFunctionContext = {
    * not repeated unless it passes them as `recheck`. `maxMessageBytes` lowers the largest message the socket takes.
    */
   acceptWebSocket: (events: SocketEvents) => Response
+  /** Admits a member to a call's media, over the socket the function accepts: see `CallsAccess`. */
+  calls: CallsAccess
 }
 
 /** Who called a function, and the app's resources as them. */

@@ -40,7 +40,7 @@ const fakeRecords = (rows: Record<string, Record<string, unknown>>) => ({
 
 const contextWith = (records: FunctionRecords): FunctionContext => {
   const caller = { session: { user: { id: 'mo', roles: ['mechanic'] } }, records }
-  return { name: 'test', db, ...caller, caller: async () => caller, decryptField: vi.fn(), acceptWebSocket: () => new Response() }
+  return { name: 'test', db, ...caller, caller: async () => caller, decryptField: vi.fn(), acceptWebSocket: () => new Response(), calls: { join: vi.fn() } }
 }
 
 const call = async (fn: ApiFunction, path: string, init: RequestInit, context: FunctionContext) => {
