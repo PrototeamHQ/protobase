@@ -8,7 +8,6 @@ import { createAdmin } from '../src/create-admin'
 import { mcpHandler } from '../src/mcp/mcp-handler'
 import { mcpServer } from '../src/mcp/mcp-server'
 import { mcpTools } from '../src/mcp/mcp-tools'
-import { HttpProblem } from '../src/problem'
 import { authOn, mcpStores, origin, password, redirectUri, resource, serveMcp, type McpStores } from './support/mcp-app'
 
 // Counted, so a test can tell the generic endpoint was never built.
@@ -181,19 +180,13 @@ describe('the MCP endpoint', () => {
 
   const organizationsNamed = async (name: string) => (await stores.fixture.pg.query(`select id from organizations where name = $1`, [name])).rows
 
-  // The app's own tools: one reading a record, its refusal caught, and one adding an organization once approved.
+  // The app's own tools: one reading a record, its refusal thrown, and one adding an organization once approved.
   const ownTools = [
     defineTool({
       name: 'read_record',
       description: 'Reads one record.',
       parameters: { type: 'object', properties: { resource: { type: 'string' }, key: { type: 'integer' } }, required: ['resource', 'key'] },
-      run: async (args, { records }) => {
-        const read = await records.get(String(args.resource), Number(args.key)).catch((error: unknown) => {
-          if (error instanceof HttpProblem) return { refused: error.slug }
-          throw error
-        })
-        return JSON.stringify(read)
-      },
+      run: async (args, { records }) => JSON.stringify(await records.get(String(args.resource), Number(args.key))),
     }),
     defineTool({
       name: 'add_organization',
@@ -212,7 +205,8 @@ describe('the MCP endpoint', () => {
     expect(await toolNames(app, mcp)).toEqual([...records, 'read_record', 'add_organization'])
     expect(await call(app, mcp, 'read_record', { resource: 'organizations', key: 1 })).toMatchObject({ record: { id: 1, name: expect.any(String) } })
     // Tenant-scoped, and Ana works in no organization.
-    expect(await call(app, mcp, 'read_record', { resource: 'companies', key: 1 })).toEqual({ refused: 'tenant-required' })
+    const refused = await resultOf(await rpc(app, mcp, 'tools/call', { name: 'read_record', arguments: { resource: 'companies', key: 1 } }))
+    expect(refused).toMatchObject({ isError: true, content: [{ text: expect.stringMatching(/^\{"error":"tenant-required","message":".+"\}$/) }] })
     const args = { name: 'Own Tool Org' }
     const legacy = await resultOf(await rpc(app, mcp, 'tools/call', { name: 'add_organization', arguments: args }))
     expect(legacy).toMatchObject({ isError: true, content: [{ text: expect.stringContaining('cannot ask you to approve') }] })

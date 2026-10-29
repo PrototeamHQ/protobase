@@ -3,12 +3,19 @@ import type { RecordKeyInput } from './records'
 
 /**
  * A refusal the model can act on (no such resource, not allowed, a bad filter, a record a database constraint rejects)
- * is its to read, as the REST API's problem words it; anything else fails the call.
+ * as `{ error, message }` JSON, as the REST API's problem words it; undefined for anything else.
  */
-export const refused = (error: unknown) => {
+export const refusalOf = (error: unknown) => {
   const problem = problemOf(error)
-  if (problem && problem.status < 500) return JSON.stringify({ error: problem.slug, message: problem.detail })
-  throw error
+  if (!problem || problem.status >= 500) return
+  return JSON.stringify({ error: problem.slug, message: problem.detail })
+}
+
+/** A refusal the model can act on is its to read, as `refusalOf` words it; anything else fails the call. */
+export const refused = (error: unknown) => {
+  const refusal = refusalOf(error)
+  if (refusal === undefined) throw error
+  return refusal
 }
 
 /** `show_deleted` as JSON `true` or `false`, absent being `false`; undefined for any other value, such as `"true"` or `1`. */

@@ -36,17 +36,25 @@ export type ToolAnnotations = {
   openWorldHint?: boolean
 }
 
+/** What every tool's context holds: a host's own MCP server, with no app records, gives its tools no more. */
+export type BaseToolContext = Pick<ToolContext, 'session' | 'locale' | 'approve'>
+
 /**
  * A function the model may call during a turn. `parameters` is the JSON Schema of its arguments; `run` gets them
  * parsed, checked against the schema over MCP but not in the dock, and returns what the model reads as the result.
+ * `run` gets a `ToolContext` unless the tool names a smaller one, such as `BaseToolContext` for a host's MCP server.
  */
-export type AssistantTool = {
+export type AssistantTool<Context extends BaseToolContext = ToolContext> = {
   name: string
   description: string
   parameters: Record<string, unknown>
-  run: (args: Record<string, unknown>, context: ToolContext) => Promise<string>
+  run: (args: Record<string, unknown>, context: Context) => Promise<string>
   annotations?: ToolAnnotations
+  /** MCP's display name for the tool, which `tools/list` gives as is; the dock ignores it. */
+  title?: string
+  /** MCP's `_meta` for the tool, such as `securitySchemes`, which `tools/list` gives as is; the dock ignores it. */
+  _meta?: Record<string, unknown>
 }
 
 /** Typed identity, for a tool of your own. */
-export const defineTool = (tool: AssistantTool) => tool
+export const defineTool = <Context extends BaseToolContext = ToolContext>(tool: AssistantTool<Context>) => tool
