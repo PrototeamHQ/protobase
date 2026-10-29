@@ -63,7 +63,7 @@ Your own server code asks the same question with `onDoNotDisturb(db, statusNames
 
 ## In the app
 
-`useMembers()` from `@protobase/ui` gives each member their `status` when they have one, beside their name and photo, and `useStatuses()` the statuses alone. `StatusMark` draws a status beside a name: a mark for busy, one for do not disturb, and the text, in full or, with `textShown="hover"`, on hover. Who is online or away is each app's own, from its [presence](/reference/channels/#presence); pass its mark as `presence`, and `StatusMark` draws it first, so the two sit side by side:
+The organization's members page shows each member's status beside their name. `useMembers()` from `@protobase/ui` gives each member their `status` when they have one, beside their name and photo, and `useStatuses()` the statuses alone. `StatusMark` draws a status beside a name: a mark for busy, one for do not disturb, and the text, in full or, with `textShown="hover"`, on hover. Who is online or away is each app's own, from its [presence](/reference/channels/#presence); pass its mark as `presence`, and `StatusMark` draws it first, so the two sit side by side:
 
 ```tsx
 import { StatusMark, useMembers } from '@protobase/ui'
