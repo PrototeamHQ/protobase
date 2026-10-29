@@ -13,7 +13,7 @@ import { TrackVideo } from './track-media'
  */
 export const CallTile = ({ person, screen = false, className }: { person: CallPerson; screen?: boolean; className?: string }) => {
   const track = screen ? person.screen : person.cameraOff ? undefined : person.camera
-  const label = screen ? text('sharing', person.self ? text('you') : person.name) : person.self ? `${person.name} (${text('you')})` : person.name
+  const label = screen ? (person.self ? text('youAreSharing') : text('sharing', person.name)) : person.self ? `${person.name} (${text('you')})` : person.name
   return (
     <figure
       data-member={person.member}
