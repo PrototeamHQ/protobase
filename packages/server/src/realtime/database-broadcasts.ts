@@ -4,6 +4,7 @@ import type { Db } from '@protobase/query'
 import { writeTransaction } from '../transactions'
 import { fitsFrame } from './broadcast-frame'
 import type { BroadcastHub, Publication } from './broadcast-hub'
+import { followedPoll } from './followed-poll'
 import { realtimeLimits } from './realtime-limits'
 
 export type DatabaseBroadcastsOptions = {
@@ -60,9 +61,6 @@ export const messagesTableExists = async (db: Db) =>
  * `realtime.messages` sends nothing, and is checked again at each read.
  */
 export const databaseBroadcasts = ({ db, statementTimeoutMs, broadcasts, intervalMs = 1000, report }: DatabaseBroadcastsOptions) => {
-  let followers = 0
-  let running = false
-
   const read = async () => {
     if (!(await messagesTableExists(db))) return
     for (;;) {
@@ -74,32 +72,7 @@ export const databaseBroadcasts = ({ db, statementTimeoutMs, broadcasts, interva
       if (rows.length < batchSize) return
     }
   }
-
-  const tick = async () => {
-    if (followers === 0) {
-      running = false
-      return
-    }
-    await read().catch(report)
-    setTimeout(() => void tick(), intervalMs)
-  }
-
-  return {
-    /** Reads the table from now on, until the returned function is called; once for each call, however often. */
-    follow: () => {
-      followers += 1
-      if (!running) {
-        running = true
-        void tick()
-      }
-      let followed = true
-      return () => {
-        if (!followed) return
-        followed = false
-        followers -= 1
-      }
-    },
-  }
+  return followedPoll(read, intervalMs, report)
 }
 
 export type DatabaseBroadcasts = ReturnType<typeof databaseBroadcasts>
