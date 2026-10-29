@@ -1,0 +1,6 @@
+[
+  {
+    "pkg": "@protobase/mobile",
+    "classpath": "net.protobase.mobile.GuardedLiveUpdate"
+  }
+]

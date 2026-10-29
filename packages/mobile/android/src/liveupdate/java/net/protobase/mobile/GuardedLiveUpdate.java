@@ -1,5 +1,8 @@
 package net.protobase.mobile;
 
+import android.app.Activity;
+import android.content.SharedPreferences;
+import android.util.Base64;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Logger;
 import com.getcapacitor.Plugin;
@@ -8,13 +11,23 @@ import com.getcapacitor.PluginConfig;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import io.capawesome.capacitorjs.plugins.liveupdate.LiveUpdatePlugin;
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.json.JSONObject;
 
@@ -28,8 +41,13 @@ import org.json.JSONObject;
  *   upgrade that adds a method leaves no LiveUpdate at all rather than an open one.
  * - The methods the shell needs that take no input clear what page script passed before the stock code reads it.
  * - downloadBundle takes only a manifest from the app's own releases URL, `releasesUrl + "/" + bundleId`, over https
- *   or loopback http, with `publicKey` pinned, so the stock code checks each file's signature (LiveUpdate.java:1633-1654)
- *   and a caller's checksum and signature are dropped. A few per run of the app, so a loop cannot drain the data plan.
+ *   or loopback http, and downloads it itself (ReleaseDownload), bound by the release's statement to the id, the pinned
+ *   `publicKey`, this binary and its order; a caller's checksum and signature are dropped. A few per run of the app, so
+ *   a loop cannot drain the data plan.
+ * - setNextBundle checks the bundle on disk (BundleCheck), then takes it only above the running bundle's order and not
+ *   below the highest the app downloaded; a refused bundle that is neither running nor next is deleted, as the stock
+ *   code deletes an unused one (LiveUpdate.java:803-810). It is the only way to a downloaded bundle: reset, sync and the
+ *   rest are refused, reload only runs the next bundle and a rollback goes to the built-in one (LiveUpdate.java:1411).
  * - Ids are a single safe component naming a direct child of the bundles folder: the stock code joins them to its path
  *   unchecked (LiveUpdate.java:665-667,1299-1302).
  * - Everything else is refused: deleting, resetting, the vendor's cloud, config, channel and ids.
@@ -46,6 +64,17 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
 
     private static final int MAX_DOWNLOADS = 3;
     private static final AtomicInteger downloads = new AtomicInteger();
+    // One download at a time, and one lock over the highest order downloaded and the choice of the next bundle.
+    private static final ExecutorService downloader = Executors.newSingleThreadExecutor();
+    private static final Object order = new Object();
+    // Beside the bundles folder, on the same file system, so a checked download moves into it whole.
+    private static final String DOWNLOADS = "_protobase_live_update_downloads";
+    private static final String ORDER_PREFS = "ProtobaseLiveUpdate";
+    private static final String HIGHEST_ORDER = "highestOrder";
+
+    private String releasesUrl;
+    private PublicKey publicKey;
+    private ReleaseBinary binary;
 
     @Override
     public void load() {
@@ -65,7 +94,36 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
         if (config.getInt("readyTimeout", 0) <= 0) {
             refuseToLoad("plugins.LiveUpdate.readyTimeout must be above 0 in a Protobase app");
         }
+        releasesUrl = config.getString("releasesUrl");
+        if (!ownSource(releasesUrl)) {
+            refuseToLoad("plugins.LiveUpdate.releasesUrl must be an https URL, or http to the device itself, in a Protobase app");
+        }
+        publicKey = rsaKey(config.getString("publicKey"));
+        String fingerprint = config.getString("fingerprint");
+        String shellVersion = config.getString("shellVersion");
+        if (fingerprint == null || !Hex.isHex(fingerprint, 16) || !ReleaseStatement.isVersion(shellVersion)) {
+            refuseToLoad("plugins.LiveUpdate needs the binary's fingerprint and shellVersion in a Protobase app: run protobase mobile again");
+        }
+        binary = new ReleaseBinary(getContext().getPackageName(), fingerprint, shellVersion);
+        // What a download the app did not finish left.
+        File downloads = new File(getContext().getFilesDir(), DOWNLOADS);
+        BundleRemoval.delete(downloads, downloads);
         super.load();
+    }
+
+    // The key the releases are signed with: an RSA public key as base64 SPKI DER, with or without PEM's lines, as the
+    // stock code reads it (LiveUpdate.java:744-755).
+    private static PublicKey rsaKey(String value) {
+        if (value == null || value.trim().isEmpty()) refuseToLoad("plugins.LiveUpdate.publicKey must be set in a Protobase app");
+        String body = value.replace("-----BEGIN PUBLIC KEY-----", "").replace("-----END PUBLIC KEY-----", "").replaceAll("\\s", "");
+        try {
+            PublicKey key = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(Base64.decode(body, Base64.DEFAULT)));
+            if (!(key instanceof RSAPublicKey)) refuseToLoad("plugins.LiveUpdate.publicKey must be an RSA public key in a Protobase app");
+            return key;
+        } catch (GeneralSecurityException | IllegalArgumentException e) {
+            refuseToLoad("plugins.LiveUpdate.publicKey must be an RSA public key in a Protobase app");
+            return null;
+        }
     }
 
     // Capacitor then leaves the plugin unregistered, logging only that it failed to load (PluginHandle.java:98-109), so
@@ -80,12 +138,6 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
     @Override
     @PluginMethod
     public void downloadBundle(PluginCall call) {
-        String releasesUrl = getConfig().getString("releasesUrl");
-        String publicKey = getConfig().getString("publicKey");
-        if (!ownSource(releasesUrl) || publicKey == null || publicKey.trim().isEmpty()) {
-            Refusal.rejectMethod(call, "LiveUpdate", "downloadBundle");
-            return;
-        }
         String bundleId = call.getString("bundleId");
         boolean allowed =
             "manifest".equals(call.getString("artifactType")) &&
@@ -99,11 +151,34 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
             call.reject("LiveUpdate.downloadBundle was called too often in this run of the app");
             return;
         }
-        JSObject data = clear(call);
-        data.put("artifactType", "manifest");
-        data.put("bundleId", bundleId);
-        data.put("url", releasesUrl + "/" + bundleId);
-        super.downloadBundle(call);
+        clear(call);
+        downloader.execute(() -> download(call, bundleId));
+    }
+
+    private void download(PluginCall call, String bundleId) {
+        File bundles = BundlesFolder.of(getContext());
+        File downloads = new File(getContext().getFilesDir(), DOWNLOADS);
+        File dir = new File(downloads, UUID.randomUUID().toString());
+        try {
+            if (!dir.mkdirs() || !(bundles.isDirectory() || bundles.mkdirs())) throw new IOException("Cannot create " + dir);
+            String current = bundleIdOf(getBridge().getServerBasePath());
+            ReleaseStatement statement = new ReleaseDownload(releasesUrl, publicKey, binary).download(bundleId, dir, current == null ? null : new File(bundles, current), highestOrder());
+            File target = new File(bundles, bundleId);
+            // The same release downloaded before stays; setNextBundle checks it anyway.
+            if (!target.exists() && !dir.renameTo(target)) throw new IOException("Cannot move " + dir);
+            synchronized (order) {
+                if (ReleaseOrder.compare(statement.order, highestOrder()) > 0) {
+                    prefs().edit().putString(HIGHEST_ORDER, ReleaseOrder.format(statement.order)).commit();
+                }
+            }
+            call.resolve();
+        } catch (BundleRefused e) {
+            call.reject("LiveUpdate.downloadBundle refused release " + bundleId + ": " + e.getMessage());
+        } catch (IOException e) {
+            call.reject("LiveUpdate.downloadBundle could not download release " + bundleId);
+        } finally {
+            BundleRemoval.delete(downloads, dir);
+        }
     }
 
     @Override
@@ -120,8 +195,56 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
             Refusal.rejectMethod(call, "LiveUpdate", "setNextBundle");
             return;
         }
-        clear(call).put("bundleId", bundleId);
-        super.setNextBundle(call);
+        String id = (String) bundleId;
+        File bundles = BundlesFolder.of(getContext());
+        synchronized (order) {
+            try {
+                ReleaseStatement next = BundleCheck.check(new File(bundles, id), id, publicKey, binary);
+                ReleaseOrder.acceptNext(next.order, currentOrder(bundles), highestOrder());
+            } catch (BundleRefused e) {
+                if (!id.equals(bundleIdOf(getBridge().getServerBasePath())) && !id.equals(bundleIdOf(nextPath()))) {
+                    BundleRemoval.delete(bundles, new File(bundles, id));
+                }
+                call.reject("LiveUpdate.setNextBundle refused bundle " + id + ": " + e.getMessage());
+                return;
+            }
+            clear(call).put("bundleId", id);
+            super.setNextBundle(call);
+        }
+    }
+
+    // The running bundle's order: the built-in one's, or what its statement says, checked against the key.
+    private long[] currentOrder(File bundles) throws BundleRefused {
+        String current = bundleIdOf(getBridge().getServerBasePath());
+        if (current == null) return ReleaseOrder.BUILT_IN;
+        try {
+            byte[] statement = Bounded.read(new File(new File(bundles, current), ReleaseStatement.FILE), ReleaseStatement.MAX_BYTES, "the running bundle's statement");
+            return ReleaseStatement.verify(statement, current, publicKey).order;
+        } catch (IOException e) {
+            throw new BundleRefused("the running bundle's statement could not be read");
+        }
+    }
+
+    private long[] highestOrder() {
+        return ReleaseOrder.parse(prefs().getString(HIGHEST_ORDER, null));
+    }
+
+    private SharedPreferences prefs() {
+        return getContext().getSharedPreferences(ORDER_PREFS, Activity.MODE_PRIVATE);
+    }
+
+    // Where the stock code keeps the next bundle, Capacitor's server path (LiveUpdate.java:1550, Bridge.java:295-302).
+    private String nextPath() {
+        return getContext().getSharedPreferences(com.getcapacitor.plugin.WebView.WEBVIEW_PREFS_NAME, Activity.MODE_PRIVATE).getString(com.getcapacitor.plugin.WebView.CAP_SERVER_PATH, null);
+    }
+
+    // The id of the downloaded bundle at `path`, as the stock code names it (LiveUpdate.java:1214-1262), or null for the
+    // built-in one and any path outside the bundles folder.
+    private String bundleIdOf(String path) {
+        if (path == null || path.isEmpty()) return null;
+        File bundles = BundlesFolder.of(getContext());
+        String name = new File(path).getName();
+        return BundlesFolder.isBundleId(bundles, name) && new File(bundles, name).getAbsolutePath().equals(new File(path).getAbsolutePath()) ? name : null;
     }
 
     // Allowed: no input

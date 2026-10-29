@@ -1,0 +1,13 @@
+// Protobase's native library beside Capacitor and the live updater, as an app workspace includes them, so its tests
+// run without an app: `gradle -p harness -PcapacitorAndroid=<@capacitor/android> -PliveUpdate=<@capawesome/capacitor-live-update>`.
+def folder = { String name ->
+    def value = startParameter.projectProperties[name]
+    if (value == null) throw new GradleException("Pass -P${name}=<its package folder>")
+    new File(value)
+}
+include ':capacitor-android'
+project(':capacitor-android').projectDir = new File(folder('capacitorAndroid'), 'capacitor')
+include ':capawesome-capacitor-live-update'
+project(':capawesome-capacitor-live-update').projectDir = new File(folder('liveUpdate'), 'android')
+include ':protobase-mobile'
+project(':protobase-mobile').projectDir = file('..')

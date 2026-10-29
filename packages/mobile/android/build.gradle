@@ -24,6 +24,7 @@ android {
         targetSdkVersion project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 36
         versionCode 1
         versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         release {
@@ -38,6 +39,14 @@ android {
     // CLI never lists it on its own (@capacitor/cli android/update.js:63).
     if (liveUpdate != null) {
         sourceSets.main.java.srcDirs += 'src/liveupdate/java'
+    }
+    // The guard's tests, in the repository only (harness/ runs them): on the JVM, and on a device the same again, on
+    // Android's own org.json, beside the guard in a running Capacitor app.
+    if (liveUpdate != null && file('src/androidTestLiveupdate').exists()) {
+        sourceSets.test.java.srcDirs += 'src/testLiveupdate/java'
+        sourceSets.androidTest.java.srcDirs += ['src/testLiveupdate/java', 'src/androidTestLiveupdate/java']
+        sourceSets.androidTest.assets.srcDirs += 'src/androidTestLiveupdate/assets'
+        sourceSets.androidTest.manifest.srcFile 'src/androidTestLiveupdate/AndroidManifest.xml'
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
@@ -55,6 +64,14 @@ dependencies {
     if (liveUpdate != null) {
         implementation liveUpdate
     }
+    // The guard's checks run on the JVM (src/testLiveupdate, or jvm-tests.sh without Android), with the real org.json
+    // in place of android.jar's stubs.
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20250517'
+    androidTestImplementation 'androidx.test:runner:1.7.0'
+    androidTestImplementation 'androidx.test:core:1.7.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+    androidTestImplementation 'androidx.appcompat:appcompat:1.7.1'
 }
 
 // The plugin list the app loads must match what this build compiles, however the build was started (protobase mobile,
