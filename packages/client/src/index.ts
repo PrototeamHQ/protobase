@@ -6,6 +6,8 @@ export { ChannelRefusal, type ChannelError, type ChannelMessage, type ChannelSta
 export type { SocketLike } from './channel-connection'
 export type { DevicesClient, RegisteredDevice, WebDeviceRegistration } from './devices'
 export type { InboxNotification, InboxPage, NotificationHistoryClient } from './notification-history'
+export type { Availability, PersonStatus, StatusClient, StatusInput } from './status'
+export { availabilities, heldStatus, maxStatusText, statusTextProblem } from '@protobase/schema/internal'
 export { ApiError, PreconditionFailedError, isApiError, type ProblemDetails, type ProblemError } from './problem'
 export { listWire, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
 export type { ClientOptions } from './transport'
