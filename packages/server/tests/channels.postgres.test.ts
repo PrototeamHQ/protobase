@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource, type AccessContext } from '@protobase/schema'
-import { backgroundSettled, createAdmin, defineFunction, realtimeRelayMigration } from '@protobase/server'
+import { backgroundSettled, channelSendsMigration, createAdmin, defineFunction, realtimeRelayMigration } from '@protobase/server'
 import { npmWs } from './support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
@@ -35,6 +35,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('Record channels on rea
     await pg.exec(`create table rooms (id integer generated always as identity primary key, team text not null);
       insert into rooms (team) values ('red'), ('blue');`)
     await pg.exec((await realtimeRelayMigration(pg.db))!)
+    await pg.exec((await channelSendsMigration(pg.db))!)
     const serve = async () => {
       const admin = createAdmin({
         resources: [rooms],
@@ -44,7 +45,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('Record channels on rea
           return { user: { id: user, roles: [teams[user]!] } }
         },
         files: { storage: false },
-        realtime: { processes: 'many' },
+        realtime: { processes: 'many', sqlSends: true },
         functions: {
           announce: defineFunction({ public: true }, async (_request, { channels: sender }) => {
             await sender.broadcast({ resource: 'rooms', key: '1', event: 'announcement', payload: { text: 'Standup' } })
@@ -75,15 +76,24 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('Record channels on rea
 
   type Frame = Record<string, any>
 
-  // The room's channel as the user, on the process at `url`, over the socket's own messages: what it was sent, the
-  // presence it keeps from them, and the broadcasts it hears.
+  // A binary frame of `/api/channels`: its JSON header's 32-bit length, the header, the bytes.
+  const binaryFrame = (header: Frame, bytes: number[]) => {
+    const head = Buffer.from(JSON.stringify(header))
+    const length = Buffer.alloc(4)
+    length.writeUInt32BE(head.length)
+    return Buffer.concat([length, head, Buffer.from(bytes)])
+  }
+
+  // The room's channel as the user, on the process at `url`, over the socket's own messages: what it was sent, a binary
+  // frame as its header with its `bytes`, the presence it keeps from them, and the broadcasts it hears.
   const enter = async (url: string, user: string, key = 1) => {
     const socket = new npmWs.WebSocket(`${url.replace('http', 'ws')}/api/channels`, ['protobase.channels'], { headers: { 'x-user': user } })
     sockets.push(socket)
     const frames: Frame[] = []
     const presence = new Map<string, Frame>()
-    socket.on('message', (data) => {
-      const frame = JSON.parse(String(data)) as Frame
+    socket.on('message', (data: Buffer, isBinary) => {
+      const end = isBinary ? 4 + data.readUInt32BE(0) : 0
+      const frame = (isBinary ? { ...JSON.parse(data.subarray(4, end).toString()), bytes: [...data.subarray(end)] } : JSON.parse(String(data))) as Frame
       frames.push(frame)
       if (frame.type === 'presence') for (const entry of frame.entries) presence.set(entry.id, entry)
       if (frame.type === 'presence_diff') {
@@ -109,7 +119,13 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('Record channels on rea
       // Each naming another user, which the server ignores for the session's.
       track: (state: unknown) => request({ type: 'track', channel, state, user: 'mallory' }),
       send: (event: string, payload: unknown) => request({ type: 'send', channel, event, payload, ack: true, user: 'mallory' }),
-      heard: () => frames.filter((frame) => frame.type === 'broadcast').map(({ event, payload, user, server }) => ({ event, payload, user, ...(server && { server }) })),
+      // Bytes too, with a ref so the ack tells when the server took them.
+      sendBytes: (event: string, bytes: number[]) => {
+        const sent = String(++ref)
+        socket.send(binaryFrame({ type: 'send', ref: sent, channel, event, ack: true }, bytes))
+        return waitFor(() => expect(frames.some((frame) => frame.type === 'reply' && frame.ref === sent)).toBe(true))
+      },
+      heard: () => frames.filter((frame) => frame.type === 'broadcast').map(({ event, payload, bytes, user, server }) => ({ event, ...(bytes ? { bytes } : { payload }), user, ...(server && { server }) })),
       users: () => [...presence.values()].map((entry) => entry.user).sort(),
       presence: () => [...presence.values()],
     }
@@ -174,6 +190,39 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('Record channels on rea
     await new Promise((resolve) => setTimeout(resolve, 500))
     expect(bob.frames.slice(heard)).toEqual([])
     teams.bob = 'red'
+  })
+
+  it('carries bytes between the processes, from a client and from the HTTP broadcast, with the sender\'s user', async () => {
+    const alice = await enter(a, 'alice')
+    const bob = await enter(b, 'bob')
+    await alice.sendBytes('stroke', [0, 1, 128, 255])
+    await waitFor(() => expect(bob.heard()).toEqual([{ event: 'stroke', bytes: [0, 1, 128, 255], user: 'alice' }]))
+    expect(alice.heard()).toEqual([])
+
+    const sent = await fetch(`${a}/api/channels/rooms/1/broadcast?event=chunk`, { method: 'POST', headers: { 'x-user': 'alice', 'content-type': 'application/octet-stream' }, body: new Uint8Array([9, 8, 7]) })
+    expect(sent.status).toBe(202)
+    await waitFor(() => expect(bob.heard().at(-1)).toEqual({ event: 'chunk', bytes: [9, 8, 7], user: 'alice' }))
+    const refused = await fetch(`${a}/api/channels/rooms/1/broadcast?event=chunk`, { method: 'POST', headers: { 'x-user': 'carol', 'content-type': 'application/octet-stream' }, body: new Uint8Array([1]) })
+    expect(refused.status).toBe(404)
+  })
+
+  it('broadcasts what SQL sends once its transaction commits, in order, as the server, on every process', async () => {
+    const alice = await enter(a, 'alice')
+    const bob = await enter(b, 'bob')
+    await pg.exec(`begin; select channels.send('rooms', '1', 'announcement', '{"text":"rolled back"}'); rollback;`)
+    await pg.exec(`begin; select channels.send('rooms', '1', 'announcement', '{"text":"x"}'); select channels.send('rooms', '01', 'announcement', '{"text":"y"}');
+      select channels.send('rooms', '1', 'e', '"${'x'.repeat(256 * 1024)}"'); select channels.send('nothing', '1', 'e', '{}'); commit;`)
+    const sent = [{ event: 'announcement', payload: { text: 'x' }, user: null, server: true }, { event: 'announcement', payload: { text: 'y' }, user: null, server: true }]
+    await waitFor(() => expect(alice.heard()).toEqual(sent))
+    await waitFor(() => expect(bob.heard()).toEqual(sent))
+    expect((await pg.db.selectFrom('channels.sends').selectAll().execute()).length).toBe(0)
+  })
+
+  it('lets only the app\'s role call channels.send(), so no other role sends as the server', async () => {
+    const role = `sends_outsider_${Date.now()}`
+    await pg.exec(`create role ${role}; grant usage on schema channels to ${role}`)
+    await expect(pg.exec(`set local role ${role}; select channels.send('rooms', '1', 'e', '{}')`)).rejects.toThrow('permission denied for function send')
+    await pg.exec(`revoke usage on schema channels from ${role}; drop role ${role}`)
   })
 
   it('adds the space column to a relay schema written before the record channels', async () => {

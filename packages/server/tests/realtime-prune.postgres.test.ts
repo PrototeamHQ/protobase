@@ -1,6 +1,6 @@
 import { Kysely, sql } from 'kysely'
 import { describe, expect, it, vi } from 'vitest'
-import { createAdmin, realtimeRelayMigration } from '@protobase/server'
+import { channelSendsMigration, createAdmin, realtimeRelayMigration } from '@protobase/server'
 import { pruneBroadcasts } from '../src/realtime/broadcast-prune'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
@@ -19,8 +19,8 @@ const topics = async (pg: PostgresDatabase) =>
   (await sql<{ topic: string }>`select topic from realtime.messages order by topic`.execute(pg.db)).rows.map((row) => row.topic)
 
 // An app with no socket open: no `upgradeWebSocket`, so it serves no realtime at all.
-const admin = (pg: PostgresDatabase, report: (error: unknown) => void, processes: 'one' | 'many' = 'one') =>
-  createAdmin({ resources: [], db: pg.db, authenticate: () => ({ user: { id: 'admin', roles: ['admin'] } }), files: { storage: false }, realtime: { processes }, options: { onUnhandledError: report } })
+const admin = (pg: PostgresDatabase, report: (error: unknown) => void, processes: 'one' | 'many' = 'one', sqlSends = false) =>
+  createAdmin({ resources: [], db: pg.db, authenticate: () => ({ user: { id: 'admin', roles: ['admin'] } }), files: { storage: false }, realtime: { processes, sqlSends }, options: { onUnhandledError: report } })
 
 describe.skipIf(!(await postgresTemplateReady('empty')))('Pruning the realtime tables with no socket open', () => {
   it('deletes broadcast rows more than 48 hours old, and keeps newer ones and rows that are not broadcasts', async () => {
@@ -79,6 +79,17 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('Pruning the realtime t
     await admin(pg, report, 'many').startRealtimePrune().stop()
     expect((await sql<{ topic: string }>`select topic from realtime_relay.frames`.execute(pg.db)).rows).toEqual([{ topic: 'new' }])
     expect((await sql<{ topic: string }>`select topic from realtime_relay.rates`.execute(pg.db)).rows).toEqual([{ topic: 'new' }])
+    expect(report).not.toHaveBeenCalled()
+  })
+
+  it('with sqlSends, deletes the sends to the record channels more than 48 hours old', async () => {
+    const pg = await openPostgresDatabase('empty')
+    await pg.exec((await channelSendsMigration(pg.db))!)
+    await pg.exec(`insert into channels.sends (resource, key, event, payload, sent_at) values
+      ('rooms', '1', 'old', '{}', now() - interval '3 days'), ('rooms', '1', 'recent', '{}', now() - interval '1 hour')`)
+    const report = vi.fn()
+    await admin(pg, report, 'one', true).startRealtimePrune().stop()
+    expect((await sql<{ event: string }>`select event from channels.sends`.execute(pg.db)).rows).toEqual([{ event: 'recent' }])
     expect(report).not.toHaveBeenCalled()
   })
 })
