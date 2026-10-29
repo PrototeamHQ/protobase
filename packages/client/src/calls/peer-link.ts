@@ -8,10 +8,21 @@ type Peer = { pc: RTCPeerConnection; polite: boolean; makingOffer: boolean; igno
 // Each sent track on a stream of its own, whose id names it: the receiving browser reads it in the description's msid.
 type LocalTrack = { track: MediaStreamTrack; sid: string; stream: MediaStream }
 
+// Whether a description was made by Firefox, whose session lines name it, and whether this browser is Firefox.
+const firefoxMade = (sdp: string) => /^o=mozilla/m.test(sdp)
+const inFirefox = typeof navigator !== 'undefined' && /Firefox\//.test(navigator.userAgent)
+
+/**
+ * Who gives way when this side's offer crosses the other's: Firefox, when only one of the two is, since an offer
+ * Chromium rolls back for Firefox's leaves their header extension ids clashing and Chromium's next offer fails;
+ * otherwise the member whose id sorts first.
+ */
+const politeTo = (peer: { polite: boolean }, offer: string) => (inFirefox === firefoxMade(offer) ? peer.polite : inFirefox)
+
 /**
  * The media link without a media server: one `RTCPeerConnection` to each other member, whose browser answers, so either
  * side may offer. Protobase passes the descriptions and candidates between the two ("perfect negotiation": the member
- * whose id sorts first gives way when both offer at once) and says who is in the call and which tracks each member
+ * whose id sorts first gives way when both offer at once, or Firefox to Chromium) and says who is in the call and which tracks each member
  * hears. A track goes by the id of the stream the sending browser sends it on, which the receiving browser sees too.
  */
 export const peerLink = (self: string, { iceServers, send, onTracks, createPeerConnection = newPeerConnection }: MediaLinkInput): MediaLink => {
@@ -66,7 +77,7 @@ export const peerLink = (self: string, { iceServers, send, onTracks, createPeerC
     const { pc } = peer
     if (description) {
       const collision = description.type === 'offer' && (peer.makingOffer || pc.signalingState !== 'stable')
-      peer.ignoreOffer = !peer.polite && collision
+      peer.ignoreOffer = !politeTo(peer, description.sdp) && collision
       if (peer.ignoreOffer) return
       await pc.setRemoteDescription(description)
       if (description.type === 'offer') {
