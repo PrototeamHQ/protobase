@@ -1,6 +1,7 @@
 import type { Db } from '@protobase/query'
 import type { Capability } from '@protobase/schema'
 import type { Caller } from '../api-keys/resolve-caller'
+import type { DecryptField } from '../encryption/decrypt-field-types'
 import type { Session } from '../types'
 import type { SocketEvents } from './function-socket'
 import type { FunctionRecords } from './records'
@@ -31,7 +32,14 @@ export type FunctionCaller = {
 }
 
 /** What a function that needs a signed-in caller gets: the caller resolved before it runs. */
-export type FunctionContext = PublicFunctionContext & FunctionCaller
+export type FunctionContext = PublicFunctionContext & FunctionCaller & {
+  /**
+   * The cleartext of an `.encrypted()` field of one record, or `null` when it is empty: privileged like `db`, with no
+   * access rules or tenant scope. Each read is audited as a reveal, naming this function and its caller, and fails when
+   * the audit does. Not on a public function's context: a public function that needs a value enqueues a job.
+   */
+  decryptField: DecryptField
+}
 
 /** What a function gets at `/api/sb/functions/v1/<name>`, where supabase-js calls it: the caller its keys and token make. */
 export type KeyFunctionContext = {

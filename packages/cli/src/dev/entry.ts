@@ -59,7 +59,7 @@ const { admin, jobs } = projectAdmin(project, db, ui, reporter, upgradeWebSocket
 
 // The project's jobs and the delivery of its events, run in this server; a behind jobs schema stops startup with the
 // command that writes its migration.
-await devJobs(db, jobs, project.mailer)
+await devJobs(db, jobs, admin.decryptField, project.mailer)
 // The old rows of the realtime tables, pruned while the dev server runs, whether or not a socket is open.
 devRealtimePrune(admin)
 

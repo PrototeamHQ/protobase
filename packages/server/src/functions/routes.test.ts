@@ -7,6 +7,7 @@ import { createErrorHandler } from '../error-handler'
 import { badRequest, forbidden, notFound, unauthorized } from '../problem'
 import type { Session } from '../types'
 import { defineFunction, type ApiFunction, type FunctionContext, type PublicFunctionContext } from './define-function'
+import type { FieldReader } from '../encryption/decrypt-field-types'
 import type { FunctionRecords } from './records'
 import { functionRoutes } from './routes'
 
@@ -22,8 +23,11 @@ const authenticate = (request: Request) => {
 
 const records = (session: Session) => ({ as: session.user.id }) as unknown as FunctionRecords
 
+// Each bound read says who it is for, so a test sees which reader the context was given.
+const decryptField = vi.fn((reader: FieldReader) => async () => JSON.stringify(reader))
+
 const serve = (functions: Record<string, ApiFunction>, onUnhandledError = vi.fn(), wake = vi.fn()) => ({
-  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, onError: createErrorHandler(onUnhandledError), wake, report: onUnhandledError }),
+  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, decryptField, onError: createErrorHandler(onUnhandledError), wake, report: onUnhandledError }),
   onUnhandledError,
   wake,
 })
@@ -46,6 +50,23 @@ describe('functionRoutes', () => {
     expect(seen.map(({ method, path }) => [method, path])).toEqual([['GET', '/'], ['DELETE', '/orders/7']])
     expect(seen[0]!.context).toMatchObject({ name: 'hello', db, session: sessions.ann, records: { as: 'ann' } })
     expect(await seen[0]!.context.caller()).toEqual({ session: sessions.ann, records: { as: 'ann' } })
+  })
+
+  it('gives a protected function a decryptField bound to the function, its caller and the request’s origin', async () => {
+    const { app } = serve({ dispatch: defineFunction(async (_request, context) => new Response(await context.decryptField('targets', 1, 'password'))) })
+    const response = await app.request('/api/functions/dispatch', as('ann', { headers: { 'user-agent': 'probe/1', 'x-forwarded-for': '203.0.113.9' } }))
+    expect(JSON.parse(await response.text())).toEqual({ function: 'dispatch', actor: { id: 'ann', roles: ['sales'] }, origin: { userAgent: 'probe/1', forwardedFor: '203.0.113.9' } })
+  })
+
+  it('gives a public function no decryptField, as anyone may call it', async () => {
+    const seen: PublicFunctionContext[] = []
+    const { app } = serve({ hook: defineFunction({ public: true }, async (_request, context) => {
+      seen.push(context)
+      await context.caller()
+      return new Response('ok')
+    }) })
+    expect((await app.request('/api/functions/hook', as('bob'))).status).toBe(200)
+    expect(seen[0]).not.toHaveProperty('decryptField')
   })
 
   it('answers a call whose query the database stopped with a 504 naming the call, and reports it', async () => {
@@ -98,7 +119,7 @@ describe('functionRoutes', () => {
 
   it('refuses a function without roles to every caller but those holding *, once the app defines roles', async () => {
     const roles = defineRoles({ admin: ['*'], sales: ['*.read'] })
-    const app = functionRoutes({ basePath: '/api/functions', functions: { start: defineFunction(() => new Response('started')) }, authenticate, access: { roles }, db, records, onError: createErrorHandler(vi.fn()), wake: vi.fn(), report: vi.fn() })
+    const app = functionRoutes({ basePath: '/api/functions', functions: { start: defineFunction(() => new Response('started')) }, authenticate, access: { roles }, db, records, decryptField, onError: createErrorHandler(vi.fn()), wake: vi.fn(), report: vi.fn() })
     expect((await app.request('/api/functions/start', as('bob'))).status).toBe(200)
     const refused = await app.request('/api/functions/start', as('ann'))
     expect(refused.status).toBe(403)
@@ -198,7 +219,7 @@ describe('functionRoutes WebSocket upgrades', () => {
       return new Response(null, { status: 299 })
     }) as unknown as UpgradeWebSocket
     const onUnhandledError = vi.fn()
-    const app = functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, onError: createErrorHandler(onUnhandledError), wake: vi.fn(), report: onUnhandledError, upgradeWebSocket, upgradeAuthenticate })
+    const app = functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, decryptField, onError: createErrorHandler(onUnhandledError), wake: vi.fn(), report: onUnhandledError, upgradeWebSocket, upgradeAuthenticate })
     return { app, upgrades }
   }
 

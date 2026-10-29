@@ -56,7 +56,7 @@ const decrypt = (aes: Buffer, aad: Buffer, bytes: Buffer) => {
 
 /**
  * The plaintext of `stored`, sealed under `binding` with a key of `keyring`, or an `UnreadableValue` thrown with why it
- * does not open. The only place, with the CLI's status and apply, that decrypts.
+ * does not open. The only place, with the CLI's status and apply and the audited `decryptField`, that decrypts.
  */
 export const openText = (keyring: Keyring, binding: Binding, stored: string, subject: ValueSubject) => {
   const parsed = parse(stored)

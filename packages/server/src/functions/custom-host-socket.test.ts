@@ -28,6 +28,7 @@ const serveOwn = async (maxMessageBytes?: number) => {
     records: () => ({}) as FunctionRecords,
     onError: createErrorHandler(() => {}),
     wake: () => {},
+    decryptField: () => async () => null,
     upgradeWebSocket,
     report: () => {},
   })

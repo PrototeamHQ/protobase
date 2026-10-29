@@ -89,6 +89,7 @@ import type { Difficulty } from './forms/challenge'
 import { formRoutes } from './forms/routes'
 import { createFormsRuntime } from './forms/runtime'
 import { createFilesRuntime } from './files/runtime'
+import { fieldDecrypter } from './encryption/decrypt-field'
 import { createEncryptionRuntime } from './encryption/runtime'
 import { toApiFunction, type FunctionSource } from './functions/define-function'
 import { callerRecords } from './functions/records'
@@ -381,7 +382,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     mcpRoutes(app, { path: auth.mcp.path, handler: mcpHandler({ authenticate: mcpAuthenticate, resource: auth.mcp.resource, scope: auth.mcp.scope, server }) })
   }
   const upgradeAuthenticate = upgradeAuthenticator({ authenticate, ...(auth && { origins: auth.origins, sessionToken: betterAuthSessionToken(auth) }) })
-  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, report }))
+  const decryptField = fieldDecrypter(deps)
+  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), decryptField, onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, report }))
   // supabase-js's `functions.invoke`, admitted by the app's keys and the tokens of `/api/sb/auth/v1`.
   const verifyGoTrue = auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens'))
   app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), onError }))
@@ -425,5 +427,5 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), report })
-  return Object.assign(app, { startRealtimePrune: prune, jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth))] : [])] })
+  return Object.assign(app, { startRealtimePrune: prune, decryptField, jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth))] : [])] })
 }

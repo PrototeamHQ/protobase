@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import { PgBoss, type Db as BossDb } from 'pg-boss'
 import type { Db } from '@protobase/query'
 import { runInBackground } from '../background-work'
+import type { FieldDecrypter } from '../encryption/decrypt-field-types'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
 import { pushJobName } from '../notifications/push-job-name'
@@ -34,6 +35,8 @@ export type StartJobsOptions = {
    * `PROTOBASE_MAIL_FROM`, when set; `false` turns mail off whatever the environment says.
    */
   mailer?: Mailer | false
+  /** The app's read of encrypted fields (`createAdmin(...).decryptField`), which each job's context binds to the job. */
+  decryptField?: FieldDecrypter
 }
 
 /** What a drain left: whether no job is due or running any more, how many are, and when the next one is due. */
@@ -42,8 +45,8 @@ export type DrainResult = { drained: boolean; remaining: number; nextDue: Date |
 export type JobsRuntime = JobsEnqueuer & {
   /** Whether this process runs the jobs, or only enqueues them. */
   readonly works: boolean
-  /** Takes the project's jobs again, as `protobase dev` does when their files change. */
-  update(jobs: JobDefinition[]): Promise<void>
+  /** Takes the project's jobs again, as `protobase dev` does when their files change, with the rebuilt app's `decryptField`. */
+  update(jobs: JobDefinition[], decryptField?: FieldDecrypter): Promise<void>
   /**
    * Runs the jobs that are due until none is due or running, or `seconds` have passed: for a host that wakes a sleeping
    * app to run its jobs. Needs this process to run jobs.
@@ -77,8 +80,9 @@ const createBoss = (db: BossDb, work: boolean) =>
  * that retries jobs whose worker died. It reads the jobs schema, never changes it: check it first with
  * `checkJobsSchema`. Enqueueing through `defineJob(...).enqueue` reaches the runtime started here.
  */
-export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date(), mailer }: StartJobsOptions): Promise<JobsRuntime> => {
+export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date(), mailer, decryptField }: StartJobsOptions): Promise<JobsRuntime> => {
   const mail = mailer === undefined ? platformMailer() : mailer || undefined
+  let decrypter = decryptField
   const database = busyDatabase(jobsDatabase(db))
   const boss = createBoss(database.db, work)
   boss.on('error', onError)
@@ -119,14 +123,15 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
         return runInBackground(async () => {
           if (current.options.schedule !== undefined && job!.singletonKey === scheduleKey) await schedules.following(current, job!.startAfter)
           // A job may send notifications when the app's jobs deliver them.
-          return [await runJob(current, job!, db, { mail, ...(definitions.has(pushJobName) && { sendNotification }) })]
+          return [await runJob(current, job!, db, { mail, ...(decrypter && { decryptField: decrypter }), ...(definitions.has(pushJobName) && { sendNotification }) })]
         }, { longQueries: current.options.longQueries })
       },
     )
     workers.set(definition.name, { id, concurrency })
   }
 
-  const update = async (next: JobDefinition[]) => {
+  const update = async (next: JobDefinition[], nextDecrypter?: FieldDecrypter) => {
+    if (nextDecrypter) decrypter = nextDecrypter
     for (const definition of next) await ensureQueue(definition)
     for (const name of definitions.keys()) {
       if (next.some((definition) => definition.name === name)) continue

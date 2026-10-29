@@ -41,9 +41,9 @@ export const startWorker = async ({ config, databaseUrl, openDb = (url) => openA
       return isCaptured(model) || model.comments || Object.values(model.fields).some((field) => field.ai)
     })
     if (project.jobs.length === 0 && !builtIn) throw new Error('The bundle has no jobs: name their module in protobase.config.ts as `jobs`, or give a resource events, history, comments or an AI field')
-    const { jobs: definitions } = projectAdmin(project, db)
+    const { admin, jobs: definitions } = projectAdmin(project, db)
     await checkJobsSchema(db)
-    return { definitions, runtime: await startJobs({ db, jobs: definitions, ...(project.mailer && { mailer: project.mailer }), onError: (error) => console.error(error) }) }
+    return { definitions, runtime: await startJobs({ db, jobs: definitions, decryptField: admin.decryptField, ...(project.mailer && { mailer: project.mailer }), onError: (error) => console.error(error) }) }
   }
   const { definitions, runtime: jobs } = await start().catch(async (error: Error) => {
     await db.destroy()

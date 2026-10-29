@@ -122,14 +122,17 @@ Before answering, the server publishes an audit event to the app's audit queue, 
 type AuditEvent = {
   type: 'field.revealed'
   at: string                                  // ISO 8601
-  actor: { id: string | number; roles: string[] }
-  tenant?: string | number                    // the caller's organization, for tenant-scoped resources
+  actor?: { id: string | number; roles: string[] } // absent when a job read the value
+  reader?: { job: string } | { function: string }  // who read it with decryptField; absent for a reveal
+  tenant?: string | number                    // the caller's organization (the record's for decryptField), for tenant-scoped resources
   resource: string
   recordKey: string                           // as in the record's URL
   field: string
   origin: { userAgent?: string; forwardedFor?: string } // from the request headers
 }
 ```
+
+A job or API function that reads an encrypted field with [`decryptField`](/reference/data-config/#reading-in-jobs-and-functions) publishes the same event, with `reader` set and, for a job, no `actor` or `origin` headers.
 
 With [organizations](/reference/auth/#organizations), someone with a global role switching into an organization they are not a member of publishes `{ type: 'organization.entered', at, actor, organization, origin }` first, where `actor.roles` are their global roles; a failed publish refuses the switch. `AuditEvent` is the union of the two.
 

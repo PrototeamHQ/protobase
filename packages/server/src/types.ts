@@ -1,3 +1,4 @@
+import type { FieldDecrypter } from './encryption/decrypt-field-types'
 import type { JobDefinition } from './jobs/job-types'
 import type { Hono } from 'hono'
 import type { PageModel } from '@protobase/layout'
@@ -80,8 +81,11 @@ export type FieldRevealedEvent = {
   type: 'field.revealed'
   /** ISO 8601, when the server answered. */
   at: string
-  actor: { id: string | number; roles: string[] }
-  /** The caller's tenant (organization), when the resource has one. */
+  /** The caller; absent when a job read the value (`reader.job`). */
+  actor?: { id: string | number; roles: string[] }
+  /** The job or API function that read the value with `decryptField`; absent for a reveal. */
+  reader?: { job: string } | { function: string }
+  /** The caller's tenant (organization), or the record's for `decryptField`, when the resource has one. */
   tenant?: TenantValue
   resource: string
   /** The record's key as its URL has it (composite keys joined with a comma). */
@@ -117,7 +121,8 @@ export type ViewSource = { toModel(): ViewModel }
 export type PageSource = { toModel(): PageModel }
 
 /**
- * The admin API, the jobs it needs a worker to run (the delivery of resource events), and the pruning of the realtime
- * tables a serving process starts once it listens and stops as it closes.
+ * The admin API, the jobs it needs a worker to run (the delivery of resource events), the pruning of the realtime
+ * tables a serving process starts once it listens and stops as it closes, and the read of encrypted fields that
+ * `startJobs` gives the jobs' context.
  */
-export type Admin = Hono<AdminEnv> & { jobs: JobDefinition[]; startRealtimePrune: () => RealtimePrune }
+export type Admin = Hono<AdminEnv> & { jobs: JobDefinition[]; startRealtimePrune: () => RealtimePrune; decryptField: FieldDecrypter }

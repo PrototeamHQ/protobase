@@ -163,7 +163,7 @@ resource('apps')
 
 ## Encrypted fields
 
-An encrypted field is a [sensitive field](#sensitive-fields) whose value the server encrypts before it reaches the database, so a dump, a backup, a replica, a realtime subscriber or anyone running SQL sees only ciphertext. Only its reveal decrypts it, for a caller who may read the record and the field, and every reveal is audited. Every API write encrypts it: the record form, REST, batches, imports, [public forms](/reference/forms/) and `records` in [API functions](/guides/api-functions/). The [Supabase-compatible REST API](/reference/supabase-rest/#encrypted-fields) refuses to write or filter it.
+An encrypted field is a [sensitive field](#sensitive-fields) whose value the server encrypts before it reaches the database, so a dump, a backup, a replica, a realtime subscriber or anyone running SQL sees only ciphertext. Only its reveal decrypts it, for a caller who may read the record and the field, and your own [jobs and functions](#reading-in-jobs-and-functions) on the server; every read is audited. Every API write encrypts it: the record form, REST, batches, imports, [public forms](/reference/forms/) and `records` in [API functions](/guides/api-functions/). The [Supabase-compatible REST API](/reference/supabase-rest/#encrypted-fields) refuses to write or filter it.
 
 ```ts
 api_key: f.text().encrypted().access({ read: roles.can('keys.read') }),
@@ -182,6 +182,18 @@ It takes `f.text()` only, and cannot be `.readOnly()` or have a `.dbDefault()`. 
 When you change a `.sensitive()` field to `.encrypted()`, change every rule, validator and hook that reads its stored value: from then on it gets `encrypted`, and TypeScript flags reading it as text.
 
 No other field of the resource may be over the column, as its own or as a relation's column, and another resource over the same table must leave the column out, or declare it `.encrypted()` too with the same `.table()`, tenant and key; the server does not start otherwise. A resource over a view of the table cannot be checked, so leave the column out of the view itself, not only out of the resource.
+
+### Reading in jobs and functions
+
+A value the app must use itself, such as the password of a backup share, is read on the server with `decryptField(resource, key, field)` of a [job's](/reference/jobs/) context and of a protected [API function's](/guides/api-functions/#the-context):
+
+```ts
+const password = await context.decryptField('backup_targets', target.id, 'password')
+```
+
+It returns the cleartext, or `null` when the field is empty. Like the context's `db`, it skips access rules, row filters and tenant scope, and reads only live records. `key` is the record's key, or its parts in the order of a composite key. A resource that is unknown, a field that does not exist or is not `.encrypted()`, and a record that does not exist are errors that name them, as is a value that does not decrypt.
+
+Every read publishes a `field.revealed` [audit event](/reference/api/#sensitive-fields-and-audit), whose `reader` names the job (`{ job }`, with no `actor`) or the function (`{ function }`, with its caller as `actor`), and the value is only returned once the event is published: when publishing fails, so does the read. A public function has no `decryptField`, since anyone may call it: enqueue a job that reads the value instead. No HTTP request reaches it.
 
 ### The key
 

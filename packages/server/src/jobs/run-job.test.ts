@@ -50,6 +50,18 @@ describe('runJob', () => {
     expect(run.mock.calls[1]![1]).not.toHaveProperty('sendNotification')
   })
 
+  it("gives the job the app's decryptField bound to the job, and one that names what is missing without it", async () => {
+    const read = vi.fn(async () => 'cleartext')
+    const decryptField = vi.fn(() => read)
+    let value: unknown
+    await runJob(defineJob({ name: 'dispatch-backup', run: async (_payload, context) => { value = await context.decryptField('targets', 7, 'password') } }), fetched(null), db, { decryptField })
+    expect(decryptField).toHaveBeenCalledWith({ job: 'dispatch-backup' })
+    expect(read).toHaveBeenCalledWith('targets', 7, 'password')
+    expect(value).toBe('cleartext')
+    const without = await runJob(defineJob({ name: 'dispatch-backup', run: (_payload, context) => context.decryptField('targets', 7, 'password').then(() => {}) }), fetched(null), db)
+    expect(without).toMatchObject({ status: 'failed', output: { message: `Job "dispatch-backup" cannot decrypt fields: startJobs was not given the app's decryptField` } })
+  })
+
   it('names the job in the output of a try whose query the database stopped', async () => {
     const stopped = Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' })
     const job = defineJob({ name: 'nightly-report', run: () => { throw stopped } })

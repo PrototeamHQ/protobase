@@ -73,7 +73,7 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
     if (env.startupChecks && project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)
     const { admin, jobs: definitions } = projectAdmin(project, db, ui, reporter, upgradeWebSocket)
     if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)
-    const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, ...(project.mailer && { mailer: project.mailer }), onError: (error) => console.error(error) }) : undefined
+    const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, decryptField: admin.decryptField, ...(project.mailer && { mailer: project.mailer }), onError: (error) => console.error(error) }) : undefined
     const release = project.mobile ? await servedRelease({ site, mobile: project.mobile, issuer: project.auth?.issuer, signingKey: env.mobileSigningKey, serverVersion: protobaseVersion }) : undefined
     const mobile = project.mobile && { ...(release && { release }), serverVersion: protobaseVersion }
     const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }), ...(mobile && { mobile }) })

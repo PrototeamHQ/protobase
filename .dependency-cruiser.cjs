@@ -87,9 +87,9 @@ module.exports = {
     },
     {
       name: 'decrypt-in-reveal-only',
-      comment: 'Encrypted fields are decrypted only by their reveal and by the encryption status and apply commands.',
+      comment: 'Encrypted fields are decrypted only by their reveal, the audited decryptField of jobs and functions, and the encryption status and apply commands.',
       severity: 'error',
-      from: { pathNot: [...testCode, '^packages/server/src/(reveal-service|encryption/status|encryption/apply)\\.ts$'] },
+      from: { pathNot: [...testCode, '^packages/server/src/(reveal-service|encryption/decrypt-field|encryption/status|encryption/apply)\\.ts$'] },
       to: { path: '^packages/server/src/encryption/envelope-open\\.ts$' },
     },
     {

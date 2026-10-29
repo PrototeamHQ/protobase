@@ -1,4 +1,5 @@
 import type { Db } from '@protobase/query'
+import type { DecryptField } from '../encryption/decrypt-field-types'
 import type { StandardSchema } from '../functions/read-json'
 import type { Mailer } from '../mail/smtp-mailer'
 import type { SendNotification } from '../notifications/send-input'
@@ -11,6 +12,11 @@ export type JobContext = {
   job: { id: string; name: string; attempt: number; maxAttempts: number; startedOn: Date }
   /** Aborted when the job's timeout passes, or when the worker shuts down and its grace period ends. */
   signal: AbortSignal
+  /**
+   * The cleartext of an `.encrypted()` field of one record, or `null` when it is empty: privileged like `db`, with no
+   * access rules or tenant scope. Each read is audited as a reveal, naming this job, and fails when the audit does.
+   */
+  decryptField: DecryptField
   /** Sends mail with the app's mailer: its auth/mailer.ts, else the SMTP server of `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM`; `undefined` when the app has no mail. */
   mail?: Mailer
   /** Sends a notification as `sendNotification` does; `undefined` when the app has no `notifications`. */

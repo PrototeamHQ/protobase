@@ -54,6 +54,7 @@ The second argument of a handler (`c.env` in a [Hono app](#hono-apps)):
 | `records` | The app's resources, acting as the caller: `list`, `get`, `create`, `update`, `delete`, `softDeleteField`. |
 | `db` | The Kysely instance itself. It skips every access rule, row filter and tenant scope. |
 | `caller()` | Resolves to `{ session, records }`. Public functions use it to ask for a caller when they need one. |
+| `decryptField(resource, key, field)` | An [encrypted field](/reference/data-config/#reading-in-jobs-and-functions)'s value, skipping access rules like `db`; each read is audited, naming the function and the caller. |
 | `acceptWebSocket(events)` | Answers a WebSocket upgrade with a socket; return its response. See [WebSockets](#websockets). |
 | `name` | The function's name. |
 

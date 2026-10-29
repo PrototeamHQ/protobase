@@ -1,5 +1,6 @@
 import type { JobResult, JobWithMetadata } from 'pg-boss'
 import type { Db } from '@protobase/query'
+import type { FieldDecrypter } from '../encryption/decrypt-field-types'
 import type { Mailer } from '../mail/smtp-mailer'
 import type { SendNotification } from '../notifications/send-input'
 import { isStatementTimeout, statementTimeoutDetail } from '../statement-timeout'
@@ -66,19 +67,25 @@ const namedTimeout = (definition: JobDefinition, error: unknown) => {
 }
 
 /** What a job's context offers beside the database, when the app has it. */
-export type JobServices = { mail?: Mailer; sendNotification?: SendNotification }
+export type JobServices = { mail?: Mailer; sendNotification?: SendNotification; decryptField?: FieldDecrypter }
+
+// Started without the app's read, as by a test's own `startJobs`, the context still has one: it says what is missing.
+const noDecrypter = (name: string) => async (): Promise<never> => {
+  throw new Error(`Job "${name}" cannot decrypt fields: startJobs was not given the app's decryptField`)
+}
 
 /**
  * One try of one job: completed when `run` returns, failed (to be retried while attempts are left) when it throws, and
  * failed for good on a `FatalJobError` or an invalid payload.
  */
-export const runJob = async (definition: JobDefinition, job: JobWithMetadata<unknown>, db: Db, { mail, sendNotification }: JobServices = {}): Promise<JobResult> => {
+export const runJob = async (definition: JobDefinition, job: JobWithMetadata<unknown>, db: Db, { mail, sendNotification, decryptField }: JobServices = {}): Promise<JobResult> => {
   try {
     const payload = await checkPayload(definition, job.data ?? undefined)
     const context = {
       db,
       job: { id: job.id, name: job.name, attempt: job.retryCount + 1, maxAttempts: job.retryLimit + 1, startedOn: job.startedOn },
       signal: job.signal,
+      decryptField: decryptField ? decryptField({ job: definition.name }) : noDecrypter(definition.name),
       ...(mail && { mail }),
       ...(sendNotification && { sendNotification }),
     }

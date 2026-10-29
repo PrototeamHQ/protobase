@@ -16,6 +16,7 @@ const serveApp = (app: ReturnType<typeof functionApp<PublicFunctionEnv>>, onUnha
     records: () => ({}) as never,
     onError: createErrorHandler(onUnhandledError),
     wake: () => {},
+    decryptField: () => async () => null,
     report: onUnhandledError,
   }),
   onUnhandledError,
