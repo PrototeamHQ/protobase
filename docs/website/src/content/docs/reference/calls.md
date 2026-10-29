@@ -4,7 +4,7 @@ description: Audio and video calls on any record of an app, through a LiveKit se
 ---
 
 :::caution[Beta]
-Calls live on records, with who is in them, removal and their end, a ready-made call view and ringing. The view is made for small peer-to-peer calls, and there are no host controls yet. A lobby, stage mode, recording and guests are not built yet.
+Calls live on records, with who is in them, removal and their end, a ready-made call view and ringing. The view is made for small peer-to-peer calls, and there are no host controls yet. A lobby, stage mode, recording and guests are not built yet, and calls have been tested in Chromium and Firefox only.
 :::
 
 ## Turning them on
