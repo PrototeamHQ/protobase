@@ -10,7 +10,10 @@ export type CallTrackSource = 'camera' | 'microphone' | 'screen' | 'screen-audio
 /** One simulcast layer of a published video track, as the browser encodes it. */
 export type CallVideoLayer = { quality: 'low' | 'medium' | 'high'; width: number; height: number; bitrate: number }
 
-/** A track the browser is about to send: `cid` is its `MediaStreamTrack.id`, which its offer names in `msid`. */
+/**
+ * A track the browser is about to send: `cid` is the id its description names it by in `msid`, its `MediaStreamTrack.id`
+ * to a media server, the id of the stream it is sent on to other members (`peer`).
+ */
 export type CallTrackRequest = {
   cid: string
   kind: 'audio' | 'video'
@@ -25,6 +28,8 @@ export type CallCandidate = { candidate: string; sdpMid?: string | null; sdpMLin
 
 /** What the browser hands a new server session so it resumes the member's media session where the last one left it. */
 export type CallResume = {
+  /** The call the member is in, from `joined`: a resume of a call that ended is refused. */
+  call: string
   /** The member's participant in the media server, from `joined`. */
   participant: string
   /** The browser's current local (offer) and remote (answer) descriptions, with a media server. */
@@ -58,12 +63,18 @@ export type CallClientMessage =
 /** A track of another member the member hears. */
 export type CallRemoteTrack = { sid: string; member: string; kind: 'audio' | 'video'; source: CallTrackSource; muted: boolean }
 
-/** Why the member is no longer in the call: `ended` and `removed` are final, `rejoin` asks the browser to join anew. */
-export type CallLeftReason = 'ended' | 'removed' | 'refused' | 'rejoin'
+/**
+ * Why the member is no longer in the call: `ended`, `removed`, `full` and `refused` are final, `rejoin` asks the
+ * browser to join anew, and `unavailable` is a server that could not take the member in, after the browser tried again.
+ */
+export type CallLeftReason = 'ended' | 'removed' | 'full' | 'refused' | 'unavailable' | 'rejoin'
+
+/** Someone in a call, since when (ISO 8601). */
+export type CallRosterMember = { member: string; joined_at: string }
 
 /** A message from the server. */
 export type CallServerMessage =
-  | { type: 'joined'; mode: CallMode; participant: string; iceServers: { urls: string[]; username?: string; credential?: string }[] }
+  | { type: 'joined'; call: string; mode: CallMode; participant: string; iceServers: { urls: string[]; username?: string; credential?: string }[] }
   | { type: 'resumed' }
   | { type: 'published'; tracks: { cid: string; sid: string }[] }
   | { type: 'publish-refused'; reason: string }
@@ -75,6 +86,8 @@ export type CallServerMessage =
   | { type: 'tracks'; tracks: CallRemoteTrack[] }
   /** The media server stopped one of the member's own tracks, such as after a demotion: stop sending it. */
   | { type: 'unpublished'; sid: string }
+  /** Everyone in the call, the member too, in the order they came, whenever that changes. */
+  | { type: 'members'; members: CallRosterMember[] }
   /** With `peer`: every other member in the call, whenever that changes. */
   | { type: 'peers'; members: string[] }
   /** With `peer`: a description or candidate from another member's browser. */

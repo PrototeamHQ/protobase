@@ -8,6 +8,7 @@ export type { DevicesClient, RegisteredDevice, WebDeviceRegistration } from './d
 export type { InboxNotification, InboxPage, NotificationHistoryClient } from './notification-history'
 export type { Availability, PersonStatus, StatusClient, StatusInput } from './status'
 export { availabilities, heldStatus, maxStatusText, statusTextProblem } from '@protobase/schema/internal'
+export type { RecordCall, RecordCallsHandlers } from './record-calls'
 export { ApiError, PreconditionFailedError, isApiError, type ProblemDetails, type ProblemError } from './problem'
 export { listWire, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
 export type { ClientOptions } from './transport'

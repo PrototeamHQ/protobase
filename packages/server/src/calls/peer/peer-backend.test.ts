@@ -1,93 +1,102 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { CallServerMessage } from '@protobase/schema/internal'
-import type { CallMember } from '../call-member'
+import type { CallRoom } from '../media-backend'
+import { callHarness, settle } from '../testing/call-harness'
 import { peerBackend } from './peer-backend'
 
-afterEach(() => void vi.useRealTimers())
-
-// Members of one peer plugin, each with what their browser was sent.
-const plugin = () => {
-  const backend = peerBackend({ kind: 'peer', iceServers: [{ urls: ['stun:stun.example.com'] }] })
-  const open = (member: string, more: Partial<CallMember> = {}) => {
-    const sent: CallServerMessage[] = []
-    const link = { send: vi.fn((message: CallServerMessage) => void sent.push(message)), close: vi.fn() }
-    const session = backend.open({ call: 'standup', member, publish: true, ...more }, link)
-    return { session, sent, link, last: (type: CallServerMessage['type']) => sent.filter((message) => message.type === type).at(-1) }
-  }
-  return { open }
+// One member's session of the plugin, with a room that keeps what the member did in it.
+const session = (hears?: (track: { kind: string }) => boolean) => {
+  const sent: CallServerMessage[] = []
+  const link = { send: vi.fn((message: CallServerMessage) => void sent.push(message)), close: vi.fn() }
+  const room = { call: '7', tracks: vi.fn(async () => {}), signal: vi.fn(async () => {}) } satisfies CallRoom
+  const opened = peerBackend({ kind: 'peer', iceServers: [{ urls: ['stun:stun.example.com'] }] }).open({ call: '7', member: 'ann', publish: true, ...(hears && { hears }) }, link, room)
+  return { opened, sent, link, room }
 }
 
 describe('the peer plugin', () => {
-  it('tells each member who else is in the call, with its ICE servers', async () => {
-    const { open } = plugin()
-    const ann = open('ann')
-    await ann.session.receive({ type: 'join' })
-    expect(ann.sent[0]).toEqual({ type: 'joined', mode: 'peer', participant: 'ann', iceServers: [{ urls: ['stun:stun.example.com'] }] })
-    const bob = open('bob')
-    await bob.session.receive({ type: 'join' })
+  it('tells the member they joined the call, with its ICE servers', async () => {
+    const { opened, sent } = session()
+    await opened.receive({ type: 'join' })
+    expect(sent).toEqual([{ type: 'joined', call: '7', mode: 'peer', participant: 'ann', iceServers: [{ urls: ['stun:stun.example.com'] }] }])
+  })
+
+  it('shares the tracks the member sends with the call, as they publish, mute and stop them', async () => {
+    const { opened, sent, room } = session()
+    await opened.receive({ type: 'publish', tracks: [{ cid: 'cam', kind: 'video', source: 'camera' }] })
+    expect(sent.at(-1)).toEqual({ type: 'published', tracks: [{ cid: 'cam', sid: 'cam' }] })
+    expect(room.tracks).toHaveBeenLastCalledWith([{ sid: 'cam', member: 'ann', kind: 'video', source: 'camera', muted: false }])
+    await opened.receive({ type: 'mute', sid: 'cam', muted: true })
+    expect(room.tracks).toHaveBeenLastCalledWith([expect.objectContaining({ sid: 'cam', muted: true })])
+    await opened.receive({ type: 'unpublish', sid: 'cam' })
+    expect(room.tracks).toHaveBeenLastCalledWith([])
+  })
+
+  it('passes a description to the room for the member it names, never naming the sender itself', async () => {
+    const { opened, room } = session()
+    await opened.receive({ type: 'signal', to: 'bob', description: { type: 'offer', sdp: 'v=0' } })
+    expect(room.signal).toHaveBeenCalledWith('bob', { description: { type: 'offer', sdp: 'v=0' } })
+  })
+
+  it('lists the others and the tracks of theirs the member hears', () => {
+    const { opened, sent } = session((track) => track.kind === 'video')
+    opened.roster!([
+      { row: '1', member: 'ann', process: 'p', joined_at: 't', tracks: [] },
+      { row: '2', member: 'bob', process: 'p', joined_at: 't', tracks: [{ sid: 'cam', member: 'bob', kind: 'video', source: 'camera', muted: false }, { sid: 'mic', member: 'bob', kind: 'audio', source: 'microphone', muted: false }] },
+    ])
+    expect(sent).toEqual([{ type: 'peers', members: ['bob'] }, { type: 'tracks', tracks: [{ sid: 'cam', member: 'bob', kind: 'video', source: 'camera', muted: false }] }])
+  })
+})
+
+describe('a peer-to-peer call', () => {
+  it('lists every member, members who send nothing too, to each of them', async () => {
+    const { member } = callHarness()
+    const ann = await member('ann')
+    await ann.send({ type: 'join' })
+    const bob = await member('bob', { rights: { publish: false } })
+    await bob.send({ type: 'join' })
+    await settle()
     expect(ann.last('peers')).toEqual({ type: 'peers', members: ['bob'] })
     expect(bob.last('peers')).toEqual({ type: 'peers', members: ['ann'] })
+    expect(ann.last('members')?.members.map((present) => present.member)).toEqual(['ann', 'bob'])
+    expect(bob.last('members')?.members.map((present) => present.member)).toEqual(['ann', 'bob'])
   })
 
-  it('passes descriptions and candidates to the member they name, from the member who sent them', async () => {
-    const { open } = plugin()
-    const ann = open('ann')
-    const bob = open('bob')
-    await ann.session.receive({ type: 'join' })
-    await bob.session.receive({ type: 'join' })
-    await ann.session.receive({ type: 'signal', to: 'bob', description: { type: 'offer', sdp: 'v=0' } })
-    await ann.session.receive({ type: 'signal', to: 'nobody', candidate: { candidate: 'candidate:1' } })
-    expect(bob.last('signal')).toEqual({ type: 'signal', from: 'ann', description: { type: 'offer', sdp: 'v=0' } })
-    expect(ann.last('signal')).toBeUndefined()
+  it('tells the member who joined before anything of the call', async () => {
+    const { member } = callHarness()
+    const ann = await member('ann')
+    await ann.send({ type: 'join' })
+    await settle()
+    expect(ann.sent.map((message) => message.type)).toEqual(['joined', 'members', 'peers', 'tracks'])
   })
 
-  it('lists a member\'s tracks to the others who hear them', async () => {
-    const { open } = plugin()
-    const ann = open('ann')
-    const bob = open('bob', { hears: (track) => track.kind === 'video' })
-    await ann.session.receive({ type: 'join' })
-    await bob.session.receive({ type: 'join' })
-    await ann.session.receive({ type: 'publish', tracks: [{ cid: 'cam', kind: 'video', source: 'camera' }, { cid: 'mic', kind: 'audio', source: 'microphone' }] })
-    expect(ann.last('published')).toEqual({ type: 'published', tracks: [{ cid: 'cam', sid: 'cam' }, { cid: 'mic', sid: 'mic' }] })
-    expect(bob.last('tracks')).toEqual({ type: 'tracks', tracks: [{ sid: 'cam', member: 'ann', kind: 'video', source: 'camera', muted: false }] })
-    await ann.session.receive({ type: 'mute', sid: 'cam', muted: true })
-    expect(bob.last('tracks')).toEqual({ type: 'tracks', tracks: [expect.objectContaining({ sid: 'cam', muted: true })] })
-    await ann.session.receive({ type: 'unpublish', sid: 'cam' })
-    expect(bob.last('tracks')).toEqual({ type: 'tracks', tracks: [] })
-  })
-
-  it('keeps a member whose socket was lost until they resume, or for a while', async () => {
-    vi.useFakeTimers()
-    const { open } = plugin()
-    const ann = open('ann')
-    const bob = open('bob')
-    await ann.session.receive({ type: 'join' })
-    await bob.session.receive({ type: 'join' })
-    ann.session.end('lost')
+  it('keeps a member whose socket was lost until they resume, and their tracks', async () => {
+    const { member } = callHarness()
+    const ann = await member('ann')
+    const bob = await member('bob')
+    await ann.send({ type: 'join' })
+    await bob.send({ type: 'join' })
+    await ann.closed(1006)
+    await settle()
     expect(bob.last('peers')).toEqual({ type: 'peers', members: ['ann'] })
-    const again = open('ann')
-    await again.session.receive({ type: 'resume', participant: 'ann', tracks: [{ cid: 'cam', sid: 'cam', kind: 'video', source: 'camera' }] })
+    const again = await member('ann')
+    await again.send({ type: 'resume', call: ann.last('joined')!.call, participant: 'ann', tracks: [{ cid: 'cam', sid: 'cam', kind: 'video', source: 'camera' }] })
+    await settle()
     expect(again.sent[0]).toEqual({ type: 'resumed' })
     expect(bob.last('tracks')).toEqual({ type: 'tracks', tracks: [expect.objectContaining({ sid: 'cam', member: 'ann' })] })
-    vi.advanceTimersByTime(60_000)
-    expect(bob.last('peers')).toEqual({ type: 'peers', members: ['ann'] })
-
-    again.session.end('lost')
-    vi.advanceTimersByTime(60_000)
-    expect(bob.last('peers')).toEqual({ type: 'peers', members: [] })
   })
 
   it('takes a member who left out at once, and replaces a member who joins twice', async () => {
-    const { open } = plugin()
-    const ann = open('ann')
-    const bob = open('bob')
-    await ann.session.receive({ type: 'join' })
-    await bob.session.receive({ type: 'join' })
-    const twice = open('bob')
-    await twice.session.receive({ type: 'join' })
-    expect(bob.link.close).toHaveBeenCalledWith(1000, 'left')
+    const { member } = callHarness()
+    const ann = await member('ann')
+    const bob = await member('bob')
+    await ann.send({ type: 'join' })
+    await bob.send({ type: 'join' })
+    const twice = await member('bob')
+    await twice.send({ type: 'join' })
+    expect(bob.closes).toContainEqual([1008, 'removed'])
     expect(bob.last('left')).toEqual({ type: 'left', reason: 'removed' })
-    twice.session.end('left')
+    await twice.send({ type: 'leave' })
+    await settle()
     expect(ann.last('peers')).toEqual({ type: 'peers', members: [] })
   })
 })

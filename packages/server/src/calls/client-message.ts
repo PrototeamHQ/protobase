@@ -27,7 +27,7 @@ const description = z.strictObject({ type: z.enum(['offer', 'answer']), sdp })
 
 const message = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('join') }),
-  z.strictObject({ type: z.literal('resume'), participant: id, offer: sdp.optional(), answer: sdp.optional(), tracks: z.array(z.strictObject({ cid: id, sid: id, kind, source })).max(16) }),
+  z.strictObject({ type: z.literal('resume'), call: id, participant: id, offer: sdp.optional(), answer: sdp.optional(), tracks: z.array(z.strictObject({ cid: id, sid: id, kind, source })).max(16) }),
   z.strictObject({ type: z.literal('publish'), tracks: z.array(track).min(1).max(4) }),
   z.strictObject({ type: z.literal('offer'), sdp, id: z.number().int().min(0) }),
   z.strictObject({ type: z.literal('candidate'), candidate }),

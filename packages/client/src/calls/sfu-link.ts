@@ -170,7 +170,7 @@ export const sfuLink = ({ iceServers, send, onTracks, onUnpublished, createPeerC
     },
     restartIce,
     /** What a new server session needs to resume this link, after an offer still in flight is taken back. */
-    resumeState: async (participant: string): Promise<CallResume | undefined> => {
+    resumeState: async (participant: string): Promise<Omit<CallResume, 'call'> | undefined> => {
       if (pc.signalingState === 'have-local-offer') {
         await pc.setLocalDescription({ type: 'rollback' })
         offers.abandon()

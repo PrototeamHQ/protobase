@@ -28,7 +28,7 @@ export type MediaLink = {
   mute: (source: CallTrackSource, muted: boolean) => void
   restartIce: () => Promise<void>
   /** What a new server session needs to resume the link; `undefined` when it cannot, and the member joins anew. */
-  resumeState: (participant: string) => Promise<CallResume | undefined>
+  resumeState: (participant: string) => Promise<Omit<CallResume, 'call'> | undefined>
   /** After a resume: offers what changed while the session was lost. */
   resumed: () => Promise<void>
   /** The tracks the member sends, by source, to publish again after a rejoin. */

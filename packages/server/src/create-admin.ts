@@ -67,6 +67,7 @@ import { subscriptionUrlCheck, subscriptionWriteCheck } from './webhooks/table/v
 import type { WebhooksOptions } from './webhooks/table/options'
 import type { NotificationsOptions } from './notifications/options'
 import type { CallsOptions } from './calls/calls-options'
+import { callsService } from './calls/calls-service'
 import { deviceStore, removeDevicesWithUsers } from './notifications/device-store-of'
 import { historyStore, removeHistoryWithUsers } from './notifications/history-store-of'
 import { historyRoutes } from './notifications/history-routes'
@@ -319,6 +320,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(withHistory && { history: { schema: changes, ...(auth && { actorNames: betterAuthActorNames(auth) }) } }),
     ...(mentions && { comments: { ...(commentUsers && { users: commentUsers }), mentionJob: mentions, appOrigin: appOrigin(auth?.origins ?? []) } }),
     ...(withAi && { ai: { ...(model && { model }), ...(options.onUnhandledError && { report: options.onUnhandledError }) } }),
+    ...(calls && { calls: callsService(() => deps, calls) }),
   }
 
   // The tabs end in the name the app signs in and mails as, which the installed app is called too.
@@ -404,7 +406,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   // The broadcasts and presences of both realtime APIs, apart, through one relay with several processes.
   const hubs = realtimeHubs(deps, realtime, report)
   const channels = channelSender(registry, hubs.records.broadcasts)
-  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), channels, decryptField, onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(calls && { calls }), report }))
+  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), channels, decryptField, onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(deps.calls && { calls: deps.calls }), report }))
   // Channels named by records, with presence and broadcasts, for whoever may read the record, a visitor too.
   if (upgradeWebSocket) {
     const visitors = (caller: Authenticator) => withAnonymous(caller, options.roles)

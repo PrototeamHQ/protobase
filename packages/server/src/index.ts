@@ -71,6 +71,7 @@ export { realtimeRelayMigration, checkRealtimeRelay } from './realtime/relay/rel
 export { relayed, sqlSends, type RealtimeOptions } from './realtime/relay/realtime-options'
 export { channelSendsMigration, checkChannelSends } from './channels/sends-schema'
 export { commentsMigration, checkComments } from './comments/comments-sql'
+export { callsMigration, checkCalls } from './calls/calls-sql'
 export { checkAi, type CheckAiInput } from './ai/check-ai'
 export type { CommentItem } from './comments/comment-item'
 export type { CommentUsers } from './comments/comment-users'

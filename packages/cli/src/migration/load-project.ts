@@ -34,6 +34,7 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
     ...(config.events && { events: config.events }),
     ...(webhooks && { webhooks }),
     ...(config.realtime && { realtime: config.realtime }),
+    ...(config.calls && { calls: config.calls }),
     ...(notifications && { notifications }),
     ...(config.status && { status: checkStatusOptions(config.status) }),
     jobs,

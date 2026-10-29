@@ -17,6 +17,7 @@ import { mentionable } from '../comments/mentionable'
 import { postComment } from '../comments/post-comment'
 import { readComments } from '../comments/read-comments'
 import { generateField } from '../ai/generate-route'
+import { readRecordCalls, watchRecordCalls } from '../calls/record-calls'
 
 export const recordRoutes = (deps: Deps) => {
   const app = new Hono<AdminEnv>()
@@ -27,6 +28,12 @@ export const recordRoutes = (deps: Deps) => {
     if (c.req.param('key').endsWith(':history')) return c.json(await readHistory(deps, entry, c.get('session'), keyFromPath(c, entry, ':history'), c.req.query()))
     // GET /{resource}/{key}:comments: the record's comments, newest first; :mentionable?q=: whom a comment may mention
     if (c.req.param('key').endsWith(':comments')) return c.json(await readComments(deps, entry, c.get('session'), keyFromPath(c, entry, ':comments'), c.req.query()))
+    // GET /{resource}/{key}:calls: the record's calls, the one going on first; with ?watch=true, as they change
+    if (c.req.param('key').endsWith(':calls')) {
+      const key = keyFromPath(c, entry, ':calls')
+      if (c.req.query('watch') === 'true') return watchRecordCalls(c, deps, entry, key)
+      return c.json(await readRecordCalls(deps, entry, c.get('session'), key))
+    }
     if (c.req.param('key').endsWith(':mentionable')) return c.json(await mentionable(deps, entry, c.get('session'), keyFromPath(c, entry, ':mentionable'), c.req.query()))
     const found = await readRecord(deps, entry, c.get('session'), keyFromPath(c, entry), c.req.query('show_deleted') === 'true')
     // `fields` is checked against the caller's own readable fields

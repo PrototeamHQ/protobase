@@ -55,10 +55,11 @@ const callFunction = async (name: string, subscription: SubscriptionDefinition, 
   if (!fn) throw new Error(`The app has no function "${name}"`)
   const session = subscriberSession(subscription) ?? { user: { id: `subscription:${subscription.name}`, roles: [] } }
   const caller: FunctionCaller = { session, records: context.records(session) }
+  const noCalls = () => Promise.reject(new Error(`The function "${name}" reached calls, which a webhook delivery has none of`))
   const acceptWebSocket = () => {
     throw new Error(`The function "${name}" accepted a WebSocket, but a webhook delivery is no upgrade`)
   }
-  const functionContext: PublicFunctionContext = { name, db: context.db, channels: context.channels, caller: async () => caller, acceptWebSocket, calls: { join: async () => acceptWebSocket() } }
+  const functionContext: PublicFunctionContext = { name, db: context.db, channels: context.channels, caller: async () => caller, acceptWebSocket, calls: { join: async () => acceptWebSocket(), remove: noCalls, of: noCalls } }
   return invokeFunction(name, fn, await request('http://protobase.internal/', event, options, signal), fn.options.public ? functionContext : { ...functionContext, ...caller })
 }
 

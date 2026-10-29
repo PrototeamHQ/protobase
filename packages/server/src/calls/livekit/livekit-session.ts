@@ -20,7 +20,7 @@ import {
 } from '@livekit/protocol'
 import type { CallClientMessage, CallLeftReason, CallResume, CallServerMessage, CallTrackRequest } from '@protobase/schema/internal'
 import type { LiveKitBackend } from '../calls-options'
-import type { CallMember } from '../call-member'
+import type { SessionMember } from '../call-member'
 import { resumeCloseCode, type MediaBackend, type MemberLink, type MemberSession } from '../media-backend'
 import { joinUrl, type JoinOptions } from './join-url'
 import { liveKitToken } from './livekit-token'
@@ -68,7 +68,7 @@ const addTrackRequest = (track: CallTrackRequest) =>
  * subscribed until `hears` admits it. The session keeps nothing a new one could not rebuild from the browser's `resume`,
  * so a member moves to another session, or process, without losing media.
  */
-const liveKitSession = (backend: LiveKitBackend, member: CallMember, link: MemberLink, deps: LiveKitDeps): MemberSession => {
+const liveKitSession = (backend: LiveKitBackend, member: SessionMember, link: MemberLink, deps: LiveKitDeps): MemberSession => {
   const hears = member.hears ?? (() => true)
   let signal: SignalSocket | undefined
   let finished = false
@@ -117,6 +117,7 @@ const liveKitSession = (backend: LiveKitBackend, member: CallMember, link: Membe
         signal!.keepAlive(join.pingInterval || resumePing.interval, join.pingTimeout || resumePing.timeout)
         toBrowser({
           type: 'joined',
+          call: member.call,
           mode: 'sfu',
           participant: join.participant!.sid,
           iceServers: join.iceServers.map((server) => ({ urls: server.urls, ...(server.username && { username: server.username, credential: server.credential }) })),

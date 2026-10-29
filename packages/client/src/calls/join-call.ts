@@ -1,4 +1,4 @@
-import type { CallClientMessage, CallLeftReason, CallServerMessage, CallTrackSource } from '@protobase/schema/internal'
+import type { CallClientMessage, CallLeftReason, CallRosterMember, CallServerMessage, CallTrackSource } from '@protobase/schema/internal'
 import type { CallTrack, MediaLink, MediaLinkInput, PublishOptions } from './media-link'
 import { peerLink } from './peer-link'
 import { sfuLink } from './sfu-link'
@@ -14,6 +14,8 @@ export type JoinCallOptions = {
   url: string
   /** Every track of other members the member hears, whenever one comes, goes or its media arrives. */
   onTracks?: (tracks: CallTrack[]) => void
+  /** Everyone in the call, the member too, in the order they came, whenever that changes. */
+  onMembers?: (members: CallRosterMember[]) => void
   /** Who speaks how loudly, from 0 to 1, for the members whose level changed. */
   onSpeakers?: (speakers: { member: string; level: number }[]) => void
   onState?: (state: CallState) => void
@@ -21,15 +23,19 @@ export type JoinCallOptions = {
   onUnpublished?: (source: CallTrackSource) => void
   /** How long to wait before the `attempt`th try to restore a lost link. */
   retryDelayMs?: (attempt: number) => number
-  /** How many tries in a row to restore a lost link before the call is left. Default 8. */
+  /** How many tries in a row to restore a lost link, or to get in while the server fails, before the call is left. Default 8. */
   maxRetries?: number
   WebSocket?: typeof WebSocket
   createPeerConnection?: (configuration: RTCConfiguration) => RTCPeerConnection
 }
 
 export type Call = {
+  /** The call, as the record's calls list it and `calls.remove` takes it. */
+  readonly id: string
   /** The member's participant in the media server. */
   readonly participant: string
+  /** Everyone in the call now, the member too. */
+  members: () => CallRosterMember[]
   /** Sends tracks under the sources they carry, such as `{ camera, microphone }`; rejects when the member may not. */
   publish: (tracks: Partial<Record<CallTrackSource, MediaStreamTrack>>, options?: PublishOptions) => Promise<void>
   unpublish: (source: CallTrackSource) => Promise<void>
@@ -53,6 +59,8 @@ const socketUrl = (url: string) => {
 
 /** Close codes after which the member is out of the call: left, or refused by the app. */
 const leftCodes: Record<number, CallLeftReason> = { 1000: 'ended', 1008: 'removed' }
+/** Close codes of a server that failed, or was too busy, for now: getting in is tried again. */
+const failedCodes = new Set([1011, 1013])
 
 /**
  * Joins a call through the app's function socket and resolves once the member is in it. Media flows over plain
@@ -69,6 +77,8 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
   let socket: WebSocket
   let link: MediaLink | undefined
   let participant = ''
+  let callId = ''
+  let members: CallRosterMember[] = []
   let remote: CallTrack[] = []
   let ended = false
   let rejoin = false
@@ -116,6 +126,7 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
         const before = link?.sending()
         link?.close()
         participant = message.participant
+        callId = message.call
         link = newLink(message)
         failures = 0
         setState({ state: 'joined' })
@@ -132,6 +143,10 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
         return
       case 'speakers':
         options.onSpeakers?.(message.speakers)
+        return
+      case 'members':
+        members = message.members
+        options.onMembers?.(members)
         return
       case 'left':
         if (message.reason === 'rejoin') rejoin = true
@@ -150,7 +165,7 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
       opened = true
       chain = chain.then(async () => {
         const resume = mode === 'resume' && link ? await link.resumeState(participant) : undefined
-        send(resume ? { type: 'resume', ...resume } : { type: 'join' })
+        send(resume ? { type: 'resume', call: callId, ...resume } : { type: 'join' })
       })
     }
     socket.onmessage = (event) => {
@@ -170,10 +185,10 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
     }
     const left = leftCodes[code]
     if (left) return end(left)
-    if (!participant) return end('refused')
+    if (!participant && !failedCodes.has(code)) return end('refused')
     failures++
-    if (failures > maxRetries) return end('ended')
-    setState({ state: 'resuming' })
+    if (failures > maxRetries) return end(participant ? 'ended' : 'unavailable')
+    setState(participant ? { state: 'resuming' } : { state: 'connecting' })
     // A resume the server got but did not take is not tried again: the member joins anew with the same tracks. One that
     // never reached a server, such as during a deploy, is tried again.
     const next = mode === 'resume' && opened && !resumedSinceOpen ? 'join' : 'resume'
@@ -183,9 +198,13 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
   }
 
   const call: Call = {
+    get id() {
+      return callId
+    },
     get participant() {
       return participant
     },
+    members: () => members,
     publish: async (tracks, publishOptions) => {
       if (!link) throw new Error('The call was left')
       await link.publish(tracks, publishOptions)

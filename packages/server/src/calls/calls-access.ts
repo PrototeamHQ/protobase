@@ -1,42 +1,69 @@
+import { anonymousUserId } from '../anonymous'
 import type { SocketEvents } from '../functions/function-socket'
-import type { CallMember } from './call-member'
-import type { CallBackend, CallsOptions } from './calls-options'
-import type { MediaBackend } from './media-backend'
+import { forbidden } from '../problem'
+import type { Session } from '../types'
+import type { CallMember, CallRecordKey } from './call-member'
+import type { CallItem } from './call-reads'
+import type { CallsService } from './calls-service-type'
 
-/** What a function admits members to calls with. */
+/** What a function admits members to calls with, and sees and changes them by. */
 export type CallsAccess = {
   /**
-   * The member's media session in the call, as the events of the socket the function accepts for them: return
-   * `acceptWebSocket(await calls.join(member))` once the function decided the caller may join. The browser's
-   * `joinCall` from `@protobase/client/calls` speaks to it. Rejects when the app has no `calls` configured.
+   * The member's media session in the call on the record, as the events of the socket the function accepts for them:
+   * return `acceptWebSocket(await calls.join(member))` once the function decided the caller may join. The caller must
+   * be signed in and able to read the record, now and at every minute's check; the browser's `joinCall` from
+   * `@protobase/client/calls` speaks to it. Rejects when the app has no `calls` configured.
    */
   join: (member: CallMember) => Promise<SocketEvents>
+  /**
+   * Takes the member out of the call `call` at once, and keeps them out of it: their sockets close, the others drop
+   * their connections to them, and their joins and resumes are refused. Whether they were in it; nothing happens to a
+   * call that ended.
+   */
+  remove: (call: string, member: string) => Promise<boolean>
+  /** The record's latest calls, newest first, the one going on first: with no access check, like `db`. */
+  of: (record: { resource: string; key: CallRecordKey }) => Promise<CallItem[]>
 }
 
-const checkMember = ({ call, member }: CallMember) => {
-  if (typeof call !== 'string' || call.length === 0) throw new TypeError('calls.join needs the call, a non-empty string')
+/** The caller of a function, as calls need them: who they are, and whether they read a record. */
+type CallsCaller = { session: Session; records: { get: (resource: string, key: CallRecordKey) => Promise<unknown> } }
+
+/** The largest message of a member's socket: a description, with room to spare. */
+const maxMessageBytes = 300 * 1024
+
+const checkMember = ({ record, member }: CallMember) => {
+  if (typeof record?.resource !== 'string' || record.resource.length === 0) throw new TypeError('calls.join needs the record, { resource, key }')
   if (typeof member !== 'string' || member.length === 0) throw new TypeError('calls.join needs the member, a non-empty string')
 }
 
-// The plugin a backend's settings name, loaded only when a member first joins.
-const loadBackend = async (settings: CallBackend): Promise<MediaBackend> => {
-  if (settings.kind === 'livekit') return (await import('./livekit/livekit-session')).liveKitBackend(settings)
-  return (await import('./peer/peer-backend')).peerBackend(settings)
-}
+const withoutCalls = () => Promise.reject(new Error('This app has no calls: configure calls: { backend } in protobase.config.ts'))
 
 /**
- * Calls as a function sees them: each member's socket goes through the relay to the configured plugin, made once, at
- * the first join, so an app without calls loads none of their code.
+ * Calls as a function sees them, for the caller `caller` gives: a public function's resolves only once it is asked
+ * for, and rejects without a valid token. An app without calls loads none of their code.
  */
-export const callsAccess = (options: CallsOptions | undefined): CallsAccess => {
-  let backend: Promise<MediaBackend> | undefined
+export const callsAccess = (service: CallsService | undefined, caller: () => Promise<CallsCaller>): CallsAccess => {
+  if (!service) return { join: withoutCalls, remove: withoutCalls, of: withoutCalls }
   return {
     join: async (member) => {
-      if (!options) throw new Error('This app has no calls: configure calls: { backend } in protobase.config.ts')
       checkMember(member)
-      backend ??= loadBackend(options.backend)
-      const [{ memberRelay }, plugin] = await Promise.all([import('./member-relay'), backend])
-      return memberRelay(plugin, member)
+      const { session, records } = await caller()
+      if (session.anonymous || session.user.id === anonymousUserId) throw forbidden('call-needs-user', 'Sign in to join a call')
+      const { resource, key } = member.record
+      const record = service.recordOf(resource, key)
+      const mayRead = () => records.get(resource, key)
+      await mayRead()
+      const events = await (await service.runtime()).relay(record, member.member, { publish: member.publish, ...(member.hears && { hears: member.hears }) })
+      return {
+        ...events,
+        maxMessageBytes,
+        recheck: async () => {
+          await mayRead()
+          await member.recheck?.()
+        },
+      }
     },
+    remove: async (call, member) => (await service.runtime()).remove(call, member),
+    of: async ({ resource, key }) => (await service.runtime()).of(service.recordOf(resource, key)),
   }
 }

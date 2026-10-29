@@ -1,41 +1,80 @@
-import type { CallClientMessage, CallTrackRequest } from '@protobase/schema/internal'
+import type { CallClientMessage, CallLeftReason, CallServerMessage, CallTrackRequest } from '@protobase/schema/internal'
 import type { FunctionSocket, SocketEvents } from '../functions/function-socket'
-import type { CallMember } from './call-member'
+import type { CallDoor, InCall } from './call-hub'
+import type { CallRights } from './call-member'
+import type { CallRecord } from './call-store'
+import { memberEnd } from './close-codes'
 import { parseClientMessage } from './client-message'
-import type { MediaBackend, MemberSession } from './media-backend'
+import type { MediaBackend, MemberEnd, MemberSession } from './media-backend'
 
-/** The close code of a socket whose caller Protobase refused at a recheck: the member leaves the call too. */
+/** The close code of a socket whose caller Protobase refused: the member leaves the call too. */
 const refusedCloseCode = 1008
 
-const mayPublish = (member: CallMember, tracks: CallTrackRequest[]) =>
-  member.publish === true || (Array.isArray(member.publish) && tracks.every((track) => (member.publish as string[]).includes(track.source)))
+const mayPublish = (rights: CallRights, tracks: CallTrackRequest[]) =>
+  rights.publish === true || (Array.isArray(rights.publish) && tracks.every((track) => (rights.publish as string[]).includes(track.source)))
+
+const refusals: Record<string, string> = { removed: 'You were removed from this call', full: 'This call is full', ended: 'This call has ended' }
+
+export type MemberRelayInput = {
+  door: CallDoor
+  backend: MediaBackend
+  record: CallRecord
+  member: string
+  rights: CallRights
+  maxMembers: number
+  maxMinutes: number
+  report: (error: unknown) => void
+}
 
 /**
- * One member's socket, relayed to the call's media plugin: the relay reads and checks the browser's messages, refuses a
- * publish the member may not make, opens the member's session at their `join` or `resume` and tells it how the socket
- * ended. The plugin only ever sees well-formed messages of a member Protobase admitted.
+ * One member's socket, relayed to the call's media plugin: the relay reads and checks the browser's messages, lets
+ * the member into the record's call at their `join` or `resume`, or tells them why not, refuses a publish the member
+ * may not make, and tells the call and the plugin how the socket ended. The plugin only ever sees well-formed messages
+ * of a member Protobase let in.
  */
-export const memberRelay = (backend: MediaBackend, member: CallMember): SocketEvents => {
+export const memberRelay = ({ door, backend, record, member, rights, maxMembers, maxMinutes, report }: MemberRelayInput): SocketEvents => {
   let browser: FunctionSocket
   let session: MemberSession | undefined
+  let inCall: InCall | undefined
   let finished = false
+  // LiveKit lost the member and the browser joins again at once: their time in the call goes on.
+  let rejoining = false
 
-  const send = (message: object) => void browser.send(JSON.stringify(message))
+  const send = (message: CallServerMessage) => {
+    if (message.type === 'left' && message.reason === 'rejoin') rejoining = true
+    void browser.send(JSON.stringify(message))
+  }
+  const end = (how: MemberEnd) => {
+    session?.end(how)
+    if (!inCall) return
+    if (how === 'left') return void inCall.leave().catch(report)
+    inCall.detach()
+  }
   const close = (code: number, reason: string) => {
     if (finished) return
     finished = true
-    session?.end(code === 1000 || code === refusedCloseCode ? 'left' : 'lost')
+    end(rejoining ? 'lost' : memberEnd(code))
     browser.close(code, reason)
   }
 
-  const relay = async (message: CallClientMessage) => {
-    if (message.type === 'join' || message.type === 'resume') {
-      if (session) return close(refusedCloseCode, 'The call session already started')
-      session = backend.open(member, { send, close })
-      return session.receive(message)
+  const enter = async (message: Extract<CallClientMessage, { type: 'join' | 'resume' }>) => {
+    if (session) return close(refusedCloseCode, 'The call session already started')
+    const resume = message.type === 'resume' ? { call: message.call, tracks: message.tracks.map((track) => ({ sid: track.sid, member, kind: track.kind, source: track.source, muted: false })) } : undefined
+    const admitted = await door.admit({ record, member, maxMembers, maxMinutes, ...(resume && { resume }) }, { send, close })
+    if ('refused' in admitted) {
+      send({ type: 'left', reason: admitted.refused satisfies CallLeftReason })
+      return close(refusedCloseCode, refusals[admitted.refused]!)
     }
+    inCall = admitted
+    session = backend.open({ ...rights, call: admitted.call, member }, { send, close }, admitted.room)
+    await session.receive(message)
+    await admitted.listen(session.roster ?? (() => {}))
+  }
+
+  const relay = async (message: CallClientMessage) => {
+    if (message.type === 'join' || message.type === 'resume') return enter(message)
     if (!session) return close(refusedCloseCode, 'Join or resume the call first')
-    if (message.type === 'publish' && !mayPublish(member, message.tracks)) return send({ type: 'publish-refused', reason: 'The member may not publish these tracks' })
+    if (message.type === 'publish' && !mayPublish(rights, message.tracks)) return send({ type: 'publish-refused', reason: 'The member may not publish these tracks' })
     await session.receive(message)
   }
 
@@ -52,8 +91,8 @@ export const memberRelay = (backend: MediaBackend, member: CallMember): SocketEv
     onClose: (code) => {
       if (finished) return
       finished = true
-      // Refused by Protobase: the member is out of the call. Otherwise the browser may resume, on any process.
-      session?.end(code === refusedCloseCode ? 'left' : 'lost')
+      // Lost: the browser may resume, on any process, within the grace. Otherwise the member is out of the call.
+      end(rejoining ? 'lost' : memberEnd(code))
     },
   }
 }

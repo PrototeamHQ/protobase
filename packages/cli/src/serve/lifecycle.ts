@@ -2,7 +2,7 @@ import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import pg from 'pg'
-import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkJobsSchema, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkWebhooksSchema, configExports, createFileCleanup, relayed, sqlSends, startJobs, type ErrorReporter } from '@protobase/server'
+import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkJobsSchema, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkWebhooksSchema, configExports, createFileCleanup, relayed, sqlSends, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { openAppDatabase } from '../project/pg-db'
 import { buildProject, type AppDatabase } from '../config/build-project'
@@ -65,6 +65,7 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
     if (env.startupChecks && project.auth) await checkResourcesOutsideAuthStore(db, resources.map((resource) => resource.toModel()), project.auth)
     if (env.startupChecks) await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
     if (env.startupChecks) await checkComments(db, resources.map((resource) => resource.toModel()))
+    if (env.startupChecks) await checkCalls(db, project.calls)
     if (env.startupChecks) await checkComputed(db, resources.map((resource) => resource.toModel()))
     if (env.startupChecks && assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
     if (env.startupChecks) checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })

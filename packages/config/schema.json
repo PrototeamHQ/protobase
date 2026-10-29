@@ -3581,6 +3581,31 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "maxMinutes": {
+          "description": "How long a call lasts at most, in minutes, 240 by default: then it ends, whoever is still in it.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "processes": {
+          "description": "`'one'`, the default, when one process serves the app. `'many'` when several serve it behind one address: the\nmembers' signaling then goes between the processes through the `calls` schema.",
+          "anyOf": [
+            {
+              "enum": [
+                "one",
+                "many"
+              ]
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
       "required": [
@@ -3669,6 +3694,16 @@
                   }
                 ]
               }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "maxMembers": {
+          "anyOf": [
+            {
+              "type": "number"
             },
             {
               "$ref": "#/definitions/EnvValue"

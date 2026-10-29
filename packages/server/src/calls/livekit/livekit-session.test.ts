@@ -23,7 +23,10 @@ import { decodeJwt } from 'jose'
 import { describe, expect, it, vi } from 'vitest'
 import type { CallServerMessage } from '@protobase/schema/internal'
 import type { FunctionSocket } from '../../functions/function-socket'
-import type { CallMember } from '../call-member'
+import type { SessionMember } from '../call-member'
+import { callHub } from '../call-hub'
+import { memoryCallStore } from '../testing/memory-call-store'
+import { standup } from '../testing/call-harness'
 import { resumeCloseCode } from '../media-backend'
 import { memberRelay } from '../member-relay'
 import { liveKitBackend } from './livekit-session'
@@ -33,7 +36,7 @@ const backend = { kind: 'livekit' as const, url: 'http://livekit.test', apiKey: 
 
 // A member's socket through the relay to the LiveKit plugin, over a fake signal socket and a fake browser socket, which
 // keep what each was sent.
-const session = async (member: Partial<CallMember> = {}) => {
+const session = async (member: Partial<SessionMember> = {}) => {
   const requests: SignalRequest['message'][] = []
   const signal = { send: vi.fn((message: SignalRequest['message']) => void requests.push(message)), keepAlive: vi.fn(), close: vi.fn() }
   let input: SignalSocketInput | undefined
@@ -43,13 +46,15 @@ const session = async (member: Partial<CallMember> = {}) => {
       return signal
     },
   })
-  const events = memberRelay(plugin, { call: 'standup', member: 'ann', publish: true, ...member })
+  const store = memoryCallStore()
+  const { publish = true, hears } = member
+  const events = memberRelay({ door: callHub({ store, manyProcesses: false, report: vi.fn() }), backend: plugin, record: standup, member: 'ann', rights: { publish, ...(hears && { hears }) }, maxMembers: Number.POSITIVE_INFINITY, maxMinutes: 60, report: vi.fn() })
   const sent: CallServerMessage[] = []
   const browser = { send: vi.fn(async (data: string | ArrayBuffer | Uint8Array) => void sent.push(JSON.parse(String(data)))), close: vi.fn(), bufferedAmount: 0 } satisfies FunctionSocket
   await events.onOpen!(browser)
   const fromBrowser = (message: object) => events.onMessage!(JSON.stringify(message), browser)
   const fromLiveKit = (message: SignalMessage) => input!.onMessage(message)
-  return { events, browser, signal, requests, sent, fromBrowser, fromLiveKit, input: () => input! }
+  return { events, browser, signal, requests, sent, fromBrowser, fromLiveKit, input: () => input!, store }
 }
 
 const participant = (sid: string, identity: string, tracks: Partial<TrackInfo>[], state = ParticipantInfo_State.ACTIVE) =>
@@ -70,7 +75,7 @@ describe('a member\'s LiveKit session through the relay', () => {
     expect(decodeJwt(url.searchParams.get('access_token')!)).toMatchObject({
       iss: 'key',
       sub: 'ann',
-      video: { room: 'standup', roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: false, canPublishSources: ['microphone'] },
+      video: { room: expect.stringMatching(/^[0-9a-f-]{36}$/), roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: false, canPublishSources: ['microphone'] },
     })
     const wrapped = WrappedJoinRequest.fromBinary(Buffer.from(url.searchParams.get('join_request')!, 'base64'))
     const join = JoinRequest.fromBinary(wrapped.joinRequest)
@@ -85,7 +90,8 @@ describe('a member\'s LiveKit session through the relay', () => {
     fromLiveKit(joinResponse([participant('PA_bob', 'bob', [bobsCamera, bobsMicrophone])]))
     expect(signal.keepAlive).toHaveBeenCalledWith(5, 15)
     expect(sent).toEqual([
-      { type: 'joined', mode: 'sfu', participant: 'PA_ann', iceServers: [] },
+      { type: 'members', members: [{ member: 'ann', joined_at: expect.any(String) }] },
+      { type: 'joined', call: expect.stringMatching(/^[0-9a-f-]{36}$/), mode: 'sfu', participant: 'PA_ann', iceServers: [] },
       { type: 'tracks', tracks: [{ sid: 'TR_cam', member: 'bob', kind: 'video', source: 'camera', muted: false }] },
     ])
     expect(requests).toEqual([expect.objectContaining({ case: 'subscription', value: expect.objectContaining({ trackSids: ['TR_cam'], subscribe: true }) })])
@@ -154,13 +160,14 @@ describe('a member\'s LiveKit session through the relay', () => {
   })
 
   it('resumes the participant from the browser\'s state', async () => {
-    const { fromBrowser, fromLiveKit, input, requests, sent } = await session()
-    await fromBrowser({ type: 'resume', participant: 'PA_ann', offer: 'v=0 offer', answer: 'v=0 answer', tracks: [{ cid: 'cam-1', sid: 'TR_1', kind: 'video', source: 'camera' }] })
+    const { fromBrowser, fromLiveKit, input, requests, sent, store } = await session()
+    const before = await store.admit({ record: standup, member: 'ann', process: 'before', maxMembers: 8, maxMinutes: 60 })
+    await fromBrowser({ type: 'resume', call: 'call' in before ? before.call : '',  participant: 'PA_ann', offer: 'v=0 offer', answer: 'v=0 answer', tracks: [{ cid: 'cam-1', sid: 'TR_1', kind: 'video', source: 'camera' }] })
     const join = JoinRequest.fromBinary(WrappedJoinRequest.fromBinary(Buffer.from(new URL(input().url).searchParams.get('join_request')!, 'base64')).joinRequest)
     expect(join).toMatchObject({ reconnect: true, participantSid: 'PA_ann' })
     expect(requests).toEqual([{ case: 'syncState', value: expect.objectContaining({ offer: expect.objectContaining({ sdp: 'v=0 offer' }), answer: expect.objectContaining({ sdp: 'v=0 answer' }) }) }])
     fromLiveKit({ case: 'reconnect', value: {} as never })
-    expect(sent).toEqual([{ type: 'resumed' }])
+    expect(sent).toEqual([{ type: 'members', members: [{ member: 'ann', joined_at: expect.any(String) }] }, { type: 'resumed' }])
   })
 
   it('leaves LiveKit when the member leaves', async () => {

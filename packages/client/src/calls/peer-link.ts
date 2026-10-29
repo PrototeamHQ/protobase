@@ -1,15 +1,16 @@
 import type { CallCandidate, CallDescription, CallRemoteTrack, CallServerMessage, CallTrackSource } from '@protobase/schema/internal'
 import { createPeerConnection as newPeerConnection, type MediaLink, type MediaLinkInput } from './media-link'
-import { midsByTrackId } from './msid-tracks'
+import { midsByStreamId } from './msid-tracks'
 
 type Peer = { pc: RTCPeerConnection; polite: boolean; makingOffer: boolean; ignoreOffer: boolean; senders: Map<CallTrackSource, RTCRtpSender> }
-type LocalTrack = { track: MediaStreamTrack; sid: string }
+// Each sent track on a stream of its own, whose id names it: the receiving browser reads it in the description's msid.
+type LocalTrack = { track: MediaStreamTrack; sid: string; stream: MediaStream }
 
 /**
  * The media link without a media server: one `RTCPeerConnection` to each other member, whose browser answers, so either
  * side may offer. Protobase passes the descriptions and candidates between the two ("perfect negotiation": the member
  * whose id sorts first gives way when both offer at once) and says who is in the call and which tracks each member
- * hears. A track goes by the id the sending browser gave it, which the receiving browser sees too.
+ * hears. A track goes by the id of the stream the sending browser sends it on, which the receiving browser sees too.
  */
 export const peerLink = (self: string, { iceServers, send, onTracks, createPeerConnection = newPeerConnection }: MediaLinkInput): MediaLink => {
   const peers = new Map<string, Peer>()
@@ -20,11 +21,11 @@ export const peerLink = (self: string, { iceServers, send, onTracks, createPeerC
 
   // Each sent track on a transceiver of its own: one the other side's offer made would keep that offer's msid, and the
   // other browser could not tell which track it carries.
-  const sendOn = (pc: RTCPeerConnection, track: MediaStreamTrack) => pc.addTransceiver(track, { direction: 'sendonly' }).sender
+  const sendOn = (pc: RTCPeerConnection, { track, stream }: LocalTrack) => pc.addTransceiver(track, { direction: 'sendonly', streams: [stream] }).sender
 
   const receivedTrack = ({ member, sid }: CallRemoteTrack) => {
     const pc = peers.get(member)?.pc
-    const mid = pc?.remoteDescription && midsByTrackId(pc.remoteDescription.sdp).get(sid)
+    const mid = pc?.remoteDescription && midsByStreamId(pc.remoteDescription.sdp).get(sid)
     return mid === undefined ? undefined : pc!.getTransceivers().find((transceiver) => transceiver.mid === mid)?.receiver.track
   }
   const emitTracks = () => onTracks(remote.map((track) => ({ ...track, ...(receivedTrack(track) && { track: receivedTrack(track) }) })))
@@ -49,7 +50,7 @@ export const peerLink = (self: string, { iceServers, send, onTracks, createPeerC
       if (pc.iceConnectionState === 'failed') pc.restartIce()
     }
     pc.ontrack = () => emitTracks()
-    for (const [source, { track }] of local) peer.senders.set(source, sendOn(pc, track))
+    for (const [source, sending] of local) peer.senders.set(source, sendOn(pc, sending))
     return peer
   }
   const disconnect = (member: string) => {
@@ -107,15 +108,19 @@ export const peerLink = (self: string, { iceServers, send, onTracks, createPeerC
     const added = Object.entries(tracks) as [CallTrackSource, MediaStreamTrack][]
     for (const [source] of added) if (local.has(source)) throw new Error(`The call already sends a ${source} track: unpublish it first`)
     if (added.length === 0) return
+    const sending = added.map(([source, track]): [CallTrackSource, LocalTrack] => {
+      const stream = new MediaStream([track])
+      return [source, { track, sid: stream.id, stream }]
+    })
     const answered = new Promise<void>((resolve, reject) => (publishing = { resolve, reject }))
-    send({ type: 'publish', tracks: added.map(([source, track]) => ({ cid: track.id, kind: track.kind as 'audio' | 'video', source })) })
+    send({ type: 'publish', tracks: sending.map(([source, { track, sid }]) => ({ cid: sid, kind: track.kind as 'audio' | 'video', source })) })
     try {
       await answered
     } finally {
       publishing = undefined
     }
-    for (const [source, track] of added) {
-      local.set(source, { track, sid: track.id })
+    for (const [source, track] of sending) {
+      local.set(source, track)
       for (const peer of peers.values()) peer.senders.set(source, sendOn(peer.pc, track))
     }
   }
@@ -150,7 +155,7 @@ export const peerLink = (self: string, { iceServers, send, onTracks, createPeerC
     // The browsers' connections outlast the server's session: a new one only needs the member's tracks.
     resumeState: async (participant) => ({
       participant,
-      tracks: [...local].map(([source, { track, sid }]) => ({ cid: track.id, sid, kind: track.kind as 'audio' | 'video', source })),
+      tracks: [...local].map(([source, { track, sid }]) => ({ cid: sid, sid, kind: track.kind as 'audio' | 'video', source })),
     }),
     resumed: async () => {},
     sending: () => new Map([...local].map(([source, { track }]) => [source, { track, simulcast: false }])),

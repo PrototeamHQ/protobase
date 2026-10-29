@@ -11,6 +11,7 @@ import type { SocketLike } from './channel-connection'
 import { devicesClient } from './devices'
 import { statusClient } from './status'
 import { notificationHistoryClient } from './notification-history'
+import { recordCallsClient } from './record-calls'
 import type { Aggregate, AggregateParams, BatchOp, BatchResult, CommentPage, Facet, FormChallenge, FormProof, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, MentionableUser, Meta, MetaResult, PublicForm, RecordComment, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
 
 type Json = Record<string, any>
@@ -25,6 +26,9 @@ const channelsUrl = (baseUrl = '/api/v1') => {
 }
 
 const keyPath = (resource: ResourceRef, key: KeyValue | readonly KeyValue[]) => `/${nameOf(resource)}/${encodeKey(key)}`
+
+/** Where a record's calls are read and followed. */
+export const callsPath = (resource: ResourceRef, key: KeyValue | readonly KeyValue[]) => `${keyPath(resource, key)}:calls`
 
 const toPage = <T>(body: Json, response: Response, origin: string | undefined): ListPage<T> => ({
   items: (body.items as T[]).map((item) => withFileOrigin(item, origin)),
@@ -380,10 +384,13 @@ export const createClient = (options: ClientOptions = {}) => {
   /** The signed-in user's own notification history, their inbox (see `notificationHistoryClient`). */
   const notifications = notificationHistoryClient(send)
 
+  /** A record's calls, live with `watchCalls`, for whoever may read the record (see `recordCallsClient`). */
+  const { calls, watchCalls } = recordCallsClient(send, callsPath)
+
   /** People's own status, and that of those who share an organization with the signed-in person (see `statusClient`). */
   const status = statusClient(send)
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, devices, notifications, status }
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, devices, notifications, status, calls, watchCalls }
 }
 
 export type Client = ReturnType<typeof createClient>
