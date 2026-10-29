@@ -2,12 +2,17 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { chromium, errors as playwrightErrors } from 'playwright'
 import { routeFiles } from './lib/routed-files.mjs'
+import { parseShard, shardOf } from './play-tests/shard.mjs'
 
-/** Runs the play functions of every story tagged "play" in the built Storybook and fails on any thrown error. */
+/**
+ * Runs the play functions of every story tagged "play" in the built Storybook and fails on any thrown error; with
+ * `--shard <index>/<count>`, only that shard's stories (play-tests/shard.mjs).
+ */
 const storybookDir = join(import.meta.dirname, '..', 'storybook-static')
 const index = JSON.parse(await readFile(join(storybookDir, 'index.json'), 'utf8'))
-const stories = Object.values(index.entries).filter((entry) => entry.type === 'story' && entry.tags.includes('play'))
-if (stories.length === 0) throw new Error('No stories tagged "play" found in storybook-static/index.json')
+const playable = Object.values(index.entries).filter((entry) => entry.type === 'story' && entry.tags.includes('play'))
+if (playable.length === 0) throw new Error('No stories tagged "play" found in storybook-static/index.json')
+const stories = shardOf(playable, parseShard(process.argv))
 
 const browser = await chromium.launch()
 // Headless Chromium hides scrollbars; a story tagged "scrollbars" gets a browser whose scrollbars take room, as they do
