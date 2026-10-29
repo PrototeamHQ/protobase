@@ -11,7 +11,7 @@ export type ToastApi = {
   dismiss: (id: number) => void
 }
 
-const dismissAfterMs = { loading: Infinity, success: 3500, warning: 8000, error: 8000, info: 8000 }
+const dismissAfterMs = { loading: Infinity, success: 3500, warning: 8000, error: 8000, info: 8000, call: Infinity }
 const undoWindowMs = 8000
 
 const ToastContext = createContext<ToastApi | null>(null)
@@ -75,7 +75,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
       <div className="pointer-events-none fixed inset-x-4 bottom-[calc(6rem+var(--pb-safe-bottom))] z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-[calc(1rem+var(--pb-safe-bottom))] md:right-[calc(1rem+var(--pb-safe-right))]">
         {items.map((item) => (
           <div key={item.id} className="pointer-events-auto">
-            <Toast state={item.state} title={item.title} description={item.description} action={item.action} onDismiss={() => close(item)} />
+            <Toast state={item.state} title={item.title} description={item.description} action={item.action} {...(item.actions && { actions: item.actions })} onDismiss={() => close(item)} />
           </div>
         ))}
       </div>

@@ -31,3 +31,6 @@ export const ringsPath = (systemPath: string, part?: { decline: string }) => {
   if (part === undefined) return base
   return `${base}/${encodeURIComponent(part.decline)}/${declineWord}`
 }
+
+/** The event a record's channel hears its calls on, from the server, with `{ items }` as `GET /{resource}/{key}:calls` answers. */
+export const callsChannelEvent = 'calls'

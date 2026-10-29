@@ -1,4 +1,4 @@
-import { CheckCircle2, RotateCw, TriangleAlert, X, XCircle } from 'lucide-react'
+import { CheckCircle2, PhoneIncoming, RotateCw, TriangleAlert, X, XCircle } from 'lucide-react'
 import { inApp } from '../app-shell/breadcrumb'
 import { cn } from '../lib/cn'
 import { Spinner } from '../primitives/spinner'
@@ -6,9 +6,9 @@ import { text } from './messages'
 
 /**
  * `warning`: done, but not as asked, such as a drop moved to the first place a rule allows. `info`: news that asks for
- * no answer now, such as a new version of the app.
+ * no answer now, such as a new version of the app. `call`: a call ringing the person, which asks for an answer.
  */
-export type ToastState = 'loading' | 'success' | 'warning' | 'error' | 'info'
+export type ToastState = 'loading' | 'success' | 'warning' | 'error' | 'info' | 'call'
 
 /**
  * A button, or a link when the action goes somewhere: an `<a href>`, which `onNavigate` follows in the app on a plain
@@ -16,7 +16,8 @@ export type ToastState = 'loading' | 'success' | 'warning' | 'error' | 'info'
  */
 export type ToastAction = { label: string; onClick: () => void } | { label: string; href: string; onNavigate?: (href: string) => void }
 
-export type ToastProps = { state: ToastState; title: string; description?: string; action?: ToastAction; onDismiss?: () => void }
+/** `actions`: more than one answer, such as a ring's Decline and Accept, in that order, after `action`. */
+export type ToastProps = { state: ToastState; title: string; description?: string; action?: ToastAction; actions?: ToastAction[]; onDismiss?: () => void }
 
 // The negative margin takes the padding of the hover background back, so the label lines up with the title.
 const actionClass = '-my-0.5 rounded px-1.5 py-0.5 font-medium text-primary-text hover:bg-primary-soft'
@@ -51,11 +52,12 @@ const icons = {
   warning: <TriangleAlert className="size-4 text-warning" />,
   error: <XCircle className="size-4 text-danger" />,
   info: <RotateCw className="size-4 text-primary" />,
+  call: <PhoneIncoming className="size-4 animate-pulse text-success" />,
 }
 
-export const Toast = ({ state, title, description, action, onDismiss }: ToastProps) => (
+export const Toast = ({ state, title, description, action, actions = [], onDismiss }: ToastProps) => (
   <div
-    role={state === 'error' ? 'alert' : 'status'}
+    role={state === 'error' || state === 'call' ? 'alert' : 'status'}
     className={cn(
       'flex w-full max-w-80 items-start gap-3 rounded-lg border bg-background p-3 shadow-pop [animation:pb-slide-in_160ms_ease-out]',
       state === 'warning' && 'border-warning/40',
@@ -68,6 +70,9 @@ export const Toast = ({ state, title, description, action, onDismiss }: ToastPro
       {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
     </div>
     {action && <Action action={action} />}
+    {actions.map((each) => (
+      <Action key={each.label} action={each} />
+    ))}
     {onDismiss && (
       <button type="button" aria-label={text('dismiss')} onClick={onDismiss} className="inline-flex items-center justify-center rounded p-0.5 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-9">
         <X className="size-3.5" />
