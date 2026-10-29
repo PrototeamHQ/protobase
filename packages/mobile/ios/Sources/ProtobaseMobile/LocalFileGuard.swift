@@ -15,8 +15,9 @@ final class LocalFileGuard {
 
     private let lock = NSLock()
     private let appBundle: String?
-    // Resolved once: with no bundles folder at launch, nothing outside the app bundle is served.
-    private let bundles: String?
+    // Resolved once it exists, under the lock: a fresh install has none until its first download, which the app then
+    // loads in the same run. Until then nothing outside the app bundle is served.
+    private var bundles: String?
     var basePath: String
 
     init(basePath: String) {
@@ -36,6 +37,7 @@ final class LocalFileGuard {
         if path.contains("\0") || path.split(separator: "/", omittingEmptySubsequences: false).contains("..") { return true }
         guard let base = realPath(basePath) else { return true }
         if let appBundle, Self.isInside(base, appBundle) { return false }
+        if bundles == nil { bundles = realPath(BundlesFolder.path) }
         guard let bundles else { return true }
         // The file the asset handler opens, by Capacitor's own routing.
         var router = CapacitorRouter()
