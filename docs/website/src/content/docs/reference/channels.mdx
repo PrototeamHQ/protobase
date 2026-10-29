@@ -5,10 +5,6 @@ description: Every record has a channel, where the pages that have it open see w
 
 Every record of the app has a channel. The pages on it see who else is there and what each of them tracks, such as online or away (presence), and send each other events that are never stored, such as typing (broadcasts). Whoever may read the record may join its channel; nothing else needs to be set up. A record everyone may read, a visitor of the anonymous role included, makes an open channel.
 
-:::caution[Beta]
-SQL cannot send to a channel, and a broadcast carries JSON only, not binary bytes.
-:::
-
 ## From a page
 
 `client.channel(resource, key)` of [`@protobase/client`](/reference/client/) joins the record's channel:
@@ -23,6 +19,10 @@ room.on('typing', ({ user, payload }) => console.log(user, 'is typing', payload)
 await room.track({ status: 'online' })
 await room.send('typing', { on: true })
 
+// Bytes, such as a chunk of audio or a drawing stroke: an ArrayBuffer or a typed array.
+room.on('stroke', ({ user, payload }) => draw(user, new Float32Array(payload as ArrayBuffer)))
+await room.send('stroke', new Float32Array([0.1, 0.5, 0.2, 0.7]))
+
 room.leave()
 ```
 
@@ -31,8 +31,8 @@ room.leave()
 | `status()`, `onStatus(listener)` | `joining`, also while the connection is down; `joined`; `refused`, with its `error`, for a record there is none of or the caller may not read; `closed`, with its `error`, when the server left the channel, such as once the caller may no longer read the record. A refused or closed channel is not joined again. |
 | `presence()`, `onPresence(listener)` | Every connection on the channel that tracks a state, this one included, as `{ id, user, state }`; the listener gets the whole presence and, for a change, its `{ joins, updates, leaves }`. |
 | `track(state)`, `untrack()` | Tracks this connection's JSON state on the channel, replaces it, or takes it out. A state tracked before the channel joined is tracked once it does, and again after a reconnect. |
-| `send(event, payload, { self?, ack? })` | Broadcasts a JSON payload to the others on the channel; `self` hears it too, and with `ack` it resolves once the server took it, or rejects with a `ChannelRefusal`. |
-| `on(event, listener)` | Hears the channel's broadcasts of `event`, each `{ event, payload, user }`, and `server: true` for one the app's own code sent. |
+| `send(event, payload, { self?, ack? })` | Broadcasts a JSON payload, or bytes in an `ArrayBuffer` or a typed array, to the others on the channel; `self` hears it too, and with `ack` it resolves once the server took it, or rejects with a `ChannelRefusal`. |
+| `on(event, listener)` | Hears the channel's broadcasts of `event`, each `{ event, payload, user }`, and `server: true` for one the app's own code sent. The payload of bytes is an `ArrayBuffer`. |
 | `leave()` | Lets the channel go. |
 
 Every channel of one client shares one WebSocket, opened with the first channel and closed after the last, and connects again by itself after a drop, joining its channels again. With [live updates](/reference/live/#the-stream), a page holds two connections however many live views and channels it has.
@@ -53,11 +53,11 @@ An entry leaves at once when its connection leaves the channel or closes, as whe
 
 ## Broadcasts
 
-A broadcast reaches every other connection on the channel, and the sender's own with `self`, at once. Nothing is stored: a broadcast reaches who is on the channel when it is sent, and nobody else. <gap>A broadcast cannot carry binary bytes because binary frames on record channels are not implemented.</gap>
+A broadcast reaches every other connection on the channel, and the sender's own with `self`, at once. Nothing is stored: a broadcast reaches who is on the channel when it is sent, and nobody else. A payload is JSON or bytes, which reach the others as they were sent, under the same access rule, limits and refusals: the size limits count the bytes.
 
 ## From the server
 
-An [API function](/guides/api-functions/) broadcasts with its context's `channels`, as the server: its broadcasts have `user: null` and `server: true`, and it needs no read access. It rejects with a `404` problem for a resource or key the app does not have, `422` for an event over 255 bytes or a payload over 256 KiB, and `429` over the channel's broadcasts.
+An [API function](/guides/api-functions/) broadcasts with its context's `channels`, as the server: its broadcasts have `user: null` and `server: true`, and it needs no read access. Its payload is JSON, or bytes in an `ArrayBuffer` or a typed array. It rejects with a `404` problem for a resource or key the app does not have, `422` for an event over 255 bytes or a payload over 256 KiB, of JSON or bytes, and `429` over the channel's broadcasts.
 
 ```ts
 import { defineFunction } from '@protobase/server'
@@ -68,11 +68,21 @@ export default defineFunction(async (request, { channels }) => {
 })
 ```
 
-`POST /api/channels/<resource>/<key>/broadcast` with `{ "event": "…", "payload": … }` broadcasts as its caller, who must read the record, under the same limits, answered `202`. <gap>SQL cannot broadcast to a channel because a database send for record channels is not implemented.</gap>
+`POST /api/channels/<resource>/<key>/broadcast` with `{ "event": "…", "payload": … }` broadcasts as its caller, who must read the record, under the same limits, answered `202`. Bytes go as the body of `application/octet-stream`, with the event in the query: `POST /api/channels/rooms/42/broadcast?event=stroke`.
+
+### From SQL
+
+With [`realtime: { sqlSends: true }`](/reference/config/api/#realtime), SQL in the app's database, such as a trigger, broadcasts JSON to a record's channel with `channels.send(resource, key, event, payload)`:
+
+```sql
+select channels.send('rooms', '42', 'announcement', '{"text": "Standup in 5 minutes"}');
+```
+
+The call inserts a row into `channels.sends` in the caller's transaction, so a transaction rolled back sends nothing. Within a second of its commit, a serving process with a channel socket open takes the row out of the table and broadcasts it as the server, `user: null` and `server: true`, in the order the transaction sent them, under the checks and limits of `channels.broadcast` in API functions: a send for a resource or key the app does not have, with an event over 255 bytes or a payload over 256 KiB, or over the channel's broadcasts, is dropped. With several processes, one takes the row and the relay carries it to the others. A send while no process has a socket open reaches nobody, and the rows no process took are deleted after 48 hours. Only the database role that owns the function, the one the migrations are applied as, which is usually the app's own, may call it, so that no other role, such as those of the [PostgREST-compatible API](/reference/supabase-rest/), sends as the server: a trigger that sends for other roles calls it from a `security definer` function. [`protobase migration`](/reference/cli/#migration) writes the `channels` schema, and the server checks it at start.
 
 ## The socket
 
-`GET /api/channels` is the WebSocket `@protobase/client` opens, with the subprotocol `protobase.channels`. A browser opens it with its session cookie; a client with a bearer token offers it as a second subprotocol, `bearer.<token>`, and hands over a new one with `{ "type": "token", "token": "…" }`, which the next check of the session uses. A page of another origin than the app's is refused with `403`. Each frame is JSON text:
+`GET /api/channels` is the WebSocket `@protobase/client` opens, with the subprotocol `protobase.channels`. A browser opens it with its session cookie; a client with a bearer token offers it as a second subprotocol, `bearer.<token>`, and hands over a new one with `{ "type": "token", "token": "…" }`, which the next check of the session uses. A page of another origin than the app's is refused with `403`. Each frame is JSON text, but for a broadcast of bytes:
 
 | The client sends | |
 | --- | --- |
@@ -82,6 +92,8 @@ export default defineFunction(async (request, { channels }) => {
 | `{ type: 'leave', ref, channel }`, `{ type: 'ping' }` | A ping is answered with `{ type: 'pong' }`. |
 
 The server sends `reply` (`{ ref, ok: true }` or `{ ref, ok: false, error: { code, message } }`), `presence` (`{ channel, entries }`), `presence_diff` (`{ channel, joins, updates, leaves }`), `broadcast` (`{ channel, event, payload, user, server? }`), `closed` (`{ channel, error }`) and `error` for a frame that is no message.
+
+A broadcast of bytes, either way, is a binary frame: the byte length of a JSON header as a big-endian 32-bit integer, the header, then the bytes. The header is the message without its `payload`: `{ type: 'send', ref, channel, event, self?, ack? }` from the client, `{ type: 'broadcast', channel, event, user, server? }` from the server.
 
 ## Limits
 

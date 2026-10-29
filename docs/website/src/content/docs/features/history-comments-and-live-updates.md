@@ -12,4 +12,4 @@ description: The changes of each record, comments on it, and pages that refresh 
 - [Live updates](/reference/live/#what-a-page-hears): Open lists and record pages refresh within seconds when a record changes, including changes made outside the API.
 - [Change stream](/reference/live/#the-stream): Apps follow record changes over a stream that catches up after a reconnect.
 - [Presence](/reference/channels/#presence) (beta): Apps see who else has a record open and what each of them tracks, such as online or away, for whoever may read the record.
-- [Broadcasts](/reference/channels/#broadcasts) (beta): Apps on a record send each other short-lived events, such as typing, which are never stored; the app's own code sends them too.
+- [Broadcasts](/reference/channels/#broadcasts) (beta): Apps on a record send each other short-lived events, such as typing, which are never stored, as JSON or as bytes, such as a chunk of audio or a drawing stroke; the app's own code sends them too, from an API function, over HTTP or [from SQL](/reference/channels/#from-sql) with `channels.send()`.
