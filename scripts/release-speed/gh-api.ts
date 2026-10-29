@@ -1,6 +1,7 @@
-// Calls `gh api`, which prints a failed response as "gh: <message> (HTTP <status>)". GitHub answers a busy moment with a
-// 5xx that clears within seconds, so a 5xx is asked again after a short wait, three times at most, and then throws a
-// GhServerError; any other failure throws at once.
+// Calls `gh api`, which prints a failed response as "gh: <message> (HTTP <status>)" and a request that never got a
+// response as Go's transport error, such as "stream error: stream ID 1; CANCEL; received from peer". GitHub answers a
+// busy moment with a 5xx or a dropped connection that clears within seconds, so either is asked again after a short
+// wait, three times at most, and then throws a GhServerError; any other failure, such as a 404, throws at once.
 import { spawnSync } from 'node:child_process'
 
 export type Gh = (args: string[]) => { status: number | null; stdout: string; stderr: string }
@@ -12,7 +13,11 @@ const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(
 
 export const retryDelays = [2_000, 5_000, 10_000]
 
-/** GitHub kept answering with a 5xx after every retry. */
+// A 5xx, or Go's errors for an HTTP/2 stream reset or GOAWAY, a reset or cut connection, and a timeout.
+const transient =
+  /\(HTTP 5\d\d\)|stream error: stream ID \d+|GOAWAY|connection reset by peer|unexpected EOF|: EOF$|i\/o timeout|TLS handshake timeout|Client\.Timeout exceeded/m
+
+/** GitHub kept answering with a 5xx or dropping the connection after every retry. */
 export class GhServerError extends Error {}
 
 /** The parsed JSON of `gh api <path>`, with `run` and `wait` in place of the gh CLI and a blocking sleep in tests. */
@@ -21,7 +26,7 @@ export const ghApi = <T>(path: string, run: Gh = gh, wait: (ms: number) => void 
     const result = run(['api', path])
     if (result.status === 0) return JSON.parse(result.stdout) as T
     const message = `gh api ${path} failed with status ${result.status}: ${result.stderr.trim()}`
-    if (!/\(HTTP 5\d\d\)/.test(result.stderr)) throw new Error(message)
+    if (!transient.test(result.stderr)) throw new Error(message)
     if (attempt === retryDelays.length) throw new GhServerError(message)
     wait(retryDelays[attempt]!)
   }
