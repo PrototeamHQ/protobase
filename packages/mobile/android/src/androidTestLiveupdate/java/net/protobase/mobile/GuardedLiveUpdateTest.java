@@ -56,6 +56,7 @@ public class GuardedLiveUpdateTest {
         bundles = BundlesFolder.of(context);
         BundleRemoval.delete(bundles, bundles);
         context.getSharedPreferences("ProtobaseLiveUpdate", Activity.MODE_PRIVATE).edit().clear().commit();
+        context.getSharedPreferences(io.capawesome.capacitorjs.plugins.liveupdate.LiveUpdatePlugin.SHARED_PREFERENCES_NAME, Activity.MODE_PRIVATE).edit().remove(BlockedBundles.KEY).commit();
         context.getSharedPreferences(com.getcapacitor.plugin.WebView.WEBVIEW_PREFS_NAME, Activity.MODE_PRIVATE).edit().remove(com.getcapacitor.plugin.WebView.CAP_SERVER_PATH).commit();
         // Each test is a run of the app of its own, with its own few downloads.
         Field downloads = GuardedLiveUpdate.class.getDeclaredField("downloads");
@@ -127,8 +128,16 @@ public class GuardedLiveUpdateTest {
         return path.isEmpty() ? null : new File(path).getName();
     }
 
+    // The order of the test app's own files, its capacitor.config.json's builtInOrder.
+    private static final long BUILT_IN = 10;
+
+    // A release `order` releases after the test app's own files.
     private TestRelease release(long order, Map<String, byte[]> files) {
-        return TestRelease.of(key, new long[] { order, 0 }, files, appId);
+        return TestRelease.of(key, new long[] { BUILT_IN + order, 0 }, files, appId);
+    }
+
+    private void block(String bundleId) {
+        context.getSharedPreferences(io.capawesome.capacitorjs.plugins.liveupdate.LiveUpdatePlugin.SHARED_PREFERENCES_NAME, Activity.MODE_PRIVATE).edit().putString(BlockedBundles.KEY, "other1," + bundleId).commit();
     }
 
     private static void refused(String reason, String error) {
@@ -185,7 +194,7 @@ public class GuardedLiveUpdateTest {
     public void refusesAClimbingHrefBeforeWritingAnyFile() throws Exception {
         String sum = Sha256.of("evil".getBytes());
         byte[] manifest = ("[{\"href\":\"index.html\",\"checksum\":\"" + sum + "\",\"sizeInBytes\":4},{\"href\":\"../../escaped.js\",\"checksum\":\"" + sum + "\",\"sizeInBytes\":4}]").getBytes();
-        TestRelease release = TestRelease.of(key, new long[] { 2, 0 }, TestRelease.files("index.html", "evil", "../../escaped.js", "evil"), manifest, appId, TestRelease.FINGERPRINT, TestRelease.SHELL);
+        TestRelease release = TestRelease.of(key, new long[] { BUILT_IN + 2, 0 }, TestRelease.files("index.html", "evil", "../../escaped.js", "evil"), manifest, appId, TestRelease.FINGERPRINT, TestRelease.SHELL);
         server.serve(release);
         refused("outside its folder", download(release.bundleId));
         assertFalse(new File(context.getFilesDir(), "escaped.js").exists());
@@ -233,5 +242,83 @@ public class GuardedLiveUpdateTest {
         refused("its assets/a.js is not the file its manifest names", setNext(release.bundleId));
         // The next bundle is in use, so it stays, as the stock code keeps a bundle in use.
         assertEquals(release.bundleId, nextId());
+    }
+
+    @Test
+    public void aFreshInstallRefusesAReleaseNotNewerThanItsOwnFilesAtDownloadAndAtSetNextBundle() throws Exception {
+        TestRelease below = TestRelease.of(key, new long[] { BUILT_IN - 1, 0 }, OLD, appId);
+        TestRelease same = TestRelease.of(key, new long[] { BUILT_IN, 0 }, NEW, appId);
+        for (TestRelease release : new TestRelease[] { below, same }) {
+            server.serve(release);
+            refused("not newer than the app's built-in files", download(release.bundleId));
+            assertFalse(new File(bundles, release.bundleId).exists());
+            // Laid out as a download the guard did not check would have left it.
+            release.layOut(bundles);
+            refused("not newer than the bundle the app runs", setNext(release.bundleId));
+            assertFalse(new File(bundles, release.bundleId).exists());
+        }
+        assertNull(nextId());
+    }
+
+    @Test
+    public void refusesARolledBackReleaseAtDownloadAndAtSetNextBundle() throws Exception {
+        TestRelease release = release(2, NEW);
+        server.serve(release);
+        assertNull(download(release.bundleId));
+        block(release.bundleId);
+        refused("it was rolled back", setNext(release.bundleId));
+        refused("it was rolled back", download(release.bundleId));
+        assertNull(nextId());
+    }
+
+    @Test
+    public void refusesEveryReleaseWhileTheBlockedListCannotBeRead() throws Exception {
+        TestRelease release = release(2, NEW);
+        server.serve(release);
+        block("not;an;id");
+        refused("it was rolled back", download(release.bundleId));
+        assertTrue(server.asked.isEmpty());
+    }
+
+    @Test
+    public void refusesTheBuiltInBundleAsTheNextOne() throws Exception {
+        TestRelease release = release(2, NEW);
+        server.serve(release);
+        assertNull(download(release.bundleId));
+        assertNull(setNext(release.bundleId));
+        JSObject data = new JSObject();
+        data.put("bundleId", org.json.JSONObject.NULL);
+        Call call = new Call(data);
+        plugin.setNextBundle(call);
+        refused("setNextBundle", call.await());
+        Call none = new Call(new JSObject());
+        plugin.setNextBundle(none);
+        refused("setNextBundle", none.await());
+        assertEquals(release.bundleId, nextId());
+    }
+
+    @Test
+    public void refusesAStatementSignedWithAnotherKey() throws Exception {
+        TestRelease release = TestRelease.of(TestRelease.newKey(), new long[] { BUILT_IN + 2, 0 }, NEW, appId);
+        server.serve(release);
+        assertTrue(download(release.bundleId) != null);
+        release.layOut(bundles);
+        assertTrue(setNext(release.bundleId) != null);
+        assertFalse(new File(bundles, release.bundleId).exists());
+        assertNull(nextId());
+    }
+
+    @Test
+    public void refusesAtSetNextBundleAReleaseForAnotherBinaryOnDisk() throws Exception {
+        TestRelease fingerprint = TestRelease.of(key, new long[] { BUILT_IN + 2, 0 }, NEW, TestRelease.manifestOf(NEW), appId, "fedcba9876543210", TestRelease.SHELL);
+        TestRelease shell = TestRelease.of(key, new long[] { BUILT_IN + 3, 0 }, NEW, TestRelease.manifestOf(NEW), appId, TestRelease.FINGERPRINT, "0.15.0");
+        refused("another binary", setNextLaidOut(fingerprint));
+        refused("another shell version", setNextLaidOut(shell));
+        assertNull(nextId());
+    }
+
+    private String setNextLaidOut(TestRelease release) throws Exception {
+        release.layOut(bundles);
+        return setNext(release.bundleId);
     }
 }

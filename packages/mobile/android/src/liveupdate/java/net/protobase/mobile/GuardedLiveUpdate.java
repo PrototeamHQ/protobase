@@ -29,7 +29,6 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.json.JSONObject;
 
 /**
  * Takes the stock LiveUpdate plugin's (8.7.1) place, so page script cannot steer the live updater. The CLI lists this
@@ -44,16 +43,21 @@ import org.json.JSONObject;
  *   or loopback http, and downloads it itself (ReleaseDownload), bound by the release's statement to the id, the pinned
  *   `publicKey`, this binary and its order; a caller's checksum and signature are dropped. A few per run of the app, so
  *   a loop cannot drain the data plan.
+ * - Both take a release only above the order of the binary's own files, `builtInOrder`, which the CLI computes as the
+ *   server computes a release's, so a reinstalled app cannot be taken below its own files; and neither takes a bundle
+ *   the stock code blocked after rolling it back (BlockedBundles), which it checks only in the refused sync().
  * - setNextBundle checks the bundle on disk (BundleCheck), then takes it only above the running bundle's order and not
  *   below the highest the app downloaded; a refused bundle that is neither running nor next is deleted, as the stock
- *   code deletes an unused one (LiveUpdate.java:803-810). It is the only way to a downloaded bundle: reset, sync and the
- *   rest are refused, reload only runs the next bundle and a rollback goes to the built-in one (LiveUpdate.java:1411).
+ *   code deletes an unused one (LiveUpdate.java:803-810). It is the only way to a downloaded bundle: reset, sync, a
+ *   next bundle of null (the built-in one) and the rest are refused, reload only runs the next bundle and a rollback
+ *   goes to the built-in one inside the stock code (LiveUpdate.java:1411).
  * - Ids are a single safe component naming a direct child of the bundles folder: the stock code joins them to its path
  *   unchecked (LiveUpdate.java:665-667,1299-1302).
  * - Everything else is refused: deleting, resetting, the vendor's cloud, config, channel and ids.
  * - load() also refuses background updates, which sync with the vendor's cloud outside every method here
- *   (LiveUpdate.java:420-433), and needs `autoDeleteBundles` and a `readyTimeout`, so ready() drops every bundle but the
- *   current and next one and a bundle that never gets ready rolls back: page script cannot pin an older one.
+ *   (LiveUpdate.java:420-433), and needs `autoDeleteBundles`, a `readyTimeout` and `autoBlockRolledBackBundles`, so
+ *   ready() drops every bundle but the current and next one, and a bundle that never gets ready rolls back and is not
+ *   taken again: page script cannot pin an older one.
  *
  * The config comes from capacitor.config.json, which ships in the binary outside the web part, beyond page script and
  * a live update. This source set compiles only when the app has the plugin's Gradle project, which the CLI's swap and
@@ -75,6 +79,7 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
     private String releasesUrl;
     private PublicKey publicKey;
     private ReleaseBinary binary;
+    private long[] builtInOrder;
 
     @Override
     public void load() {
@@ -93,6 +98,13 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
         }
         if (config.getInt("readyTimeout", 0) <= 0) {
             refuseToLoad("plugins.LiveUpdate.readyTimeout must be above 0 in a Protobase app");
+        }
+        if (!config.getBoolean("autoBlockRolledBackBundles", false)) {
+            refuseToLoad("plugins.LiveUpdate.autoBlockRolledBackBundles must be true in a Protobase app");
+        }
+        builtInOrder = ReleaseOrder.parseBuiltIn(config.getString("builtInOrder"));
+        if (builtInOrder == null) {
+            refuseToLoad("plugins.LiveUpdate needs the order of the binary's own files, builtInOrder, in a Protobase app: run protobase mobile again");
         }
         releasesUrl = config.getString("releasesUrl");
         if (!ownSource(releasesUrl)) {
@@ -147,6 +159,10 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
             Refusal.rejectMethod(call, "LiveUpdate", "downloadBundle");
             return;
         }
+        if (blocked(bundleId)) {
+            call.reject("LiveUpdate.downloadBundle refused release " + bundleId + ": it was rolled back");
+            return;
+        }
         if (downloads.incrementAndGet() > MAX_DOWNLOADS) {
             call.reject("LiveUpdate.downloadBundle was called too often in this run of the app");
             return;
@@ -162,7 +178,11 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
         try {
             if (!dir.mkdirs() || !(bundles.isDirectory() || bundles.mkdirs())) throw new IOException("Cannot create " + dir);
             String current = bundleIdOf(getBridge().getServerBasePath());
-            ReleaseStatement statement = new ReleaseDownload(releasesUrl, publicKey, binary).download(bundleId, dir, current == null ? null : new File(bundles, current), highestOrder());
+            long[] highest;
+            synchronized (order) {
+                highest = highestOrder();
+            }
+            ReleaseStatement statement = new ReleaseDownload(releasesUrl, publicKey, binary).download(bundleId, dir, current == null ? null : new File(bundles, current), builtInOrder, highest);
             File target = new File(bundles, bundleId);
             // The same release downloaded before stays; setNextBundle checks it anyway.
             if (!target.exists() && !dir.renameTo(target)) throw new IOException("Cannot move " + dir);
@@ -184,13 +204,9 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
     @Override
     @PluginMethod
     public void setNextBundle(PluginCall call) {
+        // A null id, which the stock code takes for the built-in bundle, is refused too: it would take the app below
+        // what it downloaded, and only the stock rollback goes there.
         Object bundleId = call.getData().opt("bundleId");
-        if (bundleId == null || bundleId == JSONObject.NULL) {
-            // The stock code resets to the built-in bundle.
-            clear(call);
-            super.setNextBundle(call);
-            return;
-        }
         if (!(bundleId instanceof String) || !BundlesFolder.isBundleId(BundlesFolder.of(getContext()), (String) bundleId)) {
             Refusal.rejectMethod(call, "LiveUpdate", "setNextBundle");
             return;
@@ -199,6 +215,7 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
         File bundles = BundlesFolder.of(getContext());
         synchronized (order) {
             try {
+                if (blocked(id)) throw new BundleRefused("it was rolled back");
                 ReleaseStatement next = BundleCheck.check(new File(bundles, id), id, publicKey, binary);
                 ReleaseOrder.acceptNext(next.order, currentOrder(bundles), highestOrder());
             } catch (BundleRefused e) {
@@ -216,7 +233,7 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
     // The running bundle's order: the built-in one's, or what its statement says, checked against the key.
     private long[] currentOrder(File bundles) throws BundleRefused {
         String current = bundleIdOf(getBridge().getServerBasePath());
-        if (current == null) return ReleaseOrder.BUILT_IN;
+        if (current == null) return builtInOrder;
         try {
             byte[] statement = Bounded.read(new File(new File(bundles, current), ReleaseStatement.FILE), ReleaseStatement.MAX_BYTES, "the running bundle's statement");
             return ReleaseStatement.verify(statement, current, publicKey).order;
@@ -227,6 +244,11 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
 
     private long[] highestOrder() {
         return ReleaseOrder.parse(prefs().getString(HIGHEST_ORDER, null));
+    }
+
+    private boolean blocked(String bundleId) {
+        String list = getContext().getSharedPreferences(LiveUpdatePlugin.SHARED_PREFERENCES_NAME, Activity.MODE_PRIVATE).getString(BlockedBundles.KEY, null);
+        return BlockedBundles.blocks(list, bundleId);
     }
 
     private SharedPreferences prefs() {

@@ -7,6 +7,8 @@
       "autoUpdateStrategy": "none",
       "autoDeleteBundles": true,
       "readyTimeout": 60000,
+      "autoBlockRolledBackBundles": true,
+      "builtInOrder": "10,0",
       "releasesUrl": "http://127.0.0.1:18765/releases",
       "publicKey": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxZbkUT82x2WgEDMfccUyNsmZO8SKS999/ejloKkIAzktthpqRh44BHigtd/CWi6NBo3nW4F1i7VdDvDqEJ3g1zftH4TP/G2dy8Ls5uQ9xwDd1fVwXpPkywYYbYtorB7xHd66NNd+gQPCSNCKdUXs8kH2APBGbRkWM5CqwFOXu9G4oSOZVF9krp5Q0/t94s7MCeHkAZ/nDpRuHKpzrNOiuW8CKHZ9XNPpmp7dC2D4fvPd0XbrOjGKEqhIh8y3M+80A9MCcFuf5Y0/hPf1iCIS6SeM7e9mCVYHGfNf+iQuDR45ft6XX5w2D07dtkocibaAGy1tjvGt01cmS9kQubDbNQIDAQAB",
       "fingerprint": "0123456789abcdef",

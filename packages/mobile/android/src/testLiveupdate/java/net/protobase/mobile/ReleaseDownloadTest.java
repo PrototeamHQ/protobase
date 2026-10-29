@@ -40,12 +40,19 @@ public class ReleaseDownloadTest {
         server.close();
     }
 
+    // The binary's own files, older than every release below.
+    private static final long[] BUILT_IN = { 4, 0 };
+
+    private ReleaseStatement download(String id, File current, long[] builtIn, long[] highest) throws Exception {
+        return new ReleaseDownload(server.url(), KEY.getPublic(), TestRelease.BINARY).download(id, dir, current, builtIn, highest);
+    }
+
     private ReleaseStatement download(String id, File current, long[] highest) throws Exception {
-        return new ReleaseDownload(server.url(), KEY.getPublic(), TestRelease.BINARY).download(id, dir, current, highest);
+        return download(id, current, BUILT_IN, highest);
     }
 
     private ReleaseStatement download(String id) throws Exception {
-        return download(id, null, ReleaseOrder.BUILT_IN);
+        return download(id, null, ReleaseOrder.NONE);
     }
 
     @Test
@@ -71,6 +78,24 @@ public class ReleaseDownloadTest {
         server.serve(older);
         refused("older than a release the app downloaded", () -> download(older.bundleId, null, new long[] { 6, 0 }));
         assertFalse(new File(dir, "index.html").exists());
+    }
+
+    @Test
+    public void refusesAReleaseNotNewerThanTheBuiltInFilesBeforeWritingAnyFile() throws Exception {
+        TestRelease older = TestRelease.of(KEY, new long[] { 5, 0 }, OLD);
+        server.serve(older);
+        refused("not newer than the app's built-in files", () -> download(older.bundleId, null, new long[] { 6, 0 }, ReleaseOrder.NONE));
+        refused("not newer than the app's built-in files", () -> download(older.bundleId, null, new long[] { 5, 0 }, ReleaseOrder.NONE));
+        assertFalse(new File(dir, "index.html").exists());
+    }
+
+    @Test
+    public void refusesAFileOfTheSignedReleaseAlteredOnTheWay() throws Exception {
+        TestRelease release = TestRelease.of(KEY, new long[] { 6, 0 }, NEW);
+        server.serve(release);
+        // The same size as the file the manifest names, so only its checksum tells them apart.
+        server.answers.put(release.bundleId + "?assets/a.js", "a(3)".getBytes(StandardCharsets.UTF_8));
+        refused("its assets/a.js is not the file its manifest names", () -> download(release.bundleId));
     }
 
     @Test
@@ -136,14 +161,14 @@ public class ReleaseDownloadTest {
         TestRelease newer = TestRelease.of(KEY, new long[] { 6, 0 }, NEW);
         server.serve(newer);
         server.answers.remove(newer.bundleId + "?assets/b.js");
-        download(newer.bundleId, current, ReleaseOrder.BUILT_IN);
+        download(newer.bundleId, current, ReleaseOrder.NONE);
         assertFalse(server.asked.contains(newer.bundleId + "?assets/b.js"));
 
         // The running bundle's copy altered on disk: fetched instead, and refused when the server has none.
         dir = temp.newFolder("downloads", "two");
         server.asked.clear();
         TestRelease.write(new File(current, "assets/b.js"), "b(9)");
-        refused("the server answered 404 for assets/b.js", () -> download(newer.bundleId, current, ReleaseOrder.BUILT_IN));
+        refused("the server answered 404 for assets/b.js", () -> download(newer.bundleId, current, ReleaseOrder.NONE));
         assertTrue(server.asked.contains(newer.bundleId + "?assets/b.js"));
     }
 }
