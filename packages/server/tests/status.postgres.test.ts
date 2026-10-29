@@ -50,7 +50,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('status on real Postgres
       ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
     })
   const as = (who: keyof typeof people) => ({ token: people[who].token })
-  const statusesOf = async (who: keyof typeof people) => ((await (await request('/api/status/people', as(who))).json()) as { statuses: { userId: string }[] }).statuses
+  const statusesOf = async (who: keyof typeof people) => ((await (await request('/api/status/people', as(who))).json()) as { statuses: { userId: string; text: string | null }[] }).statuses
   const setStatus = (who: keyof typeof people, body: unknown) => request('/api/status', { ...as(who), method: 'PUT', body })
 
   beforeAll(async () => {
