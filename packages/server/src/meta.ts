@@ -61,6 +61,8 @@ export type CallerMeta = {
   notifications?: { bell?: true; webPushKey?: string }
   /** With `status: {}`: people set their own status, and see the statuses of those they share an organization with. */
   status?: true
+  /** With `calls`: the app's calls ring people, on any page they have open, through the live stream. */
+  calls?: true
   /** The language the admin app's screens are in, when the app sets one for everyone. */
   locale?: Locale
   /** The hosts besides the app's own whose images the admin app draws with the page's referrer, when there are any. */
@@ -145,6 +147,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       ...(deps.maps && { maps: deps.maps }),
       ...((deps.bell || deps.webPushKey) && { notifications: { ...(deps.bell && { bell: true as const }), ...(deps.webPushKey && { webPushKey: deps.webPushKey }) } }),
       ...(deps.status && { status: true as const }),
+      ...(deps.calls && { calls: true as const }),
       ...(deps.locale && { locale: deps.locale }),
       ...(deps.files && deps.files.trustedHosts.length > 0 && { files: { trustedHosts: deps.files.trustedHosts } }),
       ...(plugins.length > 0 && { plugins }),

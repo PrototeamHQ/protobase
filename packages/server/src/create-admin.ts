@@ -4,7 +4,7 @@ import type { JWTPayload } from 'jose'
 import { accountPage, accountPageName, checkPages, settingsResources, withSettingsFields } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
-import { statusPath } from '@protobase/schema/internal'
+import { ringsPath, statusPath } from '@protobase/schema/internal'
 import { aiModel } from './ai/ai-model'
 import { hasAiActions, hasAiFields } from './ai/ai-fields'
 import { fillHook } from './ai/fill-hook'
@@ -68,6 +68,7 @@ import type { WebhooksOptions } from './webhooks/table/options'
 import type { NotificationsOptions } from './notifications/options'
 import type { CallsOptions } from './calls/calls-options'
 import { callsService } from './calls/calls-service'
+import { ringRoutes } from './calls/ring-routes'
 import { deviceStore, removeDevicesWithUsers } from './notifications/device-store-of'
 import { historyStore, removeHistoryWithUsers } from './notifications/history-store-of'
 import { historyRoutes } from './notifications/history-routes'
@@ -320,7 +321,14 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(withHistory && { history: { schema: changes, ...(auth && { actorNames: betterAuthActorNames(auth) }) } }),
     ...(mentions && { comments: { ...(commentUsers && { users: commentUsers }), mentionJob: mentions, appOrigin: appOrigin(auth?.origins ?? []) } }),
     ...(withAi && { ai: { ...(model && { model }), ...(options.onUnhandledError && { report: options.onUnhandledError }) } }),
-    ...(calls && { calls: callsService(() => deps, calls) }),
+    ...(calls && {
+      calls: callsService(() => deps, calls, {
+        notices: changes,
+        channels: () => channels,
+        notifications: Boolean(notifications),
+        ...(statusTables && { doNotDisturb: (ringDb: Db, userIds: readonly string[]) => onDoNotDisturb(ringDb, statusTables.statuses, userIds) }),
+      }),
+    }),
   }
 
   // The tabs end in the name the app signs in and mails as, which the installed app is called too.
@@ -434,6 +442,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     app.route(historyPath(systemPath), guarded((routes) => void routes.route('/', historyRoutes(history, auth?.origins ?? []))))
   }
   if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))
+  if (deps.calls) app.route(ringsPath(systemPath), guarded((routes) => void routes.route('/', ringRoutes(deps.calls!))))
   if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
   // The notices are read only while a page or channel listens.
   const feed = tableFeed({ db, schema: changes, report })
@@ -453,7 +462,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   }
   // After `/api/sb`, which the guard's token check under the system path would otherwise stand before.
   // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
-  if (appModels.some((model) => model.live)) {
+  // With calls, the stream also tells each user's pages of the calls that ring them.
+  if (appModels.some((model) => model.live) || deps.calls) {
     app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
   }
   app.route(basePath, api)

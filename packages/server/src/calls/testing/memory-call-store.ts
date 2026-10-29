@@ -11,6 +11,12 @@ type Member = { id: string; call: string; member: string; process: string; track
 
 const iso = (at: number) => new Date(at).toISOString()
 
+// A record as `recordId` names it.
+const recordOfId = (id: string) => {
+  const [resource, key] = id.split('\u0000') as [string, string]
+  return { resource, key }
+}
+
 /**
  * The `calls` schema's rules in memory, for unit tests of the hub, the relay and the plugins: one call going on per
  * record, admission by `admission`, removals kept, the grace after the last heartbeat, and an end with the last member.
@@ -39,6 +45,7 @@ export const memoryCallStore = (now = () => Date.now()) => {
     admit: async ({ record, member, process, resume, maxMembers, maxMinutes }) => {
       const key = recordId(record)
       let call: Call | undefined
+      let started = false
       if (resume) {
         call = calls.get(resume.call)
         if (!call || call.ended_at !== undefined || call.record !== key) return { refused: 'ended' }
@@ -55,6 +62,7 @@ export const memoryCallStore = (now = () => Date.now()) => {
         if (!call) {
           call = { id: randomUUID(), record: key, started_by: member, started_at: now(), ends_at: now() + maxMinutes * 60_000 }
           calls.set(call.id, call)
+          started = true
         }
       }
       expire(call.id)
@@ -68,11 +76,11 @@ export const memoryCallStore = (now = () => Date.now()) => {
       const own = present(call.id).find((row) => row.member === member)
       if (own) {
         Object.assign(own, { process, seen_at: now(), tracks: resume?.tracks ?? [] })
-        return { call: call.id, row: own.id }
+        return { call: call.id, row: own.id, started }
       }
       const row: Member = { id: next(), call: call.id, member, process, tracks: resume?.tracks ?? [], joined_at: now(), seen_at: now() }
       members.push(row)
-      return { call: call.id, row: row.id }
+      return { call: call.id, row: row.id, started }
     },
     leave: async (id, process) => {
       const row = members.find((candidate) => candidate.id === id)
@@ -102,12 +110,20 @@ export const memoryCallStore = (now = () => Date.now()) => {
       for (const row of members) if (rows.includes(row.id) && row.process === process && row.left_at === undefined) row.seen_at = now()
     },
     sweep: async () => {
+      const changed = new Set<string>()
       for (const call of calls.values()) {
         if (call.ended_at !== undefined) continue
+        const before = present(call.id).length
         expire(call.id)
         if (call.ends_at <= now()) end(call)
         else endIfEmpty(call)
+        if (call.ended_at !== undefined || present(call.id).length !== before) changed.add(call.record)
       }
+      return [...changed].map(recordOfId)
+    },
+    recordOf: async (id) => {
+      const call = calls.get(id)
+      return call && recordOfId(call.record)
     },
     rosters: async (ids) => {
       const found = new Map<string, { ended: boolean; members: { row: string; member: string; process: string; joined_at: string; tracks: CallRemoteTrack[] }[] }>()

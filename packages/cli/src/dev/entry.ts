@@ -33,7 +33,7 @@ if (project.auth && !store.__protobaseAuthSchemaChecked) {
 if (project.auth) await checkResourcesOutsideAuthStore(db, resources.map((resource) => resource.toModel()), project.auth)
 await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
 await checkComments(db, resources.map((resource) => resource.toModel()))
-await checkCalls(db, project.calls)
+await checkCalls(db, project.calls, project.events)
 await checkComputed(db, resources.map((resource) => resource.toModel()))
 // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.
 if (assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })

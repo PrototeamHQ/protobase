@@ -1,6 +1,9 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import { migrationCommand } from '../changes/capture-schema'
+import { quoteIdent } from '../changes/capture-sql'
+import { changesSchema, type EventsOptions } from '../changes/events-options'
+import { noticesTableSql } from '../live/notices-sql'
 
 /**
  * - `calls`: a call on a record, by resource and encoded key: who started it, when, the latest it may end, and when it
@@ -10,6 +13,8 @@ import { migrationCommand } from '../changes/capture-schema'
  *   them and when it last heard of them. A removal of someone not in the call is a row that starts and ends at once.
  * - `signals`: with several processes, a member's description or candidate for a member another process serves,
  *   taken out by that process as it reads it, and deleted after a minute when no process did.
+ * - `rings`: a user a call rang, by their id, with the ring's text, until when it rings, and when it stopped: they
+ *   joined the call, declined, or the call ended.
  */
 export const callsSchemaSql = `create schema if not exists "calls";
 
@@ -50,21 +55,46 @@ create table if not exists "calls"."signals" (
   "at" timestamptz not null
 );
 create index if not exists "signals_process" on "calls"."signals" ("process", "id");
-create index if not exists "signals_at" on "calls"."signals" ("at");`
+create index if not exists "signals_at" on "calls"."signals" ("at");
+
+create table if not exists "calls"."rings" (
+  "call_id" uuid not null references "calls"."calls" ("id") on delete cascade,
+  "user_id" text not null,
+  "title" text not null,
+  "body" text,
+  "rung_at" timestamptz not null,
+  "until" timestamptz not null,
+  "stopped_at" timestamptz,
+  primary key ("call_id", "user_id")
+);
+create index if not exists "rings_user" on "calls"."rings" ("user_id", "until") where "stopped_at" is null;
+create index if not exists "rings_until" on "calls"."rings" ("until") where "stopped_at" is null;`
 
 // Only reads the catalogue.
 const hasCallsTables = async (db: Db) =>
-  (await sql<{ found: boolean }>`select to_regclass('calls.calls') is not null and to_regclass('calls.members') is not null and to_regclass('calls.signals') is not null as found`.execute(db)).rows[0]!.found
+  (await sql<{ found: boolean }>`select to_regclass('calls.calls') is not null and to_regclass('calls.members') is not null and to_regclass('calls.signals') is not null and to_regclass('calls.rings') is not null as found`.execute(db)).rows[0]!.found
 
-/** The SQL that adds the `calls` schema and its tables, `undefined` when they are there. They are never dropped. */
-export const callsMigration = async (db: Db) => {
-  if (await hasCallsTables(db)) return undefined
-  return `${callsSchemaSql};`
+// The live stream's notices, which tell open pages of the calls that ring their user.
+const noticesTable = (events?: EventsOptions) => `${quoteIdent(changesSchema(events))}."notices"`
+
+const hasNotices = async (db: Db, events?: EventsOptions) =>
+  (await sql<{ found: boolean }>`select to_regclass(${noticesTable(events)}) is not null as found`.execute(db)).rows[0]!.found
+
+/**
+ * The SQL that adds the `calls` schema and its tables, and the changes schema's notices table rings reach open pages
+ * through, `undefined` when they are there. They are never dropped.
+ */
+export const callsMigration = async (db: Db, events?: EventsOptions) => {
+  const statements = [
+    ...((await hasCallsTables(db)) ? [] : [callsSchemaSql]),
+    ...((await hasNotices(db, events)) ? [] : [`create schema if not exists ${quoteIdent(changesSchema(events))}`, noticesTableSql(changesSchema(events))]),
+  ]
+  return statements.length === 0 ? undefined : `${statements.join(';\n\n')};`
 }
 
 /** Refuses to go on while the app has `calls` and the database lacks their tables; the project's migrations add them. */
-export const checkCalls = async (db: Db, calls: unknown) => {
+export const checkCalls = async (db: Db, calls: unknown, events?: EventsOptions) => {
   if (!calls) return
-  if (await hasCallsTables(db)) return
-  throw new Error(`The calls schema is missing, and calls keep their records in it. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
+  if ((await hasCallsTables(db)) && (await hasNotices(db, events))) return
+  throw new Error(`The calls schema or the notices table that rings go through is missing. Write them as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
 }

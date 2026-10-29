@@ -2,6 +2,7 @@ import type { CallClientMessage, CallLeftReason, CallServerMessage, CallTrackReq
 import type { FunctionSocket, SocketEvents } from '../functions/function-socket'
 import type { CallDoor, InCall } from './call-hub'
 import type { CallRights } from './call-member'
+import type { CallRingInput } from './call-ring'
 import type { CallRecord } from './call-store'
 import { memberEnd } from './close-codes'
 import { parseClientMessage } from './client-message'
@@ -24,6 +25,10 @@ export type MemberRelayInput = {
   maxMembers: number
   maxMinutes: number
   report: (error: unknown) => void
+  /** The signed-in user the member is: a ring of theirs stops once they join. */
+  user?: string
+  /** Whom the call rings when this member's join starts it. */
+  ring?: CallRingInput
 }
 
 /**
@@ -32,7 +37,7 @@ export type MemberRelayInput = {
  * may not make, and tells the call and the plugin how the socket ended. The plugin only ever sees well-formed messages
  * of a member Protobase let in.
  */
-export const memberRelay = ({ door, backend, record, member, rights, maxMembers, maxMinutes, report }: MemberRelayInput): SocketEvents => {
+export const memberRelay = ({ door, backend, record, member, rights, maxMembers, maxMinutes, report, user, ring }: MemberRelayInput): SocketEvents => {
   let browser: FunctionSocket
   let session: MemberSession | undefined
   let inCall: InCall | undefined
@@ -60,7 +65,7 @@ export const memberRelay = ({ door, backend, record, member, rights, maxMembers,
   const enter = async (message: Extract<CallClientMessage, { type: 'join' | 'resume' }>) => {
     if (session) return close(refusedCloseCode, 'The call session already started')
     const resume = message.type === 'resume' ? { call: message.call, tracks: message.tracks.map((track) => ({ sid: track.sid, member, kind: track.kind, source: track.source, muted: false })) } : undefined
-    const admitted = await door.admit({ record, member, maxMembers, maxMinutes, ...(resume && { resume }) }, { send, close })
+    const admitted = await door.admit({ record, member, maxMembers, maxMinutes, ...(resume && { resume }), ...(user !== undefined && { user }), ...(ring && !resume && { ring }) }, { send, close })
     if ('refused' in admitted) {
       send({ type: 'left', reason: admitted.refused satisfies CallLeftReason })
       return close(refusedCloseCode, refusals[admitted.refused]!)
