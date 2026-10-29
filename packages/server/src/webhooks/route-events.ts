@@ -41,10 +41,12 @@ export const subscriptionProblems = (subscriptions: readonly SubscriptionDefinit
 
 /**
  * Which subscriptions take which of a change's events: enabled, naming the event, of the change's tenant when they set
- * one, and passing their `when` on the record after the change (before it, for a delete). Filters are checked once,
+ * one and the resource declares a tenant (a resource without one is not tenant-scoped, so the owner's roles alone
+ * decide), and passing their `when` on the record after the change (before it, for a delete). Filters are checked once,
  * here; run `subscriptionProblems` first.
  */
 export const subscriptionRouter = (subscriptions: readonly SubscriptionDefinition[], models: readonly ResourceModel[]) => {
+  const untenanted = new Set(models.filter((model) => model.tenant === undefined).map((model) => model.name))
   const filters = new Map<string, CheckedFilter>()
   for (const subscription of subscriptions) {
     if (subscription.options.when === undefined) continue
@@ -56,7 +58,7 @@ export const subscriptionRouter = (subscriptions: readonly SubscriptionDefinitio
   const passes = (subscription: SubscriptionDefinition, change: ResourceChange) => {
     const { options } = subscription
     if (options.enabled === false) return false
-    if (options.tenant !== undefined && String(options.tenant) !== String(change.tenant)) return false
+    if (options.tenant !== undefined && !untenanted.has(change.resource) && String(options.tenant) !== String(change.tenant)) return false
     const filter = filters.get(`${subscription.name}\0${change.resource}`)
     if (!filter) return true
     try {

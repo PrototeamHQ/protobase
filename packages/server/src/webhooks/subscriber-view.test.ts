@@ -101,6 +101,13 @@ describe('subscriberEvents', () => {
     expect(await events(as, change('notes', { id: 1, name: 'hidden' }), 'notes.created')).toBeUndefined()
     expect((await events(as, change('notes', { id: 1, name: 'shown' }), 'notes.created'))?.data.after).toEqual({ id: 1, name: 'shown' })
   })
+
+  it("holds a tenant's subscription to its owner's roles on a resource without a tenant", async () => {
+    const events = subscriberEvents(deps)
+    const tenanted = (roles: string[]) => subscription(`tenanted_${roles[0]}`, { url: 'https://example.com/hook', events: ['*'], tenant: 1, as: { roles } } as never)
+    expect(await events(tenanted(['clerk']), change('viewers', { id: 1, name: 'api' }), 'viewers.created')).toBeUndefined()
+    expect((await events(tenanted(['viewer']), change('viewers', { id: 1, name: 'api' }), 'viewers.created'))?.data.after).toEqual({ id: 1, name: 'api' })
+  })
 })
 
 describe('eventChange', () => {

@@ -25,7 +25,7 @@ A **subscription** delivers the [events](/reference/events/) of resources as the
 | `events` | Event names (`orders.created`), every event of a resource (`orders.*`), or all of them (`*`). Each must match a declared event. |
 | `when` | A filter on the record after the change, or before it for a delete, in the language of access rules. |
 | `as: { roles }` | Delivers as these roles: only records they may read, and only fields they may read. Without it, every record and every field but the sensitive ones. Their access rules cannot read a sensitive field, which a captured change does not hold: a change they would need one for is kept as failed. Check the role before such a field, as in `ctx.user.roles.includes('admin') \|\| record.api_secret == null`, or decide on a field that is not sensitive (see [Sensitive fields](/reference/data-config/#sensitive-fields)). |
-| `tenant` | Only events of this tenant's records. |
+| `tenant` | Only events of this tenant's records, on resources with `.tenant()`; a resource without one is not tenant-scoped, so its events reach every tenant's subscriptions that may read them. |
 | `payload` | `thin` leaves `after` and `before` out, for a receiver that reads the record through the API. Default `full`. |
 | `ordered` | One delivery at a time per record, in commit order. Default false. |
 | `enabled` | Default true; `false` keeps the subscription in the config without delivering. |

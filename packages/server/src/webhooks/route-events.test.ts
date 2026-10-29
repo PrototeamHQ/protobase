@@ -83,6 +83,17 @@ describe('subscriptionRouter', () => {
     expect(route(change({ after: { id: 7, total: '2500.00', organizationId: 4 }, tenant: 4 }), ['orders.created']).map(({ subscription }) => subscription.name)).toEqual(['all', 'big', 'other'])
   })
 
+  it('holds a tenant only to resources that declare one', () => {
+    const route = subscriptionRouter([subscription('mine', { events: ['orders.created', 'notes.created'], tenant: 1, run })], models)
+    const names = (extra: Partial<ResourceChange>) => route(change(extra), [`${extra.resource ?? 'orders'}.created`]).map(({ subscription }) => subscription.name)
+    expect(names({ resource: 'notes', after: { id: 2, body: 'hi' }, tenant: undefined })).toEqual(['mine'])
+    expect(names({ tenant: 2 })).toEqual([])
+    expect(names({ tenant: undefined })).toEqual([])
+    expect(names({ tenant: null as never })).toEqual([])
+    expect(names({ resource: 'unknown', tenant: undefined })).toEqual([])
+    expect(names({ tenant: 1 })).toEqual(['mine'])
+  })
+
   it('checks a delete against the record before it', () => {
     const route = subscriptionRouter([subscription('big', { events: ['orders.deleted'], when: 'total > 2000', run })], models)
     expect(route(change({ operation: 'delete', after: undefined, before: { id: 7, total: '2500.00' } }), ['orders.deleted'])).toHaveLength(1)
