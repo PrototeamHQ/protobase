@@ -7,7 +7,7 @@ export type MobileConfig = {
   /** Extra native Capacitor plugins the app needs, as npm name → version range, such as `{ '@capacitor/camera': '^8.0.0' }`. */
   plugins?: Record<string, string>
   /**
-   * The public key of the RSA key in `PROTOBASE_MOBILE_SIGNING_KEY`, PEM or base64 SPKI, which `protobase mobile keys`
+   * The public key, PEM, of the RSA key in `PROTOBASE_MOBILE_SIGNING_KEY`, which `protobase mobile keys`
    * prints: with it the Android app updates itself, taking only releases signed with that key.
    */
   publicKey?: string
