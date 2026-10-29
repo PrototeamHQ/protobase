@@ -23,7 +23,7 @@ export const createSharedProject = async (databaseUrl: string) => {
   const printed: string[] = []
   await useSupabaseUsers(projectDir, (text) => void printed.push(text))
   const migrationsDir = path.join(projectDir, 'db/migrations')
-  const migrations = Object.fromEntries(await Promise.all((await readdir(migrationsDir)).filter((file) => file.endsWith('.sql')).map(async (file) => [file, await readFile(path.join(migrationsDir, file), 'utf8')] as const)))
+  const migrations = Object.fromEntries(await Promise.all((await readdir(migrationsDir)).filter((file) => file.endsWith('.sql')).sort().map(async (file) => [file, await readFile(path.join(migrationsDir, file), 'utf8')] as const)))
 
   /** `bun run db:migrate`: the project's db/migrate.ts, as the role DATABASE_URL names. */
   const migrate = () => run([bin, 'run', 'db/migrate.ts'], projectDir, settings)
