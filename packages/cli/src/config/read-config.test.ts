@@ -39,6 +39,17 @@ describe('reading a config', () => {
     await expect(readConfigFile(path.join(dir, 'protobase.config.ts'), configEnv(), importModules)).rejects.toThrow('protobase.config.ts imports "./jobs" lazily; a config is one object')
   })
 
+  it('loads the config of a project whose tsconfig.json extends the .protobase/tsconfig.json no command has written yet', async () => {
+    await write({
+      'tsconfig.json': JSON.stringify({ extends: './.protobase/tsconfig.json', compilerOptions: { strict: true } }),
+      'protobase.config.ts': "import { roles } from './roles'\nexport default { auth: { baseURL: 'http://x', roles } }\n",
+      'roles.ts': "export const roles = ['admin']\n",
+    })
+    const config = await loadSourceConfig(dir, { command: 'tool' })
+    expect(config.auth).toMatchObject({ roles: ['admin'] })
+    expect(JSON.parse(await readFile(path.join(dir, '.protobase/tsconfig.json'), 'utf8'))).toHaveProperty('compilerOptions')
+  })
+
   it('reads a JSON config, with the values it takes from the environment', async () => {
     await write({ 'protobase.config.json': JSON.stringify({ auth: { baseURL: { $env: 'URL', default: 'http://localhost:5173' }, secret: { $env: 'SECRET' }, trustedOrigins: { $env: 'ORIGINS', split: ',' } } }) })
     const file = path.join(dir, 'protobase.config.json')

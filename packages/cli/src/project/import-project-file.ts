@@ -2,12 +2,16 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { InlineConfig, Plugin } from 'vite'
 import { serverPackage } from '../dev/server-package'
+import { writeProjectTypes } from './project-types'
 
 // Imports project files through Vite's module runner, which transforms the project's files and imports its packages
 // as they are. Node needs it for the project's extensionless imports; it costs about a second, so Bun skips it in a
 // locked project. A bundled project's imports of the packages the serve runtime supplies resolve to the CLI's own
-// copies, as in `protobase dev`, whatever the project installed.
+// copies, as in `protobase dev`, whatever the project installed. Vite's transform fails on a tsconfig.json that extends a
+// missing file, so the project's .protobase/tsconfig.json is written first: a project no `protobase dev` has run in yet
+// has none.
 const runnerImport = async (file: string, projectDir: string, plugins: Plugin[] = []) => {
+  await writeProjectTypes(projectDir)
   const vite = await import('vite')
   const resolution = serverPackage(projectDir)
   const packages: InlineConfig = resolution.from === 'cli' ? { root: resolution.root, resolve: { dedupe: resolution.dedupe } } : {}
