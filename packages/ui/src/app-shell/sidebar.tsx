@@ -4,7 +4,7 @@ import { cn } from '../lib/cn'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import { Logo, type ShellLogoProps } from './logo'
 import { navGroups as defaultGroups, type NavGroup } from './nav'
-import { ProfileMenu, type ProfileMenuItem, type ProfileOrganizations, type ProfileRoles, type ShellUser } from './profile-menu'
+import { ProfileMenu, type ProfileMenuItem, type ProfileOrganizations, type ProfileRoles, type ProfileStatus, type ShellUser } from './profile-menu'
 import { ThemeSwitch, type ProfileTheme } from './theme-switch'
 import { SidebarCreateLink } from './sidebar-create-link'
 import { SidebarGroup } from './sidebar-group'
@@ -24,6 +24,8 @@ export type SidebarProps = {
   appIcon?: string
   forceExpanded?: boolean
   profileMenuOpen?: boolean
+  /** The person's own status in the profile menu. */
+  status?: ProfileStatus
   /** Resources to list; defaults to the sample ERP navigation. */
   groups?: NavGroup[]
   /** The app's own pages in the profile menu, above "Sign out", in groups split by a line. */
@@ -46,7 +48,7 @@ export type SidebarProps = {
   notice?: ReactNode
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, account, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky, logo: SidebarLogo = Logo, notice }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, account, onNavigate, onSignOut, signIn, organizations, roles, theme, status, sticky, logo: SidebarLogo = Logo, notice }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
@@ -96,7 +98,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, f
         {notice}
         <div className={cn('shrink-0 border-t p-2', mode !== 'text-large' && mode !== 'text-small' && !expanding && 'flex justify-center')}>
           {user ? (
-            <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} theme={theme} />
+            <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} theme={theme} status={status} />
           ) : (
             <>
               {/* An icon-only sidebar has no room for the switch; the page still follows the system or a stored choice. */}

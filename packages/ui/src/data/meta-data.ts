@@ -38,6 +38,8 @@ export type MetaData = {
   maps?: { style: string; layers?: MapLayerModel[] }
   /** Whether the top bar draws the notification bell: the app has notifications and their `ui` is not false (see `ShellBell`). */
   bell?: boolean
+  /** Whether people set their own status and see those they share an organization with (see `useStatuses`). */
+  status?: boolean
   /** The language the app's screens are in for everyone, when it sets one (see `AppLocale`). */
   locale?: Locale
   /** The hosts besides the app's own whose images are drawn with the page's referrer (see `FileImage`). */

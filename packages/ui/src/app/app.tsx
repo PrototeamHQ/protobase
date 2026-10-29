@@ -67,6 +67,7 @@ import { slotted } from '../locale/slotted'
 import { text as appText } from './messages'
 import type { NativeBridge } from './native-auth-fetch'
 import { LiveUpdateGate } from './live-update/live-update-gate'
+import { useStatusMenu } from '../status/use-status-menu'
 
 export type AppProps = {
   /** Where `/api/v1` lives. Defaults to the current origin. */
@@ -147,6 +148,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   // The bell is there when `/meta` names it, for someone signed in as themselves: the history is theirs alone, so staff
   // signed in as them and visitors have none.
   const bell = meta.bell && user && !staff && <ShellBell own={shell?.bell} />
+  // The person's own status, which only they set: staff signed in as them see no item.
+  const status = useStatusMenu(Boolean(meta.status && user && !staff))
   // The assistant is there when `/meta` names one, which it does only for the admin and ai roles.
   const [assistantOpen, setAssistantOpen] = useState(false)
   const assistantUrl = meta.assistant?.url
@@ -241,6 +244,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
         }
       }
       theme={{ preference: theme.preference, onChange: theme.choose }}
+      {...(status.menu && { status: status.menu })}
       roles={role.current?.active ? { active: role.current.active, roles: role.current.roles, onSwitch: role.switchTo } : undefined}
       onNavigate={open}
       onBack={back}
@@ -251,6 +255,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
     >
       {content}
+      {status.dialog}
     </AppShell>
   )
 }

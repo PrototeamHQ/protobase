@@ -46,6 +46,7 @@ export const useMeta = (): UseQueryResult<MetaData> => {
         ...(result.meta.errorReporting && { errorReporting: result.meta.errorReporting }),
         ...(result.meta.maps && { maps: result.meta.maps }),
         ...(result.meta.notifications?.bell && { bell: true }),
+        ...(result.meta.status && { status: true }),
         ...(result.meta.locale && { locale: result.meta.locale }),
         ...(result.meta.files && { files: result.meta.files }),
         ...(result.meta.plugins && { plugins: result.meta.plugins }),

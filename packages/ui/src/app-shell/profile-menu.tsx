@@ -1,5 +1,5 @@
-import { ChevronsUpDown, LogOut, type LucideIcon } from 'lucide-react'
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { ChevronsUpDown, LogOut, SmilePlus, type LucideIcon } from 'lucide-react'
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../primitives/avatar'
 import { Badge, type BadgeTone } from '../primitives/badge'
@@ -14,6 +14,9 @@ export type ProfileMenuItem = { id: string; label: string; icon: LucideIcon; hre
 
 /** The organizations to switch between: the one worked in, and the person's others. */
 export type ProfileOrganizations = { current?: { id: string; name: string }; others: { id: string; name: string }[]; onSwitch: (id: string) => void }
+
+/** The person's own status: its mark beside their name, and the item that opens the picker, named for whether they have one. */
+export type ProfileStatus = { mark?: ReactNode; label: ReactNode; onOpen: () => void }
 
 /** The roles to switch between: the one the person acts with, and every role they hold, each with its label. */
 export type ProfileRoles = { active: string; roles: { name: string; label: string }[]; onSwitch: (name: string) => void }
@@ -37,12 +40,14 @@ export type ProfileMenuProps = {
   roles?: ProfileRoles
   /** Adds the theme switch above "Sign out". */
   theme?: ProfileTheme
+  /** Shows the person's status by their name, and adds the item that sets it below them. */
+  status?: ProfileStatus
 }
 
 const menuRow = 'flex min-h-11 w-full items-center gap-2.5 px-3 py-1.5 text-left text-muted-foreground hover:bg-muted md:min-h-0'
 
 /** The person at the bottom of the sidebar; the menu is fixed to the viewport so a narrow sidebar cannot clip it. */
-export const ProfileMenu = ({ user, compact, open: controlled, items = [], account, onNavigate, onSignOut, organizations, roles, theme }: ProfileMenuProps) => {
+export const ProfileMenu = ({ user, compact, open: controlled, items = [], account, onNavigate, onSignOut, organizations, roles, theme, status }: ProfileMenuProps) => {
   const activeRole = roles?.roles.find((role) => role.name === roles.active)
   const [local, setLocal] = useState(false)
   const open = controlled ?? local
@@ -85,7 +90,14 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], accou
         {!compact && (
           <>
             <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate font-medium">{user.name}</span>
+              {status?.mark ? (
+                <span className="flex min-w-0 items-center gap-1">
+                  <span className="truncate font-medium">{user.name}</span>
+                  {status.mark}
+                </span>
+              ) : (
+                <span className="block truncate font-medium">{user.name}</span>
+              )}
               <Badge tone={user.roleTone} dot={false} className="mt-0.5 h-4 px-1.5 text-[10px]">
                 {user.role}
               </Badge>
@@ -105,6 +117,22 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], accou
             <div className="border-b px-3 pb-2 pt-1.5">
               <div className="font-medium">{user.name}</div>
               <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+            </div>
+          )}
+          {status && (
+            <div className="border-b py-1">
+              <button
+                type="button"
+                role="menuitem"
+                className={menuRow}
+                onClick={() => {
+                  setLocal(false)
+                  status.onOpen()
+                }}
+              >
+                <SmilePlus className="size-4 shrink-0" />
+                <span className="min-w-0 flex-1 truncate">{status.label}</span>
+              </button>
             </div>
           )}
           {organizations && (organizations.current || organizations.others.length > 0) && (

@@ -47,6 +47,10 @@ export const keys = {
   inboxPages: ['inbox', 'pages'] as const,
   /** The people of the organization the session of this user works in (`useMembers`). */
   members: (userId: string) => ['members', userId] as const,
+  /** The statuses of everyone who shares an organization with this user (`useStatuses`). */
+  statuses: (userId: string) => ['statuses', userId] as const,
+  /** This user's own status (`useOwnStatus`). */
+  ownStatus: (userId: string) => ['statuses', userId, 'own'] as const,
   /** A public form, as `/-/forms/<name>` draws it. */
   publicForm: (name: string) => ['public-form', name] as const,
 }

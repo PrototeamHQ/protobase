@@ -8,7 +8,7 @@ import { PageScrollContext, usePageGutter, usePageInsets } from './page-scroll'
 import type { NavGroup } from './nav'
 import { Sidebar } from './sidebar'
 import { useSidebarNoticeShown } from './sidebar-notice'
-import type { ProfileMenuItem, ProfileOrganizations, ProfileRoles, ShellUser } from './profile-menu'
+import type { ProfileMenuItem, ProfileOrganizations, ProfileRoles, ProfileStatus, ShellUser } from './profile-menu'
 import type { ProfileTheme } from './theme-switch'
 import type { SidebarMode } from './sidebar-mode'
 import type { GlobalSearchModel } from './global-search'
@@ -40,6 +40,8 @@ export type AppShellProps = {
   banner?: ReactNode
   forceExpanded?: boolean
   profileMenuOpen?: boolean
+  /** The person's own status in the profile menu: its mark by their name, and the item that sets it. */
+  status?: ProfileStatus
   navGroups?: NavGroup[]
   /** The app's own pages in the profile menu, above "Sign out", in groups split by a line. */
   userMenu?: ProfileMenuItem[][]
@@ -70,7 +72,7 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, status, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const noticeShown = useSidebarNoticeShown(sidebarMode)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -87,7 +89,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
   usePageGutter(pageScroll)
   const sidebar = (mode: SidebarMode, sticky = false, notice?: ReactNode) => (
-    <Sidebar mode={mode} sticky={sticky} notice={notice} activeItem={activeItem} user={user} workspace={workspace} appName={appName} appIcon={appIcon} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} logo={logo} />
+    <Sidebar mode={mode} sticky={sticky} notice={notice} activeItem={activeItem} user={user} workspace={workspace} appName={appName} appIcon={appIcon} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} status={status} logo={logo} />
   )
   return (
     <PageScrollContext.Provider value={setPageScroll}>
