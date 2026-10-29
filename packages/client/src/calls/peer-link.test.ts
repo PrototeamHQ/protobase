@@ -58,7 +58,7 @@ const annAndBob = async () => {
     },
   })
   await link.receive({ type: 'peers', members: ['bob'] })
-  const offerFromBob = () => link.receive({ type: 'signal', from: 'bob', description: { type: 'offer', sdp: 'bob' } })
+  const offerFromBob = (sdp = 'bob') => link.receive({ type: 'signal', from: 'bob', description: { type: 'offer', sdp } })
   return { connections, sent, offerFromBob }
 }
 
@@ -83,5 +83,14 @@ describe('the peer link', () => {
     await offerFromBob()
     expect(connections).toHaveLength(1)
     expect(connections[0]!.remoteOffers).toBe(2)
+  })
+
+  it("keeps its own offer when Firefox's crosses it, since Firefox gives way to Chromium", async () => {
+    const { connections, offerFromBob } = await annAndBob()
+    await connections[0]!.onnegotiationneeded!()
+    await offerFromBob('v=0\no=mozilla...THIS_IS_SDPARTA 0 0 IN IP4 0.0.0.0')
+    expect(connections).toHaveLength(1)
+    expect(connections[0]!.signalingState).toBe('have-local-offer')
+    expect(connections[0]!.remoteOffers).toBe(0)
   })
 })
