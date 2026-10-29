@@ -178,6 +178,79 @@ describe('channelsClient', () => {
     expect(socket().close).toHaveBeenCalledWith(1000)
   })
 
+  it('hands a channel left before its join was answered to a holder that comes meanwhile, joining it once', async () => {
+    const { client, socket, server } = setup()
+    client.channel('rooms', 2)
+    await vi.advanceTimersByTimeAsync(0)
+    socket().opened()
+    client.channel('rooms', 1).leave()
+    const again = client.channel('rooms', 1)
+    const join = socket().sent.find((sent) => sent.type === 'join' && sent.resource === 'rooms' && sent.key === '1')!
+    socket().reply({ type: 'reply', ref: join.ref as string, ok: true, channel: 'rooms/1' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(again.status()).toEqual({ state: 'joined' })
+    expect(socket().sent.filter((sent) => sent.type === 'join' && sent.key === '1')).toHaveLength(1)
+    expect(socket().sent.some((sent) => sent.type === 'leave')).toBe(false)
+    expect(server.sockets).toHaveLength(1)
+  })
+
+  it('leaves a channel left before its join was answered once the server joins it, and joins it afresh later', async () => {
+    const { client, socket } = setup()
+    client.channel('rooms', 2)
+    await vi.advanceTimersByTimeAsync(0)
+    socket().opened()
+    client.channel('rooms', 1).leave()
+    const join = socket().sent.find((sent) => sent.type === 'join' && sent.key === '1')!
+    socket().reply({ type: 'reply', ref: join.ref as string, ok: true, channel: 'rooms/1' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(socket().sent.at(-1)).toEqual({ type: 'leave', channel: 'rooms/1' })
+    const again = client.channel('rooms', 1)
+    const rejoin = socket().sent.at(-1)!
+    expect(rejoin).toMatchObject({ type: 'join', resource: 'rooms', key: '1' })
+    socket().reply({ type: 'reply', ref: rejoin.ref as string, ok: true, channel: 'rooms/1' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(again.status()).toEqual({ state: 'joined' })
+  })
+
+  it('forgets a channel left before its join was refused, without leaving it, and joins it afresh later', async () => {
+    const { client, socket } = setup()
+    client.channel('rooms', 2)
+    await vi.advanceTimersByTimeAsync(0)
+    socket().opened()
+    client.channel('rooms', 1).leave()
+    const join = socket().sent.find((sent) => sent.type === 'join' && sent.key === '1')!
+    socket().reply({ type: 'reply', ref: join.ref as string, ok: false, error: { code: 'not-found', message: 'There is no such record' } })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(socket().sent.some((sent) => sent.type === 'leave')).toBe(false)
+    const again = client.channel('rooms', 1)
+    const rejoin = socket().sent.at(-1)!
+    expect(rejoin).toMatchObject({ type: 'join', resource: 'rooms', key: '1' })
+    socket().reply({ type: 'reply', ref: rejoin.ref as string, ok: true, channel: 'rooms/1' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(again.status()).toEqual({ state: 'joined' })
+  })
+
+  it('keeps the socket for the only channel, left before its join was answered, until it leaves it on the reply', async () => {
+    const { client, socket } = setup()
+    const room = client.channel('rooms', 1)
+    await vi.advanceTimersByTimeAsync(0)
+    socket().opened()
+    room.leave()
+    expect(socket().close).not.toHaveBeenCalled()
+    socket().reply({ type: 'reply', ref: socket().sent.at(-1)!.ref as string, ok: true, channel: 'rooms/1' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(socket().sent.at(-1)).toEqual({ type: 'leave', channel: 'rooms/1' })
+    expect(socket().close).toHaveBeenCalledWith(1000)
+  })
+
+  it('forgets a channel left before its socket opened, joining nothing and keeping no socket', async () => {
+    const { client, server } = setup()
+    client.channel('rooms', 1).leave()
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(server.sockets.flatMap((socket) => socket.sent)).toEqual([])
+    expect(server.sockets.every((socket) => socket.readyState === 3)).toBe(true)
+  })
+
   it('offers its token as a subprotocol, and hands over a new one as it changes', async () => {
     let token = 'one'
     const { client, socket, openAndJoin } = setup(async () => token)

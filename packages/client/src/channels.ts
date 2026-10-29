@@ -67,17 +67,30 @@ export const channelsClient = (options: Omit<ConnectionOptions, 'onOpen' | 'onDo
     for (const listener of channel.presenceListeners) listener(entries, change)
   }
 
+  const forget = (id: string) => {
+    joined.delete(id)
+    if (joined.size === 0) connection.stop()
+  }
+
+  // A channel every holder left while joining stays until its join is answered, so a new holder reuses it instead of
+  // joining twice, and the connection leaves it once the server joined it.
   const join = (channel: Joined) => {
+    const id = `${channel.resource}/${channel.key}`
     connection
       .request({ type: 'join', resource: channel.resource, key: channel.key })
       .then((reply) => {
-        if (joined.get(`${channel.resource}/${channel.key}`) !== channel) return
+        if (joined.get(id) !== channel) return
+        if (channel.holders === 0) {
+          connection.post({ type: 'leave', channel: reply.channel! })
+          return forget(id)
+        }
         channel.name = reply.channel!
         byName.set(channel.name, channel)
         setStatus(channel, { state: 'joined' })
         if (channel.tracked) void connection.request({ type: 'track', channel: channel.name, state: channel.tracked.state }).catch(unlessDropped)
       })
       .catch((error: unknown) => {
+        if (joined.get(id) === channel && channel.holders === 0 && error instanceof ChannelRefusal) return forget(id)
         if (!(error instanceof ChannelRefusal) || error.code === 'disconnected') return unlessDropped(error)
         setStatus(channel, { state: 'refused', error: { code: error.code, message: error.message } })
       })
@@ -110,7 +123,11 @@ export const channelsClient = (options: Omit<ConnectionOptions, 'onOpen' | 'onDo
   const connection = channelConnection({
     ...options,
     onOpen: () => {
-      for (const channel of joined.values()) if (channel.status.state === 'joining') join(channel)
+      for (const [id, channel] of joined) {
+        if (channel.status.state !== 'joining') continue
+        if (channel.holders === 0) forget(id)
+        else join(channel)
+      }
     },
     onDown: () => {
       byName.clear()
@@ -122,12 +139,13 @@ export const channelsClient = (options: Omit<ConnectionOptions, 'onOpen' | 'onDo
   const release = (id: string, channel: Joined) => {
     channel.holders -= 1
     if (channel.holders > 0) return
-    joined.delete(id)
+    channel.tracked = undefined
+    if (channel.status.state === 'joining') return
     if (channel.name !== undefined) {
       byName.delete(channel.name)
       connection.post({ type: 'leave', channel: channel.name })
     }
-    if (joined.size === 0) connection.stop()
+    forget(id)
   }
 
   const handleOf = (id: string, channel: Joined): Channel => {
