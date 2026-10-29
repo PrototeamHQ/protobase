@@ -64,6 +64,21 @@ auth: {
 
 The store's migrations make the user table only when it is missing, and add each of its columns only when the table lacks it, so a table another system made keeps its own. A required column (`name`, `email`, `email_verified`) cannot be added to a table with rows, so the columns Better Auth needs that the table lacks come first, nullable, from a migration of the project's own; `protobase auth migration` then writes the other tables next to it, and another migration fills the columns from what the other system recorded and gives each password its `credential` row in `account`. For Supabase, [`protobase import supabase`](/reference/cli/#import-supabase) writes all three and these options.
 
+### A view over another system's users
+
+Where the app may not change the other system's users table, as on a Supabase database, where only Supabase Auth may change its `auth` schema, the user table can be a view of the app's own over it. `users.keyTable` names the table that holds the user ids:
+
+```ts
+auth: {
+  schema: 'app_auth',
+  users: { table: 'users', keyTable: { schema: 'auth', table: 'users' }, columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' },
+  passwordHashes: ['bcrypt'],
+  generateUserId: 'uuid',
+}
+```
+
+The store's migrations then make nothing of the user table, which a migration of the project's own makes as a view with an `instead of` trigger for Better Auth's writes, and every foreign key points at the key table. `protobase dev` compares the view's columns with what Better Auth needs, rather than reporting it as a missing table. The key table counts among the store's tables, so no resource may be over it and the assistant's queries never read it, since it holds the other system's password hashes. On a Supabase database, [`npm create protobase`](/getting-started/#on-an-existing-database) writes these settings and the view.
+
 ## Configuration
 
 | Variable | |

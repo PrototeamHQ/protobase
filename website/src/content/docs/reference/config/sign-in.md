@@ -210,10 +210,10 @@ export default defineConfig({ auth: { accountDeletion: false } })
 
 ## auth.users
 
-- **Type:** `{ table?: string; columns?: Record<string, string>; metadata?: string }`
+- **Type:** `{ table?: string; columns?: Record<string, string>; metadata?: string; keyTable?: { schema: string; table: string } }`
 - **Default:** the table `protobase auth migration` makes
 
-The user table, when another system made it, such as Supabase's `auth.users`: its name, the columns named otherwise than Protobase names them, and a JSON column for each user's metadata. See [An existing users table](/reference/auth/#an-existing-users-table).
+The user table, when another system made it, such as Supabase's `auth.users`: its name, the columns named otherwise than Protobase names them, and a JSON column for each user's metadata. See [An existing users table](/reference/auth/#an-existing-users-table). `keyTable` makes the user table a view of the app's own over another system's, the table it names, which holds the user ids: the store's migrations leave the view to the app and point their foreign keys at that table. See [A view over another system's users](/reference/auth/#a-view-over-another-systems-users).
 
 ```ts
 export default defineConfig({

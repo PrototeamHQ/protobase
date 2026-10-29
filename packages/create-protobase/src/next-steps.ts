@@ -33,14 +33,14 @@ export const nextSteps = (dir: string, scripts: Record<string, string>, port: nu
 /**
  * What to run in a new project on an existing database, its packages installed, until its admin app serves: the first
  * of them is the first that writes to the database, adding the auth schema sign-in keeps its users in, or on a
- * Supabase database, `supabase`, Better Auth's tables next to Supabase's auth.users.
+ * Supabase database, `supabase`, Better Auth's tables and the view over Supabase's auth.users, in `app_auth`.
  */
 export const databaseNextSteps = (dir: string, tools: Tools, supabase = false) =>
   withBun(
     [
       `cd ${dir}`,
       supabase
-        ? "bun run db:migrate     # the first write to the database: Better Auth's tables next to auth.users, and migrations.applied"
+        ? "bun run db:migrate     # the first write to the database: app_auth, a view over auth.users and Better Auth's tables, and migrations.applied"
         : 'bun run db:migrate     # the first write to the database: the auth schema, and migrations.applied',
       'bun run protobase users create you@example.com --generate-password',
       'bun run dev            # http://localhost:5173',

@@ -84,12 +84,12 @@ describe('createFromDatabase', () => {
     expect(printed).toContain('shop has no tables to import: it leaves out public.order_totals: a view. The project starts without resources.\n')
   })
 
-  it("on a Supabase database, signs the project in on Supabase's auth.users and keeps scaffold off its schemas", async () => {
+  it("on a Supabase database, signs Supabase's users in through a view over auth.users and keeps scaffold off its schemas", async () => {
     const { done, imports, printed } = await run(['', '1', '', ''], { supabaseSchemas: ['auth', 'realtime', 'storage'] })
     expect(done).toEqual([`check ${url}`, `write shop on ${url}`, 'install shop with bun', 'list from shop', 'sign in on auth.users in shop', 'import into shop'])
     expect(imports[0]!.excluded).toEqual(['public.orders', 'public.order_lines', 'auth', 'realtime', 'storage'])
-    expect(printed).toContain("shop is a Supabase database: the project signs in on Supabase's own auth.users.\n")
-    expect(printed).toContain("bun run db:migrate     # the first write to the database: Better Auth's tables next to auth.users")
+    expect(printed).toContain("shop is a Supabase database: the project signs Supabase's users in through a view over auth.users, and changes nothing in Supabase's auth schema.\n")
+    expect(printed).toContain("bun run db:migrate     # the first write to the database: app_auth, a view over auth.users and Better Auth's tables")
   })
 
   it("signs the project in on Supabase's auth.users even when it has no tables to import", async () => {
