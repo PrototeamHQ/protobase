@@ -88,6 +88,7 @@ Reference:
 - When running background jobs → read [Jobs](references/reference/jobs.md)
 - When sending email → read [Email](references/reference/email.md)
 - When registering users' devices for push notifications → read [Notifications](references/reference/notifications.md)
+- When adding audio and video calls, through LiveKit or peer to peer → read [Calls](references/reference/calls.md)
 - When setting roles, capabilities and row filters → read [Access](references/reference/access.md)
 - When configuring sign-in, tokens and the auth schema → read [Login with Better Auth](references/reference/auth.md)
 - When using the typed client and hooks → read [Client and live UI](references/reference/client.md)
