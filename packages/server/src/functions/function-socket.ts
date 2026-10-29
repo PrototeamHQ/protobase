@@ -15,6 +15,7 @@ export type SocketEvents = {
   onOpen?: (socket: FunctionSocket) => void | Promise<void>
   /** Text arrives as a string, binary as an ArrayBuffer. The next message waits until a returned promise settles. */
   onMessage?: (data: string | ArrayBuffer, socket: FunctionSocket) => void | Promise<void>
+  /** With the code the server closed the socket with, such as 1008 after a refused check, else the browser's. */
   onClose?: (code: number, reason: string) => void | Promise<void>
   /**
    * Checked every minute after the framework's own check, while the socket is open; what it returns is ignored. Throw
@@ -65,9 +66,12 @@ export const socketEvents = (events: SocketEvents, { report, recheck }: SocketEv
   let waiting = 0
   let paused = false
   let ended = false
+  // The server's own close, which the browser may never answer, as when its connection is gone.
+  let closedWith: { code: number; reason: string } | undefined
   let stopRecheck = () => {}
   const end = (code: number, reason: string) => {
     ended = true
+    closedWith ??= { code, reason }
     stopRecheck()
     raw.close(code, reason)
   }
@@ -106,7 +110,10 @@ export const socketEvents = (events: SocketEvents, { report, recheck }: SocketEv
             if (raw.readyState !== openState) return resolve()
             raw.send(data, () => resolve())
           }),
-        close: (code, reason) => raw.close(code, reason),
+        close: (code, reason) => {
+          closedWith ??= { code: code ?? 1000, reason: reason ?? '' }
+          raw.close(code, reason)
+        },
         get bufferedAmount() {
           return raw.bufferedAmount
         },
@@ -124,7 +131,8 @@ export const socketEvents = (events: SocketEvents, { report, recheck }: SocketEv
     },
     onClose: (event) => {
       stopRecheck()
-      enqueue(() => events.onClose?.(event.code, event.reason), true)
+      const { code, reason } = closedWith ?? event
+      enqueue(() => events.onClose?.(code, reason), true)
     },
   }
 }

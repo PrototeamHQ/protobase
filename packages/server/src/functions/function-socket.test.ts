@@ -137,6 +137,16 @@ describe('socketEvents', () => {
     expect(seen).toEqual(['last', [4000, 'bye']])
   })
 
+  it('tells onClose the code the server closed with, whatever the browser answers', async () => {
+    vi.useFakeTimers()
+    const seen: unknown[] = []
+    const { closed } = open({ onClose: (code, reason) => void seen.push([code, reason]) }, { recheck: async () => Promise.reject(notFound('Gone')) })
+    await vi.advanceTimersByTimeAsync(60_000)
+    closed(1006, '')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(seen).toEqual([[1008, 'Not Found']])
+  })
+
   it('closes with the function’s own code and reason', async () => {
     const { raw } = open({ onOpen: (socket) => socket.close(4401, 'Key revoked') })
     await settle()
