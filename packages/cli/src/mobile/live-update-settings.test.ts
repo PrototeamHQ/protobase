@@ -4,7 +4,6 @@ import { liveUpdateSettings } from './live-update-settings'
 
 const key = generateKeyPairSync('rsa', { modulusLength: 2048, publicKeyEncoding: { format: 'pem', type: 'spki' }, privateKeyEncoding: { format: 'pem', type: 'pkcs8' } }).publicKey
 const input = {
-  platform: 'android' as const,
   publicKey: key,
   builtInOrder: [1_800_000_000_000, 0],
   apiOrigin: 'https://shop.example.com',
@@ -12,7 +11,7 @@ const input = {
 }
 
 describe('liveUpdateSettings', () => {
-  it('gives the Android guard the key as base64 SPKI, the order of the built-in files and the releases URL', () => {
+  it('gives the guard the key as base64 SPKI, the order of the built-in files and the releases URL', () => {
     expect(liveUpdateSettings(input)).toEqual({
       settings: { publicKey: createPublicKey(key).export({ format: 'der', type: 'spki' }).toString('base64'), builtInOrder: '1800000000000,0', releasesUrl: 'https://shop.example.com/api/mobile/releases' },
     })
@@ -33,8 +32,7 @@ describe('liveUpdateSettings', () => {
     expect(liveUpdateSettings({ ...input, apiOrigin: 'http://10.0.2.2:3000' })).toEqual({ note: expect.stringContaining('https only') })
   })
 
-  it('leaves the updater out on iOS, whose guard does not check a release statement yet, and with --live', () => {
-    expect(liveUpdateSettings({ ...input, platform: 'ios' })).toEqual({ note: expect.stringContaining('Android only') })
+  it('leaves the updater out with --live', () => {
     expect(liveUpdateSettings({ ...input, live: true })).toEqual({})
   })
 })

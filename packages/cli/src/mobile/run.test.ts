@@ -127,7 +127,7 @@ describe('mobileRun', () => {
     expect(calls).toEqual([])
   })
 
-  it('compiles the live updater into an Android app with mobile.publicKey and built-in files that name their build time, never into iOS', async () => {
+  it('compiles the live updater into an Android or iOS app with mobile.publicKey and built-in files that name their build time', async () => {
     const publicKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).publicKey.export({ format: 'pem', type: 'spki' })
     const dir = project(`{ appId: 'com.example.shop', publicKey: ${JSON.stringify(publicKey)} }`)
     const config = () => JSON.parse(readFileSync(path.join(dir, '.protobase/mobile/capacitor.config.json'), 'utf8'))
@@ -135,9 +135,9 @@ describe('mobileRun', () => {
     await mobileRun({ projectDir: dir, platform: 'android', api: 'https://api.example.com', extensions: [] }, () => {}, deps)
     expect(config().includePlugins).toContain('@capawesome/capacitor-live-update')
     expect(config().plugins.LiveUpdate).toMatchObject({ builtInOrder: '1800000000000,0', releasesUrl: 'https://api.example.com/api/mobile/releases', readyTimeout: 30_000 })
-    await mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, { ...deps, run: fakeRun([], { ios: ['AppPlugin', ...protobaseIosPluginClasses] }) })
-    expect(config().includePlugins).not.toContain('@capawesome/capacitor-live-update')
-    expect(config().plugins).not.toHaveProperty('LiveUpdate')
+    await mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, { ...deps, run: fakeRun([], { ios: ['AppPlugin', ...protobaseIosPluginClasses, 'LiveUpdatePlugin'] }) })
+    expect(config().includePlugins).toContain('@capawesome/capacitor-live-update')
+    expect(config().plugins.LiveUpdate).toMatchObject({ builtInOrder: '1800000000000,0', releasesUrl: 'https://api.example.com/api/mobile/releases', readyTimeout: 30_000, autoBlockRolledBackBundles: true })
     await mobileRun({ projectDir: dir, platform: 'android', api: 'https://api.example.com', extensions: [] }, () => {}, { ...deps, build: fakeWebBuild() })
     expect(config().plugins).not.toHaveProperty('LiveUpdate')
   })
