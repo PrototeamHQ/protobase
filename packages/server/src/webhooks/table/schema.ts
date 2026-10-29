@@ -13,7 +13,7 @@ const readWebhooksSchema = async (db: Db, schema: string) => {
   const exists = async (table: string) =>
     (await sql<{ found: boolean }>`select to_regclass(${`${quoteIdent(schema)}.${quoteIdent(table)}`}) is not null as found`.execute(db)).rows[0]!.found
   const { rows } = await sql<{ name: string; comment: string | null }>`select p.proname as name, obj_description(p.oid, 'pg_proc') as comment
-    from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${schema} and p.proname = any(${functionNames}::text[])`.execute(db)
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${schema} and p.proname = any(${functionNames}::text[]) order by p.proname`.execute(db)
   return {
     subscriptions: await exists('subscriptions'),
     current: functionNames.every((name) => rows.some((row) => row.name === name && row.comment === webhooksComment)) && (await exists('deliveries')),
