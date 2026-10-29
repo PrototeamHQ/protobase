@@ -12,6 +12,7 @@ import { runChild, type RunChild } from './child-process'
 import { deviceAppName } from './device-app-name'
 import { protobaseVersion } from '../version/version'
 import { generatePlatform } from './generate'
+import { liveUpdateSettings } from './live-update-settings'
 import { loadMobileProject } from './load-project'
 import { checkMobileConfig } from './mobile-config'
 import { signForDevelopment } from './development-signing'
@@ -62,10 +63,12 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   checkInstalledPlugins(ws, plugins)
   checkPinnedNative(ws)
 
-  if (live === undefined) await buildWebPart({ projectDir, ws, extensions, apiOrigin: url.origin, ...(build && { build }), onWarning })
-  else await placeholderWebPart(ws)
+  const { builtInOrder } = live === undefined ? await buildWebPart({ projectDir, ws, extensions, apiOrigin: url.origin, ...(build && { build }), onWarning }) : await placeholderWebPart(ws)
   const fingerprint = nativeFingerprint(pinnedNative, mobile.plugins)
-  await writeCapacitorConfig(ws, capacitorConfig({ appId: mobile.appId, appName, fingerprint, shellVersion: protobaseVersion, plugins, allowances, apiOrigin: url.origin, platform }))
+  const liveUpdate = liveUpdateSettings({ platform, ...(mobile.publicKey && { publicKey: mobile.publicKey }), ...(builtInOrder && { builtInOrder }), apiOrigin: url.origin, live: live !== undefined })
+  if (liveUpdate.note) process.stderr.write(`note: ${liveUpdate.note}\n`)
+  const config = { appId: mobile.appId, appName, fingerprint, shellVersion: protobaseVersion, plugins, allowances, apiOrigin: url.origin, platform }
+  await writeCapacitorConfig(ws, capacitorConfig({ ...config, ...(liveUpdate.settings && { liveUpdate: liveUpdate.settings }) }))
   const cap = capacitorRunner(ws, env, run)
   await generatePlatform(ws, platform, allowances, cap)
   if (platform === 'android') {

@@ -2,6 +2,7 @@ import type { MobileConfig } from '@protobase/server'
 import { appIdProblem, isAppId } from './app-id'
 import { packageNameProblem } from './package-name'
 import { pinnedProblem } from './pinned-packages'
+import { updaterPublicKey } from './public-key'
 
 export const noMobileSection = "This project has no mobile section: add `mobile: { appId: 'com.example.app' }` to the default export of protobase.config.ts"
 
@@ -14,9 +15,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 export const checkMobileConfig = (value: unknown): MobileConfig => {
   if (value === undefined) throw new Error(noMobileSection)
   if (!isRecord(value)) throw new Error('mobile in protobase.config.ts must be an object such as { appId: \'com.example.app\' }')
-  const { appId, plugins } = value
+  const { appId, plugins, publicKey } = value
   if (!isAppId(appId)) throw new Error(appIdProblem(appId))
-  if (plugins === undefined) return { appId }
+  if (publicKey !== undefined) updaterPublicKey(publicKey)
+  const key = publicKey === undefined ? {} : { publicKey: publicKey as string }
+  if (plugins === undefined) return { appId, ...key }
   if (!isRecord(plugins) || Object.values(plugins).some((spec) => typeof spec !== 'string')) {
     throw new Error("mobile.plugins must map each plugin's npm name to a version range, such as { '@capacitor/camera': '^8.0.0' }")
   }
@@ -25,5 +28,5 @@ export const checkMobileConfig = (value: unknown): MobileConfig => {
     if (problem) throw new Error(problem)
     if (unauthenticated.test(spec)) throw new Error(`mobile.plugins installs ${name} from ${spec}, over a connection that is not secure: use a version range, https or git+https`)
   }
-  return { appId, plugins: plugins as Record<string, string> }
+  return { appId, plugins: plugins as Record<string, string>, ...key }
 }

@@ -41,6 +41,11 @@ export const registerMobile = (program: Command) => {
     })
 
   mobile
+    .command('keys')
+    .description('Print a fresh key pair for live updates: PROTOBASE_MOBILE_SIGNING_KEY for the server, and the public key for mobile.publicKey')
+    .action(async () => (await import('./print-signing-keys')).printSigningKeys(out, (text) => void process.stderr.write(text)))
+
+  mobile
     .command('build')
     .description('Generate the native project and build a signed release: an .aab for Google Play, an .ipa for the App Store')
     .argument('<platform>', 'ios or android', parsePlatform)

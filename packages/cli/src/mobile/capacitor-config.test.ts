@@ -32,9 +32,38 @@ describe('capacitorConfig', () => {
     expect(capacitorConfig({ ...base, plugins: ['@capacitor/camera', 'x'] }).includePlugins).toEqual(['@capacitor/camera', 'x', '@capacitor/keyboard', '@protobase/mobile'])
   })
 
-  it("gives the live updater, when compiled in, the binary's fingerprint and shell version", () => {
-    expect(capacitorConfig({ ...base, plugins: ['@capawesome/capacitor-live-update'] }).plugins.LiveUpdate).toEqual({ fingerprint: '0123456789abcdef', shellVersion: '0.14.2' })
+  const liveUpdate = { publicKey: 'MIIBIjANBg', builtInOrder: '1800000000000,0', releasesUrl: 'https://shop.example.com/api/mobile/releases' }
+
+  it('compiles in the live updater with everything its guard needs: a key, a rollback timer and the order of the built-in files', () => {
+    const config = capacitorConfig({ ...base, plugins: ['@capacitor/camera'], liveUpdate })
+    expect(config.includePlugins).toEqual(['@capacitor/camera', '@capawesome/capacitor-live-update', '@capacitor/keyboard', '@protobase/mobile'])
+    expect(config.plugins.LiveUpdate).toEqual({
+      ...liveUpdate,
+      readyTimeout: 10_000,
+      autoUpdateStrategy: 'none',
+      autoDeleteBundles: true,
+      autoBlockRolledBackBundles: true,
+      fingerprint: '0123456789abcdef',
+      shellVersion: '0.14.2',
+    })
+  })
+
+  it('sets the publicKey and a readyTimeout above 0 whenever includePlugins names the live updater, and never a signing key', () => {
+    for (const input of [base, { ...base, liveUpdate }, { ...base, platform: 'ios' as const }]) {
+      const config = capacitorConfig(input)
+      if (!config.includePlugins.includes('@capawesome/capacitor-live-update')) {
+        expect(config.plugins).not.toHaveProperty('LiveUpdate')
+        continue
+      }
+      expect(config.plugins.LiveUpdate?.publicKey).toBeTruthy()
+      expect(config.plugins.LiveUpdate?.readyTimeout).toBeGreaterThan(0)
+      expect(JSON.stringify(config)).not.toContain('PRIVATE KEY')
+    }
+  })
+
+  it('leaves the live updater out without its settings', () => {
     expect(capacitorConfig(base).plugins).not.toHaveProperty('LiveUpdate')
+    expect(capacitorConfig(base).includePlugins).not.toContain('@capawesome/capacitor-live-update')
   })
 
   it.each([

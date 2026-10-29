@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { checkMobileConfig } from './mobile-config'
 
@@ -41,5 +42,11 @@ describe('checkMobileConfig', () => {
       expect(() => checkMobileConfig({ appId: 'com.example.shop', plugins: { x: spec } }), spec).toThrow('over a connection that is not secure')
     }
     expect(checkMobileConfig({ appId: 'com.example.shop', plugins: { x: 'git+https://host/x.git' } }).plugins).toEqual({ x: 'git+https://host/x.git' })
+  })
+
+  it("takes the live updater's public key, and refuses one that is not an RSA public key", () => {
+    const publicKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).publicKey.export({ format: 'pem', type: 'spki' })
+    expect(checkMobileConfig({ appId: 'com.example.shop', publicKey })).toEqual({ appId: 'com.example.shop', publicKey })
+    expect(() => checkMobileConfig({ appId: 'com.example.shop', publicKey: 'abc' })).toThrow('mobile.publicKey must be a PEM public key')
   })
 })
