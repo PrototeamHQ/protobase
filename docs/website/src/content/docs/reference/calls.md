@@ -188,7 +188,7 @@ return acceptWebSocket(
 | `title`, `body` | What the ring and the bell say. |
 | `url` | Where the bell's entry leads, an absolute URL; the record's page by default. |
 
-A ring lasts 30 seconds. Accept opens the record's page joining the call, on that device only, after the click; joining the call from any device stops the ring on every page of that person, and so do Decline and the end of the call. The ring reaches open pages over the live stream every page of the app already holds, so it opens no connection of its own.
+A ring lasts 30 seconds. Accept opens the record's page joining the call, on that device only, after the click; joining the call from any device stops the ring on every page of that person, and so do Decline and the end of the call. The ring reaches open pages over the app's [live stream](/reference/live/), which every page of an app with a live resource already holds, so it opens no connection of its own; in an app without one, each page opens that one stream for its rings.
 
 With [notifications](/reference/notifications/), each person rung also gets the call in their bell, where a missed call stays, and as a push on their devices, which reaches a closed app. With [status](/reference/status/), someone on do not disturb is not rung on any page or device; the call waits in their bell. Busy rings as usual.
 
