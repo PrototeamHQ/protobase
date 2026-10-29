@@ -39,13 +39,14 @@ final class ReleaseDownload {
 
     /**
      * Fills the empty folder `dir` with release `bundleId`, `current` the running bundle's folder (null for the built-in
-     * one), and checks it as a whole. Returns its statement.
+     * one), and checks it as a whole: its order above the built-in files' `builtIn` and not below `highest`, the highest
+     * the app downloaded. Returns its statement.
      */
-    ReleaseStatement download(String bundleId, File dir, File current, long[] highest) throws BundleRefused, IOException {
+    ReleaseStatement download(String bundleId, File dir, File current, long[] builtIn, long[] highest) throws BundleRefused, IOException {
         byte[] statementBytes = fetch(bundleId, ReleaseStatement.FILE, ReleaseStatement.MAX_BYTES);
         ReleaseStatement statement = ReleaseStatement.verify(statementBytes, bundleId, key);
         binary.accept(statement);
-        if (ReleaseOrder.compare(statement.order, highest) < 0) throw new BundleRefused("it is older than a release the app downloaded");
+        ReleaseOrder.acceptDownload(statement.order, builtIn, highest);
         byte[] manifestBytes = fetch(bundleId, ReleaseManifest.FILE, ReleaseManifest.MAX_BYTES);
         ReleaseManifest manifest = ReleaseManifest.verify(manifestBytes, statement, dir);
         Map<String, File> own = filesOf(current);
