@@ -9,7 +9,7 @@ const refusal = (code: string, message: string): ChannelError => ({ code, messag
  */
 export const channelRefusals = {
   notFound: refusal('not-found', 'There is no such record'),
-  invalidMessage: refusal('invalid-message', 'Send a JSON text frame of a ping, token, join, leave, track, untrack or send'),
+  invalidMessage: refusal('invalid-message', 'Send a JSON text frame of a ping, token, join, leave, track, untrack or send, or a binary frame of a send'),
   notJoined: refusal('not-joined', 'Join the channel first'),
   alreadyJoined: refusal('already-joined', 'This connection has joined the channel already'),
   nameTooLong: refusal('name-too-long', 'A channel name, its resource, a slash and its key, is at most 255 bytes'),

@@ -6,7 +6,7 @@ import { HttpProblem, notFound } from '../problem'
 import { bufferedOf } from '../realtime/buffered-amount'
 import type { RealtimeHubs } from '../realtime/realtime-hubs'
 import { realtimeLimits } from '../realtime/realtime-limits'
-import type { ErrorHandler } from 'hono'
+import type { ErrorHandler, HonoRequest } from 'hono'
 import type { AdminEnv, Authenticator, Session } from '../types'
 import { channelRecord } from './channel-name'
 import { broadcastRecord, publishTo } from './channel-sender'
@@ -46,12 +46,27 @@ const withBearer = (request: Request, token: string | undefined) => {
   return new Request(request, { headers })
 }
 
-const invalidBody = () => new HttpProblem(422, 'invalid-broadcast', 'Unprocessable Content', 'Send { "event": "…", "payload": … } as application/json')
+const invalidBody = () => new HttpProblem(422, 'invalid-broadcast', 'Unprocessable Content', 'Send { "event": "…", "payload": … } as application/json, or bytes as application/octet-stream with ?event=…')
+
+// The event and payload of a broadcast request: bytes as `application/octet-stream`, the event in the query, or JSON.
+const broadcastOf = async (request: HonoRequest) => {
+  if (request.header('content-type')?.split(';')[0]!.trim().toLowerCase() === 'application/octet-stream') {
+    const event = request.query('event')
+    if (event === undefined) throw invalidBody()
+    return { event, payload: await request.arrayBuffer() }
+  }
+  const body = await request.json<unknown>().catch((error: unknown) => {
+    if (error instanceof SyntaxError) throw invalidBody()
+    throw error
+  })
+  if (!isRecord(body) || typeof body.event !== 'string' || !('payload' in body)) throw invalidBody()
+  return { event: body.event, payload: body.payload }
+}
 
 /**
  * `GET /channels`, a WebSocket of channels named by records (see `channelSocket`), refused before the upgrade like
  * any request its caller cannot make. `POST /channels/:resource/:key/broadcast` sends one broadcast without a socket,
- * as the caller, when they may read the record.
+ * as the caller, when they may read the record: JSON, or bytes (`broadcastOf`).
  */
 export const channelRoutes = ({ deps, upgradeWebSocket, authenticate, authenticateUpgrade, onError, hubs, follow, report }: ChannelRoutesOptions) => {
   const app = new Hono<AdminEnv>()
@@ -109,12 +124,7 @@ export const channelRoutes = ({ deps, upgradeWebSocket, authenticate, authentica
     },
     bodyLimit({ maxSize: realtimeLimits.maxFrameBytes, onError: () => { throw new HttpProblem(413, 'too-large', 'Payload Too Large', `A broadcast request is at most ${realtimeLimits.maxFrameBytes} bytes`) } }),
     async (c) => {
-      const body = await c.req.json<unknown>().catch((error: unknown) => {
-        if (error instanceof SyntaxError) throw invalidBody()
-        throw error
-      })
-      if (!isRecord(body) || typeof body.event !== 'string' || !('payload' in body)) throw invalidBody()
-      const message = { resource: c.req.param('resource'), key: c.req.param('key'), event: body.event, payload: body.payload }
+      const message = { resource: c.req.param('resource'), key: c.req.param('key'), ...(await broadcastOf(c.req)) }
       const record = broadcastRecord(deps.registry, message)
       const session = c.get('session')
       if (!(await recordReadable(deps, session, record))) throw notFound('There is no such record')

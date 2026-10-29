@@ -8,13 +8,14 @@ import { realtimeLimits } from '../realtime/realtime-limits'
 import type { Session } from '../types'
 import { channelBounds } from './channel-bounds'
 import type { ChannelRecord } from './channel-name'
-import { decodeClientMessage, type ChannelError, type ChannelUser, type ClientMessage, type ServerMessage } from './channel-protocol'
+import { encodeBinaryFrame } from './binary-frame'
+import { decodeBinaryMessage, decodeClientMessage, type ChannelError, type ChannelUser, type ClientMessage, type ServerMessage } from './channel-protocol'
 import { channelRefusals } from './channel-refusals'
 import { entriesOf, entryDiff } from './presence-entries'
-import { senderOf, type Sent } from './sent'
+import { packSent, senderOf, unpackSent, type Sent } from './sent'
 
 export type ChannelSocketOptions = {
-  send: (frame: string) => void
+  send: (frame: string | ArrayBuffer) => void
   /** The bytes the socket was sent and has not written out to the client yet. */
   buffered: () => number
   close: (code?: number) => void
@@ -92,9 +93,14 @@ export const channelSocket = ({ send, buffered, close, session: first, reauthent
   }
 
   // A client that has not read what it was sent gets no more: `!(… <= …)` closes for an amount that is not a number too.
+  // A broadcast of bytes goes as a binary frame.
   const push = (message: ServerMessage) => {
     if (!open) return
     if (!(buffered() <= realtimeLimits.maxUnsentBytes)) return shut(policyViolation)
+    if (message.type === 'broadcast' && message.payload instanceof ArrayBuffer) {
+      const { payload, ...header } = message
+      return send(encodeBinaryFrame(header, payload))
+    }
     send(JSON.stringify(message))
   }
   const ok = (ref: string | undefined, channel?: string) => {
@@ -129,7 +135,7 @@ export const channelSocket = ({ send, buffered, close, session: first, reauthent
     await presences.ready()
     if (!open || channels.has(found.name)) return
     const { name } = found
-    const member: BroadcastMember = { self: false, private: false, receive: (event, payload) => hear(name, event, payload as Sent) }
+    const member: BroadcastMember = { self: false, private: false, receive: (event, payload) => hear(name, event, unpackSent(payload)) }
     const seat = presences.join(name, { key: randomUUID(), private: false, listens: true, receive: (diff) => push({ type: 'presence_diff', channel: name, ...entryDiff(diff) }) })
     const offBroadcast = broadcasts.join(name, member)
     channels.set(name, { record: found, member, seat, checkedAt: now(), remove: () => (offBroadcast(), seat.leave()) })
@@ -161,7 +167,7 @@ export const channelSocket = ({ send, buffered, close, session: first, reauthent
     if (!fitsFrame(message.event)) return refuse(message.ref, channelRefusals.eventTooLong)
     if (!(await stillReadable(message.channel, channel))) return refuse(message.ref, channelRefusals.notFound)
     const sent: Sent = { user: userOf(session), payload: message.payload }
-    if (!(await broadcasts.send(message.channel, channel.member, message.event, sent))) return refuse(message.ref, channelRefusals.channelTooBusy)
+    if (!(await broadcasts.send(message.channel, channel.member, message.event, packSent(sent)))) return refuse(message.ref, channelRefusals.channelTooBusy)
     if (message.self === true) hear(message.channel, message.event, sent)
     if (message.ack === true) ok(message.ref)
   }
@@ -233,15 +239,15 @@ export const channelSocket = ({ send, buffered, close, session: first, reauthent
 
   return {
     /**
-     * Handles a text frame after those before it; a binary one, or one that is not a message, gets an error. A frame
-     * over the size cap, or of a kind whose size is unknown, closes the socket.
+     * Handles a frame after those before it: a text one, or a binary `ArrayBuffer` of a send of bytes; one that is not
+     * a message gets an error. A frame over the size cap, or of a kind whose size is unknown, closes the socket.
      */
     message: (frame: unknown) => {
       if (!open) return
       const size = frameBytes(frame)
       if (!(size <= realtimeLimits.maxFrameBytes)) return shut(messageTooBig)
       stayAwake()
-      const message = typeof frame === 'string' ? decodeClientMessage(frame) : undefined
+      const message = typeof frame === 'string' ? decodeClientMessage(frame) : frame instanceof ArrayBuffer ? decodeBinaryMessage(frame) : undefined
       if (!message) return push({ type: 'error', error: channelRefusals.invalidMessage })
       queuedMessages += 1
       queuedBytes += size

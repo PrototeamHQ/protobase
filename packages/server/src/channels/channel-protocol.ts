@@ -1,3 +1,5 @@
+import { decodeBinaryFrame } from './binary-frame'
+
 /** Who sent a broadcast or tracks a presence, as the server stamps it from the session: the user's id, `null` for a visitor. */
 export type ChannelUser = string | number | null
 
@@ -8,7 +10,7 @@ export type PresenceEntry = { id: string; user: ChannelUser; state: unknown }
 export type ChannelError = { code: string; message: string }
 
 /**
- * What a client sends over `/api/channels`, each a JSON text frame. `ref`, when given, comes back on the reply. `token`
+ * What a client sends over `/api/channels`, each a JSON text frame, or a send of bytes a binary one (`decodeBinaryMessage`). `ref`, when given, comes back on the reply. `token`
  * hands over the bearer token the connection's session is checked with from now on, once the one it opened with expires.
  */
 export type ClientMessage =
@@ -32,6 +34,7 @@ export type ServerMessage =
   | { type: 'error'; error: ChannelError }
   | { type: 'presence'; channel: string; entries: PresenceEntry[] }
   | { type: 'presence_diff'; channel: string; joins: PresenceEntry[]; updates: PresenceEntry[]; leaves: PresenceEntry[] }
+  /** A payload of bytes, an `ArrayBuffer`, goes as a binary frame (`encodeBinaryFrame`), the message without it its header. */
   | { type: 'broadcast'; channel: string; event: string; payload: unknown; user: ChannelUser; server?: true }
   | { type: 'closed'; channel: string; error: ChannelError }
 
@@ -40,8 +43,19 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 const text = (value: unknown) => typeof value === 'string'
 
 /** The message a text frame carries, or `undefined` for one that is not JSON or not a message. */
-export const decodeClientMessage = (frame: string): ClientMessage | undefined => {
-  const message = parsed(frame)
+export const decodeClientMessage = (frame: string): ClientMessage | undefined => messageOf(parsed(frame))
+
+/**
+ * The send of bytes a binary frame carries (`decodeBinaryFrame`): its header a `send` without a payload, its bytes the
+ * payload. `undefined` for any other frame.
+ */
+export const decodeBinaryMessage = (frame: ArrayBuffer): ClientMessage | undefined => {
+  const decoded = decodeBinaryFrame(frame)
+  if (!decoded || decoded.header.type !== 'send' || 'payload' in decoded.header) return
+  return messageOf({ ...decoded.header, payload: decoded.bytes })
+}
+
+const messageOf = (message: unknown): ClientMessage | undefined => {
   if (!isRecord(message)) return
   if (message.ref !== undefined && !text(message.ref)) return
   const { type } = message
