@@ -2193,6 +2193,27 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "guardedSchemas": {
+          "description": "Schemas the other system that made the user table keeps its sign-in data in, such as `['auth']` for Supabase Auth's\nidentities, sessions, refresh tokens and two-factor secrets: every table in them, today's or one added later,\ncounts among the store's tables. Name only a schema that holds none of the app's own tables.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
       "additionalProperties": false
