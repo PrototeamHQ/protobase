@@ -151,11 +151,16 @@ jobs:
 
   # Storybook built, its play tests and layout snapshots, and the documentation site built and checked, as two jobs
   # beside check: a push runs them when its changes reach them (scripts/affected-site.mjs); a pull request and a run by
-  # hand always do.
+  # hand always do. The play tests set the check phase's length, so storybook runs as 2 legs that each build Storybook
+  # and play every other story; the first also takes the layout snapshots.
   storybook:
     if: github.event_name != 'schedule'
+    name: storybook ${{ matrix.shard }}/2
+    strategy:
+      matrix:
+        shard: [1, 2]
     concurrency:
-      group: storybook-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      group: storybook-${{ matrix.shard }}-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     steps:
@@ -177,8 +182,8 @@ jobs:
       - if: steps.site.outputs.run == 'true'
         run: bun run build-storybook
       - if: steps.site.outputs.run == 'true'
-        run: bun scripts/play-tests.mjs
-      - if: steps.site.outputs.run == 'true'
+        run: bun scripts/play-tests.mjs --shard ${{ matrix.shard }}/2
+      - if: steps.site.outputs.run == 'true' && matrix.shard == 1
         run: bun scripts/dom-snapshots.mjs --no-screenshots
 
   docs:
