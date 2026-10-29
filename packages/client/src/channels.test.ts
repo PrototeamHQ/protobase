@@ -1,22 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { decodeBinaryFrame, encodeBinaryFrame } from './channel-binary-frame'
 import { pingMs, type SocketLike } from './channel-connection'
 import type { PresenceEntry, ServerMessage } from './channel-types'
 import { channelsClient } from './channels'
 
-// A server end of the sockets the client opens: what each was sent, and a way to answer.
+// A server end of the sockets the client opens: what each was sent, a binary frame as its message with its bytes as
+// `payload`, and a way to answer.
 const fakeServer = () => {
-  const sockets: Array<SocketLike & { sent: Record<string, unknown>[]; protocols: string[]; reply: (message: ServerMessage) => void; drop: () => void; opened: () => void }> = []
+  const sockets: Array<SocketLike & { sent: Record<string, unknown>[]; protocols: string[]; reply: (message: ServerMessage) => void; replyBytes: (header: Record<string, unknown>, bytes: number[]) => void; drop: () => void; opened: () => void }> = []
   const open = (_url: string, protocols: string[]) => {
     const socket = {
       readyState: 0,
+      binaryType: 'blob',
       sent: [] as Record<string, unknown>[],
       protocols,
       onopen: null as SocketLike['onopen'],
       onmessage: null as SocketLike['onmessage'],
       onclose: null as SocketLike['onclose'],
-      send: (data: string) => void socket.sent.push(JSON.parse(data) as Record<string, unknown>),
+      send: (data: string | ArrayBuffer) => void socket.sent.push(typeof data === 'string' ? (JSON.parse(data) as Record<string, unknown>) : decodeBinaryFrame(data)),
       close: vi.fn(() => socket.drop()),
       reply: (message: ServerMessage) => socket.onmessage?.({ data: JSON.stringify(message) }),
+      replyBytes: (header: Record<string, unknown>, bytes: number[]) => socket.onmessage?.({ data: encodeBinaryFrame(header, new Uint8Array(bytes)) }),
       drop: () => {
         if (socket.readyState === 3) return
         socket.readyState = 3
@@ -98,6 +102,27 @@ describe('channelsClient', () => {
     const refused = room.send('typing', 1, { ack: true })
     socket().reply({ type: 'reply', ref: socket().sent.at(-1)!.ref as string, ok: false, error: { code: 'channel-too-busy', message: 'Too many' } })
     await expect(refused).rejects.toMatchObject({ code: 'channel-too-busy' })
+  })
+
+  it('sends bytes as a binary frame, with self and ack, and hears a binary broadcast as an ArrayBuffer', async () => {
+    const { client, socket, openAndJoin } = setup()
+    const room = client.channel('rooms', 1)
+    await openAndJoin()
+    expect(socket().binaryType).toBe('arraybuffer')
+    const heard: unknown[] = []
+    room.on('stroke', ({ payload, ...message }) => heard.push({ ...message, bytes: [...new Uint8Array(payload as ArrayBuffer)] }))
+    socket().replyBytes({ type: 'broadcast', channel: 'rooms/1', event: 'stroke', user: 'bob' }, [1, 2])
+    expect(heard).toEqual([{ event: 'stroke', user: 'bob', bytes: [1, 2] }])
+
+    await room.send('stroke', new Uint8Array([0, 3, 4, 0]).subarray(1, 3), { self: true })
+    const { payload, ...header } = socket().sent.at(-1)!
+    expect(header).toEqual({ type: 'send', channel: 'rooms/1', event: 'stroke', self: true })
+    expect([...new Uint8Array(payload as ArrayBuffer)]).toEqual([3, 4])
+    const acked = room.send('stroke', new Uint8Array([5]).buffer, { ack: true })
+    const sent = socket().sent.at(-1)!
+    expect(sent).toMatchObject({ type: 'send', ack: true, ref: expect.any(String), payload: expect.any(ArrayBuffer) })
+    socket().reply({ type: 'reply', ref: sent.ref as string, ok: true })
+    await expect(acked).resolves.toBeUndefined()
   })
 
   it('tells a refused join and a channel the server closed by their status', async () => {

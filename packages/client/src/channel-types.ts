@@ -10,7 +10,7 @@ export type PresenceChange = { joins: PresenceEntry[]; updates: PresenceEntry[];
 /** Why the server refused a message or ended a channel, such as `not-found` for a record the caller may not read. */
 export type ChannelError = { code: string; message: string }
 
-/** A broadcast as a channel hears it: with `server`, the app's own code sent it, and `user` is `null`. */
+/** A broadcast as a channel hears it, its payload JSON or, for bytes, an `ArrayBuffer`: with `server`, the app's own code sent it, and `user` is `null`. */
 export type ChannelMessage = { event: string; payload: unknown; user: ChannelUser; server?: true }
 
 /**
