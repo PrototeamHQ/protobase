@@ -254,6 +254,10 @@ export const normalizeRoles = (roles?: RolesInput) => roleDefinitions(roles).nam
 // Admins of the app do not sign in as its people; the operator's staff do, through the staff sign-in, with its guardrails.
 const adminImpersonationPaths = ['/admin/impersonate-user', '/admin/stop-impersonating']
 
+// They answer the signed-in person with the access and refresh tokens a sign-in provider gave, such as a linked
+// Gmail's, which send mail as them: the tokens stay on the server, which reads them through `auth.api`.
+export const providerTokenPaths = ['/get-access-token', '/refresh-token']
+
 type Resolved = {
   /** The origins besides `baseURL`, from `resolveOrigins`. */
   origins?: string[]
@@ -425,7 +429,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
       ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context }) : []),
     ].map((plugin) => withUserColumns(plugin, users)),
-    disabledPaths: [selfDeletionCallbackPath, ...(accountDeletion ? [] : [selfDeletionPath]), ...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : [])],
+    disabledPaths: [selfDeletionCallbackPath, ...(accountDeletion ? [] : [selfDeletionPath]), ...unusedEmailCodePaths, ...adminImpersonationPaths, ...providerTokenPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : [])],
     databaseHooks: {
       user: {
         create: {
