@@ -11,7 +11,7 @@ const maxMessageBytes = 300 * 1024
 
 /**
  * A guest's call socket: open to anyone, it lets in only a guest whose first message, their `join` or `resume`, carries
- * the token of a guest a member let in. From then on it is a member's socket, as `guest:<id>` in their link's call,
+ * the token of a guest a member let in who may still be in the call. From then on it is a member's socket, as `guest:<id>` in their link's call,
  * checked every minute: removed, their link revoked or expired, guests turned off or the call ended closes it. A
  * socket that names no such guest, or none in time, closes with 1008 and `refused` (the address is counted).
  */
@@ -31,7 +31,7 @@ export const guestSocket = (runtime: CallsRuntime, refused: () => void): SocketE
     const message = parseClientMessage(data)
     const hash = message && (message.type === 'join' || message.type === 'resume') ? tokenHash(guestTokenPrefix, message.guest) : undefined
     const row = hash && (await runtime.guests().byToken(hash))
-    if (!row || row.admitted !== true) return refuse()
+    if (!row || row.admitted !== true || !(await runtime.guests().stillAllowed(row.id))) return refuse()
     guest = row.id
     relay = await runtime.relayGuest(row)
     await relay.onOpen?.(socket)
