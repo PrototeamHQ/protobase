@@ -16,6 +16,7 @@ description: Develop, build and run an app, on servers, in containers and on pho
 - [Extensions](/reference/cli/#extensions): A host adds its own widgets, dock assistant tools (`assistant/tools.ts`) and MCP tools (`mcp/tools.ts`) to every app it builds.
 - [Native packages](/reference/cli/#native-packages): npm packages with native add-ons are bundled for Linux.
 - [Serve runtime](/reference/cli/#serve): Runs a bundle, set by environment variables, with a health check, startup checks, jobs and a clean shutdown.
+- [Host module list](/reference/cli/#the-config-module): Each release of `@protobase/cli` carries the modules its runtime supplies to a bundle as `@protobase/cli/host-modules.json`, for a host to check a bundle's imports against the version that serves it.
 - [Migrations at update time](/guides/deploy/#migrations): The bundle carries the project's migrations, and the runtime applies them in one transaction before the new version serves.
 - [Single-file runtime](/reference/cli/#build-serve): The runtime as one file, so a host needs only Bun and that file.
 - [Separate worker](/reference/cli/#worker): Jobs and event delivery in their own process.

@@ -33,7 +33,7 @@
     "skills"
   ],
   "scripts": {
-    "build": "bun ../../scripts/protobase-skill.ts && tsdown",
+    "build": "bun ../../scripts/protobase-skill.ts && tsdown --config-loader tsx",
     "prepack": "bun run build"
   },
   "publishConfig": {
@@ -44,7 +44,8 @@
     "exports": {
       "./auth": "./dist/project-auth.js",
       "./runner": "./dist/runner.js",
-      "./scaffold": "./dist/scaffold-api.js"
+      "./scaffold": "./dist/scaffold-api.js",
+      "./host-modules.json": "./dist/host-modules.json"
     }
   },
   "dependencies": {

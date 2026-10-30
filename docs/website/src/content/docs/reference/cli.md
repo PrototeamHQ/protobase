@@ -256,7 +256,7 @@ The modules the app shares with plugins, `react`, `react/jsx-runtime`, `react-do
 
   | Modules | |
   | --- | --- |
-  | `@protobase/schema`, `@protobase/layout`, `@protobase/layout/jsx-runtime`, `@protobase/query`, `@protobase/server` | the server entry points of the `@protobase` packages, and what [layout files](/reference/layouts/) compile to |
+  | `@protobase/config`, `@protobase/schema`, `@protobase/layout`, `@protobase/layout/jsx-runtime`, `@protobase/query`, `@protobase/server` | the server entry points of the `@protobase` packages, and what [layout files](/reference/layouts/) compile to |
   | `kysely`, `kysely/helpers/postgres`, `pg`, `postgres` | the database |
   | `better-auth`, `hono`, `jose`, `zod`, `aip-parsers`, `@hono/node-server`, `@scalar/hono-api-reference` | the main entry of each other dependency the `@protobase` packages run on the server |
   | `hono/cors`, `hono/http-exception`, `hono/validator` | Hono middleware for [API functions](/guides/api-functions/) |
@@ -268,7 +268,7 @@ The modules the app shares with plugins, `react`, `react/jsx-runtime`, `react-do
 
   `@react-pdf/renderer` is a dependency of `@protobase/server` that the runtime keeps to itself: a config imports React PDF's components from `@protobase/server/pdf` instead.
 
-  Importing any other `@protobase` package or dependency of one (`@protobase/ui`, `react-dom`, `better-auth/plugins`, `zod/v4`, ...) fails the build with this list, also from inside an inlined package, when the finished bundle still imports it: an inlined package may re-export a module that imports one, as `react-email` does with `tailwindcss`, as long as the project leaves that export unused. The runtime supplies them at its own versions, whichever the project installed. The list is `packages/cli/src/serve/host-module-ids.ts`; the set of packages comes from the `package.json` of `@protobase/cli` and of every `@protobase` package it depends on.
+  Importing any other `@protobase` package or dependency of one (`@protobase/ui`, `react-dom`, `better-auth/plugins`, `zod/v4`, ...) fails the build with this list, also from inside an inlined package, when the finished bundle still imports it: an inlined package may re-export a module that imports one, as `react-email` does with `tailwindcss`, as long as the project leaves that export unused. The runtime supplies them at its own versions, whichever the project installed. The list is `packages/cli/src/serve/host-module-ids.ts`, and each release of `@protobase/cli` publishes it as `@protobase/cli/host-modules.json`, a JSON array of the module names, so a host reads the list of the version that serves a bundle without running it; the set of packages comes from the `package.json` of `@protobase/cli` and of every `@protobase` package it depends on.
 - Packages with a native add-on stay imports too, and the bundle carries them in `node_modules/` (see [Native packages](#native-packages)). Node's built-in modules stay imports.
 - Everything else (the project's files and its other packages) is inlined. Nothing is minified.
 - Layout files (`@jsxImportSource @protobase/layout`) compile to calls of `@protobase/layout/jsx-runtime`, for production whatever `NODE_ENV` says. The build refuses one with a function, class, `new` value or hook in its JSX, naming the file, line and column ([what a layout may hold](/reference/layouts/#what-a-layout-may-hold)).
