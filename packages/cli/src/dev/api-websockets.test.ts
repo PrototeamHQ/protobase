@@ -24,6 +24,13 @@ describe('isApiWebSocket', () => {
   })
 })
 
+describe('isApiWebSocket for guests', () => {
+  it('takes the guests’ call socket, and no other guest route', () => {
+    for (const url of ['/api/calls/guests/socket', '/api/calls/guests/socket?x=1']) expect(isApiWebSocket(url)).toBe(true)
+    for (const url of ['/api/calls/guests/lobby', '/api/calls/guests/socketx', '/api/calls/rings']) expect(isApiWebSocket(url)).toBe(false)
+  })
+})
+
 describe('apiUpgrades', () => {
   const upgrade = (url: string, host: string) => {
     const socket = { end: vi.fn() }

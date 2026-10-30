@@ -14,17 +14,20 @@ const npmWebSocketServer = (): typeof WebSocketServer => {
 }
 
 const functionsPrefix = '/api/functions/'
+// The guests' call socket, which caps its messages itself as a member's call socket does.
+const guestSocketPath = '/api/calls/guests/socket'
 // ws's own default, which function sockets had before realtime's cap.
 const functionMaxPayload = 100 * 1024 * 1024
 
 /**
- * The frame cap of a socket upgraded at `url`: ws's default for an api function's socket, and realtime's
- * `maxFrameBytes` for any other, so a path this does not recognise as a function's, such as an encoded one, gets the
- * smaller cap.
+ * The frame cap of a socket upgraded at `url`: ws's default for an api function's socket and the guests' call socket,
+ * which lower it to their own, and realtime's `maxFrameBytes` for any other, so a path this does not recognise, such
+ * as an encoded one, gets the smaller cap.
  */
 export const maxPayloadOf = (url: string) => {
   if (!URL.canParse(url, 'http://localhost')) return realtimeLimits.maxFrameBytes
-  return new URL(url, 'http://localhost').pathname.startsWith(functionsPrefix) ? functionMaxPayload : realtimeLimits.maxFrameBytes
+  const { pathname } = new URL(url, 'http://localhost')
+  return pathname.startsWith(functionsPrefix) || pathname === guestSocketPath ? functionMaxPayload : realtimeLimits.maxFrameBytes
 }
 
 /**

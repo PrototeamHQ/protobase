@@ -131,6 +131,9 @@ describe('maxPayloadOf', () => {
     ['/api/functions/%2e%2e/sb/realtime/v1/websocket', realtimeLimits.maxFrameBytes],
     ['/api/%66unctions/echo', realtimeLimits.maxFrameBytes],
     ['/api/functions', realtimeLimits.maxFrameBytes],
+    ['/api/calls/guests/socket', 100 * 1024 * 1024],
+    ['/api/calls/guests/lobby', realtimeLimits.maxFrameBytes],
+    ['/api/calls/guests/socket/../../rings', realtimeLimits.maxFrameBytes],
     ['http://[', realtimeLimits.maxFrameBytes],
     ['', realtimeLimits.maxFrameBytes],
   ])('gives %s a cap of %i bytes', (url, cap) => {
