@@ -1,5 +1,5 @@
 import { ChevronLeft, Menu, Search, X } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import { cn } from '../lib/cn'
 import { backTarget } from './back-target'
 import { Breadcrumb, inApp, type Crumb } from './breadcrumb'
@@ -37,8 +37,9 @@ export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOp
   const back = backTarget(breadcrumb)
   const desktopSearch = useRef<HTMLInputElement>(null)
 
-  // ⌘K (Ctrl+K elsewhere) focuses the search box, or opens it on a phone, where it sits behind a button.
-  useEffect(() => {
+  // ⌘K (Ctrl+K elsewhere) focuses the search box, or opens it on a phone, where it sits behind a button. A layout effect
+  // listens from the commit that shows the bar, so a key pressed right after it renders is not missed.
+  useLayoutEffect(() => {
     if (!search) return
     const onKey = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() !== 'k' || !(event.metaKey || event.ctrlKey)) return
