@@ -479,7 +479,7 @@ export default defineConfig(({ env }) => ({
 - The callback URL to register with GitHub is `<url>/api/auth/callback/github`, and the same path on each of the app's [other origins](#several-origins) it should sign in on. A GitHub OAuth App takes one callback URL, so it covers one origin; a GitHub App takes several. A GitHub App needs the Email addresses (read-only) account permission, or sign-in fails with `email_not_found`.
 - A provider is also a public sign-up: someone without an account gets one with the [default role](#roles). Without a default role the sign-up is refused.
 - `GET /api/auth/status` lists the provider ids as `socialProviders`.
-- `encryptOAuthTokens: true` stores the provider's access and refresh tokens encrypted with the secret; the ID token is stored as the provider gave it.
+- `encryptOAuthTokens: true` stores the provider's access and refresh tokens encrypted with the secret. <gap>`encryptOAuthTokens` cannot protect the provider's ID token, which is stored as the provider gave it, because encrypting or dropping it is not implemented.</gap>
 - The provider's tokens stay on the server: Better Auth's `/api/auth/get-access-token` and `/api/auth/refresh-token`, which would answer the browser with them, are turned off.
 - The `onUserCreated` [hook](#hooks) runs after any user is created, a social sign-up included (Better Auth's `databaseHooks.user.create.after`).
 
