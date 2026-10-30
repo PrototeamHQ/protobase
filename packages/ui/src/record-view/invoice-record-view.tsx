@@ -1,12 +1,13 @@
 import { Check } from 'lucide-react'
 import { useState } from 'react'
-import { InlineChildTable } from '../inline-child-table'
+import { InlineChildTable, TotalsFooter } from '../inline-child-table'
 import { invoiceAt, userById, type Invoice } from '../mocks'
 import { Button } from '../primitives/button'
 import type { BadgeTone } from '../primitives/badge'
 import { ToastProvider } from '../toasts'
 import { AutosaveStatus } from './autosave-status'
 import { InvoiceDetails } from './invoice-details'
+import { invoiceLineColumns } from './invoice-line-columns'
 import { InvoiceSidebar } from './invoice-sidebar'
 import { RecordHeader } from './record-header'
 import { Section } from './section'
@@ -29,6 +30,10 @@ const InvoiceRecordBody = ({ invoice, saveFeedback, presenceUserIds, conflictFie
   const autosave = useAutosave(autosaveAgoSeconds, ticking)
   const { phase, save } = useSaveFeedback(saveFeedback, invoice.number)
   const editor = userById('u3')
+  const change = (next: Invoice['lines']) => {
+    setLines(next)
+    autosave.touch()
+  }
 
   return (
     <div className="mx-auto max-w-[1100px] px-10 py-8">
@@ -54,10 +59,11 @@ const InvoiceRecordBody = ({ invoice, saveFeedback, presenceUserIds, conflictFie
           <Section title="Lines" help="What you are billing for. Drag the handle to change the order on the PDF; quantities and prices update the totals immediately.">
             <InlineChildTable
               lines={lines}
-              onChange={(next) => {
-                setLines(next)
-                autosave.touch()
-              }}
+              columns={invoiceLineColumns((id, patch) => change(lines.map((line) => (line.id === id ? { ...line, ...patch } : line))))}
+              lineName={(line) => line.description}
+              onReorder={change}
+              onRemove={(removed) => change(lines.filter((line) => line.id !== removed.id))}
+              footer={<TotalsFooter lines={lines} vatRate={0.21} />}
             />
           </Section>
         </main>

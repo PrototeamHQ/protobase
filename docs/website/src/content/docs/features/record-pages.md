@@ -19,7 +19,7 @@ description: The page of one record, with its sections, related records, galleri
 - [Conditional sections](/reference/ui-config/#form-and-read-view): Sections and fields show only while editing, only while reading, or only when a condition on the record holds.
 - [Galleries](/reference/ui-config/#galleries): A record's photos show as tiles that open a full-screen lightbox, with keyboard and swipe navigation.
 - [Related records](/reference/ui-config/#related-records): Every record page shows how many records point at it, and can list related records, also through a join resource, as a table, another display or cards with buttons.
-- Record lines: Lines that belong to a record, with a position and a quantity, such as those of an invoice, show as a table with totals on its page. You drag them into a new order, and Save writes the record and the order together.
+- [Record lines](/reference/ui-config/#record-lines): All the lines of a record, such as those of an invoice, show as a table on its page, where you edit, add, remove and reorder them, and Save writes the record and its lines together.
 - [Charts of samples](/reference/ui-config/#charts-of-related-records): A record page graphs numeric samples over the last hour, day or week, such as a server's CPU use.
 - [Fresh data on return](/reference/ui-config/#the-record-page): Records and lists reload when the browser tab is focused again, keeping unsaved edits.
 - [Safe deletes](/reference/ui-config/#deleting-a-record): Deleting asks first, or offers Undo for a soft delete, offers a review when the record changed since it was opened, and names the records that still point at it.

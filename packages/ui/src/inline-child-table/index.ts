@@ -1,3 +1,6 @@
 export { InlineChildTable, type InlineChildTableProps, type LineMove } from './inline-child-table'
+export { lineTableMinWidth, type LineColumn } from './columns'
+export { NumberCell } from './number-cell'
+export { TotalsFooter } from './totals-footer'
 export { reorder } from './reorder'
 export { planMove, type PositionStep } from './reposition'

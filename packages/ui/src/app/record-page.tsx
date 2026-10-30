@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Fragment, useEffect, useMemo, type ReactElement } from 'react'
+import { Fragment, useEffect, type ReactElement } from 'react'
 import { isApiError } from '@protobase/client'
 import { enumLabel, type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { usePauseFocusRefresh } from '../data/focus-refresh'
@@ -32,12 +32,11 @@ import { useProjectUi } from './pages/project-ui'
 import { Notice, useAdminMeta, usePermissions } from './meta-gate'
 import { can, fieldAccess } from './permissions'
 import { useRestore } from './delete/use-restore'
-import { RecordLines, findLinesResource } from './record-lines'
+import { RecordLines } from './record-lines'
 import { useAuth } from '../auth'
 import { inApp } from '../app-shell/breadcrumb'
 import { draftStorageKey } from './draft-storage'
-import { useLines } from './use-lines'
-import { useLinesDraft } from './use-lines-draft'
+import { useRecordLines } from './use-record-lines'
 import { useDeleteFlow } from './delete/use-delete-flow'
 import { useNavigationGuard } from './router'
 import { AppLink, useAppAddress } from './use-app-address'
@@ -125,9 +124,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   const view = meta.views[model.name]
   const title = useRecordTitle()(model, view, stored.record, recordKey)
   const { state: auth } = useAuth()
-  const linesModel = useMemo(() => findLinesResource(meta.resources, model), [meta.resources, model])
-  const linesData = useLines(linesModel, model, recordKey)
-  const linesDraft = useLinesDraft(linesModel, linesData.items)
+  const lines = useRecordLines(model, recordKey)
   const editor = useRecordEditor({
     model,
     stored,
@@ -136,7 +133,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     subject: title,
     // A draft kept from before waits for the whole record, which it was made to
     draftKey: !preview && auth.kind === 'signed-in' ? draftStorageKey(auth.user.id, model.name, recordKey) : undefined,
-    lines: linesDraft,
+    lines: lines.draft,
   })
   const queryClient = useQueryClient()
   const client = useClient()
@@ -401,7 +398,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                 </div>
               )}
               {after.flatMap(mainItem)}
-              {linesModel && !preview && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} locked={shown !== 'form'} />}
+              {lines.model && !preview && <RecordLines lines={{ ...lines, model: lines.model }} editable={shown === 'form'} saving={editor.saving} />}
             </main>
             {/* Beside the main column the sidebar stays in view below the top bar, and scrolls on its own when taller than the window */}
             <aside className="space-y-4 md:sticky md:top-[var(--pb-sticky-top,0px)] md:max-h-[calc(100dvh-var(--pb-sticky-top,0px)-var(--pb-sticky-bottom,0px))] md:self-start md:overflow-y-auto md:pb-4 md:pt-8">
@@ -422,7 +419,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                   return [{ label: hint(name)?.label ?? humanize(name), value: known(name) ? <span title={valueTitle(field, stored.record[name], undefined, hint(name))}>{displayValue(field, stored.record[name], hint(name))}</span> : <Skeleton className="h-4 w-24" /> }]
                 })}
               />
-              {!preview && <IncomingCard model={model} recordKey={recordKey} layout={layout} lines={linesModel} />}
+              {!preview && <IncomingCard model={model} recordKey={recordKey} layout={layout} lines={lines.model} />}
             </aside>
           </div>
         </div>
