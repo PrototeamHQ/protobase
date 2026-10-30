@@ -57,6 +57,7 @@ Guides:
 - When letting users save a list as Excel or CSV → read [Exporting a list](references/guides/export-a-list.md)
 - When importing records from a spreadsheet → read [Importing records from a spreadsheet](references/guides/import-records.md)
 - When telling users about a change, in the bell and as push on their browsers → read [Send notifications](references/guides/push-notifications.md)
+- When sending mail from a person's own Gmail, such as an invoice with its PDF attached → read [Send mail from Gmail](references/guides/send-from-gmail.md)
 - When replacing a resource's create form with a page of your own → read [A create page of your own](references/guides/create-page.md)
 - When letting each person set a choice of their own, such as which emails they get → read [Add a personal setting](references/guides/personal-setting.md)
 - When running the app on iOS or Android → read [A mobile app](references/guides/mobile-app.md)
