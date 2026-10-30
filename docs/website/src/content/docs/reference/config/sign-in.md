@@ -127,6 +127,19 @@ export default defineConfig(({ env }) => ({
 }))
 ```
 
+## auth.personalMail
+
+- **Type:** `'gmail'[]`
+- **Default:** none
+
+The mail providers people may link their own mailbox with, for the app's functions to send mail from it; each links through its sign-in provider in `socialProviders`, Gmail through `google`. See [From someone's own mailbox](/reference/email/#from-someones-own-mailbox).
+
+```ts
+export default defineConfig(({ env }) => ({
+  auth: { socialProviders: { google: { clientId: env.GOOGLE_CLIENT_ID!, clientSecret: env.GOOGLE_CLIENT_SECRET! } }, personalMail: ['gmail'] },
+}))
+```
+
 ## auth.encryptOAuthTokens
 
 - **Type:** `boolean`

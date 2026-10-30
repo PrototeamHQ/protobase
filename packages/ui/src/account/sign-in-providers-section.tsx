@@ -17,10 +17,13 @@ export type SignInProvidersSectionProps = {
   onConnect: (provider: string) => Promise<void>
   /** Why the last link did not go through, as the provider came back with it. */
   error?: string
+  /** The section's title and description; default those of connected sign-in accounts. */
+  title?: string
+  description?: string
 }
 
 /** The providers someone can sign in with besides a password, and a way to connect one whatever address it has. */
-export const SignInProvidersSection = ({ providers, linked, onConnect, error: returned }: SignInProvidersSectionProps) => {
+export const SignInProvidersSection = ({ providers, linked, onConnect, error: returned, title = text('connectedAccounts'), description = text('connectedAccountsDescription') }: SignInProvidersSectionProps) => {
   const [busy, setBusy] = useState<string>()
   const [error, setError] = useState(returned)
 
@@ -37,7 +40,7 @@ export const SignInProvidersSection = ({ providers, linked, onConnect, error: re
   }
 
   return (
-    <AccountSection title={text('connectedAccounts')} description={text('connectedAccountsDescription')}>
+    <AccountSection title={title} description={description}>
       <SectionError message={error} />
       <ul className="divide-y rounded-md border">
         {providers.map((provider) => (

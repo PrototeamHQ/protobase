@@ -5,6 +5,9 @@ import { adminAc, userAc } from 'better-auth/plugins/admin/access'
 import { appNameOver, defaultAppName } from '../app-name'
 import { goTrueIssuer, goTrueKeyPair } from '../gotrue/keys'
 import { goTrueSessionsPlugin } from '../gotrue/sessions-plugin'
+import { betterAuthLinkedAccounts, type TokenAuth } from '../personal-mail/linked-accounts'
+import { resolvePersonalMail, type PersonalMailProviderId } from '../personal-mail/personal-mail-providers'
+import { personalMailer } from '../personal-mail/personal-mailer'
 import { endReplacedSession } from './end-replaced-session'
 import { authBasePath } from './auth-base-path'
 import { authLogger } from './auth-logger'
@@ -141,6 +144,12 @@ export type CreateAuthOptions = {
    * One with the id of `signInProvider` takes its place. Default none.
    */
   socialProviders?: BetterAuthOptions['socialProviders']
+  /**
+   * The mail providers people may link their own mailbox with, from the account page, for the app's functions to send
+   * mail from it (`context.personalMail`), such as `['gmail']`. Each links through its sign-in provider, which
+   * `socialProviders` must have: Gmail through `google`. Default none.
+   */
+  personalMail?: PersonalMailProviderId[]
   /** Encrypt the OAuth access, refresh and ID tokens Better Auth stores for social sign-ins, with `secret`. Default off. */
   encryptOAuthTokens?: boolean
   /** Runs after a user is created, by any route: `createUser`, an admin, or a social sign-up. Default none. */
@@ -503,6 +512,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const socialProviders = Object.keys(options.socialProviders ?? {})
   const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings), socialProviders)
   const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...(platformSignIn ? [platformSignIn.provider] : [])])
+  const personalMail = resolvePersonalMail(options.personalMail ?? [], socialProviders)
   const origins = resolveOrigins(options.baseURL, options.origins ?? platformOrigins())
   const passkeyDomain = resolvePasskeyDomain(options.passkeyDomain ?? platformPasskeyDomain(), [options.baseURL, ...origins])
   const organizations = options.organizations && resolveOrganizations(options.organizations, definitions, options.baseURL)
@@ -566,6 +576,10 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name },
     /** The id and name of each SAML provider, for the sign-in page. */
     samlProviders: saml.map(({ id, name }) => ({ id, name })),
+    /** The mail providers people link their own mailbox with (`personalMail`). */
+    personalMail,
+    /** Mail from `userId`'s own mailbox, through the mail provider they linked (see `personalMailer`). */
+    personalMailer: (userId: string) => personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), personalMail, userId),
     /** The OAuth provider for MCP clients, when on: the endpoint's resource (its URL) and path, and the scope its tokens carry. */
     mcp: mcp && { resource: mcp.resource, path: mcp.path, scope: mcpScope },
   })

@@ -1,3 +1,4 @@
+import type { PersonalMailLink } from './auth-types'
 import { authError } from './auth-error'
 import type { BetterAuthClient } from './better-auth-client'
 import type { SignInPolicy } from './sign-in-policy'
@@ -99,6 +100,25 @@ export const accountSecurity = (client: BetterAuthClient) => ({
   linkProvider: async (provider: string, callbackURL: string) => {
     const { data, error } = await client.linkSocial({ provider, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })
     if (error || !data?.url) throw authError(error, 'Could not start linking the account')
+    return data.url
+  },
+
+  /** The ids of the mail providers of `links` the account is linked to with every scope they ask for, for example `gmail`. */
+  linkedPersonalMail: async (links: PersonalMailLink[]): Promise<string[]> => {
+    const { data, error } = await client.listAccounts()
+    if (error || !data) throw authError(error, 'Could not read your linked accounts')
+    const holds = (link: PersonalMailLink) => data.some((account) => account.providerId === link.provider && link.scopes.every((scope) => account.scopes.includes(scope)))
+    return links.filter(holds).map((link) => link.id)
+  },
+
+  /**
+   * Starts linking a mailbox, such as Gmail through Google sign-in with leave to send mail: resolves with the provider's
+   * authorization URL, for the page to go to. The provider sends the browser back to `callbackURL`, with
+   * `?error=<code>` when the link did not go through.
+   */
+  linkPersonalMail: async (link: PersonalMailLink, callbackURL: string) => {
+    const { data, error } = await client.linkSocial({ provider: link.provider, scopes: link.scopes, additionalParams: link.params, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })
+    if (error || !data?.url) throw authError(error, 'Could not start linking the mailbox')
     return data.url
   },
 

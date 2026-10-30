@@ -108,6 +108,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         ...(body.organizations && { organizations: body.organizations }),
         ...(body.anonymous && { anonymous: true }),
         ...(body.mcp && { mcp: { url: body.mcp.url } }),
+        ...(body.personalMail && body.personalMail.length > 0 && { personalMail: body.personalMail }),
         ...(body.plugins && body.plugins.length > 0 && { plugins: body.plugins }),
         ...(isLocale(body.locale) && { locale: body.locale }),
       }

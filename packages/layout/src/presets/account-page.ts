@@ -1,4 +1,4 @@
-import { ConnectedAccounts, ConnectedApps, DeleteAccount, Devices, Page, Passkeys, Password, Profile, Tab, Tabs, TwoFactor } from '../blocks'
+import { ConnectedAccounts, ConnectedApps, DeleteAccount, Devices, Page, Passkeys, Password, PersonalMail, Profile, Tab, Tabs, TwoFactor } from '../blocks'
 import { accountPageName } from '../check-account'
 import { page } from '../page'
 
@@ -7,7 +7,7 @@ import { page } from '../page'
  * the order to show them, beside tabs of its own. Written as calls rather than JSX, as `usersPage` is.
  */
 export const accountTabs = {
-  profile: Tab({ name: 'profile', label: 'Profile', children: [Profile({}), DeleteAccount({})] }),
+  profile: Tab({ name: 'profile', label: 'Profile', children: [Profile({}), PersonalMail({}), DeleteAccount({})] }),
   security: Tab({ name: 'security', label: 'Sign-in & security', children: [Password({}), Passkeys({}), TwoFactor({}), ConnectedAccounts({})] }),
   devices: Tab({ name: 'devices', label: 'Devices', children: [Devices({})] }),
   apps: Tab({ name: 'apps', label: 'Connected apps', children: [ConnectedApps({})] }),

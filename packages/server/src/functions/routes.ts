@@ -8,10 +8,12 @@ import { runInBackground } from '../background-work'
 import { callsAccess } from '../calls/calls-access'
 import type { CallsService } from '../calls/calls-service-type'
 import type { FieldDecrypter } from '../encryption/decrypt-field-types'
+import type { Mailer } from '../mail/smtp-mailer'
 import { forbidden, notFound } from '../problem'
 import { namingTimeouts } from '../statement-timeout'
 import type { Authenticator, Session } from '../types'
 import { socketAcceptor } from './accept-socket'
+import { ownMailbox } from './own-mailbox'
 import type { ChannelSender } from '../channels/channel-sender'
 import { invokeFunction, type ApiFunction, type FunctionCaller, type FunctionContext, type PublicFunctionContext } from './define-function'
 import { functionGate, requireGate, type FunctionGate } from './function-gate'
@@ -29,6 +31,8 @@ export type FunctionRoutesInput = {
   records: (session: Session) => FunctionRecords
   /** The app's read of encrypted fields, which a protected function's context binds to the function and its caller. */
   decryptField: FieldDecrypter
+  /** Mail from a user's own mailbox, a protected function's `personalMail` for its caller; without it, sending rejects. */
+  personalMailer?: (userId: string) => Mailer
   /** What a function broadcasts to record channels with. */
   channels: ChannelSender
   onError: ErrorHandler
@@ -53,6 +57,10 @@ export const relativeRequest = (request: Request, prefix: string) => {
   return new Request(url, request)
 }
 
+const noPersonalMail = (): Mailer => ({
+  send: () => Promise.reject(new Error('Personal mail is off: name the mail providers people may link in auth.personalMail, such as ["gmail"]')),
+})
+
 const isUpgrade = (request: Request) => request.headers.get('upgrade')?.toLowerCase() === 'websocket'
 
 /**
@@ -63,7 +71,7 @@ const isUpgrade = (request: Request) => request.headers.get('upgrade')?.toLowerC
  * A function may answer an upgrade with a socket, only once it returned. While it is open, its caller is checked again
  * every minute: a protected function's always, a public one's once `caller()` resolved.
  */
-export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, channels, decryptField, onError, wake, upgradeWebSocket, upgradeAuthenticate = authenticate, calls, report }: FunctionRoutesInput) => {
+export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, channels, decryptField, personalMailer = noPersonalMail, onError, wake, upgradeWebSocket, upgradeAuthenticate = authenticate, calls, report }: FunctionRoutesInput) => {
   const app = new Hono().basePath(basePath)
   app.onError(onError)
   const sessionOf = (request: Request) => (isUpgrade(request) ? upgradeAuthenticate(request) : authenticate(request))
@@ -108,7 +116,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
       const acceptor = socketAcceptor({ c, upgradeWebSocket, report, recheck })
       const { user } = caller.session
       const reader = { function: name, actor: { id: user.id, roles: [...user.roles] }, origin: auditOrigin(c.req.raw.headers) }
-      const context: FunctionContext = { name, db, channels, ...caller, caller: async () => caller, decryptField: decryptField(reader), acceptWebSocket: acceptor.accept, calls: callsAccess(calls, async () => caller) }
+      const context: FunctionContext = { name, db, channels, ...caller, caller: async () => caller, decryptField: decryptField(reader), personalMail: ownMailbox(caller.session, personalMailer), acceptWebSocket: acceptor.accept, calls: callsAccess(calls, async () => caller) }
       return acceptor.answer(name, await invokeFunction(name, fn, request, context))
     }))
   }

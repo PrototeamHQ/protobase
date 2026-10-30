@@ -122,6 +122,61 @@ An **[API function](/guides/api-functions/)** may send directly, as the answer t
 
 A message is sent once per call, so a job try that sends and then fails sends again: record what was sent, and check it first.
 
+## Attachments
+
+A message takes files beside its body, such as an invoice's PDF: `attachments`, each a `filename`, its bytes as `content` (a `Uint8Array`, such as a `Buffer`) and, optionally, its `contentType`, else the one the name implies. A template's `send` takes them as its fourth argument:
+
+```ts
+await invoiceEmail.send(client.email, { number: 7 }, mail, { attachments: [{ filename: 'invoice-7.pdf', content: pdf, contentType: 'application/pdf' }] })
+await mail.send({ to: client.email, subject: 'Invoice 7', text: 'Attached.', attachments: [{ filename: 'invoice-7.pdf', content: pdf }] })
+```
+
+An attachment is only the bytes given: a file path or URL is never read in its place. A mailer of the project's own (`auth/mailer.ts`) gets them in `message.attachments`.
+
+## From someone's own mailbox
+
+:::caution[Beta]
+Gmail is the only mail provider so far, and only API functions send from a mailbox: jobs cannot yet.
+:::
+
+An app can send mail from the signed-in person's own mailbox instead of the app's address, such as an invoice from the account holder's Gmail, so replies reach them. They link the mailbox once on the [account page](/reference/auth/#account-page) ("Connect Gmail" under **Mailbox**), which asks the provider for leave to send mail and nothing else; the app's functions then send through it. `auth.personalMail` names the providers people may link, each through the app's sign-in provider of the same company; Gmail links through Google sign-in (see [Send mail from Gmail](/guides/send-from-gmail/) for the Google setup):
+
+```ts
+export default defineConfig(({ env }) => ({
+  auth: {
+    socialProviders: { google: { clientId: env.GOOGLE_CLIENT_ID!, clientSecret: env.GOOGLE_CLIENT_SECRET! } },
+    personalMail: ['gmail'],
+    encryptOAuthTokens: true,
+  },
+}))
+```
+
+A protected [API function](/guides/api-functions/) gets the caller's mailbox as `personalMail`, a mailer like any other, so a template sends through it too:
+
+```ts
+import { defineFunction } from '@protobase/server'
+import { invoiceEmail } from '../emails/invoice'
+
+export default defineFunction(async (request, { personalMail }) => {
+  const { to, number, pdf } = await readInvoice(request)
+  await invoiceEmail.send(to, { number }, personalMail, { attachments: [{ filename: `invoice-${number}.pdf`, content: pdf, contentType: 'application/pdf' }] })
+  return new Response(null, { status: 204 })
+})
+```
+
+- **Tokens:** the link is the sign-in provider's account Better Auth keeps for the person, with its access and refresh tokens (encrypted with `encryptOAuthTokens: true`). An access token that has expired is refreshed before the message goes out, and the new one is stored.
+- **When it cannot send:** `send` rejects with a `PersonalMailError` and sends nothing. Its `code` is `not_linked` when the person linked no mailbox, or signed in with Google without allowing it to send mail, and `link_expired` when the provider no longer honours the link, as when they revoked it or its refresh token expired: they connect it again. Thrown on, it answers the function's caller as a `409` problem with that `code` (`urn:protobase:problem:personal-mail-not-linked` or `-link-expired`), so the page can offer to link the mailbox:
+
+  ```json
+  { "type": "urn:protobase:problem:personal-mail-link-expired", "status": 409, "code": "link_expired", "provider": "gmail" }
+  ```
+
+- **Sender:** the provider sends as the linked address; Gmail sets the From header to it.
+- **Only the person:** mail goes out from a mailbox only for someone signed in as themselves. Staff [signed in as them](/reference/auth/#staff-sign-in), or an outside app acting for them, is refused with a `403` problem (`own-sign-in-only`), and nothing is sent.
+- **Providers:** Gmail, through Google sign-in. A provider is added to Protobase behind the same `PersonalMailProvider` shape: its sign-in provider, the scopes linking asks for, and how it sends.
+- <gap>Jobs cannot send from someone's own mailbox because a job's context has no personal mailer.</gap>
+- <gap>Mailboxes other than Gmail cannot be linked because no other mail provider is implemented.</gap>
+
 ## In a bundle
 
 A [bundle](/reference/cli/#the-config-module) gets React and React Email's renderer from the serve runtime, as it gets `@protobase/server` and `@protobase/server/email`, so an email's component and the renderer share one React and hooks such as `useContext` work. React Email's other components are inlined, though `@protobase/server` uses them too: it loads them only to send its own mail, so the runtime does not supply them. Its `<Tailwind>` component needs `tailwindcss`, which the runtime does not supply, so a served config cannot use it: style with `style` props instead.

@@ -49,6 +49,8 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     newBackupCodes: unsupported('make backup codes'),
     linkedProviders: async () => [],
     linkProvider: unsupported('link a sign-in provider'),
+    linkedPersonalMail: async () => [],
+    linkPersonalMail: unsupported('link a mailbox'),
     connectedApps: async () => [],
     disconnectApp: unsupported('disconnect an app'),
     updateName: unsupported('change its name'),

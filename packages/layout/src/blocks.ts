@@ -191,6 +191,8 @@ export const Password = defineBlock<AccountBlockProps>('Password', false)
 export const Passkeys = defineBlock<AccountBlockProps>('Passkeys', false)
 export const TwoFactor = defineBlock<AccountBlockProps>('TwoFactor', false)
 export const ConnectedAccounts = defineBlock<AccountBlockProps>('ConnectedAccounts', false)
+/** The mailboxes the signed-in person links for the app to send mail from (`auth.personalMail`); nothing when the app has none. */
+export const PersonalMail = defineBlock<AccountBlockProps>('PersonalMail', false)
 export const Devices = defineBlock<AccountBlockProps>('Devices', false)
 export const ConnectedApps = defineBlock<AccountBlockProps>('ConnectedApps', false)
 export const DeleteAccount = defineBlock<AccountBlockProps>('DeleteAccount', false)

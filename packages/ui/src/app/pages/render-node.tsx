@@ -22,6 +22,7 @@ import { TableBlock } from './blocks/table'
 import { TabBlock, TabsBlock } from './blocks/tabs'
 import { UsersBlock } from '../../users/users-block'
 import { ConnectedAccountsBlock } from '../../account/blocks/connected-accounts-block'
+import { PersonalMailBlock } from '../../account/blocks/personal-mail-block'
 import { ConnectedAppsBlock } from '../../account/blocks/connected-apps-block'
 import { DeleteAccountBlock } from '../../account/blocks/delete-account-block'
 import { DevicesBlock } from '../../account/blocks/devices-block'
@@ -61,6 +62,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Passkeys: PasskeysBlock,
   TwoFactor: TwoFactorBlock,
   ConnectedAccounts: ConnectedAccountsBlock,
+  PersonalMail: PersonalMailBlock,
   Devices: DevicesBlock,
   ConnectedApps: ConnectedAppsBlock,
   DeleteAccount: DeleteAccountBlock,

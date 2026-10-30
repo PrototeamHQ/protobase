@@ -8,7 +8,7 @@ import { AccountLoading } from './account-loading'
 import { useAccountData } from './use-account-data'
 
 // A link to a provider that did not go through comes back here with the provider's code, shown once.
-const takeLinkError = () => {
+export const takeLinkError = () => {
   const code = readProviderError(window.location.href)
   if (code) window.history.replaceState(window.history.state, '', withoutSignInLink(window.location.href))
   return code

@@ -188,12 +188,12 @@ Everyone signed in has an account page at `/-/account`, which "Account" in the u
 
 | Tab | Address | Blocks |
 | --- | --- | --- |
-| Profile | `/-/account` | `Profile`, `DeleteAccount` |
+| Profile | `/-/account` | `Profile`, `PersonalMail`, `DeleteAccount` |
 | Sign-in & security | `/-/account/security` | `Password`, `Passkeys`, `TwoFactor`, `ConnectedAccounts` |
 | Devices | `/-/account/devices` | `Devices` |
 | Connected apps | `/-/account/apps` | `ConnectedApps` |
 
-A tab whose blocks all leave themselves out is not offered, such as Connected apps in an app without [MCP](#oauth-for-mcp-clients). `DeleteAccount` leaves itself out when the app turns [account deletion](#deleting-the-account) off.
+A tab whose blocks all leave themselves out is not offered, such as Connected apps in an app without [MCP](#oauth-for-mcp-clients). `DeleteAccount` leaves itself out when the app turns [account deletion](#deleting-the-account) off, and `PersonalMail` in an app without [personal mail](/reference/email/#from-someones-own-mailbox).
 
 To change it, export a page named `account` of your own: it replaces the standard one at `/-/account`, and is neither at `/account` nor in the sidebar. `accountTabs` holds the standard tabs by name (`profile`, `security`, `devices`, `apps`), so the page lists the ones it keeps beside its own:
 

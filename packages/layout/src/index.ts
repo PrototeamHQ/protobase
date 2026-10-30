@@ -7,6 +7,7 @@ export {
   CardRow,
   Chart,
   ConnectedAccounts,
+  PersonalMail,
   ConnectedApps,
   DeleteAccount,
   Devices,

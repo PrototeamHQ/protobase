@@ -4,6 +4,7 @@ import type { Caller } from '../api-keys/resolve-caller'
 import type { CallsAccess } from '../calls/calls-access'
 import type { DecryptField } from '../encryption/decrypt-field-types'
 import type { ChannelSender } from '../channels/channel-sender'
+import type { Mailer } from '../mail/smtp-mailer'
 import type { Session } from '../types'
 import type { SocketEvents } from './function-socket'
 import type { FunctionRecords } from './records'
@@ -45,6 +46,15 @@ export type FunctionContext = PublicFunctionContext & FunctionCaller & {
    * the audit does. Not on a public function's context: a public function that needs a value enqueues a job.
    */
   decryptField: DecryptField
+  /**
+   * Mail from the caller's own mailbox, through the mail provider they linked (`auth.personalMail`), attachments and
+   * all: `personalMail.send({ to, subject, text, html, attachments })`, or an email template's `send(to, data,
+   * context.personalMail, { attachments })`. Rejects with a `PersonalMailError`, sending nothing, when they linked no
+   * mailbox (`not_linked`) or the link no longer works (`link_expired`); thrown on, it answers as a 409 problem with
+   * that `code`. Only someone signed in as themselves sends from their mailbox: staff signed in as them, or an outside
+   * app acting for them, is refused with a 403 problem. Not on a public function's context.
+   */
+  personalMail: Mailer
 }
 
 /** What a function gets at `/api/sb/functions/v1/<name>`, where supabase-js calls it: the caller its keys and token make. */

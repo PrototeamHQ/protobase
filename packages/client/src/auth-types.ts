@@ -15,6 +15,13 @@ export type SignInResult = { kind: 'signed-in'; user: AuthUser } | { kind: 'two-
 /** The sign-in provider the platform adds to the app: its id, as in `socialProviders`, and the name to show. */
 export type PlatformSignIn = { provider: string; name: string }
 
+/**
+ * A mail provider people may link their own mailbox with, for the app to send mail from it: its id and name, such as
+ * `gmail` and `Gmail`, the sign-in provider it links through, such as `google`, the scopes the link asks for and more
+ * authorization parameters of the link.
+ */
+export type PersonalMailLink = { id: string; name: string; provider: string; scopes: string[]; params: Record<string, string> }
+
 /** A SAML identity provider of the app: its id, for `signInSaml`, and the name to show. */
 export type SamlSignIn = { id: string; name: string }
 
@@ -26,7 +33,7 @@ export type SamlSignIn = { id: string; name: string }
  * `sendSignUpCode`); `socialProviders` the ids of the sign-in providers, for example
  * `github`; `platformSignIn` the one of them the platform adds; `samlProviders` the app's SAML identity providers; `staffSignIn` the operator provider's name when its staff
  * can sign in as people; `organizations` when the app has them; `anonymous` when visitors may browse what the project's
- * anonymous role reads without signing in; `mcp` when MCP clients can connect, with the `url` of the app's MCP endpoint, so the account page shows it and lists the clients; `plugins`
+ * anonymous role reads without signing in; `personalMail` the mail providers people may link their mailbox with (see `account.linkPersonalMail`); `mcp` when MCP clients can connect, with the `url` of the app's MCP endpoint, so the account page shows it and lists the clients; `plugins`
  * those the app loads before anyone signs in; `locale` the language the app sets for everyone, which the screens before
  * `/meta` are in.
  */
@@ -51,6 +58,7 @@ export type SetupStatus = {
   organizations?: { create: 'admins' | 'everyone'; roles: RoleLabel[] }
   anonymous?: boolean
   mcp?: { url: string }
+  personalMail?: PersonalMailLink[]
   plugins?: PluginRef[]
   locale?: Locale
 }

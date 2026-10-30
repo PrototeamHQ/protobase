@@ -239,6 +239,28 @@ describe('connected accounts', () => {
   })
 })
 
+describe('linked mailboxes', () => {
+  const gmail = { id: 'gmail', name: 'Gmail', provider: 'google', scopes: ['https://www.googleapis.com/auth/gmail.send'], params: { access_type: 'offline', prompt: 'consent' } }
+
+  it('counts a mailbox linked only once its account holds the scopes to send', async () => {
+    const signedIn = serve({ '/list-accounts': () => json([{ providerId: 'google', scopes: ['openid', 'email'] }]) })
+    expect(await signedIn.session.account.linkedPersonalMail([gmail])).toEqual([])
+    const linked = serve({ '/list-accounts': () => json([{ providerId: 'google', scopes: ['openid', 'https://www.googleapis.com/auth/gmail.send'] }]) })
+    expect(await linked.session.account.linkedPersonalMail([gmail])).toEqual(['gmail'])
+  })
+
+  it('links a mailbox through its sign-in provider, with its scopes and offline access', async () => {
+    const { requests, session } = serve({ '/link-social': () => json({ url: 'https://accounts.google.com/o/oauth2/v2/auth?state=s', redirect: false }) })
+    expect(await session.account.linkPersonalMail(gmail, 'http://localhost/-/account')).toBe('https://accounts.google.com/o/oauth2/v2/auth?state=s')
+    expect(requests).toEqual([
+      {
+        path: '/link-social',
+        body: { provider: 'google', scopes: gmail.scopes, additionalParams: gmail.params, callbackURL: 'http://localhost/-/account', errorCallbackURL: 'http://localhost/-/account', disableRedirect: true },
+      },
+    ])
+  })
+})
+
 describe('staff signing in as someone', () => {
   const signIn = { id: 's1', user: 'sanne@example.com', staff: 'alex@operator.example', reason: 'Ticket 4211: totals', startedAt: '2026-10-10T12:00:00.000Z', expiresAt: '2026-10-10T12:30:00.000Z' }
 

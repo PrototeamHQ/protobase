@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { createAuthSession, createClient, type AuthSession, type AuthUser, type PlatformSignIn, type PluginRef, type SamlSignIn, type RequiredSetup, type SetupStatus, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
+import { createAuthSession, createClient, type AuthSession, type AuthUser, type PersonalMailLink, type PlatformSignIn, type PluginRef, type SamlSignIn, type RequiredSetup, type SetupStatus, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
 import type { Locale } from '@protobase/schema/internal'
 import { nativeAuthFetch, type NativeBridge } from '../app/native-auth-fetch'
 import { pushNotifications, type PushNotifications } from '../notifications/push/push-notifications'
@@ -62,6 +62,10 @@ export type AuthApi = {
   signInSocial: (provider: string) => Promise<void>
   /** Leaves for the provider to link the signed-in account to it, which comes back to this page; rejects with `AuthError`. */
   linkProvider: (provider: string) => Promise<void>
+  /** The mail providers people may link their own mailbox with, for the app to send mail from it. */
+  personalMail: PersonalMailLink[]
+  /** Leaves for the mail provider to link the signed-in person's mailbox, which comes back to this page; rejects with `AuthError`. */
+  linkPersonalMail: (link: PersonalMailLink) => Promise<void>
   /** The operator provider's name when its staff can sign in as people here. */
   staffSignIn?: string
   /** When the app has organizations: who may create them, and the roles with their labels. */
@@ -121,6 +125,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
   const [passkeyDomains, setPasskeyDomains] = useState<string[]>([])
   const [socialProviders, setSocialProviders] = useState<string[]>([])
   const [platformSignIn, setPlatformSignIn] = useState<PlatformSignIn>()
+  const [personalMail, setPersonalMail] = useState<PersonalMailLink[]>([])
   const [samlProviders, setSamlProviders] = useState<SamlSignIn[]>([])
   const [staffSignIn, setStaffSignIn] = useState<string>()
   const [organizations, setOrganizations] = useState<SetupStatus['organizations']>()
@@ -189,6 +194,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       setPasskeyDomains(status.passkeyDomains ?? [])
       setSocialProviders(status.socialProviders)
       setPlatformSignIn(status.platformSignIn)
+      setPersonalMail(status.personalMail ?? [])
       setSamlProviders(status.samlProviders)
       setStaffSignIn(status.staffSignIn)
       setOrganizations(status.organizations)
@@ -251,6 +257,10 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       linkProvider: async (provider) => {
         window.location.assign(await session.account.linkProvider(provider, new URL(withoutSignInLink(window.location.href), window.location.href).href))
       },
+      personalMail,
+      linkPersonalMail: async (link) => {
+        window.location.assign(await session.account.linkPersonalMail(link, new URL(withoutSignInLink(window.location.href), window.location.href).href))
+      },
       stopStaffSession: async () => {
         await push.forget()
         await session.staff.stop()
@@ -270,7 +280,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       },
       push,
     }),
-    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
+    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

@@ -1870,6 +1870,27 @@
             }
           ]
         },
+        "personalMail": {
+          "description": "The mail providers people may link their own mailbox with, from the account page, for the app's functions to send\nmail from it (`context.personalMail`), such as `['gmail']`. Each links through its sign-in provider, which\n`socialProviders` must have: Gmail through `google`. Default none.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "const": "gmail"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
         "encryptOAuthTokens": {
           "description": "Encrypt the OAuth access, refresh and ID tokens Better Auth stores for social sign-ins, with `secret`. Default off.",
           "anyOf": [

@@ -50,6 +50,7 @@ export const guides = [
   'guides/export-a-list',
   'guides/import-records',
   'guides/push-notifications',
+  'guides/send-from-gmail',
   'guides/create-page',
   'guides/personal-setting',
   'guides/mobile-app',
