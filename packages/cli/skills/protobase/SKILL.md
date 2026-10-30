@@ -89,6 +89,7 @@ Reference:
 - When letting people without an account create records → read [Public forms](references/reference/forms.md)
 - When running background jobs → read [Jobs](references/reference/jobs.md)
 - When sending email → read [Email](references/reference/email.md)
+- When making a PDF file, such as an invoice, a quote or a report → read [PDF documents](references/reference/pdf.md)
 - When registering users' devices for push notifications → read [Notifications](references/reference/notifications.md)
 - When people should set themselves busy, do not disturb or a status text, or see others' beside their names → read [Status](references/reference/status.md)
 - When adding audio and video calls, through LiveKit or peer to peer → read [Calls](references/reference/calls.md)
