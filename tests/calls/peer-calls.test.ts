@@ -204,11 +204,11 @@ describe.each(callBrowsers)('peer-to-peer calls on records, in %s', (name) => {
 
   describe('guests', () => {
     // Ann is in the call and invites; Bob is in it too; Eve, from outside, waits in the lobby of Ann's link.
-    const guestCall = async () => {
+    const guestCall = async (publish: ('camera' | 'microphone')[] = ['camera', 'microphone']) => {
       const meeting = newMeeting()
       const ann = await join(`call=${meeting}&as=ann&invites=true`)
       const bob = await join(`call=${meeting}&as=bob`, other)
-      const link = await ann.evaluate(() => window.member.guestLink(['camera', 'microphone']))
+      const link = await ann.evaluate((sources) => window.member.guestLink(sources), publish)
       const eve = await open()
       const token = await eve.evaluate((at) => window.member.enterLobby(at, 'Eve'), link.token)
       await vi.waitFor(async () => expect(await ann.evaluate(() => window.member.lobby())).toEqual([{ guest: expect.any(String), name: 'Eve' }]), within(2500))
@@ -229,6 +229,15 @@ describe.each(callBrowsers)('peer-to-peer calls on records, in %s', (name) => {
       expect(Date.now() - started).toBeLessThan(2000)
       await eve.evaluate(() => window.member.publish(['camera', 'microphone']))
       await vi.waitFor(async () => expect((await tracksOf(ann)).filter((track) => track.member === `guest:${guest}` && track.receiving)).toHaveLength(2), waitLong)
+    })
+
+    it('refuses a guest whose link allows only the microphone their camera, which no member hears', async () => {
+      const { ann, eve, token, guest } = await guestCall(['microphone'])
+      await ann.evaluate((id) => window.member.admit(id), guest)
+      expect(await eve.evaluate((at) => window.member.joinAsGuest(at), token)).toBe('joined')
+      expect(await eve.evaluate(() => window.member.publish(['camera']).then(() => 'published', (error: Error) => error.message))).not.toBe('published')
+      await eve.evaluate(() => window.member.publish(['microphone']))
+      await vi.waitFor(async () => expect((await tracksOf(ann)).filter((track) => track.member === `guest:${guest}`).map((track) => track.source)).toEqual(['microphone']), waitLong)
     })
 
     it('never lets in a guest a member turned away', async () => {
