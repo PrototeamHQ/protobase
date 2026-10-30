@@ -192,7 +192,7 @@ export default defineUi({
 })
 ```
 
-`invoke(name, { method?, body?, path?, query?, headers? })` sends a `GET`, or a `POST` with a JSON `body`. It resolves to the parsed JSON, to text, or to `undefined` for a `204`. A problem rejects with an `ApiError`, as any call of the client does. Outside the admin, `createClient` from `@protobase/client` gives the same `invoke`, or you can call the URL with `fetch` and an `Authorization: Bearer` header.
+`invoke(name, { method?, body?, path?, query?, headers? })` sends a `GET`, or a `POST` with a JSON `body`. It resolves to the parsed JSON, to text for a `text/*` answer or one without a content type, to a `Blob` of any other type, or to `undefined` for a `204`. A function sends a file, such as a PDF, as a plain `Response` with its type and name: `new Response(bytes, { headers: { 'content-type': 'application/pdf', 'content-disposition': 'attachment; filename="invoice.pdf"' } })`, and `invoke` gives the caller that `Blob`, with its `type`. A problem rejects with an `ApiError`, as any call of the client does. Outside the admin, `createClient` from `@protobase/client` gives the same `invoke`, or you can call the URL with `fetch` and an `Authorization: Bearer` header.
 
 ## Hono apps
 
