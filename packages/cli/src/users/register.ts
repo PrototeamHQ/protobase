@@ -120,10 +120,11 @@ export const registerToken = (program: Command) => {
     .description('Print a bearer token (JWT) for an existing user')
     .argument('<email>')
     .option('--ttl <duration>', 'lifetime: 30s, 15m, up to 24h', '15m')
+    .option('--organization <slug|id>', 'with organizations, the one the token works in (default: where a new session starts)')
     .action(async (email: string, opts) => {
       const ttlSeconds = parseTtl(opts.ttl)
       const [{ issueToken }, auth] = await Promise.all([import('@protobase/server'), loadAuth()])
-      const { token } = await issueToken(auth, { email, ttlSeconds })
+      const { token } = await issueToken(auth, { email, ttlSeconds, ...(opts.organization !== undefined && { organization: opts.organization }) })
       out(`${token}\n`)
       finish(0)
     })

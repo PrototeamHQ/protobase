@@ -607,10 +607,10 @@ Builds the project in the current directory as an iOS or Android app with Capaci
 ## `token`
 
 ```sh
-protobase token <email> [--ttl 15m]
+protobase token <email> [--ttl 15m] [--organization <slug|id>]
 ```
 
-Prints a bearer token (JWT, signed with the project's Better Auth keys, same claims as a browser token) for an existing user. The lifetime is `30s`, `15m`, `24h`, ... up to 24 hours, default 15 minutes. Only the token goes to stdout and errors go to stderr, so it composes in scripts:
+Prints a bearer token (JWT, signed with the project's Better Auth keys, same claims as a browser token) for an existing user. The lifetime is `30s`, `15m`, `24h`, ... up to 24 hours, default 15 minutes. With [organizations](/reference/auth/#organizations), `--organization` names the one the token works in; without it, the token works where a new session of the user would start. Only the token goes to stdout and errors go to stderr, so it composes in scripts:
 
 ```sh
 curl -H "Authorization: Bearer $(protobase token me@x)" http://localhost:5173/api/v1/orders?page_size=1
