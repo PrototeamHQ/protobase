@@ -15,6 +15,8 @@ const sessions: Record<string, Session> = {
   bob: { user: { id: 'bob', roles: ['admin'] }, signIn: own },
   // Staff signed in as Bob, for support.
   staff: { user: { id: 'bob', roles: ['admin'] }, signIn: { staff: true } },
+  // An outside app, such as an MCP client, with a token Bob gave it.
+  app: { user: { id: 'bob', roles: ['admin'] }, signIn: own, client: { id: 'mcp-client', scopes: ['openid', 'profile'] } },
 }
 const authenticate = (request: Request) => {
   const session = sessions[request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '']
@@ -66,6 +68,28 @@ describe('a function’s personalMail', () => {
     expect(response.status).toBe(403)
     expect(await response.json()).toMatchObject({ type: 'urn:protobase:problem:own-sign-in-only' })
     expect(send).not.toHaveBeenCalled()
+  })
+
+  it('refuses an outside app acting for someone, sending nothing from their mailbox', async () => {
+    const personalMailer = vi.fn(() => ({ send: async () => {} }))
+    const app = serve({ send: sendInvoice }, personalMailer)
+    const response = await app.request('/api/functions/send', { headers: { authorization: 'Bearer app' } })
+    expect(response.status).toBe(403)
+    expect(await response.json()).toMatchObject({ type: 'urn:protobase:problem:own-sign-in-only' })
+    expect(personalMailer).not.toHaveBeenCalled()
+  })
+
+  it('is not on a public function’s context, nor on its caller, even with the person signed in', async () => {
+    const personalMailer = vi.fn(() => ({ send: async () => {} }))
+    let seen: object[] = []
+    const app = serve({ hook: defineFunction({ public: true }, async (_request, context) => {
+      seen = [context, await context.caller()]
+      return new Response(null, { status: 204 })
+    }) }, personalMailer)
+    expect((await app.request('/api/functions/hook', { headers: { authorization: 'Bearer bob' } })).status).toBe(204)
+    expect(seen).toHaveLength(2)
+    for (const value of seen) expect(value).not.toHaveProperty('personalMail')
+    expect(personalMailer).not.toHaveBeenCalled()
   })
 
   it('rejects, naming the setting, when the app links no mailboxes', async () => {

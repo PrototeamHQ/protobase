@@ -1,3 +1,8 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { gmail, gmailSendUrl } from './gmail'
 import { insufficientScope, invalidCredentials, json, sentMessage } from './gmail-responses'
@@ -50,5 +55,34 @@ describe('gmail', () => {
     const { fetcher, provider } = answering(() => json(sentMessage))
     await expect(provider.send({ ...invoice, headers: { 'X-Note': 'a\r\nBcc: eve@example.com' } }, 'access-1')).rejects.toThrow('Mail header X-Note has a line break')
     expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  // Nodemailer reads an attachment's `path` or `href`, and a `content` of `{ path }`, from disk or the network.
+  it('reads no attachment from a file path or URL, sending only bytes it was given', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'gmail-attachment-'))
+    const file = join(dir, 'secret.txt')
+    await writeFile(file, 'server secret')
+    const requests: string[] = []
+    const server = createServer((request, response) => void (requests.push(request.url ?? ''), response.end('fetched secret')))
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/secret`
+    try {
+      const { fetcher, provider } = answering(() => json(sentMessage))
+      const named = { filename: 'named.txt', content: new Uint8Array([104, 105]), path: file, href: url } as never
+      const asText = { filename: 'text.txt', content: url } as never
+      await provider.send({ ...invoice, attachments: [named, asText] }, 'access-1')
+      const raw = new TextDecoder().decode(fetcher.mock.calls[0]![1]!.body as Uint8Array)
+      expect(raw).not.toContain(Buffer.from('server secret').toString('base64'))
+      expect(raw).not.toContain(Buffer.from('fetched secret').toString('base64'))
+      expect(raw).toContain(Buffer.from('hi').toString('base64'))
+
+      const read = answering(() => json(sentMessage))
+      await expect(read.provider.send({ ...invoice, attachments: [{ filename: 'secret.txt', content: { path: file } } as never] }, 'access-1')).rejects.toThrow(TypeError)
+      expect(read.fetcher).not.toHaveBeenCalled()
+      expect(requests).toEqual([])
+    } finally {
+      server.close()
+      await rm(dir, { recursive: true })
+    }
   })
 })
