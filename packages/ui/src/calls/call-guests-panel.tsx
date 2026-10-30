@@ -115,17 +115,20 @@ export const CallGuestsPanel = ({ lobby, inCall, guests, linkOf, open, onClose }
               </li>
             ))}
           </ul>
-          <div className="flex flex-wrap items-center gap-2">
-            <Segmented
-              label={text('guestsMaySend')}
-              value={send}
-              onChange={setSend}
-              options={[
-                { value: 'all', label: text('sendAll') },
-                { value: 'camera', label: text('sendCamera') },
-                { value: 'microphone', label: text('sendMicrophone') },
-              ]}
-            />
+          <div className="flex flex-col items-start gap-2">
+            <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {text('guestsMaySend')}
+              <Segmented
+                label={text('guestsMaySend')}
+                value={send}
+                onChange={setSend}
+                options={[
+                  { value: 'all', label: text('sendAll') },
+                  { value: 'camera', label: text('sendCamera') },
+                  { value: 'microphone', label: text('sendMicrophone') },
+                ]}
+              />
+            </span>
             <Button variant="primary" onClick={create}>
               {text('newLink')}
             </Button>
