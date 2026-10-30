@@ -6,6 +6,9 @@ export type ColumnKind =
   | 'text' | 'id' | 'money' | 'date' | 'datetime' | 'status' | 'relation'
   | 'boolean' | 'number' | 'signed' | 'percent' | 'user' | 'file'
 
+/** A person a `user` column shows for an id. */
+export type CellUser = { name: string; initials: string; hue: number }
+
 export type GridRow = { id: string } & Record<string, unknown>
 
 export type ColumnSpec = {
@@ -40,6 +43,8 @@ export type ColumnSpec = {
   labels?: Record<string, string>
   /** For a `text` column of addresses: each value a link that writes to, calls or opens it. */
   link?: ContactFormat
+  /** For a `user` column: the person behind an id; an id it does not know shows as itself. */
+  users?: (id: string) => CellUser | undefined
   /** Reads the cell value; defaults to `row[id]`. */
   value?: (row: GridRow) => unknown
   /** Draws the cell instead of its kind, such as a field type's cell. */

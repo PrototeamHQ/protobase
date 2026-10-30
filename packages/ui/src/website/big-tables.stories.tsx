@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { adminUser } from './users'
-import { createFilteredSource, createRowSource, stockMoveColumns, stockMovesNaturalSort } from '../data-grid'
+import { createFilteredSource, createRowSource } from '../data-grid'
+import { stockMoveColumns, stockMovesNaturalSort } from '../data-grid/stock-move-fixtures'
 import { stockMoveFilters } from '../filter-panel'
 import { stockMoveAt, stockMoveCount } from '../mocks'
 import { ListScreen } from './list-screen'

@@ -3,7 +3,7 @@ import { expect, fn, waitFor, within } from 'storybook/test'
 import { orderAt } from '../mocks'
 import { minColumnWidth } from './column-resize'
 import { DataGrid } from './data-grid'
-import { ordersColumns, ordersNaturalSort } from './orders-columns'
+import { ordersColumns, ordersNaturalSort } from './orders-fixtures'
 import { createRowSource } from './row-source'
 
 const meta = {

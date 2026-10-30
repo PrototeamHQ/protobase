@@ -2,7 +2,6 @@ import { enumLabel } from '@protobase/schema'
 import { formatDate, formatDateTime, formatRelativeTime } from '../format/date'
 import { formatInt, formatPercent, formatSigned } from '../format/number'
 import { formatMoney } from '../format/money'
-import { userById } from '../mocks'
 import { fileShown } from '../live/file-values'
 import type { ColumnSpec } from './column-spec'
 import { text } from './messages'
@@ -38,6 +37,6 @@ export const cellText = (spec: ColumnSpec, value: unknown): string | undefined =
     case 'file':
       return fileShown(value)?.name ?? '—'
     case 'user':
-      return userById(String(value)).name
+      return spec.users?.(String(value))?.name ?? String(value)
   }
 }

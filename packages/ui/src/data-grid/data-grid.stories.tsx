@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { orderAt, orderCount, stockMoveAt, stockMoveCount } from '../mocks'
 import { DataGrid } from './data-grid'
-import { ordersColumns, ordersColumnsWithDiscount, ordersNaturalSort } from './orders-columns'
+import { ordersColumns, ordersColumnsWithDiscount, ordersNaturalSort } from './orders-fixtures'
 import { createRowSource } from './row-source'
-import { stockMoveColumns, stockMovesNaturalSort } from './stock-move-columns'
+import { stockMoveColumns, stockMovesNaturalSort } from './stock-move-fixtures'
 
 const orders = createRowSource(orderCount, orderAt)
 const stockMoves = createRowSource(stockMoveCount, stockMoveAt)

@@ -1,3 +1,4 @@
+import { userById } from '../mocks'
 import type { ColumnSpec } from './column-spec'
 
 export const ordersNaturalSort = { columnId: 'createdAt', direction: 'desc' } as const
@@ -19,7 +20,7 @@ export const ordersColumns: ColumnSpec[] = [
   { id: 'totalCents', header: 'Total', kind: 'money', width: 120, sortable: true, currency: 'EUR' },
   { id: 'paid', header: 'Paid', kind: 'boolean', width: 70 },
   { id: 'createdAt', header: 'Created', kind: 'datetime', width: 170, sortable: true },
-  { id: 'owner', header: 'Owner', kind: 'user', width: 130 },
+  { id: 'owner', header: 'Owner', kind: 'user', width: 130, users: userById },
 ]
 
 /** Orders columns with the discount column placed after Total, optionally marked as new. */

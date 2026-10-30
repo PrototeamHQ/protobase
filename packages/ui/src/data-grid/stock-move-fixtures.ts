@@ -1,3 +1,4 @@
+import { userById } from '../mocks'
 import type { ColumnSpec } from './column-spec'
 
 export const stockMovesNaturalSort = { columnId: 'movedAt', direction: 'asc' } as const
@@ -18,5 +19,5 @@ export const stockMoveColumns: ColumnSpec[] = [
   { id: 'quantity', header: 'Qty', kind: 'signed', width: 100, sortable: true },
   { id: 'unitCostCents', header: 'Cost', kind: 'money', width: 110, currency: 'EUR' },
   { id: 'reference', header: 'Reference', kind: 'id', width: 150 },
-  { id: 'user', header: 'By', kind: 'user', width: 130 },
+  { id: 'user', header: 'By', kind: 'user', width: 130, users: userById },
 ]

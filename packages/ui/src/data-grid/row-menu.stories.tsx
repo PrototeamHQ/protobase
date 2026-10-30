@@ -3,7 +3,7 @@ import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { orderAt } from '../mocks'
 import type { GridRow } from './column-spec'
 import { DataGrid } from './data-grid'
-import { ordersColumns, ordersNaturalSort } from './orders-columns'
+import { ordersColumns, ordersNaturalSort } from './orders-fixtures'
 import type { RowAction } from './row-menu'
 import { createRowSource } from './row-source'
 

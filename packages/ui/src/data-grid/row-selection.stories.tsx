@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { orderAt } from '../mocks'
 import { DataGrid } from './data-grid'
-import { ordersColumns, ordersNaturalSort } from './orders-columns'
+import { ordersColumns, ordersNaturalSort } from './orders-fixtures'
 import { createRowSource } from './row-source'
 
 const meta = {

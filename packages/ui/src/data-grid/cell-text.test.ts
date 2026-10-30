@@ -21,6 +21,13 @@ describe('cellText', () => {
     expect(cellText(spec('datetime', { relative: true }), Date.now() - 300_000)).toBe('5 minutes ago')
   })
 
+  it('shows a user by the name its lookup gives, an unknown id as itself', () => {
+    const users = (id: string) => (id === 'u1' ? { name: 'Sanne M.', initials: 'SM', hue: 250 } : undefined)
+    expect(cellText(spec('user', { users }), 'u1')).toBe('Sanne M.')
+    expect(cellText(spec('user', { users }), 'u9')).toBe('u9')
+    expect(cellText(spec('user'), 'u1')).toBe('u1')
+  })
+
   it('shows a missing value as a dash', () => {
     expect(cellText(spec('text'), null)).toBe('—')
     expect(cellText(spec('money'), undefined)).toBe('—')

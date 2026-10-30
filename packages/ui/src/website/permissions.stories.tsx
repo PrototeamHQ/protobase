@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { salesRepUser } from './users'
-import { createRowSource, ordersColumns, ordersNaturalSort } from '../data-grid'
+import { createRowSource } from '../data-grid'
+import { ordersColumns, ordersNaturalSort } from '../data-grid/orders-fixtures'
 import { ordersFilters } from '../filter-panel'
 import { orderAt } from '../mocks'
 import { ListScreen } from './list-screen'

@@ -1,5 +1,4 @@
 import { Check, Paperclip } from 'lucide-react'
-import { userById } from '../mocks'
 import { Avatar } from '../primitives/avatar'
 import { Badge } from '../primitives/badge'
 import { cn } from '../lib/cn'
@@ -63,7 +62,8 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
       )
     }
     case 'user': {
-      const user = userById(String(value))
+      const user = spec.users?.(String(value))
+      if (!user) return <TruncatedText text={text} className="text-muted-foreground" />
       return (
         <span className="inline-flex items-center gap-2 truncate">
           <Avatar initials={user.initials} hue={user.hue} size="xs" className="ring-0" />

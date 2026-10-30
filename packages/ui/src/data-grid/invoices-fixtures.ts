@@ -1,6 +1,6 @@
 import { invoiceAt, invoiceTotals } from '../mocks'
 import type { ColumnSpec, GridRow } from './column-spec'
-import { discountColumn } from './orders-columns'
+import { discountColumn } from './orders-fixtures'
 
 export const invoiceCount = 4218
 

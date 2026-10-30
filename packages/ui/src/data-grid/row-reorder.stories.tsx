@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { orderAt } from '../mocks'
 import { DataGrid } from './data-grid'
-import { ordersColumns } from './orders-columns'
+import { ordersColumns } from './orders-fixtures'
 
 const Orders = ({ onOpenRow }: { onOpenRow: () => void }) => {
   const [rows, setRows] = useState(() => Array.from({ length: 6 }, (_, index) => orderAt(index)))
