@@ -1,8 +1,9 @@
 name: pr-title
 
-# A pull request squash-merged with more than one commit lands on main under its title, with " (#<number>)" added, and
-# the release workflow refuses a commit that commitlint does. ci lints the branch's commits, not the title, so the title
-# is linted here as it would land, and again whenever it is edited, which runs no other check.
+# A pull request lands on main squash-merged, under its title with " (#<number>)" added, or, when it has a single commit,
+# under that commit's subject with it added (the repository's COMMIT_OR_PR_TITLE setting), and the release workflow
+# refuses a commit that commitlint does. ci lints the branch's commits without the suffix, so the header that would land
+# is linted here, and again whenever the title is edited, which runs no other check.
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
@@ -15,12 +16,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The merge commit and its parents, the second of which is the pull request's head.
+          fetch-depth: 2
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
-      - name: Lint the title as the squash-merge commit's header
+      - name: Lint the squash-merge commit's header
         env:
           TITLE: ${{ github.event.pull_request.title }}
           NUMBER: ${{ github.event.pull_request.number }}
-        run: printf '%s (#%s)\n' "$TITLE" "$NUMBER" | bun x --bun commitlint --verbose
+          COMMITS: ${{ github.event.pull_request.commits }}
+        run: |
+          if [ "$COMMITS" = 1 ]; then TITLE=$(git log -1 --format=%s HEAD^2); fi
+          printf '%s (#%s)\n' "$TITLE" "$NUMBER" | bun x --bun commitlint --verbose

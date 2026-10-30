@@ -18,7 +18,7 @@ docs: the record page runs named actions too
 - The subject starts in lowercase and ends without a period; the header and every body line are at most 100 characters.
 - A `feat` commit adds something a user of Protobase can see or call, and is documented (see [Features and docs](#features-and-docs)). A change no user can see is `fix`, `perf`, `refactor` or `chore`.
 
-`bun install` installs a `commit-msg` hook (`.githooks/`) that checks each message with commitlint (`commitlint.config.mjs`); the release workflow checks every commit pushed to `main` again, and the `pr-title` workflow checks a pull request's title with its ` (#<number>)` suffix, the header a squash merge gives it. To check messages by hand: `bun x commitlint --from <commit>`. `bun install` also writes the protobase skill's references (`packages/cli/skills/protobase/references`) from the docs; they are not committed, and the CLI's build writes them again before it is packed. Run `bun run docs:skill` to see a docs change in them.
+`bun install` installs a `commit-msg` hook (`.githooks/`) that checks each message with commitlint (`commitlint.config.mjs`); the release workflow checks every commit pushed to `main` again, and the `pr-title` workflow checks the header a squash merge gives a pull request: its title, or the subject of its only commit, with its ` (#<number>)` suffix. To check messages by hand: `bun x commitlint --from <commit>`. `bun install` also writes the protobase skill's references (`packages/cli/skills/protobase/references`) from the docs; they are not committed, and the CLI's build writes them again before it is packed. Run `bun run docs:skill` to see a docs change in them.
 
 ## Features and docs
 
