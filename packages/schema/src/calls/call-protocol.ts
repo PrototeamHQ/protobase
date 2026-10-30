@@ -95,7 +95,7 @@ export type CallGuestState = 'waiting' | 'admitted' | 'denied' | 'ended'
 
 /** A message from the server. */
 export type CallServerMessage =
-  | { type: 'joined'; call: string; mode: CallMode; participant: string; iceServers: { urls: string[]; username?: string; credential?: string }[]; invites?: boolean }
+  | { type: 'joined'; call: string; mode: CallMode; participant: string; iceServers: { urls: string[]; username?: string; credential?: string }[] }
   | { type: 'resumed' }
   | { type: 'published'; tracks: { cid: string; sid: string }[] }
   | { type: 'publish-refused'; reason: string }
@@ -117,6 +117,8 @@ export type CallServerMessage =
   | { type: 'left'; reason: CallLeftReason }
   /** To a member who may invite: who waits in the lobby, and the call's guest links, whenever that changes. */
   | { type: 'lobby'; guests: CallLobbyGuest[]; links: CallGuestLink[] }
-  /** The link a `guest-link` made, with its token, which only its maker gets, once. */
+  /** Each guest request is answered once, in order: the link a `guest-link` made, with its token, which only its maker gets, once. */
   | { type: 'guest-link'; link: CallGuestLink; token: string }
+  /** A `guest-link-revoke`, `guest-decide` or `guest-remove` that was done. */
+  | { type: 'guest-done' }
   | { type: 'guest-refused'; reason: CallGuestRefusal }

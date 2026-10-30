@@ -1,5 +1,6 @@
-import type { CallClientMessage, CallLeftReason, CallRosterMember, CallServerMessage, CallTrackSource } from '@protobase/schema/internal'
+import type { CallClientMessage, CallGuestLink, CallLeftReason, CallLobbyGuest, CallRosterMember, CallServerMessage, CallTrackSource } from '@protobase/schema/internal'
 import type { CallConnection } from './connection-stats'
+import { guestRequests, type CallGuests } from './guest-requests'
 import type { CallTrack, MediaLink, MediaLinkInput, PublishOptions } from './media-link'
 import { peerLink } from './peer-link'
 import { sfuLink } from './sfu-link'
@@ -13,6 +14,10 @@ export type JoinCallOptions = {
    * page's origin, or an absolute `http(s)` or `ws(s)` URL. The browser sends its session cookie with it.
    */
   url: string
+  /** A guest's token from `guestLobby`, with the lobby's `socketUrl` as `url`: the guest joins as themselves, whom no cookie names. */
+  guest?: string
+  /** With a member who may invite: who waits in the call's lobby, and its guest links, whenever that changes. */
+  onLobby?: (lobby: { guests: CallLobbyGuest[]; links: CallGuestLink[] }) => void
   /** Every track of other members the member hears, whenever one comes, goes or its media arrives. */
   onTracks?: (tracks: CallTrack[]) => void
   /** Everyone in the call, the member too, in the order they came, whenever that changes. */
@@ -50,6 +55,8 @@ export type Call = {
   tracks: () => CallTrack[]
   /** How each of the member's connections fares now: to each other member, or to the media server. */
   connections: () => Promise<CallConnection[]>
+  /** With a member who may invite: guest links, and letting the lobby's guests in. */
+  guests: CallGuests
 }
 
 const backoff = (attempt: number) => Math.min(10_000, 500 * 2 ** attempt)
@@ -96,6 +103,8 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
   const send = (message: CallClientMessage) => {
     if (socket.readyState === WebSocketOf.OPEN) socket.send(JSON.stringify(message))
   }
+  const requests = guestRequests(send)
+  const guest = options.guest !== undefined ? { guest: options.guest } : {}
   const setState = (state: CallState) => options.onState?.(state)
 
   const end = (reason: CallLeftReason, error?: unknown) => {
@@ -155,7 +164,11 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
         if (message.reason === 'rejoin') rejoin = true
         else end(message.reason)
         return
+      case 'lobby':
+        options.onLobby?.({ guests: message.guests, links: message.links })
+        return
       default:
+        if (requests.receive(message)) return
         await link?.receive(message)
     }
   }
@@ -168,7 +181,7 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
       opened = true
       chain = chain.then(async () => {
         const resume = mode === 'resume' && link ? await link.resumeState(participant) : undefined
-        send(resume ? { type: 'resume', call: callId, ...resume } : { type: 'join' })
+        send(resume ? { type: 'resume', call: callId, ...resume, ...guest } : { type: 'join', ...guest })
       })
     }
     socket.onmessage = (event) => {
@@ -176,6 +189,7 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
       chain = chain.then(() => handle(message)).catch((error: unknown) => end('ended', error))
     }
     socket.onclose = (event) => {
+      requests.lost()
       chain = chain.then(() => closed(mode, event.code))
     }
   }
@@ -227,6 +241,7 @@ export const joinCall = (options: JoinCallOptions): Promise<Call> => {
     },
     tracks: () => remote,
     connections: async () => (link ? link.connections() : []),
+    guests: requests.guests,
   }
 
   setState({ state: 'connecting' })

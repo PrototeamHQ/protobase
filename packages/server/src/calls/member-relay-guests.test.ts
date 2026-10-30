@@ -75,12 +75,15 @@ describe("a member's guests", () => {
     expect(ann.of('guest-refused')).toEqual([{ type: 'guest-refused', reason: 'full' }])
     const call = actions.decide.mock.calls[0]![0].call
     expect(actions.decide).toHaveBeenCalledWith({ call, guest, member: 'ann', admit: true })
+    await ann.send({ type: 'guest-decide', guest, admit: false })
     await ann.send({ type: 'guest-remove', guest })
     expect(actions.remove).toHaveBeenCalledWith(call, guest)
     actions.revoke.mockResolvedValueOnce(false)
     await ann.send({ type: 'guest-link-revoke', link: link.id })
     expect(actions.revoke).toHaveBeenCalledWith({ call, link: link.id, member: 'ann' })
-    expect(ann.of('guest-refused').at(-1)).toEqual({ type: 'guest-refused', reason: 'gone' })
+    // One answer per request, in order.
+    expect(ann.of('guest-refused').map((message) => message.reason)).toEqual(['full', 'gone'])
+    expect(ann.of('guest-done')).toHaveLength(2)
   })
 
   it('wait for the member to be in the call', async () => {

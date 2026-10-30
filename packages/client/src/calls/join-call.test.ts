@@ -141,4 +141,38 @@ describe('joining a call', () => {
     await expect(call).rejects.toThrow('The call was left: unavailable')
     expect(states.map((state) => state.state)).toEqual(['connecting', 'connecting', 'connecting', 'left'])
   })
+
+  it("sends a guest's token in their join and resume, and nowhere else", async () => {
+    const { opened, call } = start({ url: 'https://app.example.com/api/calls/guests/socket', guest: 'pbg_eve' })
+    await vi.waitFor(() => expect(opened[0]?.sent).toEqual([{ type: 'join', guest: 'pbg_eve' }]))
+    expect(opened[0]!.url).not.toContain('pbg_eve')
+    opened[0]!.receive({ type: 'joined', call: '7', mode: 'sfu', participant: 'PA_eve', iceServers: [] })
+    await call
+    opened[0]!.drop(1012)
+    await vi.waitFor(() => expect(opened[1]?.sent).toEqual([expect.objectContaining({ type: 'resume', call: '7', guest: 'pbg_eve' })]))
+  })
+
+  it("tells a member who invites of the lobby, and pairs the server's answers with their guest requests", async () => {
+    const lobbies: unknown[] = []
+    const { opened, call } = start({ onLobby: (lobby) => void lobbies.push(lobby) })
+    await vi.waitFor(() => expect(opened[0]?.sent).toHaveLength(1))
+    opened[0]!.receive({ type: 'joined', call: '7', mode: 'sfu', participant: 'PA_ann', iceServers: [] })
+    const joined = await call
+    opened[0]!.receive({ type: 'lobby', guests: [{ guest: 'g1', name: 'Eve', since: 't' }], links: [] })
+    await vi.waitFor(() => expect(lobbies).toEqual([{ guests: [{ guest: 'g1', name: 'Eve', since: 't' }], links: [] }]))
+    const link = joined.guests.link({ publish: ['microphone'] })
+    const admit = joined.guests.admit('g1')
+    const deny = joined.guests.deny('g2')
+    expect(opened[0]!.sent.slice(1)).toEqual([{ type: 'guest-link', publish: ['microphone'] }, { type: 'guest-decide', guest: 'g1', admit: true }, { type: 'guest-decide', guest: 'g2', admit: false }])
+    const made = { id: 'l1', created_by: 'ann', publish: ['microphone' as const], expires_at: null }
+    opened[0]!.receive({ type: 'guest-link', link: made, token: 'pbgl_x' })
+    opened[0]!.receive({ type: 'guest-done' })
+    opened[0]!.receive({ type: 'guest-refused', reason: 'gone' })
+    expect(await link).toEqual({ link: made, token: 'pbgl_x' })
+    await expect(admit).resolves.toBeUndefined()
+    await expect(deny).rejects.toMatchObject({ name: 'GuestRefused', reason: 'gone' })
+    const lost = joined.guests.remove('g1')
+    opened[0]!.drop(1012)
+    await expect(lost).rejects.toThrow('The link to the call was lost before the server answered')
+  })
 })
