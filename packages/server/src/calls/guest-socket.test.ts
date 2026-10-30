@@ -47,6 +47,13 @@ describe("a guest's call socket", () => {
     }
   })
 
+  it('refuses a guest let in once, whose link was revoked or who was removed since', async () => {
+    const { send, closes, runtime } = socketOf(row(true), false)
+    await send({ type: 'join', guest: token })
+    expect(closes).toEqual([[1008, 'Not let into this call']])
+    expect(runtime.relayGuest).not.toHaveBeenCalled()
+  })
+
   it('closes a socket that names no guest in time', () => {
     vi.useFakeTimers()
     const { closes } = socketOf(row(true))
@@ -55,9 +62,16 @@ describe("a guest's call socket", () => {
   })
 
   it('takes a guest out at the minute\'s check once they may no longer be in the call', async () => {
-    const { events, send } = socketOf(row(true), false)
+    let allowed = true
+    const relay: SocketEvents = { onOpen: vi.fn(), onMessage: vi.fn(), onClose: vi.fn() }
+    const runtime = { guests: () => ({ byToken: async () => row(true), stillAllowed: async () => allowed }), relayGuest: async () => relay } as unknown as CallsRuntime
+    const events = guestSocket(runtime, vi.fn())
+    const browser = { send: async () => {}, close: vi.fn(), bufferedAmount: 0 } satisfies FunctionSocket
+    void events.onOpen!(browser)
     await events.recheck!()
-    await send({ type: 'join', guest: token })
+    await events.onMessage!(JSON.stringify({ type: 'join', guest: token }), browser)
+    await events.recheck!()
+    allowed = false
     await expect(events.recheck!()).rejects.toMatchObject({ status: 403 })
   })
 })
