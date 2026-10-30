@@ -23,7 +23,7 @@ const toggle = (on: boolean) => cn('size-10 rounded-full', !on && 'bg-danger-sof
 
 /** The member's controls: microphone, camera and screen share on and off, the guests, and Leave, a link out of the call. */
 export const CallControls = ({ microphoneOn, cameraOn, sharing, onMicrophone, onCamera, onShare, guests, leave }: CallControlsProps) => (
-  <div role="toolbar" aria-label={text('joinCall')} className="flex shrink-0 items-center justify-center gap-2 py-2">
+  <div role="toolbar" aria-label={text('joinCall')} className="flex shrink-0 flex-wrap items-center justify-center gap-2 py-2">
     <Button size="icon" aria-label={text('microphone')} aria-pressed={microphoneOn} title={text('microphone')} className={toggle(microphoneOn)} onClick={onMicrophone}>
       {microphoneOn ? <Mic className="size-4" /> : <MicOff className="size-4" />}
     </Button>

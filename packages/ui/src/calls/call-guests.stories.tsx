@@ -40,7 +40,7 @@ const panelPlay = async ({ canvasElement }: { canvasElement: HTMLElement }) => {
   expect(page.getByText('In a call between browsers, a guest and the people in the call can see each other’s network addresses.')).toBeVisible()
   await userEvent.click(page.getByRole('button', { name: 'Let in' }))
   await waitFor(() => expect(panelActions.admit).toHaveBeenCalledWith('g1'))
-  await userEvent.click(page.getByRole('button', { name: 'Microphone only' }))
+  await userEvent.click(page.getByRole('button', { name: 'Mic only' }))
   await userEvent.click(page.getByRole('button', { name: 'Create guest link' }))
   await waitFor(() => expect(panelActions.link).toHaveBeenCalledWith({ publish: ['microphone'] }))
   expect(await page.findByRole('textbox', { name: 'Copy link' })).toHaveValue('https://chat.example.com/-/call-guest#pbgl_story')
