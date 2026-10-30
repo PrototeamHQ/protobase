@@ -310,7 +310,8 @@ export const createClient = (options: ClientOptions = {}) => {
 
   /**
    * Calls one of the app's API functions, `/api/functions/<name>`, with the user's token. Resolves to its answer: parsed
-   * JSON, text, or `undefined` for a 204. A problem rejects as from any other call.
+   * JSON, text for `text/*` or no content type, a `Blob` of any other type (a PDF, an image), or `undefined` for a 204.
+   * A problem rejects as from any other call.
    */
   const invoke = async <T = unknown>(name: string, { method, body, path = '', query, headers }: InvokeOptions = {}): Promise<T> => {
     const response = await send({
@@ -322,7 +323,10 @@ export const createClient = (options: ClientOptions = {}) => {
       system: true,
     })
     if (response.status === 204) return undefined as T
-    return (response.headers.get('content-type')?.includes('json') ? response.json() : response.text()) as Promise<T>
+    const type = response.headers.get('content-type')
+    if (type?.includes('json')) return response.json() as Promise<T>
+    if (!type || type.startsWith('text/')) return response.text() as Promise<T>
+    return response.blob() as Promise<T>
   }
 
   /**

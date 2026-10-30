@@ -348,6 +348,15 @@ describe('invoke', () => {
     expect(await client.invoke('noop', { method: 'POST' })).toBeUndefined()
     await expect(client.invoke('report')).rejects.toBeInstanceOf(ApiError)
   })
+
+  it('resolves to a Blob of its type when the function answers something other than JSON or text', async () => {
+    const pdf = new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0xff]), { headers: { 'content-type': 'application/pdf', 'content-disposition': 'attachment; filename="invoice.pdf"' } })
+    const { fetch } = fakeFetch(() => pdf)
+    const blob = await createClient({ fetch }).invoke<Blob>('preview')
+    expect(blob).toBeInstanceOf(Blob)
+    expect(blob.type).toBe('application/pdf')
+    expect([...new Uint8Array(await blob.arrayBuffer())]).toEqual([0x25, 0x50, 0x44, 0x46, 0xff])
+  })
 })
 
 describe('public forms', () => {

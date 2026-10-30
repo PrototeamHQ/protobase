@@ -8,6 +8,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 * **config:** `protobase.config.ts` is one object of data from `defineConfig` in the new `@protobase/config` package, or the same object as `protobase.config.json`. The project's code is found by its path (`jobs/<name>.ts`, `hooks/<name>.ts`, `auth/hooks.ts`, `config/roles.ts`, ...) instead of being imported by the config, and `createAuth`, `betterAuthAuthenticator`, `appPool`, `localFiles`, `s3Files`, `defineConfig` and `mergeConfig` leave `@protobase/server`. The old shape is not read any more, and `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET` and `TRUSTED_ORIGINS` become `PROTOBASE_URL`, `PROTOBASE_SECRET` and `PROTOBASE_TRUSTED_ORIGINS`. See [protobase.config.ts](https://docs.protobase.net/reference/config/).
 
+* **client:** `invoke` resolves to a `Blob` when the function answers a type other than JSON or `text/*`, such as `application/pdf`, instead of reading it as text. A function sends a file as a plain `Response` with its content type, and the caller gets its bytes and `type`. See [Calling a function](https://docs.protobase.net/guides/api-functions/#calling-a-function).
+
 ### Features
 
 * **server:** mail carries attachments (`attachments` on a message, and a template's `send(to, data, mailer, { attachments })`), and people link their own Gmail on the account page (`auth.personalMail: ['gmail']`), so a function sends mail from the caller's mailbox with `context.personalMail`; a missing or expired link rejects with `PersonalMailError` (`not_linked`, `link_expired`), a 409 problem. A test's fake `FunctionContext` needs `personalMail`. See [From someone's own mailbox](https://docs.protobase.net/reference/email/#from-someones-own-mailbox).
