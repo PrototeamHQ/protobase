@@ -73,12 +73,12 @@ export type CallerMeta = {
   sources?: SourceRef[]
 }
 
-// What a visitor is told about a resource: what its view calls it, where it sits in the sidebar without its recent
+// What a visitor is told about a resource: what its view calls it, its icon, where it sits in the sidebar without its recent
 // records, and its prompt.
 const signInView = (view: ViewModel | undefined): SignInViewModel[] => {
   if (!view?.signIn) return []
   const { recent: _recent, ...nav } = view.nav ?? {}
-  return [{ resource: view.resource, ...(view.names && { names: view.names }), ...(view.nav && { nav }), signIn: view.signIn }]
+  return [{ resource: view.resource, ...(view.names && { names: view.names }), ...(view.icon && { icon: view.icon }), ...(view.nav && { nav }), signIn: view.signIn }]
 }
 
 const modelsHash = (deps: Deps) => sha256Hex(stableJson(deps.registry.entries.map((entry) => entry.model))).then((hash) => hash.slice(0, 32))

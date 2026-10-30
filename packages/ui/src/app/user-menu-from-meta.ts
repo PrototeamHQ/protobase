@@ -3,8 +3,7 @@ import { appPath } from '@protobase/schema'
 import type { ProfileMenuItem } from '../app-shell'
 import type { MetaData } from '../data/meta-data'
 import { humanize } from '../live/naming'
-import { iconFor } from './icons'
-import { menuIcon } from './menu-icons'
+import { menuIcon, resourceIcon } from './menu-icons'
 
 /** The resources and pages the user menu holds; the sidebar leaves them out. */
 export const userMenuResources = (meta: MetaData) =>
@@ -21,7 +20,7 @@ export const userMenuFromMeta = (meta: MetaData, basePath: string, activeResourc
     return {
       id: item.resource,
       label: item.label ?? meta.views[item.resource]?.names?.plural ?? humanize(item.resource),
-      icon: menuIcon(item.icon, iconFor(item.resource)),
+      icon: menuIcon(item.icon, resourceIcon(meta, item.resource)),
       href: appPath({ kind: 'list', resource: item.resource }, basePath),
       active: item.resource === activeResource,
     }

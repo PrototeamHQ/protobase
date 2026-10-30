@@ -1,9 +1,19 @@
 ---
 title: Sidebar
-description: How sidebar entries are grouped, how an entry lists recent records, with status dots or without, and how it links to its create form.
+description: How sidebar entries are grouped and which icon each shows, how an entry lists recent records, with status dots or without, and how it links to its create form.
 ---
 
 The admin's sidebar has one entry per resource view, grouped by `nav.group` (default: the database schema, with no group name for `public`) and sorted by `nav.order`, then by the order `config/index.ts` exports them, in `protobase dev` and in a built bundle alike. The app opens on the first entry. A view's [named lists](/reference/ui-config/#more-than-one-list) are entries of their own, placed by their own `nav`. `nav({ hidden: true })` leaves a resource out, for line and link tables; a resource in the [user menu](/reference/user-menu/) is left out too. [Composed pages](/reference/layouts/#setup) have entries of their own, and groups that hold pages come first. A [remote resource](/reference/remote-resources/) has its entry where its source's view places it; while its source cannot be reached, it sits under the source's label, marked "Cannot reach" with the source's name.
+
+## Sidebar icons
+
+Each resource shows the icon its view names, in the sidebar, the [bottom bar](/reference/bottom-bar/) and the [user menu](/reference/user-menu/), and its [named lists](/reference/ui-config/#more-than-one-list) show the same icon:
+
+```ts
+export const ordersView = view<typeof orders>('orders').names({ singular: 'Order', plural: 'Orders' }).icon('shopping-cart')
+```
+
+`icon` is one of `bell`, `book-open`, `bookmark`, `building`, `credit-card`, `external-link`, `file-text`, `globe`, `heart`, `key`, `layout-dashboard`, `life-buoy`, `mail`, `package`, `receipt`, `settings`, `shield`, `shopping-cart`, `tags`, `users` or `warehouse`. A view without one, or with a name not in this list, shows a table icon, whatever the resource is called. A bottom bar tab's or user menu item's own `icon` wins over the view's.
 
 ## The current organization
 

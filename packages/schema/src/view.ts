@@ -88,7 +88,7 @@ export class ViewBuilder<R extends {
     return this.next({ names })
   }
 
-  /** An icon name carried in `/meta`, for apps that draw their own shell; the admin picks sidebar icons by resource name. */
+  /** The resource's icon in the sidebar, bottom bar and user menu; a table without one. See [Sidebar icons](docs/website/src/content/docs/reference/sidebar.md#sidebar-icons). */
   icon(icon: string) {
     return this.next({ icon })
   }

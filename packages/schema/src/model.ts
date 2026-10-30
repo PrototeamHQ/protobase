@@ -605,8 +605,8 @@ export type SignInPromptModel = {
   }
 }
 
-/** A resource a visitor cannot open until they sign in, as `/meta` names it: what its view calls it and its prompt. */
-export type SignInViewModel = Pick<ViewModel, 'resource' | 'names' | 'nav'> & {
+/** A resource a visitor cannot open until they sign in, as `/meta` names it: what its view calls it, its icon and its prompt. */
+export type SignInViewModel = Pick<ViewModel, 'resource' | 'names' | 'icon' | 'nav'> & {
   /** What the visitor is told. */
   signIn: SignInPromptModel
 }
@@ -1416,7 +1416,7 @@ export type ViewModel = {
     /** The records' name, as in the sidebar. */
     plural: string
   }
-  /** An icon name, carried in `/meta` for apps that render their own shell. */
+  /** The resource's icon in the admin's sidebar, bottom bar and user menu, a table when it names none or one the admin does not know. */
   icon?: string
   /** A line under the list's title. */
   help?: string

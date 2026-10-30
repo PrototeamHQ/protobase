@@ -40,7 +40,7 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.fields((r) => ({ name: r.name.label(...) }))` | Hints per field, below. Calls add up. |
 | `.help(text)` | A line under the list's title. |
 | `.nav({ group, order, hidden, recent, tenant })` | Where the resource sits in the sidebar, its [recent-record group](/reference/sidebar/#recent-records), and with `tenant: 'current'` that it opens on [the current organization](/reference/sidebar/#the-current-organization). |
-| `.icon(name)` | Carried in `/meta` for apps that render their own shell; the admin picks sidebar icons by resource name. |
+| `.icon(name)` | The resource's icon in the sidebar, bottom bar and user menu; a table icon without one. See [Sidebar icons](/reference/sidebar/#sidebar-icons). |
 | `.listOf((r) => r.listing_id)` | The list page shows the records this relation points at instead of the resource's own rows, such as the listings among a member's favorites. See [Favorites](#favorites). |
 | `.signIn({ title, description, benefits?, icon?, signUp? })` | What a visitor who is not signed in is told about the resource, in place of its list and by a card's favorite button. See [Sign-in prompts](#sign-in-prompts). |
 | `.form((r) => ({ name, fields, thanks, title?, perMinute? }))` | A public form at `/-/forms/<name>` that creates a record for anyone, signed in or not, behind a rate limit and a bot check. See [Public forms](/reference/forms/). |

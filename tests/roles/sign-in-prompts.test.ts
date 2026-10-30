@@ -20,7 +20,7 @@ const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly
 const prompt = { title: 'Keep the homes you like', description: 'Sign in to save listings.', benefits: ['Find them again on any device'] }
 const views = [
   view<typeof listings>('listings').list((r, d) => ({ columns: [r.address], displays: [d.cards({ title: r.address }, { favorite: { resource: 'favorites', field: 'listing_id' } })] })),
-  view<typeof favorites>('favorites').names({ singular: 'Favorite', plural: 'Favorites' }).nav({ group: 'Yours', order: 1, recent: { status: 'listing_id', tones: {} } }).listOf((r) => r.listing_id).signIn(prompt),
+  view<typeof favorites>('favorites').names({ singular: 'Favorite', plural: 'Favorites' }).icon('heart').nav({ group: 'Yours', order: 1, recent: { status: 'listing_id', tones: {} } }).listOf((r) => r.listing_id).signIn(prompt),
   view<typeof notes>('notes'),
 ]
 const bottomBars = [
@@ -38,7 +38,7 @@ const cards = (body: Meta) => body.views.find((entry) => entry.resource === 'lis
 describe('sign-in prompts in /meta', () => {
   it('tells a visitor about the resources they could use once signed in, keeping them in the bottom bar', async () => {
     const body = await meta()
-    expect(body.signIn).toEqual([{ resource: 'favorites', names: { singular: 'Favorite', plural: 'Favorites' }, nav: { group: 'Yours', order: 1 }, signIn: prompt }])
+    expect(body.signIn).toEqual([{ resource: 'favorites', names: { singular: 'Favorite', plural: 'Favorites' }, icon: 'heart', nav: { group: 'Yours', order: 1 }, signIn: prompt }])
     expect(body.bottomBar?.items.map((item) => item.label)).toEqual(['Listings', 'Favorites'])
     expect(cards(body)).toMatchObject({ favorite: { resource: 'favorites', field: 'listing_id' } })
   })

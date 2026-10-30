@@ -4,9 +4,8 @@ import { allowEverything, type MetaData } from '../data/meta-data'
 import { createOffered } from './create/create-offered'
 import { text as createText } from './create/messages'
 import { humanize } from '../live/naming'
-import { LayoutDashboard } from 'lucide-react'
-import { iconFor } from './icons'
-import { menuIcon } from './menu-icons'
+import { LayoutDashboard, Table2 } from 'lucide-react'
+import { menuIcon, resourceIcon } from './menu-icons'
 import { userMenuResources } from './user-menu-from-meta'
 import { text as appText } from './messages'
 
@@ -64,7 +63,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
         {
           id: navItemId(model.name),
           label: view.names?.plural ?? humanize(model.name),
-          icon: iconFor(model.name),
+          icon: resourceIcon(meta, model.name),
           href: appPath({ kind: 'list', resource: model.name }, basePath),
           ...(recent[model.name] && { recent: recent[model.name] }),
           ...createLink(meta, view, view.nav, view.names?.singular ?? humanize(model.name), basePath),
@@ -79,7 +78,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
         {
           id: navItemId(model.name, named.name),
           label: named.names.plural,
-          icon: iconFor(model.name),
+          icon: resourceIcon(meta, model.name),
           href: appPath({ kind: 'list', resource: model.name, list: named.name }, basePath),
           ...createLink(meta, view, named.nav, named.names.singular, basePath),
         },
@@ -92,7 +91,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
     if (entry.nav?.hidden || inMenu.has(entry.resource)) continue
     const groupName = entry.nav?.group ?? appText('account')
     const group = groups.get(groupName) ?? { label: groupName, items: [] }
-    group.items.push({ id: entry.resource, label: entry.names?.plural ?? humanize(entry.resource), icon: iconFor(entry.resource), href: appPath({ kind: 'list', resource: entry.resource }, basePath) })
+    group.items.push({ id: entry.resource, label: entry.names?.plural ?? humanize(entry.resource), icon: resourceIcon(meta, entry.resource), href: appPath({ kind: 'list', resource: entry.resource }, basePath) })
     groups.set(groupName, group)
     orders.set(entry.resource, entry.nav?.order ?? Number.MAX_SAFE_INTEGER)
   }
@@ -102,7 +101,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
     if (status.state !== 'error') continue
     const group = groups.get(status.source.label) ?? { label: status.source.label, items: [] }
     for (const resource of status.source.resources) {
-      group.items.push({ id: resource, label: humanize(resource), icon: iconFor(resource), href: appPath({ kind: 'list', resource }, basePath), problem: appText('cannotReach', { label: status.source.label }) })
+      group.items.push({ id: resource, label: humanize(resource), icon: Table2, href: appPath({ kind: 'list', resource }, basePath), problem: appText('cannotReach', { label: status.source.label }) })
     }
     groups.set(status.source.label, group)
   }

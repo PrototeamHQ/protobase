@@ -1,4 +1,4 @@
-import { Building2, CreditCard, ExternalLink, LayoutDashboard, LifeBuoy, Users } from 'lucide-react'
+import { Building2, CreditCard, ExternalLink, LayoutDashboard, LifeBuoy, Table2, Users } from 'lucide-react'
 import { describe, expect, it } from 'vitest'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import type { MetaData } from '../data/meta-data'
@@ -9,7 +9,7 @@ const meta = {
   appName: 'Protobase',
   permissions: {},
   resources: { users: { name: 'users' } as ResourceModel, organizations: { name: 'organizations' } as ResourceModel },
-  views: { users: { resource: 'users', names: { singular: 'Member', plural: 'Team members' } } as ViewModel },
+  views: { users: { resource: 'users', names: { singular: 'Member', plural: 'Team members' }, icon: 'users' } as ViewModel },
   pages: {},
   userMenu: {
     items: [
@@ -29,6 +29,11 @@ describe('userMenuFromMeta', () => {
       { id: 'link-2', label: 'Support', icon: LifeBuoy, href: 'mailto:help@example.test', external: true },
       { id: 'link-3', label: 'Status', icon: ExternalLink, href: 'https://status.example.test', external: true },
     ])
+  })
+
+  it("gives a resource without an icon of its own or on its view the table icon, whatever it is called", () => {
+    const plain = { ...meta, views: {}, userMenu: { items: [{ kind: 'resource' as const, resource: 'users' }] } }
+    expect(userMenuFromMeta(plain, '', undefined).map((item) => item.icon)).toEqual([Table2])
   })
 
   it('is empty without a user menu', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
+import { ShoppingCart, Table2, Tags } from 'lucide-react'
 import { navFromMeta } from './nav-from-meta'
 
 const model = (name: string, schema: string) => ({ name, table: { schema, name }, fields: {}, primaryKey: ['id'] }) as ResourceModel
@@ -87,6 +88,38 @@ describe('navFromMeta', () => {
     const groups = navFromMeta(meta)
     expect(groups.map((group) => group.label)).toEqual(['Revenue'])
     expect(groups[0]!.items.map((item) => item.id)).toEqual(['invoices', 'orders'])
+  })
+
+  it("takes an entry's icon from its view, and its named lists' too, and the table icon whatever the resource is called without one", () => {
+    const view = (resource: string, extra = {}) => ({ resource, fields: {}, filters: [], layout: [], actions: [], ...extra }) as unknown as ViewModel
+    const updates = { name: 'open', names: { singular: 'Open order', plural: 'Open orders' }, filters: [] }
+    const meta = {
+      etag: '"x"',
+      appName: 'Protobase',
+      permissions: {},
+      pages: {},
+      resources: { orders: model('orders', 'public'), tags: model('tags', 'public'), notes: model('notes', 'public') },
+      views: { orders: view('orders'), tags: view('tags', { icon: 'tags', lists: [updates] }), notes: view('notes', { icon: 'no-such-icon' }) },
+    }
+    expect(navFromMeta(meta).flatMap((group) => group.items.map((item) => [item.id, item.icon]))).toEqual([
+      ['orders', Table2],
+      ['tags', Tags],
+      ['tags/open', Tags],
+      ['notes', Table2],
+    ])
+  })
+
+  it("gives a visitor's sign-in entry its view's icon", () => {
+    const meta = {
+      etag: '"x"',
+      appName: 'Protobase',
+      permissions: {},
+      pages: {},
+      resources: {},
+      views: {},
+      signIn: { orders: { resource: 'orders', icon: 'shopping-cart', signIn: { title: 'Sign in', description: 'To order.' } } },
+    }
+    expect(navFromMeta(meta).flatMap((group) => group.items.map((item) => item.icon))).toEqual([ShoppingCart])
   })
 
   it('groups resources by schema and prefers view names', () => {
