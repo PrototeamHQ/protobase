@@ -1,6 +1,7 @@
 import type { CallConnection, CallRosterMember, CallTrack } from '@protobase/client/calls'
 import { cannotConnect, connectionQuality } from './call-layout'
 import type { CallPerson } from './call-person'
+import { text } from './messages'
 
 /** What the member sends themselves: their own tracks, and which of them are on. */
 export type OwnMedia = { microphone?: MediaStreamTrack; camera?: MediaStreamTrack; screen?: MediaStreamTrack; microphoneOn: boolean; cameraOn: boolean }
@@ -10,6 +11,7 @@ export type PeopleInput = {
   self: string
   tracks: readonly CallTrack[]
   own: OwnMedia
+  /** A member's name, by the member, when the call names them not itself; a guest is always named by the name they gave. */
   nameOf: (member: string) => string
   speaker?: string
   connections: readonly CallConnection[]
@@ -23,8 +25,8 @@ const received = (tracks: readonly CallTrack[], source: CallTrack['source']) => 
 /** Everyone in the call as the view draws them, in the order they came, the member among them as `self`. */
 export const callPeople = ({ members, self, tracks, own, nameOf, speaker, connections, seen, now }: PeopleInput): CallPerson[] => {
   const roster = members.some((member) => member.member === self) ? members : [{ member: self, joined_at: '' }, ...members]
-  return roster.map(({ member }): CallPerson => {
-    const shared = { member, name: nameOf(member), ...(speaker === member && { speaking: true }) }
+  return roster.map(({ member, name }): CallPerson => {
+    const shared = { member, name: member.startsWith('guest:') ? text('guestName', name ?? '') : (name ?? nameOf(member)), ...(speaker === member && { speaking: true }) }
     if (member === self) {
       return { ...shared, self: true, ...(own.camera && { camera: own.camera }), ...(own.microphone && { microphone: own.microphone }), ...(own.screen && { screen: own.screen }), microphoneOff: !own.microphone || !own.microphoneOn, cameraOff: !own.camera || !own.cameraOn }
     }

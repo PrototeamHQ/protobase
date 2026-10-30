@@ -39,4 +39,9 @@ describe('callPeople', () => {
     expect(callPeople(input({ connections: [{ member: 'bob', state: 'connecting' }], seen: new Map([['bob', 0]]), now: 20_000 }))[1]!.connection).toBe('failed')
     expect(callPeople(input({ connections: [{ member: 'bob', state: 'connecting' }], seen: new Map([['bob', 0]]), now: 1000 }))[1]!.connection).toBeUndefined()
   })
+
+  it('names a member by the name the call gives, a guest by theirs, marked a guest, and the rest by nameOf', () => {
+    const members = [{ member: 'ann', joined_at: '1', name: 'Ann Lee' }, { member: 'guest:g1', joined_at: '2', name: '<b>Eve</b>' }, { member: 'bob', joined_at: '3' }]
+    expect(callPeople(input({ members })).map((person) => person.name)).toEqual(['Ann Lee', '<b>Eve</b> (guest)', 'BOB'])
+  })
 })

@@ -23,6 +23,8 @@ export type CallCheckProps = {
   onJoin: () => void
   /** Where the member goes without joining. */
   cancel: RouteTarget
+  /** What Join says, such as Ask to join for a guest. */
+  joinLabel?: string
 }
 
 const toggle = (on: boolean) => cn('size-10 rounded-full', !on && 'bg-danger-soft text-danger-text')
@@ -31,7 +33,7 @@ const toggle = (on: boolean) => cn('size-10 rounded-full', !on && 'bg-danger-sof
  * The check of the microphone and camera before joining: the member's own camera as the others will see it, or their
  * initials, microphone and camera on and off, plain messages for a blocked or missing device, and Join.
  */
-export const CallCheck = ({ name, member, camera, microphoneOn, cameraOn, microphone, cameraAvailable, notices, onMicrophone, onCamera, onJoin, cancel }: CallCheckProps) => (
+export const CallCheck = ({ name, member, camera, microphoneOn, cameraOn, microphone, cameraAvailable, notices, onMicrophone, onCamera, onJoin, cancel, joinLabel = text('joinCall') }: CallCheckProps) => (
   <section aria-label={text('preview')} className="flex size-full min-h-0 flex-col items-center justify-center gap-3 bg-background p-4">
     <figure className="relative flex aspect-video w-full max-w-md items-center justify-center overflow-hidden rounded-lg bg-neutral-900">
       {camera && cameraOn ? <TrackVideo track={camera} aria-label={text('preview')} className="size-full -scale-x-100 object-cover" /> : <Avatar initials={initialsOf(name)} hue={hueOf(member)} size="md" className="size-16 text-xl ring-0" />}
@@ -53,7 +55,7 @@ export const CallCheck = ({ name, member, camera, microphoneOn, cameraOn, microp
         {cameraOn ? <Video className="size-4" /> : <VideoOff className="size-4" />}
       </Button>
       <Button variant="primary" className="h-10 rounded-full px-5" onClick={onJoin}>
-        {text('joinCall')}
+        {joinLabel}
       </Button>
       <RouteLink to={cancel} className="px-2 text-sm text-muted-foreground hover:text-foreground">
         {text('leave')}
