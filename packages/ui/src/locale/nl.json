@@ -69,6 +69,7 @@
     "connectedAccountsDescription": "Log hiermee in in plaats van met je wachtwoord. Koppelen vraagt je daar in te loggen; het adres daar kan anders zijn dan hier.",
     "connected": "Gekoppeld",
     "connect": "{name} koppelen",
+    "connectAgain": "{name} opnieuw koppelen",
     "mailbox": "Mailbox",
     "mailboxDescription": "Mail die deze app voor je verstuurt, gaat uit vanuit je eigen mailbox. Koppelen vraagt je daar in te loggen en het versturen van mail toe te staan; je mail lezen kan de app niet.",
     "stopped": "Gestopt {time}",

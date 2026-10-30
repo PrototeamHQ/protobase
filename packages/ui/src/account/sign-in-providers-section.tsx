@@ -17,13 +17,15 @@ export type SignInProvidersSectionProps = {
   onConnect: (provider: string) => Promise<void>
   /** Why the last link did not go through, as the provider came back with it. */
   error?: string
+  /** Whether a linked provider also offers to connect it again, as a mailbox whose link stopped working needs. */
+  reconnect?: boolean
   /** The section's title and description; default those of connected sign-in accounts. */
   title?: string
   description?: string
 }
 
 /** The providers someone can sign in with besides a password, and a way to connect one whatever address it has. */
-export const SignInProvidersSection = ({ providers, linked, onConnect, error: returned, title = text('connectedAccounts'), description = text('connectedAccountsDescription') }: SignInProvidersSectionProps) => {
+export const SignInProvidersSection = ({ providers, linked, onConnect, error: returned, reconnect = false, title = text('connectedAccounts'), description = text('connectedAccountsDescription') }: SignInProvidersSectionProps) => {
   const [busy, setBusy] = useState<string>()
   const [error, setError] = useState(returned)
 
@@ -47,11 +49,10 @@ export const SignInProvidersSection = ({ providers, linked, onConnect, error: re
           <li key={provider.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
             <Link2 className="size-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate font-medium">{provider.name}</span>
-            {linked.includes(provider.id) ? (
-              <Badge tone="green">{text('connected')}</Badge>
-            ) : (
+            {linked.includes(provider.id) && <Badge tone="green">{text('connected')}</Badge>}
+            {(!linked.includes(provider.id) || reconnect) && (
               <Button size="sm" loading={busy === provider.id} disabled={busy !== undefined} onClick={() => void connect(provider.id)}>
-                {text('connect', { name: provider.name })}
+                {text(linked.includes(provider.id) ? 'connectAgain' : 'connect', { name: provider.name })}
               </Button>
             )}
           </li>

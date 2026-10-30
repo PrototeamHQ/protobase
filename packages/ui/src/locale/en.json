@@ -69,6 +69,7 @@
     "connectedAccountsDescription": "Sign in with these instead of your password. Connecting one asks you to sign in there; its address may differ from yours here.",
     "connected": "Connected",
     "connect": "Connect {name}",
+    "connectAgain": "Connect {name} again",
     "mailbox": "Mailbox",
     "mailboxDescription": "Mail this app sends for you goes out from your own mailbox. Connecting one asks you to sign in there and allow sending mail; it cannot read your mail.",
     "stopped": "Stopped {time}",

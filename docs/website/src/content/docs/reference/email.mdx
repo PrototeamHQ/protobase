@@ -165,7 +165,7 @@ export default defineFunction(async (request, { personalMail }) => {
 ```
 
 - **Tokens:** the link is the sign-in provider's account Better Auth keeps for the person, with its access and refresh tokens, encrypted: `auth.personalMail` needs `encryptOAuthTokens: true`, and startup stops without it. The tokens never leave the server. An access token that has expired is refreshed before the message goes out, and the new one is stored.
-- **When it cannot send:** `send` rejects with a `PersonalMailError` and sends nothing. Its `code` is `not_linked` when the person linked no mailbox, or signed in with Google without allowing it to send mail, and `link_expired` when the provider no longer honours the link, as when they revoked it or its refresh token expired: they connect it again. Thrown on, it answers the function's caller as a `409` problem with that `code` (`urn:protobase:problem:personal-mail-not-linked` or `-link-expired`), so the page can offer to link the mailbox:
+- **When it cannot send:** `send` rejects with a `PersonalMailError` and sends nothing. Its `code` is `not_linked` when the person linked no mailbox, or signed in with Google without allowing it to send mail, and `link_expired` when the provider no longer honours the link, as when they revoked it or its refresh token expired: they connect it again under Account → Mailbox. Thrown on, it answers the function's caller as a `409` problem with that `code` (`urn:protobase:problem:personal-mail-not-linked` or `-link-expired`), so the page can offer to link the mailbox:
 
   ```json
   { "type": "urn:protobase:problem:personal-mail-link-expired", "status": 409, "code": "link_expired", "provider": "gmail" }

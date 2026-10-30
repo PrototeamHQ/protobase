@@ -21,6 +21,7 @@ const Mailboxes = ({ links }: { links: PersonalMailLink[] }) => {
       description={text('mailboxDescription')}
       providers={links.map(({ id, name }) => ({ id, name }))}
       linked={linked}
+      reconnect
       onConnect={connect}
       error={linkError && providerMessage(linkError, links.length === 1 ? links[0]!.name : text('theProvider'))}
     />
