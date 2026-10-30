@@ -21,6 +21,8 @@ export type CallGuestsPanelProps = {
 }
 
 const sends: Record<'all' | 'camera' | 'microphone', CallTrackSource[]> = { all: ['camera', 'microphone', 'screen', 'screen-audio'], camera: ['camera', 'microphone'], microphone: ['microphone'] }
+// How long a new link lets guests in: until the call ends, or for an hour from now.
+const lasting = { call: undefined, hour: 60 * 60 * 1000 } as const
 
 const Row = ({ name, children }: { name: string; children: ReactNode }) => (
   <li className="flex items-center justify-between gap-2 py-1.5">
@@ -35,12 +37,14 @@ const Row = ({ name, children }: { name: string; children: ReactNode }) => (
  */
 export const CallGuestsPanel = ({ lobby, inCall, guests, linkOf, open, onClose }: CallGuestsPanelProps) => {
   const [send, setSend] = useState<keyof typeof sends>('camera')
+  const [lasts, setLasts] = useState<keyof typeof lasting>('call')
   const [made, setMade] = useState<{ id: string; url: string }>()
   const [copied, setCopied] = useState(false)
   const { run, refused } = useGuestRequest()
   const create = () =>
     run(async () => {
-      const { link, token } = await guests.link({ publish: sends[send] })
+      const ms = lasting[lasts]
+      const { link, token } = await guests.link({ publish: sends[send], ...(ms !== undefined && { expiresAt: new Date(Date.now() + ms) }) })
       setMade({ id: link.id, url: linkOf(token) })
     })
   const copy = (url: string) =>
@@ -126,6 +130,18 @@ export const CallGuestsPanel = ({ lobby, inCall, guests, linkOf, open, onClose }
                   { value: 'all', label: text('sendAll') },
                   { value: 'camera', label: text('sendCamera') },
                   { value: 'microphone', label: text('sendMicrophone') },
+                ]}
+              />
+            </span>
+            <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {text('linkLasts')}
+              <Segmented
+                label={text('linkLasts')}
+                value={lasts}
+                onChange={setLasts}
+                options={[
+                  { value: 'call', label: text('linkUntilEnd') },
+                  { value: 'hour', label: text('forAnHour') },
                 ]}
               />
             </span>
