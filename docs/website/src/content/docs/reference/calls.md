@@ -4,7 +4,7 @@ description: Audio and video calls on any record of an app, through a LiveKit se
 ---
 
 :::caution[Beta]
-Calls live on records, with who is in them, removal and their end, a ready-made call view and ringing. The view is made for small peer-to-peer calls, and there are no host controls yet. A lobby, stage mode, recording and guests are not built yet, and calls have been tested in Chromium and Firefox only.
+Calls live on records, with who is in them, removal and their end, a ready-made call view, ringing and guest links. The view is made for small peer-to-peer calls, and there are no host controls yet. Stage mode and recording are not built yet, and calls have been tested in Chromium and Firefox only.
 :::
 
 ## Turning them on
@@ -68,12 +68,14 @@ export default defineFunction(async (request, { session, records, acceptWebSocke
 | `publish` | `true` to send any source, a list of `'camera'`, `'microphone'`, `'screen'` and `'screen-audio'`, or `false` to only listen. |
 | `hears` | Optional: which of the others' tracks the member hears, as `(track) => boolean` of `{ member, kind, source }`; every track by default. |
 | `recheck` | Optional: the function's own checks, such as whether the caller is still invited, repeated every minute. Throw a 401, 403 or 404 problem to take the member out. |
+| `name` | Optional: the name the others in the call see, such as the user's name. [Guests](#guests) see members by it alone. |
+| `invites` | Optional: `true` lets the member share [guest links](#guests) to the call and let its guests in; `false` by default. |
 
 The socket is checked again every minute, like any function's, and so is the caller's read of the record, then `recheck`: a member who can no longer read the record, or whom `recheck` refuses, is out of the call within the minute, and so is one whose check fails or takes longer than a minute. Pass your own check as `recheck` to `calls.join`, not on the events it returns, which would replace the record's check. A member who joins the same call again, from another tab, takes the place of their first socket.
 
 ### Who is in it
 
-Each member's browser gets everyone in the call, themselves too, members who send nothing included, whenever that changes: `onMembers` of `joinCall`, and `call.members()`, as `[{ member, joined_at }]`. A change made on the process that serves a member reaches them at once; one made on another process, within a second.
+Each member's browser gets everyone in the call, themselves too, members who send nothing included, whenever that changes: `onMembers` of `joinCall`, and `call.members()`, as `[{ member, joined_at, name? }]`, with `name` for a member your function named and for every guest. A change made on the process that serves a member reaches them at once; one made on another process, within a second.
 
 The record's readers get its calls, each with who is in it now, at `GET /api/{resource}/{key}:calls`, the one going on first, then the newest, 20 at most:
 
@@ -194,6 +196,56 @@ With [notifications](/reference/notifications/), each person rung also gets the 
 
 `client.rings.list()` and `client.rings.decline(call)` of `@protobase/client` read and decline the calls ringing the signed-in user, for a ring of your own.
 
+## Guests
+
+Share a link to one call with someone from outside, such as a candidate for a job interview: the guest gives a name, checks their microphone and camera, and waits in a lobby until someone in the call admits them. A guest has no account and reaches nothing but that call: not the record, its chat, its readers' list of calls, or anything else in the app.
+
+### Sharing a link
+
+A member your function joins with `invites: true` gets Guests in the call view: a link to share, with what its guests may send (camera, microphone and screen; camera and microphone; or microphone only, never more than the member may send themselves), the links that are live, with Revoke, and who waits in the lobby, with Let in and Turn away. Someone who waits also shows above the call, to let in without opening Guests.
+
+```ts
+return acceptWebSocket(
+  await calls.join({
+    record: { resource: 'interviews', key: id },
+    member: String(session.user.id),
+    name: session.user.name,
+    publish: true,
+    invites: true,
+  }),
+)
+```
+
+A link opens `/-/call-guest` with its token after `#`, which the browser sends to no server. It lets guests in until the call ends, or until the time `call.guests.link({ publish, expiresAt })` gave it, unless a member revokes it first. At most 10 wait on a link at once, and once its members turned away 3 guests, it lets nobody else wait: make a new link.
+
+### What a guest gets
+
+The page a link opens asks the guest's name, then shows the call view's check of their microphone and camera, with Ask to join, then "Waiting for someone in the call to let you in" until a member lets them in or turns them away. Once in, the guest is `guest:<id>` in the call, shown by the name they gave with "(guest)", and sends only what their link allows. They see the members by the `name` your function gave, or as "Someone in the call".
+
+The guest's token opens their lobby wait and the guest call socket, and nothing else: no other route takes it, it is no session, and no cookie is set. Members' functions never take a member of the form `guest:…`.
+
+### Taking a guest out
+
+Revoking a link takes its guests out of the call, and Remove in Guests, or `calls.remove(call, 'guest:<id>')` in a function, takes out one. Their sockets close, and their joins and resumes are refused. Every guest's socket is checked again every minute too, and is closed once their link is revoked or past its time, they were removed, or guest links were turned off.
+
+A call left with only guests in it ends 2 minutes after the last member left, and the guests see "The call has ended". A member who comes back before then keeps it going.
+
+### Organizations
+
+In an app with [organizations](/reference/auth/#organizations), a link is for the organization of the call's record, and the organization's owner or an admin can turn guest links off on the organization's page, or with `PUT /api/calls/guests/organization` and `{ "allowed": false }`. That revokes every live link of its calls and takes their guests out at once, and no member can make a new link until it is on again. A call on a record of a resource without a tenant gets no guest links in an app with organizations, since no organization's switch could stop them.
+
+### Safety
+
+The lobby is rate limited like the sign-in routes, by the address the sign-in routes use: 5 lobby entries a minute per address, and an address that sends 10 unknown or refused tokens in a minute is refused for the rest of that minute. <gap>The lobby's limits cannot hold across several processes because they are counted in each process's memory, as the sign-in routes' are.</gap>
+
+In a peer-to-peer call, a guest and the members can see each other's network addresses, as their browsers connect to each other. A guest who waits, or was turned away, gets nothing of the call: no members, no tracks and no addresses. Protobase refuses what a guest may not send, but in a peer-to-peer call the media goes between the browsers, so a guest's browser that was changed to send more is only held back by the members' own browsers.
+
+With `calls`, [`protobase migration`](/reference/cli/#migration) adds the guests' tables to the `calls` schema, a calls schema made before them too.
+
+### From your own page
+
+`guestLobby` from `@protobase/client/calls` is the guest's side, for a page of your own: `enter(link, name)` gives the guest's token, `wait(token)` says `waiting`, `admitted`, `denied` or `ended`, asked about once a second, and `leave(token)` leaves the lobby. Once admitted, `joinCall({ url: lobby.socketUrl, guest: token })` joins the call. A member's `call.guests` has `link({ publish, expiresAt })`, which resolves with the link and its token once, `revoke(link)`, `admit(guest)`, `deny(guest)` and `remove(guest)`, each rejecting with `GuestRefused` and its reason when the server did not; `onLobby` of `joinCall` gets who waits and the live links.
+
 ## Reconnecting
 
 When the socket to Protobase closes, such as during a deploy, media keeps flowing and the browser opens a new socket that resumes the member from its own state, through the function again, so a member who can no longer read the record, or was removed, is refused. Any process serving the app can take it; when LiveKit no longer knows the member, the browser joins again and sends the same tracks. After `maxRetries` tries in a row, 8 by default, the call is left.
@@ -206,7 +258,7 @@ When the socket to Protobase closes, such as during a deploy, media keeps flowin
 
 `kind: 'peer'`. Each member's browser keeps a peer connection to every other member's and sends them its media directly; Protobase passes their descriptions and candidates between the members of the same call only, and tells each member who else is in the call and which tracks they hear. `hears` decides which tracks a member is told of; the media itself goes between the browsers, which Protobase cannot stop.
 
-A peer-to-peer call holds a small group only: a browser uploads its media once per other member, so `maxMembers`, 8 by default, bounds it. Members of a peer-to-peer call can see each other's network addresses, as their browsers connect to each other; readers of the record who are not in the call cannot.
+A peer-to-peer call holds a small group only: a browser uploads its media once per other member, so `maxMembers`, 8 by default, bounds it. Members of a peer-to-peer call, and its [guests](#guests), can see each other's network addresses, as their browsers connect to each other; readers of the record who are not in the call cannot.
 
 With `calls: { processes: 'many' }`, members that different processes serve meet in one call: a description or candidate for a member another process serves goes through the `calls` schema, which each process with a member in a call reads ten times a second.
 
