@@ -17,6 +17,7 @@ export const orders = resource('orders')
 
 export const ordersView = view<typeof orders>('orders')
   .title((r) => r.number)
+  .fields((r) => ({ number: r.number.format('code'), status: r.status.valueColors({ paid: 'green', shipped: 'violet', cancelled: 'red' }) }))
   .layout((r) => [
     l.section('Order', [r.number, r.status, r.total, r.iban]),
     // the last 10 changes, newest first, with Show more for the rest

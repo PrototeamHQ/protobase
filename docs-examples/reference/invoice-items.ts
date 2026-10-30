@@ -40,6 +40,7 @@ export const productsView = view<typeof products>('products')
 
 export const invoicesView = view<typeof invoices>('invoices')
   .title((r) => r.number)
+  .fields((r) => ({ number: r.number.format('code') }))
   .layout((r) => [
     l.section('Invoice', [r.number, r.customer]),
     l.related('Items', { resource: 'invoice_items', field: 'invoice_id', sort: 'position' }),
