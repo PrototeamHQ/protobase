@@ -30,8 +30,11 @@ const lines = ['Line A', 'Line B', 'Line C'].map((description, index) => ({ id: 
 
 export type FakeInvoiceClient = { client: Client; batches: BatchOp[][] }
 
-/** A server with one invoice and three lines; `batchWrite` records what Save sends, or fails the way you say. */
-export const fakeInvoiceClient = ({ failBatch }: { failBatch?: () => Error } = {}): FakeInvoiceClient => {
+/**
+ * A server with one invoice and three lines; `batchWrite` records what Save sends, or fails the way you say. With
+ * `locked` the invoice cannot be changed, as an issued one.
+ */
+export const fakeInvoiceClient = ({ failBatch, locked = false }: { failBatch?: () => Error; locked?: boolean } = {}): FakeInvoiceClient => {
   const batches: BatchOp[][] = []
   const client = {
     meta: async () => ({
@@ -47,7 +50,7 @@ export const fakeInvoiceClient = ({ failBatch }: { failBatch?: () => Error } = {
         permissions: {},
       },
     }),
-    get: async () => ({ record: { id: 'i1', number: 'INV-1', status: 'draft' }, etag: '"v1"' }),
+    get: async () => ({ record: { id: 'i1', number: 'INV-1', status: locked ? 'sent' : 'draft' }, etag: '"v1"', ...(locked && { permissions: { update: false, delete: false } }) }),
     list: async (resource: string) => ({ items: resource === 'invoice_lines' ? lines : [{ id: 'i1', number: 'INV-1', status: 'draft', etag: '"v1"' }], nextPageToken: '', totalSizeEstimate: 3 }),
     batchWrite: async (ops: BatchOp[]) => {
       batches.push(ops)

@@ -1,42 +1,65 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
-import { invoiceAt } from '../mocks'
-import { InlineChildTable } from './index'
+import { invoiceAt, type InvoiceLine } from '../mocks'
+import { invoiceLineColumns } from '../record-view/invoice-line-columns'
+import { InlineChildTable, TotalsFooter } from './index'
+
+type Args = { lines: InvoiceLine[]; editable: boolean; reorderable: boolean; failing?: string; onReorder: (lines: InvoiceLine[], move: { id: string; from: number; to: number }) => void }
+
+const Table = ({ lines: initial, editable, reorderable, failing, onReorder }: Args) => {
+  const [lines, setLines] = useState(initial)
+  return (
+    <div className="w-[760px]">
+      <InlineChildTable
+        lines={lines}
+        columns={invoiceLineColumns(editable ? (id, patch) => setLines(lines.map((line) => (line.id === id ? { ...line, ...patch } : line))) : undefined)}
+        lineName={(line) => line.description}
+        reorderable={reorderable}
+        onReorder={(next, move) => {
+          onReorder(next, move)
+          setLines(next)
+        }}
+        onAdd={editable ? () => setLines([...lines, { id: `new-${lines.length}`, productId: '', description: 'New line', quantity: 1, unitPriceCents: 0 }]) : undefined}
+        onRemove={editable ? (removed) => setLines(lines.filter((line) => line.id !== removed.id)) : undefined}
+        lineError={(line) => (line.id === failing ? 'Unit price must be at least 1.' : undefined)}
+        footer={<TotalsFooter lines={lines} vatRate={0.21} />}
+      />
+    </div>
+  )
+}
 
 const meta = {
   title: 'Components/InlineChildTable',
-  component: InlineChildTable,
+  component: Table,
   parameters: { layout: 'padded' },
-  args: { lines: invoiceAt(0).lines, onChange: () => {}, onReorder: fn() },
-  render: (args) => {
-    const [lines, setLines] = useState(args.lines)
-    return (
-      <div className="w-[760px]">
-        <InlineChildTable
-          {...args}
-          lines={lines}
-          onChange={setLines}
-          onReorder={(next, move) => {
-            args.onReorder?.(next, move)
-            setLines(next)
-          }}
-        />
-      </div>
-    )
-  },
-} satisfies Meta<typeof InlineChildTable>
+  args: { lines: invoiceAt(0).lines, editable: true, reorderable: true, onReorder: fn() },
+} satisfies Meta<typeof Table>
 export default meta
 type Story = StoryObj<typeof meta>
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export const Editable: Story = {}
-export const ReadOnly: Story = { args: { readOnly: true } }
-export const ReducedVat: Story = { args: { vatRate: 0.09 } }
+export const ReadOnly: Story = { args: { editable: false, reorderable: false } }
 
-/** Fields are fixed, but the lines can still be reordered, as on the live invoice. */
-export const ReorderOnly: Story = { args: { readOnly: true, reorderable: true } }
+/** Fields are fixed, but the lines can still be reordered. */
+export const ReorderOnly: Story = { args: { editable: false } }
+
+/** A line the server turned down says why under its cells. */
+export const LineError: Story = { args: { failing: invoiceAt(0).lines[1]!.id } }
+
+export const AddAndRemove: Story = {
+  tags: ['play'],
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Add line' }))
+    await waitFor(() => expect(canvasElement.querySelectorAll('[data-line-id]')).toHaveLength(args.lines.length + 1))
+    await userEvent.click(canvas.getByRole('button', { name: 'Actions for New line' }))
+    await userEvent.click(canvas.getByRole('menuitem', { name: 'Remove line' }))
+    await waitFor(() => expect(canvasElement.querySelectorAll('[data-line-id]')).toHaveLength(args.lines.length))
+  },
+}
 
 export const KeyboardReorder: Story = {
   tags: ['play'],

@@ -36,7 +36,10 @@ export const text = defineMessages({
     couldNotLoadRelated: 'Could not load',
     relatedRecords: 'Related records',
     lines: 'Lines',
-    linesHelp: 'What the document bills for. Drag the handle, or use the menu, to change the order; Save applies it.',
+    linesHelp: 'What the document bills for. Edit a line in place, add one, or drag the handle to change the order; Save applies it all.',
+    lineNumber: (place: number) => `Line ${place}`,
+    lineField: (label: string, place: number) => `${label}, line ${place}`,
+    tooManyLines: (limit: string) => `This record has more than ${limit} lines, so they show here read-only.`,
   },
   nl: {
     details: 'Details',
@@ -73,6 +76,9 @@ export const text = defineMessages({
     couldNotLoadRelated: 'Kon niet laden',
     relatedRecords: 'Gerelateerde records',
     lines: 'Regels',
-    linesHelp: 'Waar het document voor factureert. Sleep de greep, of gebruik het menu, om de volgorde te wijzigen; Bewaren past hem toe.',
+    linesHelp: 'Waar het document voor factureert. Wijzig een regel ter plekke, voeg er een toe, of sleep de greep om de volgorde te wijzigen; Bewaren past alles toe.',
+    lineNumber: (place: number) => `Regel ${place}`,
+    lineField: (label: string, place: number) => `${label}, regel ${place}`,
+    tooManyLines: (limit: string) => `Dit record heeft meer dan ${limit} regels, dus ze staan hier alleen ter inzage.`,
   },
 })

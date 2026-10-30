@@ -11,6 +11,7 @@ import { differs, toDraft, toPatchValue } from '../live/field-values'
 import { nameFailingOperation } from './batch-failure'
 import { fieldErrors } from './field-errors'
 import { readDraft, writeDraft } from './draft-storage'
+import type { LinesPlan } from './lines-plan'
 import type { LinesDraft } from './use-lines-draft'
 import { useLiveSave, type SaveMode } from './use-live-save'
 
@@ -22,7 +23,7 @@ export type RecordEditorParams = {
   subject: string
   /** Where unsaved changes are kept in local storage, so a reload or a stray click does not lose them. */
   draftKey?: string
-  /** The order of the record's lines, written together with the record on Save. */
+  /** The changes to the record's lines, written together with the record on Save. */
   lines?: LinesDraft
 }
 
@@ -31,7 +32,7 @@ const without = <V>(source: Record<string, V>, name: string): Record<string, V> 
 /**
  * Draft state for one record. Saving sends only the changed fields with the ETag that was read;
  * a 412 refetches the record and marks the fields both sides changed so the user can pick a side.
- * When the lines were reordered too, Save sends the record and the new order as one batch: all or nothing.
+ * When the lines changed too, Save sends the record and the lines' writes as one batch: all or nothing.
  */
 export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draftKey, lines }: RecordEditorParams) => {
   const client = useClient()
@@ -62,9 +63,9 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
   useEffect(() => {
     if (!draftKey) return
     const kept = Object.fromEntries(Object.entries(draft).filter(([name]) => !model.fields[name]?.sensitive))
-    const keep = Object.keys(kept).length > 0 || Boolean(lines?.dirty)
+    const keep = Object.keys(kept).length > 0 || Boolean(lines?.order)
     writeDraft(localStorage, draftKey, keep ? { etag: stored.etag, fields: kept, ...(lines?.order && { order: lines.order }) } : undefined)
-  }, [draftKey, model, draft, lines?.dirty, lines?.order, stored.etag])
+  }, [draftKey, model, draft, lines?.order, stored.etag])
 
   // Booleans and files are edited as they are stored; everything else as text
   const value = (name: string) => (name in draft ? draft[name] : ['boolean', 'file'].includes(model.fields[name]!.type) ? stored.record[name] : toDraft(stored.record[name]))
@@ -108,8 +109,9 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
     }
   }
 
-  const saveBatch = async (linesOps: BatchOp[]) => {
-    const ops: BatchOp[] = [...(fieldsDirty ? [{ op: 'update' as const, resource: model.name, key: recordKey, data: patchOf(), etag: stored.etag }] : []), ...linesOps]
+  const saveBatch = async (linesPlan: LinesPlan) => {
+    const recordOps: BatchOp[] = fieldsDirty ? [{ op: 'update', resource: model.name, key: recordKey, data: patchOf(), etag: stored.etag }] : []
+    const ops = [...recordOps, ...linesPlan.ops]
     try {
       await client.batchWrite(ops)
     } catch (error) {
@@ -117,7 +119,13 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
         await adoptLatest()
         await queryClient.invalidateQueries({ queryKey: ['list'] })
         setLinesConflict(true)
-      } else if (isApiError(error)) reject(error)
+      } else if (isApiError(error)) {
+        // A refused operation on a line shows on that line, not on the record's fields
+        const lineOp = error.operation === undefined ? -1 : error.operation - recordOps.length
+        const row = linesPlan.rows[lineOp]
+        if (lineOp < 0) reject(error)
+        else if (row) lines?.reject(row, error)
+      }
       throw isApiError(error) ? nameFailingOperation(error, ops) : error
     }
     await Promise.all([queryClient.invalidateQueries({ queryKey: keys.record(model.name, recordKey) }), queryClient.invalidateQueries({ queryKey: ['list'] }), queryClient.invalidateQueries({ queryKey: ['page'] }), queryClient.invalidateQueries({ queryKey: ['map'] })])
@@ -126,8 +134,8 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
 
   const save = () =>
     feedback.run(async () => {
-      const linesOps = lines?.op() ?? []
-      if (linesOps.length > 0) await saveBatch(linesOps)
+      const linesPlan = lines?.plan()
+      if (linesPlan && linesPlan.ops.length > 0) await saveBatch(linesPlan)
       else await saveRecordOnly()
       setDraft({})
       setConflicts({})
@@ -154,7 +162,7 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
     /** The changes on screen were brought back from this browser. */
     restored: showRestored && dirty,
     dismissRestored: () => setShowRestored(false),
-    /** Someone changed the lines while the new order was being made. */
+    /** Someone changed the lines while they were being edited here. */
     linesConflict,
     saving: feedback.phase === 'saving',
     phase: feedback.phase,
