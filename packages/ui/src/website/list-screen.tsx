@@ -4,6 +4,7 @@ import { AppShell, PageHeader, type ShellUser, type SidebarMode } from '../app-s
 import { DataGrid, type ColumnSpec, type RowSource } from '../data-grid'
 import { FilterPanel, type FilterConfig, type FilterState } from '../filter-panel'
 import { Button } from '../primitives/button'
+import { sampleNavGroups } from '../app-shell/nav-fixtures'
 
 export type ListScreenProps = {
   sidebarMode: SidebarMode
@@ -26,6 +27,7 @@ export const ListScreen = (props: ListScreenProps) => {
   const grid = <DataGrid columns={columns} source={source} naturalSort={naturalSort} initialScrollIndex={initialScrollIndex} latencyMs={0} className="min-h-0 flex-1" />
   return (
     <AppShell
+      navGroups={sampleNavGroups}
       sidebarMode={props.sidebarMode}
       activeItem={props.activeItem}
       breadcrumb={props.breadcrumb}

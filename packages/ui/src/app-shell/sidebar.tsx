@@ -3,7 +3,7 @@ import { LogIn } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import { Logo, type ShellLogoProps } from './logo'
-import { navGroups as defaultGroups, type NavGroup } from './nav'
+import type { NavGroup } from './nav'
 import { ProfileMenu, type ProfileMenuItem, type ProfileOrganizations, type ProfileRoles, type ProfileStatus, type ShellUser } from './profile-menu'
 import { ThemeSwitch, type ProfileTheme } from './theme-switch'
 import { SidebarCreateLink } from './sidebar-create-link'
@@ -48,7 +48,7 @@ export type SidebarProps = {
   notice?: ReactNode
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, account, onNavigate, onSignOut, signIn, organizations, roles, theme, status, sticky, logo: SidebarLogo = Logo, notice }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = [], userMenu, account, onNavigate, onSignOut, signIn, organizations, roles, theme, status, sticky, logo: SidebarLogo = Logo, notice }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding

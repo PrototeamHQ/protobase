@@ -14,6 +14,7 @@ import { Router, useNavigationGuard, type GuardKind } from '../router'
 import { NewVersionBanner } from './new-version-banner'
 import { NewVersionButton } from './new-version-button'
 import { NewVersionToast } from './new-version-toast'
+import { sampleNavGroups } from '../../app-shell/nav-fixtures'
 
 const meta = { title: 'New version' } satisfies Meta
 export default meta
@@ -53,7 +54,7 @@ const Shell = ({ mode, children }: { mode: SidebarMode; children: ReactNode }) =
   return (
     <div className="h-screen">
       {!banner && <NewVersionToast />}
-      <AppShell sidebarMode={mode} activeItem="orders" breadcrumb={['Orders']} user={user} sidebarNotice={<NewVersionBanner />} actions={!banner && <NewVersionButton />}>
+      <AppShell navGroups={sampleNavGroups} sidebarMode={mode} activeItem="orders" breadcrumb={['Orders']} user={user} sidebarNotice={<NewVersionBanner />} actions={!banner && <NewVersionButton />}>
         {children}
       </AppShell>
     </div>
@@ -207,7 +208,7 @@ const Banner = () => (
   <Router initialUrl="/">
     <MetaContext.Provider value={updated}>
       <div className="h-screen">
-        <AppShell sidebarMode="text-small" activeItem="orders" breadcrumb={['Orders']} user={user} workspace="Veldhuis Supply" appName={updated.appName} sidebarNotice={<NewVersionBanner />}>
+        <AppShell navGroups={sampleNavGroups} sidebarMode="text-small" activeItem="orders" breadcrumb={['Orders']} user={user} workspace="Veldhuis Supply" appName={updated.appName} sidebarNotice={<NewVersionBanner />}>
           <div className="p-6 text-muted-foreground">Page content</div>
         </AppShell>
       </div>

@@ -1,4 +1,5 @@
-import { navGroups, type NavGroup, type NavRecord, type ShownMark } from './nav'
+import type { NavGroup, NavRecord, ShownMark } from './nav'
+import { sampleNavGroups } from './nav-fixtures'
 
 const directMessages: NavRecord[] = ['Ann', 'Bo', 'Cas', 'Design team'].map((name) => ({ id: name.toLowerCase(), label: name, href: `#conversations/${name.toLowerCase()}`, active: false }))
 
@@ -12,7 +13,7 @@ const peopleMarks = (): Record<string, ShownMark> => ({
 })
 
 /** The sidebar with direct messages under Customers, each row's mark naming the other person but the team's. */
-export const withDirectMessages: NavGroup[] = navGroups.map((group) => ({
+export const withDirectMessages: NavGroup[] = sampleNavGroups.map((group) => ({
   ...group,
   items: group.items.map((item) => (item.id === 'customers' ? { ...item, label: 'Direct messages', recent: { state: 'ready', records: directMessages, useMarks: peopleMarks } } : item)),
 }))

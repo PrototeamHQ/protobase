@@ -3,6 +3,7 @@ import { Sidebar, sidebarModes, type SidebarMode } from '../app-shell'
 import { adminUser } from './users'
 import { Skeleton } from '../primitives/skeleton'
 import { Screen } from './screen'
+import { sampleNavGroups } from '../app-shell/nav-fixtures'
 
 const meta = { title: 'Website/SidebarModes', tags: ['website'], parameters: { layout: 'fullscreen' } } satisfies Meta
 export default meta
@@ -36,7 +37,7 @@ export const SidebarModes: StoryObj = {
               <div className="text-xs text-muted-foreground">{columns[mode].note}</div>
             </div>
             <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border bg-background">
-              <Sidebar mode={mode} activeItem="orders" user={adminUser} workspace="Veldhuis Supply" forceExpanded />
+              <Sidebar mode={mode} groups={sampleNavGroups} activeItem="orders" user={adminUser} workspace="Veldhuis Supply" forceExpanded />
               <FakeContent />
             </div>
           </div>

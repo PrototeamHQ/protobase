@@ -4,6 +4,7 @@ import type { StatusInput } from '@protobase/schema/internal'
 import { AppShell } from '../app-shell/app-shell'
 import { StatusDialog } from './status-dialog'
 import { AvailabilityMark, StatusMark } from './status-mark'
+import { sampleNavGroups } from '../app-shell/nav-fixtures'
 
 const meta = { title: 'Components/Status', parameters: { layout: 'padded' } } satisfies Meta
 export default meta
@@ -97,6 +98,7 @@ export const InUserMenu: StoryObj<{ onOpen: () => void }> = {
   render: (args) => (
     <div className="h-screen">
       <AppShell
+        navGroups={sampleNavGroups}
         sidebarMode="text-small"
         activeItem=""
         breadcrumb={['Home']}

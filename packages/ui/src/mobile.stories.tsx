@@ -20,6 +20,7 @@ import { orderAt, orderCount } from './mocks'
 import { Button } from './primitives/button'
 import { Input } from './primitives/input'
 import { ListScreen } from './website/list-screen'
+import { sampleNavGroups } from './app-shell/nav-fixtures'
 
 const viewports = {
   phone360: { name: 'Phone 360', styles: { width: '360px', height: '740px' }, type: 'mobile' },
@@ -64,7 +65,7 @@ export const NavigationDrawer: Story = {
   tags: ['play', 'phone'],
   render: () => (
     <div className="h-screen">
-      <AppShell sidebarMode="icon" activeItem="orders" breadcrumb={['Sales', 'Orders']} user={adminUser}>
+      <AppShell navGroups={sampleNavGroups} sidebarMode="icon" activeItem="orders" breadcrumb={['Sales', 'Orders']} user={adminUser}>
         <div className="p-4 text-muted-foreground">The sidebar lives in a drawer on phones, whatever the sidebar mode.</div>
       </AppShell>
     </div>
@@ -124,6 +125,7 @@ const TabbedShell = () => {
   return (
     <div className="h-screen">
       <AppShell
+        navGroups={sampleNavGroups}
         sidebarMode="icon"
         activeItem={active}
         breadcrumb={[active]}
@@ -173,6 +175,7 @@ const SearchableShell = ({ actions }: { actions?: ReactNode }) => {
   return (
     <div className="h-screen">
       <AppShell
+        navGroups={sampleNavGroups}
         sidebarMode="icon"
         activeItem="orders"
         breadcrumb={['Sales', 'Orders']}
@@ -246,6 +249,7 @@ const AssistantShell = () => {
   return (
     <div className="h-screen">
       <AppShell
+        navGroups={sampleNavGroups}
         sidebarMode="icon"
         activeItem="orders"
         breadcrumb={['Sales', 'Orders']}

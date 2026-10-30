@@ -4,7 +4,8 @@ import { CreditCard, LifeBuoy, UserRound } from 'lucide-react'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { AppShell } from './app-shell'
 import { withDirectMessages } from './direct-messages-fixtures'
-import { navGroups, type NavGroup, type NavRecord } from './nav'
+import type { NavGroup, NavRecord } from './nav'
+import { sampleNavGroups } from './nav-fixtures'
 import { navOpenStorageKey } from './nav-open-storage'
 import { sidebarModes } from './sidebar-mode'
 import type { ProfileMenuItem, ShellUser } from './profile-menu'
@@ -16,7 +17,7 @@ const meta = {
   component: AppShell,
   parameters: { layout: 'fullscreen' },
   argTypes: { sidebarMode: { control: 'select', options: sidebarModes } },
-  args: { sidebarMode: 'text-small', activeItem: 'orders', breadcrumb: ['Sales', 'Orders'], user: sampleUser, workspace: 'Veldhuis Supply', children: null },
+  args: { sidebarMode: 'text-small', navGroups: sampleNavGroups, activeItem: 'orders', breadcrumb: ['Sales', 'Orders'], user: sampleUser, workspace: 'Veldhuis Supply', children: null },
   render: (args) => (
     <div className="h-screen">
       <AppShell {...args}>
@@ -41,7 +42,7 @@ const record = (id: string, label: string, status: string, tone: StatusTone, pul
 
 const recentOrders = [record('o1', 'SO-1042', 'picking', 'warning', true), record('o2', 'SO-1041', 'confirmed', 'info', false, true), record('o3', 'SO-1038', 'on hold', 'danger')]
 
-const withRecent: NavGroup[] = navGroups.map((group) => ({
+const withRecent: NavGroup[] = sampleNavGroups.map((group) => ({
   ...group,
   items: group.items.map((item) =>
     item.id === 'orders' ? { ...item, count: undefined, recent: { state: 'ready', records: recentOrders } } : item.id === 'invoices' ? { ...item, count: undefined, recent: { state: 'loading' } } : item.id === 'shipments' ? { ...item, recent: { state: 'error' } } : item,
@@ -87,7 +88,7 @@ export const RecentRecords: Story = {
 
 const channels: NavRecord[] = ['general', 'random', 'support'].map((name) => ({ id: name, label: name, href: `#channels/${name}`, active: name === 'random' }))
 
-const withChannels: NavGroup[] = navGroups.map((group) => ({
+const withChannels: NavGroup[] = sampleNavGroups.map((group) => ({
   ...group,
   items: group.items.map((item) => (item.id === 'customers' ? { ...item, label: 'Channels', recent: { state: 'ready', records: channels } } : item)),
 }))
@@ -109,7 +110,7 @@ export const RecentRecordsWithoutStatus: Story = {
 
 const unreadMarks = () => ({ general: { strong: true, count: 3, label: '3 mentions' }, support: { strong: true }, random: { count: 120 } })
 
-const withUnread: NavGroup[] = navGroups.map((group) => ({
+const withUnread: NavGroup[] = sampleNavGroups.map((group) => ({
   ...group,
   items: group.items.map((item) => (item.id === 'customers' ? { ...item, label: 'Channels', recent: { state: 'ready', records: channels, useMarks: unreadMarks } } : item)),
 }))
