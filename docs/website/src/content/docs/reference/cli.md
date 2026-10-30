@@ -118,6 +118,13 @@ Imports `config/index.ts` and the views of `config/*/ui.ts`, as the config modul
   ```
 
   Reads are judged as the scan guard's default `reject` mode judges them, for a role that reads every row, such as admin; other access rules are code doctor does not run. A resource on a plain view or a foreign table is not judged, as the scan guard does not judge it.
+- error: a read of those that sorts by a field that is not `.sortable()`, which the API refuses with a `400` whatever the indexes: a list's order, from its view's `sort` or the order the app picks itself, such as a calendar's or timeline's start, a recent-records `orderBy`, a related section's, gallery's or page block's `sort`. One error per field, with every request that sorts by it:
+
+  ```
+    error   seller: name: not sortable, so the API refuses:
+              GET /seller?order_by=name asc (the seller list's order)
+            fix: mark "name" .sortable() in data.ts, or sort the list by a sortable field
+  ```
 - warning: enum values differ
 
 Exit code is 1 when there are errors. Run it after the project's migrations and before a new version serves, as a platform's deploy does: a read it fails is one the API would refuse once the version runs. `protobase build` needs no database, so the indexes are doctor's to check.

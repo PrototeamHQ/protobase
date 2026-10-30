@@ -191,6 +191,12 @@ describe('readShapes', () => {
     expect(found).toMatchObject([{ resource: 'offices', request: 'GET /offices', from: 'its records keep to the "agency_id" parents the caller reads', query: {}, scope: { parents: [{ field: { name: 'agency_id' } }] } }])
   })
 
+  it('reads a list in no order of its own when it names none and its key is not sortable, as the app asks for it', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id)
+    const found = readShapes({ models: [notes.toModel()], views: [view<typeof notes>('notes').list((r) => ({ columns: [r.body] })).toModel()], pages: [] })
+    expect(found.find((shape) => shape.from === "the notes list's order")).toEqual({ resource: 'notes', request: 'GET /notes', from: "the notes list's order", query: {} })
+  })
+
   it('reads a list that opens on a filter with that filter', () => {
     const opening = view<typeof places>('places').list((r) => ({ columns: [r.name], filter: 'country = "NL"' }))
     const found = readShapes({ models: [places.toModel()], views: [opening.toModel()], pages: [] })
