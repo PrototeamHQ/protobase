@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { AppShell } from '../app-shell'
 import { adminUser } from './users'
-import { OrderRecordView } from '../record-view'
+import { OrderRecordView } from './order-record-view'
 import { Screen } from './screen'
 import { sampleNavGroups } from '../app-shell/nav-fixtures'
 
