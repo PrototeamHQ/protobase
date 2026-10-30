@@ -21,7 +21,7 @@ Keep the client ID and secret for the next step.
 
 ## 2. Turn it on
 
-Put the client's ID and secret in the app's environment, and name Gmail in `auth.personalMail`. Gmail links through Google sign-in, so `socialProviders` has `google`; it also offers "Continue with Google" on the sign-in page. `encryptOAuthTokens` stores the tokens encrypted with the app's secret:
+Put the client's ID and secret in the app's environment, and name Gmail in `auth.personalMail`. Gmail links through Google sign-in, so `socialProviders` has `google`; it also offers "Continue with Google" on the sign-in page. `encryptOAuthTokens` stores the tokens encrypted with the app's secret, and personal mail needs it:
 
 ```sh
 # .env

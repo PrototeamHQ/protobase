@@ -147,10 +147,10 @@ export type CreateAuthOptions = {
   /**
    * The mail providers people may link their own mailbox with, from the account page, for the app's functions to send
    * mail from it (`context.personalMail`), such as `['gmail']`. Each links through its sign-in provider, which
-   * `socialProviders` must have: Gmail through `google`. Default none.
+   * `socialProviders` must have: Gmail through `google`. Needs `encryptOAuthTokens`. Default none.
    */
   personalMail?: PersonalMailProviderId[]
-  /** Encrypt the OAuth access, refresh and ID tokens Better Auth stores for social sign-ins, with `secret`. Default off. */
+  /** Encrypt the OAuth access and refresh tokens Better Auth stores for social sign-ins, with `secret`; `personalMail` needs it. Default off. */
   encryptOAuthTokens?: boolean
   /** Runs after a user is created, by any route: `createUser`, an admin, or a social sign-up. Default none. */
   onUserCreated?: UserCreatedHook
@@ -512,7 +512,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const socialProviders = Object.keys(options.socialProviders ?? {})
   const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings), socialProviders)
   const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...(platformSignIn ? [platformSignIn.provider] : [])])
-  const personalMail = resolvePersonalMail(options.personalMail ?? [], socialProviders)
+  const personalMail = resolvePersonalMail(options.personalMail ?? [], socialProviders, options.encryptOAuthTokens === true)
   const origins = resolveOrigins(options.baseURL, options.origins ?? platformOrigins())
   const passkeyDomain = resolvePasskeyDomain(options.passkeyDomain ?? platformPasskeyDomain(), [options.baseURL, ...origins])
   const organizations = options.organizations && resolveOrganizations(options.organizations, definitions, options.baseURL)

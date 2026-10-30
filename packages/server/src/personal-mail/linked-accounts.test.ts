@@ -28,7 +28,7 @@ const linkedUser = async () => {
     accessTokenExpiresAt: new Date(Date.now() - 60_000),
     scope: `openid,email,profile,${gmailSendScope}`,
   })
-  const mailer = personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), resolvePersonalMail(['gmail'], ['google']), user.id)
+  const mailer = personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), resolvePersonalMail(['gmail'], ['google'], true), user.id)
   return { context, account, mailer }
 }
 

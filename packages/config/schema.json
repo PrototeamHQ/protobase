@@ -1871,7 +1871,7 @@
           ]
         },
         "personalMail": {
-          "description": "The mail providers people may link their own mailbox with, from the account page, for the app's functions to send\nmail from it (`context.personalMail`), such as `['gmail']`. Each links through its sign-in provider, which\n`socialProviders` must have: Gmail through `google`. Default none.",
+          "description": "The mail providers people may link their own mailbox with, from the account page, for the app's functions to send\nmail from it (`context.personalMail`), such as `['gmail']`. Each links through its sign-in provider, which\n`socialProviders` must have: Gmail through `google`. Needs `encryptOAuthTokens`. Default none.",
           "anyOf": [
             {
               "type": "array",
@@ -1892,7 +1892,7 @@
           ]
         },
         "encryptOAuthTokens": {
-          "description": "Encrypt the OAuth access, refresh and ID tokens Better Auth stores for social sign-ins, with `secret`. Default off.",
+          "description": "Encrypt the OAuth access and refresh tokens Better Auth stores for social sign-ins, with `secret`; `personalMail` needs it. Default off.",
           "anyOf": [
             {
               "type": "boolean"

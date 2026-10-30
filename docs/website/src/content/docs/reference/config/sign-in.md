@@ -132,11 +132,11 @@ export default defineConfig(({ env }) => ({
 - **Type:** `'gmail'[]`
 - **Default:** none
 
-The mail providers people may link their own mailbox with, for the app's functions to send mail from it; each links through its sign-in provider in `socialProviders`, Gmail through `google`. See [From someone's own mailbox](/reference/email/#from-someones-own-mailbox).
+The mail providers people may link their own mailbox with, for the app's functions to send mail from it; each links through its sign-in provider in `socialProviders`, Gmail through `google`. It needs [`auth.encryptOAuthTokens`](#authencryptoauthtokens): without it, startup stops, since the linked mailboxes' tokens would be stored in plain text. See [From someone's own mailbox](/reference/email/#from-someones-own-mailbox).
 
 ```ts
 export default defineConfig(({ env }) => ({
-  auth: { socialProviders: { google: { clientId: env.GOOGLE_CLIENT_ID!, clientSecret: env.GOOGLE_CLIENT_SECRET! } }, personalMail: ['gmail'] },
+  auth: { socialProviders: { google: { clientId: env.GOOGLE_CLIENT_ID!, clientSecret: env.GOOGLE_CLIENT_SECRET! } }, personalMail: ['gmail'], encryptOAuthTokens: true },
 }))
 ```
 
@@ -145,7 +145,7 @@ export default defineConfig(({ env }) => ({
 - **Type:** `boolean`
 - **Default:** `false`
 
-Encrypts the OAuth access, refresh and ID tokens kept for social sign-ins, with the app's secret.
+Encrypts the OAuth access and refresh tokens kept for social sign-ins, with the app's secret. [`auth.personalMail`](#authpersonalmail) needs it.
 
 ```ts
 export default defineConfig({ auth: { encryptOAuthTokens: true } })
