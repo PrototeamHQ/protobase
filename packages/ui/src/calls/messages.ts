@@ -21,7 +21,7 @@ export const text = defineMessages({
     reconnecting: 'Reconnecting…',
     full: 'This call is full',
     removed: 'You were removed from this call',
-    ended: 'The call has ended',
+    ended: 'The call ended',
     refused: 'You cannot join this call',
     unavailable: 'The call cannot be reached now. Try again in a moment.',
     callAgain: 'Join again',
