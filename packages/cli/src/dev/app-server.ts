@@ -39,6 +39,7 @@ const appDependencies = [
   'maplibre-gl',
   'pmtiles',
   'fflate',
+  'papaparse',
   'react-map-gl/maplibre',
 ]
 

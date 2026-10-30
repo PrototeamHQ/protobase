@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createCsvParser } from './csv-parser'
+import { createCsvParser } from './csv-chunks'
 import { failedRowsCsv } from './failed-rows'
 
 describe('failedRowsCsv', () => {

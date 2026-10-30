@@ -1,4 +1,4 @@
-import { createCsvParser } from './csv-parser'
+import { createCsvParser } from './csv-chunks'
 import type { SheetRow } from './sheet-cell'
 import { openWorkbook } from './xlsx-reader'
 import { text } from './messages'
