@@ -23,7 +23,7 @@ const products = resource('products')
   })
   .primaryKey((r) => r.id)
 
-const productsView = view<typeof products>('products')
+const productsView = view<typeof products>('products').icon('package')
   .title((r) => r.name)
   .names({ singular: 'Product', plural: 'Products' })
   .fields((r) => ({ sku: r.sku.format('code'), price: r.price.prefix('€').currency('EUR').decimals(2), status: r.status.valueLabels({ draft: 'Draft', live: 'Live', retired: 'Retired' }) }))

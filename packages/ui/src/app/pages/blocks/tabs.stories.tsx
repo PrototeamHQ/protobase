@@ -21,7 +21,7 @@ const invoices = resource('invoices')
   .fields({ id: f.integer().readOnly().filterable().sortable(), number: f.text(), total: f.integer() })
   .primaryKey((r) => r.id)
 
-const invoicesView = view<typeof invoices>('invoices')
+const invoicesView = view<typeof invoices>('invoices').icon('file-text')
   .title((r) => r.number)
   .names({ singular: 'Invoice', plural: 'Invoices' })
   .fields((r) => ({ number: r.number.format('code') }))

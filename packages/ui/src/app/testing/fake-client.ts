@@ -11,7 +11,7 @@ const orders = {
   fields: { id: field('id', 'text', { readOnly: true }), number: field('number', 'text', { sortable: true }), status: field('status', 'enum', { enumValues: ['draft', 'shipped'] }) },
 } as unknown as ResourceModel
 
-const ordersView = { resource: 'orders', names: { singular: 'Order', plural: 'Orders' }, list: { columns: ['number', 'status'] }, fields: { number: { format: 'code' }, status: { valueLabels: { draft: 'Draft', shipped: 'Shipped' }, valueColors: { shipped: 'violet' } } }, filters: [], layout: [], actions: [] } as unknown as ViewModel
+const ordersView = { resource: 'orders', icon: 'shopping-cart', names: { singular: 'Order', plural: 'Orders' }, list: { columns: ['number', 'status'] }, fields: { number: { format: 'code' }, status: { valueLabels: { draft: 'Draft', shipped: 'Shipped' }, valueColors: { shipped: 'violet' } } }, filters: [], layout: [], actions: [] } as unknown as ViewModel
 
 const rows = ['SO-1', 'SO-2', 'SO-3'].map((number, index) => ({ id: `o${index + 1}`, number, status: index === 0 ? 'draft' : 'shipped', etag: `"v${index + 1}"` }))
 

@@ -25,7 +25,7 @@ const lines = resource('invoice_lines')
   .fields({ id: f.integer().readOnly().filterable().sortable(), invoice_id: f.relation('invoices').filterable(), product: f.text().sortable(), description: f.text() })
   .primaryKey((r) => r.id)
 
-const invoicesView = view<typeof invoices>('invoices')
+const invoicesView = view<typeof invoices>('invoices').icon('file-text')
   .title((r) => r.number)
   .names({ singular: 'Invoice', plural: 'Invoices' })
   .fields((r) => ({ number: r.number.format('code'), state: r.state.valueColors({ sent: 'blue' }) }))

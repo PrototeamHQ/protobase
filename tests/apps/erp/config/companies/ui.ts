@@ -4,6 +4,7 @@ import type { companies } from './data'
 export const companiesView = view<typeof companies>('companies')
   .title((r) => r.name)
   .names({ singular: 'Company', plural: 'Companies' })
+  .icon('building')
   .fields((r) => ({
     name: r.name.help('The registered name, as it should appear on invoices.'),
     status: r.status.help('Leads have not ordered yet; dormant companies have not ordered in a year.').format('badge')

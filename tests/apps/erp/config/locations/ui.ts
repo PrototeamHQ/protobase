@@ -3,4 +3,5 @@ import type { locations } from './data'
 
 export const locationsView = view<typeof locations>('locations')
   .names({ singular: 'Location', plural: 'Locations' })
+  .icon('warehouse')
   .list((r) => ({ columns: [r.path, r.name, r.warehouse_id] }))

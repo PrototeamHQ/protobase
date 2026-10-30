@@ -4,6 +4,7 @@ import type { invoices } from './data'
 export const invoicesView = view<typeof invoices>('invoices')
   .title((r) => r.number)
   .names({ singular: 'Invoice', plural: 'Invoices' })
+  .icon('file-text')
   .nav({ recent: { status: 'status', tones: { draft: 'neutral', sent: 'info', overdue: 'danger' }, filter: 'status != "paid"', orderBy: 'issued_at desc', limit: 3 } })
   .fields((r) => ({
     number: r.number.help('Assigned when the invoice is created.').format('code'),

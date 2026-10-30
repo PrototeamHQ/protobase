@@ -4,6 +4,7 @@ import type { orders } from './data'
 export const ordersView = view<typeof orders>('orders')
   .title((r) => r.number)
   .names({ singular: 'Order', plural: 'Orders' })
+  .icon('shopping-cart')
   .nav({
     recent: {
       status: 'status',

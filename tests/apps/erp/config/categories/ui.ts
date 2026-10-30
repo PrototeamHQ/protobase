@@ -3,6 +3,7 @@ import type { categories } from './data'
 
 export const categoriesView = view<typeof categories>('categories')
   .names({ singular: 'Category', plural: 'Categories' })
+  .icon('tags')
   .list((r) => ({ columns: [r.name, r.slug, r.position] }))
   .layout((r) => [
     l.section('Category', [r.name, r.slug, r.parent_id, r.position]),

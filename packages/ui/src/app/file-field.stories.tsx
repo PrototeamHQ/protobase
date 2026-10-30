@@ -21,7 +21,7 @@ const products = resource('products')
   })
   .primaryKey((r) => r.id)
 
-const productsView = view<typeof products>('products').title((r) => r.name).names({ singular: 'Product', plural: 'Products' }).list((r) => ({ columns: [r.name, r.image, r.datasheet] }))
+const productsView = view<typeof products>('products').icon('package').title((r) => r.name).names({ singular: 'Product', plural: 'Products' }).list((r) => ({ columns: [r.name, r.image, r.datasheet] }))
 
 // A 1×1 PNG, as an upload's bytes and as the stored image's link
 const pngBytes = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), (char) => char.charCodeAt(0))

@@ -22,7 +22,7 @@ export const paymentMethodsView = view<typeof paymentMethods>('payment_methods')
     a.remove('remove', { label: 'Remove', confirm: 'The card is removed from your account.' }),
   ])
 
-export const invoicesView = view<typeof invoices>('invoices')
+export const invoicesView = view<typeof invoices>('invoices').icon('file-text')
   .title((r) => r.number)
   .names({ singular: 'Invoice', plural: 'Invoices' })
   .fields((r) => ({ number: r.number.format('code'), total: r.total.prefix('€').currency('EUR').decimals(2), issued_at: r.issued_at.label('Date'), status: r.status.valueLabels({ open: 'Open', paid: 'Paid' }).valueColors({ paid: 'green' }) }))
