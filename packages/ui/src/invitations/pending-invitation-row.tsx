@@ -27,7 +27,7 @@ export const PendingInvitationRow = ({ email, gives, expiresAt, onResend, onRevo
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{email}</span>
           <span className="block text-xs text-muted-foreground">
-            {gives} · {expired ? text('expired') : text('until', new Date(expiresAt).toLocaleDateString(formatTag()))}
+            {gives} · {expired ? text('expired') : text('until', { date: new Date(expiresAt).toLocaleDateString(formatTag()) })}
           </span>
         </span>
         <Button size="sm" loading={busy} onClick={() => void run(async () => setLink((await onResend()).link))}>{text('sendAgain')}</Button>

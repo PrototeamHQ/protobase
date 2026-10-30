@@ -10,7 +10,7 @@ const label = (op: BatchOp) => {
 export const describeBatchFailure = (error: ApiError, ops: BatchOp[]) => {
   const index = error.operation
   const op = index === undefined ? undefined : ops[index]
-  return op ? appText('operationFailed', index! + 1, label(op), error.message) : appText('nothingSaved', error.message)
+  return op ? appText('operationFailed', { index: index! + 1, label: label(op), message: error.message }) : appText('nothingSaved', { message: error.message })
 }
 
 /** The same error with the failing operation named in its message, keeping its class so a 412 stays a 412. */

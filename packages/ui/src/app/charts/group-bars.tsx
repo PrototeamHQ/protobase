@@ -19,7 +19,7 @@ export const GroupBars = ({ resource, view, slices, measure }: { resource: strin
             <AppLink
               to={filteredListAddress(view, resource, slice.filter)}
               className="group grid grid-cols-[minmax(6rem,35%)_1fr_auto] items-center gap-3 rounded-md px-1 py-1 hover:bg-muted"
-              title={measure.kind === 'count' ? undefined : text('records', measureText(slice.count, { kind: 'count' }))}
+              title={measure.kind === 'count' ? undefined : text('records', { count: measureText(slice.count, { kind: 'count' }) })}
             >
               <span className="truncate group-hover:text-primary-text">{slice.label}</span>
               <span className="h-3 rounded-r bg-muted" aria-hidden>

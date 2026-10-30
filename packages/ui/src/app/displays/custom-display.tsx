@@ -4,7 +4,6 @@ import { CustomBoundary } from '../pages/custom-boundary'
 import { Problem } from '../pages/problem'
 import { useProjectUi } from '../pages/project-ui'
 import { ListDisplayProvider, type ListDisplay } from './display-context'
-import { slotted } from '../../locale/slotted'
 import { text } from './messages'
 
 /**
@@ -14,7 +13,7 @@ import { text } from './messages'
 export const CustomDisplay = ({ display, list }: { display: Extract<ListDisplayModel, { kind: 'custom' }>; list: ListDisplay }) => {
   const { components } = useProjectUi()
   const Component = components?.[display.component]
-  if (!Component) return <Problem>{slotted(text('noComponent'), display.component)}</Problem>
+  if (!Component) return <Problem>{text.rich('noComponent', { component: display.component })}</Problem>
   return (
     <ListDisplayProvider value={list}>
       {/* As tall as what it draws, scrolling with the page; a wide one, such as a board, scrolls sideways; positioned, so what it places absolutely scrolls inside it instead of widening the page */}

@@ -46,5 +46,5 @@ export const valueTitle = (field: FieldModel, value: unknown, zone = viewerZone(
   const ms = Date.parse(value)
   if (Number.isNaN(ms)) return undefined
   if (hints.format === 'relative') return formatDateTime(ms, zone)
-  return message('shownIn', zoneLabel(ms, zone))
+  return message('shownIn', { zone: zoneLabel(ms, zone) })
 }

@@ -91,16 +91,16 @@ export const FileField = ({ field, hints, resource, value, locked, invalid, onCh
     setDragging(false)
     choose(event.dataTransfer.files)
   }
-  const picker = <input ref={input} type="file" hidden accept={acceptOf(field)} aria-label={appText('chooseFileFor', label)} onChange={(event) => choose(event.target.files)} />
+  const picker = <input ref={input} type="file" hidden accept={acceptOf(field)} aria-label={appText('chooseFileFor', { label })} onChange={(event) => choose(event.target.files)} />
   const error = upload.error && <div className="mt-2"><ErrorBanner title={appText('notUploaded')} error={upload.error} /></div>
 
   if (upload.isPending) {
     return (
-      <div className="py-1.5" role="status" aria-label={appText('uploadingLabel', label)}>
+      <div className="py-1.5" role="status" aria-label={appText('uploadingLabel', { label })}>
         <div className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${Math.round((progress ?? 0) * 100)}%` }} />
         </div>
-        <span className="text-xs text-muted-foreground">{appText('uploading', Math.round((progress ?? 0) * 100))}</span>
+        <span className="text-xs text-muted-foreground">{appText('uploading', { percent: Math.round((progress ?? 0) * 100) })}</span>
       </div>
     )
   }

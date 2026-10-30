@@ -15,7 +15,7 @@ export const ResizeHandle = ({ id, header, width, resize }: { id: string; header
   <div
     role="separator"
     aria-orientation="vertical"
-    aria-label={text('resizeColumn', header)}
+    aria-label={text('resizeColumn', { header })}
     aria-valuemin={minColumnWidth}
     aria-valuenow={width}
     tabIndex={0}

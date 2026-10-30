@@ -1,0 +1,34 @@
+{
+  "assistant/write": {
+    "createAction": "{resource} aanmaken",
+    "updateAction": "{record} bijwerken",
+    "deleteAction": "{record} verwijderen",
+    "asked": "{action}?",
+    "batchTitle": "{count, plural, one {# schrijfactie} other {# schrijfacties}} in één transactie uitvoeren?",
+    "allOrNone": "Ze worden allemaal opgeslagen of geen enkele.",
+    "permanentDeletes": "{count, plural, one {# verwijdering kan} other {# verwijderingen kunnen}} niet ongedaan worden gemaakt: die records worden definitief verwijderd.",
+    "moreWrites": "En nog {count} {count, plural, one {schrijfactie} other {schrijfacties}}, niet vermeld.",
+    "fromWrite": "de {resource} uit schrijfactie {write}",
+    "writeAll": "Alles opslaan",
+    "noFields": "Geen velden.",
+    "commentTitle": "Reageren op {record}?",
+    "comment": "Reageren",
+    "create": "Aanmaken",
+    "update": "Bijwerken",
+    "delete": "Verwijderen",
+    "deleteForGood": "Definitief verwijderen",
+    "reject": "Annuleren",
+    "noChanges": "Er verandert geen veld.",
+    "restorable": "Het kan worden teruggezet: het record blijft bewaard, gemarkeerd als verwijderd.",
+    "permanent": "Dit kan niet ongedaan worden gemaakt: het record wordt definitief verwijderd.",
+    "empty": "leeg",
+    "hidden": "verborgen",
+    "yes": "Ja",
+    "no": "Nee",
+    "createNamedAction": "{resource} \"{title}\" aanmaken"
+  },
+  "mcp/approval": {
+    "cannotAsk": "Deze client kan je niet vragen een wijziging goed te keuren, dus er is niets opgeslagen; gebruik een client die MCP-elicitation ondersteunt.",
+    "approve": "Goedkeuren"
+  }
+}

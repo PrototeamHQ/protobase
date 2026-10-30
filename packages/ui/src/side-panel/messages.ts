@@ -1,10 +1,3 @@
-import { defineMessages } from '../locale/messages'
+import { messages } from '../locale/messages'
 
-export const text = defineMessages({
-  en: {
-    close: 'Close',
-  },
-  nl: {
-    close: 'Sluiten',
-  },
-})
+export const text = messages('side-panel')

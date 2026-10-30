@@ -50,8 +50,8 @@ export const useSearchRow = ({ model, of, target, targetView, row, recordKey }: 
     sort: unseen ? `${unseen.field} desc` : undefined,
     limit: of.limit,
     chips: name !== undefined,
-    empty: text('noneMatch', plural),
-    note: unseen && newCount.data === 0 && text('noNew', plural),
+    empty: text('noneMatch', { plural }),
+    note: unseen && newCount.data === 0 && text('noNew', { plural }),
     isNew: unseen && ((record) => isUnseen(record.record[unseen.field], row[unseen.seenAt])),
     viewAll: { label: text('viewAll'), savedSearch: recordKey, ...(unseen && { onOpen: () => markSeen.mutate(new Date().toISOString()) }) },
   }

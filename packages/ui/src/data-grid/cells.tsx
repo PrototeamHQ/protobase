@@ -29,7 +29,7 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
     case 'date':
       return <span className="tabular-nums text-muted-foreground">{text}</span>
     case 'datetime':
-      return <span className="tabular-nums text-muted-foreground" title={spec.relative ? formatDateTime(Number(value)) : message('shownIn', zoneLabel(Number(value), viewerZone()))}>{text}</span>
+      return <span className="tabular-nums text-muted-foreground" title={spec.relative ? formatDateTime(Number(value)) : message('shownIn', { zone: zoneLabel(Number(value), viewerZone()) })}>{text}</span>
     case 'number':
       return <span className="tabular-nums">{text}</span>
     case 'signed':

@@ -27,7 +27,7 @@ export const ActiveFilterChips = ({ chips, lockedLabels = [], onRemove, onClear,
       {chips.map((chip) => (
         <span key={chip.key} className={chipClass}>
           {chip.label}
-          <button type="button" aria-label={text('remove', chip.label)} onClick={() => onRemove(chip.key)} className="rounded-full p-0.5 hover:bg-primary-border/60">
+          <button type="button" aria-label={text('remove', { label: chip.label })} onClick={() => onRemove(chip.key)} className="rounded-full p-0.5 hover:bg-primary-border/60">
             <X className="size-3" />
           </button>
         </span>

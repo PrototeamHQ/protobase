@@ -67,7 +67,7 @@ const YourInvitations = ({ basePath }: { basePath: string }) => {
           <li key={invitation.id} className="flex items-center gap-3 px-3 py-2.5">
             <span className="min-w-0 flex-1">
               <span className="font-medium">{invitation.organizationName ?? text('anOrganization')}</span>: {invitation.appRoles.map((name) => roleLabel(roles, name)).join(', ') || text('noAppRoles')}
-              <span className="block text-xs text-muted-foreground">{text('until', new Date(invitation.expiresAt).toLocaleDateString(formatTag()))}</span>
+              <span className="block text-xs text-muted-foreground">{text('until', { date: new Date(invitation.expiresAt).toLocaleDateString(formatTag()) })}</span>
             </span>
             <Button size="sm" variant="primary" loading={busy} onClick={() => void accept(invitation.id)}>{text('accept')}</Button>
           </li>

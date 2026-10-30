@@ -70,7 +70,7 @@ export const InvitationsPage = ({ current }: { current?: CurrentOrganization }) 
   if (!current?.organization || !organizationId) return null
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
-      <PageHeader title={text('invitations')} subtitle={text('peopleInvited', current.organization.name)} />
+      <PageHeader title={text('invitations')} subtitle={text('peopleInvited', { organization: current.organization.name })} />
       <InviteToOrganization current={current} onSent={load} />
       <AccountSection title={text('notAcceptedYet')} description={invitations.length > 0 ? text('sendingAgain') : text('nobodyWaiting')}>
         {invitations.length > 0 && (

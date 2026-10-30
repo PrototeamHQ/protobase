@@ -78,9 +78,9 @@ export const ListPage = ({ address }: { address: ListAddress }) => {
   const { resources, views, signIn } = useAdminMeta()
   const model = resources[address.resource]
   const prompt = signIn?.[address.resource]
-  if (!model) return prompt ? <SignInPrompt as="page" prompt={prompt.signIn} /> : <Notice title={appText('notFound')}>{appText('noResource', address.resource)}</Notice>
+  if (!model) return prompt ? <SignInPrompt as="page" prompt={prompt.signIn} /> : <Notice title={appText('notFound')}>{appText('noResource', { name: address.resource })}</Notice>
   const view = viewOfList(views[address.resource], address.list)
-  if (address.list !== undefined && !view) return <Notice title={appText('notFound')}>{text('noList', address.list)}</Notice>
+  if (address.list !== undefined && !view) return <Notice title={appText('notFound')}>{text('noList', { name: address.list })}</Notice>
   if (view?.searchesOf) return <SavedSearches model={model} view={view} />
   const listed = listedResource(resources, views, address.resource, address.list)
   if (view && listed.listOf) {
@@ -172,7 +172,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   // A calendar and a timeline are in time order, and a board of ranked records in their rank, so none has a sort
   const sorted = display?.kind === 'calendar' || display?.kind === 'timeline' || (display?.kind === 'board' && boardRank(model)) ? undefined : display
   const sortMenu = sorted && <SortMenu model={model} view={view} display={sorted} orderBy={orderBy} onChange={(next) => set({ orderBy: next })} />
-  const searchBox = model.search?.length ? <ListSearch value={search?.kind === 'search' ? search.text : ''} onCommit={commitSearch} placeholder={text('searchPlural', plural)} className={desktop ? undefined : 'min-h-11'} /> : null
+  const searchBox = model.search?.length ? <ListSearch value={search?.kind === 'search' ? search.text : ''} onCommit={commitSearch} placeholder={text('searchPlural', { plural })} className={desktop ? undefined : 'min-h-11'} /> : null
   // On a desktop the sort, the filters and the search share one row below the title; a phone has the filters button
   // beside the search, and the sort in the filters sheet
   // The side panel layout leaves the sort and the search in a row of their own
@@ -190,7 +190,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       <div className="flex items-center gap-2">
         <Button className="min-h-11" onClick={() => setSheetOpen(true)} aria-haspopup="dialog">
           <SlidersHorizontal className="size-3.5" />
-          {chips.length > 0 ? text('filtersCount', chips.length) : text('filters')}
+          {chips.length > 0 ? text('filtersCount', { count: chips.length }) : text('filters')}
         </Button>
         {searchBox ?? <div className="min-w-0 flex-1">{chipsRow}</div>}
       </div>
@@ -203,7 +203,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const createButton = !scope && createOffered(view, meta.pages, permissions) && (
     <AppLink to={{ kind: 'create', resource }} className={buttonClass({ variant: 'primary' })}>
       <Plus className="size-3.5" />
-      {text('newRecord', singular)}
+      {text('newRecord', { singular })}
     </AppLink>
   )
   // A filtered list can be saved as a search, which shows what it filters on as the chips read
@@ -242,14 +242,14 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       initialScrollIndex={scroll.initialIndex}
       onScrollIndex={scroll.remember}
       rowActions={[
-        { label: text('openRecord', singular), onSelect: openRecord },
+        { label: text('openRecord', { singular }), onSelect: openRecord },
         ...named.rowActions,
         ...(can(permissions, 'delete') && !namedDelete ? [{ label: text('delete'), destructive: true, available: (row: GridRow) => rowAllows(row, 'delete'), onSelect: (row: GridRow) => void remove.start(target(row)) }] : []),
       ]}
       bulkActions={[
-        ...(exportOffered(view) && exportsSelection(model) ? [{ label: (count: number) => text('exportCount', count), onRun: (rows: GridRow[]) => exportFlow.open(rows) }] : []),
+        ...(exportOffered(view) && exportsSelection(model) ? [{ label: (count: number) => text('exportCount', { count }), onRun: (rows: GridRow[]) => exportFlow.open(rows) }] : []),
         ...named.bulkActions,
-        ...(can(permissions, 'delete') ? [{ label: (count: number) => text('deleteCount', count), destructive: true, onRun: (rows: GridRow[]) => remove.startBulk(rows.map(target)) }] : []),
+        ...(can(permissions, 'delete') ? [{ label: (count: number) => text('deleteCount', { count }), destructive: true, onRun: (rows: GridRow[]) => remove.startBulk(rows.map(target)) }] : []),
       ]}
       rowNumbers={false}
       pinKey={auth.kind === 'signed-in' ? pinnedStorageKey(auth.user.id, navItemId(resource, address.list)) : undefined}
@@ -318,7 +318,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
         (isGroupChart(view.chart) ? (
           <ListGroupChart model={model} view={view} chart={view.chart} plural={plural} filter={loadFilter} />
         ) : (
-          <ListChart resource={resource} chart={view.chart} title={text('created', plural)} noun={plural.toLowerCase()} filter={loadFilter} />
+          <ListChart resource={resource} chart={view.chart} title={text('created', { plural })} noun={plural.toLowerCase()} filter={loadFilter} />
         ))}
       {!handSorting && (desktop ? desktopToolbar : phoneFilters)}
       {desktop && layout === 'panel' && !handSorting ? (

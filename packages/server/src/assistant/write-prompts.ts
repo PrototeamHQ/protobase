@@ -39,9 +39,9 @@ const fieldLabel = ({ view }: Described, name: string) => shown(view?.fields[nam
 
 const shownValue = (text: WriteTexts, described: Described, name: string, value: unknown) => {
   const field = described.model?.fields[name]
-  if (field?.sensitive) return text.hidden
-  if (value === null || value === undefined) return text.empty
-  if (typeof value === 'boolean') return value ? text.yes : text.no
+  if (field?.sensitive) return text('hidden')
+  if (value === null || value === undefined) return text('empty')
+  if (typeof value === 'boolean') return value ? text('yes') : text('no')
   if (field?.type === 'enum' && typeof value === 'string') return shown(enumLabel(value, described.view?.fields[name]?.valueLabels))
   if (typeof value === 'string') return shown(value)
   if (typeof value === 'number' || typeof value === 'bigint') return String(value)
@@ -64,11 +64,14 @@ const titleOfNew = (described: Described, data: Row) => {
 // The same value whatever the order of an object's keys is not worth telling apart here: JSON is close enough
 const same = (before: unknown, after: unknown) => JSON.stringify(before ?? null) === JSON.stringify(after ?? null)
 
+const createAction = (text: WriteTexts, resource: string, title: string | undefined) =>
+  title === undefined ? text('createAction', { resource }) : text('createNamedAction', { resource, title })
+
 export type ApprovalField = { label: string; value: string }
 
 /** A create as one change: `Create Task "Fix the sign-in lockout"`, and each field the new record is given by its label. */
 export const createChange = (text: WriteTexts, described: Described, data: Row) => ({
-  action: text.createAction(resourceLabel(described), titleOfNew(described, data)),
+  action: createAction(text, resourceLabel(described), titleOfNew(described, data)),
   fields: Object.entries(data).map(([name, value]): ApprovalField => ({ label: fieldLabel(described, name), value: shownValue(text, described, name, value) })),
 })
 
@@ -83,33 +86,33 @@ export const updateChange = (text: WriteTexts, described: Described, record: str
     const before = Object.hasOwn(current, name) ? `${shownValue(text, described, name, current[name])} -> ` : ''
     return { label: fieldLabel(described, name), value: `${before}${after}` }
   })
-  return { action: text.updateAction(record), fields }
+  return { action: text('updateAction', { record }), fields }
 }
 
 /** `Create Task "Fix the sign-in lockout"?`, with each field the new record is given by its label. */
 export const createApproval = (text: WriteTexts, described: Described, data: Row): ApprovalRequest => {
   const { action, fields } = createChange(text, described, data)
-  return { title: text.asked(action), fields, approveLabel: text.create, rejectLabel: text.reject }
+  return { title: text('asked', { action }), fields, approveLabel: text('create'), rejectLabel: text('reject') }
 }
 
 /** `Update Task #42 "Fix the sign-in lockout"?`, with each field that changes, or saying none does. */
 export const updateApproval = (text: WriteTexts, described: Described, key: RecordKeyInput, current: Row, data: Row): ApprovalRequest => {
   const { action, fields } = updateChange(text, described, recordName(described, key, current), current, data)
   return {
-    title: text.asked(action),
-    ...(fields.length > 0 ? { fields } : { body: text.noChanges }),
-    approveLabel: text.update,
-    rejectLabel: text.reject,
+    title: text('asked', { action }),
+    ...(fields.length > 0 ? { fields } : { body: text('noChanges') }),
+    approveLabel: text('update'),
+    rejectLabel: text('reject'),
   }
 }
 
 /** `Delete Task #42 "Fix the sign-in lockout"?`, saying whether it can be restored (a soft delete) or is gone for good. */
 export const deleteApproval = (text: WriteTexts, described: Described, key: RecordKeyInput, current: Row, restorable: boolean): ApprovalRequest => ({
-  title: text.asked(text.deleteAction(recordName(described, key, current))),
-  body: restorable ? text.restorable : text.permanent,
+  title: text('asked', { action: text('deleteAction', { record: recordName(described, key, current) }) }),
+  body: restorable ? text('restorable') : text('permanent'),
   tone: restorable ? 'warning' : 'danger',
-  approveLabel: restorable ? text.delete : text.deleteForGood,
-  rejectLabel: text.reject,
+  approveLabel: restorable ? text('delete') : text('deleteForGood'),
+  rejectLabel: text('reject'),
 })
 
 // A comment keeps its lines, but nothing that could hide or reorder text
@@ -117,8 +120,8 @@ const hiddenInComment = /[\p{Cf}\p{Zl}\p{Zp}]|[^\P{Cc}\n]/gu
 
 /** `Comment on Task #42 "Fix the sign-in lockout"?`, with the whole comment, as it will be posted. */
 export const commentApproval = (text: WriteTexts, described: Described, key: RecordKeyInput, current: Row, comment: string): ApprovalRequest => ({
-  title: text.commentTitle(recordName(described, key, current)),
+  title: text('commentTitle', { record: recordName(described, key, current) }),
   body: comment.trim().replace(hiddenInComment, ' '),
-  approveLabel: text.comment,
-  rejectLabel: text.reject,
+  approveLabel: text('comment'),
+  rejectLabel: text('reject'),
 })

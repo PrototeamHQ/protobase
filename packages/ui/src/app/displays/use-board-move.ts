@@ -94,7 +94,7 @@ export const useBoardMove = ({ model, view, by, rank, drop, labelOf, titleOf }: 
     const ranked = rankedPlace({ model, rank: rank!, rows: place.rows, row, index: place.index, bounds, title: titleOf(row) })
     // Back in its own place it stays as it was, unwritten
     const stays = !ranked.place || (ranked.place.bump === undefined && ranked.place.index === place.rows.findIndex((entry) => entry.key === row.key))
-    if (ranked.reason !== undefined) toast.show({ state: 'warning', title: stays ? orderText('notMoved') : orderText('movedToPlace', ranked.place!.index + 1), description: ranked.reason })
+    if (ranked.reason !== undefined) toast.show({ state: 'warning', title: stays ? orderText('notMoved') : orderText('movedToPlace', { place: ranked.place!.index + 1 }), description: ranked.reason })
     if (stays) return undefined
     if (ranked.place!.index !== place.index) show(row, to, placing(place.rows, row, ranked.place!.index).order)
     return ranked.place
@@ -125,7 +125,7 @@ export const useBoardMove = ({ model, view, by, rank, drop, labelOf, titleOf }: 
       if (undoToast.current !== undefined) toast.dismiss(undoToast.current)
       undoToast.current = undefined
       const from = row.record[by] ?? null
-      const title = landed !== from ? text('movedTo', labelOf(landed)) : from === to.value ? text('orderChanged') : text('stayedIn', labelOf(landed))
+      const title = landed !== from ? text('movedTo', { column: labelOf(landed) }) : from === to.value ? text('orderChanged') : text('stayedIn', { column: labelOf(landed) })
       if (!undoing) {
         toast.show({ state: 'success', title })
         return
@@ -146,7 +146,7 @@ export const useBoardMove = ({ model, view, by, rank, drop, labelOf, titleOf }: 
     },
     onError: (error, { row, to }) => {
       settle(row.key)
-      const title = (row.record[by] ?? null) === to.value ? text('couldNotReorder') : text('couldNotMoveTo', to.label)
+      const title = (row.record[by] ?? null) === to.value ? text('couldNotReorder') : text('couldNotMoveTo', { to: to.label })
       toast.show({ state: 'error', title, description: refusalReason(error) })
     },
     onSettled: async (_result, _error, { row }) => {

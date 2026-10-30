@@ -25,7 +25,7 @@ export const navigationHits = (meta: MetaData, text: string, basePath = ''): Sea
     const view = meta.views[model.name]
     if (!view || view.nav?.hidden || !createOffered(view, meta.pages, meta.permissions[model.name] ?? allowEverything)) return []
     const singular = view.names?.singular ?? humanize(model.name)
-    const label = createText('title', singular)
+    const label = createText('title', { noun: singular })
     if (!matches(label, text) && !matches(singular, asked) && !matches(view.names?.plural ?? humanize(model.name), asked)) return []
     return [{ id: `new:${model.name}`, title: label, href: appPath({ kind: 'create', resource: model.name }, basePath) }]
   })

@@ -90,7 +90,7 @@ export const ImportDialog = ({ model, resources, views, canUpdate, onClose, sour
           <>
             <Button onClick={flow.back}>{text('back')}</Button>
             <Button variant="primary" disabled={rows === 0} onClick={() => flow.start(rows)}>
-              {text('importRows', rows.toLocaleString(formatTag()), rows)}
+              {text('importRows', { count: rows.toLocaleString(formatTag()), rows })}
             </Button>
           </>
         )
@@ -128,7 +128,7 @@ export const ImportDialog = ({ model, resources, views, canUpdate, onClose, sour
   }
 
   return (
-    <ResponsiveDialog open wide title={text('importPlural', plural)} description={flow.file && step.kind !== 'file' ? flow.file.name : undefined} onClose={close} actions={actions()}>
+    <ResponsiveDialog open wide title={text('importPlural', { plural })} description={flow.file && step.kind !== 'file' ? flow.file.name : undefined} onClose={close} actions={actions()}>
       <div className="flex flex-col gap-4">
         {flow.error !== undefined && <ErrorBanner title={errorTitle(flow)} error={flow.error} />}
         {body()}

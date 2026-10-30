@@ -13,7 +13,7 @@ import { TrackVideo } from './track-media'
  */
 export const CallTile = ({ person, screen = false, className }: { person: CallPerson; screen?: boolean; className?: string }) => {
   const track = screen ? person.screen : person.cameraOff ? undefined : person.camera
-  const label = screen ? (person.self ? text('youAreSharing') : text('sharing', person.name)) : person.self ? `${person.name} (${text('you')})` : person.name
+  const label = screen ? (person.self ? text('youAreSharing') : text('sharing', { name: person.name })) : person.self ? `${person.name} (${text('you')})` : person.name
   return (
     <figure
       data-member={person.member}
@@ -28,7 +28,7 @@ export const CallTile = ({ person, screen = false, className }: { person: CallPe
       )}
       {person.connection === 'failed' && !person.self && (
         <p role="status" className="absolute inset-x-1 top-1 truncate rounded bg-black/70 px-2 py-1 text-center text-xs text-white">
-          {text('cannotConnect', person.name)}
+          {text('cannotConnect', { name: person.name })}
         </p>
       )}
       <figcaption className="absolute bottom-1.5 left-1.5 flex max-w-[calc(100%-0.75rem)] items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">

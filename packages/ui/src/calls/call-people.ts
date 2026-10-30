@@ -26,7 +26,7 @@ const received = (tracks: readonly CallTrack[], source: CallTrack['source']) => 
 export const callPeople = ({ members, self, tracks, own, nameOf, speaker, connections, seen, now }: PeopleInput): CallPerson[] => {
   const roster = members.some((member) => member.member === self) ? members : [{ member: self, joined_at: '' }, ...members]
   return roster.map(({ member, name }): CallPerson => {
-    const shared = { member, name: member.startsWith('guest:') ? text('guestName', name ?? '') : (name ?? nameOf(member)), ...(speaker === member && { speaking: true }) }
+    const shared = { member, name: member.startsWith('guest:') ? text('guestName', { name: name ?? '' }) : (name ?? nameOf(member)), ...(speaker === member && { speaking: true }) }
     if (member === self) {
       return { ...shared, self: true, ...(own.camera && { camera: own.camera }), ...(own.microphone && { microphone: own.microphone }), ...(own.screen && { screen: own.screen }), microphoneOff: !own.microphone || !own.microphoneOn, cameraOff: !own.camera || !own.cameraOn }
     }

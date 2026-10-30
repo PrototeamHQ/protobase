@@ -10,8 +10,8 @@ const numberIn = (params: Params, key: string) => (typeof params?.[key] === 'num
 const textMessage = (label: string, params: Params) => {
   const min = numberIn(params, 'min')
   const max = numberIn(params, 'max')
-  if (min !== undefined) return text('atLeastCharacters', label, formatInt(min), min)
-  if (max !== undefined) return text('atMostCharacters', label, formatInt(max), max)
+  if (min !== undefined) return text('atLeastCharacters', { label, count: formatInt(min), n: min })
+  if (max !== undefined) return text('atMostCharacters', { label, count: formatInt(max), n: max })
   // A pattern's message is the project's own
   return undefined
 }
@@ -19,8 +19,8 @@ const textMessage = (label: string, params: Params) => {
 const wholeNumber = (params: Params) => {
   const min = numberIn(params, 'min')
   const max = numberIn(params, 'max')
-  if (min !== undefined) return text('wholeNumberAtLeast', formatInt(min))
-  if (max !== undefined) return text('wholeNumberAtMost', formatInt(max))
+  if (min !== undefined) return text('wholeNumberAtLeast', { min: formatInt(min) })
+  if (max !== undefined) return text('wholeNumberAtMost', { max: formatInt(max) })
   return text('wholeNumber')
 }
 
@@ -29,7 +29,7 @@ const decimalMessage = (params: Params) => {
   const scale = numberIn(params, 'scale')
   if (precision === undefined || scale === undefined) return text('number')
   const below = formatInt(10 ** (precision - scale))
-  return scale === 0 ? text('wholeNumberBelow', below) : text('decimalsBelow', scale, below)
+  return scale === 0 ? text('wholeNumberBelow', { below }) : text('decimalsBelow', { scale, below })
 }
 
 /** What to say about a value of each field type the server turned down; without an entry, the server's message shows. */
@@ -54,7 +54,7 @@ const invalidValue: Record<string, (label: string, params: Params) => string | u
  * server words them.
  */
 export const fieldMessage = (field: FieldModel | undefined, label: string, error: ProblemError) => {
-  if (error.code === 'required') return text('required', label)
+  if (error.code === 'required') return text('required', { label })
   if (error.code !== 'invalid-value' || !field) return error.message
   return invalidValue[field.type]?.(label, error.params) ?? error.message
 }
@@ -76,6 +76,6 @@ export const saveFailureDescription = (error: { message: string; errors: Problem
   const fields = new Set(error.errors.flatMap((entry) => (entry.field && entry.field !== '_record' ? [entry.field] : [])))
   const record = error.errors.flatMap((entry) => (entry.field === '_record' ? [entry.message] : []))
   if (fields.size === 0 && record.length === 0) return error.message
-  const check = fields.size === 0 ? [] : [fields.size === 1 ? text('checkField') : text('checkFields', fields.size)]
+  const check = fields.size === 0 ? [] : [fields.size === 1 ? text('checkField') : text('checkFields', { count: fields.size })]
   return [...check, ...record].join(' ')
 }

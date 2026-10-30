@@ -8,7 +8,7 @@ import { text } from './messages'
 /** Better Auth's answers to a new password, in words for the person at the keyboard. */
 export const resetPasswordMessage = (error: AuthError) => {
   if (error.status === 429) return text('tooManyAttempts')
-  if (error.code === 'PASSWORD_TOO_SHORT') return text('useAtLeast', minPasswordLength)
+  if (error.code === 'PASSWORD_TOO_SHORT') return text('useAtLeast', { length: minPasswordLength })
   if (error.code === 'PASSWORD_TOO_LONG') return text('passwordTooLong')
   return authMessage(error)
 }

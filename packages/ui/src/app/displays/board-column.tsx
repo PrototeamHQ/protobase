@@ -85,7 +85,7 @@ export const BoardColumnView = ({ model, view, display, column, fields, filter, 
       ) : list.error ? (
         <ErrorBanner title={text('couldNotLoadRows')} error={list.error} />
       ) : rows.length === 0 ? (
-        <p className="px-1 py-4 text-center text-xs text-muted-foreground">{text('noPlural', plural)}</p>
+        <p className="px-1 py-4 text-center text-xs text-muted-foreground">{text('noPlural', { plural })}</p>
       ) : (
         // Cards tile without gaps, so a pointer in the column is over a card or below the last one
         <SortableContext id={columnId(column.value)} items={rows.map((row) => row.key)} strategy={verticalListSortingStrategy}>

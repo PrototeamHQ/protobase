@@ -27,4 +27,4 @@ export const cellText = (cell: SheetCell) => {
 export const columnLetters = (index: number): string => (index < 26 ? String.fromCharCode(65 + index) : columnLetters(Math.floor(index / 26) - 1) + columnLetters(index % 26))
 
 /** How the import names a column: its header, or "Column C" when the header cell is empty. */
-export const columnName = (headers: string[], index: number) => (headers[index]?.trim() ? headers[index]! : text('column', columnLetters(index)))
+export const columnName = (headers: string[], index: number) => (headers[index]?.trim() ? headers[index]! : text('column', { letters: columnLetters(index) }))

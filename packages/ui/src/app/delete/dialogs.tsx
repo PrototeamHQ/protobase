@@ -5,8 +5,8 @@ import { text } from './messages'
 
 export const ConfirmDeleteDialog = ({ title, noun, busy, onConfirm, onCancel }: { title: string; noun: string; busy?: boolean; onConfirm: () => void; onCancel: () => void }) => (
   <Dialog
-    title={text('confirmTitle', title)}
-    description={text('confirmDescription', noun, title)}
+    title={text('confirmTitle', { title })}
+    description={text('confirmDescription', { noun, title })}
     onClose={onCancel}
     actions={
       <>
@@ -21,7 +21,7 @@ export const ConfirmDeleteDialog = ({ title, noun, busy, onConfirm, onCancel }: 
 
 export const ConflictDialog = ({ title, changes, busy, onReview, onDeleteAnyway, onCancel }: { title: string; changes: FieldChange[]; busy?: boolean; onReview: () => void; onDeleteAnyway: () => void; onCancel: () => void }) => (
   <Dialog
-    title={text('changedTitle', title)}
+    title={text('changedTitle', { title })}
     description={text('changedDescription')}
     onClose={onCancel}
     actions={
@@ -54,33 +54,33 @@ export type BulkFailure = { title: string; message: string }
 
 export const BulkDeleteDialog = (
   props:
-    | { stage: 'confirm'; count: number; plural: string; onConfirm: () => void; onCancel: () => void }
+    | { stage: 'confirm'; count: number; noun: string; plural: string; onConfirm: () => void; onCancel: () => void }
     | { stage: 'running'; done: number; total: number }
     | { stage: 'done'; total: number; failures: BulkFailure[]; onClose: () => void },
 ) => {
   if (props.stage === 'confirm') {
     return (
       <Dialog
-        title={text('bulkConfirmTitle', props.count, props.plural)}
+        title={text('bulkConfirmTitle', { count: props.count, noun: props.noun, plural: props.plural })}
         description={text('bulkConfirmDescription')}
         onClose={props.onCancel}
         actions={
           <>
             <Button onClick={props.onCancel}>{text('cancel')}</Button>
             <Button variant="primary" className="bg-danger hover:bg-danger/90" onClick={props.onConfirm}>
-              {text('deleteCount', props.count)}
+              {text('deleteCount', { count: props.count })}
             </Button>
           </>
         }
       />
     )
   }
-  if (props.stage === 'running') return <Dialog title={text('deleting')} description={text('progress', props.done, props.total)} onClose={() => undefined} actions={<Button loading disabled>{text('working')}</Button>} />
+  if (props.stage === 'running') return <Dialog title={text('deleting')} description={text('progress', { done: props.done, total: props.total })} onClose={() => undefined} actions={<Button loading disabled>{text('working')}</Button>} />
   const deleted = props.total - props.failures.length
   return (
     <Dialog
-      title={props.failures.length === 0 ? text('deleted', deleted) : text('deletedOf', deleted, props.total)}
-      description={props.failures.length === 0 ? undefined : text('kept', props.failures.length)}
+      title={props.failures.length === 0 ? text('deleted', { count: deleted }) : text('deletedOf', { count: deleted, total: props.total })}
+      description={props.failures.length === 0 ? undefined : text('kept', { count: props.failures.length })}
       onClose={props.onClose}
       actions={<Button variant="primary" onClick={props.onClose}>{text('done')}</Button>}
     >

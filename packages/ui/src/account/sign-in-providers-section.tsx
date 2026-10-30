@@ -51,7 +51,7 @@ export const SignInProvidersSection = ({ providers, linked, onConnect, error: re
               <Badge tone="green">{text('connected')}</Badge>
             ) : (
               <Button size="sm" loading={busy === provider.id} disabled={busy !== undefined} onClick={() => void connect(provider.id)}>
-                {text('connect', provider.name)}
+                {text('connect', { name: provider.name })}
               </Button>
             )}
           </li>

@@ -49,10 +49,10 @@ export const formatDayRange = (from: number, to: number) => day().formatRange(fr
 export const formatTime = (ms: number, zone = viewerZone()) => zonedFormats(zone).time.format(ms)
 
 export const formatAgo = (seconds: number) => {
-  if (seconds < 60) return text('secondsAgo', seconds)
-  if (seconds < 3600) return text('minutesAgo', Math.floor(seconds / 60))
-  if (seconds < 86_400) return text('hoursAgo', Math.floor(seconds / 3600))
-  return text('daysAgo', Math.floor(seconds / 86_400))
+  if (seconds < 60) return text('secondsAgo', { count: seconds })
+  if (seconds < 3600) return text('minutesAgo', { count: Math.floor(seconds / 60) })
+  if (seconds < 86_400) return text('hoursAgo', { count: Math.floor(seconds / 3600) })
+  return text('daysAgo', { count: Math.floor(seconds / 86_400) })
 }
 
 const relative = () => cachedFormat('relative', (tag) => new Intl.RelativeTimeFormat(tag, { numeric: 'auto' }))

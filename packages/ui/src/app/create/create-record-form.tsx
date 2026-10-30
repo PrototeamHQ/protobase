@@ -23,9 +23,9 @@ export type CreateRecordFormProps = {
 export const CreateRecordForm = ({ noun, collection, sections, saving, message, onSubmit, onCancel, ref }: CreateRecordFormProps) => (
   <Form
     ref={ref}
-    title={text('title', noun)}
+    title={text('title', { noun })}
     eyebrow={collection}
-    submit={text('submit', noun)}
+    submit={text('submit', { noun })}
     saving={saving}
     error={message ? new Error(message) : undefined}
     errorTitle={text('notCreated')}

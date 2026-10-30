@@ -13,7 +13,6 @@ import { AppLink } from '../use-app-address'
 import { SavedSearchSection } from './saved-search-section'
 import { useSavedSearches } from './use-saved-searches'
 import { text } from './messages'
-import { slotted } from '../../locale/slotted'
 
 /**
  * The list page of a view with `searchesOf`: each of the user's saved searches, with what it finds (`SavedSearchSection`),
@@ -36,19 +35,21 @@ export const SavedSearches = ({ model, view }: { model: ResourceModel; view: Vie
       {body}
     </div>
   )
-  if (!target) return frame(<Notice title={text('notFound')}>{slotted(text('noResource'), of.resource)}</Notice>)
-  if (saved.error) return frame(<ErrorBanner title={text('couldNotLoadYour', plural.toLowerCase())} error={saved.error} />)
+  if (!target) return frame(<Notice title={text('notFound')}>{text.rich('noResource', { resource: of.resource })}</Notice>)
+  if (saved.error) return frame(<ErrorBanner title={text('couldNotLoadYour', { plural: plural.toLowerCase() })} error={saved.error} />)
   if (!saved.data) return frame(<div className="flex flex-col gap-3">{Array.from({ length: 2 }, (_, index) => <Skeleton key={index} className="h-56" />)}</div>)
   if (saved.data.length === 0) {
     const searched = (targetView?.names?.plural ?? humanize(target.name)).toLowerCase()
     return frame(
       <p className="py-8 text-center text-muted-foreground">
-        {slotted(
-          text('noSavedYet', plural.toLowerCase()),
-          <AppLink to={{ kind: 'list', resource: target.name }} className="font-medium text-primary-text hover:underline">
-            {searched}
-          </AppLink>,
-        )}
+        {text.rich('noSavedYet', {
+          plural: plural.toLowerCase(),
+          list: (
+            <AppLink to={{ kind: 'list', resource: target.name }} className="font-medium text-primary-text hover:underline">
+              {searched}
+            </AppLink>
+          ),
+        })}
       </p>,
     )
   }

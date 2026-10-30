@@ -21,7 +21,7 @@ export const HeaderMenu = ({ header, pinned, sortable, onTogglePin }: HeaderMenu
       <button
         ref={button}
         type="button"
-        aria-label={text('columnMenu', header)}
+        aria-label={text('columnMenu', { header })}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(!open)}

@@ -1,5 +1,4 @@
 import { CodeForm } from './code-form'
-import { slotted } from '../locale/slotted'
 import { text } from './messages'
 
 export type EmailCodeFormProps = {
@@ -25,7 +24,7 @@ export const EmailCodeForm = ({ email, onBack, ...rest }: EmailCodeFormProps) =>
     description={text('signInCodeDescription')}
     explanation={
       <>
-        {slotted(text('signInCodeSent'), <span className="font-medium text-foreground">{email}</span>)}
+        {text.rich('signInCodeSent', { email: <span className="font-medium text-foreground">{email}</span> })}
       </>
     }
     submitLabel={text('signIn')}

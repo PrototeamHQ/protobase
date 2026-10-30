@@ -32,7 +32,7 @@ export const WidgetPart = ({ fallback, ...rest }: WidgetPartProps) => {
   const element = partOf(rest)
   if (!element) return fallback
   return (
-    <CustomBoundary name={text('fieldType', rest.shown.name)} fallback={fallback}>
+    <CustomBoundary name={text('fieldType', { name: rest.shown.name })} fallback={fallback}>
       {element}
     </CustomBoundary>
   )

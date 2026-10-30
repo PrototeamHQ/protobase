@@ -92,10 +92,10 @@ const ColumnPicker = ({ fields, columns, onChange }: { fields: ExportDialogProps
             </label>
             {chosen && (
               <span className="flex shrink-0 gap-1">
-                <Button size="sm" variant="ghost" className="min-h-8 px-2" aria-label={text('moveUp', labels[name]!)} disabled={index === 0} onClick={() => onChange(move(columns, name, -1))}>
+                <Button size="sm" variant="ghost" className="min-h-8 px-2" aria-label={text('moveUp', { label: labels[name]! })} disabled={index === 0} onClick={() => onChange(move(columns, name, -1))}>
                   <ArrowUp className="size-3.5" />
                 </Button>
-                <Button size="sm" variant="ghost" className="min-h-8 px-2" aria-label={text('moveDown', labels[name]!)} disabled={index === columns.length - 1} onClick={() => onChange(move(columns, name, 1))}>
+                <Button size="sm" variant="ghost" className="min-h-8 px-2" aria-label={text('moveDown', { label: labels[name]! })} disabled={index === columns.length - 1} onClick={() => onChange(move(columns, name, 1))}>
                   <ArrowDown className="size-3.5" />
                 </Button>
               </span>
@@ -118,16 +118,16 @@ export const ExportDialog = ({ plural, view, fields, initialColumns, count, sele
   const [mode, setMode] = useState<ExportMode>('shown')
 
   const limit = exportLimit(view, format)
-  const rows = scope === 'selected' ? text('selectedRows', formatInt(selected ?? 0), selected ?? 0) : countText(count)
+  const rows = scope === 'selected' ? text('selectedRows', { count: formatInt(selected ?? 0), rows: selected ?? 0 }) : countText(count)
   const overLimit = (scope === 'selected' ? (selected ?? 0) : (countedRows(count) ?? 0)) > limit
   const scopeOptions: Array<{ value: ExportScope; label: string }> = [
     { value: 'list', label: text('rowsInList') },
-    { value: 'selected', label: text('selected', formatInt(selected ?? 0)) },
+    { value: 'selected', label: text('selected', { count: formatInt(selected ?? 0) }) },
   ]
 
   return (
     <ResponsiveDialog
-      title={text('exportPlural', plural)}
+      title={text('exportPlural', { plural })}
       open={open}
       onClose={onClose}
       actions={
@@ -155,8 +155,8 @@ export const ExportDialog = ({ plural, view, fields, initialColumns, count, sele
           <ColumnPicker fields={fields} columns={columns} onChange={setColumns} />
         </Setting>
         <p role="status" className="text-muted-foreground">
-          {text('exports', rows)}
-          {overLimit && text('overLimit', formatInt(limit))}
+          {text('exports', { rows })}
+          {overLimit && text('overLimit', { limit: formatInt(limit) })}
         </p>
       </div>
     </ResponsiveDialog>
@@ -167,12 +167,12 @@ export const ExportDialog = ({ plural, view, fields, initialColumns, count, sele
 export const ExportProgressDialog = ({ plural, done, total, onCancel }: { plural: string; done: number; total?: number; onCancel: () => void }) => {
   const share = total ? Math.min(1, done / total) : undefined
   return (
-    <ResponsiveDialog title={text('exporting', plural)} open onClose={onCancel} actions={<Button onClick={onCancel}>{text('cancel')}</Button>}>
+    <ResponsiveDialog title={text('exporting', { plural })} open onClose={onCancel} actions={<Button onClick={onCancel}>{text('cancel')}</Button>}>
       <div className="flex flex-col gap-2 text-body">
         <div role="progressbar" aria-label={text('rowsExported')} aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${(share ?? 0) * 100}%` }} />
         </div>
-        <p className="text-muted-foreground">{total ? text('doneOf', formatInt(done), formatInt(total)) : text('done', formatInt(done))}</p>
+        <p className="text-muted-foreground">{total ? text('doneOf', { done: formatInt(done), total: formatInt(total) }) : text('done', { done: formatInt(done) })}</p>
       </div>
     </ResponsiveDialog>
   )

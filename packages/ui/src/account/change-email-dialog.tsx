@@ -76,7 +76,7 @@ export const ChangeEmailDialog = ({ email, change, onDone, onClose }: ChangeEmai
   return (
     <Dialog
       title={text('changeEmail')}
-      description={text('codeSentTo', sentTo)}
+      description={text('codeSentTo', { email: sentTo })}
       onClose={onClose}
       actions={
         <>

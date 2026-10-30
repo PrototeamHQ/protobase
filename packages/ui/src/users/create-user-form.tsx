@@ -35,7 +35,7 @@ export const CreateUserForm = ({ roles, onCreated }: { roles: readonly RoleLabel
           <Input aria-label={text('email')} type="email" placeholder="name@example.com" value={email} onChange={(event) => setEmail(event.target.value)} wrapperClassName="flex-1" />
           <Input aria-label={text('name')} placeholder={text('name')} autoComplete="off" value={name} onChange={(event) => setName(event.target.value)} wrapperClassName="flex-1" />
         </div>
-        <Input aria-label={text('password')} type="password" autoComplete="new-password" placeholder={text('passwordOptional', minPasswordLength)} value={password} onChange={(event) => setPassword(event.target.value)} />
+        <Input aria-label={text('password')} type="password" autoComplete="new-password" placeholder={text('passwordOptional', { length: minPasswordLength })} value={password} onChange={(event) => setPassword(event.target.value)} />
         <AppRolesPicker roles={roles} selected={selected} grantable={new Set(roles.map((role) => role.name))} onChange={setSelected} />
         <div>
           <Button type="submit" variant="primary" loading={busy} disabled={incomplete}>{text('addAccount')}</Button>

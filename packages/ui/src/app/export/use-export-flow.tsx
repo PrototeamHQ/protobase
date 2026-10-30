@@ -93,13 +93,13 @@ export const useExportFlow = ({ model, view, resources, views, plural, filter, o
       })
       toast.show({
         state: 'success',
-        title: text('exported', formatInt(result.rows), plural),
-        description: result.truncated ? text('truncated', name, formatInt(result.rows)) : name,
+        title: text('exported', { count: formatInt(result.rows), plural }),
+        description: result.truncated ? text('truncated', { name, count: formatInt(result.rows) }) : name,
       })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       if (!isApiError(error)) throw error
-      toast.show({ state: 'error', title: text('couldNotExport', plural), description: error.message })
+      toast.show({ state: 'error', title: text('couldNotExport', { plural }), description: error.message })
     } finally {
       abort.current = undefined
       setStage((current) => (current.kind === 'running' ? { kind: 'closed' } : current))

@@ -37,7 +37,7 @@ export const Field = ({ name, label, required, help, example, error, conflict, w
           {required && <span className="ml-0.5 text-danger-text" aria-hidden="true">*</span>}
         </label>
         {conflict && (
-          <span className="inline-flex items-center gap-1.5 text-warning-text" title={text('savedDifferent', conflict.user.name)}>
+          <span className="inline-flex items-center gap-1.5 text-warning-text" title={text('savedDifferent', { name: conflict.user.name })}>
             <TriangleAlert className="size-3.5" />
             <Avatar initials={conflict.user.initials} hue={conflict.user.hue} size="xs" />
           </span>
@@ -50,7 +50,7 @@ export const Field = ({ name, label, required, help, example, error, conflict, w
       {conflict && (
         <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-body text-warning-text">
           <span>
-            <strong>{conflict.user.name}</strong> {text('savedThis', conflict.ago)} <strong>{conflict.theirValue}</strong>
+            <strong>{conflict.user.name}</strong> {text('savedThis', { ago: conflict.ago })} <strong>{conflict.theirValue}</strong>
           </span>
           <span className="flex gap-1.5">
             <Button size="sm" onClick={conflict.onKeepMine}>{text('keepMine')}</Button>

@@ -27,10 +27,10 @@ export const ReorderRows = ({ ids, rowAt, reorder, children }: { ids: string[]; 
     return row ? reorder.label(row) : text('row')
   }
   const announcements: Announcements = {
-    onDragStart: ({ active }) => text('pickedUp', name(active.id), place(active.id) + 1, ids.length),
-    onDragOver: ({ active, over }) => (over ? text('isOver', name(active.id), place(over.id) + 1, ids.length) : undefined),
-    onDragEnd: ({ active, over }) => (over ? text('droppedAt', name(active.id), place(over.id) + 1, ids.length) : text('putBack', name(active.id))),
-    onDragCancel: ({ active }) => text('cancelled', name(active.id), place(active.id) + 1),
+    onDragStart: ({ active }) => text('pickedUp', { name: name(active.id), row: place(active.id) + 1, rows: ids.length }),
+    onDragOver: ({ active, over }) => (over ? text('isOver', { name: name(active.id), row: place(over.id) + 1, rows: ids.length }) : undefined),
+    onDragEnd: ({ active, over }) => (over ? text('droppedAt', { name: name(active.id), row: place(over.id) + 1, rows: ids.length }) : text('putBack', { name: name(active.id) })),
+    onDragCancel: ({ active }) => text('cancelled', { name: name(active.id), row: place(active.id) + 1 }),
   }
   const end = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return
@@ -52,7 +52,7 @@ export const SortableRow = ({ row, label, ...props }: Omit<DataRowProps, 'handle
     <button
       ref={setActivatorNodeRef}
       type="button"
-      aria-label={text('move', label)}
+      aria-label={text('move', { label })}
       {...attributes}
       {...listeners}
       // The row opens its record on a click, which the handle is not

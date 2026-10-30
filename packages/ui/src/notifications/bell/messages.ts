@@ -1,36 +1,3 @@
-import { defineMessages } from '../../locale/messages'
+import { messages } from '../../locale/messages'
 
-export const text = defineMessages({
-  en: {
-    notifications: 'Notifications',
-    notificationsUnread: (count: string) => `Notifications, ${count} unread`,
-    notificationsManyUnread: 'Notifications, more than 99 unread',
-    markAllRead: 'Mark all as read',
-    empty: 'No notifications yet',
-    showMore: 'Show more',
-    loadFailed: 'Your notifications could not be loaded.',
-    tryAgain: 'Try again',
-    unread: 'Unread',
-    pushOff: 'Get notifications on this device, even when the app is closed.',
-    turnOn: 'Turn on',
-    pushOn: 'Notifications are on for this device.',
-    turnOff: 'Turn off',
-    pushBlocked: "Notifications are blocked on this device. To get them, allow notifications for this site in your browser or device settings.",
-  },
-  nl: {
-    notifications: 'Meldingen',
-    notificationsUnread: (count: string) => `Meldingen, ${count} ongelezen`,
-    notificationsManyUnread: 'Meldingen, meer dan 99 ongelezen',
-    markAllRead: 'Alles als gelezen markeren',
-    empty: 'Nog geen meldingen',
-    showMore: 'Meer tonen',
-    loadFailed: 'Je meldingen konden niet worden geladen.',
-    tryAgain: 'Opnieuw proberen',
-    unread: 'Ongelezen',
-    pushOff: 'Ontvang meldingen op dit apparaat, ook als de app gesloten is.',
-    turnOn: 'Inschakelen',
-    pushOn: 'Meldingen staan op dit apparaat aan.',
-    turnOff: 'Uitschakelen',
-    pushBlocked: 'Meldingen zijn op dit apparaat geblokkeerd. Je kunt ze voor deze site toestaan in de instellingen van je browser of apparaat.',
-  },
-})
+export const text = messages('notifications/bell')

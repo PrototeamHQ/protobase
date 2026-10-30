@@ -24,7 +24,7 @@ const schemaGroup = (schema = 'public') => {
 /** The link under an entry whose `nav.create` asks for one, to whoever the list would offer New. */
 const createLink = (meta: MetaData, view: ViewModel, nav: NavModel | undefined, singular: string, basePath: string): Pick<NavItem, 'create'> => {
   if (!nav?.create || !createOffered(view, meta.pages, meta.permissions[view.resource] ?? allowEverything)) return {}
-  const label = nav.create === true ? createText('title', singular) : nav.create.label
+  const label = nav.create === true ? createText('title', { noun: singular }) : nav.create.label
   return { create: { label, href: appPath({ kind: 'create', resource: view.resource }, basePath) } }
 }
 
@@ -102,7 +102,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
     if (status.state !== 'error') continue
     const group = groups.get(status.source.label) ?? { label: status.source.label, items: [] }
     for (const resource of status.source.resources) {
-      group.items.push({ id: resource, label: humanize(resource), icon: iconFor(resource), href: appPath({ kind: 'list', resource }, basePath), problem: appText('cannotReach', status.source.label) })
+      group.items.push({ id: resource, label: humanize(resource), icon: iconFor(resource), href: appPath({ kind: 'list', resource }, basePath), problem: appText('cannotReach', { label: status.source.label }) })
     }
     groups.set(status.source.label, group)
   }

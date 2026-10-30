@@ -57,7 +57,7 @@ export const zipEntryStream = async (blob: Blob, entry: ZipEntry): Promise<Reada
   const raw = blob.slice(dataStart, dataStart + entry.size).stream()
   if (entry.method === 0) return raw
   if (entry.method === 8) return raw.pipeThrough(new DecompressionStream('deflate-raw'))
-  throw new Error(message('compression', entry.name, entry.method))
+  throw new Error(message('compression', { part: entry.name, method: entry.method }))
 }
 
 /** The entry's content as text, decoded as UTF-8 a chunk at a time. */

@@ -49,7 +49,7 @@ export const loadPlugin = async (ref: PluginRef, loader: PluginLoader, base: str
   let name: string | undefined
   try {
     const read = await loader.readJson(url)
-    if ('status' in read) return off(text('answered', read.status))
+    if ('status' in read) return off(text('answered', { status: read.status }))
     const parsed = parseManifest(read.json)
     if ('problem' in parsed) return off(parsed.problem)
     const { manifest } = parsed
@@ -63,6 +63,6 @@ export const loadPlugin = async (ref: PluginRef, loader: PluginLoader, base: str
   } catch (error) {
     // The loader is the one place a plugin's failures end, from an unreachable file to a module that does not link
     // against this app's @protobase/ui: each turns that plugin off and tells the app's admins why.
-    return off(text('couldNotLoad', describe(error)), name)
+    return off(text('couldNotLoad', { reason: describe(error) }), name)
   }
 }

@@ -37,12 +37,12 @@ export const embeddedRowTargets = ({ model, view, opens, resources, views, canUp
   const singular = singularOf(model, view)
 
   const actions = (linkTo: (to: AppAddress) => RouteTarget): RowAction[] => {
-    const openOwn: RowAction = { label: text('open', singular), link: (row) => linkTo(own(row)) }
+    const openOwn: RowAction = { label: text('open', { singular }), link: (row) => linkTo(own(row)) }
     if (!far) return [openOwn]
     const editable = (row: GridRow) => canUpdate && rowAllows(row, 'update')
     return [
-      { label: text('open', singularOf(far, views[far.name])), available: (row) => other(row) !== undefined, link: (row) => linkTo(other(row)!) },
-      { label: text('edit', singular), available: editable, link: (row) => linkTo({ kind: 'record', resource: model.name, key: recordKey(model, row), edit: true }) },
+      { label: text('open', { singular: singularOf(far, views[far.name]) }), available: (row) => other(row) !== undefined, link: (row) => linkTo(other(row)!) },
+      { label: text('edit', { singular }), available: editable, link: (row) => linkTo({ kind: 'record', resource: model.name, key: recordKey(model, row), edit: true }) },
       { ...openOwn, available: (row) => !editable(row) },
     ]
   }

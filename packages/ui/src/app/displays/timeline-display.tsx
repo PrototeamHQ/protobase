@@ -89,11 +89,11 @@ export const TimelineDisplay = ({ model, view, display, fields, filter, at, link
   const title = (picked: Picked) => eventTitle(model, view, display, picked.row)
   const startText = (picked: Picked) => formatDate(Date.parse(`${addDays(picked.day, shift.current)}T00:00:00Z`))
   const announcements: Announcements = {
-    onDragStart: ({ active: picked }) => text('pickedUp', title(picked.data.current as Picked)),
-    onDragMove: ({ active: picked }) => text('startsOn', title(picked.data.current as Picked), startText(picked.data.current as Picked)),
+    onDragStart: ({ active: picked }) => text('pickedUp', { title: title(picked.data.current as Picked) }),
+    onDragMove: ({ active: picked }) => text('startsOn', { title: title(picked.data.current as Picked), day: startText(picked.data.current as Picked) }),
     onDragOver: () => undefined,
-    onDragEnd: ({ active: picked }) => (shift.current === 0 ? text('putBack', title(picked.data.current as Picked)) : text('wasMovedTo', title(picked.data.current as Picked), startText(picked.data.current as Picked))),
-    onDragCancel: ({ active: picked }) => text('cancelled', title(picked.data.current as Picked)),
+    onDragEnd: ({ active: picked }) => (shift.current === 0 ? text('putBack', { title: title(picked.data.current as Picked) }) : text('wasMovedTo', { title: title(picked.data.current as Picked), to: startText(picked.data.current as Picked) })),
+    onDragCancel: ({ active: picked }) => text('cancelled', { title: title(picked.data.current as Picked) }),
   }
   const release = () => {
     setActive(undefined)
@@ -131,7 +131,7 @@ export const TimelineDisplay = ({ model, view, display, fields, filter, at, link
       {list.error && <ErrorBanner title={text('couldNotLoadRows')} error={list.error} />}
       {list.capped && (
         <p className="text-xs text-muted-foreground">
-          {text('capped', calendarLimit, shown.scale)}
+          {text('capped', { limit: calendarLimit, unit: shown.scale })}
         </p>
       )}
       <DndContext
@@ -159,7 +159,7 @@ export const TimelineDisplay = ({ model, view, display, fields, filter, at, link
                 <Skeleton className="h-4" />
               </div>
             )}
-            {empty && <p className="relative px-2 py-3 text-xs text-muted-foreground">{text('nothingIn', shown.scale)}</p>}
+            {empty && <p className="relative px-2 py-3 text-xs text-muted-foreground">{text('nothingIn', { unit: shown.scale })}</p>}
             {!list.loading &&
               lanes.map((lane) => (
                 <section key={lane.key} aria-label={lane.label} className="relative border-b border-border last:border-b-0">

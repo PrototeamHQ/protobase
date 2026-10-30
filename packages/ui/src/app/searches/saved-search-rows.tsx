@@ -40,9 +40,9 @@ export const SavedSearchRows = ({ model, view, empty }: { model: ResourceModel; 
   const saved = useSavedSearches(model.name, true)
   const plural = (view.names?.plural ?? humanize(model.name)).toLowerCase()
   if (!target) return null
-  if (saved.error) return <ErrorBanner title={text('couldNotLoadYour', plural)} error={saved.error} />
+  if (saved.error) return <ErrorBanner title={text('couldNotLoadYour', { plural })} error={saved.error} />
   if (!saved.data) return <Skeleton className="h-40" />
-  if (saved.data.length === 0) return <p className="text-muted-foreground">{empty ?? text('noneYet', plural)}</p>
+  if (saved.data.length === 0) return <p className="text-muted-foreground">{empty ?? text('noneYet', { plural })}</p>
   return (
     <div className="flex flex-col divide-y">
       {saved.data.map((row) => (

@@ -16,7 +16,6 @@ import type { ListDisplayRow } from './list-displays'
 import { RecordCard } from './record-card'
 import { useBoardMove } from './use-board-move'
 import { text } from './messages'
-import { slotted } from '../../locale/slotted'
 
 type BoardProps = {
   model: ResourceModel
@@ -77,7 +76,7 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
     // Enter opens the card's record, so only Space picks a card up
     useSensor(KeyboardSensor, { keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space', 'Enter'] }, coordinateGetter: cardCoordinates }),
   )
-  if (dropName !== undefined && !drop) return <Problem>{slotted(text('noDrop'), dropName)}</Problem>
+  if (dropName !== undefined && !drop) return <Problem>{text.rich('noDrop', { drop: dropName })}</Problem>
 
   const columnOf = (id: unknown) => columns.find((column) => columnId(column.value) === id)
   const valueOf = (row: ListDisplayRow) => (row.record[display.by] ?? null) as string | null
@@ -87,7 +86,7 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
     const place = placeable ? placeOver(over, row) : undefined
     if (!place) return { over: columnOf(over.id)?.label ?? text('noColumn') }
     const count = place.rows.some((entry) => entry.key === row.key) ? place.rows.length : place.rows.length + 1
-    return { over: text('placeOf', place.column.label, place.index + 1, count), place: text('place', place.column.label, place.index + 1) }
+    return { over: text('placeOf', { column: place.column.label, place: place.index + 1, count }), place: text('place', { column: place.column.label, place: place.index + 1 }) }
   }
   // Whether a drop on `over` takes the card to a column it may not move to
   const refused = (row: ListDisplayRow, over: Over) => {
@@ -95,15 +94,15 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
     return target !== undefined && target.value !== valueOf(row) && !crosses(row, target)
   }
   const announcements: Announcements = {
-    onDragStart: ({ active: picked }) => text('pickedUp', title(picked.data.current!.row)),
-    onDragOver: ({ active: picked, over }) => text('isOver', title(picked.data.current!.row), announced(picked.data.current!.row, over).over),
+    onDragStart: ({ active: picked }) => text('pickedUp', { title: title(picked.data.current!.row) }),
+    onDragOver: ({ active: picked, over }) => text('isOver', { title: title(picked.data.current!.row), over: announced(picked.data.current!.row, over).over }),
     onDragEnd: ({ active: picked, over }) => {
       const row = picked.data.current!.row as ListDisplayRow
-      if (!over || refused(row, over)) return text('putBack', title(row))
+      if (!over || refused(row, over)) return text('putBack', { title: title(row) })
       const said = announced(row, over)
-      return text('wasMovedTo', title(row), said.place ?? said.over)
+      return text('wasMovedTo', { title: title(row), to: said.place ?? said.over })
     },
-    onDragCancel: ({ active: picked }) => text('cancelled', title(picked.data.current!.row)),
+    onDragCancel: ({ active: picked }) => text('cancelled', { title: title(picked.data.current!.row) }),
   }
 
   const start = ({ active: picked }: DragStartEvent) => {

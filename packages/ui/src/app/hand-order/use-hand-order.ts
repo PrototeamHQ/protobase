@@ -135,7 +135,7 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
   // Where the rule lets the row land, warning when that is not where it was dropped
   const placeAllowed = (rows: GridRow[], from: number, dropped: number, rule: DropRule) => {
     const allowed = allowedDrop(rows.map((row) => displayRow(model, row).record), from, dropped, rule)
-    if (allowed.reason !== undefined) toast.show({ state: 'warning', title: allowed.to === from ? text('notMoved') : text('movedToPlace', allowed.to + 1), description: allowed.reason })
+    if (allowed.reason !== undefined) toast.show({ state: 'warning', title: allowed.to === from ? text('notMoved') : text('movedToPlace', { place: allowed.to + 1 }), description: allowed.reason })
     return allowed.to
   }
 

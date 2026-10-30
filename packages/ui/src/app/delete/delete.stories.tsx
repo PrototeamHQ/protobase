@@ -29,7 +29,7 @@ export const ChangedSinceOpened: StoryObj = {
 }
 
 export const BulkConfirm: StoryObj = {
-  render: () => backdrop(<BulkDeleteDialog stage="confirm" count={12} plural="Orders" onCancel={() => undefined} onConfirm={() => undefined} />),
+  render: () => backdrop(<BulkDeleteDialog stage="confirm" count={12} noun="Order" plural="Orders" onCancel={() => undefined} onConfirm={() => undefined} />),
 }
 
 export const BulkRunning: StoryObj = { render: () => backdrop(<BulkDeleteDialog stage="running" done={7} total={12} />) }

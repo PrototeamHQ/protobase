@@ -73,11 +73,11 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
   const approximate = new Set(points.filter((point) => point.approximate).map((point) => point.key))
   const markerLabel = (keys: string[]) => {
     const near = keys.filter((key) => approximate.has(key)).length
-    if (keys.length === 1) return near === 1 ? text('showOneApproximate', singular) : text('showOne', singular)
-    if (near === 0) return text('showMany', keys.length, plural)
-    return near === keys.length ? text('showManyApproximate', keys.length, plural) : text('showManySomeApproximate', keys.length, plural, near)
+    if (keys.length === 1) return near === 1 ? text('showOneApproximate', { singular }) : text('showOne', { singular })
+    if (near === 0) return text('showMany', { count: keys.length, plural })
+    return near === keys.length ? text('showManyApproximate', { count: keys.length, plural }) : text('showManySomeApproximate', { count: keys.length, plural, near })
   }
-  const bucketLabel = (count: number) => text('zoomIn', count.toLocaleString(formatTag()), count === 1 ? singular : plural)
+  const bucketLabel = (count: number) => text('zoomIn', { count: count.toLocaleString(formatTag()), noun: count === 1 ? singular : plural })
   // How much of the map's bottom the card and its arrows cover, so the map keeps the chosen marker above them
   const overlay = useRef<HTMLDivElement>(null)
   const [covered, setCovered] = useState(0)
@@ -117,7 +117,7 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
         {empty && (
           <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex justify-center">
             <p className="pointer-events-auto flex items-center gap-3 rounded-full border border-border bg-background px-4 py-1.5 text-muted-foreground shadow" role="status">
-              {fitting ? text('noneMatch', plural) : text('noneHere', plural)}
+              {fitting ? text('noneMatch', { plural }) : text('noneHere', { plural })}
               {!fitting && (
                 <Button size="sm" onClick={() => setFitting(true)}>
                   {text('showAll')}
@@ -128,7 +128,7 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
         )}
         {selection && row && (
           <div ref={overlay} className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex justify-center">
-            <div className="pointer-events-auto flex w-full max-w-[16rem] flex-col gap-2 sm:max-w-xs" role="group" aria-label={text('chosen', singular)}>
+            <div className="pointer-events-auto flex w-full max-w-[16rem] flex-col gap-2 sm:max-w-xs" role="group" aria-label={text('chosen', { singular })}>
               <div className="flex items-center justify-end gap-1.5">
                 {approximate.has(row.key) && (
                   <span className="mr-auto flex items-center gap-1 rounded-full border border-border bg-background px-2 py-1 text-xs">

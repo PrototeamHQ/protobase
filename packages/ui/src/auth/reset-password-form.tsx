@@ -42,7 +42,7 @@ export const ResetPasswordForm = ({ onSubmit, invalidLink, onRequestNewLink, onB
   }
   const shown = mismatch ? text('passwordsDiffer') : error
   return (
-    <AuthLayout title={text('choosePassword')} description={text('atLeast', minPasswordLength)}>
+    <AuthLayout title={text('choosePassword')} description={text('atLeast', { length: minPasswordLength })}>
       <form
         className="flex flex-col gap-4"
         onSubmit={(event) => {

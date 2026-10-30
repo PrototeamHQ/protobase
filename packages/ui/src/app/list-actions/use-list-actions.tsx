@@ -46,7 +46,7 @@ export const useListActions = (model: ResourceModel) => {
   const bulkActions = listed
     .filter((action) => action.bulk && action.run?.kind !== 'link')
     .map((action): BulkAction => ({
-      label: (count) => text('actionCount', action.label, count),
+      label: (count) => text('actionCount', { label: action.label, count }),
       destructive: isDanger(action),
       available: (row) => runner.appliesOn(action, rowRecord(model, row)),
       onRun: (rows, skipped) => start({ action, selection: rows.map((row) => rowRecord(model, row)), skipped }),

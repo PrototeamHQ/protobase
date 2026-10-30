@@ -10,7 +10,7 @@ export const CallLobbyNotice = ({ waiting, guests }: { waiting: CallLobbyGuest[]
   if (!first) return null
   return (
     <div role="status" className="flex shrink-0 flex-wrap items-center gap-2 rounded-md bg-primary-soft px-3 py-1.5 text-xs text-foreground">
-      <span className="min-w-0 flex-1 truncate">{refused ? text('guestRefused') : text('waitingGuest', first.name)}</span>
+      <span className="min-w-0 flex-1 truncate">{refused ? text('guestRefused') : text('waitingGuest', { name: first.name })}</span>
       <Button size="sm" variant="primary" onClick={() => run(() => guests.admit(first.guest))}>
         {text('admit')}
       </Button>

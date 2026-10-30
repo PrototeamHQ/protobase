@@ -39,7 +39,7 @@ export const StaffSignInForm = ({ operator, email: givenEmail = '', reason: give
     )
   }
   return (
-    <AuthLayout title={text('signInAsPerson')} description={text('forStaffOf', operator)}>
+    <AuthLayout title={text('signInAsPerson')} description={text('forStaffOf', { operator })}>
       <form
         className="flex flex-col gap-4"
         onSubmit={(event) => {
@@ -68,7 +68,7 @@ export const StaffSignInForm = ({ operator, email: givenEmail = '', reason: give
           />
         </label>
         <p className="text-xs text-muted-foreground">
-          {text('staffExplanation', operator)}
+          {text('staffExplanation', { operator })}
         </p>
         {error && (
           <p role="alert" className="text-body font-medium text-danger-text">
@@ -76,7 +76,7 @@ export const StaffSignInForm = ({ operator, email: givenEmail = '', reason: give
           </p>
         )}
         <Button variant="primary" type="submit" loading={busy} className="min-h-10">
-          {text('continueWith', operator)}
+          {text('continueWith', { name: operator })}
         </Button>
         <Button variant="ghost" onClick={onBack} className="min-h-10">
           {text('backToSignIn')}

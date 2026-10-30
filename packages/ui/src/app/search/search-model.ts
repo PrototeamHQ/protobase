@@ -31,9 +31,9 @@ export const searchTargets = (meta: MetaData): SearchTarget[] =>
 export const searchPlaceholder = (targets: SearchTarget[]) => {
   const names = targets.map((target) => target.label.toLowerCase())
   if (names.length === 0) return text('search')
-  if (names.length === 1) return text('searchOne', names[0]!)
-  if (names.length === 2) return text('searchTwo', names[0]!, names[1]!)
-  return text('searchMore', names[0]!, names[1]!)
+  if (names.length === 1) return text('searchOne', { name: names[0]! })
+  if (names.length === 2) return text('searchTwo', { first: names[0]!, second: names[1]! })
+  return text('searchMore', { first: names[0]!, second: names[1]! })
 }
 
 /** The list filter for the text: the server's partial-word `search(...)` over the resource's search fields. */

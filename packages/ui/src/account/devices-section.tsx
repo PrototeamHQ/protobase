@@ -21,10 +21,10 @@ export type DevicesSectionProps = {
 
 // A staff session is named for the operator alone: the person sees that its staff signed in and when, not who.
 const nameOf = (session: DeviceSession, operator: string | undefined) => {
-  if (session.staff) return operator ? text('staffOf', operator) : text('staff')
+  if (session.staff) return operator ? text('staffOf', { operator }) : text('staff')
   const { browser, system } = deviceOf(session.userAgent)
-  if (browser && system) return text('browserOn', browser, system)
-  if (system) return text('aBrowserOn', system)
+  if (browser && system) return text('browserOn', { browser, system })
+  if (system) return text('aBrowserOn', { system })
   return browser ?? text('unknownDevice')
 }
 
@@ -83,7 +83,7 @@ export const DevicesSection = ({ sessions, operator, onSignOut, onSignOutOthers 
                     {session.current && <Badge tone="green">{text('thisDevice')}</Badge>}
                   </span>
                   <span className="block text-xs text-muted-foreground">
-                    {text('signedInFromUntil', formatDateTime(Date.parse(session.createdAt)), formatDateTime(Date.parse(session.expiresAt)))}
+                    {text('signedInFromUntil', { from: formatDateTime(Date.parse(session.createdAt)), until: formatDateTime(Date.parse(session.expiresAt)) })}
                     {!session.staff && session.ipAddress && ` · ${session.ipAddress}`}
                   </span>
                 </span>
@@ -104,7 +104,7 @@ export const DevicesSection = ({ sessions, operator, onSignOut, onSignOutOthers 
       )}
       {confirming && (
         <Dialog
-          title={confirming.kind === 'one' ? text('signOutDevice', nameOf(confirming.session, operator)) : text('signOutOthersTitle')}
+          title={confirming.kind === 'one' ? text('signOutDevice', { name: nameOf(confirming.session, operator) }) : text('signOutOthersTitle')}
           description={confirming.kind === 'one' ? text('signOutDeviceDescription') : text('signOutOthersDescription')}
           onClose={() => setConfirming(undefined)}
           actions={

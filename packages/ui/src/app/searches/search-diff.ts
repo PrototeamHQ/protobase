@@ -95,7 +95,7 @@ export const filterChanges = (before: readonly FilterChip[], after: readonly Fil
 /** The net change in the records a search finds: "5 more homes", "1 fewer home" or "As many homes". */
 export const netChange = (added: number, removed: number, singular: string, plural: string) => {
   const net = added - removed
-  if (net === 0) return text('asMany', plural)
+  if (net === 0) return text('asMany', { plural })
   const noun = Math.abs(net) === 1 ? singular : plural
-  return net > 0 ? text('more', net, noun) : text('fewer', -net, noun)
+  return net > 0 ? text('more', { count: net, noun }) : text('fewer', { count: -net, noun })
 }

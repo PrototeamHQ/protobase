@@ -36,7 +36,7 @@ const SignUp = ({ token, preview, joins, onDone }: { token: string; preview: Inv
     })
   return (
     <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void submit() }}>
-      <p className="text-muted-foreground">{joins ? text('makeAccountToJoin', preview.email) : text('makeAccount', preview.email)}</p>
+      <p className="text-muted-foreground">{joins ? text('makeAccountToJoin', { email: preview.email }) : text('makeAccount', { email: preview.email })}</p>
       {error && <p role="alert" className="text-body font-medium text-danger-text">{error}</p>}
       <Input aria-label={text('yourName')} placeholder={text('yourName')} autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} />
       {withPassword && (
@@ -44,7 +44,7 @@ const SignUp = ({ token, preview, joins, onDone }: { token: string; preview: Inv
           aria-label={text('password')}
           type="password"
           autoComplete="new-password"
-          placeholder={passwordOptional ? text('passwordOptional', minPasswordLength) : text('passwordRequired', minPasswordLength)}
+          placeholder={passwordOptional ? text('passwordOptional', { length: minPasswordLength }) : text('passwordRequired', { length: minPasswordLength })}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
@@ -88,21 +88,21 @@ export const InvitationPage = ({ token, onDone, signIn }: InvitationPageProps) =
   const sameAddress = user?.email.toLowerCase() === preview.email.toLowerCase()
   if (!preview.organization) {
     const app = preview.app?.name ?? ''
-    const description = text('invitesToApp', preview.inviter.name, app)
+    const description = text('invitesToApp', { inviter: preview.inviter.name, app })
     return (
-      <AuthLayout title={text('join', app)} description={description}>
+      <AuthLayout title={text('join', { name: app })} description={description}>
         {preview.hasAccount ? (
           user && sameAddress ? (
             <Button variant="primary" className="w-full" onClick={onDone}>{text('goToApp')}</Button>
           ) : (
             <>
-              <p className="mb-3 text-muted-foreground">{text('hasAccount', preview.email)}</p>
-              {user ? <Button className="w-full" onClick={() => void signOut()}>{text('signOut')}</Button> : <RouteLink to={signIn} className={cn(buttonClass({ variant: 'primary' }), 'w-full')}>{text('signInAs', preview.email)}</RouteLink>}
+              <p className="mb-3 text-muted-foreground">{text('hasAccount', { email: preview.email })}</p>
+              {user ? <Button className="w-full" onClick={() => void signOut()}>{text('signOut')}</Button> : <RouteLink to={signIn} className={cn(buttonClass({ variant: 'primary' }), 'w-full')}>{text('signInAs', { email: preview.email })}</RouteLink>}
             </>
           )
         ) : user ? (
           <>
-            <p className="mb-3 text-muted-foreground">{text('otherAddress', preview.email, user.email)}</p>
+            <p className="mb-3 text-muted-foreground">{text('otherAddress', { invited: preview.email, signedIn: user.email })}</p>
             <Button className="w-full" onClick={() => void signOut()}>{text('signOutToAccept')}</Button>
           </>
         ) : (
@@ -114,27 +114,27 @@ export const InvitationPage = ({ token, onDone, signIn }: InvitationPageProps) =
   const organization = preview.organization
   const roles = preview.appRoles.map((name) => roleLabel(organizations?.roles ?? [], name))
   const role = organizationRoleLabel(preview.role!).toLowerCase()
-  const description = roles.length > 0 ? text('invitesToWith', preview.inviter.name, organization.name, role, roles.join(', ')) : text('invitesTo', preview.inviter.name, organization.name, role)
+  const description = roles.length > 0 ? text('invitesToWith', { inviter: preview.inviter.name, organization: organization.name, role, roles: roles.join(', ') }) : text('invitesTo', { inviter: preview.inviter.name, organization: organization.name, role })
 
   if (user && !sameAddress) {
     return (
-      <AuthLayout title={text('join', organization.name)} description={description}>
-        <p className="mb-3 text-muted-foreground">{text('otherAddress', preview.email, user.email)}</p>
+      <AuthLayout title={text('join', { name: organization.name })} description={description}>
+        <p className="mb-3 text-muted-foreground">{text('otherAddress', { invited: preview.email, signedIn: user.email })}</p>
         <Button className="w-full" onClick={() => void signOut()}>{text('signOutToAccept')}</Button>
       </AuthLayout>
     )
   }
   return (
-    <AuthLayout title={text('join', organization.name)} description={description}>
+    <AuthLayout title={text('join', { name: organization.name })} description={description}>
       {user ? (
         <div className="flex flex-col gap-3">
           {error && <p role="alert" className="text-body font-medium text-danger-text">{error}</p>}
           <Button variant="primary" className="w-full" loading={busy} onClick={() => void run(async () => { await session.organizations.accept(token); onDone() })}>
-            {text('join', organization.name)}
+            {text('join', { name: organization.name })}
           </Button>
         </div>
       ) : preview.hasAccount ? (
-        <RouteLink to={signIn} className={cn(buttonClass({ variant: 'primary' }), 'w-full')}>{text('signInAsToJoin', preview.email)}</RouteLink>
+        <RouteLink to={signIn} className={cn(buttonClass({ variant: 'primary' }), 'w-full')}>{text('signInAsToJoin', { email: preview.email })}</RouteLink>
       ) : (
         <SignUp token={token} preview={preview} joins onDone={onDone} />
       )}

@@ -7,5 +7,5 @@ import { text } from './messages'
  */
 export const cutOffNote = (shown: number, total: number, estimated: boolean) => {
   if (shown >= total) return undefined
-  return (estimated ? text('firstOfAbout', shown, total.toLocaleString(formatTag())) : text('firstOf', shown, total.toLocaleString(formatTag())))
+  return (estimated ? text('firstOfAbout', { shown, total: total.toLocaleString(formatTag()) }) : text('firstOf', { shown, total: total.toLocaleString(formatTag()) }))
 }

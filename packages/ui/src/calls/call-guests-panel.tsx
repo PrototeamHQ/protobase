@@ -111,7 +111,7 @@ export const CallGuestsPanel = ({ lobby, inCall, guests, linkOf, open, onClose }
                   />
                 )}
                 <span className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                  {link.expires_at ? text('linkUntil', new Date(link.expires_at).toLocaleString()) : text('linkUntilEnd')}
+                  {link.expires_at ? text('linkUntil', { until: new Date(link.expires_at).toLocaleString() }) : text('linkUntilEnd')}
                   <Button size="sm" onClick={() => run(() => guests.revoke(link.id))}>
                     {text('revoke')}
                   </Button>

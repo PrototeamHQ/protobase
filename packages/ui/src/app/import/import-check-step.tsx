@@ -16,24 +16,24 @@ const listedProblems = 50
 
 /** Saves the rows with their problems as a CSV named after the imported file. */
 export const downloadRows = (fileName: string | undefined, headers: string[], rows: FailedRow[]) =>
-  saveFile(failedRowsCsv(headers, rows), text('notImportedFile', (fileName ?? 'import').replace(/\.[^.]+$/, '')), 'text/csv')
+  saveFile(failedRowsCsv(headers, rows), text('notImportedFile', { name: (fileName ?? 'import').replace(/\.[^.]+$/, '') }), 'text/csv')
 
 /** The rows with what keeps each from being imported, at most `listedProblems` of them. */
 export const ProblemList = ({ rows }: { rows: FailedRow[] }) => (
   <ul aria-label={text('rowsNotImported')} className="flex flex-col gap-1 text-body">
     {rows.slice(0, listedProblems).map((row) => (
       <li key={row.line}>
-        <span className="font-medium">{text('rowProblems', row.line)}</span> {row.problems.join('; ')}
+        <span className="font-medium">{text('rowProblems', { line: row.line })}</span> {row.problems.join('; ')}
       </li>
     ))}
-    {rows.length > listedProblems && <li className="text-muted-foreground">{text('andMore', (rows.length - listedProblems).toLocaleString(formatTag()))}</li>}
+    {rows.length > listedProblems && <li className="text-muted-foreground">{text('andMore', { count: (rows.length - listedProblems).toLocaleString(formatTag()) })}</li>}
   </ul>
 )
 
 export const ImportChecking = ({ rows }: { rows: number }) => (
   <p className="flex items-center gap-2 text-muted-foreground" role="status">
     <Spinner className="size-3.5" />
-    {text('checkingRows', rows.toLocaleString(formatTag()))}
+    {text('checkingRows', { count: rows.toLocaleString(formatTag()) })}
   </p>
 )
 
@@ -106,7 +106,7 @@ export const ImportCheckStep = ({ check, model, resources, views, columns, heade
           <ProblemList rows={check.problems} />
         </div>
       )}
-      <p className="text-xs text-muted-foreground">{text('batches', batchRows)}</p>
+      <p className="text-xs text-muted-foreground">{text('batches', { size: batchRows })}</p>
     </div>
   )
 }

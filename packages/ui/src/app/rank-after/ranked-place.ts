@@ -33,7 +33,7 @@ export const rankedPlace = ({ model, rank, rows, row, index, bounds, title }: Re
     const mine = Number(ranked.get(encodeKey(recordKey(model, row.record))))
     const above = bounds.after.filter((bound) => isRank(rankOf(bound)) && Number(rankOf(bound)) >= mine)
     const below = bounds.before.find((bound) => isRank(rankOf(bound)) && Number(rankOf(bound)) <= mine)
-    const refusal = below ? text('dependsOn', below.title, title) : above[0] && text('dependsOn', title, above[0].title)
+    const refusal = below ? text('dependsOn', { record: below.title, other: title }) : above[0] && text('dependsOn', { record: title, other: above[0].title })
     if (!refusal) return { place: { index: at }, ...(reason !== undefined && { reason }) }
     reason ??= refusal
     if (at !== end || below) continue

@@ -34,7 +34,7 @@ export const ResendCodeButton = ({ onResend, cooldown = 30, disabled }: ResendCo
       }}
       className="min-h-10"
     >
-      {left > 0 ? text('sendNewCodeIn', left) : text('sendNewCode')}
+      {left > 0 ? text('sendNewCodeIn', { seconds: left }) : text('sendNewCode')}
     </Button>
   )
 }

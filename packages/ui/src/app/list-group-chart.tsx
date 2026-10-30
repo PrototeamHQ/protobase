@@ -7,7 +7,7 @@ const measureTitle = (chart: GroupChartModel, view: ViewModel | undefined, plura
   const name = chart.sum ?? chart.average
   if (name === undefined) return plural
   const label = view?.fields[name]?.label ?? humanize(name)
-  return chart.sum !== undefined ? `${label}` : appText('average', label)
+  return chart.sum !== undefined ? `${label}` : appText('average', { label })
 }
 
 /** The view's chart per value of a field, above the list and following its filter. */

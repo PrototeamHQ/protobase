@@ -112,7 +112,7 @@ export const timelineLanes = (rows: ListDisplayRow[], model: ResourceModel, view
     const value = row.record[group]
     const empty = value === null || value === undefined || value === ''
     const key = empty ? noValue : `value:${String(value)}`
-    const label = empty ? text('noValue', hints?.label ?? humanize(group)) : (row.labels[group] ?? displayValue(field, value, hints))
+    const label = empty ? text('noValue', { label: hints?.label ?? humanize(group) }) : (row.labels[group] ?? displayValue(field, value, hints))
     const known = lanes.get(key) ?? { value: empty ? undefined : value, lane: { key, label, rows: [] } }
     known.lane.rows.push(row)
     lanes.set(key, known)

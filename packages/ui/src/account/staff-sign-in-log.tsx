@@ -16,16 +16,16 @@ export type StaffSignInLogProps = {
 
 const stateOf = (entry: StaffSignIn, now: number) =>
   entry.endedAt ? (
-    <Badge tone="neutral">{text('stopped', formatDateTime(Date.parse(entry.endedAt)))}</Badge>
+    <Badge tone="neutral">{text('stopped', { time: formatDateTime(Date.parse(entry.endedAt)) })}</Badge>
   ) : Date.parse(entry.expiresAt) <= now ? (
-    <Badge tone="neutral">{text('ended', formatDateTime(Date.parse(entry.expiresAt)))}</Badge>
+    <Badge tone="neutral">{text('ended', { time: formatDateTime(Date.parse(entry.expiresAt)) })}</Badge>
   ) : (
-    <Badge tone="amber">{text('signedInUntil', formatDateTime(Date.parse(entry.expiresAt)))}</Badge>
+    <Badge tone="amber">{text('signedInUntil', { time: formatDateTime(Date.parse(entry.expiresAt)) })}</Badge>
   )
 
 /** The app's log of staff sign-ins, for admins: who signed in as whom, why, and when. */
 export const StaffSignInLog = ({ signIns, operator, error, now = Date.now() }: StaffSignInLogProps) => (
-  <AccountSection title={text('staffSignIns')} description={text('staffSignInsDescription', operator)}>
+  <AccountSection title={text('staffSignIns')} description={text('staffSignInsDescription', { operator })}>
     <SectionError message={error} />
     {signIns && signIns.length === 0 && <p className="text-muted-foreground">{text('noStaffSignIns')}</p>}
     {signIns && signIns.length > 0 && (

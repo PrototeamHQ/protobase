@@ -4,7 +4,6 @@ import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { AuthLayout } from './auth-layout'
 import { minPasswordLength } from './reset-password-form'
-import { slotted } from '../locale/slotted'
 import { text } from './messages'
 
 export type SignUpDetails = { name: string; password?: string }
@@ -32,7 +31,7 @@ export const SignUpDetailsForm = ({ email, onSubmit, onBack, methods, busy, erro
   return (
     <AuthLayout title={text('detailsTitle')} description={text('detailsDescription')}>
       <p className="mb-4 text-muted-foreground">
-        {slotted(text('codeWasRight'), <span className="font-medium text-foreground">{email}</span>)}
+        {text.rich('codeWasRight', { email: <span className="font-medium text-foreground">{email}</span> })}
       </p>
       <form
         className="flex flex-col gap-4"
@@ -63,7 +62,7 @@ export const SignUpDetailsForm = ({ email, onSubmit, onBack, methods, busy, erro
               />
             </label>
             <p id={passwordHint} className="text-xs text-muted-foreground">
-              {text('atLeast', minPasswordLength)}
+              {text('atLeast', { length: minPasswordLength })}
               {passwordOptional && text('withoutPassword')}
             </p>
           </div>

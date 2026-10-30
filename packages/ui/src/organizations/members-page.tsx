@@ -37,7 +37,7 @@ const MemberRow = ({ member, current, status, presence, onChanged }: { member: O
       actions={
         <>
           <select
-            aria-label={text('roleOf', member.name)}
+            aria-label={text('roleOf', { name: member.name })}
             value={member.role}
             disabled={busy || roleLocked}
             onChange={(event) => void run(async () => { await session.organizations.setRole(organizationId, member.id, event.target.value as OrganizationRole); onChanged() })}
@@ -76,7 +76,7 @@ export const MembersPage = ({ current, statuses, presence }: { current?: Current
   if (!current?.organization) return null
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
-      <PageHeader title={text('members')} subtitle={text('whoWorks', current.organization.name)} />
+      <PageHeader title={text('members')} subtitle={text('whoWorks', { organization: current.organization.name })} />
       <AccountSection title={text('members')} description={text('membersDescription')}>
         <SectionError message={error} />
         {members ? (

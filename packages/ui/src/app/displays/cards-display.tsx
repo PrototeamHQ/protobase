@@ -26,7 +26,7 @@ const scroller = 'relative flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1
 export const CardsDisplay = ({ model, view, display, list, row = false, footer = true }: CardsProps) => {
   const plural = (view?.names?.plural ?? humanize(model.name)).toLowerCase()
   return (
-    <DisplayState list={list} empty={text('noneMatch', plural)} loading={<div className={grid}>{Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div>}>
+    <DisplayState list={list} empty={text('noneMatch', { plural })} loading={<div className={grid}>{Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div>}>
       <ul className={row ? scroller : grid} aria-label={view?.names?.plural ?? humanize(model.name)}>
         {list.rows.map((record) => (
           <li key={record.key} className={cn(row && 'w-64 shrink-0 snap-start')}>

@@ -40,7 +40,7 @@ export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: Sidebar
           type="button"
           aria-expanded={open}
           aria-controls={listId}
-          aria-label={text('recent', item.label.toLowerCase())}
+          aria-label={text('recent', { plural: item.label.toLowerCase() })}
           onClick={toggle}
           className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground"
         >
@@ -48,7 +48,7 @@ export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: Sidebar
         </button>
       </div>
       {open && (
-        <ul id={listId} aria-label={text('recent', item.label.toLowerCase())} className={cn('flex flex-col gap-0.5 border-l pl-1.5', subRowIndent[mode])}>
+        <ul id={listId} aria-label={text('recent', { plural: item.label.toLowerCase() })} className={cn('flex flex-col gap-0.5 border-l pl-1.5', subRowIndent[mode])}>
           {recent.state === 'loading' && (
             <li className={cn('flex items-center text-faint-foreground', subRow[mode])}>{text('loading')}</li>
           )}

@@ -84,7 +84,7 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
             {offered.map((provider) => (
               <Button key={provider.id} onClick={() => onContinueWith?.(provider.id)} disabled={busy} className="min-h-10 w-full">
                 <ProviderIcon id={provider.id} />
-                {text('continueWith', provider.name)}
+                {text('continueWith', { name: provider.name })}
               </Button>
             ))}
             {withPasskey && (
@@ -96,7 +96,7 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
             {withPasskey &&
               passkeyDomains.slice(1).map((domain) => (
                 <Button key={domain} variant="ghost" size="sm" onClick={() => onPasskey?.(domain)} disabled={busy} className="w-full">
-                  {text('passkeyFor', domain)}
+                  {text('passkeyFor', { domain })}
                 </Button>
               ))}
           </div>

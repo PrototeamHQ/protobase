@@ -36,7 +36,7 @@ export const CarouselControls = ({ carousel, count, swipe, reveal, className }: 
         <ChevronRight className="size-4" aria-hidden />
       </button>
       <span className="absolute inset-x-0 bottom-2 flex justify-center" aria-live="polite">
-        <span className="sr-only">{text('photoOf', index + 1, count)}</span>
+        <span className="sr-only">{text('photoOf', { index: index + 1, count })}</span>
         <span className="flex items-center gap-1 rounded-full bg-background/70 px-1.5 py-1 leading-none" aria-hidden>
           {Array.from({ length: count }, (_, dot) => (
             <span key={dot} className={cn('size-1.5 rounded-full', dot === index ? 'bg-foreground' : 'bg-foreground/35')} />

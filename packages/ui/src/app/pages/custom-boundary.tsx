@@ -1,7 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { reportRenderError } from '../error-reporting'
 import { Problem } from './problem'
-import { slotted } from '../../locale/slotted'
 import { text } from './messages'
 
 type CustomBoundaryProps = {
@@ -26,6 +25,6 @@ export class CustomBoundary extends Component<CustomBoundaryProps, { failed: boo
 
   override render() {
     if (!this.state.failed) return this.props.children
-    return this.props.fallback === undefined ? <Problem>{slotted(text('couldNotDraw'), this.props.name)}</Problem> : this.props.fallback
+    return this.props.fallback === undefined ? <Problem>{text.rich('couldNotDraw', { name: this.props.name })}</Problem> : this.props.fallback
   }
 }

@@ -69,7 +69,7 @@ const SettingsForm = ({ model, fields, title, description, stored: loaded }: For
           setStored(record)
           setErrors((current) => Object.fromEntries(Object.entries(current).filter(([name]) => !Object.hasOwn(changes, name))))
           await refresh(model.name)
-          toast.show({ state: 'success', title: text('saved', title ?? text('settings')) })
+          toast.show({ state: 'success', title: text('saved', { label: title ?? text('settings') }) })
         },
         (error: unknown) => {
           setErrors((current) => ({ ...current, ...fieldErrors(error) }))

@@ -104,11 +104,11 @@ export const ImportMappingStep = ({ flow, model, resources, views, canUpdate }: 
                 <p className="truncate text-xs text-muted-foreground">{examples.length > 0 ? examples.join(', ') : text('emptyInFirstRows')}</p>
               </div>
               <div className="flex min-w-0 flex-col gap-2">
-                <ImportSelect label={text('field')} name={text('fieldFor', name)} value={mapped?.field ?? skip} options={fieldOptions} onChange={(next) => flow.mapColumn(column, next || undefined)} />
+                <ImportSelect label={text('field')} name={text('fieldFor', { name })} value={mapped?.field ?? skip} options={fieldOptions} onChange={(next) => flow.mapColumn(column, next || undefined)} />
                 {target && (
                   <ImportSelect
                     label={text('foundBy')}
-                    name={text('pluralFoundBy', views[target.name]?.names?.plural ?? fieldLabel(view, field!.name))}
+                    name={text('pluralFoundBy', { plural: views[target.name]?.names?.plural ?? fieldLabel(view, field!.name) })}
                     value={mapped!.matchBy ?? target.primaryKey[0]!}
                     options={matchFields(target).map((candidate) => ({ value: candidate.name, label: fieldLabel(views[target.name], candidate.name) }))}
                     onChange={(matchBy) => flow.matchColumnBy(column, matchBy)}
@@ -123,7 +123,7 @@ export const ImportMappingStep = ({ flow, model, resources, views, canUpdate }: 
         <p role="alert" className="flex gap-2 rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-warning-text">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span>
-            {text('noColumnFills', missing.map((field) => fieldLabel(view, field.name)).join(', '))}
+            {text('noColumnFills', { fields: missing.map((field) => fieldLabel(view, field.name)).join(', ') })}
           </span>
         </p>
       )}

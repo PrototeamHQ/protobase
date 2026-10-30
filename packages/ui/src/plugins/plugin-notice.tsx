@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Puzzle, X } from 'lucide-react'
 import type { PluginOff } from './merge-plugins'
 import { text } from './messages'
-import { slotted } from '../locale/slotted'
 
 /** Across the top of the app for its admins while plugins it should load are off: which, and why. */
 export const PluginNotice = ({ off }: { off: readonly PluginOff[] }) => {
@@ -14,7 +13,7 @@ export const PluginNotice = ({ off }: { off: readonly PluginOff[] }) => {
       <ul className="min-w-0 flex-1 space-y-0.5 break-words">
         {off.map((plugin) => (
           <li key={plugin.url}>
-            {slotted(text('pluginOff'), <span className="font-semibold">{plugin.name ?? plugin.url}</span>, plugin.reason)}
+            {text.rich('pluginOff', { plugin: <span className="font-semibold">{plugin.name ?? plugin.url}</span>, reason: plugin.reason })}
           </li>
         ))}
       </ul>

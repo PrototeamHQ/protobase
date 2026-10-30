@@ -47,9 +47,9 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     if ((kind === 'update' || kind === 'ai') && (!can(permissions, 'update') || on?.permissions?.update === false)) return text('cannotChange')
     if (action.run?.kind === 'ai' && on?.permissions?.fields?.[action.run.writes] === 'read') return text('cannotChange')
     if (kind === 'delete' && (!can(permissions, 'delete') || on?.permissions?.delete === false)) return text('cannotDelete')
-    if (!action.run && !handlers?.[action.name]) return text('noHandler', action.name)
+    if (!action.run && !handlers?.[action.name]) return text('noHandler', { name: action.name })
     const custom = action.inputs?.find((input) => input.kind === 'custom' && !components?.[input.component ?? ''])
-    if (custom) return text('noInputComponent', String(custom.component), custom.name)
+    if (custom) return text('noInputComponent', { component: String(custom.component), input: custom.name })
     return undefined
   }
   const blocked = (action: ActionModel) => blockedOn(action, scope)
@@ -72,7 +72,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     await execute(action, on, values)
     if (action.run?.kind === 'link') return
     await refresh(resource)
-    toast.show({ state: 'success', title: text('done', action.label) })
+    toast.show({ state: 'success', title: text('done', { label: action.label }) })
     afterRun?.(action)
   }
 
@@ -80,7 +80,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
   const run = async (action: ActionModel, on = scope) => {
     if (blockedOn(action, on)) return
     setRunning(action.name)
-    await perform(action, on).catch((error: unknown) => toast.show({ state: 'error', title: text('failed', action.label), description: message(error) }))
+    await perform(action, on).catch((error: unknown) => toast.show({ state: 'error', title: text('failed', { label: action.label }), description: message(error) }))
     setRunning(undefined)
   }
 
@@ -101,7 +101,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     const outcome = await runEach(records, (on) => appliesOn(action, on), (on) => execute(action, on))
     setRunning(undefined)
     await refresh(resource)
-    const title = text('doneOn', action.label, outcome.done, outcome.skipped + skipped, outcome.failed)
+    const title = text('doneOn', { label: action.label, done: outcome.done, skipped: outcome.skipped + skipped, failed: outcome.failed })
     toast.show(outcome.failed > 0 ? { state: 'error', title, description: message(outcome.error) } : { state: 'success', title })
     if (outcome.done > 0) afterRun?.(action)
   }
@@ -115,7 +115,7 @@ export const useRunAction = (resource: string, name: string, scope: LayoutRecord
   const action = runner.actions.find((entry) => entry.name === name)
   return {
     action,
-    blocked: action ? runner.blocked(action) : text('noAction', name),
+    blocked: action ? runner.blocked(action) : text('noAction', { name }),
     running: runner.running === name,
     run: () => (action ? runner.run(action) : Promise.resolve()),
     submit: (values: Record<string, unknown>) => (action ? runner.submit(action, values) : Promise.resolve()),

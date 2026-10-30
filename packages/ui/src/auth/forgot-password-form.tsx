@@ -4,7 +4,6 @@ import { Button, buttonClass } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import { AuthLayout } from './auth-layout'
-import { slotted } from '../locale/slotted'
 import { text } from './messages'
 
 export type ForgotPasswordFormProps = {
@@ -24,7 +23,7 @@ export const ForgotPasswordForm = ({ onSubmit, back, busy, error, sentTo }: Forg
     return (
       <AuthLayout title={text('checkEmail')}>
         <p className="text-muted-foreground">
-          {slotted(text('resetSent'), <span className="font-medium text-foreground">{sentTo}</span>)}
+          {text.rich('resetSent', { email: <span className="font-medium text-foreground">{sentTo}</span> })}
         </p>
         <RouteLink to={back} className={cn(buttonClass({ variant: 'primary' }), 'mt-4 min-h-10 w-full')}>
           {text('backToSignIn')}

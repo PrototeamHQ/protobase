@@ -55,7 +55,7 @@ export const RangeFilter = ({ config, value, onChange }: RangeFilterProps) => {
             key={thumb}
             type="range"
             className="pb-range"
-            aria-label={thumb === 0 ? text('minimum', config.label) : text('maximum', config.label)}
+            aria-label={thumb === 0 ? text('minimum', { label: config.label }) : text('maximum', { label: config.label })}
             min={min}
             max={max}
             step={step}

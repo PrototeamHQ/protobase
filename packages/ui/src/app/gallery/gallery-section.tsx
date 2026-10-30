@@ -66,7 +66,7 @@ export const GallerySection = ({ item, record, recordKey }: { item: GalleryModel
             <button
               key={index}
               type="button"
-              aria-label={last ? text('showAll', count) : text('showPhoto', index + 1, count)}
+              aria-label={last ? text('showAll', { count }) : text('showPhoto', { index: index + 1, count })}
               onClick={() => setOpen(index)}
               className={cn(
                 'group/tile relative overflow-hidden bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
@@ -94,7 +94,7 @@ export const GallerySection = ({ item, record, recordKey }: { item: GalleryModel
           onIndex={setOpen}
           onClose={() => setOpen(undefined)}
           details={details}
-          detailsTitle={holder && text('holderDetails', holderView?.names?.singular ?? humanize(holder.name))}
+          detailsTitle={holder && text('holderDetails', { singular: holderView?.names?.singular ?? humanize(holder.name) })}
         />
       )}
     </Section>

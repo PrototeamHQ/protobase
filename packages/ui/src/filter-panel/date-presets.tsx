@@ -13,7 +13,7 @@ export const DatePresets = ({ value, presets = defaultDatePresets, onChange }: D
           key={id}
           type="button"
           disabled={!label}
-          title={label ? undefined : text('unknownPreset', id)}
+          title={label ? undefined : text('unknownPreset', { id })}
           onClick={() => onChange(value === id ? undefined : id)}
           className={cn(
             'h-7 rounded-md border px-2.5 text-body font-medium transition-colors',
@@ -21,7 +21,7 @@ export const DatePresets = ({ value, presets = defaultDatePresets, onChange }: D
             value === id ? 'border-primary-border bg-primary-soft text-primary-text' : 'border-border-strong bg-background text-muted-foreground hover:bg-muted',
           )}
         >
-          {label ?? text('unsupported', id)}
+          {label ?? text('unsupported', { id })}
         </button>
       )
     })}

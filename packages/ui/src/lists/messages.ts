@@ -1,10 +1,3 @@
-import { defineMessages } from '../locale/messages'
+import { messages } from '../locale/messages'
 
-export const text = defineMessages({
-  en: {
-    showMore: 'Show more',
-  },
-  nl: {
-    showMore: 'Meer tonen',
-  },
-})
+export const text = messages('lists')

@@ -48,7 +48,7 @@ export const useSaveSearch = (search: SaveSearchModel, filter: string) => {
     mutationFn: (name: string | null) => client.create(resource, { [of!.filter]: filter, ...(of!.name && { [of!.name]: name }) }),
     onSuccess: (created) => {
       opened.open(keyOf(created.record))
-      toast.show({ state: 'success', title: text('searchSaved'), action: { label: text('openPlural', plural), href: href({ kind: 'list', resource }), onNavigate: open } })
+      toast.show({ state: 'success', title: text('searchSaved'), action: { label: text('openPlural', { plural }), href: href({ kind: 'list', resource }), onNavigate: open } })
     },
     onError: (error) => toast.show({ state: 'error', title: text('couldNotSave'), description: message(error) }),
     onSettled: () => refresh(resource),

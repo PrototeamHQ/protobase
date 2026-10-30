@@ -61,12 +61,12 @@ export const RecordRow = ({ model, view, display, source, label, isNew }: Record
         <Spacer cards={total - scroll.end} />
       </ul>
       {scroll.back && (
-        <button type="button" aria-label={text('previous', label.toLowerCase())} onClick={() => scroll.page(-1)} className={`${arrowClass} -left-3`}>
+        <button type="button" aria-label={text('previous', { label: label.toLowerCase() })} onClick={() => scroll.page(-1)} className={`${arrowClass} -left-3`}>
           <ChevronLeft className="size-4" aria-hidden />
         </button>
       )}
       {scroll.on && (
-        <button type="button" aria-label={text('next', label.toLowerCase())} onClick={() => scroll.page(1)} className={`${arrowClass} -right-3`}>
+        <button type="button" aria-label={text('next', { label: label.toLowerCase() })} onClick={() => scroll.page(1)} className={`${arrowClass} -right-3`}>
           <ChevronRight className="size-4" aria-hidden />
         </button>
       )}

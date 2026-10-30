@@ -76,8 +76,8 @@ const foundOne = (context: ImportContext, finding: Finding) => {
   const keys = context.lookups.keysOf(finding.model.name, finding.field, finding.value)
   const named = `${fieldLabel(context.views[finding.model.name], finding.field).toLowerCase()} “${String(finding.value)}”`
   if (keys.length === 1) return { key: keys[0] }
-  if (keys.length === 0) return { none: text('noneHas', singularOf(context.views, finding.model.name), named) }
-  return { several: text('severalHave', keys.length, pluralOf(context.views, finding.model.name), named) }
+  if (keys.length === 0) return { none: text('noneHas', { singular: singularOf(context.views, finding.model.name), named }) }
+  return { several: text('severalHave', { count: keys.length, plural: pluralOf(context.views, finding.model.name), named }) }
 }
 
 const isBlank = (row: SheetRow) => row.cells.every(isEmptyCell)
@@ -108,8 +108,8 @@ export const prepareRows = async (rows: SheetRow[], plan: ImportPlan, context: I
     }
     // An update needs its record; a create-or-update creates one when none matches
     const existing = match && foundOne(context, match)
-    if (existing?.several) problems.push(text('notOneRecord', existing.several))
-    if (existing?.none && plan.mode === 'update') problems.push(text('nothingToUpdate', existing.none))
+    if (existing?.several) problems.push(text('notOneRecord', { found: existing.several }))
+    if (existing?.none && plan.mode === 'update') problems.push(text('nothingToUpdate', { found: existing.none }))
     const prepared = { line: row.line, cells: row.cells, values, problems }
     if (problems.length > 0) return prepared
     if (existing && 'key' in existing) return { ...prepared, op: { op: 'update', resource: model.name, key: existing.key as string | number, etag: '*', data: written } satisfies BatchOp }

@@ -21,7 +21,7 @@ export const boardColumns = (model: ResourceModel, view: ViewModel | undefined, 
   const hints = view?.fields[display.by]
   const values = (field.enumValues ?? []).map((value) => ({ value, label: enumLabel(value, hints?.valueLabels) }))
   if (!field.nullable) return values
-  return [...values, { value: null, label: text('noValue', hints?.label ?? humanize(display.by)) }]
+  return [...values, { value: null, label: text('noValue', { label: hints?.label ?? humanize(display.by) }) }]
 }
 
 /** The field a board orders each column by: the resource's `.position()`, when its records are ordered as one rather than within a parent. */

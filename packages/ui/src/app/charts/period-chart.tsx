@@ -59,7 +59,7 @@ const PointTooltip = ({ active, payload, measure, bucket, series }: { active?: b
   if (!active || !point) return null
   return (
     <div className="rounded-md border bg-background px-2.5 py-1.5 text-xs shadow-pop">
-      <div className="text-muted-foreground">{bucket === 'week' ? text('weekOf', formatterOf(tooltipFormats[bucket])(point.at)) : formatterOf(tooltipFormats[bucket])(point.at)}</div>
+      <div className="text-muted-foreground">{bucket === 'week' ? text('weekOf', { day: formatterOf(tooltipFormats[bucket])(point.at) }) : formatterOf(tooltipFormats[bucket])(point.at)}</div>
       {series?.map((part) => (
         <div key={part.key} className="flex items-center gap-2">
           <span className="size-2 shrink-0 rounded-full" style={{ background: part.color }} aria-hidden />

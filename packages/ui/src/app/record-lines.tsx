@@ -87,13 +87,13 @@ export const RecordLines = ({ lines, editable, saving }: RecordLinesProps) => {
 
   return (
     <Section title={text('lines')} help={text('linesHelp')}>
-      {!data.complete && <p className="mb-2 text-muted-foreground">{text('tooManyLines', formatInt(linesLimit))}</p>}
+      {!data.complete && <p className="mb-2 text-muted-foreground">{text('tooManyLines', { limit: formatInt(linesLimit) })}</p>}
       <div className="-mx-4 overflow-x-auto px-4 [-webkit-overflow-scrolling:touch] md:mx-0 md:px-0">
         <div style={{ minWidth: lineTableMinWidth(tableColumns) }}>
           <InlineChildTable
             lines={draft.shown}
             columns={tableColumns}
-            lineName={(line) => recordTitle(model, view, line.stored ?? {}, '') || text('lineNumber', placeOf(line))}
+            lineName={(line) => recordTitle(model, view, line.stored ?? {}, '') || text('lineNumber', { place: placeOf(line) })}
             onReorder={(next) => draft.setOrder(next.map((line) => line.id))}
             reorderable={canUpdate}
             onAdd={canCreate ? () => void draft.add() : undefined}

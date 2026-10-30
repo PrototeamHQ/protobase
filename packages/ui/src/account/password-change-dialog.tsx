@@ -19,14 +19,14 @@ export type PasswordChangeDialogProps = {
 
 // Better Auth's answers to a new password or a wrong current one, in words for the person at the keyboard.
 const passwordMessage = (error: AuthError) => {
-  if (error.code === 'PASSWORD_TOO_SHORT') return text('useAtLeast', minPasswordLength)
+  if (error.code === 'PASSWORD_TOO_SHORT') return text('useAtLeast', { length: minPasswordLength })
   if (error.code === 'PASSWORD_TOO_LONG') return text('passwordTooLong')
   return authMessage(error)
 }
 
 // Why the new password cannot be sent yet, before the server is asked.
 const draftProblem = (next: string, repeat: string) => {
-  if (next.length < minPasswordLength) return text('useAtLeast', minPasswordLength)
+  if (next.length < minPasswordLength) return text('useAtLeast', { length: minPasswordLength })
   if (next !== repeat) return text('passwordsDiffer')
   return undefined
 }
@@ -59,7 +59,7 @@ export const PasswordChangeDialog = ({ hasPassword, onSave, onClose }: PasswordC
   return (
     <Dialog
       title={hasPassword ? text('changePassword') : text('setPassword')}
-      description={text('atLeast', minPasswordLength)}
+      description={text('atLeast', { length: minPasswordLength })}
       onClose={onClose}
       actions={
         <>

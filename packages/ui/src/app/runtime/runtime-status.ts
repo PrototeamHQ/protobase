@@ -15,20 +15,20 @@ const runningText = (status: RuntimeStatus, now: number) => {
   const label = text(status.updateStage)
   if (!status.updateStartedAt) return label
   const seconds = Math.max(0, Math.floor((now - Date.parse(status.updateStartedAt)) / 1000))
-  return text('started', label, formatAgo(seconds))
+  return text('started', { stage: label, ago: formatAgo(seconds) })
 }
 
 /** How far the running update is, or when the latest version will be applied on its own, in words; `now` in ms. */
 export const nextUpdateText = (status: RuntimeStatus, now = Date.now(), zone = viewerZone()) => {
   if (status.updating) return runningText(status, now)
-  if (status.nextUpdateAt) return text('nextOn', text(status.policy), formatDateTime(Date.parse(status.nextUpdateAt), zone))
+  if (status.nextUpdateAt) return text('nextOn', { policy: text(status.policy), when: formatDateTime(Date.parse(status.nextUpdateAt), zone) })
   return text(status.policy)
 }
 
 /** How the last update ended, in words, with the endpoint's message for the owner when it has one. */
 export const lastUpdateText = (last: RuntimeLastUpdate, zone = viewerZone()) => {
   const when = formatDateTime(Date.parse(last.finishedAt), zone)
-  const headline = text(last.outcome, last.toVersion, when)
+  const headline = text(last.outcome, { version: last.toVersion, when })
   return last.message ? `${headline}: ${last.message}` : `${headline}.`
 }
 

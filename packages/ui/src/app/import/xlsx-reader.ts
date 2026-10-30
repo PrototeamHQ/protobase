@@ -5,7 +5,7 @@ import { text } from './messages'
 
 const part = (entries: Map<string, ZipEntry>, name: string) => {
   const entry = entries.get(name)
-  if (!entry) throw new Error(text('notWorkbook', name))
+  if (!entry) throw new Error(text('notWorkbook', { part: name }))
   return entry
 }
 
@@ -26,7 +26,7 @@ export const openWorkbook = async (blob: Blob) => {
 
   async function* rows(name: string): AsyncGenerator<SheetRow> {
     const sheet = sheets.find((candidate) => candidate.name === name)
-    if (!sheet) throw new Error(text('noSheetCalled', name))
+    if (!sheet) throw new Error(text('noSheetCalled', { name }))
     const shared = context ?? (await sheetContext())
     const scan = createRowScanner()
     let line = 0

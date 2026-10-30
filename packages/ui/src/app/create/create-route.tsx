@@ -14,6 +14,6 @@ export const CreateRoute = ({ resource, values }: CreateRouteProps) => {
   const meta = useAdminMeta()
   const view = meta.views[resource]
   if (!view?.create) return <CreatePage key={new URLSearchParams(values).toString()} resource={resource} values={values} />
-  if (!meta.pages[view.create.page]) return <Notice title={text('notAllowed')}>{text('cannotCreate', view.names?.plural.toLowerCase() ?? humanize(resource))}</Notice>
+  if (!meta.pages[view.create.page]) return <Notice title={text('notAllowed')}>{text('cannotCreate', { plural: view.names?.plural.toLowerCase() ?? humanize(resource) })}</Notice>
   return <ComposedPage name={view.create.page} />
 }

@@ -43,7 +43,7 @@ export const TabsBlock = ({ node, children }: BlockProps) => {
           ))}
         </ul>
       </nav>
-      {shown ? <Fragment key={shown.name}>{children[tabs.indexOf(shown)]}</Fragment> : <Problem>{text('noTab', named ?? '')}</Problem>}
+      {shown ? <Fragment key={shown.name}>{children[tabs.indexOf(shown)]}</Fragment> : <Problem>{text('noTab', { name: named ?? '' })}</Problem>}
     </div>
   )
 }

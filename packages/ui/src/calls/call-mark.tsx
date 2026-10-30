@@ -32,7 +32,7 @@ export const CallMark = ({ resource, recordKey, className }: CallMarkProps) => {
       <Phone className="size-3.5 text-success" />
       {text('inProgress')}
       <span aria-hidden>·</span>
-      <span aria-label={text('people', count)}>{count}</span>
+      <span aria-label={text('people', { count })}>{count}</span>
       {!joining && (
         <>
           <span aria-hidden>·</span>

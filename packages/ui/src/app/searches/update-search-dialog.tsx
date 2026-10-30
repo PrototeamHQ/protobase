@@ -65,9 +65,9 @@ const RecordsSide = ({ model, view, title, filter, total, plural }: RecordsSideP
       <h3 className="font-semibold">
         {title} <span className="font-normal text-muted-foreground">({total ?? '…'})</span>
       </h3>
-      {total !== undefined && total > shownLimit && <p className="text-xs text-muted-foreground">{text('firstOf', shownLimit, total)}</p>}
+      {total !== undefined && total > shownLimit && <p className="text-xs text-muted-foreground">{text('firstOf', { limit: shownLimit, total })}</p>}
       {filter === null || total === 0 ? (
-        <p className="text-muted-foreground">{text('noPlural', plural)}</p>
+        <p className="text-muted-foreground">{text('noPlural', { plural })}</p>
       ) : (
         <EmbeddedList model={model} view={view} filter={filter} sort={defaultOrderBy(model, view)} limit={shownLimit} display={cards?.name ?? tableDisplay} row link={false} empty={`No ${plural}.`} />
       )}
@@ -131,7 +131,7 @@ export const UpdateSearchDialog = ({ model, view, title, before, after, saveNewL
           <p>
             <span className="font-semibold">{netChange(addedCount, removedCount, singular, plural)}</span>
             <span className="text-muted-foreground">
-              : {text('addedRemoved', count(addedCount, singular, plural), removedCount)}
+              : {text('addedRemoved', { added: count(addedCount, singular, plural), removed: removedCount })}
             </span>
           </p>
         ) : (

@@ -42,7 +42,7 @@ export const useChangeConfirm = ({ field, hints, value, stored, onChange }: Chan
     pending && (
       <Dialog
         name="change-confirm"
-        title={text('title', hints?.label ?? humanize(field.name))}
+        title={text('title', { label: hints?.label ?? humanize(field.name) })}
         description={hints?.confirm}
         onClose={cancel}
         actions={

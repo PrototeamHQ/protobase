@@ -46,13 +46,13 @@ export const SensitiveField = ({ field, hints, value, reveal, locked, invalid, p
     else stored.mutate()
   }
   const eye = (
-    <Button variant="ghost" size="sm" className="-mr-1.5 px-1.5" aria-label={shown ? appText('hide', label) : appText('show', label)} aria-pressed={shown} loading={stored.isPending} onClick={toggle}>
+    <Button variant="ghost" size="sm" className="-mr-1.5 px-1.5" aria-label={shown ? appText('hide', { label }) : appText('show', { label })} aria-pressed={shown} loading={stored.isPending} onClick={toggle}>
       {!stored.isPending && (shown ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />)}
     </Button>
   )
   const minutes = strongSignInMinutes(stored.error)
   const error =
-    minutes !== undefined ? <ConfirmSignIn minutes={minutes} onConfirmed={() => stored.mutate()} /> : stored.error && <div className="mt-2"><ErrorBanner title={appText('couldNotShow', label)} error={stored.error} /></div>
+    minutes !== undefined ? <ConfirmSignIn minutes={minutes} onConfirmed={() => stored.mutate()} /> : stored.error && <div className="mt-2"><ErrorBanner title={appText('couldNotShow', { label })} error={stored.error} /></div>
 
   if (locked) {
     return (

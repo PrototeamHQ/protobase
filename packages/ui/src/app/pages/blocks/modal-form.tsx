@@ -51,7 +51,7 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
     await saved.then(
       async () => {
         await refresh(model.name)
-        toast.show({ state: 'success', title: text('saved', title ?? label) })
+        toast.show({ state: 'success', title: text('saved', { label: title ?? label }) })
         onClose()
       },
       (error: unknown) => {

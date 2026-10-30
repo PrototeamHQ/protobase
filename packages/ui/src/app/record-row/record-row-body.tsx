@@ -102,7 +102,7 @@ export const RecordRowBody = ({ model, view, filter, sort = '', display: named, 
       ) : rows.error ? (
         <ErrorBanner title={text('couldNotLoad')} error={rows.error} />
       ) : !source || source.total === 0 ? (
-        <p className="text-muted-foreground">{empty ?? text('noneMatch', plural.toLowerCase())}</p>
+        <p className="text-muted-foreground">{empty ?? text('noneMatch', { plural: plural.toLowerCase() })}</p>
       ) : (
         <RecordRow model={model} view={view} display={display} source={source} label={plural} isNew={isNew} />
       )}

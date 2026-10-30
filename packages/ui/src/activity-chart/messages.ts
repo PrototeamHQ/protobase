@@ -1,12 +1,3 @@
-import { defineMessages } from '../locale/messages'
+import { messages } from '../locale/messages'
 
-export const text = defineMessages({
-  en: {
-    day: 'Day',
-    week: 'Week',
-  },
-  nl: {
-    day: 'Dag',
-    week: 'Week',
-  },
-})
+export const text = messages('activity-chart')

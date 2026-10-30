@@ -31,7 +31,7 @@ export const RecordHeader = ({ collection, title, status, lastEditedBy, presence
                 {text('lastEditedBy')} <span className="font-medium text-foreground">{lastEditedBy.name}</span> {lastEditedBy.ago}
               </>
             ) : (
-              <>{text('lastUpdated', lastEditedBy.ago)}</>
+              <>{text('lastUpdated', { ago: lastEditedBy.ago })}</>
             )}
           </p>
         )}
@@ -40,7 +40,7 @@ export const RecordHeader = ({ collection, title, status, lastEditedBy, presence
         {presence.length > 0 && (
           <span className="flex items-center gap-2 text-xs text-muted-foreground">
             <AvatarStack people={presence} size="md" />
-            {text('viewing', presence.length)}
+            {text('viewing', { count: presence.length })}
           </span>
         )}
         {actions}

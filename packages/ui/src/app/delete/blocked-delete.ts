@@ -5,7 +5,7 @@ import { text as deleteText } from './messages'
 const where = createWhere()
 
 /** What a delete other records still point at says, such as "Orders still point at this company." */
-export const blockedDeleteText = ({ blockingPlural, noun }: { blockingPlural: string; noun: string }) => deleteText('stillPointAt', blockingPlural, noun)
+export const blockedDeleteText = ({ blockingPlural, noun }: { blockingPlural: string; noun: string }) => deleteText('stillPointAt', { plural: blockingPlural, noun })
 
 export type BlockedDeleteInput = {
   /** What the server says still points at the record (`ApiError.blockedBy`). */
@@ -29,5 +29,5 @@ export const blockedDelete = ({ blockedBy, resources, views, noun, key }: Blocke
   const text = blockedDeleteText({ blockingPlural: plural, noun })
   if (!field || key === undefined) return { text }
   const list: AppAddress = { kind: 'list', resource, filter: printFilter(where.eq(field, key)) }
-  return { text, link: { label: deleteText('show', plural), to: list } }
+  return { text, link: { label: deleteText('show', { plural }), to: list } }
 }

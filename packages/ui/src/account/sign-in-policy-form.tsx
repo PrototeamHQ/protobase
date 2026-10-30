@@ -42,7 +42,7 @@ const rowNote = ({ method }: PolicyRow, draft: SignInPolicy, { mail, effective, 
   if (method === 'platformSignIn' && draft.platformSignIn === 'allowed' && (draft.passkey === 'required' || draft.twoFactor === 'required')) {
     return text('platformOff')
   }
-  if (draft[method] === policy[method] && effective[method] !== policy[method]) return text('appliesAs', ruleLabel(method, effective[method]))
+  if (draft[method] === policy[method] && effective[method] !== policy[method]) return text('appliesAs', { rule: ruleLabel(method, effective[method]) })
   return undefined
 }
 
@@ -50,7 +50,7 @@ const rowNote = ({ method }: PolicyRow, draft: SignInPolicy, { mail, effective, 
 const rowsFor = ({ operator, platformSignIn }: SignInPolicyState) =>
   policyRows().flatMap((row) => {
     if (row.method === 'staffAccess' && !operator) return []
-    if (row.method === 'platformSignIn') return platformSignIn ? [{ ...row, label: text('platformSignInWith', platformSignIn) }] : []
+    if (row.method === 'platformSignIn') return platformSignIn ? [{ ...row, label: text('platformSignInWith', { provider: platformSignIn }) }] : []
     return [row]
   })
 
@@ -98,7 +98,7 @@ export const SignInPolicyForm = ({ state, onSave, busy, error, notice }: SignInP
         </p>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">{state.savedAt ? (state.savedBy ? text('lastSavedBy', state.savedBy, formatDateTime(Date.parse(state.savedAt))) : text('lastSaved', formatDateTime(Date.parse(state.savedAt)))) : text('neverChanged')}</p>
+        <p className="text-xs text-muted-foreground">{state.savedAt ? (state.savedBy ? text('lastSavedBy', { name: state.savedBy, time: formatDateTime(Date.parse(state.savedAt)) }) : text('lastSaved', { time: formatDateTime(Date.parse(state.savedAt)) })) : text('neverChanged')}</p>
         <div className="flex gap-2">
           {changed && <Button onClick={() => setDraft(state.policy)}>{text('reset')}</Button>}
           <Button variant="primary" type="submit" loading={busy} disabled={!changed}>

@@ -25,9 +25,9 @@ export const SavedRecordRow = ({ model, view, empty, ...props }: SavedRecordRowP
   const saved = useSavedRecords(model.name, view.listOf!, true)
   const plural = (view.names?.plural ?? humanize(model.name)).toLowerCase()
   if (!listed.listOf) return null
-  if (saved.error) return <ErrorBanner title={text('couldNotLoadYour', plural)} error={saved.error} />
+  if (saved.error) return <ErrorBanner title={text('couldNotLoadYour', { plural })} error={saved.error} />
   if (!saved.data) return <Skeleton className="h-24" />
   const scope = savedScope(listed.model!, saved.data)
-  if (!scope) return <p className="text-muted-foreground">{empty ?? text('noneYet', plural)}</p>
+  if (!scope) return <p className="text-muted-foreground">{empty ?? text('noneYet', { plural })}</p>
   return <RecordRowBody {...props} model={listed.model!} view={listed.view} filter="" scope={scope} list={model.name} empty={empty} />
 }

@@ -41,10 +41,10 @@ const announcementsFor = <L extends { id: string }>(lines: L[], lineName: (line:
   }
   const place = (id: string | number | undefined) => lines.findIndex((line) => line.id === id) + 1
   return {
-    onDragStart: ({ active }) => text('pickedUp', name(active.id), place(active.id), lines.length),
-    onDragOver: ({ active, over }) => (over ? text('over', name(active.id), place(over.id), lines.length) : undefined),
-    onDragEnd: ({ active, over }) => (over ? text('dropped', name(active.id), place(over.id), lines.length) : text('droppedAtStart', name(active.id))),
-    onDragCancel: ({ active }) => text('cancelled', name(active.id), place(active.id)),
+    onDragStart: ({ active }) => text('pickedUp', { name: name(active.id), place: place(active.id), count: lines.length }),
+    onDragOver: ({ active, over }) => (over ? text('over', { name: name(active.id), place: place(over.id), count: lines.length }) : undefined),
+    onDragEnd: ({ active, over }) => (over ? text('dropped', { name: name(active.id), place: place(over.id), count: lines.length }) : text('droppedAtStart', { name: name(active.id) })),
+    onDragCancel: ({ active }) => text('cancelled', { name: name(active.id), place: place(active.id) }),
   }
 }
 

@@ -33,7 +33,6 @@ import { TwoFactorBlock } from '../../account/blocks/two-factor-block'
 import { CustomBoundary } from './custom-boundary'
 import { Problem } from './problem'
 import { useProjectUi } from './project-ui'
-import { slotted } from '../../locale/slotted'
 import { text } from './messages'
 
 const blocks: Record<string, ComponentType<BlockProps>> = {
@@ -100,7 +99,7 @@ export const RenderNode = ({ node }: { node: LayoutNode }) => {
   const { components } = useProjectUi()
   if (node.custom) {
     const Custom = components?.[node.type]
-    if (!Custom) return <Problem>{slotted(text('noComponent'), node.type)}</Problem>
+    if (!Custom) return <Problem>{text.rich('noComponent', { component: node.type })}</Problem>
     // Field references reach the component as the names they reference
     return (
       <CustomBoundary name={node.type}>
@@ -109,7 +108,7 @@ export const RenderNode = ({ node }: { node: LayoutNode }) => {
     )
   }
   const Block = blocks[node.type]
-  if (!Block) return <Problem>{slotted(text('unknownBlock'), node.type)}</Problem>
+  if (!Block) return <Problem>{text.rich('unknownBlock', { type: node.type })}</Problem>
   return (
     <Block node={node} slots={renderSlots(node)}>
       {renderChildren(node.children)}

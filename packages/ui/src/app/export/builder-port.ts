@@ -53,7 +53,7 @@ export const createWorkerPort = (): BuilderPort => {
   worker.onmessage = (event: MessageEvent<FromBuilder>) => waiting.shift()?.resolve(event.data.bytes)
   worker.onerror = (event) => {
     event.preventDefault()
-    const error = new Error(text('couldNotBuild', event.message))
+    const error = new Error(text('couldNotBuild', { message: event.message }))
     for (const entry of waiting.splice(0)) entry.reject(error)
   }
   return {

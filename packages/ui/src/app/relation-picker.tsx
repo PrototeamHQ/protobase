@@ -57,7 +57,7 @@ export const RelationPicker = ({ target, view, value, label, chosen = [value], s
       chosen={chosen}
       several={several}
       closedText={label ?? value}
-      placeholder={appText('searchPlural', (view?.names?.plural ?? humanize(target.name)).toLowerCase())}
+      placeholder={appText('searchPlural', { plural: (view?.names?.plural ?? humanize(target.name)).toLowerCase() })}
       invalid={invalid}
       paging={{ more: Boolean(rows.hasNextPage), loaded: rows.items.length, loadMore }}
       loading={rows.isPending || rows.isFetchingNextPage}

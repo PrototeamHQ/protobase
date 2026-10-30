@@ -57,7 +57,7 @@ const refusal = (input: ActionInputModel, value: unknown) => {
   if (input.kind === 'integer' && !Number.isInteger(value)) return text('wholeNumber')
   if (input.kind === 'decimal' && !decimal.test(String(value))) return text('number')
   if (input.kind === 'date' && !date.test(String(value))) return text('dateFormat')
-  if (input.max !== undefined && String(value).length > input.max) return text('atMost', input.max)
+  if (input.max !== undefined && String(value).length > input.max) return text('atMost', { max: input.max })
   return undefined
 }
 

@@ -6,5 +6,5 @@ const shownMax = 99
 /** The bell's name for a screen reader, with how many are unread. */
 export const bellLabel = (count: number | undefined) => {
   if (count === undefined || count <= 0) return text('notifications')
-  return count > shownMax ? text('notificationsManyUnread') : text('notificationsUnread', String(count))
+  return count > shownMax ? text('notificationsManyUnread') : text('notificationsUnread', { count: String(count) })
 }

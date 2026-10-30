@@ -58,7 +58,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
     return (
       <div className="flex items-center gap-1">
         <div className="min-w-0 flex-1">{picker}</div>
-        <AppLink to={relationTo} aria-label={appText('openLabel', relationLabel ?? String(value))} title={appText('open')} className={cn(buttonClass({ variant: 'ghost' }), 'w-8 px-0')}>
+        <AppLink to={relationTo} aria-label={appText('openLabel', { label: relationLabel ?? String(value) })} title={appText('open')} className={cn(buttonClass({ variant: 'ghost' }), 'w-8 px-0')}>
           <ArrowUpRight className="size-4" />
         </AppLink>
       </div>

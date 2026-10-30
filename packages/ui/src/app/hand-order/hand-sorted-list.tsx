@@ -13,7 +13,6 @@ import { useAppAddress } from '../use-app-address'
 import { useHandOrder } from './use-hand-order'
 import { text } from './messages'
 import type { Sort } from '../list-order'
-import { slotted } from '../../locale/slotted'
 
 type Props = {
   model: ResourceModel
@@ -47,7 +46,7 @@ export const HandSortedList = ({ model, view, field, filter, columns, sort }: Pr
   const rows = order.rows
   const source = useMemo(() => rows && { total: rows.length, rowAt: (index: number) => rows[index]! }, [rows])
 
-  if (ruleName !== undefined && !rule) return <Problem>{slotted(text('noRule'), ruleName)}</Problem>
+  if (ruleName !== undefined && !rule) return <Problem>{text.rich('noRule', { rule: ruleName })}</Problem>
   if (order.loading) return <div className="flex flex-col gap-2">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-4 w-full" />)}</div>
   if (order.error) return <ErrorBanner title={text('couldNotLoad')} error={order.error} />
   if (!source || source.total === 0) return <p className="text-muted-foreground">{text('nothingYet')}</p>

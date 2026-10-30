@@ -14,7 +14,7 @@ export const GridFooter = ({ total, selectedCount, bulkActions = [], className }
   <div className={cn('flex h-9 shrink-0 items-center border-t bg-surface px-3 text-xs text-muted-foreground', className)}>
     <span className="flex items-center tabular-nums">
       {formatApproxRows(total)}
-      {selectedCount > 0 && <span className="ml-3 font-medium text-primary-text">{text('selected', formatInt(selectedCount))}</span>}
+      {selectedCount > 0 && <span className="ml-3 font-medium text-primary-text">{text('selected', { count: formatInt(selectedCount) })}</span>}
       {selectedCount > 0 &&
         bulkActions.map((action) => (
           <button

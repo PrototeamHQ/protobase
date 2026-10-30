@@ -55,7 +55,7 @@ export const PasskeysSection = ({ rule, passkeys, onAdd, onRename, onRemove }: P
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{passkey.name ?? text('passkey')}</span>
                 <span className="block text-xs text-muted-foreground">
-                  {passkey.createdAt ? text('addedOn', formatDate(Date.parse(passkey.createdAt))) : text('addedEarlier')} · {passkey.backedUp ? text('synced') : text('oneDevice')}
+                  {passkey.createdAt ? text('addedOn', { date: formatDate(Date.parse(passkey.createdAt)) }) : text('addedEarlier')} · {passkey.backedUp ? text('synced') : text('oneDevice')}
                 </span>
               </span>
               <span className="flex gap-1">
@@ -107,7 +107,7 @@ export const PasskeysSection = ({ rule, passkeys, onAdd, onRename, onRemove }: P
       {editing?.kind === 'remove' && (
         <Dialog
           title={text('removePasskey')}
-          description={text('removePasskeyDescription', editing.passkey.name ?? text('thisPasskey'))}
+          description={text('removePasskeyDescription', { name: editing.passkey.name ?? text('thisPasskey') })}
           onClose={() => setEditing(undefined)}
           actions={
             <>

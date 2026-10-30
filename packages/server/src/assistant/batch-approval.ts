@@ -33,7 +33,7 @@ export const batchApproval = ({ text, described, operations, before, softDeletes
   const creates = new Map(operations.flatMap((operation, index) => (operation.op === 'create' && operation.ref ? [[operation.ref, { index, resource: operation.resource }]] : [])))
   const refName = ({ $ref }: RefInput) => {
     const created = creates.get($ref)
-    return created ? text.fromWrite(resourceLabel(described(created.resource)), created.index + 1) : `"${shown($ref)}"`
+    return created ? text('fromWrite', { resource: resourceLabel(described(created.resource)), write: created.index + 1 }) : `"${shown($ref)}"`
   }
   const dataOf = (data: Row) => Object.fromEntries(Object.entries(data).map(([name, value]) => [name, isRef(value) ? refName(value) : value]))
   const nameOf = (operation: Extract<WriteOperation, { key: unknown }>, index: number) => {
@@ -46,23 +46,23 @@ export const batchApproval = ({ text, described, operations, before, softDeletes
     const label = (action: string) => `${index + 1}. ${action}`
     if (operation.op === 'create') {
       const { action, fields } = createChange(text, resource, dataOf(operation.data))
-      return { label: label(action), value: joined(fields, text.noFields) }
+      return { label: label(action), value: joined(fields, text('noFields')) }
     }
     if (operation.op === 'update') {
       const { action, fields } = updateChange(text, resource, nameOf(operation, index), before.get(index) ?? {}, dataOf(operation.data))
-      return { label: label(action), value: joined(fields, text.noChanges) }
+      return { label: label(action), value: joined(fields, text('noChanges')) }
     }
-    return { label: label(text.deleteAction(nameOf(operation, index))), value: softDeletes.has(operation.resource) ? text.restorable : text.permanent }
+    return { label: label(text('deleteAction', { record: nameOf(operation, index) })), value: softDeletes.has(operation.resource) ? text('restorable') : text('permanent') }
   }
 
   const permanent = operations.filter((operation) => operation.op === 'delete' && !softDeletes.has(operation.resource)).length
   const rest = operations.length - shownOperations
   return {
-    title: text.batchTitle(operations.length),
-    body: [...(permanent > 0 ? [text.permanentDeletes(permanent)] : []), text.allOrNone, ...(rest > 0 ? [text.moreWrites(rest)] : [])].join('\n'),
+    title: text('batchTitle', { count: operations.length }),
+    body: [...(permanent > 0 ? [text('permanentDeletes', { count: permanent })] : []), text('allOrNone'), ...(rest > 0 ? [text('moreWrites', { count: rest })] : [])].join('\n'),
     fields: operations.slice(0, shownOperations).map(entryOf),
     tone: permanent > 0 ? 'danger' : 'warning',
-    approveLabel: text.writeAll,
-    rejectLabel: text.reject,
+    approveLabel: text('writeAll'),
+    rejectLabel: text('reject'),
   }
 }

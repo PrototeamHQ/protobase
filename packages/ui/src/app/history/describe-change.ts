@@ -12,7 +12,7 @@ export type DescribedChange = { who: string; verb: string; fields: ChangedField[
 /** Who made a change: their name, else their id; a write from outside the app names the database role. */
 export const changedBy = (change: HistoryChange) => {
   if (change.actor) return change.actor.name ?? change.actor.id
-  return change.databaseRole ? text('databaseRole', change.databaseRole) : text('database')
+  return change.databaseRole ? text('databaseRole', { role: change.databaseRole }) : text('database')
 }
 
 /**

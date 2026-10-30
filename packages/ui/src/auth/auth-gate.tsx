@@ -137,7 +137,7 @@ const useAuthPage = (workspace: string | undefined, children: ReactNode): ReactN
     case 'error':
       return (
         <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 p-8 text-center">
-          <p className="text-muted-foreground">{text('cannotReach', state.message)}</p>
+          <p className="text-muted-foreground">{text('cannotReach', { message: state.message })}</p>
           <Button onClick={recheck}>{text('tryAgain')}</Button>
         </div>
       )

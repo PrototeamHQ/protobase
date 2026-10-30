@@ -61,7 +61,7 @@ export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOp
         {back && (
           <a
             href={back.href}
-            aria-label={text('backTo', back.label)}
+            aria-label={text('backTo', { label: back.label })}
             onClick={(event) => {
               const follow = onBack ?? onNavigate
               if (!follow || !inApp(event)) return

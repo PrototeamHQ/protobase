@@ -41,7 +41,7 @@ export const useCalendarMove = (model: ResourceModel, display: DatedDisplay) => 
     onMutate: ({ row, patch }) => setMoves((current) => [...current.filter((move) => move.key !== row.key), { key: row.key, patch }]),
     onError: (error, { row, to }) => {
       settle(row.key)
-      toast.show({ state: 'error', title: text('couldNotMoveTo', formatDate(Date.parse(`${to}T00:00:00Z`))), description: refusalReason(error) })
+      toast.show({ state: 'error', title: text('couldNotMoveTo', { to: formatDate(Date.parse(`${to}T00:00:00Z`)) }), description: refusalReason(error) })
     },
     onSettled: async (_result, _error, { row }) => {
       await refresh(model.name)

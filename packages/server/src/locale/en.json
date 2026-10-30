@@ -1,0 +1,34 @@
+{
+  "assistant/write": {
+    "createAction": "Create {resource}",
+    "updateAction": "Update {record}",
+    "deleteAction": "Delete {record}",
+    "asked": "{action}?",
+    "batchTitle": "Run {count, plural, one {# write} other {# writes}} in one transaction?",
+    "allOrNone": "Either all of them are written or none.",
+    "permanentDeletes": "{count, plural, one {# delete cannot} other {# deletes cannot}} be undone: those records are removed for good.",
+    "moreWrites": "And {count} more {count, plural, one {write} other {writes}}, not listed.",
+    "fromWrite": "the {resource} from write {write}",
+    "writeAll": "Write all",
+    "noFields": "No fields.",
+    "commentTitle": "Comment on {record}?",
+    "comment": "Comment",
+    "create": "Create",
+    "update": "Update",
+    "delete": "Delete",
+    "deleteForGood": "Delete for good",
+    "reject": "Cancel",
+    "noChanges": "No field changes.",
+    "restorable": "It can be restored: the record is kept, marked deleted.",
+    "permanent": "This cannot be undone: the record is removed for good.",
+    "empty": "empty",
+    "hidden": "hidden",
+    "yes": "Yes",
+    "no": "No",
+    "createNamedAction": "Create {resource} \"{title}\""
+  },
+  "mcp/approval": {
+    "cannotAsk": "This client cannot ask you to approve a change, so nothing was written; use a client that supports MCP elicitation.",
+    "approve": "Approve"
+  }
+}

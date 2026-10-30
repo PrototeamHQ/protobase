@@ -12,7 +12,7 @@ import type { RankBounds } from './rank-bounds'
 export const dependencyRule = (model: ResourceModel, bounds: RankBounds, title: string): DropRule => ({ order, index }) => {
   const at = (key: string) => order.findIndex((entry) => encodeKey(recordKey(model, entry)) === key)
   const above = bounds.after.find((bound) => at(bound.key) > index)
-  if (above) return text('dependsOn', title, above.title)
+  if (above) return text('dependsOn', { record: title, other: above.title })
   const below = bounds.before.find((bound) => at(bound.key) !== -1 && at(bound.key) < index)
-  return below ? text('dependsOn', below.title, title) : undefined
+  return below ? text('dependsOn', { record: below.title, other: title }) : undefined
 }

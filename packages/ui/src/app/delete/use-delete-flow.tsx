@@ -76,7 +76,7 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
     onDeleted?.(target)
     toast.show({
       state: 'success',
-      title: text('deletedToast', target.title),
+      title: text('deletedToast', { title: target.title }),
       ...(model.softDelete && restore && {
         action: {
           label: text('undo'),
@@ -84,12 +84,12 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
             void restore(target).then(
               () => {
                 refresh()
-                toast.show({ state: 'success', title: text('restored', target.title) })
+                toast.show({ state: 'success', title: text('restored', { title: target.title }) })
               },
               (error: unknown) => {
                 if (!isApiError(error)) throw error
                 refresh()
-                toast.show({ state: error.status === 409 ? 'success' : 'error', title: error.status === 409 ? text('alreadyBack', target.title) : text('couldNotRestore', target.title), description: error.status === 409 ? undefined : error.message })
+                toast.show({ state: error.status === 409 ? 'success' : 'error', title: error.status === 409 ? text('alreadyBack', { title: target.title }) : text('couldNotRestore', { title: target.title }), description: error.status === 409 ? undefined : error.message })
               },
             )
           },
@@ -111,7 +111,7 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
       const why = blocked(error, target)
       toast.show({
         state: 'error',
-        title: text('couldNotDelete', target.title),
+        title: text('couldNotDelete', { title: target.title }),
         description: why?.text ?? error.message,
         ...(why?.link && { action: { label: why.link.label, href: href(why.link.to), onNavigate: open } }),
       })
@@ -166,7 +166,7 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
           onDeleteAnyway={() => void attempt(flow.target, '*')}
         />
       )}
-      {flow.kind === 'bulk-confirm' && <BulkDeleteDialog stage="confirm" count={flow.targets.length} plural={plural} onCancel={close} onConfirm={() => void runBulk(flow.targets)} />}
+      {flow.kind === 'bulk-confirm' && <BulkDeleteDialog stage="confirm" count={flow.targets.length} noun={noun} plural={plural} onCancel={close} onConfirm={() => void runBulk(flow.targets)} />}
       {flow.kind === 'bulk-running' && <BulkDeleteDialog stage="running" done={flow.done} total={flow.total} />}
       {flow.kind === 'bulk-done' && <BulkDeleteDialog stage="done" total={flow.total} failures={flow.failures} onClose={close} />}
     </>

@@ -70,10 +70,10 @@ export const CalendarDisplay = ({ model, view, display, fields, filter, at, link
   const dayText = (id: unknown) => formatDate(Date.parse(`${String(id).slice(dayId('').length)}T00:00:00Z`))
   const title = (picked: Picked) => eventTitle(model, view, display, picked.row)
   const announcements: Announcements = {
-    onDragStart: ({ active: picked }) => text('pickedUp', title(picked.data.current as Picked)),
-    onDragOver: ({ active: picked, over }) => text('isOver', title(picked.data.current as Picked), over ? dayText(over.id) : text('noDay')),
-    onDragEnd: ({ active: picked, over }) => (over ? text('wasMovedTo', title(picked.data.current as Picked), dayText(over.id)) : text('putBack', title(picked.data.current as Picked))),
-    onDragCancel: ({ active: picked }) => text('cancelled', title(picked.data.current as Picked)),
+    onDragStart: ({ active: picked }) => text('pickedUp', { title: title(picked.data.current as Picked) }),
+    onDragOver: ({ active: picked, over }) => text('isOver', { title: title(picked.data.current as Picked), over: over ? dayText(over.id) : text('noDay') }),
+    onDragEnd: ({ active: picked, over }) => (over ? text('wasMovedTo', { title: title(picked.data.current as Picked), to: dayText(over.id) }) : text('putBack', { title: title(picked.data.current as Picked) })),
+    onDragCancel: ({ active: picked }) => text('cancelled', { title: title(picked.data.current as Picked) }),
   }
   const release = () => {
     setActive(undefined)
@@ -93,7 +93,7 @@ export const CalendarDisplay = ({ model, view, display, fields, filter, at, link
   // A month's day with more events than it shows links to its week
   const more = (day: string, hidden: number) => {
     const to = calendarView({ scale: 'week', day }, now)
-    const label = text('moreHidden', hidden)
+    const label = text('moreHidden', { count: hidden })
     const className = 'self-start rounded px-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary'
     return linkTo ? (
       <AppLink to={linkTo(to)} className={className}>
@@ -112,7 +112,7 @@ export const CalendarDisplay = ({ model, view, display, fields, filter, at, link
       {list.error && <ErrorBanner title={text('couldNotLoadRows')} error={list.error} />}
       {list.capped && (
         <p className="text-xs text-muted-foreground">
-          {text('capped', calendarLimit, shown.scale)}
+          {text('capped', { limit: calendarLimit, unit: shown.scale })}
         </p>
       )}
       <DndContext

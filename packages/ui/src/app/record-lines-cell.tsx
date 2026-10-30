@@ -31,7 +31,7 @@ export const LineCell = ({ field, hints, label, lineNumber, resource, value, sto
   return (
     <FieldControlContext.Provider value={{ id, invalid: Boolean(problem), required: false, ...(message && { describedBy: `${id}-error` }) }}>
       <label htmlFor={id} className="sr-only">
-        {text('lineField', label, lineNumber)}
+        {text('lineField', { label, place: lineNumber })}
       </label>
       <FieldEditor
         field={field}

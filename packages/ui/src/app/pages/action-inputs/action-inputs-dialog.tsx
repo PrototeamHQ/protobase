@@ -107,7 +107,7 @@ export const ActionInputsDialog = ({ action, label, danger, onCancel, onSubmit }
           void submit()
         }}
       >
-        {failure !== undefined && Object.keys(errors).length === 0 && <ErrorBanner title={text('failed', label)} error={failure} />}
+        {failure !== undefined && Object.keys(errors).length === 0 && <ErrorBanner title={text('failed', { label })} error={failure} />}
         {action.inputs
           .filter((input) => shown.has(input.name))
           .map((input) => (

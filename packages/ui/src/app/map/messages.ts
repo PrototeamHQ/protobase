@@ -1,12 +1,3 @@
-import { defineMessages } from '../../locale/messages'
+import { messages } from '../../locale/messages'
 
-export const text = defineMessages({
-  en: {
-    mapLayer: 'Map layer',
-    map: 'Map',
-  },
-  nl: {
-    mapLayer: 'Kaartlaag',
-    map: 'Kaart',
-  },
-})
+export const text = messages('app/map')

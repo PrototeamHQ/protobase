@@ -16,7 +16,7 @@ export const AutosaveStatus = ({ state, agoSeconds }: AutosaveStatusProps) => (
     {state === 'saved' && (
       <>
         <Check className="size-3.5 text-success" />
-        {text('savedAgo', formatAgo(agoSeconds))}
+        {text('savedAgo', { ago: formatAgo(agoSeconds) })}
       </>
     )}
     {state === 'error' && (

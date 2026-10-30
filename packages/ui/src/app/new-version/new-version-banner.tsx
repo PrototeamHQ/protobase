@@ -1,5 +1,4 @@
 import { RotateCw } from 'lucide-react'
-import { slotted } from '../../locale/slotted'
 import { useAdminMeta } from '../meta-gate'
 import { useRouter } from '../router'
 import { text } from './messages'
@@ -21,7 +20,7 @@ export const NewVersionBanner = () => {
     >
       <RotateCw aria-hidden className="mt-0.5 size-3.5 shrink-0" />
       <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="break-words font-semibold">{appName ? slotted(text('bannerTitle'), appName) : text('title')}</span>
+        <span className="break-words font-semibold">{appName ? text.rich('bannerTitle', { app: appName }) : text('title')}</span>
         <span className="text-xs">{text('bannerLine')}</span>
       </span>
     </button>

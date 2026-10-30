@@ -28,8 +28,8 @@ export const CreatePage = ({ resource, values }: CreatePageProps) => {
   const meta = useAdminMeta()
   const model = meta.resources[resource]
   const permissions = usePermissions(resource)
-  if (!model) return <Notice title={appText('notFound')}>{appText('noResource', resource)}</Notice>
-  if (!can(permissions, 'create')) return <Notice title={text('notAllowed')}>{text('cannotCreate', meta.views[resource]?.names?.plural.toLowerCase() ?? resource)}</Notice>
+  if (!model) return <Notice title={appText('notFound')}>{appText('noResource', { name: resource })}</Notice>
+  if (!can(permissions, 'create')) return <Notice title={text('notAllowed')}>{text('cannotCreate', { plural: meta.views[resource]?.names?.plural.toLowerCase() ?? resource })}</Notice>
   return <LoadedCreate resource={resource} values={values} />
 }
 
@@ -41,7 +41,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
   const queryClient = useQueryClient()
   const { go } = useAppAddress()
   const noun = view?.names?.singular ?? humanize(resource)
-  const feedback = useLiveSave(view?.saveFeedback ?? 'toast', text('subject', noun))
+  const feedback = useLiveSave(view?.saveFeedback ?? 'toast', text('subject', { noun }))
   const sections = createSections(model, view)
   const [draft, setDraft] = useState<Draft>(() => initialDraft(model, sections, values))
   const [errors, setErrors] = useState<Record<string, ProblemError>>({})

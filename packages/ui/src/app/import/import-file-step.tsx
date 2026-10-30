@@ -38,7 +38,7 @@ export const ImportFileStep = ({ file, sheets, sheet, reading, onChoose, onSheet
       {reading && (
         <p className="flex items-center gap-2 text-muted-foreground" role="status">
           <Spinner className="size-3.5" />
-          {text('reading', file?.name ?? text('theFile'))}
+          {text('reading', { name: file?.name ?? text('theFile') })}
         </p>
       )}
       {!reading && sheets.length > 1 && (

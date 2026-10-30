@@ -29,7 +29,7 @@ export const ConfirmSignIn = ({ minutes, onConfirmed }: ConfirmSignInProps) => {
   return (
     <section aria-label={text('confirmTitle')} className="mt-2 flex flex-col gap-2 rounded-md border border-border bg-surface p-3">
       <p className="font-medium">{text('confirmTitle')}</p>
-      <p className="text-muted-foreground">{text('confirmWhy', minutes)}</p>
+      <p className="text-muted-foreground">{text('confirmWhy', { minutes })}</p>
       {account && account.passkeys > 0 && (
         <Button variant="primary" size="sm" className="self-start" loading={passkey.isPending} onClick={() => passkey.mutate()}>
           {text('usePasskey')}

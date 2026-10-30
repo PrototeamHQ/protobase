@@ -43,6 +43,10 @@ The [schema API reference](https://docs.protobase.net/api/schema/) is generated 
 
 A doc comment links a guide or reference page by its file, from the repository's root: `[Access](docs/website/src/content/docs/reference/access.mdx#capabilities)` becomes a link to `/reference/access/#capabilities`. A link to a file that does not exist, or that is no page of the site, fails the build, and so does an anchor the page does not have. The options are in `docs/website/typedoc.json`, the link handling in `docs/website/typedoc-doc-pages.mjs`.
 
+## Built-in texts
+
+The texts the admin app and the server write themselves live in one JSON file per language and package: `packages/ui/src/locale/en.json` and `nl.json`, and `packages/server/src/locale/en.json` and `nl.json`, keyed by area (the folder the code is in, such as `app/delete`) and then by id. Each text is an [ICU MessageFormat](https://unicode-org.github.io/icu/userguide/format_parse/messages/) message, the format translation tools read as JSON with ICU, formatted by `intl-messageformat`: values by name (`Delete {title}?`), plurals (`{count, plural, one {# row} other {# rows}}`) and choices (`{dayFirst, select, true {…} other {…}}`). A number is written for the language, and `<lower>{label}</lower>` writes a value in lower case, so a language that keeps its capitals leaves the tag out. Code reads an area with `messages('app/delete')` and calls `text('confirmTitle', { title })`, or `text.rich(…)` when a value is a React node. Every language must have each text English has, and may only name values the English text names; `locale/messages.test.ts` in each package checks both.
+
 ## Layout snapshots
 
 `bun run test:dom` builds Storybook and compares the layout of the main pages (a list with filters, a list of cards and a record with actions, on desktop and phone) with the snapshots in `scripts/dom-snapshots/layouts`. A snapshot is the element tree with each element's classes, role and the computed CSS that places it, read with a plugin's stylesheet loaded after the app's, as the app loads a project's UI. CI runs the same comparison.

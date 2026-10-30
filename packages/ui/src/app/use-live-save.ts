@@ -26,7 +26,7 @@ export const useLiveSave = (mode: SaveMode, subject: string) => {
   useEffect(() => () => clearTimeout(timer.current), [])
 
   const run = async (action: () => Promise<unknown>) => {
-    const id = mode === 'toast' ? toast.show({ state: 'loading', title: text('savingSubject', subject) }) : undefined
+    const id = mode === 'toast' ? toast.show({ state: 'loading', title: text('savingSubject', { subject }) }) : undefined
     setMessage(undefined)
     if (mode === 'button') setPhase('saving')
     try {
@@ -35,7 +35,7 @@ export const useLiveSave = (mode: SaveMode, subject: string) => {
         if (mode === 'button') setPhase('idle')
         return true
       }
-      if (id !== undefined) toast.update(id, { state: 'success', title: text('subjectSaved', subject) })
+      if (id !== undefined) toast.update(id, { state: 'success', title: text('subjectSaved', { subject }) })
       if (mode === 'button') {
         setPhase('saved')
         timer.current = setTimeout(() => setPhase('idle'), savedForMs)

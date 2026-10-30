@@ -18,7 +18,7 @@ export const FacetGroup = ({ config, selected, onToggle }: FacetGroupProps) => {
         <Input
           wrapperClassName="mb-1 h-7"
           leading={<Search className="size-3.5" />}
-          placeholder={text('searchIn', config.label)}
+          placeholder={text('searchIn', { label: config.label })}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />

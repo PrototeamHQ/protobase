@@ -67,12 +67,12 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
         <div className="flex flex-wrap items-center gap-2">
           {of.controls && <SearchControls model={model} view={view} recordKey={recordKey} title={title} row={row} fields={of.controls} />}
           {canRename && nameField && (
-            <Button variant="ghost" aria-label={text('renameTitle', title)} aria-haspopup="dialog" onClick={() => setRenaming(true)}>
+            <Button variant="ghost" aria-label={text('renameTitle', { title })} aria-haspopup="dialog" onClick={() => setRenaming(true)}>
               <Pencil className="size-3.5" aria-hidden />
             </Button>
           )}
           {onDelete && (
-            <Button variant="ghost" aria-label={text('deleteTitle', title)} onClick={() => onDelete(title)}>
+            <Button variant="ghost" aria-label={text('deleteTitle', { title })} onClick={() => onDelete(title)}>
               <Trash2 className="size-3.5" aria-hidden />
             </Button>
           )}
@@ -80,7 +80,7 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
       </div>
       {renaming && nameField && (
         <SearchNameDialog
-          title={text('renameTitle', title)}
+          title={text('renameTitle', { title })}
           chips={chips}
           label={view.fields[nameField.name]?.label ?? humanize(nameField.name)}
           required={!nameField.nullable}

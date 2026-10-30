@@ -87,7 +87,7 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
   const { address } = useAppAddress()
   const model = resources[resource]
   const record = useOpenedRecord(resource, recordKey)
-  if (!model) return <Notice title={appText('notFound')}>{appText('noResource', resource)}</Notice>
+  if (!model) return <Notice title={appText('notFound')}>{appText('noResource', { name: resource })}</Notice>
   if (record.isPending) return <Notice title={text('loading')}>{text('fetching')}</Notice>
   if (record.error) return <div className="p-8">{isApiError(record.error) && record.error.status === 404 ? <RecordNotFound model={model} recordKey={recordKey} /> : <ErrorBanner title={text('couldNotLoad')} error={record.error} />}</div>
   // A record opened from a list shows that row's fields until it has loaded; the loaded record draws the page anew, so

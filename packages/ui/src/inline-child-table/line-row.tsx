@@ -45,7 +45,7 @@ export const LineRow = <L extends { id: string }>({ line, name, columns, positio
         <button
           ref={setActivatorNodeRef}
           type="button"
-          aria-label={text('dragToReorder', name)}
+          aria-label={text('dragToReorder', { name })}
           {...attributes}
           {...listeners}
           style={{ touchAction: 'none' }}
@@ -61,7 +61,7 @@ export const LineRow = <L extends { id: string }>({ line, name, columns, positio
           {column.cell(line)}
         </div>
       ))}
-      {menu.length > 0 ? <LineMenu label={text('actionsFor', name)} items={menu} /> : <span />}
+      {menu.length > 0 ? <LineMenu label={text('actionsFor', { name })} items={menu} /> : <span />}
       {error && (
         <p role="alert" className="col-span-full px-2 pb-1 text-xs text-danger-text">
           {error}

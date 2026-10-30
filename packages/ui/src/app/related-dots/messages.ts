@@ -1,10 +1,3 @@
-import { defineMessages } from '../../locale/messages'
+import { messages } from '../../locale/messages'
 
-export const text = defineMessages({
-  en: {
-    none: (plural: string) => `No ${plural}`,
-  },
-  nl: {
-    none: (plural: string) => `Geen ${plural}`,
-  },
-})
+export const text = messages('app/related-dots')

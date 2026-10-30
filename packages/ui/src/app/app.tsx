@@ -68,7 +68,6 @@ import { StaffBanner } from './staff-banner'
 import { useNavRecent } from './use-nav-recent'
 import { useAppAddress, type CurrentAddress } from './use-app-address'
 import { userMenuFromMeta } from './user-menu-from-meta'
-import { slotted } from '../locale/slotted'
 import { text as appText } from './messages'
 import type { NativeBridge } from './native-auth-fetch'
 import { LiveUpdateGate } from './live-update/live-update-gate'
@@ -215,7 +214,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
     ) : !address ? (
       path === '/' ? <Notice title={appText('chooseResource')}>{appText('pickFromSidebar')}</Notice> : <Notice title={appText('notFound')}>{appText('nothingHere')}</Notice>
     ) : address.kind === 'page' ? (
-      page ? <ComposedPage key={page.name} name={page.name} {...(address.tab && { tab: address.tab })} /> : <Notice title={appText('notFound')}>{slotted(appText('noPage'), address.page)}</Notice>
+      page ? <ComposedPage key={page.name} name={page.name} {...(address.tab && { tab: address.tab })} /> : <Notice title={appText('notFound')}>{appText.rich('noPage', { page: address.page })}</Notice>
     ) : drawnFrom && drawnFrom.state !== 'ready' ? (
       <SourceNotice status={drawnFrom} />
     ) : address.kind === 'create' ? (

@@ -68,7 +68,7 @@ const Delete = ({ organization, basePath }: { organization: Organization; basePa
       <Button variant="danger" onClick={() => setConfirming(true)}>{text('deleteOrganization')}</Button>
       {confirming && (
         <Dialog
-          title={text('deleteTitle', organization.name)}
+          title={text('deleteTitle', { name: organization.name })}
           description={text('deleteConfirm')}
           onClose={() => setConfirming(false)}
           actions={
@@ -116,7 +116,7 @@ const Leave = ({ organization, basePath, owner }: { organization: Organization; 
   return (
     <AccountSection title={text('leave')} description={owner ? text('leaveOwner') : text('leaveMember')}>
       <SectionError message={error} />
-      <Button loading={busy} onClick={() => void run(async () => { await session.organizations.leave(organization.id); reopenIn(basePath) })}>{text('leaveName', organization.name)}</Button>
+      <Button loading={busy} onClick={() => void run(async () => { await session.organizations.leave(organization.id); reopenIn(basePath) })}>{text('leaveName', { name: organization.name })}</Button>
     </AccountSection>
   )
 }
@@ -138,7 +138,7 @@ export const OrganizationPage = ({ current, basePath, onChanged }: { current?: C
   const owner = current.role === 'owner'
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
-      <PageHeader title={organization.name} subtitle={current.role ? text('youAre', organizationRoleLabel(current.role).toLowerCase()) : text('throughGlobalRoles')} />
+      <PageHeader title={organization.name} subtitle={current.role ? text('youAre', { role: organizationRoleLabel(current.role).toLowerCase() }) : text('throughGlobalRoles')} />
       <Details key={`${organization.name}/${organization.slug}`} organization={organization} editable={managesOrganization(current)} onSaved={onChanged} />
       {calls && current.role && <GuestLinks editable={managesOrganization(current)} />}
       {owner && current.memberId && <HandOver organization={organization} memberId={current.memberId} />}

@@ -47,9 +47,9 @@ export const PeriodControls = <V,>({ heading, unit, previous, today, next, scale
       <h2 className="text-sm font-medium">{heading}</h2>
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1">
-          {control(previous, square, text('previousPeriod', unit), <ChevronLeft className="size-3.5" />)}
+          {control(previous, square, text('previousPeriod', { unit }), <ChevronLeft className="size-3.5" />)}
           {control(today, square, text('today'), text('today'))}
-          {control(next, square, text('nextPeriod', unit), <ChevronRight className="size-3.5" />)}
+          {control(next, square, text('nextPeriod', { unit }), <ChevronRight className="size-3.5" />)}
         </div>
         <span role="group" aria-label={scalesLabel} className={segmentedClass.group()}>
           {scales.map((scale) => (

@@ -68,7 +68,7 @@ export const SearchControls = ({ model, view, recordKey, title, row, fields }: S
   const refresh = useRefreshResource()
   const change = useMutation({
     mutationFn: (patch: Record<string, unknown>) => client.update(model.name, recordKey, patch, row.etag ?? '*'),
-    onSuccess: (_, patch) => toast.show({ state: 'success', title: text('saved', title), description: changed(model, view, patch) }),
+    onSuccess: (_, patch) => toast.show({ state: 'success', title: text('saved', { title }), description: changed(model, view, patch) }),
     onError: (error) => toast.show({ state: 'error', title: text('couldNotChange'), description: message(error) }),
     onSettled: () => refresh(model.name),
   })
