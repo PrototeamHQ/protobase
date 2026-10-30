@@ -6,6 +6,9 @@ import { useAuth } from '../auth/auth-provider'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
 import { Input } from '../primitives/input'
+import { Switch } from '../primitives/switch'
+import { useClient } from '../data/api-provider'
+import { useMeta } from '../data/use-meta'
 import { managesOrganization, organizationRoleLabel } from './organization-paths'
 import { useAction } from './use-action'
 import { reopenIn } from './use-organizations'
@@ -83,6 +86,30 @@ const Delete = ({ organization, basePath }: { organization: Organization; basePa
   )
 }
 
+// Whether the organization's calls take guests, which its owner and admins turn on and off; only in an app with calls.
+const GuestLinks = ({ editable }: { editable: boolean }) => {
+  const client = useClient()
+  const [allowed, setAllowed] = useState<boolean>()
+  const { busy, error, run } = useAction()
+  useEffect(() => {
+    void client.callGuests.allowed().then(setAllowed)
+  }, [client])
+  if (allowed === undefined) return null
+  return (
+    <AccountSection title={text('guestLinks')} description={text('guestLinksDescription')}>
+      <SectionError message={error} />
+      <label className="flex items-center gap-2 text-sm text-foreground">
+        <Switch
+          checked={allowed}
+          label={text('guestLinksAllowed')}
+          {...(editable && !busy && { onChange: (next: boolean) => void run(async () => { await client.callGuests.setAllowed(next); setAllowed(next) }) })}
+        />
+        {text('guestLinksAllowed')}
+      </label>
+    </AccountSection>
+  )
+}
+
 const Leave = ({ organization, basePath, owner }: { organization: Organization; basePath: string; owner: boolean }) => {
   const { session } = useAuth()
   const { busy, error, run } = useAction()
@@ -94,8 +121,12 @@ const Leave = ({ organization, basePath, owner }: { organization: Organization; 
   )
 }
 
-/** The organization one works in: its details, and handing it over, leaving and deleting it, as one's role allows. */
+/**
+ * The organization one works in: its details, whether its calls take guests, and handing it over, leaving and deleting
+ * it, as one's role allows.
+ */
 export const OrganizationPage = ({ current, basePath, onChanged }: { current?: CurrentOrganization; basePath: string; onChanged: () => void }) => {
+  const calls = useMeta().data?.calls === true
   const organization = current?.organization
   if (!organization) {
     return (
@@ -109,6 +140,7 @@ export const OrganizationPage = ({ current, basePath, onChanged }: { current?: C
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
       <PageHeader title={organization.name} subtitle={current.role ? text('youAre', organizationRoleLabel(current.role).toLowerCase()) : text('throughGlobalRoles')} />
       <Details key={`${organization.name}/${organization.slug}`} organization={organization} editable={managesOrganization(current)} onSaved={onChanged} />
+      {calls && current.role && <GuestLinks editable={managesOrganization(current)} />}
       {owner && current.memberId && <HandOver organization={organization} memberId={current.memberId} />}
       {current.role && <Leave organization={organization} basePath={basePath} owner={owner} />}
       {owner && <Delete organization={organization} basePath={basePath} />}

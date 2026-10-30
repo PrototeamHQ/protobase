@@ -48,6 +48,7 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
     notifications: own.notifications,
     status: own.status,
     rings: own.rings,
+    callGuests: own.callGuests,
     calls: (resource, key) => to(resource).calls(resource, key),
     watchCalls: (resource, key, handlers) => to(resource).watchCalls(resource, key, handlers),
   }

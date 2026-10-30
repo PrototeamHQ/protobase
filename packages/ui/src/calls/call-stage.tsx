@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Spinner } from '../primitives/spinner'
 import { cn } from '../lib/cn'
 import { CallControls, type CallControlsProps } from './call-controls'
@@ -16,6 +17,10 @@ export type CallStageProps = {
   /** Plain messages for the member, such as a blocked camera. */
   notices?: string[]
   controls: CallControlsProps
+  /** Above the people, such as who waits in the lobby. */
+  aside?: ReactNode
+  /** Drawn with the stage, such as a dialog it opens. */
+  children?: ReactNode
   className?: string
 }
 
@@ -62,7 +67,7 @@ const Tiles = ({ layout, people, narrow }: { layout: CallLayout; people: CallPer
  * share large with the people beside it, or under it on a phone; the member alone; then the controls. The others'
  * sound plays unseen.
  */
-export const CallStage = ({ people, state, notices = [], controls, className }: CallStageProps) => {
+export const CallStage = ({ people, state, notices = [], controls, aside, children, className }: CallStageProps) => {
   const { ref, width } = useWidth<HTMLDivElement>()
   const narrow = width > 0 && width < 640
   const layout = callLayout({ people: people.length, sharers: people.filter((person) => person.screen).map((person) => person.member), width })
@@ -79,6 +84,7 @@ export const CallStage = ({ people, state, notices = [], controls, className }: 
           ))}
         </div>
       )}
+      {aside}
       <div className="min-h-0 flex-1">
         {state === 'joining' ? (
           <p role="status" className="flex size-full items-center justify-center gap-2 text-muted-foreground">
@@ -97,6 +103,7 @@ export const CallStage = ({ people, state, notices = [], controls, className }: 
         .map(({ key, track }) => (
           <TrackAudio key={key} track={track} />
         ))}
+      {children}
     </section>
   )
 }

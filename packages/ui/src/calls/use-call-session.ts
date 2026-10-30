@@ -1,9 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Call, CallConnection, CallLeftReason, CallRosterMember, CallTrack } from '@protobase/client/calls'
+import type { Call, CallConnection, CallGuestLink, CallLeftReason, CallLobbyGuest, CallRosterMember, CallTrack } from '@protobase/client/calls'
 import { openDevices, type Devices } from './devices'
+import { NotLetIn } from './guest-admission'
 
-/** Where the member stands: checking their devices, joining, in the call (`resuming` while its link is restored), or out of it. */
-export type CallPhase = { kind: 'check' } | { kind: 'joining' } | { kind: 'in'; resuming: boolean } | { kind: 'left'; reason: CallLeftReason }
+/** Why the member is out of the call: as the call says, or, for a guest, turned away in the lobby. */
+export type CallOutReason = CallLeftReason | 'denied'
+
+/**
+ * Where the member stands: checking their devices, waiting in the lobby as a guest, joining, in the call (`resuming`
+ * while its link is restored), or out of it.
+ */
+export type CallPhase = { kind: 'check' } | { kind: 'waiting' } | { kind: 'joining' } | { kind: 'in'; resuming: boolean } | { kind: 'left'; reason: CallOutReason }
+
+/** The call's lobby, for a member who may invite: who waits, and the guest links. */
+export type CallLobby = { guests: CallLobbyGuest[]; links: CallGuestLink[] }
+
+export type CallSessionOptions = {
+  /** For a guest: their wait in the lobby, which resolves with their token once let in, or rejects with `NotLetIn`. */
+  admission?: (signal: AbortSignal) => Promise<string>
+}
 
 // How often the connections' state and quality are read while in the call.
 const connectionsEveryMs = 2000
@@ -15,10 +30,12 @@ const stop = (tracks: readonly (MediaStreamTrack | undefined)[]) => {
 /**
  * The member's session in the call the app's function at `url` admits them to: their devices from the start, for the
  * check before joining; then the call, which `join` joins after the click, with what they send and receive, and who
- * is in it. Leaving the page leaves the call and stops the devices.
+ * is in it. A guest waits in the lobby first. Leaving the page leaves the call and stops the devices.
  */
-export const useCallSession = (url: string) => {
+export const useCallSession = (url: string, { admission }: CallSessionOptions = {}) => {
   const [phase, setPhase] = useState<CallPhase>({ kind: 'check' })
+  const [lobby, setLobby] = useState<CallLobby>()
+  const waiting = useRef(new AbortController())
   const [devices, setDevices] = useState<Devices>()
   const [microphoneOn, setMicrophoneOn] = useState(true)
   const [cameraOn, setCameraOn] = useState(true)
@@ -50,6 +67,7 @@ export const useCallSession = (url: string) => {
     return () => {
       cancelled = true
       gone.current = true
+      waiting.current.abort()
       call.current?.leave()
       call.current = undefined
       stop(own.current)
@@ -67,11 +85,32 @@ export const useCallSession = (url: string) => {
     return () => clearInterval(timer)
   }, [phase.kind])
 
+  // What `joinCall` takes for who joins: nothing more for a member, a guest's token once let in, `undefined` for a guest
+  // who was not.
+  const admitted = async () => {
+    if (!admission) return {}
+    setPhase({ kind: 'waiting' })
+    waiting.current = new AbortController()
+    const guest = await admission(waiting.current.signal).then(
+      (token) => token,
+      (error: unknown) => {
+        if (!(error instanceof NotLetIn)) throw error
+        setPhase({ kind: 'left', reason: error.reason })
+        return
+      },
+    )
+    return guest === undefined ? undefined : { guest }
+  }
+
   const join = useCallback(async () => {
+    const guest = await admitted()
+    if (!guest || gone.current) return
     setPhase({ kind: 'joining' })
     const { joinCall, PublishRefused } = await import('@protobase/client/calls')
     const joined = await joinCall({
       url,
+      ...guest,
+      onLobby: setLobby,
       onTracks: setTracks,
       onMembers: setMembers,
       onState: (state) => {
@@ -98,7 +137,7 @@ export const useCallSession = (url: string) => {
         setRefusedSending(true)
       },
     )
-  }, [url, microphoneOn, cameraOn])
+  }, [url, admission, microphoneOn, cameraOn])
 
   const toggleMicrophone = useCallback(() => {
     const next = !microphoneOn
@@ -152,6 +191,9 @@ export const useCallSession = (url: string) => {
     refusedSending,
     seen: seen.current,
     self: call.current?.participant,
+    /** The lobby, once the server tells a member who may invite of it. */
+    lobby,
+    guests: call.current?.guests,
     join,
     toggleMicrophone,
     toggleCamera,

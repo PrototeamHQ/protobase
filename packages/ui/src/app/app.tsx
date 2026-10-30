@@ -14,6 +14,8 @@ import { useLiveUpdates } from '../data/use-live-updates'
 import { useOpenedRecord } from '../data/use-record'
 import { PublicFormPage } from '../forms/public-form-page'
 import { useFormAddress } from '../forms/use-form-address'
+import { GuestCallPage } from '../calls/guest-call-page'
+import { useGuestCallAddress } from '../calls/guest-call-link'
 import { humanize } from '../live/naming'
 import { ThemeProvider, useTheme } from '../theme/theme-provider'
 import { setFallbackLocale } from '../locale/active-locale'
@@ -311,8 +313,18 @@ const PublicFormGate = ({ baseUrl, client, ui, children }: Pick<AppProps, 'baseU
   )
 }
 
+// A guest link opens the guest's page, for someone with no account, and nothing else of the app.
+const GuestCallGate = ({ baseUrl, children }: { baseUrl?: string; children: ReactNode }) => {
+  const address = useGuestCallAddress()
+  const { basePath } = useRouter()
+  if (!address) return children
+  const api = new URL(baseUrl ?? '/api/v1', window.location.href)
+  const systemPath = `${api.origin}${api.pathname.slice(0, api.pathname.lastIndexOf('/'))}`
+  return <GuestCallPage link={address.token} systemPath={systemPath} base={`${window.location.origin}${basePath}`} />
+}
+
 /**
- * The admin: a public form at `/-/forms/<name>` for anyone, the sign-in route first, `/-/sign-in`, or browsing as a
+ * The admin: a public form at `/-/forms/<name>` for anyone, a guest link's call at `/-/call-guest` for its guest, the sign-in route first, `/-/sign-in`, or browsing as a
  * visitor when the project's anonymous role reads, then a sidebar from `/meta`, `/:page` composed pages, `/:resource`
  * lists and `/:resource/:key` records. Fills its parent, in the theme this browser chose, light, dark or the system's.
  */
@@ -328,9 +340,11 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
             <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
               <AuthLocale>
                 <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
-                  <AuthGate workspace={workspace}>
-                    <Authenticated workspace={workspace} {...rest} />
-                  </AuthGate>
+                  <GuestCallGate {...(rest.baseUrl && { baseUrl: rest.baseUrl })}>
+                    <AuthGate workspace={workspace}>
+                      <Authenticated workspace={workspace} {...rest} />
+                    </AuthGate>
+                  </GuestCallGate>
                 </PublicFormGate>
               </AuthLocale>
             </PluginSourceProvider>
