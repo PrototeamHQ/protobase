@@ -26,11 +26,14 @@ const providers = resolvePersonalMail(['gmail'], ['google'], true)
 // comes back with `gmail.send`.
 const googleAccounts = { a: { sub: 'google-sub-a', email: 'ada.a@gmail.com' }, b: { sub: 'google-sub-b', email: 'ada.b@gmail.com' } }
 type Choice = keyof typeof googleAccounts
+// The code names the chosen account, and the round when she connects it again (`a-2`), which Google gives new tokens.
+type Code = Choice | `${Choice}-${number}`
 const segment = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
-const tokens = (choice: Choice) => {
+const tokens = (code: Code) => {
+  const choice = code.split('-')[0] as Choice
   const { sub, email } = googleAccounts[choice]
   const claims = { iss: 'https://accounts.google.com', aud: 'client-1.apps.googleusercontent.com', sub, email, email_verified: true, name: 'Ada' }
-  return { access_token: `access-${choice}`, refresh_token: `refresh-${choice}`, id_token: `${segment({ alg: 'none' })}.${segment(claims)}.`, expires_in: 3599, scope: `openid email profile ${gmailSendScope}`, token_type: 'Bearer' }
+  return { access_token: `access-${code}`, refresh_token: `refresh-${code}`, id_token: `${segment({ alg: 'none' })}.${segment(claims)}.`, expires_in: 3599, scope: `openid email profile ${gmailSendScope}`, token_type: 'Bearer' }
 }
 
 // Google answers the code with the chosen account's tokens; Gmail takes a message unless `refused` names its token.
@@ -38,7 +41,7 @@ const stubGoogle = (refused: string[] = []) => {
   const sent: (string | null)[] = []
   vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
     const url = input instanceof Request ? input.url : String(input)
-    if (url === tokenEndpoint) return json(tokens(new URLSearchParams(String(init?.body)).get('code') as Choice))
+    if (url === tokenEndpoint) return json(tokens(new URLSearchParams(String(init?.body)).get('code') as Code))
     if (url !== gmailSendUrl) throw new Error(`Unexpected request to ${url}`)
     const authorization = new Headers(init?.headers).get('authorization')
     sent.push(authorization)
@@ -63,14 +66,14 @@ const setUp = async () => {
     return { status: response.status, location: response.headers.get('location'), text: await response.text() }
   }
   // Google sends Ada back with the account she chose, after the redirect `start` answered.
-  const back = async (start: { text: string }, choice: Choice) => {
+  const back = async (start: { text: string }, choice: Code) => {
     const state = new URL((JSON.parse(start.text) as { url: string }).url).searchParams.get('state')!
     const callback = await request(`/callback/google?code=${choice}&state=${state}`)
     expect(callback.status).toBe(302)
     expect(callback.location).toBe('/account')
   }
   // "Connect Gmail" on the account page, as the client's `linkPersonalMail` does.
-  const connectGmail = async (choice: Choice) => {
+  const connectGmail = async (choice: Code) => {
     const [gmail] = providers
     await back(await request('/link-social', { method: 'POST', body: { provider: 'google', scopes: gmail!.scopes, additionalParams: gmail!.linkParams, callbackURL: '/account', disableRedirect: true } }), choice)
   }
@@ -116,6 +119,19 @@ describe('mail goes out through the Google account connected for mail last', () 
     await ada.connectGmail('b')
     await expect(ada.send()).rejects.toMatchObject({ code: 'link_expired', provider: 'gmail' })
     expect(sent).toEqual(['Bearer access-b'])
+  })
+
+  it('sends again through the same account once Ada connects it again after its grant failed', async () => {
+    const sent = stubGoogle(['access-a'])
+    const ada = await setUp()
+    await ada.connectGmail('a')
+    await expect(ada.send()).rejects.toMatchObject({ code: 'link_expired', provider: 'gmail' })
+
+    // "Connect Gmail again" with the same account replaces its row's tokens.
+    await ada.connectGmail('a-2')
+    expect(ada.googleRows()).toHaveLength(1)
+    await ada.send()
+    expect(sent).toEqual(['Bearer access-a', 'Bearer access-a-2'])
   })
 
   it('is not_linked when Ada only signed in with Google', async () => {
