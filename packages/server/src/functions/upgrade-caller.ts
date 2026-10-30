@@ -14,7 +14,7 @@ const hostOf = (url: string) => (URL.canParse(url) ? new URL(url).host : undefin
 
 // A browser sends `Origin` with every socket, `null` from a sandboxed page or a file; only a listed origin, or without a
 // list the request's own host, is the app's own page. Without `Origin`, the client is no browser and holds its own credentials.
-const allowedOrigin = (request: Request, origins?: readonly string[]) => {
+export const allowedOrigin = (request: Request, origins?: readonly string[]) => {
   const origin = request.headers.get('origin')
   if (origin === null) return true
   if (origins) return origins.includes(origin)

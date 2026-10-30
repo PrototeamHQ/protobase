@@ -3,11 +3,18 @@ import type { SocketEvents } from '../functions/function-socket'
 import { callHub, type CallDoor } from './call-hub'
 import type { CallRights } from './call-member'
 import type { CallRingInput } from './call-ring'
+import type { GuestRow } from './guest-checks-sql'
+
+/** Who a member is beyond their id: the signed-in user, whom the call rings, whether they invite guests, and their name. */
+export type RelayBy = { user?: string; ring?: CallRingInput; invites?: boolean; name?: string }
 import { recordId, type CallItem } from './call-reads'
 import type { CallRecord } from './call-store'
 import { callWatch } from './call-watch'
 import { defaultMaxMinutes, maxMembersOf, type CallBackend, type CallsOptions } from './calls-options'
 import { sqlCallStore, type CallStore } from './calls-store'
+import type { OrganizationOf } from './guest-links-sql'
+import { sqlGuestStore, type GuestStore } from './guest-store'
+import { guestMember } from './guest-tokens'
 import type { MediaBackend } from './media-backend'
 import { memberRelay } from './member-relay'
 import type { Ringer } from './ringer'
@@ -19,6 +26,10 @@ export type CallsRuntimeInput = {
   report: (error: unknown) => void
   /** Memory in tests; the `calls` schema otherwise. */
   store?: CallStore
+  /** Guest links and the lobby: the `calls` schema, without `store`; none with a `store` of a test's unless given. */
+  guests?: GuestStore
+  /** The organization of a call's record, which its guest links are for; none by default. */
+  organizationOf?: OrganizationOf
   /** The rings of calls, which joins with a `ring` start. */
   rings?: Ringer
   /** Tells the record's readers its calls changed, such as on the record's channel. */
@@ -41,8 +52,10 @@ const loadBackend = async (settings: CallBackend): Promise<MediaBackend> => {
  * its pages follow. While it serves a member or a page, it reads them every second and, every five, marks its members
  * as served and sweeps every call, whichever process served it; with neither, it runs no timer.
  */
-export const callsRuntime = ({ db, timeoutMs, options, report, store = sqlCallStore(db, timeoutMs), rings, announce }: CallsRuntimeInput) => {
-  const hub = callHub({ store, manyProcesses: options.processes === 'many', report })
+export const callsRuntime = ({ db, timeoutMs, options, report, store: given, guests: givenGuests, organizationOf = async () => undefined, rings, announce }: CallsRuntimeInput) => {
+  const store = given ?? sqlCallStore(db, timeoutMs)
+  const guests = given ? givenGuests : (givenGuests ?? sqlGuestStore(db, timeoutMs, organizationOf))
+  const hub = callHub({ store, manyProcesses: options.processes === 'many', report, ...(guests && { lobbies: guests.lobbies }) })
   const watch = callWatch(store)
   const maxMembers = maxMembersOf(options.backend)
   const maxMinutes = options.maxMinutes ?? defaultMaxMinutes
@@ -88,6 +101,17 @@ export const callsRuntime = ({ db, timeoutMs, options, report, store = sqlCallSt
     ;(timer as { unref?: () => void }).unref?.()
   }
 
+  // A change to a call's guests, made here: its members here hear of it at once, and its record's readers.
+  const guestsChanged = async (call: string) => {
+    await hub.refresh([call])
+    const record = await store.recordOf(call)
+    if (record) changed([record])
+  }
+  const guestsOf = () => {
+    if (!guests) throw new Error('Not implemented: guests with a call store of a test')
+    return guests
+  }
+
   const door: CallDoor = {
     admit: async ({ user, ring, ...input }, link) => {
       const admitted = await hub.admit(input, link)
@@ -108,13 +132,47 @@ export const callsRuntime = ({ db, timeoutMs, options, report, store = sqlCallSt
         },
       }
     },
+    ...(guests && {
+      guests: {
+        link: async (input) => {
+          const made = await guests.createLink(input)
+          await hub.refresh([input.call])
+          return made
+        },
+        revoke: async (input) => {
+          const revoked = await guests.revokeLink(input)
+          await guestsChanged(input.call)
+          return revoked
+        },
+        decide: async (input) => {
+          const decided = await guests.decide({ ...input, maxMembers })
+          await hub.refresh([input.call])
+          return decided
+        },
+        remove: async (call, guest) => {
+          await store.remove(call, guestMember(guest))
+          await guestsChanged(call)
+        },
+      },
+    }),
   }
 
   return {
     /** The events of the member's socket, relayed to the plugin: they come into the record's call at their `join`. */
-    relay: async (record: CallRecord, member: string, rights: CallRights, by: { user?: string; ring?: CallRingInput } = {}): Promise<SocketEvents> => {
+    relay: async (record: CallRecord, member: string, rights: CallRights, by: RelayBy = {}): Promise<SocketEvents> => {
       backend ??= loadBackend(options.backend)
       return memberRelay({ door, backend: await backend, record, member, rights, maxMembers, maxMinutes, report, ...by })
+    },
+    /** The guest's socket, relayed like a member's, as member `guest:<id>` in their link's call only, sending what it allows. */
+    relayGuest: async (guest: GuestRow): Promise<SocketEvents> => {
+      backend ??= loadBackend(options.backend)
+      return memberRelay({ door, backend: await backend, record: guest.record, member: guestMember(guest.id), rights: { publish: guest.publish }, maxMembers, maxMinutes, report, name: guest.name, guest: { id: guest.id, call: guest.call } })
+    },
+    /** Guest links and the lobby, for the guests' routes. */
+    guests: guestsOf,
+    /** The organization's admin set whether its calls take guests: the calls this process serves hear of it at once. */
+    setOrganizationGuests: async (input: { organization: string; allowed: boolean; by: string }) => {
+      for (const call of await guestsOf().setOrganization(input)) await guestsChanged(call)
     },
     /** Removes the member from the call, and only from it: whether they were in it. */
     remove: async (call: string, member: string) => {

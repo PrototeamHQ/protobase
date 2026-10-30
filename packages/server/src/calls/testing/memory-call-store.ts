@@ -7,7 +7,7 @@ import { graceSeconds } from '../call-store'
 import type { CallStore } from '../calls-store'
 
 type Call = { id: string; record: string; started_by: string; started_at: number; ends_at: number; ended_at?: number }
-type Member = { id: string; call: string; member: string; process: string; tracks: CallRemoteTrack[]; joined_at: number; seen_at: number; left_at?: number; removed_at?: number }
+type Member = { id: string; call: string; member: string; name?: string; process: string; tracks: CallRemoteTrack[]; joined_at: number; seen_at: number; left_at?: number; removed_at?: number }
 
 const iso = (at: number) => new Date(at).toISOString()
 
@@ -42,7 +42,8 @@ export const memoryCallStore = (now = () => Date.now()) => {
   }
 
   const store: CallStore = {
-    admit: async ({ record, member, process, resume, maxMembers, maxMinutes }) => {
+    admit: async ({ record, member, name, process, resume, maxMembers, maxMinutes, guest }) => {
+      if (guest) throw new Error('Not implemented: guests in the memory call store, which the Postgres tests cover')
       const key = recordId(record)
       let call: Call | undefined
       let started = false
@@ -75,10 +76,10 @@ export const memoryCallStore = (now = () => Date.now()) => {
       if (refused) return { refused }
       const own = present(call.id).find((row) => row.member === member)
       if (own) {
-        Object.assign(own, { process, seen_at: now(), tracks: resume?.tracks ?? [] })
+        Object.assign(own, { process, seen_at: now(), tracks: resume?.tracks ?? [], ...(name !== undefined && { name }) })
         return { call: call.id, row: own.id, started }
       }
-      const row: Member = { id: next(), call: call.id, member, process, tracks: resume?.tracks ?? [], joined_at: now(), seen_at: now() }
+      const row: Member = { id: next(), call: call.id, member, ...(name !== undefined && { name }), process, tracks: resume?.tracks ?? [], joined_at: now(), seen_at: now() }
       members.push(row)
       return { call: call.id, row: row.id, started }
     },
@@ -126,11 +127,11 @@ export const memoryCallStore = (now = () => Date.now()) => {
       return call && recordOfId(call.record)
     },
     rosters: async (ids) => {
-      const found = new Map<string, { ended: boolean; members: { row: string; member: string; process: string; joined_at: string; tracks: CallRemoteTrack[] }[] }>()
+      const found = new Map<string, { ended: boolean; members: { row: string; member: string; process: string; joined_at: string; tracks: CallRemoteTrack[]; name: string | null }[] }>()
       for (const id of ids) {
         const call = calls.get(id)
         if (!call) continue
-        found.set(id, { ended: call.ended_at !== undefined, members: present(id).map((row) => ({ row: row.id, member: row.member, process: row.process, joined_at: iso(row.joined_at), tracks: row.tracks })) })
+        found.set(id, { ended: call.ended_at !== undefined, members: present(id).map((row) => ({ row: row.id, member: row.member, process: row.process, joined_at: iso(row.joined_at), tracks: row.tracks, name: row.name ?? null })) })
       }
       return found
     },
@@ -147,7 +148,7 @@ export const memoryCallStore = (now = () => Date.now()) => {
             started_by: call.started_by,
             started_at: iso(call.started_at),
             ended_at: call.ended_at === undefined ? null : iso(call.ended_at),
-            members: present(call.id).map((row) => ({ member: row.member, joined_at: iso(row.joined_at) })),
+            members: present(call.id).map((row) => ({ member: row.member, joined_at: iso(row.joined_at), ...(row.name !== undefined && { name: row.name }) })),
             removed: members.filter((row) => row.call === call.id && row.removed_at !== undefined).map((row) => ({ member: row.member, removed_at: iso(row.removed_at!) })),
           }))
         found.set(key, items)

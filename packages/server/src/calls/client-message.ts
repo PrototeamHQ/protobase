@@ -24,10 +24,15 @@ const candidate = z.strictObject({
 })
 
 const description = z.strictObject({ type: z.enum(['offer', 'answer']), sdp })
+const uuid = z.uuid()
+// A guest's token, which only the guest call socket reads.
+const guest = z.string().min(1).max(128).optional()
+// A time ahead, as a guest link's end.
+const ahead = z.iso.datetime({ offset: true }).refine((value) => Date.parse(value) > Date.now(), 'A link expires in the future')
 
 const message = z.discriminatedUnion('type', [
-  z.strictObject({ type: z.literal('join') }),
-  z.strictObject({ type: z.literal('resume'), call: id, participant: id, offer: sdp.optional(), answer: sdp.optional(), tracks: z.array(z.strictObject({ cid: id, sid: id, kind, source })).max(16) }),
+  z.strictObject({ type: z.literal('join'), guest }),
+  z.strictObject({ type: z.literal('resume'), guest, call: id, participant: id, offer: sdp.optional(), answer: sdp.optional(), tracks: z.array(z.strictObject({ cid: id, sid: id, kind, source })).max(16) }),
   z.strictObject({ type: z.literal('publish'), tracks: z.array(track).min(1).max(4) }),
   z.strictObject({ type: z.literal('offer'), sdp, id: z.number().int().min(0) }),
   z.strictObject({ type: z.literal('candidate'), candidate }),
@@ -36,6 +41,10 @@ const message = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('signal'), to: id, description: description.optional(), candidate: candidate.optional() }),
   z.strictObject({ type: z.literal('view'), sids: z.array(id).min(1).max(256), width: size, height: size, hidden: z.boolean().optional() }),
   z.strictObject({ type: z.literal('leave') }),
+  z.strictObject({ type: z.literal('guest-link'), publish: z.array(source).max(4), expires_at: ahead.optional() }),
+  z.strictObject({ type: z.literal('guest-link-revoke'), link: uuid }),
+  z.strictObject({ type: z.literal('guest-decide'), guest: uuid, admit: z.boolean() }),
+  z.strictObject({ type: z.literal('guest-remove'), guest: uuid }),
 ])
 
 /** A browser's message, or `undefined` when it is no message of the call protocol. */

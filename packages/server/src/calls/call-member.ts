@@ -18,13 +18,17 @@ export type CallMember = CallRights & {
   record: { resource: string; key: CallRecordKey }
   /**
    * Who joins, unique in the call, such as the signed-in user's id: take it from the caller, never from the request,
-   * since the other members know them by it.
+   * since the other members know them by it. Never `guest:…`, which guests are.
    */
   member: string
   /** The function's own checks, repeated every minute after the record's, such as whether the caller is still invited. */
   recheck?: () => unknown
   /** Whom the call rings, on any page of the app they have open, when this join starts it. */
   ring?: CallRingInput
+  /** Whether the member may share guest links to the call and let its guests in; `false` by default. */
+  invites?: boolean
+  /** The name the others in the call see, such as the user's name; guests see no other. */
+  name?: string
 }
 
 /** A member in a call as a media plugin knows them: the call by its id, and who they are in it. */

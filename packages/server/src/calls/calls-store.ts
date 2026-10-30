@@ -4,6 +4,7 @@ import { recordCalls, rosters, type CallItem, type RosterMember } from './call-r
 import { takeSignals, writeSignal, type StoredSignal } from './call-signals-sql'
 import { admit, callRecord, heartbeat, leave, remove, setTracks, type Admission, type AdmitInput, type CallRecord } from './call-store'
 import { sweepCalls } from './call-sweep'
+import { guestAllowed } from './guest-checks-sql'
 
 /** Where calls, their members and the signals between processes are kept: the `calls` schema, or memory in tests. */
 export type CallStore = {
@@ -24,7 +25,7 @@ export type CallStore = {
 
 /** The `calls` schema of the app's database; writes under the API's statement timeout. */
 export const sqlCallStore = (db: Db, timeoutMs: number): CallStore => ({
-  admit: (input) => admit(db, timeoutMs, input),
+  admit: (input) => admit(db, timeoutMs, input, guestAllowed),
   leave: (row, process) => leave(db, timeoutMs, row, process),
   remove: (call, member) => remove(db, timeoutMs, call, member),
   setTracks: (row, process, tracks) => setTracks(db, row, process, tracks),

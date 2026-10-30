@@ -5,15 +5,20 @@ import type { RosterMember } from './call-reads'
 import type { CallRingInput } from './call-ring'
 import type { AdmitInput } from './call-store'
 import type { CallStore } from './calls-store'
+import type { CreateLinkInput } from './guest-links-sql'
+import type { DecideInput } from './guest-lobby-sql'
+import type { GuestStore } from './guest-store'
 import type { CallRoom, MemberLink, RosterListener, SignalBody } from './media-backend'
 
-type Local = { call: string; member: string; row: string; link: MemberLink; listener?: RosterListener; sent?: string; signals: () => boolean }
+type Local = { call: string; member: string; row: string; link: MemberLink; listener?: RosterListener; sent?: string; signals: () => boolean; invites: boolean; lobby?: string }
 
 export type CallHubOptions = {
   store: CallStore
   /** With several processes, signals for a member another process serves go through the `calls` schema. */
   manyProcesses: boolean
   report: (error: unknown) => void
+  /** Each call's lobby, which its members who may invite are told of; without, no member may. */
+  lobbies?: GuestStore['lobbies']
 }
 
 /** Signals a member may pass in a second at most; more are dropped. */
@@ -21,7 +26,7 @@ const signalsPerSecond = 100
 /** How often the signals for this process are read, with several processes. */
 const signalsEveryMs = 100
 
-const rosterOf = (members: RosterMember[]): CallRosterMember[] => members.map(({ member, joined_at }) => ({ member, joined_at }))
+const rosterOf = (members: RosterMember[]): CallRosterMember[] => members.map(({ member, joined_at, name }) => ({ member, joined_at, ...(name !== null && { name }) }))
 
 /**
  * The members this process serves, in their calls, whose records the `calls` schema keeps. A member is in only while
@@ -30,7 +35,7 @@ const rosterOf = (members: RosterMember[]): CallRosterMember[] => members.map(({
  * member of the same call only, straight to their socket here, or through the `calls` schema to the process that
  * serves them.
  */
-export const callHub = ({ store, manyProcesses, report }: CallHubOptions) => {
+export const callHub = ({ store, manyProcesses, report, lobbies }: CallHubOptions) => {
   const process = randomUUID()
   const locals = new Map<string, Local>()
   const known = new Map<string, RosterMember[]>()
@@ -65,10 +70,28 @@ export const callHub = ({ store, manyProcesses, report }: CallHubOptions) => {
     }
   }
 
-  /** Reads who is in these calls and tells their members here. */
+  // Tells the members here who may invite who waits in their call's lobby, and its links, whenever that changes.
+  const tellLobbies = async (calls: readonly string[]) => {
+    const asked = calls.filter((call) => ofCall(call).some((local) => local.invites && local.listener))
+    if (!lobbies || asked.length === 0) return
+    const found = await lobbies(asked)
+    for (const call of asked) {
+      const lobby = found.get(call)
+      if (!lobby) continue
+      const body = JSON.stringify(lobby)
+      for (const local of ofCall(call)) {
+        if (!local.invites || !local.listener || local.lobby === body) continue
+        local.lobby = body
+        local.link.send({ type: 'lobby', ...lobby })
+      }
+    }
+  }
+
+  /** Reads who is in these calls, and their lobbies, and tells their members here. */
   const refresh = async (calls: readonly string[]) => {
     const found = await store.rosters(calls)
     for (const call of calls) apply(call, found.get(call))
+    await tellLobbies(calls)
   }
 
   const deliver = (call: string, to: string, from: string, body: SignalBody) => {
@@ -126,12 +149,12 @@ export const callHub = ({ store, manyProcesses, report }: CallHubOptions) => {
     /**
      * Lets the member in, or says why not. Once in, `listen` gets who is in the call; `leave` ends their time in it,
      * `detach` only stops this process hearing of them, as when their socket was lost: they are out `graceSeconds`
-     * later unless their browser resumes.
+     * later unless their browser resumes. A member who `invites` is told of the call's lobby too.
      */
-    admit: async (input: Omit<AdmitInput, 'process'>, link: MemberLink) => {
+    admit: async ({ invites = false, ...input }: Omit<AdmitInput, 'process'> & { invites?: boolean }, link: MemberLink) => {
       const admitted = await store.admit({ ...input, process })
       if ('refused' in admitted) return admitted
-      const local: Local = { call: admitted.call, member: input.member, row: admitted.row, link, signals: fixedWindow(signalsPerSecond, 1000) }
+      const local: Local = { call: admitted.call, member: input.member, row: admitted.row, link, signals: fixedWindow(signalsPerSecond, 1000), invites: invites && lobbies !== undefined }
       // The member's socket before, here: their new one takes its place.
       for (const before of ofCall(admitted.call)) if (before.member === input.member && before.row === admitted.row) drop(before, 'removed')
       locals.set(local.row, local)
@@ -185,4 +208,14 @@ export type InCall = Exclude<Awaited<ReturnType<CallHub['admit']>>, { refused: u
  */
 export type CallDoor = {
   admit: (input: Parameters<CallHub['admit']>[0] & { user?: string; ring?: CallRingInput }, link: MemberLink) => ReturnType<CallHub['admit']>
+  /** What a member who invites does with the call's guests; without, nobody may. */
+  guests?: GuestActions
+}
+
+/** A member's guest links and decisions on the call's lobby, each by the member in the call. */
+export type GuestActions = {
+  link: (input: CreateLinkInput) => ReturnType<GuestStore['createLink']>
+  revoke: (input: { call: string; link: string; member: string }) => Promise<boolean>
+  decide: (input: Omit<DecideInput, 'maxMembers'>) => ReturnType<GuestStore['decide']>
+  remove: (call: string, guest: string) => Promise<void>
 }
