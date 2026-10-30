@@ -81,7 +81,8 @@ try {
   pageVisits.forEach((visit, i) => report(paths[i], visit.problems))
   const stories = [...new Set(pageVisits.flatMap((visit) => visit.found))]
   const storyVisits = await visitAll(context, stories, async (page, problems) => {
-    const rendered = await page.waitForFunction(() => document.querySelector('#storybook-root')?.childElementCount > 0, null, { timeout: 15_000 }).then(() => true, () => false)
+    // A story of a dialog alone leaves the root empty: the dialog is portalled to the body.
+    const rendered = await page.waitForFunction(() => document.querySelector('#storybook-root')?.childElementCount > 0 || document.querySelector('body > [data-dialog] [role="dialog"]') !== null, null, { timeout: 15_000 }).then(() => true, () => false)
     if (!rendered) problems.push('the story did not render')
     if (await page.evaluate(() => document.body.classList.contains('sb-show-errordisplay'))) problems.push('the story shows an error')
   })
