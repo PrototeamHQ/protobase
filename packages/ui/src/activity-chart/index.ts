@@ -1,1 +1,1 @@
-export { ActivityChart, type ActivityChartProps } from './activity-chart'
+export { ActivityChart, type ActivityChartProps, type ActivityGranularity } from './activity-chart'

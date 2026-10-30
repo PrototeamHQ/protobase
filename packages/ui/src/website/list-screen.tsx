@@ -1,5 +1,5 @@
 import { Download, Plus } from 'lucide-react'
-import { ActivityChart } from '../activity-chart'
+import { SampleActivityChart } from '../activity-chart/activity-chart-fixtures'
 import { AppShell, PageHeader, type ShellUser, type SidebarMode } from '../app-shell'
 import { DataGrid, type ColumnSpec, type RowSource } from '../data-grid'
 import { FilterPanel, type FilterConfig, type FilterState } from '../filter-panel'
@@ -52,7 +52,7 @@ export const ListScreen = (props: ListScreenProps) => {
             </>
           }
         />
-        {showChart && <ActivityChart title="Orders created" noun="orders" />}
+        {showChart && <SampleActivityChart title="Orders created" noun="orders" />}
         {filters?.layout === 'bar' && <FilterPanel layout="bar" config={filters.config} defaultValue={filters.defaultValue} lockedLabels={filters.lockedLabels} />}
         {filters?.layout === 'panel' ? (
           <div className="flex min-h-0 flex-1 gap-4">

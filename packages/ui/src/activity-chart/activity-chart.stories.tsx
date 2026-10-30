@@ -1,12 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { ActivityChart } from './activity-chart'
+import { SampleActivityChart } from './activity-chart-fixtures'
 
 const meta = {
   title: 'Components/ActivityChart',
-  component: ActivityChart,
+  component: SampleActivityChart,
   parameters: { layout: 'padded' },
   decorators: [(Story) => <div className="w-[1100px]"><Story /></div>],
-} satisfies Meta<typeof ActivityChart>
+  args: { title: 'Orders created', noun: 'orders' },
+} satisfies Meta<typeof SampleActivityChart>
 
 export default meta
 type Story = StoryObj<typeof meta>

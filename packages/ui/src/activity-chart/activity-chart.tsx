@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { formatDayShort } from '../format/date'
 import { formatInt } from '../format/number'
-import { activitySeries, type ActivityGranularity } from '../mocks'
 import { Segmented } from '../primitives/segmented'
 import { cn } from '../lib/cn'
 import { useMediaQuery } from '../lib/use-media-query'
@@ -10,13 +9,15 @@ import { halfOverHalfDelta, totalCount } from './activity-math'
 import { ActivityTooltip } from './activity-tooltip'
 import { text } from './messages'
 
+export type ActivityGranularity = 'day' | 'week'
+
 export type ActivityChartProps = {
-  title?: string
+  title: string
   /** Plural noun used in the tooltip. */
-  noun?: string
+  noun: string
   defaultGranularity?: ActivityGranularity
-  /** Real data. Without it the chart draws mock series. */
-  data?: Array<{ at: number; count: number }>
+  /** The counts to draw; an empty series draws an empty chart. */
+  data: Array<{ at: number; count: number }>
   /** Controlled granularity, for charts whose data comes from a server. */
   granularity?: ActivityGranularity
   onGranularityChange?: (granularity: ActivityGranularity) => void
@@ -27,20 +28,19 @@ export type ActivityChartProps = {
 
 const axisTick = { fontSize: 11, fill: 'var(--muted-foreground)' }
 
-export const ActivityChart = ({ title = 'Orders created', noun = 'orders', defaultGranularity = 'day', data, granularity: controlled, onGranularityChange, periodLabel, className }: ActivityChartProps) => {
+export const ActivityChart = ({ title, noun, defaultGranularity = 'day', data, granularity: controlled, onGranularityChange, periodLabel, className }: ActivityChartProps) => {
   const [local, setLocal] = useState(defaultGranularity)
   const granularity = controlled ?? local
   const setGranularity = onGranularityChange ?? setLocal
-  const series = data ?? activitySeries(granularity)
   const wide = useMediaQuery('(min-width: 640px)')
-  const delta = halfOverHalfDelta(series)
+  const delta = halfOverHalfDelta(data)
 
   return (
     <section className={cn('rounded-lg border bg-background px-4 pb-2 pt-3', className)}>
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-baseline gap-2">
           <h2 className="font-semibold">{title}</h2>
-          <span className="font-semibold tabular-nums">{formatInt(totalCount(series))}</span>
+          <span className="font-semibold tabular-nums">{formatInt(totalCount(data))}</span>
           <span className={cn('text-xs font-medium tabular-nums', delta >= 0 ? 'text-success-text' : 'text-danger-text')}>
             {delta >= 0 ? '+' : '−'}
             {Math.abs(delta).toFixed(1)}%
@@ -55,7 +55,7 @@ export const ActivityChart = ({ title = 'Orders created', noun = 'orders', defau
       </header>
       <div className="mt-2 h-24">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={series} margin={{ top: 4, right: 0, bottom: 0, left: 0 }} barCategoryGap={granularity === 'day' ? '22%' : '30%'}>
+          <BarChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }} barCategoryGap={granularity === 'day' ? '22%' : '30%'}>
             <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis dataKey="at" padding={{ left: 4, right: wide ? 4 : 18 }} tickFormatter={formatDayShort} tick={axisTick} axisLine={false} tickLine={false} interval={granularity === 'day' ? (wide ? 4 : 9) : wide ? 1 : 3} height={18} />
             <YAxis width={wide ? 36 : 28} tick={axisTick} axisLine={false} tickLine={false} tickCount={3} />

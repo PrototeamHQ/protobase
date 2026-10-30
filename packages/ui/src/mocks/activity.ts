@@ -1,6 +1,6 @@
+import type { ActivityGranularity } from '../activity-chart/activity-chart'
 import { mockNow, rngAt } from './rng'
 
-export type ActivityGranularity = 'day' | 'week'
 
 const dayMs = 86_400_000
 
