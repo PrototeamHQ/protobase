@@ -127,6 +127,7 @@ import { mcpIcons } from './web-app/mcp-icons'
 import { faviconPath } from './web-app/web-manifest'
 import { recordRoutes } from './routes/record'
 import { runtimeUrl } from './runtime/runtime-settings'
+import { firstAdminUrl } from './better-auth/first-admin-url'
 import { pluginOptions, pluginsBeforeSignIn } from './plugins/plugin-settings'
 import { checkSourceNames, sourceOptions } from './sources/source-settings'
 import { createScanGuard } from './scan-guard'
@@ -269,6 +270,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
   const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
+  const firstAdmin = firstAdminUrl(globalThis.process?.env ?? {})
   const errorReporting = errorReportingSettings(options.errorReporting, globalThis.process?.env ?? {})
   const maps = mapSettings(options.maps, globalThis.process?.env ?? {})
   // At startup, so a wrong VAPID variable stops the server; the sending code calls them through these.
@@ -384,7 +386,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     if ((servesKeys || auth) && !supabasePath.startsWith(`${systemPath}/`)) app.use(`${supabasePath}/*`, cors)
   }
   if (auth) {
-    app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }) }))
+    app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }), ...(firstAdmin && { firstAdminUrl: firstAdmin }) }))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
     if (auth.mcp) mcpDiscovery(app, auth)
     const answer = mobile ? auth.handleMobile : auth.handler

@@ -9,7 +9,8 @@ import { text } from './messages'
 
 export type AuthState =
   | { kind: 'loading' }
-  | { kind: 'needs-admin' }
+  /** `firstAdminUrl`: the platform's page where the first user is added, when it names one. */
+  | { kind: 'needs-admin'; firstAdminUrl?: string }
   | { kind: 'signed-out' }
   /** Not signed in, browsing what the project's anonymous role reads; the sign-in route signs them in. */
   | { kind: 'visitor' }
@@ -201,7 +202,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       setAnonymous(Boolean(status.anonymous))
       setBeforeSignIn(status.plugins ?? [])
       setLocale(status.locale)
-      if (status.needsAdmin) return setState({ kind: 'needs-admin' })
+      if (status.needsAdmin) return setState({ kind: 'needs-admin', ...(status.firstAdminUrl && { firstAdminUrl: status.firstAdminUrl }) })
       const user = await session.session()
       return user ? enter(user) : setState({ kind: status.anonymous ? 'visitor' : 'signed-out' })
     }).catch((error: unknown) => setState({ kind: 'error', message: error instanceof Error ? error.message : text('noAnswer') }))

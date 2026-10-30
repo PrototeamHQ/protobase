@@ -508,6 +508,21 @@ export const FirstRun: StoryObj = {
     expect(canvas.getByText('No admin yet')).toBeVisible()
     expect(canvas.getByText(/protobase users create/)).toBeVisible()
     expect(canvas.getByRole('button', { name: 'Reload' })).toBeEnabled()
+    expect(canvas.queryByRole('link')).toBeNull()
+  },
+}
+
+export const FirstRunOnPlatform: StoryObj = {
+  tags: ['play'],
+  render: () => <FirstRunPage firstAdminUrl="https://console.example.com/apps/1" onCheckAgain={fn()} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByText('No admin yet')).toBeVisible()
+    const link = canvas.getByRole('link', { name: 'Add your first user in the Protobase Cloud console' })
+    expect(link).toHaveAttribute('href', 'https://console.example.com/apps/1')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(canvas.queryByText(/protobase users create/)).toBeNull()
+    expect(canvas.getByRole('button', { name: 'Reload' })).toBeEnabled()
   },
 }
 
