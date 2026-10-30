@@ -218,7 +218,7 @@ return acceptWebSocket(
 )
 ```
 
-A link opens `/-/call-guest` with its token after `#`, which the browser sends to no server. It lets guests in until the call ends, or until the time `call.guests.link({ publish, expiresAt })` gave it, unless a member revokes it first. At most 10 wait on a link at once, and once its members turned away 3 guests, it lets nobody else wait: make a new link.
+A link opens `/-/call-guest` with its token after `#`, which the browser sends to no server. It lets guests in until the call ends, or for an hour when made so, or until the time `call.guests.link({ publish, expiresAt })` gives it, unless a member revokes it first. At most 10 wait on a link at once, and once its members turned away 3 guests, it lets nobody else wait: make a new link.
 
 ### What a guest gets
 
