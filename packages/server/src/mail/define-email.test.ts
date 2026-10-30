@@ -36,6 +36,13 @@ describe('defineEmail', () => {
     expect(sent).toEqual([{ to: 'ada@example.com', subject: 'Welcome, Ada', html: expect.stringContaining('Hi Ada,'), text: expect.stringContaining('Hi Ada,') }])
   })
 
+  it('sends the attachments it is given', async () => {
+    const { sent, mailer } = recording()
+    const attachments = [{ filename: 'invoice-7.pdf', content: new Uint8Array([37, 80, 68, 70]), contentType: 'application/pdf' }]
+    await welcome.send('ada@example.com', { name: 'Ada', url: 'https://app.example.com' }, mailer, { attachments })
+    expect(sent[0]!.attachments).toEqual(attachments)
+  })
+
   it('sends the header fields it makes from the data', async () => {
     const { sent, mailer } = recording()
     const digest = defineEmail({

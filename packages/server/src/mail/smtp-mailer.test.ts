@@ -37,4 +37,19 @@ describe('smtpMailer', () => {
     await expect(mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers: { 'X-Note': 'a\r\nBcc: eve@example.com' } })).rejects.toThrow('Mail header X-Note has a line break')
     await expect(mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers: { 'X Note': 'a' } })).rejects.toThrow('Mail header name "X Note" is not a valid header field name')
   })
+
+  it('sends attachments as their bytes alone, never reading a file or URL', async () => {
+    const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com' })
+    const content = new Uint8Array([37, 80, 68, 70])
+    await mailer.send({ to: 'ada@example.com', subject: 'Invoice', text: 'Attached.', attachments: [{ filename: 'invoice.pdf', content, contentType: 'application/pdf' }] })
+    expect(sendMail).toHaveBeenLastCalledWith({
+      from: 'noreply@shop.example.com',
+      to: 'ada@example.com',
+      subject: 'Invoice',
+      text: 'Attached.',
+      attachments: [{ filename: 'invoice.pdf', content: Buffer.from(content), contentType: 'application/pdf' }],
+      disableFileAccess: true,
+      disableUrlAccess: true,
+    })
+  })
 })
