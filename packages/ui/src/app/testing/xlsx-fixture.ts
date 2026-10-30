@@ -1,63 +1,16 @@
 // Small .xlsx workbooks for tests and stories, built the way Excel stores them: text in shared strings, numbers and
 // booleans in the cells, dates as serial numbers with a date style, every part deflated in a ZIP archive.
 
+import { strToU8, zipSync } from 'fflate'
+
 export type FixtureCell = string | number | boolean | { serial: number } | null
 
-const crcTable = Array.from({ length: 256 }, (_, n) => {
-  let c = n
-  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
-  return c >>> 0
-})
-
-const crc32 = (bytes: Uint8Array) => {
-  let crc = 0xffffffff
-  for (const byte of bytes) crc = crcTable[(crc ^ byte) & 0xff]! ^ (crc >>> 8)
-  return (crc ^ 0xffffffff) >>> 0
-}
-
-const deflate = async (bytes: Uint8Array) => new Uint8Array(await new Response(new Blob([bytes as BlobPart]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer())
-
-/** A ZIP archive of the files, each deflated. */
+/** A ZIP archive of the files, each deflated, with their sizes in the local headers as Excel writes them. */
 export const zipFiles = async (files: Record<string, string>) => {
-  const encoder = new TextEncoder()
-  const locals: Uint8Array[] = []
-  const centrals: Uint8Array[] = []
-  let offset = 0
-  for (const [name, text] of Object.entries(files)) {
-    const nameBytes = encoder.encode(name)
-    const raw = encoder.encode(text)
-    const data = await deflate(raw)
-    const crc = crc32(raw)
-    const local = new DataView(new ArrayBuffer(30))
-    local.setUint32(0, 0x04034b50, true)
-    local.setUint16(4, 20, true)
-    local.setUint16(8, 8, true)
-    local.setUint32(14, crc, true)
-    local.setUint32(18, data.length, true)
-    local.setUint32(22, raw.length, true)
-    local.setUint16(26, nameBytes.length, true)
-    const central = new DataView(new ArrayBuffer(46))
-    central.setUint32(0, 0x02014b50, true)
-    central.setUint16(4, 20, true)
-    central.setUint16(6, 20, true)
-    central.setUint16(10, 8, true)
-    central.setUint32(16, crc, true)
-    central.setUint32(20, data.length, true)
-    central.setUint32(24, raw.length, true)
-    central.setUint16(28, nameBytes.length, true)
-    central.setUint32(42, offset, true)
-    locals.push(new Uint8Array(local.buffer), nameBytes, data)
-    centrals.push(new Uint8Array(central.buffer), nameBytes)
-    offset += 30 + nameBytes.length + data.length
-  }
-  const size = centrals.reduce((sum, part) => sum + part.length, 0)
-  const end = new DataView(new ArrayBuffer(22))
-  end.setUint32(0, 0x06054b50, true)
-  end.setUint16(8, Object.keys(files).length, true)
-  end.setUint16(10, Object.keys(files).length, true)
-  end.setUint32(12, size, true)
-  end.setUint32(16, offset, true)
-  return new Blob([...locals, ...centrals, new Uint8Array(end.buffer)] as BlobPart[], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const entries = Object.fromEntries(Object.entries(files).map(([name, text]) => [name, strToU8(text)]))
+  // A fixed date keeps the archive's bytes independent of the clock
+  const archive = zipSync(entries, { level: 6, mtime: new Date(2000, 0, 1) })
+  return new Blob([archive as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
 }
 
 const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
