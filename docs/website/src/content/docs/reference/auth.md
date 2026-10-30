@@ -726,9 +726,10 @@ import { issueToken } from '@protobase/server'
 
 const auth = await loadProjectAuth(process.cwd())
 const { token, expiresAt } = await issueToken(auth, { email: 'you@example.com', ttlSeconds: 3600 }) // default 15 minutes, at most 24 hours
+const inGlobex = await issueToken(auth, { email: 'you@example.com', organization: 'globex' }) // with organizations
 ```
 
-It is signed with the same keys and carries the same claims as a token from `/api/auth/token`, with the role the user last chose, else their first, so the API treats it as any other, and a ban, a role taken away or the user deleted ends it before it expires. Banned and unknown users get an error. There is no HTTP route for this.
+It is signed with the same keys and carries the same claims as a token from `/api/auth/token` for a new session of the user, with the role the user last chose, else their first, so the API treats it as any other. With [organizations](#organizations) it works in the organization a new session would start in, the one the user last worked in, else their oldest membership, and carries its `org`, `org_role` and `app_roles`; `organization`, an id or slug (`protobase token --organization`), names another, and is refused when the user may not work there, and a user in no organization gets a token without one. A ban, a role taken away or the user deleted ends it before it expires. Banned and unknown users get an error. There is no HTTP route for this.
 
 ## OAuth for MCP clients
 

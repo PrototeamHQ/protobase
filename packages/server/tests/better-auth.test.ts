@@ -159,6 +159,10 @@ describe('issueToken', () => {
     await expect(issueToken(auth, { email: 'root@example.com', ttlSeconds: 0 })).rejects.toThrow('between')
   })
 
+  it('refuses to name an organization while organizations are off', async () => {
+    await expect(issueToken(auth, { email: 'root@example.com', organization: 'acme' })).rejects.toThrow('Organizations are off')
+  })
+
   it('refuses an unknown user, and the token expires', async () => {
     await expect(issueToken(auth, { email: 'nobody@example.com' })).rejects.toThrow('No user')
     const { token } = await issueToken(auth, { email: 'root@example.com', ttlSeconds: 60 })

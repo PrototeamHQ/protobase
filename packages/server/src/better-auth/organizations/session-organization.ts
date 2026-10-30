@@ -27,11 +27,25 @@ export const organizationClaims = async (adapter: Adapter, user: SessionUser, ac
   return {}
 }
 
+/**
+ * The organization a new session of `user` starts in (`initialOrganization`): the one they last worked in while they
+ * may still enter it, else their oldest membership, else none.
+ */
+export const startingOrganization = async (adapter: Adapter, user: SessionUser & { lastOrganizationId?: string | null }) => {
+  const last = user.lastOrganizationId
+  return initialOrganization({
+    memberships: summaries(await membershipsOf(adapter, user.id)),
+    last,
+    entersAny: globalRoles(user.role).length > 0,
+    lastExists: Boolean(last) && (await findOrganization(adapter, last!)) !== null,
+  })
+}
+
 type SessionRow = { userId: string; activeOrganizationId?: string | null }
 
 /**
  * Better Auth's session hooks for organizations: a new session starts in the organization the person last worked in
- * (`initialOrganization`), and a session's change of organization is kept on the user as the next one's start.
+ * (`startingOrganization`), and a session's change of organization is kept on the user as the next one's start.
  */
 export const sessionOrganizationHooks = (context: () => Promise<AuthContext>) => ({
   create: {
@@ -39,13 +53,7 @@ export const sessionOrganizationHooks = (context: () => Promise<AuthContext>) =>
       const { adapter, internalAdapter } = await context()
       const user = (await internalAdapter.findUserById(session.userId)) as (SessionUser & { lastOrganizationId?: string | null }) | null
       if (!user) return
-      const last = user.lastOrganizationId
-      const activeOrganizationId = initialOrganization({
-        memberships: summaries(await membershipsOf(adapter, user.id)),
-        last,
-        entersAny: globalRoles(user.role).length > 0,
-        lastExists: Boolean(last) && (await findOrganization(adapter, last!)) !== null,
-      })
+      const activeOrganizationId = await startingOrganization(adapter, user)
       return activeOrganizationId ? { data: { ...session, activeOrganizationId } } : undefined
     },
   },

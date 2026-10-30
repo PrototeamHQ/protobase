@@ -4,6 +4,7 @@ import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-sc
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { addMember, createOrganization, listOrganizations, setMemberRoles } from '../src/better-auth/organizations/host'
+import { issueToken } from '../src/better-auth/tokens'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { AuditEvent } from '../src/types'
@@ -168,6 +169,41 @@ describe('the token of a signed-in person', () => {
     const token = await tokenOf(await signIn('ana@example.com'))
     expect(decodeJwt(token)).not.toHaveProperty('org')
     expect((await request('/api/v1/companies', { token })).status).toBe(403)
+  })
+})
+
+// A token's claims apart from those of the moment it was made and the session it came from.
+const lastingClaims = (token: string) => {
+  const { iat, exp, sid, jti, ...claims } = decodeJwt(token)
+  return claims
+}
+
+describe('a token from issueToken', () => {
+  it('has the claims of a new session\'s token, and reads the tenant rows its app role may read', async () => {
+    const { auth, request, signIn, tokenOf } = await serve({}, { people: true })
+    const { token } = await issueToken(auth, { email: 'sanne@example.com' })
+    expect(lastingClaims(token)).toEqual(lastingClaims(await tokenOf(await signIn('sanne@example.com'))))
+    expect(decodeJwt(token)).toMatchObject({ org: '1', org_role: 'member', app_roles: ['sales'] })
+    const companies = await (await request('/api/v1/companies?page_size=500&fields=id,organizationId', { token })).json()
+    expect(companies.items.length).toBeGreaterThan(0)
+    expect(new Set(companies.items.map((company: { organizationId: number }) => company.organizationId))).toEqual(new Set([1]))
+  })
+
+  it('has no organization for someone in none', async () => {
+    const { auth } = await serve({}, { people: true })
+    expect(decodeJwt((await issueToken(auth, { email: 'ana@example.com' })).token)).not.toHaveProperty('org')
+  })
+
+  it('works in the organization named, by slug or id, and is refused one the person may not work in', async () => {
+    const { auth, request } = await serve({}, { people: true })
+    await addMember(auth, { organization: 'globex', email: 'sanne@example.com', appRoles: ['accountant'] })
+    const { token } = await issueToken(auth, { email: 'sanne@example.com', organization: 'globex' })
+    expect(decodeJwt(token)).toMatchObject({ role: 'user', org: '2', org_role: 'member', app_roles: ['accountant'] })
+    const companies = await (await request('/api/v1/companies?page_size=500&fields=id,organizationId', { token })).json()
+    expect(new Set(companies.items.map((company: { organizationId: number }) => company.organizationId))).toEqual(new Set([2]))
+    expect(decodeJwt((await issueToken(auth, { email: 'sanne@example.com', organization: '1' })).token)).toMatchObject({ org: '1', app_roles: ['sales'] })
+    await expect(issueToken(auth, { email: 'bo@example.com', organization: 'globex' })).rejects.toThrow('may not work in organization "globex"')
+    await expect(issueToken(auth, { email: 'bo@example.com', organization: 'nowhere' })).rejects.toThrow('No organization "nowhere"')
   })
 })
 
