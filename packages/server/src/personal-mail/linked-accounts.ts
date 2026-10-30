@@ -2,8 +2,8 @@ import { APIError } from 'better-auth/api'
 import type { AuthContext } from 'better-auth'
 import { PersonalMailError } from './personal-mail-error'
 
-/** A provider account linked to a user: its row id, its provider and the scopes it was granted. */
-export type LinkedAccount = { id: string; providerId: string; scopes: string[] }
+/** A provider account linked to a user: its row id, its provider, the scopes it holds and when it was created. */
+export type LinkedAccount = { id: string; providerId: string; scopes: string[]; createdAt: Date }
 
 /** The provider accounts linked to people and their access tokens, as `personalMailer` reads them. */
 export type LinkedAccounts = {
@@ -18,7 +18,7 @@ type TokenApi = { getAccessToken: (input: { body: { accountId: string; userId: s
 export type TokenAuth = { $context: Promise<AuthContext>; api: TokenApi }
 
 // Better Auth keeps the scopes comma-separated; a provider's token response may have given them space-separated.
-const storedScopes = (scope: string | null | undefined) => (scope ?? '').split(/[\s,]+/).filter(Boolean)
+export const storedScopes = (scope: string | null | undefined) => (scope ?? '').split(/[\s,]+/).filter(Boolean)
 
 /**
  * The accounts Better Auth keeps, with the tokens it stores, decrypted when `encryptOAuthTokens` is on. Its
@@ -28,7 +28,7 @@ const storedScopes = (scope: string | null | undefined) => (scope ?? '').split(/
 export const betterAuthLinkedAccounts = (auth: TokenAuth): LinkedAccounts => ({
   accounts: async (userId) => {
     const accounts = await (await auth.$context).internalAdapter.findAccounts(userId)
-    return accounts.map((account) => ({ id: account.id, providerId: account.providerId, scopes: storedScopes(account.scope) }))
+    return accounts.map((account) => ({ id: account.id, providerId: account.providerId, scopes: storedScopes(account.scope), createdAt: account.createdAt }))
   },
   accessToken: async (userId, account, provider) => {
     const accessToken = await validAccessToken(auth, userId, account.id, provider)

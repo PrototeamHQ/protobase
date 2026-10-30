@@ -172,8 +172,10 @@ export default defineFunction(async (request, { personalMail }) => {
   ```
 
 - **Sender:** the provider sends as the linked address; Gmail sets the From header to it.
+- **Which account:** mail goes out through the account the person connected for mail last. Connecting Gmail with another Google account takes the mail scopes off the earlier one in the app's store, and signing in with the earlier one does not take the mail back; connecting it again does. When the chosen account's link fails, sending fails: it never falls back to another account. Of two accounts that both still hold the mail scopes, as when both connected before this rule came in, mail goes through the one linked to the person last, until they connect one again.
 - **Only the person:** mail goes out from a mailbox only for someone signed in as themselves. Staff [signed in as them](/reference/auth/#staff-sign-in), or an outside app acting for them, is refused with a `403` problem (`own-sign-in-only`), and nothing is sent.
 - **Providers:** Gmail, through Google sign-in. A provider is added to Protobase behind the same `PersonalMailProvider` shape: its sign-in provider, the scopes linking asks for, and how it sends.
+- <gap>The account page cannot show which account a mailbox is linked through or disconnect it because unlinking a mailbox is not implemented.</gap>
 - <gap>Jobs cannot send from someone's own mailbox because a job's context has no personal mailer.</gap>
 - <gap>Mailboxes other than Gmail cannot be linked because no other mail provider is implemented.</gap>
 

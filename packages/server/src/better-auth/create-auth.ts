@@ -8,6 +8,7 @@ import { goTrueSessionsPlugin } from '../gotrue/sessions-plugin'
 import { betterAuthLinkedAccounts, type TokenAuth } from '../personal-mail/linked-accounts'
 import { resolvePersonalMail, type PersonalMailProviderId } from '../personal-mail/personal-mail-providers'
 import { personalMailer } from '../personal-mail/personal-mailer'
+import { mailLinkHooks } from '../personal-mail/mail-link-hooks'
 import { endReplacedSession } from './end-replaced-session'
 import { authBasePath } from './auth-base-path'
 import { authLogger } from './auth-logger'
@@ -453,6 +454,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         update: { before: async (user) => ({ data: confirmedOnUpdate(user, new Date()) }) },
       },
       session: withEndedReplaced(organizations ? sessionOrganizationHooks(context) : {}),
+      // Linking a mailbox makes that account the one mail goes through.
+      account: mailLinkHooks(resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)),
     },
     rateLimit: {
       enabled: true,

@@ -42,7 +42,7 @@ export default defineConfig(({ env }) => ({
 
 ## 3. Link a mailbox
 
-Signed in, open the account page (`/-/account`): under **Mailbox** it offers "Connect Gmail". Google asks which account to use and whether the app may send mail as it, then sends you back to the account page, which now says **Connected**. Someone who already signs in with Google still connects here, as their sign-in did not allow sending mail. The Google account may have another address than the one they sign in with.
+Signed in, open the account page (`/-/account`): under **Mailbox** it offers "Connect Gmail". Google asks which account to use and whether the app may send mail as it, then sends you back to the account page, which now says **Connected**. Someone who already signs in with Google still connects here, as their sign-in did not allow sending mail. The Google account may have another address than the one they sign in with. Connecting again with another Google account moves the mailbox to that account: mail goes out through the account connected last.
 
 ## 4. Send from it
 
