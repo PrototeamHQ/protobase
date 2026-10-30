@@ -8,11 +8,11 @@ import { Input } from '../primitives/input'
 import { ActionRail } from '../record-view/action-rail'
 import { AutosaveStatus } from '../record-view/autosave-status'
 import { Field } from '../record-view/field'
-import { OrderStatusChoice, orderStatusOptions, type OrderStatusValue } from '../record-view/order-status-choice'
 import { RecordHeader } from '../record-view/record-header'
 import { MetadataList, RelatedRecords, SidebarCard } from '../record-view/record-sidebar'
 import { Section } from '../record-view/section'
 import { useAutosave } from '../record-view/use-autosave'
+import { OrderStatusChoice, orderStatusOptions, type OrderStatusValue } from './order-status-choice'
 
 const tones: Record<OrderStatusValue, BadgeTone> = { open: 'amber', paid: 'blue', shipped: 'violet' }
 
