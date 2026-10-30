@@ -116,7 +116,7 @@ export const FromAHeart: StoryObj = {
     const canvas = within(canvasElement)
     const card = (await canvas.findByText('Keizersgracht 12')).closest('li')!
     await userEvent.click(within(card).getByRole('button', { name: 'Save to favorites' }))
-    const dialog = await canvas.findByRole('dialog', { name: 'Keep the homes you like' })
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Keep the homes you like' })
     expect(within(dialog).getByRole('link', { name: 'Sign in' })).toBeVisible()
     await userEvent.click(within(dialog).getByRole('link', { name: 'Create an account' }))
 

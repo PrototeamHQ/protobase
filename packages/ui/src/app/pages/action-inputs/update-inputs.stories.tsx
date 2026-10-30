@@ -35,7 +35,7 @@ export const AnswerInPlace: StoryObj = {
     const card = within(await canvas.findByRole('region', { name: 'Biggest unpaid delivery' }))
     expect(await card.findByText('SO-2045')).toBeVisible()
     await userEvent.click(card.getByRole('button', { name: 'Renumber' }))
-    const dialog = within(await canvas.findByRole('dialog', { name: 'Renumber' }))
+    const dialog = within(await within(document.body).findByRole('dialog', { name: 'Renumber' }))
     const number = dialog.getByRole('textbox')
     await userEvent.clear(number)
     await userEvent.type(number, 'SO-9000')

@@ -76,9 +76,9 @@ export const LeavingAsksFirst: StoryObj = {
     const canvas = within(canvasElement)
     await moveFirstLineDown(canvas)
     await userEvent.click(within(canvas.getByRole('navigation', { name: 'Resources' })).getByRole('link', { name: 'Invoices' }))
-    const dialog = await canvas.findByRole('dialog', { name: 'Leave without saving?' })
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Leave without saving?' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Stay' }))
-    await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Leave without saving?' })).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog', { name: 'Leave without saving?' })).toBeNull())
     await firstLineIs(canvas, 'Line B')
   },
 }
@@ -103,16 +103,16 @@ export const BackAsksFirst: StoryObj = {
     const canvas = within(canvasElement)
     await moveFirstLineDown(canvas)
     window.history.back()
-    const dialog = await canvas.findByRole('dialog', { name: 'Leave without saving?' })
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Leave without saving?' })
     await waitFor(() => expect(pathname()).toBe('/invoices/i1'))
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Stay' }))
-    await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Leave without saving?' })).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog', { name: 'Leave without saving?' })).toBeNull())
     expect(pathname()).toBe('/invoices/i1')
     await firstLineIs(canvas, 'Line B')
 
     window.history.back()
-    await userEvent.click(within(await canvas.findByRole('dialog', { name: 'Leave without saving?' })).getByRole('button', { name: 'Leave' }))
+    await userEvent.click(within(await within(document.body).findByRole('dialog', { name: 'Leave without saving?' })).getByRole('button', { name: 'Leave' }))
     await waitFor(() => expect(pathname()).toBe('/invoices'))
   },
 }

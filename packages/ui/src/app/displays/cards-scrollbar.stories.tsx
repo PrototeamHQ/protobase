@@ -159,10 +159,10 @@ const checkDialog = async (canvasElement: HTMLElement, most: number) => {
   await widthChanges(canvasElement, 30)
   for (let round = 0; round < 2; round++) {
     await userEvent.click(canvas.getByRole('button', { name: 'Open dialog' }))
-    await canvas.findByRole('dialog', { name: 'A dialog' })
+    await within(document.body).findByRole('dialog', { name: 'A dialog' })
     const open = await widthChanges(canvasElement, 30)
     await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(canvas.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
     const closed = await widthChanges(canvasElement, 60)
     expect(open.changes + closed.changes).toBeLessThanOrEqual(most)
     expect(closed.settled).toBe(true)

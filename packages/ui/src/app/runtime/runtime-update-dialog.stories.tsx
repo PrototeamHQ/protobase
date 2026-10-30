@@ -18,7 +18,7 @@ export const Running: StoryObj = {
   tags: ['play'],
   render: dialog({ ...behind, updating: true, updateStage: 'build', updateStartedAt: minutesAgo(3) }),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
+    const canvas = within(canvasElement.ownerDocument.body)
     await expect(canvas.getByText('Building, started 3 min ago')).toBeVisible()
     await expect(canvas.getByRole('button', { name: 'Updating…' })).toBeDisabled()
   },
@@ -32,7 +32,7 @@ export const Failed: StoryObj = {
     lastUpdate: { toVersion: '0.19.1', outcome: 'failed', errorCode: 'doctor_failed', message: "The app's config does not pass protobase doctor with the release", finishedAt: '2026-10-12T03:07:00.000Z' },
   }),
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
+    const canvas = within(canvasElement.ownerDocument.body)
     await expect(canvas.getByText(/^The update to 0\.19\.1 failed on 12 Oct 2026, 05:07: The app's config/)).toBeVisible()
     await expect(canvas.getByRole('button', { name: 'Update now' })).toBeEnabled()
   },

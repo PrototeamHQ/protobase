@@ -65,7 +65,7 @@ export const Dialog: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole('button', { name: 'Save to favorites' }))
-    const dialog = await canvas.findByRole('dialog', { name: 'Keep the homes you like' })
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Keep the homes you like' })
     // A modal on a desktop: no close button of a sheet, "Not now" and "Sign in" instead
     expect(within(dialog).queryByRole('button', { name: 'Close' })).toBeNull()
     expect(within(dialog).getByText('Add notes only you can read')).toBeVisible()
@@ -74,7 +74,7 @@ export const Dialog: StoryObj = {
     expect(signIn).toHaveAttribute('href', signInPath({ next: '/homes' }))
     expect(signIn).toHaveClass('bg-primary')
     await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(canvas.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
   },
 }
 
@@ -85,7 +85,7 @@ export const DialogWithSignUp: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole('button', { name: 'Save to favorites' }))
-    const dialog = await canvas.findByRole('dialog', { name: 'Hear about new homes first' })
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Hear about new homes first' })
     // A visitor is most likely new: making an account is the primary action, last, and "Sign in" the secondary one
     const signUp = within(dialog).getByRole('link', { name: 'Create an account' })
     const signIn = within(dialog).getByRole('link', { name: 'Sign in' })
@@ -104,9 +104,9 @@ export const SheetPhone: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole('button', { name: 'Save to favorites' }))
-    const sheet = await canvas.findByRole('dialog', { name: 'Hear about new homes first' })
+    const sheet = await within(document.body).findByRole('dialog', { name: 'Hear about new homes first' })
     expect(within(sheet).getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', 'https://example.com/join')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
-    await waitFor(() => expect(canvas.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
   },
 }

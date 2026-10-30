@@ -42,10 +42,10 @@ const checkWidth = async (canvasElement: HTMLElement) => {
   const width = page.getBoundingClientRect().width
   for (const name of ['dialog', 'sheet']) {
     await userEvent.click(canvas.getByRole('button', { name: `Open ${name}` }))
-    await canvas.findByRole('dialog', { name: `A ${name}` })
+    await within(document.body).findByRole('dialog', { name: `A ${name}` })
     expect(page.getBoundingClientRect().width).toBe(width)
     await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(canvas.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
     expect(page.getBoundingClientRect().width).toBe(width)
   }
 }

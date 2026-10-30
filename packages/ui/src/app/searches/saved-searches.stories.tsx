@@ -180,7 +180,7 @@ export const MemberSaveChecks: StoryObj = {
     await waitFor(() => expect(save).toHaveAttribute('aria-pressed', 'false'))
     // Saving asks for a name, which may be left empty, and shows what the search filters on
     await userEvent.click(save)
-    const dialog = await canvas.findByRole('dialog', { name: 'Save search' })
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Save search' })
     expect(within(dialog).getByRole('list', { name: 'Filters' })).toHaveTextContent('Rent: €1,500 /month – €2,500 /month')
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Name' }), 'Mid-range')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
@@ -198,7 +198,7 @@ export const MemberRenameChecks: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(await canvas.findByRole('button', { name: 'Rename Rent: €1,000 /month – €2,000 /month' }))
-    const dialog = await canvas.findByRole('dialog', { name: 'Rename Rent: €1,000 /month – €2,000 /month' })
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Rename Rent: €1,000 /month – €2,000 /month' })
     await userEvent.type(within(dialog).getByRole('textbox', { name: 'Name' }), 'Affordable')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
     const renamed = await canvas.findByRole('region', { name: 'Affordable' })
@@ -238,7 +238,7 @@ export const MemberUpdateChecks: StoryObj = {
     await userEvent.click(await canvas.findByRole('button', { name: 'Update Gardens' }))
 
     // The dialog says what changes: the filters, how many more homes, and which homes come and go
-    const dialog = await canvas.findByRole('dialog', { name: 'Update Gardens?' })
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Update Gardens?' })
     const changes = within(dialog).getByRole('list', { name: 'Filter changes' })
     expect(within(changes).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['RemovedGarden', 'AddedRent: €1,400 /month – €2,200 /month'])
     expect(await within(dialog).findByText('1 more home')).toBeVisible()
@@ -251,7 +251,7 @@ export const MemberUpdateChecks: StoryObj = {
 
     // Updating gives the search the list's filter, which then shows as saved
     await userEvent.click(within(dialog).getByRole('button', { name: 'Update' }))
-    await waitFor(() => expect(canvas.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
     await waitFor(() => expect(canvas.getByRole('button', { name: 'Save search' })).toHaveAttribute('aria-pressed', 'true'))
     await userEvent.click(canvas.getByRole('link', { name: 'Searches' }))
     const gardens = await canvas.findByRole('region', { name: 'Gardens' })
@@ -266,7 +266,7 @@ export const MemberSaveAsNewChecks: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(await canvas.findByRole('button', { name: 'Save as new search' }))
-    const dialog = await canvas.findByRole('dialog', { name: 'Save as new search' })
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Save as new search' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(canvas.getByRole('button', { name: 'Save search' })).toHaveAttribute('aria-pressed', 'true'))
     await userEvent.click(canvas.getByRole('link', { name: 'Searches' }))
@@ -363,9 +363,9 @@ export const VisitorSaveChecks: StoryObj = {
     const save = await canvas.findByRole('button', { name: 'Save search' })
     expect(save).not.toHaveAttribute('aria-pressed')
     await userEvent.click(save)
-    const dialog = await canvas.findByRole('dialog', { name: 'Hear of new homes first' })
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Hear of new homes first' })
     expect(within(dialog).getByText('Save the filters you set')).toBeVisible()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Not now' }))
-    await waitFor(() => expect(canvas.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
   },
 }

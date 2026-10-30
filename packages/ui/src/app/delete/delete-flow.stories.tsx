@@ -86,9 +86,9 @@ type Story = StoryObj<typeof meta>
 const openConflictDialog = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement)
   await userEvent.click(canvas.getByRole('button', { name: 'Delete order' }))
-  const confirm = await canvas.findByRole('dialog', { name: /Delete SO-2026-000001\?/ })
+  const confirm = await within(document.body).findByRole('dialog', { name: /Delete SO-2026-000001\?/ })
   await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
-  return canvas.findByRole('dialog', { name: /was changed since you opened it/ })
+  return within(document.body).findByRole('dialog', { name: /was changed since you opened it/ })
 }
 
 export const DeleteAnywayAfterConflict: Story = {
@@ -114,7 +114,7 @@ export const ReviewChangesKeepsTheRecord: Story = {
     await waitFor(() => expect(args.onReview).toHaveBeenCalledTimes(1))
     expect(args.remove).not.toHaveBeenCalled()
     expect(args.onDeleted).not.toHaveBeenCalled()
-    await waitFor(() => expect(within(canvasElement).queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
   },
 }
 
@@ -122,7 +122,7 @@ export const CancelKeepsTheRecord: Story = {
   play: async ({ canvasElement, args }) => {
     await openConflictDialog(canvasElement)
     await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(within(canvasElement).queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
     expect(args.remove).not.toHaveBeenCalled()
     expect(args.onDeleted).not.toHaveBeenCalled()
   },

@@ -20,14 +20,14 @@ export const ExportFromTheList: StoryObj = {
     const canvas = within(canvasElement)
     await canvas.findByText('SO-1')
     await userEvent.click(canvas.getByRole('button', { name: 'Export' }))
-    let dialog = within(await canvas.findByRole('dialog', { name: 'Export orders' }))
+    let dialog = within(await within(document.body).findByRole('dialog', { name: 'Export orders' }))
     expect(dialog.queryByRole('group', { name: 'Rows' })).toBeNull()
     await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }))
 
     await userEvent.click(canvas.getAllByRole('checkbox', { name: /Select row/ })[1]!)
     expect(canvas.getByRole('button', { name: 'Delete 1' })).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: 'Export 1' }))
-    dialog = within(await canvas.findByRole('dialog', { name: 'Export orders' }))
+    dialog = within(await within(document.body).findByRole('dialog', { name: 'Export orders' }))
     expect(dialog.getByRole('button', { name: 'Selected (1)' })).toHaveAttribute('aria-pressed', 'true')
     expect(dialog.getByRole('status')).toHaveTextContent('Exports 1 selected row.')
   },

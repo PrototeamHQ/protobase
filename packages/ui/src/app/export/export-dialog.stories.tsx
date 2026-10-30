@@ -24,7 +24,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const dialog = (canvasElement: HTMLElement) => within(canvasElement).findByRole('dialog', { name: 'Export orders' })
+const dialog = (canvasElement: HTMLElement) => within(document.body).findByRole('dialog', { name: 'Export orders' })
 
 /** The list's columns are chosen, in its order; the others can be added and every column moved. */
 export const ChooseColumns: Story = {
@@ -89,7 +89,7 @@ export const Progress: StoryObj<typeof ExportProgressDialog> = {
   render: (args) => <ExportProgressDialog {...args} />,
   args: { plural: 'Orders', done: 1500, total: 6000, onCancel: fn() },
   play: async ({ canvasElement, args }) => {
-    const box = within(await within(canvasElement).findByRole('dialog', { name: 'Exporting orders' }))
+    const box = within(await within(document.body).findByRole('dialog', { name: 'Exporting orders' }))
     expect(box.getByRole('progressbar', { name: 'Rows exported' })).toHaveAttribute('aria-valuenow', '1500')
     expect(box.getByText('1,500 of 6,000 rows')).toBeVisible()
     await userEvent.click(box.getByRole('button', { name: 'Cancel' }))

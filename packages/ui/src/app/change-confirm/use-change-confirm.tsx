@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import type { FieldModel, FieldViewModel } from '@protobase/schema'
 import { Button } from '../../primitives/button'
 import { Dialog } from '../../primitives/dialog'
@@ -11,7 +10,7 @@ import { text } from './messages'
  * Whether `node` sits in the question a change asks. The dialog is portalled to the body, so a list cell does not clip
  * it, while its events still bubble through the editor that asked it.
  */
-export const inChangeConfirm = (node: EventTarget | null) => node instanceof Element && node.closest('[data-change-confirm]') !== null
+export const inChangeConfirm = (node: EventTarget | null) => node instanceof Element && node.closest('[data-dialog="change-confirm"]') !== null
 
 type ChangeConfirmParams = {
   field: FieldModel
@@ -40,24 +39,21 @@ export const useChangeConfirm = ({ field, hints, value, stored, onChange }: Chan
   }
 
   const dialog =
-    pending &&
-    createPortal(
-      <div data-change-confirm="">
-        <Dialog
-          title={text('title', hints?.label ?? humanize(field.name))}
-          description={hints?.confirm}
-          onClose={cancel}
-          actions={
-            <>
-              <Button onClick={cancel}>{text('cancel')}</Button>
-              <Button variant="primary" onClick={confirm}>
-                {text('change')}
-              </Button>
-            </>
-          }
-        />
-      </div>,
-      document.body,
+    pending && (
+      <Dialog
+        name="change-confirm"
+        title={text('title', hints?.label ?? humanize(field.name))}
+        description={hints?.confirm}
+        onClose={cancel}
+        actions={
+          <>
+            <Button onClick={cancel}>{text('cancel')}</Button>
+            <Button variant="primary" onClick={confirm}>
+              {text('change')}
+            </Button>
+          </>
+        }
+      />
     )
 
   return { onChange: change, dialog }

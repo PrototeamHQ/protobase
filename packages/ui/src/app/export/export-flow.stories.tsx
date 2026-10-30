@@ -89,7 +89,7 @@ type Story = StoryObj<typeof meta>
 const startExport = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement)
   await userEvent.click(canvas.getByRole('button', { name: 'Export' }))
-  const dialog = within(await canvas.findByRole('dialog', { name: 'Export orders' }))
+  const dialog = within(await within(document.body).findByRole('dialog', { name: 'Export orders' }))
   await waitFor(() => expect(dialog.getByRole('status')).toHaveTextContent('Exports 1,200 rows.'))
   // A sensitive field is never offered
   expect(dialog.queryByRole('checkbox', { name: 'Iban' })).toBeNull()
@@ -122,9 +122,9 @@ export const CancelStopsTheExport: Story = {
   args: { delayMs: 400 },
   play: async ({ canvasElement, args }) => {
     await startExport(canvasElement)
-    const progress = within(await within(canvasElement).findByRole('dialog', { name: 'Exporting orders' }))
+    const progress = within(await within(document.body).findByRole('dialog', { name: 'Exporting orders' }))
     await userEvent.click(progress.getByRole('button', { name: 'Cancel' }))
-    await waitFor(() => expect(within(canvasElement).queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
     await waitFor(() => expect(args.abort).toHaveBeenCalledTimes(1))
     expect(args.search).toHaveBeenCalledTimes(1)
     expect(within(canvasElement).queryByText(/Exported/)).toBeNull()

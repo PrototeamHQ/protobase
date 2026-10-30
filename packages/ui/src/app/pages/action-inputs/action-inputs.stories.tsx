@@ -70,7 +70,7 @@ export const Checks: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(await canvas.findByRole('button', { name: 'Create invoice' }))
-    const dialog = within(await canvas.findByRole('dialog', { name: 'Create invoice' }))
+    const dialog = within(await within(document.body).findByRole('dialog', { name: 'Create invoice' }))
     // An input shows only while its `when` holds
     expect(dialog.queryByText('Postal address')).toBeNull()
     // "Send by" is the one combobox that is a select; "Bill to" is a relation picker
@@ -95,7 +95,7 @@ export const Checks: StoryObj = {
     await userEvent.type(dueOn!, '2026-11-01')
     await userEvent.click(dialog.getByRole('button', { name: 'High' }))
     await userEvent.click(dialog.getByRole('button', { name: 'Create invoice' }))
-    await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Create invoice' })).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog', { name: 'Create invoice' })).toBeNull())
     const values = JSON.parse((await canvas.findByLabelText('Handler values')).textContent ?? '{}')
     expect(values).toEqual({ due_on: '2026-11-01', bill_to: null, delivery: 'email', priority: 'high', reminders: true })
   },

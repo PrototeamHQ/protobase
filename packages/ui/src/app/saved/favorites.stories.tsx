@@ -189,12 +189,12 @@ export const VisitorCardsChecks: StoryObj = {
     const heart = within(await cardOf(canvasElement, 'Keizersgracht 12')).getByRole('button', { name: 'Save to favorites' })
     expect(heart).not.toHaveAttribute('aria-pressed')
     await userEvent.click(heart)
-    const dialog = await canvas.findByRole('dialog', { name: 'Keep the homes you like' })
+    const dialog = await within(document.body).findByRole('dialog', { name: 'Keep the homes you like' })
     expect(within(dialog).getByText('Save a home with the heart on its card')).toBeVisible()
     // The press did not open the home, and "Not now" goes back to it
     expect(canvas.getByRole('heading', { name: 'Homes' })).toBeVisible()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Not now' }))
-    await waitFor(() => expect(canvas.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
 
     // The favorites page tells the visitor the same, and "Sign in" opens the sign-in page
     await userEvent.click(canvas.getByRole('link', { name: 'Favorites' }))
@@ -262,7 +262,7 @@ export const VisitorPhone: StoryObj = {
     const tabs = within(await canvas.findByRole('navigation', { name: 'Tabs' }))
     expect(tabs.getByRole('link', { name: 'Favorites' })).toBeVisible()
     await userEvent.click(within(await cardOf(canvasElement, 'Keizersgracht 12')).getByRole('button', { name: 'Save to favorites' }))
-    const sheet = await canvas.findByRole('dialog', { name: 'Keep the homes you like' })
+    const sheet = await within(document.body).findByRole('dialog', { name: 'Keep the homes you like' })
     expect(within(sheet).getByRole('button', { name: 'Close' })).toBeVisible()
     expect(within(sheet).getByRole('link', { name: 'Sign in' })).toBeVisible()
   },

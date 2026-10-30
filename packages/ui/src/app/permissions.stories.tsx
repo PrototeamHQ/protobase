@@ -50,10 +50,10 @@ export const ConditionalDeleteRefused: StoryObj = {
     expect(canvas.queryByRole('link', { name: /New order/ })).toBeNull()
     await userEvent.click(canvas.getAllByRole('button', { name: 'Row actions' })[0]!)
     await userEvent.click(await within(canvasElement.ownerDocument.body).findByRole('menuitem', { name: 'Delete' }))
-    const confirm = await canvas.findByRole('dialog', { name: /Delete SO-1\?/ })
+    const confirm = await within(document.body).findByRole('dialog', { name: /Delete SO-1\?/ })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     expect(await canvas.findByText('Could not delete SO-1')).toBeInTheDocument()
     expect(canvas.getByText('You may only delete orders you own.')).toBeInTheDocument()
-    await waitFor(() => expect(canvas.queryByRole('dialog', { name: /Delete SO-1\?/ })).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog', { name: /Delete SO-1\?/ })).toBeNull())
   },
 }

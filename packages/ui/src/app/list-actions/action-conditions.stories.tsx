@@ -56,7 +56,7 @@ export const RunningVm: StoryObj = {
     const forceOff = canvas.getByRole('button', { name: 'Force off' })
     expect(within(forceOff).getByText('Force off')).toHaveClass('text-danger-text')
     await userEvent.click(forceOff)
-    const confirm = await canvas.findByRole('dialog', { name: 'Force off?' })
+    const confirm = await within(document.body).findByRole('dialog', { name: 'Force off?' })
     await userEvent.click(within(confirm).getByRole('button', { name: 'Force off' }))
     expect(await canvas.findByText('Force off: done')).toBeInTheDocument()
     expect(await canvas.findByRole('button', { name: 'Start' })).toBeEnabled()
