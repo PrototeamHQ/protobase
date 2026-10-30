@@ -5,6 +5,7 @@ import { defineFunction, type CallsOptions, type FunctionRecords, type FunctionS
 import { apiWebSocketServer } from '../../../packages/cli/src/project/api-websocket-server'
 import type { CallsService } from '../../../packages/server/src/calls/calls-service-type'
 import { callsRuntime } from '../../../packages/server/src/calls/calls-runtime'
+import { guestRoutes } from '../../../packages/server/src/calls/guest-routes'
 import { createErrorHandler } from '../../../packages/server/src/error-handler'
 import { functionRoutes } from '../../../packages/server/src/functions/routes'
 import { notFound } from '../../../packages/server/src/problem'
@@ -19,7 +20,8 @@ export type CallServerInput = {
 /**
  * The function an app would write to admit members to the call on a meeting, served with the app's function routes:
  * the meeting is `?call=`, the member `?as=`, which stands in for the signed-in user; `?role=listener` may not
- * publish; `?hears=<member>` hears only that member's video. A member in `denied` cannot read any meeting, as after
+ * publish; `?hears=<member>` hears only that member's video; `?invites=true` makes guest links and lets guests in.
+ * The guests' lobby and call socket are served beside it. A member in `denied` cannot read any meeting, as after
  * their access was taken away. Every socket it accepts is kept, so a test can drop them as a deploy would.
  */
 export const startCallServer = async ({ calls, db, page }: CallServerInput) => {
@@ -43,6 +45,7 @@ export const startCallServer = async ({ calls, db, page }: CallServerInput) => {
       member: String(session.user.id),
       publish: query.get('role') !== 'listener',
       ...(hears && { hears: (track) => track.member === hears && track.kind === 'video' }),
+      ...(query.get('invites') === 'true' && { invites: true }),
     })
     return acceptWebSocket({
       ...events,
@@ -71,11 +74,18 @@ export const startCallServer = async ({ calls, db, page }: CallServerInput) => {
     calls: service,
     report: (error) => void errors.push(error),
   })
+  const guests = guestRoutes({ calls: service, addressOf: () => '127.0.0.1', upgradeWebSocket, onError: createErrorHandler((error) => void errors.push(error)), report: (error) => void errors.push(error) })
+  const guestsPath = '/api/calls/guests'
   // node-server hands the app its upgrade through `env`, which the function routes need for a socket.
   const fetch = (request: Request, env: unknown) => {
     const { pathname } = new URL(request.url)
     if (pathname === '/') return new Response(page.html, { headers: { 'content-type': 'text/html' } })
     if (pathname === '/client.js') return new Response(page.script, { headers: { 'content-type': 'text/javascript' } })
+    if (pathname.startsWith(guestsPath)) {
+      const below = new URL(request.url)
+      below.pathname = pathname.slice(guestsPath.length)
+      return guests.fetch(new Request(below, request), env)
+    }
     return functions.fetch(request, env)
   }
   const http = createAdaptorServer({ fetch, websocket: { server: apiWebSocketServer() } })

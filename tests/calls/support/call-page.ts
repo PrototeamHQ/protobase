@@ -1,6 +1,6 @@
 // One member's page: @protobase/client/calls as an app bundles it, driven by the contract test through `window.member`.
 // The browsers' fake devices stand in for the camera and microphone.
-import { joinCall, type Call, type CallRosterMember, type CallState, type CallTrack, type CallTrackSource } from '@protobase/client/calls'
+import { guestLobby, joinCall, type Call, type CallLobbyGuest, type CallRosterMember, type CallState, type CallTrack, type CallTrackSource } from '@protobase/client/calls'
 
 let call: Call | undefined
 let pc: RTCPeerConnection | undefined
@@ -12,6 +12,8 @@ const states: CallState['state'][] = []
 const unpublished: CallTrackSource[] = []
 const speaking = new Set<string>()
 const local: Partial<Record<CallTrackSource, MediaStreamTrack>> = {}
+let lobby: CallLobbyGuest[] = []
+const guests = guestLobby({ systemPath: '/api' })
 
 // Chrome decodes the video a page shows, so every remote video track gets an element.
 const show = (list: CallTrack[]) => {
@@ -23,32 +25,54 @@ const show = (list: CallTrack[]) => {
   }
 }
 
+// Joins through the app's function, or, with a guest's token, through the guest call socket.
+const joinAt = async (url: string, guest?: string) => {
+  call = await joinCall({
+    url,
+    ...(guest && { guest }),
+    onLobby: (found) => void (lobby = found.guests),
+    onTracks: (list) => {
+      tracks = list
+      show(list)
+    },
+    onState: (state) => {
+      states.push(state.state)
+      if (state.state === 'left') left = state.reason
+    },
+    onMembers: (list) => void (members = list),
+    onUnpublished: (source) => void unpublished.push(source),
+    onSpeakers: (speakers) => speakers.forEach(({ member: who, level }) => (level > 0 ? speaking.add(who) : speaking.delete(who))),
+    retryDelayMs: () => 200,
+    createPeerConnection: (configuration) => {
+      pc = new RTCPeerConnection(configuration)
+      connections.push(pc)
+      return pc
+    },
+  })
+  return call.participant
+}
+
 const member = {
-  join: async (query: string) => {
-    call = await joinCall({
-      url: `/api/functions/meeting?${query}`,
-      onTracks: (list) => {
-        tracks = list
-        show(list)
-      },
-      onState: (state) => {
-        states.push(state.state)
-        if (state.state === 'left') left = state.reason
-      },
-      onMembers: (list) => void (members = list),
-      onUnpublished: (source) => void unpublished.push(source),
-      onSpeakers: (speakers) => speakers.forEach(({ member: who, level }) => (level > 0 ? speaking.add(who) : speaking.delete(who))),
-      retryDelayMs: () => 200,
-      createPeerConnection: (configuration) => {
-        pc = new RTCPeerConnection(configuration)
-        connections.push(pc)
-        return pc
-      },
-    })
-    return call.participant
-  },
+  join: (query: string) => joinAt(`/api/functions/meeting?${query}`),
   /** Joins, or says why the member could not: the reason they left with. */
   tryJoin: (query: string) => member.join(query).then(() => 'joined', () => left ?? 'no reason'),
+  /** A member who invites: a new guest link, its id and token, for guests who may send these sources. */
+  guestLink: async (publish: CallTrackSource[]) => {
+    const { link, token } = await call!.guests.link({ publish })
+    return { id: link.id, token }
+  },
+  /** Who waits in the lobby, as the member who invites is told. */
+  lobby: () => lobby.map(({ guest, name }) => ({ guest, name })),
+  admit: (guest: string) => call!.guests.admit(guest),
+  deny: (guest: string) => call!.guests.deny(guest),
+  revoke: (link: string) => call!.guests.revoke(link),
+  /** A guest: enters the lobby of the link by their name, with the guest's token. */
+  enterLobby: async (link: string, name: string) => (await guests.enter(link, name)).token,
+  waitState: async (token: string) => (await guests.wait(token)).state,
+  /** A guest let in joins the call as themselves, or says why they could not. */
+  joinAsGuest: (token: string) => joinAt(guests.socketUrl, token).then(() => 'joined', () => left ?? 'no reason'),
+  /** Who is in the call with the names it gives them. */
+  named: () => members.map((present) => [present.member, present.name ?? null]),
   members: () => members.map((present) => present.member),
   callId: () => call?.id,
   left: () => left,

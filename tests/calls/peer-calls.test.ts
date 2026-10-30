@@ -202,6 +202,71 @@ describe.each(callBrowsers)('peer-to-peer calls on records, in %s', (name) => {
     expect(await callOf(bob)).toBe(await callOf(alice))
   })
 
+  describe('guests', () => {
+    // Ann is in the call and invites; Bob is in it too; Eve, from outside, waits in the lobby of Ann's link.
+    const guestCall = async () => {
+      const meeting = newMeeting()
+      const ann = await join(`call=${meeting}&as=ann&invites=true`)
+      const bob = await join(`call=${meeting}&as=bob`, other)
+      const link = await ann.evaluate(() => window.member.guestLink(['camera', 'microphone']))
+      const eve = await open()
+      const token = await eve.evaluate((at) => window.member.enterLobby(at, 'Eve'), link.token)
+      await vi.waitFor(async () => expect(await ann.evaluate(() => window.member.lobby())).toEqual([{ guest: expect.any(String), name: 'Eve' }]), within(2500))
+      const { guest } = (await ann.evaluate(() => window.member.lobby()))[0]!
+      return { meeting, ann, bob, eve, link, token, guest }
+    }
+
+    it("lets in a guest a member admitted: in every member's list within 2 seconds, sending them media", async () => {
+      const { ann, bob, eve, token, guest } = await guestCall()
+      expect(await eve.evaluate((at) => window.member.waitState(at), token)).toBe('waiting')
+      await ann.evaluate((id) => window.member.admit(id), guest)
+      expect(await eve.evaluate((at) => window.member.waitState(at), token)).toBe('admitted')
+      expect(await eve.evaluate((at) => window.member.joinAsGuest(at), token)).toBe('joined')
+      const started = Date.now()
+      await vi.waitFor(async () => {
+        for (const page of [ann, bob]) expect(await page.evaluate(() => window.member.named())).toContainEqual([`guest:${guest}`, 'Eve'])
+      }, within(2000))
+      expect(Date.now() - started).toBeLessThan(2000)
+      await eve.evaluate(() => window.member.publish(['camera', 'microphone']))
+      await vi.waitFor(async () => expect((await tracksOf(ann)).filter((track) => track.member === `guest:${guest}` && track.receiving)).toHaveLength(2), waitLong)
+    })
+
+    it('never lets in a guest a member turned away', async () => {
+      const { ann, bob, eve, token, guest } = await guestCall()
+      await ann.evaluate((id) => window.member.deny(id), guest)
+      expect(await eve.evaluate((at) => window.member.waitState(at), token)).toBe('denied')
+      expect(await eve.evaluate((at) => window.member.joinAsGuest(at), token)).toBe('refused')
+      for (const page of [ann, bob]) expect(await membersOf(page)).toEqual(['ann', 'bob'])
+    })
+
+    it("takes out the guests of a revoked link within a second's read, and refuses their resume", async () => {
+      const { ann, bob, eve, link, token, guest } = await guestCall()
+      await ann.evaluate((id) => window.member.admit(id), guest)
+      expect(await eve.evaluate((at) => window.member.joinAsGuest(at), token)).toBe('joined')
+      await vi.waitFor(async () => expect(await connectionsOf(eve)).toBe(2), waitLong)
+      await ann.evaluate((id) => window.member.revoke(id), link.id)
+      await vi.waitFor(async () => expect(await eve.evaluate(() => window.member.left())).toBe('removed'), within(2000))
+      await vi.waitFor(async () => {
+        for (const page of [ann, bob]) expect(await connectionsOf(page)).toBe(1)
+      }, within(2000))
+      expect(await eve.evaluate((at) => window.member.joinAsGuest(at), token)).toBe('refused')
+      expect(await membersOf(ann)).toEqual(['ann', 'bob'])
+    })
+
+    it('ends a call left to a guest two minutes after the last member left', async () => {
+      const { ann, bob, eve, token, guest } = await guestCall()
+      await ann.evaluate((id) => window.member.admit(id), guest)
+      expect(await eve.evaluate((at) => window.member.joinAsGuest(at), token)).toBe('joined')
+      await ann.evaluate(() => window.member.leave())
+      await bob.evaluate(() => window.member.leave())
+      await vi.waitFor(async () => expect(await membersOf(eve)).toEqual([`guest:${guest}`]), waitLong)
+      // Two minutes on, as the sweep sees it: the members left that long ago.
+      await database.exec("update calls.members set left_at = now() - interval '121 seconds' where member in ('ann', 'bob') and left_at is not null")
+      await vi.waitFor(async () => expect(await eve.evaluate(() => window.member.left())).toBe('ended'), { timeout: 15_000, interval: 250 })
+      expect(await eve.evaluate((at) => window.member.waitState(at), token)).toBe('ended')
+    })
+  })
+
   it('reports no server errors', () => {
     expect([...server.errors, ...other.errors]).toEqual([])
   })
