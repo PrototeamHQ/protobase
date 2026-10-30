@@ -205,11 +205,13 @@ Share a link to one call with someone from outside, such as a candidate for a jo
 A member your function joins with `invites: true` gets Guests in the call view: a link to share, with what its guests may send (camera, microphone and screen; camera and microphone; or microphone only, never more than the member may send themselves), the links that are live, with Revoke, and who waits in the lobby, with Let in and Turn away. Someone who waits also shows above the call, to let in without opening Guests.
 
 ```ts
+// The name the others see, from the app's own records of its people.
+const { record: me } = await records.get('people', String(session.user.id))
 return acceptWebSocket(
   await calls.join({
     record: { resource: 'interviews', key: id },
     member: String(session.user.id),
-    name: session.user.name,
+    name: String(me.name),
     publish: true,
     invites: true,
   }),
