@@ -43,6 +43,11 @@ const panelPlay = async ({ canvasElement }: { canvasElement: HTMLElement }) => {
   await userEvent.click(page.getByRole('button', { name: 'Mic only' }))
   await userEvent.click(page.getByRole('button', { name: 'Create guest link' }))
   await waitFor(() => expect(panelActions.link).toHaveBeenCalledWith({ publish: ['microphone'] }))
+  await userEvent.click(page.getByRole('button', { name: 'For an hour' }))
+  await userEvent.click(page.getByRole('button', { name: 'Create guest link' }))
+  await waitFor(() => expect(panelActions.link).toHaveBeenLastCalledWith({ publish: ['microphone'], expiresAt: expect.any(Date) }))
+  const until = (panelActions.link as ReturnType<typeof fn>).mock.lastCall![0].expiresAt as Date
+  expect(Math.abs(until.getTime() - Date.now() - 3_600_000)).toBeLessThan(60_000)
   expect(await page.findByRole('textbox', { name: 'Copy link' })).toHaveValue('https://chat.example.com/-/call-guest#pbgl_story')
   await userEvent.click(page.getByRole('button', { name: 'Revoke' }))
   await waitFor(() => expect(panelActions.revoke).toHaveBeenCalledWith('l1'))
