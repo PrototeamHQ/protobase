@@ -1,22 +1,24 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { createStaticSession } from '@protobase/client'
 import { ArrowLeftRight, Boxes, LifeBuoy, ShoppingCart, StickyNote } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { AppShell, type BottomBarTab } from './app-shell'
 import { withDirectMessages } from './app-shell/direct-messages-fixtures'
 import { navOpenStorageKey } from './app-shell/nav-open-storage'
+import { App } from './app/app'
 import { AssistantButton } from './app/assistant-shell'
 import { AssistantDock } from './assistant-dock'
 import { conversation } from './assistant-dock/fixtures'
 import { adminUser } from './website/users'
 import { ConflictDialog } from './app/delete/dialogs'
 import { CreateRecordForm } from './app/create/create-record-form'
+import { fakeInvoiceClient } from './app/testing/fake-invoice-client'
 import { createRowSource, invoiceCount, invoiceRowAt, invoicesColumns, invoicesNaturalSort, ordersColumns, ordersNaturalSort } from './data-grid'
 import { ordersFilters } from './filter-panel'
 import { orderAt, orderCount } from './mocks'
 import { Button } from './primitives/button'
 import { Input } from './primitives/input'
-import { InvoiceRecordView } from './record-view'
 import { ListScreen } from './website/list-screen'
 
 const viewports = {
@@ -28,6 +30,8 @@ const viewports = {
 const meta = { title: 'Mobile', parameters: { layout: 'fullscreen', viewport: { options: viewports } } } satisfies Meta
 export default meta
 type Story = StoryObj
+
+const storySession = createStaticSession('story-token', { id: 'story', email: 'story@example.test', name: 'Story User', role: 'user' })
 
 const orders = createRowSource(orderCount, orderAt)
 const invoices = createRowSource(invoiceCount, invoiceRowAt)
@@ -308,11 +312,7 @@ export const InvoiceRecordPhone: Story = {
   globals: { viewport: { value: 'phone360' } },
   render: () => (
     <div className="h-screen">
-      <AppShell sidebarMode="text-small" activeItem="invoices" breadcrumb={['Sales', 'Invoices', 'INV-2026-04218']} user={adminUser}>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <InvoiceRecordView saveFeedback="toast" ticking={false} />
-        </div>
-      </AppShell>
+      <App client={fakeInvoiceClient().client} auth={storySession} initialUrl="/invoices/i1" />
     </div>
   ),
 }

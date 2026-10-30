@@ -4,9 +4,9 @@ import { productAt, productCount } from './products'
 
 export const invoiceStatuses = ['draft', 'sent', 'paid', 'overdue'] as const
 
-export type InvoiceLine = { id: string; productId: string; description: string; quantity: number; unitPriceCents: number }
+type InvoiceLine = { id: string; productId: string; description: string; quantity: number; unitPriceCents: number }
 
-export const lineTotalCents = (line: Pick<InvoiceLine, 'quantity' | 'unitPriceCents'>) => line.quantity * line.unitPriceCents
+const lineTotalCents = (line: Pick<InvoiceLine, 'quantity' | 'unitPriceCents'>) => line.quantity * line.unitPriceCents
 
 export const invoiceTotals = (lines: InvoiceLine[], vatRate = 0.21) => {
   const subtotalCents = lines.reduce((sum, line) => sum + lineTotalCents(line), 0)
@@ -34,5 +34,3 @@ export const invoiceAt = (index: number) => {
     lines,
   }
 }
-
-export type Invoice = ReturnType<typeof invoiceAt>

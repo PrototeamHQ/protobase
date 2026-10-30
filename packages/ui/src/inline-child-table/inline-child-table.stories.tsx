@@ -1,11 +1,33 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
-import { invoiceAt, type InvoiceLine } from '../mocks'
-import { invoiceLineColumns } from '../record-view/invoice-line-columns'
-import { InlineChildTable, TotalsFooter } from './index'
+import { InlineChildTable, NumberCell, type LineColumn } from './index'
 
-type Args = { lines: InvoiceLine[]; editable: boolean; reorderable: boolean; failing?: string; onReorder: (lines: InvoiceLine[], move: { id: string; from: number; to: number }) => void }
+type Line = { id: string; description: string; quantity: number }
+
+const sampleLines: Line[] = [
+  { id: 'l1', description: 'Line A', quantity: 1 },
+  { id: 'l2', description: 'Line B', quantity: 2 },
+  { id: 'l3', description: 'Line C', quantity: 3 },
+]
+
+const columns = (onChange?: (id: string, patch: Partial<Line>) => void): LineColumn<Line>[] => [
+  { key: 'description', label: 'Description', cell: (line) => <span className="truncate px-2 text-foreground">{line.description}</span> },
+  {
+    key: 'quantity',
+    label: 'Quantity',
+    align: 'right',
+    width: '88px',
+    cell: (line) =>
+      onChange ? (
+        <NumberCell label="Quantity" value={line.quantity} format={String} parse={(typed) => Math.round(Number(typed))} onCommit={(quantity) => onChange(line.id, { quantity })} />
+      ) : (
+        <span className="px-2 tabular-nums">{line.quantity}</span>
+      ),
+  },
+]
+
+type Args = { lines: Line[]; editable: boolean; reorderable: boolean; failing?: string; onReorder: (lines: Line[], move: { id: string; from: number; to: number }) => void }
 
 const Table = ({ lines: initial, editable, reorderable, failing, onReorder }: Args) => {
   const [lines, setLines] = useState(initial)
@@ -13,17 +35,16 @@ const Table = ({ lines: initial, editable, reorderable, failing, onReorder }: Ar
     <div className="w-[760px]">
       <InlineChildTable
         lines={lines}
-        columns={invoiceLineColumns(editable ? (id, patch) => setLines(lines.map((line) => (line.id === id ? { ...line, ...patch } : line))) : undefined)}
+        columns={columns(editable ? (id, patch) => setLines(lines.map((line) => (line.id === id ? { ...line, ...patch } : line))) : undefined)}
         lineName={(line) => line.description}
         reorderable={reorderable}
         onReorder={(next, move) => {
           onReorder(next, move)
           setLines(next)
         }}
-        onAdd={editable ? () => setLines([...lines, { id: `new-${lines.length}`, productId: '', description: 'New line', quantity: 1, unitPriceCents: 0 }]) : undefined}
+        onAdd={editable ? () => setLines([...lines, { id: `new-${lines.length}`, description: 'New line', quantity: 1 }]) : undefined}
         onRemove={editable ? (removed) => setLines(lines.filter((line) => line.id !== removed.id)) : undefined}
-        lineError={(line) => (line.id === failing ? 'Unit price must be at least 1.' : undefined)}
-        footer={<TotalsFooter lines={lines} vatRate={0.21} />}
+        lineError={(line) => (line.id === failing ? 'Quantity must be at least 1.' : undefined)}
       />
     </div>
   )
@@ -33,7 +54,7 @@ const meta = {
   title: 'Components/InlineChildTable',
   component: Table,
   parameters: { layout: 'padded' },
-  args: { lines: invoiceAt(0).lines, editable: true, reorderable: true, onReorder: fn() },
+  args: { lines: sampleLines, editable: true, reorderable: true, onReorder: fn() },
 } satisfies Meta<typeof Table>
 export default meta
 type Story = StoryObj<typeof meta>
@@ -47,7 +68,7 @@ export const ReadOnly: Story = { args: { editable: false, reorderable: false } }
 export const ReorderOnly: Story = { args: { editable: false } }
 
 /** A line the server turned down says why under its cells. */
-export const LineError: Story = { args: { failing: invoiceAt(0).lines[1]!.id } }
+export const LineError: Story = { args: { failing: 'l2' } }
 
 export const AddAndRemove: Story = {
   tags: ['play'],
