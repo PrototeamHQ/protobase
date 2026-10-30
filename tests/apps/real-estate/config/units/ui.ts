@@ -12,7 +12,7 @@ export const unitsView = view<typeof units>('units')
     property_id: r.property_id.label('Property'),
     area_m2: r.area_m2.label('Area').help('Living area in m².').suffix(' m²'),
     energy_label: r.energy_label.format('badge'),
-    base_rent: r.base_rent.label('Market rent').help('What a new lease would ask today, per month.').prefix('€').decimals(2),
+    base_rent: r.base_rent.label('Market rent').help('What a new lease would ask today, per month.').prefix('€').currency('EUR').decimals(2),
     status: r.status.help('Let while a lease runs; vacant or under renovation between leases.').format('badge').valueLabels({ let: 'Let', vacant: 'Vacant', renovation: 'Renovation' }),
   }))
   .list((r) => ({ columns: [r.label, r.property_id, r.status, r.bedrooms, r.area_m2, r.energy_label, r.base_rent], search: [r.label] }))

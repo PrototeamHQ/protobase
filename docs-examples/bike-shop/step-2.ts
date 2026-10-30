@@ -15,7 +15,7 @@ export const repairsView = view<typeof repairs>('repairs')
     number: r.number.format('code'),
     customer_id: r.customer_id.label('Customer'),
     status: r.status.format('badge'),
-    estimate: r.estimate.prefix('€').decimals(2),
+    estimate: r.estimate.prefix('€').currency('EUR').decimals(2),
     booked_on: r.booked_on.label('Booked on'),
   }))
   .list((r) => ({

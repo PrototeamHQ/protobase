@@ -54,7 +54,7 @@ const leasesView = view<typeof leases>('leases')
   .layout((r) => [l.section('Lease', [r.name]), l.sidebar([r.created_at, r.updated_at])])
 
 const resources = [amenities.toModel(), owners.toModel(), contracts.toModel(), leases.toModel()]
-const views = [view<typeof amenities>('amenities').names({ singular: 'Amenity', plural: 'Amenities' }).toModel(), ownersView.toModel(), contractsView.toModel(), leasesView.toModel()]
+const views = [view<typeof amenities>('amenities').names({ singular: 'Amenity', plural: 'Amenities' }).fields((r) => ({ code: r.code.format('code') })).toModel(), ownersView.toModel(), contractsView.toModel(), leasesView.toModel()]
 const stamped = { created_at: '2024-03-01T09:00:00Z', updated_at: '2026-10-01T09:00:00Z' }
 const rows = {
   amenities: [{ code: 'balcony', name: 'Balcony', etag: '"a1"' }],

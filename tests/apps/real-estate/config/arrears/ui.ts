@@ -7,7 +7,7 @@ export const arrearsView = view<typeof arrears>('arrears')
   .fields((r) => ({
     lease_id: r.lease_id.label('Lease'),
     open_charges: r.open_charges.label('Open months').help('Charges not yet paid in full.'),
-    balance: r.balance.label('Outstanding').prefix('€').decimals(2),
+    balance: r.balance.label('Outstanding').prefix('€').currency('EUR').decimals(2),
     oldest_due_on: r.oldest_due_on.label('Oldest due'),
   }))
   .list((r) => ({ columns: [r.lease_id, r.balance, r.open_charges, r.oldest_due_on], sort: [[r.balance, 'desc']] }))

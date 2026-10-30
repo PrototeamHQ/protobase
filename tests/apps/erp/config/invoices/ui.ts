@@ -9,13 +9,15 @@ export const invoicesView = view<typeof invoices>('invoices')
     number: r.number.help('Assigned when the invoice is created.').format('code'),
     company_id: r.company_id.label('Customer').help('The company that receives the invoice.'),
     order_id: r.order_id.label('Order').help('The sales order this invoice bills, if any.'),
-    status: r.status.help('Sent invoices are emailed to the customer; overdue ones trigger reminders.').format('badge').valueLabels({ draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue' }),
+    status: r.status.help('Sent invoices are emailed to the customer; overdue ones trigger reminders.').format('badge')
+      .valueLabels({ draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue' })
+      .valueColors({ sent: 'blue', paid: 'green', overdue: 'red' }),
     issued_at: r.issued_at.label('Issue date').help('The date printed on the invoice.'),
     due_at: r.due_at.label('Due date').help('Usually the issue date plus the payment terms.'),
     vat_rate: r.vat_rate.label('VAT rate').help('Percentage added to the subtotal.').format('percent'),
-    subtotal: r.subtotal.prefix('€').decimals(2),
-    vat: r.vat.label('VAT').prefix('€').decimals(2),
-    total: r.total.help('Subtotal plus VAT.').prefix('€').decimals(2),
+    subtotal: r.subtotal.prefix('€').currency('EUR').decimals(2),
+    vat: r.vat.label('VAT').prefix('€').currency('EUR').decimals(2),
+    total: r.total.help('Subtotal plus VAT.').prefix('€').currency('EUR').decimals(2),
   }))
   .list((r) => ({
     columns: [r.number, r.company_id, r.status, r.issued_at, r.due_at, r.total],

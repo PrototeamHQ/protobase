@@ -3,11 +3,11 @@ import type { billingProfiles, invoices, paymentMethods, plans, subscriptions } 
 
 // The views of the billing schema: names, labels, and the named actions the billing page's buttons run.
 
-export const plansView = view<typeof plans>('plans').title((r) => r.name).nav({ hidden: true }).fields((r) => ({ price: r.price.prefix('€').decimals(2) }))
+export const plansView = view<typeof plans>('plans').title((r) => r.name).nav({ hidden: true }).fields((r) => ({ price: r.price.prefix('€').currency('EUR').decimals(2) }))
 
 export const subscriptionsView = view<typeof subscriptions>('subscriptions')
   .nav({ hidden: true })
-  .fields((r) => ({ renews_at: r.renews_at.label('Renews on'), status: r.status.valueLabels({ active: 'Active', canceled: 'Canceled' }) }))
+  .fields((r) => ({ renews_at: r.renews_at.label('Renews on'), status: r.status.valueLabels({ active: 'Active', canceled: 'Canceled' }).valueColors({ active: 'green' }) }))
   .actions((a) => [
     a.update('cancel', { label: 'Cancel plan', set: { status: 'canceled' }, confirm: 'Your plan stays active until the end of the period.' }),
     a.link('upgrade', { label: 'Upgrade', href: 'mailto:sales@example.com?subject=Upgrade%20from%20plan%20{plan}' }),
@@ -25,6 +25,6 @@ export const paymentMethodsView = view<typeof paymentMethods>('payment_methods')
 export const invoicesView = view<typeof invoices>('invoices')
   .title((r) => r.number)
   .names({ singular: 'Invoice', plural: 'Invoices' })
-  .fields((r) => ({ total: r.total.prefix('€').decimals(2), issued_at: r.issued_at.label('Date'), status: r.status.valueLabels({ open: 'Open', paid: 'Paid' }) }))
+  .fields((r) => ({ number: r.number.format('code'), total: r.total.prefix('€').currency('EUR').decimals(2), issued_at: r.issued_at.label('Date'), status: r.status.valueLabels({ open: 'Open', paid: 'Paid' }).valueColors({ paid: 'green' }) }))
   .list((r) => ({ columns: [r.number, r.issued_at, r.total, r.status] }))
   .actions((a) => [a.action('download', { label: 'Download PDF' })])

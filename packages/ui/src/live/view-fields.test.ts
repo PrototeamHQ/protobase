@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
-import { rangeHistogram, widgetFields } from './view-fields'
+import { rangeFormat, rangeHistogram, widgetFields } from './view-fields'
 
 const listings = resource('listings')
   .table('market.listings')
@@ -91,5 +91,14 @@ describe('widgetFields secondary', () => {
     expect(fields.toggles?.map((toggle) => toggle.secondary)).toEqual([true])
     expect(fields.dateSecondary).toBe(true)
     expect('secondary' in fields.facets[1]!).toBe(false)
+  })
+})
+
+describe('rangeFormat', () => {
+  it("reads a range as money in the view's currency, else with its prefix and suffix", () => {
+    const hinted = view<typeof listings>('listings').fields((r) => ({ price: r.price.currency('EUR'), living_area: r.living_area.prefix('±').suffix(' m²') })).toModel()
+    expect(rangeFormat(hinted, 'price')(450000)).toBe('€450,000')
+    expect(rangeFormat(hinted, 'living_area')(85)).toBe('±85 m²')
+    expect(rangeFormat(view<typeof listings>('listings').fields((r) => ({ price: r.price.prefix('€') })).toModel(), 'price')(450000)).toBe('€450000')
   })
 })

@@ -7,7 +7,7 @@ export const tenantsView = view<typeof tenants>('tenants')
   .names({ singular: 'Tenant', plural: 'Tenants' })
   .fields((r) => ({
     iban: r.iban.label('IBAN').format('code'),
-    monthly_income: r.monthly_income.help('Gross income per month, checked when the lease was signed.').prefix('€').decimals(2),
+    monthly_income: r.monthly_income.help('Gross income per month, checked when the lease was signed.').prefix('€').currency('EUR').decimals(2),
   }))
   .list((r) => ({ columns: [r.last_name, r.first_name, r.email, r.phone, r.created_at], sort: [[r.created_at, 'desc']], search: [r.last_name, r.email] }))
   .filters((r, w) => [w.dateRange(r.created_at, { presets: ['30d', '90d', 'year'] })])

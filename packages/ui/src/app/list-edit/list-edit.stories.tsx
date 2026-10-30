@@ -26,7 +26,7 @@ const products = resource('products')
 const productsView = view<typeof products>('products')
   .title((r) => r.name)
   .names({ singular: 'Product', plural: 'Products' })
-  .fields((r) => ({ price: r.price.prefix('€').decimals(2), status: r.status.valueLabels({ draft: 'Draft', live: 'Live', retired: 'Retired' }) }))
+  .fields((r) => ({ sku: r.sku.format('code'), price: r.price.prefix('€').currency('EUR').decimals(2), status: r.status.valueLabels({ draft: 'Draft', live: 'Live', retired: 'Retired' }) }))
   .list((r) => ({ columns: [r.sku, r.name, r.price, r.status, r.active], sort: [[r.id, 'asc']], editable: [r.name, r.price, r.status, r.active] }))
 
 const rows = {

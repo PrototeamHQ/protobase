@@ -51,9 +51,11 @@ export const widgetFields = (view: ViewModel | undefined, model?: ResourceModel)
 export const rangeHistogram = (view: ViewModel | undefined, field: string) =>
   (view?.filters ?? []).some((widget) => widget.kind === 'range' && widget.field === field && widget.histogram)
 
-/** How a range's values read, by the view's prefix and suffix: "€450,000" for a euro amount, "85 m²". */
+/** How a range's values read: money in the view's currency, "€450,000", else with its prefix and suffix, "85 m²". */
 export const rangeFormat = (view: ViewModel | undefined, field: string) => {
   const hints = view?.fields[field]
   const suffix = hints?.suffix ?? ''
-  return (value: number) => `${hints?.prefix === '€' ? formatMoney(value * 100).replace('.00', '') : String(value)}${suffix}`
+  const currency = hints?.currency
+  if (currency !== undefined) return (value: number) => `${formatMoney(value * 100, currency).replace('.00', '')}${suffix}`
+  return (value: number) => `${hints?.prefix ?? ''}${value}${suffix}`
 }

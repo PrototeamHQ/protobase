@@ -10,8 +10,8 @@ export const leasesView = view<typeof leases>('leases')
     term: r.term.help('Indefinite leases run until notice; fixed ones end on their end date.').format('badge').valueLabels({ indefinite: 'Indefinite', fixed: 'Fixed' }),
     start_date: r.start_date.label('Start'),
     end_date: r.end_date.label('End').help('The last day of the tenancy. Empty while an indefinite lease runs.'),
-    monthly_rent: r.monthly_rent.help('Current rent; it rises every 1 July.').prefix('€').decimals(2),
-    service_costs: r.service_costs.help('Monthly advance for shared services, billed with the rent.').prefix('€').decimals(2),
+    monthly_rent: r.monthly_rent.help('Current rent; it rises every 1 July.').prefix('€').currency('EUR').decimals(2),
+    service_costs: r.service_costs.help('Monthly advance for shared services, billed with the rent.').prefix('€').currency('EUR').decimals(2),
     notice_given_on: r.notice_given_on.label('Notice given'),
   }))
   .list((r) => ({ columns: [r.number, r.unit_id, r.term, r.start_date, r.end_date, r.monthly_rent], sort: [[r.start_date, 'desc']], search: [r.number] }))

@@ -17,7 +17,7 @@ const session = createStaticSession('story-token', { id: 'sam', email: 'sam@shop
 
 // The shop's own orders, and the tickets and their notes a service desk serves, which the shop draws as its own.
 const orders = resource('orders').table('orders').fields({ id: f.integer().readOnly().filterable().sortable(), number: f.text().sortable() }).primaryKey((r) => r.id)
-const ordersView = view<typeof orders>('orders').title((r) => r.number).names({ singular: 'Order', plural: 'Orders' }).nav({ group: 'Sales' })
+const ordersView = view<typeof orders>('orders').title((r) => r.number).names({ singular: 'Order', plural: 'Orders' }).nav({ group: 'Sales' }).fields((r) => ({ number: r.number.format('code') }))
 
 const tickets = resource('tickets')
   .table('tickets')

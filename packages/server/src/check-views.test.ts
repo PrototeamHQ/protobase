@@ -31,12 +31,22 @@ describe('checkViews', () => {
   })
 
   it('takes colours for values of an enum, and refuses colours for values it does not have or on another field', () => {
-    const coloured = view<typeof payments>('payments').fields((r) => ({ method: r.method.valueColors({ ideal: '#cc0066' }).badgeShape('arrow') }))
+    const coloured = view<typeof payments>('payments').fields((r) => ({ method: r.method.valueColors({ ideal: '#cc0066', bank_transfer: 'blue' }).badgeShape('arrow') }))
     expect(() => checkViews(registry, [coloured.toModel()])).not.toThrow()
     const stale = view<typeof payments>('payments').toModel()
     stale.fields = { method: { valueColors: { cash: '#00a651' } }, reference: { valueColors: { x: '#000' } } }
     expect(() => checkViews(registry, [stale])).toThrow('value colour "cash" is not a value of "method"')
     expect(() => checkViews(registry, [stale])).toThrow('value colours of "reference" need an enum field')
+  })
+
+  it('takes a currency on a decimal field and a sign on an integer field only', () => {
+    const priced = resource('prices').table('prices').fields({ id: f.integer(), amount: f.decimal({ precision: 10, scale: 2 }), change: f.integer(), note: f.text() }).primaryKey((r) => r.id)
+    const prices = { entries: [{ name: 'prices', model: priced.toModel() }] } as unknown as Registry
+    const hinted = view<typeof priced>('prices').fields((r) => ({ amount: r.amount.currency('EUR'), change: r.change.format('signed') }))
+    expect(() => checkViews(prices, [hinted.toModel()])).not.toThrow()
+    const wrong = view<typeof priced>('prices').fields((r) => ({ change: r.change.currency('EUR'), note: r.note.format('signed') }))
+    expect(() => checkViews(prices, [wrong.toModel()])).toThrow('currency of "change" needs a decimal field, not integer')
+    expect(() => checkViews(prices, [wrong.toModel()])).toThrow(`format('signed') of "note" needs an integer field, not text`)
   })
 
   it('takes multiline on a text field only', () => {

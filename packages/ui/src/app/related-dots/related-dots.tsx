@@ -3,10 +3,9 @@ import { createPortal } from 'react-dom'
 import type { ListDisplayModel, RelatedColumnModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { cn } from '../../lib/cn'
 import { displayValue } from '../../live/display-value'
-import { toneFor } from '../../live/columns-from-model'
 import { recordTitleField } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
-import { valueColor } from '../../live/value-color'
+import { valueColor, valueTone } from '../../live/value-color'
 import { toneDots } from '../../primitives/badge'
 import { displayRow, type ListDisplayRow } from '../displays/list-displays'
 import { AppLink } from '../use-app-address'
@@ -147,7 +146,7 @@ export const RelatedDots = ({ column, records, target, view, wrap = false, Card 
             onClick={tap(row.key)}
             className={cn(dotBox, 'pointer-events-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40')}
           >
-            <span aria-hidden style={color === undefined ? undefined : { backgroundColor: color }} className={cn(dotMark, color === undefined && toneDots[toneFor(String(value))], shown?.key === row.key && 'ring-2 ring-foreground/30')} />
+            <span aria-hidden style={color === undefined ? undefined : { backgroundColor: color }} className={cn(dotMark, color === undefined && toneDots[valueTone(hints?.valueColors, value)], shown?.key === row.key && 'ring-2 ring-foreground/30')} />
           </AppLink>
         )
       })}

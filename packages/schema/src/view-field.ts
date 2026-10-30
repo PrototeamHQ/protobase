@@ -1,6 +1,9 @@
+import { badgeTones, isBadgeTone, type BadgeTone } from './badge-tones'
 import type { BadgeShape, FieldFormat, FieldViewModel, HelpWhen, JsonValue, ShowWhen } from './model'
 
 const hexColor = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
+
+const currencyCode = /^[A-Z]{3}$/
 
 /** How a view shows one field, as `.fields((r) => ...)` hands it out: each hint returns a new field view. */
 export class FieldView<N extends string = string, V = unknown> {
@@ -44,8 +47,9 @@ export class FieldView<N extends string = string, V = unknown> {
   }
 
   /**
-   * How the value shows: `badge` for statuses, `code` in monospace, `percent` with a % sign; for a text field, `email`,
-   * `phone` and `url` as a mail, call or open link, edited with an email, phone or address keyboard on a mobile screen.
+   * How the value shows: `badge` for statuses, `code` in monospace, `percent` with a % sign, `signed` with its sign, green
+   * above zero and red below; for a text field, `email`, `phone` and `url` as a mail, call or open link, edited with an
+   * email, phone or address keyboard on a mobile screen.
    */
   format(format: FieldFormat) {
     return this.with({ format })
@@ -68,9 +72,15 @@ export class FieldView<N extends string = string, V = unknown> {
     return this.with({ markdown: true })
   }
 
-  /** Text before a number wherever it is shown, such as a currency: `.prefix('€')`. */
+  /** Text before a number wherever it is shown, such as a currency sign: `.prefix('€')`. */
   prefix(prefix: string) {
     return this.with({ prefix })
+  }
+
+  /** The ISO 4217 code of the currency a decimal is an amount of, such as `.currency('EUR')`: lists show it as money in it. */
+  currency(currency: string) {
+    if (!currencyCode.test(currency)) throw new Error(`Field "${this.name}": currency "${currency}" is not an ISO 4217 code such as EUR`)
+    return this.with({ currency })
   }
 
   /** Text after a number wherever it is shown, such as a unit: `.suffix(' m²')`. */
@@ -88,11 +98,14 @@ export class FieldView<N extends string = string, V = unknown> {
     return this.with({ valueLabels: { ...this.props.valueLabels, ...(labels as Record<string, string>) } })
   }
 
-  /** A hex colour per enum value that fills its badge, such as `{ a: '#00a651' }`; values left out keep their tone. */
-  valueColors(colors: { readonly [P in Extract<V, string>]?: string }) {
+  /**
+   * A badge tone (`neutral`, `blue`, `green`, `amber`, `red` or `violet`) or a hex colour that fills the badge, per enum
+   * value, such as `{ paid: 'green', a: '#00a651' }`; values left out are `neutral`.
+   */
+  valueColors(colors: { readonly [P in Extract<V, string>]?: BadgeTone | (string & {}) }) {
     const entries = Object.entries(colors as Record<string, string>)
-    const wrong = entries.find(([, color]) => !hexColor.test(color))
-    if (wrong) throw new Error(`Field "${this.name}": value colour "${wrong[1]}" of "${wrong[0]}" is not a hex colour such as #00a651`)
+    const wrong = entries.find(([, color]) => !isBadgeTone(color) && !hexColor.test(color))
+    if (wrong) throw new Error(`Field "${this.name}": value colour "${wrong[1]}" of "${wrong[0]}" is not a tone (${badgeTones.join(', ')}) or a hex colour such as #00a651`)
     return this.with({ valueColors: { ...this.props.valueColors, ...Object.fromEntries(entries) } })
   }
 

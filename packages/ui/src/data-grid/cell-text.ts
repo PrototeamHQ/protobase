@@ -17,15 +17,17 @@ export const cellText = (spec: ColumnSpec, value: unknown): string | undefined =
     case 'id':
       return String(value)
     case 'money':
+      // A money column is made with its currency, so an amount never shows in a currency that was guessed
+      if (spec.currency === undefined) throw new Error(`Money column "${spec.id}" has no currency`)
       return `${formatMoney(Number(value), spec.currency, spec.decimals)}${spec.suffix ?? ''}`
     case 'date':
       return formatDate(Number(value))
     case 'datetime':
       return spec.relative ? formatRelativeTime(Math.round((Date.now() - Number(value)) / 1000)) : formatDateTime(Number(value))
     case 'number':
-      return `${formatInt(Number(value))}${spec.suffix ?? ''}`
+      return `${spec.prefix ?? ''}${formatInt(Number(value))}${spec.suffix ?? ''}`
     case 'signed':
-      return `${formatSigned(Number(value))}${spec.suffix ?? ''}`
+      return `${spec.prefix ?? ''}${formatSigned(Number(value))}${spec.suffix ?? ''}`
     case 'percent':
       return Number(value) === 0 ? '—' : formatPercent(Number(value))
     case 'status':

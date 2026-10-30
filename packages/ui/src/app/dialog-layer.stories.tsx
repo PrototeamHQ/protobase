@@ -28,6 +28,7 @@ const lines = resource('invoice_lines')
 const invoicesView = view<typeof invoices>('invoices')
   .title((r) => r.number)
   .names({ singular: 'Invoice', plural: 'Invoices' })
+  .fields((r) => ({ number: r.number.format('code'), state: r.state.valueColors({ sent: 'blue' }) }))
   .actions((a) => [a.update('send', { label: 'Send', confirm: 'The client gets the invoice by email.', inputs: (i) => [i.custom('message', { label: 'Message', component: 'MessageInput', optional: true })], set: { state: 'sent' } })])
   .layout((r) => [l.section('Invoice', [r.number, r.client, r.state]), l.related('Lines', { resource: 'invoice_lines', field: 'invoice_id', columns: ['product', 'description'], limit: 50 })])
 

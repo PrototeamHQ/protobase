@@ -36,6 +36,7 @@ const decisions = resource('decisions')
 
 const quotesView = view<typeof quotes>('quotes')
   .title((r) => r.title)
+  .fields((r) => ({ status: r.status.valueColors({ sent: 'blue' }) }))
   .list((r, d) => ({ columns: [r.title, r.status], displays: [d.board({ by: r.status })], default: 'board', drag: { board: 'decide' } }))
 
 type Row = Record<string, unknown>

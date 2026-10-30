@@ -15,6 +15,16 @@ describe('cellText', () => {
 
   it('shows money as its formatted amount with its suffix', () => {
     expect(cellText(spec('money', { currency: 'EUR', suffix: ' /month' }), 123456)).toBe('€1,234.56 /month')
+    expect(cellText(spec('money', { currency: 'USD' }), 5000)).toMatch(/\$50\.00$/)
+  })
+
+  it('refuses money without a currency rather than guess one', () => {
+    expect(() => cellText(spec('money'), 5000)).toThrow('Money column "value" has no currency')
+  })
+
+  it('shows a number and a signed number with their prefix and suffix', () => {
+    expect(cellText(spec('number', { prefix: '€', suffix: ' net' }), 1200)).toBe('€1,200 net')
+    expect(cellText(spec('signed', { suffix: ' pcs' }), -5)).toBe('−5 pcs')
   })
 
   it('shows a relative datetime as how long ago', () => {

@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react'
 import type { FieldViewModel } from '@protobase/schema'
-import { toneFor } from '../live/columns-from-model'
-import { valueColor } from '../live/value-color'
+import { valueColor, valueTone } from '../live/value-color'
 import { Badge } from '../primitives/badge'
 
-/** A stored value as a badge: filled with the colour the view gives it and in its badge shape, else in its tone. */
+/** A stored value as a badge: in its badge shape, filled with the colour the view gives it or in the tone it gives it. */
 export const ValueBadge = ({ value, hints, children }: { value: unknown; hints: FieldViewModel | undefined; children: ReactNode }) => (
-  <Badge tone={toneFor(String(value))} color={valueColor(hints?.valueColors, value)} shape={hints?.badgeShape}>
+  <Badge tone={valueTone(hints?.valueColors, value)} color={valueColor(hints?.valueColors, value)} shape={hints?.badgeShape}>
     {children}
   </Badge>
 )

@@ -55,21 +55,21 @@ export const salesResources: ResourceModel[] = [
 
 const view = (resource: string, extra: Partial<ViewModel>): ViewModel => ({ resource, fields: {}, filters: [], layout: [], actions: [], ...extra })
 
-const euro = { prefix: '€', decimals: 2 }
+const euro = { prefix: '€', currency: 'EUR', decimals: 2 }
 
 export const salesViews: ViewModel[] = [
-  view('companies', { names: { singular: 'Company', plural: 'Companies' }, title: 'name', fields: { status: { valueLabels: { lead: 'Lead', active: 'Active', dormant: 'Dormant' } } }, list: { columns: ['name', 'city', 'status'] } }),
+  view('companies', { names: { singular: 'Company', plural: 'Companies' }, title: 'name', fields: { status: { valueLabels: { lead: 'Lead', active: 'Active', dormant: 'Dormant' }, valueColors: { lead: 'blue', active: 'green' } } }, list: { columns: ['name', 'city', 'status'] } }),
   view('orders', {
     names: { singular: 'Order', plural: 'Orders' },
     title: 'number',
-    fields: { total: euro, company_id: { label: 'Customer' }, status: { valueLabels: { draft: 'Draft', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' } } },
+    fields: { number: { format: 'code' }, total: euro, company_id: { label: 'Customer' }, status: { valueLabels: { draft: 'Draft', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' }, valueColors: { confirmed: 'blue', shipped: 'violet', delivered: 'green', cancelled: 'red' } } },
     list: { columns: ['number', 'company_id', 'status', 'total'] },
     actions: [{ name: 'markPaid', label: 'Mark as paid', bulk: false, confirm: 'Record that the customer paid this order?', run: { kind: 'update', values: { paid: true } } }],
   }),
   view('invoices', {
     names: { singular: 'Invoice', plural: 'Invoices' },
     title: 'number',
-    fields: { total: euro, company_id: { label: 'Customer' }, due_at: { label: 'Due date' }, status: { valueLabels: { draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue' } } },
+    fields: { number: { format: 'code' }, total: euro, company_id: { label: 'Customer' }, due_at: { label: 'Due date' }, status: { valueLabels: { draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue' }, valueColors: { sent: 'blue', paid: 'green', overdue: 'red' } } },
     list: { columns: ['number', 'company_id', 'status', 'total'] },
     actions: [
       { name: 'send', label: 'Send to customer', bulk: false },

@@ -91,7 +91,7 @@ export const OrderRecordView = ({ ticking = true }: { ticking?: boolean }) => {
                 { label: 'Owner', value: userById(order.owner).name },
                 { label: 'Country', value: order.country },
                 { label: 'Lines', value: order.lines },
-                { label: 'Total', value: <strong>{formatMoney(Number(total) * 100)}</strong> },
+                { label: 'Total', value: <strong>{formatMoney(Number(total) * 100, 'EUR')}</strong> },
               ]}
             />
           </SidebarCard>

@@ -24,7 +24,7 @@ const ui = defineUi({
   fields: { steps: { of: ['enum'], display: StepsDisplay, editor: StepsEditor }, broken: { of: ['decimal'], display: Broken } },
 })
 const repairsView = workshop.repairsView
-  .fields((r) => ({ status: r.status.widget('steps'), estimate: r.estimate.prefix('€').widget('broken'), bike: r.bike.widget('steps') }))
+  .fields((r) => ({ status: r.status.widget('steps'), estimate: r.estimate.prefix('€').currency('EUR').widget('broken'), bike: r.bike.widget('steps') }))
   .list((r) => ({ columns: [r.number, r.bike, r.status, r.estimate] }))
 
 const Shop = ({ start }: { start: string }) => {

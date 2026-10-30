@@ -1,6 +1,7 @@
 import type { AggregateGroup } from '@protobase/client'
 import { createWhere, enumLabel, printFilter, type FieldModel, type FieldViewModel } from '@protobase/schema'
 import { formatTag } from '../../locale/active-locale'
+import { valueColor } from '../../live/value-color'
 import { text as message } from './messages'
 
 const where = createWhere()
@@ -21,7 +22,8 @@ const slot = (index: number) => (index >= 0 && index < seriesColors ? `var(--cha
 export const colorOf = (field: FieldModel, hints: FieldViewModel | undefined, value: AggregateGroup['value'], index: number) => {
   const key = String(value)
   if (value === null) return 'var(--faint-foreground)'
-  if (hints?.valueColors && Object.hasOwn(hints.valueColors, key)) return hints.valueColors[key]!
+  const color = valueColor(hints?.valueColors, value)
+  if (color !== undefined) return color
   if (field.type === 'enum') return slot(field.enumValues?.indexOf(key) ?? -1)
   if (field.type === 'boolean') return slot(value ? 0 : 1)
   return slot(index)

@@ -42,7 +42,7 @@ export const ordersFilters: FilterConfig = {
       max: 5000,
       step: 50,
       histogram: [34, 52, 61, 58, 49, 41, 33, 27, 21, 17, 13, 10, 8, 6, 5, 4, 3, 2, 2, 1, 1, 1, 1, 2],
-      format: (value) => (value === 5000 ? `${formatMoney(value * 100).replace('.00', '')}+` : formatMoney(value * 100).replace('.00', '')),
+      format: (value) => (value === 5000 ? `${formatMoney(value * 100, 'EUR').replace('.00', '')}+` : formatMoney(value * 100, 'EUR').replace('.00', '')),
     },
   ],
   datePresets: true,

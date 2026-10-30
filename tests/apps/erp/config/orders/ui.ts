@@ -14,9 +14,11 @@ export const ordersView = view<typeof orders>('orders')
     },
   })
   .fields((r) => ({
+    number: r.number.format('code'),
     status: r.status.help('Where the order is in its life. Moving it forward can notify the customer.').format('badge')
-      .valueLabels({ draft: 'Draft', confirmed: 'Confirmed', picking: 'Picking', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' }),
-    total: r.total.help('Order total including VAT.').prefix('€').decimals(2),
+      .valueLabels({ draft: 'Draft', confirmed: 'Confirmed', picking: 'Picking', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' })
+      .valueColors({ confirmed: 'blue', picking: 'amber', shipped: 'violet', delivered: 'green', cancelled: 'red' }),
+    total: r.total.help('Order total including VAT.').prefix('€').currency('EUR').decimals(2),
     discount_percent: r.discount_percent.label('Discount').help('Percentage taken off the order total.').format('percent'),
     paid: r.paid.help('Set when the payment has been received.'),
     created_at: r.created_at.label('Created').format('absolute'),

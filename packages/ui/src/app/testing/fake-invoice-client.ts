@@ -44,8 +44,8 @@ export const fakeInvoiceClient = ({ failBatch, locked = false }: { failBatch?: (
         appName: 'Protobase',
         resources: [invoices, invoiceLines],
         views: [
-          view('invoices', { names: { singular: 'Invoice', plural: 'Invoices' }, fields: { status: { valueLabels: { draft: 'Draft', sent: 'Sent' } } }, list: { columns: ['number'] }, layout: [{ kind: 'section', title: 'Details', fields: ['number', 'status'] }] }),
-          view('invoice_lines', { names: { singular: 'Invoice line', plural: 'Invoice lines' }, nav: { hidden: true } }),
+          view('invoices', { names: { singular: 'Invoice', plural: 'Invoices' }, fields: { number: { format: 'code' }, status: { valueLabels: { draft: 'Draft', sent: 'Sent' }, valueColors: { sent: 'blue' } } }, list: { columns: ['number'] }, layout: [{ kind: 'section', title: 'Details', fields: ['number', 'status'] }] }),
+          view('invoice_lines', { names: { singular: 'Invoice line', plural: 'Invoice lines' }, nav: { hidden: true }, fields: { quantity: { format: 'signed' } } }),
         ],
         permissions: {},
       },

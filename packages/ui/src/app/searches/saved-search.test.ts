@@ -19,7 +19,7 @@ const listings = resource('listings')
   .search((r) => [r.address])
 const model = listings.toModel()
 const listingsView = view<typeof listings>('listings')
-  .fields((r) => ({ place_id: r.place_id.label('Place'), property_type: r.property_type.label('Type').valueLabels({ apartment: 'Flat' }), purchase_price: r.purchase_price.prefix('€') }))
+  .fields((r) => ({ place_id: r.place_id.label('Place'), property_type: r.property_type.label('Type').valueLabels({ apartment: 'Flat' }), purchase_price: r.purchase_price.prefix('€').currency('EUR') }))
   .filters((r, w) => [w.flags([r.for_sale, r.for_rent], { label: 'Offer' }), w.facets(r.place_id), w.facets(r.property_type), w.range(r.purchase_price), w.toggle(r.garden)])
   .toModel(model)
 

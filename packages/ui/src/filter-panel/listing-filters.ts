@@ -35,7 +35,7 @@ export const listingFilters: FilterConfig = {
       max: 2_000_000,
       step: 10_000,
       histogram: [61, 9, 6, 4, 4, 8, 3, 9, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-      format: (value) => formatMoney(value * 100).replace('.00', ''),
+      format: (value) => formatMoney(value * 100, 'EUR').replace('.00', ''),
     },
     { id: 'living_area', label: 'Living area (m²)', min: 27, max: 295, step: 3, histogram: [], format: String },
     { id: 'bedrooms', label: 'Bedrooms', min: 0, max: 6, step: 1, histogram: [], format: String },

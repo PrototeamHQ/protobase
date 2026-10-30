@@ -28,7 +28,7 @@ const homes = resource('homes')
 const homesView = view<typeof homes>('homes')
   .title((r) => r.address)
   .names({ singular: 'Home', plural: 'Homes' })
-  .fields((r) => ({ rent: r.rent.prefix('€').suffix(' /month').decimals(0) }))
+  .fields((r) => ({ rent: r.rent.prefix('€').currency('EUR').suffix(' /month').decimals(0) }))
   .list((r, d) => ({ columns: [r.address, r.rent, r.garden], sort: [[r.published_at, 'desc']], displays: [d.cards({ title: r.address, amount: [r.rent], flags: [r.garden] })] }))
   .filters((r, w) => [w.range(r.rent), w.toggle(r.garden)])
 

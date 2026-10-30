@@ -9,9 +9,9 @@ import { useOpenedRecord, type LiveRecord } from '../data/use-record'
 import { displayValue, valueTitle } from '../live/display-value'
 import { fromDraft, isRequiredOnEdit, toDraft } from '../live/field-values'
 import { auditField } from '../live/audit-fields'
+import { valueTone } from '../live/value-color'
 import { humanize } from '../live/naming'
 import { useRecordTitle } from './titles/record-titles'
-import { toneFor } from '../live/columns-from-model'
 import { Button, buttonClass } from '../primitives/button'
 import { Skeleton } from '../primitives/skeleton'
 import { cn } from '../lib/cn'
@@ -360,7 +360,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         <div className="mx-auto max-w-[1100px] px-4 pb-8 pt-6 md:px-10 md:py-8">
           <RecordHeader
             title={title}
-            status={status ? { label: enumLabel(status, hint('status')?.valueLabels), tone: toneFor(status) } : undefined}
+            status={status ? { label: enumLabel(status, hint('status')?.valueLabels), tone: valueTone(hint('status')?.valueColors, status) } : undefined}
           />
           {editor.message && <div className="mt-4"><ErrorBanner title={text('notSaved')} error={new Error(editor.message)} /></div>}
           {editor.linesConflict && (

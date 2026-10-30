@@ -32,7 +32,7 @@ const homesView = view<typeof homes>('homes')
   .title((r) => r.address)
   .names({ singular: 'Home', plural: 'Homes' })
   .nav({ group: 'Browse', order: 1 })
-  .fields((r) => ({ rent: r.rent.prefix('€').suffix(' /month').decimals(0) }))
+  .fields((r) => ({ rent: r.rent.prefix('€').currency('EUR').suffix(' /month').decimals(0) }))
   .list((r, d) => ({ columns: [r.address, r.rent], displays: [d.cards({ image: r.photo, title: r.address, amount: [r.rent] }, { favorite: { resource: 'favorites', field: 'home_id', label: 'Save to favorites' } })], default: 'cards' }))
 
 const prompt = {

@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
+import type { BadgeTone } from '@protobase/schema'
 import { cn } from '../lib/cn'
 import { readableOn } from '../lib/readable-text'
 
-export type BadgeTone = 'neutral' | 'blue' | 'green' | 'amber' | 'red' | 'violet'
+export type { BadgeTone }
 
-const tones = {
+const tones: Record<BadgeTone, string> = {
   neutral: 'bg-muted text-muted-foreground',
   blue: 'bg-primary-soft text-primary-text',
   green: 'bg-success-soft text-success-text',

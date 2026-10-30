@@ -402,8 +402,19 @@ describe('view builder', () => {
     expect(hinted.fields).toEqual({ title: { markdown: true } })
   })
 
-  it('refuses a value colour that is not a hex colour', () => {
-    expect(() => view<typeof article>('article').fields((r) => ({ status: r.status.valueColors({ live: 'green' }) }))).toThrow('Field "status": value colour "green" of "live" is not a hex colour such as #00a651')
+  it('takes a tone or a hex colour per value, and refuses anything else', () => {
+    const toned = view<typeof article>('article').fields((r) => ({ status: r.status.valueColors({ draft: 'neutral', live: 'green' }).valueColors({ live: '#00a651' }) })).toModel()
+    expect(toned.fields).toEqual({ status: { valueColors: { draft: 'neutral', live: '#00a651' } } })
+    expect(() => view<typeof article>('article').fields((r) => ({ status: r.status.valueColors({ live: 'lime' }) }))).toThrow(
+      'Field "status": value colour "lime" of "live" is not a tone (neutral, blue, green, amber, red, violet) or a hex colour such as #00a651',
+    )
+  })
+
+  it('carries an ISO 4217 currency as a field hint, and refuses anything else', () => {
+    expect(view<typeof article>('article').fields((r) => ({ price: r.price.currency('EUR').decimals(2) })).toModel().fields).toEqual({ price: { currency: 'EUR', decimals: 2 } })
+    for (const wrong of ['eur', '€', 'EURO']) {
+      expect(() => view<typeof article>('article').fields((r) => ({ price: r.price.currency(wrong) }))).toThrow(`Field "price": currency "${wrong}" is not an ISO 4217 code such as EUR`)
+    }
   })
 
   it("shows boolean fields as a card's flags, and refuses any other field there", () => {

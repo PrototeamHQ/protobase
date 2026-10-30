@@ -33,7 +33,7 @@ const views = {
   orders: {
     resource: 'orders',
     names: { singular: 'Order', plural: 'Orders' },
-    fields: { number: { label: 'Order number' }, ordered_on: { label: 'Ordered on' }, status: { valueLabels: { draft: 'Draft', confirmed: 'Confirmed' } } },
+    fields: { number: { label: 'Order number', format: 'code' }, ordered_on: { label: 'Ordered on' }, status: { valueLabels: { draft: 'Draft', confirmed: 'Confirmed' }, valueColors: { confirmed: 'blue' } } },
     filters: [],
     layout: [],
     actions: [],

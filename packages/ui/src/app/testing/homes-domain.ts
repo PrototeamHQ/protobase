@@ -42,7 +42,7 @@ const homesView = (mode: RecordMode, facts: boolean, split: boolean, conditional
     .helpWhen('editing')
     .fields((r) => ({
       title: r.title.label('Address'),
-      price: r.price.label('Asking price').prefix('€').decimals(0).help('Without the buyer\'s costs.').icon('tag'),
+      price: r.price.label('Asking price').prefix('€').currency('EUR').decimals(0).help('Without the buyer\'s costs.').icon('tag'),
       bedrooms: split ? r.bedrooms.icon('bed').when('reading') : r.bedrooms.icon('bed'),
       energy_label: r.energy_label.label('Energy label').format('badge').icon('leaf'),
       description: r.description.multiline(),

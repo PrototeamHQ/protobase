@@ -128,7 +128,7 @@ const deliveryLogView = view<ReturnType<typeof deliveryLogResource>>('webhook_de
   .names({ singular: 'Webhook delivery log entry', plural: 'Webhook delivery log' })
   .icon('scroll-text')
   .title((r) => r.event_type)
-  .fields((r) => ({ event_type: r.event_type.label('Event'), status_code: r.status_code.label('Status code'), duration_ms: r.duration_ms.label('Duration (ms)'), at: r.at.label('When') }))
+  .fields((r) => ({ event_type: r.event_type.label('Event'), status_code: r.status_code.label('Status code'), duration_ms: r.duration_ms.label('Duration (ms)'), at: r.at.label('When'), status: r.status.valueColors({ delivered: 'green' }) }))
   .list((r) => ({ columns: [r.at, r.event_type, r.subscription_id, r.status, r.status_code, r.duration_ms], sort: [[r.at, 'desc']] }))
 
 /**

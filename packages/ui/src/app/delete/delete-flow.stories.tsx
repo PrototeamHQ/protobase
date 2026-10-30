@@ -19,7 +19,7 @@ const model = {
   fields: { id: field('id', 'uuid', { readOnly: true }), number: field('number', 'text'), status: field('status', 'enum', { enumValues: ['draft', 'confirmed'] }), notes: field('notes', 'text', { nullable: true }) },
 } as unknown as ResourceModel
 
-const view = { resource: 'orders', names: { singular: 'Order', plural: 'Orders' }, fields: { status: { valueLabels: { draft: 'Draft', confirmed: 'Confirmed' } } }, filters: [], layout: [], actions: [] } as unknown as ViewModel
+const view = { resource: 'orders', names: { singular: 'Order', plural: 'Orders' }, fields: { number: { format: 'code' }, status: { valueLabels: { draft: 'Draft', confirmed: 'Confirmed' }, valueColors: { confirmed: 'blue' } } }, filters: [], layout: [], actions: [] } as unknown as ViewModel
 
 const lines = { name: 'order_lines', table: { schema: 'sales', name: 'order_lines' }, primaryKey: ['id'], fields: { id: field('id', 'uuid'), order_id: field('order_id', 'relation', { filterable: true, relation: { resource: 'orders', columns: ['order_id'] } }) } } as unknown as ResourceModel
 const linesView = { resource: 'order_lines', names: { singular: 'Order line', plural: 'Order lines' }, fields: {}, filters: [], layout: [], actions: [] } as unknown as ViewModel

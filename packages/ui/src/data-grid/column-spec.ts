@@ -28,14 +28,17 @@ export type ColumnSpec = {
   highlight?: boolean
   /** For a `datetime` column: shows how long ago each value is, its exact time on hover. */
   relative?: boolean
+  /** The ISO 4217 code of a `money` column's currency, which it needs. */
   currency?: string
   /** Decimals a `money` column shows instead of the currency's usual ones. */
   decimals?: number
+  /** Text before a number, such as a currency sign, for `number` and `signed` columns. */
+  prefix?: string
   /** Text after a number, such as a unit, for `number`, `signed` and `money` columns. */
   suffix?: string
   /** Badge tone per value, for `status` columns. */
   tones?: Record<string, BadgeTone>
-  /** A hex colour per value that fills its badge instead of its tone, for `status` columns. */
+  /** A hex colour per value that fills its badge instead of its tone, for `status` columns; a tone name is no colour. */
   colors?: Record<string, string>
   /** The shape of a `status` column's badges. */
   shape?: 'arrow'

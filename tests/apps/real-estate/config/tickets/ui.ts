@@ -32,7 +32,9 @@ export const ticketsView = view<typeof tickets>('tickets')
     reported_by: r.reported_by.label('Reported by'),
     assigned_to: r.assigned_to.label('Assigned to').help('The maintenance coordinator who plans the work.'),
     priority: r.priority.format('badge').valueLabels({ low: 'Low', normal: 'Normal', high: 'High', urgent: 'Urgent' }),
-    status: r.status.help('Reported, then scheduled once a vendor visit is planned, then done or cancelled.').format('badge').valueLabels({ reported: 'Reported', scheduled: 'Scheduled', done: 'Done', cancelled: 'Cancelled' }),
+    status: r.status.help('Reported, then scheduled once a vendor visit is planned, then done or cancelled.').format('badge')
+      .valueLabels({ reported: 'Reported', scheduled: 'Scheduled', done: 'Done', cancelled: 'Cancelled' })
+      .valueColors({ cancelled: 'red' }),
     reported_at: r.reported_at.label('Reported'),
     closed_at: r.closed_at.label('Closed'),
   }))

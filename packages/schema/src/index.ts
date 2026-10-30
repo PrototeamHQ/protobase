@@ -118,6 +118,7 @@ export type { ChartInput, GroupChartInput, PeriodChartInput } from './view-chart
 export type { FormInput } from './view-form'
 export { fieldRef, type FieldRefValue } from './field-ref'
 export { enumLabel } from './enum-label'
+export { badgeTones, isBadgeTone, type BadgeTone } from './badge-tones'
 export { userMenu, type UserMenuSource } from './user-menu'
 export { bottomBar, maxBottomBarItems, type BottomBarSource } from './bottom-bar'
 export { bottomBarErrors, type BottomBarNames } from './bottom-bar-errors'

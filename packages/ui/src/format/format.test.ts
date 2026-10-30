@@ -3,8 +3,8 @@ import { setAppLocale } from '../locale/active-locale'
 import { formatAgo, formatRelativeTime, formatApproxRows, formatDate, formatDateTime, formatDayRange, formatInt, formatMonth, formatMonthName, formatMonthRange, formatTime, formatWeekday, formatWeekdayDate, formatMoney, formatSigned } from './index'
 
 describe('formatMoney', () => {
-  it('formats cents as EUR by default', () => {
-    expect(formatMoney(123456)).toBe('€1,234.56')
+  it('formats cents in the currency given', () => {
+    expect(formatMoney(123456, 'EUR')).toBe('€1,234.56')
   })
   it('supports other currencies', () => {
     expect(formatMoney(5000, 'USD')).toContain('50.00')
@@ -12,7 +12,7 @@ describe('formatMoney', () => {
   it('shows the decimals asked for', () => {
     expect(formatMoney(145000, 'EUR', 0)).toBe('€1,450')
     expect(formatMoney(145049, 'EUR', 0)).toBe('€1,450')
-    expect(formatMoney(145000)).toBe('€1,450.00')
+    expect(formatMoney(145000, 'EUR')).toBe('€1,450.00')
   })
 })
 
@@ -78,7 +78,7 @@ describe('in Dutch', () => {
   it('writes numbers, money and dates as in the Netherlands', () => {
     setAppLocale('nl')
     expect(formatInt(10240000)).toBe('10.240.000')
-    expect(formatMoney(123456)).toBe('€\u00a01.234,56')
+    expect(formatMoney(123456, 'EUR')).toBe('€\u00a01.234,56')
     expect(formatDate(ms)).toBe('6 okt 2026')
     expect(formatDateTime(ms, 'Europe/Amsterdam')).toBe('6 okt 2026, 16:32')
     expect(formatMonth(ms)).toBe('oktober 2026')

@@ -1,5 +1,6 @@
 import type { Rollup } from './computed/rollup'
 import type { ImageVariant } from './files/file-options'
+import type { BadgeTone } from './badge-tones'
 
 /** A field's storage type, as `f.*` declares it; see [Field types](docs/website/src/content/docs/reference/data-config.mdx#field-types). */
 export type FieldType =
@@ -322,11 +323,12 @@ export type AppAddress =
     }
 
 /**
- * How a value is shown: `badge` as a coloured badge, `code` in monospace, `percent` with a % sign; a text field's
+ * How a value is shown: `badge` as a coloured badge, `code` in monospace (a list's identifier column), `percent` with a
+ * % sign, `signed` as a number with its sign, green above zero and red below; a text field's
  * `email`, `phone` and `url` as a link that writes, calls or opens it, edited with the keyboard for it. `relative`,
  * `absolute` and `compact` are carried in `/meta` for apps that render their own lists.
  */
-export type FieldFormat = 'relative' | 'absolute' | 'compact' | 'percent' | 'badge' | 'code' | 'email' | 'phone' | 'url'
+export type FieldFormat = 'relative' | 'absolute' | 'compact' | 'percent' | 'signed' | 'badge' | 'code' | 'email' | 'phone' | 'url'
 
 /** A view's hints for one field (`.fields((r) => ...)`); see [Names and columns](docs/website/src/content/docs/reference/ui-config.mdx#names-and-columns). */
 export type FieldViewModel = {
@@ -348,6 +350,8 @@ export type FieldViewModel = {
   markdown?: boolean
   /** Text before a number wherever it is shown, such as `€`. */
   prefix?: string
+  /** The ISO 4217 code of the currency a decimal is an amount of, such as `EUR`: lists show it as money in that currency. */
+  currency?: string
   /** Text after a number wherever it is shown, such as a unit: `m²` shows `120 m²`. */
   suffix?: string
   /** How many decimals a number shows. */
@@ -359,8 +363,11 @@ export type FieldViewModel = {
   icon?: string
   /** What an enum value reads as wherever it is shown; a value without one reads as itself in words (`enumLabel`). */
   valueLabels?: Record<string, string>
-  /** A hex colour per enum value that fills its badge, such as `{ a: '#00a651' }`; a value without one keeps its tone. */
-  valueColors?: Record<string, string>
+  /**
+   * A badge tone or a hex colour per enum value, such as `{ paid: 'green', a: '#00a651' }`; a hex colour fills the badge.
+   * A value without one is `neutral`.
+   */
+  valueColors?: Record<string, BadgeTone | (string & {})>
   /** `arrow` draws the field's badges as arrows pointing right, as on a rating scale such as the EU energy label. */
   badgeShape?: BadgeShape
   /**

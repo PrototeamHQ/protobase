@@ -24,6 +24,7 @@ const invoices = resource('invoices')
 const invoicesView = view<typeof invoices>('invoices')
   .title((r) => r.number)
   .names({ singular: 'Invoice', plural: 'Invoices' })
+  .fields((r) => ({ number: r.number.format('code') }))
 
 const settings = page(
   'settings',

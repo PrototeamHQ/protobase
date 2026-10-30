@@ -31,7 +31,7 @@ const view = {
   resource: 'orders',
   names: { singular: 'Order', plural: 'Orders' },
   list: { columns: ['number', 'customer_id', 'status', 'total'] },
-  fields: { customer_id: { label: 'Customer' }, status: { valueLabels: { draft: 'Draft', shipped: 'Shipped' } }, total: { prefix: '€', decimals: 2 } },
+  fields: { number: { format: 'code' }, customer_id: { label: 'Customer' }, status: { valueLabels: { draft: 'Draft', shipped: 'Shipped' }, valueColors: { shipped: 'violet' } }, total: { prefix: '€', currency: 'EUR', decimals: 2 } },
   filters: [],
   layout: [],
   actions: [],

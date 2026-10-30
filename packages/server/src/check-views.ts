@@ -60,6 +60,16 @@ const valueColorErrors = (view: ViewModel, model: ResourceModel) =>
     return Object.keys(hints.valueColors).filter((value) => !field.enumValues?.includes(value)).map((value) => `value colour "${value}" is not a value of "${name}"`)
   })
 
+// A currency names what a decimal amount is in, and a sign shows on a whole number, such as a stock change.
+const numberHintErrors = (view: ViewModel, model: ResourceModel) =>
+  Object.entries(view.fields).flatMap(([name, hints]) => {
+    const field = model.fields[name]
+    if (!field) return []
+    const currency = hints.currency !== undefined && field.type !== 'decimal' ? [`currency of "${name}" needs a decimal field, not ${field.type}`] : []
+    const signed = hints.format === 'signed' && field.type !== 'integer' && field.type !== 'bigint' ? [`format('signed') of "${name}" needs an integer field, not ${field.type}`] : []
+    return [...currency, ...signed]
+  })
+
 // Only text runs over several lines, holds markdown or is an address to write, call or open, so a box that grows with
 // it or a link to it fits no other field.
 const textHints = ['multiline', 'markdown'] as const
@@ -234,7 +244,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     ]
     const history = model.history ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
     const comments = model.comments ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...numberHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
   }
   // A named list is checked as a view of its own, without the record page, which the view's own check covers
   const problems = views.flatMap((view) => {
