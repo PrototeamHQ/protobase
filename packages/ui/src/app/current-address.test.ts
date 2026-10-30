@@ -75,7 +75,7 @@ describe('changedList', () => {
 
 describe('listDefaults', () => {
   it("opens a list in its view's default display and sort, else the table and the first key", () => {
-    const repairs = resource('repairs').table('repairs').fields({ id: f.integer(), bookedOn: f.date().sortable() }).primaryKey((r) => r.id)
+    const repairs = resource('repairs').table('repairs').fields({ id: f.integer().sortable(), bookedOn: f.date().sortable() }).primaryKey((r) => r.id)
     const shown = view<typeof repairs>('repairs').list((r, d) => ({ columns: [r.id], sort: [[r.bookedOn, 'desc']], displays: [d.cards({})], default: 'cards' })).toModel()
     expect(listDefaults(repairs.toModel(), shown)).toEqual({ display: 'cards', orderBy: 'bookedOn desc', filterLayout: 'bar', filter: '' })
     expect(listDefaults(repairs.toModel(), undefined)).toEqual({ display: 'table', orderBy: 'id asc', filterLayout: 'bar', filter: '' })

@@ -10,8 +10,13 @@ describe('list order', () => {
   })
 
   it('defaults to the view sort, then the primary key', () => {
-    const model = { primaryKey: ['id'] } as ResourceModel
+    const model = { primaryKey: ['id'], fields: { id: { sortable: true } } } as unknown as ResourceModel
     expect(defaultOrderBy(model, { list: { columns: [], sort: [['createdAt', 'desc']] } } as unknown as ViewModel)).toBe('createdAt desc')
     expect(defaultOrderBy(model, undefined)).toBe('id asc')
+  })
+
+  it('asks for no order when the primary key is not sortable, which the API would refuse', () => {
+    const model = { primaryKey: ['id'], fields: { id: { sortable: false } } } as unknown as ResourceModel
+    expect(defaultOrderBy(model, undefined)).toBe('')
   })
 })
