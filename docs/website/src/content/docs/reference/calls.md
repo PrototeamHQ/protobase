@@ -230,7 +230,7 @@ The guest's token opens their lobby wait and the guest call socket, and nothing 
 
 Revoking a link takes its guests out of the call, and Remove in Guests, or `calls.remove(call, 'guest:<id>')` in a function, takes out one. Their sockets close, and their joins and resumes are refused. Every guest's socket is checked again every minute too, and is closed once their link is revoked or past its time, they were removed, or guest links were turned off.
 
-A call left with only guests in it ends 2 minutes after the last member left, and the guests see "The call has ended". A member who comes back before then keeps it going.
+A call left with only guests in it ends 2 minutes after the last member left, and the guests see "The call ended". A member who comes back before then keeps it going.
 
 ### Organizations
 
