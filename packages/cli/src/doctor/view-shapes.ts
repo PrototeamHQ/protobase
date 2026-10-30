@@ -12,10 +12,12 @@ const request = (resource: string, filter: string | undefined, sort: SortSpec | 
   return `GET /${resource}${params.length > 0 ? `?${params.join('&')}` : ''}`
 }
 
-/** The order a list opens in, as the app asks for it: the view's sort, or the primary key's. */
-export const listSort = (model: ResourceModel, view: ViewModel | undefined): SortSpec => {
+/** The order a list opens in, as the app asks for it: the view's sort, or the primary key's when it is sortable, else none. */
+export const listSort = (model: ResourceModel, view: ViewModel | undefined): SortSpec | undefined => {
   const first = view?.list?.sort?.[0]
-  return [first ?? [model.primaryKey[0]!, 'asc']]
+  if (first) return [first]
+  const key = model.primaryKey[0]!
+  return model.fields[key]?.sortable ? [[key, 'asc']] : undefined
 }
 
 // A widget filters the list with the values chosen, and a facets menu counts each value with the other filters applied;
@@ -110,8 +112,8 @@ const displayShapes = (model: ResourceModel, view: ViewModel, models: Models): R
       const by = model.fields[display.by]
       if (!by) return []
       const rank = model.position && model.position.within === undefined ? model.fields[model.position.field] : undefined
-      const sort: SortSpec = rank ? [[rank.name, 'asc']] : listSort(model, view)
-      return [{ resource: model.name, request: request(model.name, `${by.name} = …`, sort), from: `the board display "${display.name}"`, query: { filter: compare(by), sort } }]
+      const sort: SortSpec | undefined = rank ? [[rank.name, 'asc']] : listSort(model, view)
+      return [{ resource: model.name, request: request(model.name, `${by.name} = …`, sort), from: `the board display "${display.name}"`, query: { filter: compare(by), ...(sort && { sort }) } }]
     }
     // A calendar or a timeline is the list on the days it shows: records starting in them, or starting before and ending in them
     if (display.kind === 'calendar' || display.kind === 'timeline') {
@@ -154,15 +156,15 @@ const recentShapes = (model: ResourceModel, view: ViewModel): ReadShape[] => {
   if (!recent) return []
   const filter = configFilter(model, recent.filter)
   const sort = configSort(model, recent.orderBy) ?? listSort(model, view)
-  return [{ resource: model.name, request: request(model.name, recent.filter, sort), from: 'the recent records in the sidebar', query: { ...(filter && { filter }), sort } }]
+  return [{ resource: model.name, request: request(model.name, recent.filter, sort), from: 'the recent records in the sidebar', query: { ...(filter && { filter }), ...(sort && { sort }) } }]
 }
 
 // The list's first read: in its order, and with the filter it opens with, if any
-const openingShape = (model: ResourceModel, view: ViewModel, list: string, sort: SortSpec): ReadShape => {
+const openingShape = (model: ResourceModel, view: ViewModel, list: string, sort: SortSpec | undefined): ReadShape => {
   const source = view.list?.filter
-  if (!source) return { resource: model.name, request: request(model.name, undefined, sort), from: `${list}'s order`, query: { sort } }
+  if (!source) return { resource: model.name, request: request(model.name, undefined, sort), from: `${list}'s order`, query: { ...(sort && { sort }) } }
   const filter = configFilter(model, source)
-  return { resource: model.name, request: request(model.name, source, sort), from: `${list} as it opens`, query: { ...(filter && { filter }), sort } }
+  return { resource: model.name, request: request(model.name, source, sort), from: `${list} as it opens`, query: { ...(filter && { filter }), ...(sort && { sort }) } }
 }
 
 // What a list page reads: its list in its order, its filter widgets and their counts, its displays and its chart

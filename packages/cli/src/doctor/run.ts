@@ -9,6 +9,7 @@ import { checkResource, type Issue } from './check'
 import { indexIssues } from './index-issues'
 import { readShapes } from './read-shapes'
 import { relationIssues } from './relation-issues'
+import { sortIssues } from './sort-issues'
 
 export type DoctorOptions = {
   url: string
@@ -31,7 +32,7 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
   const db = readOnlyDb(options.url)
   const shapes = readShapes(config)
   const indexes = await Promise.all(models.map(async (model) => indexIssues(model, await tableIndexes(db, model), shapes))).finally(() => db.destroy())
-  const issues = models.flatMap((model, i) => [...checkResource(model, tables), ...relationIssues(model, models), ...indexes[i]!])
+  const issues = models.flatMap((model, i) => [...checkResource(model, tables), ...relationIssues(model, models), ...sortIssues(model, shapes), ...indexes[i]!])
   for (const issue of issues) out(format(issue))
   const errors = issues.filter((i) => i.severity === 'error').length
   out(`Checked ${models.length} resources: ${errors} errors, ${issues.length - errors} warnings.\n`)

@@ -66,7 +66,7 @@ describe('viewAllAddress', () => {
 
   it('opens on what an embedded list showed when the list page opens on a filter', () => {
     const opening = view<typeof listings>('listings').list((r) => ({ columns: [r.address], filter: 'price > 5' })).toModel()
-    expect(appPath(viewAllAddress(model, opening, false, { filter: '', orderBy: 'id asc', display: 'table' }))).toBe('/listings?filter=')
-    expect(appPath(viewAllAddress(model, opening, false, { filter: 'price > 5', orderBy: 'id asc', display: 'table' }))).toBe('/listings')
+    expect(appPath(viewAllAddress(model, opening, false, { filter: '', orderBy: '', display: 'table' }))).toBe('/listings?filter=')
+    expect(appPath(viewAllAddress(model, opening, false, { filter: 'price > 5', orderBy: '', display: 'table' }))).toBe('/listings')
   })
 })
