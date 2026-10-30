@@ -1,5 +1,4 @@
 import { Globe2, MapPin } from 'lucide-react'
-import { userById } from '../mocks'
 import { AvatarStack } from '../primitives/avatar'
 import { Badge, type BadgeTone } from '../primitives/badge'
 import type { ClientProject } from './projects'
@@ -31,7 +30,7 @@ export const ProjectRow = ({ project }: { project: ClientProject }) => (
       {project.plan}
     </Badge>
     <div className="truncate text-xs text-muted-foreground">{project.database}</div>
-    <AvatarStack people={project.members.map(userById)} />
+    <AvatarStack people={project.members} />
     <div className="text-right text-xs text-muted-foreground">{project.lastDeploy}</div>
   </li>
 )

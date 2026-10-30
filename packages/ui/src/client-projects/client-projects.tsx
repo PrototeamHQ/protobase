@@ -3,11 +3,11 @@ import { LogoMark } from '../app-shell'
 import { Avatar } from '../primitives/avatar'
 import { Button } from '../primitives/button'
 import { ProjectRow } from './project-row'
-import { clientProjects } from './projects'
+import type { ClientProject } from './projects'
 
 const tabs = ['Projects', 'Domains', 'Team', 'Billing']
 
-export const ClientProjects = () => (
+export const ClientProjects = ({ projects }: { projects: ClientProject[] }) => (
   <div className="flex h-full flex-col bg-surface">
     <header className="flex h-12 items-center gap-6 border-b bg-background px-6">
       <div className="flex items-center gap-2.5">
@@ -52,7 +52,7 @@ export const ClientProjects = () => (
           <span className="text-right">Last deploy</span>
         </div>
         <ul>
-          {clientProjects.map((project) => (
+          {projects.map((project) => (
             <ProjectRow key={project.id} project={project} />
           ))}
         </ul>
