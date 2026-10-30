@@ -4,7 +4,7 @@ import type { JWTPayload } from 'jose'
 import { accountPage, accountPageName, checkPages, settingsResources, withSettingsFields } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
-import { ringsPath, statusPath } from '@protobase/schema/internal'
+import { guestCallsPath, ringsPath, statusPath } from '@protobase/schema/internal'
 import { aiModel } from './ai/ai-model'
 import { hasAiActions, hasAiFields } from './ai/ai-fields'
 import { fillHook } from './ai/fill-hook'
@@ -69,6 +69,10 @@ import type { NotificationsOptions } from './notifications/options'
 import type { CallsOptions } from './calls/calls-options'
 import { callsService } from './calls/calls-service'
 import { ringRoutes } from './calls/ring-routes'
+import { guestRoutes } from './calls/guest-routes'
+import { getIP } from 'better-auth/api'
+import { organizationGuestsRoute } from './calls/organization-guests-route'
+import { organizationRole } from './better-auth/organizations/organization-role'
 import { deviceStore, removeDevicesWithUsers } from './notifications/device-store-of'
 import { historyStore, removeHistoryWithUsers } from './notifications/history-store-of'
 import { historyRoutes } from './notifications/history-routes'
@@ -326,6 +330,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
         notices: changes,
         channels: () => channels,
         notifications: Boolean(notifications),
+        organizations: Boolean(auth?.organizations),
         ...(auth?.origins[0] && { origin: auth.origins[0] }),
         ...(statusTables && { doNotDisturb: (ringDb: Db, userIds: readonly string[]) => onDoNotDisturb(ringDb, statusTables.statuses, userIds) }),
       }),
@@ -444,6 +449,12 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   }
   if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))
   if (deps.calls) app.route(ringsPath(systemPath), guarded((routes) => void routes.route('/', ringRoutes(deps.calls!))))
+  // The guests' lobby and call socket, which take only guests' tokens; with organizations, the admin's switch for them.
+  if (deps.calls && auth) {
+    const addressOf = (request: Request) => getIP(request, auth.options)
+    app.route(guestCallsPath(systemPath), guestRoutes({ calls: deps.calls, addressOf, origins: auth.origins, onError, ...(upgradeWebSocket && { upgradeWebSocket }), report }))
+    if (auth.organizations) app.route(guestCallsPath(systemPath, 'organization'), guarded((routes) => void routes.route('/', organizationGuestsRoute({ calls: deps.calls!, roleIn: organizationRole(auth) }))))
+  }
   if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
   // The notices are read only while a page or channel listens.
   const feed = tableFeed({ db, schema: changes, report })

@@ -34,6 +34,12 @@ describe('calls in a function', () => {
     await expect(calls.join({ record, member: '', publish: true })).rejects.toThrow('calls.join needs the member, a non-empty string')
   })
 
+  it("reject a member of a guest's form, so no function lets anyone in as a guest", async () => {
+    const { calls, get } = access(async () => ({}))
+    await expect(calls.join({ record, member: 'guest:7f1c2a4e-1b2c-4d3e-8f90-a1b2c3d4e5f6', publish: true })).rejects.toThrow('calls.join takes no member that starts with guest:')
+    expect(get).not.toHaveBeenCalled()
+  })
+
   it('let in only a caller who reads the record, and check it again every minute with the function\'s own check', async () => {
     const own = vi.fn()
     const { calls, get } = access(async () => ({ record: {}, etag: '1' }))

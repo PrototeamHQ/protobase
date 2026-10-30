@@ -40,8 +40,8 @@ describe('the peer plugin', () => {
   it('lists the others and the tracks of theirs the member hears', () => {
     const { opened, sent } = session((track) => track.kind === 'video')
     opened.roster!([
-      { row: '1', member: 'ann', process: 'p', joined_at: 't', tracks: [] },
-      { row: '2', member: 'bob', process: 'p', joined_at: 't', tracks: [{ sid: 'cam', member: 'bob', kind: 'video', source: 'camera', muted: false }, { sid: 'mic', member: 'bob', kind: 'audio', source: 'microphone', muted: false }] },
+      { row: '1', member: 'ann', process: 'p', joined_at: 't', tracks: [], name: null },
+      { row: '2', member: 'bob', process: 'p', joined_at: 't', tracks: [{ sid: 'cam', member: 'bob', kind: 'video', source: 'camera', muted: false }, { sid: 'mic', member: 'bob', kind: 'audio', source: 'microphone', muted: false }], name: null },
     ])
     expect(sent).toEqual([{ type: 'peers', members: ['bob'] }, { type: 'tracks', tracks: [{ sid: 'cam', member: 'bob', kind: 'video', source: 'camera', muted: false }] }])
   })

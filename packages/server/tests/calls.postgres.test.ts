@@ -39,7 +39,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('calls on records, on P
     await database?.close()
   })
   beforeEach(async () => {
-    await database.exec('truncate calls.signals; truncate calls.rings, calls.members, calls.calls; truncate changes.notices')
+    await database.exec('truncate calls.signals; truncate calls.guests, calls.guest_links, calls.organization_guests, calls.rings, calls.members, calls.calls; truncate changes.notices')
   })
 
   const callOf = async (member: string, more = {}) => {
@@ -94,7 +94,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('calls on records, on P
   describe('removing a member', () => {
     it('keeps them out, however their join and the removal race', async () => {
       for (let round = 0; round < 5; round++) {
-        await database.exec('truncate calls.rings, calls.members, calls.calls')
+        await database.exec('truncate calls.guests, calls.guest_links, calls.rings, calls.members, calls.calls')
         const { call } = await callOf('ann')
         await Promise.all([store.admit(joining('bob')), store.remove(call, 'bob')])
         // Either the join came first and the removal took bob out, or the removal was kept and the join refused.

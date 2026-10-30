@@ -4,6 +4,7 @@ import { forbidden } from '../problem'
 import type { Session } from '../types'
 import type { CallMember, CallRecordKey } from './call-member'
 import { checkRing } from './call-ring'
+import { isGuestMember } from './guest-tokens'
 import type { CallItem } from './call-reads'
 import type { CallsService } from './calls-service-type'
 
@@ -32,9 +33,11 @@ type CallsCaller = { session: Session; records: { get: (resource: string, key: C
 /** The largest message of a member's socket: a description, with room to spare. */
 const maxMessageBytes = 300 * 1024
 
-const checkMember = ({ record, member }: CallMember) => {
+const checkMember = ({ record, member, name }: CallMember) => {
   if (typeof record?.resource !== 'string' || record.resource.length === 0) throw new TypeError('calls.join needs the record, { resource, key }')
   if (typeof member !== 'string' || member.length === 0) throw new TypeError('calls.join needs the member, a non-empty string')
+  if (isGuestMember(member)) throw new TypeError('calls.join takes no member that starts with guest:, which only guests are')
+  if (name !== undefined && (typeof name !== 'string' || name.length > 200)) throw new TypeError('calls.join takes a name of at most 200 characters')
 }
 
 const withoutCalls = () => Promise.reject(new Error('This app has no calls: configure calls: { backend } in protobase.config.ts'))
@@ -55,7 +58,7 @@ export const callsAccess = (service: CallsService | undefined, caller: () => Pro
       const mayRead = () => records.get(resource, key)
       await mayRead()
       const ring = member.ring && checkRing(member.ring)
-      const by = { user: String(session.user.id), ...(ring && { ring }) }
+      const by = { user: String(session.user.id), ...(ring && { ring }), ...(member.invites === true && { invites: true }), ...(member.name !== undefined && { name: member.name }) }
       const events = await (await service.runtime()).relay(record, member.member, { publish: member.publish, ...(member.hears && { hears: member.hears }) }, by)
       return {
         ...events,

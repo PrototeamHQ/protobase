@@ -21,13 +21,15 @@ export type CallsWiring = {
   notifications: boolean
   /** The app's address, such as `https://chat.example.com`, which a ring's entry in the bell leads into. */
   origin?: string
+  /** With organizations: a call's guest links are for the organization of its record, whose admin may turn them off. */
+  organizations: boolean
 }
 
 /** An app's calls over its resources: the runtime loaded at the first use, so an app that never calls loads none of it. */
 export const callsService = (deps: () => Deps, options: CallsOptions, wiring: CallsWiring): CallsService => {
   let runtime: Promise<CallsRuntime> | undefined
   const load = async () => {
-    const [{ callsRuntime }, { ringer, ringMessage }, { sqlRingStore }] = await Promise.all([import('./calls-runtime'), import('./ringer'), import('./ring-store')])
+    const [{ callsRuntime }, { ringer, ringMessage }, { sqlRingStore }, { recordOrganization }] = await Promise.all([import('./calls-runtime'), import('./ringer'), import('./ring-store'), import('./record-organization')])
     const { db, statementTimeoutMs, report, registry } = deps()
     const recordUrl = ({ resource, key }: { resource: string; key: string }) =>
       wiring.origin === undefined ? undefined : new URL(appPath({ kind: 'record', resource, key: decodeKey(key, registry.find(resource)!.keyTypes) }), wiring.origin).href
@@ -45,6 +47,7 @@ export const callsService = (deps: () => Deps, options: CallsOptions, wiring: Ca
       options,
       report,
       rings,
+      ...(wiring.organizations && { organizationOf: recordOrganization(registry) }),
       announce: (record, items) => wiring.channels().broadcast({ resource: record.resource, key: record.key, event: callsChannelEvent, payload: { items } }),
     })
   }

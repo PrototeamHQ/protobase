@@ -1,4 +1,4 @@
-import type { CallClientMessage, CallLeftReason, CallServerMessage, CallTrackRequest } from '@protobase/schema/internal'
+import type { CallClientMessage, CallLeftReason, CallServerMessage, CallTrackRequest, CallTrackSource } from '@protobase/schema/internal'
 import type { FunctionSocket, SocketEvents } from '../functions/function-socket'
 import type { CallDoor, InCall } from './call-hub'
 import type { CallRights } from './call-member'
@@ -13,6 +13,12 @@ const refusedCloseCode = 1008
 
 const mayPublish = (rights: CallRights, tracks: CallTrackRequest[]) =>
   rights.publish === true || (Array.isArray(rights.publish) && tracks.every((track) => (rights.publish as string[]).includes(track.source)))
+
+// What a guest of a link the member makes may send: what they asked for, of what the member may send themselves.
+const guestSources = (rights: CallRights, asked: CallTrackSource[]) => [...new Set(asked)].filter((source) => rights.publish === true || (Array.isArray(rights.publish) && rights.publish.includes(source)))
+
+type GuestMessage = Extract<CallClientMessage, { type: 'guest-link' | 'guest-link-revoke' | 'guest-decide' | 'guest-remove' }>
+const isGuestMessage = (message: CallClientMessage): message is GuestMessage => message.type.startsWith('guest-')
 
 const refusals: Record<string, string> = { removed: 'You were removed from this call', full: 'This call is full', ended: 'This call has ended' }
 
@@ -29,6 +35,12 @@ export type MemberRelayInput = {
   user?: string
   /** Whom the call rings when this member's join starts it. */
   ring?: CallRingInput
+  /** Whether the member may make guest links to the call and let its guests in. */
+  invites?: boolean
+  /** The name the member shows the others in the call. */
+  name?: string
+  /** A guest, who comes only into their link's call. */
+  guest?: { id: string; call: string }
 }
 
 /**
@@ -37,7 +49,7 @@ export type MemberRelayInput = {
  * may not make, and tells the call and the plugin how the socket ended. The plugin only ever sees well-formed messages
  * of a member Protobase let in.
  */
-export const memberRelay = ({ door, backend, record, member, rights, maxMembers, maxMinutes, report, user, ring }: MemberRelayInput): SocketEvents => {
+export const memberRelay = ({ door, backend, record, member, rights, maxMembers, maxMinutes, report, user, ring, invites = false, name, guest }: MemberRelayInput): SocketEvents => {
   let browser: FunctionSocket
   let session: MemberSession | undefined
   let inCall: InCall | undefined
@@ -65,7 +77,8 @@ export const memberRelay = ({ door, backend, record, member, rights, maxMembers,
   const enter = async (message: Extract<CallClientMessage, { type: 'join' | 'resume' }>) => {
     if (session) return close(refusedCloseCode, 'The call session already started')
     const resume = message.type === 'resume' ? { call: message.call, tracks: message.tracks.map((track) => ({ sid: track.sid, member, kind: track.kind, source: track.source, muted: false })) } : undefined
-    const admitted = await door.admit({ record, member, maxMembers, maxMinutes, ...(resume && { resume }), ...(user !== undefined && { user }), ...(ring && !resume && { ring }) }, { send, close })
+    const more = { ...(user !== undefined && { user }), ...(ring && !resume && { ring }), ...(invites && { invites }), ...(name !== undefined && { name }), ...(guest && { guest }) }
+    const admitted = await door.admit({ record, member, maxMembers, maxMinutes, ...(resume && { resume }), ...more }, { send, close })
     if ('refused' in admitted) {
       send({ type: 'left', reason: admitted.refused satisfies CallLeftReason })
       return close(refusedCloseCode, refusals[admitted.refused]!)
@@ -76,9 +89,33 @@ export const memberRelay = ({ door, backend, record, member, rights, maxMembers,
     await admitted.listen(session.roster ?? (() => {}))
   }
 
+  // A member who invites, in the call: a guest link, or a decision on its guests; refused for anyone else, a guest too.
+  const guests = async (message: GuestMessage, call: string) => {
+    const actions = door.guests
+    if (!invites || !actions) return send({ type: 'guest-refused', reason: 'not-allowed' })
+    switch (message.type) {
+      case 'guest-link': {
+        const made = await actions.link({ call, member, publish: guestSources(rights, message.publish), ...(message.expires_at && { expiresAt: new Date(message.expires_at) }) })
+        if ('refused' in made) return send({ type: 'guest-refused', reason: made.refused })
+        return send({ type: 'guest-link', link: made.link, token: made.token })
+      }
+      case 'guest-link-revoke':
+        if (!(await actions.revoke({ call, link: message.link, member }))) send({ type: 'guest-refused', reason: 'gone' })
+        return
+      case 'guest-decide': {
+        const decided = await actions.decide({ call, guest: message.guest, member, admit: message.admit })
+        if (decided.refused) send({ type: 'guest-refused', reason: decided.refused })
+        return
+      }
+      case 'guest-remove':
+        return actions.remove(call, message.guest)
+    }
+  }
+
   const relay = async (message: CallClientMessage) => {
     if (message.type === 'join' || message.type === 'resume') return enter(message)
-    if (!session) return close(refusedCloseCode, 'Join or resume the call first')
+    if (!session || !inCall) return close(refusedCloseCode, 'Join or resume the call first')
+    if (isGuestMessage(message)) return guests(message, inCall.call)
     if (message.type === 'publish' && !mayPublish(rights, message.tracks)) return send({ type: 'publish-refused', reason: 'The member may not publish these tracks' })
     await session.receive(message)
   }

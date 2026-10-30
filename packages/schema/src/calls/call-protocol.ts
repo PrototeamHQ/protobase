@@ -45,10 +45,10 @@ export type CallDescription = { type: 'offer' | 'answer'; sdp: string }
 /** How the call's media flows: through a media server, or directly between the members' browsers. */
 export type CallMode = 'sfu' | 'peer'
 
-/** A message from the browser. */
+/** A message from the browser. `guest` is a guest's token, on the guest call socket only. */
 export type CallClientMessage =
-  | { type: 'join' }
-  | ({ type: 'resume' } & CallResume)
+  | { type: 'join'; guest?: string }
+  | ({ type: 'resume'; guest?: string } & CallResume)
   | { type: 'publish'; tracks: CallTrackRequest[] }
   | { type: 'offer'; sdp: string; id: number }
   | { type: 'candidate'; candidate: CallCandidate }
@@ -59,6 +59,12 @@ export type CallClientMessage =
   /** How large the browser shows remote video tracks, so the media server forwards the layer that fits; or not at all. */
   | { type: 'view'; sids: string[]; width: number; height: number; hidden?: boolean }
   | { type: 'leave' }
+  /** A member who may invite: a new guest link to the call, with the sources a guest may send and when it expires. */
+  | { type: 'guest-link'; publish: CallTrackSource[]; expires_at?: string }
+  | { type: 'guest-link-revoke'; link: string }
+  /** Lets a waiting guest into the call, or turns them away. */
+  | { type: 'guest-decide'; guest: string; admit: boolean }
+  | { type: 'guest-remove'; guest: string }
 
 /** A track of another member the member hears. */
 export type CallRemoteTrack = { sid: string; member: string; kind: 'audio' | 'video'; source: CallTrackSource; muted: boolean }
@@ -69,12 +75,27 @@ export type CallRemoteTrack = { sid: string; member: string; kind: 'audio' | 'vi
  */
 export type CallLeftReason = 'ended' | 'removed' | 'full' | 'refused' | 'unavailable' | 'rejoin'
 
-/** Someone in a call, since when (ISO 8601). */
-export type CallRosterMember = { member: string; joined_at: string }
+/** Someone in a call, since when (ISO 8601), with the name they show: a guest's own, or the one the app gave the member. */
+export type CallRosterMember = { member: string; joined_at: string; name?: string }
+
+/** A guest waiting in the lobby of a call, by the name they gave, since when (ISO 8601). */
+export type CallLobbyGuest = { guest: string; name: string; since: string }
+
+/** A guest link of a call: who made it, what a guest may send, and until when (ISO 8601) it lets guests in. */
+export type CallGuestLink = { id: string; created_by: string; publish: CallTrackSource[]; expires_at: string | null }
+
+/**
+ * Why a member's guest request did nothing: the guest or link is gone, the call is full, the organization turned guest
+ * links off, the record has no organization to ask, or the member may not invite.
+ */
+export type CallGuestRefusal = 'gone' | 'full' | 'off' | 'no-organization' | 'not-allowed'
+
+/** A guest's lobby wait: waiting, let in, turned away, or the call or link is over. */
+export type CallGuestState = 'waiting' | 'admitted' | 'denied' | 'ended'
 
 /** A message from the server. */
 export type CallServerMessage =
-  | { type: 'joined'; call: string; mode: CallMode; participant: string; iceServers: { urls: string[]; username?: string; credential?: string }[] }
+  | { type: 'joined'; call: string; mode: CallMode; participant: string; iceServers: { urls: string[]; username?: string; credential?: string }[]; invites?: boolean }
   | { type: 'resumed' }
   | { type: 'published'; tracks: { cid: string; sid: string }[] }
   | { type: 'publish-refused'; reason: string }
@@ -94,3 +115,8 @@ export type CallServerMessage =
   | { type: 'signal'; from: string; description?: CallDescription; candidate?: CallCandidate }
   | { type: 'speakers'; speakers: { member: string; level: number }[] }
   | { type: 'left'; reason: CallLeftReason }
+  /** To a member who may invite: who waits in the lobby, and the call's guest links, whenever that changes. */
+  | { type: 'lobby'; guests: CallLobbyGuest[]; links: CallGuestLink[] }
+  /** The link a `guest-link` made, with its token, which only its maker gets, once. */
+  | { type: 'guest-link'; link: CallGuestLink; token: string }
+  | { type: 'guest-refused'; reason: CallGuestRefusal }
