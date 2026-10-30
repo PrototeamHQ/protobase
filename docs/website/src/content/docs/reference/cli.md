@@ -261,9 +261,12 @@ The modules the app shares with plugins, `react`, `react/jsx-runtime`, `react-do
   | `better-auth`, `hono`, `jose`, `zod`, `aip-parsers`, `@hono/node-server`, `@scalar/hono-api-reference` | the main entry of each other dependency the `@protobase` packages run on the server |
   | `hono/cors`, `hono/http-exception`, `hono/validator` | Hono middleware for [API functions](/guides/api-functions/) |
   | `react`, `react/jsx-runtime`, `@react-email/render` | what [email templates](/reference/email/#in-a-bundle) render with, so a template's component and the renderer share one React |
+  | `@protobase/server/pdf` | React PDF's components, which [PDF documents](/reference/pdf/#in-a-bundle) are built from; `definePdf` renders them with the runtime's React PDF, loaded on the first document rendered |
   | `@protobase/server/email` | the [look of Protobase's own mail](/reference/email/#the-look-of-protobases-own-mail), loaded when the bundle first imports it rather than when the runtime starts |
 
   `react-email` is a dependency of `@protobase/server` that the runtime does not supply: the server loads it only to send its own mail, or for `@protobase/server/email`, so a config that imports it inlines its own copy, like any other package.
+
+  `@react-pdf/renderer` is a dependency of `@protobase/server` that the runtime keeps to itself: a config imports React PDF's components from `@protobase/server/pdf` instead.
 
   Importing any other `@protobase` package or dependency of one (`@protobase/ui`, `react-dom`, `better-auth/plugins`, `zod/v4`, ...) fails the build with this list, also from inside an inlined package, when the finished bundle still imports it: an inlined package may re-export a module that imports one, as `react-email` does with `tailwindcss`, as long as the project leaves that export unused. The runtime supplies them at its own versions, whichever the project installed. The list is `packages/cli/src/serve/host-module-ids.ts`; the set of packages comes from the `package.json` of `@protobase/cli` and of every `@protobase` package it depends on.
 - Packages with a native add-on stay imports too, and the bundle carries them in `node_modules/` (see [Native packages](#native-packages)). Node's built-in modules stay imports.

@@ -1,0 +1,60 @@
+---
+title: PDF documents
+description: PDF files an app makes, such as invoices, quotes and reports, written as React components with typed data and rendered from jobs, hooks and API functions.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import document from '../../../../../../docs-examples/pdf/documents/repair-quote.tsx?raw'
+import fn from '../../../../../../docs-examples/pdf/functions/repair-quote.ts?raw'
+import job from '../../../../../../docs-examples/pdf/jobs/email-repair-quote.ts?raw'
+import config from '../../../../../../docs-examples/pdf/protobase.config.ts?raw'
+
+An app makes a PDF file, such as an invoice, a quote or a report, from a React component of its data, the way it writes its [emails](/reference/email/#templates). The component is built from the components of [React PDF](https://react-pdf.org) (`@react-pdf/renderer`), and Protobase renders it to the bytes of a PDF file with React PDF's renderer.
+
+## Documents
+
+A document is `definePdf`: a name and a React component whose props are the document's data, with React PDF's `<Document>` at its root. `@protobase/server` brings React PDF; the project adds React for its JSX, which a project with a UI has already:
+
+```sh
+bun add react
+bun add -d @types/react
+```
+
+<Code code={document} lang="tsx" title="documents/repair-quote.tsx" />
+
+| `definePdf` option | |
+| --- | --- |
+| `name` | Names the document. |
+| `component` | The document, a React component of the data with a `<Document>` at its root. |
+
+The definition that comes back has one method, typed by the component's props: `render(data)` gives the bytes of the PDF file, a `Uint8Array`. An email's [attachment](/reference/email/#attachments) and a `Response` take them as they are.
+
+React and React PDF's renderer are loaded on the first document rendered, not when the app starts.
+
+## Components
+
+`@protobase/server/pdf` exports React PDF's components, typed as `@react-pdf/renderer` types them: `Document`, `Page`, `View`, `Text`, `Link`, `Image`, `ImageBackground`, `Note`, `Canvas`, the form fields `FieldSet`, `TextInput`, `Checkbox`, `Select` and `List`, and `Svg` with its shapes (`G`, `Path`, `Rect`, `Line`, `Circle`, `Ellipse`, `Polygon`, `Polyline`, `Tspan`, `Defs`, `Stop`, `ClipPath`, `Marker`, `LinearGradient`, `RadialGradient`). `StyleSheet.create` types a document's styles. React PDF's documentation explains each component and the styles they take: [components](https://react-pdf.org/components), [styling](https://react-pdf.org/styling).
+
+Importing them loads nothing of React PDF: they are only the names its renderer knows its elements by.
+
+- **Fonts:** text is set in the PDF standard fonts, `Helvetica` (the default), `Times-Roman` and `Courier`, each with its bold and italic faces, such as `Helvetica-Bold`, chosen with the `fontFamily` style. They write the characters of Windows-1252, the Latin script of Western European languages, the euro sign included.
+- <gap>Documents cannot use fonts of their own, nor scripts beyond Windows-1252, because registering a font with React PDF's renderer is not implemented.</gap>
+- **Images:** the renderer fetches an `<Image>` whose `src` is a URL, and reads one whose `src` is a file path, on the server. Give it the image's bytes, as a `Buffer` or a `data:` URI, or an address the app chose, never one a user typed.
+
+## Rendering
+
+An **[API function](/guides/api-functions/)** may answer with the file, for the browser to show or save:
+
+<Code code={fn} lang="ts" title="functions/repair-quote.ts" />
+
+A **job** renders it to send by mail, so the email goes out after the write that asked for it committed, and a message the server refuses is retried. A **write hook** enqueues such a job rather than rendering in the write's transaction, as for [email](/reference/email/#sending):
+
+<Code code={job} lang="ts" title="jobs/email-repair-quote.ts" />
+
+<Code code={config} lang="ts" title="protobase.config.ts" />
+
+A [template's](/reference/email/#templates) `send` takes the same attachment as its fourth argument, and so does a function's `personalMail`, to send it from [someone's own mailbox](/reference/email/#from-someones-own-mailbox).
+
+## In a bundle
+
+A [bundle](/reference/cli/#the-config-module) gets `@protobase/server/pdf` from the serve runtime, as it gets `@protobase/server`, whose `definePdf` renders with the runtime's own React PDF. A served config imports React PDF's components from `@protobase/server/pdf`: `@react-pdf/renderer` is a dependency of `@protobase/server` that the runtime does not hand to a bundle, so importing it fails the build.
