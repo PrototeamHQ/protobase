@@ -90,6 +90,7 @@ export const memberRelay = ({ door, backend, record, member, rights, maxMembers,
   }
 
   // A member who invites, in the call: a guest link, or a decision on its guests; refused for anyone else, a guest too.
+  // Each request is answered once, so the browser pairs the answers with its requests in order.
   const guests = async (message: GuestMessage, call: string) => {
     const actions = door.guests
     if (!invites || !actions) return send({ type: 'guest-refused', reason: 'not-allowed' })
@@ -100,15 +101,14 @@ export const memberRelay = ({ door, backend, record, member, rights, maxMembers,
         return send({ type: 'guest-link', link: made.link, token: made.token })
       }
       case 'guest-link-revoke':
-        if (!(await actions.revoke({ call, link: message.link, member }))) send({ type: 'guest-refused', reason: 'gone' })
-        return
+        return send((await actions.revoke({ call, link: message.link, member })) ? { type: 'guest-done' } : { type: 'guest-refused', reason: 'gone' })
       case 'guest-decide': {
         const decided = await actions.decide({ call, guest: message.guest, member, admit: message.admit })
-        if (decided.refused) send({ type: 'guest-refused', reason: decided.refused })
-        return
+        return send(decided.refused ? { type: 'guest-refused', reason: decided.refused } : { type: 'guest-done' })
       }
       case 'guest-remove':
-        return actions.remove(call, message.guest)
+        await actions.remove(call, message.guest)
+        return send({ type: 'guest-done' })
     }
   }
 

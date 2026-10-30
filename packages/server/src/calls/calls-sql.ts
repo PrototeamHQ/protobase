@@ -120,7 +120,6 @@ create index if not exists "rings_until" on "calls"."rings" ("until") where "sto
 
 ${guestsSchemaSql}`
 
-
 // Only reads the catalogue.
 const hasCallsTables = async (db: Db) =>
   (await sql<{ found: boolean }>`select to_regclass('calls.calls') is not null and to_regclass('calls.members') is not null and to_regclass('calls.signals') is not null and to_regclass('calls.rings') is not null as found`.execute(db)).rows[0]!.found
