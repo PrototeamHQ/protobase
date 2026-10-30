@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { gmail, gmailSendUrl } from './gmail'
-import { insufficientScope, invalidCredentials, json, sentMessage } from './gmail-responses'
+import { accessNotConfigured, insufficientScope, invalidCredentials, invalidToHeader, json, preconditionFailed, sentMessage } from './gmail-responses'
 import { PersonalMailError } from './personal-mail-error'
 
 const pdf = new TextEncoder().encode('%PDF-1.7 invoice 7')
@@ -46,9 +46,26 @@ describe('gmail', () => {
     await expect(provider.send(invoice, 'no-scope')).rejects.toMatchObject({ code: 'link_expired', provider: 'gmail', status: 409 })
   })
 
-  it('names the status of any other refusal', async () => {
+  it("names Google's status, reason and message for a refusal", async () => {
+    const { provider } = answering(() => json(preconditionFailed, 400, 'Bad Request'))
+    await expect(provider.send(invoice, 'access-1')).rejects.toThrow(new Error('Gmail refused the message: 400 Bad Request FAILED_PRECONDITION (failedPrecondition: Precondition check failed.)'))
+  })
+
+  it("names Google's message for a header Gmail refuses", async () => {
+    const { provider } = answering(() => json(invalidToHeader, 400, 'Bad Request'))
+    await expect(provider.send(invoice, 'access-1')).rejects.toThrow('(invalidArgument: Invalid To header)')
+  })
+
+  it('names the reason of a 403 that is not a taken-back grant, and is no link_expired', async () => {
+    const { provider } = answering(() => json(accessNotConfigured, 403, 'Forbidden'))
+    const refusal = provider.send(invoice, 'access-1')
+    await expect(refusal).rejects.not.toBeInstanceOf(PersonalMailError)
+    await expect(refusal).rejects.toThrow('Gmail refused the message: 403 Forbidden PERMISSION_DENIED (accessNotConfigured: ')
+  })
+
+  it('names the status of a refusal whose body is not JSON', async () => {
     const { provider } = answering(() => new Response('Backend Error', { status: 503, statusText: 'Service Unavailable' }))
-    await expect(provider.send(invoice, 'access-1')).rejects.toThrow('Gmail refused the message: 503 Service Unavailable')
+    await expect(provider.send(invoice, 'access-1')).rejects.toThrow(new Error('Gmail refused the message: 503 Service Unavailable'))
   })
 
   it('refuses a header value that would start another header, sending nothing', async () => {

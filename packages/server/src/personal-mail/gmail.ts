@@ -23,17 +23,37 @@ export const gmail = (fetcher: typeof fetch = (...args) => fetch(...args)): Pers
     const response = await fetcher(gmailSendUrl, { method: 'POST', headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'message/rfc822' }, body: new Uint8Array(body) })
     if (response.ok) return
     // 401: the token is no longer good; 403 with insufficient scope: the grant to send was taken back.
-    if (response.status === 401 || (response.status === 403 && (await gmailReason(response)) === 'insufficientPermissions')) throw new PersonalMailError('link_expired', 'gmail')
-    throw new Error(`Gmail refused the message: ${response.status} ${response.statusText}`)
+    if (response.status === 401) throw new PersonalMailError('link_expired', 'gmail')
+    const error = await gmailError(response)
+    if (response.status === 403 && gmailReason(error) === 'insufficientPermissions') throw new PersonalMailError('link_expired', 'gmail')
+    throw new Error(`Gmail refused the message: ${response.status} ${response.statusText}${gmailCause(error)}`)
   },
 })
 
-type GmailErrorBody = { error?: { errors?: { reason?: string }[]; details?: { reason?: string }[] } }
+type GmailError = { status?: string; message?: string; errors?: { reason?: string }[]; details?: { reason?: string }[] }
+
+// Google's standard error body, read once; a body that is not JSON names nothing.
+const gmailError = async (response: Response): Promise<GmailError | undefined> => {
+  if (!response.headers.get('content-type')?.includes('json')) return
+  const text = await response.text()
+  try {
+    return (JSON.parse(text) as { error?: GmailError }).error
+  } catch (error) {
+    if (error instanceof SyntaxError) return
+    throw error
+  }
+}
 
 // Google's error body names the reason in `errors[].reason`, or in `details[].reason` (`ACCESS_TOKEN_SCOPE_INSUFFICIENT`).
-const gmailReason = async (response: Response) => {
-  if (!response.headers.get('content-type')?.includes('json')) return
-  const body = (await response.json()) as GmailErrorBody
-  const reasons = [...(body.error?.errors ?? []), ...(body.error?.details ?? [])].map((entry) => entry.reason)
+const gmailReason = (error: GmailError | undefined) => {
+  const reasons = [...(error?.errors ?? []), ...(error?.details ?? [])].map((entry) => entry.reason)
   return reasons.includes('insufficientPermissions') || reasons.includes('ACCESS_TOKEN_SCOPE_INSUFFICIENT') ? 'insufficientPermissions' : reasons[0]
+}
+
+// Only what Google says about the refusal, such as ` FAILED_PRECONDITION (failedPrecondition: Precondition check failed.)`.
+const gmailCause = (error: GmailError | undefined) => {
+  if (!error) return ''
+  const reason = error.errors?.[0]?.reason
+  const detail = [reason, error.message].filter(Boolean).join(': ')
+  return `${error.status ? ` ${error.status}` : ''}${detail ? ` (${detail})` : ''}`
 }

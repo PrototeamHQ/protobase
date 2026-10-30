@@ -1,5 +1,6 @@
 // Gmail API answers in the shapes its reference documents: a sent message is a `Message` resource, and an error is
-// Google's standard error body, here for an access token that is no longer valid and for one without the send scope.
+// Google's standard error body, here for an access token that is no longer valid, for one without the send scope, for a
+// Google account without Gmail, for a malformed To header and for a project without the Gmail API enabled.
 
 export const sentMessage = { id: '18f2c0a9b4e1d7c3', threadId: '18f2c0a9b4e1d7c3', labelIds: ['SENT'] }
 
@@ -22,4 +23,32 @@ export const insufficientScope = {
   },
 }
 
-export const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=UTF-8' } })
+// Gmail's real answer to a send from a Google account that has no Gmail mailbox.
+export const preconditionFailed = {
+  error: {
+    code: 400,
+    message: 'Precondition check failed.',
+    errors: [{ message: 'Precondition check failed.', domain: 'global', reason: 'failedPrecondition' }],
+    status: 'FAILED_PRECONDITION',
+  },
+}
+
+export const invalidToHeader = {
+  error: {
+    code: 400,
+    message: 'Invalid To header',
+    errors: [{ message: 'Invalid To header', domain: 'global', reason: 'invalidArgument' }],
+    status: 'INVALID_ARGUMENT',
+  },
+}
+
+export const accessNotConfigured = {
+  error: {
+    code: 403,
+    message: 'Gmail API has not been used in project 123456789012 before or it is disabled.',
+    errors: [{ message: 'Gmail API has not been used in project 123456789012 before or it is disabled.', domain: 'usageLimits', reason: 'accessNotConfigured' }],
+    status: 'PERMISSION_DENIED',
+  },
+}
+
+export const json = (body: unknown, status = 200, statusText = '') => new Response(JSON.stringify(body), { status, statusText, headers: { 'content-type': 'application/json; charset=UTF-8' } })
