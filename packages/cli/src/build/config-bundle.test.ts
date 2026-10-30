@@ -4,6 +4,7 @@ import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { pdfText } from '../../../../test-support/pdf-text'
 import { prebuildifyFiles, writePackage } from '../../tests/support/packages'
 import { projectResources } from '../config/project-parts'
 import { loadBundle } from '../serve/load-bundle'
@@ -171,7 +172,7 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
       ...probe(`import { DataGrid } from '@protobase/ui'\nexport { DataGrid }\n`),
     })
     await expect(buildConfigBundle({ projectDir, outFile: path.join(projectDir, 'dist/out.js') })).rejects.toThrow(
-      '@protobase/ui is not available to a served config; of the @protobase packages and their dependencies it may import @protobase/config, @protobase/schema, @protobase/layout, @protobase/layout/jsx-runtime, @protobase/query, @protobase/server, @protobase/server/email, kysely,',
+      '@protobase/ui is not available to a served config; of the @protobase packages and their dependencies it may import @protobase/config, @protobase/schema, @protobase/layout, @protobase/layout/jsx-runtime, @protobase/query, @protobase/server, @protobase/server/pdf, @protobase/server/email, kysely,',
     )
   })
 
@@ -229,6 +230,29 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
     const email = await welcome.render({ url: 'https://app.example.com' })
     expect(email.html).toContain('href="https://app.example.com"')
     expect(email.text).toBe('Hi\n\nOpen https://app.example.com')
+  })
+
+  it("leaves React PDF's components to the serve runtime, so a document renders with the server's React PDF renderer", async () => {
+    projectDir = await createProject({
+      ...probe(`export { receipt } from './receipt'\n`),
+      'receipt.tsx': [
+        `import { definePdf } from '@protobase/server'`,
+        `import { Document, Page, Text } from '@protobase/server/pdf'`,
+        `export const receipt = definePdf({ name: 'receipt', component: ({ number }: { number: string }) => <Document><Page><Text>Receipt {number}</Text></Page></Document> })`,
+      ].join('\n'),
+    })
+    const outFile = path.join(projectDir, 'dist/protobase.config.js')
+    await buildConfigBundle({ projectDir, outFile })
+    const code = await readFile(outFile, 'utf8')
+    expect(code).toContain('from "@protobase/server/pdf"')
+    expect(code).not.toContain('@react-pdf')
+    const { receipt } = (await bundledResources(outFile)) as { receipt: { render: (data: { number: string }) => Promise<Uint8Array> } }
+    expect(pdfText(await receipt.render({ number: 'R-7' }))).toBe('Receipt R-7')
+  })
+
+  it("refuses React PDF's own package, whose renderer the server loads only to render a document", async () => {
+    projectDir = await createProject({ ...probe(`import { Text } from '@react-pdf/renderer'\nexport const found = Text\n`) })
+    await expect(buildConfigBundle({ projectDir, outFile: path.join(projectDir, 'dist/out.js') })).rejects.toThrow('@react-pdf/renderer is not available to a served config')
   })
 
   it("refuses React Email's Tailwind component, whose tailwindcss the runtime does not supply", async () => {

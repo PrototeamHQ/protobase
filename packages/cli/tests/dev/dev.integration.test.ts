@@ -5,6 +5,7 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { pdfText } from '../../../../test-support/pdf-text'
 import { bin, createAuthProject, run } from '../support/auth-project'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
 
@@ -44,6 +45,14 @@ const untilReady = (child: ChildProcess) =>
     })
   })
 
+// A function that answers a PDF document, as `definePdf` renders it with React PDF.
+const receiptFunction = `import { createElement as h } from 'react'
+import { defineFunction, definePdf } from '@protobase/server'
+import { Document, Page, Text } from '@protobase/server/pdf'
+const receipt = definePdf({ name: 'receipt', component: ({ number }: { number: string }) => h(Document, null, h(Page, null, h(Text, null, \`Receipt \${number}\`))) })
+export default defineFunction(async (request) => new Response(await receipt.render({ number: new URL(request.url).pathname.slice(1) }), { headers: { 'content-type': 'application/pdf' } }))
+`
+
 describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real auth', () => {
   let child: ChildProcess
   let cacheDir: string
@@ -63,6 +72,7 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     await writeFile(path.join(projectDir, 'protobase.theme.css'), ':root {\n  --primary: #0d9488;\n}\n')
     await writeFile(path.join(projectDir, 'functions/whoami.ts'), `import { defineFunction } from '@protobase/server'\nexport default defineFunction((request, { session }) => Response.json({ path: new URL(request.url).pathname, roles: session.user.roles }))\n`)
     await writeFile(path.join(projectDir, 'functions/supabase-env.ts'), `import { defineFunction } from '@protobase/server'\nexport default defineFunction({ public: true, supabase: true }, { fetch: (request: Request) => Response.json({ path: new URL(request.url).pathname, url: process.env.SUPABASE_URL, jwks: process.env.SUPABASE_JWKS_URL }) })\n`)
+    await writeFile(path.join(projectDir, 'functions/receipt.ts'), receiptFunction)
     // Started before the first user, whom its startup message then says how to create.
     child = spawn(process.execPath, [bin, 'dev', '--port', String(port), '--cache-dir', cacheDir], {
       cwd: projectDir,
@@ -148,6 +158,12 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     const signedIn = await fetch(whoami, { headers: { authorization: `Bearer ${token}` } })
     expect(await signedIn.json()).toEqual({ path: '/me', roles: expect.any(Array) })
     expect((await fetch(whoami)).status).toBe(401)
+  })
+
+  it('renders a PDF document in a function', async () => {
+    const response = await fetch(`http://localhost:${port}/api/functions/receipt/R-7`, { headers: { authorization: `Bearer ${token}` } })
+    expect(response.headers.get('content-type')).toBe('application/pdf')
+    expect(pdfText(new Uint8Array(await response.arrayBuffer()))).toBe('Receipt R-7')
   })
 
   it("serves a function at supabase-js's /api/sb/functions/v1 too, with Supabase's variables of this app", async () => {

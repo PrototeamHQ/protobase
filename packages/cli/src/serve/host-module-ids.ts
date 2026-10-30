@@ -1,9 +1,10 @@
 // Modules the serve runtime hands to a config bundle, so the bundle and the runtime share one copy of each:
 // `protobase build` leaves them as imports and the runtime supplies them (see host-modules.ts). Besides the server
 // entry points of the @protobase packages, the main entry of every dependency they run on the server, kysely's
-// Postgres helpers, the Hono middleware an API function is likeliest to use, and React with React Email's renderer,
-// which `defineEmail` renders an email's component with: one copy for the component and the renderer. Of them, the
-// lazy ones load when a bundle first imports them, not when the runtime starts.
+// Postgres helpers, the Hono middleware an API function is likeliest to use, React with React Email's renderer,
+// which `defineEmail` renders an email's component with: one copy for the component and the renderer, and React PDF's
+// components, which `definePdf` renders with React PDF's renderer, loaded by the server when it renders the first
+// document. Of them, the lazy ones load when a bundle first imports them, not when the runtime starts.
 export const lazyHostModuleIds = ['@protobase/server/email'] as const
 
 export const hostModuleIds = [
@@ -13,6 +14,7 @@ export const hostModuleIds = [
   '@protobase/layout/jsx-runtime',
   '@protobase/query',
   '@protobase/server',
+  '@protobase/server/pdf',
   ...lazyHostModuleIds,
   'kysely',
   'kysely/helpers/postgres',

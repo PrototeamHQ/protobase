@@ -7,6 +7,7 @@ import postgres from 'postgres'
 import semver from 'semver'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildServeRuntime } from '../../packages/cli/src/build/serve-runtime'
+import { pdfText } from '../../test-support/pdf-text'
 import { protobaseVersion } from '../../packages/cli/src/version/version'
 import { bin, root, run } from '../../packages/cli/tests/support/auth-project'
 import { sendPastDueInvoice, serveOnFreePort, signIn, stopProcess } from '../../packages/cli/tests/support/serve-process'
@@ -124,6 +125,21 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
 
   it("runs the app's jobs: a sent invoice past its due date turns overdue", async () => {
     expect(await sendPastDueInvoice(base, token, erp().env.DATABASE_URL!)).toBe('overdue')
+  })
+
+  it("renders the app's PDF documents with the runtime's React PDF: an invoice from its function", async () => {
+    const sql = postgres(erp().env.DATABASE_URL!, { max: 1, onnotice: () => {} })
+    const [company] = await sql`insert into crm.companies (organization_id, name, country_code, city) values (1, 'Paper Mill', 'NL', 'Utrecht') returning id`
+    const [invoice] = await sql`
+      insert into sales.invoices (organization_id, number, company_id, issued_at, due_at, subtotal, vat, total)
+      values (1, 'INV-PDF-1', ${company!.id}, '2026-10-01', '2026-10-31', 100, 21, 121) returning id`
+    await sql.end()
+    const response = await fetch(`${base}/api/functions/invoice-pdf/${invoice!.id}`, { headers: { authorization: `Bearer ${token}` } })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('application/pdf')
+    const pdf = new Uint8Array(await response.arrayBuffer())
+    expect(Buffer.from(pdf.subarray(0, 5)).toString('latin1')).toBe('%PDF-')
+    expect(pdfText(pdf)).toBe('Invoice INV-PDF-1Paper MillIssued2026-10-01Due2026-10-31Total121.00')
   })
 
   it('drains due jobs for the operator, and tells when the next one is due', async () => {

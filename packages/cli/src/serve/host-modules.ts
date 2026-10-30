@@ -20,6 +20,7 @@ import * as layout from '@protobase/layout'
 import * as query from '@protobase/query'
 import * as schema from '@protobase/schema'
 import * as server from '@protobase/server'
+import * as pdf from '@protobase/server/pdf'
 import type { HostModuleId, LazyHostModuleId } from './host-module-ids'
 
 const hostModules: Record<Exclude<HostModuleId, LazyHostModuleId>, Record<string, unknown>> = {
@@ -29,6 +30,7 @@ const hostModules: Record<Exclude<HostModuleId, LazyHostModuleId>, Record<string
   '@protobase/layout/jsx-runtime': layout.jsxRuntime,
   '@protobase/query': query,
   '@protobase/server': server,
+  '@protobase/server/pdf': pdf,
   kysely,
   'kysely/helpers/postgres': kyselyPostgres,
   pg,
