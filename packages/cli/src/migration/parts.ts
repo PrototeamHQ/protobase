@@ -34,7 +34,7 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
       ? [{ name: 'notifications', title: 'The tables of notifications', sql: () => notificationsMigration(project.db, project.notifications, project.auth) }]
       : []),
     ...(project.status ? [{ name: 'status', title: "The statuses table of people's own status", sql: () => statusMigration(project.db, project.status!, project.auth) }] : []),
-    ...(project.calls ? [{ name: 'calls', title: 'The calls on records, who is in them, whom they ring, and the signals between the processes serving the app', sql: () => callsMigration(project.db, project.events) }] : []),
+    ...(project.calls ? [{ name: 'calls', title: 'The calls on records, who is in them, whom they ring, their guests, and the signals between the processes serving the app', sql: () => callsMigration(project.db, project.events) }] : []),
     ...(relayed(project.realtime) ? [{ name: 'realtime_relay', title: 'The relay of Realtime broadcasts and presence between the processes serving the app', sql: () => realtimeRelayMigration(project.db) }] : []),
     ...(sqlSends(project.realtime) ? [{ name: 'channel_sends', title: "SQL's broadcasts to the record channels, channels.send()", sql: () => channelSendsMigration(project.db) }] : []),
   ]
