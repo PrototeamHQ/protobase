@@ -142,7 +142,7 @@ const useAuthPage = (workspace: string | undefined, children: ReactNode): ReactN
         </div>
       )
     case 'needs-admin':
-      return <FirstRunPage onCheckAgain={recheck} />
+      return <FirstRunPage firstAdminUrl={state.firstAdminUrl} onCheckAgain={recheck} />
   }
   // Signed in on the sign-in route: on to the page it was opened from.
   if (state.kind === 'signed-in' && address) return <Redirect to={next ?? '/'} />

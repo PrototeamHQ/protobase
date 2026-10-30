@@ -94,6 +94,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
       const body = (await response.json()) as Partial<SetupStatus> & { platformSignIn?: PlatformSignIn }
       return {
         needsAdmin: Boolean(body.needsAdmin),
+        ...(body.needsAdmin && body.firstAdminUrl && { firstAdminUrl: body.firstAdminUrl }),
         signInMethods: body.signInMethods ?? ['password'],
         ...(body.signInFirst === 'emailCode' && { signInFirst: 'emailCode' }),
         passwordReset: Boolean(body.passwordReset),

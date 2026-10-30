@@ -101,6 +101,10 @@ describe('auth session sign-in', () => {
   it('reads the setup status, with passwords only from a server that does not list sign-in methods', async () => {
     const open = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: true })) as typeof fetch })
     expect(await open.status()).toEqual({ needsAdmin: true, signInMethods: ['password'], passwordReset: false, socialProviders: [], samlProviders: [] })
+    const hosted = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: true, firstAdminUrl: 'https://console.example.com/apps/1' })) as typeof fetch })
+    expect(await hosted.status()).toMatchObject({ needsAdmin: true, firstAdminUrl: 'https://console.example.com/apps/1' })
+    const added = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, firstAdminUrl: 'https://console.example.com/apps/1' })) as typeof fetch })
+    expect(await added.status()).not.toHaveProperty('firstAdminUrl')
     const deletable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, accountDeletion: true })) as typeof fetch })
     expect(await deletable.status()).toMatchObject({ accountDeletion: true })
     const resettable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, changeEmail: true, socialProviders: ['github'] })) as typeof fetch })

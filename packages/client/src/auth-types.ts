@@ -26,7 +26,7 @@ export type PersonalMailLink = { id: string; name: string; provider: string; sco
 export type SamlSignIn = { id: string; name: string }
 
 /**
- * `needsAdmin` while no user exists yet; `signInMethods` the ways to sign in the server's policy leaves on;
+ * `needsAdmin` while no user exists yet, with `firstAdminUrl` the platform's page where the first one is added, when it names one; `signInMethods` the ways to sign in the server's policy leaves on;
  * `signInFirst` when the sign-in page leads with an emailed code, with the password behind "Use a password"; `passwordReset` when the server can email reset links; `changeEmail` when it can email the code that confirms a new
  * address (see `account.requestEmailChange`); `accountDeletion` when people may delete their own account (see
  * `deleteAccount`); `signUp` when anyone can make their own account (see
@@ -39,6 +39,7 @@ export type SamlSignIn = { id: string; name: string }
  */
 export type SetupStatus = {
   needsAdmin: boolean
+  firstAdminUrl?: string
   signInMethods: SignInMethod[]
   signInFirst?: 'emailCode'
   passwordReset: boolean
