@@ -88,4 +88,9 @@ describe('xlsx', () => {
     const sheet = strFromU8(unzipSync(build({ format: 'xlsx', mode: 'raw', name: 'Orders', columns: columns.slice(0, 1) }, [[{ number: 'a\u0001b' }]]))['xl/worksheets/sheet1.xml']!)
     expect(sheet).toContain('<t xml:space="preserve">ab</t>')
   })
+
+  it('cuts text at the 32,767 characters a cell holds', () => {
+    const sheet = strFromU8(unzipSync(build({ format: 'xlsx', mode: 'raw', name: 'Orders', columns: columns.slice(0, 1) }, [[{ number: 'x'.repeat(40_000) }]]))['xl/worksheets/sheet1.xml']!)
+    expect(sheet).toContain(`<t xml:space="preserve">${'x'.repeat(32_767)}</t>`)
+  })
 })
