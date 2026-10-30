@@ -25,22 +25,22 @@ describe('incomingRelations', () => {
     expect(incomingRelations(company, resources, views, []).map((relation) => relation.label)).toEqual(['People', 'Orders (Customer)', 'Orders (Supplier)', 'Order lines'])
   })
 
-  it('leaves out an unfilterable relation, the tenant, the lines drawn on the page and what a related section lists', () => {
-    const layout = [l.related('Contacts', { resource: 'people', field: 'company_id' })]
-    const found = incomingRelations(company, resources, views, layout, resources.order_lines)
+  it('leaves out an unfilterable relation, the tenant, and what a related section lists, the lines included', () => {
+    const layout = [l.related('Contacts', { resource: 'people', field: 'company_id' }), l.related('Lines', { resource: 'order_lines', field: 'company_id', lines: true })]
+    const found = incomingRelations(company, resources, views, layout)
     expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toEqual(['orders.customer_id', 'orders.supplier_id'])
   })
 
   it('keeps what a related section matching a field of the record lists, since its rows do not point here', () => {
     const layout = [l.related('Contacts', { resource: 'people', field: 'company_id', from: 'id' })]
-    const found = incomingRelations(company, resources, views, layout, resources.order_lines)
+    const found = incomingRelations(company, resources, views, layout)
     expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toContain('people.company_id')
   })
 
   it('leaves out what a related table inside a group lists', () => {
     const layout = [l.group('More', [l.related('Contacts', { resource: 'people', field: 'company_id' })], { collapsed: true })]
-    const found = incomingRelations(company, resources, views, layout, resources.order_lines)
-    expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toEqual(['orders.customer_id', 'orders.supplier_id'])
+    const found = incomingRelations(company, resources, views, layout)
+    expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toEqual(['orders.customer_id', 'orders.supplier_id', 'order_lines.company_id'])
   })
 
   it('leaves out a resource the user cannot see, which the meta does not hold', () => {

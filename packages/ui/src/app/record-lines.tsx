@@ -14,7 +14,7 @@ import type { RecordLinesData } from './use-record-lines'
 import { text } from './record-messages'
 
 type RecordLinesProps = {
-  lines: RecordLinesData & { model: NonNullable<RecordLinesData['model']> }
+  lines: RecordLinesData & { model: NonNullable<RecordLinesData['model']>; item: NonNullable<RecordLinesData['item']> }
   /** The record's form is open and its lines may change; on the read view, or a record that cannot change, they only show. */
   editable: boolean
   saving: boolean
@@ -27,7 +27,7 @@ type RecordLinesProps = {
  */
 export const RecordLines = ({ lines, editable, saving }: RecordLinesProps) => {
   const { resources, views } = useAdminMeta()
-  const { model, columns, data, draft } = lines
+  const { item, model, columns, data, draft } = lines
   const permissions = usePermissions(model.name)
   const view = views[model.name]
   // The name of the record a relation was just set to, by line and field, until the saved lines name it
@@ -86,7 +86,7 @@ export const RecordLines = ({ lines, editable, saving }: RecordLinesProps) => {
   }
 
   return (
-    <Section title={text('lines')} help={text('linesHelp')}>
+    <Section title={item.title} help={item.help}>
       {!data.complete && <p className="mb-2 text-muted-foreground">{text('tooManyLines', { limit: formatInt(linesLimit) })}</p>}
       <div className="-mx-4 overflow-x-auto px-4 [-webkit-overflow-scrolling:touch] md:mx-0 md:px-0">
         <div style={{ minWidth: lineTableMinWidth(tableColumns) }}>

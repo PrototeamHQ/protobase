@@ -321,6 +321,11 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
       const toggle = item.collapsed ? recordAt(toggledOpen(openGroups, item.title), atEdit, addressedTab) : undefined
       return [<GroupSection key={`group:${item.title}`} title={item.title} open={open} toggle={toggle}>{children}</GroupSection>]
     }
+    if (item.kind === 'related' && item.lines) {
+      // The lines load on their own, and only once the record has
+      if (!lines.model || !lines.item || preview) return []
+      return [<RecordLines key={`lines:${item.title}`} lines={{ ...lines, model: lines.model, item: lines.item }} editable={shown === 'form'} saving={editor.saving} />]
+    }
     if (item.kind === 'related') {
       if (item.from !== undefined && !known(item.from)) return []
       return [<RelatedSection key={`related:${item.title}`} item={item} value={relatedValue(item, stored.record, recordKey)} owner={model.name} />]
@@ -398,7 +403,6 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                 </div>
               )}
               {after.flatMap(mainItem)}
-              {lines.model && !preview && <RecordLines lines={{ ...lines, model: lines.model }} editable={shown === 'form'} saving={editor.saving} />}
             </main>
             {/* Beside the main column the sidebar stays in view below the top bar, and scrolls on its own when taller than the window */}
             <aside className="space-y-4 md:sticky md:top-[var(--pb-sticky-top,0px)] md:max-h-[calc(100dvh-var(--pb-sticky-top,0px)-var(--pb-sticky-bottom,0px))] md:self-start md:overflow-y-auto md:pb-4 md:pt-8">
@@ -419,7 +423,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                   return [{ label: hint(name)?.label ?? humanize(name), value: known(name) ? <span title={valueTitle(field, stored.record[name], undefined, hint(name))}>{displayValue(field, stored.record[name], hint(name))}</span> : <Skeleton className="h-4 w-24" /> }]
                 })}
               />
-              {!preview && <IncomingCard model={model} recordKey={recordKey} layout={layout} lines={lines.model} />}
+              {!preview && <IncomingCard model={model} recordKey={recordKey} layout={layout} />}
             </aside>
           </div>
         </div>

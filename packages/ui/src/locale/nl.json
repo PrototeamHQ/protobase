@@ -739,8 +739,6 @@
     "nothingYet": "Hier staat nog niets.",
     "couldNotLoadRelated": "Kon niet laden",
     "relatedRecords": "Gerelateerde records",
-    "lines": "Regels",
-    "linesHelp": "Waar het document voor factureert. Wijzig een regel ter plekke, voeg er een toe, of sleep de greep om de volgorde te wijzigen; Bewaren past alles toe.",
     "lineNumber": "Regel {place}",
     "lineField": "{label}, regel {place}",
     "tooManyLines": "Dit record heeft meer dan {limit} regels, dus ze staan hier alleen ter inzage."

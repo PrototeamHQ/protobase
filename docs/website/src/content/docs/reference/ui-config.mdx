@@ -667,7 +667,16 @@ The record's form and the create form edit each field as its type asks, under it
 
 ### Record lines
 
-A record with numbered lines, such as an invoice, shows all of them on its page as one table, without paging. The lines are the records of the first resource with a relation to the record's resource, an integer `position` field and a `quantity` field, and the table's columns are their list columns (`.list({ columns })` of their view, or their first fields), without the line's key, its tenant, the relation to the record and `position`, which is the order of the rows.
+A record with numbered lines, such as an invoice, shows all of them on its page as one table, without paging. The lines are the related table the record's view marks with `lines: true`, where the layout lists it: the records of `resource` whose `field` holds the record's key, ordered by hand within the record, so `resource` names `field` as the `within` of its [`.position()`](#reordering-by-hand).
+
+```ts
+view<typeof invoices>('invoices').layout((r) => [
+  l.section('Billing details', [r.company_id, r.issued_at]),
+  l.related('Lines', { resource: 'invoice_lines', field: 'invoice_id', lines: true, help: 'What the invoice bills for.' }),
+])
+```
+
+The table's columns are the lines' list columns (`.list({ columns })` of their view, or their first fields), without the line's key, its tenant, the relation to the record and the position field, which is the order of the rows. Beside `resource`, `field` and `lines`, the section takes only `help` and `when`, since the table shows every line, and a view has one section of lines; both are checked when the config loads.
 
 On the record's form the lines are edited in place, each field with the form's own editor and a relation with its picker. **Add line** adds an empty line at the end, which gets the record's key and the place after the last line when saved, and the database's defaults fill what is left empty. **Remove line**, in a line's menu, removes it, and the drag handle or **Move up** and **Move down** change the order, as in [Reordering by hand](#reordering-by-hand).
 
@@ -765,7 +774,7 @@ The browser fetches the tiles, so their host must answer the app's origins with 
 
 ### Related records
 
-Without any configuration, the record page's rail has a **Related records** card that counts the records pointing at this one: per resource, and per relation when one resource has two, such as Orders (Customer) and Orders (Supplier), how many there are, linking to its list filtered on this record (`/orders?filter=customer_id = "7"`). It counts each filterable relation to a resource with a one-field key, so an index serves the count, and leaves out a resource's tenant, a resource the user cannot list or whose relation they cannot read, the lines drawn on the page, and a relation an `l.related` section of the page already lists.
+Without any configuration, the record page's rail has a **Related records** card that counts the records pointing at this one: per resource, and per relation when one resource has two, such as Orders (Customer) and Orders (Supplier), how many there are, linking to its list filtered on this record (`/orders?filter=customer_id = "7"`). It counts each filterable relation to a resource with a one-field key, so an index serves the count, and leaves out a resource's tenant, a resource the user cannot list or whose relation they cannot read, and a relation an `l.related` section of the page already lists, its [lines](#record-lines) included.
 
 `l.related(title, options)` lists the first records of `resource` that point at the record on the page, in the table or display the resource's list page uses (with its switch, and on a phone its cards in one sideways row, as a [`Table` block](/reference/blocks/#table) shows them), and links to all of them in that list. They point at it directly, through a relation field, or through a join resource (`through`), such as the leases a tenant signed through `lease_tenants`:
 
@@ -784,6 +793,7 @@ Without any configuration, the record page's rail has a **Related records** card
 | `display` | The display of `resource`'s list it opens in, and View all opens, such as `cards`; default the list's. |
 | `help`, `empty` | A line under the title, and the text when nothing matches (default "Nothing here yet."). |
 | `hideEmpty` | `true` leaves the section off the page while it has no records. |
+| `lines` | `true` makes the section the record's [lines](#record-lines), edited in place with the record. |
 
 The real estate example lists who a unit is let to (the primary tenant and co-signers of the lease that runs today) and that lease:
 

@@ -22,6 +22,7 @@ const invoiceLines = {
     quantity: field('quantity', 'integer'),
     unit_price: field('unit_price', 'decimal'),
   },
+  position: { field: 'position', within: 'invoice_id' },
 } as unknown as ResourceModel
 
 const view = (resource: string, extra: object) => ({ resource, fields: {}, filters: [], layout: [], actions: [], ...extra }) as unknown as ViewModel
@@ -44,7 +45,16 @@ export const fakeInvoiceClient = ({ failBatch, locked = false }: { failBatch?: (
         appName: 'Protobase',
         resources: [invoices, invoiceLines],
         views: [
-          view('invoices', { icon: 'file-text', names: { singular: 'Invoice', plural: 'Invoices' }, fields: { number: { format: 'code' }, status: { valueLabels: { draft: 'Draft', sent: 'Sent' }, valueColors: { sent: 'blue' } } }, list: { columns: ['number'] }, layout: [{ kind: 'section', title: 'Details', fields: ['number', 'status'] }] }),
+          view('invoices', {
+            icon: 'file-text',
+            names: { singular: 'Invoice', plural: 'Invoices' },
+            fields: { number: { format: 'code' }, status: { valueLabels: { draft: 'Draft', sent: 'Sent' }, valueColors: { sent: 'blue' } } },
+            list: { columns: ['number'] },
+            layout: [
+              { kind: 'section', title: 'Details', fields: ['number', 'status'] },
+              { kind: 'related', title: 'Lines', help: 'What the document bills for. Edit a line in place, add one, or drag the handle to change the order; Save applies it all.', resource: 'invoice_lines', field: 'invoice_id', lines: true },
+            ],
+          }),
           view('invoice_lines', { names: { singular: 'Invoice line', plural: 'Invoice lines' }, nav: { hidden: true }, fields: { quantity: { format: 'signed' } } }),
         ],
         permissions: {},

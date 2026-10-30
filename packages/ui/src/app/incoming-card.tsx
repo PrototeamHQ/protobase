@@ -9,12 +9,12 @@ import { AppLink } from './use-app-address'
 import { useIncomingCounts } from './use-incoming-counts'
 import { text } from './record-messages'
 
-type IncomingCardProps = { model: ResourceModel; recordKey: string; layout: LayoutItemModel[]; lines?: ResourceModel }
+type IncomingCardProps = { model: ResourceModel; recordKey: string; layout: LayoutItemModel[] }
 
 /** The rail's card of the records pointing at this one: per resource and field, how many, linking to them in their list. */
-export const IncomingCard = ({ model, recordKey, layout, lines }: IncomingCardProps) => {
+export const IncomingCard = ({ model, recordKey, layout }: IncomingCardProps) => {
   const { resources, views } = useAdminMeta()
-  const counts = useIncomingCounts(incomingRelations(model, resources, views, layout, lines), resources, recordKey)
+  const counts = useIncomingCounts(incomingRelations(model, resources, views, layout), resources, recordKey)
   if (counts.length === 0) return null
   return (
     <SidebarCard title={text('relatedRecords')}>

@@ -32,6 +32,12 @@ export const invoicesView = view<typeof invoices>('invoices')
     l.section('Totals', [r.vat_rate, r.subtotal, r.vat, r.total], {
       help: 'Calculated from the invoice lines. The VAT rate applies to the whole invoice.',
     }),
+    l.related('Lines', {
+      resource: 'invoice_lines',
+      field: 'invoice_id',
+      lines: true,
+      help: 'What the invoice bills for. Edit a line in place, add one, or drag the handle to change the order; Save applies it all.',
+    }),
     l.sidebar([r.status, r.total]),
   ])
   .saveFeedback('button')

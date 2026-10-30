@@ -739,8 +739,6 @@
     "nothingYet": "Nothing here yet.",
     "couldNotLoadRelated": "Could not load",
     "relatedRecords": "Related records",
-    "lines": "Lines",
-    "linesHelp": "What the document bills for. Edit a line in place, add one, or drag the handle to change the order; Save applies it all.",
     "lineNumber": "Line {place}",
     "lineField": "{label}, line {place}",
     "tooManyLines": "This record has more than {limit} lines, so they show here read-only."
