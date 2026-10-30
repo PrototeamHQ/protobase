@@ -65,6 +65,19 @@ const fromErrors = (item: RelatedModel, from: string, owner: ResourceModel, targ
   return sameKind ? [] : [`from: "${from}" on ${owner.name} and "${item.field}" on ${target.name} do not hold the same kind of value`]
 }
 
+// The options of a related section that the record's lines keep; the others pick, page or present records, while the lines show them all.
+const linesOptions = new Set(['kind', 'title', 'help', 'resource', 'field', 'when', 'lines'])
+
+/** What is wrong with a related section that holds the record's lines: all records ordered `within` the record by `field`. */
+const linesErrors = (item: RelatedModel, target: ResourceModel) => {
+  if (!item.lines) return []
+  const extra = Object.keys(item).filter((key) => !linesOptions.has(key))
+  return [
+    ...extra.map((key) => `lines cannot be combined with "${key}"`),
+    ...(target.position?.within === item.field ? [] : [`lines need ${target.name} ordered within "${item.field}", with .position(..., { within })`]),
+  ]
+}
+
 /**
  * What is wrong with a related section on the record page of `resource`, against these models; empty when it can be
  * shown. Against the full models it checks the config; against a caller's models, whether that caller can use it.
@@ -91,6 +104,7 @@ export const relatedErrors = (item: RelatedModel, resource: string, models: Reco
     ...openErrors(item, models),
     ...(item.presentation === undefined || item.presentation === 'cards' ? [] : [`presentation must be "cards", not "${String(item.presentation)}"`]),
     ...(item.actions === undefined || item.presentation === 'cards' ? [] : ['actions need presentation "cards"']),
+    ...linesErrors(item, target),
   ]
 }
 

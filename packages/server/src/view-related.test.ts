@@ -78,3 +78,22 @@ describe('cards', () => {
     expect(relatedActionErrors(cards({ presentation: 'cards', actions: ['approve'] }), views)).toEqual(['actions: "approve" is no named action of the task_dependencies view'])
   })
 })
+
+describe('lines', () => {
+  const steps = resource('steps')
+    .table('steps')
+    .fields({ id: f.integer(), taskId: f.relation('tasks').filterable(), position: f.integer().sortable(), title: f.text() })
+    .primaryKey((r) => r.id)
+    .position((r) => r.position, { within: (r) => r.taskId })
+  const withSteps = { ...models, steps: steps.toModel() }
+  const lines = (o: Partial<RelatedModel> = {}): RelatedModel => ({ kind: 'related', title: 'Steps', resource: 'steps', field: 'taskId', lines: true, ...o })
+
+  it('accepts the records ordered within the record', () => {
+    expect(relatedErrors(lines({ help: 'In order.', when: 'editing' }), 'tasks', withSteps)).toEqual([])
+  })
+
+  it('refuses records not ordered within the record, and the options that pick or page them', () => {
+    expect(relatedErrors(lines({ resource: 'task_dependencies' }), 'tasks', withSteps)).toEqual(['lines need task_dependencies ordered within "taskId", with .position(..., { within })'])
+    expect(relatedErrors(lines({ filter: 'taskId = 1', limit: 5 }), 'tasks', withSteps)).toEqual(['lines cannot be combined with "filter"', 'lines cannot be combined with "limit"'])
+  })
+})

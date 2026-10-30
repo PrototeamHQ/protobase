@@ -201,7 +201,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * field the resource does not have, labels or colours values its enum does not have, shows a field with a field type of
  * `fieldTypes` (each with the storage types it shows) or a built-in one that does not show it,
  * edits a list column in its cell that is not a field with an editor of one line the API may write,
- * has a section, related section or sidebar whose `when` condition names what the app does not have, a related section or related list column, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
+ * has a section, related section or sidebar whose `when` condition names what the app does not have, a related section or related list column, more than one related section of lines, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
  * `searchesOf` that do not fit the resources, cards
  * displays of one list that name different photos, a chart per value that cannot group or add up its fields, a chart of related records that does not fit them, a map that cannot show the
  * record's position or a map display that cannot find the records in its view, a board whose columns are no filterable enum, a calendar or timeline whose dates are no filterable date or timestamp fields, a link to an address the app does not have, an action whose `when` reads what the record does not have, an AI action that cannot write its field, action inputs that do not fit, or a create page that is not one of `pages`.
@@ -214,6 +214,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const related = [
       ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? [...relatedErrors(item, view.resource, models), ...relatedActionErrors(item, views)].map((error) => `related "${item.title}": ${error}`) : [])),
       ...relatedColumnsErrors(view, model, models),
+      ...(layoutItems(view.layout).filter((item) => item.kind === 'related' && item.lines).length > 1 ? ['only one related section holds the lines'] : []),
     ]
     const photos = [
       ...(view.list?.displays ?? []).flatMap((display) =>

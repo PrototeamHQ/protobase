@@ -868,6 +868,12 @@ export type RelatedModel = {
   hideEmpty?: boolean
   /** Whether it shows on the form, the read view or both, or a condition on the saved record that it shows while it holds. */
   when?: RecordWhen
+  /**
+   * The record's lines, such as an invoice's: every record of `resource` within this one, in their `.position()` order,
+   * shown whole and edited in place on the record's form, saved with it; see
+   * [Record lines](docs/website/src/content/docs/reference/ui-config.mdx#record-lines).
+   */
+  lines?: true
 }
 
 /**

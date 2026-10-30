@@ -234,6 +234,19 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('View "payments": related "Scans"')
   })
 
+  it('takes one related section of lines', () => {
+    const installments = resource('installments')
+      .table('installments')
+      .fields({ id: f.integer(), payment_id: f.relation('payments').filterable(), position: f.integer().sortable() })
+      .primaryKey((r) => r.id)
+      .position((r) => r.position, { within: (r) => r.payment_id })
+    const withInstallments = { entries: [...registry.entries, { name: 'installments', model: installments.toModel() }] } as unknown as Registry
+    const lines = (count: number) =>
+      view<typeof payments>('payments').layout(() => Array.from({ length: count }, (_, index) => l.related(`Installments ${index}`, { resource: 'installments', field: 'payment_id', lines: true }))).toModel()
+    expect(() => checkViews(withInstallments, [lines(1)])).not.toThrow()
+    expect(() => checkViews(withInstallments, [lines(2)])).toThrow('View "payments": only one related section holds the lines')
+  })
+
   it('checks the items inside a tab', () => {
     const written = view<typeof payments>('payments').toModel()
     written.layout = [{ kind: 'tab', title: 'Log', items: [{ kind: 'history', title: 'Changes' }] }]
