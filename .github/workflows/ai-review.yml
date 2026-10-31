@@ -8,6 +8,10 @@ on:
   pull_request_target: # zizmor: ignore[dangerous-triggers] nothing from the pull request runs
     # The review adds ai-approved with GITHUB_TOKEN, and a label added with GITHUB_TOKEN starts no workflow.
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  # The repository's CI workflows, by name: each run that finishes tries the merge again. Never list ai-review itself.
+  workflow_run:
+    workflows: [ci, docs, image, pr-title, release-speed]
+    types: [completed]
 
 # Merging a pull request takes contents: write: https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps#repository-permissions-for-contents
 permissions:
