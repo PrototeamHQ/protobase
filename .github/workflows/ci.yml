@@ -269,7 +269,8 @@ jobs:
           -c "alter system set fsync = off" -c "alter system set synchronous_commit = off"
           -c "alter system set full_page_writes = off" -c "select pg_reload_conf()"
       # The cloud's pooler in front of the same server, as docker-compose.yml runs it, tracking statement_timeout as the
-      # cloud's does, which the image has no variable for. It is started here rather than as a service so it reaches
+      # cloud's does, which the image has no variable for, with protobase as its admin, so the tests can pause a database
+      # on it as the cloud scales one to zero. It is started here rather than as a service so it reaches
       # Postgres by address: on the shared self-hosted runner, looking up the service name now and then stalls while
       # other jobs create and remove their networks, and the PgBouncer tests then find no pooler.
       - &pgbouncer
@@ -284,6 +285,7 @@ jobs:
           docker run --detach --rm --name "$PGBOUNCER" --network "$NETWORK" --publish 5432 \
             -e DB_HOST="$address" -e DB_USER=protobase -e DB_PASSWORD=protobase -e AUTH_TYPE=scram-sha-256 \
             -e POOL_MODE=transaction -e MAX_PREPARED_STATEMENTS=200 -e MAX_USER_CONNECTIONS=3 \
+            -e ADMIN_USERS=protobase \
             edoburu/pgbouncer:v1.26.0-p0 \
             sh -c "sed -i '/^track_extra_parameters/d; /^\[pgbouncer\]/a track_extra_parameters = statement_timeout' /etc/pgbouncer/pgbouncer.ini && exec pgbouncer /etc/pgbouncer/pgbouncer.ini"
           port=$(docker port "$PGBOUNCER" 5432/tcp | head -n1 | sed 's/.*://')
