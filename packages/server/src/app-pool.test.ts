@@ -44,11 +44,11 @@ describe('appPool', () => {
     expect(() => appPool(pg, url, 5)).toThrow("The app's pool on this database is open with 3 connections, so it cannot open with 5")
   })
 
-  it('waits two seconds for a free connection, keeps no process alive while idle, keeps dates as text and survives a dropped connection', () => {
+  it('waits 30 s for a connection to open, as long as a database takes to wake, keeps no process alive while idle, keeps dates as text and survives a dropped connection', () => {
     const { pg, created } = fakePg()
     appPool(pg, freshUrl(), 3)
     const [pool] = created
-    expect(pool!.options).toMatchObject({ max: 3, connectionTimeoutMillis: 2_000, allowExitOnIdle: true })
+    expect(pool!.options).toMatchObject({ max: 3, connectionTimeoutMillis: 30_000, allowExitOnIdle: true })
     expect(pool!.options.types.getTypeParser(1082)('2026-01-02')).toBe('2026-01-02')
     expect(pool!.options.types.getTypeParser(23)('5')).toBe('parsed 5')
     expect(pool!.listenerCount('connect')).toBe(1)
