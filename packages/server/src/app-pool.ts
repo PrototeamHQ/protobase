@@ -4,6 +4,12 @@ import { longQueryTimeoutMs } from './statement-timeout'
 /** How long a query waits for a free connection of the app's pool before it fails with `ConnectionsBusy`. */
 export const poolWaitMs = 2_000
 
+/**
+ * How long the app's pool waits for a new connection to open: long enough for a database that scaled to zero to wake,
+ * which the platform's pooler holds the login for, and under that pooler's own login timeout (60 s by default).
+ */
+export const connectTimeoutMs = 30_000
+
 /** How many connections the app's pool opens: `PROTOBASE_DB_CONNECTIONS`, such as its plan's limit, or 10. */
 export const readDbConnections = (env: Record<string, string | undefined>) => {
   if (!env.PROTOBASE_DB_CONNECTIONS) return 10
@@ -38,9 +44,11 @@ const store = globalThis as { __protobaseAppPools?: Map<string, { pool: PgPool; 
  * runtime's, which `protobase dev` and `serve` open, and the one the app's own code uses, such as its Better Auth store.
  * Whoever asks first opens it, and everyone in the process shares it, across a dev server's reloads too, until it ends;
  * so the app never opens more connections than it may. Date and timestamp (without zone) come back as text, which the
- * API formats itself, a dropped connection is printed rather than fatal, and a query waits at most `poolWaitMs` for a
- * free connection. Idle connections keep no process alive, so a command exits when its work is done even while
- * nobody ends the pool, such as one that sent no query of its own after Better Auth's schema check.
+ * API formats itself, a dropped connection is printed rather than fatal, and a new connection may take `connectTimeoutMs`
+ * to open, as long as a database takes to wake. A query that finds every connection in use waits at most `poolWaitMs`
+ * for one where the runtime connects (`connectOrBusy`), and `connectTimeoutMs` elsewhere. Idle connections keep no
+ * process alive, so a command exits when its work is done even while nobody ends the pool, such as one that sent no
+ * query of its own after Better Auth's schema check.
  */
 export const appPool = <P extends PgPool>(pg: PgModule<P>, url: string, max = readDbConnections(globalThis.process?.env ?? {})): P => {
   const pools = (store.__protobaseAppPools ??= new Map())
@@ -51,7 +59,7 @@ export const appPool = <P extends PgPool>(pg: PgModule<P>, url: string, max = re
     if (known.max !== max) throw new Error(`The app's pool on this database is open with ${known.max} connections, so it cannot open with ${max}: give both the same PROTOBASE_DB_CONNECTIONS`)
     return known.pool as P
   }
-  const pool = handleDroppedConnections(new pg.Pool({ connectionString: url, max, connectionTimeoutMillis: poolWaitMs, allowExitOnIdle: true, types: textDates(pg) }))
+  const pool = handleDroppedConnections(new pg.Pool({ connectionString: url, max, connectionTimeoutMillis: connectTimeoutMs, allowExitOnIdle: true, types: textDates(pg) }))
   pools.set(url, { pool, max })
   return pool
 }
