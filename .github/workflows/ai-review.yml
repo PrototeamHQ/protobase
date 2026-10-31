@@ -9,8 +9,11 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
 
 permissions:
+  actions: read
+  checks: read
   contents: write
   pull-requests: write
+  statuses: read
 
 jobs:
   review:
