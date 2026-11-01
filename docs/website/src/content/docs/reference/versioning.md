@@ -60,11 +60,11 @@ Where a project's `package.json` lists the `@protobase` packages decides whose c
 | `package.json` | Mode | Copies used by `dev`, `build` and `protobase run` | The bundle's `protobase` |
 | --- | --- | --- | --- |
 | `@protobase/*` in `devDependencies` | bundled (what the presets write) | the CLI's own | the CLI's version |
-| `@protobase/*` in `dependencies` | locked | the project's installed copies | the installed version |
+| `@protobase/*` in `dependencies` | locked | the project's installed copies, but the build reads the config with the CLI's own | the installed version |
 | no `@protobase/*`, or no `package.json` | bundled | the CLI's own | the CLI's version |
 
 - **Bundled.** Nothing of Protobase has to be installed: a `protobase.config.ts` alone is a project. The CLI that runs, installed globally or as the project's dev dependency, supplies every `@protobase` package and every package the serve runtime supplies to a bundle (`kysely`, `pg`, `react`, ...), whatever the project installed: to `dev`'s API and page, to the build, to [`protobase run`](/reference/cli/#run) and, through [`protobase types`](/reference/cli/#types), to the editor. Installing a newer CLI that the specifier holds updates the app with no change to its files or lockfile: dev and the next build use it, and the bundle names its version. `@types/react` and `@types/node` stay the project's own dev dependencies, since the CLI carries no types for them.
-- **Locked.** Move every `@protobase` package to `dependencies` at one exact version, and install. Dev, the build and scripts use the installed copies, and the bundle names that version, so a host serves exactly it. A CLI installed elsewhere hands a locked project over to the `@protobase/cli` it installed (see [CLI](/reference/cli/)). The version moves only when the specifier and the lockfile do.
+- **Locked.** Move every `@protobase` package to `dependencies` at one exact version, and install. Dev and scripts use the installed copies, and the bundle names that version, so a host serves exactly it. The build reads the config with the building CLI's own `@protobase` packages, as a serve runtime supplies its own to the bundle, so it loads one copy of each. A CLI installed elsewhere hands a locked project over to the `@protobase/cli` it installed (see [CLI](/reference/cli/)). The version moves only when the specifier and the lockfile do.
 
 Packages the runtime supplies, such as React, may be listed for their types, in either mode: in a bundle the runtime's copy runs, whichever the project installed. `dependencies` holds the packages the project's own code uses at runtime.
 

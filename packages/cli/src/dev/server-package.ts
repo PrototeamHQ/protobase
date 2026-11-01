@@ -19,6 +19,9 @@ export type ServerPackage = {
   dedupe: string[]
 }
 
+/** The CLI's own copies of the packages the serve runtime supplies, as a bundled project gets them. */
+export const cliPackages = (ownDir = cliDir): ServerPackage => ({ from: 'cli', root: ownDir, dedupe: supplied })
+
 /**
  * Where the API of `protobase dev` gets @protobase/server: from the project's node_modules when the project is locked,
  * so one that is not installed fails as any missing package does; otherwise, bundled, the CLI's own, with the other
@@ -26,5 +29,5 @@ export type ServerPackage = {
  */
 export const serverPackage = (projectDir: string, ownDir = cliDir): ServerPackage => {
   if (projectPackages(projectDir).mode === 'locked') return { from: 'project', root: projectDir, dedupe: [server] }
-  return { from: 'cli', root: ownDir, dedupe: supplied }
+  return cliPackages(ownDir)
 }

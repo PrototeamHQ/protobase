@@ -20,7 +20,7 @@ The facts about today are those of Protobase 0.49.2 and Protobase Cloud's matchi
 | package.json | Mode | Copies used by dev, build and scripts | `manifest.protobase` |
 | --- | --- | --- | --- |
 | `@protobase/*` in `devDependencies` | **bundled** (recommended) | the CLI's own | the CLI's version |
-| `@protobase/*` in `dependencies` | **locked** | the project's installed copies | the installed version |
+| `@protobase/*` in `dependencies` | **locked** | the project's installed copies, but the build reads the config with the CLI's own | the installed version |
 | no `@protobase/*`, or no package.json | bundled | the CLI's own | the CLI's version |
 
 - The listing states the project's Protobase version either way. The CLI's startup check uses semver to test its own version against it, and refuses to run otherwise.
@@ -82,7 +82,7 @@ An update outside the specifier is a change to the specifier, made by hand, by a
 ### Fully locked project
 
 1. Move every `@protobase` package to `dependencies` at one exact version, and `bun install`.
-2. Dev, the build and scripts use the installed copies; dev's API process loads the installed server.
+2. Dev and scripts use the installed copies; dev's API process loads the installed server. The build reads the config with the CLI's own `@protobase` packages, as the serve runtime supplies its own to the bundle.
 3. `manifest.protobase` is that version, and Cloud serves exactly it.
 4. The version moves only when the specifier and lockfile are changed.
 
