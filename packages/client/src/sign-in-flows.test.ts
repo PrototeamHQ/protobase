@@ -170,10 +170,10 @@ describe('the account and the sign-in policy', () => {
 })
 
 describe('the name, password and devices', () => {
-  it('changes the name and the password, signing out the other devices when asked', async () => {
+  it('changes the name and the password, signing out the other devices', async () => {
     const { requests, session } = serve({ '/update-user': () => json({ status: true }), '/change-password': () => json({ token: 's2', user }) })
     await session.account.updateName('Sanne de Vries')
-    await session.account.changePassword('correct horse battery', 'battery staple horse', true)
+    await session.account.changePassword('correct horse battery', 'battery staple horse')
     expect(requests).toEqual([
       { path: '/update-user', body: { name: 'Sanne de Vries' } },
       { path: '/change-password', body: { currentPassword: 'correct horse battery', newPassword: 'battery staple horse', revokeOtherSessions: true } },
@@ -182,7 +182,7 @@ describe('the name, password and devices', () => {
 
   it('reports a wrong current password', async () => {
     const { session } = serve({ '/change-password': () => json({ message: 'Invalid password', code: 'INVALID_PASSWORD' }, { status: 400 }) })
-    await expect(session.account.changePassword('wrong', 'battery staple horse', false)).rejects.toMatchObject({ name: 'AuthError', status: 400, code: 'INVALID_PASSWORD' })
+    await expect(session.account.changePassword('wrong', 'battery staple horse')).rejects.toMatchObject({ name: 'AuthError', status: 400, code: 'INVALID_PASSWORD' })
   })
 
   it('sets a first password, and reports why one is refused', async () => {
