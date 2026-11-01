@@ -37,6 +37,7 @@ import { appOrigins, multiHostBaseURL, readOrigins, resolveOrigins } from './ori
 import { passkeyHosts, readPasskeyDomain, resolvePasskeyDomain } from './passkey-domain'
 import { passkeyPlugin } from './passkey-plugin'
 import { passwordResetOptions } from './password-reset'
+import { passwordChecksPlugin } from './password-checks'
 import { setPasswordPath, setPasswordPlugin } from './set-password'
 import { rolesPlugin } from './roles/roles-plugin'
 import { versionedSecrets } from './secret-versions'
@@ -407,6 +408,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       ...(saml.length > 0 ? [loaded(plugins.samlPlugin, 'sso.saml')(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
+      passwordChecksPlugin(),
       setPasswordPlugin(),
       ...(options.leakedPasswords ? [leakedPasswordsPlugin()] : []),
       goTrueSessionsPlugin({ issuer: goTrueIssuer(options.baseURL), jwt: jwtOptions, signingKey: keys.ensure, policy }),
