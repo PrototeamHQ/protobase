@@ -77,6 +77,8 @@ For a Postgres database you already have, `npm create protobase <database-url>` 
 
 Every page of these docs is also Markdown at its address plus `.md`: `https://docs.protobase.net/reference/cli/` is also `https://docs.protobase.net/reference/cli.md`. The code a page shows from example files is written out in it, and its live demos are left out, so a coding agent or a chat assistant reads the page whole. In a project, [`protobase skill install`](/reference/cli/#skill) gives coding agents the docs of the installed version.
 
+A chat assistant starts from [`/llms.txt`](https://docs.protobase.net/llms.txt), which links every page's Markdown and the protobase agent skill of the latest release at [`/skills/protobase/SKILL.md`](https://docs.protobase.net/skills/protobase/SKILL.md), with its references beside it.
+
 The rest of this page works in a clone of this repository, on its example apps in `tests/apps`.
 
 ## Setup
