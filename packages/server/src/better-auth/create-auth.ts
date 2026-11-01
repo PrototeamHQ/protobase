@@ -34,6 +34,7 @@ import { resolveOrganizations, type OrganizationsOptions, type ResolvedOrganizat
 import { noGlobalRole, roleDefinitions, type RoleDefinitions, type RolesInput } from './organizations/role-definitions'
 import type { AuthContext } from './organizations/store'
 import { appOrigins, multiHostBaseURL, readOrigins, resolveOrigins } from './origins'
+import { newFactorStepUpPlugin } from './new-factor-step-up'
 import { passkeyHosts, readPasskeyDomain, resolvePasskeyDomain } from './passkey-domain'
 import { passkeyPlugin } from './passkey-plugin'
 import { passwordResetOptions } from './password-reset'
@@ -402,6 +403,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
       passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]!, origins: appOrigins(options.baseURL, origins) }),
       strongSignInsPlugin(),
+      newFactorStepUpPlugin(),
       ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail)] : []),
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail, defaultPolicy: signInPolicy })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),

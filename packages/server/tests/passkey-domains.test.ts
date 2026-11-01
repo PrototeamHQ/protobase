@@ -50,10 +50,12 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
     })
   }
 
-  // Root, signed in with the password on `label`, adds `key` there: the request's `Origin` header is `header` and the
-  // answer names `named`, both `label` when left out; a `null` one names none.
+  // Root, signed in on `label` with a passkey they have, as adding another needs, adds `key` there: the request's
+  // `Origin` header is `header` and the answer names `named`, both `label` when left out; a `null` one names none.
   const register = async ({ key, header = label, named = label }: { key: SoftwarePasskey; header?: string; named?: string | null }) => {
-    const signedIn = await app.request(`${label}/api/auth/sign-in/email`, { method: 'POST', headers: { 'content-type': 'application/json', origin: label }, body: JSON.stringify({ email: 'root@example.com', password: 'correct horse battery' }) })
+    const existing = softwarePasskey()
+    await addPasskey(existing)
+    const signedIn = await signIn({ at: label, key: existing })
     expect(signedIn.status).toBe(200)
     const session = cookiesOf(signedIn)
     const options = await app.request(`${label}/api/auth/passkey/generate-register-options`, { headers: { cookie: session } })

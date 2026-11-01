@@ -75,6 +75,11 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('an app on two origins i
 
   it('makes a passkey on the second origin for the first host, and signs in with it there', async () => {
     await open(second)
+    // A first passkey needs a sign-in with an emailed code.
+    await page.evaluate((address) => window.auth.sendSignInCode(address), email)
+    await vi.waitFor(() => expect(sent).toHaveLength(1), { timeout: 10_000 })
+    const code = /\b\d{6}\b/.exec(sent.splice(0)[0]!.text)![0]
+    await page.evaluate(([address, entered]) => window.auth.signInWithCode(address!, entered!), [email, code])
     await page.evaluate(() => window.auth.account.addPasskey('Laptop'))
     const { adapter } = await auth.$context
     expect(await adapter.findMany({ model: 'passkey' })).toEqual([expect.objectContaining({ name: 'Laptop', rpID: 'first.test' })])

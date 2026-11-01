@@ -238,6 +238,16 @@ describe('open sign-up, turned on', () => {
     expect(await tokenOf(cookiesOf(created))).toMatchObject({ code: 'SIGN_IN_SETUP_REQUIRED' })
   })
 
+  it('lets the new account add the passkey the policy requires right away, as its sign-up took an emailed code', async () => {
+    const { request, cookiesOf, ticketFor } = await serve({ signUp })
+    const root = cookiesOf(await request('/sign-in/email', { body: { email: 'root@example.com', password } }))
+    expect((await request('/policy/sign-in', { cookie: root, body: { ...defaultSignInPolicy, passkey: 'required' } })).status).toBe(200)
+    const created = await request('/sign-up/create', { body: { ticket: await ticketFor('new@example.com'), name: 'Nia' } })
+    expect(created.status).toBe(200)
+    const options = await request('/passkey/generate-register-options', { cookie: cookiesOf(created) })
+    expect(options.status).toBe(200)
+  })
+
   it('makes no account while the store has no user: the first admin is made on the host', async () => {
     const { request, sent } = await serve({ signUp }, { users: false })
     expect(await (await request('/sign-up/send-code', { body: { email: 'new@example.com' } })).json()).toMatchObject({ code: 'NO_ADMIN_YET' })
