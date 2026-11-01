@@ -41,16 +41,17 @@ jobs:
         with:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
-      # A branch's commits land on main as they are, where the release workflow refuses any that commitlint does, so they
-      # are linted here first: a pull request's from its base, a task branch's from where it forked from main. A branch
-      # whose head main already holds has no commits of its own, and commitlint refuses a range from a commit to itself.
+      # A branch's commits reach main as they are, where the release workflow refuses any that commitlint does, so they
+      # are linted here first: a pull request's from its base, a task branch's from where it forked from development, where
+      # it lands. A branch whose head development already holds has no commits of its own, and commitlint refuses a range
+      # from a commit to itself.
       - name: Lint the branch's commits
         if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/'))
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          from="${BASE:-$(git merge-base origin/main "$HEAD")}"
+          from="${BASE:-$(git merge-base origin/development "$HEAD")}"
           if [ "$(git rev-parse "$from")" = "$(git rev-parse "$HEAD")" ]; then exit 0; fi
           bun x --bun commitlint --from "$from" --to "$HEAD" --verbose
       # bunfig.toml has `bun run` put a node that is Bun first on PATH, so the checks run on Bun. Bun skips that without a
@@ -65,7 +66,7 @@ jobs:
       - run: bun run features:check
       # A push to main, which the release workflow checks, or to an fm/** branch runs only the tests and steps its
       # changes affect (scripts/affected-tests.mjs, see CONTRIBUTING.md): on main the changes since the last release, on
-      # a branch those since it left main. Without CHECK_BASE, as on a pull request or a run by hand, everything runs.
+      # a branch those since it left development. Without CHECK_BASE, as on a pull request or a run by hand, everything runs.
       - &check-base
         name: Find the commit the push's changes count from
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
@@ -76,7 +77,7 @@ jobs:
             base=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD 2>/dev/null || true)
             if [ -z "$base" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then base=$BEFORE; fi
           else
-            base=$(git merge-base origin/main HEAD)
+            base=$(git merge-base origin/development HEAD)
           fi
           echo "CHECK_BASE=$base" >> "$GITHUB_ENV"
       - run: bun run check:unit
