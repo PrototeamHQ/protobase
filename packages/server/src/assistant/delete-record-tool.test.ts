@@ -95,6 +95,16 @@ describe('delete_record', () => {
     expect(records.delete).toHaveBeenCalledWith('tasks', 7, { etag: '"v1"' })
   })
 
+  it.each([
+    ['without an etag', { resource: 'tasks', key: 7 }, undefined],
+    ['with the etag *', { ...call, etag: '*' }, '*'],
+  ])('deletes %s whatever version the record is at', async (_, args, etag) => {
+    const { context, approve, records } = contextWith(answering('approved'), { get: async () => ({ ...removed, etag: '"v9"' }) })
+    expect(JSON.parse(await deleteRecordTool().run(args, context))).toEqual({ deleted: true, resource: 'tasks', key: 7, restorable: false })
+    expect(approve).toHaveBeenCalledWith(expect.objectContaining({ title: 'Delete Task #7 "Secret plan"?' }))
+    expect(records.delete).toHaveBeenCalledWith('tasks', 7, { etag })
+  })
+
   it('refuses a record changed since the etag before asking', async () => {
     const { context, approve, records } = contextWith(answering('approved'), { get: async () => ({ ...removed, etag: '"v2"' }) })
     expect(JSON.parse(await deleteRecordTool().run(call, context))).toEqual({ error: 'precondition-failed', message: 'The record changed since it was read; fetch it again' })
@@ -154,14 +164,13 @@ describe('delete_record', () => {
 
   const badCall = (name: string, args: Record<string, unknown>): [string, Record<string, unknown>] => [name, args]
   it.each([
-    badCall('no etag', { resource: 'tasks', key: 7 }),
-    ...['*', '', ' ', 'v1', 'W/"v1"', '"v1", *', '"v1","v2"', '"a,*"', null, 1, ['"v1"'], { etag: '"v1"' }].map((etag) => badCall(`the etag ${JSON.stringify(etag)}`, { ...call, etag })),
+    ...['', ' ', 'v1', 'W/"v1"', '"v1", *', '"v1","v2"', '"a,*"', null, 1, ['"v1"'], { etag: '"v1"' }].map((etag) => badCall(`the etag ${JSON.stringify(etag)}`, { ...call, etag })),
     ...[{ $ne: null }, [], '', [''], null, Number.NaN, 'a\nb', 'a\u0007', '\u202Eabc', 'a\u2066b', 'a\u2028b'].map((key) => badCall(`the key ${JSON.stringify(key)}`, { ...call, key })),
     ...['approved', 'confirm', 'force', 'permanent', 'soft', 'as', 'user'].map((name) => badCall(`the extra argument ${name}`, { ...call, [name]: true })),
     badCall('no resource', { key: 7, etag: '"v1"' }),
   ])('refuses %s before asking', async (_, args) => {
     const { context, approve, records } = contextWith(answering('approved'))
-    expect(await deleteRecordTool().run(args, context)).toMatch(/^Pass only the resource, key and etag/)
+    expect(await deleteRecordTool().run(args, context)).toMatch(/^Pass only the resource, key and, optionally, etag/)
     expect(approve).not.toHaveBeenCalled()
     touchedNothing(records)
   })
