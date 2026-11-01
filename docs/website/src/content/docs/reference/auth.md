@@ -361,7 +361,7 @@ People add passkeys (Face ID, Touch ID, Windows Hello, a phone or a security key
 - On an app with several origins, every passkey works on each of them through [Related Origin Requests](https://passkeys.dev/docs/advanced/related-origins/) (Chrome and Edge 128, Safari 18, Firefox 152; at most 5 registrable domains).
 - A browser asks for the passkeys of one RP ID at a time. When people have passkeys for more than one of the app's hosts, `GET /api/auth/status` lists them as `passkeyDomains`, the passkey domain first, and the sign-in page adds "Use a passkey made for {host}" for each of the others. `GET /api/auth/passkey/generate-authenticate-options?rpId=<host>` asks for one of them.
 - A passkey sign-in asks for no second step: the passkey is something you have and something you are or know.
-- Adding a passkey needs a session started in the last day; after that, the page asks to sign in again first.
+- Adding a passkey needs a session started in the last day; after that, the page asks to sign in again first. It also needs a recent sign-in with a factor the account has: see [Adding a factor](#adding-a-factor).
 - Passkeys can be renamed and removed on the account page; removing one here leaves it on the device.
 
 ## Two-factor authentication
@@ -371,7 +371,7 @@ On their account page, people turn on a second step after a password or an email
 - **Authenticator app:** the page shows a QR code (and the key, to type in), the person confirms it with a code from the app, and gets ten backup codes that each work once instead of a code. New backup codes replace the old ones.
 - **Emailed code:** with mail configured, a 6-digit code mailed at each sign-in, valid for 10 minutes. An account with an app can also choose an emailed code at sign-in. Backup codes come with the app only.
 
-Turning it on, off, or making new backup codes asks for the account's password when it has one. At sign-in, a correct password or code answers `{ "twoFactorRedirect": true, "twoFactorMethods": ["totp", "otp"] }` instead of a session, and `POST /api/auth/two-factor/verify-totp`, `verify-otp` or `verify-backup-code` with `{ code, trustDevice? }` finishes it; `trustDevice` skips the step in that browser for 30 days. Ten wrong codes in a row lock the account's second step for 15 minutes.
+Turning it on, off, or making new backup codes asks for the account's password when it has one; turning it on and making new backup codes also need a recent sign-in with a factor the account has (see [Adding a factor](#adding-a-factor)). At sign-in, a correct password or code answers `{ "twoFactorRedirect": true, "twoFactorMethods": ["totp", "otp"] }` instead of a session, and `POST /api/auth/two-factor/verify-totp`, `verify-otp` or `verify-backup-code` with `{ code, trustDevice? }` finishes it; `trustDevice` skips the step in that browser for 30 days. Ten wrong codes in a row lock the account's second step for 15 minutes.
 
 Sign-in with GitHub or another [provider](#sign-in-with-github) is not asked for the second step.
 
@@ -382,6 +382,15 @@ Some values ask for a sign-in that proved a passkey or a second step not long ag
 The app's authenticator gives a token of the person's own session `signIn.strongAt()`, which reads that time when a request needs it, so other requests do no extra lookup. An app with its own authenticator (`auth/authenticate.ts`) sets `signIn: { staff: false, strongAt }` on the sessions it returns, `strongAt` resolving to a `Date` or `undefined`; without it, such values are refused.
 
 Confirming it's them later counts from then: a passkey signs the browser in anew, and a code from the authenticator app, or a backup code, confirms the session it has. `createAuthSession` from `@protobase/client` does both, with `signInWithPasskey()` and `verifyTwoFactor({ method: 'totp', code })`.
+
+### Adding a factor
+
+Adding a passkey, turning on an authenticator app or reading its key again (`/two-factor/get-totp-uri`), and making new backup codes need a recent sign-in with a factor the account has, so a stolen session cannot add one of its own and then pass a [strong sign-in](#recent-strong-sign-in) with it:
+
+- An account with a passkey or two-factor authentication needs a passkey or a second step from the session in the last 15 minutes, else `403 STRONG_SIGN_IN_REQUIRED`.
+- An account with neither adds its first through the emailed code: the session must have signed in with an [emailed code](#emailed-sign-in-codes) in the last 15 minutes, else `403 EMAIL_CODE_SIGN_IN_REQUIRED`. Turning on an authenticator app on an account with a password takes the password instead, as before. A session that signed in with an emailed code moments ago can add the first factor, since the inbox is all such an account can prove.
+
+<gap>An account with neither a passkey nor two-factor authentication cannot add its first passkey without an emailed code, on an app without mail or with emailed codes off, because accepting the password for it is not implemented.</gap> <gap>The account page cannot confirm with a passkey or a second step in place before adding a factor, because showing that step there is not implemented: the person signs out and in again.</gap>
 
 ## Sign-in policy
 

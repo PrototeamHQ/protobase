@@ -1,6 +1,6 @@
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
-import type { AuthContext } from './organizations/store'
+import { sessionNote } from './session-notes'
 import { isStaffSession } from './staff-checks'
 
 const twoFactorPaths = ['/two-factor/verify-totp', '/two-factor/verify-otp', '/two-factor/verify-backup-code']
@@ -11,24 +11,16 @@ const twoFactorPaths = ['/two-factor/verify-totp', '/two-factor/verify-otp', '/t
  */
 export const strongSignInPaths = ['/passkey/verify-authentication', ...twoFactorPaths]
 
-type Internal = Pick<AuthContext['internalAdapter'], 'createVerificationValue' | 'deleteVerificationByIdentifier' | 'findVerificationValue'>
+const strongSignIns = sessionNote('strong-sign-in')
 
-// Kept in Better Auth's verification table, which every store has, so recording them needs no migration.
-const identifierOf = (sessionId: string) => `protobase-strong-sign-in-${sessionId}`
+/** How recent a strong sign-in must be to add a factor (see `newFactorRefusal`). */
+export const defaultStrongSignInMinutes = 15
 
 /** Notes that the session proved a passkey or a second step now; the note ends with the session. */
-export const saveStrongSignIn = async (internal: Internal, session: { id: string; expiresAt: Date }, now = new Date()) => {
-  const identifier = identifierOf(session.id)
-  await internal.deleteVerificationByIdentifier(identifier)
-  await internal.createVerificationValue({ identifier, value: now.toISOString(), expiresAt: session.expiresAt })
-}
+export const saveStrongSignIn = strongSignIns.save
 
 /** When the session last proved a passkey or a second step, if it did and its note has not expired. */
-export const strongSignInAt = async (internal: Internal, sessionId: string, now = new Date()) => {
-  const found = await internal.findVerificationValue(identifierOf(sessionId))
-  if (!found || new Date(found.expiresAt) <= now) return undefined
-  return new Date(found.value)
-}
+export const strongSignInAt = strongSignIns.at
 
 type ProvedSession = { id: string; expiresAt: Date; impersonatedBy?: string | null }
 

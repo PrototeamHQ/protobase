@@ -24,7 +24,7 @@ beforeAll(async () => {
   store = await openSnapshotDb('auth')
   const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret: 'test-secret-test-secret-test-secret-1234', appName: 'Acme ERP' })
   vi.unstubAllEnvs()
-  for (const email of ['ada@acme.example.com', 'bob@acme.example.com', 'cy@acme.example.com']) await createUser(auth, { email, password })
+  for (const email of ['ada@acme.example.com', 'bob@acme.example.com', 'cy@acme.example.com', 'dee@acme.example.com', 'eve@acme.example.com']) await createUser(auth, { email, password })
   app = createAdmin({ resources: [], db: new Kysely<any>({ dialect: store.dialect }), authenticate: betterAuthAuthenticator({ auth }), auth })
 })
 afterAll(async () => { await relay.close() })
@@ -71,7 +71,8 @@ const signInWithCode = async (email: string) => {
   return post('/sign-in/email-otp', { email, otp: await mailedCode(email, 'is your Acme ERP sign-in code') })
 }
 
-// Turns on two-factor authentication with an authenticator app, as the account page does; returns the scanned URI and the backup codes.
+// Turns on two-factor authentication with an authenticator app, as the account page does; returns the scanned URI, the
+// backup codes and the cookie of the session that turned it on.
 const turnOnAuthenticatorApp = async (email: string) => {
   const cookie = cookiesOf(await signInWithPassword(email))
   const enabled = await post('/two-factor/enable', { password, method: 'totp' }, cookie)
@@ -79,8 +80,9 @@ const turnOnAuthenticatorApp = async (email: string) => {
   const { totpURI, backupCodes } = (await enabled.json()) as { totpURI: string; backupCodes: string[] }
   expect(totpURI).toMatch(/^otpauth:\/\/totp\/Acme%20ERP:/)
   expect(backupCodes).toHaveLength(10)
-  expect((await post('/two-factor/verify-totp', { code: authenticatorCode(totpURI) }, cookie)).status).toBe(200)
-  return { totpURI, backupCodes }
+  const turnedOn = await post('/two-factor/verify-totp', { code: authenticatorCode(totpURI) }, cookie)
+  expect(turnedOn.status).toBe(200)
+  return { totpURI, backupCodes, cookie: cookiesOf(turnedOn) || cookie }
 }
 
 const expectSignedIn = async (response: Response) => {
@@ -140,5 +142,30 @@ describe('two-factor authentication', () => {
     const again = cookiesOf(await signInWithPassword('cy@acme.example.com'))
     expect((await post('/two-factor/verify-backup-code', { code: backupCodes[0] }, again)).status).toBe(401)
     await expectSignedIn(await post('/two-factor/verify-backup-code', { code: backupCodes[1] }, again))
+  })
+})
+
+describe('adding a factor', () => {
+  const passkeyOptions = (cookie: string) => get('/passkey/generate-register-options', cookie)
+
+  it('needs the second step of an account with an authenticator app, for a passkey and for new backup codes', async () => {
+    const { totpURI, cookie } = await turnOnAuthenticatorApp('dee@acme.example.com')
+    const refused = await passkeyOptions(cookie)
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toMatchObject({ code: 'STRONG_SIGN_IN_REQUIRED' })
+    expect(await (await post('/two-factor/generate-backup-codes', { password }, cookie)).json()).toMatchObject({ code: 'STRONG_SIGN_IN_REQUIRED' })
+
+    const pending = cookiesOf(await signInWithPassword('dee@acme.example.com'))
+    const confirmed = cookiesOf(await post('/two-factor/verify-totp', { code: authenticatorCode(totpURI) }, pending))
+    expect((await passkeyOptions(confirmed)).status).toBe(200)
+    expect((await post('/two-factor/generate-backup-codes', { password }, confirmed)).status).toBe(200)
+  })
+
+  it('takes an emailed code for the first passkey, and not a password alone', async () => {
+    const refused = await passkeyOptions(cookiesOf(await signInWithPassword('eve@acme.example.com')))
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toMatchObject({ code: 'EMAIL_CODE_SIGN_IN_REQUIRED' })
+
+    expect((await passkeyOptions(cookiesOf(await signInWithCode('eve@acme.example.com')))).status).toBe(200)
   })
 })
