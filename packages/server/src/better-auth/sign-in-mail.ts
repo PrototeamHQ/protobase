@@ -1,11 +1,11 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { emailOTP, twoFactor } from 'better-auth/plugins'
+import { emailCodeMinutes } from '@protobase/schema/internal'
 import { sendAuthEmail, type AuthMail } from './auth-mail/send-auth-email'
 
-/** How long an emailed code works: in seconds for the sign-in code, in minutes for the two-factor one, and in the email's words. */
-export const codeLifetimeSeconds = 10 * 60
-const codeLifetimeMinutes = 10
-const codeLifetime = '10 minutes'
+/** How long an emailed code works: in seconds for the sign-in code, and in the email's words. */
+export const codeLifetimeSeconds = emailCodeMinutes * 60
+export const codeLifetime = `${emailCodeMinutes} minutes`
 
 type EmailOtpOptions = Parameters<typeof emailOTP>[0]
 
@@ -38,7 +38,7 @@ type TwoFactorOptions = NonNullable<Parameters<typeof twoFactor>[0]>
 /** The two-factor plugin's emailed code, sent with `mail`; stored hashed. */
 export const twoFactorCodeOptions = (mail: AuthMail) =>
   ({
-    period: codeLifetimeMinutes,
+    period: emailCodeMinutes,
     storeOTP: 'hashed',
     sendOTP: ({ user, otp }, ctx) => sendAuthEmail(mail, 'twoFactorCodeEmail', user.email, { code: otp, lifetime: codeLifetime }, ctx?.context.baseURL),
   }) satisfies TwoFactorOptions['otpOptions']

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { TwoFactorMethod } from '@protobase/client'
+import { emailCodeMinutes } from '@protobase/schema/internal'
 import { Button } from '../primitives/button'
 import { Checkbox } from '../primitives/checkbox'
 import { Input } from '../primitives/input'
@@ -62,7 +63,7 @@ export const TwoFactorForm = ({ methods, onVerify, onSendCode, onBack, busy, err
             onVerify({ method: step, code: code.trim(), trustDevice })
           }}
         >
-          <p className="text-muted-foreground">{text(instructions[step])}</p>
+          <p className="text-muted-foreground">{text(instructions[step], { minutes: emailCodeMinutes })}</p>
           <label className="flex flex-col gap-1.5 font-medium">
             {step === 'backup' ? text('backupCode') : text('code')}
             {step === 'backup' ? (
