@@ -14,6 +14,14 @@ const isSigningVariable = (key: string) => signingNames.has(key.toUpperCase())
 /** `env` without the signing variables, in any letter case. */
 export const withoutAndroidSigning = (env: Record<string, string>) => Object.fromEntries(Object.entries(env).filter(([key]) => !isSigningVariable(key)))
 
+/**
+ * Deletes from `env`, in place, every variable named `PROTOBASE_ANDROID_*` in any letter case: wider than the four, so
+ * no such variable is left for the project's code to find, while Gradle, which reads the four by name, gets them apart.
+ */
+export const dropAndroidSigning = (env: NodeJS.ProcessEnv) => {
+  for (const key of Object.keys(env)) if (key.toUpperCase().startsWith('PROTOBASE_ANDROID_')) delete env[key]
+}
+
 const isFile = (file: string) => {
   try {
     return statSync(file).isFile()
