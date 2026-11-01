@@ -62,6 +62,8 @@ services:
       POOL_MODE: transaction
       MAX_PREPARED_STATEMENTS: 200
       MAX_USER_CONNECTIONS: 3
+      # The tests pause and resume a database on its admin console, as the platform scales one to zero.
+      ADMIN_USERS: ${POSTGRES_USER}
     depends_on:
       postgres:
         condition: service_healthy

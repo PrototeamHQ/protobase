@@ -16,6 +16,16 @@ describe('actionApplies', () => {
     expect(actionApplies(reboot, undefined)).toBe(false)
   })
 
+  it('shows an action on isNull(field) while the field is empty, and on NOT isNull(field) once it is set', () => {
+    const production: ActionModel = { name: 'set_mail_server', label: 'Set mail server', bulk: false, when: 'isNull(parent_id)' }
+    expect(actionApplies(production, { parent_id: null })).toBe(true)
+    expect(actionApplies(production, {})).toBe(true)
+    expect(actionApplies(production, { parent_id: 7 })).toBe(false)
+    const preview = { ...production, when: 'NOT isNull(parent_id)' }
+    expect(actionApplies(preview, { parent_id: null })).toBe(false)
+    expect(actionApplies(preview, { parent_id: 7 })).toBe(true)
+  })
+
   it('never holds a condition that does not parse', () => {
     expect(actionApplies({ ...reboot, when: 'status = ' }, { status: 'running' })).toBe(false)
   })

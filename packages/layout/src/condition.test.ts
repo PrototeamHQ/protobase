@@ -28,6 +28,24 @@ describe('conditions', () => {
     expect(evaluateCondition(parsed('missing = 1'), {})).toBe(false)
   })
 
+  it('evaluates isNull(field) and NOT isNull(field)', () => {
+    expect(evaluateCondition(parsed('isNull(parent_id)'), { parent_id: null })).toBe(true)
+    expect(evaluateCondition(parsed('isNull(parent_id)'), {})).toBe(true)
+    expect(evaluateCondition(parsed('isNull(parent_id)'), { parent_id: 7 })).toBe(false)
+    expect(evaluateCondition(parsed('NOT isNull(parent_id)'), { parent_id: 7 })).toBe(true)
+    expect(evaluateCondition(parsed('isNull(plan.name) OR status = "trial"'), { 'plan.name': 'Pro', status: 'trial' })).toBe(true)
+  })
+
+  it('evaluates in(field, ...) as any of its values', () => {
+    expect(evaluateCondition(parsed('in(status, "a", "b")'), { status: 'a' })).toBe(true)
+    expect(evaluateCondition(parsed('in(status, "a", "b")'), { status: 'c' })).toBe(false)
+    expect(evaluateCondition(parsed('NOT in(seats, 1, 2)'), { seats: 3 })).toBe(true)
+  })
+
+  it('lists the field isNull and in name', () => {
+    expect(parsed('isNull(parent_id) AND in(status, "a")').paths).toEqual(['parent_id', 'status'])
+  })
+
   it('reports syntax errors and empty conditions', () => {
     expect(parseCondition('status = ')).toMatchObject({ ok: false })
     expect(parseCondition('   ')).toEqual({ ok: false, message: 'the condition is empty' })
