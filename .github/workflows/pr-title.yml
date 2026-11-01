@@ -1,9 +1,10 @@
 name: pr-title
 
 # A pull request lands on main squash-merged, under its title with " (#<number>)" added, or, when it has a single commit,
-# under that commit's subject with it added (the repository's COMMIT_OR_PR_TITLE setting), and the release workflow
-# refuses a commit that commitlint does. ci lints the branch's commits without the suffix, so the header that would land
-# is linted here, and again whenever the title is edited, which runs no other check.
+# under that commit's subject with it added (the repository's COMMIT_OR_PR_TITLE setting), with a body that lists each
+# commit's message as a "* " item, or, with a single commit, its body (COMMIT_MESSAGES). The release workflow refuses a
+# commit that commitlint does, and ci lints the branch's commits one by one, so the message that would land is composed
+# and linted here, and again whenever the title is edited, which runs no other check.
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
@@ -17,17 +18,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The merge commit and its parents, the second of which is the pull request's head.
-          fetch-depth: 2
+          # The merge commit's parents are the base and the pull request's head; its commits are those between them.
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
-      - name: Lint the squash-merge commit's header
+      - name: Lint the squash-merge commit
         env:
           TITLE: ${{ github.event.pull_request.title }}
           NUMBER: ${{ github.event.pull_request.number }}
           COMMITS: ${{ github.event.pull_request.commits }}
         run: |
-          if [ "$COMMITS" = 1 ]; then TITLE=$(git log -1 --format=%s HEAD^2); fi
-          printf '%s (#%s)\n' "$TITLE" "$NUMBER" | bun x --bun commitlint --verbose
+          if [ "$COMMITS" = 1 ]; then
+            git log -1 --format=%B HEAD^2 | sed "1s/\$/ (#$NUMBER)/" | bun x --bun commitlint --verbose
+            exit
+          fi
+          {
+            printf '%s (#%s)\n' "$TITLE" "$NUMBER"
+            for commit in $(git rev-list --reverse HEAD^1..HEAD^2); do printf '\n* %s\n' "$(git log -1 --format=%B "$commit")"; done
+          } | bun x --bun commitlint --verbose
