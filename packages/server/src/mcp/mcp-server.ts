@@ -1,10 +1,11 @@
-import { CLIENT_CAPABILITIES_META_KEY, fromJsonSchema, McpServer, type CallToolResult, type ClientCapabilities, type Icon, type InputRequiredResult, type ServerContext } from '@modelcontextprotocol/server'
+import { CLIENT_CAPABILITIES_META_KEY, McpServer, type CallToolResult, type ClientCapabilities, type Icon, type InputRequiredResult, type ServerContext } from '@modelcontextprotocol/server'
 import { checkedTools } from '../assistant/checked-tools'
 import { refusalOf } from '../assistant/record-tool-args'
 import type { AssistantTool, BaseToolContext, ToolContext } from '../assistant/tools'
 import { ApprovalNeeded, approvalAsked, approvedUnasked, mcpApproval, writesUnasked } from './mcp-approval'
 import type { McpApprovals } from './mcp-approval-store'
 import { callHash, callScope, scopeHash } from './mcp-call-hash'
+import { inputSchemaMemo } from './mcp-input-schemas'
 import { mcpInstructions } from './mcp-instructions'
 import { isStatementTimeout } from '../statement-timeout'
 
@@ -30,16 +31,8 @@ export type McpServerInput<Context extends BaseToolContext = ToolContext> = {
 // The SDK's published types leave the envelope's shape empty; on the 2026 protocol it carries the client's capabilities.
 const capabilitiesOf = (envelope: object | undefined) => (envelope as Record<string, ClientCapabilities | undefined> | undefined)?.[CLIENT_CAPABILITIES_META_KEY]
 
-// The SDK compiles each schema object it is given into a cache that never lets go, so each parameters object is turned
-// into an input schema once: a server built per request from the same tools adds nothing to it.
-const inputSchemas = new WeakMap<object, ReturnType<typeof fromJsonSchema<Record<string, unknown>>>>()
-const inputSchemaOf = (parameters: AssistantTool['parameters']) => {
-  const known = inputSchemas.get(parameters)
-  if (known) return known
-  const schema = fromJsonSchema<Record<string, unknown>>(parameters)
-  inputSchemas.set(parameters, schema)
-  return schema
-}
+// Far more than the tools any app offers, so only schemas no server uses any more are dropped.
+const inputSchemaOf = inputSchemaMemo(1000)
 
 const failed: CallToolResult = { content: [{ type: 'text', text: 'The server failed to answer.' }], isError: true }
 
