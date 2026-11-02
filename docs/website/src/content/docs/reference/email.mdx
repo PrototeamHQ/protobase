@@ -36,7 +36,7 @@ A project that delivers its mail another way exports a mailer, `{ send({ to, sub
 
 ### When the server does not answer
 
-A send through `PROTOBASE_SMTP_URL` gets 30 seconds in all: looking up the server, connecting to each of its addresses, its greeting, TLS, the login and the message. One that has not finished by then rejects with a `MailServerTimeoutError` (exported by `@protobase/server`) whose `code` is `MAIL_SERVER_TIMEOUT`, as when a firewall drops the mail port's packets or the server never greets; it is not retried. Options on the URL, such as `?connectionTimeout=`, cannot lift the limit. A server that answers and refuses keeps its own error code, such as `EAUTH` for a refused login or `EENVELOPE` for a refused sender.
+A send through `PROTOBASE_SMTP_URL` gets 30 seconds in all: looking up the server, connecting to each of its addresses, its greeting, TLS, the login and the message. One that has not finished by then rejects with a `MailServerTimeoutError` (exported by `@protobase/server`) whose `code` is `MAIL_SERVER_TIMEOUT`, as when a firewall drops the mail port's packets or the server never greets; it is not retried. Options on the URL, such as `?connectionTimeout=`, cannot lift the limit. A server that answers and refuses keeps its own error code, such as `EAUTH` for a refused login or `EENVELOPE` for a refused sender. <gap>A send that ran out cannot close its connection at the limit because cancelling a send in progress is not implemented in the SMTP client; the client's own timers, 10 seconds for each of the server's addresses, close it soon after.</gap>
 
 ## Protobase's own mail
 
