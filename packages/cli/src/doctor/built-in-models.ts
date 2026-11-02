@@ -1,6 +1,7 @@
 import { builtInResources, configExports, webhooksModule } from '@protobase/server/config-exports'
 import type { ResourceModel } from '@protobase/schema'
 import type { MergedConfig } from '../config/merge-config'
+import type { Issue } from './check'
 
 /**
  * The resources and views Protobase adds to an app by what its config enables, as the API serves them: the webhook ones
@@ -16,3 +17,10 @@ export const builtInModels = (config: MergedConfig, models: ResourceModel[]) => 
     views: [...webhooks.views, ...added.views].map((view) => view.toModel()),
   }
 }
+
+/**
+ * A missing index on a built-in table as a recommendation: the app owns its schema, so a database migrated by an earlier
+ * version still serves, and only the reads that need the index are refused until `protobase migration` writes it.
+ */
+export const builtInIndexIssues = (issues: Issue[]): Issue[] =>
+  issues.map((issue) => ({ ...issue, severity: 'warning', suggestion: `write it as a migration with \`protobase migration\` (${issue.suggestion})` }))

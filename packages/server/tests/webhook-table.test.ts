@@ -53,7 +53,7 @@ describe('the webhooks schema', () => {
   `
   const listReads = ['order_by=created_at desc', 'order_by=name asc', 'order_by=name desc', 'order_by=last_success_at asc', 'order_by=last_success_at desc', 'filter=enabled = true', 'filter=search("x")']
 
-  it("serves every read of the subscriptions list on a fresh schema, and gives an earlier one the indexes of the subscriptions list's reads, once each, so none is refused", async () => {
+  it("serves every read of the subscriptions list on a fresh schema, starts on an earlier one, and gives it the indexes of the subscriptions list's reads, once each, so none is refused", async () => {
     const pg = await openSnapshotDb('jobs')
     const db = new Kysely<any>({ dialect: pg.dialect })
     const { resources, views } = configExports(webhooksModule())
@@ -67,7 +67,8 @@ describe('the webhooks schema', () => {
     expect(await statuses()).toEqual([200, 200, 200, 200, 200, 200, 200])
     await pg.exec(earlierSchema)
     expect(await statuses()).toEqual([400, 200, 200, 400, 400, 400, 400])
-    await expect(checkWebhooksSchema(db)).rejects.toThrow('missing or behind')
+    // The server still starts on it: only the reads that need an index added since are refused until the next migration.
+    await checkWebhooksSchema(db)
     const next = await webhooksMigration(db)
     expect(next).not.toContain('create table if not exists "webhooks"."subscriptions"')
     await pg.exec(next!)

@@ -4,7 +4,7 @@ import { quoteIdent } from '../../changes/capture-sql'
 import { migrationCommand } from '../../changes/capture-schema'
 import { changesSchema, type EventsOptions } from '../../changes/events-options'
 import { webhooksSchema, type WebhooksOptions } from './options'
-import { commandsSql, deliveriesSql, deliveryLogIndexesSql, deliveryLogSql, subscriptionsIndexesSql, subscriptionsSql, webhooksComment } from './schema-sql'
+import { commandsSql, commentVersion, deliveriesSql, deliveryLogIndexesSql, deliveryLogSql, subscriptionsIndexesSql, subscriptionsSql, webhooksServedVersion, webhooksVersion } from './schema-sql'
 
 const functionNames = ['subscription_commands', 'deliveries_resend']
 
@@ -14,9 +14,13 @@ const readWebhooksSchema = async (db: Db, schema: string) => {
     (await sql<{ found: boolean }>`select to_regclass(${`${quoteIdent(schema)}.${quoteIdent(table)}`}) is not null as found`.execute(db)).rows[0]!.found
   const { rows } = await sql<{ name: string; comment: string | null }>`select p.proname as name, obj_description(p.oid, 'pg_proc') as comment
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${schema} and p.proname = any(${functionNames}::text[]) order by p.proname`.execute(db)
+  // The oldest version among the functions, `undefined` when one is missing or not Protobase's; with the deliveries view.
+  const versions = functionNames.map((name) => commentVersion(rows.find((row) => row.name === name)?.comment ?? null))
+  const version = (await exists('deliveries')) && versions.every((found) => found !== undefined) ? Math.min(...versions) : undefined
   return {
     subscriptions: await exists('subscriptions'),
-    current: functionNames.every((name) => rows.some((row) => row.name === name && row.comment === webhooksComment)) && (await exists('deliveries')),
+    current: version === webhooksVersion,
+    served: version !== undefined && version >= webhooksServedVersion,
     deliveryLog: await exists('delivery_log'),
   }
 }
@@ -43,10 +47,13 @@ export const webhooksMigration = async (db: Db, options: WebhooksOptions = {}, e
   return `${statements.join(';\n\n')};`
 }
 
-/** Refuses to go on while the `webhooks` schema lacks what `webhooks` needs; the project's migrations add it. */
+/**
+ * Refuses to go on while the `webhooks` schema lacks what `webhooks` needs; the project's migrations add it. A schema
+ * written by an earlier version this one still serves on starts, and `protobase migration` brings it current.
+ */
 export const checkWebhooksSchema = async (db: Db, options: WebhooksOptions = {}) => {
   const schema = webhooksSchema(options)
   const found = await readWebhooksSchema(db, schema)
-  if (found.subscriptions && found.current && (!options.deliveryLog || found.deliveryLog)) return
+  if (found.subscriptions && found.served && (!options.deliveryLog || found.deliveryLog)) return
   throw new Error(`The ${schema} schema is missing or behind this version of Protobase. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
 }
