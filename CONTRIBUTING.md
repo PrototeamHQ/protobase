@@ -15,10 +15,10 @@ docs: the record page runs named actions too
 
 - `feat` releases a feature, `fix` a fix; `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `style`, `chore` and `revert` release nothing on their own.
 - A breaking change takes a `!` after the type or scope, or a `BREAKING CHANGE:` footer saying what to do instead.
-- The subject starts in lowercase and ends without a period; the header and every body line are at most 100 characters.
+- The subject starts in lowercase and ends without a period; the header is at most 93 characters and every body line at most 100, so the squash merge's ` (#<number>)` suffix or `* ` list item still fits in 100.
 - A `feat` commit adds something a user of Protobase can see or call, and is documented (see [Features and docs](#features-and-docs)). A change no user can see is `fix`, `perf`, `refactor` or `chore`.
 
-`bun install` installs a `commit-msg` hook (`.githooks/`) that checks each message with commitlint (`commitlint.config.mjs`); the release workflow checks every commit pushed to `main` again, and the `pr-title` workflow checks the message a squash merge gives a pull request: its title, or the subject of its only commit, with its ` (#<number>)` suffix, over a body that lists each commit's message. To check messages by hand: `bun x commitlint --from <commit>`. `bun install` also writes the protobase skill's references (`packages/cli/skills/protobase/references`) from the docs; they are not committed, and the CLI's build writes them again before it is packed. Run `bun run docs:skill` to see a docs change in them.
+`bun install` installs a `commit-msg` hook (`.githooks/`) that checks each message with commitlint (`commitlint.branch.config.mjs`, as ci does for a branch's commits); the release workflow checks every commit pushed to `main` again, and the `pr-title` workflow checks the message a squash merge gives a pull request: its title, or the subject of its only commit, with its ` (#<number>)` suffix, over a body that lists each commit's message. To check a branch's messages by hand: `bun x commitlint --config commitlint.branch.config.mjs --from <commit>`. `bun install` also writes the protobase skill's references (`packages/cli/skills/protobase/references`) from the docs; they are not committed, and the CLI's build writes them again before it is packed. Run `bun run docs:skill` to see a docs change in them.
 
 ## Features and docs
 

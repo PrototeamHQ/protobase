@@ -53,7 +53,7 @@ jobs:
         run: |
           from="${BASE:-$(git merge-base origin/development "$HEAD")}"
           if [ "$(git rev-parse "$from")" = "$(git rev-parse "$HEAD")" ]; then exit 0; fi
-          bun x --bun commitlint --from "$from" --to "$HEAD" --verbose
+          bun x --bun commitlint --config commitlint.branch.config.mjs --from "$from" --to "$HEAD" --verbose
       # bunfig.toml has `bun run` put a node that is Bun first on PATH, so the checks run on Bun. Bun skips that without a
       # word when another user owns its /tmp/bun-node-* directory, as on a shared server, and they would run on Node.
       - &bun-node
