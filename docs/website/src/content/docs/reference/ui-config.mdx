@@ -45,7 +45,11 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.signIn({ title, description, benefits?, icon?, signUp? })` | What a visitor who is not signed in is told about the resource, in place of its list and by a card's favorite button. See [Sign-in prompts](#sign-in-prompts). |
 | `.form((r) => ({ name, fields, thanks, title?, perMinute? }))` | A public form at `/-/forms/<name>` that creates a record for anyone, signed in or not, behind a rate limit and a bot check. See [Public forms](/reference/forms/). |
 
-A browser tab names what it shows, then the app's name ([`name`](/reference/config/app/#name)): `Nordlicht GmbH · Companies · Protobase` on a record page, the plural on a list, `New company · Companies · Protobase` on the create form, and a composed page's title on that page.
+A browser tab names what it shows, then the app's name ([`name`](/reference/config/app/#name)): `Nordlicht GmbH · Companies · Protobase` on a record page, the plural on a list, `New company · Companies · Protobase` on the create form, and a composed page's title on that page, after the label of its tab when it has tabs.
+
+### Breadcrumbs
+
+The top bar shows where a page is: the sidebar group, the list and the record's title, each a link back. On a phone, a back button before them goes to the one just before the current page.
 
 ### Titles per reader
 
