@@ -78,7 +78,7 @@ const playStory = async (story, state) => {
   // requests.
   state.step = 'waiting for a story event'
   const { done } = await deadline(settled, 30_000)
-  if (!done) return { name: 'noStoryEvent', message: [`Storybook sent no event within 30 s (last phase: ${state.phase})`, ...logged].join('\n  ') }
+  if (!done) return { name: 'noStoryEvent', message: [`${story.id} sent no Storybook event within 30 s (last phase: ${state.phase})`, ...logged].join('\n  ') }
   const error = events.find((event) => event.name !== 'storyRendered')
   if (!error) return
   return { ...error, message: error.message || logged.join('\n  ') }
