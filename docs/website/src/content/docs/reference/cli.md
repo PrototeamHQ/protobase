@@ -133,6 +133,7 @@ Exit code is 1 when there are errors. Run it after the project's migrations and 
 
 ```sh
 protobase dev [--port 5173] [--env DATABASE_URL] [--cache-dir <dir>] [--allowed-hosts <hosts>] [--extend <dir>] [--no-jobs]   # run inside a project, e.g. bun run --cwd tests/apps/erp dev
+protobase dev --api <url> [--port 5173] [--cache-dir <dir>] [--allowed-hosts <hosts>] [--extend <dir>]   # the UI alone, on the API at <url>
 ```
 
 One port, two processes: Vite serves the admin app from `@protobase/ui`'s `src/app/` (`dist/app/` when installed; `index.html` and `main.tsx`, or `main.js`; the command fails with a clear message when they are missing) and hands `/api`, supabase-js's `/api/sb` included, to the Hono app from `createAdmin`, which runs in a process of its own; the CLI's process never loads `@protobase/server`. Open `http://localhost:<port>`; the API reference is at `/api/docs`.
@@ -152,6 +153,17 @@ One port, two processes: Vite serves the admin app from `@protobase/ui`'s `src/a
 - **Theme:** the page links `/protobase.theme.css`, which the dev server answers from the project's [theme](/reference/theme/), checked as the build checks it, on every request, so an edit shows on the next reload. It links `/protobase.favicon.svg` too, the project's [favicon](/reference/theme/#logo-and-favicon) or Protobase's, and `/protobase.apple-touch-icon.png`, which it answers with the PNG [icons](/reference/app-identity/#the-icons) the project has.
 - **Extensions:** `--extend <dir>` merges an extension in, its UI built into the dev page beside the project's, to try one out; its files reload like the project's.
 - **Hot reload:** server code, data configs, `ui.ts` views, layouts and the config are loaded through Vite's SSR module graph, and the config is read again with each rebuild. A change inside the project (or, in this repository, in `packages/server`, `packages/query`, `packages/schema`) rebuilds the API on the next request without a restart; `/meta` and `X-Meta-Version` change, so open tabs refetch. The database pool survives reloads. Newly added `ui.ts` files appear after the next change inside the project.
+
+### UI only
+
+:::caution[Beta]
+Sign-in with a passkey or an outside provider, such as Google, belongs to the instance's own address and does not return to the dev server; sign in with an emailed code or a password. Safari keeps no cookie of an `https` instance on `http://localhost`; use Chrome or Firefox.
+:::
+
+`--api <url>` serves the admin app with the project's UI, theme, icons and `--extend` folders, hot reloaded as above, and hands every request the API process would answer (`/api`, `/.well-known/webauthn`, the OAuth discovery documents and `/protobase.sw.js`), its WebSockets included, to the Protobase app already running at `<url>`, such as `https://staging.example.com` or another `protobase dev`. Nothing reads a database or the project's config: no `DATABASE_URL`, no `PROTOBASE_SECRET`, no migration checks and no jobs, and resources, roles and data are the instance's. Change the UI here and the server code where the instance runs.
+
+- **Checked at start:** the instance must answer `/api/meta` with an `X-Meta-Version` header, as every Protobase app does; otherwise the command names the URL and what came back. `<url>` is an origin, without a path.
+- **Sign-in:** sign in as a user of the instance. Requests from the dev server's own pages reach it with its own Host, Origin and Referer, so its origin checks pass; a request from any other site keeps its own origin, which the instance refuses. Its cookies come back without their `Domain`, for `localhost` to keep, and a redirect to its own address becomes a path on the dev server.
 
 ### Extending a config
 

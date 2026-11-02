@@ -1,8 +1,8 @@
-import { existsSync } from 'node:fs'
 import type { Server as HttpServer } from 'node:http'
 import path from 'node:path'
 import type { Plugin } from 'vite'
-import { adminAppDir, adminAppMain } from '../project/admin-app'
+import { adminAppDir } from '../project/admin-app'
+import { requireAppFiles } from './app-files'
 import type { Extension } from '../project/extensions'
 import { checkDatabase } from './check-database'
 import { alsoOnIpv6, checkPortFree } from './loopback'
@@ -26,14 +26,6 @@ export type DevOptions = {
   // False runs none of the app's jobs and delivers none of its events, so a hosted app on the same database is the only one that does.
   jobs?: boolean
 }
-
-const requireAppFiles = (appDir: string) => {
-  const missing = ['index.html', adminAppMain].filter((file) => !existsSync(path.join(appDir, file)))
-  if (missing.length > 0) {
-    throw new Error(`The admin app is missing ${missing.join(', ')} in ${appDir}; \`protobase dev\` serves the app from there`)
-  }
-}
-
 
 export const runDev = async (options: DevOptions, out: (text: string) => void) => {
   loadNearestEnvFile(options.projectDir)
