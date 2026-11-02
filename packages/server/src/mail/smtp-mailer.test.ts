@@ -13,7 +13,14 @@ describe('smtpMailer', () => {
     await mailer.send({ to: 'bob@example.com', subject: 'Reset', text: 'Hello' })
 
     expect(createTransport).toHaveBeenCalledTimes(1)
-    expect(createTransport).toHaveBeenCalledWith({ url: smtpUrl, name: 'erp.acme.example.com' })
+    expect(createTransport).toHaveBeenCalledWith({
+      url: smtpUrl,
+      name: 'erp.acme.example.com',
+      dnsTimeout: 10_000,
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
+    })
     expect(sendMail).toHaveBeenCalledWith({ from: 'noreply@erp.acme.example.com', to: 'ada@example.com', subject: 'Reset', text: 'Hello' })
   })
 
@@ -51,5 +58,20 @@ describe('smtpMailer', () => {
       disableFileAccess: true,
       disableUrlAccess: true,
     })
+  })
+
+  it('rejects at the limit for the whole send, however long the client would go on', async () => {
+    sendMail.mockImplementationOnce(() => new Promise(() => {}))
+    const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com' }, 50)
+    const started = Date.now()
+    await expect(mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello' })).rejects.toMatchObject({ code: 'MAIL_SERVER_TIMEOUT' })
+    expect(Date.now() - started).toBeLessThan(1000)
+  })
+
+  it('reports a timeout of the client as the same error, keeping its cause', async () => {
+    const cause = Object.assign(new Error('Connection timeout'), { code: 'ETIMEDOUT' })
+    sendMail.mockRejectedValueOnce(cause)
+    const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com' })
+    await expect(mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello' })).rejects.toMatchObject({ code: 'MAIL_SERVER_TIMEOUT', cause })
   })
 })

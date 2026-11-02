@@ -1,8 +1,18 @@
 import { composerMessage } from './composer-message'
 import type { Mailer } from './mail-message'
 import type { MailSettings } from './mail-settings'
+import { withinLimit } from './mail-server-timeout'
 
 export type { MailAttachment, MailMessage, Mailer } from './mail-message'
+
+/** The whole send, from looking up the server to the end of the message, well within an emailed code's 10 minutes. */
+const sendLimitMs = 30_000
+
+/**
+ * Nodemailer's own timers, for each of the server's addresses, well under the limit so the sockets of a send that ran
+ * out close soon after; its defaults run for minutes. Options on the SMTP URL override these, never the limit.
+ */
+const clientTimeouts = { dnsTimeout: 10_000, connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 }
 
 /**
  * Mail over SMTP with Nodemailer: the most used Node SMTP client, maintained, with no dependencies of its
@@ -11,13 +21,17 @@ export type { MailAttachment, MailMessage, Mailer } from './mail-message'
  * The client greets the server (EHLO) with the sender's domain, the app's own mail name, instead of what the container
  * reports, which is often just `[127.0.0.1]` and makes receiving servers trust the mail less. A `name` query parameter
  * on the SMTP URL still overrides it. With a `name`, the From header carries it as the sender's display name.
+ *
+ * A send that has not finished after `limitMs` rejects with a `MailServerTimeoutError`, with no retry: a firewall that
+ * drops the mail port's packets would otherwise hold it for minutes, once for each of the server's addresses.
  */
-export const smtpMailer = (settings: MailSettings): Mailer => {
+export const smtpMailer = (settings: MailSettings, limitMs = sendLimitMs): Mailer => {
   let transport: Promise<import('nodemailer').Mail> | undefined
   return {
     send: async (message) => {
-      transport ??= import('nodemailer').then(({ createTransport }) => createTransport({ url: settings.smtpUrl, name: senderDomain(settings.from) }))
-      await (await transport).sendMail({ from: sender(settings), ...composerMessage(message) })
+      transport ??= import('nodemailer').then(({ createTransport }) => createTransport({ url: settings.smtpUrl, name: senderDomain(settings.from), ...clientTimeouts }))
+      const mail = { from: sender(settings), ...composerMessage(message) }
+      await withinLimit(transport.then((client) => client.sendMail(mail)), limitMs)
     },
   }
 }
