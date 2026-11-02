@@ -17,7 +17,8 @@ export const cliProtobaseIds = () => Object.keys(cliTypePaths()).filter((id) => 
  * the importer installed (Bun's virtual modules). Each loads when it is first imported, so the CLI loads nothing it did
  * not already load or the project does not import. Only the @protobase packages: a virtual module that loads lazily
  * cannot be `require`d, as the CLI requires React. Bun only: under Node the project's files load through Vite's module
- * runner, which resolves them from the CLI itself.
+ * runner, which resolves them from the CLI itself. Each build calls it again, which Bun takes: a plugin of the same name
+ * registered again replaces nothing it needs and throws nothing.
  */
 export const provideCliModules = () => {
   const bun = (globalThis as unknown as { Bun?: BunRuntime }).Bun
