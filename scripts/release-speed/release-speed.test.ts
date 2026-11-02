@@ -68,10 +68,20 @@ describe('report', () => {
     const runs = [fixture(3, 12, 0), fixture(2, 8, 60), fixture(1, 16, 0)]
     const markdown = workflowReport(release, runs)
     expect(markdown).toContain('**release p50 12m vs target 10m: not met, 2m over**')
-    expect(markdown).toContain('3 successful push runs on main, the newest [3](https://example.com/runs/3)')
+    expect(markdown).toContain('3 successful push runs on main and repository_dispatch runs on main, the newest [3](https://example.com/runs/3)')
     expect(markdown).toContain('| **workflow** | 3 | 12m · 16m · 12m | 0s · 1m · 0s | 12m · 16m · 12m |')
     expect(markdown).toContain('| check | 3 | 12m · 16m · 12m | 0s · 1m · 0s | 12m · 16m · 12m |')
     expect(markdown).not.toContain('publish')
+  })
+
+  it('names push runs on any branch and the dispatch runs on main in a ci window', () => {
+    const ci: WorkflowConfig = { file: 'ci.yml', event: 'push', targetMinutes: 5 }
+    expect(workflowReport(ci, [fixture(1, 4, 0)])).toContain('1 successful push runs on any branch and repository_dispatch runs on main, the newest')
+  })
+
+  it('names only the push runs of a window on another branch', () => {
+    const next: WorkflowConfig = { file: 'release.yml', event: 'push', branch: 'next', targetMinutes: 10 }
+    expect(workflowReport(next, [fixture(1, 8, 0)])).toContain('1 successful push runs on next, the newest')
   })
 
   it('says when there are no runs to measure', () => {
