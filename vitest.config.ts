@@ -68,11 +68,13 @@ const databaseTests = ['packages/*/tests/**/*.test.ts', glue]
 // fixed clock never empties, so they would carry over from file to file.
 const snapshotIsolated = [
   'packages/cli/tests/supabase/supabase-users.test.ts',
+  'packages/server/tests/account-change-confirmation.test.ts',
   'packages/server/tests/admin-users.test.ts',
   'packages/server/tests/app-tokens.test.ts',
   'packages/server/tests/auth-existing-users.test.ts',
   'packages/server/tests/auth-store-hidden.test.ts',
   'packages/server/tests/better-auth.test.ts',
+  'packages/server/tests/confirmation-code.test.ts',
   'packages/server/tests/cors.test.ts',
   'packages/server/tests/encrypted.test.ts',
   'packages/server/tests/leaked-passwords.test.ts',

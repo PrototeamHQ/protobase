@@ -287,7 +287,7 @@ auth: { accountDeletion: false }
 
 It is Better Auth's own deletion, `POST /api/auth/delete-user` with `{ password }`, which the client has as `session.deleteAccount(password?)` and `GET /api/auth/status` offers as `"accountDeletion": true`. It deletes the user with their sessions, sign-in methods and linked accounts, as an admin's [removal](#users-page) does, along with what the app keeps of them elsewhere, such as their [devices for push](/guides/push-notifications/), and their [MCP clients](#oauth-for-mcp-clients)' grants; the app's own records that point at the user stay. This device is signed out, and the address can no longer sign in.
 
-- Without a password, as for someone who signs in with [emailed codes](#emailed-sign-in-codes) or a passkey, the session must have signed in within the last day, else it is `SESSION_EXPIRED`, which the page shows as "sign out and sign in again first". A wrong password is `INVALID_PASSWORD`.
+- Without a password, as for someone who signs in with [emailed codes](#emailed-sign-in-codes) or a passkey, a session that signed in more than a day ago must [confirm it's them](#confirming-an-account-change) first, else it is `403 STRONG_SIGN_IN_REQUIRED`; the dialog asks for it in place. A wrong password is `INVALID_PASSWORD`.
 - The last active admin cannot delete themselves (`400 LAST_ADMIN`), nor can an account in `PROTOBASE_LOCKED_ACCOUNTS` (`403 ACCOUNT_LOCKED`); nothing is deleted then.
 - A [staff session](#staff-sign-in) cannot delete the account (`STAFF_CANNOT_CHANGE_SIGN_IN`).
 - With `accountDeletion: false` the endpoint answers `404` and the page offers nothing. Better Auth's emailed confirmation link (`/delete-user/callback`) is always off.
@@ -368,7 +368,7 @@ People add passkeys (Face ID, Touch ID, Windows Hello, a phone or a security key
 - On an app with several origins, every passkey works on each of them through [Related Origin Requests](https://passkeys.dev/docs/advanced/related-origins/) (Chrome and Edge 128, Safari 18, Firefox 152; at most 5 registrable domains).
 - A browser asks for the passkeys of one RP ID at a time. When people have passkeys for more than one of the app's hosts, `GET /api/auth/status` lists them as `passkeyDomains`, the passkey domain first, and the sign-in page adds "Use a passkey made for {host}" for each of the others. `GET /api/auth/passkey/generate-authenticate-options?rpId=<host>` asks for one of them.
 - A passkey sign-in asks for no second step: the passkey is something you have and something you are or know.
-- Adding a passkey needs a session started in the last day; after that, the page asks to sign in again first.
+- A session of any age adds a first passkey. Adding another to an account with a passkey or a [second step](#two-factor-authentication), from a session that signed in more than a day ago, asks to [confirm it's them](#confirming-an-account-change) first, and the account page asks for it in place.
 - Passkeys can be renamed and removed on the account page; removing one here leaves it on the device.
 
 ## Two-factor authentication
@@ -388,7 +388,27 @@ Some values ask for a sign-in that proved a passkey or a second step not long ag
 
 The app's authenticator gives a token of the person's own session `signIn.strongAt()`, which reads that time when a request needs it, so other requests do no extra lookup. An app with its own authenticator (`auth/authenticate.ts`) sets `signIn: { staff: false, strongAt }` on the sessions it returns, `strongAt` resolving to a `Date` or `undefined`; without it, such values are refused.
 
-Confirming it's them later counts from then: a passkey signs the browser in anew, and a code from the authenticator app, or a backup code, confirms the session it has. `createAuthSession` from `@protobase/client` does both, with `signInWithPasskey()` and `verifyTwoFactor({ method: 'totp', code })`.
+Confirming it's them later counts from then: a passkey signs the browser in anew, and a code from the authenticator app, a backup code, or the emailed code of an account whose second step is email (`/two-factor/send-otp`, then `verify-otp`), confirms the session it has. `createAuthSession` from `@protobase/client` does both, with `signInWithPasskey()` and `verifyTwoFactor({ method: 'totp', code })`.
+
+### Emailed confirmation code
+
+An account with neither a passkey nor a second step has nothing stronger to confirm with, so when the app has mail it confirms with a code emailed on request instead, and the record page and the account page offer it in place: "Email me a code", then the code from the email. `POST /api/auth/account/confirmation-code/send` emails a new code to the signed-in person, and `POST /api/auth/account/confirmation-code/verify` with `{ code }` checks it and notes the strong sign-in for that session, as a second step does. The client has them as `session.account.sendConfirmationCode()` and `confirmWithCode(code)`.
+
+- It is a code of its own kind: it never signs anyone in, and a sign-in code never confirms.
+- It works only in the session that asked for it, of the user that asked, and only through the session cookie: an [MCP client](#oauth-for-mcp-clients) or an app's token cannot ask for one or use it. A [staff session](#staff-sign-in) cannot either (`STAFF_CANNOT_CHANGE_SIGN_IN`).
+- It works for 10 minutes and once. A new one ends the one before, and three wrong codes end it (`TOO_MANY_ATTEMPTS`); asking and checking are each limited to 5 a minute and client.
+- When the email cannot be sent, the request fails and no code works.
+- An account with a passkey or a second step is refused (`403 CONFIRMATION_CODE_NOT_OFFERED`) and keeps confirming with those.
+
+### Confirming an account change
+
+Better Auth's own check of a fresh session, which could only be met by signing out and in again, is off (`freshAge: 0`). In its place, a session that signed in more than a day ago confirms it's them in place, as above, before a change that needs it, else the change is `403 STRONG_SIGN_IN_REQUIRED`; the confirmation counts for 15 minutes:
+
+- adding a passkey to an account that has a passkey or a second step (a first passkey needs none);
+- unlinking a sign-in provider (`/unlink-account`);
+- [deleting the account](#deleting-the-account) without a password.
+
+Listing the account's devices (`/list-sessions`) needs no confirmation.
 
 ## Sign-in policy
 

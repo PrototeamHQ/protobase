@@ -20,6 +20,8 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Open sign-up](/reference/auth/#open-sign-up): Anyone can create an account after confirming an emailed code.
 - [Passkeys](/reference/auth/#passkeys): People sign in with their device's face or fingerprint unlock, or with a security key.
 - [Two-factor authentication](/reference/auth/#two-factor-authentication): A second step with an authenticator app, backup codes or emailed codes.
+- [Emailed confirmation code](/reference/auth/#emailed-confirmation-code): Someone without a passkey or a second step confirms it's them with a code emailed on request, where they are, such as before a secret is shown.
+- [Confirming an account change](/reference/auth/#confirming-an-account-change): Adding a passkey, unlinking a provider or deleting the account from an older session asks to confirm it's them in place, never to sign out and sign in again.
 - [Sign-in policy](/reference/auth/#sign-in-policy): Admins choose which sign-in methods are on, off or required, and the server refuses a policy that would lock people out.
 - [GitHub and social sign-in](/reference/auth/#sign-in-with-github): People sign in with GitHub or another social provider.
 - [Sign-in links](/reference/auth/#sign-in-links-and-connected-accounts): A link signs someone in with a sign-in provider at once, without the sign-in page.

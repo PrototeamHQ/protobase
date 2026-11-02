@@ -1,5 +1,7 @@
 import { useId, useState } from 'react'
 import { AuthError } from '@protobase/client'
+import { confirmationMinutes } from '@protobase/schema/internal'
+import { ConfirmSignIn } from '../app/confirm-sign-in'
 import { authMessage } from '../auth/auth-messages'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
@@ -8,7 +10,7 @@ import { SectionError } from './account-section'
 import { text } from './messages'
 
 export type DeleteAccountDialogProps = {
-  /** The account has a password: ask for it. Without one, a session that signed in within the last day confirms it. */
+  /** The account has a password: ask for it. Without one, a session older than a day confirms it's them in place first. */
   hasPassword: boolean
   /** Rejects with `AuthError`, which the dialog shows; resolves once the account is gone. */
   onDelete: (password?: string) => Promise<void>
@@ -27,16 +29,19 @@ export const DeleteAccountDialog = ({ hasPassword, onDelete, onClose }: DeleteAc
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  const [confirming, setConfirming] = useState(false)
   const formId = useId()
 
   const confirm = async () => {
     setBusy(true)
     setError(undefined)
+    setConfirming(false)
     try {
       await onDelete(hasPassword ? password : undefined)
     } catch (failure) {
       if (!(failure instanceof AuthError)) throw failure
-      setError(deletionMessage(failure))
+      if (failure.code === 'STRONG_SIGN_IN_REQUIRED') setConfirming(true)
+      else setError(deletionMessage(failure))
       setBusy(false)
     }
   }
@@ -71,6 +76,8 @@ export const DeleteAccountDialog = ({ hasPassword, onDelete, onClose }: DeleteAc
         )}
         <SectionError message={error} />
       </form>
+      {/* Outside the form, since the confirmation has forms of its own. */}
+      {confirming && <ConfirmSignIn purpose="change" minutes={confirmationMinutes} onConfirmed={() => void confirm()} />}
     </Dialog>
   )
 }

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, waitFor } from 'storybook/test'
 import { mentionEmail } from '../../comments/mention-email'
 import type { RenderedEmail } from '../../mail/define-email'
-import { accountExistsEmail, changeEmailCodeEmail, invitationEmail, noAccountEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
+import { accountExistsEmail, changeEmailCodeEmail, confirmationCodeEmail, invitationEmail, noAccountEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
 
 // Each auth email as Protobase renders it: the HTML part in a frame as wide as a mail client's reading pane, with the
 // subject and the plain-text part beside it.
@@ -60,6 +60,8 @@ export const NoAccount = story(
 export const SignInCode = story(() => signInCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }))
 
 export const TwoFactorCode = story(() => twoFactorCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }))
+
+export const ConfirmationCode = story(() => confirmationCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }), (body) => expect(body.textContent).toContain('It does not sign you in'))
 
 export const ChangeEmailCode = story(() => changeEmailCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }), (body) => expect(body.textContent).toContain('Confirm your new address'))
 

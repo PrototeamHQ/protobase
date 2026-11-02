@@ -135,6 +135,21 @@ export const accountSecurity = (client: BetterAuthClient) => ({
     if (error) throw authError(error, 'Could not disconnect the app')
   },
 
+  /**
+   * Emails a code that confirms it's them in this session, for an account without a passkey or a second step: a new one
+   * ends the one before. Rejects when the email cannot be sent.
+   */
+  sendConfirmationCode: async () => {
+    const { error } = await client.$fetch('/account/confirmation-code/send', { method: 'POST' })
+    if (error) throw authError(error, 'Could not email a code')
+  },
+
+  /** Confirms it's them in this session with the emailed code; a few wrong codes end it, and a new one has to be asked for. */
+  confirmWithCode: async (code: string) => {
+    const { error } = await client.$fetch('/account/confirmation-code/verify', { method: 'POST', body: { code } })
+    if (error) throw authError(error, 'The code did not work')
+  },
+
   /** New backup codes for the authenticator app; the old ones stop working. */
   newBackupCodes: async (password?: string) => {
     const { data, error } = await client.twoFactor.generateBackupCodes(password ? { password } : {})

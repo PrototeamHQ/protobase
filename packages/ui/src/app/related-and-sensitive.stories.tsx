@@ -148,12 +148,59 @@ export const IbanAfterConfirmingItsYou: StoryObj = {
     const input = (await canvas.findByLabelText('IBAN')) as HTMLInputElement
     await userEvent.click(canvas.getByRole('button', { name: 'Show IBAN' }))
     const step = await canvas.findByRole('region', { name: "Confirm it's you" })
-    expect(within(step).getByText('Showing this needs a passkey or your authenticator app in the last 15 minutes.')).toBeVisible()
+    expect(within(step).getByText("Showing this needs you to confirm it's you in the last 15 minutes.")).toBeVisible()
+    expect(within(step).queryByRole('button', { name: 'Email me a code' })).toBeNull()
     expect(await within(step).findByRole('button', { name: 'Use a passkey' })).toBeVisible()
     expect(canvasElement.textContent).not.toContain(rentalIbans.ada)
     await userEvent.type(within(step).getByLabelText('Code from your authenticator app'), '123456')
     await waitFor(() => expect(input.value).toBe(rentalIbans.ada))
     expect(input.type).toBe('text')
+    expect(canvas.queryByRole('region', { name: "Confirm it's you" })).toBeNull()
+  },
+}
+
+// An account with neither a passkey nor a second step, which confirms it's them with a code emailed on request.
+let emailedConfirmed = false
+const emailSession: AuthSession = {
+  ...session,
+  account: {
+    ...session.account,
+    signInMethods: async () => ({ ...(await session.account.signInMethods()), mail: true }),
+    sendConfirmationCode: async () => undefined,
+    confirmWithCode: async (code) => {
+      emailedConfirmed = code === '654321'
+      if (!emailedConfirmed) throw new Error('The code is not right.')
+    },
+  },
+}
+
+export const IbanAfterConfirmingWithAnEmailedCode: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <Rentals
+      path="/tenants/1"
+      auth={emailSession}
+      reveal={async (_resource, _key, _field, value) => {
+        if (emailedConfirmed) return value
+        throw new ApiError({ type: 'urn:protobase:problem:strong-sign-in-required', title: 'Forbidden', status: 403, detail: "Confirm it's you", minutes: 15 })
+      }}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    emailedConfirmed = false
+    const canvas = within(canvasElement)
+    const input = (await canvas.findByLabelText('IBAN')) as HTMLInputElement
+    await userEvent.click(canvas.getByRole('button', { name: 'Show IBAN' }))
+    const step = await canvas.findByRole('region', { name: "Confirm it's you" })
+    expect(within(step).queryByText('Add a passkey or an authenticator app on your account page first.')).toBeNull()
+    await userEvent.click(await within(step).findByRole('button', { name: 'Email me a code' }))
+    expect(await within(step).findByText('We emailed you a code. It works for 10 minutes.')).toBeVisible()
+    await userEvent.type(within(step).getByLabelText('Code from the email'), '111111')
+    expect(await within(step).findByRole('alert')).toHaveTextContent('The code is not right.')
+    expect(canvasElement.textContent).not.toContain(rentalIbans.ada)
+    await userEvent.clear(within(step).getByLabelText('Code from the email'))
+    await userEvent.type(within(step).getByLabelText('Code from the email'), '654321')
+    await waitFor(() => expect(input.value).toBe(rentalIbans.ada))
     expect(canvas.queryByRole('region', { name: "Confirm it's you" })).toBeNull()
   },
 }

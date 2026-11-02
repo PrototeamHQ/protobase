@@ -47,6 +47,8 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     turnOnEmailedCodes: unsupported('turn on two-factor authentication'),
     turnOffTwoFactor: unsupported('turn off two-factor authentication'),
     newBackupCodes: unsupported('make backup codes'),
+    sendConfirmationCode: unsupported('email a confirmation code'),
+    confirmWithCode: unsupported('confirm with a code'),
     linkedProviders: async () => [],
     linkProvider: unsupported('link a sign-in provider'),
     linkedPersonalMail: async () => [],

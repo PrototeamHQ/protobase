@@ -61,6 +61,7 @@
     "remove": "Verwijderen",
     "keepLastPasskey": "Passkeys zijn verplicht: voeg er nog een toe voordat je deze verwijdert.",
     "addPasskey": "Passkey toevoegen",
+    "confirmedAddPasskey": "Bevestigd. Voeg de passkey nu toe.",
     "renamePasskey": "Naam van passkey wijzigen",
     "renamePasskeyDescription": "Een naam die zegt waar deze passkey staat, zoals het apparaat of de wachtwoordbeheerder.",
     "removePasskey": "Passkey verwijderen?",
@@ -296,10 +297,15 @@
   },
   "app/confirm-sign-in": {
     "confirmTitle": "Bevestig dat jij het bent",
-    "confirmWhy": "Dit tonen vraagt in de laatste {minutes} minuten een passkey of je authenticator-app.",
+    "confirmWhy": "Dit tonen vraagt dat je in de laatste {minutes} minuten bevestigt dat jij het bent.",
+    "confirmWhyChange": "Deze wijziging vraagt dat je in de laatste {minutes} minuten bevestigt dat jij het bent.",
     "usePasskey": "Passkey gebruiken",
     "authenticatorCode": "Code uit je authenticator-app",
     "confirm": "Bevestigen",
+    "emailCode": "Mail me een code",
+    "codeSent": "We hebben je een code gemaild. Hij werkt {minutes} minuten.",
+    "emailedCode": "Code uit de e-mail",
+    "emailNewCode": "Mail een nieuwe code",
     "nothingToConfirmWith": "Voeg eerst een passkey of een authenticator-app toe op je accountpagina."
   },
   "app/create": {
@@ -988,7 +994,6 @@
     "passkeyNotFound": "Deze passkey hoort hier bij geen enkel account.",
     "passkeyFailed": "De passkey kon niet worden gecontroleerd. Probeer het opnieuw.",
     "passkeyAdded": "Deze passkey is al toegevoegd.",
-    "notFresh": "Log voor deze wijziging eerst uit en opnieuw in.",
     "staffPermissionMissing": "Je medewerkersaccount mag hier niet als iemand anders inloggen.",
     "staffNotStrong": "Log in op je medewerkersaccount met een passkey of een tweede stap, en probeer het dan opnieuw.",
     "staffStale": "Je inlog als medewerker is te oud. Log opnieuw in op je medewerkersaccount.",
