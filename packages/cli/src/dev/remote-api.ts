@@ -41,8 +41,13 @@ export const remoteApi = (origin: string): Plugin => {
             ws: true,
             rewriteWsOrigin: true,
             cookieDomainRewrite: { '*': '' },
-            // A request reaches here past Vite's host check; a socket does not, so it is checked here.
-            bypass: (request, response) => (response || isAllowedHost(request.headers.host, allowedHosts) ? undefined : false),
+            // Vite calls this for a request, with its response, after its host check, and for a socket's upgrade, with no
+            // response, before any host check of its own; false refuses the socket.
+            bypass: (request, response) => {
+              const isSocket = response === undefined
+              if (!isSocket) return undefined
+              return isAllowedHost(request.headers.host, allowedHosts) ? undefined : false
+            },
             configure: (proxy) => {
               proxy.on('proxyReq', (upstream, request) => {
                 if (ofDevServer(request.headers.origin, request)) upstream.setHeader('origin', origin)
