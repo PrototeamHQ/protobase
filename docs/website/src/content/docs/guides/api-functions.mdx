@@ -169,6 +169,21 @@ The ticket only lets the socket open, and anyone who holds it may open one with 
 
 `protobase dev` closes every open socket with `1012` when you edit the project, so it reconnects to the rebuilt API. `protobase serve` closes them with `1001` when it stops, and drops any still open after 5 seconds. Clients that reconnect on these codes keep working across both.
 
+## Work after the response
+
+`waitUntil(promise)` from `@protobase/server` lets a function answer at once and finish its work afterwards, such as a slow call to another API:
+
+```ts
+import { defineFunction, waitUntil } from '@protobase/server'
+
+export default defineFunction((_request, { session }) => {
+  waitUntil(fetch('https://hooks.example.com/notify', { method: 'POST', body: JSON.stringify({ user: session.user.id }) }))
+  return new Response(null, { status: 202 })
+})
+```
+
+`protobase serve` waits for that work when it stops gracefully; work still running when the host kills the process is lost, and an error it throws is printed, since no response waits for it. On Protobase Cloud's Starter plan an app stops 30 seconds after its last request, with 10 seconds to finish, so move longer work into a [job](/reference/jobs/).
+
 ## Secrets and other APIs
 
 <Code code={notifyCustomer} lang="ts" title="functions/notify-customer.ts" />
@@ -239,6 +254,7 @@ export default defineFunction({ longQueries: true }, async (request, { db }) => 
 
 - **Up to 30 seconds** per query, the most any query of an app may run. Work longer than that belongs in steps, such as a [job](/reference/jobs/) per batch, which takes `longQueries` too.
 - **One connection kept for it.** Under `protobase dev` and `serve`, those queries run on a connection of their own, which asks for the longer timeout when it logs in, so long work never takes the connections pages need; a second long call waits for it. A PgBouncer of your own in front of the database must list `statement_timeout` in `track_extra_parameters` to pass that on; Protobase Cloud's does.
+- **Room for pages.** Under `protobase dev` and `serve`, function calls and jobs together hold at most one connection less than [`PROTOBASE_DB_CONNECTIONS`](/reference/cli/#serve), so a long import always leaves one to page and API requests; a call past that waits for a connection of its own.
 - **`records` keep the API's limit,** [`statementTimeoutMs`](/reference/api/#safety).
 - **A query past its limit** is stopped, and the call answers `504 statement-timeout` naming the call, its limit and the way out, such as `POST /api/functions/import ran a query longer than the database's statement timeout, so the database stopped it. Make the query faster, such as with an index or a narrower filter, or give it longQueries: true, whose queries may run up to 30 s.` It goes to the app's error hook, `hooks/error.ts`, and the [error tracker](/reference/api/#error-reporting).
 
@@ -255,7 +271,7 @@ export default defineFunction({ longQueries: true }, async (request, { db }) => 
 - **At `/api/sb/functions/v1/<name>` too,** so `supabase.functions.invoke` callers do not change. Only a function with `supabase: true` answers there, and any other function answers `404`. There a protected function lets in a request with the app's publishable or secret key in the `apikey` header, and a user token of [`/api/sb/auth/v1`](/reference/auth/#supabase-js-and-supabasessr) as the bearer, if any, as Supabase's `verify_jwt` does. A public function lets in anyone. The keys are the app's [API keys](/reference/supabase-rest/#keys-and-roles): without them, only public functions answer there. As on Supabase, the request's path starts at the function's name (`/<name>/more/parts`), and a CORS preflight reaches the function, which answers it.
 - **Its context there** is `{ name, db, caller() }`, where `caller()` resolves to who the key and token make the request: `{ role: 'anon' }` for the publishable key alone, `{ role: 'app' }` for the secret key, or `{ role: 'authenticated', claims }`. There is no `session` and no `records`. The publishable key alone lets callers in, so give `supabase: true` only to functions written for Supabase's `verify_jwt`. Together with `roles` or `capability`, which the address cannot check, it stops startup.
 - **Supabase's variables:** `protobase dev` sets `SUPABASE_URL` to the app's address with `/api/sb`, where supabase-js finds it, `SUPABASE_ANON_KEY` and `SUPABASE_PUBLISHABLE_KEY` to the publishable key and `SUPABASE_PUBLISHABLE_KEYS` to `{"default":<publishable key>}`, `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_SECRET_KEY` to the secret key and `SUPABASE_SECRET_KEYS` to `{"default":<secret key>}`, each only when the app has that key, `SUPABASE_JWKS_URL` to the key set of `/api/sb/auth/v1` when the app has sign-in, and `SUPABASE_DB_URL` to the database. A variable set in `.env` wins. Under `protobase serve`, set them where the host keeps its settings.
-- **`waitUntil(promise)`** from `@protobase/server` takes the place of `EdgeRuntime.waitUntil`. The response goes out at once, and the process waits for the work when it shuts down gracefully. Work still running when the host kills the process is lost. On Protobase Cloud's Starter plan an app stops 30 seconds after its last request, with 10 seconds to finish, so move longer work into a [job](/reference/jobs/).
+- **[`waitUntil(promise)`](#work-after-the-response)** from `@protobase/server` takes the place of `EdgeRuntime.waitUntil`.
 
 ## What functions are not
 
