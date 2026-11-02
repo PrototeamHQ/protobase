@@ -14,12 +14,14 @@ const fakeSocket = () => {
   return socket
 }
 
-const setup = (options: { socketFirst?: boolean } = {}) => {
+const setup = (options: { socketFirst?: boolean; poll?: () => Promise<void> } = {}) => {
   const sockets: ReturnType<typeof fakeSocket>[] = []
   const messages: unknown[] = []
-  const poll = vi.fn(() => Promise.resolve())
+  const errors: unknown[] = []
+  const poll = vi.fn(options.poll ?? (() => Promise.resolve()))
   const stop = pollThenSocket({
     poll,
+    onError: (error) => errors.push(error),
     socket: () => {
       const socket = fakeSocket()
       sockets.push(socket)
@@ -28,9 +30,9 @@ const setup = (options: { socketFirst?: boolean } = {}) => {
     onMessage: (data) => messages.push(data),
     pollMs: 5_000,
     switchAfterMs: 30_000,
-    ...options,
+    socketFirst: options.socketFirst,
   })
-  return { sockets, messages, poll, stop }
+  return { sockets, messages, errors, poll, stop }
 }
 
 beforeEach(() => {
@@ -42,6 +44,15 @@ afterEach(() => {
 })
 
 describe('pollThenSocket', () => {
+  it('hands a read that rejects to onError and still reads again', async () => {
+    const failure = new Error('offline')
+    const { errors, poll, stop } = setup({ poll: () => Promise.reject(failure) })
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(poll).toHaveBeenCalledTimes(3)
+    expect(errors).toEqual([failure, failure, failure])
+    stop()
+  })
+
   it('polls first and opens the socket after the switch time, which then takes over', async () => {
     const { sockets, messages, poll, stop } = setup()
     await vi.advanceTimersByTimeAsync(29_999)
@@ -105,7 +116,7 @@ describe('pollThenSocket', () => {
     let finish = () => {}
     const poll = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)))
     const sockets: LiveSocket[] = []
-    const stop = pollThenSocket({ poll, socket: () => (sockets.push(fakeSocket()), sockets.at(-1)!), onMessage: () => {}, socketFirst: true })
+    const stop = pollThenSocket({ poll, onError: () => {}, socket: () => (sockets.push(fakeSocket()), sockets.at(-1)!), onMessage: () => {}, socketFirst: true })
     sockets[0]!.onclose!({})
     sockets.length = 0
     await vi.advanceTimersByTimeAsync(30_000)

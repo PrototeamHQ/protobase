@@ -6,10 +6,12 @@ export type LiveSocket = Pick<SocketLike, 'close' | 'onopen' | 'onmessage' | 'on
 export type PollThenSocketOptions = {
   /**
    * Reads what changed. Called at once, then `pollMs` after each read ends for as long as no socket is open, and once
-   * more as a socket opens, for what changed before it did. A read that rejects is the caller's to handle: the next
-   * read still comes.
+   * more as a socket opens, for what changed before it did. A read that rejects goes to `onError`, and the next read
+   * still comes.
    */
   poll: () => Promise<void>
+  /** Each read's rejection: a read that failed, such as on a network error, which the caller reports or shows. */
+  onError: (error: unknown) => void
   /** Opens the WebSocket, such as `() => new WebSocket(url)`. */
   socket: () => LiveSocket
   /** The data of each message the open socket receives. */
@@ -28,7 +30,7 @@ export type PollThenSocketOptions = {
  * never opens, it polls again at once and tries the socket again `switchAfterMs` later. Polling goes on until a socket
  * is open, so nothing waits on a socket still connecting.
  */
-export const pollThenSocket = ({ poll, socket: openSocket, onMessage, pollMs = 5_000, switchAfterMs = 30_000, socketFirst = false }: PollThenSocketOptions) => {
+export const pollThenSocket = ({ poll, onError, socket: openSocket, onMessage, pollMs = 5_000, switchAfterMs = 30_000, socketFirst = false }: PollThenSocketOptions) => {
   let stopped = false
   let socket: LiveSocket | undefined
   let socketOpen = false
@@ -47,7 +49,7 @@ export const pollThenSocket = ({ poll, socket: openSocket, onMessage, pollMs = 5
       return
     }
     reading = true
-    void poll().finally(() => {
+    void poll().catch(onError).finally(() => {
       reading = false
       if (stopped) return
       if (readAgain) {
