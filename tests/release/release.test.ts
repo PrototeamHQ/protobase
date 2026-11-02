@@ -1,17 +1,16 @@
 import { spawnSync } from 'node:child_process'
-import { copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const root = path.resolve(__dirname, '../..')
 
-// scripts/release.mjs in a repository of its own, with this repository's .versionrc.json and commit-and-tag-version.
+// scripts/release.mjs in a repository of its own, with this repository's node_modules.
 describe('scripts/release.mjs', () => {
   let repo = ''
   beforeEach(async () => {
     repo = await mkdtemp(path.join(tmpdir(), 'protobase-release-'))
-    await copyFile(path.join(root, '.versionrc.json'), path.join(repo, '.versionrc.json'))
     await writeFile(path.join(repo, 'package.json'), JSON.stringify({ name: 'release-test', version: '0.0.0' }))
     await writeFile(path.join(repo, '.gitignore'), 'node_modules\n')
     await symlink(path.join(root, 'node_modules'), path.join(repo, 'node_modules'))
@@ -115,6 +114,21 @@ describe('scripts/release.mjs', () => {
     commit('docs: only docs')
     expect((await release()).tag).toBe('')
     expect(git('tag', '--points-at', 'HEAD')).toBe('')
+  })
+
+  it('releases the fixes and features a squash-merged chore lists, once across stacked pull requests', async () => {
+    commit('feat: the first feature')
+    tag('v0.1.0')
+    commit('chore: land a branch, 1 of 2 (#5)\n\n* fix: a fix (#1)\n\n* docs: some docs (#2)')
+    commit('chore: land a branch, 2 of 2 (#6)\n\n* fix: a fix (#1)\n\n* feat!: a breaking change\n\nBREAKING CHANGE: do this instead\n\n* An untyped commit')
+
+    const { tag: released, notes } = await release()
+    expect(released).toBe('v0.2.0')
+    expect(notes).toContain('do this instead')
+    expect(notes).toContain('a breaking change')
+    expect(notes.match(/a fix/g)).toHaveLength(1)
+    expect(notes).not.toContain('some docs')
+    expect(notes).not.toContain('land a branch')
   })
 
   it('prints the tag it would cut on a dry run, and tags nothing', () => {

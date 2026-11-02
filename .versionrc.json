@@ -1,9 +1,0 @@
-{
-  "noBumpWhenEmptyChanges": true,
-  "packageFiles": [],
-  "bumpFiles": [],
-  "skip": {
-    "commit": true,
-    "tag": true
-  }
-}
