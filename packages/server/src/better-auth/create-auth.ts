@@ -13,7 +13,7 @@ import { endReplacedSession } from './end-replaced-session'
 import { authBasePath } from './auth-base-path'
 import { authLogger } from './auth-logger'
 import { cookiePrefixOf } from './cookie-prefix'
-import { mobileRequests, type MobileRequests } from './mobile-requests'
+import { jsonOnlyOnMobile, mobileRequests, type MobileRequests } from './mobile-requests'
 import { passwordLength } from './new-account-password'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
@@ -549,9 +549,10 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   return Object.assign(auth, {
     /**
      * Answers a request from the app's iOS or Android build: Better Auth also trusts the Capacitor origin the request
-     * names. Only `createAdmin` with a `mobile` section uses it; `handler` and `api` never trust a Capacitor origin.
+     * names. Only `createAdmin` with a `mobile` section uses it; `handler` and `api` never trust a Capacitor origin. A
+     * Capacitor origin's POST without a JSON body is refused before it is granted, as only a page sends one.
      */
-    handleMobile: (request: Request) => auth.handler(mobile.grant(request)),
+    handleMobile: async (request: Request) => jsonOnlyOnMobile(request) ?? auth.handler(mobile.grant(request)),
     /**
      * What runs when a user is deleted: `set` a named listener that removes what the app keeps of the user elsewhere,
      * such as their devices; `run` is for a deletion outside Better Auth's endpoints (`deleteUser`).
