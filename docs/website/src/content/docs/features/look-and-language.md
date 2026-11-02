@@ -7,6 +7,7 @@ description: The app's colours, name, icon, language and installation.
 - [Dark mode](/reference/theme/#light-dark-or-the-system): Each user picks light, dark or the system setting.
 - [App name, icon and colours](/reference/app-identity/): The app's own name, icon and colours in the sidebar, browser tabs, `/favicon.ico`, home-screen icon and mail.
 - [Logo and favicon](/reference/theme/#logo-and-favicon): Your own favicon or logo replaces Protobase's.
+- [Named icons](/reference/layouts/#named-actions): Actions, key facts and card meta show an icon picked by name from a set, such as `play`, `bed` or `cpu`.
 - [English and Dutch](/reference/languages/): The built-in screens come in English and Dutch, with numbers and dates written to match.
 - [Installable app](/reference/installable-app/): The admin installs as an app on phones and computers, and says when the server cannot be reached.
 - Reduced motion: When the system asks for less motion, animations and pulsing dots stop.

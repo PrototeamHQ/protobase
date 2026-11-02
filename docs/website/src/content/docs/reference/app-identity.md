@@ -29,7 +29,7 @@ export default defineConfig({
 
 ## The icons
 
-`protobase.favicon.svg` is the one source of the app's icon: the tab shows it, the [web manifest](/reference/installable-app/#the-manifest) names it, and with it the sidebar's logo draws it beside the app's name in place of Protobase's mark and wordmark. A project's own [`shell.logo`](/reference/custom-components/#shell-slots) still wins.
+`protobase.favicon.svg` is the one source of the app's icon: the tab shows it, the [web manifest](/reference/installable-app/#the-manifest) names it, and with it the sidebar's logo draws it in place of Protobase's mark, beside the app's name. A project's own [`shell.logo`](/reference/custom-components/#shell-slots) still wins.
 
 Some platforms take no SVG, so a project may put PNGs of the same icon beside it, each square at its size:
 
