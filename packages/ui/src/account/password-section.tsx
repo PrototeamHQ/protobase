@@ -11,7 +11,7 @@ export type PasswordSectionProps = {
   /** Staff signed in as the person, who may not change their sign-in: the section only says so. */
   staff: boolean
   /** Each rejects with `AuthError`, which the dialog shows. */
-  onChange: (current: string, next: string, signOutOthers: boolean) => Promise<void>
+  onChange: (current: string, next: string) => Promise<void>
   onSet: (next: string) => Promise<void>
 }
 
@@ -48,8 +48,8 @@ export const PasswordSection = ({ rule, hasPassword, staff, onChange, onSet }: P
         <PasswordChangeDialog
           hasPassword={hasPassword}
           onClose={() => setEditing(false)}
-          onSave={async ({ current, next, signOutOthers }) => {
-            await (hasPassword ? onChange(current, next, signOutOthers) : onSet(next))
+          onSave={async ({ current, next }) => {
+            await (hasPassword ? onChange(current, next) : onSet(next))
             setEditing(false)
             setSaved(true)
           }}

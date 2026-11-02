@@ -26,9 +26,12 @@ export const accountProfile = (client: BetterAuthClient) => ({
     if (error) throw authError(error, 'Could not change your name')
   },
 
-  /** Changes the password, which the account must have; `signOutOthers` signs out every other device, this one stays signed in. */
-  changePassword: async (current: string, next: string, signOutOthers: boolean) => {
-    const { error } = await client.changePassword({ currentPassword: current, newPassword: next, revokeOtherSessions: signOutOthers })
+  /**
+   * Changes the password, which the account must have: every other device is signed out, this one stays signed in,
+   * and the account's address is emailed that its password changed.
+   */
+  changePassword: async (current: string, next: string) => {
+    const { error } = await client.changePassword({ currentPassword: current, newPassword: next, revokeOtherSessions: true })
     if (error) throw authError(error, 'Could not change your password')
   },
 

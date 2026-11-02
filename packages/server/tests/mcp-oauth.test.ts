@@ -456,7 +456,7 @@ describe('securing the account', () => {
   })
 
   it('by changing the password and signing out the other devices', async () => {
-    await securing(async ({ app, cookie }) => ok(await app.request('/api/auth/change-password', { cookie, body: { currentPassword: password, newPassword: password, revokeOtherSessions: true } })))
+    await securing(async ({ app, cookie }) => ok(await app.request('/api/auth/change-password', { cookie, body: { currentPassword: password, newPassword: password } })))
   })
 
   // The GoTrue-compatible endpoints, as supabase-js calls them, with an access token of their own.

@@ -69,6 +69,9 @@ describe('password reset over SMTP', () => {
     expect(token).toBeTruthy()
 
     expect((await post('/reset-password', { token, newPassword })).status).toBe(200)
+    const notice = await relay.next()
+    expect(notice.to).toEqual(['sanne@acme.example.com'])
+    expect(notice.raw).toContain('Subject: Your Protobase password was changed')
     expect((await signIn(oldPassword)).status).toBe(401)
     expect((await signIn(newPassword)).status).toBe(200)
 

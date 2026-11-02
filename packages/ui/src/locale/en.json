@@ -38,6 +38,7 @@
     "currentPassword": "Current password",
     "newPassword": "New password",
     "repeatPassword": "Repeat new password",
+    "changeSignsOutOthers": "Saving signs out your other devices.",
     "atLeast": "At least {length} characters.",
     "useAtLeast": "Use at least {length} characters.",
     "passwordTooLong": "That password is too long.",
