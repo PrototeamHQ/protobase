@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AuthError } from '@protobase/client'
+import { emailCodeMinutes } from '@protobase/schema/internal'
 import { authMessage } from '../auth/auth-messages'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
@@ -76,7 +77,7 @@ export const ChangeEmailDialog = ({ email, change, onDone, onClose }: ChangeEmai
   return (
     <Dialog
       title={text('changeEmail')}
-      description={text('codeSentTo', { email: sentTo })}
+      description={text('codeSentTo', { email: sentTo, minutes: emailCodeMinutes })}
       onClose={onClose}
       actions={
         <>

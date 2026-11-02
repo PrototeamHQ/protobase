@@ -14,6 +14,7 @@ import { projectPackages } from '../version/project-packages'
 import { findPackageDirSync, readPackageJson, type PackageJson } from './packages/package-dir'
 import { pluginFieldTypes } from './plugin-fields'
 import { layerPluginUtilities } from './plugin-styles'
+import { firstPartyCode } from './first-party-code'
 
 /** The module a plugin's components and action handlers are exported from, as a project's are. */
 export const pluginEntryFile = 'protobase.ui.tsx'
@@ -167,6 +168,7 @@ export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore 
       react(),
       tailwindcss(),
       layeredStyles(),
+      firstPartyCode(),
     ],
     // Web workers are builds of their own, which take the source maps from `build` but not the output's debug ids.
     worker: { rolldownOptions: { output: { sourcemapDebugIds: sourceMaps } } },

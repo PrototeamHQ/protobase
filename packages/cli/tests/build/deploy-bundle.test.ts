@@ -86,19 +86,19 @@ describe('buildDeployBundle', () => {
     expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8')).protobase).toBe(pinned)
   }, buildTimeout)
 
-  it('builds a locked project pinned to an older minor, whose @protobase packages the runtime of its pin supplies', async () => {
+  it("builds a locked project pinned to an older minor, whose @protobase packages the runtime of its pin supplies, reading its config with the CLI's", async () => {
     const [major, minor] = [semver.major(protobaseVersion), semver.minor(protobaseVersion)]
     const pinned = `${major}.${minor - 1}.4`
     projectDir = await createProject({
       'config/index.ts': things,
       'package.json': locked(pinned),
-      'protobase.config.ts': `import { defineConfig } from '@protobase/server'\nexport default defineConfig({})\n`,
+      'protobase.config.ts': `import { defineConfig } from '@protobase/config'\nexport default defineConfig({})\n`,
     })
     await writePackage(projectDir, { name: '@protobase/cli', version: pinned })
-    await writePackage(projectDir, { name: '@protobase/server', version: pinned, type: 'module' }, { 'index.js': 'export const defineConfig = (config) => config\n' })
+    await writePackage(projectDir, { name: '@protobase/server', version: pinned, type: 'module' }, { 'index.js': "throw new Error('loaded the project\\'s own @protobase/server')\n" })
     const outDir = path.join(projectDir, 'dist')
     expect((await buildDeployBundle({ projectDir, outDir })).protobase).toBe(pinned)
-    expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).toContain('from "@protobase/server"')
+    expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).toContain('from "@protobase/config"')
   }, buildTimeout)
 
   it('refuses a locked project without its @protobase packages installed', async () => {

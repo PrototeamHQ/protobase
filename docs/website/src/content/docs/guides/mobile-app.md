@@ -119,7 +119,7 @@ Use it as the upload key with Play App Signing. Set these variables in your shel
 
 Only Gradle gets them, for the length of the build: npm, its install scripts and Capacitor never do. The build needs the Android SDK and JDK 21.
 
-**iOS**, on a Mac with Xcode: `--team` is your Apple Developer team id, shown in your account's membership details. Xcode signs with the certificates and profiles of the account you added in its settings. For manual signing, pass `--certificate <name>` and `--profile <name>` too. If automatic signing finds no profile for a new app, run `protobase mobile open ios`, pick the team in Signing & Capabilities and archive once from Xcode (Product, Archive), which creates the profile; then build again.
+**iOS**, on a Mac with Xcode: `--team` is your Apple Developer team id, shown in your account's membership details. Xcode signs with the certificates and profiles of the account you added in its settings. For manual signing, pass `--certificate <name>` and `--profile <name>` too. <gap>Manual signing cannot use a certificate or profile name that holds `<`, `>` or `&` because writing the escaped export options is not implemented.</gap> If automatic signing finds no profile for a new app, run `protobase mobile open ios`, pick the team in Signing & Capabilities and archive once from Xcode (Product, Archive), which creates the profile; then build again.
 
 ## 7. Live updates
 

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { androidSigning, withoutAndroidSigning, withReleaseSigning } from './android-signing'
+import { androidSigning, dropAndroidSigning, withoutAndroidSigning, withReleaseSigning } from './android-signing'
 
 let dir = ''
 afterEach(() => rmSync(dir, { recursive: true, force: true }))
@@ -37,6 +37,21 @@ describe('androidSigning', () => {
 describe('withoutAndroidSigning', () => {
   it('drops the four variables in any letter case and keeps the rest', () => {
     expect(withoutAndroidSigning({ ...signing, Protobase_Android_Key_Password: 'key-pw', protobase_android_keystore: 'x', PATH: '/bin' })).toEqual({ PATH: '/bin' })
+  })
+})
+
+describe('dropAndroidSigning', () => {
+  it('deletes every name starting with PROTOBASE_ANDROID_ in any letter case, in place, and keeps the rest', () => {
+    const env: NodeJS.ProcessEnv = {
+      PROTOBASE_ANDROID_KEY_PASSWORD: 'key-pw',
+      protobase_android_key_password: 'key-pw',
+      pRoToBaSe_AnDrOiD_kEy_AlIaS: 'upload',
+      PROTOBASE_ANDROID_UNKNOWN: 'x',
+      X_PROTOBASE_ANDROID_KEY: 'kept',
+      OTHER: 'kept',
+    }
+    dropAndroidSigning(env)
+    expect(env).toEqual({ X_PROTOBASE_ANDROID_KEY: 'kept', OTHER: 'kept' })
   })
 })
 

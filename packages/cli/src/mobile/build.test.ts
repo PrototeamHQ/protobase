@@ -17,17 +17,32 @@ const signing = { PROTOBASE_ANDROID_KEYSTORE: 'keys/upload.jks', PROTOBASE_ANDRO
 let root = ''
 afterEach(() => {
   rmSync(root, { recursive: true, force: true })
-  for (const key of [...androidSigningVariables, 'Protobase_Android_Key_Password', 'OWN_SECRET']) delete process.env[key]
+  for (const key of [...androidSigningVariables, 'Protobase_Android_Key_Password', 'PROTOBASE_ANDROID_UNKNOWN', 'OWN_SECRET', 'SIGNING_SEEN_BY_CONFIG', 'SIGNING_SEEN_BY_CHILD']) delete process.env[key]
+  seenByBuild = undefined
 })
 
-// A project with a keystore and an .env.local that sets the signing variables and a secret of its own.
-const project = (config = "{ mobile: { appId: 'com.example.shop' } }") => {
+// The names starting with PROTOBASE_ANDROID_, in any letter case, that the project's code finds in `env`.
+const seenSigning = (env: NodeJS.ProcessEnv) => Object.keys(env).filter((key) => key.toUpperCase().startsWith('PROTOBASE_ANDROID_')).join(',')
+
+// A config that records them, and those a child it starts without an `env` gets, before it gives its settings.
+const childScript = "console.log(Object.keys(process.env).filter((key) => key.toUpperCase().startsWith('PROTOBASE_ANDROID_')).join(','))"
+const recordingConfig = (config: string) => `import { execFileSync } from 'node:child_process'
+process.env.SIGNING_SEEN_BY_CONFIG = Object.keys(process.env).filter((key) => key.toUpperCase().startsWith('PROTOBASE_ANDROID_')).join(',')
+process.env.SIGNING_SEEN_BY_CHILD = execFileSync(process.execPath, ['-e', ${JSON.stringify(childScript)}], { encoding: 'utf8' }).trim()
+export default ${config}
+`
+
+// A project with a keystore, an .env (the one Node's lookup loads, unless `envFile` is false) and an .env.local that
+// set the signing variables, and a secret of its own.
+const project = (config = "{ mobile: { appId: 'com.example.shop' } }", { envFile = true } = {}) => {
   root = mkdtempSync(path.join(tmpdir(), 'protobase-mobile-build-'))
   const dir = path.join(root, 'shop')
   mkdirSync(path.join(dir, 'keys'), { recursive: true })
   writeFileSync(path.join(dir, 'keys', 'upload.jks'), '')
-  writeFileSync(path.join(dir, 'protobase.config.ts'), `export default ${config}\n`)
-  writeFileSync(path.join(dir, '.env.local'), `${Object.entries(signing).map(([key, value]) => `${key}=${value}`).join('\n')}\nOWN_SECRET=own\n`)
+  writeFileSync(path.join(dir, 'protobase.config.ts'), recordingConfig(config))
+  const signingLines = Object.entries(signing).map(([key, value]) => `${key}=${value}`).join('\n')
+  if (envFile) writeFileSync(path.join(dir, '.env'), `${signingLines}\n`)
+  writeFileSync(path.join(dir, '.env.local'), `${signingLines}\nOWN_SECRET=own\n`)
   Object.assign(process.env, signing, { OWN_SECRET: 'own' })
   return dir
 }
@@ -80,7 +95,20 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
 // The server's web manifest, naming the app.
 const fetch = async () => Response.json({ name: 'mobile-lab' }, { headers: { 'content-type': 'application/manifest+json' } })
 
-const webBuild = fakeWebBuild()
+// The web build, recording the PROTOBASE_ANDROID_ names it finds in the environment.
+let seenByBuild: string | undefined
+const fakeBuild = fakeWebBuild()
+const webBuild = async (options: { outDir: string }) => {
+  seenByBuild = seenSigning(process.env)
+  await fakeBuild(options)
+}
+
+// The project's config, a child it started without an `env`, and the web build found no PROTOBASE_ANDROID_ variable.
+const expectNoSigningSeen = () => {
+  expect(process.env.SIGNING_SEEN_BY_CONFIG).toBe('')
+  expect(process.env.SIGNING_SEEN_BY_CHILD).toBe('')
+  expect(seenByBuild).toBe('')
+}
 
 const version = { version: '1.2.3', build: '7' }
 const input = (dir: string, platform: 'android' | 'ios', more = {}) => ({ projectDir: dir, platform, extensions: [], api: 'https://api.example.com', version, outDir: path.join(dir, 'mobile-release'), ...more })
@@ -88,8 +116,11 @@ const ws = (dir: string) => path.join(dir, '.protobase', 'mobile')
 const short = ({ command, args }: Call) => [command, ...args.slice(command === 'node' ? 1 : 0)]
 
 describe('mobileBuild android', () => {
-  it('signs through Gradle alone, which is the only child given the upload key, and copies the bundle out', async () => {
-    const dir = project()
+  it.each([
+    ['set from the shell and the project\'s .env', true],
+    ['set from the shell alone', false],
+  ])('signs through Gradle alone, which is the only child given the upload key, and copies the bundle out: %s', async (_, envFile) => {
+    const dir = project(undefined, { envFile })
     process.env.Protobase_Android_Key_Password = keyPassword
     const calls: Call[] = []
     const out: string[] = []
@@ -108,6 +139,7 @@ describe('mobileBuild android', () => {
     // Gradle's environment is exactly the others' plus the four variables, the keystore absolute.
     expect(gradle.env).toEqual({ ...npm.env, ...signing, PROTOBASE_ANDROID_KEYSTORE: path.join(dir, 'keys', 'upload.jks') })
     expect(gradle.cwd).toBe(path.join(ws(dir), 'android'))
+    expectNoSigningSeen()
     for (const { args } of calls) expect(args.join(' ')).not.toMatch(new RegExp(`${storePassword}|${keyPassword}`))
 
     const release = path.join(dir, 'mobile-release', 'com.example.shop-1.2.3-7.aab')
@@ -118,6 +150,14 @@ describe('mobileBuild android', () => {
     expect(buildGradle).toContain('        versionCode 7\n        versionName "1.2.3"\n')
     expect(buildGradle).toContain('signingConfig signingConfigs.release')
     expect(buildGradle).not.toMatch(new RegExp(`${storePassword}|${keyPassword}`))
+  })
+
+  it('leaves the project\'s code no PROTOBASE_ANDROID_ variable, not even one Gradle does not read', async () => {
+    const dir = project()
+    process.env.PROTOBASE_ANDROID_UNKNOWN = 'x'
+    await mobileBuild(input(dir, 'android'), () => {}, { run: fakeRun([]), build: webBuild, fetch })
+    expectNoSigningSeen()
+    expect(process.env).not.toHaveProperty('PROTOBASE_ANDROID_UNKNOWN')
   })
 
   it('writes a config with no plain transport, no inspection and no build options', async () => {
@@ -136,10 +176,12 @@ describe('mobileBuild android', () => {
     const missing = mobileBuild(input(dir, 'android'), () => {}, deps)
     await expect(missing).rejects.toThrow('set PROTOBASE_ANDROID_KEY_ALIAS')
     await expect(missing).rejects.not.toThrow(storePassword)
-    process.env.PROTOBASE_ANDROID_KEY_ALIAS = 'upload'
+    // Each build that loads the project takes the variables out of the environment, so each starts with them again.
     for (const api of ['http://localhost:3000', 'https://10.0.2.2', 'https://localhost:3000']) {
+      Object.assign(process.env, signing)
       await expect(mobileBuild(input(dir, 'android', { api }), () => {}, deps), api).rejects.toThrow('A release build calls its server over https')
     }
+    Object.assign(process.env, signing)
     await expect(mobileBuild(input(dir, 'android', { api: 'https://user:pw@api.example.com' }), () => {}, deps)).rejects.toThrow('without a user')
     expect(calls).toEqual([])
   })
@@ -167,8 +209,10 @@ describe('mobileBuild android', () => {
 describe('mobileBuild ios', () => {
   it('builds with Capacitor and the team, giving no child the Android upload key, and copies the ipa out', async () => {
     const dir = project()
+    process.env.Protobase_Android_Key_Password = keyPassword
     const calls: Call[] = []
     await mobileBuild(input(dir, 'ios', { ios: { team: 'ABCDE12345' } }), () => {}, { run: fakeRun(calls), build: webBuild, fetch })
+    expectNoSigningSeen()
     expect(calls.map(short)).toEqual([
       ['npm', 'install', '--install-links', '--no-audit', '--no-fund'],
       ['node', 'add', 'ios'],

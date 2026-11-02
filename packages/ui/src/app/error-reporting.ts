@@ -1,5 +1,5 @@
 import type { Meta } from '@protobase/client'
-import { redactSecrets } from '@protobase/schema/internal'
+import { firstPartyCodeKey, redactSecrets } from '@protobase/schema/internal'
 
 type Capture = (error: unknown, componentStack?: string) => void
 
@@ -9,14 +9,19 @@ let capture: Capture | undefined
 /**
  * Sends the app's uncaught errors to the error tracker `/meta` names, from the first call on; the Sentry SDK loads only
  * then, so an app without a DSN never loads it. Errors only, with no performance tracing and no session tracking,
- * every event without its secrets (see `redactSecrets`).
+ * every event without its secrets (see `redactSecrets`). An error none of whose stack frames is in the app's own scripts,
+ * which their build marks (see `firstPartyCodeKey`), is not the app's and goes unreported; `protobase dev` serves no
+ * built scripts, so there every error is reported.
  */
 export const startErrorReporting = ({ dsn, environment }: NonNullable<Meta['errorReporting']>) => {
   loading ??= import('@sentry/browser').then((sentry) => {
     sentry.init({
       dsn,
       ...(environment && { environment }),
-      integrations: (defaults) => defaults.filter((integration) => integration.name !== 'BrowserSession'),
+      integrations: (defaults) => [
+        ...defaults.filter((integration) => integration.name !== 'BrowserSession'),
+        ...(import.meta.env?.DEV ? [] : [sentry.thirdPartyErrorFilterIntegration({ filterKeys: [firstPartyCodeKey], behaviour: 'drop-error-if-exclusively-contains-third-party-frames' })]),
+      ],
       beforeSend: (event) => redactSecrets(event),
     })
     capture = (error, componentStack) => sentry.captureException(error, componentStack ? { contexts: { react: { componentStack } } } : undefined)

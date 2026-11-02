@@ -41,7 +41,7 @@
     "test:dom": "storybook build && bun scripts/dom-snapshots.mjs",
     "test:dom:update": "storybook build && bun scripts/dom-snapshots.mjs --update",
     "docs:dev": "bun run --cwd docs/website dev",
-    "docs:build": "bun run build-storybook && bun run --cwd docs/website build && cp -R storybook-static docs/website/dist/storybook",
+    "docs:build": "bun run build-storybook && bun run --cwd docs/website build && cp -R storybook-static docs/website/dist/storybook && bun run docs:skill && bun scripts/docs-agent-files.ts",
     "docs:check": "bun scripts/check-docs.mjs",
     "docs:api-check": "bun run --cwd docs/website api-check",
     "docs:skill": "bun scripts/protobase-skill.ts",

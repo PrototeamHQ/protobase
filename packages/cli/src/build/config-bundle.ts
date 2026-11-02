@@ -1,6 +1,9 @@
 import path from 'node:path'
 import type { Plugin } from 'vite'
 import { loadSourceConfig } from '../config/source-config'
+import { cliPackages } from '../dev/server-package'
+import { cliProtobaseIds, provideCliModules } from '../project/cli-modules'
+import { importProjectFiles } from '../project/import-project-file'
 import { hostModuleIds } from '../serve/host-module-ids'
 import { extensionImports, type Extension } from '../project/extensions'
 import { collectComponents } from './component-names'
@@ -77,10 +80,16 @@ export type ConfigBundleInput = {
 }
 
 // The project's config and the extensions' configs, with the code their conventions find, as one module (see
-// `bundleEntryCode`). Each config is read first, so one that breaks the rules stops the build. Returns the packages with native add-ons it imports, which the bundle has to carry (see
+// `bundleEntryCode`). Each config is read first, so one that breaks the rules stops the build, with the CLI's own
+// @protobase packages, as the serve runtime supplies them to the bundle, so a project locked to another version loads no
+// second copy: under Bun as Bun's virtual modules, under Node through Vite's module runner, which resolves them from the
+// CLI with the other packages the runtime supplies. Returns the packages with native add-ons it imports, which the bundle has to carry (see
 // copyPackages), and the merged config's mobile section, unchecked.
 export const buildConfigBundle = async ({ projectDir, outFile, bun, extensions = [], components = new Set() }: ConfigBundleInput): Promise<{ native: NativeImport[]; mobile: unknown }> => {
-  const config = await loadSourceConfig(projectDir, { command: 'build', extensions })
+  if (process.versions.bun !== undefined) provideCliModules()
+  const cli = cliPackages()
+  const packages = { ...cli, dedupe: [...new Set([...cli.dedupe, ...cliProtobaseIds().map((id) => packageName(id)!)])] }
+  const config = await loadSourceConfig(projectDir, { command: 'build', extensions, importModules: (files) => importProjectFiles(files, projectDir, packages) })
   const file = path.join(projectDir, 'protobase-bundle-entry.js')
   const native = new Map<string, NativeImport>()
   const plugins = [layoutCheck(), collectComponents(components), extensionImports(projectDir, extensions), servedImports(native), entry(file, bundleEntryCode(projectDir, extensions, config.files?.images ? [config.files.images] : []))]

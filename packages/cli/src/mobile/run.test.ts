@@ -13,17 +13,18 @@ import { fakeWebBuild } from './web-build-fixture'
 let root = ''
 afterEach(() => {
   rmSync(root, { recursive: true, force: true })
-  for (const key of ['PARENT_SECRET', 'CONFIG_SECRET', 'OWN_SECRET']) delete process.env[key]
+  for (const key of ['PARENT_SECRET', 'CONFIG_SECRET', 'OWN_SECRET', 'PROTOBASE_ANDROID_KEY_PASSWORD', 'Protobase_Android_Key_Alias', 'SIGNING_SEEN_BY_CONFIG']) delete process.env[key]
 })
 
-// A project in a folder of its own, under a parent whose .env Node's lookup finds, with a config that writes a secret
-// into the environment when it loads.
+// A project in a folder of its own, under a parent whose .env Node's lookup finds and which sets a signing variable,
+// with a config that writes a secret into the environment when it loads and records the PROTOBASE_ANDROID_ names there.
+const recordSigning = "process.env.SIGNING_SEEN_BY_CONFIG = Object.keys(process.env).filter((key) => key.toUpperCase().startsWith('PROTOBASE_ANDROID_')).join(',')"
 const project = (mobile: string, envFile?: string) => {
   root = mkdtempSync(path.join(tmpdir(), 'protobase-mobile-run-'))
   const dir = path.join(root, 'shop')
   mkdirSync(dir)
-  writeFileSync(path.join(root, '.env'), 'PARENT_SECRET=parent\n')
-  writeFileSync(path.join(dir, 'protobase.config.ts'), `process.env.CONFIG_SECRET = 'config'\nexport default { mobile: ${mobile} }\n`)
+  writeFileSync(path.join(root, '.env'), 'PARENT_SECRET=parent\nPROTOBASE_ANDROID_KEY_PASSWORD=key-pw\n')
+  writeFileSync(path.join(dir, 'protobase.config.ts'), `process.env.CONFIG_SECRET = 'config'\n${recordSigning}\nexport default { mobile: ${mobile} }\n`)
   if (envFile) writeFileSync(path.join(dir, '.env.local'), envFile)
   return dir
 }
@@ -67,7 +68,13 @@ const fakeRun =
 // native-run's list with one iPhone connected.
 const capture = async () => JSON.stringify({ devices: [{ id: '00008110-0001', name: 'iPhone' }], virtualDevices: [{ id: 'SIM-1' }], errors: [] })
 
-const build = fakeWebBuild()
+// The web build, recording the PROTOBASE_ANDROID_ names it finds in the environment.
+let seenByBuild: string | undefined
+const fakeBuild = fakeWebBuild()
+const build = async (options: { outDir: string }) => {
+  seenByBuild = Object.keys(process.env).filter((key) => key.toUpperCase().startsWith('PROTOBASE_ANDROID_')).join(',')
+  await fakeBuild(options)
+}
 
 // The server's web manifest, naming the app.
 const fetch = async () => Response.json({ name: 'mobile-lab' }, { headers: { 'content-type': 'application/manifest+json' } })
@@ -92,6 +99,22 @@ describe('mobileRun', () => {
     }
     expect(out.join('')).toMatch(/^workspace \.protobase\/mobile, api http:\/\/localhost:3000, native fingerprint [0-9a-f]{16}\n$/)
   })
+
+  for (const platform of ['android', 'ios'] as const) {
+    it(`leaves the config and the web build no PROTOBASE_ANDROID_ variable on ${platform}, for run and open`, async () => {
+      for (const command of [mobileRun, mobileOpen]) {
+        const dir = project("{ appId: 'com.example.shop' }")
+        process.env.Protobase_Android_Key_Alias = 'upload'
+        seenByBuild = undefined
+        const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
+        await command({ projectDir: dir, platform, api: 'https://api.example.com', extensions: [] }, () => {}, { run: fakeRun(calls), build, fetch, capture })
+        expect(process.env.SIGNING_SEEN_BY_CONFIG).toBe('')
+        expect(seenByBuild).toBe('')
+        for (const { env } of calls) for (const key of Object.keys(env)) expect(key.toUpperCase()).not.toMatch(/^PROTOBASE_ANDROID_/)
+        rmSync(root, { recursive: true, force: true })
+      }
+    })
+  }
 
   it('refuses a bad API or a pinned plugin before anything is installed', async () => {
     const calls: Array<{ command: string; args: string[] } & ChildOptions> = []

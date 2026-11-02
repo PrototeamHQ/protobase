@@ -3,13 +3,14 @@ import { defineConfig } from 'astro/config'
 import starlightLinksValidator from 'starlight-links-validator'
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc'
 import { architecture, features, featuresPage, gettingStarted, guides, referenceGroups } from './sidebar.mjs'
+import { description } from './site.mjs'
 
 export default defineConfig({
   site: 'https://docs.protobase.net',
   integrations: [
     starlight({
       title: 'Protobase',
-      description: 'Config-driven admin panel framework for existing Postgres databases.',
+      description,
       logo: { light: './src/assets/logo.svg', dark: './src/assets/logo-on-dark.svg', alt: 'Protobase', replacesTitle: true },
       head: [{ tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' } }],
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/PrototeamHQ/protobase' }],

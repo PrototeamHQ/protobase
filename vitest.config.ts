@@ -8,7 +8,7 @@ const runId = randomBytes(4).toString('hex')
 const testDatabase = 'scripts/test-db/global-setup.ts'
 // Unit tests sit next to the code; tests that start a database, a subprocess or the network live in each package's
 // tests/, and the examples' in tests/examples.
-const unit = ['packages/*/src/**/*.test.ts', 'scripts/release-speed/**/*.test.ts', 'scripts/config-schema/**/*.test.ts', 'scripts/publish/**/*.test.ts', 'scripts/play-tests/**/*.test.ts', 'docs-examples/**/*.test.ts', 'tests/apps/*/{config,jobs,hooks,emails,seed,map}/**/*.test.ts']
+const unit = ['packages/*/src/**/*.test.ts', 'scripts/release-speed/**/*.test.ts', 'scripts/config-schema/**/*.test.ts', 'scripts/publish/**/*.test.ts', 'scripts/play-tests/**/*.test.ts', 'scripts/docs-agent-files/**/*.test.ts', 'docs-examples/**/*.test.ts', 'tests/apps/*/{config,jobs,hooks,emails,seed,map}/**/*.test.ts']
 // Unit tests share one module registry per worker (`isolate: false`), which saves most of their time. These replace a
 // module with `vi.mock`, change a global, the environment or the console without always putting it back, or send the
 // process signals that a handler another file loaded would act on, so each runs in a registry of its own (project

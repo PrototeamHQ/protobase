@@ -22,3 +22,4 @@ description: Start a new app, or an admin over an existing Postgres database, an
 - [Admin without a view](/guides/table-to-admin/#1-the-table-as-it-is): A table with an empty view already gives a working admin with every column, sorting, paging, a record page and a New button.
 - [Agent skills](/reference/cli/#skill): `protobase skill install` writes agent skills that match the installed version into the project, for the coding agents that work on it.
 - [Docs as Markdown](/getting-started/#docs-as-markdown): Every docs page is also Markdown at its address plus `.md`, for coding agents and chat assistants.
+- [llms.txt](/getting-started/#docs-as-markdown): The docs site serves `/llms.txt`, which links every page's Markdown, and the protobase agent skill at `/skills/protobase/SKILL.md`, for chat assistants.

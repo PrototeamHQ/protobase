@@ -1,12 +1,9 @@
 import { APIError } from 'better-auth/api'
 import type { AuthContext } from '../organizations/store'
+import { codeLifetimeSeconds } from '../sign-in-mail'
 
 // The code that proves someone reads the address they sign up with, kept in Better Auth's verification table: hashed,
-// for ten minutes, and for three tries; a fourth try finds it gone. Web Crypto only, like the rest of the server.
-
-/** How long the emailed code works, in seconds and in the email's words. */
-export const signUpCodeLifetimeSeconds = 10 * 60
-export const signUpCodeLifetime = '10 minutes'
+// for as long as every emailed code works, and for three tries; a fourth try finds it gone. Web Crypto only, like the rest of the server.
 
 const allowedAttempts = 3
 
@@ -34,7 +31,7 @@ export const issueSignUpCode = async (context: AuthContext, email: string) => {
   const code = sixDigits()
   const identifier = identifierOf(email)
   await context.internalAdapter.deleteVerificationByIdentifier(identifier)
-  await context.internalAdapter.createVerificationValue({ identifier, value: `${await hashOf(code)}:0`, expiresAt: new Date(Date.now() + signUpCodeLifetimeSeconds * 1000) })
+  await context.internalAdapter.createVerificationValue({ identifier, value: `${await hashOf(code)}:0`, expiresAt: new Date(Date.now() + codeLifetimeSeconds * 1000) })
   return code
 }
 

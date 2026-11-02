@@ -59,6 +59,7 @@
     "@protobase/ui": "workspace:*",
     "@react-email/render": "^2.1.0",
     "@scalar/hono-api-reference": "^0.12.10",
+    "@sentry/vite-plugin": "^11.10.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.2",
     "aip-parsers": "^1.0.0",
