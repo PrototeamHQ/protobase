@@ -1,8 +1,8 @@
 import { quoteIdent } from '../../changes/capture-sql'
 import { jobsSchema } from '../../jobs/schema'
 
-/** Bumped whenever the functions or views below change, so the next migration writes them again. */
-export const webhooksVersion = 1
+/** Bumped whenever the functions, views or indexes below change, so the next migration writes them again. */
+export const webhooksVersion = 2
 
 /** The comment the schema's functions carry, which the startup check reads. */
 export const webhooksComment = `Protobase webhooks ${webhooksVersion}`
@@ -43,8 +43,24 @@ export const subscriptionsSql = (schema: string, changesSchema: string) => `crea
   "rotate_secret" boolean not null default false,
   "send_test" boolean not null default false,
   "resend_failed" boolean not null default false
-);
-create index if not exists "subscriptions_tenant" on ${quoteIdent(schema)}."subscriptions" ("tenant_id")`
+)`
+
+/**
+ * An index for each read of the subscriptions the API takes: the tenant and owner every caller's rows keep to, the
+ * sorts and filter the list offers, and pg_trgm ones for its search over the name and URL.
+ */
+export const subscriptionsIndexesSql = (schema: string) => {
+  const table = `${quoteIdent(schema)}."subscriptions"`
+  return `create extension if not exists pg_trgm;
+create index if not exists "subscriptions_tenant" on ${table} ("tenant_id");
+create index if not exists "subscriptions_owner" on ${table} ("owner_id");
+create index if not exists "subscriptions_created_at" on ${table} ("created_at");
+create index if not exists "subscriptions_name" on ${table} ("name");
+create index if not exists "subscriptions_enabled" on ${table} ("enabled");
+create index if not exists "subscriptions_last_success_at" on ${table} ("last_success_at");
+create index if not exists "subscriptions_name_search" on ${table} using gin ("name" gin_trgm_ops);
+create index if not exists "subscriptions_url_search" on ${table} using gin ("url" gin_trgm_ops)`
+}
 
 // A failed job runs once more, from now, as the failed jobs page retries it.
 const retryJobs = (where: string) => `update ${jobsSchema}.job
@@ -124,5 +140,15 @@ export const deliveryLogSql = (schema: string) => `create table if not exists ${
   "response" text,
   "duration_ms" integer not null,
   "at" timestamptz not null default now()
-);
-create index if not exists "delivery_log_subscription" on ${quoteIdent(schema)}."delivery_log" ("subscription_id", "at")`
+)`
+
+/** An index for each filter and sort of the delivery log the API takes. */
+export const deliveryLogIndexesSql = (schema: string) => {
+  const table = `${quoteIdent(schema)}."delivery_log"`
+  return `create index if not exists "delivery_log_subscription" on ${table} ("subscription_id", "at");
+create index if not exists "delivery_log_at" on ${table} ("at");
+create index if not exists "delivery_log_event_id" on ${table} ("event_id");
+create index if not exists "delivery_log_event_type" on ${table} ("event_type");
+create index if not exists "delivery_log_status" on ${table} ("status");
+create index if not exists "delivery_log_status_code" on ${table} ("status_code")`
+}

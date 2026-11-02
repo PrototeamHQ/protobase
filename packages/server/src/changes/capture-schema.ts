@@ -4,6 +4,8 @@ import type { ResourceModel } from '@protobase/schema'
 import { capturePlan, planSql, uncaptured, type CaptureState, type FoundTrigger } from './capture-plan'
 import { isCaptured, quoteIdent, tableSql } from './capture-sql'
 import { changesSchema, type EventsOptions } from './events-options'
+import { hasIndexes } from '../has-indexes'
+import { historyIndexes } from '../history/history-sql'
 
 /** The command that writes what the config needs as a migration file of the project. */
 export const migrationCommand = 'protobase migration'
@@ -38,7 +40,7 @@ const readCaptureState = async (db: Db, schema: string, models: readonly Resourc
   )
   return {
     outbox: await exists('outbox'),
-    history: await exists('history'),
+    history: (await exists('history')) && (await hasIndexes(db, schema, 'history', historyIndexes.map(([name]) => name))),
     notices: await exists('notices'),
     ...(capture && { capture }),
     triggers: triggers.map((trigger) => ({ ...trigger, args: triggerArgs(trigger.args) })),
