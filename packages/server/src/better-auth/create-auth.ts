@@ -59,6 +59,8 @@ import { coreNames, pluginNames } from './snake-case-names'
 import { rehashPasswordsPlugin, verifyAcceptedHash, type PasswordHash } from './password-hashes'
 import { staffSignInPlugin } from './staff-plugin'
 import { strongSignInsPlugin } from './strong-sign-ins'
+import { recentConfirmationPlugin } from './recent-confirmation'
+import { confirmationCodePaths, confirmationCodePlugin } from './confirmation-code-plugin'
 import { tokenClaims } from './token-claims'
 import { twoFactorAfterPasswordOrCode } from './two-factor-challenge'
 import { metadataField, userFieldsNamed, userModel, userTable, withUserColumns, type UserTableOptions } from './user-table'
@@ -392,7 +394,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     },
     ...(options.socialProviders && { socialProviders: options.socialProviders }),
     user: { ...userModel(users), ...(Object.keys(userFields).length > 0 && { additionalFields: userFields }), ...deleteUser },
-    session: coreNames.session,
+    // Better Auth's fresh-session check could only be met by signing in again; `recentConfirmationPlugin` replaces it.
+    session: { ...coreNames.session, freshAge: 0 },
     verification: coreNames.verification,
     account: {
       ...coreNames.account,
@@ -411,7 +414,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
       passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]!, origins: appOrigins(options.baseURL, origins) }),
       strongSignInsPlugin(),
-      ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail)] : []),
+      recentConfirmationPlugin(),
+      ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail), confirmationCodePlugin(mail)] : []),
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail, defaultPolicy: signInPolicy })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       ...(saml.length > 0 ? [loaded(plugins.samlPlugin, 'sso.saml')(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
@@ -480,6 +484,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         [signUpPaths.sendCode]: { window: 60, max: options.signInPerMinute ?? 5 },
         [signUpPaths.verifyCode]: { window: 60, max: options.signInPerMinute ?? 5 },
         [signUpPaths.create]: { window: 60, max: options.signInPerMinute ?? 5 },
+        [confirmationCodePaths.send]: { window: 60, max: 5 },
+        [confirmationCodePaths.verify]: { window: 60, max: 5 },
       },
     },
     advanced: {

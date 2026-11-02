@@ -132,7 +132,7 @@ A [webhook subscription](/reference/webhooks/) delivering `as` a role runs that 
 
 ### Recent strong sign-in
 
-A field such as a recovery code or an API secret can ask for more than read access: `.strongSignIn()` reveals it only to someone whose sign-in proved a passkey or a second step in the last 15 minutes, or `minutes` you give. It is sensitive too, so all of the above applies, and `/meta` marks it `strongSignIn: { minutes }`.
+A field such as a recovery code or an API secret can ask for more than read access: `.strongSignIn()` reveals it only to someone whose sign-in proved a passkey or a second step in the last 15 minutes, or `minutes` you give; an account with neither confirms with an [emailed code](/reference/auth/#emailed-confirmation-code) instead. It is sensitive too, so all of the above applies, and `/meta` marks it `strongSignIn: { minutes }`.
 
 ```ts
 recoveryCode: f.text().encrypted().strongSignIn({ minutes: 10 }),

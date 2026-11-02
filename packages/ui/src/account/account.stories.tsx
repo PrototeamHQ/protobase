@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { AuthError, type SignInPolicyState, type StaffSignIn } from '@protobase/client'
 import { BackupCodes } from './backup-codes'
@@ -32,6 +33,24 @@ export const Passkeys: StoryObj<PasskeysSectionProps> = {
     expect(args.onRename).toHaveBeenCalledWith('p2', 'YubiKey')
     await userEvent.click(canvas.getByRole('button', { name: 'Add a passkey' }))
     expect(args.onAdd).toHaveBeenCalledOnce()
+  },
+}
+
+/** Another passkey from an older session: the section asks to confirm it's them in place, never to sign out and sign in again. */
+export const PasskeysConfirmInPlace: StoryObj<PasskeysSectionProps> = {
+  tags: ['play'],
+  args: { rule: 'allowed', passkeys, ...changes, onAdd: fn(async () => Promise.reject(new AuthError("Confirm it's you first", 403, 'STRONG_SIGN_IN_REQUIRED'))) },
+  render: (args) => (
+    <QueryClientProvider client={new QueryClient()}>
+      <PasskeysSection {...args} />
+    </QueryClientProvider>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Add a passkey' }))
+    const step = within(await canvas.findByRole('region', { name: "Confirm it's you" }))
+    expect(step.getByText("This change needs you to confirm it's you in the last 15 minutes.")).toBeVisible()
+    expect(canvasElement.textContent).not.toMatch(/sign out and sign in again/i)
   },
 }
 

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { AuthError, createStaticSession, type AuthSession } from '@protobase/client'
 import { AuthProvider, useAuth } from '../auth/auth-provider'
@@ -54,5 +55,61 @@ export const DeleteAccount: StoryObj<{ deleteAccount: (password?: string) => Pro
     await userEvent.click(confirm)
     expect(args.deleteAccount).toHaveBeenCalledWith('correct horse')
     expect(await canvas.findByText('Signed out')).toBeVisible()
+  },
+}
+
+/**
+ * A session without a password, signed in more than a day ago: the server asks it to confirm it's them first, which it
+ * does in place with an emailed code, as the account has neither a passkey nor a second step.
+ */
+const olderSession = (deleteAccount: (password?: string) => Promise<void>): AuthSession => {
+  const base = createStaticSession('story-token', { id: 'u-ana', email: 'ana@shop.example', name: 'Ana de Vries', role: 'sales' })
+  let confirmed = false
+  return {
+    ...base,
+    deleteAccount: async (password) => {
+      if (!confirmed) throw new AuthError("Confirm it's you first", 403, 'STRONG_SIGN_IN_REQUIRED')
+      await deleteAccount(password)
+    },
+    account: {
+      ...base.account,
+      signInMethods: async () => ({ ...(await base.account.signInMethods()), mail: true, account: { password: false, passkeys: 0, twoFactor: false, authenticatorApp: false } }),
+      sendConfirmationCode: async () => undefined,
+      confirmWithCode: async (code) => {
+        if (code !== '654321') throw new AuthError('The code is not right.', 400, 'INVALID_CODE')
+        confirmed = true
+      },
+    },
+  }
+}
+
+/** Deleting the account from an older session confirms it's them in place, never asking to sign out and sign in again. */
+export const DeleteAccountConfirmsInPlace: StoryObj<{ deleteAccount: (password?: string) => Promise<void> }> = {
+  tags: ['play'],
+  args: { deleteAccount: fn(async () => undefined) },
+  render: (args) => (
+    <QueryClientProvider client={new QueryClient()}>
+      <AuthProvider session={olderSession(args.deleteAccount)}>
+        <SignedIn />
+        <DeleteAccountBlock />
+      </AuthProvider>
+    </QueryClientProvider>
+  ),
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    const section = within(await canvas.findByRole('region', { name: 'Delete account' }))
+    await userEvent.click(section.getByRole('button', { name: 'Delete account' }))
+    const body = within(document.body)
+    const dialog = within(await body.findByRole('dialog', { name: 'Delete your account?' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Delete my account' }))
+    const step = within(await dialog.findByRole('region', { name: "Confirm it's you" }))
+    expect(step.getByText("This change needs you to confirm it's you in the last 15 minutes.")).toBeVisible()
+    expect(document.body.textContent).not.toMatch(/sign out and sign in again/i)
+    expect(args.deleteAccount).not.toHaveBeenCalled()
+
+    await userEvent.click(await step.findByRole('button', { name: 'Email me a code' }))
+    await userEvent.type(await step.findByLabelText('Code from the email'), '654321')
+    expect(await canvas.findByText('Signed out')).toBeVisible()
+    expect(args.deleteAccount).toHaveBeenCalledWith(undefined)
   },
 }

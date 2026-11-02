@@ -1,6 +1,7 @@
 // Every auth email Protobase sends. Only `sendAuthEmail` loads this module, and only when it sends one.
 export { accountExistsEmail } from './account-exists-email'
 export { changeEmailCodeEmail } from './change-email-code-email'
+export { confirmationCodeEmail } from './confirmation-code-email'
 export { invitationEmail } from './invitation-email'
 export { noAccountEmail } from './no-account-email'
 export { passwordChangedEmail } from './password-changed-email'

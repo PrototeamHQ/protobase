@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountExistsEmail, changeEmailCodeEmail, invitationEmail, noAccountEmail, passwordChangedEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
+import { accountExistsEmail, changeEmailCodeEmail, confirmationCodeEmail, invitationEmail, noAccountEmail, passwordChangedEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
 
 const app = { name: 'Property Finder', url: 'https://homes.example.com/' }
 const expiresAt = new Date('2026-10-15T12:00:00Z')
@@ -17,6 +17,7 @@ describe('the auth emails', () => {
       await signInCodeEmail.render({ app, code: '123456', lifetime: '10 minutes' }),
       await twoFactorCodeEmail.render({ app, code: '123456', lifetime: '10 minutes' }),
       await changeEmailCodeEmail.render({ app, code: '123456', lifetime: '10 minutes' }),
+      await confirmationCodeEmail.render({ app, code: '123456', lifetime: '10 minutes' }),
       await resetPasswordEmail.render({ app, url: 'https://homes.example.com/api/auth/reset-password/abc', lifetime: '1 hour' }),
       await staffSignInEmail.render({ app, staff: 'Alex (alex@operator.example)', reason: 'Ticket 12', expiresAt }),
       await invitationEmail.render({ app, inviter: 'Ada', organization: 'Acme', url: 'https://homes.example.com/-/invitation?token=t', expiresAt }),
@@ -46,12 +47,14 @@ describe('the auth emails', () => {
       (await signUpCodeEmail.render({ app, code: '654321', lifetime: '10 minutes' })).subject,
       (await twoFactorCodeEmail.render({ app, code: '654321', lifetime: '10 minutes' })).subject,
       (await changeEmailCodeEmail.render({ app, code: '654321', lifetime: '10 minutes' })).subject,
+      (await confirmationCodeEmail.render({ app, code: '654321', lifetime: '10 minutes' })).subject,
     ]
     expect(subjects).toEqual([
       '654321 is your Property Finder sign-in code',
       '654321 is your code to create an account with Property Finder',
       '654321 is your Property Finder verification code',
       '654321 confirms your new Property Finder address',
+      "654321 confirms it's you in Property Finder",
     ])
     expect((await signInCodeEmail.render({ app, code: '123456', lifetime: '10 minutes' })).subject).not.toBe(subjects[0])
   })

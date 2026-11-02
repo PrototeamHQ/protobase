@@ -1,6 +1,8 @@
 import { KeyRound, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { AuthError, type Passkey, type SignInRule } from '@protobase/client'
+import { confirmationMinutes } from '@protobase/schema/internal'
+import { ConfirmSignIn } from '../app/confirm-sign-in'
 import { authMessage } from '../auth/auth-messages'
 import { formatDate } from '../format'
 import { Badge } from '../primitives/badge'
@@ -29,17 +31,21 @@ export const PasskeysSection = ({ rule, passkeys, onAdd, onRename, onRemove }: P
   const [error, setError] = useState<string>()
   const [editing, setEditing] = useState<Editing>()
   const [name, setName] = useState('')
+  // Another passkey on an account with a passkey or a second step asks an older session to confirm it's them first.
+  const [confirming, setConfirming] = useState<'asked' | 'done'>()
   const keepLast = rule === 'required' && passkeys.length <= 1
 
   const attempt = async (action: () => Promise<void>) => {
     setBusy(true)
     setError(undefined)
+    setConfirming(undefined)
     try {
       await action()
       setEditing(undefined)
     } catch (failure) {
       if (!(failure instanceof AuthError)) throw failure
-      setError(authMessage(failure))
+      if (failure.code === 'STRONG_SIGN_IN_REQUIRED') setConfirming('asked')
+      else setError(authMessage(failure))
     }
     setBusy(false)
   }
@@ -83,6 +89,9 @@ export const PasskeysSection = ({ rule, passkeys, onAdd, onRename, onRemove }: P
           {text('addPasskey')}
         </Button>
       )}
+      {/* The browser asks for the new passkey only on a click, so the person adds it again once confirmed. */}
+      {confirming === 'asked' && <ConfirmSignIn purpose="change" minutes={confirmationMinutes} onConfirmed={() => setConfirming('done')} />}
+      {confirming === 'done' && <p className="mt-2 text-muted-foreground">{text('confirmedAddPasskey')}</p>}
       {editing?.kind === 'rename' && (
         <Dialog
           title={text('renamePasskey')}

@@ -61,6 +61,7 @@
     "remove": "Remove",
     "keepLastPasskey": "Passkeys are required: add another one before removing this one.",
     "addPasskey": "Add a passkey",
+    "confirmedAddPasskey": "Confirmed. Add the passkey now.",
     "renamePasskey": "Rename passkey",
     "renamePasskeyDescription": "A name that tells you where this passkey lives, such as the device or password manager.",
     "removePasskey": "Remove passkey?",
@@ -296,10 +297,15 @@
   },
   "app/confirm-sign-in": {
     "confirmTitle": "Confirm it's you",
-    "confirmWhy": "Showing this needs a passkey or your authenticator app in the last {minutes} minutes.",
+    "confirmWhy": "Showing this needs you to confirm it's you in the last {minutes} minutes.",
+    "confirmWhyChange": "This change needs you to confirm it's you in the last {minutes} minutes.",
     "usePasskey": "Use a passkey",
     "authenticatorCode": "Code from your authenticator app",
     "confirm": "Confirm",
+    "emailCode": "Email me a code",
+    "codeSent": "We emailed you a code. It works for {minutes} minutes.",
+    "emailedCode": "Code from the email",
+    "emailNewCode": "Email a new code",
     "nothingToConfirmWith": "Add a passkey or an authenticator app on your account page first."
   },
   "app/create": {
@@ -988,7 +994,6 @@
     "passkeyNotFound": "This passkey is not registered for an account here.",
     "passkeyFailed": "The passkey could not be checked. Try again.",
     "passkeyAdded": "This passkey is added already.",
-    "notFresh": "For this change, sign out and sign in again first.",
     "staffPermissionMissing": "Your staff account has no permission to sign in as people here.",
     "staffNotStrong": "Sign in to your staff account with a passkey or a second step, then try again.",
     "staffStale": "Your staff sign-in is too old. Sign in to your staff account again.",

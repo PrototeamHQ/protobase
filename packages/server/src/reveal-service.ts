@@ -23,7 +23,7 @@ export type RevealRequest = { key: (string | number)[]; field: unknown; origin: 
 
 /** The refusal of a reveal that needs a strong sign-in more recent than the caller's, which the app answers by asking them to confirm it's them. */
 export const strongSignInRequired = (minutes: number) =>
-  new HttpProblem(403, 'strong-sign-in-required', 'Forbidden', `Confirm it's you with a passkey or a second step: this needs one in the last ${minutes} minutes.`, { minutes })
+  new HttpProblem(403, 'strong-sign-in-required', 'Forbidden', `Confirm it's you with a passkey, a second step or an emailed code: this needs one in the last ${minutes} minutes.`, { minutes })
 
 // Only the user's own sign-in counts: staff signed in as them, and an outside app acting as them, proved nothing as them.
 const requireStrongSignIn = async (session: Session, minutes: number, now = new Date()) => {

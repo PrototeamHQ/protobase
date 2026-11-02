@@ -16,14 +16,14 @@ type Internal = Pick<AuthContext['internalAdapter'], 'createVerificationValue' |
 // Kept in Better Auth's verification table, which every store has, so recording them needs no migration.
 const identifierOf = (sessionId: string) => `protobase-strong-sign-in-${sessionId}`
 
-/** Notes that the session proved a passkey or a second step now; the note ends with the session. */
+/** Notes that the session proved a passkey, a second step or an emailed confirmation code now; the note ends with the session. */
 export const saveStrongSignIn = async (internal: Internal, session: { id: string; expiresAt: Date }, now = new Date()) => {
   const identifier = identifierOf(session.id)
   await internal.deleteVerificationByIdentifier(identifier)
   await internal.createVerificationValue({ identifier, value: now.toISOString(), expiresAt: session.expiresAt })
 }
 
-/** When the session last proved a passkey or a second step, if it did and its note has not expired. */
+/** When the session last proved a passkey, a second step or an emailed confirmation code, if it did and its note has not expired. */
 export const strongSignInAt = async (internal: Internal, sessionId: string, now = new Date()) => {
   const found = await internal.findVerificationValue(identifierOf(sessionId))
   if (!found || new Date(found.expiresAt) <= now) return undefined
