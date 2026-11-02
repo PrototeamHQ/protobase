@@ -26,4 +26,4 @@ description: The list page of each resource, with its columns, filters, charts, 
 - [Favorites](/reference/ui-config/#favorites): A heart on each card saves the record to the user's favorites, which a list page can show.
 - [Sign-in prompts](/reference/ui-config/#sign-in-prompts): Visitors who are not signed in see what signing in gives them, in place of a list or when they press favorite or save search.
 - [Export to Excel and CSV](/reference/ui-config/#exports): Any list, or the selected rows, is saved as an Excel or CSV file with the columns the user picks.
-- [Import from a spreadsheet](/reference/ui-config/#importing-records): Records are created or updated from Excel or CSV. Every row is checked before anything is saved, and refused rows can be downloaded with the reasons.
+- [Import from a file](/reference/ui-config/#importing-records): Records are created or updated from Excel, CSV or JSON. Every row is checked before anything is saved, and refused rows can be downloaded with the reasons.

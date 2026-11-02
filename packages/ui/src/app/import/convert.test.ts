@@ -27,6 +27,14 @@ describe('parseNumberText', () => {
 })
 
 describe('convertCell', () => {
+  it('writes a JSON file\'s value to a JSON field as it is, and a nested value to no other field', () => {
+    expect(convert('json', { json: { city: 'Delft', tags: ['a'] } })).toEqual({ ok: true, value: { city: 'Delft', tags: ['a'] } })
+    expect(convert('json', 7)).toEqual({ ok: true, value: 7 })
+    expect(convert('json', false)).toEqual({ ok: true, value: false })
+    expect(convert('text', { json: [1, 2] })).toEqual({ ok: false, problem: '“[1,2]” is a nested value, which only a JSON field takes' })
+    expect(convert('integer', { json: { a: 1 } })).toEqual({ ok: false, problem: '“{"a":1}” is a nested value, which only a JSON field takes' })
+  })
+
   it('makes an empty cell null, and an error on a required field rather than a default', () => {
     expect(convert('text', '  ')).toEqual({ ok: true, value: null })
     expect(convert('integer', null, american, { nullable: false, default: { value: 1 } })).toEqual({ ok: false, problem: 'is empty, and it is required' })

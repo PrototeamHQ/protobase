@@ -30,6 +30,10 @@ describe('import mapping', () => {
     expect(importableFields(model, resources).map((entry) => entry.name)).toEqual(['number', 'customer', 'status', 'notes', 'secret'])
   })
 
+  it('imports a JSON field only from a JSON file', () => {
+    expect(importableFields(model, resources, { json: true }).map((entry) => entry.name)).toEqual(['number', 'customer', 'status', 'notes', 'data', 'secret'])
+  })
+
   it('finds records by their key or a filterable field, never a sensitive one', () => {
     expect(matchFields(model).map((entry) => entry.name)).toEqual(['id', 'number'])
   })

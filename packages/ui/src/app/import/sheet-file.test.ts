@@ -34,4 +34,16 @@ describe('sheet files', () => {
       { line: 2, cells: ['x'] },
     ])
   })
+
+  it('reads a JSON file by its extension or media type, with no sheets', async () => {
+    const rows = '[{"name":"Acme"}]'
+    expect(await sheetFormat(new File([rows], 'customers.JSON'))).toBe('json')
+    expect(await sheetFormat(new File([rows], 'export', { type: 'application/json' }))).toBe('json')
+    const file = new File([rows], 'customers.json')
+    expect(await sheetNames(file)).toEqual([])
+    expect(await collect(sheetRows(file))).toEqual([
+      { line: 1, cells: ['name'] },
+      { line: 2, cells: ['Acme'] },
+    ])
+  })
 })

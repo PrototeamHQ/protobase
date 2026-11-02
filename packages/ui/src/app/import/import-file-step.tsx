@@ -13,7 +13,7 @@ type ImportFileStepProps = {
   onSheet: (sheet: string) => void
 }
 
-/** The file to import, an .xlsx workbook or a CSV, and the sheet to read from a workbook with several. */
+/** The file to import, an .xlsx workbook, a CSV or a JSON file, and the sheet to read from a workbook with several. */
 export const ImportFileStep = ({ file, sheets, sheet, reading, onChoose, onSheet }: ImportFileStepProps) => {
   const id = useId()
   return (
@@ -25,7 +25,7 @@ export const ImportFileStep = ({ file, sheets, sheet, reading, onChoose, onSheet
         <input
           id={id}
           type="file"
-          accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          accept=".xlsx,.csv,.json,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           disabled={reading}
           onChange={(event) => {
             const chosen = event.target.files?.[0]

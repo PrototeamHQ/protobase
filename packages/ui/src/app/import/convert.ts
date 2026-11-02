@@ -1,6 +1,6 @@
 import { enumLabel, type FieldModel, type FieldViewModel } from '@protobase/schema'
 import { parseNumberText, type DecimalSeparator } from '../../format/number-text'
-import { cellText, isEmptyCell, isSheetDate, type SheetCell } from './sheet-cell'
+import { cellText, isEmptyCell, isSheetDate, isSheetJson, type SheetCell } from './sheet-cell'
 import { text as message } from './messages'
 
 /**
@@ -116,6 +116,9 @@ const enumValue = (field: FieldModel, hints: FieldViewModel | undefined, cell: S
 
 const textValue = (cell: SheetCell): Converted => (typeof cell === 'boolean' ? problem(message('notText', { cell: quoted(cell) })) : ok(cellText(cell)))
 
+// A JSON file's value as it is: a nested object or array, or a string, number or boolean
+const jsonValue = (cell: SheetCell): Converted => (isSheetJson(cell) ? ok(cell.json) : ok(cell))
+
 /**
  * The value a cell gives a field, as the API takes it, or the problem that keeps it from being one: never a guess, and an
  * empty cell is null, never a default. A relation's cell is the value of the field its records are found by, so it
@@ -123,6 +126,8 @@ const textValue = (cell: SheetCell): Converted => (typeof cell === 'boolean' ? p
  */
 export const convertCell = (field: FieldModel, hints: FieldViewModel | undefined, cell: SheetCell, options: ConvertOptions): Converted => {
   if (isEmptyCell(cell)) return field.nullable ? ok(null) : problem(message('emptyRequired'))
+  if (field.type === 'json') return jsonValue(cell)
+  if (isSheetJson(cell)) return problem(message('nestedValue', { cell: quoted(cell) }))
   switch (field.type) {
     case 'integer':
     case 'bigint':

@@ -19,10 +19,15 @@ const relationTarget = (field: FieldModel, resources: Record<string, ResourceMod
   return target?.primaryKey.length === 1 ? target : undefined
 }
 
-/** The fields an import may write: not read-only, not the tenant, and of a type a cell can hold. */
-export const importableFields = (model: ResourceModel, resources: Record<string, ResourceModel>) =>
+/**
+ * The fields an import may write: not read-only, not the tenant, and of a type a cell can hold; a JSON field too when
+ * the file is JSON, whose values it takes as they are.
+ */
+export const importableFields = (model: ResourceModel, resources: Record<string, ResourceModel>, { json = false } = {}) =>
   Object.values(model.fields).filter((field) => {
-    if (field.readOnly || field.name === model.tenant || !importableTypes.has(field.type)) return false
+    if (field.readOnly || field.name === model.tenant) return false
+    if (field.type === 'json') return json
+    if (!importableTypes.has(field.type)) return false
     return field.type !== 'relation' || relationTarget(field, resources) !== undefined
   })
 

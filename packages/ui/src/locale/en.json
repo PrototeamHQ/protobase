@@ -543,7 +543,7 @@
     "cancelImport": "Cancel import",
     "done": "Done",
     "file": "File",
-    "fileHint": "An Excel workbook (.xlsx) or a CSV file saved as UTF-8. Its first row names the columns.",
+    "fileHint": "An Excel workbook (.xlsx), a CSV file saved as UTF-8, or a JSON file. A workbook's or CSV's first row names the columns; a JSON file holds a list of objects, whose keys name the columns.",
     "reading": "Reading {name}…",
     "theFile": "the file",
     "sheet": "Sheet",
@@ -610,6 +610,7 @@
     "severalValues": "{cell} matches more than one value: {values}",
     "notOneOf": "{cell} is not one of {values}",
     "notText": "{cell} is true or false, not text",
+    "nestedValue": "{cell} is a nested value, which only a JSON field takes",
     "emptyRequired": "is empty, and it is required",
     "noneHas": "no <lower>{singular}</lower> has {named}",
     "severalHave": "{count} <lower>{plural}</lower> have {named}",
@@ -624,6 +625,8 @@
     "notWorkbook": "The file is not an Excel workbook (.xlsx): it has no {part}",
     "noSheetCalled": "The workbook has no sheet called {name}",
     "unreadable": "The file could not be read",
+    "jsonInvalid": "The file is not valid JSON in UTF-8 text",
+    "jsonNotList": "The JSON file does not hold a list of objects",
     "column": "Column {letters}"
   },
   "app/list": {
