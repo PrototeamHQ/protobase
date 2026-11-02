@@ -1,5 +1,6 @@
 // The Markdown report of a workflow's window of runs: its p50 against the target, then the p50, p90 and latest wall,
 // queue and run time of the whole workflow and of each job.
+import { runFilters, type RunFilter } from './github'
 import { describeVerdict, formatDuration, summarize } from './stats'
 import type { RunTimings, Timing } from './timings'
 
@@ -17,11 +18,14 @@ export interface Config {
 
 const name = (workflow: WorkflowConfig) => workflow.file.replace(/\.ya?ml$/, '')
 
-const scope = (workflow: WorkflowConfig, count: number) => {
-  const event = workflow.event ? ` ${workflow.event}` : ''
-  const branch = workflow.branch ? ` on ${workflow.branch}` : ' on any branch'
-  return `${count} successful${event} runs${branch}`
+const runsOf = (filter: RunFilter) => {
+  const event = filter.event ? `${filter.event} ` : ''
+  const branch = filter.branch ? ` on ${filter.branch}` : ' on any branch'
+  return `${event}runs${branch}`
 }
+
+/** The run count and every event and branch the window takes its runs from, e.g. "3 successful push runs on main". */
+const scope = (workflow: WorkflowConfig, count: number) => `${count} successful ${runFilters(workflow).map(runsOf).join(' and ')}`
 
 const cell = (newestFirst: number[]) => {
   const { p50, p90, latest } = summarize(newestFirst)
