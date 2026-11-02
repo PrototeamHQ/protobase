@@ -23,6 +23,8 @@ export type DevOptions = {
   allowedHosts: string[]
   // Merged before the project's configs, as `protobase build --extend` merges them.
   extensions?: Extension[]
+  // False runs none of the app's jobs and delivers none of its events, so a hosted app on the same database is the only one that does.
+  jobs?: boolean
 }
 
 const requireAppFiles = (appDir: string) => {
@@ -46,6 +48,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   process.env.PROTOBASE_PROJECT = options.projectDir
   process.env.PROTOBASE_EXTENSIONS = JSON.stringify(extensions)
   process.env.PROTOBASE_DATABASE_URL = url
+  process.env.PROTOBASE_DEV_JOBS = String(options.jobs ?? true)
   // The API runs in a process of its own (api-process.ts), forked before this process loads Vite so it loads
   // @protobase/server while the app's server starts, and started once that one listens; its requests wait for it. An API process that ends while serving, such
   // as on an uncaught error, ends dev too.
@@ -81,6 +84,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   out(
     `protobase dev ready at http://localhost:${port}\n` +
       `  project  ${options.projectDir}\n  api      http://localhost:${port}/api/v1 (docs at /api/docs)\n` +
+      (options.jobs === false ? '  jobs     off: no jobs run and no events are delivered (--no-jobs)\n' : '') +
       loginLine(anyUsers, process.env.npm_config_user_agent) +
       authDriftLines(authDrift),
   )

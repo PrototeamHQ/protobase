@@ -5,6 +5,7 @@ description: Develop, build and run an app, on servers, in containers and on pho
 
 - [Node and Bun](/reference/cli/#how-it-runs): The `protobase` command runs on Node 22.12 or later or on Bun, and a bundle runs on both unless it is built for Bun only.
 - [Dev server](/reference/cli/#dev): The admin app and the API on one port, with changes shown without a restart.
+- [Dev server without jobs](/reference/cli/#dev): `protobase dev --no-jobs` runs no jobs and delivers no events, webhooks or pushes, to develop against a hosted app's database without doing its work twice.
 - [Editor types](/reference/cli/#types): `protobase types` gives the editor and `tsc` the types of the CLI that builds the app, with nothing installed.
 - [Project scripts](/reference/cli/#run): `protobase run` runs a seed or a migration script on the CLI's packages.
 - [Migrate command](/reference/cli/#migrate): `protobase migrate` applies the project's SQL migrations in one transaction, with nothing installed.

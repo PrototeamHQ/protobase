@@ -101,6 +101,7 @@ program
   .option('--allowed-hosts <hosts>', 'extra Host headers to accept, comma separated; a leading dot matches subdomains (.trycloudflare.com)')
   .option('--cache-dir <dir>', "Vite's dependency cache, so parallel dev servers do not share one")
   .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
+  .option('--no-jobs', "run none of the app's jobs and deliver none of its events, such as against its hosted database")
   .action(async (opts) => {
     const [{ runDev }, { resolveExtensions }, { writeProjectTypes }] = await Promise.all([import('./dev/run'), import('./project/extensions'), import('./project/project-types')])
     await writeProjectTypes(process.cwd())
@@ -112,6 +113,7 @@ program
         projectDir: process.cwd(),
         cacheDir: opts.cacheDir && path.resolve(opts.cacheDir),
         allowedHosts: parseHosts(opts.allowedHosts),
+        jobs: opts.jobs,
       },
       out,
     )
