@@ -10,8 +10,9 @@ import { devHost } from './loopback'
  * discovery documents MCP clients read (`oauthWellKnownPaths`), below which a resource's own one is, and the push worker
  * (`withDevServiceWorker`). Vite serves the rest.
  */
-export const isApiRequest = (url: string) =>
-  /^(\/api(\/|\?|$)|\/\.well-known\/webauthn(\?|$)|\/\.well-known\/oauth-(authorization-server|protected-resource)(\/|\?|$)|\/protobase\.sw\.js(\?|$))/.test(url)
+export const apiRequestPattern = /^(\/api(\/|\?|$)|\/\.well-known\/webauthn(\?|$)|\/\.well-known\/oauth-(authorization-server|protected-resource)(\/|\?|$)|\/protobase\.sw\.js(\?|$))/
+
+export const isApiRequest = (url: string) => apiRequestPattern.test(url)
 
 // Headers of one connection, which the dev server sets for its own.
 const hopByHop = new Set(['connection', 'keep-alive', 'transfer-encoding'])

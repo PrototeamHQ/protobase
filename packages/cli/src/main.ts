@@ -16,6 +16,7 @@ import { registerSkill } from './skill/register'
 import { registerImport } from './supabase/register'
 import { registerToken, registerUsers } from './users/register'
 import type { UiSection } from './scaffold/ui-file'
+import type { DevOptions } from './dev/run'
 import { ExitSignal } from './exit-signal'
 import { errorMessage } from './error-message'
 import { protobaseVersion } from './version/version'
@@ -93,6 +94,20 @@ program
     if (errors > 0) process.exitCode = 1
   })
 
+type SharedDevOptions = Omit<DevOptions, 'envVar' | 'jobs'>
+
+const runUiDevAgainst = async (api: string, options: SharedDevOptions) => {
+  const [{ runUiDev }, { remoteApiOrigin }] = await Promise.all([import('./dev/run-ui'), import('./dev/remote-api')])
+  return runUiDev({ ...options, api: remoteApiOrigin(api) }, out)
+}
+
+const runFullDev = async (envVar: string, jobs: boolean, options: SharedDevOptions) => {
+  const { runDev } = await import('./dev/run')
+  const server = await runDev({ ...options, envVar, jobs }, out)
+  warn(placeholderSecretWarning(process.env))
+  return server
+}
+
 program
   .command('dev')
   .description('Serve the admin app and API for the project in the current directory')
@@ -102,22 +117,18 @@ program
   .option('--cache-dir <dir>', "Vite's dependency cache, so parallel dev servers do not share one")
   .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
   .option('--no-jobs', "run none of the app's jobs and deliver none of its events, such as against its hosted database")
+  .option('--api <url>', 'serve the admin app alone, with the API of the running Protobase instance at this URL; no database or API process')
   .action(async (opts) => {
-    const [{ runDev }, { resolveExtensions }, { writeProjectTypes }] = await Promise.all([import('./dev/run'), import('./project/extensions'), import('./project/project-types')])
+    const [{ resolveExtensions }, { writeProjectTypes }] = await Promise.all([import('./project/extensions'), import('./project/project-types')])
     await writeProjectTypes(process.cwd())
-    const server = await runDev(
-      {
-        extensions: resolveExtensions(opts.extend),
-        port: Number(opts.port),
-        envVar: opts.env,
-        projectDir: process.cwd(),
-        cacheDir: opts.cacheDir && path.resolve(opts.cacheDir),
-        allowedHosts: parseHosts(opts.allowedHosts),
-        jobs: opts.jobs,
-      },
-      out,
-    )
-    warn(placeholderSecretWarning(process.env))
+    const shared = {
+      extensions: resolveExtensions(opts.extend),
+      port: Number(opts.port),
+      projectDir: process.cwd(),
+      cacheDir: opts.cacheDir && path.resolve(opts.cacheDir),
+      allowedHosts: parseHosts(opts.allowedHosts),
+    }
+    const server = opts.api ? await runUiDevAgainst(opts.api, shared) : await runFullDev(opts.env, opts.jobs, shared)
     process.once('SIGINT', () => void server.close().then(() => process.exit(0)))
     process.once('SIGTERM', () => void server.close().then(() => process.exit(0)))
   })
