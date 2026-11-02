@@ -60,14 +60,20 @@ Then it runs that `scaffold` in the project and prints the next steps. Without a
 
 It never writes to the database. The first of the next steps does: `bun run db:migrate` adds the `auth` schema that sign-in keeps its users in, and the `migrations` schema, where the script records the migrations it applied in `migrations.applied`. A `public.schema_migrations` another migration tool keeps is left as it is.
 
-On a Supabase database, which it knows by its `auth` and `storage` schemas and its `supabase_admin` role, as [`import supabase`](/reference/cli/#import-supabase) does, the `auth` schema is Supabase Auth's, and the project changes nothing in it. It leaves out `auth`, `storage` and the platform's other schemas, such as `realtime` and `supabase_migrations`, as Supabase's own tables. The project reads Supabase's users through a view over `auth.users` and keeps only its own sign-in data, in a schema of its own, `app_auth`: it points `protobase.config.ts` at the view, with [`users.keyTable`](/reference/auth/#a-view-over-another-systems-users), and writes migrations in place of those of Protobase's own user table: Better Auth's tables in `app_auth`, pointing at `auth.users`, then the view, its side table of the columns only Better Auth has, and each user's account with their Supabase password and social providers. `bun run db:migrate` applies them as the `postgres` role a Supabase connection string signs in as, and Supabase's users sign in with their own passwords, under their own ids. You can create, disable and delete users from either side, and a name changed in Supabase shows at once. <gap>A user who signs up through Supabase Auth later is a user of the project at once but cannot sign in with a password because sharing passwords with Supabase Auth is not implemented.</gap> Supabase's phone-only and anonymous users are not users of the project, since sign-in needs an email. A ban set in the project stays the project's own, while a ban set in Supabase holds in the project too.
-
 ```sh
 cd shop
 bun run db:migrate                  # the first write to the database
 bun run protobase users create you@example.com --generate-password
 bun run dev                         # http://localhost:5173
 ```
+
+#### On a Supabase database
+
+:::caution[Beta]
+A user who signs up through Supabase Auth later cannot sign in to the project with a password yet, as below.
+:::
+
+On a Supabase database, which it knows by its `auth` and `storage` schemas and its `supabase_admin` role, as [`import supabase`](/reference/cli/#import-supabase) does, the `auth` schema is Supabase Auth's, and the project changes nothing in it. It leaves out `auth`, `storage` and the platform's other schemas, such as `realtime` and `supabase_migrations`, as Supabase's own tables. The project reads Supabase's users through a view over `auth.users` and keeps only its own sign-in data, in a schema of its own, `app_auth`: it points `protobase.config.ts` at the view, with [`users.keyTable`](/reference/auth/#a-view-over-another-systems-users), and writes migrations in place of those of Protobase's own user table: Better Auth's tables in `app_auth`, pointing at `auth.users`, then the view, its side table of the columns only Better Auth has, and each user's account with their Supabase password and social providers. `bun run db:migrate` applies them as the `postgres` role a Supabase connection string signs in as, and Supabase's users sign in with their own passwords, under their own ids. You can create, disable and delete users from either side, and a name changed in Supabase shows at once. <gap>A user who signs up through Supabase Auth later is a user of the project at once but cannot sign in with a password because sharing passwords with Supabase Auth is not implemented.</gap> Supabase's phone-only and anonymous users are not users of the project, since sign-in needs an email. A ban set in the project stays the project's own, while a ban set in Supabase holds in the project too.
 
 ## Admin over an existing database
 

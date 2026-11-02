@@ -5,16 +5,19 @@ description: Fields and actions filled by a model, the assistant beside the admi
 
 - [AI fields](/reference/ai/#ai-fields): A model fills a field from a prompt that uses the record's other fields, after each change.
 - [AI actions](/reference/ai/#ai-actions): A button asks a model to write a field now, such as a suggested priority or a translation.
-- [Assistant](/reference/assistant/): A chat beside the admin that answers questions about the app, reads its data and proposes changes for approval.
+- [Assistant](/reference/assistant/) (beta): A chat beside the admin that answers questions about the app, reads its data and proposes changes for approval.
 - [Choice of model](/reference/assistant/#which-backend): The assistant runs on OpenRouter or any OpenAI-compatible endpoint, also a local one.
-- [Assistant tools](/reference/assistant/#the-apps-own-tools): Your own tools for the assistant, acting on records as the user.
-- [MCP server](/reference/mcp/#the-tools): AI clients connect to the app over MCP as the signed-in person: they list the resources in a small first call, describe one resource's fields when they need them, and find and read records within that person's access, soft-deleted ones too when asked.
+- [Assistant tools](/reference/assistant/#the-apps-own-tools) (beta): Your own tools for the assistant, acting on records as the user.
+- [Assistant widgets](/reference/assistant/#widget-parts): Your own React components in the chat, showing a record as it is now and taking decisions on it, from last month's chat too.
+- [Assistant backend of your own](/reference/assistant/#another-backend): The chat beside the admin talks to a backend elsewhere, with its own prompt and tools, built from the same pieces as the built-in one.
+- [MCP server](/reference/mcp/#the-tools) (beta): AI clients connect to the app over MCP as the signed-in person: they list the resources in a small first call, describe one resource's fields when they need them, and find and read records within that person's access, soft-deleted ones too when asked.
 - [MCP read fields](/reference/mcp/#reading-only-what-is-needed): AI clients read only the fields they name, a plain list returns the columns of the app's table, and the server tells clients how to keep reads small.
-- [MCP counts](/reference/mcp/#the-tools): AI clients count the records a filter finds, in all or per value of a field such as a status, without reading the records.
-- [MCP app icon](/reference/mcp/#the-apps-icon): AI clients show the app's own icon beside its name when someone adds its MCP endpoint.
-- [MCP writes](/reference/mcp/#writes): When turned on, for every resource or only those you list, AI clients create, update and delete records after the person approves each write.
+- [MCP counts](/reference/mcp/#the-tools) (beta): AI clients count the records a filter finds, in all or per value of a field such as a status, without reading the records.
+- [MCP app icon](/reference/mcp/#the-apps-icon) (beta): AI clients show the app's own icon beside its name when someone adds its MCP endpoint.
+- [MCP SQL for admins](/reference/mcp/#sql-for-admins): People with the `admin` or `ai` role run read-only SQL over MCP when you turn it on.
+- [MCP writes](/reference/mcp/#writes) (beta): When turned on, for every resource or only those you list, AI clients create, update and delete records after the person approves each write.
 - [Small MCP write results](/reference/mcp/#what-a-write-returns): A write over MCP returns the record's key, new ETag, the fields written and the read-only fields that changed, not the whole record; `fields` asks for more.
-- [MCP writes without approval](/reference/mcp/#writes-without-approval): Roles you name, such as service accounts, write over MCP without being asked to approve each write; everyone else is still asked.
+- [MCP writes without approval](/reference/mcp/#writes-without-approval) (beta): Roles you name, such as service accounts, write over MCP without being asked to approve each write; everyone else is still asked.
 - [MCP comments](/reference/mcp/#comments): AI clients read a record's comments, and with MCP writes on add one after the person approves it.
 - [MCP batch writes](/reference/mcp/#batch-writes): When MCP writes are on, AI clients make many creates, updates and deletes across resources in one transaction, after the person approves the batch.
 - [Connected apps](/reference/auth/#oauth-for-mcp-clients): People allow an AI client to sign in, and disconnect it later.

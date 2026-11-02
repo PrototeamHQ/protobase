@@ -3,6 +3,10 @@ title: Supabase Storage API
 description: The Storage-compatible /api/sb/storage/v1 that supabase-js's storage calls, over the app's file provider, under the restored storage policies.
 ---
 
+:::caution[Beta]
+Image transforms, resumable uploads, the S3 protocol and object versioning are not supported yet: see [What it serves](#what-it-serves).
+:::
+
 An app with API keys also serves `/api/sb/storage/v1`, the API that supabase-js's `storage` calls. An app moved from Supabase keeps its uploads, downloads, public URLs and signed URLs: point the client at the app's `/api/sb` and give it the publishable key.
 
 ```ts
@@ -23,7 +27,7 @@ The keys are `apiKeys` in `protobase.config.ts`, `{ publishable_key, secret_key 
 | The request sends | It runs as |
 | --- | --- |
 | the publishable key | `anon` |
-| either key and a signed-in user's token | `authenticated` |
+| either key and a user's access token from [`/api/sb/auth/v1`](/reference/auth/#supabase-js-and-supabasessr) | `authenticated` |
 | the secret key | the app's own role, which owns the tables |
 
 The role is set with `SET LOCAL ROLE` and the token's claims in `request.jwt.claims` and `request.jwt.claim.sub`, so Supabase's `auth.uid()` works in the policies. The database needs the `anon` and `authenticated` roles, and the app's role must be allowed to `SET ROLE` to them. Every read and write of `storage.objects` and `storage.buckets` runs as that role, with the token's claims set, so the restored policies decide, as on Supabase:

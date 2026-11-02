@@ -3,6 +3,10 @@ title: Supabase client API
 description: The PostgREST-compatible /api/sb/rest/v1 that supabase-js's from() and rpc() call, under the tables' RLS policies.
 ---
 
+:::caution[Beta]
+Some PostgREST features are not supported yet, such as many-to-many embeds, spreads, CSV, schemas other than `public` and aggregates: see [What it understands](#what-it-understands).
+:::
+
 An app with API keys also serves `/api/sb/rest/v1`, the API that supabase-js's `from()` and `rpc()` call. An app moved from Supabase keeps its data calls: point the client at the app's `/api/sb` and give it the publishable key.
 
 ```ts
@@ -19,7 +23,7 @@ The keys are `apiKeys` in `protobase.config.ts`, `{ publishable_key, secret_key 
 | The request sends | It runs as |
 | --- | --- |
 | the publishable key | `anon` |
-| either key and a signed-in user's token | `authenticated` |
+| either key and a user's access token from [`/api/sb/auth/v1`](/reference/auth/#supabase-js-and-supabasessr) | `authenticated` |
 | the secret key | the app's own role, which owns the tables |
 
 The transaction sets the role with `SET LOCAL ROLE` and the token's claims in `request.jwt.claims` and `request.jwt.claim.sub`, so Supabase's `auth.uid()`, `auth.role()` and `auth.jwt()` work, and the tables' RLS policies decide what the request may read and write. The resources' access rules (`.access(...)`) do not apply here: a table needs its own grants and policies, and one without a grant to `anon` or `authenticated` refuses them. The `role` claim is the database role, as on Supabase. The database needs the `anon` and `authenticated` roles, and the app's role must be allowed to `SET ROLE` to them.

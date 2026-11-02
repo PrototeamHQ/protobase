@@ -3,6 +3,10 @@ title: Assistant
 description: The chat beside the admin, who sees it, and its built-in backend on OpenRouter or another OpenAI-compatible endpoint.
 ---
 
+:::caution[Beta]
+A user cannot keep several conversations yet: each has one, shared by their tabs, as [the app's own tools](#the-apps-own-tools) says.
+:::
+
 The admin app can show an assistant: an **Assistant** button at the end of the top bar opens a chat beside the page. The app only draws what a backend sends and sends back what the user types and clicks; the backend decides everything else. Protobase ships one backend, built in, which answers questions about the app, reads its data and proposes changes the user approves. Another backend can take its place by URL.
 
 ## Who sees it
@@ -65,6 +69,10 @@ Making the query role needs `CREATEROLE` once, for the role that applies the mig
 
 ### The app's own tools
 
+:::caution[Beta]
+A user cannot keep several conversations yet: each has one, shared by their tabs, as below.
+:::
+
 `assistant/tools.ts` adds tools of the app's own, which the built-in backend offers after its two: its default export is an array of tools, found by that path when the app starts. A tool is `defineTool({ name, description, parameters, run })` from `@protobase/server`: `parameters` is the JSON Schema of its arguments, and `run(args, context)` returns the text the model reads. A name must be 1 to 64 letters, digits, `_` or `-`, and a name taken twice stops the server at startup. A backend elsewhere has its own tools, so the file does nothing there, nor with `assistant: false`. A tool's `annotations` are MCP's tool hints (`readOnlyHint`, `destructiveHint`, ...), which the dock ignores. The file serves the dock only, not the app's MCP endpoint: tools for AI clients over MCP go in `mcp/tools.ts`, which can export these too (see [The app's own tools](/reference/mcp/#the-apps-own-tools) on MCP).
 
 `context` holds the user's `session`, `locale` (the language they read, `'en'` or `'nl'`, for the texts a tool shows them such as its approvals; set over MCP, absent in the dock), `show(part)` to add a part to the answer, `approve(request)` for an approval card, `conversation` (the dock's, absent over MCP), `resources()` (the resources the user may read, restricted to their fields, with their views), and `records`: `list(resource, params)` with the REST API's list parameters, `aggregate(resource, { group_by, filter?, limit?, label? })` with its counts per value as `:aggregate` gives them, `get(resource, key)`, `create(resource, data)`, `update(resource, key, data, { etag? })` (without an ETag it updates any version), `delete(resource, key, { etag? })` (soft on a resource with `.softDelete()`) and `softDeleteField(resource)` (the field a delete sets, or `undefined` when a delete removes the record) on the app's resources **as the user**, through their access rules, tenant scope, validation and write hooks, as in the REST API. `get`, `create`, `update` and `delete` each answer `{ record, etag }`, and `list` a page of records. `batch(operations)` runs the operations of a REST [batch write](/reference/api/#batch-writes) in one transaction and answers its `results`; a refusal or a missing record rejects with an `HttpProblem`, whose `detail` a tool can return to the model as text, such as with `.catch(refused)`: `refused` from `@protobase/server` turns a refusal into `{ "error": <slug>, "message": <detail> }` and throws anything else again.
@@ -107,13 +115,25 @@ export const TaskProposal = ({ taskId }: { taskId: number }) => {
 
 The tool and its component live apart, joined by the name, since the server config cannot import `@protobase/ui` and the browser must not get server code; put shared prop types in a file both import with `import type`. Whoever may update the task decides on it, now or next month, from the chat or the task's own page, and a write hook can stamp who did from `event.user`; when two decide at once, the ETag makes the second write fail and the widget shows the first decision. The chat is not told: the model learns of the change by reading the record again, which the description asks it to do.
 
-Each message carries the page the user is on, such as `/orders/42`, which the model reads with it.
+Each message carries the page the user is on, such as `/orders/42`, which the model reads with it. A message is at most 4,000 characters, and a turn takes at most 8 steps of tool calls, after which the answer ends with `Stopped after 8 steps.`
 
 <gap>There is one conversation per user, shared by their tabs.</gap> The server keeps it as a file, `<chats>/<user>/chat.jsonl` (see `PROTOBASE_ASSISTANT_CHATS`), with the chat and everything the model read, so a restart keeps it and the app only ever sends the new message. The directory is made on the first message and must be writable: in a container, point it at a volume. With several instances, send each user's requests to the same one.
 
 ## Another backend
 
-A backend elsewhere replaces the built-in one through `PROTOBASE_ASSISTANT_URL`. It receives the user's API token as `Authorization: Bearer <token>`, verifies it against the app's key set (`/api/auth/jwks`), and allows the app's origin with CORS. It can be built from the building blocks `@protobase/server` exports (the protocol's routes, the turn loop with tool calling, tools, approvals, the query tools and a conversation store interface to keep chats elsewhere, such as in a database) with its own prompt and tools; the built-in backend's source, `packages/server/src/assistant/built-in-assistant.ts`, is the reference.
+A backend elsewhere replaces the built-in one through `PROTOBASE_ASSISTANT_URL`. It receives the user's API token as `Authorization: Bearer <token>`, verifies it against the app's key set (`/api/auth/jwks`), and allows the app's origin with CORS. It can be built from the building blocks `@protobase/server` exports (the protocol's routes, `assistantProtocolRoutes`, the turn loop with tool calling, `runTurn`, tools, approvals, the query tools, `withCacheBreakpoints`, which marks a chat's messages for prompt caching, and `createConversations` over a conversation store, `fileConversationStore` or one of your own that keeps chats elsewhere, such as in a database) with its own prompt and tools; the built-in backend's source, `packages/server/src/assistant/built-in-assistant.ts`, is the reference.
+
+### The protocol
+
+The dock and a backend speak three requests on the backend's URL, each with the user's bearer token:
+
+| Request | What it does |
+| --- | --- |
+| `GET <url>/events` | Server-sent events, each a JSON `AssistantEvent`: `state` replaces the whole chat and always comes first on a connection, `message` adds a message or replaces the one with its id, `part` adds a part to a message or replaces the one with its id, and `patch` changes `replying`, `status` or the composer's `placeholder`. |
+| `POST <url>/messages` | `{ text, page? }`: what the user wrote, and the page they are on. The built-in backend answers `202` and replies with events, or `409` while it still answers the last message. |
+| `POST <url>/actions` | `{ partId, actionId }`: the user clicked a button of a card. |
+
+The types are exported from `@protobase/schema` (`AssistantEvent`, `AssistantState`, `AssistantMessage`, `AssistantPart` and its text, table, card and widget parts, `AssistantMessageRequest`, `AssistantActionRequest`). `createAssistantClient({ url, token })` from `@protobase/client`, where `token` is a function that gives the user's token, follows the event stream, reconnecting by itself, and sends the two requests; the dock uses it.
 
 ## Widget parts
 
