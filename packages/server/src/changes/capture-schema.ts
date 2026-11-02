@@ -38,9 +38,12 @@ const readCaptureState = async (db: Db, schema: string, models: readonly Resourc
       from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace ns on ns.oid = c.relnamespace
       where not t.tgisinternal and (t.tgfoid::text = ${capture?.oid ?? ''} or t.tgrelid::text = any(${oids}::text[]))`,
   )
+  const outbox = await exists('outbox')
+  const history = await exists('history')
   return {
-    outbox: await exists('outbox'),
-    history: (await exists('history')) && (await hasIndexes(db, schema, 'history', historyIndexes.map(([name]) => name))),
+    outbox,
+    history,
+    historyIndexed: history && (await hasIndexes(db, schema, 'history', historyIndexes.map(([name]) => name))),
     notices: await exists('notices'),
     ...(capture && { capture }),
     triggers: triggers.map((trigger) => ({ ...trigger, args: triggerArgs(trigger.args) })),

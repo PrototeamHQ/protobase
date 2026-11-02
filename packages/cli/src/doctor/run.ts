@@ -6,7 +6,7 @@ import { introspect } from '../db/introspect'
 import { readOnlyDb } from '../db/read-only-db'
 import { loadSourceConfig } from '../config/source-config'
 import { loadDataConfig } from '../project/load-data-config'
-import { builtInModels } from './built-in-models'
+import { builtInIndexIssues, builtInModels } from './built-in-models'
 import { checkResource, type Issue } from './check'
 import { indexIssues } from './index-issues'
 import { readShapes } from './read-shapes'
@@ -34,7 +34,9 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
   const tables = await introspect(sql, { views: true }).finally(() => sql.end())
   const db = readOnlyDb(options.url)
   const shapes = readShapes({ models, views: [...builtIn.views, ...config.views], pages: config.pages })
-  const indexes = await Promise.all(models.map(async (model) => indexIssues(model, await tableIndexes(db, model), shapes))).finally(() => db.destroy())
+  const indexes = await Promise.all(models.map(async (model) => indexIssues(model, await tableIndexes(db, model), shapes)))
+    .then((found) => found.map((issues, i) => (i < builtIn.models.length ? builtInIndexIssues(issues) : issues)))
+    .finally(() => db.destroy())
   const issues = models.flatMap((model, i) => [...checkResource(model, tables), ...relationIssues(model, models), ...sortIssues(model, shapes), ...indexes[i]!])
   for (const issue of issues) out(format(issue))
   const errors = issues.filter((i) => i.severity === 'error').length

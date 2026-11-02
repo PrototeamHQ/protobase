@@ -4,8 +4,20 @@ import { jobsSchema } from '../../jobs/schema'
 /** Bumped whenever the functions, views or indexes below change, so the next migration writes them again. */
 export const webhooksVersion = 2
 
+/**
+ * The oldest version whose functions and views this one serves on: 2 only added indexes, which speed reads up, so a
+ * schema written at 1 still starts. Raised only when a function or view changes what the server relies on.
+ */
+export const webhooksServedVersion = 1
+
 /** The comment the schema's functions carry, which the startup check reads. */
 export const webhooksComment = `Protobase webhooks ${webhooksVersion}`
+
+/** The version a function's comment names, `undefined` when it is not one Protobase wrote. */
+export const commentVersion = (comment: string | null) => {
+  const match = comment?.match(/^Protobase webhooks (\d+)$/)
+  return match ? Number(match[1]) : undefined
+}
 
 /** The delivery jobs, whose waiting and failed ones the deliveries view lists. */
 export const deliveryJobs = ['webhooks.deliver', 'webhooks.deliver-ordered']

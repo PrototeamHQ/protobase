@@ -4,7 +4,7 @@ import { tableIndexes } from '@protobase/query'
 import { f, resource } from '@protobase/schema'
 import { changesMigration, commentsMigration, webhooksMigration } from '@protobase/server'
 import type { MergedConfig } from '../../src/config/merge-config'
-import { builtInModels } from '../../src/doctor/built-in-models'
+import { builtInIndexIssues, builtInModels } from '../../src/doctor/built-in-models'
 import { indexIssues } from '../../src/doctor/index-issues'
 import { readShapes } from '../../src/doctor/read-shapes'
 import { sortIssues } from '../../src/doctor/sort-issues'
@@ -37,31 +37,34 @@ describe('doctor on the resources Protobase adds', () => {
     expect(builtInModels({ jobs: {} } as unknown as MergedConfig, []).models).toEqual([])
   })
 
-  it('passes every built-in resource once migrated, fails each index the webhook subscriptions list misses, and passes again after the next migration', async () => {
+  it('passes every built-in resource once migrated, recommends each index the webhook subscriptions list misses, and passes again after the next migration', async () => {
     const pg = await openSnapshotDb('jobs')
     const db = new Kysely<any>({ dialect: pg.dialect })
     await pg.exec('create table notes (id integer primary key, body text not null)')
     await pg.exec((await changesMigration(db, [notes]))!)
     await pg.exec((await commentsMigration(db))!)
     await pg.exec((await webhooksMigration(db, { deliveryLog: true }))!)
-    const issues = async () => (await Promise.all(builtIn.models.map(async (model) => [...sortIssues(model, shapes), ...indexIssues(model, await tableIndexes(db, model), shapes)]))).flat()
+    const issues = async () => (await Promise.all(builtIn.models.map(async (model) => [...sortIssues(model, shapes), ...builtInIndexIssues(indexIssues(model, await tableIndexes(db, model), shapes))]))).flat()
     expect(await issues()).toEqual([])
 
     await pg.exec(earlierWebhooks)
     const found = await issues()
     expect(found.map((issue) => `${issue.severity} ${issue.resource}: ${issue.message.split(',')[0]}`)).toEqual([
-      'error webhook_subscriptions: no index serves the column "name"',
-      'error webhook_subscriptions: no index serves the column "last_success_at"',
-      'error webhook_subscriptions: no index serves the column "created_at"',
-      'error webhook_subscriptions: no index serves the column "enabled"',
-      'error webhook_subscriptions: no pg_trgm index serves the column "name"',
-      'error webhook_subscriptions: no pg_trgm index serves the column "url"',
-      'error webhook_subscriptions: no index serves the column "owner_id"',
+      'warning webhook_subscriptions: no index serves the column "name"',
+      'warning webhook_subscriptions: no index serves the column "last_success_at"',
+      'warning webhook_subscriptions: no index serves the column "created_at"',
+      'warning webhook_subscriptions: no index serves the column "enabled"',
+      'warning webhook_subscriptions: no pg_trgm index serves the column "name"',
+      'warning webhook_subscriptions: no pg_trgm index serves the column "url"',
+      'warning webhook_subscriptions: no index serves the column "owner_id"',
     ])
     expect(found[2]!.message).toContain("GET /webhook_subscriptions?order_by=created_at desc (the webhook_subscriptions list's order)")
+    expect(found[2]!.suggestion).toContain('protobase migration')
 
-    // A database migrated before Activity and Comments had these indexes gets them from the next migration, as webhooks do.
+    // A database migrated before Activity and Comments had these indexes only gets recommendations, and the next
+    // migration adds them, as it does the webhooks ones.
     await pg.exec('drop index changes.history_operation, comments.comments_record_key')
+    expect((await issues()).filter((issue) => issue.severity === 'error')).toEqual([])
     for (const migration of [await changesMigration(db, [notes]), await commentsMigration(db), await webhooksMigration(db, { deliveryLog: true })]) await pg.exec(migration!)
     expect(await issues()).toEqual([])
     await db.destroy()

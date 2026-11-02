@@ -33,22 +33,23 @@ export const commentsTableSql = () => `create table if not exists ${commentsTabl
 ${commentsIndexes.map(([name, columns]) => `create index if not exists "${name}" on ${commentsTable} (${columns})`).join(';\n')}`
 
 // Only reads the catalogue.
-const hasCommentsTable = async (db: Db) =>
-  (await sql<{ found: boolean }>`select to_regclass('comments.comments') is not null as found`.execute(db)).rows[0]!.found &&
-  (await hasIndexes(db, 'comments', 'comments', commentsIndexes.map(([name]) => name)))
+const hasCommentsTable = async (db: Db) => (await sql<{ found: boolean }>`select to_regclass('comments.comments') is not null as found`.execute(db)).rows[0]!.found
 
 /**
  * The SQL that adds the `comments` schema and its table, or the indexes it lacks, `undefined` when it has them all. The
  * table is never dropped.
  */
 export const commentsMigration = async (db: Db) => {
-  if (await hasCommentsTable(db)) return undefined
+  if ((await hasCommentsTable(db)) && (await hasIndexes(db, 'comments', 'comments', commentsIndexes.map(([name]) => name)))) return undefined
   return `create schema if not exists "comments";\n\n${commentsTableSql()};`
 }
 
-/** Refuses to go on while a resource has `.comments()` and the database lacks their table; the project's migrations add it. */
+/**
+ * Refuses to go on while a resource has `.comments()` and the database lacks their table; the project's migrations add
+ * it. An index added since only speeds reads up, so a table without it still serves and `protobase migration` adds it.
+ */
 export const checkComments = async (db: Db, models: readonly ResourceModel[]) => {
   if (!models.some((model) => model.comments)) return
   if (await hasCommentsTable(db)) return
-  throw new Error(`The comments schema is missing or behind this version of Protobase, and resources with .comments() keep their comments in comments.comments. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
+  throw new Error(`The comments schema is missing, and resources with .comments() keep their comments in comments.comments. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
 }

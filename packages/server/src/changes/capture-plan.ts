@@ -13,6 +13,8 @@ export type FoundTrigger = { table: string; tableSql: string; name: string; func
 export type CaptureState = {
   outbox: boolean
   history: boolean
+  /** Whether the history table has every index this version writes; one added since only speeds reads up. */
+  historyIndexed: boolean
   notices: boolean
   capture?: { oid: string; source: string; definer: boolean }
   /** Triggers calling `capture()`, and every trigger on a resource's table. */
@@ -27,7 +29,10 @@ export type CaptureState = {
  */
 export type CapturePlan = {
   setup: boolean
+  /** Whether to write the history table and its indexes: it lacks the table or an index added since. */
   history: boolean
+  /** Whether the history table itself is missing, which the server cannot serve without. */
+  historyMissing: boolean
   notices: boolean
   create: Array<{ model: ResourceModel; trigger: TriggerSpec }>
   drop: Array<{ name: string; tableSql: string }>
@@ -67,7 +72,8 @@ export const capturePlan = (schema: string, models: readonly ResourceModel[], st
     .filter((found) => !wanted.some(({ trigger, table }) => table === found.table && trigger.name === found.name))
   return {
     setup: captured.length > 0 && (!state.outbox || !current),
-    history: models.some((model) => model.history) && !state.history,
+    history: models.some((model) => model.history) && (!state.history || !state.historyIndexed),
+    historyMissing: models.some((model) => model.history) && !state.history,
     notices: models.some((model) => model.live) && !state.notices,
     create: create.map(({ model, trigger }) => ({ model, trigger })),
     drop: drop.map(({ name, tableSql }) => ({ name, tableSql })),
@@ -90,7 +96,7 @@ export const planSql = (schema: string, plan: CapturePlan) => {
 export const uncaptured = (plan: CapturePlan, models: readonly ResourceModel[]) => [
   ...new Set([
     ...(plan.setup ? models.filter(isCaptured) : plan.create.map(({ model }) => model)),
-    ...(plan.history ? models.filter((model) => model.history) : []),
+    ...(plan.historyMissing ? models.filter((model) => model.history) : []),
     ...(plan.notices ? models.filter((model) => model.live) : []),
   ].map((model) => model.name)),
 ]

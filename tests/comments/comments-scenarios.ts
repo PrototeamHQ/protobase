@@ -71,6 +71,10 @@ export const commentsScenarios = (connect: () => Promise<TestDatabase>) => {
     await database.exec((await commentsMigration(db))!)
     expect(await commentsMigration(db)).toBeUndefined()
     await checkComments(db, [tickets.toModel()])
+    // The table as Protobase 0.66.6 wrote it, without the record key's index, still starts; the next migration adds it.
+    await database.exec('drop index comments.comments_record_key')
+    await checkComments(db, [tickets.toModel()])
+    expect(await commentsMigration(db)).toContain('create index if not exists "comments_record_key"')
     admin = createAdmin({
       resources: [tickets, notes],
       views: [ticketsView],
