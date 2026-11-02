@@ -27,6 +27,7 @@ export const isPasswordConfirmed = async (internal: Internal, sessionId: string,
 }
 
 const notOffered = { code: 'PASSWORD_CONFIRMATION_NOT_OFFERED', message: "Confirm it's you with your passkey or your second step instead." }
+const noPassword = { code: 'PASSWORD_CONFIRMATION_NOT_OFFERED', message: "This account has no password: confirm it's you with an emailed code instead." }
 const wrongPassword = { code: 'INVALID_PASSWORD', message: 'The password is not right.' }
 
 type Signed = { session: { id: string }; user: { id: string; twoFactorEnabled?: boolean | null } }
@@ -45,7 +46,7 @@ export const passwordConfirmationPlugin = () =>
         const signed = ctx.context.session as Signed
         if (await hasPasskeyOrSecondStep(ctx.context.adapter, signed.user)) throw new APIError('FORBIDDEN', notOffered)
         const hash = (await ctx.context.internalAdapter.findCredentialAccount(signed.user.id))?.password
-        if (!hash) throw new APIError('FORBIDDEN', notOffered)
+        if (!hash) throw new APIError('FORBIDDEN', noPassword)
         if (ctx.body.password.length > ctx.context.password.config.maxPasswordLength) throw new APIError('BAD_REQUEST', wrongPassword)
         if (!(await ctx.context.password.verify({ hash, password: ctx.body.password }))) throw new APIError('BAD_REQUEST', wrongPassword)
         await savePasswordConfirmation(ctx.context.internalAdapter, signed.session.id)
