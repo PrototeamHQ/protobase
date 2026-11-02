@@ -11,10 +11,11 @@ describe('whose MCP clients a finished request disconnects', () => {
     expect(grantOwnerToRevoke(own('/revoke-other-sessions'))).toBe('ana')
   })
 
-  it("is the person's own when a password change signs out the other devices, and nobody's otherwise", () => {
+  it("is the person's own after every password change, which always signs out the other devices", () => {
     expect(grantOwnerToRevoke(own('/change-password', { revokeOtherSessions: true }))).toBe('ana')
-    expect(grantOwnerToRevoke(own('/change-password', { revokeOtherSessions: false }))).toBeUndefined()
-    expect(grantOwnerToRevoke(own('/change-password', {}))).toBeUndefined()
+    expect(grantOwnerToRevoke(own('/change-password', { revokeOtherSessions: false }))).toBe('ana')
+    expect(grantOwnerToRevoke(own('/change-password', {}))).toBe('ana')
+    expect(grantOwnerToRevoke(own('/change-password', {}, new Error('INVALID_PASSWORD')))).toBeUndefined()
   })
 
   it("is the user's an admin ends the sessions of, bans or sets the password of", () => {

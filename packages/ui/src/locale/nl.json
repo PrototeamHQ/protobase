@@ -37,6 +37,7 @@
     "setPassword": "Wachtwoord instellen",
     "currentPassword": "Huidig wachtwoord",
     "newPassword": "Nieuw wachtwoord",
+    "changeSignsOutOthers": "Opslaan logt je uit op je andere apparaten.",
     "repeatPassword": "Nieuw wachtwoord herhalen",
     "atLeast": "Minstens {length} tekens.",
     "useAtLeast": "Gebruik minstens {length} tekens.",

@@ -24,8 +24,9 @@ export type FinishedRequest = {
   context: { session?: { user: { id: string } } | null; returned?: unknown }
 }
 
-// Ending all of the person's sessions from one of their own: everywhere, the other devices, or with a new password.
-const ownPaths = ['/revoke-sessions', '/revoke-other-sessions']
+// Ending all of the person's sessions from one of their own: everywhere, the other devices, or with a new password,
+// which always signs out the other devices (`passwordChangePlugin`).
+const ownPaths = ['/revoke-sessions', '/revoke-other-sessions', '/change-password']
 // An admin securing someone else's account: ending their sessions, banning them, or setting their password.
 const adminPaths = ['/admin/revoke-user-sessions', '/admin/ban-user', '/admin/set-user-password']
 
@@ -41,14 +42,14 @@ const securesAccount = (data: unknown) => {
 
 /**
  * The user whose MCP grants a finished request ends, or `undefined`: the person who signed out everywhere, signed out
- * their other devices, or changed their password signing out the other devices; the user an admin ended the sessions
+ * their other devices, or changed their password; the user an admin ended the sessions
  * of, banned, set the password of, or marked unverified. Nobody when the request failed.
  */
 export const grantOwnerToRevoke = (request: FinishedRequest) => {
   const { path, context } = request
   if (context.returned instanceof Error || path === undefined) return undefined
   const body = bodyOf(request)
-  if (ownPaths.includes(path) || (path === '/change-password' && body.revokeOtherSessions === true)) return context.session?.user.id
+  if (ownPaths.includes(path)) return context.session?.user.id
   if (adminPaths.includes(path) || (path === '/admin/update-user' && securesAccount(body.data))) return body.userId === undefined ? undefined : String(body.userId)
   return undefined
 }
@@ -63,7 +64,7 @@ export const mcpGrantRevocation = () =>
     hooks: {
       after: [
         {
-          matcher: (context) => context.path !== undefined && [...ownPaths, ...adminPaths, '/change-password', '/admin/update-user'].includes(context.path),
+          matcher: (context) => context.path !== undefined && [...ownPaths, ...adminPaths, '/admin/update-user'].includes(context.path),
           handler: createAuthMiddleware(async (ctx) => {
             const userId = grantOwnerToRevoke(ctx as FinishedRequest)
             if (userId) await revokeMcpGrants(ctx.context.adapter, userId)

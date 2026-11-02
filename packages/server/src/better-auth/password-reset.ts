@@ -9,7 +9,8 @@ type EmailAndPassword = NonNullable<BetterAuthOptions['emailAndPassword']>
 
 /**
  * Better Auth's own password reset, sending the link with `mail`. Resetting ends the user's sessions, so a reset
- * after a leaked password also signs out whoever used it, and `onPasswordReset` disconnects the user's MCP clients.
+ * after a leaked password also signs out whoever used it, and `onPasswordReset` disconnects the user's MCP clients
+ * and tells them their password changed.
  */
 export const passwordResetOptions = (mail: AuthMail, { onPasswordReset }: Pick<EmailAndPassword, 'onPasswordReset'> = {}) =>
   ({

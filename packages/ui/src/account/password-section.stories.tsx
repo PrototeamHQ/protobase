@@ -8,7 +8,7 @@ export default meta
 
 const changes = { onChange: fn(async () => undefined), onSet: fn(async () => undefined) }
 
-/** With a password: the current one, the new one twice, and whether to sign out the other devices. */
+/** With a password: the current one and the new one twice, saying the other devices are signed out. */
 export const ChangePassword: StoryObj<PasswordSectionProps> = {
   tags: ['play'],
   args: { rule: 'allowed', hasPassword: true, staff: false, ...changes },
@@ -26,9 +26,9 @@ export const ChangePassword: StoryObj<PasswordSectionProps> = {
 
     await userEvent.clear(dialog.getByLabelText('Repeat new password'))
     await userEvent.type(dialog.getByLabelText('Repeat new password'), 'a new long password')
-    await userEvent.click(dialog.getByRole('checkbox', { name: 'Sign out of all other devices' }))
+    expect(dialog.getByText('Saving signs out your other devices.')).toBeVisible()
     await userEvent.click(dialog.getByRole('button', { name: 'Save' }))
-    expect(args.onChange).toHaveBeenCalledWith('old long password', 'a new long password', true)
+    expect(args.onChange).toHaveBeenCalledWith('old long password', 'a new long password')
     expect(await canvas.findByRole('status')).toHaveTextContent('Your password is saved.')
   },
 }
@@ -59,7 +59,7 @@ export const SetPassword: StoryObj<PasswordSectionProps> = {
     await userEvent.click(canvas.getByRole('button', { name: 'Set a password' }))
     const dialog = within(within(document.body).getByRole('dialog', { name: 'Set a password' }))
     expect(dialog.queryByLabelText('Current password')).toBeNull()
-    expect(dialog.queryByRole('checkbox')).toBeNull()
+    expect(dialog.queryByText('Saving signs out your other devices.')).toBeNull()
     await userEvent.type(dialog.getByLabelText('New password'), 'too short')
     await userEvent.type(dialog.getByLabelText('Repeat new password'), 'too short')
     await userEvent.click(dialog.getByRole('button', { name: 'Save' }))
