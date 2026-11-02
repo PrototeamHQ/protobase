@@ -45,7 +45,7 @@ Once a resource takes comments, admins get **Comments** (the built-in resource `
 
 ## The table
 
-[`protobase migration`](/reference/cli/#migration) adds the schema `comments` with the table `comments.comments`; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while a resource has comments and the table is missing. A deleted record's comments stay in the table.
+[`protobase migration`](/reference/cli/#migration) adds the schema `comments` with the table `comments.comments`; apply it with the project's other migrations. It has an index for each column the Comments list filters on, and the next migration adds one an earlier version's table lacks. `protobase dev` and `protobase serve` do not start while a resource has comments and the table or one of its indexes is missing. A deleted record's comments stay in the table.
 
 | Column | |
 | --- | --- |

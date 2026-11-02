@@ -1,3 +1,4 @@
+import { emailCodeMinutes } from '@protobase/schema/internal'
 import { CodeForm } from './code-form'
 import { text } from './messages'
 
@@ -25,7 +26,7 @@ export const SignUpCodeForm = ({ email, onBack, ...rest }: SignUpCodeFormProps) 
     description={text('signUpCodeDescription')}
     explanation={
       <>
-        {text.rich('signUpCodeSent', { email: <span className="font-medium text-foreground">{email}</span> })}
+        {text.rich('signUpCodeSent', { email: <span className="font-medium text-foreground">{email}</span>, minutes: emailCodeMinutes })}
       </>
     }
     submitLabel={text('continue')}

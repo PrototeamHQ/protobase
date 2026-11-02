@@ -45,7 +45,7 @@ With a mobile section, the API answers the app's origins, `capacitor://localhost
 Signing in works in the app as on the web, with nothing more to set up:
 
 - Emailed codes, passwords and the second step of two-factor authentication work. <gap>Passkeys do not work in the app yet.</gap> <gap>Sign-in with another provider does not work in the app yet.</gap>
-- The app calls `/api/auth` through the device's native HTTP, naming its Capacitor origin. With a mobile section, sign-in trusts the Capacitor origin a request names, for that request only, without CORS.
+- The app calls `/api/auth` through the device's native HTTP, naming its Capacitor origin. With a mobile section, sign-in trusts the Capacitor origin a request names, for that request only, without CORS. A POST from a Capacitor origin must send a JSON body: any other is refused with 415, as only a page in the app sends one.
 - The session lives in the device's cookie store, so it survives reloads, updates and relaunches. On iOS, signing in or out within about a second of killing the app may be lost.
 - <gap>"Forgot password?" is not offered in the app, as the emailed link cannot lead back into it.</gap>
 - Page script cannot reach the session cookie, on iOS and Android alike: Capacitor's `CapacitorHttp`, `CapacitorCookies` and `WebView` plugins are refused to it, and so are the app's local file routes. A plugin that reads files for its JavaScript, such as `@capacitor/filesystem`, could still hand the cookie over.
@@ -119,7 +119,7 @@ Use it as the upload key with Play App Signing. Set these variables in your shel
 
 Only Gradle gets them, for the length of the build: npm, its install scripts and Capacitor never do. The build needs the Android SDK and JDK 21.
 
-**iOS**, on a Mac with Xcode: `--team` is your Apple Developer team id, shown in your account's membership details. Xcode signs with the certificates and profiles of the account you added in its settings. For manual signing, pass `--certificate <name>` and `--profile <name>` too. If automatic signing finds no profile for a new app, run `protobase mobile open ios`, pick the team in Signing & Capabilities and archive once from Xcode (Product, Archive), which creates the profile; then build again.
+**iOS**, on a Mac with Xcode: `--team` is your Apple Developer team id, shown in your account's membership details. Xcode signs with the certificates and profiles of the account you added in its settings. For manual signing, pass `--certificate <name>` and `--profile <name>` too. <gap>Manual signing cannot use a certificate or profile name that holds `<`, `>` or `&` because writing the escaped export options is not implemented.</gap> If automatic signing finds no profile for a new app, run `protobase mobile open ios`, pick the team in Signing & Capabilities and archive once from Xcode (Product, Archive), which creates the profile; then build again.
 
 ## 7. Live updates
 

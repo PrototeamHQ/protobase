@@ -3,17 +3,16 @@ import { AuthError } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import { minPasswordLength } from '../auth/reset-password-form'
 import { Button } from '../primitives/button'
-import { Checkbox } from '../primitives/checkbox'
 import { Dialog } from '../primitives/dialog'
 import { Input } from '../primitives/input'
 import { SectionError } from './account-section'
 import { text } from './messages'
 
 export type PasswordChangeDialogProps = {
-  /** The account has a password: ask for it, and offer to sign out the other devices. Without one, it sets the first. */
+  /** The account has a password: ask for it, and say the other devices are signed out. Without one, it sets the first. */
   hasPassword: boolean
   /** Rejects with `AuthError`, which the dialog shows; resolves when the password is saved. */
-  onSave: (input: { current: string; next: string; signOutOthers: boolean }) => Promise<void>
+  onSave: (input: { current: string; next: string }) => Promise<void>
   onClose: () => void
 }
 
@@ -36,7 +35,6 @@ export const PasswordChangeDialog = ({ hasPassword, onSave, onClose }: PasswordC
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [repeat, setRepeat] = useState('')
-  const [signOutOthers, setSignOutOthers] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const formId = useId()
@@ -48,7 +46,7 @@ export const PasswordChangeDialog = ({ hasPassword, onSave, onClose }: PasswordC
     if (problem) return
     setBusy(true)
     try {
-      await onSave({ current, next, signOutOthers })
+      await onSave({ current, next })
     } catch (failure) {
       if (!(failure instanceof AuthError)) throw failure
       setError(passwordMessage(failure))
@@ -92,12 +90,7 @@ export const PasswordChangeDialog = ({ hasPassword, onSave, onClose }: PasswordC
           {text('repeatPassword')}
           <Input type="password" name="repeat-password" autoComplete="new-password" value={repeat} invalid={Boolean(error)} onChange={(event) => setRepeat(event.target.value)} />
         </label>
-        {hasPassword && (
-          <label className="flex items-center gap-2 text-muted-foreground">
-            <Checkbox checked={signOutOthers} onChange={setSignOutOthers} label={text('signOutOthers')} />
-            {text('signOutOthers')}
-          </label>
-        )}
+        {hasPassword && <p className="text-muted-foreground">{text('changeSignsOutOthers')}</p>}
         <SectionError message={error} />
       </form>
     </Dialog>

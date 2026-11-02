@@ -10,6 +10,7 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Existing users table](/reference/auth/#an-existing-users-table): Sign-in can use the users table another system keeps in the same database.
 - [Users page](/reference/auth/#users-page): Admins find people, set roles, block them, add accounts and invite people by email.
 - [Password reset](/reference/auth/#password-reset): People reset a forgotten password through an emailed link.
+- [Password changes](/reference/auth/#name-password-and-devices): Changing the password signs out every other device and MCP client, and emails the account that its password changed. Guesses at the current password are limited for each account.
 - [Leaked passwords](/reference/auth/#leaked-passwords): New passwords that appear in a known data breach are refused, when the app turns the check on.
 - [Emailed sign-in codes](/reference/auth/#emailed-sign-in-codes): People sign in with a code sent to their email. An address with no account is emailed that it has none, so the person tries the one they signed up with. An app can have the sign-in page lead with the code and put the password behind "Use a password".
 - [Changing the address](/reference/auth/#changing-the-address): People move their account to a new email address from the account page, once they enter the code sent there.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountExistsEmail, changeEmailCodeEmail, invitationEmail, noAccountEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
+import { accountExistsEmail, changeEmailCodeEmail, invitationEmail, noAccountEmail, passwordChangedEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
 
 const app = { name: 'Property Finder', url: 'https://homes.example.com/' }
 const expiresAt = new Date('2026-10-15T12:00:00Z')
@@ -13,6 +13,7 @@ describe('the auth emails', () => {
       await signUpCodeEmail.render({ app, code: '123456', lifetime: '10 minutes' }),
       await accountExistsEmail.render({ app }),
       await noAccountEmail.render({ app }),
+      await passwordChangedEmail.render({ app }),
       await signInCodeEmail.render({ app, code: '123456', lifetime: '10 minutes' }),
       await twoFactorCodeEmail.render({ app, code: '123456', lifetime: '10 minutes' }),
       await changeEmailCodeEmail.render({ app, code: '123456', lifetime: '10 minutes' }),
@@ -101,5 +102,12 @@ describe('the auth emails', () => {
     const email = await invitationEmail.render({ app, inviter: 'Ada', url: 'https://homes.example.com/-/invitation?token=t', expiresAt })
     expect(email.subject).toBe('Join Property Finder')
     expect(email.text).toContain('Ada invites you to join Property Finder.')
+  })
+
+  it('tell an account its password changed, with the way to choose a new one when it was not them', async () => {
+    const email = await passwordChangedEmail.render({ app })
+    expect(email.subject).toBe('Your Property Finder password was changed')
+    expect(email.text).toContain('The password of your account with Property Finder was just changed.')
+    expect(email.html).toContain('href="https://homes.example.com/-/sign-in?step=forgot-password"')
   })
 })

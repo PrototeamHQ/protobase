@@ -30,6 +30,10 @@ It is live data, not multiplayer editing: two people editing the same record sti
 
 Connecting again with `?after=<cursor>` catches up on what was missed while disconnected. [`client.live({ onChanges, onResync })`](/reference/client/) of `@protobase/client` follows the stream and connects again by itself, as the app does. However many callers of one client follow it, they share one stream, so a page with many live views holds one connection, which matters under HTTP/1.1, where a browser opens at most six to a host.
 
+## Polling, then a socket
+
+`pollThenSocket({ poll, socket, onMessage, pollMs?, switchAfterMs?, socketFirst? })` of `@protobase/client`, in the browser and on Node, keeps up with anything that changes, until the function it returns is called. It calls `poll` at once and again `pollMs` (5 seconds) after each call ends, and after `switchAfterMs` (30 seconds) opens the WebSocket `socket()` returns, such as `() => new WebSocket(url)`. Once the socket is open, polling stops: `poll` runs once more, for what changed before the socket opened, and `onMessage` gets each message's data. When the socket closes, or never opens, it polls again at once and opens a new socket `switchAfterMs` later. Polling goes on while a socket connects, so nothing waits on it. A short visit thus never opens a socket; `socketFirst: true` opens one at once instead, for a process that stays, and polls only while it is down.
+
 Who is on a record's page and what they send each other, which no change of a record says, goes over the record's [channel](/reference/channels/).
 
 ## The table
