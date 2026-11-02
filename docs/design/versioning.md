@@ -41,6 +41,7 @@ The config is one object of data. A `protobase.config.ts` imports only `defineCo
 
 - **`protobase dev`** runs the API in a process of its own. It loads the project's `@protobase/server` when the project is locked, and the CLI's otherwise. The CLI's process never loads the server.
 - **Builds** (`protobase build` and the commands that check the config) load the server in the CLI's process, from the copy the mode selects.
+- Beyond the CLI's major check, everything is duck typing, and every command handler loads lazily.
 
 ### Editor types
 

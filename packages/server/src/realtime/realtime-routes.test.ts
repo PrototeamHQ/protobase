@@ -57,7 +57,7 @@ describe('realtimeRoutes', () => {
     expect(member.close).not.toHaveBeenCalled()
     expect(member.sent.map((frame) => JSON.parse(frame as string)[3])).toEqual(['phx_reply', 'presence_state'])
     expect(JSON.parse(member.sent[1] as string)[4]).toEqual({})
-    memberEvents.onClose!(new CloseEvent('close'), member.context)
+    memberEvents.onClose!(new Event('close') as CloseEvent, member.context)
   })
 
   it('leaves the channels of a socket that ws closed for a frame over the cap, without waiting for its close', async () => {

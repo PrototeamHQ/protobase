@@ -102,7 +102,7 @@ export default defineConfig({ auth: { mcp: true }, mcpEndpoint: { writes: true }
 | --- | --- |
 | `create_record` | Creates a record of a resource from `data`, field names to values, and returns its key and ETag with the fields it wrote, see [What a write returns](#what-a-write-returns). |
 | `update_record` | Changes the fields in `data` of one record by its key, and returns its key and new ETag with the fields it set. With the `etag` that `get_record` gave, it fails when someone changed the record since. It does not set the field a soft delete sets: a delete goes through `delete_record`. |
-| `delete_record` | Deletes one record by its key and the `etag` that `get_record` gave, and fails when someone changed the record since. A resource with a [soft delete](/reference/data-config/) keeps the record, deleted; any other loses it for good. |
+| `delete_record` | Deletes one record by its key. With the `etag` that `get_record` gave, it fails when someone changed the record since; without one, or with `*`, it deletes the record whatever its version. A resource with a [soft delete](/reference/data-config/) keeps the record, deleted; any other loses it for good. |
 | `batch_write` | Creates, updates and deletes records across resources in one transaction, see [Batch writes](#batch-writes). |
 
 Each write goes through the REST API as the person: their role's access rules, `validate`, write hooks, events and webhooks apply, so the client can do only what the person may do in the app.
