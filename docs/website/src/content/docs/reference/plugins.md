@@ -41,8 +41,10 @@ Each place a plugin can fill is an extension point. The config names it, or a pl
 | [Action handler](/reference/custom-components/#action-handlers) | `a.action('name')` in a view | `actions: { name }` | `ActionContext` | The button is disabled |
 | [Shell slot](/reference/custom-components/#shell-slots) | Nothing: drawn on every page | `shell: { actions, rightPanel, logo, bell }` | Nothing; `logo` gets `compact`, `workspace`, `appName` and `appIcon` | Not drawn; Protobase's logo for `logo`, its notification bell for `bell` |
 | [Before sign-in](#before-sign-in) | `beforeSignIn: true` where the plugin is listed | `beforeSignIn` | `children`, `params`, `removeParams`, `signedIn` | The pages as they are without it |
+| Rules and hooks a view names | A [drop rule](/reference/ui-config/#drop-rules), [board drop](/reference/ui-config/#board-drops), [title rule](/reference/ui-config/#titles-per-reader) or [marks hook](/reference/sidebar/#marks-per-reader) by name in a view | `dropRules`, `boardDrops`, `titles`, `marks` | What its page says | What its page says |
+| [Presence](/reference/status/#in-the-app) | Nothing: read on the members page and the sidebar | `presence` | Nothing; a hook | No one shows as online or away |
 
-Components and cards share one namespace of names, which `component('Name')` joins to the export; field types and action handlers each have their own. Props that name fields go through the same walker as everything else in `/api/meta`, so a user who may not read a field never gets it in a component's props; a field type's `props` are plain data, and a field the user may not read is left out of the view, field type and all.
+Components and cards share one namespace of names, which `component('Name')` joins to the export; field types, action handlers, drop rules, board drops, title rules and marks hooks each have their own. Props that name fields go through the same walker as everything else in `/api/meta`, so a user who may not read a field never gets it in a component's props; a field type's `props` are plain data, and a field the user may not read is left out of the view, field type and all.
 
 New extension points are new optional keys of `definePlugin`, so adding one never changes what a plugin built before it does.
 
@@ -66,7 +68,7 @@ export { DraftOrders } from './components/draft-orders'
 export default definePlugin({ name: 'sales-tools', actions: { remindCustomer } })
 ```
 
-It is written as a project's `protobase.ui.tsx` is: each component exported under the PascalCase name the config declares, from a file of its own, and the rest in the default export, `definePlugin({ name, actions, fields, shell, beforeSignIn, extends })` (`defineUi` is the same function). Its components use the hooks and components of `@protobase/ui`, which read the API as the signed-in user, under the same access rules as everything else.
+It is written as a project's `protobase.ui.tsx` is: each component exported under the PascalCase name the config declares, from a file of its own, and the rest in the default export, `definePlugin({ name, actions, fields, shell, beforeSignIn, extends, ... })` (`defineUi` is the same function), with the keys of [Extension points](#extension-points). Its components use the hooks and components of `@protobase/ui`, which read the API as the signed-in user, under the same access rules as everything else.
 
 **Imports.** `react`, `react/jsx-runtime` (the JSX), `react-dom` and `@protobase/ui`, by those names, come from the app. Everything else a plugin imports, its own files, icons or a chart library, is built into it. Other modules of those packages, such as `react-dom/client` or a file inside `@protobase/ui`, fail the build: a copy of its own would not work with the app's. Read data with `@protobase/ui`'s hooks (`useList`, `useRecord`, `useClient`), which share the app's cache: a data library of the plugin's own keeps a cache of its own.
 
@@ -234,7 +236,7 @@ When the user signs in, or before for a plugin that loads [before sign-in](#befo
 - The files in `assets/`, named by their content, forever (`Cache-Control: public, max-age=31536000, immutable`).
 - From another origin than the app's, with `Access-Control-Allow-Origin` (`*` is fine for public files), since the browser loads modules and `plugin.json` with CORS.
 
-The plugins are merged in the order listed. Two of them cannot define one name: a plugin that defines a component, action handler or field type an earlier one defines is turned off, and the earlier one keeps it. So the project's own names win over a platform's, and within a bundle the build already fails on such a name.
+The plugins are merged in the order listed. Two of them cannot define one name: a plugin that defines a component, action handler, field type, drop rule, board drop, title rule or marks hook an earlier one defines is turned off, and the earlier one keeps it. So the project's own names win over a platform's, and within a bundle the build already fails on such a name. The logo, the bell and the presence hook come from the last one that sets them, so the project's own replace a plugin's.
 
 `protobase dev` loads plugins the same way, its page sharing the same four modules. The project's own `protobase.ui.tsx` is built into the dev page with hot reload instead, merged after the plugins, and keeps its names over theirs.
 
@@ -325,7 +327,7 @@ From `@protobase/ui`:
 
 | | |
 | --- | --- |
-| `definePlugin(config)` | Typed identity for a plugin's default export: `name`, `actions`, `fields`, `shell`, `beforeSignIn`, `extends`, as `defineUi`. |
+| `definePlugin(config)` | Typed identity for a plugin's default export: `name`, `extends` and the keys of [Extension points](#extension-points), as `defineUi`. |
 | `BeforeSignInProps` | The props of a plugin's [`beforeSignIn`](#before-sign-in) component. |
 | `usePlugin()` | The plugin the calling component belongs to (see [above](#writing-a-plugin)). |
 | `useResourceClient(resource)` | The client of the API that serves a resource: the app's own, or a source's for a [remote resource](/reference/remote-resources/). |

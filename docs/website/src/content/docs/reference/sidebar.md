@@ -5,6 +5,8 @@ description: How sidebar entries are grouped and which icon each shows, how an e
 
 The admin's sidebar has one entry per resource view, grouped by `nav.group` (default: the database schema, with no group name for `public`) and sorted by `nav.order`, then by the order `config/index.ts` exports them, in `protobase dev` and in a built bundle alike. The app opens on the first entry. A view's [named lists](/reference/ui-config/#more-than-one-list) are entries of their own, placed by their own `nav`. `nav({ hidden: true })` leaves a resource out, for line and link tables; a resource in the [user menu](/reference/user-menu/) is left out too. [Composed pages](/reference/layouts/#setup) have entries of their own, and groups that hold pages come first. A [remote resource](/reference/remote-resources/) has its entry where its source's view places it; while its source cannot be reached, it sits under the source's label, marked "Cannot reach" with the source's name.
 
+Below the `md` breakpoint (768px) the sidebar is a drawer, which the top bar's menu button opens, or **More** on a [bottom bar](/reference/bottom-bar/).
+
 ## Sidebar icons
 
 Each resource shows the icon its view names, in the sidebar, the [bottom bar](/reference/bottom-bar/) and the [user menu](/reference/user-menu/), and its [named lists](/reference/ui-config/#more-than-one-list) show the same icon:
@@ -47,6 +49,10 @@ export const directMessagesView = view<typeof directMessages>('direct_messages')
 `createAdmin` refuses an empty `label`.
 
 ## Recent records
+
+:::caution[Beta]
+A marks hook that throws stops the whole sidebar, not only its own group.
+:::
 
 An entry can list a few of its records under it, each with a status dot, so the ones that need attention are one click away:
 

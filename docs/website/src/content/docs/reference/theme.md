@@ -122,7 +122,7 @@ The list is `packages/ui/src/tokens.css`, and a test fails when one of its token
 
 ## Logo and favicon
 
-The sidebar shows Protobase's logo, its mark alone when the sidebar shows only icons, or, for a project with its own favicon, that icon and the app's name ([App identity](/reference/app-identity/)). A project draws something else with `shell.logo` in `protobase.ui.tsx`, a component drawn in its place ([Shell slots](/reference/custom-components/#shell-slots)); it draws with these tokens like the rest of the app.
+The sidebar's logo is the project's own favicon, or Protobase's mark without one, beside the app's [name](/reference/app-identity/#the-name), with the organization the user works in under it, and the icon alone when the sidebar shows only icons. An app that keeps Protobase's name and has no favicon of its own shows Protobase's wordmark beside the mark. A project draws something else with `shell.logo` in `protobase.ui.tsx`, a component drawn in its place ([Shell slots](/reference/custom-components/#shell-slots)); it draws with these tokens like the rest of the app.
 
 The browser tab shows Protobase's mark. A project shows its own with a `protobase.favicon.svg` at its root, beside `protobase.theme.css`: the app's `index.html` links `/protobase.favicon.svg`, which `protobase build` writes to the bundle's `public/`, the project's file or Protobase's without one, and which `protobase dev` serves the same way. An SVG can follow the system's light or dark with a `prefers-color-scheme` media query inside it, as Protobase's does. PNGs beside it serve the platforms that take no SVG, such as an iPhone's home screen ([App identity](/reference/app-identity/#the-icons)).
 

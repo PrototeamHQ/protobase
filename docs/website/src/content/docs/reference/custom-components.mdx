@@ -205,7 +205,7 @@ A component that asks for input looks like the app's own forms when it is built 
 | `RecordPicker` | Records of another resource, picked as the create form picks a relation: type to narrow them by their search fields or title, scroll for more, or use the keyboard. `resource` names the resource, whose model it reads from the app; `value` is the chosen record's key as text and `onChange` gets the new one. With `multiple`, `value` and `onChange` hold several keys, such as the objectives a task serves through a join resource: each shows as a token that can be taken off. |
 | `Segmented`, `MenuSelect` | A switch between a few short options in a row (`size`, `iconOnly`), and the same options in a menu. |
 | `Button`, `buttonClass` | A button (`variant` `primary`, `secondary`, `ghost` or `danger`, `size`, `loading`), and its classes for a link that looks like one. |
-| `Dialog`, `ResponsiveDialog` | A modal with a `title`, `description`, `actions` and a body, which Escape and a click outside close with `onClose`; the responsive one becomes a sheet on a phone. |
+| `Dialog`, `ResponsiveDialog` | A modal with a `title`, `description`, `actions` and a body, which Escape and a click outside close with `onClose`; the responsive one becomes a sheet from the bottom of a phone, which a swipe down on its header closes too. |
 
 ```tsx
 // components/book-repair.tsx, exported from protobase.ui.tsx
@@ -301,6 +301,10 @@ export const Channel = ({ messages, sent, members, onSend, onLoadEarlier }: Chan
 
 ### Members' names
 
+:::caution[Beta]
+The whole member list loads in the browser, with no paging or search on the server, and former members' names do not show.
+:::
+
 The author is a user id, and `useMembers()` from `@protobase/ui` turns it into a name: the members of the organization the signed-in person works in, `{ id, name, image? }` by name, with `id` the user id that `.author()` stores and that `onSend`'s mentions hold. Every member reads it, owners, admins and members alike; it holds no email addresses. It is a TanStack Query result (`data`, `isLoading`, `error`) with `member(id)`, which finds one and, for an id it does not know, such as a newcomer's first message, reads the list again once it is 10 seconds old; it is also read again when the window regains focus and the list is 30 seconds old. It needs [organizations](/reference/auth/#organizations): without them, `error` says so. In an app with [status](/reference/status/#in-the-app), each member carries their `status` too, read again every 15 seconds.
 
 ```tsx
@@ -323,6 +327,8 @@ export const ChannelComposer = ({ onSend }: { onSend: (text: string, mentions: s
 ```
 
 `searchPeople` filters the list in the browser and shows at most 8, as comments' mentions do. <gap>`useMembers()` cannot page or search on the server because a server-side people resource is not implemented, so the whole list loads in the browser, which suits a team, not thousands of members.</gap> <gap>Old messages of someone who has left the organization cannot show their name because looking up former members is not implemented.</gap> A person who works in an organization without being a member of it, through a global role, gets no list.
+
+### Signed-in user
 
 `useSignedInUser()` from `@protobase/ui` gives the signed-in person as `{ id, name? }`, `id` being the user id `.author()` stores and mentions hold, such as for a filter on their own messages (`author_id != "<id>"`) or mentions of them; it is `undefined` while the session loads, for a visitor and when nobody is signed in.
 
