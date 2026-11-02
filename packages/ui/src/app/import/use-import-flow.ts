@@ -8,6 +8,7 @@ import { createLookups } from './lookups'
 import { autoMapping, importableFields, matchFields, type ColumnMapping, type ImportMode } from './mapping'
 import type { ImportPlan } from './prepare-rows'
 import { checkImport, readHead, runImport, type ImportCheck, type ImportProgress, type SheetHead } from './run-import'
+import { isJsonFile } from './sheet-file'
 import { workerSheetSource, type SheetSource } from './sheet-source'
 
 /** Where the import dialog is: choosing a file, mapping its columns, checking its rows, writing them, or done. */
@@ -34,10 +35,11 @@ export const useImportFlow = ({ model, resources, views, sourceFor = workerSheet
   const clientFor = useResourceClients()
   const queryClient = useQueryClient()
   const view = views[model.name]
-  const fields = useMemo(() => importableFields(model, resources), [model, resources])
   const [step, setStep] = useState<ImportStep>({ kind: 'file', reading: false })
   const [error, setError] = useState<unknown>()
   const [file, setFile] = useState<{ file: File; source: SheetSource; sheets: string[] }>()
+  const json = file ? isJsonFile(file.file) : false
+  const fields = useMemo(() => importableFields(model, resources, { json }), [model, resources, json])
   const [sheet, setSheet] = useState<string>()
   const [head, setHead] = useState<SheetHead>()
   const [mode, setMode] = useState<ImportMode>('create')
@@ -62,18 +64,19 @@ export const useImportFlow = ({ model, resources, views, sourceFor = workerSheet
       .then((sheets) => {
         setFile({ file: chosen, source, sheets })
         setSheet(sheets[0])
-        if (sheets.length <= 1) return open(source, sheets[0])
+        if (sheets.length <= 1) return open(source, sheets[0], importableFields(model, resources, { json: isJsonFile(chosen) }))
         setStep({ kind: 'file', reading: false })
       })
       .catch(fail({ kind: 'file', reading: false }))
   }
 
-  // The sheet's header and first rows, with each column mapped to the field its header names
-  const open = async (source: SheetSource, name: string | undefined) => {
+  // The sheet's header and first rows, with each column mapped to the field its header names; the fields are the
+  // chosen file's, which a file just chosen has not yet made the ones the flow shows
+  const open = async (source: SheetSource, name: string | undefined, fileFields: typeof fields) => {
     setStep({ kind: 'file', reading: true })
     const read = await readHead(source, name)
     setHead(read)
-    setColumns(autoMapping(read.headers, fields, view))
+    setColumns(autoMapping(read.headers, fileFields, view))
     const key = matchFields(model)[0]
     const keyColumn = key ? autoMapping(read.headers, [key], view)[0] : undefined
     setMatch(key && keyColumn ? { field: key.name, column: keyColumn.column } : undefined)
@@ -83,7 +86,7 @@ export const useImportFlow = ({ model, resources, views, sourceFor = workerSheet
   const openSheet = () => {
     if (!file) return
     setError(undefined)
-    open(file.source, sheet).catch(fail({ kind: 'file', reading: false }))
+    open(file.source, sheet, fields).catch(fail({ kind: 'file', reading: false }))
   }
 
   /** Maps the column to the field, or skips it without one; a field fills one column, so another that had it is skipped. */

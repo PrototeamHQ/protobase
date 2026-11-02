@@ -14,6 +14,8 @@ Save the spreadsheet as it is (`.xlsx`), or as **CSV UTF-8**. Its first row name
 | Hoogland Fietsen | Leiden | NL | Lead | inkoop@hoogland.test |
 | De Spaak | Delft | NL | lead | |
 
+Data exported from another tool as JSON imports the same way: an array of objects, whose keys name the columns, such as `[{"Name": "Hoogland Fietsen", "City": "Leiden"}]`.
+
 Open **Companies**, press **Import** and choose the file. Each column whose header is a field's label or name is mapped already: Country is the label the companies' view gives `country_code`, a relation whose column holds each country's key. Map other columns, or leave them at **Do not import**. Set **Numbers** and **Dates** to how the file writes them. Fields a new company needs that no column fills are named above **Check rows**, which waits for them.
 
 **Check rows** reads the whole file and writes nothing. It shows the first rows as they will be saved and lists each row with a problem, such as a country no record has or a status that is none of Lead, Active and Dormant (`lead` is fine: case and spacing do not count). Those rows are skipped. An empty Email is saved empty; an empty cell is never filled with a default.

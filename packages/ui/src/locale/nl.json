@@ -543,7 +543,7 @@
     "cancelImport": "Import annuleren",
     "done": "Klaar",
     "file": "Bestand",
-    "fileHint": "Een Excel-werkmap (.xlsx) of een CSV-bestand bewaard als UTF-8. De eerste rij noemt de kolommen.",
+    "fileHint": "Een Excel-werkmap (.xlsx), een CSV-bestand bewaard als UTF-8, of een JSON-bestand. De eerste rij van een werkmap of CSV noemt de kolommen; een JSON-bestand bevat een lijst objecten, waarvan de sleutels de kolommen noemen.",
     "reading": "{name} lezen…",
     "theFile": "het bestand",
     "sheet": "Werkblad",
@@ -610,6 +610,7 @@
     "severalValues": "{cell} past bij meer dan één waarde: {values}",
     "notOneOf": "{cell} is niet een van {values}",
     "notText": "{cell} is waar of onwaar, geen tekst",
+    "nestedValue": "{cell} is een geneste waarde, die alleen een JSON-veld aanneemt",
     "emptyRequired": "is leeg, en is verplicht",
     "noneHas": "geen <lower>{singular}</lower> heeft {named}",
     "severalHave": "{count} <lower>{plural}</lower> hebben {named}",
@@ -624,6 +625,8 @@
     "notWorkbook": "Het bestand is geen Excel-werkmap (.xlsx): het heeft geen {part}",
     "noSheetCalled": "De werkmap heeft geen werkblad met de naam {name}",
     "unreadable": "Het bestand kon niet worden gelezen",
+    "jsonInvalid": "Het bestand is geen geldige JSON in UTF-8-tekst",
+    "jsonNotList": "Het JSON-bestand bevat geen lijst objecten",
     "column": "Kolom {letters}"
   },
   "app/list": {

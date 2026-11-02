@@ -1,16 +1,22 @@
 import { text } from './messages'
 /**
- * A cell as a file holds it: text (every CSV cell), a number, a boolean, a date or time a workbook stores as one, or
- * `null` for an empty cell. A date is its wall-clock time without a zone: `2026-03-01` or `2026-03-01T14:30:00`.
+ * A cell as a file holds it: text (every CSV cell), a number, a boolean, a date or time a workbook stores as one, a
+ * JSON file's nested object or array, or `null` for an empty cell. A date is its wall-clock time without a zone:
+ * `2026-03-01` or `2026-03-01T14:30:00`.
  */
-export type SheetCell = string | number | boolean | SheetDate | null
+export type SheetCell = string | number | boolean | SheetDate | SheetJson | null
 
 export type SheetDate = { date: string }
+
+/** A nested object or array of a JSON file, which only a JSON field takes. */
+export type SheetJson = { json: object }
 
 /** A row of cells, with its line in the file as the spreadsheet numbers it: the header is line 1. */
 export type SheetRow = { line: number; cells: SheetCell[] }
 
-export const isSheetDate = (cell: SheetCell): cell is SheetDate => typeof cell === 'object' && cell !== null
+export const isSheetDate = (cell: SheetCell): cell is SheetDate => typeof cell === 'object' && cell !== null && 'date' in cell
+
+export const isSheetJson = (cell: SheetCell): cell is SheetJson => typeof cell === 'object' && cell !== null && 'json' in cell
 
 /** Whether the cell holds nothing: no value, or only spaces. */
 export const isEmptyCell = (cell: SheetCell) => cell === null || (typeof cell === 'string' && cell.trim() === '')
@@ -19,6 +25,7 @@ export const isEmptyCell = (cell: SheetCell) => cell === null || (typeof cell ==
 export const cellText = (cell: SheetCell) => {
   if (cell === null) return ''
   if (isSheetDate(cell)) return cell.date.replace('T', ' ')
+  if (isSheetJson(cell)) return JSON.stringify(cell.json)
   if (typeof cell === 'boolean') return cell ? 'TRUE' : 'FALSE'
   return String(cell)
 }

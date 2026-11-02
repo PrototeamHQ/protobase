@@ -7,6 +7,7 @@ describe('sheet cells', () => {
     expect(cellText({ date: '2026-03-01T14:30:00' })).toBe('2026-03-01 14:30:00')
     expect(cellText(true)).toBe('TRUE')
     expect(cellText(1.5)).toBe('1.5')
+    expect(cellText({ json: { tags: ['a'] } })).toBe('{"tags":["a"]}')
   })
 
   it('names a column by its header, or by its letters when the header is empty', () => {
