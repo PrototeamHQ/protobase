@@ -2,6 +2,7 @@ import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import type { AuthContext } from './organizations/store'
 import { isWithin, sessionNote } from './session-notes'
+import { signUpPaths } from './sign-up/sign-up-plugin'
 import { isStaffSession } from './staff-checks'
 import { defaultStrongSignInMinutes, strongSignInAt } from './strong-sign-ins'
 
@@ -11,6 +12,8 @@ const newFactorPaths = ['/passkey/generate-register-options', '/passkey/verify-r
 const passwordCheckedPaths = ['/two-factor/enable', '/two-factor/get-totp-uri', '/two-factor/generate-backup-codes']
 
 const emailCodeSignIns = sessionNote('email-code-sign-in')
+// The endpoints that sign a person in on an emailed code they just entered: a sign-in with a code, and open sign-up.
+const emailCodeSessionPaths = ['/sign-in/email-otp', signUpPaths.create]
 
 export const strongSignInRequired = {
   code: 'STRONG_SIGN_IN_REQUIRED',
@@ -55,7 +58,7 @@ const factsOf = (context: AuthContext, session: { id: string }, user: { id: stri
 /**
  * Adding a passkey or an authenticator app, and making new backup codes, need a recent strong sign-in with a factor
  * the account has already (`newFactorRefusal`), or the emailed code for its first. Notes the sessions that sign in
- * with an emailed code to know when.
+ * with an emailed code, or sign up with one, to know when.
  */
 export const newFactorStepUpPlugin = () =>
   ({
@@ -75,7 +78,7 @@ export const newFactorStepUpPlugin = () =>
       ],
       after: [
         {
-          matcher: (context) => context.path === '/sign-in/email-otp',
+          matcher: (context) => context.path !== undefined && emailCodeSessionPaths.includes(context.path),
           handler: createAuthMiddleware(async (ctx) => {
             if (ctx.context.returned instanceof APIError) return
             const session = ctx.context.newSession?.session
