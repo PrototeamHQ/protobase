@@ -17,6 +17,7 @@ import { readPackageJson, type PackageJson } from './packages/package-dir'
 import { moveSourceMaps } from './source-maps'
 import { shellCodeSplitting } from './shell-chunks'
 import { pinnedNative } from '../mobile/pinned-packages'
+import { firstPartyCode } from './first-party-code'
 
 /** What a shell folder holds beside its files: the `ShellManifest`. */
 export const shellManifestFile = 'protobase.shell.json'
@@ -71,7 +72,7 @@ export const buildShell = async (outDir: string, sourceMapsDir?: string) => {
     mode: 'production',
     publicDir: false,
     logLevel: 'warn',
-    plugins: [sharedModulesPlugin(), projectUiPlugin(undefined), themeLink(), faviconLink(), serviceWorker(), react(), tailwindcss()],
+    plugins: [sharedModulesPlugin(), projectUiPlugin(undefined), themeLink(), faviconLink(), serviceWorker(), react(), tailwindcss(), firstPartyCode()],
     // Web workers are builds of their own, which take the source maps from `build` but not the output's debug ids.
     worker: { rolldownOptions: { output: { sourcemapDebugIds: sourceMaps } } },
     build: { outDir, emptyOutDir: true, chunkSizeWarningLimit: 4096, sourcemap: sourceMaps && 'hidden', rolldownOptions: { output: { sourcemapDebugIds: sourceMaps, codeSplitting: shellCodeSplitting } } },
