@@ -107,13 +107,25 @@ export const TaskProposal = ({ taskId }: { taskId: number }) => {
 
 The tool and its component live apart, joined by the name, since the server config cannot import `@protobase/ui` and the browser must not get server code; put shared prop types in a file both import with `import type`. Whoever may update the task decides on it, now or next month, from the chat or the task's own page, and a write hook can stamp who did from `event.user`; when two decide at once, the ETag makes the second write fail and the widget shows the first decision. The chat is not told: the model learns of the change by reading the record again, which the description asks it to do.
 
-Each message carries the page the user is on, such as `/orders/42`, which the model reads with it.
+Each message carries the page the user is on, such as `/orders/42`, which the model reads with it. A message is at most 4,000 characters, and a turn takes at most 8 steps of tool calls, after which the answer ends with `Stopped after 8 steps.`
 
 <gap>There is one conversation per user, shared by their tabs.</gap> The server keeps it as a file, `<chats>/<user>/chat.jsonl` (see `PROTOBASE_ASSISTANT_CHATS`), with the chat and everything the model read, so a restart keeps it and the app only ever sends the new message. The directory is made on the first message and must be writable: in a container, point it at a volume. With several instances, send each user's requests to the same one.
 
 ## Another backend
 
-A backend elsewhere replaces the built-in one through `PROTOBASE_ASSISTANT_URL`. It receives the user's API token as `Authorization: Bearer <token>`, verifies it against the app's key set (`/api/auth/jwks`), and allows the app's origin with CORS. It can be built from the building blocks `@protobase/server` exports (the protocol's routes, the turn loop with tool calling, tools, approvals, the query tools and a conversation store interface to keep chats elsewhere, such as in a database) with its own prompt and tools; the built-in backend's source, `packages/server/src/assistant/built-in-assistant.ts`, is the reference.
+A backend elsewhere replaces the built-in one through `PROTOBASE_ASSISTANT_URL`. It receives the user's API token as `Authorization: Bearer <token>`, verifies it against the app's key set (`/api/auth/jwks`), and allows the app's origin with CORS. It can be built from the building blocks `@protobase/server` exports (the protocol's routes, `assistantProtocolRoutes`, the turn loop with tool calling, `runTurn`, tools, approvals, the query tools, `withCacheBreakpoints`, which marks a chat's messages for prompt caching, and `createConversations` over a conversation store, `fileConversationStore` or one of your own that keeps chats elsewhere, such as in a database) with its own prompt and tools; the built-in backend's source, `packages/server/src/assistant/built-in-assistant.ts`, is the reference.
+
+### The protocol
+
+The dock and a backend speak three requests on the backend's URL, each with the user's bearer token:
+
+| Request | What it does |
+| --- | --- |
+| `GET <url>/events` | Server-sent events, each a JSON `AssistantEvent`: `state` replaces the whole chat and always comes first on a connection, `message` adds a message or replaces the one with its id, `part` adds a part to a message or replaces the one with its id, and `patch` changes `replying`, `status` or the composer's `placeholder`. |
+| `POST <url>/messages` | `{ text, page? }`: what the user wrote, and the page they are on. The built-in backend answers `202` and replies with events, or `409` while it still answers the last message. |
+| `POST <url>/actions` | `{ partId, actionId }`: the user clicked a button of a card. |
+
+The types are exported from `@protobase/schema` (`AssistantEvent`, `AssistantState`, `AssistantMessage`, `AssistantPart` and its text, table, card and widget parts, `AssistantMessageRequest`, `AssistantActionRequest`). `createAssistantClient({ url, token })` from `@protobase/client`, where `token` is a function that gives the user's token, follows the event stream, reconnecting by itself, and sends the two requests; the dock uses it.
 
 ## Widget parts
 
