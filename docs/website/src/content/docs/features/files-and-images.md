@@ -4,6 +4,7 @@ description: Uploaded files and images, where they are kept and how they are ser
 ---
 
 - [File fields](/reference/files/#what-the-column-holds): A text column holds an uploaded file, with limits on type and size.
+- [File uploads in forms](/reference/files/#in-forms): Forms upload a dropped or chosen file at once with a progress bar, and replace or remove it; tables show its name and a thumbnail.
 - [File storage](/reference/files/#providers): Files are kept on disk, or in a bucket of your own.
 - [S3-compatible buckets](/reference/files/#s3-compatible-buckets) (beta): Files are kept in any bucket that speaks the S3 API, when the app runs on Bun.
 - [Files from a seed](/reference/files/#writing-files-from-a-seed): A seed or another script writes files into the app's providers, read from its config and environment as the server reads them.

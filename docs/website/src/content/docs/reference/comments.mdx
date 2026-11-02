@@ -35,7 +35,7 @@ Whoever may read the record may read its comments and add one: the same tenant, 
 
 ## The endpoints
 
-`GET /api/v1/{resource}/{key}:comments` reads them newest first, `POST` to the same path adds one, and `GET /api/v1/{resource}/{key}:mentionable?q=` lists whom a comment may mention. See [REST API](/reference/api/#record-comments).
+`GET /api/v1/{resource}/{key}:comments` reads them newest first, `POST` to the same path adds one, and `GET /api/v1/{resource}/{key}:mentionable?q=` lists whom a comment may mention. See [REST API](/reference/api/#record-comments). From code, [`@protobase/client`](/reference/client/) has `comments(resource, key, { pageSize?, pageToken? })`, `comment(resource, key, { body, mentions? })`, where `mentions` holds the ids of the users mentioned, and `mentionable(resource, key, query)`.
 
 An AI client reads and adds them over the app's [MCP endpoint](/reference/mcp/#comments), with `list_comments` and `add_comment`, under the same rules.
 

@@ -4,11 +4,13 @@ description: Sign-in methods, users, roles, organizations and tokens.
 ---
 
 - [Built-in sign-in](/reference/auth/): Password sign-in, sessions and short-lived tokens, with no separate identity service.
+- [Sign-in page](/reference/client/#the-admin-app): The app signs people in at its own address, where the browser's Back returns to the step before, and signing in comes back to the page they were on.
 - [First admin](/reference/auth/#first-run): No account can be made over the web while the app has no users. You create the first admin from the terminal, and the last active admin cannot be deleted, demoted or blocked.
 - [Users from a script](/reference/auth/#first-run): A seed or another script of the project creates and lists users, and mints their tokens, on the app's own sign-in.
 - [Versioned sign-in tables](/reference/auth/#migrations): The sign-in tables come from numbered migrations that ship with Protobase, written as the project's own and recorded in the database, so a deploy checks them without comparing tables. Every feature has its tables from the start, so turning one on or off needs no migration.
 - [Existing users table](/reference/auth/#an-existing-users-table): Sign-in can use the users table another system keeps in the same database.
 - [Users page](/reference/auth/#users-page): Admins find people, set roles, block them, add accounts and invite people by email.
+- [Account page](/reference/auth/#account-page): Everyone signed in has an account page for their profile, sign-in and security, devices and connected apps, and you add, hide or reorder its tabs.
 - [Password reset](/reference/auth/#password-reset): People reset a forgotten password through an emailed link.
 - [Password changes](/reference/auth/#name-password-and-devices): Changing the password signs out every other device and MCP client, and emails the account that its password changed. Guesses at the current password are limited for each account.
 - [Leaked passwords](/reference/auth/#leaked-passwords): New passwords that appear in a known data breach are refused, when the app turns the check on.
@@ -20,6 +22,8 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Two-factor authentication](/reference/auth/#two-factor-authentication): A second step with an authenticator app, backup codes or emailed codes.
 - [Sign-in policy](/reference/auth/#sign-in-policy): Admins choose which sign-in methods are on, off or required, and the server refuses a policy that would lock people out.
 - [GitHub and social sign-in](/reference/auth/#sign-in-with-github): People sign in with GitHub or another social provider.
+- [Sign-in links](/reference/auth/#sign-in-links-and-connected-accounts): A link signs someone in with a sign-in provider at once, without the sign-in page.
+- [Connected accounts](/reference/auth/#sign-in-links-and-connected-accounts): People link GitHub or another sign-in provider to their account from the account page.
 - [SAML sign-in](/reference/auth/#sign-in-with-saml): People sign in through any SAML provider.
 - [OpenID Connect provider](/reference/auth/#platform-sign-in-provider): A host adds an OpenID Connect provider for people who already have an account.
 - [Staff sign-in](/reference/auth/#staff-sign-in): The team that runs an app signs in as a person to help them, with a reason and a log entry.

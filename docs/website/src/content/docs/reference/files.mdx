@@ -115,6 +115,10 @@ Uploads go through Protobase's own route, so the type is checked and processors 
 
 A write takes only a ticket, `null` to clear the field, or the stored `uri` unchanged, and in a field with `.externalUrls()` an https URL. Anything else is refused with `400`, so a row can only point at a file its writer uploaded for that field, or at a URL elsewhere where the field allows one. From the client, `client.upload(resource, field, file, { onProgress })` does step 1; see [Client](/reference/client/).
 
+### In forms
+
+In the admin app's create and edit forms, a file field takes a dropped or chosen file, limited to the field's `.accept()` types, and uploads it at once with a progress bar; Save then stores it with the record. A stored file shows its thumbnail or an icon, its name linking to the file, its type and size, and the type it was sent as when the server corrected it. Replace picks another file, and Remove, for an optional field, clears it. Tables show the file's name, beside a small thumbnail for an image.
+
 ### How the type is decided
 
 An upload carries three hints: what the **content** is (C, from its magic bytes), what the **name's extension** says (E), and what the **client declared** (H, the request's or the file part's `Content-Type`; `application/octet-stream` counts as none).
