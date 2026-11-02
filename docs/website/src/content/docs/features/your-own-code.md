@@ -23,5 +23,4 @@ description: React components, field types, pages and handlers of your own, load
 - [Plugin settings](/reference/plugins/#loading): Plugins are loaded from the config, limited to roles and given settings.
 - [Plugin fallbacks](/reference/plugins/#when-a-plugin-is-off): A plugin that fails or does not fit the version is turned off alone, and admins see why.
 - [Before sign-in](/reference/plugins/#before-sign-in): A plugin can run around the sign-in page, for example to sign someone in from a link.
-- [Confirm it's you](/reference/plugins/#api): The app's step that has the person confirm it's them, and its field for a hidden value that asks for it, for your own pages.
 - [Unstable modules](/reference/plugins/#the-unstable-entry): UI with its own build imports any module of the app's UI, without a promise that it stays the same, instead of copying it.

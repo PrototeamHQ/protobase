@@ -19,6 +19,7 @@
     "activity-chart/activity-chart-fixtures#SampleActivityChart",
     "app-shell/sidebar-notice#useSidebarNoticeShown",
     "app-shell/status-dot#StatusDot",
+    "app/confirm-sign-in#ConfirmSignIn",
     "app/document-title#useDocumentTitle",
     "app/error-banner#ErrorBanner",
     "app/field-editor#FieldEditor",
