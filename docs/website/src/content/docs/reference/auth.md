@@ -324,6 +324,8 @@ With mail configured, the account page's Profile tab offers "Change email": the 
 
 With mail configured, the sign-in page offers "Email me a sign-in code": the person enters their address, gets a 6-digit code, and signs in with it instead of a password. It is Better Auth's [email OTP](https://www.better-auth.com/docs/plugins/email-otp) plugin: `POST /api/auth/email-otp/send-verification-otp` with `{ email, type: "sign-in" }`, then `POST /api/auth/sign-in/email-otp` with `{ email, otp }`.
 
+The code goes in a box per digit, which takes a pasted code and the system's code autofill, and is checked as soon as its last digit is in; **Send a new code** waits 30 seconds after each code that went out. The [sign-up](#open-sign-up) code page works the same; a new address's code is checked once full too, and a two-factor code goes in the same boxes.
+
 By default the page leads with the password and offers the code below it. For an app whose people mostly never set a password, `signInFirst: 'emailCode'` leads with the code instead: the page asks for the address and "Email me a sign-in code", and the password field, with "Forgot password?", waits behind "Use a password". It applies while the [sign-in policy](#sign-in-policy) leaves both on; `/api/auth/status` then answers `signInFirst: "emailCode"`.
 
 ```ts
@@ -354,6 +356,7 @@ The sign-in page then offers "Create an account", and so do [sign-in prompts](/r
 - The password follows the [sign-in policy](#sign-in-policy) as for an invitation: none while passwords are off, optional while emailed codes are on, 12 characters or more. What the policy requires, such as two-factor authentication, is set up after the first sign-in, as for every account.
 - The three requests are limited per minute and client like sign-in (`signInPerMinute`, default 5), and refused (`NO_ADMIN_YET`) while the store has no user.
 - The `onUserCreated` [hook](#hooks) runs for every account made this way.
+- `createAuthSession` from `@protobase/client` has the three steps as `sendSignUpCode(email)`, `verifySignUpCode(email, code)`, which resolves to the ticket, and `signUp({ ticket, name, password? })`, which resolves to the signed-in user.
 
 ## Passkeys
 
@@ -472,7 +475,7 @@ auth: { operator: false }
 
 ## Sign-in with GitHub
 
-Projects have no sign-in provider of their own by default (a platform can add [one](#platform-sign-in-provider)). `auth.socialProviders` adds Better Auth's [social providers](https://www.better-auth.com/docs/authentication/github), and the sign-in page shows "Continue with GitHub" when `github` is one:
+Projects have no sign-in provider of their own by default (a platform can add [one](#platform-sign-in-provider)). `auth.socialProviders` adds Better Auth's [social providers](https://www.better-auth.com/docs/authentication/github), and the sign-in page shows "Continue with {name}" for each, such as "Continue with GitHub" with GitHub's mark for `github`:
 
 ```ts
 export default defineConfig(({ env }) => ({
@@ -621,7 +624,7 @@ It is Better Auth's organization plugin, with its tables named in snake_case (`o
 
 **Deleting** an organization (Better Auth's `delete`, owners only) is refused with `409 ORGANIZATION_HAS_RECORDS` while a `.tenant` resource has rows in it; `deleteRecords: 'cascade'` leaves it to the project's foreign keys. The `beforeOrganizationDeleted` [hook](#hooks) may refuse too.
 
-**Ids.** The `generateOrganizationId` [hook](#hooks) makes a new organization's id, by default a UUID; `.tenant` columns hold it, so `text` or `uuid`. An app whose tenant columns are integers takes the next value of its own organizations sequence instead, and adds its own row in `onOrganizationCreated`, as the ERP example does (`tests/apps/erp/auth/hooks.ts`). An app that ran as one organization keeps its tenant value: `protobase organizations create "Acme" --owner you@example.com --id 1 --members all` makes that organization, with every user in it: superusers as owners, everyone else as a member, their global roles moved onto the membership.
+**Ids.** The `generateOrganizationId` [hook](#hooks) makes a new organization's id, by default a UUID; `.tenant` columns hold it, so `text` or `uuid`. An app whose tenant columns are integers takes the next value of its own organizations sequence instead, and adds its own row in `onOrganizationCreated`, as the ERP example does (`tests/apps/erp/auth/hooks.ts`). An app that ran as one organization keeps its tenant value: `protobase organizations create "Acme" --owner you@example.com --id 1 --members all` makes that organization, with every user in it: superusers as owners, everyone else as a member, their global roles moved onto the membership. The first user `createUser` makes also becomes the owner of every organization without members, such as those a seed made before anyone could own them.
 
 **On the host.** The [`protobase organizations`](/reference/cli/#organizations) commands call these functions of `@protobase/server`, which a script of the project's own, such as a seed, calls with the sign-in of [`loadProjectAuth`](#first-run). The host acts as a superuser, so it may give any role; `organization` is a slug or an id:
 

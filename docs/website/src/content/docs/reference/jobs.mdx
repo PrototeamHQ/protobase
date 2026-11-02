@@ -107,6 +107,8 @@ Each run is a job of its own, enqueued ahead for its time by the workers: its id
 
 Because the next run waits in the database like any delayed job, [`jobs.next_due()`](#hosts-that-sleep) sees it, and a host that wakes the app for due jobs wakes it for its recurring jobs too. That is why Protobase does not use pg-boss's own scheduler, which keeps no next run in the database and works the time out in a running process.
 
+`isSchedule(schedule, timezone)` from `@protobase/server` tells whether a recurring job takes a schedule in a time zone, for a tool that writes the config, such as an import.
+
 ## Failed jobs page
 
 With jobs, the admin app has a **Failed jobs** page, for admins only: each job that used up its attempts or failed for good, with its payload and last error. **Retry** gives a job one more attempt, from now, and **Delete** removes it. It reads the `jobs.failed` view, which a project's SQL can query too.

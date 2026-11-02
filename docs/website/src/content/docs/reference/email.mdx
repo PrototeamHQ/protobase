@@ -67,7 +67,7 @@ The template that comes back has two methods, both typed by the component's prop
 
 React and React Email's renderer are loaded on the first email rendered, not when the app starts.
 
-Mail an app sends in bulk, such as alerts or newsletters, should carry a one-click unsubscribe link, which Gmail and Yahoo expect of bulk senders ([RFC 8058](https://www.rfc-editor.org/rfc/rfc8058)): a `List-Unsubscribe` header with the recipient's own link, and `List-Unsubscribe-Post`. The link must stop the mail on a `POST` without a sign-in, such as an [API function](/guides/api-functions/) that takes a token of the recipient's in its address:
+Mail an app sends in bulk, such as alerts or newsletters, should carry a one-click unsubscribe link, which large mailbox providers expect of bulk senders ([RFC 8058](https://www.rfc-editor.org/rfc/rfc8058)): a `List-Unsubscribe` header with the recipient's own link, and `List-Unsubscribe-Post`. The link must stop the mail on a `POST` without a sign-in, such as an [API function](/guides/api-functions/) that takes a token of the recipient's in its address:
 
 ```ts
 headers: ({ unsubscribeUrl }: Digest) => ({ 'List-Unsubscribe': `<${unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }),
