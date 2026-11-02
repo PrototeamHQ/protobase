@@ -117,7 +117,7 @@ const deliveryLogResource = (schema: string) =>
       status_code: f.integer().optional().readOnly().filterable(),
       response: f.text().optional().readOnly(),
       duration_ms: f.integer().readOnly(),
-      at: f.timestamp().readOnly().filterable().sortable(),
+      at: f.timestamp().readOnly().dbDefault().filterable().sortable(),
     })
     .primaryKey((r) => r.id)
     .tenant((r) => r.tenant_id)

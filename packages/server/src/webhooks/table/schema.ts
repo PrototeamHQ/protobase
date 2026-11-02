@@ -4,7 +4,7 @@ import { quoteIdent } from '../../changes/capture-sql'
 import { migrationCommand } from '../../changes/capture-schema'
 import { changesSchema, type EventsOptions } from '../../changes/events-options'
 import { webhooksSchema, type WebhooksOptions } from './options'
-import { commandsSql, deliveriesSql, deliveryLogSql, subscriptionsSql, webhooksComment } from './schema-sql'
+import { commandsSql, deliveriesSql, deliveryLogIndexesSql, deliveryLogSql, subscriptionsIndexesSql, subscriptionsSql, webhooksComment } from './schema-sql'
 
 const functionNames = ['subscription_commands', 'deliveries_resend']
 
@@ -30,12 +30,15 @@ export const webhooksMigration = async (db: Db, options: WebhooksOptions = {}, e
   const schema = webhooksSchema(options)
   const found = await readWebhooksSchema(db, schema)
   const needsLog = Boolean(options.deliveryLog) && !found.deliveryLog
-  if (found.subscriptions && found.current && !needsLog) return undefined
+  const current = found.subscriptions && found.current
+  if (current && !needsLog) return undefined
+  // Behind this version, the indexes are written again with the functions, so an earlier schema gets the ones added since.
   const statements = [
     `create schema if not exists ${quoteIdent(schema)}`,
     ...(found.subscriptions ? [] : [subscriptionsSql(schema, changesSchema(events))]),
-    ...(found.current && found.subscriptions ? [] : [commandsSql(schema), deliveriesSql(schema)]),
+    ...(current ? [] : [subscriptionsIndexesSql(schema), commandsSql(schema), deliveriesSql(schema)]),
     ...(needsLog ? [deliveryLogSql(schema)] : []),
+    ...(needsLog || (!current && found.deliveryLog) ? [deliveryLogIndexesSql(schema)] : []),
   ]
   return `${statements.join(';\n\n')};`
 }

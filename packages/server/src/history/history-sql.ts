@@ -6,6 +6,18 @@ import { quoteIdent } from '../changes/capture-sql'
  * ones included. `actor_id` and `actor_roles` are the API's caller, `null` for a write from elsewhere; `database_role`
  * is the role that wrote, `null` for a change captured before Protobase kept it.
  */
+/** An index for each read the record pages and the Activity list take, by name, so a migration can add the ones a table lacks. */
+export const historyIndexes = [
+  ['history_record', '"resource", "record_key", "id"'],
+  ['history_tenant', '"tenant_id", "id"'],
+  ['history_at', '"at"'],
+  ['history_record_key', '"record_key"'],
+  ['history_operation', '"operation"'],
+  ['history_actor', '"actor_id"'],
+  ['history_database_role', '"database_role"'],
+  ['history_transaction', '"transaction"'],
+] as const
+
 export const historyTableSql = (schema: string) => {
   const table = `${quoteIdent(schema)}."history"`
   return `create table if not exists ${table} (
@@ -23,7 +35,5 @@ export const historyTableSql = (schema: string) => {
   "transaction" bigint not null,
   "at" timestamptz not null
 );
-create index if not exists "history_record" on ${table} ("resource", "record_key", "id");
-create index if not exists "history_tenant" on ${table} ("tenant_id", "id");
-create index if not exists "history_at" on ${table} ("at")`
+${historyIndexes.map(([name, columns]) => `create index if not exists "${name}" on ${table} (${columns})`).join(';\n')}`
 }
