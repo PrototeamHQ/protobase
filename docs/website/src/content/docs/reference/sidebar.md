@@ -50,6 +50,10 @@ export const directMessagesView = view<typeof directMessages>('direct_messages')
 
 ## Recent records
 
+:::caution[Beta]
+A marks hook that throws stops the whole sidebar, not only its own group.
+:::
+
 An entry can list a few of its records under it, each with a status dot, so the ones that need attention are one click away:
 
 ```ts
