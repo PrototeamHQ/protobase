@@ -16,7 +16,7 @@ An app sends mail through one SMTP server: Protobase's own mail ([password reset
 
 | Variable | |
 | --- | --- |
-| `PROTOBASE_SMTP_URL` | The SMTP server, credential included: `smtp://user:password@host:587` (STARTTLS when the server offers it) or `smtps://user:password@host:465` (TLS from the start). |
+| `PROTOBASE_SMTP_URL` | The SMTP server, credential included: `smtp://user:password@host:587` (STARTTLS required) or `smtps://user:password@host:465` (TLS from the start). |
 | `PROTOBASE_MAIL_FROM` | The sender, a plain address such as `noreply@shop.example.com`. The client greets the server with its domain; a `?name=` on the URL overrides that. |
 | `PROTOBASE_APP_NAME` | Optional: the app's name, such as `Shop`, which mail clients show as the sender's name (`Shop <noreply@shop.example.com>`). It overrides the config's [`name`](/reference/config/app/#name). Without either the sender has no name. |
 
@@ -28,9 +28,11 @@ Set both or neither. One without the other, a URL that is not `smtp://` or `smtp
 docker run -d -p 8025:8025 -p 1025:1025 axllent/mailpit   # its inbox is http://localhost:8025
 
 # .env
-PROTOBASE_SMTP_URL=smtp://localhost:1025
+PROTOBASE_SMTP_URL=smtp://localhost:1025?requireTLS=false
 PROTOBASE_MAIL_FROM=noreply@shop.example.com
 ```
+
+Over `smtp://` the client always upgrades the connection with STARTTLS before it logs in or sends anything, so nobody between the app and the server reads the server's password or the mail, such as a sign-in code or a reset link. A server that does not offer STARTTLS, or an answer from which someone on the way removed it, fails the send, with the code `ETLS` when the server refuses the upgrade. `?requireTLS=false` on the URL is the only way to send in plaintext, for a server that has no TLS, such as the mail catcher above or a server on the same host. `smtps://` uses TLS from the start.
 
 A project that delivers its mail another way exports a mailer, `{ send({ to, subject, text, html, headers }) }`, as the default of `auth/mailer.ts`: sign-in and the jobs (`mail` in their context) both send with it. `auth: { mailer: false }` turns sign-in's mail off whatever the environment says. A host that runs jobs itself passes a mailer to `startJobs`. A template's `send` takes one too, see [Templates](#templates).
 

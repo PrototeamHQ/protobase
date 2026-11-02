@@ -1,5 +1,5 @@
 export type MailSettings = {
-  /** `smtp://user:password@host:587` (STARTTLS when offered) or `smtps://user:password@host:465` (TLS from the start). */
+  /** `smtp://user:password@host:587` (STARTTLS required; `?requireTLS=false` sends in plaintext) or `smtps://user:password@host:465` (TLS from the start). */
   smtpUrl: string
   /** The sender address, for example `noreply@admin.example.com`. */
   from: string

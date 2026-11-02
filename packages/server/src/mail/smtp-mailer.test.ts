@@ -16,6 +16,7 @@ describe('smtpMailer', () => {
     expect(createTransport).toHaveBeenCalledWith({
       url: smtpUrl,
       name: 'erp.acme.example.com',
+      requireTLS: true,
       dnsTimeout: 10_000,
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
