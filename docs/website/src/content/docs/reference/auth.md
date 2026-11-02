@@ -248,7 +248,7 @@ export default { send: async ({ to, subject, text }) => { /* deliver it */ } } s
 
 - The email names the app and gives the link, as a button and in its plain-text part, that it works for 1 hour and once, and that it can be ignored (see [Protobase's own mail](/reference/email/#protobases-own-mail)).
 - The SMTP client greets the server with the sender's domain (`admin.example.com` above), not the container's `[127.0.0.1]`; a `?name=` on `PROTOBASE_SMTP_URL` overrides it.
-- A request answers the same whether or not the address has an account, and the mail goes out after the answer, so neither the response nor its timing tells. A send that fails is logged by Better Auth.
+- A request answers the same whether or not the address has an account, and the mail goes out after the answer, so neither the response nor its timing tells. A send that fails is logged by Better Auth; one the server does not finish within 30 seconds fails with `MAIL_SERVER_TIMEOUT` (see [When the server does not answer](/reference/email/#when-the-server-does-not-answer)), so the failure is in the log while an emailed code still works.
 - Requests are limited to 3 per minute and client. Setting a new password ends all of the user's sessions; the new password needs 12 characters like any other.
 - `redirectTo` must be on a trusted origin (the app's `url`, one of its [other origins](#several-origins) or `auth.trustedOrigins`); the admin app sends its own page with a `password-reset` marker, so the link opens the set-password page there.
 - The link is on the origin the reset was asked on, when that is one of the app's.

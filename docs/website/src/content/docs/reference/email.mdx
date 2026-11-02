@@ -34,6 +34,10 @@ PROTOBASE_MAIL_FROM=noreply@shop.example.com
 
 A project that delivers its mail another way exports a mailer, `{ send({ to, subject, text, html, headers }) }`, as the default of `auth/mailer.ts`: sign-in and the jobs (`mail` in their context) both send with it. `auth: { mailer: false }` turns sign-in's mail off whatever the environment says. A host that runs jobs itself passes a mailer to `startJobs`. A template's `send` takes one too, see [Templates](#templates).
 
+### When the server does not answer
+
+A send through `PROTOBASE_SMTP_URL` gets 30 seconds in all: looking up the server, connecting to each of its addresses, its greeting, TLS, the login and the message. One that has not finished by then rejects with a `MailServerTimeoutError` (exported by `@protobase/server`) whose `code` is `MAIL_SERVER_TIMEOUT`, as when a firewall drops the mail port's packets or the server never greets; it is not retried. Options on the URL, such as `?connectionTimeout=`, cannot lift the limit. A server that answers and refuses keeps its own error code, such as `EAUTH` for a refused login or `EENVELOPE` for a refused sender.
+
 ## Protobase's own mail
 
 The auth emails (sign-in, two-factor and sign-up codes, the note to an address that asked to sign up while it has an account, password reset, invitations and staff sign-in notices) and the email to someone a [comment mentions](/reference/comments/#mentions) are built with React Email's components: a heading, the message, one code or button, and a footer naming the app.
