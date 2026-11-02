@@ -37,7 +37,8 @@ export const startFakeRelay = async () => {
     const ready = received.shift()
     return ready ? Promise.resolve(ready) : new Promise<Received>((resolve) => waiting.push(resolve))
   }
-  const smtpUrl = `smtp://${relayCredential.username}:${relayCredential.password}@127.0.0.1:${port}`
+  // The relay offers no STARTTLS, so the client is told to send in plaintext.
+  const smtpUrl = `smtp://${relayCredential.username}:${relayCredential.password}@127.0.0.1:${port}?requireTLS=false`
   return { port, smtpUrl, next, received, close: () => new Promise<void>((resolve) => server.close(() => resolve())) }
 }
 

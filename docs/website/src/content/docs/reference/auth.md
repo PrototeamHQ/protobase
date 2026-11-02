@@ -231,7 +231,7 @@ The page is checked like any other, and the account blocks are allowed on it alo
 With mail configured, the sign-in page offers "Forgot password?": the person enters their email, gets a link, and chooses a new password on the page the link opens. It is Better Auth's own reset: `POST /api/auth/request-password-reset` with `{ email, redirectTo }`, the emailed link `GET /api/auth/reset-password/<token>`, which sends the browser back to `redirectTo` with `?token=...` (or `?error=INVALID_TOKEN`), and `POST /api/auth/reset-password` with `{ token, newPassword }`.
 
 ```sh
-PROTOBASE_SMTP_URL=smtps://user:password@smtp.example.com:465   # or smtp://...:587, STARTTLS when the server offers it
+PROTOBASE_SMTP_URL=smtps://user:password@smtp.example.com:465   # or smtp://...:587, which requires STARTTLS unless the URL ends in ?requireTLS=false
 PROTOBASE_MAIL_FROM=noreply@admin.example.com
 ```
 

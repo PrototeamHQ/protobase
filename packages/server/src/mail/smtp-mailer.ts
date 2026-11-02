@@ -22,6 +22,11 @@ const clientTimeouts = { dnsTimeout: 10_000, connectionTimeout: 10_000, greeting
  * reports, which is often just `[127.0.0.1]` and makes receiving servers trust the mail less. A `name` query parameter
  * on the SMTP URL still overrides it. With a `name`, the From header carries it as the sender's display name.
  *
+ * Over `smtp://` the client always upgrades with STARTTLS (`requireTLS`), and fails before it logs in or names a
+ * sender when the server does not upgrade, so a server without TLS, or someone on the path who strips STARTTLS from
+ * the server's answer, never sees the relay's password or a message. `?requireTLS=false` on the URL is the one way to
+ * send in plaintext, such as to a mail catcher in development. `smtps://` is TLS from the start and ignores it.
+ *
  * A send that has not finished after `limitMs` rejects with a `MailServerTimeoutError`, with no retry: a firewall that
  * drops the mail port's packets would otherwise hold it for minutes, once for each of the server's addresses.
  */
@@ -29,7 +34,7 @@ export const smtpMailer = (settings: MailSettings, limitMs = sendLimitMs): Maile
   let transport: Promise<import('nodemailer').Mail> | undefined
   return {
     send: async (message) => {
-      transport ??= import('nodemailer').then(({ createTransport }) => createTransport({ url: settings.smtpUrl, name: senderDomain(settings.from), ...clientTimeouts }))
+      transport ??= import('nodemailer').then(({ createTransport }) => createTransport({ url: settings.smtpUrl, name: senderDomain(settings.from), requireTLS: true, ...clientTimeouts }))
       const mail = { from: sender(settings), ...composerMessage(message) }
       await withinLimit(transport.then((client) => client.sendMail(mail)), limitMs)
     },
