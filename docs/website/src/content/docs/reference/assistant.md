@@ -3,6 +3,10 @@ title: Assistant
 description: The chat beside the admin, who sees it, and its built-in backend on OpenRouter or another OpenAI-compatible endpoint.
 ---
 
+:::caution[Beta]
+A user cannot keep several conversations yet: each has one, shared by their tabs, as [the app's own tools](#the-apps-own-tools) says.
+:::
+
 The admin app can show an assistant: an **Assistant** button at the end of the top bar opens a chat beside the page. The app only draws what a backend sends and sends back what the user types and clicks; the backend decides everything else. Protobase ships one backend, built in, which answers questions about the app, reads its data and proposes changes the user approves. Another backend can take its place by URL.
 
 ## Who sees it
@@ -64,6 +68,10 @@ Both run **outside Protobase's access rules and tenant scoping**: whoever has th
 Making the query role needs `CREATEROLE` once, for the role that applies the migrations; that role becomes a member of it and may run the function. The query role bypasses row-level security only when the migrating role may grant that, a superuser or, on Postgres 16 and later, a role with `BYPASSRLS`; otherwise it reads what the tables' policies give it. When the app serves as another database role than the one that migrates, grant that role `usage on schema query` and `execute on function query.run_read_only(text, integer)`. `protobase migration` writes the role only when it finds the built-in assistant's key, `PROTOBASE_ASSISTANT_API_KEY` in the `.env` it reads or `assistant.apiKey` of the config, so run it with the key set even when only production has the real one. The server does not start while the role or its function is missing, while the role can read an auth table, or while it may call a `SECURITY DEFINER` function, other than a trigger function, whose owner can read one: the statement would read the auth store through it, so revoke `execute` on such a function from `PUBLIC`, or keep it in a schema without a resource. A resource added since the last migration is refused by Postgres until the next one grants its table.
 
 ### The app's own tools
+
+:::caution[Beta]
+A user cannot keep several conversations yet: each has one, shared by their tabs, as below.
+:::
 
 `assistant/tools.ts` adds tools of the app's own, which the built-in backend offers after its two: its default export is an array of tools, found by that path when the app starts. A tool is `defineTool({ name, description, parameters, run })` from `@protobase/server`: `parameters` is the JSON Schema of its arguments, and `run(args, context)` returns the text the model reads. A name must be 1 to 64 letters, digits, `_` or `-`, and a name taken twice stops the server at startup. A backend elsewhere has its own tools, so the file does nothing there, nor with `assistant: false`. A tool's `annotations` are MCP's tool hints (`readOnlyHint`, `destructiveHint`, ...), which the dock ignores. The file serves the dock only, not the app's MCP endpoint: tools for AI clients over MCP go in `mcp/tools.ts`, which can export these too (see [The app's own tools](/reference/mcp/#the-apps-own-tools) on MCP).
 

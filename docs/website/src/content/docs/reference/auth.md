@@ -700,6 +700,10 @@ Their tokens are verified against that app's keys at `<issuer>/api/auth/jwks`; a
 
 ## supabase-js and @supabase/ssr
 
+:::caution[Beta]
+MFA, passkeys, SSO, phone and anonymous sign-in, the admin API and changing the address are not offered yet, as the list below says.
+:::
+
 An app moving from Supabase keeps its `supabase.auth` calls and its `@supabase/ssr` session checks: the app serves GoTrue's endpoints at `/api/sb/auth/v1`, over the same Better Auth sign-in, so `createClient(<the app's origin>/api/sb, <publishable key>)` signs in, refreshes, reads the user and signs out as on Supabase.
 
 - `signInWithPassword`, `signInWithOtp` then `verifyOtp({ email, token, type: 'email' })`, `signInWithOAuth` with one of the app's [sign-in providers](#sign-in-with-github) (PKCE, as `@supabase/ssr` uses, or the implicit flow), `refreshSession`, `getUser`, `getClaims`, `updateUser({ password, data })` and `signOut` work. Each goes through Better Auth's own endpoint, with its rate limits and the [sign-in policy](#sign-in-policy).

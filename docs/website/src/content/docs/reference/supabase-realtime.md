@@ -3,6 +3,10 @@ title: Supabase Realtime
 description: The Realtime-compatible /api/sb/realtime/v1 that supabase-js's channel() joins, for postgres_changes checked under the subscriber's RLS policies, broadcasts and presence, on public and private channels, and broadcasts from the database.
 ---
 
+:::caution[Beta]
+A channel cannot `select` columns, a policy cannot read `request.headers`, and a project that was not imported has no `realtime.send()` yet: see the limits in each section.
+:::
+
 An app with API keys also serves `/api/sb/realtime/v1/websocket`, the socket that supabase-js's `channel()` joins. An app moved from Supabase keeps its `postgres_changes` listeners, broadcasts and presence: point the client at the app's `/api/sb` and give it the publishable key.
 
 ```ts

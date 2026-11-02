@@ -3,6 +3,10 @@ title: Supabase client API
 description: The PostgREST-compatible /api/sb/rest/v1 that supabase-js's from() and rpc() call, under the tables' RLS policies.
 ---
 
+:::caution[Beta]
+Some PostgREST features are not supported yet, such as many-to-many embeds, spreads, CSV, schemas other than `public` and aggregates: see [What it understands](#what-it-understands).
+:::
+
 An app with API keys also serves `/api/sb/rest/v1`, the API that supabase-js's `from()` and `rpc()` call. An app moved from Supabase keeps its data calls: point the client at the app's `/api/sb` and give it the publishable key.
 
 ```ts

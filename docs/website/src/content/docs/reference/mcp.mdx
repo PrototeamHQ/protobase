@@ -35,9 +35,17 @@ Give the client the endpoint's address. It finds the app's sign-in from there, o
 
 ## The app's icon
 
+:::caution[Beta]
+Clients that draw no SVG get no icon for an app without PNGs of its own, as below.
+:::
+
 The endpoint names the app's [icon](/reference/app-identity/#the-icons) to the client when it connects (`serverInfo.icons`), at absolute addresses on the app's origin: the project's 192 pixel, touch and 512 pixel PNGs it has, then its `protobase.favicon.svg`, or Protobase's without one. A client that draws server icons shows it beside the app's name. <gap>An app without PNGs of its own cannot offer clients that draw no SVG an icon because PNG versions of Protobase's icon are not implemented.</gap>
 
 ## The tools
+
+:::caution[Beta]
+`count_records` cannot count soft-deleted records per value yet, as below.
+:::
 
 Each tool reads as the signed-in person: their role's access rules, row filters, tenant and hidden fields apply as in the [REST API](/reference/api/#access).
 
@@ -92,6 +100,10 @@ It runs one `SELECT` in a read-only transaction, as the app's database role, **o
 
 ### Writes
 
+:::caution[Beta]
+An approval cannot be answered on another server instance or after a restart yet, as below.
+:::
+
 `mcpEndpoint.writes` also offers four tools that change records, to everyone signed in:
 
 ```ts
@@ -131,6 +143,10 @@ A write returns its record small, so changing one field of a large record does n
 
 #### Writes without approval
 
+:::caution[Beta]
+A deleted record cannot be restored over MCP yet, as below.
+:::
+
 An app that runs service accounts over MCP, such as a backend job or an agent with no person present, names their roles in `mcpEndpoint.writes`:
 
 ```ts
@@ -163,6 +179,10 @@ The person approves the batch once, in their language, seeing each write in it n
 A batch is checked before the person is asked: an operation other than a create, update or delete, a field an operation does not take, an update without an ETag or more than 500 operations come back as `{ "error": "invalid-argument", "message": ... }` naming the operation, and with writes limited to some resources an operation on any other refuses the whole batch. An update does not set the field a soft delete sets, as `update_record` does not: a delete goes through a delete operation. A refusal while it runs, such as an operation the person may not do or a stale ETag, comes back with the REST batch's `operation` (its index), `op` and `resource`. Either way nothing is written.
 
 ## The app's own tools
+
+:::caution[Beta]
+Nothing refuses a tool result larger than an AI client takes yet, as below.
+:::
 
 `mcp/tools.ts` adds tools of the app's own, offered after the built-in ones to everyone signed in, whatever `mcpEndpoint.writes` says. Its default export is an array of `defineTool(...)` from `@protobase/server`, the same shape as the [assistant's own tools](/reference/assistant/#the-apps-own-tools): a `name` of 1 to 64 letters, digits, `_` or `-`, a `description` the client's model reads, `parameters`, the JSON Schema of its arguments, which the endpoint checks each call against, `annotations`, MCP's tool hints such as `readOnlyHint`, optionally a `title` and `_meta`, which `tools/list` gives clients as they are, and `run(args, context)`, which returns the text the client reads. The file is found when the app starts, under `protobase dev` and `protobase serve` alike, and only with `auth.mcp` on; with `mcpEndpoint: false` it offers nothing.
 

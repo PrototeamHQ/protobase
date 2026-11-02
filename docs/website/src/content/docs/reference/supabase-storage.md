@@ -3,6 +3,10 @@ title: Supabase Storage API
 description: The Storage-compatible /api/sb/storage/v1 that supabase-js's storage calls, over the app's file provider, under the restored storage policies.
 ---
 
+:::caution[Beta]
+Image transforms, resumable uploads, the S3 protocol and object versioning are not supported yet: see [What it serves](#what-it-serves).
+:::
+
 An app with API keys also serves `/api/sb/storage/v1`, the API that supabase-js's `storage` calls. An app moved from Supabase keeps its uploads, downloads, public URLs and signed URLs: point the client at the app's `/api/sb` and give it the publishable key.
 
 ```ts

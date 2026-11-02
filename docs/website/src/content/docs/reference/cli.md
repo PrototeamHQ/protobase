@@ -574,6 +574,10 @@ Run inside a project with sign-in on, against its database with the project's mi
 
 ## `import supabase`
 
+:::caution[Beta]
+MFA factors and passkeys do not carry over yet, as the second run says.
+:::
+
 ```sh
 protobase import supabase [<connection> | --source-env <variable>] [--env DATABASE_URL] [--dir db/migrations] [--config config]
                           [--storage-url <url>] [--storage-key-env SUPABASE_SERVICE_ROLE_KEY] [--yes]
