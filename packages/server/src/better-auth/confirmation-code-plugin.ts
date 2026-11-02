@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { sendAuthEmail, type AuthMail } from './auth-mail/send-auth-email'
 import { checkConfirmationCode, dropConfirmationCode, newConfirmationCode, saveConfirmationCode, type CodeCheck } from './confirmation-codes'
 import { codeLifetime } from './sign-in-mail'
+import { hasPasskeyOrSecondStep } from './strong-factors'
 import { saveStrongSignIn } from './strong-sign-ins'
 
 /** The endpoints of the emailed confirmation code, as Better Auth's `ctx.path` names them. */
@@ -20,8 +21,7 @@ const refusals: Record<Exclude<CodeCheck, 'confirmed'>, { status: 'BAD_REQUEST' 
 type Signed = { session: { id: string; expiresAt: Date }; user: { id: string; email: string; twoFactorEnabled?: boolean | null } }
 
 // Only an account with neither a passkey nor a second step confirms with an emailed code; the others keep the stronger one.
-const isOffered = async (context: AuthContext, { user }: Signed) =>
-  !user.twoFactorEnabled && (await context.adapter.count({ model: 'passkey', where: [{ field: 'userId', value: user.id }] })) === 0
+const isOffered = async (context: AuthContext, { user }: Signed) => !(await hasPasskeyOrSecondStep(context.adapter, user))
 
 /**
  * An emailed code that confirms it's them inside a session someone is signed in with, for an account without a passkey

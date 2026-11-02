@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { authenticatorCode, cookiesOf, openVaultDb, serveVault } from './support/vault-app'
 import type { SnapshotDb } from '../../../test-support/sql-snapshot'
 
-// Account changes that once asked to sign out and sign in again: a session of any age adds a first passkey, and the others confirm in place.
+// Account changes that once asked to sign out and sign in again, and now confirm it's them in place.
 
 let shared: SnapshotDb
 beforeAll(async () => {
@@ -12,11 +12,10 @@ beforeAll(async () => {
 const serve = (options?: { bob?: boolean }) => serveVault(shared, options)
 
 describe('an account change on a session older than a day', () => {
-  it('adds a first passkey and lists the devices without signing in again', async () => {
-    const { get, signIn, age, addPasskey } = await serve()
+  it('lists the devices without confirming', async () => {
+    const { get, signIn, age } = await serve()
     const cookie = await signIn()
     await age()
-    expect((await addPasskey(cookie)).status).toBe(200)
     expect((await get('/list-sessions', cookie)).status).toBe(200)
   })
 

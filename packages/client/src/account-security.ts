@@ -150,6 +150,15 @@ export const accountSecurity = (client: BetterAuthClient) => ({
     if (error) throw authError(error, 'The code did not work')
   },
 
+  /**
+   * Confirms it's them in this session with the account's password, for adding a first passkey to an account without a
+   * passkey or a second step. It is no strong sign-in: showing a protected value still asks for one.
+   */
+  confirmWithPassword: async (password: string) => {
+    const { error } = await client.$fetch('/account/confirm-password', { method: 'POST', body: { password } })
+    if (error) throw authError(error, 'The password did not work')
+  },
+
   /** New backup codes for the authenticator app; the old ones stop working. */
   newBackupCodes: async (password?: string) => {
     const { data, error } = await client.twoFactor.generateBackupCodes(password ? { password } : {})

@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto'
 import { Kysely } from 'kysely'
-import { expect } from 'vitest'
+import { expect, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { betterAuthAuthenticator } from '../../src/better-auth/authenticator'
 import { createAuth } from '../../src/better-auth/create-auth'
@@ -54,8 +54,11 @@ export const authenticatorCode = (uri: string) => {
 // Better Auth limits requests per client address, in one map for the whole test file; every request comes from a new one.
 let client = 0
 
-/** Serves a clone of `shared` with root, the first user and so the admin, and Bob when `bob` asks for him. */
-export const serveVault = async (shared: SnapshotDb, { bob = false } = {}) => {
+/**
+ * Serves a clone of `shared` with root, the first user and so the admin, Bob when `bob` asks for him, and Dana, who has
+ * no password, when `dana` asks for her.
+ */
+export const serveVault = async (shared: SnapshotDb, { bob = false, dana = false } = {}) => {
   const sent: MailMessage[] = []
   const mail = { failing: false }
   const auth = createAuth({
@@ -71,6 +74,7 @@ export const serveVault = async (shared: SnapshotDb, { bob = false } = {}) => {
   })
   await createUser(auth, { email: 'root@example.com', password })
   if (bob) await createUser(auth, { email: 'bob@example.com', password })
+  if (dana) await createUser(auth, { email: 'dana@example.com' })
   const { adapter } = await auth.$context
   const app = createAdmin({ resources: [vaults], db: new Kysely<any>({ dialect: shared.dialect }), authenticate: betterAuthAuthenticator({ auth }), auth, options: { audit: { publish: async () => {} } } })
 
@@ -79,6 +83,19 @@ export const serveVault = async (shared: SnapshotDb, { bob = false } = {}) => {
   const get = (path: string, cookie: string) => app.request(`${label}/api/auth${path}`, { headers: headers(cookie) })
   const signIn = async (email = 'root@example.com') => {
     const response = await post('/sign-in/email', { email, password })
+    expect(response.status).toBe(200)
+    return cookiesOf(response)
+  }
+  // Signs in with an emailed sign-in code, as someone without a password does.
+  const signInWithCode = async (email: string) => {
+    expect((await post('/email-otp/send-verification-otp', { email, type: 'sign-in' })).status).toBe(200)
+    // Better Auth sends it after the answer.
+    const message = await vi.waitFor(() => {
+      const found = sent.find((mailed) => mailed.to === email && / sign-in code$/.test(mailed.subject))
+      if (!found) throw new Error('No sign-in code mailed yet')
+      return found
+    })
+    const response = await post('/sign-in/email-otp', { email, otp: message.subject.slice(0, 6) })
     expect(response.status).toBe(200)
     return cookiesOf(response)
   }
@@ -117,5 +134,5 @@ export const serveVault = async (shared: SnapshotDb, { bob = false } = {}) => {
     // Turning it on signs this browser in anew.
     return { totpURI, cookie: cookiesOf(turnedOn) || cookie }
   }
-  return { adapter, sent, mail, post, get, signIn, reveal, sendCode, mailedCode, age, addPasskey, turnOnAuthenticatorApp }
+  return { adapter, sent, mail, post, get, signIn, signInWithCode, reveal, sendCode, mailedCode, age, addPasskey, turnOnAuthenticatorApp }
 }
