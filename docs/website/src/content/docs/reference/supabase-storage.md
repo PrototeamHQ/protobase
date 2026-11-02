@@ -23,7 +23,7 @@ The keys are `apiKeys` in `protobase.config.ts`, `{ publishable_key, secret_key 
 | The request sends | It runs as |
 | --- | --- |
 | the publishable key | `anon` |
-| either key and a signed-in user's token | `authenticated` |
+| either key and a user's access token from [`/api/sb/auth/v1`](/reference/auth/#supabase-js-and-supabasessr) | `authenticated` |
 | the secret key | the app's own role, which owns the tables |
 
 The role is set with `SET LOCAL ROLE` and the token's claims in `request.jwt.claims` and `request.jwt.claim.sub`, so Supabase's `auth.uid()` works in the policies. The database needs the `anon` and `authenticated` roles, and the app's role must be allowed to `SET ROLE` to them. Every read and write of `storage.objects` and `storage.buckets` runs as that role, with the token's claims set, so the restored policies decide, as on Supabase:

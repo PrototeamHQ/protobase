@@ -19,7 +19,7 @@ The keys are `apiKeys` in `protobase.config.ts`, `{ publishable_key, secret_key 
 | The request sends | It runs as |
 | --- | --- |
 | the publishable key | `anon` |
-| either key and a signed-in user's token | `authenticated` |
+| either key and a user's access token from [`/api/sb/auth/v1`](/reference/auth/#supabase-js-and-supabasessr) | `authenticated` |
 | the secret key | the app's own role, which owns the tables |
 
 The transaction sets the role with `SET LOCAL ROLE` and the token's claims in `request.jwt.claims` and `request.jwt.claim.sub`, so Supabase's `auth.uid()`, `auth.role()` and `auth.jwt()` work, and the tables' RLS policies decide what the request may read and write. The resources' access rules (`.access(...)`) do not apply here: a table needs its own grants and policies, and one without a grant to `anon` or `authenticated` refuses them. The `role` claim is the database role, as on Supabase. The database needs the `anon` and `authenticated` roles, and the app's role must be allowed to `SET ROLE` to them.
