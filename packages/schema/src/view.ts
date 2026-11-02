@@ -5,6 +5,7 @@ import type {
   FilterWidgetModel,
   HelpWhen,
   LayoutItemModel,
+  PageWidth,
   RecordMode,
   RecordPageModel,
   SaveFeedback,
@@ -279,6 +280,14 @@ export class ViewBuilder<R extends {
   /** Where the record page shows that it saved: a toast (the default) or the Save button. */
   saveFeedback(saveFeedback: SaveFeedback) {
     return this.next({ saveFeedback })
+  }
+
+  /**
+   * How wide the standard record page is: a centred `column`, the default, or the `full` width of the content pane, its
+   * sidebar cards still beside the sections. See [The record page](docs/website/src/content/docs/reference/ui-config.mdx#page-width).
+   */
+  recordWidth(recordWidth: PageWidth) {
+    return this.next({ recordWidth })
   }
 
   /**

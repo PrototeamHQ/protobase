@@ -1120,6 +1120,9 @@ export type RecordMode = 'edit' | 'read' | 'locked'
 /** How the record page shows that a save went through: a `toast` (the default) or on the Save `button`. */
 export type SaveFeedback = 'toast' | 'button'
 
+/** How wide a page's content is: a centred `column`, the default, or the `full` width of the content pane beside the sidebar. */
+export type PageWidth = 'column' | 'full'
+
 /**
  * What a named action does in the app: set fields of the record (`update`), delete it (`delete`), go to an address in
  * the app (`link` with `to`), open a link that leaves it (`link` with `href`), `{field}` replaced by the record's
@@ -1442,6 +1445,8 @@ export type ViewModel = {
   helpWhen?: HelpWhen
   /** How the record page shows that a save went through. */
   saveFeedback?: SaveFeedback
+  /** How wide the standard record page is; a centred column when omitted. */
+  recordWidth?: PageWidth
   /** The named actions of its records. */
   actions: ActionModel[]
   /** The relation field whose records the list page shows instead of this resource's rows, in their own view's list. */

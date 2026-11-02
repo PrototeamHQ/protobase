@@ -49,6 +49,12 @@ describe('page', () => {
     ])
   })
 
+  it('lays a Page out in the centred column or the full width of the content pane', () => {
+    expect(problems(Page({ title: 'x', width: 'full' }))).toEqual([])
+    expect(problems(Page({ title: 'x', width: 'column' }))).toEqual([])
+    expect(problems({ type: 'Page', props: { title: 'x', width: 'wide' }, children: [] })).toEqual(['<Page>: "width" must be column, full'])
+  })
+
   it('lays RecordCards out stacked or in a carousel of cards a share of its width wide', () => {
     expect(problems(Page({ title: 'x', children: RecordCards({ resource: 'listings', layout: 'carousel', cardWidth: '1/3' }) }))).toEqual([])
     expect(problems(Page({ title: 'x', children: RecordCards({ resource: 'listings', layout: 'stack' }) }))).toEqual([])

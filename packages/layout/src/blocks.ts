@@ -1,4 +1,4 @@
-import type { AppAddress, FieldFormat } from '@protobase/schema'
+import type { AppAddress, FieldFormat, PageWidth } from '@protobase/schema'
 import { defineBlock } from './create-node'
 import type { LayoutChildren, LayoutNode, LayoutValue } from './node'
 
@@ -15,7 +15,14 @@ export type DataProps = { resource: string; filter?: string; sort?: string }
 
 type Heading = { title?: string; description?: string; actions?: Elements }
 
-export type PageProps = { title: string; description?: string; actions?: Elements; children?: LayoutChildren }
+export type PageProps = {
+  title: string
+  description?: string
+  actions?: Elements
+  /** `full` fills the content pane beside the sidebar instead of the centred column, the default. */
+  width?: PageWidth
+  children?: LayoutChildren
+}
 export type GridProps = { columns?: 1 | 2 | 3 | 4; span?: GridSpan; children?: LayoutChildren }
 export type CardProps = Heading & { span?: GridSpan; children?: LayoutChildren }
 export type StatProps = {
