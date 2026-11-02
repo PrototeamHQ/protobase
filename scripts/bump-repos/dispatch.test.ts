@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { dispatchAll, type Run } from './dispatch'
 
 const ok = { error: undefined, status: 0, stderr: '' }
 const targets = [{ repo: 'acme/console' }, { repo: 'acme/api' }, { repo: 'acme/backlog', ref: 'development' }]
 
 describe('dispatchAll', () => {
+  afterEach(() => vi.restoreAllMocks())
+
   it('starts every repository and reports none failed', () => {
     const run = vi.fn<Run>(() => ok)
     expect(dispatchAll(targets, '0.66.6', run)).toEqual([])
