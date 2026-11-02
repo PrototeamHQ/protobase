@@ -154,11 +154,11 @@ jobs:
   # beside check: a push runs them when its changes reach them (scripts/affected-site.mjs); a pull request and a run by
   # hand always do. The play tests set the check phase's length, so storybook runs as 2 legs that each build Storybook
   # and play every other story; the first also takes the layout snapshots. A leg takes about 3 minutes, so one stuck
-  # past 10 stops instead of running into GitHub's 6-hour limit.
+  # past 6 stops instead of running into GitHub's 6-hour limit.
   storybook:
     if: github.event_name != 'schedule'
     name: storybook ${{ matrix.shard }}/2
-    timeout-minutes: 10
+    timeout-minutes: 6
     strategy:
       matrix:
         shard: [1, 2]
