@@ -3,17 +3,22 @@ name: release
 # Every push to main is released when it holds a fix, feature or breaking change: the checks pass, the pushed commits
 # follow Conventional Commits, then scripts/release.mjs tags the pushed commit vx.y.z, without a commit to main, the
 # tag is pushed with a GitHub release, and the packages are published to npm and the images to GitHub's registry at the
-# tag's version, which scripts/stamp-version.mjs writes into the package.json files in the runner. Run by hand, it
-# publishes the packages at an existing tag, skipping versions npm already has, and the images, to repeat a missed
-# publish. The checks run the Postgres suite in full on every push. See docs/website/src/content/docs/reference/versioning.md.
+# tag's version, which scripts/stamp-version.mjs writes into the package.json files in the runner. Run by hand
+# without a tag, it releases main's head as a push does: a push made with GITHUB_TOKEN, such as an auto-merge, starts
+# no workflow, but a dispatch always does. Run by hand with a tag, it publishes the packages at that existing tag,
+# skipping versions npm already has, and the images, to repeat a missed publish. The checks run the Postgres suite in
+# full on every release of main. See docs/website/src/content/docs/reference/versioning.md.
 on:
   push:
     branches: [main]
   workflow_dispatch:
     inputs:
       tag:
-        description: The release tag to publish to npm and GitHub's registry, e.g. v0.1.0
-        required: true
+        description: >-
+          An existing release tag to publish again to npm and GitHub's registry, e.g. v0.1.0. Empty releases main's
+          head, as a push to main does.
+        required: false
+        default: ''
 
 # One release at a time; a run waiting behind another is replaced by the run of a newer push.
 concurrency:
@@ -22,8 +27,9 @@ concurrency:
 
 jobs:
   # The tag this push would cut (scripts/release.mjs --dry-run prints it), or none, so the pack job can start at once.
+  # A run by hand without a tag is a release of main's head, so it runs every job a push does, and only from main.
   plan:
-    if: ${{ github.event_name == 'push' }}
+    if: ${{ !inputs.tag }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.plan.outputs.tag }}
@@ -34,6 +40,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
+      - name: Check that a release by hand runs from main
+        if: ${{ github.ref != 'refs/heads/main' }}
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          echo "::error::A release without a tag runs from main, not $REF"
+          exit 1
       - run: bun install --frozen-lockfile
       - name: Find the tag the push would cut
         id: plan
@@ -44,7 +57,7 @@ jobs:
   # without the identity token npm's trusted publishing needs, which only publish holds.
   pack:
     needs: plan
-    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.plan.outputs.tag != '') }}
+    if: ${{ !cancelled() && (inputs.tag || needs.plan.outputs.tag != '') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -75,13 +88,13 @@ jobs:
   # The checks start at once, without plan's answer, so they run the Postgres suite in full, as the last fail-safe, on
   # every push, whether or not it cuts a release.
   check:
-    if: ${{ github.event_name == 'push' }}
+    if: ${{ !inputs.tag }}
     uses: ./.github/workflows/ci.yml
     with:
       postgres: true
 
   commits:
-    if: ${{ github.event_name == 'push' }}
+    if: ${{ !inputs.tag }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -96,9 +109,12 @@ jobs:
           BEFORE: ${{ github.event.before }}
         # A force-push's before is not an ancestor of the pushed commit and may be on no branch the clone has, so it is
         # fetched by its hash, and the push added only the commits that neither before nor a release tag holds: a push
-        # that restores released history adds none. Without before, the pushed commit is linted alone.
+        # that restores released history adds none. Without before, the pushed commit is linted alone. A run by hand has
+        # no before, so it lints the commits since the newest release tag, the ones it releases.
         run: |
-          if [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then
+          if [ -z "$BEFORE" ]; then
+            bun x --bun commitlint --from "$(git describe --tags --abbrev=0 --match 'v[0-9]*')" --to "$GITHUB_SHA" --verbose
+          elif [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then
             bun x --bun commitlint --last --verbose
           elif git merge-base --is-ancestor "$BEFORE" "$GITHUB_SHA" 2>/dev/null; then
             bun x --bun commitlint --from "$BEFORE" --to "$GITHUB_SHA" --verbose
@@ -157,7 +173,7 @@ jobs:
   # nothing, and a tag other than the version the tarballs were stamped with fails before anything is uploaded.
   publish:
     needs: [release, pack]
-    if: ${{ !cancelled() && needs.pack.result == 'success' && (github.event_name == 'workflow_dispatch' || needs.release.outputs.tag != '') }}
+    if: ${{ !cancelled() && needs.pack.result == 'success' && (inputs.tag || needs.release.outputs.tag != '') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
