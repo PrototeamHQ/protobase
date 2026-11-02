@@ -12,6 +12,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["packages", "test-support", "tests", ".storybook", "docs-examples", "scripts/test-db", "scripts/release-speed", "scripts/config-schema", "vitest.config.ts"],
+  "include": ["packages", "test-support", "tests", ".storybook", "docs-examples", "scripts/test-db", "scripts/release-speed", "scripts/bump-repos", "scripts/config-schema", "vitest.config.ts"],
   "exclude": ["packages/*/dist", "packages/cli/tests/supabase/fixtures/edge-functions", "tests/supabase-move/sample", "tests/supabase-move/client/project", "tests/supabase-move/runs"]
 }
