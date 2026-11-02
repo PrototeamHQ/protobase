@@ -19,17 +19,20 @@ describe('the branch commit lint', () => {
   })
 
   it('accepts a 93-character header', async () => {
-    expect((await branchLint(subject(93))).valid).toBe(true)
+    const result = await branchLint(subject(93))
+    expect(result.valid).toBe(true)
   })
 })
 
 describe('the squash message of a 93-character subject', () => {
   it('passes as a single commit with its pull request number', async () => {
-    expect((await squashLint(`${subject(93)} (#123)`)).valid).toBe(true)
+    const result = await squashLint(`${subject(93)} (#123)`)
+    expect(result.valid).toBe(true)
   })
 
   it('passes as a body line beside a second commit', async () => {
     const message = `fix: a short title (#123)\n\n* ${subject(93)}\n\n* docs: a second commit\n`
-    expect((await squashLint(message)).valid).toBe(true)
+    const result = await squashLint(message)
+    expect(result.valid).toBe(true)
   })
 })
