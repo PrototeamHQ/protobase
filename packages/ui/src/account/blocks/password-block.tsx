@@ -19,7 +19,7 @@ export const PasswordBlock = () => {
       rule={methods.policy.password}
       hasPassword={methods.account.password}
       staff={state.kind === 'signed-in' && Boolean(state.staff)}
-      onChange={(current, next, signOutOthers) => account.changePassword(current, next, signOutOthers).then(reload)}
+      onChange={(current, next) => account.changePassword(current, next).then(reload)}
       onSet={(next) => account.setPassword(next).then(reload)}
     />
   )

@@ -37,6 +37,8 @@ import { appOrigins, multiHostBaseURL, readOrigins, resolveOrigins } from './ori
 import { passkeyHosts, readPasskeyDomain, resolvePasskeyDomain } from './passkey-domain'
 import { passkeyPlugin } from './passkey-plugin'
 import { passwordResetOptions } from './password-reset'
+import { mailPasswordChanged, passwordChangePlugin } from './password-change'
+import { passwordChecksPlugin } from './password-checks'
 import { setPasswordPath, setPasswordPlugin } from './set-password'
 import { rolesPlugin } from './roles/roles-plugin'
 import { versionedSecrets } from './secret-versions'
@@ -379,7 +381,14 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       minPasswordLength: passwordLength.min,
       maxPasswordLength: passwordLength.max,
       ...(passwordHashes.length > 0 && { password: { verify: verifyAcceptedHash(passwordHashes) } }),
-      ...(mail && passwordResetOptions(mail, mcp ? { onPasswordReset: async ({ user }) => revokeMcpGrants((await context()).adapter, user.id) } : {})),
+      ...(mail &&
+        passwordResetOptions(mail, {
+          onPasswordReset: async ({ user }) => {
+            const auth = await context()
+            if (mcp) await revokeMcpGrants(auth.adapter, user.id)
+            await mailPasswordChanged({ context: auth }, mail, user.email)
+          },
+        })),
     },
     ...(options.socialProviders && { socialProviders: options.socialProviders }),
     user: { ...userModel(users), ...(Object.keys(userFields).length > 0 && { additionalFields: userFields }), ...deleteUser },
@@ -407,7 +416,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       ...(saml.length > 0 ? [loaded(plugins.samlPlugin, 'sso.saml')(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
+      passwordChecksPlugin(),
       setPasswordPlugin(),
+      passwordChangePlugin(mail),
       ...(options.leakedPasswords ? [leakedPasswordsPlugin()] : []),
       goTrueSessionsPlugin({ issuer: goTrueIssuer(options.baseURL), jwt: jwtOptions, signingKey: keys.ensure, policy }),
       staffSignInPlugin({ ...(operator && { operator }), ...(mail && { mail }), defaultPolicy: signInPolicy }),
