@@ -45,6 +45,9 @@ const serve = async (withMobile?: MobileConfig) => {
   const post = (origin: string | undefined, path: string, body: object, cookie = '') =>
     app.request(`${label}/api/auth${path}`, { method: 'POST', headers: headersFrom(origin, cookie), body: JSON.stringify(body) })
   const get = (origin: string | undefined, path: string, cookie: string) => app.request(`${label}/api/auth${path}`, { headers: headersFrom(origin, cookie) })
+  // A request in the shape `init` gives, from an address of its own, so the sign-in rate limit never answers for it.
+  const rawPost = (origin: string, path: string, init: { headers?: Record<string, string>; body?: BodyInit }, cookie = '') =>
+    app.request(`${label}/api/auth${path}`, { method: 'POST', body: init.body, headers: { ...init.headers, 'x-forwarded-for': `203.0.113.${++client}`, origin, ...(cookie && { cookie }) } })
   const mailedCode = async () => {
     await vi.waitFor(() => expect(sent.length).toBeGreaterThan(0), { timeout: 10_000 })
     const code = /\b\d{6}\b/.exec(sent.shift()!.text)?.[0]
@@ -55,7 +58,7 @@ const serve = async (withMobile?: MobileConfig) => {
     expect((await post(origin, '/email-otp/send-verification-otp', { email, type: 'sign-in' })).status).toBe(200)
     return post(origin, '/sign-in/email-otp', { email, otp: await mailedCode() })
   }
-  return { auth, app, post, get, signInWithCode, address }
+  return { auth, app, post, get, rawPost, signInWithCode, address }
 }
 
 // The cookies the device's cookie jar keeps from a response; a cookie the response clears is left out.
@@ -160,6 +163,71 @@ describe('the Capacitor origins at /api/auth', () => {
         }),
       )
       expect(response.status, origin).toBe(403)
+      expect(await response.json()).toMatchObject({ code: 'INVALID_ORIGIN' })
+    }
+  })
+
+  // A page can send a form, `text/plain` or multipart POST without a preflight. `/api/auth` answers no preflight and the
+  // mobile mount takes a JSON body alone from a Capacitor origin, so a page in the app cannot use the grant.
+  it('cannot be used by a page: a simple POST from a Capacitor origin is refused and sets no cookie', async () => {
+    const { rawPost } = await serve(mobile)
+    const credentials = { email: 'root@example.com', password }
+    const text = JSON.stringify(credentials)
+    const multipart = new FormData()
+    multipart.set('email', credentials.email)
+    multipart.set('password', password)
+    const simple: [string, { headers?: Record<string, string>; body?: BodyInit }][] = [
+      ['text', { headers: { 'content-type': 'text/plain;charset=UTF-8' }, body: text }],
+      ['form', { headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(credentials).toString() }],
+      ['multipart', { body: multipart }],
+      ['untyped', { body: new Blob([text]) }],
+      ['empty', {}],
+    ]
+    for (const origin of capacitor) {
+      const control = await rawPost(origin, '/sign-in/email', { headers: { 'content-type': 'application/json' }, body: text })
+      expect(control.status, origin).toBe(200)
+      expect(sessionCookieLine(control), origin).toBeDefined()
+      for (const path of ['/sign-in/email', '/sign-up/email', '/callback/credential']) {
+        for (const [shape, init] of simple) {
+          const refused = await rawPost(origin, path, init)
+          expect(refused.status, `${origin} ${path} ${shape}`).toBe(415)
+          expect(refused.headers.getSetCookie(), `${origin} ${path} ${shape}`).toEqual([])
+          expect(corsHeaders(refused), `${origin} ${path} ${shape}`).toEqual([])
+          expect(await refused.json()).toMatchObject({ code: 'UNSUPPORTED_MEDIA_TYPE' })
+        }
+      }
+    }
+  })
+
+  it('refuse a page alike whatever its form says, and leave the session it carries alone', async () => {
+    const { post, get, rawPost } = await serve(mobile)
+    const origin = 'https://localhost'
+    const form = (fields: Record<string, string>) => ({ headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fields).toString() })
+    const right = await rawPost(origin, '/sign-in/email', form({ email: 'root@example.com', password }))
+    const wrong = await rawPost(origin, '/sign-in/email', form({ email: 'root@example.com', password: 'wrong password' }))
+    expect([right.status, await right.text()]).toEqual([wrong.status, await wrong.text()])
+
+    const cookie = cookiesOf(await post(label, '/sign-in/email', { email: 'root@example.com', password }))
+    const before = await (await get(label, '/get-session', cookie)).json()
+    const carried = await rawPost(origin, '/sign-in/email', form({ email: 'root@example.com', password }), cookie)
+    expect(carried.status).toBe(415)
+    expect(carried.headers.getSetCookie()).toEqual([])
+    expect((await (await get(label, '/get-session', cookie)).json()).session.id).toBe(before.session.id)
+  })
+
+  it.each(['application/json; charset=utf-8', 'Application/Json'])('take a JSON body typed %j from the app', async (type) => {
+    const { rawPost } = await serve(mobile)
+    const signedIn = await rawPost('capacitor://localhost', '/sign-in/email', { headers: { 'content-type': type }, body: JSON.stringify({ email: 'root@example.com', password }) })
+    expect(signedIn.status).toBe(200)
+    expect(sessionCookieLine(signedIn)).toBeDefined()
+  })
+
+  it('leave a form sign-in from the app\'s own origin alone, with a mobile section or without', async () => {
+    for (const withMobile of [mobile, undefined]) {
+      const { rawPost } = await serve(withMobile)
+      const signedIn = await rawPost(label, '/sign-in/email', { headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ email: 'root@example.com', password }).toString() })
+      expect(signedIn.status, String(Boolean(withMobile))).toBe(200)
+      expect(sessionCookieLine(signedIn)).toBeDefined()
     }
   })
 

@@ -128,6 +128,7 @@ describe('a mobile app', () => {
       for (const path of ['/api/meta', '/api/sb/auth/v1/user']) {
         const preflight = await app.request(`${label}${path}`, { method: 'OPTIONS', headers: { origin, 'access-control-request-method': 'GET', 'access-control-request-headers': 'authorization' } })
         expect(preflight.headers.get('access-control-allow-origin'), `${origin} ${path}`).toBe(origin)
+        expect(preflight.headers.get('access-control-allow-credentials')).toBeNull()
         const response = await app.request(`${label}${path}`, { headers: { origin } })
         expect(response.headers.get('access-control-allow-origin'), `${origin} ${path}`).toBe(origin)
         expect(response.headers.get('access-control-allow-credentials')).toBeNull()
@@ -141,10 +142,11 @@ describe('a mobile app', () => {
     const signIn = await post(label, '/sign-in/email', { email: 'root@example.com', password })
     const cookie = signIn.headers.getSetCookie().map((header) => header.split(';')[0]).join('; ')
     expect(cookie).toContain('session_token')
-    const origin = 'https://localhost'
-    expect((await app.request(`${label}/api/meta`, { headers: { origin, cookie } })).status).toBe(401)
-    expect((await app.request(`${label}/api/sb/auth/v1/user`, { headers: { origin, cookie } })).status).toBe(401)
-    const put = await app.request(`${label}/api/sb/auth/v1/user`, { method: 'PUT', headers: { origin, cookie, 'content-type': 'text/plain' }, body: JSON.stringify({ data: { name: 'Mallory' } }) })
-    expect(put.status).toBe(401)
+    for (const origin of capacitor) {
+      expect((await app.request(`${label}/api/meta`, { headers: { origin, cookie } })).status, origin).toBe(401)
+      expect((await app.request(`${label}/api/sb/auth/v1/user`, { headers: { origin, cookie } })).status, origin).toBe(401)
+      const put = await app.request(`${label}/api/sb/auth/v1/user`, { method: 'PUT', headers: { origin, cookie, 'content-type': 'text/plain' }, body: JSON.stringify({ data: { name: 'Mallory' } }) })
+      expect(put.status, origin).toBe(401)
+    }
   })
 })
