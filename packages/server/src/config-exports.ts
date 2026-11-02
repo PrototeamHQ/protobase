@@ -3,3 +3,6 @@
 export { configExports } from './resource-source'
 export { builtInResources } from './built-in-resources'
 export { webhooksModule } from './webhooks/table/webhooks-module'
+// The tables users add, which doctor checks and scaffold leaves out, read without loading the server.
+export { userTableResources } from './user-tables/user-table-resources'
+export { definitionsSchema, userTablesSchema } from './user-tables/names'

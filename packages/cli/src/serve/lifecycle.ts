@@ -2,8 +2,9 @@ import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import pg from 'pg'
-import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkJobsSchema, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkWebhooksSchema, configExports, createFileCleanup, relayed, sqlSends, startJobs, type ErrorReporter } from '@protobase/server'
+import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkJobsSchema, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, configExports, createFileCleanup, relayed, sqlSends, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
+import { projectUserTables } from '../project/project-user-tables'
 import { openAppDatabase } from '../project/pg-db'
 import { buildProject, type AppDatabase } from '../config/build-project'
 import type { MergedConfig } from '../config/merge-config'
@@ -74,7 +75,8 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
     if (env.startupChecks && sqlSends(project.realtime)) await checkChannelSends(db)
     if (env.startupChecks && project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)
     if (env.startupChecks && project.status) await checkStatusSchema(db, project.status, project.auth)
-    const { admin, jobs: definitions } = projectAdmin(project, db, ui, reporter, upgradeWebSocket)
+    if (env.startupChecks && project.userTables) await checkUserTablesSchema(db)
+    const { admin, jobs: definitions } = projectAdmin(project, db, ui, reporter, upgradeWebSocket, await projectUserTables(project, db))
     if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, decryptField: admin.decryptField, ...(project.mailer && { mailer: project.mailer }), onError: (error) => console.error(error) }) : undefined
     const release = project.mobile ? await servedRelease({ site, mobile: project.mobile, issuer: project.auth?.issuer, signingKey: env.mobileSigningKey, serverVersion: protobaseVersion }) : undefined

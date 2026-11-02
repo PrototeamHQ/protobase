@@ -1,9 +1,10 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkWebhooksSchema, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
+import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
 import { projectIcons } from '../build/app-icons'
 import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
+import { projectUserTables } from '../project/project-user-tables'
 import { buildProject } from '../config/build-project'
 import { devJobs } from './dev-jobs'
 import { devRealtimePrune } from './dev-prune'
@@ -44,6 +45,7 @@ if (relayed(project.realtime)) await checkRealtimeRelay(db)
 if (sqlSends(project.realtime)) await checkChannelSends(db)
 if (project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)
 if (project.status) await checkStatusSchema(db, project.status, project.auth)
+if (project.userTables) await checkUserTablesSchema(db)
 
 // Functions moved from Supabase read Supabase's variables, of this app, unless .env sets them.
 setMissing(process.env, supabaseEnv({
@@ -58,7 +60,7 @@ setMissing(process.env, supabaseEnv({
 const reporter = await projectErrorReporter(config, process.env)
 // The plugins come from Vite here, not a bundle; the icons are the project's files, which the dev server answers.
 const ui = { plugins: [], fieldTypes: {}, icons: projectIcons(projectDir) }
-const { admin, jobs } = projectAdmin(project, db, ui, reporter, upgradeWebSocket)
+const { admin, jobs } = projectAdmin(project, db, ui, reporter, upgradeWebSocket, await projectUserTables(project, db))
 
 // The project's jobs and the delivery of its events, run in this server unless `--no-jobs` turned them off; a behind jobs
 // schema stops startup with the command that writes its migration.

@@ -5,6 +5,7 @@ import { projectAuth } from '../config/build-project'
 import type { MergedConfig } from '../config/merge-config'
 import { projectJobs, projectNotifications, projectResources, projectWebhooks } from '../config/project-parts'
 import { loadSourceConfig } from '../config/source-config'
+import { userTablesOn } from '../config/user-tables-config'
 import { loadNearestEnvFile } from '../dev/env'
 import type { Extension } from '../project/extensions'
 import { openAppDatabase } from '../project/pg-db'
@@ -38,6 +39,7 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
     ...(notifications && { notifications }),
     ...(config.status && { status: checkStatusOptions(config.status) }),
     jobs,
+    userTables: userTablesOn(config),
     // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.
     readOnlyQueries: assistantSettings(config.assistant, process.env)?.kind === 'built-in',
     authTables: auth ? authStoreTables(auth) : { tables: [], schemas: [] },

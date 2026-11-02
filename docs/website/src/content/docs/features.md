@@ -15,6 +15,7 @@ A feature without a mark is stable. The others say so after their name:
 
 - [Start a project](/features/start-a-project/): Start a new app, or an admin over an existing Postgres database, and keep the config in step with it.
 - [Data model](/features/data-model/): Describe the tables of an existing Postgres database as resources, with their fields, keys and rules.
+- [Tables users add](/features/user-tables/): Tables an app's users add from the admin UI, by hand or from a file, and how a developer takes them over as code.
 - [Access](/features/access/): Decide who may read and change which records and fields.
 - [Lists](/features/lists/): The list page of each resource, with its columns, filters, charts, search, exports and imports.
 - [List displays](/features/list-displays/): Show a list as cards, a map, a board, a calendar or a timeline, and reorder records by hand.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { DbColumn, DbTable } from '../db/model'
 import type { ExistingResource } from './existing-config'
+import { parseResource } from './existing-config'
 import { planScaffold } from './plan'
 import { protobaseSchemas } from './protobase-tables'
 
@@ -75,5 +76,21 @@ describe('scaffold of a database with Protobase in it', () => {
   it('warns about a resource an earlier run made over the auth store', async () => {
     const result = await plan(store('auth'), {}, [{ name: 'account', table: 'auth.account', dir: 'account', identifier: 'account', fields: [], text: '' }])
     expect(result.warnings).toEqual(["auth.account: one of Protobase's own tables, which account/data.ts declares; remove that resource"])
+  })
+
+  it('skips the tables users add that no resource claims and the table definitions, and still updates a claimed one', async () => {
+    const definitions = ['tables', 'fields'].map((name) => table('table_definitions', name))
+    const added = [table('user_tables', 'notes', ['id', 'title']), table('user_tables', 'tasks')]
+    const unclaimed = await plan([...definitions, ...added, table('public', 'orders')])
+    expect(unclaimed.changes.map((change) => change.path).filter((file) => file.endsWith('data.ts'))).toEqual(['/config/orders/data.ts'])
+    expect(unclaimed.skipped.map((each) => [each.schema, each.what])).toEqual([['table_definitions', 'table definitions'], ['user_tables', 'user tables']])
+    const notes = parseResource("export const notes = resource('notes').table('user_tables.notes').fields({ id: f.bigint() }).primaryKey((r) => r.id)", 'notes')!
+    const claimed = await plan([...definitions, ...added], {}, [notes])
+    expect(claimed.changes.map((change) => change.path).filter((file) => file.endsWith('data.ts'))).toEqual(['/config/notes/data.ts'])
+    expect(claimed.skipped.find((each) => each.what === 'user tables')!.tables.map((each) => each.name)).toEqual(['tasks'])
+  })
+
+  it('never scaffolds an unclaimed user table, even when the target names its schema', async () => {
+    expect(await scaffolded([table('user_tables', 'notes')], { schema: 'user_tables' })).toEqual([])
   })
 })

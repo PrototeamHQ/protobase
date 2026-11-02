@@ -172,6 +172,17 @@ export default defineConfig(({ env }) => ({
 }))
 ```
 
+## userTables
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+`true` keeps the tables the app's users add in its own database, in the `table_definitions` and `user_tables` schemas that [`protobase migration`](/reference/cli/#migration) writes, and serves each one like a resource in code. It cannot be on together with organizations. See [User tables](/reference/user-tables/).
+
+```ts
+export default defineConfig({ userTables: true })
+```
+
 ## Code of the API
 
 Two files of the project's own change what the API does, each its default export, with no key in the config:

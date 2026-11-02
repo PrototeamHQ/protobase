@@ -133,11 +133,14 @@ import type { AdminOptions } from './admin-options'
 import type { Deps } from './deps'
 import type { Admin, AdminEnv, Authenticator, PageSource, Session, ViewSource } from './types'
 import { builtInResources } from './built-in-resources'
+import { servedUserTables, type UserTableSources } from './user-tables/served-user-tables'
 import type { JobDefinition } from './jobs/job-types'
 
 export type CreateAdminInput = {
   resources: ResourceSource[]
   views?: ViewSource[]
+  /** The tables users add, from their definitions (`userTableResources`): one a resource here or a built-in names is left out with a warning. */
+  userTables?: UserTableSources
   /** The `userMenu(...)` export of the config module: pages under the signed-in user in the sidebar. */
   userMenu?: UserMenuSource
   /** The `bottomBar(...)` exports of the config module, in order: tabs on phones for the roles each names. */
@@ -218,7 +221,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, realtime, notifications, status, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, realtime, notifications, status, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -229,8 +232,10 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const changes = changesSchema(events)
   const days = historyDays(historyOptions)
   const builtIn = builtInResources({ models: appModels, jobs: jobs.length > 0, notifications: notifications !== undefined, ...(events && { events }) })
-  const resources = [...appResources, ...builtIn.resources]
-  const views = [...appViews, ...builtIn.views]
+  const served = servedUserTables(userTables ?? { resources: [], views: [] }, [...appModels, ...builtIn.resources.map((resource) => resource.toModel())].map((model) => model.name))
+  for (const warning of served.warnings) console.warn(warning)
+  const resources = [...appResources, ...builtIn.resources, ...served.resources]
+  const views = [...appViews, ...builtIn.views, ...served.views]
   const commentUsers = withComments ? (givenCommentUsers ?? (auth && betterAuthCommentUsers(auth))) : undefined
   const mentions = withComments ? mentionJob(commentUsers, shownAppName(auth, globalThis.process?.env ?? {})) : undefined
   const registry = buildRegistry(resources)

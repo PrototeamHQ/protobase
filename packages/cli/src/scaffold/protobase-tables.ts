@@ -1,9 +1,11 @@
 import { migrationsTableName, storeTableNames } from '@protobase/server/auth-store'
+import { definitionsSchema, userTablesSchema } from '@protobase/server/config-exports'
+import { tableKey } from '../db/model'
 import type { DbTable } from '../db/model'
 import type { Target } from './targets'
 
 // Protobase's own tables, which hold password hashes, OAuth tokens and signing keys, and are no admin pages.
-export type ProtobaseSchema = { schema: string; what: 'auth store' | 'job queue' | 'record of migrations'; tables: DbTable[] }
+export type ProtobaseSchema = { schema: string; what: 'auth store' | 'job queue' | 'record of migrations' | 'table definitions' | 'user tables'; tables: DbTable[] }
 
 // Better Auth's core tables, which a store an earlier Protobase made without a record of migrations has too, with its
 // sessions pointing at its user table.
@@ -39,13 +41,26 @@ const jobQueue = (schema: string, tables: DbTable[]) =>
 const migrationRecord = (schema: string, tables: DbTable[]) =>
   schema === 'migrations' && tables.some((table) => table.name === 'applied') ? tables : []
 
-// The schemas of Protobase's own tables. The auth store, which holds password hashes, sessions and tokens, is left out
-// whatever the target names; the job queue and the record of migrations are scaffolded when the target names their schema.
-export const protobaseSchemas = (tables: DbTable[], target: Target): ProtobaseSchema[] =>
+// The definitions of the tables users add.
+const tableDefinitions = (schema: string, tables: DbTable[]) =>
+  schema === definitionsSchema && ['tables', 'fields'].every((name) => tables.some((table) => table.name === name)) ? tables : []
+
+// The tables users add that no resource in code claims: the server serves them from their definitions.
+const userTables = (schema: string, tables: DbTable[], claimed: ReadonlySet<string>) =>
+  schema === userTablesSchema ? tables.filter((table) => !claimed.has(tableKey(table))) : []
+
+// The schemas of Protobase's own tables. The auth store, which holds password hashes, sessions and tokens, and the
+// tables users add that no resource in code claims (`claimed`, as schema.table) are left out whatever the target names;
+// the job queue, the record of migrations and the table definitions are scaffolded when the target names their schema.
+export const protobaseSchemas = (tables: DbTable[], target: Target, claimed: ReadonlySet<string> = new Set()): ProtobaseSchema[] =>
   [...bySchema(tables)].flatMap(([schema, own]): ProtobaseSchema[] => {
     const store = authStore(schema, own)
     if (store.length > 0) return [{ schema, what: 'auth store', tables: store }]
+    const added = userTables(schema, own, claimed)
+    if (added.length > 0) return [{ schema, what: 'user tables', tables: added }]
     if (target.schema === schema) return []
+    const definitions = tableDefinitions(schema, own)
+    if (definitions.length > 0) return [{ schema, what: 'table definitions', tables: definitions }]
     const queue = jobQueue(schema, own)
     if (queue.length > 0) return [{ schema, what: 'job queue', tables: queue }]
     const record = migrationRecord(schema, own)
