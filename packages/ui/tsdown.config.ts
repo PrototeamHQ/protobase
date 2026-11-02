@@ -1,18 +1,19 @@
 import { defineConfig } from 'tsdown'
 
 // A Web Worker is started from its module's URL, `new URL('./parse-worker.ts', import.meta.url)`, which Vite bundles
-// from the sources. Each worker is an entry of its own here, and its URL is rewritten to the .js file that entry becomes,
-// for the Vite that builds the app from this package.
-const workers = ['src/app/import/parse-worker.ts', 'src/app/export/export-worker.ts']
+// from the sources. Each worker is an entry like every module here, and its URL is rewritten to the .js file that entry
+// becomes, for the Vite that builds the app from this package.
 const workerUrls = {
   name: 'worker-urls',
   renderChunk: (code: string) => ({ code: code.replace(/new URL\((["'])(\.{1,2}\/[^"']+)\.ts\1, import\.meta\.url\)/g, 'new URL($1$2.js$1, import.meta.url)') }),
 }
 
-// app/main.tsx is the admin app's entry, loaded by index.html. CSS imports stay imports and the CSS files are copied
-// next to the modules importing them, for the Vite that builds the app (or a project's own UI) to process.
+// Every module is an entry, so @protobase/ui/unstable/<path> finds each one, not only those the stable entry reaches;
+// app/main.tsx among them is the admin app's entry, loaded by index.html. Tests, stories and their fakes are left out.
+// CSS imports stay imports and the CSS files are copied next to the modules importing them, for the Vite that builds the
+// app (or a project's own UI) to process.
 export default defineConfig({
-  entry: ['src/index.ts', 'src/app/main.tsx', ...workers],
+  entry: ['src/**/*.{ts,tsx}', '!src/**/*.{test,stories}.{ts,tsx}', '!src/**/*.d.ts', '!src/app/testing/**'],
   plugins: [workerUrls],
   unbundle: true,
   fixedExtension: false,

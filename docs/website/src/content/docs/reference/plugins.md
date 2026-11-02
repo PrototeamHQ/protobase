@@ -334,8 +334,14 @@ From `@protobase/ui`:
 | `FieldWidget`, `FieldWidgetProps`, `FieldWidgetEditorProps` | The types of a [field type](#field-types) and of its parts' props. |
 | `RecordCardProps` | The props of a [record card](/reference/custom-components/#record-cards), `{ row }`. |
 | `AuthLayout`, `CodeForm`, `ResendCodeButton`, `Button`, `buttonClass`, `Input`, `Spinner`, `LogoMark` | The pieces of the app's sign-in pages, for a page of a plugin or a host's own that looks like them. Outside the app, `@protobase/ui/styles.css` is the stylesheet that draws them, for a Vite build with Tailwind. |
+| `ConfirmSignIn`, `ConfirmSignInProps` | The app's step that asks the person to confirm it's them, with a passkey, a code or their password, after the server refused something for want of a recent strong sign-in; `onConfirmed` is called once they did, to ask again. |
+| `SensitiveField`, `SensitiveFieldProps` | The app's field for a value hidden like a password, which shows a stored one only once the person asks for it, confirming it's them first when the server wants that. |
 | `isFramed`, `useArmedAfterFocus`, `useGuardedPress`, `allowDelayMs` | The connect page's guard against clickjacking and click-through, for a host's own consent screen: it refuses to render when `isFramed()`, and its Allow button spreads `useGuardedPress(armed, onAllow)`, so a press counts only once the page has been in front for `allowDelayMs`, and a press anywhere on the page before then starts that wait again. |
 | `pluginApi` | The plugin API of the app's `@protobase/ui`. |
 | `protobaseVersion` | The Protobase version of the app's `@protobase/ui`. |
+
+### The unstable entry
+
+The modules of `@protobase/ui` that the table leaves out are reached one by one at `@protobase/ui/unstable/<module>`, by the module's path in `packages/ui/src` without its extension, such as `@protobase/ui/unstable/primitives/skeleton`. They come with no promise: any release may change or remove them, outside the plugin API. They are for UI that a bundler of its own builds on `@protobase/ui`, such as a host's own pages, so it imports a component rather than copying it; a plugin, or a project's `protobase.ui.tsx`, cannot import them, like any other file inside `@protobase/ui` (see [imports](#writing-a-plugin)). A module an app needs to rely on can become a stable export: see [versioning](/reference/versioning/#plugins).
 
 From `@protobase/layout`: `component(name, { plugin })` (see [above](#declaring-its-components-in-the-config)). From `@protobase/schema`: `.widget(name, props)` on a view's fields and `d.cards(fields, { card })` (see [Views](/reference/ui-config/)). From the config: `plugins`; from the environment: `PROTOBASE_PLUGINS` and `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` (see [loading](#loading)). The tokens a plugin's utilities read are in [Theme](/reference/theme/).

@@ -57,6 +57,7 @@ export type { MarkdownContentProps as MarkdownProps } from './markdown/markdown-
 export { AuthLayout, type AuthLayoutProps } from './auth/auth-layout'
 export { CodeForm, type CodeFormProps } from './auth/code-form'
 export { ResendCodeButton, type ResendCodeButtonProps } from './auth/resend-code-button'
+export { ConfirmSignIn, type ConfirmSignInProps } from './app/confirm-sign-in'
 // The connect page's guard against clickjacking and click-through, for a host's own consent screen to arm its Allow the same way.
 export { allowDelayMs, isFramed, useArmedAfterFocus, useGuardedPress } from './connect/interaction-guard'
 // The form parts of the app's own pages, for a project's components that look like them.
@@ -68,6 +69,7 @@ export { MenuSelect, type MenuSelectProps } from './primitives/menu-select'
 export { Choices, type ChoiceOption, type ChoicesProps } from './primitives/choices'
 export { Dialog, type DialogProps } from './primitives/dialog'
 export { Field, type FieldProps } from './record-view/field'
+export { SensitiveField, type SensitiveFieldProps } from './app/sensitive-field'
 export { useFieldControl } from './primitives/field-control'
 export { Section } from './record-view/section'
 export { Form, type FormProps } from './app/create/form'

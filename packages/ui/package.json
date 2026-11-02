@@ -23,7 +23,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./theme.css": "./src/theme.css",
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./src/styles.css",
+    "./unstable/*": {
+      "types": [
+        "./src/*.ts",
+        "./src/*.tsx"
+      ],
+      "default": "./src/*"
+    }
   },
   "types": "./src/index.ts",
   "files": [
@@ -38,7 +45,8 @@
     "exports": {
       ".": "./dist/index.js",
       "./theme.css": "./dist/theme.css",
-      "./styles.css": "./dist/styles.css"
+      "./styles.css": "./dist/styles.css",
+      "./unstable/*": "./dist/*.js"
     },
     "types": "./dist/index.d.ts"
   },
