@@ -69,6 +69,7 @@ export type {
   PeriodChartModel,
   FormModel,
   SaveFeedback,
+  PageWidth,
   RecordMode,
   HelpWhen,
   ShowWhen,

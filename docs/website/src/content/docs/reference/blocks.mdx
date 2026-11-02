@@ -21,6 +21,15 @@ The root of every page, and only the root.
 | `title` | Heading, and the page's name in the sidebar and breadcrumbs. Required. |
 | `description` | A line under the title. |
 | `actions` | Elements beside the title, such as a `ModalForm`. |
+| `width` | `column`, the default, keeps the page in a centred column about 1200px wide; `full` fills the content pane beside the sidebar, for a dashboard with many blocks. On a phone both look the same. |
+
+```tsx
+<Page title="Today" width="full">
+  <Grid columns={4}>
+    ...
+  </Grid>
+</Page>
+```
 
 ### Grid
 

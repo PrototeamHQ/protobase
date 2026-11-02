@@ -9,6 +9,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [App addresses](/reference/layouts/#addresses): Links to lists, records, create forms and pages are typed addresses that can carry filters and prefilled values.
 - [Per-user pages](/reference/layouts/#access): Each user gets the page without the parts, fields and actions they cannot use.
 - [Layout blocks](/reference/blocks/#layout): Pages, responsive grids, cards and links.
+- [Full-width pages](/reference/blocks/#page): A page fills the whole area beside the sidebar instead of a centred column, for a dashboard with many blocks.
 - [Data blocks](/reference/blocks/#data): Counts, tables, single records, rows of cards, field values and progress bars.
 - [Record rows](/reference/blocks/#recordrow): A sideways row of cards for a filter, favorites or saved searches, with a count and new-record marks.
 - [Record cards](/reference/blocks/#recordcards): Full-width cards with fields and buttons, stacked or in a carousel.

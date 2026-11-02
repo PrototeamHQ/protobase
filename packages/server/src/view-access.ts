@@ -253,6 +253,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     recordMode: s.data,
     helpWhen: s.data,
     saveFeedback: s.data,
+    recordWidth: s.data,
     actions: s.list(actionShape(model, models, createPages)),
     listOf: s.field,
     signIn: s.data,

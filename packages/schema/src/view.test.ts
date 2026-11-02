@@ -43,6 +43,7 @@ const articleView = view<typeof article>('article')
   .layout((r) => [l.section('Content', [r.title, r.price], { help: 'Main fields' }), l.sidebar([r.status])])
   .chart((r) => ({ field: r.createdAt, range: '30d', granularity: 'day' }))
   .saveFeedback('toast')
+  .recordWidth('full')
   .actions((a) => [a.action('publish', { label: 'Publish', icon: 'send', confirm: 'Sure?', bulk: true })])
 
 describe('view builder', () => {
@@ -71,6 +72,7 @@ describe('view builder', () => {
       ],
       chart: { field: 'createdAt', range: '30d', granularity: 'day' },
       saveFeedback: 'toast',
+      recordWidth: 'full',
       actions: [{ name: 'publish', label: 'Publish', icon: 'send', confirm: 'Sure?', bulk: true }],
     }
     expect(articleView.toModel()).toEqual(expected)

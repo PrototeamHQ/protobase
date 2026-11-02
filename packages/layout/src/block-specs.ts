@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth'
+type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -17,7 +17,7 @@ const heading = { title: optional('text'), description: optional('text'), action
 const data = { resource: required('text'), filter: optional('text'), sort: optional('text') }
 
 export const blockSpecs: Record<string, BlockSpec> = {
-  Page: { children: true, props: { title: required('text'), description: optional('text'), actions: optional('elements') } },
+  Page: { children: true, props: { title: required('text'), description: optional('text'), actions: optional('elements'), width: optional('pageWidth') } },
   Grid: { children: true, props: { columns: optional('columns'), span: optional('span') } },
   Card: { children: true, props: { ...heading, span: optional('span') } },
   Stat: {
@@ -92,6 +92,7 @@ const buckets = ['hour', 'day', 'week', 'month', 'year']
 const ranges = ['7d', '30d', '90d', '1y', 'all']
 const cardsLayouts = ['stack', 'carousel']
 const cardWidths = ['1/4', '1/3', '1/2', '2/3']
+const pageWidths = ['column', 'full']
 
 const oneOf = (values: string[]): [test: (value: LayoutValue) => boolean, expected: string] => [(value) => typeof value === 'string' && values.includes(value), values.join(', ')]
 
@@ -116,6 +117,7 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   range: oneOf(ranges),
   cardsLayout: oneOf(cardsLayouts),
   cardWidth: oneOf(cardWidths),
+  pageWidth: oneOf(pageWidths),
   address: [(value) => isObject(value) && !isLayoutNode(value) && typeof value.kind === 'string', "an address, such as { kind: 'list', resource: 'orders' }"],
 }
 

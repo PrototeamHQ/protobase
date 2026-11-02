@@ -362,7 +362,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     <div ref={fieldsRef} className="flex flex-1 flex-col" inert={preview}>
       {remove.dialogs}
       <div className="flex-1">
-        <div className="mx-auto max-w-[1100px] px-4 pb-8 pt-6 md:px-10 md:py-8">
+        <div className={cn(view?.recordWidth !== 'full' && 'mx-auto max-w-[1100px]', 'px-4 pb-8 pt-6 md:px-10 md:py-8')}>
           <RecordHeader
             title={title}
             status={status ? { label: enumLabel(status, hint('status')?.valueLabels), tone: valueTone(hint('status')?.valueColors, status) } : undefined}
