@@ -72,6 +72,8 @@ export const edges = [
   // The UI's tests of its stylesheet and page.
   { from: ['packages/ui/src/tokens.test.ts'], reads: ['packages/ui/src/tokens.css'] },
   { from: ['packages/ui/src/app/index-html.test.ts', 'packages/ui/src/theme/theme-preference.test.ts'], reads: ['packages/ui/src/app/index.html'] },
+  // The check that @protobase/ui's stable entry exports its building blocks reads every module of its source.
+  { from: ['scripts/ui-exports/building-blocks.test.ts'], reads: ['packages/ui/src/**'] },
   // The examples' tests run on a clone of a template database, migrated and seeded from the example.
   exampleDatabase('erp'),
   exampleDatabase('real-estate'),

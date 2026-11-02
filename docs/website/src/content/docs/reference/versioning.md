@@ -91,6 +91,10 @@ A project's own `protobase.ui.tsx` is a plugin of its bundle, so the same rule h
 
 Releases keep the plugin API, below 1.0 too, where a minor version may change the config: they add exports to `@protobase/ui`, but remove or change one, add or remove a module the app shares with plugins, or move to a new major version of React only with a new plugin API. A test pins every export of `@protobase/ui` (`packages/ui/src/plugins/plugin-api.exports.json`) and fails when one goes away while `pluginApi` stays the same.
 
+`@protobase/ui/unstable/<module>` reaches every other module of `@protobase/ui`, by its path in `packages/ui/src` without its extension (see [the unstable entry](/reference/plugins/#the-unstable-entry)). It is outside the plugin API and keeps no promise: any release, a patch too, may change or remove what it exports. Making an export stable is one line in `packages/ui/src/index.ts` and its name in `plugin-api.exports.json`, from then on kept like every other.
+
+Protobase's own screens are built from the stable entry's parts: a test (`scripts/ui-exports/building-blocks.test.ts`) fails when a component or hook that another folder of `packages/ui/src` imports is neither exported from the stable entry nor named in `packages/ui/src/plugins/unstable-blocks.json`, under `unstable` with why it stays off or under `pending` until that is decided.
+
 ## Runtime updates
 
 An app whose host can update its runtime, such as a hosting platform, can show admins an **Update** button in the top bar. `PROTOBASE_RUNTIME_URL` (or `runtimeUpdates.url` in `protobase.config.ts`) names the host's endpoint, and `/api/meta` passes it on as `runtime: { url }` to callers with the `admin` role only. Without it, or for anyone else, the app shows nothing and asks nothing.
