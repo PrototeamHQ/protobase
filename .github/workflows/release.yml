@@ -206,3 +206,34 @@ jobs:
     with:
       image: protobase-dev
       tag: ${{ inputs.tag || needs.release.outputs.tag }}
+
+  # Our own repositories, listed in the PROTOBASE_BUMP_REPOS secret, each get a pull request that moves them to the
+  # release: their protobase-bump workflow is started at its version once npm serves it, and the pull request merges
+  # itself once its CI is green and stays open for a fix when it is red. No other job needs this one, so a bump that
+  # cannot start never holds up the packages or the images.
+  bump:
+    needs: [release, publish]
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag || needs.release.outputs.tag }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - name: Stamp the tag's version into the packages
+        env:
+          TAG: ${{ inputs.tag || needs.release.outputs.tag }}
+        run: bun scripts/stamp-version.mjs "$TAG"
+      - name: Wait for npm to serve the @protobase packages
+        run: bun scripts/wait-for-npm.mjs
+      - name: Start the bump of each repository
+        env:
+          GH_TOKEN: ${{ secrets.PROTOBASE_BUMP_TOKEN }}
+          PROTOBASE_BUMP_REPOS: ${{ secrets.PROTOBASE_BUMP_REPOS }}
+          TAG: ${{ inputs.tag || needs.release.outputs.tag }}
+        run: bun scripts/bump-repos/main.ts
