@@ -4,9 +4,25 @@
       {"sql":"\ncreate table tickets (\n  id integer generated always as identity primary key,\n  org_id text not null,\n  title text not null,\n  status text not null,\n  deleted_at timestamptz\n);\ncreate table notes (id integer generated always as identity primary key, org_id text not null, body text not null);\ninsert into tickets (org_id, title, status) values ('acme', 'Printer on fire', 'open'), ('acme', 'Old laptop', 'closed'), ('globex', 'Their printer', 'open');\ninsert into notes (org_id, body) values ('acme', 'A note');","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":3,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]},
       {"sql":"select to_regclass('comments.comments') is not null as found","result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["f"]]}},
       {"sql":"select to_regclass('comments.comments') is not null as found","result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["f"]]}},
-      {"sql":"create schema if not exists \"comments\";\n\ncreate table if not exists \"comments\".\"comments\" (\n  \"id\" bigint generated always as identity primary key,\n  \"resource\" text not null,\n  \"record_key\" text not null,\n  \"tenant_id\" text,\n  \"author_id\" text not null,\n  \"body\" text not null,\n  \"mentions\" jsonb not null,\n  \"created_at\" timestamptz not null default now()\n);\ncreate index if not exists \"comments_record\" on \"comments\".\"comments\" (\"resource\", \"record_key\", \"id\");\ncreate index if not exists \"comments_tenant\" on \"comments\".\"comments\" (\"tenant_id\", \"id\");\ncreate index if not exists \"comments_author\" on \"comments\".\"comments\" (\"author_id\", \"id\");\ncreate index if not exists \"comments_created_at\" on \"comments\".\"comments\" (\"created_at\");","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]},
+      {"sql":"create schema if not exists \"comments\";\n\ncreate table if not exists \"comments\".\"comments\" (\n  \"id\" bigint generated always as identity primary key,\n  \"resource\" text not null,\n  \"record_key\" text not null,\n  \"tenant_id\" text,\n  \"author_id\" text not null,\n  \"body\" text not null,\n  \"mentions\" jsonb not null,\n  \"created_at\" timestamptz not null default now()\n);\ncreate index if not exists \"comments_record\" on \"comments\".\"comments\" (\"resource\", \"record_key\", \"id\");\ncreate index if not exists \"comments_tenant\" on \"comments\".\"comments\" (\"tenant_id\", \"id\");\ncreate index if not exists \"comments_author\" on \"comments\".\"comments\" (\"author_id\", \"id\");\ncreate index if not exists \"comments_created_at\" on \"comments\".\"comments\" (\"created_at\");\ncreate index if not exists \"comments_record_key\" on \"comments\".\"comments\" (\"record_key\");","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]},
       {"sql":"select to_regclass('comments.comments') is not null as found","result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
+      {"sql":"select indexname as name from pg_indexes where schemaname = $1 and tablename = $2","params":["comments","comments"],"result":{"command":"SELECT","rowCount":6,"columns":[["name",19]],"rows":[
+        ["comments_pkey"],
+        ["comments_record"],
+        ["comments_tenant"],
+        ["comments_author"],
+        ["comments_created_at"],
+        ["comments_record_key"]
+      ]}},
       {"sql":"select to_regclass('comments.comments') is not null as found","result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
+      {"sql":"select indexname as name from pg_indexes where schemaname = $1 and tablename = $2","params":["comments","comments"],"result":{"command":"SELECT","rowCount":6,"columns":[["name",19]],"rows":[
+        ["comments_pkey"],
+        ["comments_record"],
+        ["comments_tenant"],
+        ["comments_author"],
+        ["comments_created_at"],
+        ["comments_record_key"]
+      ]}},
       {"sql":"SELECT version()","result":{"command":"SELECT","rowCount":1,"columns":[["version",25]],"rows":[["PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit"]]}},
       {"sql":"SELECT to_regclass('jobs.version') as name","result":{"command":"SELECT","rowCount":1,"columns":[["name",2205]],"rows":[["jobs.version"]]}},
       {"sql":"SELECT version from jobs.version","result":{"command":"SELECT","rowCount":1,"columns":[["version",23]],"rows":[["45"]]}},
@@ -215,7 +231,7 @@
   "record comments on SnapshotDb > moderation > lists every comment to admins only, who may delete one but not write one": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"comments\".\"comments\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"comments\".\"comments\""],"result":{"command":"SELECT","rowCount":9,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"comments\".\"comments\""],"result":{"command":"SELECT","rowCount":10,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
         ["comments_author","btree","f","author_id","author_id","text_ops"],
         ["comments_author","btree","f","id","id","int8_ops"],
         ["comments_created_at","btree","f","created_at","created_at","timestamptz_ops"],
@@ -223,6 +239,7 @@
         ["comments_record","btree","f","resource","resource","text_ops"],
         ["comments_record","btree","f","record_key","record_key","text_ops"],
         ["comments_record","btree","f","id","id","int8_ops"],
+        ["comments_record_key","btree","f","record_key","record_key","text_ops"],
         ["comments_tenant","btree","f","tenant_id","tenant_id","text_ops"],
         ["comments_tenant","btree","f","id","id","int8_ops"]
       ]}},

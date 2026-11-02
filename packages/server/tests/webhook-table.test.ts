@@ -9,8 +9,12 @@ import { checkWebhooksSchema, webhooksMigration } from '../src/webhooks/table/sc
 import { tableSubscriptions } from '../src/webhooks/table/table-subscriptions'
 import { subscriptionUrlCheck, subscriptionWriteCheck } from '../src/webhooks/table/validate-hook'
 import { checkWebhookUrl } from '../src/webhooks/table/address-check'
+import { createAdmin } from '../src/create-admin'
+import { configExports } from '../src/resource-source'
+import { webhooksModule } from '../src/webhooks/table/webhooks-module'
 import type { WriteEvent } from '../src/types'
 import { openSnapshotDb, settled, type SnapshotDb } from '../../../test-support/sql-snapshot'
+import { as, testAuthenticator } from '../../../test-support/server'
 
 // Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
 vi.setConfig({ testTimeout: 30_000 })
@@ -36,6 +40,44 @@ describe('the webhooks schema', () => {
     expect(log).not.toContain('create table if not exists "webhooks"."subscriptions"')
     await pg.exec(log!)
     await checkWebhooksSchema(db, { deliveryLog: true })
+    await db.destroy()
+  })
+
+  // The webhooks schema as version 1 wrote it, with only the tenant's index, and one index an app added by hand.
+  const earlierSchema = `
+    drop index webhooks.subscriptions_owner, webhooks.subscriptions_created_at, webhooks.subscriptions_name, webhooks.subscriptions_enabled,
+      webhooks.subscriptions_last_success_at, webhooks.subscriptions_name_search, webhooks.subscriptions_url_search;
+    comment on function webhooks.subscription_commands() is 'Protobase webhooks 1';
+    comment on function webhooks.deliveries_resend() is 'Protobase webhooks 1';
+    create index subscriptions_name on webhooks.subscriptions (name);
+  `
+  const listReads = ['order_by=created_at desc', 'order_by=name asc', 'order_by=name desc', 'order_by=last_success_at asc', 'order_by=last_success_at desc', 'filter=enabled = true', 'filter=search("x")']
+
+  it("serves every read of the subscriptions list on a fresh schema, and gives an earlier one the indexes of the subscriptions list's reads, once each, so none is refused", async () => {
+    const pg = await openSnapshotDb('jobs')
+    const db = new Kysely<any>({ dialect: pg.dialect })
+    const { resources, views } = configExports(webhooksModule())
+    const statuses = async () => {
+      const admin = createAdmin({ resources, views, db, authenticate: testAuthenticator })
+      const answers = []
+      for (const read of listReads) answers.push((await admin.request(`/api/v1/webhook_subscriptions?${encodeURI(read)}`, { headers: as(1) })).status)
+      return answers
+    }
+    await pg.exec((await webhooksMigration(db))!)
+    expect(await statuses()).toEqual([200, 200, 200, 200, 200, 200, 200])
+    await pg.exec(earlierSchema)
+    expect(await statuses()).toEqual([400, 200, 200, 400, 400, 400, 400])
+    await expect(checkWebhooksSchema(db)).rejects.toThrow('missing or behind')
+    const next = await webhooksMigration(db)
+    expect(next).not.toContain('create table if not exists "webhooks"."subscriptions"')
+    await pg.exec(next!)
+    await checkWebhooksSchema(db)
+    const indexes = await sql<{ name: string }>`select indexname as name from pg_indexes where schemaname = 'webhooks' and tablename = 'subscriptions' order by indexname`.execute(db)
+    expect(indexes.rows.map((row) => row.name)).toEqual([
+      'subscriptions_created_at', 'subscriptions_enabled', 'subscriptions_last_success_at', 'subscriptions_name', 'subscriptions_name_search',
+      'subscriptions_owner', 'subscriptions_pkey', 'subscriptions_tenant', 'subscriptions_url_search',
+    ])
+    expect(await statuses()).toEqual([200, 200, 200, 200, 200, 200, 200])
     await db.destroy()
   })
 

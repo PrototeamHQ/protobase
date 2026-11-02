@@ -43,7 +43,7 @@ Once a resource has history, admins get **Activity** (the built-in resource `rec
 
 ## The table
 
-[`protobase migration`](/reference/cli/#migration) adds the table `changes.history` to the `changes` schema of the event capture (renamed with `events: { schema }`), and the capture triggers of each resource with history; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while the table or a trigger is missing. A resource that drops `.history()` loses its triggers, unless it has events, at the next migration; its changes stay in the table.
+[`protobase migration`](/reference/cli/#migration) adds the table `changes.history` to the `changes` schema of the event capture (renamed with `events: { schema }`), and the capture triggers of each resource with history; apply it with the project's other migrations. It has an index for each column the Activity list filters on, and the next migration adds one an earlier version's table lacks. `protobase dev` and `protobase serve` do not start while the table, one of its indexes or a trigger is missing. A resource that drops `.history()` loses its triggers, unless it has events, at the next migration; its changes stay in the table.
 
 | Column | |
 | --- | --- |
