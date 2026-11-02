@@ -15,6 +15,10 @@ An app can keep tables its users add in its own database, beside the resources i
 
 <gap>Tables users add cannot be used in an app with organizations because keeping their definitions and records per organization is not implemented.</gap>
 
+<gap>Users cannot add a table yet because the screens and the API that create one are not implemented.</gap>
+
+<gap>A definition added while the server runs cannot be served before the server starts again because picking up new definitions while serving is not implemented.</gap>
+
 ### The switch
 
 User tables are off by default. Turn them on in `protobase.config.ts`:
@@ -34,7 +38,7 @@ The tables users add and their definitions live in two schemas of the app's data
 | `table_definitions` | `tables`, one row per table users add, with its singular and plural label, its title field and a version, and `fields`, each table's fields in order with their label, type and whether they are required |
 | `user_tables` | the tables themselves, each with an `id bigint generated always as identity` primary key and a column per field |
 
-With `userTables: true`, [`protobase migration`](/reference/cli/#migration) writes a migration that adds both schemas, the two definition tables and the `pg_trgm` extension, and writes nothing once the database has them. Apply it with the project's other migrations; the server never creates them itself. At start, `dev` and `serve` stop while one is missing; `PROTOBASE_STARTUP_CHECKS=false` skips that check in `serve`, as it skips the others.
+With `userTables: true`, [`protobase migration`](/reference/cli/#migration) writes a migration that adds both schemas, the two definition tables and the `pg_trgm` extension when it is missing, and grants the app's database role CREATE on `user_tables` alone, and writes nothing once the database has them. Apply it with the project's other migrations; the server never creates them itself. At start, `dev` and `serve` stop while one is missing; `PROTOBASE_STARTUP_CHECKS=false` skips that check in `serve`, as it skips the others.
 
 A table's name and each field's name are lowercase letters, digits and `_`, starting with a letter, at most 63 bytes. A field is one of these types:
 

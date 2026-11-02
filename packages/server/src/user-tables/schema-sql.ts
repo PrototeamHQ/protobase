@@ -26,11 +26,14 @@ export const fieldsSql = () => `create table ${definitionsSchema}.fields (
   check ((type = 'decimal') = (precision is not null and scale is not null))
 )`
 
-// Only the owner, the role the migrations and the app run as, creates in either schema.
+// The app's role, the one the migrations run as, may create in the data schema; nothing grants CREATE on the
+// definitions schema, and no other role creates in either. The role owns both, so the grant states the intent rather
+// than fencing it.
 export const schemasSql = () => [
   'create extension if not exists pg_trgm',
   `create schema if not exists ${definitionsSchema}`,
   `revoke create on schema ${definitionsSchema} from public`,
   `create schema if not exists ${userTablesSchema}`,
   `revoke create on schema ${userTablesSchema} from public`,
+  `grant usage, create on schema ${userTablesSchema} to current_user`,
 ]
