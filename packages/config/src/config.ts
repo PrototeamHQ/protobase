@@ -116,6 +116,11 @@ export type ProtobaseConfig = AppKeys &
     calls?: CallsOptions
     /** The app's iOS and Android build (see `MobileConfig`). */
     mobile?: MobileConfig
+    /**
+     * `true` keeps the tables the app's users add in its own database and serves each one like a resource of the config;
+     * `protobase migration` writes the schemas they need. Off by default, and refused together with organizations.
+     */
+    userTables?: boolean
   }
 
 /**

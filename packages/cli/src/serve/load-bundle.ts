@@ -4,6 +4,7 @@ import type { ConfigCommand, ConfigInput } from '@protobase/config'
 import { bundleBasePath } from '../bundle/manifest'
 import { withDefaults } from '../config/config-defaults'
 import { mergeConfig, type MergedConfig } from '../config/merge-config'
+import { checkUserTables } from '../config/user-tables-config'
 import type { ProjectFiles } from '../config/project-files'
 import { calledConfig } from '../config/called-config'
 
@@ -44,7 +45,7 @@ export const bundledConfig = async (bundle: BundleModule, command: ConfigCommand
   const configEnv = { command, env: process.env, root }
   const sources = []
   for (const { config, label, files } of [...bundle.extensions, bundle.own]) sources.push({ config: await calledConfig(config, configEnv, label), files: projectFiles(files, bundle.packages), label })
-  const config = withDefaults(mergeConfig(...sources), command, process.env)
+  const config = checkUserTables(withDefaults(mergeConfig(...sources), command, process.env))
   const basePath = config.apiPath
   if (basePath !== undefined && basePath !== bundleBasePath) {
     throw new Error(`apiPath is ${JSON.stringify(basePath)}; a bundle's UI and manifest expect the API at ${bundleBasePath}, so remove it (see https://docs.protobase.net/reference/cli/#the-manifest)`)
