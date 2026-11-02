@@ -84,9 +84,10 @@ const accountChanges = [
   '/passkey/verify-registration',
   '/passkey/update-passkey',
   '/passkey/delete-passkey',
-  // Confirming it's them with an emailed code; staff proved nothing as the person.
+  // Confirming it's them with an emailed code or the password; staff proved nothing as the person.
   '/account/confirmation-code/send',
   '/account/confirmation-code/verify',
+  '/account/confirm-password',
   // Joining, leaving, handing over or deleting an organization is the person's own decision.
   '/invitation/accept',
   '/organization/leave',

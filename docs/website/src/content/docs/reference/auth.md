@@ -271,7 +271,7 @@ Signing out a device stops that device's API token at its next request (see [Whe
 
 When the app has mail, the account's address is emailed that its password changed, with a link to choose a new one if it was not them: after a change, a first password, a [reset](#password-reset), an admin setting it, and a new password through the [endpoints for supabase-js](#supabase-js-and-supabasessr).
 
-Checks of the signed-in account's current password are limited to 5 a minute for each account, on top of the limit for each client: changing the password, deleting the account, turning [two-factor authentication](#two-factor-authentication) on or off, its authenticator link and new backup codes, and `POST /api/auth/verify-password`. Every check counts, a right one too; one over the limit is refused with `429` (`TOO_MANY_PASSWORD_CHECKS`, with `X-Retry-After` in seconds), so a stolen session cannot guess the password from many addresses. <gap>The current-password limit cannot be shared between server instances, each of which counts on its own, because a shared store for it is not implemented.</gap>
+Checks of the signed-in account's current password are limited to 5 a minute for each account, on top of the limit for each client: changing the password, deleting the account, turning [two-factor authentication](#two-factor-authentication) on or off, its authenticator link and new backup codes, `POST /api/auth/verify-password`, and [confirming a first passkey](#confirming-an-account-change) with the password. Every check counts, a right one too; one over the limit is refused with `429` (`TOO_MANY_PASSWORD_CHECKS`, with `X-Retry-After` in seconds), so a stolen session cannot guess the password from many addresses. <gap>The current-password limit cannot be shared between server instances, each of which counts on its own, because a shared store for it is not implemented.</gap>
 
 On the [account page](#account-page), the `Password` block does both: with a password, it asks for the current one and the new one twice, and says the other devices are signed out; without one, it sets the first, and nobody is signed out. While the sign-in policy turns passwords off, or in a staff session, it only says so.
 
@@ -368,7 +368,7 @@ People add passkeys (Face ID, Touch ID, Windows Hello, a phone or a security key
 - On an app with several origins, every passkey works on each of them through [Related Origin Requests](https://passkeys.dev/docs/advanced/related-origins/) (Chrome and Edge 128, Safari 18, Firefox 152; at most 5 registrable domains).
 - A browser asks for the passkeys of one RP ID at a time. When people have passkeys for more than one of the app's hosts, `GET /api/auth/status` lists them as `passkeyDomains`, the passkey domain first, and the sign-in page adds "Use a passkey made for {host}" for each of the others. `GET /api/auth/passkey/generate-authenticate-options?rpId=<host>` asks for one of them.
 - A passkey sign-in asks for no second step: the passkey is something you have and something you are or know.
-- A session of any age adds a first passkey. Adding another to an account with a passkey or a [second step](#two-factor-authentication), from a session that signed in more than a day ago, asks to [confirm it's them](#confirming-an-account-change) first, and the account page asks for it in place.
+- Adding a passkey from a session that signed in more than a day ago asks to [confirm it's them](#confirming-an-account-change) first, and the account page asks for it in place; for a first passkey, on an account without a [second step](#two-factor-authentication), the account's password does too.
 - Passkeys can be renamed and removed on the account page; removing one here leaves it on the device.
 
 ## Two-factor authentication
@@ -378,7 +378,7 @@ On their account page, people turn on a second step after a password or an email
 - **Authenticator app:** the page shows a QR code (and the key, to type in), the person confirms it with a code from the app, and gets ten backup codes that each work once instead of a code. New backup codes replace the old ones.
 - **Emailed code:** with mail configured, a 6-digit code mailed at each sign-in, valid for 10 minutes. An account with an app can also choose an emailed code at sign-in. Backup codes come with the app only.
 
-Turning it on, off, or making new backup codes asks for the account's password when it has one. At sign-in, a correct password or code answers `{ "twoFactorRedirect": true, "twoFactorMethods": ["totp", "otp"] }` instead of a session, and `POST /api/auth/two-factor/verify-totp`, `verify-otp` or `verify-backup-code` with `{ code, trustDevice? }` finishes it; `trustDevice` skips the step in that browser for 30 days. Ten wrong codes in a row lock the account's second step for 15 minutes.
+Turning it on, off, or making new backup codes asks for the account's password when it has one. Without one, turning it on from a session that signed in more than a day ago, on an account without a passkey, asks to [confirm it's them](#confirming-an-account-change) first. At sign-in, a correct password or code answers `{ "twoFactorRedirect": true, "twoFactorMethods": ["totp", "otp"] }` instead of a session, and `POST /api/auth/two-factor/verify-totp`, `verify-otp` or `verify-backup-code` with `{ code, trustDevice? }` finishes it; `trustDevice` skips the step in that browser for 30 days. Ten wrong codes in a row lock the account's second step for 15 minutes.
 
 Sign-in with GitHub or another [provider](#sign-in-with-github) is not asked for the second step.
 
@@ -404,9 +404,12 @@ An account with neither a passkey nor a second step has nothing stronger to conf
 
 Better Auth's own check of a fresh session, which could only be met by signing out and in again, is off (`freshAge: 0`). In its place, a session that signed in more than a day ago confirms it's them in place, as above, before a change that needs it, else the change is `403 STRONG_SIGN_IN_REQUIRED`; the confirmation counts for 15 minutes:
 
-- adding a passkey to an account that has a passkey or a second step (a first passkey needs none);
+- adding a passkey;
+- turning on [two-factor authentication](#two-factor-authentication) on an account without a password, a passkey or a second step (an account with a password gives it instead);
 - unlinking a sign-in provider (`/unlink-account`);
 - [deleting the account](#deleting-the-account) without a password.
+
+An account with neither a passkey nor a second step has no strong sign-in to confirm with but an [emailed code](#emailed-confirmation-code), so for its first passkey it may give its password instead, where the account page asks: `POST /api/auth/account/confirm-password` with `{ password }`, `session.account.confirmWithPassword(password)` in the client. It counts for adding that passkey only, within 15 minutes, and is no strong sign-in: a [strong sign-in field](/reference/data-config/#recent-strong-sign-in) still asks for one. A wrong password is `INVALID_PASSWORD`, and every try counts toward the account's [password checks](#name-password-and-devices); an account with a passkey or a second step is refused (`403 PASSWORD_CONFIRMATION_NOT_OFFERED`), and so is a [staff session](#staff-sign-in).
 
 Listing the account's devices (`/list-sessions`) needs no confirmation.
 

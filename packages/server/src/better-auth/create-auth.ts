@@ -61,6 +61,7 @@ import { staffSignInPlugin } from './staff-plugin'
 import { strongSignInsPlugin } from './strong-sign-ins'
 import { recentConfirmationPlugin } from './recent-confirmation'
 import { confirmationCodePaths, confirmationCodePlugin } from './confirmation-code-plugin'
+import { passwordConfirmationPath, passwordConfirmationPlugin } from './password-confirmation'
 import { tokenClaims } from './token-claims'
 import { twoFactorAfterPasswordOrCode } from './two-factor-challenge'
 import { metadataField, userFieldsNamed, userModel, userTable, withUserColumns, type UserTableOptions } from './user-table'
@@ -415,6 +416,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]!, origins: appOrigins(options.baseURL, origins) }),
       strongSignInsPlugin(),
       recentConfirmationPlugin(),
+      passwordConfirmationPlugin(),
       ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail), confirmationCodePlugin(mail)] : []),
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail, defaultPolicy: signInPolicy })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
@@ -486,6 +488,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         [signUpPaths.create]: { window: 60, max: options.signInPerMinute ?? 5 },
         [confirmationCodePaths.send]: { window: 60, max: 5 },
         [confirmationCodePaths.verify]: { window: 60, max: 5 },
+        [passwordConfirmationPath]: { window: 60, max: 5 },
       },
     },
     advanced: {

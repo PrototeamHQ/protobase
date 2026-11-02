@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { expect, fn, userEvent, within } from 'storybook/test'
-import { AuthError, type SignInPolicyState, type StaffSignIn } from '@protobase/client'
+import { AuthError, createStaticSession, type AuthSession, type SignInPolicyState, type StaffSignIn } from '@protobase/client'
+import { AuthProvider } from '../auth/auth-provider'
 import { BackupCodes } from './backup-codes'
 import { ConnectedAppsSection, type ConnectedAppsSectionProps } from './connected-apps-section'
 import { PasskeysSection, type PasskeysSectionProps } from './passkeys-section'
@@ -51,6 +52,44 @@ export const PasskeysConfirmInPlace: StoryObj<PasskeysSectionProps> = {
     const step = within(await canvas.findByRole('region', { name: "Confirm it's you" }))
     expect(step.getByText("This change needs you to confirm it's you in the last 15 minutes.")).toBeVisible()
     expect(canvasElement.textContent).not.toMatch(/sign out and sign in again/i)
+  },
+}
+
+// An account with a password and neither a passkey nor a second step, which confirms its first passkey with the password.
+const passwordSession = createStaticSession('story-token', { id: 'story', email: 'story@example.test', name: 'Story User', role: 'user' })
+const firstPasskeySession: AuthSession = {
+  ...passwordSession,
+  account: {
+    ...passwordSession.account,
+    signInMethods: async () => ({ ...(await passwordSession.account.signInMethods()), account: { password: true, passkeys: 0, twoFactor: false, authenticatorApp: false } }),
+    confirmWithPassword: async (password) => {
+      if (password !== 'correct horse battery') throw new AuthError('The password is not right.', 400, 'INVALID_PASSWORD')
+    },
+  },
+}
+
+/** A first passkey from an older session: the account's password confirms it's them in place. */
+export const FirstPasskeyConfirmsWithPassword: StoryObj<PasskeysSectionProps> = {
+  tags: ['play'],
+  args: { rule: 'allowed', passkeys: [], ...changes, onAdd: fn(async () => Promise.reject(new AuthError("Confirm it's you first", 403, 'STRONG_SIGN_IN_REQUIRED'))) },
+  render: (args) => (
+    <QueryClientProvider client={new QueryClient()}>
+      <AuthProvider session={firstPasskeySession}>
+        <PasskeysSection {...args} />
+      </AuthProvider>
+    </QueryClientProvider>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Add a passkey' }))
+    const step = within(await canvas.findByRole('region', { name: "Confirm it's you" }))
+    await userEvent.type(await step.findByLabelText('Your password'), 'not the password')
+    await userEvent.click(step.getByRole('button', { name: 'Confirm' }))
+    expect(await step.findByRole('alert')).toHaveTextContent('The password is not right.')
+    await userEvent.clear(step.getByLabelText('Your password'))
+    await userEvent.type(step.getByLabelText('Your password'), 'correct horse battery')
+    await userEvent.click(step.getByRole('button', { name: 'Confirm' }))
+    expect(await canvas.findByText('Confirmed. Add the passkey now.')).toBeVisible()
   },
 }
 

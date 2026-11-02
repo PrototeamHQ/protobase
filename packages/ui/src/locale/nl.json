@@ -301,6 +301,7 @@
     "confirmWhyChange": "Deze wijziging vraagt dat je in de laatste {minutes} minuten bevestigt dat jij het bent.",
     "usePasskey": "Passkey gebruiken",
     "authenticatorCode": "Code uit je authenticator-app",
+    "password": "Je wachtwoord",
     "confirm": "Bevestigen",
     "emailCode": "Mail me een code",
     "codeSent": "We hebben je een code gemaild. Hij werkt {minutes} minuten.",

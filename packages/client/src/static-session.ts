@@ -49,6 +49,7 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     newBackupCodes: unsupported('make backup codes'),
     sendConfirmationCode: unsupported('email a confirmation code'),
     confirmWithCode: unsupported('confirm with a code'),
+    confirmWithPassword: unsupported('confirm with a password'),
     linkedProviders: async () => [],
     linkProvider: unsupported('link a sign-in provider'),
     linkedPersonalMail: async () => [],

@@ -301,6 +301,7 @@
     "confirmWhyChange": "This change needs you to confirm it's you in the last {minutes} minutes.",
     "usePasskey": "Use a passkey",
     "authenticatorCode": "Code from your authenticator app",
+    "password": "Your password",
     "confirm": "Confirm",
     "emailCode": "Email me a code",
     "codeSent": "We emailed you a code. It works for {minutes} minutes.",

@@ -16,6 +16,7 @@ const checkedFields: Record<string, 'password' | 'currentPassword'> = {
   '/two-factor/disable': 'password',
   '/two-factor/get-totp-uri': 'password',
   '/two-factor/generate-backup-codes': 'password',
+  '/account/confirm-password': 'password',
 }
 
 /**

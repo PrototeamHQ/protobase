@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { AuthError, type AuthenticatorSetup } from '@protobase/client'
+import { confirmationMinutes } from '@protobase/schema/internal'
+import { ConfirmSignIn } from '../app/confirm-sign-in'
 import { authMessage } from '../auth/auth-messages'
 import { cn } from '../lib/cn'
 import { Button } from '../primitives/button'
@@ -39,16 +41,20 @@ export const TwoFactorSetup = ({ offerEmailedCodes, needsPassword, onStartApp, o
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  // Turning it on without a password asks an older session to confirm it's them first, in place.
+  const [confirming, setConfirming] = useState(false)
   const offered = offerEmailedCodes ? choices() : choices().filter((option) => option.value === 'app')
 
   const attempt = async (action: () => Promise<void>) => {
     setBusy(true)
     setError(undefined)
+    setConfirming(false)
     try {
       await action()
     } catch (failure) {
       if (!(failure instanceof AuthError)) throw failure
-      setError(authMessage(failure))
+      if (failure.code === 'STRONG_SIGN_IN_REQUIRED') setConfirming(true)
+      else setError(authMessage(failure))
     }
     setBusy(false)
   }
@@ -122,43 +128,47 @@ export const TwoFactorSetup = ({ offerEmailedCodes, needsPassword, onStartApp, o
   }
 
   return (
-    <form
-      className="flex flex-col gap-4"
-      onSubmit={(event) => {
-        event.preventDefault()
-        void start()
-      }}
-    >
-      <div role="radiogroup" aria-label={text('secondStep')} className="flex flex-col gap-2">
-        {offered.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={choice === option.value}
-            onClick={() => setChoice(option.value)}
-            className={cn('rounded-md border p-3 text-left transition-colors', choice === option.value ? 'border-primary bg-primary-soft' : 'border-border-strong hover:bg-muted')}
-          >
-            <span className="block font-medium">{option.label}</span>
-            <span className="mt-0.5 block text-xs text-muted-foreground">{option.description}</span>
-          </button>
-        ))}
-      </div>
-      {needsPassword && (
-        <label className="flex flex-col gap-1.5 font-medium">
-          {text('yourPassword')}
-          <Input type="password" name="password" autoComplete="current-password" required value={password} invalid={Boolean(error)} onChange={(event) => setPassword(event.target.value)} className="min-h-6" />
-        </label>
-      )}
-      {errorLine}
-      <Button variant="primary" type="submit" loading={busy} className="min-h-10">
-        {text('continue')}
-      </Button>
-      {onCancel && (
-        <Button variant="ghost" onClick={onCancel} className="min-h-10">
-          {text('cancel')}
+    <>
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void start()
+        }}
+      >
+        <div role="radiogroup" aria-label={text('secondStep')} className="flex flex-col gap-2">
+          {offered.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={choice === option.value}
+              onClick={() => setChoice(option.value)}
+              className={cn('rounded-md border p-3 text-left transition-colors', choice === option.value ? 'border-primary bg-primary-soft' : 'border-border-strong hover:bg-muted')}
+            >
+              <span className="block font-medium">{option.label}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">{option.description}</span>
+            </button>
+          ))}
+        </div>
+        {needsPassword && (
+          <label className="flex flex-col gap-1.5 font-medium">
+            {text('yourPassword')}
+            <Input type="password" name="password" autoComplete="current-password" required value={password} invalid={Boolean(error)} onChange={(event) => setPassword(event.target.value)} className="min-h-6" />
+          </label>
+        )}
+        {errorLine}
+        <Button variant="primary" type="submit" loading={busy} className="min-h-10">
+          {text('continue')}
         </Button>
-      )}
-    </form>
+        {onCancel && (
+          <Button variant="ghost" onClick={onCancel} className="min-h-10">
+            {text('cancel')}
+          </Button>
+        )}
+      </form>
+      {/* Outside the form, since the confirmation has forms of its own. */}
+      {confirming && <ConfirmSignIn purpose="change" minutes={confirmationMinutes} onConfirmed={() => void start()} />}
+    </>
   )
 }
