@@ -56,8 +56,6 @@ import { changesSchema, type EventsOptions } from './changes/events-options'
 import { appOrigin } from './comments/app-origin'
 import { betterAuthCommentUsers, type CommentUsers } from './comments/comment-users'
 import { mentionJob } from './comments/mention-job'
-import { commentsResource, commentsView } from './comments/record-comments'
-import { activityResource, activityView } from './history/activity'
 import { betterAuthActorNames } from './history/actor-names'
 import { historyDays, type HistoryOptions } from './history/options'
 import { pruneHistoryJob } from './history/prune-history'
@@ -134,7 +132,7 @@ import { createScanGuard } from './scan-guard'
 import type { AdminOptions } from './admin-options'
 import type { Deps } from './deps'
 import type { Admin, AdminEnv, Authenticator, PageSource, Session, ViewSource } from './types'
-import { failedJobs, failedJobsView } from './jobs/failed-jobs'
+import { builtInResources } from './built-in-resources'
 import type { JobDefinition } from './jobs/job-types'
 
 export type CreateAdminInput = {
@@ -227,17 +225,12 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const appModels = appResources.map((resource) => resource.toModel())
   const withComments = appModels.some((model) => model.comments)
   const withAiFields = hasAiFields(appModels)
-  const withJobs = jobs.length > 0 || appModels.some(isCaptured) || withComments || withAiFields || notifications !== undefined
   const withHistory = appModels.some((model) => model.history)
   const changes = changesSchema(events)
   const days = historyDays(historyOptions)
-  const resources = [
-    ...appResources,
-    ...(withJobs ? [failedJobs] : []),
-    ...(withHistory ? [activityResource(changes, { tenant: appModels.some((model) => model.history && model.tenant) })] : []),
-    ...(withComments ? [commentsResource({ tenant: appModels.some((model) => model.comments && model.tenant) })] : []),
-  ]
-  const views = [...appViews, ...(withJobs ? [failedJobsView] : []), ...(withHistory ? [activityView] : []), ...(withComments ? [commentsView] : [])]
+  const builtIn = builtInResources({ models: appModels, jobs: jobs.length > 0, notifications: notifications !== undefined, ...(events && { events }) })
+  const resources = [...appResources, ...builtIn.resources]
+  const views = [...appViews, ...builtIn.views]
   const commentUsers = withComments ? (givenCommentUsers ?? (auth && betterAuthCommentUsers(auth))) : undefined
   const mentions = withComments ? mentionJob(commentUsers, shownAppName(auth, globalThis.process?.env ?? {})) : undefined
   const registry = buildRegistry(resources)

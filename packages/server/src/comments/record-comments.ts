@@ -18,7 +18,7 @@ export const commentsResource = ({ tenant }: { tenant: boolean }) => {
       author_id: f.text().readOnly().filterable(),
       body: f.text().readOnly(),
       mentions: f.json().readOnly(),
-      created_at: f.timestamp().readOnly().filterable(),
+      created_at: f.timestamp().readOnly().dbDefault().filterable(),
     })
     .primaryKey((r) => r.id)
     .access({ list: admins, read: admins, create: () => false, update: () => false, delete: admins })
