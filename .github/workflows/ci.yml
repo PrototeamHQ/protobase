@@ -72,7 +72,8 @@ jobs:
       - run: bun run features:check --release-rule
       # A push to main, which the release workflow checks, or to an fm/** branch runs only the tests and steps its
       # changes affect (scripts/affected-tests.mjs, see CONTRIBUTING.md): on main the changes since the last release, on
-      # a branch those since it left development. Without CHECK_BASE, as on a pull request or a run by hand, everything runs.
+      # a branch those since it forked from development or main, whichever is later, as the commits are linted. Without
+      # CHECK_BASE, as on a pull request or a run by hand, everything runs.
       - &check-base
         name: Find the commit the push's changes count from
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
@@ -84,6 +85,8 @@ jobs:
             if [ -z "$base" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then base=$BEFORE; fi
           else
             base=$(git merge-base origin/development HEAD)
+            main=$(git merge-base origin/main HEAD)
+            if git merge-base --is-ancestor "$base" "$main"; then base=$main; fi
           fi
           echo "CHECK_BASE=$base" >> "$GITHUB_ENV"
       - run: bun run check:unit
