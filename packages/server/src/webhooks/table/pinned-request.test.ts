@@ -61,7 +61,7 @@ describe('pinnedRequest', () => {
 
   it('refuses a host with a private address among its addresses, naming the host but no header or body', async () => {
     const own = await listen('127.0.0.1')
-    for (const addresses of [['10.0.0.1'], ['93.184.216.34', '127.0.0.1'], ['93.184.216.34', '::ffff:7f00:1']]) {
+    for (const addresses of [['10.0.0.1'], ['93.184.216.34', '127.0.0.1'], ['93.184.216.34', '::ffff:7f00:1'], ['::ffff:127.0.0.1'], ['0.0.0.0'], ['::'], ['169.254.169.254'], ['fd00::1'], ['fe80::1'], ['::ffff:10.0.0.1'], ['100.64.0.1'], ['224.0.0.1'], ['240.0.0.1'], ['255.255.255.255']]) {
       const error = await pinnedRequest(`http://hook.test:${own.port}/`, post, { resolve: answering(addresses).resolve }).catch((caught: unknown) => caught)
       expect(error).toBeInstanceOf(AddressRefusedError)
       expect((error as Error).message).toMatch(/^hook\.test is a private address/)
