@@ -103,11 +103,16 @@ jobs:
           tar tzf "$(grep -o '[^ ]*protobase-cli-[^ ]*\.tgz' "$RUNNER_TEMP/pack.log")" > "$RUNNER_TEMP/cli-files.txt"
           grep -qx 'package/skills/protobase/references/reference/access.md' "$RUNNER_TEMP/cli-files.txt"
 
-  # The integration, smoke and end-to-end tests, on Postgres, beside check.
+  # The integration, smoke and end-to-end tests, on Postgres, beside check, as 2 legs that each run about half of the
+  # selected test files (scripts/affected-tests.mjs --shard); the first also runs the smoke test on Node.
   integration:
     if: github.event_name != 'schedule'
+    name: integration ${{ matrix.shard }}/2
+    strategy:
+      matrix:
+        shard: [1, 2]
     concurrency:
-      group: integration-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      group: integration-${{ matrix.shard }}-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     # The integration tests' Postgres, as docker-compose.yml runs it locally: same image and user. Its host port is a free
@@ -154,10 +159,13 @@ jobs:
       # A self-hosted runner has no root to install Chromium's system packages, so its server provides them.
       - run: bun x --bun playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
       - *check-base
-      - run: bun run check:integration
-      # check:integration ran the smoke test on Bun; the CLI is supported on Node as well, so it runs there too.
+      # `bun run check:integration`, each command on this leg's shard.
+      - run: bun scripts/affected-tests.mjs --project 'integration*' --shard ${{ matrix.shard }}/2
+      - run: bun scripts/affected-tests.mjs --project e2e --shard ${{ matrix.shard }}/2
+      # A leg ran the smoke test on Bun; the CLI is supported on Node as well, so it runs there too.
       - *setup-node
-      - run: node --run test:smoke
+      - if: matrix.shard == 1
+        run: node --run test:smoke
 
   # Storybook built, its play tests and layout snapshots, and the documentation site built and checked, as two jobs
   # beside check: a push runs them when its changes reach them (scripts/affected-site.mjs); a pull request and a run by
