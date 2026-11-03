@@ -7,6 +7,7 @@ import { retryAfterMs } from './retry-schedule'
 import { standardWebhookHeaders } from './standard-webhooks'
 import { subscriberSession } from './subscriber-view'
 import { AddressRefusedError, pinnedRequest, type Resolve } from './table/pinned-request'
+import { readLimited } from './table/read-limited'
 import type { SentOptions, SubscriptionDefinition, SubscriptionEvent } from './subscription'
 
 /** How one try went. `final` failures are not tried again: the receiver said the endpoint is gone (`410`). */
@@ -30,23 +31,10 @@ export type AttemptContext = {
 /** How long a receiver has to answer. */
 export const attemptTimeoutMs = 15_000
 
-/** How much of a failing answer is read; the rest is cancelled, so a receiver that never stops writing costs no more. */
+/** How much of a failing answer is read; the rest is cancelled. */
 export const excerptBytes = 4096
 
-const excerpt = async (response: Response) => {
-  const reader = response.body?.getReader()
-  if (!reader) return ''
-  const chunks: Uint8Array[] = []
-  let read = 0
-  while (read < excerptBytes) {
-    const { done, value } = await reader.read()
-    if (done) break
-    chunks.push(value)
-    read += value.length
-  }
-  await reader.cancel()
-  return new TextDecoder().decode(Buffer.concat(chunks).subarray(0, excerptBytes)).slice(0, 200)
-}
+const excerpt = async (response: Response) => new TextDecoder().decode(await readLimited(response, excerptBytes)).slice(0, 200)
 
 // 2xx is a success, anything else a failure: a redirect too, since a webhook is not followed elsewhere.
 const resultOf = async (response: Response): Promise<AttemptResult> => {
