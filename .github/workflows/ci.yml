@@ -221,13 +221,13 @@ jobs:
         run: bun run docs:check
 
   # The real-Postgres tests beyond what every push needs (`bun run test:postgres`): the ERP at medium scale and the
-  # planner's statistics on it, and the jobs and event delivery through PgBouncer. A push runs it when its snapshot
-  # recordings differ from those at CHECK_BASE, or when it changes what recordings cannot show (`postgresSuite`,
-  # scripts/affected-postgres.mjs); a pull request, a run by hand and the weekly run always do. It runs after `record`,
-  # whose answer it needs, whatever `record` found. A release runs it in full as `postgres-full` instead.
+  # planner's statistics on it, and the jobs and event delivery through PgBouncer. A push runs it when its committed
+  # snapshot recordings differ from those at CHECK_BASE (scripts/affected-recordings.mjs), or when it changes what
+  # recordings cannot show (`postgresSuite`, scripts/affected-postgres.mjs); a pull request, a run by hand and the
+  # weekly run always do. It starts beside `record`, which fails when recording again would change a recording. A
+  # release runs it in full as `postgres-full` instead.
   postgres:
-    needs: record
-    if: ${{ !cancelled() && !inputs.postgres }}
+    if: ${{ !inputs.postgres }}
     concurrency:
       group: postgres-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
@@ -255,11 +255,14 @@ jobs:
         with:
           bun-version: 1.4.4
       - *check-base
+      - name: Find whether the recordings differ from those the push's changes count from
+        id: recordings
+        run: bun scripts/affected-recordings.mjs
       - name: Find whether the changes reach the Postgres suite
         id: postgres
         env:
           POSTGRES_FULL: 'false'
-          RECORDINGS: ${{ needs.record.outputs.recordings }}
+          RECORDINGS: ${{ steps.recordings.outputs.recordings }}
         run: bun scripts/affected-postgres.mjs
       - &postgres-install
         if: steps.postgres.outputs.run == 'true'
@@ -314,7 +317,7 @@ jobs:
         run: docker rm --force "$PGBOUNCER" || true
 
   # The Postgres suite in full, as the last fail-safe before a release (the release workflow's `postgres: true`), with
-  # the same steps as `postgres`. It needs no answer from `record`, so it starts beside the other checks.
+  # the same steps as `postgres`.
   postgres-full:
     if: ${{ inputs.postgres }}
     concurrency:
@@ -347,11 +350,8 @@ jobs:
   # same queries differently (a schema, fixture or Postgres change), which replay alone cannot see, and fails the job;
   # the new recordings are uploaded to commit. A push runs it when it changes what the recordings are made from
   # (scripts/affected-snapshots.mjs); a pull request, a run by hand and the weekly run, for a moved postgres:18, always do.
-  # It tells the Postgres job whether the recordings changed. It runs beside check, on a runner of its own, and in a
-  # release beside the full Postgres suite, which still waits for it before the release is cut.
+  # It runs beside check, on a runner of its own, and the release waits for it before the release is cut.
   record:
-    outputs:
-      recordings: ${{ steps.recordings.outputs.recordings }}
     concurrency:
       group: record-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
@@ -415,10 +415,6 @@ jobs:
         env:
           SUPABASE_POSTGRES: supabase-postgres-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$SUPABASE_POSTGRES" || true
-      # For the Postgres job, which skips its suite when no recording differs from those at CHECK_BASE.
-      - name: Find whether the recordings differ from those the push's changes count from
-        id: recordings
-        run: bun scripts/affected-recordings.mjs
       # New recordings count as changes too.
       - if: always() && steps.snapshots.outputs.run == 'true'
         name: Find whether a recording differs from the committed one
