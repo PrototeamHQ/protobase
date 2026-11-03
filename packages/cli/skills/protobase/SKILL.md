@@ -101,6 +101,7 @@ Reference:
 - When using components and action handlers of your own in layouts → read [Custom components](references/reference/custom-components.md)
 - When building or loading plugins → read [Plugins](references/reference/plugins.md)
 - When using resources another Protobase API serves → read [Remote resources](references/reference/remote-resources.md)
+- When an app keeps tables its users add in its own database (`userTables`) → read [User tables](references/reference/user-tables.md)
 - When setting the app's tokens, colors and fonts → read [Theme](references/reference/theme.md)
 - When setting the app's name, icon, home-screen icons or install colours → read [App identity](references/reference/app-identity.md)
 - When showing the app's screens in Dutch → read [Languages](references/reference/languages.md)
