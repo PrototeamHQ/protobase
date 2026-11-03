@@ -24,6 +24,8 @@ export type AccessContext = {
   organization?: {
     /** The organization's id. */
     id: string | number
+    /** The caller's organization role there, read from the auth store for this request; absent for someone who is no member. */
+    role?: 'owner' | 'admin' | 'member'
   }
   /** Set by the resolver; scoped capabilities (`.own`) need `model.owner`. */
   model?: ResourceModel

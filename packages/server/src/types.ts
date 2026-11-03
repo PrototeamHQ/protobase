@@ -10,8 +10,11 @@ export type TenantValue = string | number
 
 export type User = { id: string | number; roles: string[] }
 
-/** The organization a request works in, with organizations on: the same value as `tenant`. */
-export type SessionOrganization = { id: TenantValue }
+/**
+ * The organization a request works in, with organizations on: the same value as `tenant`, and the caller's organization
+ * role there, read from the store for this request; absent for someone who is no member there.
+ */
+export type SessionOrganization = { id: TenantValue; role?: 'owner' | 'admin' | 'member' }
 
 /** A tenant the person is a member of, with the roles they act with there. */
 export type Membership = { tenant: TenantValue; roles: string[] }

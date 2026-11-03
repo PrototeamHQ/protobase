@@ -66,9 +66,27 @@ describe('checkTokenStanding', () => {
   })
 })
 
+describe('the organization role a token works with', () => {
+  const roleOf = (member: Record<string, unknown>[], roles = ['sales']) =>
+    checkTokenStanding(contextWith({ user: [{ ...alice, role: 'user' }], member }), { userId: 'alice', roles, organizationId: '1' }, true, now).then((standing) => standing.organizationRole)
+
+  it('is read from the member row on every check, so a demotion counts at once', async () => {
+    const member = { organizationId: '1', userId: 'alice', role: 'admin', appRoles: ['sales'] }
+    expect(await roleOf([member])).toBe('admin')
+    expect(await roleOf([{ ...member, role: 'member' }])).toBe('member')
+    expect(await roleOf([{ ...member, role: 'member,owner' }])).toBe('owner')
+  })
+
+  it('is absent for a global role working in an organization it is no member of, and without organizations', async () => {
+    const entered = await checkTokenStanding(contextWith({ user: [alice], organization: [{ id: '1' }] }), { userId: 'alice', roles: ['admin'], organizationId: '1' }, true, now)
+    expect(entered.organizationRole).toBeUndefined()
+    expect((await checkTokenStanding(contextWith({ user: [alice] }), { userId: 'alice', roles: ['admin'] }, false, now)).organizationRole).toBeUndefined()
+  })
+})
+
 describe('the sign-in a token stands for', () => {
   const signIn = (row: Record<string, unknown>, claims: Partial<Parameters<typeof checkTokenStanding>[1]> = { sessionId: 's1' }) =>
-    checkTokenStanding(contextWith({ user: [alice], session: [row] }), { userId: 'alice', roles: ['admin'], ...claims }, false, now)
+    checkTokenStanding(contextWith({ user: [alice], session: [row] }), { userId: 'alice', roles: ['admin'], ...claims }, false, now).then((standing) => standing.signIn)
 
   it('is the user\'s own when the session row names no staff, and staff\'s when it does', async () => {
     expect(await signIn({ ...session, impersonatedBy: null })).toEqual({ session: 's1', staff: false, strongAt: expect.any(Function) })
@@ -80,7 +98,7 @@ describe('the sign-in a token stands for', () => {
     const findVerificationValue = async (identifier: string) => (identifier === 'protobase-strong-sign-in-s1' ? proved : null)
     const context = { ...contextWith({ user: [alice], session: [{ ...session, impersonatedBy: null }] }), internalAdapter: { findVerificationValue } } as unknown as AuthContext
     const own = await checkTokenStanding(context, { userId: 'alice', roles: ['admin'], sessionId: 's1' }, false, now)
-    expect(await own?.strongAt?.()).toEqual(new Date('2026-08-01T11:50:00.000Z'))
+    expect(await own.signIn?.strongAt?.()).toEqual(new Date('2026-08-01T11:50:00.000Z'))
   })
 
   it('is unknown for a row read without the staff field, and for a token without a session', async () => {
