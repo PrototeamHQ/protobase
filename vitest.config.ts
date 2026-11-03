@@ -55,7 +55,7 @@ const realPostgres = ['packages/*/tests/**/*.postgres.test.ts', 'tests/{changes,
 const smoke = ['tests/smoke/**/*.test.ts']
 // Real Postgres beyond what every push needs: the ERP's medium seed and the planner's statistics on its million rows,
 // and the job queue and event delivery through PgBouncer. `bun run test:postgres`, after `bun run test:db postgres`; CI
-// runs it when SQL or the Postgres setup changes, and weekly.
+// runs it when SQL or the Postgres setup changes, and nightly.
 const postgresSuite = ['tests/postgres/**/*.test.ts']
 // The presets written out and installed with bun from npm, migrated on a tenant-style role: `bun run test:presets`.
 const presets = ['packages/presets/tests/**/*.test.ts']
