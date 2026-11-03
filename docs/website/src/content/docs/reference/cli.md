@@ -468,6 +468,7 @@ An Android or iOS app built with `mobile.publicKey` updates itself from the serv
 A host that serves bundles without running their config, such as a router in front of many apps or a static host, serves the same release from the files it already serves with `@protobase/server/mobile-release`, which loads none of the rest of the server: `protobase serve` composes its own release with the same exports.
 
 - `nativeFingerprint(native, plugins)`: the release's fingerprint, from the manifest's `native` (or that of the shell the host serves) and `mobile.plugins`. It is a contract across versions: a binary one Protobase release built is matched by a host that runs another.
+- `releaseOrder({ builtAt, shell })`: the order a release signs, from the manifest's build time and that of the server's own shell the host serves in its place, `[builtAt, 0]` with the bundle's copy; `undefined` when either names no build time.
 - `withApiOrigin(html, origin)`: the `spa` page naming the API origin, the app's `url`.
 - `composeRelease(files, signing?)`: the release of `{ href, content }` files, every file the host serves the web with the page above in place of `spa`, with its id and, with `signing`, `{ key, binding: { order, appId, fingerprint, shellVersion } }`, `appId` the manifest's `mobile.appId`, the signed checksums and statement.
 - `readSigningKey(env)`: the signing key in `PROTOBASE_MOBILE_SIGNING_KEY` of the env object given, the app's own, never the process's.

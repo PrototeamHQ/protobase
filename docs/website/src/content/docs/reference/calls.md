@@ -116,11 +116,12 @@ await call.publish({ camera: media.getVideoTracks()[0], microphone: media.getAud
 
 | | |
 | --- | --- |
-| `publish(tracks, { simulcast })` | Sends tracks under their sources; rejects when the member may not. With `simulcast` and LiveKit, video goes in three sizes. |
+| `publish(tracks, { simulcast })` | Sends tracks under their sources; rejects with `PublishRefused`, exported beside `joinCall`, when the member may not. With `simulcast` and LiveKit, video goes in three sizes. |
 | `unpublish(source)` | Stops sending the source; the track itself goes on until the page stops it. |
 | `mute(source, muted)` | Mutes or unmutes a sent track; the others see `muted` on it. |
 | `view(sids, { width, height })` | With LiveKit: how large the page shows remote video, so it receives the size that fits; `'hidden'` receives none. |
 | `restartIce()` | New network paths, such as after a network change; a failed connection restarts by itself. |
+| `connections()` | How each of the member's connections fares now, to each other member peer-to-peer or to the media server with LiveKit: `{ member?, state, roundTripMs?, lostRatio? }`, the round trip and the share of received media lost once connected. |
 | `leave()` | Leaves the call. |
 
 `call.id` is the call, as the record's calls list it and `calls.remove` takes it. `onSpeakers` gets who speaks how loudly, and `onUnpublished` a source the media server stopped, such as after the member lost the right to send.

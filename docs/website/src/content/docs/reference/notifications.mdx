@@ -209,7 +209,7 @@ export const PushButton = () => {
 - Call `turnOn` straight from a click. The browser asks for permission then, and only then: without a click nothing happens, and push is never turned on when a page loads. Once the user said no, `turnOn` does not ask again and answers `blocked`. `state` is read again on a return to the page and when the browser says the permission changed, so it turns from `blocked` to `off` once the user allows notifications.
 - Only someone signed in as themselves can turn push on: a visitor's click and staff signed in as the user do nothing.
 - On iPhone and iPad, push works in the app added to the Home Screen; a browser tab answers `unsupported`.
-- Signing out turns push off in this browser, and so does someone else signing in on it: what the browser showed is closed, the app's badge cleared, and the device removed. Signing in again as the same user keeps it on.
+- Signing out turns push off in this browser, and so does someone else signing in on it: what the browser showed is closed, the app's badge cleared, and the device removed. Signing in again as the same user keeps it on. Each push names the user its device is registered for, and the browser shows nothing of a push for another user than the one it holds push for.
 - A tap on a notification whose url is on your app's origin opens that page in the app, in an open window of it or a new one; any other url opens in a new tab.
 
 `protobase serve` and `protobase dev` both serve the service worker that shows notifications, `protobase dev` only when the app has `notifications`.
