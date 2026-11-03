@@ -275,6 +275,7 @@ jobs:
           POSTGRES_FULL: 'false'
           RECORDINGS: ${{ steps.recordings.outputs.recordings }}
         run: bun scripts/affected-postgres.mjs
+      # The gates above load no package (scripts/affected/install-free.test.ts), so a push the suite skips installs nothing.
       - &postgres-install
         if: steps.postgres.outputs.run == 'true'
         run: bun install --frozen-lockfile
