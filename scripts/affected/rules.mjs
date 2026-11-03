@@ -83,7 +83,7 @@ export const edges = [
   // The browser clients the e2e tests bundle.
   { from: ['tests/e2e/support/bundle-client.ts'], loads: ['tests/e2e/support/browser-client.ts', 'tests/e2e/support/sources-client.ts'] },
   // The release scripts the release tests run.
-  { from: ['tests/release/release.test.ts'], starts: ['scripts/release.mjs'], reads: ['.versionrc.json'] },
+  { from: ['tests/release/release.test.ts'], starts: ['scripts/release.mjs'] },
   { from: ['tests/release/publish-pack.test.ts'], starts: ['scripts/publish.mjs'] },
   // The API reference check, TypeDoc on the schema's entry point with the website's options and link plugin.
   { from: ['tests/docs/api-check.test.ts'], loads: ['packages/schema/src/index.ts', 'docs/website/typedoc-doc-pages.mjs'], reads: ['docs/website/typedoc*.json'] },
