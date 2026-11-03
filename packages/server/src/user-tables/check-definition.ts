@@ -15,6 +15,8 @@ const isFieldType = (type: string): type is DefinitionFieldType => (definitionFi
 // The first thing wrong with a field, against its column; an organization's table keeps its organization column.
 const fieldProblem = (field: StoredField, columns: ReadonlyMap<string, { type: string; notNull: boolean }>, organization: boolean) => {
   if (!isUserTableName(field.name)) return `the field name ${JSON.stringify(field.name)} is not lowercase letters, digits and "_", starting with a letter, at most 63 bytes`
+  // Only an organization's table has an organization column for a field of that name to clash with. The API refuses
+  // the name for every new field (`reservedFieldNames`), but a table of no organization keeps a field it already has.
   if (reservedFields.includes(field.name) || (organization && field.name === organizationColumn)) return `the field name "${field.name}" is reserved`
   if (!isFieldType(field.type)) return `the field "${field.name}" has the type ${JSON.stringify(field.type)}, which is not one of ${definitionFieldTypes.join(', ')}`
   if (field.type === 'decimal' && (field.precision === null || field.scale === null)) return `the decimal field "${field.name}" has no precision and scale`

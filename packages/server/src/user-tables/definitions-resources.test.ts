@@ -58,6 +58,9 @@ describe('the resources over the definitions', () => {
   it.each([`title"; --`, 'Title', 'id', 'etag', 'organization_id', 'order', 'n'.repeat(64)])('refuse the field name %j', (name) => {
     expect(issuesOf(fields, { name, type: 'text', required: false })).toEqual(['name'])
   })
+  it('refuse a new field named organization_id on a table of no organization too', () => {
+    expect(issuesOf(fields, { table_id: 1, name: 'organization_id', type: 'text', required: false })).toEqual(['name'])
+  })
   it('refuse a required field, and a precision or scale a decimal cannot have', () => {
     expect(issuesOf(fields, { name: 'title', type: 'text', required: true })).toEqual(['required'])
     expect(issuesOf(fields, { name: 'price', type: 'decimal', required: false, precision: 12, scale: 2 })).toEqual([])

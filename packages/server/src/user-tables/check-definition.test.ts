@@ -21,6 +21,10 @@ describe('checkDefinition', () => {
     expect(problemOf(checkDefinition(notesDefinition({ fields: [field({ name: 'etag' })], title_field: null }), notesColumns()))).toMatch('the field name "etag" is reserved')
     expect(problemOf(checkDefinition(notesDefinition({ fields: [field({ name: 'body' }), field({ name: 'body' })], title_field: null }), notesColumns()))).toMatch('the field "body" is defined twice')
   })
+  it('keeps a field named organization_id a table of no organization already has', () => {
+    const columns = notesColumns({ notes: { ...Object.fromEntries(notesColumns().get('notes')!), organization_id: column('text') } })
+    expect(problemOf(checkDefinition(notesDefinition({ fields: [...notesDefinition().fields, field({ name: 'organization_id' })] }), columns))).toBeUndefined()
+  })
   it('refuses a type outside the eight, and a decimal without precision and scale', () => {
     expect(problemOf(checkDefinition(notesDefinition({ fields: [field({ name: 'body', type: 'uuid' })], title_field: null }), notesColumns()))).toMatch('has the type "uuid", which is not one of')
     const columns = notesColumns({ prices: { id: column('bigint', true, true), amount: column('numeric') } })
