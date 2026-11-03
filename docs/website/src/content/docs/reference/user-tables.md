@@ -8,16 +8,14 @@ An app's resources usually come from its code: a resource in `config/` over a ta
 ## Tables defined in the database
 
 :::caution[In development]
-The server serves the tables defined in the database, but no screen or API adds one yet, and a definition added while the server runs is served after its next start.
+The server serves the tables defined in the database, but no screen or API adds one yet.
 :::
 
-An app can keep tables its users add in its own database, beside the resources in its code. Each one is served like any other resource, at its own address with its list, record page, search and API.
+An app can keep tables its users add in its own database, beside the resources in its code. Each one is served like any other resource, at its own address with its list, record page, search and API. Every server process serves a new table within a second of it being added.
 
 <gap>Tables users add cannot be used in an app with organizations because keeping their definitions and records per organization is not implemented.</gap>
 
 <gap>Users cannot add a table yet because the screens and the API that create one are not implemented.</gap>
-
-<gap>A definition added while the server runs cannot be served before the server starts again because picking up new definitions while serving is not implemented.</gap>
 
 ### The switch
 
@@ -55,7 +53,7 @@ A table's name and each field's name are lowercase letters, digits and `_`, star
 
 ### How each one is served
 
-When the server starts, it builds a resource from each definition and serves it at `/<table>` and `/<table>/<key>`, with its list, record page, sidebar entry and REST API, and in `/meta`, as the resources in code are. The labels of the definition are the names the admin app shows.
+When the server starts, and whenever the definitions change, it builds a resource from each definition and serves it at `/<table>` and `/<table>/<key>`, with its list, record page, sidebar entry and REST API, and in `/meta`, as the resources in code are. The labels of the definition are the names the admin app shows.
 
 - **Admins only.** Each table starts readable and writable by admins alone, and is left out of role wildcards such as `*.read`, like [resources that need named grants](/reference/access/#resources-that-need-named-grants). Anyone else does not see it.
 - **Filters, sorts and search follow the indexes.** A field can be filtered or sorted by only where an index of its table serves it, and the table is searched on its title field only where a `pg_trgm` index serves that field, as the [scan guard](/reference/config/api/#scanguard) requires.
@@ -63,3 +61,22 @@ When the server starts, it builds a resource from each definition and serves it 
 - **Code wins.** A resource in code with the name of a user table, or a resource Protobase adds, is served instead of the definition, which is then ignored with a warning. This is how a table users added is taken over as code.
 
 [`protobase doctor`](/reference/cli/#doctor) checks each definition against the database as it checks the resources in code, and reports each one it leaves out as an error. [`protobase scaffold`](/reference/cli/#scaffold) leaves out the definitions and the tables in `user_tables` that no resource in code claims, and writes and updates the config of one that a resource claims.
+
+### How a change reaches every process
+
+A definition added, changed or removed is served by every process of `serve` and `dev` within a second, with no restart or deploy. Each process rebuilds its API from the resources in code and the definitions as they are now, and the admin app reads `/meta` again once `X-Meta-Version` changes, as after any change of the app.
+
+- **When a process looks.** `/meta` reads the version of the definitions before it answers. Any other request reads it at most once a second, and once more when its answer would be not found or invalid, as for a resource or field the process does not know yet; it is then answered by the API built anew. The process that makes a change rebuilds at once. A process that receives no request reads nothing, so a database that scales to zero stays asleep.
+- **What a look costs.** The version is one read of `table_definitions.tables`, under a millisecond. Each change of a definition or its fields must raise the definition's `version`; adding and removing a definition change the version on their own.
+- **What a rebuild costs.** A rebuild reads the definitions and the indexes of each table, then builds the API, once per process: requests that need it meanwhile wait for that one rebuild. Requests already running finish on the API they started with, and an open WebSocket keeps the API it opened with.
+
+Measured with six fields per table on one machine running Postgres and the processes:
+
+| Tables users add | Rebuild, one process | Rebuild, each of four processes at once |
+| --- | --- | --- |
+| 10 | under 0.1 s | under 0.1 s |
+| 50 | about 0.1 s | about 0.4 s |
+| 200 | about 0.7 s | about 1.4 s |
+| 500 | about 2.2 s | about 4.5 s |
+
+- **A rebuild that fails.** When the API does not build with the new definitions, the process reports why through `onUnhandledError`, naming what it refused, and keeps serving the API it had, with the resources in code. A definition that does not fit the database is left out with a warning, as at start.
