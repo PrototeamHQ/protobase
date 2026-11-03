@@ -102,6 +102,9 @@ describe.skipIf(!ready)('creating a table users add through the API', () => {
     const listed = await app.call(`/api/v1/notes?filter=${encodeURIComponent('price = 2 AND title != "Beta"')}&order_by=title desc`)
     expect(listed.status).toBe(200)
     expect(((await listed.json()) as { items: { title: string }[] }).items.map((item) => item.title)).toEqual(['Gamma', 'Alpha'])
+    // A long text field's pg_trgm index serves its filter, not a sort.
+    expect((await app.call(`/api/v1/notes?filter=${encodeURIComponent('body = "*x*"')}`)).status).toBe(200)
+    expect((await app.call('/api/v1/notes?order_by=body')).status).toBe(400)
     const searched = await other.call(`/api/v1/notes?filter=${encodeURIComponent('search("amm")')}`)
     expect(((await searched.json()) as { items: { title: string }[] }).items.map((item) => item.title)).toEqual(['Gamma'])
   })

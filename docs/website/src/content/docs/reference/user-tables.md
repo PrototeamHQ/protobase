@@ -87,7 +87,7 @@ Measured with six fields per table on one machine running Postgres and the proce
 Tables and fields are added through the API alone, and are never renamed, retyped or removed.
 :::
 
-Someone with the right capability creates a table with its fields, or adds a field to it, through the app's API. It is created in the database at once, with an index for every field but JSON so its list can be filtered and sorted, and only admins can see it until access is widened.
+Someone with the right capability creates a table with its fields, or adds a field to it, through the app's API. It is created in the database at once, with an index for every field but JSON so its list can be filtered by it, and sorted by it unless it is long text, and only admins can see it until access is widened.
 
 With `userTables: true`, the API has two resources over the definitions, with the standard addresses and routes of the [API](/reference/api/#routes):
 

@@ -64,8 +64,9 @@ const setTitle = async (trx: Db, table: Row) => {
 
 /**
  * Creates in the database what a write of a definition describes, inside its transaction, from the rows as written: a
- * new table, a new field's column and index, the title's search index. Changing a field raises its table's version,
- * which a change of the table raises itself, so every process serves the change. A definition is never deleted.
+ * new table, a new field's column and index, the title's search index. Changing a field raises its table's version, so
+ * every process serves the change; any update of a table, a label or its title, raises it already, as the version column
+ * of the record's ETag (`etagBump` in `records.ts`). A definition is never deleted.
  * `taken` holds the names of the app's resources and those Protobase adds.
  */
 export const definitionsHook = (taken: readonly string[]): PipelineHook => async (event, trx) => {
