@@ -22,7 +22,7 @@ type Run = { action: ActionModel; row: LayoutRecord } | { action: ActionModel; s
  * while one selected row applies, and run on those that do. `prompt` is the question one asks before it runs.
  */
 export const useListActions = (model: ResourceModel) => {
-  const { views } = useAdminMeta()
+  const { views, resources } = useAdminMeta()
   const runner = useActionRunner(model.name, undefined)
   const app = useAppAddress()
   const [asking, setAsking] = useState<Run>()
@@ -34,7 +34,7 @@ export const useListActions = (model: ResourceModel) => {
   }
 
   const rowActions = listed.map((action): RowAction => {
-    const shown = (row: GridRow) => actionFor(action, rowRecord(model, row).record)
+    const shown = (row: GridRow) => actionFor(action, rowRecord(model, row).record, resources)
     const base = { label: (row: GridRow) => shown(row)?.label ?? action.label, destructive: isDanger(action) }
     const run = action.run
     const blocked = (row: GridRow) => runner.blockedOn(action, rowRecord(model, row))

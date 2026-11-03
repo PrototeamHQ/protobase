@@ -80,7 +80,7 @@ Record pages take the same conditions in the `when` of `l.section`, `l.related` 
 | --- | --- |
 | `a.update(name, { label, set, confirm?, icon?, bulk?, inputs? })` | Updates the record with `set`, with its ETag; not offered on a record that holds those values already, unless it asks for `inputs`, whose answers it writes where `set` says `'{name}'`. |
 | `a.remove(name, { label, confirm?, icon? })` | Deletes the record (soft delete when the resource has one). |
-| `a.link(name, { label, to, icon? })` | Goes `to` an [address](#addresses) in the app, with `{field}` in its key, filter, order or create values replaced by the record's value. |
+| `a.link(name, { label, to, icon? })` | Goes `to` an [address](#addresses) in the app, with `{field}` in its key, filter, order or create values replaced by the record's value, and its resource too when that is only `{field}`: see [links to a resource the record names](#links-to-a-resource-the-record-names). |
 | `a.link(name, { label, href, icon? })` | Opens an `href` that leaves the app (`https:`, `mailto:`), with `{field}` replaced by the record's value (percent-encoded); an `https:` or `http:` link opens in a new tab without the referrer. An `href` that is only a field, `'{website}'`, opens the URL the record holds, as it is: see [links to a record's URL](#links-to-a-records-url). A path in the app is refused when the config loads: give it as `to`. |
 | `a.ai(name, { label, prompt, writes, confirm?, icon? })` | Has the model write the field `writes` of the record from `prompt`, `{field}` replaced by the record's values, as the user, on the server; see [AI fields and actions](/reference/ai/#ai-actions). |
 | `a.action(name, { label, confirm?, icon?, bulk?, inputs? })` | Runs the handler the app registers under `name` in [`protobase.ui.tsx`](/reference/custom-components/#action-handlers), after asking for its [`inputs`](/reference/ui-config/#actions-that-ask-for-input) in a dialog when it has some. |
@@ -96,6 +96,16 @@ a.link('source', { label: 'View on {host}', icon: 'external-link', href: '{sourc
 ```
 
 The value is used as it is, not percent-encoded, and must be an absolute `https:` or `http:` URL: on a record whose field is empty or holds anything else the button does not show. It opens in a new tab that gets neither the app's window nor its address. `{host}` in the label becomes the URL's host without `www.`, so the button above reads "View on example.com". The field must be one of the resource's, and the button shows to whoever the view grants the field, a visitor who is not signed in included; for anyone it hides the field from, the action is left out.
+
+### Links to a resource the record names
+
+A link whose address has only a `{field}` as its `resource` goes to the resource that field names, such as a record that describes a table and links to that table's list:
+
+```ts
+a.link('open_table', { label: 'Open table', to: { kind: 'list', resource: '{name}' } })
+```
+
+The button shows only while the app gives the user a resource of that name: on a record whose field is empty, or names a resource the user cannot see or the app does not serve yet, it is left out, and it shows once `/meta` names it. As the resource is known only when the link is followed, such an address takes no filter, order or create values, which the server refuses when it starts; a record's `key` may still be a `{field}`.
 
 ## Addresses
 
