@@ -13,6 +13,12 @@ on:
   workflow_run:
     workflows: [ci, docs, image, pr-title, release-speed]
     types: [completed]
+  # Another app's check suite or commit status that finishes tries the merge again too, as its completion starts no
+  # workflow_run. A pending status runs no job.
+  # status takes no activity types, so every status starts a run; the job's own condition skips a pending one.
+  check_suite:
+    types: [completed]
+  status:
 
 # Merging a pull request takes contents: write: https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps#repository-permissions-for-contents
 # Starting release.yml after a merge takes actions: write.
