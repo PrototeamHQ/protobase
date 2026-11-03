@@ -123,6 +123,6 @@ export type PageSource = { toModel(): PageModel }
 /**
  * The admin API, the jobs it needs a worker to run (the delivery of resource events), the pruning of the realtime
  * tables a serving process starts once it listens and stops as it closes, and the read of encrypted fields that
- * `startJobs` gives the jobs' context.
+ * `startJobs` gives the jobs' context, and the path it answers `/meta` at.
  */
-export type Admin = Hono<AdminEnv> & { jobs: JobDefinition[]; startRealtimePrune: () => RealtimePrune; decryptField: FieldDecrypter }
+export type Admin = Hono<AdminEnv> & { jobs: JobDefinition[]; startRealtimePrune: () => RealtimePrune; decryptField: FieldDecrypter; metaPath: string }
