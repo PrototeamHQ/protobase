@@ -82,6 +82,7 @@ describe('pinnedRequest', () => {
   })
 
   it('checks an IP-literal URL as it stands, in any spelling, without asking the resolver', async () => {
+    // The URL parser rewrites '127.1', '2130706433', '0x7f000001' and '0177.0.0.1' as 127.0.0.1, so they are literals too.
     const { resolve, asked } = answering(['93.184.216.34'])
     const literals = [
       '127.0.0.1', '127.0.0.2', '127.1', '2130706433', '0x7f000001', '0177.0.0.1', '0.0.0.0', '10.0.0.1', '169.254.169.254', '169.254.0.1', '100.64.0.1',

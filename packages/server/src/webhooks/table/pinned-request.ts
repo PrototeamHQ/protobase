@@ -35,6 +35,7 @@ const resolveWithin = (resolve: Resolve, host: string, signal?: AbortSignal) => 
 }
 
 // The addresses to choose from, all checked: an IP-literal host as it stands, a name as the resolver answers.
+// `host` is the WHATWG URL parser's hostname, which already rewrites IPv4 in any spelling ('127.1', '2130706433', '0x7f000001', '0177.0.0.1') as dotted decimal, so `isIP` sees it as an address.
 const checkedAddresses = async (host: string, options: PinnedOptions, signal?: AbortSignal) => {
   const addresses = isIP(host) ? [host] : await resolveWithin(options.resolve ?? resolveHost, host, signal)
   if (addresses.length === 0) throw new AddressRefusedError(`${host} resolves to no address`)

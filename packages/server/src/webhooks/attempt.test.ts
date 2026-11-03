@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterAll, describe, expect, it } from 'vitest'
-import { attemptDelivery, type AttemptContext } from './attempt'
+import { attemptDelivery, excerptBytes, type AttemptContext } from './attempt'
 import { newWebhookSecret } from './standard-webhooks'
 import { subscription, type SubscriptionEvent } from './subscription'
 import type { Resolve } from './table/pinned-request'
@@ -51,6 +51,31 @@ describe('attemptDelivery to a URL', () => {
     const result = await attemptDelivery(hook(`http://hook.test:${moved.port}/in`), event, context(async () => ['127.0.0.1'], true))
     expect(result).toEqual({ ok: false, status: 302, error: '302: moved', final: false })
     expect(moved.reached()).toBe(1)
+  })
+
+  it('reads only the start of a failing answer that never ends, and closes the connection', async () => {
+    let written = 0
+    let closed: () => void
+    const connectionClosed = new Promise<void>((resolve) => (closed = resolve))
+    const server = createServer((request, response) => {
+      request.resume().on('end', () => {
+        response.writeHead(500)
+        response.on('close', () => closed())
+        const chunk = 'x'.repeat(1024)
+        const write = () => {
+          while (!response.destroyed && response.write(chunk)) written += chunk.length
+          if (!response.destroyed) response.once('drain', write)
+        }
+        write()
+      })
+    })
+    servers.push(server)
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const port = (server.address() as AddressInfo).port
+    const result = await attemptDelivery(hook(`http://hook.test:${port}/in`), event, context(async () => ['127.0.0.1'], true))
+    expect(result).toEqual({ ok: false, status: 500, error: `500: ${'x'.repeat(200)}`, final: false })
+    await connectionClosed
+    expect(written).toBeLessThan(excerptBytes * 1024)
   })
 
   it('delivers to a receiver that answers 2xx', async () => {
