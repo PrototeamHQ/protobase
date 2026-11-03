@@ -22,6 +22,8 @@ export type ResourcePlan = {
   search?: string
   // Whether open pages and Realtime subscribers hear of its changes (`.live()`).
   live?: boolean
+  // Every operation the admins' alone, kept from role wildcards, as a table users added is served.
+  adminsOnly?: boolean
 }
 
 const softDeleteColumn = /^(deleted|removed|archived)_(at|on)$/

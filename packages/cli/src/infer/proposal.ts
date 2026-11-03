@@ -19,6 +19,8 @@ export type Proposal = {
   precision?: number
   scale?: number
   enumValues?: string[]
+  // The most characters a text takes (`.max()`), as the definition of a table users added gives it.
+  max?: number
   relation?: { resource: string; columns?: string[] }
   optional: boolean
   defaultValue?: DefaultValue

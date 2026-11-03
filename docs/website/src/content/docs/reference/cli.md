@@ -129,6 +129,30 @@ Imports `config/index.ts` and the views of `config/*/ui.ts`, as the config modul
 
 Exit code is 1 when there are errors. Run it after the project's migrations and before a new version serves, as a platform's deploy does: a read it fails is one the API would refuse once the version runs. `protobase build` needs no database, so the indexes are doctor's to check.
 
+## `eject`
+
+:::caution[Beta]
+A table is taken over from the command line alone, keeps its name and stays in `user_tables`.
+:::
+
+```sh
+protobase eject [connection string | --env VAR] <table>... [--config <dir>] [--dir db/migrations]
+```
+
+Takes [tables users added](/reference/user-tables/) over as code. The URL comes as for [`scaffold`](#scaffold). For each table named, as its definition names it, it writes `config/<table>/data.ts` and `config/<table>/ui.ts` with scaffold's renderers, exports them from `config/index.ts`, and writes one migration in `--dir`, `NNN_eject_<tables>.sql`. It only reads the database.
+
+- **`data.ts`** is a resource of the same name over `user_tables.<table>`, where the table stays: the fields of the definition as the server serves them, filterable, sortable and searched where the table's indexes serve them, a text field at most 500 characters, and every operation the admins' alone, with `.explicitGrants()`. A column the definition has no field for is written as `field: null`.
+- **`ui.ts`** has the definition's singular and plural label, its title field, each field's label, a long text field multiline, and the list `scaffold --ui` writes.
+- **The migration** makes each table as the catalogue has it: `create schema if not exists`, `create extension if not exists pg_trgm` when an index needs it, `create table if not exists` with the columns and constraints, and `create index if not exists` for each index, by its name. On the database the table is in it changes nothing and moves no row; on an empty one it makes the same table.
+
+Then it runs [`doctor`](#doctor) on the config. When doctor reports an error in an ejected resource, or cannot load the config, every file is put back as it was and the command fails. It refuses a name no definition the server serves has, saying why the server leaves it out, and one a resource in `config/` has, or whose table one reads, already.
+
+```sh
+protobase eject notes            # config/notes/data.ts, config/notes/ui.ts, db/migrations/NNN_eject_notes.sql
+```
+
+Deploy the change soon: until it serves, the admin app still adds fields to the table, which the new config does not have. Once it has deployed, [`migration`](#migration) writes the delete of the definition (see [Taking a table over as code](/reference/user-tables/#taking-a-table-over-as-code)).
+
 ## `dev`
 
 ```sh
@@ -569,7 +593,7 @@ Applies the project's `db/migrations/*.sql` that the database has not applied ye
 protobase migration [--dir db/migrations] [--extend <dir>]
 ```
 
-Writes what the database still needs for every feature the config enables, as the project's next migrations in `--dir`, one file per feature: the auth schema when sign-in is on (`NNN_auth.sql`, as [`auth migration`](#auth-migration) writes it), the [jobs schema](/reference/jobs/#the-jobs-schema) when the config has jobs, `webhooks` or `notifications`, or a resource has events, history, comments or an [AI field](/reference/ai/) (`NNN_jobs.sql`), the [capture of events](/reference/events/#migrations-and-startup) and the [history table](/reference/history/#the-table) (`NNN_changes.sql`), the columns of [rollup and formula fields](/reference/data-config/#rollups-and-formulas) and the triggers that keep the rollups (`NNN_computed.sql`), the role the [assistant's read-only queries](/reference/assistant/#the-built-in-backend) run as, when it finds the built-in assistant's key (`NNN_query.sql`), the [comments table](/reference/comments/#the-table) (`NNN_comments.sql`), the [webhook subscriptions](/reference/webhooks/#subscriptions-in-the-admin-app) of `webhooks` (`NNN_webhooks.sql`), the [devices and history tables](/reference/notifications/#table-names) of `notifications` (`NNN_notifications.sql`), the `realtime_relay` schema of [`realtime: { processes: 'many' }`](/reference/supabase-realtime/#several-processes) (`NNN_realtime_relay.sql`), and the `channels` schema of [`realtime: { sqlSends: true }`](/reference/channels/#from-sql) (`NNN_channel_sends.sql`). It compares the database, with the project's migrations applied, with the config (for the auth schema, it reads the store's record of the migrations it applied), merged with those of `--extend` as `dev` merges them, and writes nothing when the database is current. Apply the files with the project's other migrations. It reads the `.env` nearest the current directory and needs `DATABASE_URL`.
+Writes what the database still needs for every feature the config enables, as the project's next migrations in `--dir`, one file per feature: the auth schema when sign-in is on (`NNN_auth.sql`, as [`auth migration`](#auth-migration) writes it), the [jobs schema](/reference/jobs/#the-jobs-schema) when the config has jobs, `webhooks` or `notifications`, or a resource has events, history, comments or an [AI field](/reference/ai/) (`NNN_jobs.sql`), the [capture of events](/reference/events/#migrations-and-startup) and the [history table](/reference/history/#the-table) (`NNN_changes.sql`), the columns of [rollup and formula fields](/reference/data-config/#rollups-and-formulas) and the triggers that keep the rollups (`NNN_computed.sql`), the role the [assistant's read-only queries](/reference/assistant/#the-built-in-backend) run as, when it finds the built-in assistant's key (`NNN_query.sql`), the [comments table](/reference/comments/#the-table) (`NNN_comments.sql`), the [webhook subscriptions](/reference/webhooks/#subscriptions-in-the-admin-app) of `webhooks` (`NNN_webhooks.sql`), the [devices and history tables](/reference/notifications/#table-names) of `notifications` (`NNN_notifications.sql`), the `realtime_relay` schema of [`realtime: { processes: 'many' }`](/reference/supabase-realtime/#several-processes) (`NNN_realtime_relay.sql`), the `channels` schema of [`realtime: { sqlSends: true }`](/reference/channels/#from-sql) (`NNN_channel_sends.sql`), and, with [`userTables`](/reference/user-tables/#the-switch), the schemas of user tables (`NNN_user_tables.sql`) and the delete of the definitions of tables that resources in code [own now](/reference/user-tables/#taking-a-table-over-as-code) (`NNN_owned_definitions.sql`). It compares the database, with the project's migrations applied, with the config (for the auth schema, it reads the store's record of the migrations it applied), merged with those of `--extend` as `dev` merges them, and writes nothing when the database is current. Apply the files with the project's other migrations. It reads the `.env` nearest the current directory and needs `DATABASE_URL`.
 
 ```sh
 bun run db:migrate                # the database at the project's current schema

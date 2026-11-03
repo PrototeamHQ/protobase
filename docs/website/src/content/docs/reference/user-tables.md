@@ -1,6 +1,6 @@
 ---
 title: User tables
-description: The switch that keeps tables users add in the app's own database, the two schemas they live in, the migration that adds them, and how each one is served.
+description: The switch that keeps tables users add in the app's own database, the two schemas they live in, the migration that adds them, how each one is served, and how a developer takes one over as code.
 ---
 
 An app's resources usually come from its code: a resource in `config/` over a table a migration made. With user tables on, the app also keeps tables its users add in its own database, and serves each one beside the resources in code.
@@ -60,7 +60,7 @@ When the server starts, and whenever the definitions change, it builds a resourc
 - **A definition that does not fit is left out.** A definition with a name or type outside the rules above, or whose table or columns do not match it, is not served, and the server prints why at start. The rest of the app serves.
 - **Code wins.** A resource in code with the name of a user table, or a resource Protobase adds, is served instead of the definition, which is then ignored with a warning. This is how a table users added is taken over as code.
 
-[`protobase doctor`](/reference/cli/#doctor) checks each definition against the database as it checks the resources in code, and reports each one it leaves out as an error. [`protobase scaffold`](/reference/cli/#scaffold) leaves out the definitions and the tables in `user_tables` that no resource in code claims, and writes and updates the config of one that a resource claims.
+[`protobase doctor`](/reference/cli/#doctor) checks each definition against the database as it checks the resources in code, reports each one it leaves out as an error, and checks a table a resource in code has taken over as that resource. [`protobase scaffold`](/reference/cli/#scaffold) leaves out the definitions and the tables in `user_tables` that no resource in code claims, and writes and updates the config of one that a resource claims.
 
 ### How a change reaches every process
 
@@ -119,3 +119,22 @@ The answer has the table's record, so a client links to the new table at `/notes
 - **The rest of the app.** The process that made the change serves it before it answers, and every other process [within a second](#how-a-change-reaches-every-process). While a deploy freezes writes, a create answers as any write does then.
 
 Building an index holds the table's write lock, and every statement runs within the request's statement timeout (1 s by default). <gap>Adding a field to a table with very many records cannot finish when building its index takes longer than the statement timeout, because building it outside the request is not implemented; the field is then not added.</gap>
+
+## Taking a table over as code
+
+:::caution[Beta]
+A table is taken over from the command line alone, keeps its name and stays in `user_tables`.
+:::
+
+`protobase eject` turns a table someone added in the admin app into ordinary config and a migration in the project, so a developer can customise it like any other resource. Its records stay where they are.
+
+When a table needs more than the admin app gives it, such as a validation rule, a view per role or an action, [`protobase eject <table>`](/reference/cli/#eject) writes its `config/<table>/data.ts` and `ui.ts`, as the server serves it from its definition, and a migration that makes the table as it is. The resource reads `user_tables.<table>`, where the table already is, so the deploy that brings the code moves no row: the migration changes nothing on that database and makes the same table on an empty one, such as a developer's. From then on it is a resource like any other, and the config is yours to change.
+
+1. **Get the project and its database.** For an app you host yourself, work in its repository with its database URL in `DATABASE_URL`, or pass the URL as the first argument. For an app on Protobase Cloud, clone the repository the app deploys from and use the app's database URL.
+2. **Eject.** Run `protobase eject <table>`, or name several tables. It runs [`doctor`](/reference/cli/#doctor) on what it wrote and puts every file back when doctor fails.
+3. **Deploy soon.** Commit the files and deploy as usual: for an app on Protobase Cloud, push to the branch it follows (see [Protobase Cloud](/guides/deploy/#protobase-cloud)). Until the new version serves, the admin app still adds fields to the table, which the new config does not have: add such a field with [`protobase scaffold user_tables.<table>`](/reference/cli/#scaffold) and a migration of its own that adds the column.
+4. **Delete the definition in a later deploy.** Once the code has deployed, run [`protobase migration`](/reference/cli/#migration): it writes the delete of each definition whose table a resource in code reads under the same name (`NNN_owned_definitions.sql`), which goes out with the next deploy. Its table and rows stay. Until then the server ignores the definition, as [code wins](#how-each-one-is-served), and doctor warns about it. <gap>`protobase migration` cannot hold the delete back when it runs before the eject has deployed because telling which version serves is not implemented; the old version then stops serving the table for the moment before the new one serves.</gap>
+
+Once the code serves, the table takes no new field from the admin app, and a new table cannot take its name. The resource starts as the admins' alone, as it was served; widen its access in `data.ts` as for any resource.
+
+<gap>A table cannot be taken over from the admin app or the assistant because an eject that writes to the project's repository is not implemented.</gap>

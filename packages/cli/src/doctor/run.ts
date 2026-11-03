@@ -47,5 +47,5 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
   const counted = userTables.models.length > 0 ? `${config.models.length} resources, ${userTables.models.length} user tables` : `${config.models.length} resources`
   const checked = builtIn.models.length > 0 ? `${counted} and ${builtIn.models.length} built-in ones` : counted
   out(`Checked ${checked}: ${errors} errors, ${issues.length - errors} warnings.\n`)
-  return { errors, warnings: issues.length - errors }
+  return { errors, warnings: issues.length - errors, issues }
 }

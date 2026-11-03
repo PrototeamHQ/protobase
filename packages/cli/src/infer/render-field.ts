@@ -19,6 +19,7 @@ const base = (p: Proposal) => {
 export const renderField = (p: Proposal) =>
   [
     base(p),
+    p.max !== undefined && `.max(${p.max})`,
     p.optional && '.optional()',
     p.defaultValue !== undefined && `.default(${literal(p.defaultValue)})`,
     p.dbDefault && '.dbDefault()',

@@ -15,6 +15,13 @@ const docComment = (plan: ResourcePlan) => {
   return `/** ${tableKey(plan.table)}${unique ? `. Unique: ${unique}` : ''} */\n`
 }
 
+// Before the resource: the access rule an admins-only resource names.
+const adminsRule = [
+  `import { f, resource, type AccessContext } from '@protobase/schema'`,
+  '',
+  `const admins = ({ user }: AccessContext) => user?.roles?.includes('admin') ?? false`,
+]
+
 export const renderDataFile = (plan: ResourcePlan) => {
   const properties = plan.decisions.map((d) => `    ${propertyText(d)},`).join('\n')
   const tail = [
@@ -23,9 +30,11 @@ export const renderDataFile = (plan: ResourcePlan) => {
     plan.tenant && `  .tenant((r) => r.${plan.tenant})`,
     plan.search && `  .search((r) => [r.${plan.search}])`,
     plan.live && '  .live()',
+    plan.adminsOnly && '  .explicitGrants()',
+    plan.adminsOnly && '  .access({ list: admins, read: admins, create: admins, update: admins, delete: admins })',
   ].filter(Boolean)
   return [
-    `import { f, resource } from '@protobase/schema'`,
+    ...(plan.adminsOnly ? adminsRule : [`import { f, resource } from '@protobase/schema'`]),
     '',
     `${docComment(plan)}export const ${camelCase(plan.name)} = resource('${plan.name}')`,
     `  .table('${tableKey(plan.table)}')`,

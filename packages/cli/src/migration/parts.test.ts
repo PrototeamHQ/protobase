@@ -34,8 +34,9 @@ describe('the migration parts', () => {
     expect(names(migrationParts({ ...project([]), status: {} }))).toEqual(['changes', 'computed', 'status'])
     expect(names(migrationParts(project([])))).not.toContain('status')
   })
-  it('add the schemas of user tables only with userTables', () => {
-    expect(names(migrationParts({ ...project([]), userTables: true }))).toEqual(['changes', 'computed', 'user_tables'])
+  it('add the schemas of user tables, then the delete of the definitions code owns, only with userTables', () => {
+    expect(names(migrationParts({ ...project([]), userTables: true }))).toEqual(['changes', 'computed', 'user_tables', 'owned_definitions'])
     expect(names(migrationParts(project([])))).not.toContain('user_tables')
+    expect(names(migrationParts(project([])))).not.toContain('owned_definitions')
   })
 })

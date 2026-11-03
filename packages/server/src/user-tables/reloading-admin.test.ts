@@ -6,7 +6,7 @@ import type { Admin, AdminEnv } from '../types'
 import { reloadingAdmin } from './reloading-admin'
 import type { UserTables } from './user-table-resources'
 
-const noTables: UserTables = { resources: [], views: [], problems: [] }
+const noTables: UserTables = { resources: [], views: [], definitions: [], problems: [] }
 
 // An admin that knows the resources named, answers `/meta` with its name, and echoes a JSON body back.
 const fakeAdmin = (name: string, known: string[]) => {
