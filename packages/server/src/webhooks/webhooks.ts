@@ -34,7 +34,7 @@ export type WebhooksInput = {
   /** Where each delivery's outcome is written: the server log. */
   log: (line: string) => void
   /** The subscriptions people made in the admin app (`webhooks()`), and the check of their URLs' addresses. */
-  table?: { subscriptions: TableSubscriptions; checkUrl?: (url: string) => Promise<string | undefined> }
+  table?: { subscriptions: TableSubscriptions; allowPrivateAddresses: boolean }
 }
 
 /** A delivery waiting in the job queue: the event as its subscriber sees it, never a sensitive value. */
@@ -121,12 +121,12 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
   const records = (session: Parameters<typeof callerRecords>[1]) => callerRecords(deps, session)
   const tableId = (subscription: SubscriptionDefinition) => (subscription.name.startsWith('ui:') ? subscription.name.slice('ui:'.length) : undefined)
 
-  // A try, kept on its row for a table subscription, whose URL's address is checked first.
+  // A try, kept on its row for a table subscription, whose URL reaches a private address only when the options allow it.
   const attempt = async (subscription: SubscriptionDefinition, event: SubscriptionEvent, db: Db, tried: number, signal: AbortSignal) => {
     const id = tableId(subscription)
     const started = performance.now()
-    const checkUrl = id === undefined ? undefined : table?.checkUrl
-    const result = await attemptDelivery(subscription, event, { db, functions, records, channels, attempt: tried, signal, ...(checkUrl && { checkUrl }) })
+    const allowPrivateAddresses = id === undefined || Boolean(table?.allowPrivateAddresses)
+    const result = await attemptDelivery(subscription, event, { db, functions, records, channels, attempt: tried, signal, allowPrivateAddresses })
     if (id !== undefined) await table!.subscriptions.record(db, id, event, tried, result, performance.now() - started)
     return result
   }
