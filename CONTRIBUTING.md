@@ -35,7 +35,7 @@ The link goes to the heading of the docs page that explains the feature; a featu
 - Stable: built, released and complete as documented. Beta: built and released, with the limits its page lists, and it may still change. In development: partly released, not usable on its own yet. Coming soon: documented, not built. The section a non-stable entry links starts with an aside, such as `:::caution[Beta]`, naming what is missing. Stability changes only in a change whose plan says so.
 - Public text names no other company or product, unless compatibility with it is the subject; such compatibility sits under the area for compatibility with and moving from other systems.
 
-`bun run features:check`, which CI runs, holds every entry to that grammar and to a heading that exists, every area page to the sidebar and the features page, and every reference page to at least one entry. `bun run features:check --release-rule` also refuses a release with a `feat` commit when no docs page changed since the last release; it is not on in CI or the release workflow yet.
+`bun run features:check`, which CI runs, holds every entry to that grammar and to a heading that exists, every area page to the sidebar and the features page, and every reference page to at least one entry. `bun run features:check --release-rule` also refuses a release with a `feat` commit when no docs page changed since the last release; CI and the release workflow both run it, so such a release fails before it is cut.
 
 ## Doc comments and the API reference
 

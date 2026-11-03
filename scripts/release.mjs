@@ -8,8 +8,8 @@
 // tests, chores, ...), or a HEAD that is a release already, tags nothing and prints nothing. No package.json is
 // bumped: the workflow writes the tag's version into them in its runner (scripts/stamp-version.mjs). `--dry-run`
 // prints the tag, as a real run does, with its notes on stderr, and tags nothing.
-// `--features-release-rule` also refuses a release with a feature that changes no docs page (scripts/features-check.ts);
-// it stays off until every feature already released is documented.
+// `--features-release-rule`, which the release workflow passes, also refuses a release with a feature that changes no
+// docs page (scripts/features-check.ts).
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

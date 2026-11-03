@@ -12,7 +12,7 @@
 //
 // With --release-rule it also refuses a release with a `feat` commit that changes no docs page: from the last vx.y.z tag
 // reachable from HEAD, any `feat` commit but those of the example apps needs a change under docs/website/src/content/docs/
-// outside api/, which TypeDoc writes. The rule is off until every feature already released is documented.
+// outside api/, which TypeDoc writes. CI and the release workflow run it.
 //
 //   bun run features:check [--release-rule]
 import { spawnSync } from 'node:child_process'

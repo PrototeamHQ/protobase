@@ -67,8 +67,9 @@ jobs:
       # Markdown or the hand-written SKILL.md and the pages do not point at each other.
       - run: bun run docs:skill --check
       # The features pages keep their grammar, link real headings and cover every reference page (CONTRIBUTING.md,
-      # Features and docs). Its --release-rule, that a release with a feature changes the docs, is not on yet.
-      - run: bun run features:check
+      # Features and docs), and --release-rule refuses unreleased `feat` commits that change no docs page, counted from the
+      # last release tag, which the checkout's full history and tags hold.
+      - run: bun run features:check --release-rule
       # A push to main, which the release workflow checks, or to an fm/** branch runs only the tests and steps its
       # changes affect (scripts/affected-tests.mjs, see CONTRIBUTING.md): on main the changes since the last release, on
       # a branch those since it left development. Without CHECK_BASE, as on a pull request or a run by hand, everything runs.
