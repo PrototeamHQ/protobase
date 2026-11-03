@@ -1,5 +1,4 @@
 import type { OrganizationOptions } from 'better-auth/plugins/organization'
-import { defaultInvitationUrl } from '../invitations/invitation-link-hook'
 import { membershipRoles, type RoleDefinitions } from './role-definitions'
 import type { StoredMember, StoredOrganization } from './store'
 
@@ -24,7 +23,7 @@ export type OrganizationsOptions = {
    * rows in any `.tenant` resource; `'cascade'` leaves it to the project's foreign keys.
    */
   deleteRecords?: 'refuse' | 'cascade'
-  /** The page an invitation link opens, with `?token=`. Default `{baseURL}/-/invitation`. */
+  /** The page an invitation link opens, with `?token=`. Default `/-/invitation` on the origin the request came to. */
   invitationUrl?: string
   /** Runs after an organization is created, with its owner's membership, for example to add the app's own row for it. */
   onCreated?: (input: { organization: StoredOrganization; member: StoredMember }) => Promise<void>
@@ -42,11 +41,11 @@ export type ResolvedOrganizations = {
   membershipLimit: number
   generateId: () => string | Promise<string>
   deleteRecords: 'refuse' | 'cascade'
-  invitationUrl: string
+  invitationUrl?: string
   options: OrganizationsOptions
 }
 
-export const resolveOrganizations = (options: OrganizationsOptions, definitions: RoleDefinitions, baseURL: string): ResolvedOrganizations => {
+export const resolveOrganizations = (options: OrganizationsOptions, definitions: RoleDefinitions): ResolvedOrganizations => {
   const holdable = membershipRoles(definitions)
   const creatorAppRoles = options.creatorAppRoles === undefined || options.creatorAppRoles === 'all' ? holdable : options.creatorAppRoles
   const unknown = creatorAppRoles.find((name) => !holdable.includes(name))
@@ -61,7 +60,7 @@ export const resolveOrganizations = (options: OrganizationsOptions, definitions:
     membershipLimit: options.membershipLimit ?? 1000,
     generateId: options.generateId ?? (() => crypto.randomUUID()),
     deleteRecords: options.deleteRecords ?? 'refuse',
-    invitationUrl: options.invitationUrl ?? defaultInvitationUrl(baseURL),
+    ...(options.invitationUrl !== undefined && { invitationUrl: options.invitationUrl }),
     options,
   }
 }

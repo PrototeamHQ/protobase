@@ -18,7 +18,7 @@ import { passwordLength } from './new-account-password'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
-import { defaultInvitationSeconds, defaultInvitationUrl } from './invitations/invitation-link-hook'
+import { defaultInvitationSeconds } from './invitations/invitation-link-hook'
 import { lastAdminGuardPlugin } from './last-admin-guard'
 import { leakedPasswordsPlugin } from './leaked-passwords'
 import { lockedAccountsPlugin, readLockedAccounts } from './locked-accounts'
@@ -439,7 +439,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         definitions,
         defaultPolicy: signInPolicy,
         ...(mail && { mail }),
-        invitationUrl: organizations?.invitationUrl ?? defaultInvitationUrl(options.baseURL),
+        ...(organizations?.invitationUrl !== undefined && { invitationUrl: organizations.invitationUrl }),
         invitationSeconds: organizations?.invitationExpiresIn ?? defaultInvitationSeconds,
         ...(organizations && { organizations }),
       }),
@@ -542,7 +542,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const personalMail = resolvePersonalMail(options.personalMail ?? [], socialProviders, options.encryptOAuthTokens === true)
   const origins = resolveOrigins(options.baseURL, options.origins ?? platformOrigins())
   const passkeyDomain = resolvePasskeyDomain(options.passkeyDomain ?? platformPasskeyDomain(), [options.baseURL, ...origins])
-  const organizations = options.organizations && resolveOrganizations(options.organizations, definitions, options.baseURL)
+  const organizations = options.organizations && resolveOrganizations(options.organizations, definitions)
   const mcp = options.mcp && resolveMcp(options.baseURL, options.mcp)
   // The organization hooks and the MCP provider read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined

@@ -1,3 +1,5 @@
+import { requestAppUrl } from '../request-app-url'
+
 /** The app an email comes from: its name, and its home page on the origin the request came to. */
 export type MailingApp = { name: string; url: string }
 
@@ -7,5 +9,5 @@ export type MailingApp = { name: string; url: string }
  */
 export const mailingApp = ({ appName, baseURL }: { appName: string; baseURL: string }, requestURL?: string): MailingApp => ({
   name: appName,
-  url: new URL('/', requestURL ?? baseURL).href,
+  url: requestAppUrl(requestURL ?? baseURL, '/'),
 })

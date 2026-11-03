@@ -1,4 +1,5 @@
 import { createAuthMiddleware } from 'better-auth/api'
+import { requestAppUrl } from '../../request-app-url'
 import { invitationLink, invitationToken } from './invitation-token'
 
 /**
@@ -6,10 +7,10 @@ import { invitationLink, invitationToken } from './invitation-token'
  * once, to pass on. The answer carries the invitation's `id` and `expiresAt`. Inviting again gives a new link, since it
  * moves the expiry.
  */
-export const invitationLinkHook = (paths: string[], invitationUrl: string) => ({
+export const invitationLinkHook = (paths: string[], invitationUrl: string | undefined) => ({
   matcher: (context: { path?: string }) => paths.includes(context.path ?? ''),
   handler: createAuthMiddleware(async (ctx) => {
-    const answer = await withInvitationLink(ctx.context.returned, ctx.context.secret, invitationUrl)
+    const answer = await withInvitationLink(ctx.context.returned, ctx.context.secret, invitationPage(invitationUrl, ctx.context.baseURL))
     if (answer) ctx.context.returned = answer
   }),
 })
@@ -22,8 +23,12 @@ export const withInvitationLink = async (returned: unknown, secret: string, invi
   return { ...answer, link: invitationLink(invitationUrl, token) }
 }
 
-/** The page an invitation link opens, with `?token=`, unless the app names another. */
-export const defaultInvitationUrl = (baseURL: string) => `${baseURL.replace(/\/$/, '')}/-/invitation`
+/**
+ * The page an invitation link opens, with `?token=`: the app's own `invitationUrl`, or `/-/invitation` on the origin
+ * the request came to, from Better Auth's `ctx.context.baseURL` (`requestAppUrl`), so a link made on one of the app's
+ * origins opens there.
+ */
+export const invitationPage = (invitationUrl: string | undefined, requestURL: string) => invitationUrl ?? requestAppUrl(requestURL, '/-/invitation')
 
 /** How long an invitation works unless the app says otherwise: 7 days, in seconds. */
 export const defaultInvitationSeconds = 7 * 24 * 60 * 60

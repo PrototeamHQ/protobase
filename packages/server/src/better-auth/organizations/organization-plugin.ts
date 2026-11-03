@@ -1,7 +1,9 @@
+import { getCurrentAuthEndpointContext } from '@better-auth/core/context'
 import { APIError } from 'better-auth/api'
 import { organization, type OrganizationOptions } from 'better-auth/plugins/organization'
 import { sendAuthEmail, type AuthMail } from '../auth-mail/send-auth-email'
 import { checkAppRoleChange, globalRoles, parseAppRoles, effectiveRoles } from './app-roles'
+import { invitationPage } from '../invitations/invitation-link-hook'
 import { invitationLink, invitationToken } from '../invitations/invitation-token'
 import type { ResolvedOrganizations } from './options'
 import { superuserRole } from './role-definitions'
@@ -96,11 +98,12 @@ export const organizationPlugin = ({ resolved, secret, mail, context }: Organiza
     cancelPendingInvitationsOnReInvite: true,
     schema: organizationNames,
     // Also on resend, which moves the expiry and so voids the earlier link. Without a mailer the inviter gets the link
-    // in the answer instead (see the invitation endpoints).
+    // in the answer instead (see the invitation endpoints). Better Auth hands this only the raw request, so the
+    // request's origin as it resolved it comes from the endpoint the mail is sent in.
     ...(mail && {
       sendInvitationEmail: async ({ invitation, organization, inviter }) => {
-        const token = await invitationToken(secret, invitation)
-        const url = invitationLink(resolved.invitationUrl, token)
+        const page = invitationPage(resolved.invitationUrl, getCurrentAuthEndpointContext().context.baseURL)
+        const url = invitationLink(page, await invitationToken(secret, invitation))
         await sendAuthEmail(mail, 'invitationEmail', invitation.email, { inviter: inviter.user.name || inviter.user.email, organization: organization.name, url, expiresAt: new Date(invitation.expiresAt) }, url)
       },
     }),
