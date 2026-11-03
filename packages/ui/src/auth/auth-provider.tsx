@@ -86,6 +86,8 @@ export type AuthApi = {
   beforeSignIn: PluginRef[]
   /** The language the app sets for everyone, as the setup status names it, for the screens before `/meta`. */
   locale?: Locale
+  /** The app's name and own icon, and whether the sign-in page ends on the "Runs on Protobase" note, for the screens before `/meta`. */
+  identity: AuthIdentity
   /**
    * Reads the session again after something other than the sign-in page started one, such as a plugin that traded a
    * one-time code for the session cookie, and enters the app with it. Resolves `false` when there is none.
@@ -94,6 +96,9 @@ export type AuthApi = {
   /** Push in this browser for the signed-in user (see `usePushNotifications`); signing out and in keeps it with them. */
   push: PushNotifications
 }
+
+/** What the setup status names of the app: its name and the path of its own icon, when it has them, and `runsOnNote`. */
+export type AuthIdentity = { appName?: string; appIcon?: string; runsOnNote: boolean }
 
 /** A sign-in provider as the app offers it: its id and its name. */
 export type SignInProvider = { id: string; name: string }
@@ -134,6 +139,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
   const [anonymous, setAnonymous] = useState(false)
   const [beforeSignIn, setBeforeSignIn] = useState<PluginRef[]>([])
   const [locale, setLocale] = useState<Locale>()
+  const [identity, setIdentity] = useState<AuthIdentity>({ runsOnNote: false })
   const signedOutState = useCallback((): AuthState => (anonymous ? { kind: 'visitor' } : { kind: 'signed-out' }), [anonymous])
   // The session is over: push here is forgotten, with no server left to ask.
   const forgetPush = useRef<() => Promise<void>>(async () => {})
@@ -202,6 +208,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       setAnonymous(Boolean(status.anonymous))
       setBeforeSignIn(status.plugins ?? [])
       setLocale(status.locale)
+      setIdentity({ ...(status.appName && { appName: status.appName }), ...(status.appIcon && { appIcon: status.appIcon }), runsOnNote: Boolean(status.runsOnNote) })
       if (status.needsAdmin) return setState({ kind: 'needs-admin', ...(status.firstAdminUrl && { firstAdminUrl: status.firstAdminUrl }) })
       const user = await session.session()
       return user ? enter(user) : setState({ kind: status.anonymous ? 'visitor' : 'signed-out' })
@@ -230,6 +237,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       recheck,
       beforeSignIn,
       locale,
+      identity,
       adoptSession: async () => {
         const user = await session.session()
         if (!user) return false
@@ -281,7 +289,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       },
       push,
     }),
-    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
+    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, identity, signedOutState, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

@@ -123,6 +123,7 @@ import { metaRoutes } from './routes/meta'
 import { webManifestRoute } from './web-app/web-manifest-route'
 import { mcpIcons } from './web-app/mcp-icons'
 import { faviconPath } from './web-app/web-manifest'
+import { readRunsOnNote } from './runs-on-note'
 import { recordRoutes } from './routes/record'
 import { runtimeUrl } from './runtime/runtime-settings'
 import { firstAdminUrl } from './better-auth/first-admin-url'
@@ -270,6 +271,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
   const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
   const firstAdmin = firstAdminUrl(globalThis.process?.env ?? {})
+  const runsOnNote = readRunsOnNote(globalThis.process?.env ?? {})
   const errorReporting = errorReportingSettings(options.errorReporting, globalThis.process?.env ?? {})
   const maps = mapSettings(options.maps, globalThis.process?.env ?? {})
   // At startup, so a wrong VAPID variable stops the server; the sending code calls them through these.
@@ -340,7 +342,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
 
   // The tabs end in the name the app signs in and mails as, which the installed app is called too.
   const appName = shownAppName(auth, globalThis.process?.env ?? {})
-  const meta = createMeta(deps, appName, icons?.favicon ? faviconPath : undefined)
+  const appIcon = icons?.favicon ? faviconPath : undefined
+  const meta = createMeta(deps, appName, appIcon)
   const onError = createErrorHandler(options.onUnhandledError, deps.statementTimeoutMs)
   // Every response of the resources API and of the system endpoints names the models version; every request needs a
   // token, but one to the resources API or `/meta` when the project has an anonymous role.
@@ -364,7 +367,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     app.route('/', recordRoutes(deps))
   }, withAnonymous(authenticate, options.roles))
   const system = guarded((app) => {
-    app.route('/', docsRoutes(deps))
+    app.route('/', docsRoutes(deps, appName))
   })
   // `/meta` tells anonymous visitors what they may read, for the admin app they browse without signing in.
   const metaApp = guarded((app) => {
@@ -385,7 +388,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     if ((servesKeys || auth) && !supabasePath.startsWith(`${systemPath}/`)) app.use(`${supabasePath}/*`, cors)
   }
   if (auth) {
-    app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }), ...(firstAdmin && { firstAdminUrl: firstAdmin }) }))
+    app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }), ...(firstAdmin && { firstAdminUrl: firstAdmin }), appName, ...(appIcon && { appIcon }), runsOnNote }))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
     if (auth.mcp) mcpDiscovery(app, auth)
     const answer = mobile ? auth.handleMobile : auth.handler

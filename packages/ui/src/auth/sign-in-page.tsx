@@ -14,7 +14,7 @@ export type SignInPageProps = Pick<SignInFormProps, 'workspace' | 'notice' | 'fo
 }
 
 export const SignInPage = ({ workspace, notice, forgotPassword, signUp, onBrowse, onCodeSent, error: initialError }: SignInPageProps) => {
-  const { signIn, signInSocial, signInProviders, signInMethods, signInFirst, passkeyDomains, sendSignInCode, signInWithPasskey } = useAuth()
+  const { identity, signIn, signInSocial, signInProviders, signInMethods, signInFirst, passkeyDomains, sendSignInCode, signInWithPasskey } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(initialError)
 
@@ -41,6 +41,8 @@ export const SignInPage = ({ workspace, notice, forgotPassword, signUp, onBrowse
       forgotPassword={forgotPassword}
       signUp={signUp}
       onBrowse={onBrowse}
+      {...(identity.appName && { appName: identity.appName })}
+      runsOnNote={identity.runsOnNote}
       providers={signInProviders}
       onContinueWith={(provider) => void attempt(() => signInSocial(provider), signInMessage)}
       passkeyDomains={passkeyDomains}

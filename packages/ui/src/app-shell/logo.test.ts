@@ -11,6 +11,7 @@ describe('Logo', () => {
     expect(html).toContain('>Property Finder</div>')
     expect(html).toContain('>Rijnland</div>')
     expect(html).not.toContain('aria-label="Protobase"')
+    expect(html).not.toContain('fill-rule="evenodd"')
   })
 
   it("draws Protobase's wordmark for an app that names itself nothing, and the mark alone when compact", () => {

@@ -6,6 +6,7 @@
     "ApiProvider",
     "App",
     "AppLink",
+    "AppMark",
     "AssistantDock",
     "AuthLayout",
     "AvailabilityMark",

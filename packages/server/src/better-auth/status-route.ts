@@ -20,9 +20,11 @@ import { hasUsers } from './users'
  * with their labels, `membership` for those a member can hold, and the roles each one's holders may also give; and
  * `anonymous` when the project's anonymous role reads a resource, so the admin app opens for visitors before anyone signs in; `mcp` when MCP clients can connect, with the `url` of its endpoint, so the account page shows that address and lists the connected clients; `personalMail`, the mail providers people may link their mailbox with, each with the sign-in provider it links through, the scopes and the authorization parameters of the link, so the account page offers "Link Gmail"; and
  * `plugins`, those the app loads before sign-in (see `PluginOption`); and `locale`, the language `options.locale` puts
- * the screens in, so the sign-in screens and public forms, which come before `/meta`, are in it too.
+ * the screens in, so the sign-in screens and public forms, which come before `/meta`, are in it too; `appName` and
+ * `appIcon`, the app's name and the path of its own icon when it has one, which those screens show as `/meta` names them;
+ * and `runsOnNote` when the host has the sign-in page end on the "Runs on Protobase" note (see `readRunsOnNote`).
  */
-export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [], locale, firstAdminUrl }: { anonymous?: boolean; plugins?: PluginRef[]; locale?: Locale; firstAdminUrl?: string } = {}) => {
+export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [], locale, firstAdminUrl, appName, appIcon, runsOnNote = false }: { anonymous?: boolean; plugins?: PluginRef[]; locale?: Locale; firstAdminUrl?: string; appName?: string; appIcon?: string; runsOnNote?: boolean } = {}) => {
   const app = new Hono()
   app.get('/status', async (c) => {
     const context = await auth.$context
@@ -54,6 +56,9 @@ export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [], 
       ...(auth.personalMail.length > 0 && { personalMail: auth.personalMail.map(({ id, name, signInProvider, scopes, linkParams }) => ({ id, name, provider: signInProvider, scopes, params: linkParams })) }),
       ...(plugins.length > 0 && { plugins }),
       ...(locale && { locale }),
+      ...(appName && { appName }),
+      ...(appIcon && { appIcon }),
+      ...(runsOnNote && { runsOnNote }),
       ...(auth.organizations && {
         organizations: {
           create: auth.organizations.create,

@@ -34,9 +34,10 @@ export const titleParts = ({ address, page, accountPage, resourceLabel, singular
 /** A tab's title: its parts, then the app's name, as in "Nordlicht GmbH · Companies · Protobase". */
 export const documentTitle = (parts: string[], appName: string) => [...parts.filter(Boolean), appName].join(' · ')
 
-/** Shows `text` as the tab's title while mounted, then puts back the title it found. */
-export const useDocumentTitle = (text: string) => {
+/** Shows `text` as the tab's title while mounted, then puts back the title it found; without `text`, leaves it be. */
+export const useDocumentTitle = (text: string | undefined) => {
   useEffect(() => {
+    if (text === undefined) return
     const before = document.title
     document.title = text
     return () => {
