@@ -25,12 +25,13 @@ const v6Groups = (address: string) => {
 
 const embeddedV4 = (high: number, low: number) => privateV4(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`)
 
-// An IPv6 address that carries an IPv4 one (mapped, compatible, NAT64, 6to4) is judged by that; `::` and `::1` fall in 0/8.
+// An IPv6 address that carries an IPv4 one (mapped, translated, compatible, NAT64, 6to4) is judged by that; `::` and `::1` fall in 0/8.
 const privateV6 = (address: string) => {
   const g = v6Groups(address)
   if (!g) return true
   const zeroUpTo = (end: number) => g.slice(0, end).every((group) => group === 0)
   if (zeroUpTo(5) && (g[5] === 0 || g[5] === 0xffff)) return embeddedV4(g[6]!, g[7]!)
+  if (zeroUpTo(4) && g[4] === 0xffff && g[5] === 0) return embeddedV4(g[6]!, g[7]!)
   if (g[0] === 0x64 && g[1] === 0xff9b) return g.slice(2, 6).every((group) => group === 0) ? embeddedV4(g[6]!, g[7]!) : true
   if (g[0] === 0x2002) return embeddedV4(g[1]!, g[2]!)
   return (g[0]! & 0xfe00) === 0xfc00 || (g[0]! & 0xff80) === 0xfe80 || g[0]! >> 8 === 0xff
