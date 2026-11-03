@@ -5,6 +5,7 @@
 
 export interface ApiRun {
   id: number
+  event: string
   run_started_at: string
   updated_at: string
   html_url: string

@@ -7,7 +7,7 @@ import { runTimings, type ApiJob, type ApiRun } from './timings'
 const fixture = (id: number, wallMinutes: number, queueSeconds: number) => {
   const start = Date.parse('2026-10-17T12:00:00Z')
   const at = (seconds: number) => new Date(start + seconds * 1000).toISOString()
-  const run: ApiRun = { id, run_started_at: at(0), updated_at: at(wallMinutes * 60), html_url: `https://example.com/runs/${id}` }
+  const run: ApiRun = { id, event: 'push', run_started_at: at(0), updated_at: at(wallMinutes * 60), html_url: `https://example.com/runs/${id}` }
   const jobs: ApiJob[] = [
     { name: 'check', conclusion: 'success', created_at: at(0), started_at: at(queueSeconds), completed_at: at(wallMinutes * 60) },
     { name: 'publish', conclusion: 'skipped', created_at: at(0), started_at: at(0), completed_at: at(0) },
@@ -68,7 +68,7 @@ describe('report', () => {
     const runs = [fixture(3, 12, 0), fixture(2, 8, 60), fixture(1, 16, 0)]
     const markdown = workflowReport(release, runs)
     expect(markdown).toContain('**release p50 12m vs target 10m: not met, 2m over**')
-    expect(markdown).toContain('3 successful push runs on main and repository_dispatch runs on main, the newest [3](https://example.com/runs/3)')
+    expect(markdown).toContain('3 successful push runs on main, repository_dispatch runs on main, and workflow_dispatch runs on main, the newest [3](https://example.com/runs/3)')
     expect(markdown).toContain('| **workflow** | 3 | 12m · 16m · 12m | 0s · 1m · 0s | 12m · 16m · 12m |')
     expect(markdown).toContain('| check | 3 | 12m · 16m · 12m | 0s · 1m · 0s | 12m · 16m · 12m |')
     expect(markdown).not.toContain('publish')
