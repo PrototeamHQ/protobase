@@ -198,6 +198,22 @@ describe('navFromMeta', () => {
     })
   })
 
+  it('shows an entry for creators only to a caller the list offers New', () => {
+    const permissions = (create: boolean) => ({ create, update: true, delete: true, conditional: [] })
+    const view = (resource: string, extra = {}) => ({ resource, fields: {}, filters: [], layout: [], actions: [], ...extra }) as unknown as ViewModel
+    const meta = (create: boolean) => ({
+      etag: '"x"',
+      appName: 'Protobase',
+      permissions: { forms: permissions(create) },
+      pages: {},
+      resources: { forms: model('forms', 'public'), answers: model('answers', 'public') },
+      views: { forms: view('forms', { nav: { creatorsOnly: true } }), answers: view('answers') },
+    })
+    const ids = (groups: ReturnType<typeof navFromMeta>) => groups.flatMap((group) => group.items.map((item) => item.id))
+    expect(ids(navFromMeta(meta(true)))).toEqual(['forms', 'answers'])
+    expect(ids(navFromMeta(meta(false)))).toEqual(['answers'])
+  })
+
   it('puts pages first, in their group or under Pages, and honours their nav', () => {
     const view = (resource: string, nav: object = {}) => ({ resource, fields: {}, filters: [], layout: [], actions: [], nav }) as unknown as ViewModel
     const page = (name: string, nav?: object) => ({ name, title: name.toUpperCase(), tree: { type: 'Page', props: { title: name }, children: [] }, ...(nav && { nav }) })

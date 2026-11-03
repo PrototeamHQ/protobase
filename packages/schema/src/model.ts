@@ -1269,6 +1269,8 @@ export type NavRecentModel = {
 export type NavModel = {
   /** Hide the resource from the sidebar, for line or link tables. */
   hidden?: boolean
+  /** Show the entry only to whoever the list offers New, for a list that is there to make records, such as the tables users add. */
+  creatorsOnly?: true
   /** The sidebar group it sits in; its database schema when omitted. */
   group?: string
   /** Where it sorts within its group. */
