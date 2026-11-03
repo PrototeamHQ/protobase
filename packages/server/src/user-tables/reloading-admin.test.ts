@@ -88,3 +88,31 @@ describe('reloadingAdmin', () => {
     expect(await nameOf(await inFlight)).toBe('first')
   })
 })
+
+describe('reloadingAdmin after a write to a definition', () => {
+  // An admin that answers every request with `status`.
+  const write = (status = 200) => {
+    const first = new Hono<AdminEnv>()
+    first.all('*', (c) => c.json({}, status as 200))
+    const shaped = Object.assign(first, { jobs: [], startRealtimePrune: () => ({ stop: async () => {} }), decryptField: async () => undefined, metaPath: '/api/meta' }) as unknown as Admin
+    const readVersion = vi.fn(async () => '1')
+    const admin = reloadingAdmin({ first: shaped, version: '1', readVersion, readTables: async () => noTables, build: () => shaped, now: () => 0 })
+    return { admin, readVersion }
+  }
+
+  it.each(['/api/v1/user_tables', '/api/v1/user_table_fields', '/api/v1:batchWrite'])('reads the version at once once %s succeeded', async (path) => {
+    const { admin, readVersion } = write()
+    expect((await admin.request(path, { method: 'POST' })).status).toBe(200)
+    expect(readVersion).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads nothing after a refused write, a read or a write elsewhere', async () => {
+    const refused = write(400)
+    expect((await refused.admin.request('/api/v1/user_tables', { method: 'POST' })).status).toBe(400)
+    expect(refused.readVersion).not.toHaveBeenCalled()
+    const other = write()
+    await other.admin.request('/api/v1/orders', { method: 'POST' })
+    await other.admin.request('/api/v1/user_tables')
+    expect(other.readVersion).not.toHaveBeenCalled()
+  })
+})

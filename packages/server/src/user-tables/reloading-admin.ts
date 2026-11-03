@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { createErrorHandler } from '../error-handler'
 import type { Admin, AdminEnv } from '../types'
+import { fieldsResourceName, tablesResourceName } from './definitions-resources'
 import { latestAdmin } from './latest-admin'
 import type { UserTables } from './user-table-resources'
 
@@ -33,14 +34,19 @@ const replayable = async (request: Request) => {
   return () => new Request(request, { body })
 }
 
+// A write that may have changed a definition: to one of their resources, or a batch, which may hold one.
+const writesDefinitions = (request: Request, path: string) =>
+  request.method !== 'GET' && request.method !== 'HEAD' && (path.endsWith(':batchWrite') || path.split('/').some((segment) => segment === tablesResourceName || segment === fieldsResourceName))
+
 /**
  * The app's admin, rebuilt when the tables users add change, so every process serves a new definition without a
  * restart. `/meta` reads the definitions version first; any other request at most once a second, and once more when the
  * admin answers it not found or invalid, as it does a resource or field it does not know, and then is answered again by
  * the admin built anew. A request finishes on the admin it started with, and a WebSocket keeps the admin it opened
  * with. An admin that does not build with the new definitions is reported, and the one before keeps serving.
- * `reload()` reads the version at once, for the process that changed a definition. The jobs, the realtime prune and
- * the field decrypter are those of `first`.
+ * A write to a definition that succeeded rebuilds it at once, before it is answered, so the next request of the writer
+ * finds the change. `reload()` reads the version at once, for the process that changed a definition another way. The
+ * jobs, the realtime prune and the field decrypter are those of `first`.
  */
 export const reloadingAdmin = ({ first, version, readVersion, readTables, build, report, statementTimeoutMs, now }: ReloadingAdminInput) => {
   const rebuild = async (current: Admin) => {
@@ -55,8 +61,7 @@ export const reloadingAdmin = ({ first, version, readVersion, readTables, build,
   }
   const latest = latestAdmin({ admin: first, version, readVersion, rebuild, ...(now && { now }) })
 
-  const answer = async (request: Request, env: Parameters<Admin['fetch']>[1]) => {
-    const path = new URL(request.url).pathname
+  const answerOn = async (request: Request, env: Parameters<Admin['fetch']>[1], path: string) => {
     const atOnce = path === first.metaPath || path.startsWith(`${first.metaPath}/`)
     const admin = await latest.get(atOnce)
     const again = atOnce ? undefined : await replayable(request)
@@ -65,6 +70,13 @@ export const reloadingAdmin = ({ first, version, readVersion, readTables, build,
     if (!namesUnknown(answered)) return answered
     const fresh = await latest.get(true)
     return fresh === admin ? answered : fresh.fetch(again(), env)
+  }
+
+  const answer = async (request: Request, env: Parameters<Admin['fetch']>[1]) => {
+    const path = new URL(request.url).pathname
+    const answered = await answerOn(request, env, path)
+    if (answered.ok && writesDefinitions(request, path)) await latest.get(true)
+    return answered
   }
 
   const app = new Hono<AdminEnv>()

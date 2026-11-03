@@ -44,7 +44,9 @@ afterAll(async () => {
   await database.close()
 })
 
-const names = async (call: typeof one.call) => ((await (await call('/api/meta')).json()) as { resources: { name: string }[] }).resources.map((model) => model.name)
+// The resources served, but those over the definitions, which every app with user tables has.
+const names = async (call: typeof one.call) =>
+  ((await (await call('/api/meta')).json()) as { resources: { name: string }[] }).resources.map((model) => model.name).filter((name) => name !== 'user_tables' && name !== 'user_table_fields')
 
 describe.skipIf(!ready)('a definition added while two processes serve', () => {
   it('is served by the other process on its next /meta, and at once on a request that names it', async () => {

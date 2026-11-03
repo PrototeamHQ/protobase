@@ -7,8 +7,11 @@ import type { CheckedDefinition, CheckedField } from './check-definition'
 // nor an anonymous visitor reaches it, and `.explicitGrants()` keeps role wildcards such as `*.read` from it.
 const admins = ({ user }: AccessContext) => user?.roles?.includes('admin') ?? false
 
+/** The most characters a text field takes: four bytes each at most, it always fits the entry of its btree index. */
+export const maxTextLength = 500
+
 const builders = {
-  text: () => f.text(),
+  text: () => f.text().max(maxTextLength),
   long_text: () => f.text(),
   integer: () => f.integer(),
   decimal: (field: CheckedField) => f.decimal({ precision: field.precision!, scale: field.scale! }),

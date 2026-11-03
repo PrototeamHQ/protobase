@@ -133,7 +133,8 @@ import type { AdminOptions } from './admin-options'
 import type { Deps } from './deps'
 import type { Admin, AdminEnv, Authenticator, PageSource, Session, ViewSource } from './types'
 import { builtInResources } from './built-in-resources'
-import { servedUserTables, type UserTableSources } from './user-tables/served-user-tables'
+import { adminUserTables } from './user-tables/admin-user-tables'
+import type { UserTableSources } from './user-tables/served-user-tables'
 import type { JobDefinition } from './jobs/job-types'
 
 export type CreateAdminInput = {
@@ -232,7 +233,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const changes = changesSchema(events)
   const days = historyDays(historyOptions)
   const builtIn = builtInResources({ models: appModels, jobs: jobs.length > 0, notifications: notifications !== undefined, ...(events && { events }) })
-  const served = servedUserTables(userTables ?? { resources: [], views: [] }, [...appModels, ...builtIn.resources.map((resource) => resource.toModel())].map((model) => model.name))
+  const served = adminUserTables(userTables, [...appModels, ...builtIn.resources.map((resource) => resource.toModel())].map((model) => model.name), options.roles !== undefined)
   for (const warning of served.warnings) console.warn(warning)
   const resources = [...appResources, ...builtIn.resources, ...served.resources]
   const views = [...appViews, ...builtIn.views, ...served.views]
@@ -302,7 +303,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     systemPath,
     statementTimeoutMs: options.statementTimeoutMs ?? defaultStatementTimeoutMs,
     guard: createScanGuard(db, options.scanGuard),
-    hooks: [...(options.writeHooks ?? []), ...(table ? [subscriptionWriteCheck(registry.entries.map((entry) => entry.model))] : []), ...(fill ? [fillHook(() => deps, fill)] : [])],
+    hooks: [...(options.writeHooks ?? []), ...served.hooks, ...(table ? [subscriptionWriteCheck(registry.entries.map((entry) => entry.model))] : []), ...(fill ? [fillHook(() => deps, fill)] : [])],
     writeChecks: table?.checkUrl ? [subscriptionUrlCheck(table.checkUrl)] : [],
     audit: options.audit ?? consoleAuditQueue(),
     report: options.onUnhandledError ?? ((error: unknown) => console.error(error)),
