@@ -39,4 +39,13 @@ describe('checkDefinition', () => {
   it('refuses a title that is not one of its text fields', () => {
     expect(problemOf(checkDefinition(notesDefinition({ title_field: 'missing' }), notesColumns()))).toMatch('its title "missing" is not one of its text fields')
   })
+  it("needs an organization's table to keep its organization column, and refuses a field of that name there", () => {
+    const own = Object.fromEntries(notesColumns().get('notes')!)
+    const ofA = (columns: Record<string, ReturnType<typeof column>>, fields = notesDefinition().fields) => problemOf(checkDefinition(notesDefinition({ name: 't1_notes', organization_id: 'a', fields }), notesColumns({ t1_notes: columns })))
+    expect(ofA({ ...own, organization_id: column('text', true) })).toBeUndefined()
+    expect(ofA(own)).toMatch('has no "organization_id" text NOT NULL column')
+    expect(ofA({ ...own, organization_id: column('text') })).toMatch('has no "organization_id" text NOT NULL column')
+    expect(ofA({ ...own, organization_id: column('uuid', true) })).toMatch('has no "organization_id" text NOT NULL column')
+    expect(ofA({ ...own, organization_id: column('text', true) }, [field({ name: 'organization_id' })])).toMatch('the field name "organization_id" is reserved')
+  })
 })

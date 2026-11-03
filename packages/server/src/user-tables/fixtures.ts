@@ -4,6 +4,7 @@ import type { StoredColumn, StoredDefinition, StoredField, UserTableColumns } fr
 export const notesDefinition = (patch: Partial<StoredDefinition> = {}): StoredDefinition => ({
   id: '1',
   name: 'notes',
+  organization_id: null,
   singular_label: 'Note',
   plural_label: 'Notes',
   title_field: 'title',

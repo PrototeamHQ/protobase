@@ -66,4 +66,23 @@ describe('definitionResource', () => {
     expect(await allowedFor({ id: 'u3', roles: ['writer'] }, { roles })).toEqual([])
     expect(await allowedFor({ id: 'anonymous', roles: ['anonymous'] }, { roles })).toEqual([])
   })
+  it("makes an organization's table a tenant resource over organization_id, reached only by its own organization's admins", async () => {
+    const columns = notesColumns({ t1_notes: { ...Object.fromEntries(notesColumns().get('notes')!), organization_id: column('text', true) } })
+    const { resource } = definitionResource(checked(notesDefinition({ name: 't1_notes', organization_id: 'a' }), columns))
+    const model = resource.toModel()
+    expect(model.tenant).toBe('organization_id')
+    expect(model.fields.organization_id).toMatchObject({ type: 'text' })
+    expect(model.live).toBeFalsy()
+    expect(model.explicitGrants).toBe(true)
+    const allowed = async (context: Parameters<typeof resolveAccess>[1]) => {
+      const { operations: decided } = await resolveAccess(resource, context)
+      return operations.filter((operation) => decided[operation])
+    }
+    expect(await allowed({ user: { id: '1', roles: [] }, organization: { id: 'a', role: 'admin' } })).toEqual([...operations])
+    expect(await allowed({ user: { id: '1', roles: ['admin'] }, organization: { id: 'a' } })).toEqual([...operations])
+    expect(await allowed({ user: { id: '1', roles: [] }, organization: { id: 'a', role: 'member' } })).toEqual([])
+    expect(await allowed({ user: { id: '1', roles: [] }, organization: { id: 'b', role: 'owner' } })).toEqual([])
+    expect(await allowed({ user: { id: '1', roles: ['admin'] }, organization: { id: 'b' } })).toEqual([])
+    expect(await allowed({ user: { id: '1', roles: ['admin'] } })).toEqual([])
+  })
 })

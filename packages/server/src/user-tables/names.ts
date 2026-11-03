@@ -30,12 +30,21 @@ export const definitionFieldTypes = Object.keys(definitionColumnTypes) as Defini
 
 export const isUserTableName = (name: string) => userTableName.test(name) && new TextEncoder().encode(name).length <= maxNameBytes
 
-/** The names a field never takes: the key's, and the API's for the record version. */
-export const reservedFieldNames = ['id', 'etag']
+/** The column that holds the organization of each record of a table users add with organizations, and of each definition. */
+export const organizationColumn = 'organization_id'
 
-/** What is wrong with a name a table or field users add is given, or `undefined` when it may have it. */
-export const nameProblem = (name: unknown, kind: 'table' | 'field') => {
-  if (typeof name !== 'string' || !isUserTableName(name)) return 'Use lowercase letters, digits and "_", starting with a letter, at most 63 bytes'
+/** The names a field never takes: the key's, the API's for the record version, and the organization's. */
+export const reservedFieldNames = ['id', 'etag', organizationColumn]
+
+/**
+ * The most bytes the name of a table has in an app with organizations: its table is `t<id>_<name>`, and the id, a
+ * bigint, takes up to 19 digits of the 63 bytes Postgres keeps.
+ */
+export const maxOrganizationNameBytes = maxNameBytes - 21
+
+/** What is wrong with a name a table or field users add is given, or `undefined` when it may have it; `maxBytes` defaults to 63. */
+export const nameProblem = (name: unknown, kind: 'table' | 'field', maxBytes = maxNameBytes) => {
+  if (typeof name !== 'string' || !isUserTableName(name) || new TextEncoder().encode(name).length > maxBytes) return `Use lowercase letters, digits and "_", starting with a letter, at most ${maxBytes} bytes`
   if (reservedWords.has(name)) return `"${name}" is a word SQL reserves`
   if (kind === 'field' && reservedFieldNames.includes(name)) return `"${name}" is the name of a field every table has`
   return undefined

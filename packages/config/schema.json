@@ -1013,7 +1013,7 @@
       ]
     },
     "userTables": {
-      "description": "`true` keeps the tables the app's users add in its own database and serves each one like a resource of the config;\n`protobase migration` writes the schemas they need. Off by default, and refused together with organizations.",
+      "description": "`true` keeps the tables the app's users add in its own database and serves each one like a resource of the config;\n`protobase migration` writes the schemas they need. Off by default. With organizations, each keeps its own tables;\nrefused with `authenticate.organizations` alone.",
       "anyOf": [
         {
           "type": "boolean"

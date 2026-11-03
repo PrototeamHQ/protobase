@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nameProblem } from './names'
+import { maxOrganizationNameBytes, nameProblem } from './names'
 
 describe('nameProblem', () => {
   it('takes lowercase names of letters, digits and "_" starting with a letter, up to 63 bytes', () => {
@@ -15,5 +15,10 @@ describe('nameProblem', () => {
     expect(nameProblem('id', 'table')).toBeUndefined()
     expect(nameProblem('id', 'field')).toMatch('every table has')
     expect(nameProblem('etag', 'field')).toMatch('every table has')
+  })
+  it('refuses the organization column as a field, and a name over the bytes given', () => {
+    expect(nameProblem('organization_id', 'field')).toMatch('every table has')
+    expect(nameProblem('n'.repeat(42), 'table', maxOrganizationNameBytes)).toBeUndefined()
+    expect(nameProblem('n'.repeat(43), 'table', maxOrganizationNameBytes)).toMatch('at most 42 bytes')
   })
 })

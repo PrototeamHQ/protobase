@@ -177,7 +177,7 @@ export default defineConfig(({ env }) => ({
 - **Type:** `boolean`
 - **Default:** `false`
 
-`true` keeps the tables the app's users add in its own database, in the `table_definitions` and `user_tables` schemas that [`protobase migration`](/reference/cli/#migration) writes, and serves each one like a resource in code. It cannot be on together with organizations. See [User tables](/reference/user-tables/).
+`true` keeps the tables the app's users add in its own database, in the `table_definitions` and `user_tables` schemas that [`protobase migration`](/reference/cli/#migration) writes, and serves each one like a resource in code. With [organizations](/reference/auth/#organizations), each organization keeps its own tables; an API that trusts the organization tokens of an auth server elsewhere (`authenticate.organizations` without `auth.organizations`) cannot turn it on. See [User tables](/reference/user-tables/).
 
 ```ts
 export default defineConfig({ userTables: true })

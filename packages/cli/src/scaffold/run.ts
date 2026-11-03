@@ -4,6 +4,7 @@ import { createTwoFilesPatch } from 'diff'
 import { connect } from '../db/connect'
 import { introspect } from '../db/introspect'
 import { readExistingResources } from './existing-config'
+import { readOrganizationTables } from './organization-tables'
 import { planScaffold, type FileChange } from './plan'
 import type { ProtobaseSchema } from './protobase-tables'
 import { acceptAll, interactive, type Decide } from './prompt'
@@ -54,6 +55,7 @@ export const runScaffold = async (options: ScaffoldOptions, out: (text: string) 
         target: parseTarget(options.target),
         excludes: options.excludes,
         live: options.live,
+        organizationTables: await readOrganizationTables(sql),
         decide: options.decide ?? prompter?.decide ?? acceptAll,
         ui: options.ui,
         readText,

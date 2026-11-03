@@ -1,5 +1,5 @@
 import { sql, type RawBuilder } from 'kysely'
-import { nameProblem, userTablesSchema, type DefinitionFieldType } from './names'
+import { nameProblem, organizationColumn, userTablesSchema, type DefinitionFieldType } from './names'
 
 /** A field as its definition row holds it: nothing in it is trusted until a statement is built from it. */
 export type FieldRow = { name: unknown; type: unknown; precision: unknown; scale: unknown }
@@ -64,6 +64,15 @@ export const indexKind = (type: unknown): 'btree' | 'trigram' | undefined => {
 
 /** The new table, with its key alone: its fields are added as columns. */
 export const createTableSql = (table: unknown) => sql`create table ${tableId(table)} (id bigint generated always as identity primary key)`
+
+/**
+ * The new table of an organization: its key, and the organization of each record, which `.tenant` sets and every query
+ * filters by, with the index that filter reads.
+ */
+export const createOrganizationTableSql = (table: unknown) => [
+  sql`create table ${tableId(table)} (id bigint generated always as identity primary key, ${sql.id(organizationColumn)} text not null)`,
+  sql`create index on ${tableId(table)} (${sql.id(organizationColumn)})`,
+]
 
 /** The field's column: nullable and without a default, so the records already there read it as empty. */
 export const addColumnSql = (table: unknown, field: FieldRow) => sql`alter table ${tableId(table)} add column ${sql.id(checkedName(field.name, 'field'))} ${columnType(field)}`

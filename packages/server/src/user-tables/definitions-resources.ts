@@ -1,5 +1,6 @@
-import { f, resource, type AccessContext } from '@protobase/schema'
-import { definitionFieldTypes, definitionsSchema, nameProblem } from './names'
+import { f, resource, type AccessContext, type Ref } from '@protobase/schema'
+import { definitionFieldTypes, definitionsSchema, maxOrganizationNameBytes, nameProblem, organizationColumn } from './names'
+import { organizationAdmins } from './organization-access'
 
 /** The names of the resources over the definitions: a table users add takes neither. */
 export const tablesResourceName = 'user_tables'
@@ -14,7 +15,16 @@ const createOnly = { update: never }
 // With the project's roles an operation without a rule needs `<resource>.<action>`, which `.explicitGrants()` keeps
 // from wildcards such as `*.create`, so only `*` or a capability naming the resource grants it; without roles, admins
 // alone. Nothing deletes a definition: its table and columns stay.
-const accessOf = (roles: boolean) => (roles ? { delete: never } : { list: admins, read: admins, create: admins, update: admins, delete: never })
+// With organizations, the organization's owners and admins, and superusers working in it, whatever the project's roles:
+// each definition is its organization's, which `.tenant` keeps every query and create to.
+const accessOf = (roles: boolean, organizations: boolean) =>
+  organizations ? { list: organizationAdmins, read: organizationAdmins, create: organizationAdmins, update: organizationAdmins, delete: never }
+  : roles ? { delete: never } : { list: admins, read: admins, create: admins, update: admins, delete: never }
+
+// With organizations a definition and each of its fields carry the organization they were made in, which the server
+// sets from the session and a request body may not.
+const withOrganization = <T extends { tenant: (pick: (r: Record<string, Ref>) => Ref) => T }>(source: T, organizations: boolean) =>
+  organizations ? source.tenant((r) => r[organizationColumn]!) : source
 
 const issue = <F extends string>(field: F, problem: string | undefined) => (problem ? [{ field, message: problem }] : [])
 
@@ -22,9 +32,16 @@ const issue = <F extends string>(field: F, problem: string | undefined) => (prob
  * The definitions of the tables users add, as resources: a table at `/user_tables/<id>`, each of its fields at
  * `/user_table_fields/<table_id>,<name>`. Writing one creates its table or column in the database, in the same
  * transaction (`definitionsHook`). `taken` holds the names of the app's resources and those Protobase adds, which a
- * new table may not have.
+ * new table may not have. With `organizations`, each belongs to the organization it was made in and only that one's
+ * owners and admins reach it; its table is `t<id>_<name>` (`table_name`), so the name is free in every organization.
  */
-export const definitionsResources = ({ roles, taken }: { roles: boolean; taken: readonly string[] }) => {
+export const definitionsResources = ({ roles, taken, organizations = false }: { roles: boolean; taken: readonly string[]; organizations?: boolean }) => {
+  // Typed as no field, so the builders' refs stay those of the fields every app has.
+  const organization = (organizations ? { [organizationColumn]: f.text() } : {}) as {}
+  const nameIssue = (name: unknown) => {
+    if (organizations) return nameProblem(name, 'table', maxOrganizationNameBytes)
+    return nameProblem(name, 'table') ?? (taken.includes(name as string) || [tablesResourceName, fieldsResourceName].includes(name as string) ? `"${name as string}" is the name of a resource of the app` : undefined)
+  }
   const tables = resource(tablesResourceName)
     .table(`${definitionsSchema}.tables`)
     .fields({
@@ -34,12 +51,15 @@ export const definitionsResources = ({ roles, taken }: { roles: boolean; taken: 
       plural_label: f.text().max(200),
       title_field: f.text().optional(),
       version: f.bigint().readOnly().dbDefault(),
+      // The table's name in the database and its resource's: the name, or `t<id>_<name>` with organizations.
+      table_name: f.text().readOnly().dbDefault(),
+      ...organization,
     })
     .primaryKey((r) => r.id)
     .explicitGrants()
-    .access(accessOf(roles))
+    .access(accessOf(roles, organizations))
     .validate((table) => [
-      ...issue('name', nameProblem(table.name, 'table') ?? (taken.includes(table.name) || [tablesResourceName, fieldsResourceName].includes(table.name) ? `"${table.name}" is the name of a resource of the app` : undefined)),
+      ...issue('name', nameIssue(table.name)),
       ...issue('title_field', table.title_field ? nameProblem(table.title_field, 'field') : undefined),
     ])
 
@@ -55,10 +75,11 @@ export const definitionsResources = ({ roles, taken }: { roles: boolean; taken: 
       position: f.integer().sortable(),
       precision: f.integer().optional().access(createOnly),
       scale: f.integer().optional().access(createOnly),
+      ...organization,
     })
     .primaryKey((r) => [r.table_id, r.name])
     .explicitGrants()
-    .access(accessOf(roles))
+    .access(accessOf(roles, organizations))
     .validate((field) => [
       ...issue('name', nameProblem(field.name, 'field')),
       ...issue('required', field.required ? 'A field users add is optional: the records already there have no value for it' : undefined),
@@ -68,5 +89,5 @@ export const definitionsResources = ({ roles, taken }: { roles: boolean; taken: 
         : [...issue('precision', field.precision == null ? undefined : 'Only a decimal has a precision'), ...issue('scale', field.scale == null ? undefined : 'Only a decimal has a scale')]),
     ])
 
-  return { tables, fields }
+  return { tables: withOrganization(tables, organizations), fields: withOrganization(fields, organizations) }
 }
