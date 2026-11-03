@@ -143,7 +143,7 @@ Once the code serves, the table takes no new field from the admin app, and a new
 A table belongs to one organization and is never shared with another. Only the organization's owners and admins reach it; access cannot be widened to its other members yet.
 :::
 
-In an app with organizations, a table someone adds belongs to their organization. Only its members see the table and its records.
+In an app with organizations, a table someone adds belongs to their organization. Only its owners and admins, and superusers working in it, see the table and its records.
 
 - **Who makes and sees them.** The owners and admins of the organization a session works in, as its [organization role](/reference/auth/#organizations) stands on that request, and superusers working in it. They make a table, add its fields and work with its records as [above](#adding-tables-and-fields); the project's roles and their capabilities do not widen it. Anyone else, in another organization or in none, gets not found at its address, and does not see it in `/meta`, the sidebar, search, the API document or the assistant. A member who is demoted or removed loses it on their next request. <gap>Members of an organization other than its owners and admins cannot see its tables because widening their access is not implemented.</gap>
 - **Its records.** Each table is a `.tenant` resource over its `organization_id` column, as [organizations](/reference/auth/#organizations) describe: the server sets it on every record from the session, a request body cannot, and every query reads only the organization's own.
