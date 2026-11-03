@@ -11,11 +11,15 @@ import type { BundleUi } from '../serve/bundle-ui'
  * project's own and the delivery of its events and history. With a `reporter`, every error the API turns into a 500,
  * and every stopped query, goes to the error tracker too, besides the project's `onUnhandledError` or the console. With
  * the host's `upgradeWebSocket`, it serves `/api/sb/realtime/v1` too. With `userTables`, the tables users add serve
- * beside the config's resources (see `projectUserTables`).
+ * beside the config's resources (see `readUserTables`). `report` is what the admin does with an unhandled error.
  */
 export const projectAdmin = (project: BuiltProject, db: Db, ui?: BundleUi, reporter?: ErrorReporter, upgradeWebSocket?: UpgradeWebSocket, userTables?: UserTables) => {
   const { resources, views, pages, userMenu, bottomBars, subscriptions } = configExports(project.config)
   const unhandled = project.options?.onUnhandledError ?? ((error: unknown) => console.error(error))
+  const report = (error: unknown, request?: Request) => {
+    reporter?.report(error, request)
+    unhandled(error, request)
+  }
   const admin = createAdmin({
     resources,
     views,
@@ -45,11 +49,8 @@ export const projectAdmin = (project: BuiltProject, db: Db, ui?: BundleUi, repor
     ...(upgradeWebSocket && { upgradeWebSocket }),
     options: {
       ...project.options,
-      onUnhandledError: (error, request) => {
-        reporter?.report(error, request)
-        unhandled(error, request)
-      },
+      onUnhandledError: report,
     },
   })
-  return { admin, jobs: [...project.jobs, ...admin.jobs] }
+  return { admin, jobs: [...project.jobs, ...admin.jobs], report }
 }
