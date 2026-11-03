@@ -2,15 +2,18 @@ import { definitionFieldTypes, definitionsSchema, maxNameBytes, userTableName, u
 
 const nameCheck = (column: string) => `check (${column} ~ '${userTableName.source}' and octet_length(${column}) <= ${maxNameBytes})`
 
-/** The table of definitions: one row per table users add, its labels and a version that each change of it raises. */
+/** The table of definitions: one row per table users add, its labels and a version, 1 when added, that each change of it raises. */
 export const tablesSql = () => `create table ${definitionsSchema}.tables (
   id bigint generated always as identity primary key,
   name text not null unique ${nameCheck('name')},
   singular_label text not null,
   plural_label text not null,
   title_field text ${nameCheck('title_field')},
-  version bigint not null check (version > 0)
+  version bigint not null default 1 check (version > 0)
 )`
+
+/** Gives a definitions table made before new definitions started at version 1 that default. */
+export const versionDefaultSql = () => `alter table ${definitionsSchema}.tables alter column version set default 1`
 
 /** The fields of each definition, in order, each with its label and type; a decimal names its precision and scale. */
 export const fieldsSql = () => `create table ${definitionsSchema}.fields (

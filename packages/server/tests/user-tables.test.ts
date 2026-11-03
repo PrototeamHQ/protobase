@@ -75,7 +75,7 @@ describe('tables defined in the database', () => {
   })
   it('names it in /meta and the API document for an admin, with its labels, and the code resource of the same name', async () => {
     const meta = await (await call('admin', '/api/meta')).json()
-    expect(meta.resources.map((model: { name: string }) => model.name)).toEqual(['orders', 'notes'])
+    expect(meta.resources.map((model: { name: string }) => model.name)).toEqual(['orders', 'user_tables', 'user_table_fields', 'notes'])
     expect(Object.keys(meta.resources[0].fields)).toEqual(['id', 'amount'])
     const notesView = meta.views.find((shown: { resource: string }) => shown.resource === 'notes')
     expect(notesView).toMatchObject({ names: { singular: 'Note', plural: 'Notes' }, title: 'title', fields: { body: { label: 'Body <b>bold</b>', multiline: true } } })
