@@ -1,8 +1,8 @@
 #!/bin/sh
-# Checks the commit message against the conventional commit rules of commitlint.config.mjs (see CONTRIBUTING.md).
+# Checks the commit message against the conventional commit rules of commitlint.branch.config.mjs (see CONTRIBUTING.md).
 commitlint=node_modules/.bin/commitlint
 if [ ! -x "$commitlint" ]; then
   echo "commit-msg: $commitlint is missing; run bun install" >&2
   exit 1
 fi
-exec bun --bun "$commitlint" --edit "$1"
+exec bun --bun "$commitlint" --config commitlint.branch.config.mjs --edit "$1"
