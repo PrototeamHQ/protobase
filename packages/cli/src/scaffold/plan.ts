@@ -67,7 +67,7 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
   const tables = input.tables.filter((table) => table.kind === 'table')
   // Found among every table, so a target that names one of the store's tables alone still leaves it out; reported
   // as skipped where the target reaches them and nothing excludes them.
-  const protobase = protobaseSchemas(tables, input.target)
+  const protobase = protobaseSchemas(tables, input.target, new Set(byTable.keys()))
   const skipped = protobase.map((found) => ({ ...found, tables: found.tables.filter(wanted) })).filter((found) => found.tables.length > 0)
   const isProtobase = (table: DbTable) => protobase.some((schema) => schema.tables.includes(table))
   // A view has no key Postgres knows, so a resource over one is written by hand; one already declared is left as it is,

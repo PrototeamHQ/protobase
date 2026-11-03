@@ -4,6 +4,7 @@ import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, Ca
 import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
 import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks } from './project-parts'
+import { userTablesOn } from './user-tables-config'
 
 /**
  * The app's database: Kysely over its pool, and the pool itself, which its Better Auth store shares; a test's database
@@ -66,6 +67,8 @@ export type BuiltProject = {
   mailer?: Mailer
   mobile?: MobileConfig
   app?: AppIdentity
+  /** Whether the tables users add serve beside the config's resources (`userTables`). */
+  userTables?: boolean
   options?: AdminOptions
 }
 
@@ -102,6 +105,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     ...(config.mobile && { mobile: config.mobile }),
     ...(config.secret && { secret: config.secret }),
     ...(identity && { app: identity }),
+    ...(userTablesOn(config) && { userTables: true }),
     options,
   }
 }

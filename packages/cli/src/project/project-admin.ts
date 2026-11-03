@@ -1,6 +1,6 @@
 import type { UpgradeWebSocket } from 'hono/ws'
 import type { Db } from '@protobase/query'
-import { configExports, createAdmin, type ErrorReporter } from '@protobase/server'
+import { configExports, createAdmin, type ErrorReporter, type UserTables } from '@protobase/server'
 import type { BuiltProject } from '../config/build-project'
 import type { BundleUi } from '../serve/bundle-ui'
 
@@ -10,14 +10,16 @@ import type { BundleUi } from '../serve/bundle-ui'
  * types and which icons are the project's own (`protobase dev` passes the project's icons alone). `jobs` are the
  * project's own and the delivery of its events and history. With a `reporter`, every error the API turns into a 500,
  * and every stopped query, goes to the error tracker too, besides the project's `onUnhandledError` or the console. With
- * the host's `upgradeWebSocket`, it serves `/api/sb/realtime/v1` too.
+ * the host's `upgradeWebSocket`, it serves `/api/sb/realtime/v1` too. With `userTables`, the tables users add serve
+ * beside the config's resources (see `projectUserTables`).
  */
-export const projectAdmin = (project: BuiltProject, db: Db, ui?: BundleUi, reporter?: ErrorReporter, upgradeWebSocket?: UpgradeWebSocket) => {
+export const projectAdmin = (project: BuiltProject, db: Db, ui?: BundleUi, reporter?: ErrorReporter, upgradeWebSocket?: UpgradeWebSocket, userTables?: UserTables) => {
   const { resources, views, pages, userMenu, bottomBars, subscriptions } = configExports(project.config)
   const unhandled = project.options?.onUnhandledError ?? ((error: unknown) => console.error(error))
   const admin = createAdmin({
     resources,
     views,
+    ...(userTables && { userTables }),
     pages,
     ...(userMenu && { userMenu }),
     bottomBars,

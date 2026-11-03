@@ -10,6 +10,7 @@ export const featuresPage = 'features'
 export const features = [
   'features/start-a-project',
   'features/data-model',
+  'features/user-tables',
   'features/access',
   'features/lists',
   'features/list-displays',
@@ -73,7 +74,7 @@ export const referenceGroups = [
   },
   {
     label: 'Data',
-    items: ['reference/data-config', 'reference/files', 'reference/history', 'reference/comments', 'reference/live', 'reference/channels', 'reference/ai'],
+    items: ['reference/data-config', 'reference/user-tables', 'reference/files', 'reference/history', 'reference/comments', 'reference/live', 'reference/channels', 'reference/ai'],
   },
   { label: 'Access and sign-in', items: ['reference/access', 'reference/auth'] },
   { label: 'API', items: ['reference/api', 'reference/client', 'reference/mcp', 'reference/calls'] },

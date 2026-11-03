@@ -4,6 +4,7 @@ import type { Extension } from '../project/extensions'
 import { importProjectFiles } from '../project/import-project-file'
 import { withDefaults } from './config-defaults'
 import { mergeConfig } from './merge-config'
+import { checkUserTables } from './user-tables-config'
 import { sourceFiles } from './project-files'
 import { configFileOf, readConfigFile, type ImportModules } from './read-config'
 
@@ -29,5 +30,5 @@ export const loadSourceConfig = async (dir: string, { command, extensions = [], 
   }
   const file = configFileOf(dir)
   const own: ProtobaseConfig = file ? await readConfigFile(file, configEnv, importModules) : {}
-  return withDefaults(mergeConfig(...extended, { config: own, files: sourceFiles(dir, importModules), label: file ? path.basename(file) : 'config/index.ts' }), command, process.env)
+  return checkUserTables(withDefaults(mergeConfig(...extended, { config: own, files: sourceFiles(dir, importModules), label: file ? path.basename(file) : 'config/index.ts' }), command, process.env))
 }
