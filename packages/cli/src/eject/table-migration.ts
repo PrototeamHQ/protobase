@@ -16,7 +16,8 @@ const columnSql = (table: DbTable, column: DbColumn) => {
 
 // `CREATE INDEX name ON ...`, as pg_get_indexdef writes it, made to leave an index of that name alone.
 const ifNotExists = (definition: string) => {
-  const statement = /^CREATE (UNIQUE )?INDEX (\S+) ON /
+  // The name is quoted when it is not a plain lowercase identifier, and may then hold spaces.
+  const statement = /^CREATE (UNIQUE )?INDEX ("(?:[^"]|"")*"|\S+) ON /
   if (!statement.test(definition)) throw new Error(`Unexpected index definition: ${definition}`)
   return definition.replace(statement, (_, unique: string | undefined, name: string) => `create ${unique ? 'unique ' : ''}index if not exists ${name} on `)
 }

@@ -50,6 +50,11 @@ describe('tableMigration', () => {
     expect(statements).not.toContain('create extension if not exists pg_trgm;')
   })
 
+  it('keeps a quoted index name whole, spaces and quotes included', () => {
+    const statements = tableMigration(notes, { constraints: [], indexes: ['CREATE INDEX "My ""Title"" idx" ON user_tables.notes USING btree (title)'] })
+    expect(statements).toContain('create index if not exists "My ""Title"" idx" on user_tables.notes USING btree (title);')
+  })
+
   it('refuses a generated column, which a table users add never has', () => {
     const table = { ...notes, columns: [column('total', 'numeric', { generated: true, defaultExpr: 'price * 2' })] }
     expect(() => tableMigration(table, ddl)).toThrow('user_tables.notes.total is a generated column')
