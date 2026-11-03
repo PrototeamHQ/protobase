@@ -1,0 +1,483 @@
+{
+  "resources": [
+    {
+      "name": "user_tables",
+      "table": {
+        "schema": "table_definitions",
+        "name": "tables"
+      },
+      "fields": {
+        "id": {
+          "name": "id",
+          "column": "id",
+          "type": "bigint",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": true,
+          "aliases": [],
+          "default": {
+            "db": true
+          }
+        },
+        "name": {
+          "name": "name",
+          "column": "name",
+          "type": "text",
+          "nullable": false,
+          "readOnly": false,
+          "filterable": true,
+          "sortable": true,
+          "aliases": []
+        },
+        "singular_label": {
+          "name": "singular_label",
+          "column": "singular_label",
+          "type": "text",
+          "nullable": false,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "plural_label": {
+          "name": "plural_label",
+          "column": "plural_label",
+          "type": "text",
+          "nullable": false,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "title_field": {
+          "name": "title_field",
+          "column": "title_field",
+          "type": "text",
+          "nullable": true,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "version": {
+          "name": "version",
+          "column": "version",
+          "type": "bigint",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": [],
+          "default": {
+            "db": true
+          }
+        }
+      },
+      "primaryKey": [
+        "id"
+      ],
+      "explicitGrants": true
+    },
+    {
+      "name": "user_table_fields",
+      "table": {
+        "schema": "table_definitions",
+        "name": "fields"
+      },
+      "fields": {
+        "table_id": {
+          "name": "table_id",
+          "column": "table_id",
+          "type": "relation",
+          "nullable": false,
+          "readOnly": false,
+          "filterable": true,
+          "sortable": false,
+          "aliases": [],
+          "relation": {
+            "resource": "user_tables",
+            "columns": [
+              "table_id"
+            ]
+          }
+        },
+        "name": {
+          "name": "name",
+          "column": "name",
+          "type": "text",
+          "nullable": false,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "label": {
+          "name": "label",
+          "column": "label",
+          "type": "text",
+          "nullable": false,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "type": {
+          "name": "type",
+          "column": "type",
+          "type": "enum",
+          "nullable": false,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": false,
+          "aliases": [],
+          "enumValues": [
+            "text",
+            "long_text",
+            "integer",
+            "decimal",
+            "boolean",
+            "date",
+            "timestamp",
+            "json"
+          ]
+        },
+        "required": {
+          "name": "required",
+          "column": "required",
+          "type": "boolean",
+          "nullable": false,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": false,
+          "aliases": [],
+          "default": {
+            "value": false
+          }
+        },
+        "position": {
+          "name": "position",
+          "column": "position",
+          "type": "integer",
+          "nullable": false,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": true,
+          "aliases": []
+        },
+        "precision": {
+          "name": "precision",
+          "column": "precision",
+          "type": "integer",
+          "nullable": true,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "scale": {
+          "name": "scale",
+          "column": "scale",
+          "type": "integer",
+          "nullable": true,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        }
+      },
+      "primaryKey": [
+        "table_id",
+        "name"
+      ],
+      "explicitGrants": true
+    },
+    {
+      "name": "notes",
+      "table": {
+        "schema": "user_tables",
+        "name": "notes"
+      },
+      "fields": {
+        "id": {
+          "name": "id",
+          "column": "id",
+          "type": "bigint",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": true,
+          "aliases": [],
+          "default": {
+            "db": true
+          }
+        },
+        "title": {
+          "name": "title",
+          "column": "title",
+          "type": "text",
+          "nullable": false,
+          "readOnly": false,
+          "filterable": true,
+          "sortable": true,
+          "aliases": []
+        },
+        "body": {
+          "name": "body",
+          "column": "body",
+          "type": "text",
+          "nullable": true,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        }
+      },
+      "primaryKey": [
+        "id"
+      ],
+      "explicitGrants": true,
+      "search": [
+        "title"
+      ]
+    }
+  ],
+  "views": [
+    {
+      "resource": "user_tables",
+      "fields": {
+        "name": {
+          "label": "Name",
+          "format": "code",
+          "help": "Its address and the name of its database table: lowercase letters, digits and _, starting with a letter. It cannot change later."
+        },
+        "plural_label": {
+          "label": "Plural label",
+          "help": "Its name in the sidebar and above its list, such as Notes."
+        },
+        "singular_label": {
+          "label": "Singular label",
+          "help": "What one record is called, such as Note."
+        },
+        "title_field": {
+          "label": "Title field",
+          "notOnCreate": true,
+          "help": "The name of the text field that titles each record and that search looks in."
+        }
+      },
+      "filters": [],
+      "layout": [
+        {
+          "kind": "section",
+          "title": "Table",
+          "fields": [
+            "plural_label",
+            "singular_label",
+            "name",
+            "title_field"
+          ]
+        },
+        {
+          "kind": "related",
+          "title": "Fields",
+          "resource": "user_table_fields",
+          "field": "table_id",
+          "sort": "position",
+          "empty": "No fields yet.",
+          "columns": [
+            "label",
+            "name",
+            "type"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "name": "open_table",
+          "label": "Open table",
+          "bulk": false,
+          "icon": "table",
+          "run": {
+            "kind": "link",
+            "to": {
+              "kind": "list",
+              "resource": "{name}"
+            }
+          }
+        },
+        {
+          "name": "add_field",
+          "label": "Add field",
+          "bulk": false,
+          "icon": "plus",
+          "run": {
+            "kind": "link",
+            "to": {
+              "kind": "create",
+              "resource": "user_table_fields",
+              "values": {
+                "table_id": "{id}"
+              }
+            }
+          }
+        }
+      ],
+      "names": {
+        "singular": "Table",
+        "plural": "Tables"
+      },
+      "title": "plural_label",
+      "help": "The tables people add to the app. Open one to give it fields or to go to its records.",
+      "nav": {
+        "creatorsOnly": true,
+        "order": 0
+      },
+      "list": {
+        "sort": [
+          [
+            "name",
+            "asc"
+          ]
+        ],
+        "columns": [
+          "plural_label",
+          "name"
+        ]
+      }
+    },
+    {
+      "resource": "user_table_fields",
+      "fields": {
+        "table_id": {
+          "label": "Table"
+        },
+        "label": {
+          "label": "Label",
+          "help": "What the field is called on screen."
+        },
+        "name": {
+          "label": "Name",
+          "format": "code",
+          "help": "Its name in the API and its database column: lowercase letters, digits and _, starting with a letter. It cannot change later."
+        },
+        "type": {
+          "label": "Type",
+          "valueLabels": {
+            "text": "Text",
+            "long_text": "Long text",
+            "integer": "Whole number",
+            "decimal": "Decimal number",
+            "boolean": "Yes or no",
+            "date": "Date",
+            "timestamp": "Date and time",
+            "json": "JSON"
+          },
+          "help": "What it holds. It cannot change later."
+        },
+        "position": {
+          "label": "Position",
+          "help": "Where it sits among the fields of its table, 1 the first."
+        },
+        "precision": {
+          "label": "Digits",
+          "help": "For a decimal number only: how many digits it holds in all, from 1 to 1000."
+        },
+        "scale": {
+          "label": "Decimals",
+          "help": "For a decimal number only: how many of those digits come after the decimal point."
+        },
+        "required": {
+          "notOnCreate": true
+        }
+      },
+      "filters": [],
+      "layout": [
+        {
+          "kind": "section",
+          "title": "Field",
+          "fields": [
+            "table_id",
+            "label",
+            "name",
+            "type",
+            "position"
+          ]
+        },
+        {
+          "kind": "section",
+          "title": "Decimal number",
+          "fields": [
+            "precision",
+            "scale"
+          ]
+        }
+      ],
+      "actions": [],
+      "names": {
+        "singular": "Field",
+        "plural": "Fields"
+      },
+      "title": "label",
+      "nav": {
+        "hidden": true
+      },
+      "list": {
+        "sort": [
+          [
+            "position",
+            "asc"
+          ]
+        ],
+        "columns": [
+          "label",
+          "name",
+          "type",
+          "position"
+        ]
+      }
+    },
+    {
+      "resource": "notes",
+      "fields": {
+        "title": {
+          "label": "Title"
+        },
+        "body": {
+          "label": "Body <b>bold</b>",
+          "multiline": true
+        }
+      },
+      "filters": [],
+      "layout": [],
+      "actions": [],
+      "names": {
+        "singular": "Note",
+        "plural": "Notes"
+      },
+      "title": "title"
+    }
+  ],
+  "permissions": {
+    "user_tables": {
+      "read": true,
+      "create": true,
+      "update": true,
+      "delete": false,
+      "conditional": []
+    },
+    "user_table_fields": {
+      "read": true,
+      "create": true,
+      "update": true,
+      "delete": false,
+      "conditional": []
+    },
+    "notes": {
+      "read": true,
+      "create": true,
+      "update": true,
+      "delete": true,
+      "conditional": []
+    }
+  }
+}

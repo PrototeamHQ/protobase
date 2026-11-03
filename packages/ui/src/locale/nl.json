@@ -212,6 +212,7 @@
     "catalog": "Catalogus",
     "inventory": "Voorraad",
     "hr": "HR",
+    "tables": "Tabellen",
     "cannotReach": "Kan {label} niet bereiken",
     "searchPlural": "{plural} zoeken",
     "couldNotLoadOptions": "Kon de keuzes niet laden",

@@ -82,6 +82,19 @@ describe('tables defined in the database', () => {
     const document = await (await call('admin', '/api/openapi.json')).json()
     expect(Object.keys(document.paths)).toEqual(expect.arrayContaining(['/orders', '/notes', '/notes/{key}']))
   })
+  it('gives an admin the views tables are made in, with the link to a table by its name', async () => {
+    const meta = await (await call('admin', '/api/meta')).json()
+    const tablesView = meta.views.find((shown: { resource: string }) => shown.resource === 'user_tables')
+    expect(tablesView.actions.map((action: { run: unknown }) => action.run)).toContainEqual({ kind: 'link', to: { kind: 'list', resource: '{name}' } })
+    // The admin app's stories of tables users add stand on this answer.
+    const shown = ['user_tables', 'user_table_fields', 'notes']
+    const recorded = {
+      resources: meta.resources.filter((model: { name: string }) => shown.includes(model.name)),
+      views: meta.views.filter((model: { resource: string }) => shown.includes(model.resource)),
+      permissions: Object.fromEntries(shown.map((name) => [name, meta.permissions[name]])),
+    }
+    await expect(`${JSON.stringify(recorded, null, 2)}\n`).toMatchFileSnapshot('../../ui/src/app/testing/user-tables-meta.json')
+  })
   it('refuses a filter and a sort no index serves', async () => {
     expect((await call('admin', `/notes?filter=${encodeURIComponent('body = "x"')}`)).status).toBe(400)
     expect((await call('admin', '/notes?order_by=body')).status).toBe(400)

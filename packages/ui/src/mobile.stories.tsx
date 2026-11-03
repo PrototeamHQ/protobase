@@ -14,6 +14,7 @@ import { adminUser } from './website/users'
 import { ConflictDialog } from './app/delete/dialogs'
 import { CreateRecordForm } from './app/create/create-record-form'
 import { fakeInvoiceClient } from './app/testing/fake-invoice-client'
+import { fakeUserTables } from './app/testing/fake-user-tables'
 import { createRowSource } from './data-grid'
 import { invoiceCount, invoiceRowAt, invoicesColumns, invoicesNaturalSort } from './data-grid/invoices-fixtures'
 import { ordersColumns, ordersNaturalSort } from './data-grid/orders-fixtures'
@@ -365,4 +366,90 @@ export const CreateFormPhone: Story = {
       />
     </div>
   ),
+}
+
+// The tables users add, made from the admin app on a phone: the page scrolls, never sideways.
+const fitsWidth = async () => waitFor(() => expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth))
+
+const tablesApp = (initialUrl: string, made = true) => (
+  <div className="h-screen">
+    <App client={fakeUserTables({ made }).client} auth={storySession} initialUrl={initialUrl} />
+  </div>
+)
+
+export const TablesPhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_tables'),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByRole('heading', { name: 'Tables' })).toBeInTheDocument()
+    expect(await canvas.findByText('notes')).toBeInTheDocument()
+    await fitsWidth()
+  },
+}
+
+export const NewTablePhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_tables/new'),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByLabelText(/Plural label/)).toBeInTheDocument()
+    // The title names a field, and a new table has none yet
+    expect(canvas.queryByLabelText(/Title field/)).toBeNull()
+    await fitsWidth()
+  },
+}
+
+export const NewFieldPhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_table_fields/new?table_id=1'),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('combobox', { name: /Type/ }))
+    const options = await canvas.findAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual(expect.arrayContaining(['Text', 'Long text', 'Whole number', 'Decimal number', 'Yes or no', 'Date and time']))
+    expect(options.map((option) => option.textContent)).not.toContain('long_text')
+    expect(canvas.queryByLabelText(/Required/)).toBeNull()
+  },
+}
+
+export const TableRecordPhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_tables/1'),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByRole('heading', { name: 'Fields' })).toBeInTheDocument()
+    expect(await canvas.findByText('Body')).toBeInTheDocument()
+    await userEvent.click(canvas.getByRole('button', { name: 'Record actions' }))
+    expect(await within(document.body).findByRole('menuitem', { name: 'Open table' })).toHaveAttribute('href', '/notes')
+    expect(within(document.body).getByRole('menuitem', { name: 'Add field' })).toHaveAttribute('href', '/user_table_fields/new?table_id=1')
+    await fitsWidth()
+  },
+}
+
+export const MakeTablePhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_tables/new', false),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(await canvas.findByLabelText(/Plural label/), 'Notes')
+    await userEvent.type(canvas.getByLabelText(/Singular label/), 'Note')
+    await userEvent.type(canvas.getByLabelText(/^Name/), 'notes')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create table' }))
+    expect(await canvas.findByRole('heading', { name: 'Fields' })).toBeInTheDocument()
+    // The server serves the new table at once; the app reads `/meta` again and links to it
+    window.dispatchEvent(new Event('focus'))
+    await userEvent.click(await canvas.findByRole('button', { name: 'Record actions' }))
+    expect(await within(document.body).findByRole('menuitem', { name: 'Open table' })).toHaveAttribute('href', '/notes')
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(canvas.getByRole('button', { name: 'Open navigation' }))
+    const drawer = within(await canvas.findByRole('dialog', { name: 'Navigation' }))
+    expect(drawer.getByRole('link', { name: 'Tables' })).toHaveAttribute('href', '/user_tables')
+    expect(await drawer.findByRole('link', { name: 'Notes' })).toHaveAttribute('href', '/notes')
+  },
 }

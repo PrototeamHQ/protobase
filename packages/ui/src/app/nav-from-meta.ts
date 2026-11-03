@@ -12,7 +12,8 @@ import { text as appText } from './messages'
 /** The sidebar item of a resource's list, or of one of its named lists. */
 export const navItemId = (resource: string, list?: string) => (list === undefined ? resource : `${resource}/${list}`)
 
-const groupLabels: Record<string, 'sales' | 'crm' | 'catalog' | 'inventory' | 'admin' | 'hr'> = { sales: 'sales', crm: 'crm', catalog: 'catalog', inventory: 'inventory', core: 'admin', hr: 'hr' }
+// The tables users add and the list they are made from sit together, under one group.
+const groupLabels: Record<string, 'sales' | 'crm' | 'catalog' | 'inventory' | 'admin' | 'hr' | 'tables'> = { sales: 'sales', crm: 'crm', catalog: 'catalog', inventory: 'inventory', core: 'admin', hr: 'hr', table_definitions: 'tables', user_tables: 'tables' }
 
 /** The group of a schema's resources: none for the default `public` schema, whose name would read as "visible to anyone". */
 const schemaGroup = (schema = 'public') => {
