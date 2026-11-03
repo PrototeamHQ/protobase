@@ -49,6 +49,15 @@ describe('checkViews', () => {
     expect(() => checkViews(prices, [wrong.toModel()])).toThrow(`format('signed') of "note" needs an integer field, not text`)
   })
 
+  it('leaves an optional field off the create form, and refuses that for a field a create needs', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer(), title: f.text(), pinned: f.boolean(), topic: f.text().optional() }).primaryKey((r) => r.id)
+    const noteRegistry = { entries: [{ name: 'notes', model: notes.toModel() }] } as unknown as Registry
+    const leaving = view<typeof notes>('notes').fields((r) => ({ topic: r.topic.notOnCreate(), pinned: r.pinned.notOnCreate() }))
+    expect(() => checkViews(noteRegistry, [leaving.toModel()])).not.toThrow()
+    const needed = view<typeof notes>('notes').fields((r) => ({ title: r.title.notOnCreate() }))
+    expect(() => checkViews(noteRegistry, [needed.toModel()])).toThrow('View "notes": notOnCreate "title" is a field a create needs: make it optional or give it a default')
+  })
+
   it('takes multiline on a text field only', () => {
     const multiline = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.multiline() }))
     expect(() => checkViews(registry, [multiline.toModel()])).not.toThrow()
