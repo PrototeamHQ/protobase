@@ -27,7 +27,7 @@ export const projectIcons = (projectDir: string): AppIcons => ({
 })
 
 /**
- * Writes the app's icons into `publicDir`: the favicon, the project's or Protobase's (see `buildFavicon`), and the PNGs
+ * Writes the app's icons into `publicDir`: the favicon, the project's or the neutral mark (see `buildFavicon`), and the PNGs
  * the project has, each checked to be its size. Says which are the project's own, which the server's manifest names.
  */
 export const buildIcons = async ({ projectDir, publicDir }: { projectDir: string; publicDir: string }) => {

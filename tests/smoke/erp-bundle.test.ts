@@ -114,7 +114,7 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
     const shell = await run([bin, 'build-shell', shellDir], erpDir, store.env)
     if (shell.status !== 0) throw new Error(`protobase build-shell failed:\n${shell.stderr}`)
     const index = path.join(shellDir, 'index.html')
-    await writeFile(index, (await readFile(index, 'utf8')).replace('<title>Protobase</title>', '<title>Own shell 5e2a</title>'))
+    await writeFile(index, (await readFile(index, 'utf8')).replace('<title></title>', '<title>Own shell 5e2a</title>'))
     try {
       const base = await serve('plain', { PROTOBASE_SHELL: shellDir })
       for (const pathname of ['/', '/orders/42']) expect(await (await fetch(`${base}${pathname}`, { headers: { accept: 'text/html' } })).text()).toContain('Own shell 5e2a')

@@ -35,7 +35,8 @@ export type SamlSignIn = { id: string; name: string }
  * can sign in as people; `organizations` when the app has them; `anonymous` when visitors may browse what the project's
  * anonymous role reads without signing in; `personalMail` the mail providers people may link their mailbox with (see `account.linkPersonalMail`); `mcp` when MCP clients can connect, with the `url` of the app's MCP endpoint, so the account page shows it and lists the clients; `plugins`
  * those the app loads before anyone signs in; `locale` the language the app sets for everyone, which the screens before
- * `/meta` are in.
+ * `/meta` are in; `appName` and `appIcon` the app's name and the path of its own icon, which those screens show;
+ * `runsOnNote` when the host has the sign-in page end on the "Runs on Protobase" note.
  */
 export type SetupStatus = {
   needsAdmin: boolean
@@ -62,6 +63,9 @@ export type SetupStatus = {
   personalMail?: PersonalMailLink[]
   plugins?: PluginRef[]
   locale?: Locale
+  appName?: string
+  appIcon?: string
+  runsOnNote?: boolean
 }
 
 /** A role with its label; `membership` when a member can hold it, `grants` the other roles its holders may give. */

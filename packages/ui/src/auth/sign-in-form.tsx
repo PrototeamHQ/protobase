@@ -4,8 +4,10 @@ import type { SignInMethod } from '@protobase/client'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
+import { brandName } from '../app-shell/app-mark'
 import { AuthLayout } from './auth-layout'
 import { ProviderIcon } from './provider-icon'
+import { RunsOnNote } from './runs-on-note'
 import { text } from './messages'
 
 export type SignInFormProps = {
@@ -43,6 +45,10 @@ export type SignInFormProps = {
   signUp?: RouteTarget
   /** Goes back to browsing without signing in; without it there is no such link. */
   onBrowse?: () => void
+  /** The app's name, which the title names: "Sign in to Shop & Co"; default Protobase's. */
+  appName?: string
+  /** The page ends on the "Runs on Protobase" note, when the host turns it on. */
+  runsOnNote?: boolean
 }
 
 const Divider = () => (
@@ -53,7 +59,7 @@ const Divider = () => (
   </div>
 )
 
-export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], first = 'password', onSendCode, onPasskey, passkeyDomains = [], forgotPassword, providers = [], onContinueWith, signUp, onBrowse }: SignInFormProps) => {
+export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], first = 'password', onSendCode, onPasskey, passkeyDomains = [], forgotPassword, providers = [], onContinueWith, signUp, onBrowse, appName, runsOnNote = false }: SignInFormProps) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [passwordChosen, setPasswordChosen] = useState(false)
@@ -72,7 +78,7 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
   }
 
   return (
-    <AuthLayout title={text('signInTitle')} description={workspace}>
+    <AuthLayout title={text('signInTitle', { name: appName ?? brandName })} description={workspace} appName={appName} footer={runsOnNote && <RunsOnNote />}>
       {notice && (
         <p role="status" className="mb-4 rounded-md bg-success-soft px-3 py-2 text-body font-medium text-success-text">
           {notice}

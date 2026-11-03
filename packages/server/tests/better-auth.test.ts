@@ -55,16 +55,17 @@ describe('the first admin', () => {
   })
 
   it('is reported by the status endpoint until a user exists, with the page a platform adds it on', async () => {
-    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: true, signInMethods: ['password', 'passkey'], passwordReset: false, accountDeletion: true, socialProviders: [] })
+    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ appName: 'Protobase', needsAdmin: true, signInMethods: ['password', 'passkey'], passwordReset: false, accountDeletion: true, socialProviders: [] })
     vi.stubEnv('PROTOBASE_FIRST_ADMIN_URL', 'https://console.example.com/apps/1/')
+    vi.stubEnv('PROTOBASE_RUNS_ON_NOTE', 'true')
     const hosted = createAdmin({ resources: allResources, db: fixture.db, authenticate: betterAuthAuthenticator({ auth, tenant: 1 }), auth })
     vi.unstubAllEnvs()
-    expect(await (await hosted.request(`${origin}/api/auth/status`)).json()).toMatchObject({ needsAdmin: true, firstAdminUrl: 'https://console.example.com/apps/1' })
+    expect(await (await hosted.request(`${origin}/api/auth/status`)).json()).toMatchObject({ needsAdmin: true, firstAdminUrl: 'https://console.example.com/apps/1', runsOnNote: true })
     expect(await hasUsers(auth)).toBe(false)
     const root = await createUser(auth, { email: 'root@example.com', password, name: 'Root', role: 'user' })
     expect(root.role).toBe('admin')
     expect(await hasUsers(auth)).toBe(true)
-    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: false, signInMethods: ['password', 'passkey'], passwordReset: false, accountDeletion: true, socialProviders: [] })
+    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ appName: 'Protobase', needsAdmin: false, signInMethods: ['password', 'passkey'], passwordReset: false, accountDeletion: true, socialProviders: [] })
     expect(await (await hosted.request(`${origin}/api/auth/status`)).json()).not.toHaveProperty('firstAdminUrl')
   })
 

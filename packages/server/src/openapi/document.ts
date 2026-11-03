@@ -9,11 +9,14 @@ import { resourceSchemas } from './schemas'
 const resourcesServer = (basePath: string) => basePath.slice(basePath.lastIndexOf('/') + 1)
 const systemServer = '.'
 
+/** The title of the app's API reference and OpenAPI document, such as "Shop & Co API". */
+export const apiTitle = (appName: string) => `${appName} API`
+
 /** The OpenAPI 3.1 document for one caller, generated from the resource models they may see and their zod record schemas. */
-export const openApiDocument = (accesses: RequestAccess[], basePath: string) => ({
+export const openApiDocument = (accesses: RequestAccess[], basePath: string, appName: string) => ({
   openapi: '3.1.0',
   info: {
-    title: 'Protobase API',
+    title: apiTitle(appName),
     version: '1.0.0',
     description: 'Admin API for an existing Postgres database. Follows Google\'s API design conventions ([AIP](https://google.aip.dev)) and reports errors as RFC 9457 `application/problem+json`.',
   },

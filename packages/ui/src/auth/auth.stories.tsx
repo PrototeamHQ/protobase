@@ -518,11 +518,28 @@ export const FirstRunOnPlatform: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     expect(canvas.getByText('No admin yet')).toBeVisible()
-    const link = canvas.getByRole('link', { name: 'Add your first user in the Protobase Cloud console' })
+    const link = canvas.getByRole('link', { name: 'Add your first user in the hosting console' })
     expect(link).toHaveAttribute('href', 'https://console.example.com/apps/1')
     expect(link).toHaveAttribute('target', '_blank')
     expect(canvas.queryByText(/protobase users create/)).toBeNull()
     expect(canvas.getByRole('button', { name: 'Reload' })).toBeEnabled()
+  },
+}
+
+/** An app of its own name, without an icon, on a host that turns on the note at the foot of the page. */
+export const SignInWithRunsOnNote: StoryObj<SignInFormProps> = {
+  tags: ['play'],
+  args: { onSubmit: fn(), appName: 'Shop & Co', runsOnNote: true },
+  render: (args) => <SignInForm {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByRole('heading', { name: 'Sign in to Shop & Co' })).toBeVisible()
+    const note = canvas.getByRole('link', { name: 'Runs on Protobase' })
+    expect(note).toHaveAttribute('href', 'https://protobase.net/')
+    expect(note).toHaveAttribute('rel', 'nofollow noreferrer')
+    expect(note.closest('footer')).not.toBeNull()
+    expect(note.closest('form')).toBeNull()
+    expect(canvasElement.querySelector('svg[aria-hidden] path[fill-rule="evenodd"]')).toBeNull()
   },
 }
 

@@ -10,7 +10,7 @@ import { faviconIcoFile, faviconIcoPath } from '../build/favicon-ico'
  * Links the project's favicon at `/protobase.favicon.svg` in the app's page, and its Apple touch icon at
  * `/protobase.apple-touch-icon.png`, which Safari takes for the home screen as it takes no SVG. A bundle always has
  * the favicon (see `buildFavicon`) and the touch icon when the project has one (see `buildIcons`); without it Safari
- * shows a picture of the page instead. The dev server answers them from the project's files, the favicon Protobase's
+ * shows a picture of the page instead. The dev server answers them from the project's files, the favicon the neutral mark
  * without one, the project's other PNG icons the same way, and `/favicon.ico` as a bundle's server does (see `faviconIcoFile`).
  */
 export const faviconLink = (projectDir?: string): Plugin => {
