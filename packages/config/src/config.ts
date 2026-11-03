@@ -118,7 +118,8 @@ export type ProtobaseConfig = AppKeys &
     mobile?: MobileConfig
     /**
      * `true` keeps the tables the app's users add in its own database and serves each one like a resource of the config;
-     * `protobase migration` writes the schemas they need. Off by default, and refused together with organizations.
+     * `protobase migration` writes the schemas they need. Off by default. With organizations, each keeps its own tables;
+     * refused with `authenticate.organizations` alone.
      */
     userTables?: boolean
   }

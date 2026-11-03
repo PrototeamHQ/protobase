@@ -21,6 +21,10 @@ describe('checkDefinition', () => {
     expect(problemOf(checkDefinition(notesDefinition({ fields: [field({ name: 'etag' })], title_field: null }), notesColumns()))).toMatch('the field name "etag" is reserved')
     expect(problemOf(checkDefinition(notesDefinition({ fields: [field({ name: 'body' }), field({ name: 'body' })], title_field: null }), notesColumns()))).toMatch('the field "body" is defined twice')
   })
+  it('keeps a field named organization_id a table of no organization already has', () => {
+    const columns = notesColumns({ notes: { ...Object.fromEntries(notesColumns().get('notes')!), organization_id: column('text') } })
+    expect(problemOf(checkDefinition(notesDefinition({ fields: [...notesDefinition().fields, field({ name: 'organization_id' })] }), columns))).toBeUndefined()
+  })
   it('refuses a type outside the eight, and a decimal without precision and scale', () => {
     expect(problemOf(checkDefinition(notesDefinition({ fields: [field({ name: 'body', type: 'uuid' })], title_field: null }), notesColumns()))).toMatch('has the type "uuid", which is not one of')
     const columns = notesColumns({ prices: { id: column('bigint', true, true), amount: column('numeric') } })
@@ -38,5 +42,14 @@ describe('checkDefinition', () => {
   })
   it('refuses a title that is not one of its text fields', () => {
     expect(problemOf(checkDefinition(notesDefinition({ title_field: 'missing' }), notesColumns()))).toMatch('its title "missing" is not one of its text fields')
+  })
+  it("needs an organization's table to keep its organization column, and refuses a field of that name there", () => {
+    const own = Object.fromEntries(notesColumns().get('notes')!)
+    const ofA = (columns: Record<string, ReturnType<typeof column>>, fields = notesDefinition().fields) => problemOf(checkDefinition(notesDefinition({ name: 't1_notes', organization_id: 'a', fields }), notesColumns({ t1_notes: columns })))
+    expect(ofA({ ...own, organization_id: column('text', true) })).toBeUndefined()
+    expect(ofA(own)).toMatch('has no "organization_id" text NOT NULL column')
+    expect(ofA({ ...own, organization_id: column('text') })).toMatch('has no "organization_id" text NOT NULL column')
+    expect(ofA({ ...own, organization_id: column('uuid', true) })).toMatch('has no "organization_id" text NOT NULL column')
+    expect(ofA({ ...own, organization_id: column('text', true) }, [field({ name: 'organization_id' })])).toMatch('the field name "organization_id" is reserved')
   })
 })

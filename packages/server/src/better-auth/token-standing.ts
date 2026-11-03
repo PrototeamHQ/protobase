@@ -3,7 +3,7 @@ import { unauthorized } from '../problem'
 import type { Session } from '../types'
 import { effectiveRoles, globalRoles } from './organizations/app-roles'
 import { noGlobalRole } from './organizations/role-definitions'
-import { findMember, findOrganization, type AuthContext } from './organizations/store'
+import { findMember, findOrganization, organizationRoleOf, type AuthContext, type OrganizationRole } from './organizations/store'
 import { parseRoles } from './parse-roles'
 import { isStaffSession } from './staff-checks'
 import { strongSignInAt } from './strong-sign-ins'
@@ -32,27 +32,29 @@ const revoked = () => unauthorized('The bearer token was revoked: get a new one'
 
 const bannedNow = (user: StandingUser, now: Date) => Boolean(user.banned) && (!user.banExpires || user.banExpires > now)
 
-// The roles the user holds where the token works: globally, and in its organization as a member; `undefined` when
-// they may no longer work in that organization at all.
-const heldWhere = async ({ adapter }: AuthContext, user: StandingUser, organizations: boolean, organizationId?: string) => {
-  if (!organizations) return parseRoles(user.role)
+// The roles the user holds where the token works: globally, and in its organization as a member, with their
+// organization role there; `undefined` when they may no longer work in that organization at all.
+const heldWhere = async ({ adapter }: AuthContext, user: StandingUser, organizations: boolean, organizationId?: string): Promise<{ roles: string[]; organizationRole?: OrganizationRole } | undefined> => {
+  if (!organizations) return { roles: parseRoles(user.role) }
   const global = globalRoles(user.role)
-  if (!organizationId) return global
+  if (!organizationId) return { roles: global }
   const member = await findMember(adapter, { organizationId, userId: user.id })
-  if (member) return effectiveRoles(global, member.appRoles)
-  return global.length > 0 && (await findOrganization(adapter, organizationId)) !== null ? global : undefined
+  if (member) return { roles: effectiveRoles(global, member.appRoles), organizationRole: organizationRoleOf(member) }
+  return global.length > 0 && (await findOrganization(adapter, organizationId)) !== null ? { roles: global } : undefined
 }
 
 /**
  * Whether a token's user still stands, read from the store: they exist and are not banned, and each role the token
  * carries is one they still hold where it works. The part of `checkTokenStanding` an MCP access token gets, whose
- * grant outlives the browser session that made it.
+ * grant outlives the browser session that made it. Answers their organization role where the token works, as the
+ * store holds it now, `undefined` for someone who is no member there.
  */
 export const checkUserStanding = async (context: AuthContext, claims: Omit<TokenClaims, 'sessionId'>, organizations: boolean, now = new Date()) => {
   const user = await context.adapter.findOne<StandingUser>({ model: 'user', where: [{ field: 'id', value: claims.userId }] })
   if (!user || bannedNow(user, now)) throw revoked()
   const held = await heldWhere(context, user, organizations, claims.organizationId)
-  if (!held || claims.roles.some((role) => !held.includes(role))) throw revoked()
+  if (!held || claims.roles.some((role) => !held.roles.includes(role))) throw revoked()
+  return held.organizationRole
 }
 
 /**
@@ -60,13 +62,14 @@ export const checkUserStanding = async (context: AuthContext, claims: Omit<Token
  * its user still stands (`checkUserStanding`). A token that fails is a 401, so the client asks its session for a new
  * one, which carries the roles as they are now or is refused. Answers the sign-in the token's session stands for
  * (`signInOf`), `undefined` for a token without one; the user's own one also reads, when asked, when it last proved a
- * passkey or a second step (`strongSignInAt`).
+ * passkey or a second step (`strongSignInAt`). Answers it with the user's organization role where the token works
+ * (`checkUserStanding`).
  */
-export const checkTokenStanding = async (context: AuthContext, claims: TokenClaims, organizations: boolean, now = new Date()): Promise<Session['signIn']> => {
+export const checkTokenStanding = async (context: AuthContext, claims: TokenClaims, organizations: boolean, now = new Date()): Promise<{ signIn: Session['signIn']; organizationRole?: OrganizationRole }> => {
   const session = claims.sessionId === undefined ? undefined : await context.adapter.findOne<StandingSession>({ model: 'session', where: [{ field: 'id', value: claims.sessionId }] })
   if (claims.sessionId !== undefined && (!session || session.userId !== claims.userId || session.expiresAt <= now)) throw revoked()
-  await checkUserStanding(context, claims, organizations, now)
+  const organizationRole = await checkUserStanding(context, claims, organizations, now)
   const signIn = session ? signInOf(session, claims.sessionId!) : undefined
-  if (!signIn || signIn.staff) return signIn
-  return { ...signIn, strongAt: () => strongSignInAt(context.internalAdapter, claims.sessionId!) }
+  if (!signIn || signIn.staff) return { signIn, ...(organizationRole && { organizationRole }) }
+  return { signIn: { ...signIn, strongAt: () => strongSignInAt(context.internalAdapter, claims.sessionId!) }, ...(organizationRole && { organizationRole }) }
 }

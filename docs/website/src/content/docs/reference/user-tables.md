@@ -8,12 +8,10 @@ An app's resources usually come from its code: a resource in `config/` over a ta
 ## Tables defined in the database
 
 :::caution[Beta]
-Tables are added through the API; the admin app has no screens for them yet, and an app with organizations cannot use them.
+Tables are added through the API; the admin app has no screens for them yet.
 :::
 
 An app can keep tables its users add in its own database, beside the resources in its code. Each one is served like any other resource, at its own address with its list, record page, search and API. Every server process serves a new table within a second of it being added.
-
-<gap>Tables users add cannot be used in an app with organizations because keeping their definitions and records per organization is not implemented.</gap>
 
 <gap>Users cannot add a table from the admin app yet because its screens for tables and fields are not implemented.</gap>
 
@@ -25,7 +23,7 @@ User tables are off by default. Turn them on in `protobase.config.ts`:
 export default defineConfig({ userTables: true })
 ```
 
-`userTables` takes only `true` or `false`. Together with organizations (`auth.organizations`), `dev`, `build` and `serve` stop with an error that names both settings.
+`userTables` takes only `true` or `false`. With [organizations](#organizations), each organization keeps its own tables. An API that trusts the organization tokens of an auth server elsewhere (`authenticate.organizations` without `auth.organizations`) cannot read who manages an organization, so there `dev`, `build` and `serve` stop with an error that names both settings.
 
 ### The schemas and the migration
 
@@ -33,8 +31,8 @@ The tables users add and their definitions live in two schemas of the app's data
 
 | Schema | What it holds |
 | --- | --- |
-| `table_definitions` | `tables`, one row per table users add, with its singular and plural label, its title field and a version, 1 when it is added, and `fields`, each table's fields in order with their label, type and whether they are required |
-| `user_tables` | the tables themselves, each with an `id bigint generated always as identity` primary key and a column per field |
+| `table_definitions` | `tables`, one row per table users add, with its singular and plural label, its title field, a version, 1 when it is added, its organization with organizations, and its table's name, and `fields`, each table's fields in order with their label, type and whether they are required |
+| `user_tables` | the tables themselves, each with an `id bigint generated always as identity` primary key and a column per field, and with organizations an `organization_id` column |
 
 With `userTables: true`, [`protobase migration`](/reference/cli/#migration) writes a migration that adds both schemas, the two definition tables and the `pg_trgm` extension when it is missing, and grants the app's database role CREATE on `user_tables` alone, and writes nothing once the database has them. Apply it with the project's other migrations; the server never creates them itself. At start, `dev` and `serve` stop while one is missing; `PROTOBASE_STARTUP_CHECKS=false` skips that check in `serve`, as it skips the others.
 
@@ -55,7 +53,7 @@ A table's name and each field's name are lowercase letters, digits and `_`, star
 
 When the server starts, and whenever the definitions change, it builds a resource from each definition and serves it at `/<table>` and `/<table>/<key>`, with its list, record page, sidebar entry and REST API, and in `/meta`, as the resources in code are. The labels of the definition are the names the admin app shows.
 
-- **Admins only.** Each table starts readable and writable by admins alone, and is left out of role wildcards such as `*.read`, like [resources that need named grants](/reference/access/#resources-that-need-named-grants). Anyone else does not see it.
+- **Admins only.** Each table starts readable and writable by admins alone, and is left out of role wildcards such as `*.read`, like [resources that need named grants](/reference/access/#resources-that-need-named-grants). Anyone else does not see it. With organizations, [its organization's owners and admins](#organizations).
 - **Filters, sorts and search follow the indexes.** A field can be filtered or sorted by only where an index of its table serves it, and the table is searched on its title field only where a `pg_trgm` index serves that field, as the [scan guard](/reference/config/api/#scanguard) requires.
 - **A definition that does not fit is left out.** A definition with a name or type outside the rules above, or whose table or columns do not match it, is not served, and the server prints why at start. The rest of the app serves.
 - **Code wins.** A resource in code with the name of a user table, or a resource Protobase adds, is served instead of the definition, which is then ignored with a warning. This is how a table users added is taken over as code.
@@ -93,7 +91,7 @@ With `userTables: true`, the API has two resources over the definitions, with th
 
 | Resource | A record | Fields |
 | --- | --- | --- |
-| `user_tables` | a table, at `/user_tables/<id>` | `name`, `singular_label`, `plural_label`, `title_field`; `id` and `version` are read-only |
+| `user_tables` | a table, at `/user_tables/<id>` | `name`, `singular_label`, `plural_label`, `title_field`; `id`, `version` and `table_name`, the name of its table and its address, are read-only |
 | `user_table_fields` | a field of a table, at `/user_table_fields/<table_id>,<name>` | `table_id`, `name`, `label`, `type` (one of the [types](#the-schemas-and-the-migration)), `position` (the order of the fields), `precision` and `scale` (a decimal's alone) |
 
 Make a table with its fields in one [batch write](/reference/api/#batch-writes): the table, each field pointing at it, then the title field, which names a field that exists. Nothing is created unless all of it is:
@@ -110,10 +108,10 @@ POST /api/v1:batchWrite
 }
 ```
 
-The answer has the table's record, so a client links to the new table at `/notes`. Add a field later with `POST /api/v1/user_table_fields`.
+The answer has the table's record, so a client links to the new table at its `table_name`, `/notes`. Add a field later with `POST /api/v1/user_table_fields`.
 
 - **What is created.** A table is `user_tables.<name>` with its `id bigint generated always as identity` key. A field is a column of its type that may be empty and has no default, so the records already there read it as empty, with a btree index, or a `pg_trgm` one for `long_text`, whose values outgrow a btree entry; a `json` field gets none. The title field gets the `pg_trgm` index search needs. The rows, the table or column, its indexes and the version are written in one transaction: anything refused leaves none of them.
-- **What is refused.** A name outside the rules above, a word SQL reserves such as `select`, a field named `id` or `etag`, the name of a resource in code, of one Protobase adds or of a table `user_tables` already has, a field marked required, and a title that is not a text field of the table, each as a field error. A table whose name a resource in code has now, which is how a table is taken over as code, takes no new field.
+- **What is refused.** A name outside the rules above, a word SQL reserves such as `select`, a field named `id`, `etag` or `organization_id`, the name of a resource in code, of one Protobase adds or of a table `user_tables` already has, a field marked required, and a title that is not a text field of the table, each as a field error. A table whose name a resource in code has now, which is how a table is taken over as code, takes no new field.
 - **What changes later.** The labels, the title field and the fields' order. A name, a type, a decimal's precision and scale never change, and no table or field is deleted. <gap>A table or field cannot be renamed, retyped or removed because changing the columns of a table users add is not implemented.</gap>
 - **Who may.** With the project's [roles](/reference/access/), the capabilities `user_tables.create` and `user_table_fields.create`, which only `*` or a grant that names them holds, never a wildcard such as `*.create`, like [resources that need named grants](/reference/access/#resources-that-need-named-grants); reading and changing the labels need `.read` and `.update` the same way. Without roles, admins. Each new table is its admins' alone, as [each one served](#how-each-one-is-served) is.
 - **The rest of the app.** The process that made the change serves it before it answers, and every other process [within a second](#how-a-change-reaches-every-process). While a deploy freezes writes, a create answers as any write does then.
@@ -138,3 +136,19 @@ When a table needs more than the admin app gives it, such as a validation rule, 
 Once the code serves, the table takes no new field from the admin app, and a new table cannot take its name. The resource starts as the admins' alone, as it was served; widen its access in `data.ts` as for any resource.
 
 <gap>A table cannot be taken over from the admin app or the assistant because an eject that writes to the project's repository is not implemented.</gap>
+
+## Organizations
+
+:::caution[Beta]
+A table belongs to one organization and is never shared with another. Only the organization's owners and admins reach it; access cannot be widened to its other members yet.
+:::
+
+In an app with organizations, a table someone adds belongs to their organization. Only its owners and admins, and superusers working in it, see the table and its records.
+
+- **Who makes and sees them.** The owners and admins of the organization a session works in, as its [organization role](/reference/auth/#organizations) stands on that request, and superusers working in it. They make a table, add its fields and work with its records as [above](#adding-tables-and-fields); the project's roles and their capabilities do not widen it. Anyone else, in another organization or in none, gets not found at its address, and does not see it in `/meta`, the sidebar, search, the API document or the assistant. A member who is demoted or removed loses it on their next request. <gap>Members of an organization other than its owners and admins cannot see its tables because widening their access is not implemented.</gap>
+- **Its records.** Each table is a `.tenant` resource over its `organization_id` column, as [organizations](/reference/auth/#organizations) describe: the server sets it on every record from the session, a request body cannot, and every query reads only the organization's own.
+- **Names.** A name is unique within an organization, so two organizations can each have a `contacts` table. Its table, and its address, is `t<id>_<name>`, such as `/t12_contacts`, with `<id>` the definition's; the labels the app shows are the ones it was given. With organizations a table's name is at most 42 bytes, and may be the name of a resource in code.
+- **Taking one over as code.** `protobase eject` refuses an organization's table, as the resource it writes would not keep its records in the organization. Declare a resource over its table instead, such as `resource('t12_contacts').table('user_tables.t12_contacts')`, and run [`protobase scaffold`](/reference/cli/#scaffold): it adds the fields and `.tenant((r) => r.organization_id)`, so the records stay in their organization, and prints which organization's definition it took. The resource in code follows the project's access rules, not the owners-and-admins rule the definition had, so give it the `.access(...)` it needs.
+- **A table made before organizations.** One added while the app had no organizations belongs to none, and stays its superusers' alone.
+
+Every process serves the tables of every organization, so [a rebuild](#how-a-change-reaches-every-process) follows a change in any organization, and the times measured there count the tables of all organizations together.

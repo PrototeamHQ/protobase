@@ -145,7 +145,7 @@ Takes [tables users added](/reference/user-tables/) over as code. The URL comes 
 - **`ui.ts`** has the definition's singular and plural label, its title field, each field's label, a long text field multiline, and the list `scaffold --ui` writes.
 - **The migration** makes each table as the catalogue has it: `create schema if not exists`, `create extension if not exists pg_trgm` when an index needs it, `create table if not exists` with the columns and constraints, and `create index if not exists` for each index, by its name. On the database the table is in it changes nothing and moves no row; on an empty one it makes the same table.
 
-Then it runs [`doctor`](#doctor) on the config. When doctor reports an error in an ejected resource, or cannot load the config, every file is put back as it was and the command fails. It refuses a name no definition the server serves has, saying why the server leaves it out, and one a resource in `config/` has, or whose table one reads, already.
+Then it runs [`doctor`](#doctor) on the config. When doctor reports an error in an ejected resource, or cannot load the config, every file is put back as it was and the command fails. It refuses a name no definition the server serves has, saying why the server leaves it out, and one a resource in `config/` has, or whose table one reads, already. It refuses a table that belongs to an [organization](/reference/user-tables/#organizations), which `scaffold` takes over instead.
 
 ```sh
 protobase eject notes            # config/notes/data.ts, config/notes/ui.ts, db/migrations/NNN_eject_notes.sql

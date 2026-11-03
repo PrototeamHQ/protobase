@@ -71,3 +71,13 @@ export const makeLiveInDataFile = (text: string) => {
   chain.chainTop.replaceWithText(`${chain.chainTop.getText()}\n  .live()`)
   return source.getFullText()
 }
+
+// Ends the resource's builder chain with `.tenant(...)` over `field`, unless it has one already.
+export const addTenantToDataFile = (text: string, field: string) => {
+  const source = parseSource(text)
+  const chain = resourceChain(source)
+  if (!chain) throw new Error('data.ts has no resource(...) builder chain to scope to its tenant')
+  if (methodCalls(chain.chainTop, 'tenant').length > 0) return text
+  chain.chainTop.replaceWithText(`${chain.chainTop.getText()}\n  .tenant((r) => r.${field})`)
+  return source.getFullText()
+}

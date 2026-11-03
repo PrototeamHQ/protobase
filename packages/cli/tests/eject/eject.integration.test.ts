@@ -40,6 +40,12 @@ const notesTable = `
   insert into user_tables.notes (title, price) values ('First', 1.50);
 `
 
+// An organization's table of the same name, as the user tables API makes it: its own table, `t<id>_notes`.
+const organizationNotes = `
+  insert into table_definitions.tables (name, organization_id, singular_label, plural_label) values ('notes', '7', 'Note', 'Notes');
+  create table user_tables.t2_notes (id bigint generated always as identity primary key, organization_id text not null);
+`
+
 // The table as the catalogue has it: columns, constraints and indexes, with its rows.
 const catalog = async (database: string) => {
   const sql = connection(database)
@@ -114,12 +120,20 @@ describe.skipIf(!reachable)('protobase eject', () => {
     expect(report.errors).toBe(0)
   }, 60_000)
 
-  it('has the next migration delete the definition code owns, and nothing for one it does not', async () => {
+  it("has the next migration delete the definition code owns, not an organization's of the same name, and nothing for one it does not", async () => {
+    const sql = connection(live)
+    await sql.unsafe(organizationNotes)
+    await sql.end()
     const { models } = await loadDataConfig(configDir, projectDir)
     const db = new Kysely<any>({ dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: withDatabase(url, live), max: 1 }) }) })
-    expect(await ownedDefinitionsMigration(db, models)).toBe("delete from table_definitions.tables where name in ('notes');")
+    expect(await ownedDefinitionsMigration(db, models)).toBe("delete from table_definitions.tables where table_name in ('notes');")
     expect(await ownedDefinitionsMigration(db, models.map((model) => ({ ...model, table: { name: 'notes' } })))).toBeUndefined()
     await db.destroy()
+  }, 60_000)
+
+  it("refuses an organization's table, whose records eject's resource would not keep in it", async () => {
+    await expect(eject(['t2_notes'])).rejects.toThrow('"t2_notes" belongs to an organization')
+    expect(existsSync(path.join(configDir, 't2_notes'))).toBe(false)
   }, 60_000)
 
   // Its own folders, as a project file once imported stays loaded by its path.

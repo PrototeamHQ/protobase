@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { compiled } from '../../../../test-support/compile-sql'
 import { definitionFieldTypes } from './names'
-import { createTableSql, fieldSql, indexKind, trigramIndexSql } from './table-ddl'
+import { createOrganizationTableSql, createTableSql, fieldSql, indexKind, trigramIndexSql } from './table-ddl'
 
 const text = (name: unknown, type: unknown = 'text', precision: unknown = null, scale: unknown = null) => ({ name, type, precision, scale })
 const statements = (table: unknown, field = text('title')) => [createTableSql(table), ...fieldSql(table, field), trigramIndexSql(table, field.name)].map((built) => compiled(built))
@@ -44,5 +44,12 @@ describe('the statements of a table users add', () => {
   })
   it.each([[1.5, 0], [0, 0], [1001, 0], ['10', 2], [10, -1], [10, 11], [10, 0.5], [10, '2); drop table x; --']])('refuses the precision %j and scale %j', (precision, scale) => {
     expect(() => fieldSql('t', text('f', 'decimal', precision, scale))).toThrow(/is not a whole number/)
+  })
+  it("gives an organization's table its organization column, NOT NULL, and the index its filter reads", () => {
+    expect(createOrganizationTableSql('t1_notes').map((built) => compiled(built))).toEqual([
+      { sql: 'create table "user_tables"."t1_notes" (id bigint generated always as identity primary key, "organization_id" text not null)', parameters: [] },
+      { sql: 'create index on "user_tables"."t1_notes" ("organization_id")', parameters: [] },
+    ])
+    expect(() => createOrganizationTableSql(`t1"; --`)).toThrow(/cannot reach SQL/)
   })
 })

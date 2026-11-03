@@ -11,7 +11,8 @@ const notServed = (name: string, problems: string[]) =>
 
 /**
  * Each named table users added as the server serves it, with the constraints and indexes of its table, read from the
- * database at `url` in read-only sessions. A name the server serves no table of stops it, with why.
+ * database at `url` in read-only sessions. A name the server serves no table of, or an organization's table, stops it,
+ * with why.
  */
 export const readEjected = async (url: string, names: readonly string[]) => {
   const sql = connect(url)
@@ -21,6 +22,9 @@ export const readEjected = async (url: string, names: readonly string[]) => {
     const tables: EjectedTable[] = names.map((name) => {
       const definition = served.definitions.find((each) => each.name === name)
       if (!definition) throw new Error(notServed(name, served.problems))
+      // Its records belong to an organization and only its owners and admins reach them, which eject's admins-only
+      // resource without a tenant would not keep.
+      if (definition.organization_id !== null) throw new Error(`"${name}" belongs to an organization: take it over with \`protobase scaffold\`, which keeps its records in it`)
       // A served definition has its table, as its check proves.
       const table = relations.find((each) => each.schema === userTablesSchema && each.name === name)!
       const model = served.resources.map((resource) => resource.toModel()).find((each) => each.name === name)!

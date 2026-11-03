@@ -8,7 +8,7 @@ import { cachedKeys, type JwksCacheOptions } from './jwks-cache'
 import { checkMcpGrant } from './mcp/grant-standing'
 import { noGlobalRole } from './organizations/role-definitions'
 import { sessionMemberships } from './organizations/session-memberships'
-import type { AuthContext } from './organizations/store'
+import type { AuthContext, OrganizationRole } from './organizations/store'
 import { checkTokenStanding, checkUserStanding, tokenClaims } from './token-standing'
 
 export type BetterAuthAuthenticatorOptions = {
@@ -74,7 +74,7 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
 
   // The app's claims as a session, for its own tokens and those of another audience alike; with `auth`, also whether
   // the token still stands, as `standing` reads it from the store.
-  type Standing = (context: AuthContext, payload: JWTPayload, session: Session) => Promise<Session['signIn'] | void>
+  type Standing = (context: AuthContext, payload: JWTPayload, session: Session) => Promise<{ signIn?: Session['signIn']; organizationRole?: OrganizationRole }>
   const sessionOf = (verifyOptions: Partial<JwtOptions>, standing: Standing): Authenticator => {
     const sessions = jwtSessions({
       ...tokens,
@@ -86,8 +86,9 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
     const verify: Authenticator = async (request) => {
       const { payload, session } = await sessions(request)
       if (!auth) return session
-      const signIn = await standing((await auth.$context) as unknown as AuthContext, payload, session)
-      return signIn ? { ...session, signIn } : session
+      const { signIn, organizationRole } = await standing((await auth.$context) as unknown as AuthContext, payload, session)
+      const withRole = organizationRole && session.tenant !== undefined ? { ...session, organization: { id: session.tenant, role: organizationRole } } : session
+      return signIn ? { ...withRole, signIn } : withRole
     }
     if (!organizations) return verify
     return async (request) => {
@@ -97,7 +98,8 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
       // outside app's token works in its own organization alone.
       let memberships: Promise<Membership[]> | undefined
       const across = auth && !verifyOptions.oauthClient && { memberships: async () => (memberships ??= auth.$context.then((context) => sessionMemberships(context as unknown as AuthContext, String(user.id), user.roles))) }
-      return { ...session, user, ...(session.tenant !== undefined && { organization: { id: session.tenant } }), ...across }
+      // The organization role comes from the member row `verify` read for this request, never from the token's claim.
+      return { ...session, user, ...(session.tenant !== undefined && { organization: { id: session.tenant, ...(session.organization?.role && { role: session.organization.role }) } }), ...across }
     }
   }
 
@@ -115,7 +117,8 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
   const grantStanding: Standing = async (context, payload, session) => {
     await checkMcpGrant(context.adapter, { userId: payload.sub!, clientId: session.client?.id, issuedAt: payload.iat })
     const { sessionId: _, ...claims } = tokenClaims(payload, session.user.roles, organizations ? session.tenant : undefined)
-    await checkUserStanding(context, claims, organizations)
+    const organizationRole = await checkUserStanding(context, claims, organizations)
+    return organizationRole ? { organizationRole } : {}
   }
   return Object.assign(withTrustedApps(own, issuer, options.apps ?? []), {
     forAudience: (audience: string) => sessionOf({ audience, typ: 'at+jwt', dpop: { url: audience, replayStore: dpopReplayStore }, oauthClient: true }, grantStanding),

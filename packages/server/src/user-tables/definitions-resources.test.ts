@@ -55,8 +55,11 @@ describe('the resources over the definitions', () => {
     expect(issuesOf(tables, { name: 'notes', title_field: 'id' })).toEqual(['title_field'])
     expect(issuesOf(tables, { name: 'notes', title_field: 'title' })).toEqual([])
   })
-  it.each([`title"; --`, 'Title', 'id', 'etag', 'order', 'n'.repeat(64)])('refuse the field name %j', (name) => {
+  it.each([`title"; --`, 'Title', 'id', 'etag', 'organization_id', 'order', 'n'.repeat(64)])('refuse the field name %j', (name) => {
     expect(issuesOf(fields, { name, type: 'text', required: false })).toEqual(['name'])
+  })
+  it('refuse a new field named organization_id on a table of no organization too', () => {
+    expect(issuesOf(fields, { table_id: 1, name: 'organization_id', type: 'text', required: false })).toEqual(['name'])
   })
   it('refuse a required field, and a precision or scale a decimal cannot have', () => {
     expect(issuesOf(fields, { name: 'title', type: 'text', required: true })).toEqual(['required'])
@@ -65,5 +68,28 @@ describe('the resources over the definitions', () => {
     expect(issuesOf(fields, { name: 'price', type: 'decimal', required: false, precision: 12, scale: 13 })).toEqual(['scale'])
     expect(issuesOf(fields, { name: 'price', type: 'decimal', required: false })).toEqual(['precision', 'scale'])
     expect(issuesOf(fields, { name: 'count', type: 'integer', required: false, precision: 12 })).toEqual(['precision'])
+  })
+  it("with organizations, keep each definition and field in its organization, for that organization's owners and admins alone", async () => {
+    const scoped = definitionsResources({ roles: true, taken: ['orders'], organizations: true })
+    for (const source of [scoped.tables, scoped.fields]) {
+      expect(source.toModel().tenant).toBe('organization_id')
+      const allowedIn = async (context: Parameters<typeof resolveAccess>[1]) => {
+        const { operations: decided } = await resolveAccess(source, context, { roles })
+        return operations.filter((operation) => decided[operation])
+      }
+      expect(await allowedIn({ user: { id: '1', roles: [] }, organization: { id: 'a', role: 'admin' } })).toEqual(['list', 'read', 'create', 'update'])
+      expect(await allowedIn({ user: { id: '1', roles: [] }, organization: { id: 'a', role: 'owner' } })).toEqual(['list', 'read', 'create', 'update'])
+      expect(await allowedIn({ user: { id: '1', roles: ['admin'] }, organization: { id: 'a' } })).toEqual(['list', 'read', 'create', 'update'])
+      expect(await allowedIn({ user: { id: '1', roles: ['builder'] }, organization: { id: 'a', role: 'member' } })).toEqual([])
+      expect(await allowedIn({ user: { id: '1', roles: ['admin'] } })).toEqual([])
+    }
+    const { writableFields } = await resolveAccess(scoped.tables, { user: { id: '1', roles: [] }, organization: { id: 'a', role: 'admin' } }, { roles })
+    expect(writableFields.create).not.toContain('table_name')
+  })
+  it('with organizations, take a name a resource of the app has, up to 42 bytes, as its table is t<id>_<name>', () => {
+    const scoped = definitionsResources({ roles: true, taken: ['orders'], organizations: true })
+    expect(issuesOf(scoped.tables, { name: 'orders', singular_label: 'Order', plural_label: 'Orders' })).toEqual([])
+    expect(issuesOf(scoped.tables, { name: 'n'.repeat(43), singular_label: 'N', plural_label: 'Ns' })).toEqual(['name'])
+    expect(issuesOf(scoped.tables, { name: 'select', singular_label: 'N', plural_label: 'Ns' })).toEqual(['name'])
   })
 })

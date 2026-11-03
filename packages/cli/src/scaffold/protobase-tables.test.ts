@@ -90,6 +90,25 @@ describe('scaffold of a database with Protobase in it', () => {
     expect(claimed.skipped.find((each) => each.what === 'user tables')!.tables.map((each) => each.name)).toEqual(['tasks'])
   })
 
+  it("keeps an organization's table in its organization once claimed, and says whose definition it took and that its access rule stays behind", async () => {
+    const contacts = parseResource("export const contacts = resource('t7_contacts').table('user_tables.t7_contacts').fields({ id: f.bigint() }).primaryKey((r) => r.id)", 'contacts')!
+    const claimed = await planScaffold({
+      tables: [table('user_tables', 't7_contacts', ['id', 'organization_id', 'name'])],
+      existing: [contacts],
+      configDir: '/config',
+      target: {},
+      excludes: [],
+      decide: async (proposal) => proposal,
+      ui: [],
+      readText: async () => undefined,
+      organizationTables: new Map([['user_tables.t7_contacts', 'org-a']]),
+    })
+    const data = claimed.changes.find((change) => change.path.endsWith('data.ts'))!.after
+    expect(data).toContain('organization_id:')
+    expect(data).toContain('.tenant((r) => r.organization_id)')
+    expect(claimed.warnings).toEqual([expect.stringMatching(/^user_tables\.t7_contacts: taken over from the definition of organization org-a; .*add \.access\(\.\.\.\)/)])
+  })
+
   it('never scaffolds an unclaimed user table, even when the target names its schema', async () => {
     expect(await scaffolded([table('user_tables', 'notes')], { schema: 'user_tables' })).toEqual([])
   })

@@ -5,8 +5,12 @@ import { definitionsSchema, userTablesSchema } from './names'
 /** A field of a stored definition, as its row holds it: nothing in it is trusted before `checkDefinition`. */
 export type StoredField = { name: string; label: string; type: string; required: boolean; precision: number | null; scale: number | null }
 
-/** A stored definition of a table users add, as its rows hold it, with its fields in order. */
-export type StoredDefinition = { id: string; name: string; singular_label: string; plural_label: string; title_field: string | null; version: string; fields: StoredField[] }
+/**
+ * A stored definition of a table users add, as its rows hold it, with its fields in order. `name` is its table's name in
+ * the user tables schema and its resource's (`table_name`); `organization_id` the organization it belongs to, `null`
+ * without organizations.
+ */
+export type StoredDefinition = { id: string; name: string; organization_id: string | null; singular_label: string; plural_label: string; title_field: string | null; version: string; fields: StoredField[] }
 
 /** A column of a table in the user tables schema: its type without modifiers, whether it is NOT NULL and the whole primary key. */
 export type StoredColumn = { type: string; notNull: boolean; key: boolean }
@@ -16,7 +20,7 @@ export type UserTableColumns = Map<string, Map<string, StoredColumn>>
 
 /** The stored definitions, by id, each with its fields by position. */
 export const readDefinitions = async (db: Db): Promise<StoredDefinition[]> => {
-  const { rows } = await sql<StoredDefinition>`select t.id::text as id, t.name, t.singular_label, t.plural_label, t.title_field, t.version::text as version,
+  const { rows } = await sql<StoredDefinition>`select t.id::text as id, t.table_name as name, t.organization_id, t.singular_label, t.plural_label, t.title_field, t.version::text as version,
       coalesce((select json_agg(json_build_object('name', f.name, 'label', f.label, 'type', f.type, 'required', f.required, 'precision', f.precision, 'scale', f.scale) order by f.position, f.name)
         from ${sql.table(`${definitionsSchema}.fields`)} f where f.table_id = t.id), '[]') as fields
     from ${sql.table(`${definitionsSchema}.tables`)} t order by t.id`.execute(db)

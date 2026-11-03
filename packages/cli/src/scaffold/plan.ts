@@ -3,7 +3,8 @@ import { keyColumns } from '../db/keys'
 import { tableKey, type DbTable } from '../db/model'
 import { camelCase } from '../infer/names'
 import { proposeField, type ProposalContext } from '../infer/proposal'
-import { addFieldsToDataFile, makeLiveInDataFile, renderDataFile } from './data-file'
+import { addFieldsToDataFile, addTenantToDataFile, makeLiveInDataFile, renderDataFile } from './data-file'
+import { takenOverLine } from './organization-tables'
 import { detectDrift, type Drift } from './drift'
 import { findField, type ExistingResource } from './existing-config'
 import { ensureExports, type Registration } from './index-file'
@@ -30,6 +31,8 @@ export type ScaffoldInput = {
   ui: UiSection[]
   // "schema.table" of the tables whose resources get `.live()`.
   live?: string[]
+  // "schema.table" of the tables users add that belong to an organization, with its id (`readOrganizationTables`).
+  organizationTables?: ReadonlyMap<string, string>
   // Current file content, or undefined when the file does not exist.
   readText: (file: string) => Promise<string | undefined>
 }
@@ -116,8 +119,12 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
       const clash = decisions.find((d) => current.fields.some((f) => f.name === d.proposal.name))
       if (clash) throw new Error(`${key}: field "${clash.proposal.name}" already exists, edit the name`)
       const file = path.join(configDir, current.dir, 'data.ts')
+      // An organization's table keeps its records in their organization once taken over.
+      const organization = input.organizationTables?.get(key)
       const fielded = addFieldsToDataFile(current.text, decisions)
-      changes.push(...change(file, current.text, isLive(key) ? makeLiveInDataFile(fielded) : fielded))
+      const scoped = organization === undefined ? fielded : addTenantToDataFile(fielded, 'organization_id')
+      if (organization !== undefined) warnings.push(takenOverLine(key, organization))
+      changes.push(...change(file, current.text, isLive(key) ? makeLiveInDataFile(scoped) : scoped))
       if (isLive(key)) live.push(key)
       drift.push(...detectDrift(current, table, context(table)))
       await writeUi(current.dir, current.name, current.identifier, table, current, decisions)

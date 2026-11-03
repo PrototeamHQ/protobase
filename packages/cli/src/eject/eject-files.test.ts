@@ -50,6 +50,7 @@ const field = (name: string, label: string, type: CheckedDefinition['fields'][nu
 const definition: CheckedDefinition = {
   id: '1',
   name: 'order_notes',
+  organization_id: null,
   singular_label: 'Order note',
   plural_label: "Orders' notes",
   title_field: 'title',

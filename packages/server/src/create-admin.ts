@@ -141,8 +141,11 @@ import type { JobDefinition } from './jobs/job-types'
 export type CreateAdminInput = {
   resources: ResourceSource[]
   views?: ViewSource[]
-  /** The tables users add, from their definitions (`userTableResources`): one a resource here or a built-in names is left out with a warning. */
-  userTables?: UserTableSources
+  /**
+   * The tables users add, from their definitions (`userTableResources`): one a resource here or a built-in names is left
+   * out with a warning. `organizations`, by default whether `auth` has them, keeps each definition in its organization.
+   */
+  userTables?: UserTableSources & { organizations?: boolean }
   /** The `userMenu(...)` export of the config module: pages under the signed-in user in the sidebar. */
   userMenu?: UserMenuSource
   /** The `bottomBar(...)` exports of the config module, in order: tabs on phones for the roles each names. */
@@ -234,7 +237,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const changes = changesSchema(events)
   const days = historyDays(historyOptions)
   const builtIn = builtInResources({ models: appModels, jobs: jobs.length > 0, notifications: notifications !== undefined, ...(events && { events }) })
-  const served = adminUserTables(userTables, [...appModels, ...builtIn.resources.map((resource) => resource.toModel())].map((model) => model.name), options.roles !== undefined)
+  const served = adminUserTables(userTables, [...appModels, ...builtIn.resources.map((resource) => resource.toModel())].map((model) => model.name), options.roles !== undefined, userTables?.organizations ?? Boolean(auth?.organizations))
   for (const warning of served.warnings) console.warn(warning)
   const resources = [...appResources, ...builtIn.resources, ...served.resources]
   const views = [...appViews, ...builtIn.views, ...served.views]
