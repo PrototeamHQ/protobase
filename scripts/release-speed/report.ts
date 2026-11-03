@@ -24,8 +24,10 @@ const runsOf = (filter: RunFilter) => {
   return `${event}runs${branch}`
 }
 
+const list = new Intl.ListFormat('en', { type: 'conjunction' })
+
 /** The run count and every event and branch the window takes its runs from, e.g. "3 successful push runs on main". */
-const scope = (workflow: WorkflowConfig, count: number) => `${count} successful ${runFilters(workflow).map(runsOf).join(' and ')}`
+const scope = (workflow: WorkflowConfig, count: number) => `${count} successful ${list.format(runFilters(workflow).map(runsOf))}`
 
 const cell = (newestFirst: number[]) => {
   const { p50, p90, latest } = summarize(newestFirst)

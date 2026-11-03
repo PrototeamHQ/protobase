@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { GhServerError } from './gh-api'
-import { recentRuns, runFilters } from './github'
-import type { ApiRun } from './timings'
+import { recentRuns, releasesMerge, runFilters } from './github'
+import type { ApiJob, ApiRun } from './timings'
 
-const run = (id: number, startedAt = ''): ApiRun => ({ id, run_started_at: startedAt, updated_at: '', html_url: '' })
+const run = (id: number, startedAt = '', event = 'push'): ApiRun => ({ id, event, run_started_at: startedAt, updated_at: '', html_url: '' })
+const job = (name: string, conclusion: string): ApiJob => ({ name, conclusion, created_at: '', started_at: '', completed_at: '' })
+const planned = [job('plan', 'success'), job('check / unit', 'success')]
+const tagged = [job('plan', 'skipped'), job('pack', 'success')]
 
 // An API with three runs whose jobs answer with `jobsOf2` for run 2.
 const api = (jobsOf2: () => never) => <T>(path: string) => {
@@ -15,10 +18,11 @@ const api = (jobsOf2: () => never) => <T>(path: string) => {
 const release = { file: 'release.yml', event: 'push', branch: 'main', targetMinutes: 10 }
 const ci = { file: 'ci.yml', event: 'push', targetMinutes: 5 }
 const dispatchOnMain = { event: 'repository_dispatch', branch: 'main' }
+const workflowDispatchOnMain = { event: 'workflow_dispatch', branch: 'main' }
 
 describe('runFilters', () => {
   it("takes release's push runs on main and a merge's dispatch runs on main", () => {
-    expect(runFilters(release)).toEqual([{ event: 'push', branch: 'main' }, dispatchOnMain])
+    expect(runFilters(release)).toEqual([{ event: 'push', branch: 'main' }, dispatchOnMain, workflowDispatchOnMain])
   })
 
   it("takes ci's push runs on any branch and a merge's dispatch runs on main", () => {
@@ -32,12 +36,40 @@ describe('runFilters', () => {
   })
 })
 
+describe('releasesMerge', () => {
+  it('keeps a tagless workflow_dispatch, which runs plan, and leaves out one given a tag', () => {
+    expect(releasesMerge(run(1, '', 'workflow_dispatch'), planned)).toBe(true)
+    expect(releasesMerge(run(1, '', 'workflow_dispatch'), tagged)).toBe(false)
+  })
+
+  it('keeps every run of another event', () => {
+    expect(releasesMerge(run(1, '', 'push'), [])).toBe(true)
+    expect(releasesMerge(run(1, '', 'repository_dispatch'), [])).toBe(true)
+  })
+})
+
 describe('recentRuns', () => {
+  it('takes the tagless workflow_dispatch runs on main and fills the window past one given a tag', () => {
+    const at = (minute: number) => `2026-11-02T12:${String(minute).padStart(2, '0')}:00Z`
+    const get = <T>(path: string) => {
+      if (path.includes('event=push')) return { workflow_runs: [run(2, at(20))] } as T
+      if (path.includes('event=repository_dispatch')) return { workflow_runs: [] } as T
+      if (path.includes('event=workflow_dispatch&branch=main')) {
+        return { workflow_runs: [run(4, at(40), 'workflow_dispatch'), run(3, at(30), 'workflow_dispatch'), run(1, at(10), 'workflow_dispatch')] } as T
+      }
+      if (path.startsWith('actions/runs/3/')) return { jobs: tagged } as T
+      if (path.startsWith('actions/runs/')) return { jobs: planned } as T
+      throw new Error(`unexpected ${path}`)
+    }
+    expect(recentRuns(release, 2, get).map(({ run }) => run.id)).toEqual([4, 2])
+  })
+
   it('merges the push and dispatch runs newest first, up to the window', () => {
     const at = (minute: number) => `2026-11-02T12:${String(minute).padStart(2, '0')}:00Z`
     const get = <T>(path: string) => {
       if (path.includes('event=push')) return { workflow_runs: [run(4, at(40)), run(2, at(20))] } as T
       if (path.includes('event=repository_dispatch&branch=main')) return { workflow_runs: [run(3, at(30)), run(1, at(10))] } as T
+      if (path.includes('event=workflow_dispatch')) return { workflow_runs: [] } as T
       if (path.startsWith('actions/runs/')) return { jobs: [] } as T
       throw new Error(`unexpected ${path}`)
     }

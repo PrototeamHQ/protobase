@@ -23,7 +23,8 @@ const jobsOf = (run: ApiRun, get: Api) => {
 }
 
 // A merge by the AI review pushes with the workflow's built-in token, which starts no workflow, so it starts the release
-// and ci through a `repository_dispatch` on the default branch instead: those runs count as a push to main does.
+// through a dispatch on the default branch instead: a `workflow_dispatch` of the release workflow, or a
+// `repository_dispatch` a listener takes up. Those runs count as a push to main does.
 const defaultBranch = 'main'
 
 export interface RunFilter {
@@ -31,12 +32,26 @@ export interface RunFilter {
   branch?: string
 }
 
-/** The event and branch filters a workflow's window takes its runs from: its own and, for push runs, a merge's dispatch. */
+/**
+ * The event and branch filters a workflow's window takes its runs from: its own and, for push runs, a merge's dispatch.
+ * Only a push window on main takes the `workflow_dispatch` runs: the AI review dispatches the release workflow alone.
+ */
 export const runFilters = (workflow: WorkflowConfig): RunFilter[] => {
   const own = { event: workflow.event, branch: workflow.branch }
   if (workflow.event !== 'push') return [own]
   if (workflow.branch && workflow.branch !== defaultBranch) return [own]
-  return [own, { event: 'repository_dispatch', branch: defaultBranch }]
+  const repositoryDispatch = { event: 'repository_dispatch', branch: defaultBranch }
+  if (!workflow.branch) return [own, repositoryDispatch]
+  return [own, repositoryDispatch, { event: 'workflow_dispatch', branch: defaultBranch }]
+}
+
+/**
+ * Whether a run releases what was merged. A `workflow_dispatch` given a tag publishes that existing tag again and skips
+ * the release workflow's `plan` job, which every release of main's head runs, so a dispatch counts only when plan ran.
+ */
+export const releasesMerge = (run: ApiRun, jobs: ApiJob[]) => {
+  if (run.event !== 'workflow_dispatch') return true
+  return jobs.some((job) => job.name === 'plan' && job.conclusion === 'success')
 }
 
 const successfulRuns = (workflow: WorkflowConfig, filter: RunFilter, window: number, get: Api) => {
@@ -46,14 +61,20 @@ const successfulRuns = (workflow: WorkflowConfig, filter: RunFilter, window: num
   return get<{ workflow_runs: ApiRun[] }>(`actions/workflows/${workflow.file}/runs?${query}`).workflow_runs
 }
 
-/** The newest `window` successful runs whose jobs GitHub can give, newest first, each with its jobs. */
+/** The newest successful runs that release a merge, up to `window` of them, newest first, each with its jobs. */
 export const recentRuns = (workflow: WorkflowConfig, window: number, get: Api = api) => {
   const runs = runFilters(workflow)
     .flatMap((filter) => successfulRuns(workflow, filter, window, get))
     .sort((a, b) => Date.parse(b.run_started_at) - Date.parse(a.run_started_at))
-    .slice(0, window)
-  return runs.flatMap((run) => {
+  // A run left out for its jobs' 5xx still takes its place in the window; a dispatch that releases no merge does not.
+  const taken: { run: ApiRun; jobs: ApiJob[] }[] = []
+  let places = window
+  for (const run of runs) {
+    if (places === 0) break
     const jobs = jobsOf(run, get)
-    return jobs ? [{ run, jobs }] : []
-  })
+    if (jobs && !releasesMerge(run, jobs)) continue
+    places -= 1
+    if (jobs) taken.push({ run, jobs })
+  }
+  return taken
 }
