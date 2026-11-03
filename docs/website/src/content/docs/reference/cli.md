@@ -131,6 +131,10 @@ Exit code is 1 when there are errors. Run it after the project's migrations and 
 
 ## `eject`
 
+:::caution[Beta]
+A table is taken over from the command line alone, keeps its name and stays in `user_tables`.
+:::
+
 ```sh
 protobase eject [connection string | --env VAR] <table>... [--config <dir>] [--dir db/migrations]
 ```
