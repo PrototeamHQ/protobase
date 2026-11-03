@@ -202,7 +202,7 @@ export default defineConfig({ webhooks: { deliveryLog: true } })
 - **Type:** `boolean`
 - **Default:** `false`
 
-Lets subscriptions send to private, loopback and link-local addresses, for development and tests. Off, a URL whose host resolves to one is refused, so a subscription cannot reach the app's own network.
+Lets subscriptions send to private, loopback and link-local addresses, for development and tests. Off, a URL whose host resolves to one is refused when the subscription is saved and again at each delivery, which connects only to the address it checked, so a subscription cannot reach the app's own network.
 
 ```ts
 export default defineConfig(({ command }) => ({ webhooks: { allowPrivateAddresses: command === 'dev' } }))

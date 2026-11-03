@@ -6,6 +6,8 @@ import type { Session } from '../types'
 import { retryAfterMs } from './retry-schedule'
 import { standardWebhookHeaders } from './standard-webhooks'
 import { subscriberSession } from './subscriber-view'
+import { AddressRefusedError, pinnedRequest, type Resolve } from './table/pinned-request'
+import { readLimited } from './table/read-limited'
 import type { SentOptions, SubscriptionDefinition, SubscriptionEvent } from './subscription'
 
 /** How one try went. `final` failures are not tried again: the receiver said the endpoint is gone (`410`). */
@@ -20,18 +22,26 @@ export type AttemptContext = {
   /** 1 for the first try. */
   attempt: number
   signal: AbortSignal
-  /** What is wrong with a URL target's address, checked before each request (`checkWebhookUrl`). */
-  checkUrl?: (url: string) => Promise<string | undefined>
+  /** Lets a URL target reach private, loopback and link-local addresses: config subscriptions, or `webhooks.allowPrivateAddresses`. */
+  allowPrivateAddresses: boolean
+  /** Resolves a URL target's host; default the system resolver. */
+  resolve?: Resolve
 }
 
 /** How long a receiver has to answer. */
 export const attemptTimeoutMs = 15_000
 
-const excerpt = async (response: Response) => (await response.text()).slice(0, 200)
+/** How much of a failing answer is read; the rest is cancelled. */
+export const excerptBytes = 4096
+
+const excerpt = async (response: Response) => new TextDecoder().decode(await readLimited(response, excerptBytes)).slice(0, 200)
 
 // 2xx is a success, anything else a failure: a redirect too, since a webhook is not followed elsewhere.
 const resultOf = async (response: Response): Promise<AttemptResult> => {
-  if (response.status >= 200 && response.status < 300) return { ok: true, status: response.status }
+  if (response.status >= 200 && response.status < 300) {
+    await response.body?.cancel()
+    return { ok: true, status: response.status }
+  }
   const body = await excerpt(response)
   const wait = retryAfterMs(response.headers.get('retry-after'))
   return {
@@ -43,10 +53,10 @@ const resultOf = async (response: Response): Promise<AttemptResult> => {
   }
 }
 
-const request = async (url: string, event: SubscriptionEvent, options: SentOptions, signal: AbortSignal) => {
+const delivery = async (event: SubscriptionEvent, options: SentOptions, signal: AbortSignal) => {
   const body = JSON.stringify(options.body ? options.body(event) : event)
   const signed = await standardWebhookHeaders(event.id, Math.floor(Date.now() / 1000), body, options.secret)
-  return new Request(url, { method: 'POST', headers: { ...options.headers, ...signed, 'content-type': 'application/json' }, body, redirect: 'manual', signal })
+  return { method: 'POST', headers: new Headers({ ...options.headers, ...signed, 'content-type': 'application/json' }), body, signal }
 }
 
 // An API function is called in this process as the subscription's session, or as a caller without roles.
@@ -60,10 +70,11 @@ const callFunction = async (name: string, subscription: SubscriptionDefinition, 
     throw new Error(`The function "${name}" accepted a WebSocket, but a webhook delivery is no upgrade`)
   }
   const functionContext: PublicFunctionContext = { name, db: context.db, channels: context.channels, caller: async () => caller, acceptWebSocket, calls: { join: async () => acceptWebSocket(), remove: noCalls, of: noCalls } }
-  return invokeFunction(name, fn, await request('http://protobase.internal/', event, options, signal), fn.options.public ? functionContext : { ...functionContext, ...caller })
+  return invokeFunction(name, fn, new Request('http://protobase.internal/', await delivery(event, options, signal)), fn.options.public ? functionContext : { ...functionContext, ...caller })
 }
 
-const failure = (error: unknown): AttemptResult => ({ ok: false, error: error instanceof Error ? error.message : String(error), final: false })
+// A refused address is not tried again; any other error is.
+const failure = (error: unknown): AttemptResult => ({ ok: false, error: error instanceof Error ? error.message : String(error), final: error instanceof AddressRefusedError })
 
 /** One try of one event to one subscription's target, within `attemptTimeoutMs`. It never throws. */
 export const attemptDelivery = async (subscription: SubscriptionDefinition, event: SubscriptionEvent, context: AttemptContext): Promise<AttemptResult> => {
@@ -75,9 +86,8 @@ export const attemptDelivery = async (subscription: SubscriptionDefinition, even
       return { ok: true }
     }
     if ('function' in options) return await resultOf(await callFunction(options.function, subscription, event, options, context, signal))
-    const blocked = await context.checkUrl?.(options.url!)
-    if (blocked) return { ok: false, error: blocked, final: true }
-    return await resultOf(await fetch(await request(options.url!, event, options, signal)))
+    const pinned = { allowPrivateAddresses: context.allowPrivateAddresses, ...(context.resolve && { resolve: context.resolve }) }
+    return await resultOf(await pinnedRequest(options.url!, await delivery(event, options, signal), pinned))
   } catch (error) {
     return failure(error)
   }
