@@ -1,4 +1,4 @@
-import { authSchemaMigration, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, sqlSends, statusMigration, userTablesMigration, webhooksMigration } from '@protobase/server'
+import { authSchemaMigration, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, sqlSends, statusMigration, userTablesMigration, webhooksMigration } from '@protobase/server'
 import { authMigrationTitle } from '../auth/migration-file'
 import type { MigrationProject } from './load-project'
 
@@ -37,6 +37,8 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
     ...(project.calls ? [{ name: 'calls', title: 'The calls on records, who is in them, whom they ring, their guests, and the signals between the processes serving the app', sql: () => callsMigration(project.db, project.events) }] : []),
     ...(relayed(project.realtime) ? [{ name: 'realtime_relay', title: 'The relay of Realtime broadcasts and presence between the processes serving the app', sql: () => realtimeRelayMigration(project.db) }] : []),
     ...(project.userTables ? [{ name: 'user_tables', title: 'The schemas of the tables users add and of their definitions, and pg_trgm', sql: () => userTablesMigration(project.db) }] : []),
+    // Run after the deploy that brought the code of an ejected table, so its definition goes in a later deploy.
+    ...(project.userTables ? [{ name: 'owned_definitions', title: 'The delete of the definitions of user tables that resources in code own now', sql: () => ownedDefinitionsMigration(project.db, project.models) }] : []),
     ...(sqlSends(project.realtime) ? [{ name: 'channel_sends', title: "SQL's broadcasts to the record channels, channels.send()", sql: () => channelSendsMigration(project.db) }] : []),
   ]
 }

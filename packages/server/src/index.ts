@@ -68,6 +68,7 @@ export { subscription, type SubscriptionDefinition, type SubscriptionOptions, ty
 export { newWebhookSecret } from './webhooks/standard-webhooks'
 export { webhooksMigration, checkWebhooksSchema } from './webhooks/table/schema'
 export { userTablesMigration, checkUserTablesSchema } from './user-tables/schema'
+export { ownedDefinitionsMigration } from './user-tables/owned-definitions'
 export { userTableResources, type UserTables } from './user-tables/user-table-resources'
 export { readDefinitionsVersion } from './user-tables/definitions-version'
 export { reloadingAdmin } from './user-tables/reloading-admin'
