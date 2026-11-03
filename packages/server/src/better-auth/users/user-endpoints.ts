@@ -2,6 +2,7 @@ import { APIError, createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 import { adminOnly } from '../admin-only'
 import { sendAuthEmail, type AuthMail } from '../auth-mail/send-auth-email'
+import { invitationPage } from '../invitations/invitation-link-hook'
 import { invitationLink, invitationToken } from '../invitations/invitation-token'
 import type { RoleDefinitions } from '../organizations/role-definitions'
 import { roleLabels } from '../roles/role-labels'
@@ -15,8 +16,8 @@ export type UserEndpointsOptions = {
   definitions: RoleDefinitions
   /** Mails invitations; without it the inviter gets the link in the answer (`invitationLinkHook`). */
   mail?: AuthMail
-  /** The page an invitation link opens, with `?token=`. */
-  invitationUrl: string
+  /** The page an invitation link opens, with `?token=`; default `/-/invitation` on the request's origin (`invitationPage`). */
+  invitationUrl?: string
   /** How long an invitation works, in seconds. */
   invitationSeconds: number
 }
@@ -42,7 +43,7 @@ export const userEndpoints = ({ definitions, mail, invitationUrl, invitationSeco
       const inviter = ctx.context.session.user
       const invitation = await createAppInvitation(ctx.context, { email: ctx.body.email, roles: [...new Set(ctx.body.roles)], inviterId: inviter.id }, invitationSeconds)
       if (mail) {
-        const url = invitationLink(invitationUrl, await invitationToken(ctx.context.secret, invitation))
+        const url = invitationLink(invitationPage(invitationUrl, ctx.context.baseURL), await invitationToken(ctx.context.secret, invitation))
         await sendAuthEmail(mail, 'invitationEmail', invitation.email, { inviter: inviter.name || inviter.email, url, expiresAt: invitation.expiresAt }, url)
       }
       return ctx.json(answerOf(invitation))

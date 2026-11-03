@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { invitationLinkHook, withInvitationLink } from './invitation-link-hook'
+import { invitationLinkHook, invitationPage, withInvitationLink } from './invitation-link-hook'
 import { invitationToken, verifyInvitationToken } from './invitation-token'
 
 const secret = 'test-secret-test-secret-test-secret-1234'
@@ -28,5 +28,12 @@ describe('invitationLinkHook', () => {
     expect(await withInvitationLink(new Error('no'), secret, url)).toBeUndefined()
     expect(await withInvitationLink({ ok: true }, secret, url)).toBeUndefined()
     expect(await withInvitationLink(undefined, secret, url)).toBeUndefined()
+  })
+})
+
+describe('invitationPage', () => {
+  it("is /-/invitation on the request's origin, without Better Auth's base path, unless the app names its own", () => {
+    expect(invitationPage(undefined, 'https://homes.example.com/api/auth')).toBe('https://homes.example.com/-/invitation')
+    expect(invitationPage('https://join.example.org/welcome', 'https://homes.example.com/api/auth')).toBe('https://join.example.org/welcome')
   })
 })

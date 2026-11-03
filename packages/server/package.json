@@ -48,6 +48,7 @@
   },
   "dependencies": {
     "@better-auth/cimd": "^1.7.12",
+    "@better-auth/core": "^1.7.12",
     "@better-auth/mcp": "^1.7.12",
     "@better-auth/oauth-provider": "^1.7.12",
     "@better-auth/passkey": "^1.7.12",

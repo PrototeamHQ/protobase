@@ -27,7 +27,7 @@ describe('the auth store names', () => {
         operator: resolveOperator({ issuer: 'https://id.operator.example', clientId: 'app', clientSecret: 'secret' }),
         platformSignIn: resolvePlatformSignIn({ issuer: 'https://auth.example.com', clientId: 'app', clientSecret: 'secret' }),
         saml: resolveSamlProviders([{ id: 'okta', domains: ['example.com'], idp: { metadata: '<EntityDescriptor entityID="https://idp.example.com"/>' } }], []),
-        organizations: resolveOrganizations({}, roleDefinitions({ sales: 'Sales' }, { organizations: true }), 'https://admin.example.com'),
+        organizations: resolveOrganizations({}, roleDefinitions({ sales: 'Sales' }, { organizations: true })),
       },
     )
     expect(options.plugins.map((plugin) => plugin.id)).toEqual(

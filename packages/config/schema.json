@@ -1641,7 +1641,7 @@
                   ]
                 },
                 "invitationUrl": {
-                  "description": "The page an invitation link opens, with `?token=`. Default `{baseURL}/-/invitation`.",
+                  "description": "The page an invitation link opens, with `?token=`. Default `/-/invitation` on the origin the request came to.",
                   "anyOf": [
                     {
                       "type": "string"
