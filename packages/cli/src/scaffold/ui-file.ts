@@ -1,5 +1,6 @@
 import { Node, SyntaxKind } from 'ts-morph'
 import { humanize, humanizeSingular } from '../infer/names'
+import { quote } from '../infer/render-field'
 import { methodCalls } from './existing-config'
 import { parseSource } from './project'
 
@@ -13,6 +14,15 @@ export type UiField = {
   role: 'key' | 'tenant' | 'softDelete' | 'plain'
 }
 
+// The words a view names a resource and its fields with, as the definition of a table users added gives them.
+export type UiLabels = {
+  singular: string
+  plural: string
+  // The field naming each record (`.title()`).
+  title?: string
+  fields: Array<{ name: string; label: string; multiline: boolean }>
+}
+
 export type UiTarget = {
   // Resource name, e.g. "order_lines" for `sales.order_lines`.
   resource: string
@@ -20,6 +30,8 @@ export type UiTarget = {
   identifier: string
   tableName: string
   fields: UiField[]
+  // Written for every section of `renderUiFile`; the names section takes them in place of the table's name in words.
+  labels?: UiLabels
 }
 
 const auditField = /^(created|updated)(At|On|_at|_on)$/
@@ -62,13 +74,24 @@ export const listSort = (fields: UiField[]) => {
 
 export const viewName = (identifier: string) => `${identifier}View`
 
+const namesText = (singular: string, plural: string) => `.names({ singular: ${quote(singular)}, plural: ${quote(plural)} })`
+
 const sectionText: Record<UiSection, (target: UiTarget) => string> = {
-  names: (t) => `.names({ singular: '${humanizeSingular(t.tableName)}', plural: '${humanize(t.tableName)}' })`,
+  names: (t) => (t.labels ? namesText(t.labels.singular, t.labels.plural) : namesText(humanizeSingular(t.tableName), humanize(t.tableName))),
   list: (t) => {
     const sort = listSort(t.fields)
     return `.list((r) => ({ columns: [${listColumns(t.fields).map((n) => `r.${n}`).join(', ')}]${sort ? `, sort: [[r.${sort}, 'desc']]` : ''} }))`
   },
 }
+
+const fieldLabel = ({ name, label, multiline }: UiLabels['fields'][number]) =>
+  `    ${name}: r.${name}.label(${quote(label)})${multiline ? '.multiline()' : ''},`
+
+// The title and each field's label, which only labels give.
+const labelLines = ({ title, fields }: UiLabels) => [
+  ...(title ? [`  .title((r) => r.${title})`] : []),
+  ...(fields.length > 0 ? ['  .fields((r) => ({', ...fields.map(fieldLabel), '  }))'] : []),
+]
 
 const lines = (sections: readonly UiSection[], target: UiTarget) =>
   sections.map((s) => `  ${sectionText[s](target)}`)
@@ -79,6 +102,7 @@ export const renderUiFile = (target: UiTarget, sections: readonly UiSection[]) =
     `import type { ${target.identifier} } from './data'`,
     '',
     `export const ${viewName(target.identifier)} = view<typeof ${target.identifier}>('${target.resource}')`,
+    ...(target.labels ? labelLines(target.labels) : []),
     ...lines(sections, target),
     '',
   ].join('\n')
