@@ -1,15 +1,19 @@
 name: release-speed
 
 # How fast releases are tested and built against their targets (scripts/release-speed/config.json): daily, after each
-# release run and by hand, the report goes to this run's job summary. It is a workflow of its own that only reads the
-# Actions API, so it cannot hold up or fail a release, and a target that is not met does not fail it.
+# release run of main and by hand, the report goes to this run's job summary. A release run's last job dispatches it
+# with that run's id, since a release the AI review dispatches with GITHUB_TOKEN fires no workflow_run, and the report
+# waits for that run to complete so it counts it. It is a workflow of its own that only reads the Actions API, so it
+# cannot hold up or fail a release, and a target that is not met does not fail it.
 on:
   schedule:
     - cron: '23 6 * * *'
-  workflow_run:
-    workflows: [release]
-    types: [completed]
   workflow_dispatch:
+    inputs:
+      release_run:
+        description: The id of a release run to wait for before measuring, up to 10 minutes. Empty measures at once.
+        required: false
+        default: ''
 
 permissions:
   actions: read
@@ -27,4 +31,5 @@ jobs:
       - name: Report the release speed
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN: ${{ inputs.release_run }}
         run: bun scripts/release-speed/main.ts

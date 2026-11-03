@@ -1,13 +1,19 @@
 // Prints how fast the release and ci workflows run against their targets in config.json: the p50, p90 and latest wall,
 // queue and run time over the window of recent successful runs, per workflow and per job. In a workflow it writes the
-// report to the job summary as well. It only reports: a target that is not met does not fail it.
+// report to the job summary as well. It only reports: a target that is not met does not fail it. Given RELEASE_RUN, the
+// id of the release run that started it, it first waits for that run to complete, so the report counts it.
 //
 //   bun run release:speed
 import { appendFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { recentRuns } from './github'
+import { sleep } from './gh-api'
+import { api, recentRuns } from './github'
 import { report, type Config } from './report'
 import { runTimings } from './timings'
+import { limit, waitForRun } from './wait-for-run'
+
+const releaseRun = process.env.RELEASE_RUN
+if (releaseRun && !waitForRun(releaseRun, api, sleep)) console.log(`Release run ${releaseRun} did not complete within ${limit / 60_000}m, so it is not counted.\n`)
 
 const config = JSON.parse(readFileSync(join(import.meta.dirname, 'config.json'), 'utf8')) as Config
 const runsByWorkflow = config.workflows.map((workflow) => recentRuns(workflow, config.window).map(({ run, jobs }) => runTimings(run, jobs)))

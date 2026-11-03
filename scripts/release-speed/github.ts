@@ -7,9 +7,9 @@ import type { ApiJob, ApiRun } from './timings'
 // In a workflow, the repository it runs in; locally, gh fills in the repository of the checkout's remote.
 const repository = process.env.GITHUB_REPOSITORY ?? '{owner}/{repo}'
 
-type Api = <T>(path: string) => T
+export type Api = <T>(path: string) => T
 
-const api: Api = (path) => ghApi(`repos/${repository}/${path}`)
+export const api: Api = (path) => ghApi(`repos/${repository}/${path}`)
 
 // GitHub can keep answering a single run's jobs with a 502 for hours while every other run reads fine, so that run is
 // left out of the window rather than failing the whole report; the report's run count shows it.

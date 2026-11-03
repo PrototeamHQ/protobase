@@ -256,3 +256,22 @@ jobs:
           PROTOBASE_BUMP_REPOS: ${{ secrets.PROTOBASE_BUMP_REPOS }}
           TAG: ${{ inputs.tag || needs.release.outputs.tag }}
         run: bun scripts/bump-repos/main.ts
+
+  # Starts the release-speed report once every other job has ended, whatever their outcome: a run dispatched with
+  # GITHUB_TOKEN, as the AI review's are, fires no workflow_run, so the report cannot wait for the release's completion
+  # itself. It runs for releases of main only, a failed dispatch neither fails nor holds up the release, and the report
+  # measures a release up to its last job before this one (scripts/release-speed/timings.ts).
+  release-speed:
+    needs: [plan, pack, check, commits, release, publish, image, image-dev, bump]
+    if: ${{ always() && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      actions: write
+    steps:
+      - name: Start the release-speed report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: gh workflow run release-speed.yml --ref main -f release_run="$RUN_ID"

@@ -61,6 +61,23 @@ describe('runTimings', () => {
   })
 })
 
+describe('runTimings of a release run that starts the report', () => {
+  const start = Date.parse('2026-11-03T12:00:00Z')
+  const at = (seconds: number) => new Date(start + seconds * 1000).toISOString()
+  const job = (name: string, from: number, to: number, conclusion = 'success'): ApiJob => ({ name, conclusion, created_at: at(from), started_at: at(from), completed_at: at(to) })
+  const run: ApiRun = { id: 1, event: 'workflow_dispatch', run_started_at: at(0), updated_at: at(780), html_url: '' }
+
+  it('ends at its last other job, whatever that job concluded, and leaves the report job out', () => {
+    const timings = runTimings(run, [job('plan', 0, 60), job('bump', 60, 540, 'skipped'), job('publish', 60, 480), job('release-speed', 600, 780)])
+    expect(timings).toMatchObject({ wall: 540, queue: 0, run: 540 })
+    expect([...timings.jobs.keys()]).toEqual(['plan', 'publish'])
+  })
+
+  it('ends at updated_at without a report job, as earlier runs did', () => {
+    expect(runTimings(run, [job('plan', 0, 60), job('publish', 60, 480)])).toMatchObject({ wall: 780 })
+  })
+})
+
 describe('report', () => {
   const release: WorkflowConfig = { file: 'release.yml', event: 'push', branch: 'main', targetMinutes: 10 }
 

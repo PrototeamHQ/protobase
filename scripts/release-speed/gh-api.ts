@@ -9,7 +9,7 @@ export type Gh = (args: string[]) => { status: number | null; stdout: string; st
 const gh: Gh = (args) => spawnSync('gh', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
 
 // The script runs its calls one after another, so a blocking wait holds nothing else up.
-const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+export const sleep = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 
 export const retryDelays = [2_000, 5_000, 10_000]
 
