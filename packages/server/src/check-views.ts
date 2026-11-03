@@ -83,11 +83,11 @@ const textHintErrors = (view: ViewModel, model: ResourceModel) =>
   })
 
 // A create needs a value for a field that cannot be empty and has no default, so its form cannot leave it off; a boolean
-// always holds one.
+// holds one only while the form shows it.
 const notOnCreateErrors = (view: ViewModel, model: ResourceModel) =>
   Object.entries(view.fields).flatMap(([name, hints]) => {
     const field = model.fields[name]
-    if (!hints.notOnCreate || !field || field.nullable || field.default || field.readOnly || field.type === 'boolean') return []
+    if (!hints.notOnCreate || !field || field.nullable || field.default || field.readOnly) return []
     return [`notOnCreate "${name}" is a field a create needs: make it optional or give it a default`]
   })
 

@@ -39,7 +39,7 @@ export class FieldView<N extends string = string, V = unknown> {
   /**
    * Leaves the field off the create form, for one that makes sense only once the record exists, such as a choice among
    * records added after it; the create leaves it empty or to its default, and the record page shows it as usual. The
-   * server stops at startup on a field a create needs: not optional, with no default and no boolean.
+   * server stops at startup on a field a create needs: not optional and with no default.
    */
   notOnCreate() {
     return this.with({ notOnCreate: true })
