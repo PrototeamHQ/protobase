@@ -535,3 +535,25 @@ jobs:
         docs/snapshot-tests.md 9000
         cubic.yaml 10000
         .coderabbit.yaml 20000
+
+  # cubic.yaml's auto-approval prompt is a key inside the file, so the file check above cannot measure it alone. It is
+  # kept under 2,000 characters, short enough for the approval agent to weigh each criterion.
+  approval-prompt-length:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - env:
+          LC_ALL: C.UTF-8
+        run: |
+          # -e fails when the key is gone, rather than measuring the word null.
+          prompt=$(yq -e '.reviews.auto_approve_custom_prompt' cubic.yaml)
+          length=$(printf '%s' "$prompt" | wc -m)
+          if [ "$length" -gt 2000 ]; then
+            echo "::error file=cubic.yaml::auto_approve_custom_prompt is $length characters, over its limit of 2000"
+            exit 1
+          fi
+          echo "auto_approve_custom_prompt is $length characters, within its limit of 2000"
