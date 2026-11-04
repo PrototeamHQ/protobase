@@ -162,6 +162,10 @@ view<typeof channels>('channels').fields((r) => ({ member_ids: r.member_ids.widg
 
 The create form and the record's form pick the members of the organization the session works in by name: typing narrows them, each choice is a token whose button takes it off again, and choosing a chosen member takes them off too. It stores their user ids, the ids `.author()` stores and [`useMembers()`](/reference/custom-components/#members-names) gives, never membership ids. The record page, cards and the list's table show each member by avatar and name; an id that is no longer a member shows as an unknown member. A JSON field is on a form only through a field type that edits it, so without the hint `member_ids` stays read-only. The field needs [organizations](/reference/auth/#organizations); in an app without them it says so in place of the members. <gap>The members picker cannot search on the server because a server-side people resource is not implemented, so it loads the whole list in the browser, as `useMembers()` does.</gap> A plugin that registers a field type named `members` replaces it, and the server refuses to start when a view picks it for a field that is no JSON.
 
+### Workflow
+
+`workflow` is the field type the `workflows` resource draws its `definition` with: the [workflow editor](/reference/workflows/#the-editor). Another JSON field holding a workflow's definition picks it as `r.definition.widget('workflow')`. It takes the form's whole width, and a list's table shows how many steps the workflow has. A plugin that registers a field type named `workflow` replaces it.
+
 ## Building
 
 ```sh
