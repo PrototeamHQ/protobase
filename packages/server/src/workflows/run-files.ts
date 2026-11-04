@@ -15,23 +15,32 @@ const provider = 'private'
 // Every file a run stores is kept under its id, so a step can tell the run's own files from any other.
 const prefix = (runId: string) => `workflows/${runId}/`
 
-const noFiles = () => new StepError('States.TaskFailed', `The app keeps no files: workflows store theirs with the "${provider}" file provider`)
+// The store of the run's files, refused when the provider serves its files to anyone: a run's files are its own.
+const runStore = (files: FilesRuntime | undefined) => {
+  const kept = files?.providers[provider]
+  if (!kept) throw new StepError('States.TaskFailed', `The app keeps no files: workflows store theirs with the "${provider}" file provider`)
+  if (kept.public) throw new StepError('States.TaskFailed', `The "${provider}" file provider is public, so workflows keep no files in it: anyone could read them`)
+  return kept.store
+}
 
 /**
  * Stores bytes a step of the run got, such as an answer's body, as a file of the run's own, under a name of the
  * runner's choosing: no part of its path comes from the workflow or the answer.
  */
 export const storeRunFile = async (files: FilesRuntime | undefined, runId: string, bytes: Uint8Array, name: string, type: string): Promise<FileValue> => {
-  const store = files?.providers[provider]?.store
-  if (!store) throw noFiles()
+  const store = runStore(files)
   const path = `${prefix(runId)}${crypto.randomUUID()}`
   await store.put(path, new Blob([bytes as BlobPart]).stream())
   const clean = cleanName(name)
   return { uri: formatUri({ provider, path, name: clean, size: bytes.length }), name: clean, type, size: bytes.length }
 }
 
-const isFileValue = (value: unknown): value is FileValue =>
-  typeof value === 'object' && value !== null && typeof (value as FileValue).uri === 'string'
+/** Whether a value has a file value's shape, all four fields; an object with only a `uri` is other data. */
+export const isFileValue = (value: unknown): value is FileValue => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const { uri, name, type, size } = value as Partial<Record<keyof FileValue, unknown>>
+  return typeof uri === 'string' && typeof name === 'string' && typeof type === 'string' && typeof size === 'number'
+}
 
 /**
  * The file a file value names, when it is one the run stored itself; a step fails on any other, so a workflow cannot
@@ -48,8 +57,7 @@ export const runFileRef = (runId: string, value: unknown, field: string): FileRe
 /** The bytes of a file the run stored itself, read up to `runFileLimit`. */
 export const readRunFile = async (files: FilesRuntime | undefined, runId: string, value: unknown, field: string) => {
   const ref = runFileRef(runId, value, field)
-  const store = files?.providers[provider]?.store
-  if (!store) throw noFiles()
+  const store = runStore(files)
   const stream = await store.read(ref.path)
   if (!stream) throw new StepError('States.TaskFailed', `${field} names a file that is gone`)
   const bytes = await readLimited(new Response(stream), runFileLimit + 1)

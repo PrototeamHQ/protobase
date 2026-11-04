@@ -115,4 +115,16 @@ describe('the app:http step', () => {
     }
     expect(seen.length).toBe(before)
   })
+
+  it('sends an object with only a uri as JSON, and logs the URL as given, without its query', async () => {
+    await local()({ url: `${base}/links?key=${secret}`, method: 'POST', body: { uri: 'https://cdn.example/file' } }, context())
+    expect(seen.at(-1)).toMatchObject({ body: '{"uri":"https://cdn.example/file"}', type: 'application/json' })
+    await local()({ url: `${base}/a b/${secret}` }, context())
+    expect(redactor.text(logs.at(-1)!)).toMatch(new RegExp(`^GET ${base}/a b/\\[redacted\\]: 200 in \\d+ ms$`))
+  })
+
+  it('keeps no file of a run in a private provider that is public', async () => {
+    const shared = { providers: { private: localFiles({ dir: folder.dir, public: true }) } } as unknown as FilesRuntime
+    expect(await failure(httpStep({ allowPrivateAddresses: true, files: () => shared })({ url: `${base}/report.pdf`, response: 'file' }, context()))).toEqual(['States.TaskFailed', 'The "private" file provider is public, so workflows keep no files in it: anyone could read them'])
+  })
 })

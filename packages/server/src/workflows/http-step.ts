@@ -2,7 +2,7 @@ import { StepError, type TaskHandler } from '@protobase/workflows'
 import type { FilesRuntime } from '../files/runtime'
 import { AddressRefusedError, pinnedRequest, type Resolve } from '../webhooks/table/pinned-request'
 import { readLimited } from '../webhooks/table/read-limited'
-import { readRunFile, storeRunFile } from './run-files'
+import { isFileValue, readRunFile, storeRunFile } from './run-files'
 
 /** The most of an answer's body the `http` step reads; a larger one fails the step. */
 export const httpBodyLimit = 10 * 1024 * 1024
@@ -19,8 +19,6 @@ const invalid = (reason: string) => new StepError('Http.InvalidArguments', reaso
 
 const isTextRecord = (value: unknown): value is Record<string, string> =>
   typeof value === 'object' && value !== null && !Array.isArray(value) && Object.values(value).every((item) => typeof item === 'string')
-
-const isFileValue = (value: unknown) => typeof value === 'object' && value !== null && !Array.isArray(value) && typeof (value as { uri?: unknown }).uri === 'string'
 
 const checked = (args: HttpArguments) => {
   if (typeof args.url !== 'string' || !URL.canParse(args.url)) throw invalid('url must be an http or https URL')
@@ -85,7 +83,9 @@ export const httpStep = ({ allowPrivateAddresses = false, resolve, files = () =>
     throw new StepError('Http.Network', `No answer from ${url.host}: ${error instanceof Error ? error.message : String(error)}`)
   })
   const bytes = await readLimited(answer, httpBodyLimit + 1)
-  log(`${method} ${url.origin}${url.pathname}: ${answer.status} in ${Date.now() - started} ms`)
+  // The URL as it was given, without its query: the runner blanks secrets out of logs as they were written, which the
+  // parsed URL's encoding of them would hide.
+  log(`${method} ${given.url as string}`.replace(/[?#].*$/, '') + `: ${answer.status} in ${Date.now() - started} ms`)
   if (bytes.length > httpBodyLimit) throw new StepError('Http.ResponseTooLarge', `The answer's body is larger than ${httpBodyLimit / 1024 / 1024} MiB, the most the http step reads`)
   if (answer.status < 200 || answer.status > 299) {
     const excerpt = redact(new TextDecoder().decode(bytes)).slice(0, causeBodyLength)

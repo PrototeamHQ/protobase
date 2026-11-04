@@ -45,4 +45,10 @@ describe('the app:mail.send step', () => {
     expect(await failure(mailStep(() => undefined, () => files)({ to: 'a@example.com', subject: 'Hi', text: '' }, context()))).toEqual(['States.TaskFailed', 'The app sends no mail: set its mailer, or PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM'])
     expect(sent.length).toBe(before)
   })
+
+  it('refuses an address list inside one recipient, which would pass the count', async () => {
+    const step = mailStep(() => mailer, () => files)
+    expect(await failure(step({ to: 'a@example.com, b@example.com', subject: 'Hi', text: '' }, context()))).toEqual(['Mail.InvalidArguments', 'to must be one address; give several as a list'])
+    expect(await failure(step({ to: ['a@example.com', 'b@example.com; c@example.com'], subject: 'Hi', text: '' }, context()))).toEqual(['Mail.InvalidArguments', 'to[1] must be one address; give several as a list'])
+  })
 })

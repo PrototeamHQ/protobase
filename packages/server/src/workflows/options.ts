@@ -28,6 +28,8 @@ const secretName = /^[A-Z_][A-Z0-9_]*$/
 export const workflowsSchema = (options: WorkflowsOptions = {}) => {
   const schema = options.schema ?? 'workflows'
   if (!schemaPattern.test(schema)) throw new Error(`Invalid workflows schema "${schema}": use lowercase letters, digits and "_"`)
+  // Postgres cuts a longer name to 63 bytes, so two configs could share one schema.
+  if (schema.length > 63) throw new Error(`Invalid workflows schema "${schema}": at most 63 characters`)
   return schema
 }
 

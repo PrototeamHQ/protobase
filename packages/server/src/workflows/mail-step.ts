@@ -15,10 +15,17 @@ const line = (value: unknown, name: string) => {
   return value
 }
 
+// Each item one address: the mailer reads a comma or semicolon as the start of another, past the count checked here.
 const recipients = (value: unknown) => {
   const list = Array.isArray(value) ? value : [value]
   if (list.length === 0 || list.length > mailRecipients) throw invalid(`to must be one address or a list of 1 to ${mailRecipients}`)
-  return list.map((address, index) => line(address, Array.isArray(value) ? `to[${index}]` : 'to')).join(', ')
+  return list
+    .map((address, index) => {
+      const name = Array.isArray(value) ? `to[${index}]` : 'to'
+      if (/[,;]/.test(line(address, name))) throw invalid(`${name} must be one address; give several as a list`)
+      return address as string
+    })
+    .join(', ')
 }
 
 const attachmentsOf = async (value: unknown, files: FilesRuntime | undefined, runId: string): Promise<MailAttachment[]> => {
