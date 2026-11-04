@@ -1,0 +1,203 @@
+import { createServer, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { sql, type Kysely } from 'kysely'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { defineRoles } from '@protobase/schema'
+import { configExports, createAdmin, startJobs, startWorkflow, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { workflowsModule } from '@protobase/server/internal'
+import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+
+// Workers poll and retry on real timers, which a busy machine stretches.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
+
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps'>({
+  admin: ['*'],
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read'],
+  viewer: ['*.read'],
+})
+const people: Record<string, string[]> = { ada: ['builder'], vic: ['viewer'] }
+const workflows: WorkflowsOptions = {}
+
+const definition = (states: Record<string, unknown>) => ({ QueryLanguage: 'JSONata', StartAt: Object.keys(states)[0], States: states })
+
+describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s database and jobs', () => {
+  let pg: PostgresDatabase
+  let db: Kysely<any>
+  let admin: ReturnType<typeof createAdmin>
+  let runtime: JobsRuntime | undefined
+  let receiver: Server
+  const received: string[] = []
+  const errors: unknown[] = []
+
+  const start = async () => {
+    runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
+  }
+
+  beforeAll(async () => {
+    pg = await openPostgresDatabase('jobs')
+    db = pg.db
+    await pg.exec((await workflowsMigration(db, workflows))!)
+    const { resources, views } = configExports(workflowsModule(workflows))
+    admin = createAdmin({ resources, views, db, authenticate: (request) => ({ user: { id: request.headers.get('x-user')!, roles: people[request.headers.get('x-user')!]! }, tenant: '1' }), workflows, options: { roles } })
+    receiver = createServer((request, response) => {
+      received.push(request.url ?? '')
+      response.end('{}')
+    })
+    await new Promise<void>((resolve) => receiver.listen(0, '127.0.0.1', resolve))
+    await start()
+  })
+
+  afterAll(async () => {
+    await runtime?.stop()
+    await new Promise((resolve) => receiver?.close(resolve))
+    await pg?.close()
+    expect(errors).toEqual([])
+  })
+
+  const as = (user: string, path: string, init: { method?: string; body?: unknown } = {}) =>
+    admin.request(`/api/v1${path}`, { method: init.method ?? 'GET', headers: { 'content-type': 'application/json', 'x-user': user, 'if-match': '*' }, ...(init.body !== undefined && { body: JSON.stringify(init.body) }) })
+  const create = async (name: string, value: unknown) => {
+    const response = await as('ada', '/workflows', { method: 'POST', body: { name, definition: value } })
+    if (response.status !== 201) throw new Error(await response.text())
+    return (await response.json()).id as string
+  }
+  const run = async (workflow: string, input: unknown) => {
+    const response = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input } })
+    expect(response.status).toBe(201)
+    return (await response.json()).id as string
+  }
+  const runRow = async (id: string) => (await sql<{ status: string; output: unknown; error: string | null; cause: string | null; version: number; started_by: string }>`select status, output, error, cause, version, started_by from workflows.runs where id = ${id}`.execute(db)).rows[0]!
+  const finished = (id: string, timeout = 20_000) => vi.waitFor(async () => expect(['succeeded', 'failed']).toContain((await runRow(id)).status), { timeout, interval: 50 })
+  const steps = async (id: string) =>
+    (await sql<Record<string, unknown>>`select scope, seq, state, status, attempt, input, output, logs, error, started_at, finished_at, duration_ms from workflows.steps where run_id = ${id} order by id`.execute(db)).rows
+
+  it('refuses a definition with a missing input or an edge to no step, naming the step and the field', async () => {
+    const response = await as('ada', '/workflows', {
+      method: 'POST',
+      body: { name: 'Broken', definition: definition({ Call: { Type: 'Task', Resource: 'http', Arguments: { url: '{% $address %}' }, Next: 'Nowhere' }, Done: { Type: 'Succeed' } }) },
+    })
+    expect(response.status).toBe(400)
+    const problem = await response.json()
+    expect(problem.problems).toEqual([
+      { state: 'Call', field: 'Next', message: 'names "Nowhere", which is not a state here' },
+      { state: 'Call', field: 'Arguments.url', message: 'reads $address, which no state assigns in this scope' },
+      { state: 'Done', message: 'is never reached from "Call"' },
+    ])
+    expect(problem.detail).toContain('State "Call", field "Next": names "Nowhere", which is not a state here')
+    expect((await sql<{ count: number }>`select count(*)::int as count from workflows.workflows`.execute(db)).rows[0]!.count).toBe(0)
+  })
+
+  it('keeps each saved definition as a version, and a run keeps the version it started on', async () => {
+    const id = await create('Echo', definition({ Echo: { Type: 'Pass', Output: '{% $trigger.word %}', End: true } }))
+    const first = await run(id, { word: 'one' })
+    const changed = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: definition({ Echo: { Type: 'Pass', Output: '{% $uppercase($trigger.word) %}', End: true } }) } })
+    expect(changed.status).toBe(200)
+    const second = await run(id, { word: 'two' })
+    await finished(first)
+    await finished(second)
+    expect(await runRow(first)).toMatchObject({ status: 'succeeded', output: 'one', version: 1, started_by: 'ada' })
+    expect(await runRow(second)).toMatchObject({ status: 'succeeded', output: 'TWO', version: 2 })
+    const { items } = await (await as('ada', `/workflow_versions?filter=${encodeURIComponent(`workflow_id = "${id}"`)}`)).json()
+    expect(items.map((item: { version: number; saved_by: string }) => [item.version, item.saved_by])).toEqual([[1, 'ada'], [2, 'ada']])
+  })
+
+  it('runs a branch and a step per item to the expected records, each with its input, output, logs and timing', async () => {
+    const id = await create('Prices', definition({
+      Check: { Type: 'Choice', Choices: [{ Condition: '{% $count($trigger.prices) > 0 %}', Next: 'Each' }], Default: 'Empty' },
+      Each: { Type: 'Map', Items: '{% $trigger.prices %}', ItemProcessor: { StartAt: 'Tax', States: { Tax: { Type: 'Pass', Output: '{% $states.input * 1.25 %}', End: true } } }, Assign: { taxed: '{% $states.result %}' }, Next: 'Total' },
+      Total: { Type: 'Succeed', Output: '{% $sum($taxed) %}' },
+      Empty: { Type: 'Succeed', Output: 0 },
+    }))
+    const runId = await run(id, { prices: [4, 8] })
+    await finished(runId)
+    expect(await runRow(runId)).toMatchObject({ status: 'succeeded', output: 15 })
+    const saved = await steps(runId)
+    expect(saved.map(({ scope, seq, state, status, input, output }) => ({ scope, seq, state, status, input, output }))).toEqual([
+      { scope: '', seq: 0, state: 'Check', status: 'succeeded', input: { prices: [4, 8] }, output: { prices: [4, 8] } },
+      { scope: 'Each.1[0]', seq: 0, state: 'Tax', status: 'succeeded', input: 4, output: 5 },
+      { scope: 'Each.1[1]', seq: 0, state: 'Tax', status: 'succeeded', input: 8, output: 10 },
+      { scope: '', seq: 1, state: 'Each', status: 'succeeded', input: { items: 2 }, output: [5, 10] },
+      { scope: '', seq: 2, state: 'Total', status: 'succeeded', input: [5, 10], output: 15 },
+    ])
+    expect(saved[0]!.logs).toEqual([{ at: expect.any(String), message: 'Choice 1 holds' }])
+    expect(saved[3]!.logs).toEqual([{ at: expect.any(String), message: '2 items' }])
+    for (const step of saved) expect(Number(step.duration_ms)).toBe((step.finished_at as Date).getTime() - (step.started_at as Date).getTime())
+  })
+
+  it('retries a failing step as set, then records its error and takes its error path', async () => {
+    const id = await create('Retry', definition({
+      Call: {
+        Type: 'Task',
+        Resource: 'http',
+        Arguments: { url: '{% $trigger.url %}' },
+        Retry: [{ ErrorEquals: ['Http.InvalidArguments'], IntervalSeconds: 1, MaxAttempts: 2, BackoffRate: 1 }],
+        Catch: [{ ErrorEquals: ['States.ALL'], Assign: { failure: '{% $states.errorOutput.Error %}' }, Next: 'Handled' }],
+        End: true,
+      },
+      Handled: { Type: 'Succeed', Output: '{% {"handled": $failure} %}' },
+    }))
+    const runId = await run(id, { url: 'not a url' })
+    await finished(runId)
+    expect(await runRow(runId)).toMatchObject({ status: 'succeeded', output: { handled: 'Http.InvalidArguments' } })
+    expect((await steps(runId)).map(({ state, status, attempt, error }) => [state, status, attempt, error])).toEqual([
+      ['Call', 'retrying', 1, 'Http.InvalidArguments'],
+      ['Call', 'retrying', 2, 'Http.InvalidArguments'],
+      ['Call', 'caught', 3, 'Http.InvalidArguments'],
+      ['Handled', 'succeeded', 1, null],
+    ])
+  })
+
+  it('fails an http step whose URL an expression builds to a private address with the guard\'s error, reaching nothing there', async () => {
+    const { port } = receiver.address() as AddressInfo
+    const id = await create('Private', definition({ Call: { Type: 'Task', Resource: 'http', Arguments: { url: '{% "http://" & $trigger.host & ":" & $string($trigger.port) & "/inside" %}' }, End: true } }))
+    const runId = await run(id, { host: 'localhost', port })
+    await finished(runId)
+    expect(await runRow(runId)).toMatchObject({ status: 'failed', error: 'Http.AddressRefused', cause: expect.stringMatching(/^localhost is a private address \(.+\); requests reach public addresses only$/) })
+    expect(received).toEqual([])
+  })
+
+  it('finishes a run interrupted by a restart once the server is back, without running a finished step again', async () => {
+    const id = await create('Pause', definition({
+      Before: { Type: 'Pass', Assign: { at: '{% $millis() %}' }, Next: 'Hold' },
+      Hold: { Type: 'Wait', Seconds: 2, Next: 'After' },
+      After: { Type: 'Succeed', Output: '{% $at %}' },
+    }))
+    const runId = await run(id, {})
+    await vi.waitFor(async () => expect((await runRow(runId)).status).toBe('waiting'), { timeout: 10_000, interval: 50 })
+    await runtime!.stop()
+    await new Promise((resolve) => setTimeout(resolve, 2500))
+    expect((await runRow(runId)).status).toBe('waiting')
+    await start()
+    await finished(runId)
+    const saved = await steps(runId)
+    expect(saved.map((step) => step.state)).toEqual(['Before', 'Hold', 'After'])
+    expect((await runRow(runId)).status).toBe('succeeded')
+  })
+
+  it('starts a run from the app\'s own code inside the caller\'s transaction, or not at all when it rolls back', async () => {
+    const id = await create('Inside', definition({ Done: { Type: 'Succeed', Output: '{% $trigger %}' } }))
+    await expect(db.transaction().execute(async (trx) => {
+      await startWorkflow(trx, { workflow: id, input: 'dropped', tenant: '1' })
+      throw new Error('roll back')
+    })).rejects.toThrow('roll back')
+    const runId = await db.transaction().execute((trx) => startWorkflow(trx, { workflow: id, input: 'kept', tenant: '1', startedBy: 'job:import' }))
+    await finished(runId)
+    expect(await runRow(runId)).toMatchObject({ status: 'succeeded', output: 'kept', started_by: 'job:import' })
+    expect((await sql<{ count: number }>`select count(*)::int as count from workflows.runs where input = '"dropped"'`.execute(db)).rows[0]!.count).toBe(0)
+  })
+
+  it('lets only a role granted the workflow resources by name create, change and run workflows or read their runs', async () => {
+    const id = await create('Granted', definition({ Done: { Type: 'Succeed' } }))
+    const runId = await run(id, {})
+    await finished(runId)
+    // A resource the role cannot read answers as one that is not there.
+    expect([403, 404]).toContain((await as('vic', '/workflows', { method: 'POST', body: { name: 'Mine', definition: definition({ Done: { Type: 'Succeed' } }) } })).status)
+    expect((await as('vic', `/workflows/${id}`, { method: 'PATCH', body: { name: 'Renamed' } })).status).toBe(404)
+    expect([403, 404]).toContain((await as('vic', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {} } })).status)
+    expect((await sql<{ count: number }>`select count(*)::int as count from workflows.runs where workflow_id = ${id}`.execute(db)).rows[0]!.count).toBe(1)
+    expect((await sql<{ name: string }>`select name from workflows.workflows where id = ${id}`.execute(db)).rows[0]!.name).toBe('Granted')
+    for (const path of ['/workflows', '/workflow_runs', '/workflow_steps', `/workflow_runs/${runId}`]) expect([403, 404]).toContain((await as('vic', path)).status)
+    expect((await as('ada', `/workflow_runs/${runId}`)).status).toBe(200)
+    expect((await as('ada', `/workflow_steps?filter=${encodeURIComponent(`run_id = "${runId}"`)}`)).status).toBe(200)
+  })
+})

@@ -1,6 +1,6 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
+import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
 import { projectIcons } from '../build/app-icons'
 import { projectErrorReporter } from '../project/error-reporter'
 import { servedAdmin } from '../project/served-admin'
@@ -40,6 +40,7 @@ if (assistantSettings(project.options?.assistant, process.env)?.kind === 'built-
 // AI fields and actions call the model of PROTOBASE_ASSISTANT_API_KEY, which other commands need not have.
 checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
 if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
+if (project.workflows) await checkWorkflowsSchema(db, project.workflows)
 if (relayed(project.realtime)) await checkRealtimeRelay(db)
 if (sqlSends(project.realtime)) await checkChannelSends(db)
 if (project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)

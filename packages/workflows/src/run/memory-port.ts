@@ -1,6 +1,6 @@
 import type { Definition } from '../definition/types'
 import { createRunner } from './runner'
-import type { LoadedRun, RunChange, RunStore, StepRecord, TaskHandlers } from './port'
+import type { LoadedRun, RunStore, StepRecord, TaskHandlers } from './port'
 
 /**
  * The runner over a port kept in memory, with a clock tests move: for the package's unit tests. `drain` runs a run's
@@ -8,7 +8,7 @@ import type { LoadedRun, RunChange, RunStore, StepRecord, TaskHandlers } from '.
  */
 export const memoryRunner = (tasks: TaskHandlers, { budgetMs }: { budgetMs?: number } = {}) => {
   let clock = new Date('2026-11-04T12:00:00Z')
-  const runs = new Map<string, LoadedRun & Partial<RunChange>>()
+  const runs = new Map<string, LoadedRun & Record<string, unknown>>()
   const steps: StepRecord[] = []
   const queued: { runId: string; at?: Date }[] = []
   const store: RunStore<null> = {

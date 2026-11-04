@@ -1,6 +1,6 @@
 import { isPageDefinition } from '@protobase/layout'
 import type { AdminOptions, AssistantTool, AuditQueue, DeviceStore, FileProvider, FilesOptions, FunctionSource, HistoryStore, JobDefinition, JobRun, NotificationsOptions, PipelineHook, PushSender, Sharp, WebhooksOptions } from '@protobase/server'
-import { checkNotificationsOptions, declaredJob, fileProviderOf, isSubscription, webhooksModule } from '@protobase/server/internal'
+import { checkNotificationsOptions, declaredJob, fileProviderOf, isSubscription, webhooksModule, workflowsModule } from '@protobase/server/internal'
 import { checkUnique, type MergedConfig } from './merge-config'
 
 // What a merged config describes, with the project's code its conventions find, loaded when a command needs it: each
@@ -29,11 +29,12 @@ export const mergedModule = (modules: LabeledModule[]) => {
   return merged
 }
 
-/** The resources, views, pages and subscriptions of every config's config/ folder, after the webhook pages of `webhooks`. */
+/** The resources, views, pages and subscriptions of every config's config/ folder, after the pages of `webhooks` and `workflows`. */
 export const projectResources = async (config: MergedConfig) => {
   const modules = await Promise.all(config.sources.flatMap(({ files, label }) => (files.resources ? [files.resources().then((module) => ({ module, label }))] : [])))
   const webhooks = config.webhooks ? [{ module: webhooksModule(config.webhooks), label: 'protobase-webhooks' }] : []
-  return mergedModule([...webhooks, ...modules])
+  const workflows = config.workflows ? [{ module: workflowsModule(config.workflows), label: 'protobase-workflows' }] : []
+  return mergedModule([...webhooks, ...workflows, ...modules])
 }
 
 /** The declared jobs, each run by the default export of its jobs/<name>.ts, loaded on its first run; schedules in the app's `timezone` unless a job names its own. */

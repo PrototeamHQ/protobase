@@ -51,10 +51,10 @@ module.exports = {
     },
     {
       name: 'server-imports',
-      comment: '@protobase/server imports only schema, layout and query.',
+      comment: '@protobase/server imports only schema, layout, query and workflows.',
       severity: 'error',
       from: { path: '^packages/server/' },
-      to: { path: '^packages/', pathNot: '^packages/(server|schema|layout|query)/' },
+      to: { path: '^packages/', pathNot: '^packages/(server|schema|layout|query|workflows)/' },
     },
     {
       name: 'config-types-only',

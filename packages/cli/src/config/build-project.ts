@@ -1,6 +1,6 @@
 import type { PostgresPool } from 'kysely'
 import type { Db } from '@protobase/query'
-import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, StatusOptions, WebhooksOptions } from '@protobase/server'
+import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, StatusOptions, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
 import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
 import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks } from './project-parts'
@@ -58,6 +58,7 @@ export type BuiltProject = {
   events?: EventsOptions
   history?: HistoryOptions
   webhooks?: WebhooksOptions
+  workflows?: WorkflowsOptions
   realtime?: RealtimeOptions
   notifications?: NotificationsOptions
   status?: StatusOptions
@@ -97,6 +98,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     ...(config.events && { events: config.events }),
     ...(config.history && { history: config.history }),
     ...(webhooks && { webhooks }),
+    ...(config.workflows && { workflows: config.workflows }),
     ...(config.realtime && { realtime: config.realtime }),
     ...(notifications && { notifications }),
     ...(config.status && { status: checkStatusOptions(config.status) }),
