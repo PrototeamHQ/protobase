@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 1
+export const workflowsVersion = 2
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -106,8 +106,8 @@ create index if not exists "steps_state" on ${s}."steps" ("state")`
 }
 
 /**
- * A run takes its workflow's current version and tenant as it is created, and refuses a workflow of another tenant
- * or one that has no saved version.
+ * A run takes its workflow's current version as it is created, and refuses a workflow of another tenant as one
+ * that is not there, and one that has no saved version.
  */
 export const runStartSql = (schema: string) => {
   const s = quoteIdent(schema)
@@ -116,12 +116,13 @@ language plpgsql as $$
 declare
   found record;
 begin
-  select w.version, w.tenant_id into found from ${s}."workflows" w where w.id = new.workflow_id;
+  select w.id, w.version, w.tenant_id into found from ${s}."workflows" w where w.id = new.workflow_id;
+  -- Another tenant's workflow is refused as one that is not there, so a start tells nothing of other tenants.
+  if found.id is null or new.tenant_id is distinct from found.tenant_id then
+    raise exception 'There is no workflow % here', new.workflow_id using errcode = '23503';
+  end if;
   if found.version is null then
     raise exception 'Workflow % has no saved version', new.workflow_id using errcode = '23503';
-  end if;
-  if new.tenant_id is distinct from found.tenant_id then
-    raise exception 'Workflow % belongs to another tenant', new.workflow_id using errcode = '23503';
   end if;
   new.version := found.version;
   return new;
