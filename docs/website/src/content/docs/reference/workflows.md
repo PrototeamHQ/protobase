@@ -92,7 +92,7 @@ The document holds no layout: an editor lays the graph out from its edges.
 | `"record": { "events": ["<resource>.<event>"] }` | on each of those record events, such as `deals.created` | `{ event, resource, key, after, before, changed }` |
 | `"manual": {}` | when someone runs the workflow by hand | the input they give |
 
-A save checks a trigger's shape; runs start through the API or the app's code. <gap>A webhook, schedule, mail or record trigger cannot start runs because the triggers are not implemented.</gap>
+A save checks a trigger's shape; runs start through the API, over MCP or from the app's code. <gap>A webhook, schedule, mail or record trigger cannot start runs because the triggers are not implemented.</gap>
 
 ### Reading values by name
 
@@ -119,6 +119,8 @@ The save is refused, naming each state and field, when the document does not fit
 - a limit below is passed.
 
 The problem's `problems` lists them as `{ state, field, message }`, where a state inside a Map is named by its path, such as `Each/Total`. The document's JSON Schema is `definitionSchema` of `@protobase/workflows`, and `checkDefinition` runs the whole check.
+
+<gap>A save cannot refuse a Task's missing or unknown argument because checking `Arguments` per step type is not implemented.</gap> The step fails its run instead, with an error such as `Http.InvalidArguments` whose cause names the argument.
 
 ### States
 
