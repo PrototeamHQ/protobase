@@ -30,7 +30,7 @@ jobs:
       group: check-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     # Pushes to main and to fm/** branches run on the runner the CHECK_RUNNER variable names, when it is set; pull
-    # requests, which forks can open, always run on GitHub's runners. See CONTRIBUTING.md.
+    # requests, which forks can open, always run on GitHub's runners. See docs/ci.md.
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +71,7 @@ jobs:
       # last release tag, which the checkout's full history and tags hold.
       - run: bun run features:check --release-rule
       # A push to main, which the release workflow checks, or to an fm/** branch runs only the tests and steps its
-      # changes affect (scripts/affected-tests.mjs, see CONTRIBUTING.md): on main the changes since the last release, on
+      # changes affect (scripts/affected-tests.mjs, see docs/ci.md): on main the changes since the last release, on
       # a branch those since it left development. Without CHECK_BASE, as on a pull request or a run by hand, everything runs.
       - &check-base
         name: Find the commit the push's changes count from
