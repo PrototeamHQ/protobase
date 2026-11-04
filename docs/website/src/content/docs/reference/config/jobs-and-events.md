@@ -210,7 +210,7 @@ export default defineConfig(({ command }) => ({ webhooks: { allowPrivateAddresse
 
 ## workflows
 
-- **Type:** `{ schema?: string; allowPrivateAddresses?: boolean }`
+- **Type:** `{ schema?: string; secrets?: string[]; allowPrivateAddresses?: boolean }`
 - **Default:** off; `{}` turns them on
 
 Workflows that people and models make in the app, kept with their versions, runs and steps in a schema of the app's database that `protobase migration` writes, and run by the `workflows.segment` job. See [Workflows](/reference/workflows/).
@@ -230,12 +230,23 @@ The schema of the workflows, their versions, runs and steps.
 export default defineConfig({ workflows: { schema: 'flows' } })
 ```
 
+## workflows.secrets
+
+- **Type:** `string[]`
+- **Default:** none
+
+The environment variables workflows may read, each as `$states.context.Secrets.<NAME>`; no other variable is reachable from a workflow. Their values are blanked out of everything a run records. Startup stops when one is unset or shorter than 8 characters.
+
+```ts
+export default defineConfig({ workflows: { secrets: ['TICKETS_TOKEN'] } })
+```
+
 ## workflows.allowPrivateAddresses
 
 - **Type:** `boolean`
 - **Default:** `false`
 
-Lets the `http` step reach private, loopback and link-local addresses, for development and tests. Off, a URL whose host resolves to one fails the step, which connects only to the address it checked, so a workflow cannot reach the app's own network.
+Lets the `app:http` step reach private, loopback and link-local addresses, for development and tests. Off, a URL whose host resolves to one fails the step, which connects only to the address it checked, so a workflow cannot reach the app's own network.
 
 ```ts
 export default defineConfig(({ command }) => ({ workflows: { allowPrivateAddresses: command === 'dev' } }))

@@ -1,6 +1,6 @@
 /**
  * A step's failure by name, as `Catch` and `Retry` match it in `ErrorEquals`: a step type throws one with its own
- * names (such as `Http.StatusError`); any other error a step throws counts as `States.TaskFailed`.
+ * names (such as `Http.Status`); any other error a step throws counts as `States.TaskFailed`.
  */
 export class StepError extends Error {
   override name = 'StepError'
