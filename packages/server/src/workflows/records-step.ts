@@ -31,12 +31,14 @@ const saverSession = async ({ deps, schema, roles }: RecordsStepInput, runId: st
   return { user: { id: row.saved_by, roles: held }, ...(tenant !== undefined && { tenant, organization: { id: tenant } }) }
 }
 
-// A file value of the run's own in a file field, as the upload ticket the write takes for that field and user.
+// Field values as the API takes them: a number for a decimal field as its text, and a file value of the run's own in a
+// file field as the upload ticket the write takes for that field and user.
 const withTickets = async (deps: Deps, session: Session, resource: string, data: Row, runId: string): Promise<Row> => {
   const entry = toolEntry(deps, resource)
   const result = { ...data }
   for (const [name, value] of Object.entries(data)) {
     const field = entry.model.fields[name]
+    if (field?.type === 'decimal' && typeof value === 'number') result[name] = String(value)
     if (!field?.file || value === null || typeof value !== 'object') continue
     if (!deps.files) throw new StepError('States.TaskFailed', 'The app keeps no files')
     const ref = runFileRef(runId, value, `data.${name}`)
