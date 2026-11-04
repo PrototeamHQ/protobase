@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Inherits PrototeamHQ/coderabbit/.coderabbit.yaml, which reads CONTRIBUTING.md, and adds the framework checks and
+# the files CONTRIBUTING.md links for how CI and the snapshot tests work.
+inheritance: true
+knowledge_base:
+  code_guidelines:
+    filePatterns:
+      - files: "protobase-community/.github:.github/ai-review/prompts/framework-generic.md"
+        applyTo: "packages/**"
+      - files: "docs/ci.md"
+        applyTo: ".github/**,scripts/**,package.json,vitest.config.ts"
+      - files: "docs/snapshot-tests.md"
+        applyTo: "**/*.test.ts,**/*.sql.json,test-support/**,scripts/test-db/**"
