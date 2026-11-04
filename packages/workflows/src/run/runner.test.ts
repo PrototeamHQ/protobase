@@ -188,4 +188,24 @@ describe('the runner', () => {
     await port.drain()
     expect(port.steps[0]).toMatchObject({ state: 'Pick', output: null })
   })
+
+  it('gives every try of a step the same idempotency key, and a later visit of the state another', async () => {
+    const keys: string[] = []
+    let tries = 0
+    const port = memoryRunner({
+      flaky: async (_, { idempotencyKey }) => {
+        keys.push(idempotencyKey)
+        if (++tries < 3) throw new StepError('Remote.Busy', 'try again')
+      },
+    })
+    await port.start('r12', definition({
+      Send: { Type: 'Task', Resource: 'flaky', Retry: [{ ErrorEquals: ['Remote.Busy'], IntervalSeconds: 1 }], Next: 'Again' },
+      Again: { Type: 'Choice', Choices: [{ Condition: '{% $sent = true %}', Next: 'Done' }], Default: 'Mark' },
+      Mark: { Type: 'Pass', Assign: { sent: true }, Next: 'Send' },
+      Done: { Type: 'Succeed' },
+    }), {})
+    await port.drain()
+    expect(port.run('r12').status).toBe('succeeded')
+    expect(keys).toEqual(['r12//0', 'r12//0', 'r12//0', 'r12//5'])
+  })
 })

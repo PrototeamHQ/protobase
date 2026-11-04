@@ -13,7 +13,8 @@ type Ran = { result: unknown; input: unknown } | { failure: { Error: string; Cau
 
 const task = async (state: TaskState, call: StateCall): Promise<Ran> => {
   const args = await evaluateTemplate(state.Arguments ?? {}, call.bindings, 'Arguments')
-  const key = `${call.context.runId}/${call.scope}/${call.position.seq}`
+  // Each try of a visit is a step of its own, so the key counts from the visit's first try: the same for every retry.
+  const key = `${call.context.runId}/${call.scope}/${call.position.seq - call.position.attempt + 1}`
   const input = redacted(recordedArguments(state.Arguments ?? {}, args))
   return runTask(call.context, state, args, key, call.logs).then(
     (result) => ({ result, input }),
