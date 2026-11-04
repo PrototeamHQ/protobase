@@ -53,7 +53,7 @@ Field and resource names are snake_case by convention, like the columns: they ar
 | `f.timestamp()` | `timestamp`, `timestamptz` | ISO 8601 with offset | an instant, shown on the viewer's clock, in their browser's time zone, which hovering over it names |
 | `f.uuid()` | `uuid` | string | |
 | `f.enum(['a', 'b'])` | Postgres enum, or text with a `CHECK (... IN ...)` | one of the values | |
-| `f.json()` | `json`, `jsonb` | any JSON | |
+| `f.json()` | `json`, `jsonb` | any JSON | nested at most 256 levels deep (each array or object is a level); a deeper value is refused |
 | `f.relation('resource')` | the key column(s) of another resource | its key | `.columns([...])` |
 | `f.currency()` | `text` | ISO 4217 code (`EUR`) | |
 | `f.country()` | `text` | ISO 3166-1 alpha-2 code (`NL`) | |
