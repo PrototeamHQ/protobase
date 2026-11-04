@@ -15,7 +15,7 @@ const ms = (from: string, to: string) => `(floor(extract(epoch from ("${to}" - "
 
 /**
  * The workflows, each version of their definitions as it was saved, their runs and every step of a run. A run pins
- * the version it started on; a step is saved once per scope and number, which is what keeps a repeated segment from
+ * the version it started on, and a run with a key is started once per workflow and key; a step is saved once per scope and number, which is what keeps a repeated segment from
  * saving it twice.
  */
 export const tablesSql = (schema: string) => {
@@ -47,6 +47,7 @@ create table if not exists ${s}."runs" (
   "workflow_id" uuid not null references ${s}."workflows" ("id") on delete cascade,
   "version" integer,
   "input" jsonb,
+  "key" text,
   "status" text not null default 'queued' check ("status" in ('queued', 'running', 'waiting', 'succeeded', 'failed')),
   "output" jsonb,
   "error" text,
@@ -94,6 +95,7 @@ create index if not exists "workflows_name" on ${s}."workflows" ("name");
 create index if not exists "workflows_updated_at" on ${s}."workflows" ("updated_at");
 create index if not exists "workflows_name_search" on ${s}."workflows" using gin ("name" gin_trgm_ops);
 create index if not exists "versions_tenant" on ${s}."versions" ("tenant_id");
+create unique index if not exists "runs_key" on ${s}."runs" ("workflow_id", "key");
 create index if not exists "runs_workflow" on ${s}."runs" ("workflow_id", "created_at");
 create index if not exists "runs_tenant" on ${s}."runs" ("tenant_id");
 create index if not exists "runs_status" on ${s}."runs" ("status");

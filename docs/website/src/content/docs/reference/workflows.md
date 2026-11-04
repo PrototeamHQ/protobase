@@ -121,7 +121,7 @@ The result is `{ status, headers, body }`, with the body parsed when the answer 
 
 ## Runs and their steps
 
-A run starts when it is created, through the API or the admin app, in the same transaction: `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "input": { ... } }`. From the app's own code, such as a job or a write hook, `startWorkflow(db, { workflow, input, tenant, startedBy })` from `@protobase/server` starts one in `db`'s transaction, so it starts when the caller's writes commit, or not at all.
+A run starts when it is created, through the API or the admin app, in the same transaction: `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "input": { ... } }`. From the app's own code, such as a job or a write hook, `startWorkflow(db, { workflow, input, tenant, startedBy })` from `@protobase/server` starts one in `db`'s transaction, so it starts when the caller's writes commit, or not at all. With a `key`, such as `orders:42`, a workflow runs once per key: a start with a key it has a run for already, in this transaction or another, starts nothing and returns that run's id.
 
 <gap>Workflows cannot start on a webhook, an event or a schedule because triggers are not implemented.</gap>
 

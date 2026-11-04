@@ -186,6 +186,14 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect((await sql<{ count: number }>`select count(*)::int as count from workflows.runs where input = '"dropped"'`.execute(db)).rows[0]!.count).toBe(0)
   })
 
+  it('starts a run once per key, however many starts race for it', async () => {
+    const id = await create('Keyed', definition({ Done: { Type: 'Succeed', Output: '{% $trigger %}' } }))
+    const starts = await Promise.all([1, 2, 3].map((attempt) => db.transaction().execute((trx) => startWorkflow(trx, { workflow: id, input: attempt, tenant: '1', key: 'orders:42' }))))
+    expect(new Set(starts).size).toBe(1)
+    await finished(starts[0]!)
+    expect((await sql<{ count: number }>`select count(*)::int as count from workflows.runs where workflow_id = ${id}`.execute(db)).rows[0]!.count).toBe(1)
+  })
+
   it('lets only a role granted the workflow resources by name create, change and run workflows or read their runs', async () => {
     const id = await create('Granted', definition({ Done: { Type: 'Succeed' } }))
     const runId = await run(id, {})

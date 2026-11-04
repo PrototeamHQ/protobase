@@ -77,6 +77,7 @@ const runsResource = (schema: string) =>
       workflow_id: f.relation('workflows').filterable(),
       version: f.integer().optional().readOnly(),
       input: f.json().optional(),
+      key: f.text().optional().max(200),
       status: f.enum(runStatuses).readOnly().dbDefault().filterable(),
       output: f.json().optional().readOnly(),
       error: f.text().optional().readOnly(),
@@ -101,6 +102,7 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   .fields((r) => ({
     workflow_id: r.workflow_id.label('Workflow'),
     input: r.input.help('Read by every state as $trigger'),
+    key: r.key.help('A workflow runs once per key, such as the record a trigger found ready'),
     status: r.status.valueLabels({ queued: 'Queued', running: 'Running', waiting: 'Waiting', succeeded: 'Succeeded', failed: 'Failed' }).valueColors({ succeeded: 'green', failed: 'red' }),
     resume_at: r.resume_at.label('Goes on at'),
     started_by: r.started_by.label('Started by'),
