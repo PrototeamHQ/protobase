@@ -26,6 +26,7 @@ export const features = [
   'features/files-and-images',
   'features/history-comments-and-live-updates',
   'features/events-webhooks-and-jobs',
+  'features/workflows',
   'features/notifications',
   'features/calls',
   'features/email-and-public-forms',
@@ -78,7 +79,7 @@ export const referenceGroups = [
   },
   { label: 'Access and sign-in', items: ['reference/access', 'reference/auth'] },
   { label: 'API', items: ['reference/api', 'reference/client', 'reference/mcp', 'reference/calls'] },
-  { label: 'Events and jobs', items: ['reference/events', 'reference/webhooks', 'reference/jobs'] },
+  { label: 'Events and jobs', items: ['reference/events', 'reference/webhooks', 'reference/jobs', 'reference/workflows'] },
   { label: 'Email, PDFs, notifications and forms', items: ['reference/email', 'reference/pdf', 'reference/notifications', 'reference/status', 'reference/forms'] },
   {
     label: 'Admin UI',

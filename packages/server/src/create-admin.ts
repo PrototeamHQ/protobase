@@ -63,6 +63,8 @@ import { createWebhooks } from './webhooks/webhooks'
 import { webhookTable } from './webhooks/table/webhook-table'
 import { subscriptionUrlCheck, subscriptionWriteCheck } from './webhooks/table/validate-hook'
 import type { WebhooksOptions } from './webhooks/table/options'
+import { workflowEngine } from './workflows/workflow-engine'
+import type { WorkflowsOptions } from './workflows/options'
 import type { NotificationsOptions } from './notifications/options'
 import type { CallsOptions } from './calls/calls-options'
 import { callsService } from './calls/calls-service'
@@ -172,6 +174,8 @@ export type CreateAdminInput = {
   subscriptions?: SubscriptionDefinition[]
   /** Webhook subscriptions made in the admin app, from `webhooks: {}` (see `WebhooksOptions`). */
   webhooks?: WebhooksOptions
+  /** Workflows made in the admin app and run on the app's jobs, from `workflows: {}` (see `WorkflowsOptions`). */
+  workflows?: WorkflowsOptions
   /** How `/api/sb/realtime/v1` and `/api/channels` are served: by one process or several, and whether SQL sends to channels (see `RealtimeOptions`). */
   realtime?: RealtimeOptions
   /** Each user's devices and the endpoints that register them, from `notifications: {}` (see `NotificationsOptions`). */
@@ -226,7 +230,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, realtime, notifications, status, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -292,6 +296,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const encryption = createEncryptionRuntime({ models: registry.entries.map((entry) => entry.model), env: globalThis.process?.env ?? {} })
   const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), ...(secret && { secret }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath, storage: servesKeys })
   const table = webhooksOptions && webhookTable(webhooksOptions, auth)
+  const engine = workflowsOptions && workflowEngine(workflowsOptions, () => deps, auth)
   // AI fields and actions call the assistant's model; without a key they fail when used, and dev and serve stop at startup (see `checkAi`)
   const withAi = withAiFields || hasAiActions(viewModels)
   const model = withAi ? aiModel(options.assistant, globalThis.process?.env ?? {}) : undefined
@@ -308,8 +313,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     systemPath,
     statementTimeoutMs: options.statementTimeoutMs ?? defaultStatementTimeoutMs,
     guard: createScanGuard(db, options.scanGuard),
-    hooks: [...(options.writeHooks ?? []), ...served.hooks, ...(table ? [subscriptionWriteCheck(registry.entries.map((entry) => entry.model))] : []), ...(fill ? [fillHook(() => deps, fill)] : [])],
-    writeChecks: table?.checkUrl ? [subscriptionUrlCheck(table.checkUrl)] : [],
+    hooks: [...(options.writeHooks ?? []), ...served.hooks, ...(table ? [subscriptionWriteCheck(registry.entries.map((entry) => entry.model))] : []), ...(engine?.hooks ?? []), ...(fill ? [fillHook(() => deps, fill)] : [])],
+    writeChecks: [...(table?.checkUrl ? [subscriptionUrlCheck(table.checkUrl)] : []), ...(engine?.writeChecks ?? [])],
     audit: options.audit ?? consoleAuditQueue(),
     report: options.onUnhandledError ?? ((error: unknown) => console.error(error)),
     accessOptions: { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) },
@@ -492,5 +497,5 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), sqlSends: sqlSends(realtime), report })
-  return Object.assign(app, { startRealtimePrune: prune, decryptField, metaPath: `${deps.systemPath}/meta`, jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
+  return Object.assign(app, { startRealtimePrune: prune, decryptField, metaPath: `${deps.systemPath}/meta`, jobs: [...webhooks.jobs, ...(engine ? [engine.job] : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
 }

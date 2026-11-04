@@ -14,7 +14,7 @@ export const resolveHost: Resolve = async (host) => (await lookup(host, { all: t
 /** A request refused before it was sent, for its URL's scheme or address. The message names the host, never the URL. */
 export class AddressRefusedError extends Error {}
 
-export type PinnedInit = { method: string; headers?: HeadersInit; body?: string; signal?: AbortSignal }
+export type PinnedInit = { method: string; headers?: HeadersInit; body?: string | Uint8Array; signal?: AbortSignal }
 
 export type PinnedOptions = {
   /** Default: the system resolver (`resolveHost`). */

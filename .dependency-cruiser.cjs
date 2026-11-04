@@ -15,6 +15,13 @@ module.exports = {
       to: { path: '^packages/', pathNot: '^packages/schema/' },
     },
     {
+      name: 'workflows-stand-alone',
+      comment: '@protobase/workflows imports no other @protobase package: the app reaches it through its port.',
+      severity: 'error',
+      from: { path: '^packages/workflows/' },
+      to: { path: '^packages/', pathNot: '^packages/workflows/' },
+    },
+    {
       name: 'layout-runs-anywhere',
       comment: '@protobase/layout imports only schema: layouts are built in the config, checked on the server and rendered in the browser.',
       severity: 'error',
@@ -44,10 +51,10 @@ module.exports = {
     },
     {
       name: 'server-imports',
-      comment: '@protobase/server imports only schema, layout and query.',
+      comment: '@protobase/server imports only schema, layout, query and workflows.',
       severity: 'error',
       from: { path: '^packages/server/' },
-      to: { path: '^packages/', pathNot: '^packages/(server|schema|layout|query)/' },
+      to: { path: '^packages/', pathNot: '^packages/(server|schema|layout|query|workflows)/' },
     },
     {
       name: 'config-types-only',

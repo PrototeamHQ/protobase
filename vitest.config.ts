@@ -49,7 +49,7 @@ const glue = 'tests/{ai,changes,comments,import,jobs,notifications,roles}/**/*.t
 // what a recording cannot replay, such as workers that poll and retry on real timers, the server's transaction ids that
 // the changes outbox holds, which differ on every recording, and image placeholders, which libvips computes a little
 // differently on each CPU architecture.
-const realPostgres = ['packages/*/tests/**/*.postgres.test.ts', 'tests/{changes,jobs,roles}/**/*.postgres.test.ts']
+const realPostgres = ['packages/*/tests/**/*.postgres.test.ts', 'tests/{changes,jobs,roles,workflows}/**/*.postgres.test.ts']
 // The CLI building and serving the ERP on the runtime that runs Vitest, Bun or Node: `bun run test:smoke` and
 // `node --run test:smoke`.
 const smoke = ['tests/smoke/**/*.test.ts']

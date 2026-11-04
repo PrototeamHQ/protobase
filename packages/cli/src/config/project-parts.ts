@@ -1,6 +1,6 @@
 import { isPageDefinition } from '@protobase/layout'
-import type { AdminOptions, AssistantTool, AuditQueue, DeviceStore, FileProvider, FilesOptions, FunctionSource, HistoryStore, JobDefinition, JobRun, NotificationsOptions, PipelineHook, PushSender, Sharp, WebhooksOptions } from '@protobase/server'
-import { checkNotificationsOptions, declaredJob, fileProviderOf, isSubscription, webhooksModule } from '@protobase/server/internal'
+import type { AdminOptions, AssistantTool, AuditQueue, DeviceStore, FileProvider, FilesOptions, FunctionSource, HistoryStore, JobDefinition, JobRun, NotificationsOptions, PipelineHook, PushSender, Sharp, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
+import { checkNotificationsOptions, declaredJob, fileProviderOf, isSubscription, webhooksModule, workflowsModule } from '@protobase/server/internal'
 import { checkUnique, type MergedConfig } from './merge-config'
 
 // What a merged config describes, with the project's code its conventions find, loaded when a command needs it: each
@@ -29,11 +29,12 @@ export const mergedModule = (modules: LabeledModule[]) => {
   return merged
 }
 
-/** The resources, views, pages and subscriptions of every config's config/ folder, after the webhook pages of `webhooks`. */
+/** The resources, views, pages and subscriptions of every config's config/ folder, after the pages of `webhooks` and `workflows`. */
 export const projectResources = async (config: MergedConfig) => {
   const modules = await Promise.all(config.sources.flatMap(({ files, label }) => (files.resources ? [files.resources().then((module) => ({ module, label }))] : [])))
   const webhooks = config.webhooks ? [{ module: webhooksModule(config.webhooks), label: 'protobase-webhooks' }] : []
-  return mergedModule([...webhooks, ...modules])
+  const workflows = config.workflows ? [{ module: workflowsModule(config.workflows), label: 'protobase-workflows' }] : []
+  return mergedModule([...webhooks, ...workflows, ...modules])
 }
 
 /** The declared jobs, each run by the default export of its jobs/<name>.ts, loaded on its first run; schedules in the app's `timezone` unless a job names its own. */
@@ -141,6 +142,13 @@ export const projectWebhooks = async (config: MergedConfig): Promise<WebhooksOpt
   if (!config.webhooks) return undefined
   const ownerRoles = await lastDefault<WebhooksOptions['ownerRoles']>(config, 'webhooks/owner-roles.ts')
   return { ...config.webhooks, ...(ownerRoles && { ownerRoles }) }
+}
+
+/** The workflows options, with the roles of workflows/saved-by-roles.ts when a config's folder has it. */
+export const projectWorkflows = async (config: MergedConfig): Promise<WorkflowsOptions | undefined> => {
+  if (!config.workflows) return undefined
+  const savedByRoles = await lastDefault<WorkflowsOptions['savedByRoles']>(config, 'workflows/saved-by-roles.ts')
+  return { ...config.workflows, ...(savedByRoles && { savedByRoles }) }
 }
 
 /**

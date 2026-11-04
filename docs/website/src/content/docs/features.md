@@ -31,6 +31,7 @@ A feature without a mark is stable. The others say so after their name:
 - [Files and images](/features/files-and-images/): Uploaded files and images, where they are kept and how they are served.
 - [History, comments and live updates](/features/history-comments-and-live-updates/): The changes of each record, comments on it, and pages that refresh as records change.
 - [Events, webhooks and jobs](/features/events-webhooks-and-jobs/): React to changes, deliver them to other systems, and run work in the background.
+- [Workflows](/features/workflows/): Graphs of steps the server runs along their edges, written in a language a model writes well, with every step recorded.
 - [Notifications](/features/notifications/): A bell in the top bar and push to browsers and phones, for what your app tells its users.
 - [Calls](/features/calls/): Audio and video calls between an app's users, with Protobase deciding who is in a call and who hears whom.
 - [Email and public forms](/features/email-and-public-forms/): Mail the app sends, the PDF documents it makes, and forms for people without an account.

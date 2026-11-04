@@ -15,6 +15,7 @@ import type {
   RealtimeOptions,
   StatusOptions,
   WebhooksOptions,
+  WorkflowsOptions,
 } from '@protobase/server'
 
 /**
@@ -106,6 +107,8 @@ export type ProtobaseConfig = AppKeys &
     history?: HistoryOptions
     /** Webhook subscriptions made in the admin app (see `WebhooksOptions`); `{}` turns them on. */
     webhooks?: Omit<WebhooksOptions, 'ownerRoles'>
+    /** Workflows made in the admin app and run on the app's jobs (see `WorkflowsOptions`); `{}` turns them on. Its saver roles are `workflows/saved-by-roles.ts`. */
+    workflows?: Omit<WorkflowsOptions, 'savedByRoles'>
     /** How the record channels and supabase-js's Realtime are served: `{ processes: 'many' }` when several processes serve the app, `{ sqlSends: true }` to broadcast to channels from SQL (see `RealtimeOptions`). */
     realtime?: RealtimeOptions
     /** Each user's devices and inbox (see `NotificationsOptions`); `{}` turns them on. */
