@@ -95,7 +95,9 @@ describe('the reference flows of the language report', () => {
     const app = fakeApp({}, new Set(['https://payments.example.com/charges']))
     const port = await run('d', { event: 'orders.created', resource: 'orders', key: '17', after: { id: 17, customer_email: 'c@example.com', total: 99.5 } }, app)
     expect(port.run('d').status).toBe('succeeded')
-    expect(app.calls.filter((call) => call.resource === 'app:http')).toHaveLength(4)
+    const charges = app.calls.filter((call) => call.resource === 'app:http')
+    // Every try sends the same key, so a payment service that dedupes by it charges the order once.
+    expect(charges.map((call) => (call.args as { headers: Record<string, string> }).headers['Idempotency-Key'])).toEqual(Array(4).fill('order-17-charge'))
     expect(port.steps.filter((step) => step.state === 'Charge').map((step) => step.status)).toEqual(['retrying', 'retrying', 'retrying', 'caught'])
     expect(app.calls.slice(4)).toEqual([
       { resource: 'app:records.update', args: { resource: 'orders', key: 17, data: { status: 'payment_failed' } } },

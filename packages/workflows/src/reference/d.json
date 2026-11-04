@@ -16,6 +16,9 @@
         "Arguments": {
           "method": "POST",
           "url": "https://payments.example.com/charges",
+          "headers": {
+            "Idempotency-Key": "{% 'order-' & $string($states.context.Execution.Input.after.id) & '-charge' %}"
+          },
           "body": {
             "order_id": "{% $states.context.Execution.Input.after.id %}",
             "amount": "{% $states.context.Execution.Input.after.total %}"
