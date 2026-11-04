@@ -33,5 +33,8 @@ export const bindingsOf = (context: SegmentContext, outer: Record<string, unknow
 /** The variables an inner scope sees: every one in scope here, without `$states`, which each scope adds itself. */
 export const visibleVariables = ({ states: _, ...variables }: Bindings) => variables
 
-/** The key of an inner scope: item `index` of the Map `name` that was step `seq` of `scope`. */
-export const innerScope = (scope: string, name: string, seq: number, index: number) => `${scope ? `${scope}/` : ''}${name}.${seq}[${index}]`
+/**
+ * The key of an inner scope: item `index` of the Map `name` that was step `seq` of `scope`, such as `Each.3[0]`. The
+ * name is URI-encoded, so a `/` or `[` in a state's name cannot make two scopes' keys the same.
+ */
+export const innerScope = (scope: string, name: string, seq: number, index: number) => `${scope ? `${scope}/` : ''}${encodeURIComponent(name)}.${seq}[${index}]`

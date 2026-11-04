@@ -33,8 +33,10 @@ export const advance = (position: Position, step: SavedStep): Position => {
   if (step.status === 'retrying') {
     return { ...position, seq, variables, attempt: position.attempt + 1, failures: [...position.failures, step.error ?? ''], ...(step.resumeAt && { resumeAt: step.resumeAt }) }
   }
-  if (step.next === null) return { kind: 'ended', seq, output: step.output, variables }
-  return { kind: 'at', seq, state: step.next, input: step.output, variables, attempt: 1, failures: [], ...(step.resumeAt && { resumeAt: step.resumeAt }) }
+  // A step that gave nothing is saved as null and read back so, which is what the scope goes on with in every segment.
+  const output = step.output === undefined ? null : step.output
+  if (step.next === null) return { kind: 'ended', seq, output, variables }
+  return { kind: 'at', seq, state: step.next, input: output, variables, attempt: 1, failures: [], ...(step.resumeAt && { resumeAt: step.resumeAt }) }
 }
 
 /** Where a scope stands after the steps it saved, in their order. */

@@ -9,14 +9,14 @@ import type { LoadedRun, RunStore, StepRecord, TaskHandlers } from './port'
 export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps }: { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number } = {}) => {
   let clock = new Date('2026-11-04T12:00:00Z')
   const runs = new Map<string, LoadedRun & Record<string, unknown>>()
-  const steps: StepRecord[] = []
+  const steps: (StepRecord & { runId: string })[] = []
   const queued: { runId: string; at?: Date }[] = []
   const store: RunStore<null> = {
     load: async (_, id) => runs.get(id),
-    steps: async () => steps,
-    save: async (_, __, step) => {
-      if (steps.some((saved) => saved.scope === step.scope && saved.seq === step.seq)) return false
-      steps.push(structuredClone(step))
+    steps: async (_, runId) => steps.filter((saved) => saved.runId === runId),
+    save: async (_, runId, step) => {
+      if (steps.some((saved) => saved.runId === runId && saved.scope === step.scope && saved.seq === step.seq)) return false
+      steps.push({ ...structuredClone(step), runId })
       return true
     },
     update: async (_, id, change) => {

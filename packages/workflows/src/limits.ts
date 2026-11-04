@@ -2,6 +2,8 @@
 export const limits = {
   /** A definition's size as JSON, and the length of one expression's source. */
   definitionBytes: 256 * 1024,
+  /** How deeply a definition's arrays and objects nest, so no walk of it overflows the call stack. */
+  definitionDepth: 256,
   expressionLength: 4096,
   /** States in one definition, the ones inside Maps counted. */
   states: 100,

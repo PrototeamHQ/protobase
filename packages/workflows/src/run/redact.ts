@@ -1,4 +1,4 @@
-const secretKey = /pass(word)?|secret|token|authorization|api[-_]?key|cookie|credential|private[-_]?key|signature/i
+const secretKey = /^pass$|pass(word|phrase|code|wd)|secret|token|authorization|api[-_]?key|cookie|credential|private[-_]?key|signature/i
 
 /** A copy of a value with each field whose name says it holds a secret, such as `Authorization` or `apiKey`, replaced. */
 export const redacted = (value: unknown): unknown => {
@@ -27,7 +27,15 @@ export const secretRedactor = (secrets: readonly string[]): Redactor => {
     if (typeof input === 'string') return text(input) as T
     if (Array.isArray(input)) return input.map(value) as T
     if (typeof input !== 'object' || input === null || input instanceof Date) return input
-    return Object.fromEntries(Object.entries(input).map(([key, item]) => [text(key), value(item)])) as T
+    // Keys that held different secrets can blank out the same: each after the first keeps its value under a numbered key.
+    const kept: Record<string, unknown> = {}
+    for (const [key, item] of Object.entries(input)) {
+      const blanked = text(key)
+      let name = blanked
+      for (let count = 2; Object.hasOwn(kept, name); count++) name = `${blanked} (${count})`
+      kept[name] = value(item)
+    }
+    return kept as T
   }
   return { text, value }
 }

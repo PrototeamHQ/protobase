@@ -115,6 +115,12 @@ describe('checkDefinition', () => {
     ])
   })
 
+  it('refuses a definition nested deeper than it may be, before any walk of it', () => {
+    let output: unknown = 1
+    for (let level = 0; level < 3000; level++) output = [output]
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Pass', Output: output, End: true } } })).toEqual(['The definition nests more than 256 levels of arrays and objects'])
+  })
+
   it('lets filters, lambdas and bindings read relative names, and $states.errorOutput only in a catcher', () => {
     const definition = {
       QueryLanguage: 'JSONata',

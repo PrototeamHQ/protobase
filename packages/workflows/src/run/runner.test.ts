@@ -167,7 +167,7 @@ describe('the runner', () => {
 
     const raced = memoryRunner({ tick: async () => 1 })
     await raced.start('r9', definition({ A: { Type: 'Task', Resource: 'tick', End: true } }), {})
-    raced.steps.push({ scope: '', seq: 0, state: 'A', type: 'Task', status: 'succeeded', attempt: 1, next: null, output: 2, logs: [], startedAt: raced.now(), finishedAt: raced.now() })
+    raced.steps.push({ runId: 'r9', scope: '', seq: 0, state: 'A', type: 'Task', status: 'succeeded', attempt: 1, next: null, output: 2, logs: [], startedAt: raced.now(), finishedAt: raced.now() })
     await raced.runner.segment(null, 'r9', new AbortController().signal)
     expect(raced.run('r9').status).toBe('succeeded')
   })
@@ -218,5 +218,16 @@ describe('the runner', () => {
     await expect(port.step(stopped.signal)).rejects.toThrow('worker stopped')
     expect(called).toEqual([])
     expect(port.steps).toEqual([])
+  })
+
+  it('keeps two runs of one port apart, and gives the next state null for a step that gave nothing', async () => {
+    const port = memoryRunner({ quiet: async () => undefined })
+    const quiet = definition({ Call: { Type: 'Task', Resource: 'quiet', Next: 'Show' }, Show: { Type: 'Succeed', Output: '{% $states.input = null %}' } }, 'Call')
+    await port.start('r14', quiet, {})
+    await port.drain()
+    await port.start('r15', quiet, {})
+    await port.drain()
+    expect(port.run('r15')).toMatchObject({ status: 'succeeded', output: true })
+    expect(port.steps.filter((step) => step.runId === 'r15')).toHaveLength(2)
   })
 })

@@ -9,6 +9,7 @@ import { readProblems } from './check-reads'
 import type { Definition, Machine } from './types'
 import { visibleVariables } from './visible'
 import { limits } from '../limits'
+import { nestingDepth } from '../nesting'
 
 /** What a definition is checked against beside the language: the step types (Task resources) the app has. */
 export type CheckOptions = { resources: readonly string[] }
@@ -63,13 +64,14 @@ const wholeProblems = (definition: Definition): Problem[] => {
 }
 
 /**
- * Why a definition cannot be saved, as it is checked on every save: its size, its shape against `definitionSchema`, its
+ * Why a definition cannot be saved, as it is checked on every save: its size and nesting, its shape against `definitionSchema`, its
  * trigger, then each edge, each Task's step type and what each expression reads, in the named-reads profile. Empty when
  * it can be saved.
  */
 export const checkDefinition = (definition: unknown, options: CheckOptions): Problem[] => {
   const bytes = new TextEncoder().encode(JSON.stringify(definition) ?? '').length
   if (bytes > limits.definitionBytes) return [{ message: `The definition is ${bytes} bytes as JSON, more than the ${limits.definitionBytes} a workflow may have` }]
+  if (nestingDepth(definition, limits.definitionDepth) > limits.definitionDepth) return [{ message: `The definition nests more than ${limits.definitionDepth} levels of arrays and objects` }]
   const shape = schemaProblems(definition)
   if (shape.length > 0) return shape
   const document = definition as Definition
