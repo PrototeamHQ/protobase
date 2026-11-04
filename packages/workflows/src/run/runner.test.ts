@@ -178,4 +178,14 @@ describe('the runner', () => {
     await port.drain()
     expect(port.run('r10')).toMatchObject({ status: 'failed', error: 'States.DataLimitExceeded', cause: "The step's output is larger than 1 MiB" })
   })
+
+  it("keeps a matched choice's Output of null, rather than the Choice state's own", async () => {
+    const port = memoryRunner({})
+    await port.start('r11', definition({
+      Pick: { Type: 'Choice', Output: '{% "the state\'s" %}', Choices: [{ Condition: '{% true %}', Output: null, Next: 'Done' }] },
+      Done: { Type: 'Succeed' },
+    }), {})
+    await port.drain()
+    expect(port.steps[0]).toMatchObject({ state: 'Pick', output: null })
+  })
 })

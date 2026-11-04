@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Definition } from '../definition/types'
 import { StepError } from './errors'
 import { memoryRunner } from './memory-port'
+import { retryDelaySeconds } from './recovery'
 
 const definition = (states: Definition['stateMachine']['States']): Definition => ({
   trigger: { manual: {} },
@@ -66,6 +67,30 @@ describe('the runner, failing closed at its limits', () => {
     await port.drain()
     expect(port.run('wide')).toMatchObject({ status: 'failed', error: 'States.DataLimitExceeded', cause: 'Items: 10001 items, more than the 10000 a Map takes' })
     expect(port.steps.filter((step) => step.scope !== '')).toEqual([])
+  })
+
+  it('waits at most a day between two tries, however the backoff grows', () => {
+    expect(retryDelaySeconds({ ErrorEquals: ['States.ALL'], IntervalSeconds: 86400, BackoffRate: 10 }, 3)).toBe(86400)
+    expect(retryDelaySeconds({ ErrorEquals: ['States.ALL'], IntervalSeconds: 2, BackoffRate: 2, MaxDelaySeconds: 5 }, 3)).toBe(5)
+    expect(retryDelaySeconds({ ErrorEquals: ['States.ALL'], IntervalSeconds: 2, BackoffRate: 2 }, 2)).toBe(8)
+  })
+
+  it('fails a Wait whose Timestamp is more than 366 days away, or not a time on the calendar', async () => {
+    for (const [id, timestamp, cause] of [
+      ['far', '2028-01-01T00:00:00Z', 'Timestamp: gave "2028-01-01T00:00:00Z", more than 31622400 seconds from now'],
+      ['feb', '2026-02-30T12:00:00Z', 'Timestamp: gave "2026-02-30T12:00:00Z", not an ISO 8601 time such as 2026-11-04T12:00:00Z'],
+      ['loose', 'December 1, 2026', 'Timestamp: gave "December 1, 2026", not an ISO 8601 time such as 2026-11-04T12:00:00Z'],
+    ] as const) {
+      const port = memoryRunner({})
+      await port.start(id, definition({ Hold: { Type: 'Wait', Timestamp: timestamp, End: true } }), {})
+      await port.drain()
+      expect(port.run(id)).toMatchObject({ status: 'failed', error: 'States.QueryEvaluationError', cause })
+    }
+    const port = memoryRunner({})
+    await port.start('near', definition({ Hold: { Type: 'Wait', Timestamp: '2026-12-01T09:30:00+01:00', End: true } }), {})
+    await port.drain()
+    expect(port.run('near').status).toBe('succeeded')
+    expect(port.steps[0]!.resumeAt).toEqual(new Date('2026-12-01T08:30:00Z'))
   })
 
   it('keeps 100 log lines of a step that logs 1,000, and the step still succeeds', async () => {

@@ -1,4 +1,5 @@
 import type { Catcher, Retrier } from '../definition/types'
+import { limits } from '../limits'
 import type { StateResult } from './context'
 import { evaluateAssign, evaluateKept, type Bindings } from './evaluate'
 import { matches, StepError, type ErrorOutput } from './errors'
@@ -7,10 +8,13 @@ import type { StepLog } from './port'
 
 type Recoverable = { Retry?: Retrier[]; Catch?: Catcher[] }
 
-/** The wait before a retry: `IntervalSeconds` times `BackoffRate` for each earlier retry, up to `MaxDelaySeconds`. */
+/**
+ * The wait before a retry: `IntervalSeconds` times `BackoffRate` for each earlier retry, up to `MaxDelaySeconds`, and
+ * never more than `limits.retryDelaySeconds`, which is also the cap when the retrier names none.
+ */
 export const retryDelaySeconds = (retrier: Retrier, retries: number) => {
   const delay = (retrier.IntervalSeconds ?? 1) * (retrier.BackoffRate ?? 2) ** retries
-  return retrier.MaxDelaySeconds === undefined ? delay : Math.min(delay, retrier.MaxDelaySeconds)
+  return Math.min(delay, retrier.MaxDelaySeconds ?? limits.retryDelaySeconds)
 }
 
 const caught = async (catcher: Catcher, failure: ErrorOutput, bindings: Bindings, logs: StepLog[]): Promise<StateResult> => {

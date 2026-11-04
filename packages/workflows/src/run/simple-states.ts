@@ -27,12 +27,24 @@ export const runChoice = async (state: ChoiceState, call: StateCall): Promise<St
     if (typeof holds !== 'boolean') throw new StepError('States.QueryEvaluationError', `${field}: gave ${JSON.stringify(holds) ?? 'nothing'}, not true or false`)
     if (!holds) continue
     call.logs.push({ at: call.context.now().toISOString(), message: `Choice ${index + 1} holds` })
-    const shaped = { Output: rule.Output ?? state.Output, Assign: rule.Assign ?? state.Assign }
+    const shaped = { Output: rule.Output === undefined ? state.Output : rule.Output, Assign: rule.Assign ?? state.Assign }
     return { kind: 'step', status: 'succeeded', next: rule.Next, input: call.position.input, output: await outputOf(shaped, call), assigned: await evaluateAssign(shaped.Assign, call.bindings), logs: call.logs }
   }
   if (state.Default === undefined) throw new StepError('States.NoChoiceMatched', 'No choice holds and the state has no Default')
   call.logs.push({ at: call.context.now().toISOString(), message: 'No choice holds: Default' })
   return { kind: 'step', status: 'succeeded', next: state.Default, input: call.position.input, output: await outputOf(state, call), assigned: await evaluateAssign(state.Assign, call.bindings), logs: call.logs }
+}
+
+// An ISO 8601 date and time with its offset, such as 2026-11-04T12:00:00Z, read only when its date is on the calendar:
+// `new Date` alone takes other formats and moves 2026-02-30 to March 2.
+const isoPattern = /^(\d{4})-(\d{2})-(\d{2})T([01]\d|2[0-3]):[0-5]\d(:[0-5]\d(\.\d+)?)?(Z|[+-]([01]\d|2[0-3]):[0-5]\d)$/
+const isoTime = (text: string) => {
+  const match = isoPattern.exec(text)
+  if (!match) return undefined
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])]
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return undefined
+  return new Date(text)
 }
 
 const waitUntil = async (state: WaitState, call: StateCall) => {
@@ -43,8 +55,9 @@ const waitUntil = async (state: WaitState, call: StateCall) => {
     return new Date(now.getTime() + seconds * 1000)
   }
   const timestamp = await evaluateTemplate(state.Timestamp, call.bindings, 'Timestamp')
-  const at = typeof timestamp === 'string' ? new Date(timestamp) : undefined
-  if (!at || Number.isNaN(at.getTime())) throw new StepError('States.QueryEvaluationError', `Timestamp: gave ${JSON.stringify(timestamp) ?? 'nothing'}, not an ISO 8601 time`)
+  const at = typeof timestamp === 'string' ? isoTime(timestamp) : undefined
+  if (!at) throw new StepError('States.QueryEvaluationError', `Timestamp: gave ${JSON.stringify(timestamp) ?? 'nothing'}, not an ISO 8601 time such as 2026-11-04T12:00:00Z`)
+  if (at.getTime() - now.getTime() > limits.waitSeconds * 1000) throw new StepError('States.QueryEvaluationError', `Timestamp: gave ${JSON.stringify(timestamp)}, more than ${limits.waitSeconds} seconds from now`)
   return at
 }
 
