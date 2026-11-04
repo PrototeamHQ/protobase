@@ -84,7 +84,14 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
       { state: 'Done', message: 'is never reached from "Call"' },
     ])
     expect(problem.detail).toContain('State "Call", field "Next": names "Nowhere", which is not a state here')
+    expect(problem.errors[0]).toEqual({ code: 'invalid-workflow', field: 'definition', message: 'State "Call", field "Next": names "Nowhere", which is not a state here', params: { state: 'Call', field: 'Next' } })
     expect((await sql<{ count: number }>`select count(*)::int as count from workflows.workflows`.execute(db)).rows[0]!.count).toBe(0)
+  })
+
+  it('refuses a step without an argument its step type needs', async () => {
+    const response = await as('ada', '/workflows', { method: 'POST', body: { name: 'No address', definition: definition({ Call: { Type: 'Task', Resource: 'app:http', Arguments: { method: 'GET' }, End: true } }) } })
+    expect(response.status).toBe(400)
+    expect((await response.json()).problems).toEqual([{ state: 'Call', field: 'Arguments.url', message: 'is missing; app:http needs it' }])
   })
 
   it('keeps each saved definition as a version, and a run keeps the version it started on', async () => {
