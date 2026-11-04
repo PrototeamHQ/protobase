@@ -44,10 +44,10 @@ module.exports = {
     },
     {
       name: 'ui-browser-only',
-      comment: '@protobase/ui imports only schema, layout and client: never query, server or cli.',
+      comment: '@protobase/ui imports only schema, layout, client and workflows, whose check the editor runs: never query, server or cli.',
       severity: 'error',
       from: { path: '^packages/ui/' },
-      to: { path: '^packages/', pathNot: '^packages/(ui|schema|layout|client)/' },
+      to: { path: '^packages/', pathNot: '^packages/(ui|schema|layout|client|workflows)/' },
     },
     {
       name: 'server-imports',

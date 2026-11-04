@@ -1,0 +1,76 @@
+import { describe, expect, it } from 'vitest'
+import { ticketsWorkflow } from '../../testing/workflow-fixtures'
+import { emptyDefinition } from './definition'
+import { addState, connect, disconnect, freeName, removeState, renameState, startAt } from './definition-edits'
+
+describe('workflow edits', () => {
+  it('adds a first state, which the workflow starts at, and later ones not yet connected', () => {
+    const one = addState(emptyDefinition(), [], { task: 'app:http' }, 'Step 1', 'Step')
+    const two = addState(one, [], { type: 'Choice' }, 'Step 2', 'Step')
+    expect(two.stateMachine).toEqual({
+      QueryLanguage: 'JSONata',
+      StartAt: 'Step 1',
+      States: { 'Step 1': { Type: 'Task', Resource: 'app:http', Arguments: {}, End: true }, 'Step 2': { Type: 'Choice', Choices: [] } },
+    })
+    expect(emptyDefinition().stateMachine.States).toEqual({})
+  })
+
+  it('adds a Map with a state of its own, and a state inside a Map', () => {
+    const map = addState(emptyDefinition(), [], { type: 'Map' }, 'Each', 'Item')
+    const inside = addState(map, ['Each'], { type: 'Succeed' }, 'Done', 'Step')
+    expect(inside.stateMachine.States.Each).toEqual({ Type: 'Map', Items: '{% [] %}', ItemProcessor: { StartAt: 'Item 1', States: { 'Item 1': { Type: 'Pass', End: true }, Done: { Type: 'Succeed' } } }, End: true })
+  })
+
+  it('names a new state after every name taken, in Maps too', () => {
+    expect(freeName(ticketsWorkflow, 'Mail')).toBe('Mail 1')
+    const taken = addState(ticketsWorkflow, ['Each'], { type: 'Pass' }, 'Step 1', 'Step')
+    expect(freeName(taken, 'Step')).toBe('Step 2')
+  })
+
+  it('connects each handle by the field it sets, and disconnects it again', () => {
+    let definition = addState(emptyDefinition(), [], { type: 'Choice' }, 'Pick', 'Step')
+    definition = addState(definition, [], { type: 'Succeed' }, 'Yes', 'Step')
+    definition = addState(definition, [], { type: 'Fail' }, 'No', 'Step')
+    definition = addState(definition, [], { task: 'app:http' }, 'Call', 'Step')
+    definition = connect(definition, 'rule', 'Pick', 'Call')
+    definition = connect(definition, 'default', 'Pick', 'No')
+    definition = connect(definition, 'next', 'Call', 'Yes')
+    definition = connect(definition, 'catch', 'Call', 'No')
+    expect(definition.stateMachine.States).toEqual({
+      Pick: { Type: 'Choice', Choices: [{ Condition: '', Next: 'Call' }], Default: 'No' },
+      Yes: { Type: 'Succeed' },
+      No: { Type: 'Fail' },
+      Call: { Type: 'Task', Resource: 'app:http', Arguments: {}, Next: 'Yes', Catch: [{ ErrorEquals: ['States.ALL'], Next: 'No' }] },
+    })
+    definition = disconnect(definition, { kind: 'next', source: 'Call', field: 'Next' })
+    definition = disconnect(definition, { kind: 'catch', source: 'Call', field: 'Catch[0].Next' })
+    definition = disconnect(definition, { kind: 'rule', source: 'Pick', field: 'Choices[0].Next' })
+    expect(definition.stateMachine.States.Call).toEqual({ Type: 'Task', Resource: 'app:http', Arguments: {}, End: true })
+    expect(definition.stateMachine.States.Pick).toEqual({ Type: 'Choice', Choices: [], Default: 'No' })
+    expect(connect(definition, 'start', '', 'Call').stateMachine.StartAt).toBe('Call')
+  })
+
+  it('refuses an edge out of its machine, as the language has none', () => {
+    expect(() => connect(ticketsWorkflow, 'next', 'Each/Mail', 'Done')).toThrow('A state leads only to states of its own machine')
+  })
+
+  it('removes a state and every edge to it, and starts at the first state left when it was the first', () => {
+    const removed = removeState(ticketsWorkflow, 'Failed')
+    expect(removed.stateMachine.States.Fetch).not.toHaveProperty('Catch')
+    const each = removeState(ticketsWorkflow, 'Each')
+    expect(each.stateMachine.States.Any).toEqual({ Type: 'Choice', Choices: [], Default: 'Done' })
+    const first = removeState(ticketsWorkflow, 'Fetch')
+    expect(first.stateMachine.StartAt).toBe('Any')
+    const done = removeState(ticketsWorkflow, 'Each/Sent')
+    expect(done.stateMachine.States.Each).toMatchObject({ ItemProcessor: { States: { Mail: { End: true } } } })
+    expect(ticketsWorkflow.stateMachine.States.Failed).toBeDefined()
+  })
+
+  it('renames a state where it stands, and every edge to it', () => {
+    const renamed = renameState(ticketsWorkflow, 'Done', 'Finished')
+    expect(Object.keys(renamed.stateMachine.States)).toEqual(['Fetch', 'Any', 'Each', 'Finished', 'Failed'])
+    expect(renamed.stateMachine.States.Any).toMatchObject({ Default: 'Finished' })
+    expect(renamed.stateMachine.States.Each).toMatchObject({ Next: 'Finished' })
+    expect(startAt(ticketsWorkflow, 'Each/Sent').stateMachine.States.Each).toMatchObject({ ItemProcessor: { StartAt: 'Sent' } })
+  })
+})
