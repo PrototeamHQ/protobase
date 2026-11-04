@@ -13,3 +13,4 @@ description: Graphs of steps the server runs along their edges, written in a lan
 - [Runs and step records](/reference/workflows/#runs-and-their-steps) (beta): Each run started by hand through the API or from the app's code, with every step's input, output, logs, timing, tries and error recorded, secrets blanked out.
 - [Runs that survive restarts](/reference/workflows/#how-a-run-is-run) (beta): A run takes up where it stood after a restart or a crashed worker, never running a saved step again, and every limit fails closed.
 - [Who may run workflows](/reference/workflows/#who-may-do-what) (beta): Making, changing and running workflows and reading their runs are each granted by name, within the tenant.
+- [Workflows over MCP](/reference/mcp/#workflows) (beta): AI clients find, write, validate, change by a small edit and test-run workflows as the signed-in person, and read each step of a run to fix the one that failed.
