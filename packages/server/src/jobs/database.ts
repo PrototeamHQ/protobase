@@ -3,8 +3,8 @@ import type { Db as BossDb } from 'pg-boss'
 import type { Db } from '@protobase/query'
 
 // pg-boss sends maintenance and queue setup as one text: BEGIN, two SET LOCAL timeouts, an optional transaction-scoped
-// advisory lock, one statement and COMMIT (`transaction()` and `locked()` in its plans.js). A driver that runs one
-// statement per query (PGlite) cannot take that text, and Kysely hands back only one result.
+// advisory lock, one statement and COMMIT (`transaction()` and `locked()` in its plans.js). pg answers that text with
+// one result per statement, which Kysely reads as no rows at all, so the statement's rows would be lost.
 const block = /^\s*BEGIN;\s*(SET LOCAL lock_timeout = \d+);\s*(SET LOCAL idle_in_transaction_session_timeout = \d+);\s*(SELECT pg_advisory_xact_lock\([^;]*\);\s*)?([\s\S]+?);\s*COMMIT;\s*$/
 
 /**
@@ -21,7 +21,7 @@ export const transactionStatements = (text: string) => {
 
 /**
  * pg-boss's database over the app's own Kysely pool or transaction: one connection pool for the app and its jobs, the
- * same driver on Node, Bun and PGlite. Every statement runs on its own, or inside one transaction for pg-boss's
+ * same driver on Node and Bun. Every statement runs on its own, or inside one transaction for pg-boss's
  * transaction texts, which works through a pooler in transaction mode: pg-boss takes only transaction-scoped locks.
  */
 export const jobsDatabase = (db: Db): BossDb => ({
