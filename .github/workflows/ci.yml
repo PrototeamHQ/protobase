@@ -30,7 +30,7 @@ jobs:
       group: check-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     # Pushes to main and to fm/** branches run on the runner the CHECK_RUNNER variable names, when it is set; pull
-    # requests, which forks can open, always run on GitHub's runners. See CONTRIBUTING.md.
+    # requests, which forks can open, always run on GitHub's runners. See docs/ci.md.
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +71,7 @@ jobs:
       # last release tag, which the checkout's full history and tags hold.
       - run: bun run features:check --release-rule
       # A push to main, which the release workflow checks, or to an fm/** branch runs only the tests and steps its
-      # changes affect (scripts/affected-tests.mjs, see CONTRIBUTING.md): on main the changes since the last release, on
+      # changes affect (scripts/affected-tests.mjs, see docs/ci.md): on main the changes since the last release, on
       # a branch those since it left development. Without CHECK_BASE, as on a pull request or a run by hand, everything runs.
       - &check-base
         name: Find the commit the push's changes count from
@@ -519,3 +519,41 @@ jobs:
       - if: always()
         name: Remove Supabase's Postgres and Supabase Auth
         run: tests/supabase-auth/stack.sh stop "supabase-auth-${{ github.run_id }}-${{ github.run_attempt }}"
+
+  # The files the AI review bots read as instructions stay within what each bot reads, so none is cut off. cubic keeps
+  # the first 10,000 characters of a custom agent's text and linked files: AGENTS.md and CONTRIBUTING.md share the
+  # org's Project rules agent with about 260 characters of its text, and each docs file has an agent in cubic.yaml.
+  # CodeRabbit allows 20,000 characters per path instruction.
+  prompt-length:
+    if: github.event_name == 'pull_request'
+    uses: protobase-community/.github/.github/workflows/prompt-length.yml@main # zizmor: ignore[unpinned-uses] main is the reviewed version
+    with:
+      files: |
+        AGENTS.md 500
+        CONTRIBUTING.md 9000
+        docs/ci.md 9000
+        docs/snapshot-tests.md 9000
+        cubic.yaml 10000
+        .coderabbit.yaml 20000
+
+  # cubic.yaml's auto-approval prompt is a key inside the file, so the file check above cannot measure it alone. It is
+  # kept under 2,000 characters, short enough for the approval agent to weigh each criterion.
+  approval-prompt-length:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - env:
+          LC_ALL: C.UTF-8
+        run: |
+          # -e fails when the key is gone, rather than measuring the word null.
+          prompt=$(yq -e '.reviews.auto_approve_custom_prompt' cubic.yaml)
+          length=$(printf '%s' "$prompt" | wc -m)
+          if [ "$length" -gt 2000 ]; then
+            echo "::error file=cubic.yaml::auto_approve_custom_prompt is $length characters, over its limit of 2000"
+            exit 1
+          fi
+          echo "auto_approve_custom_prompt is $length characters, within its limit of 2000"
