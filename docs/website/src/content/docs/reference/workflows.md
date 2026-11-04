@@ -32,7 +32,7 @@ It adds four resources, over a `workflows` schema that [`protobase migration`](/
 | `secrets` | The environment variables workflows may read, by name. Startup stops when one is unset or shorter than 8 characters. |
 | `allowPrivateAddresses` | Lets the `app:http` step reach private, loopback and link-local addresses, for development and tests. Default false. |
 
-Records steps act as each workflow's last editor, with the roles the project's sign-in gives them now, so workflows need the config's `auth`. `createAdmin` takes `workflows.savedByRoles` in its place, for a project that signs people in otherwise.
+Records steps act as each workflow's last editor, with the roles the project's sign-in gives them now. A project that signs people in otherwise exports its own, `async ({ id, tenant }) => [...]`, as the default of `workflows/saved-by-roles.ts` (`createAdmin` takes it as `workflows.savedByRoles`); without either, startup stops.
 
 ## The document
 
@@ -149,7 +149,7 @@ One request to a URL built at run time:
 | `url` | An http or https URL. |
 | `method` | `GET` (default), `POST`, `PUT`, `PATCH` or `DELETE`. |
 | `headers`, `query` | Objects of text values; `query` is added to the URL's query. |
-| `body` | Text is sent as it is, a file value as its bytes with its type, any other value as JSON. |
+| `body` | Text is sent as it is, a file value as its bytes with its type, any other value as JSON; a `GET` sends none. |
 | `response` | How the answer's body is read: `json` (default, parsed; empty is `null`), `text`, or `file`, kept as a file of the run. |
 
 The result is `{ status, headers, body }`, without the cookies the answer sets. A status outside 2xx fails the step with `Http.Status`, whose cause names the status and holds at most the first 200 characters of the body, secrets blanked out first; a redirect is never followed. `Http.Network` is a request that got no answer. The step resolves the URL's host when it runs and refuses it with `Http.AddressRefused` unless every address is public, then connects to the very address it checked, so a URL built from a webhook's payload cannot reach the app's own network. It reads at most 10 MiB of the answer's body: a larger one fails the step with `Http.ResponseTooLarge`, rather than being cut short.
@@ -158,7 +158,7 @@ The result is `{ status, headers, body }`, without the cookies the answer sets. 
 
 | Step type | Arguments | Result |
 | --- | --- | --- |
-| `app:records.create` | `resource`, `data`: an object of field values, or a list of them, created one after another | the created record, or the list of them |
+| `app:records.create` | `resource`, `data`: an object of field values, or a list of them, created in one batch: all or none | the created record, or the list of them |
 | `app:records.update` | `resource`, `key`, `data` | the updated record |
 | `app:records.get` | `resource`, `key` | the record |
 | `app:records.list` | `resource`, optional `filter` (the API's filter syntax), `order_by`, `limit` | `{ records }` |
@@ -169,7 +169,7 @@ They go through the app's API as the user who saved the run's version, with the 
 
 | Argument | |
 | --- | --- |
-| `to` | One address, or a list of at most 50. |
+| `to` | One address, or a list of at most 50, each one address. |
 | `subject` | One line of text. |
 | `text`, `html` | The body as text, and optionally as HTML. |
 | `attachments` | A list of file values the run keeps, at most 10 MiB together. |
@@ -192,7 +192,7 @@ Each step is saved as it ends, as a `workflow_steps` record: the state, its type
 
 ### Secrets
 
-A workflow reads a secret only by name, `$states.context.Secrets.TICKETS_TOKEN`, and only one the config's `workflows.secrets` lists; the values are never part of the definition, the input or a run. Every value of the listed secrets is blanked out as `[redacted]` wherever it appears in what a run records: a step's input, output, variables, logs, error and cause, and the run's output, error and cause. In a Task's recorded input, every field whose name says it holds a secret, such as `Authorization`, `token` or `apiKey`, is blanked out too. A value an expression computes from a secret, however it changes it, such as `'Basic ' & $base64encode(...)`, is kept whole as `[redacted]`: in a Task's `Arguments` the step type gets the value and the record keeps `[redacted]`; in an `Output`, an `Assign`, a Map's `Items` or a Fail's `Error` and `Cause` the value itself is `[redacted]`, so later states read that. Read a secret in the `Arguments` of the Task that sends it. A secret that comes back changed in a step's result, such as one a server encodes in its answer, is not the value the runner looks for, and is kept as it came.
+A workflow reads a secret only by name, `$states.context.Secrets.TICKETS_TOKEN`, and only one the config's `workflows.secrets` lists; the values are never part of the definition. Every value of the listed secrets is blanked out as `[redacted]` wherever it appears in what a run records: a step's input, output, variables, logs, error and cause, and the run's output, error and cause. In a Task's recorded input, every field whose name says it holds a secret, such as `Authorization`, `token` or `apiKey`, is blanked out too. A value an expression computes from a secret, however it changes it, such as `'Basic ' & $base64encode(...)`, is kept whole as `[redacted]`: in a Task's `Arguments` the step type gets the value and the record keeps `[redacted]`; in an `Output`, an `Assign`, a Map's `Items` or a Fail's `Error` and `Cause` the value itself is `[redacted]`, so later states read that. Read a secret in the `Arguments` of the Task that sends it. A secret that comes back changed in a step's result, such as one a server encodes in its answer, is not the value the runner looks for, and is kept as it came. A run's input is kept as its caller gave it, so a secret's value never belongs in it.
 
 ## Who may do what
 
@@ -200,7 +200,7 @@ The workflow resources take only [named grants](/reference/access/#resources-tha
 
 | Grant | |
 | --- | --- |
-| `workflows.create`, `workflows.update`, `workflows.delete` | Make, change and delete workflows. Each save makes the saver the workflow's last editor, whom its records steps act as. |
+| `workflows.create`, `workflows.update`, `workflows.delete` | Make, change and delete workflows. Each save that changes the definition makes the saver the workflow's last editor, whom its records steps act as. |
 | `workflow_runs.create` | Run a workflow, with any input. The API writes only the fields a caller reads, so it goes with `workflow_runs.read`, and the caller must read the workflow too. |
 | `workflows.read`, `workflow_versions.read`, `workflow_runs.read`, `workflow_steps.read` | Read workflows, their versions, runs and steps, the steps' inputs and outputs included. |
 
@@ -217,7 +217,7 @@ All four are scoped to the tenant like any resource with `.tenant()`. A run take
 
 The runner is `@protobase/workflows`, a package with no other Protobase dependency, over a narrow port: where runs and steps are kept (here the `workflows` schema), the queue that runs them (here the app's [jobs](/reference/jobs/)), and the step types.
 
-- A run is run in **segments**, each a `workflows.segment` job whose payload is the run's id alone: one runs the run from where it stands to its next wait, then queues the next. A Wait, or a retry's delay, saves its step with the time the run goes on, ends the segment and queues the next one for that time, so a waiting run holds no worker. A segment hands the rest of the run on after a minute of steps.
+- A run is run in **segments**, each a `workflows.segment` job whose payload is the run's id alone: one runs the run from where it stands to its next wait, then queues the next. A Wait whose time is still ahead, or a retry's delay, saves its step with the time the run goes on, ends the segment and queues the next one for that time, so a waiting run holds no worker. A segment hands the rest of the run on after a minute of steps.
 - Where a run stands is read from its saved steps. Each step is saved with **one statement**, unique by its scope and number, so a second segment of the same run saves nothing and stops.
 - A worker that stops or dies mid-step leaves that step unsaved: its job is tried again and takes the run up from its last saved step, so a saved step never runs again, and the step that was in progress runs **at least once**. A step whose effect happened before its result was saved, such as a request that was sent, happens again. Every try of a step gets the same idempotency key, for a step type whose receiver dedupes by it, and `app:mail.send` makes it the mail's Message-ID. A job whose worker died is tried again once its timeout, 10 minutes, has passed.
 - A Map's items run in the segment that reaches them, each item's steps saved under its own scope; an item that waits ends the segment once the others running settle, and the next segment takes each item up where it stands. A Map's `Items` is evaluated again by a segment that takes up an unfinished Map.
@@ -231,6 +231,7 @@ Every limit fails closed: a run or step that passes one fails, rather than going
 | An expression's evaluation | 1 second, and 300 levels deep; beyond, `States.QueryEvaluationError`. |
 | A Task's `TimeoutSeconds` | 300 by default, and at most. |
 | A retrier's `MaxAttempts` | 19. |
+| The wait before a retry | 1 day, however `BackoffRate` grows it. |
 | A Map's items | 10,000; beyond, the Map fails with `States.DataLimitExceeded` before any item runs. |
 | A Map's `MaxConcurrency` | 20. |
 | Steps of one run, every try and item counted | 50,000; beyond, the run fails with `States.Runtime`. |
@@ -238,4 +239,4 @@ Every limit fails closed: a run or step that passes one fails, rather than going
 | A step's logs | 100 lines of 1,000 characters; more lines are left out with a last line saying how many. |
 | A run's input | 1 MiB as JSON, 64 levels deep. |
 | An answer `app:http` reads, a file a run keeps | 10 MiB. |
-| A Wait | 366 days. |
+| A Wait | 366 days, by `Seconds` or `Timestamp`. |

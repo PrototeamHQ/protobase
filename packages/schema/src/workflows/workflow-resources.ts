@@ -7,7 +7,7 @@ const runStatuses = ['queued', 'running', 'waiting', 'succeeded', 'failed'] as c
 const stepStatuses = ['succeeded', 'retrying', 'caught', 'failed'] as const
 
 /**
- * Workflows: a trigger and a state machine in the States Language with JSONata, checked on every save, each save a new version. A
+ * Workflows: a trigger and a state machine in the States Language with JSONata, checked on every save, each changed definition a new version. A
  * role's wildcard such as `*.read` reaches none of the workflow resources: their runs read and send data as the
  * definition says, so each is granted on its own.
  */
@@ -33,7 +33,7 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .names({ singular: 'Workflow', plural: 'Workflows' })
   .icon('workflow')
   .title((r) => r.name)
-  .help('Steps that run one after another along their edges, written in the States Language with JSONata expressions. Each save is a new version; a run keeps the version it started on.')
+  .help('Steps that run one after another along their edges, written in the States Language with JSONata expressions. Each save that changes its definition is a new version; a run keeps the version it started on.')
   .fields((r) => ({ definition: r.definition.help('Its trigger and its state machine in the States Language with JSONata, every value read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned'), updated_at: r.updated_at.label('Updated') }))
   .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
   .layout((r) => [
