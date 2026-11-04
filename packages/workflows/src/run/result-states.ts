@@ -2,7 +2,7 @@ import type { MapState, TaskState } from '../definition/types'
 import { limits } from '../limits'
 import type { StateResult } from './context'
 import { errorOutput, StepError } from './errors'
-import { evaluateAssign, evaluateTemplate } from './evaluate'
+import { evaluateAssign, evaluateKept, evaluateTemplate, recordedArguments } from './evaluate'
 import { fanOut } from './fan-out'
 import { redacted } from './redact'
 import { recover } from './recovery'
@@ -14,7 +14,7 @@ type Ran = { result: unknown; input: unknown } | { failure: { Error: string; Cau
 const task = async (state: TaskState, call: StateCall): Promise<Ran> => {
   const args = await evaluateTemplate(state.Arguments ?? {}, call.bindings, 'Arguments')
   const key = `${call.context.runId}/${call.scope}/${call.position.seq}`
-  const input = redacted(args)
+  const input = redacted(recordedArguments(state.Arguments ?? {}, args))
   return runTask(call.context, state, args, key, call.logs).then(
     (result) => ({ result, input }),
     (error: unknown) => {
@@ -25,7 +25,7 @@ const task = async (state: TaskState, call: StateCall): Promise<Ran> => {
 }
 
 const map = async (state: MapState, call: StateCall): Promise<Ran> => {
-  const items = await evaluateTemplate(state.Items, call.bindings, 'Items')
+  const items = await evaluateKept(state.Items, call.bindings, 'Items')
   if (!Array.isArray(items)) throw new StepError('States.QueryEvaluationError', `Items: gave ${JSON.stringify(items) ?? 'nothing'}, not an array`)
   if (items.length > limits.mapItems) throw new StepError('States.DataLimitExceeded', `Items: ${items.length} items, more than the ${limits.mapItems} a Map takes`)
   const outer = visibleVariables(call.bindings)
@@ -61,7 +61,7 @@ export const runResultState = async (state: TaskState | MapState, call: StateCal
   if ('failure' in ran) return { ...(await recover(state, call.position, ran.failure, call.bindings, now, call.logs)), ...(ran.input !== undefined && { input: ran.input }) } as StateResult
   const after = { ...call.bindings, states: { ...(call.bindings.states as object), result: ran.result } }
   const shaped = async () => ({
-    output: state.Output === undefined ? ran.result : await evaluateTemplate(state.Output, after, 'Output'),
+    output: state.Output === undefined ? ran.result : await evaluateKept(state.Output, after, 'Output'),
     assigned: await evaluateAssign(state.Assign, after),
   })
   const done = await shaped().catch((error: unknown) => {

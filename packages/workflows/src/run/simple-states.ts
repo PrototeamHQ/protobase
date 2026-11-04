@@ -1,14 +1,14 @@
 import type { ChoiceState, FailState, PassState, SucceedState, WaitState } from '../definition/types'
 import { limits } from '../limits'
 import type { StateResult } from './context'
-import { evaluateAssign, evaluateTemplate } from './evaluate'
+import { evaluateAssign, evaluateKept, evaluateTemplate } from './evaluate'
 import { StepError } from './errors'
 import type { StateCall } from './step-input'
 
 const nextOf = (state: { Next?: string }) => state.Next ?? null
 
 // The state's own output: its Output, else what it was given.
-const outputOf = async (state: { Output?: unknown }, call: StateCall) => (state.Output === undefined ? call.position.input : evaluateTemplate(state.Output, call.bindings, 'Output'))
+const outputOf = async (state: { Output?: unknown }, call: StateCall) => (state.Output === undefined ? call.position.input : evaluateKept(state.Output, call.bindings, 'Output'))
 
 export const runPass = async (state: PassState | SucceedState, call: StateCall): Promise<StateResult> => ({
   kind: 'step',
@@ -55,6 +55,6 @@ export const runWait = async (state: WaitState, call: StateCall): Promise<StateR
 }
 
 export const runFail = async (state: FailState, call: StateCall): Promise<StateResult> => {
-  const text = async (value: string | undefined, field: string) => (value === undefined ? undefined : String(await evaluateTemplate(value, call.bindings, field)))
+  const text = async (value: string | undefined, field: string) => (value === undefined ? undefined : String(await evaluateKept(value, call.bindings, field)))
   return { kind: 'step', status: 'failed', next: null, input: call.position.input, error: (await text(state.Error, 'Error')) ?? 'States.Fail', cause: (await text(state.Cause, 'Cause')) ?? '', logs: call.logs }
 }

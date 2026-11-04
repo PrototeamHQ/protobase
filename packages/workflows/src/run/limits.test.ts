@@ -104,9 +104,23 @@ describe('the runner, keeping secrets out of what it records', () => {
     const recorded = JSON.stringify({ steps: port.steps, run: port.run('secret') })
     expect(recorded).not.toContain(secret)
     expect(recorded).not.toContain(secret.slice(0, 8))
-    expect(port.run('secret')).toMatchObject({ status: 'failed', error: 'Reported', cause: 'the server said: bad token [redacted] [redacted]' })
-    // Saved blanked, so the state after the Wait, in the next segment, reads what the record holds.
-    expect(port.steps.find((step) => step.state === 'Call')!.input).toEqual({ headers: { Authorization: '[redacted]' }, url: 'https://example.test/?key=[redacted]' })
+    expect(port.run('secret')).toMatchObject({ status: 'failed', error: 'Reported', cause: '[redacted]' })
+    expect(port.steps.find((step) => step.state === 'Call')).toMatchObject({ input: { headers: { Authorization: '[redacted]' }, url: '[redacted]' }, cause: 'the server said: bad token [redacted]' })
+  })
+
+  it('keeps a value computed from a secret as [redacted], however the expression changed it, and gives the step type the value', async () => {
+    const sent: unknown[] = []
+    const port = memoryRunner({ call: async (args) => void sent.push(args) }, { secrets: { TICKETS_TOKEN: secret } })
+    const basic = '{% "Basic " & $base64encode("user:" & $states.context.Secrets.TICKETS_TOKEN) %}'
+    await port.start('encoded', definition({
+      Keep: { Type: 'Pass', Assign: { header: basic, tail: '{% $substring($states.context.Secrets.TICKETS_TOKEN, 4) %}' }, Next: 'Call' },
+      Call: { Type: 'Task', Resource: 'call', Arguments: { auth: basic, kept: '{% $header %}', page: 2 }, End: true },
+    }), {})
+    await port.drain()
+    const encoded = `Basic ${btoa(`user:${secret}`)}`
+    expect(sent).toEqual([{ auth: encoded, kept: '[redacted]', page: 2 }])
+    expect(port.steps.map((step) => [step.state, step.state === 'Keep' ? step.assigned : step.input])).toEqual([['Keep', { header: '[redacted]', tail: '[redacted]' }], ['Call', { auth: '[redacted]', kept: '[redacted]', page: 2 }]])
+    expect(JSON.stringify(port.steps)).not.toContain(btoa(`user:${secret}`).slice(0, 12))
   })
 
   it('refuses a secret too short to blank out', () => {

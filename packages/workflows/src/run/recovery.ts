@@ -1,6 +1,6 @@
 import type { Catcher, Retrier } from '../definition/types'
 import type { StateResult } from './context'
-import { evaluateAssign, evaluateTemplate, type Bindings } from './evaluate'
+import { evaluateAssign, evaluateKept, type Bindings } from './evaluate'
 import { matches, StepError, type ErrorOutput } from './errors'
 import type { Position } from './position'
 import type { StepLog } from './port'
@@ -15,7 +15,7 @@ export const retryDelaySeconds = (retrier: Retrier, retries: number) => {
 
 const caught = async (catcher: Catcher, failure: ErrorOutput, bindings: Bindings, logs: StepLog[]): Promise<StateResult> => {
   const after = { ...bindings, states: { ...(bindings.states as object), errorOutput: failure } }
-  const output = catcher.Output === undefined ? failure : await evaluateTemplate(catcher.Output, after, 'Output')
+  const output = catcher.Output === undefined ? failure : await evaluateKept(catcher.Output, after, 'Output')
   return { kind: 'step', status: 'caught', next: catcher.Next, output, assigned: await evaluateAssign(catcher.Assign, after), error: failure.Error, cause: failure.Cause, logs }
 }
 
