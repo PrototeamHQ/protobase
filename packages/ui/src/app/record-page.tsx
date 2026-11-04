@@ -26,7 +26,7 @@ import type { LayoutRecord } from './pages/record-scope'
 import { FieldEditor } from './field-editor'
 import { groupOpen, toggledOpen } from './group-open'
 import { attentionTab, shownTab, splitTabs } from './record-tabs'
-import { shownWidget } from './field-types/shown-widget'
+import { isWideField, shownWidget } from './field-types/shown-widget'
 import { WidgetPart } from './field-types/widget-part'
 import { useProjectUi } from './pages/project-ui'
 import { Notice, useAdminMeta, usePermissions } from './meta-gate'
@@ -227,7 +227,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         required={shown === 'form' && access !== 'read' && isRequiredOnEdit(field)}
         help={fieldHelp(hint(name), view, editing)}
         error={problem && fieldMessage(field, label, problem)}
-        wide={Boolean(hint(name)?.multiline || hint(name)?.markdown)}
+        wide={isWideField(fieldTypes, field, hint(name))}
         conflict={
           conflict === undefined
             ? undefined
@@ -266,7 +266,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     ) : (
       <FieldValue model={model} field={field} value={stored.record[name]} relationLabel={related.labels[name]} />
     )
-    return { label: hint(name)?.label ?? humanize(name), help: fieldHelp(hint(name), view, editing), wide: Boolean(hint(name)?.multiline || hint(name)?.markdown), value }
+    return { label: hint(name)?.label ?? humanize(name), help: fieldHelp(hint(name), view, editing), wide: isWideField(fieldTypes, field, hint(name)), value }
   }
 
   // The sidebar's fields are one Summary card, where the first sidebar stands among the sidebar's custom components and maps

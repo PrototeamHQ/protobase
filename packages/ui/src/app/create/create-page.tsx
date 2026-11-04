@@ -7,6 +7,8 @@ import { humanize } from '../../live/naming'
 import { recordKey } from '../../live/model-helpers'
 import { fetchLabels } from '../../live/relation-labels'
 import { FieldEditor } from '../field-editor'
+import { isWideField } from '../field-types/shown-widget'
+import { useProjectUi } from '../pages/project-ui'
 import { Notice, useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
 import { useNavigationGuard } from '../router'
@@ -40,6 +42,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
   const client = useClient()
   const queryClient = useQueryClient()
   const { go } = useAppAddress()
+  const { fields: fieldTypes } = useProjectUi()
   const noun = view?.names?.singular ?? humanize(resource)
   const feedback = useLiveSave(view?.saveFeedback ?? 'toast', text('subject', { noun }))
   const sections = createSections(model, view)
@@ -111,7 +114,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
         help: view?.fields[name]?.help,
         required: isRequired(field),
         error: problem && fieldMessage(field, label, problem),
-        wide: Boolean(view?.fields[name]?.multiline || view?.fields[name]?.markdown),
+        wide: isWideField(fieldTypes, field, view?.fields[name]),
         editor: (
           <FieldEditor
             field={field}
