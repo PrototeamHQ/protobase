@@ -1,5 +1,5 @@
 import { isPageDefinition } from '@protobase/layout'
-import type { AdminOptions, AssistantTool, AuditQueue, DeviceStore, FileProvider, FilesOptions, FunctionSource, HistoryStore, JobDefinition, JobRun, NotificationsOptions, PipelineHook, PushSender, Sharp, WebhooksOptions } from '@protobase/server'
+import type { AdminOptions, AssistantTool, AuditQueue, DeviceStore, FileProvider, FilesOptions, FunctionSource, HistoryStore, JobDefinition, JobRun, NotificationsOptions, PipelineHook, PushSender, Sharp, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
 import { checkNotificationsOptions, declaredJob, fileProviderOf, isSubscription, webhooksModule, workflowsModule } from '@protobase/server/internal'
 import { checkUnique, type MergedConfig } from './merge-config'
 
@@ -142,6 +142,13 @@ export const projectWebhooks = async (config: MergedConfig): Promise<WebhooksOpt
   if (!config.webhooks) return undefined
   const ownerRoles = await lastDefault<WebhooksOptions['ownerRoles']>(config, 'webhooks/owner-roles.ts')
   return { ...config.webhooks, ...(ownerRoles && { ownerRoles }) }
+}
+
+/** The workflows options, with the roles of workflows/saved-by-roles.ts when a config's folder has it. */
+export const projectWorkflows = async (config: MergedConfig): Promise<WorkflowsOptions | undefined> => {
+  if (!config.workflows) return undefined
+  const savedByRoles = await lastDefault<WorkflowsOptions['savedByRoles']>(config, 'workflows/saved-by-roles.ts')
+  return { ...config.workflows, ...(savedByRoles && { savedByRoles }) }
 }
 
 /**

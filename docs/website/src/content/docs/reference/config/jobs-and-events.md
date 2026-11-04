@@ -213,7 +213,7 @@ export default defineConfig(({ command }) => ({ webhooks: { allowPrivateAddresse
 - **Type:** `{ schema?: string; secrets?: string[]; allowPrivateAddresses?: boolean }`
 - **Default:** off; `{}` turns them on
 
-Workflows that people and models make in the app, kept with their versions, runs and steps in a schema of the app's database that `protobase migration` writes, and run by the `workflows.segment` job. See [Workflows](/reference/workflows/).
+Workflows that people and models make in the app, kept with their versions, runs and steps in a schema of the app's database that `protobase migration` writes, and run by the `workflows.segment` job. Records steps act as each workflow's last editor, with the roles they hold now, read from the app's sign-in; a project that signs people in otherwise exports its own, `async ({ id, tenant }) => [...]`, as the default of `workflows/saved-by-roles.ts`. See [Workflows](/reference/workflows/).
 
 ```ts
 export default defineConfig({ workflows: {} })
@@ -235,7 +235,7 @@ export default defineConfig({ workflows: { schema: 'flows' } })
 - **Type:** `string[]`
 - **Default:** none
 
-The environment variables workflows may read, each as `$states.context.Secrets.<NAME>`; no other variable is reachable from a workflow. Their values are blanked out of everything a run records. Startup stops when one is unset or shorter than 8 characters.
+The environment variables workflows may read, each as `$states.context.Secrets.<NAME>`; no other variable is reachable from a workflow. Their values are blanked out of everything a run records but its input, which is kept as its caller gave it. Startup stops when one is unset or shorter than 8 characters.
 
 ```ts
 export default defineConfig({ workflows: { secrets: ['TICKETS_TOKEN'] } })

@@ -3,7 +3,7 @@ import type { Db } from '@protobase/query'
 import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, StatusOptions, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
 import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
-import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks } from './project-parts'
+import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
 import { userTablesOn } from './user-tables-config'
 
 /**
@@ -75,13 +75,14 @@ export type BuiltProject = {
 
 /** The app, built from its merged config over its database: every reference loaded, auth and the authenticator made. */
 export const buildProject = async (config: MergedConfig, database: AppDatabase): Promise<BuiltProject> => {
-  const [resources, functions, files, options, auth, webhooks, notifications, mailer] = await Promise.all([
+  const [resources, functions, files, options, auth, webhooks, workflows, notifications, mailer] = await Promise.all([
     projectResources(config),
     projectFunctions(config),
     projectFiles(config),
     projectOptions(config),
     projectAuth(config, database),
     projectWebhooks(config),
+    projectWorkflows(config),
     projectNotifications(config),
     projectMailer(config),
   ])
@@ -98,7 +99,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     ...(config.events && { events: config.events }),
     ...(config.history && { history: config.history }),
     ...(webhooks && { webhooks }),
-    ...(config.workflows && { workflows: config.workflows }),
+    ...(workflows && { workflows }),
     ...(config.realtime && { realtime: config.realtime }),
     ...(notifications && { notifications }),
     ...(config.status && { status: checkStatusOptions(config.status) }),

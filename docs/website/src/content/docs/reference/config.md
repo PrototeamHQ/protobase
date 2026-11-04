@@ -139,6 +139,7 @@ The other files belong to an option, and are described with it:
 | `mcp/tools.ts` | [`mcpEndpoint`](/reference/config/api/#mcpendpoint) |
 | `jobs/<name>.ts` | [`jobs`](/reference/config/jobs-and-events/#jobs) |
 | `webhooks/owner-roles.ts` | [`webhooks`](/reference/config/jobs-and-events/#webhooks) |
+| `workflows/saved-by-roles.ts` | [`workflows`](/reference/config/jobs-and-events/#workflows) |
 | `notifications/store.ts`, `notifications/history-store.ts`, `notifications/senders.ts` | [`notifications`](/reference/config/jobs-and-events/#notifications) |
 | `files/<name>.ts` | [`files.providers`](/reference/config/files/#filesproviders) |
 
@@ -164,7 +165,7 @@ export default defineUi({ extends: [tasksUi] })
 | `files.trustedHosts` | all kept | |
 | the other keys of `files` | each the app's own; otherwise the last config that sets it | |
 | `writeHooks` | all run, in the same order | |
-| `config/roles.ts`, `auth/authenticate.ts`, `audit/queue.ts`, `hooks/error.ts`, `webhooks/owner-roles.ts`, `notifications/*.ts` | the app's own; otherwise the last extension's | |
+| `config/roles.ts`, `auth/authenticate.ts`, `audit/queue.ts`, `hooks/error.ts`, `webhooks/owner-roles.ts`, `workflows/saved-by-roles.ts`, `notifications/*.ts` | the app's own; otherwise the last extension's | |
 | `auth/hooks.ts`, `auth/mailer.ts` | those of the last folder whose config sets `auth`; otherwise the app's | |
 | every other key (`auth`, `authenticate`, `assistant`, ...) | the app's own; otherwise the last config that sets it | |
 | UI components (exported by name or in `components`), `actions` | all kept | an error naming the name and both configs |

@@ -659,7 +659,7 @@
       ]
     },
     "workflows": {
-      "description": "Workflows made in the admin app and run on the app's jobs (see `WorkflowsOptions`); `{}` turns them on.",
+      "description": "Workflows made in the admin app and run on the app's jobs (see `WorkflowsOptions`); `{}` turns them on. Its saver roles are `workflows/saved-by-roles.ts`.",
       "anyOf": [
         {
           "type": "object",

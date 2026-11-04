@@ -11,7 +11,8 @@ export type WorkflowsOptions = {
   secrets?: string[]
   /**
    * The roles a workflow's last editor holds now in its tenant, which its records steps act with. Default: read from
-   * the project's Better Auth (`auth`); a project that signs people in otherwise passes its own.
+   * the project's Better Auth (`auth`); a project that signs people in otherwise passes its own, which the CLI reads
+   * from the default export of `workflows/saved-by-roles.ts`.
    */
   savedByRoles?: (user: { id: string; tenant?: TenantValue }) => Promise<string[]>
   /**
