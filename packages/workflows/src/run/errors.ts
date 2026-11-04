@@ -17,11 +17,12 @@ export const errorOutput = (thrown: unknown): ErrorOutput => {
   return { Error: 'States.TaskFailed', Cause: thrown instanceof Error ? thrown.message : String(thrown) }
 }
 
-// What `States.ALL` does not catch: a run that broke a limit of the runner stops.
+// What no retrier or catcher takes, named or by `States.ALL`: a run that broke a limit of the runner stops, as every
+// limit fails closed.
 const terminal = new Set(['States.Runtime', 'States.DataLimitExceeded'])
 
-/** Whether `ErrorEquals` names the error, or `States.ALL` does and the error is not one that ends the run. */
-export const matches = (names: readonly string[], error: string) => names.includes(error) || (names.includes('States.ALL') && !terminal.has(error))
+/** Whether `ErrorEquals` names the error, or `States.ALL` does, for an error that does not end the run. */
+export const matches = (names: readonly string[], error: string) => !terminal.has(error) && (names.includes(error) || names.includes('States.ALL'))
 
 /** Thrown when another segment saved a step first: this one stops, since the run went on without it. */
 export class SupersededError extends Error {

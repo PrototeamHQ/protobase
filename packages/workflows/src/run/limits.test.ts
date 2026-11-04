@@ -76,10 +76,10 @@ describe('the runner, failing closed at its limits', () => {
     expect(port.steps.filter((step) => step.state === 'Fetch')).toHaveLength(4)
   })
 
-  it('fails a Map over more items than it takes before any item runs', async () => {
+  it('fails a Map over more items than it takes before any item runs, whatever catcher names the error', async () => {
     const port = memoryRunner({})
     await port.start('wide', definition({
-      Each: { Type: 'Map', Items: '{% [1..10001] %}', ItemProcessor: { StartAt: 'Item', States: { Item: { Type: 'Pass', End: true } } }, Catch: [{ ErrorEquals: ['States.ALL'], Next: 'Fine' }], End: true },
+      Each: { Type: 'Map', Items: '{% [1..10001] %}', ItemProcessor: { StartAt: 'Item', States: { Item: { Type: 'Pass', End: true } } }, Catch: [{ ErrorEquals: ['States.DataLimitExceeded'], Next: 'Fine' }, { ErrorEquals: ['States.ALL'], Next: 'Fine' }], End: true },
       Fine: { Type: 'Succeed' },
     }), {})
     await port.drain()
