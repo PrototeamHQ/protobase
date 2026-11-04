@@ -97,6 +97,24 @@ describe('checkDefinition', () => {
     ])
   })
 
+  it("lets a choice rule's and a catcher's variables be read only along their own edge", () => {
+    const definition = {
+      QueryLanguage: 'JSONata',
+      StartAt: 'Fetch',
+      States: {
+        Fetch: { Type: 'Task', Resource: 'http', Catch: [{ ErrorEquals: ['States.ALL'], Assign: { failure: '{% $states.errorOutput.Cause %}' }, Next: 'Report' }], Next: 'Pick' },
+        Pick: { Type: 'Choice', Choices: [{ Condition: '{% true %}', Assign: { size: '{% "big" %}' }, Next: 'Big' }], Default: 'Small' },
+        Big: { Type: 'Succeed', Output: '{% $size %}' },
+        Small: { Type: 'Succeed', Output: '{% [$size, $failure] %}' },
+        Report: { Type: 'Fail', Error: 'Failed', Cause: '{% $failure %}' },
+      },
+    }
+    expect(check(definition)).toEqual([
+      'State "Small", field "Output": reads $size, which no state that can run before it assigns',
+      'State "Small", field "Output": reads $failure, which no state that can run before it assigns',
+    ])
+  })
+
   it('lets filters, lambdas and bindings read relative names, and $states.errorOutput only in a catcher', () => {
     const definition = {
       QueryLanguage: 'JSONata',
