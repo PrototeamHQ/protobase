@@ -15,8 +15,11 @@ export type SegmentContext = {
   deadline: number
   /** The steps saved before this segment, by scope, in order. */
   saved: ReadonlyMap<string, readonly SavedStep[]>
-  /** Saves a step, throwing `SupersededError` when another segment saved it first. */
-  save: (step: StepRecord) => Promise<void>
+  /**
+   * Keeps a step to save with the next checkpoint; a checkpoint saves it with every step kept before it, in one write,
+   * throwing `SupersededError` when another segment saved one of them first.
+   */
+  save: (step: StepRecord, checkpoint: boolean) => Promise<void>
   /** Whether a save found another segment ahead, so no scope of this one takes another step. */
   superseded: () => boolean
   /** Steps of the run so far, the saved ones and this segment's, and the most it may take. */

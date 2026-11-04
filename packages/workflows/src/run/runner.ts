@@ -37,7 +37,7 @@ export const createRunner = <Db>({ store, queue, tasks, secrets = {}, now = () =
       if (!run || ended.has(run.status)) return
       await store.update(db, runId, { status: 'running' })
       const segment = { runId, definition: run.definition, input: run.input, startedAt: run.startedAt, secrets, redactor, tasks, signal, now, budgetMs, maxSteps }
-      const outcome = await runSegment({ ...segment, saved: await store.steps(db, runId), save: (step) => store.save(db, runId, step) })
+      const outcome = await runSegment({ ...segment, saved: await store.steps(db, runId), save: (steps) => store.save(db, runId, steps) })
       if (outcome.kind === 'superseded') return
       if (outcome.kind === 'ended') return store.update(db, runId, { status: 'succeeded', output: redactor.value(outcome.output) })
       if (outcome.kind === 'failed') return store.update(db, runId, { status: 'failed', error: redactor.text(outcome.error), cause: redactor.text(outcome.cause) })

@@ -77,8 +77,11 @@ export type RunStore<Db> = {
   load(db: Db, runId: string): Promise<LoadedRun | undefined>
   /** Every step the run saved, in each scope's order; the record's input and logs are not needed. */
   steps(db: Db, runId: string): Promise<SavedStep[]>
-  /** Saves a step in one guarded statement: false, and nothing saved, when its scope and seq are taken already. */
-  save(db: Db, runId: string, step: StepRecord): Promise<boolean>
+  /**
+   * Saves steps in one guarded statement: false when any of their scopes and seqs is taken already, and those are left
+   * as the other segment saved them.
+   */
+  save(db: Db, runId: string, steps: readonly StepRecord[]): Promise<boolean>
   /** Changes the run unless it has ended already. */
   update(db: Db, runId: string, change: RunChange): Promise<void>
 }

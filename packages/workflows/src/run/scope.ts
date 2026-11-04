@@ -49,7 +49,7 @@ const withinLimits = (record: StepRecord): StepRecord => {
 
 /**
  * Runs one scope (the run or a Map item) from where its saved steps leave it, saving each step as
- * it ends, until the scope ends or fails, waits for a time, or the segment's time is up.
+ * the segment's checkpoints come, until the scope ends or fails, waits for a time, or the segment's time is up.
  */
 export const runScope = async (context: SegmentContext, machine: Machine, scope: string, input: unknown, outer: Record<string, unknown>): Promise<ScopeOutcome> => {
   let position = foldPosition(machine, input, context.saved.get(scope) ?? [])
@@ -78,7 +78,10 @@ export const runScope = async (context: SegmentContext, machine: Machine, scope:
     // Blanked before it is saved and before the scope goes on from it, so every later state, in this segment or the
     // next, reads the same value.
     const record = withinLimits(context.redactor.value(shaped))
-    await context.save(record)
+    // A Task's step is saved before the scope goes on, as its effect must not happen twice, and so is a step with a
+    // time to go on at, which a later run of it would set anew; any other step gives the same record when run again,
+    // so it is kept and saved with the next checkpoint.
+    await context.save(record, state.Type === 'Task' || Boolean(record.resumeAt))
     position = advance(position, record)
   }
 }

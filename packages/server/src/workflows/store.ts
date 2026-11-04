@@ -20,16 +20,20 @@ export const postgresRunStore = (schema: string): RunStore<Db> => {
         from ${steps} where run_id = ${id} order by scope, seq`.execute(db)
       return rows
     },
-    // One statement, guarded by the step's scope and number: a second segment saving the same step saves nothing.
-    save: async (db, id, step: StepRecord) => {
+    // One statement, guarded by each step's scope and number: a second segment saving the same steps saves none of
+    // those it finds taken.
+    save: async (db, id, records) => {
+      const row = (step: StepRecord) => sql`(${step.scope}, ${step.seq}::integer, ${step.state}, ${step.type}, ${step.status}, ${step.attempt}::integer,
+        ${json(step.input)}::jsonb, ${json(step.output)}::jsonb, ${json(step.assigned)}::jsonb, ${step.next}, ${step.resumeAt ?? null}::timestamptz,
+        ${step.error ?? null}, ${step.cause ?? null}, ${JSON.stringify(step.logs)}::jsonb, ${step.startedAt}::timestamptz, ${step.finishedAt}::timestamptz)`
       const { rows } = await sql<{ id: string }>`insert into ${steps}
         (run_id, tenant_id, scope, seq, state, type, status, attempt, input, output, assigned, next, resume_at, error, cause, logs, started_at, finished_at)
-        select r.id, r.tenant_id, ${step.scope}, ${step.seq}, ${step.state}, ${step.type}, ${step.status}, ${step.attempt}, ${json(step.input)}::jsonb,
-          ${json(step.output)}::jsonb, ${json(step.assigned)}::jsonb, ${step.next}, ${step.resumeAt ?? null}, ${step.error ?? null}, ${step.cause ?? null},
-          ${JSON.stringify(step.logs)}::jsonb, ${step.startedAt}, ${step.finishedAt}
-        from ${runs} r where r.id = ${id}
+        select r.id, r.tenant_id, s.*
+        from ${runs} r, (values ${sql.join(records.map(row))})
+          as s (scope, seq, state, type, status, attempt, input, output, assigned, next, resume_at, error, cause, logs, started_at, finished_at)
+        where r.id = ${id}
         on conflict (run_id, scope, seq) do nothing returning id`.execute(db)
-      return rows.length > 0
+      return rows.length === records.length
     },
     update: async (db, id, change) => {
       const ended = change.status === 'succeeded' || change.status === 'failed'
