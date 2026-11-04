@@ -31,6 +31,14 @@ describe('mcpTools', () => {
     expect(writeTools.map((tool) => (tool.parameters as { properties: Record<string, unknown> }).properties.resource)).toEqual([limited, limited, limited])
   })
 
+  it('offers the workflow tools with workflows on, the ones that save and run them only with writes on', () => {
+    const tools = (writes: McpWrites) => mcpTools({ db, sql: false, writes, workflows: true })({ user: { id: 1, roles: ['sales'] } }).map((tool) => tool.name)
+    const reads = ['list_workflow_types', 'list_workflows', 'get_workflow', 'validate_workflow', 'get_workflow_run']
+    expect(tools(false)).toEqual([...records, ...reads])
+    expect(tools(true)).toEqual([...records, 'create_record', 'update_record', 'delete_record', 'batch_write', ...reads, 'create_workflow', 'update_workflow', 'run_workflow'])
+    expect(names(false, ['sales'], true)).not.toContain('list_workflows')
+  })
+
   it('offers list_comments where a resource takes comments, and add_comment after the write tools with writes on', () => {
     const tools = (writes: McpWrites, commented: string[]) => mcpTools({ db, sql: false, writes, commented })({ user: { id: 1, roles: ['sales'] } }).map((tool) => tool.name)
     expect(tools(false, [])).toEqual(records)

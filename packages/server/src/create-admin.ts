@@ -40,6 +40,8 @@ import { mcpHandler } from './mcp/mcp-handler'
 import { closedMcpRoutes, mcpRoutes } from './mcp/mcp-routes'
 import { mcpServer } from './mcp/mcp-server'
 import { mcpTools } from './mcp/mcp-tools'
+import { mcpInstructions } from './mcp/mcp-instructions'
+import { workflowInstructions } from './workflows/mcp/workflow-instructions'
 import { checkMcpWrites, rolesWithoutApproval } from './mcp/mcp-writes'
 import { withoutSessionTokens } from './better-auth/without-session-tokens'
 import { webauthnPath } from './better-auth/origins'
@@ -417,13 +419,14 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, own: (options.mcp !== false && options.mcp?.tools) || [] })
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, workflows: Boolean(engine), own: (options.mcp !== false && options.mcp?.tools) || [] })
+    const instructions = engine ? `${mcpInstructions}\n${workflowInstructions}` : mcpInstructions
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
     const info = { name: appName, version: '1.0.0', icons: mcpIcons(resource, icons) }
     const server = (session: Session, request: Request | undefined) => {
       const context = mcpToolContext(deps, meta, session, { locale: request ? requestLocale(locale, request) : locale, requestURL: request?.url ?? resource })
-      return mcpServer({ info, tools: tools(session), context, report, rolesWithoutApproval: rolesWithoutApproval(writes), approvals })
+      return mcpServer({ info, instructions, tools: tools(session), context, report, rolesWithoutApproval: rolesWithoutApproval(writes), approvals })
     }
     mcpRoutes(app, { path: auth.mcp.path, handler: mcpHandler({ authenticate: mcpAuthenticate, resource: auth.mcp.resource, scope: auth.mcp.scope, server }) })
   }
