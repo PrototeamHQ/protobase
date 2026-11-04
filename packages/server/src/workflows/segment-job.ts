@@ -28,7 +28,14 @@ export const workflowsRunner = ({ schema, tasks, secrets }: WorkflowsRunnerInput
   const runner = createRunner({ store, queue, tasks: {}, secrets })
   job = defineJob<{ run: string }>({
     name: segmentJobName,
-    run: ({ run }, context) => createRunner({ store, queue, tasks: tasks(context), secrets }).segment(context.db, run, context.signal),
+    run: ({ run }, context) =>
+      createRunner({ store, queue, tasks: tasks(context), secrets })
+        .segment(context.db, run, context.signal)
+        .catch(async (error: unknown) => {
+          // No segment comes after the job's last try, so that try ends the run rather than leaving it running.
+          if (context.job.attempt >= context.job.maxAttempts) await store.update(context.db, run, { status: 'failed', error: 'States.Runtime', cause: `The run's segment failed ${context.job.attempt} times in a row` })
+          throw error
+        }),
     maxAttempts: 10,
     retryDelay: '5 seconds',
     timeout: '10 minutes',

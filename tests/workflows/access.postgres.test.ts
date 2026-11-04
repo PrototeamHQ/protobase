@@ -157,6 +157,22 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
     expect(await count('notes')).toBe(1)
   })
 
+  it('creates a list of records all together or none, so a retry after one is refused creates none twice', async () => {
+    const workflow = await created(await as('ada', '/workflows', {
+      method: 'POST',
+      body: { name: 'Notes', definition: definition({ Write: { Type: 'Task', Resource: 'app:records.create', Arguments: { resource: 'notes', data: '{% $states.context.Execution.Input.notes %}' }, Retry: [{ ErrorEquals: ['States.ALL'], IntervalSeconds: 1, MaxAttempts: 1 }], End: true } }) },
+    }))
+    const before = await count('notes')
+    const refused = await created(await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: { notes: [{ text: 'first' }, { text: null }] } } }))
+    await finished(refused)
+    expect(await runRow(refused)).toMatchObject({ status: 'failed', error: 'Records.Refused' })
+    expect(await count('notes')).toBe(before)
+    const written = await created(await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: { notes: [{ text: 'one' }, { text: 'two' }] } } }))
+    await finished(written)
+    expect(await runRow(written)).toMatchObject({ status: 'succeeded' })
+    expect(await count('notes')).toBe(before + 2)
+  })
+
   it('sends a secret where the workflow puts it, and keeps it in no run, step or job, across a wait and on failure', async () => {
     const workflow = await created(await as('ada', '/workflows', {
       method: 'POST',

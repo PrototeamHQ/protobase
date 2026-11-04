@@ -36,7 +36,13 @@ export const startWorkflow = async (db: Db, { workflow, input, tenant, startedBy
     values (${workflow}, ${input === undefined ? null : JSON.stringify(input)}::jsonb, ${tenant === undefined ? null : String(tenant)}, ${startedBy ?? null}, ${key ?? null})
     on conflict (workflow_id, key) do nothing returning id`.execute(db)
   // The unique key holds against a start in another transaction too: the later one waits for it, then starts nothing.
-  if (rows.length === 0) return (await sql<{ id: string }>`select id from ${runs} where workflow_id = ${workflow} and key = ${key!}`.execute(db)).rows[0]!.id
+  if (rows.length === 0) {
+    const existing = (await sql<{ id: string; status: string }>`select id, status from ${runs} where workflow_id = ${workflow} and key = ${key!}`.execute(db)).rows[0]!
+    // A run still queued may be one whose start committed without its first segment, as a start outside a transaction
+    // does when queueing fails: it is queued again, which the job's key keeps to one waiting segment.
+    if (existing.status === 'queued') await job.enqueue(db, { run: existing.id }, { key: existing.id })
+    return existing.id
+  }
   const id = rows[0]!.id
   await job.enqueue(db, { run: id }, { key: id })
   return id

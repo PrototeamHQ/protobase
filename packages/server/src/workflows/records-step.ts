@@ -1,6 +1,7 @@
 import { sql } from 'kysely'
 import { StepError, type TaskContext, type TaskHandler } from '@protobase/workflows'
 import { assistantRecords, toolEntry, type RecordKeyInput } from '../assistant/records'
+import type { BatchOperation } from '../batch/schema'
 import type { Deps } from '../deps'
 import { issueTicket } from '../files/ticket'
 import { HttpProblem } from '../problem'
@@ -87,11 +88,12 @@ const run = async (input: RecordsStepInput, operation: Operation, args: Record<s
     })
     return { records: page.items.map(({ etag: _, permissions: __, ...record }) => record) }
   }
-  // Several records are created one after another, each in its own write, as the report's `data` array lists them.
+  // Several records are created in one batch, all or none, so a retry after one fails does not create the others again.
   if (Array.isArray(args.data)) {
-    const created: Row[] = []
-    for (const [index, item] of args.data.entries()) created.push((await records.create(resource, await withTickets(deps, session, resource, rowOf(item, `data[${index}]`), runId))).record)
-    return created
+    const operations: BatchOperation[] = []
+    for (const [index, item] of args.data.entries()) operations.push({ op: 'create', resource, data: await withTickets(deps, session, resource, rowOf(item, `data[${index}]`), runId) })
+    const results = await records.batch(operations)
+    return results.flatMap((result) => (result.op === 'create' ? [result.record] : []))
   }
   return (await records.create(resource, await withTickets(deps, session, resource, rowOf(args.data, 'data'), runId))).record
 }
