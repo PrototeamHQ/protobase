@@ -21,6 +21,8 @@ export const runTask = async (context: SegmentContext, state: TaskState, args: u
   const timeout = AbortSignal.timeout((state.TimeoutSeconds ?? limits.defaultTaskTimeoutSeconds) * 1000)
   const signal = AbortSignal.any([context.signal, timeout])
   const log = (message: string) => void logs.push({ at: context.now().toISOString(), message })
+  // A worker that stopped already starts no step: it would run unsaved, and run again in the next segment.
+  context.signal.throwIfAborted()
   try {
     return await Promise.race([handler(args, { runId: context.runId, signal, idempotencyKey, log, redact: context.redactor.text }), aborted(signal)])
   } catch (error) {

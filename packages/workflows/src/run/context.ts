@@ -17,6 +17,8 @@ export type SegmentContext = {
   saved: ReadonlyMap<string, readonly SavedStep[]>
   /** Saves a step, throwing `SupersededError` when another segment saved it first. */
   save: (step: StepRecord) => Promise<void>
+  /** Whether a save found another segment ahead, so no scope of this one takes another step. */
+  superseded: () => boolean
   /** Steps of the run so far, the saved ones and this segment's, and the most it may take. */
   steps: { count: number }
   maxSteps: number

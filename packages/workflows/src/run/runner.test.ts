@@ -208,4 +208,15 @@ describe('the runner', () => {
     expect(port.run('r12').status).toBe('succeeded')
     expect(keys).toEqual(['r12//0', 'r12//0', 'r12//0', 'r12//5'])
   })
+
+  it('starts no step once the worker has stopped, leaving the run to the next segment', async () => {
+    const called: unknown[] = []
+    const port = memoryRunner({ call: async (args) => void called.push(args) })
+    await port.start('r13', definition({ Call: { Type: 'Task', Resource: 'call', End: true } }), {})
+    const stopped = new AbortController()
+    stopped.abort(new Error('worker stopped'))
+    await expect(port.step(stopped.signal)).rejects.toThrow('worker stopped')
+    expect(called).toEqual([])
+    expect(port.steps).toEqual([])
+  })
 })

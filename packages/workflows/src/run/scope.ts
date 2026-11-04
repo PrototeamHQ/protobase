@@ -1,7 +1,8 @@
 import type { Machine, State } from '../definition/types'
 import { limits } from '../limits'
 import type { ScopeOutcome, SegmentContext, StateResult } from './context'
-import { StepError } from './errors'
+import { StepError, SupersededError } from './errors'
+import { jsonBytes } from './json-bytes'
 import { advance, foldPosition } from './position'
 import type { StepLog, StepRecord } from './port'
 import { runResultState } from './result-states'
@@ -38,8 +39,6 @@ const keptLogs = (logs: StepLog[], redact: (text: string) => string): StepLog[] 
   return [...kept, { at: logs.at(-1)!.at, message: `… ${logs.length - limits.logLines} more lines not kept` }]
 }
 
-const jsonBytes = (value: unknown) => (value === undefined ? 0 : new TextEncoder().encode(JSON.stringify(value)).length)
-
 // A step whose input, output or variables are larger than a step may save fails instead, and so does its run.
 const withinLimits = (record: StepRecord): StepRecord => {
   const field = (['input', 'output', 'assigned'] as const).find((name) => jsonBytes(record[name]) > limits.valueBytes)
@@ -57,6 +56,8 @@ export const runScope = async (context: SegmentContext, machine: Machine, scope:
   for (;;) {
     if (position.kind === 'ended') return { kind: 'ended', output: position.output }
     if (position.kind === 'failed') return { kind: 'failed', error: position.error, cause: position.cause }
+    // Another Map item found the run gone on without this segment: this item stops too, before its next step.
+    if (context.superseded()) throw new SupersededError(`Scope "${scope}" stopped: another segment saved a step of this run first`)
     if (position.resumeAt && position.resumeAt > context.now()) return { kind: 'blocked', until: position.resumeAt }
     if (Date.now() >= context.deadline) return { kind: 'yielded' }
     if (context.steps.count >= context.maxSteps) return { kind: 'failed', error: 'States.Runtime', cause: `The run took more than ${context.maxSteps} steps` }
@@ -64,15 +65,20 @@ export const runScope = async (context: SegmentContext, machine: Machine, scope:
     const state = machine.States[name]!
     const startedAt = context.now()
     const call: StateCall = { context, name, scope, position, bindings: bindingsOf(context, outer, position), logs: [], runScope: (inner, key, value, seen) => runScope(context, inner, key, value, seen) }
+    // The step's place under the cap is taken before it runs, so Map items running at once cannot pass the cap together;
+    // a state that saves no step gives it back. One that throws ends the segment, whose count goes with it.
+    context.steps.count++
     const result = await ranOrFailed(state, call)
-    if (result.kind !== 'step') return result
+    if (result.kind !== 'step') {
+      context.steps.count--
+      return result
+    }
     const { kind: _, logs, ...step } = result
     const shaped = { ...step, logs: keptLogs(logs, context.redactor.text), scope, seq: position.seq, state: name, type: state.Type, attempt: position.attempt, startedAt, finishedAt: context.now() }
     // Blanked before it is saved and before the scope goes on from it, so every later state, in this segment or the
     // next, reads the same value.
     const record = withinLimits(context.redactor.value(shaped))
     await context.save(record)
-    context.steps.count++
     position = advance(position, record)
   }
 }

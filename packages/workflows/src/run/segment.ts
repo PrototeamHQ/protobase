@@ -40,6 +40,7 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     if (steps) steps.push(step)
     else byScope.set(step.scope, [step])
   }
+  let superseded = false
   const context = {
     runId,
     stateContext: { Execution: { Input: input, StartTime: startedAt.toISOString() }, Secrets: secrets },
@@ -50,8 +51,11 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     deadline: Date.now() + budgetMs,
     saved: byScope,
     save: async (step: StepRecord) => {
-      if (!(await save(step))) throw new SupersededError(`Step ${step.seq} of scope "${step.scope}" was saved by another segment`)
+      if (await save(step)) return
+      superseded = true
+      throw new SupersededError(`Step ${step.seq} of scope "${step.scope}" was saved by another segment`)
     },
+    superseded: () => superseded,
     steps: { count: saved.length },
     maxSteps,
   }

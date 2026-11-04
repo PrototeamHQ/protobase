@@ -58,6 +58,24 @@ describe('the runner, failing closed at its limits', () => {
     expect(port.steps).toHaveLength(50)
   })
 
+  it('holds the step cap while Map items run at once', async () => {
+    const port = memoryRunner({}, { maxSteps: 6 })
+    const item = { StartAt: 'One', States: { One: { Type: 'Pass', Next: 'Two' }, Two: { Type: 'Pass', Next: 'Three' }, Three: { Type: 'Pass', End: true } } } as const
+    await port.start('crowd', definition({ Each: { Type: 'Map', Items: '{% [1, 2, 3, 4, 5] %}', ItemProcessor: item, End: true } }), {})
+    await port.drain()
+    expect(port.run('crowd')).toMatchObject({ status: 'failed', error: 'States.Runtime', cause: 'The run took more than 6 steps' })
+    expect(port.steps.length).toBeLessThanOrEqual(6)
+  })
+
+  it("fails a Map once its items' outputs pass what its step may save, before it holds them all", async () => {
+    const port = memoryRunner({ big: async () => 'x'.repeat(300 * 1024) })
+    const item = { StartAt: 'Fetch', States: { Fetch: { Type: 'Task', Resource: 'big', End: true } } } as const
+    await port.start('heavy', definition({ Each: { Type: 'Map', Items: '{% [1, 2, 3, 4, 5, 6] %}', MaxConcurrency: 1, ItemProcessor: item, End: true } }), {})
+    await port.drain()
+    expect(port.run('heavy')).toMatchObject({ status: 'failed', error: 'States.DataLimitExceeded', cause: "The items' outputs are larger than 1 MiB together" })
+    expect(port.steps.filter((step) => step.state === 'Fetch')).toHaveLength(4)
+  })
+
   it('fails a Map over more items than it takes before any item runs', async () => {
     const port = memoryRunner({})
     await port.start('wide', definition({

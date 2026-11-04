@@ -1,9 +1,10 @@
 import type { MapState, TaskState } from '../definition/types'
 import { limits } from '../limits'
-import type { StateResult } from './context'
+import type { ScopeOutcome, StateResult } from './context'
 import { errorOutput, StepError } from './errors'
 import { evaluateAssign, evaluateKept, evaluateTemplate, recordedArguments } from './evaluate'
 import { fanOut } from './fan-out'
+import { jsonBytes } from './json-bytes'
 import { redacted } from './redact'
 import { recover } from './recovery'
 import { innerScope, visibleVariables, type StateCall } from './step-input'
@@ -30,7 +31,16 @@ const map = async (state: MapState, call: StateCall): Promise<Ran> => {
   if (!Array.isArray(items)) throw new StepError('States.QueryEvaluationError', `Items: gave ${JSON.stringify(items) ?? 'nothing'}, not an array`)
   if (items.length > limits.mapItems) throw new StepError('States.DataLimitExceeded', `Items: ${items.length} items, more than the ${limits.mapItems} a Map takes`)
   const outer = visibleVariables(call.bindings)
-  const scopes = items.map((item, index) => () => call.runScope(state.ItemProcessor, innerScope(call.scope, call.name, call.position.seq, index), item, outer))
+  // The items' outputs make the Map's, which a step saves only up to `limits.valueBytes`: counted as each item ends, so
+  // the Map fails once they pass it rather than after holding every one.
+  let kept = 0
+  const scopes = items.map((item, index) => async (): Promise<ScopeOutcome> => {
+    const outcome = await call.runScope(state.ItemProcessor, innerScope(call.scope, call.name, call.position.seq, index), item, outer)
+    if (outcome.kind !== 'ended') return outcome
+    kept += jsonBytes(outcome.output)
+    if (kept <= limits.valueBytes) return outcome
+    return { kind: 'failed', error: 'States.DataLimitExceeded', cause: `The items' outputs are larger than ${limits.valueBytes / 1024 / 1024} MiB together` }
+  })
   const outcome = await fanOut(scopes, state.MaxConcurrency || limits.mapConcurrency)
   if (outcome.kind === 'blocked' || outcome.kind === 'yielded') return outcome
   const input = { items: items.length }

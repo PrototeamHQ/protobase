@@ -4,8 +4,9 @@ import type { Paused, ScopeOutcome } from './context'
 export type FanOutOutcome = { kind: 'ended'; outputs: unknown[] } | { kind: 'failed'; error: string; cause: string } | Paused
 
 /**
- * Runs the scopes, at most `concurrency` at once. Once one fails, or the segment's time is up, no more start and the
- * running ones settle; one that waits leaves the others running, and the whole waits for the earliest time.
+ * Runs the scopes, at most `concurrency` at once. Once one fails, throws, or the segment's time is up, no more start and
+ * the running ones settle, so none runs on after the segment ends; one that waits leaves the others running, and the
+ * whole waits for the earliest time. A scope's error is thrown once all have settled.
  */
 export const fanOut = async (scopes: readonly (() => Promise<ScopeOutcome>)[], concurrency: number): Promise<FanOutOutcome> => {
   const outcomes: ScopeOutcome[] = new Array(scopes.length)
@@ -14,12 +15,17 @@ export const fanOut = async (scopes: readonly (() => Promise<ScopeOutcome>)[], c
   const lane = async () => {
     while (!stop && next < scopes.length) {
       const index = next++
-      const outcome = await scopes[index]!()
+      const outcome = await scopes[index]!().catch((error: unknown) => {
+        stop = true
+        throw error
+      })
       outcomes[index] = outcome
       if (outcome.kind === 'failed' || outcome.kind === 'yielded') stop = true
     }
   }
-  await Promise.all(Array.from({ length: Math.min(concurrency, scopes.length) }, lane))
+  const lanes = await Promise.allSettled(Array.from({ length: Math.min(concurrency, scopes.length) }, lane))
+  const thrown = lanes.find((settled) => settled.status === 'rejected')
+  if (thrown) throw thrown.reason
   const settled = outcomes.filter(Boolean)
   const failed = settled.find((outcome) => outcome.kind === 'failed')
   if (failed) return failed
