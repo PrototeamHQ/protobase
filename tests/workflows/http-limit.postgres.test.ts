@@ -9,7 +9,7 @@ import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } fr
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
 // A local receiver is a private address, so this app lets the http step reach it, as development does.
-const workflows: WorkflowsOptions = { allowPrivateAddresses: true }
+const workflows: WorkflowsOptions = { allowPrivateAddresses: true, savedByRoles: async () => ['admin'] }
 
 describe.skipIf(!(await postgresTemplateReady('jobs')))('the http step of a workflow run on the app\'s jobs', () => {
   let pg: PostgresDatabase
@@ -51,7 +51,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the http step of a work
     const base = `http://127.0.0.1:${(receiver.address() as AddressInfo).port}`
     const workflow = await post('/workflows', {
       name: 'Download',
-      definition: { QueryLanguage: 'JSONata', StartAt: 'Get', States: { Get: { Type: 'Task', Resource: 'http', Arguments: { url: '{% $trigger.base & "/big" %}' }, End: true } } },
+      definition: { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Get', States: { Get: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $states.context.Execution.Input.base & "/big" %}', response: 'text' }, End: true } } } },
     })
     const run = await post('/workflow_runs', { workflow_id: workflow, input: { base } })
     const row = async () => (await sql<{ status: string; error: string | null; cause: string | null }>`select status, error, cause from workflows.runs where id = ${run}`.execute(db)).rows[0]!

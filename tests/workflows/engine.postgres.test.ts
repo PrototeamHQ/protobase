@@ -16,9 +16,9 @@ const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 
   viewer: ['*.read'],
 })
 const people: Record<string, string[]> = { ada: ['builder'], vic: ['viewer'] }
-const workflows: WorkflowsOptions = {}
+const workflows: WorkflowsOptions = { savedByRoles: async ({ id }) => people[id] ?? [] }
 
-const definition = (states: Record<string, unknown>) => ({ QueryLanguage: 'JSONata', StartAt: Object.keys(states)[0], States: states })
+const definition = (states: Record<string, unknown>) => ({ trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: Object.keys(states)[0], States: states } })
 
 describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s database and jobs', () => {
   let pg: PostgresDatabase
@@ -74,13 +74,13 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
   it('refuses a definition with a missing input or an edge to no step, naming the step and the field', async () => {
     const response = await as('ada', '/workflows', {
       method: 'POST',
-      body: { name: 'Broken', definition: definition({ Call: { Type: 'Task', Resource: 'http', Arguments: { url: '{% $address %}' }, Next: 'Nowhere' }, Done: { Type: 'Succeed' } }) },
+      body: { name: 'Broken', definition: definition({ Call: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $address %}' }, Next: 'Nowhere' }, Done: { Type: 'Succeed' } }) },
     })
     expect(response.status).toBe(400)
     const problem = await response.json()
     expect(problem.problems).toEqual([
       { state: 'Call', field: 'Next', message: 'names "Nowhere", which is not a state here' },
-      { state: 'Call', field: 'Arguments.url', message: 'reads $address, which no state assigns in this scope' },
+      { state: 'Call', field: 'Arguments.url', message: 'reads $address, which no state that can run before it assigns' },
       { state: 'Done', message: 'is never reached from "Call"' },
     ])
     expect(problem.detail).toContain('State "Call", field "Next": names "Nowhere", which is not a state here')
@@ -88,9 +88,9 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
   })
 
   it('keeps each saved definition as a version, and a run keeps the version it started on', async () => {
-    const id = await create('Echo', definition({ Echo: { Type: 'Pass', Output: '{% $trigger.word %}', End: true } }))
+    const id = await create('Echo', definition({ Echo: { Type: 'Pass', Output: '{% $states.context.Execution.Input.word %}', End: true } }))
     const first = await run(id, { word: 'one' })
-    const changed = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: definition({ Echo: { Type: 'Pass', Output: '{% $uppercase($trigger.word) %}', End: true } }) } })
+    const changed = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: definition({ Echo: { Type: 'Pass', Output: '{% $uppercase($states.context.Execution.Input.word) %}', End: true } }) } })
     expect(changed.status).toBe(200)
     const second = await run(id, { word: 'two' })
     await finished(first)
@@ -103,8 +103,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
 
   it('runs a branch and a step per item to the expected records, each with its input, output, logs and timing', async () => {
     const id = await create('Prices', definition({
-      Check: { Type: 'Choice', Choices: [{ Condition: '{% $count($trigger.prices) > 0 %}', Next: 'Each' }], Default: 'Empty' },
-      Each: { Type: 'Map', Items: '{% $trigger.prices %}', ItemProcessor: { StartAt: 'Tax', States: { Tax: { Type: 'Pass', Output: '{% $states.input * 1.25 %}', End: true } } }, Assign: { taxed: '{% $states.result %}' }, Next: 'Total' },
+      Check: { Type: 'Choice', Choices: [{ Condition: '{% $count($states.context.Execution.Input.prices) > 0 %}', Next: 'Each' }], Default: 'Empty' },
+      Each: { Type: 'Map', Items: '{% $states.context.Execution.Input.prices %}', ItemProcessor: { StartAt: 'Tax', States: { Tax: { Type: 'Pass', Output: '{% $states.input * 1.25 %}', End: true } } }, Assign: { taxed: '{% $states.result %}' }, Next: 'Total' },
       Total: { Type: 'Succeed', Output: '{% $sum($taxed) %}' },
       Empty: { Type: 'Succeed', Output: 0 },
     }))
@@ -128,8 +128,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     const id = await create('Retry', definition({
       Call: {
         Type: 'Task',
-        Resource: 'http',
-        Arguments: { url: '{% $trigger.url %}' },
+        Resource: 'app:http',
+        Arguments: { url: '{% $states.context.Execution.Input.url %}' },
         Retry: [{ ErrorEquals: ['Http.InvalidArguments'], IntervalSeconds: 1, MaxAttempts: 2, BackoffRate: 1 }],
         Catch: [{ ErrorEquals: ['States.ALL'], Assign: { failure: '{% $states.errorOutput.Error %}' }, Next: 'Handled' }],
         End: true,
@@ -149,7 +149,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
 
   it('fails an http step whose URL an expression builds to a private address with the guard\'s error, reaching nothing there', async () => {
     const { port } = receiver.address() as AddressInfo
-    const id = await create('Private', definition({ Call: { Type: 'Task', Resource: 'http', Arguments: { url: '{% "http://" & $trigger.host & ":" & $string($trigger.port) & "/inside" %}' }, End: true } }))
+    const id = await create('Private', definition({ Call: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% "http://" & $states.context.Execution.Input.host & ":" & $string($states.context.Execution.Input.port) & "/inside" %}' }, End: true } }))
     const runId = await run(id, { host: 'localhost', port })
     await finished(runId)
     expect(await runRow(runId)).toMatchObject({ status: 'failed', error: 'Http.AddressRefused', cause: expect.stringMatching(/^localhost is a private address \(.+\); requests reach public addresses only$/) })
@@ -175,7 +175,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
   })
 
   it('starts a run from the app\'s own code inside the caller\'s transaction, or not at all when it rolls back', async () => {
-    const id = await create('Inside', definition({ Done: { Type: 'Succeed', Output: '{% $trigger %}' } }))
+    const id = await create('Inside', definition({ Done: { Type: 'Succeed', Output: '{% $states.context.Execution.Input %}' } }))
     await expect(db.transaction().execute(async (trx) => {
       await startWorkflow(trx, { workflow: id, input: 'dropped', tenant: '1' })
       throw new Error('roll back')
@@ -187,7 +187,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
   })
 
   it('starts a run once per key, however many starts race for it', async () => {
-    const id = await create('Keyed', definition({ Done: { Type: 'Succeed', Output: '{% $trigger %}' } }))
+    const id = await create('Keyed', definition({ Done: { Type: 'Succeed', Output: '{% $states.context.Execution.Input %}' } }))
     const starts = await Promise.all([1, 2, 3].map((attempt) => db.transaction().execute((trx) => startWorkflow(trx, { workflow: id, input: attempt, tenant: '1', key: 'orders:42' }))))
     expect(new Set(starts).size).toBe(1)
     await finished(starts[0]!)
