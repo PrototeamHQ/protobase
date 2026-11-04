@@ -314,7 +314,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     statementTimeoutMs: options.statementTimeoutMs ?? defaultStatementTimeoutMs,
     guard: createScanGuard(db, options.scanGuard),
     hooks: [...(options.writeHooks ?? []), ...served.hooks, ...(table ? [subscriptionWriteCheck(registry.entries.map((entry) => entry.model))] : []), ...(engine?.hooks ?? []), ...(fill ? [fillHook(() => deps, fill)] : [])],
-    writeChecks: table?.checkUrl ? [subscriptionUrlCheck(table.checkUrl)] : [],
+    writeChecks: [...(table?.checkUrl ? [subscriptionUrlCheck(table.checkUrl)] : []), ...(engine?.writeChecks ?? [])],
     audit: options.audit ?? consoleAuditQueue(),
     report: options.onUnhandledError ?? ((error: unknown) => console.error(error)),
     accessOptions: { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) },

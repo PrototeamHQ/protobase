@@ -128,10 +128,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
     expect((await as(undefined, '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: {} } })).status).toBe(401)
     const large = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: { text: 'x'.repeat(1024 * 1024) } } })
     expect([large.status, (await large.json()).type]).toEqual([400, expect.stringContaining('input-too-large')])
-    let deep: unknown = 1
-    for (let level = 0; level < 65; level++) deep = [deep]
-    const nested = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: deep } })
-    expect([nested.status, (await nested.json()).type]).toEqual([400, expect.stringContaining('input-too-deep')])
+    // Written as text: a value 100,000 levels deep is deeper than JSON.stringify walks.
+    for (const levels of [65, 100_000]) {
+      const body = `{"workflow_id": "${workflow}", "input": ${'['.repeat(levels)}1${']'.repeat(levels)}}`
+      const nested = await admin.request('/api/v1/workflow_runs', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user': 'ada' }, body })
+      expect([nested.status, (await nested.json()).type]).toEqual([400, expect.stringContaining('input-too-deep')])
+    }
     expect(await count('workflows.runs')).toBe(runs)
   })
 
