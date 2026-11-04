@@ -4,7 +4,7 @@ description: Workflows written as state machines in the States Language with JSO
 ---
 
 :::caution[Beta]
-Workflows run when they are started through the API or from the app's code. Triggers, sign-in connections to other services, MCP tools for them and a graph editor are not built yet.
+Workflows run when they are started through the API, over MCP or from the app's code. Triggers, sign-in connections to other services and a graph editor are not built yet.
 :::
 
 A **workflow** is a graph of steps that the server runs one after another along its edges: fetch something, decide, run a step per item, merge the results, write records, send mail. It is written in the **States Language**, the JSON language of state machines, with **JSONata** as its expression language, in a profile of it that reads every value by name. A language model writes and changes it as easily as a person, and the same document is what the server checks and runs. Each run records every step it takes, with what the step read, gave and logged.
@@ -193,6 +193,10 @@ Each step is saved as it ends, as a `workflow_steps` record: the state, its type
 ### Secrets
 
 A workflow reads a secret only by name, `$states.context.Secrets.TICKETS_TOKEN`, and only one the config's `workflows.secrets` lists; the values are never part of the definition. Every value of the listed secrets is blanked out as `[redacted]` wherever it appears in what a run records: a step's input, output, variables, logs, error and cause, and the run's output, error and cause. In a Task's recorded input, every field whose name says it holds a secret, such as `Authorization`, `token` or `apiKey`, is blanked out too. A value an expression computes from a secret, however it changes it, such as `'Basic ' & $base64encode(...)`, is kept whole as `[redacted]`: in a Task's `Arguments` the step type gets the value and the record keeps `[redacted]`; in an `Output`, an `Assign`, a Map's `Items` or a Fail's `Error` and `Cause` the value itself is `[redacted]`, so later states read that. Read a secret in the `Arguments` of the Task that sends it. A secret that comes back changed in a step's result, such as one a server encodes in its answer, is not the value the runner looks for, and is kept as it came. A run's input is kept as its caller gave it, so a secret's value never belongs in it.
+
+## Over MCP
+
+An AI client signed in to the app's [MCP endpoint](/reference/mcp/#workflows) finds, makes, changes and test-runs workflows as the person: it lists the step types and triggers with their arguments, reads and validates definitions, saves one whole or by a small edit, starts a run with an input, and reads each of the run's steps with its input, output, logs and error. The endpoint's instructions describe this language, and a refused definition comes back with its problems, each naming the state and field.
 
 ## Who may do what
 
