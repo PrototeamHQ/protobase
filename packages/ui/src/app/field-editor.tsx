@@ -2,8 +2,8 @@ import { ArrowUpRight } from 'lucide-react'
 import { Switch } from '../primitives/switch'
 import { buttonClass } from '../primitives/button'
 import { Input } from '../primitives/input'
+import { Select } from '../primitives/select'
 import { Textarea } from '../primitives/textarea'
-import { useFieldControl } from '../primitives/field-control'
 import { cn } from '../lib/cn'
 import { AppLink } from './use-app-address'
 import { enumLabel, type AppAddress, type FieldModel, type FieldViewModel, type ResourceModel, type ViewModel } from '@protobase/schema'
@@ -49,7 +49,6 @@ export type FieldEditorProps = {
 }
 
 const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo, relationPicker, invalid, locked, placeholder, reveal, resource, onChange }: FieldEditorProps) => {
-  const control = useFieldControl()
   if (field.type === 'file') return <FileField field={field} hints={hints} resource={resource ?? ''} value={value} locked={locked || !resource} invalid={invalid} onChange={onChange} />
   if (field.sensitive) return <SensitiveField field={field} hints={hints} value={value} reveal={reveal} locked={locked || field.readOnly} invalid={invalid} placeholder={placeholder} onChange={onChange} />
   if (field.type === 'relation' && relationPicker && !field.readOnly && !locked) {
@@ -80,20 +79,14 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
   }
   if (field.type === 'enum') {
     return (
-      <select
-        {...control}
-        {...(invalid && { 'aria-invalid': true })}
-        value={String(value)}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-8 w-full rounded-md border border-border-strong bg-background px-2 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-      >
+      <Select invalid={invalid} value={String(value)} onChange={(event) => onChange(event.target.value)}>
         {value === '' && <option value="">{appText('choose')}</option>}
         {(field.enumValues ?? []).map((option) => (
           <option key={option} value={option}>
             {enumLabel(option, hints?.valueLabels)}
           </option>
         ))}
-      </select>
+      </Select>
     )
   }
   if (markdown) return <MarkdownEditor label={hints?.label ?? humanize(field.name)} invalid={invalid} placeholder={placeholder} value={String(value)} onChange={onChange} />

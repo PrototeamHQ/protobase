@@ -63,6 +63,7 @@ export { allowDelayMs, isFramed, useArmedAfterFocus, useGuardedPress } from './c
 export { Button, buttonClass, type ButtonProps } from './primitives/button'
 export { Input, type InputProps } from './primitives/input'
 export { Textarea, type TextareaProps } from './primitives/textarea'
+export { Select, type SelectProps } from './primitives/select'
 export { Segmented, type SegmentedOption, type SegmentedProps } from './primitives/segmented'
 export { MenuSelect, type MenuSelectProps } from './primitives/menu-select'
 export { Choices, type ChoiceOption, type ChoicesProps } from './primitives/choices'
