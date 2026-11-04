@@ -20,5 +20,5 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const input = { deps, schema, roles, allowPrivateAddresses: Boolean(options.allowPrivateAddresses) }
   const secrets = workflowSecrets(options, globalThis.process?.env ?? {})
   const { runner, job } = workflowsRunner({ schema, tasks: (context) => stepTypes(input, context.mail), secrets })
-  return { hooks: [workflowSaveHook(schema, stepTypeNames), runStartHook(schema, runner, deps)], writeChecks: [runInputCheck], job }
+  return { hooks: [workflowSaveHook(schema, stepTypeNames), runStartHook(runner, deps)], writeChecks: [runInputCheck], job }
 }

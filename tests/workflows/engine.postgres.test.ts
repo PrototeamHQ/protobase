@@ -101,6 +101,29 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(items.map((item: { version: number; saved_by: string }) => [item.version, item.saved_by])).toEqual([[1, 'ada'], [2, 'ada']])
   })
 
+  it('writes the schema again when one of its triggers is gone, though its functions are current', async () => {
+    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+    await pg.exec('drop trigger "run_version" on workflows.runs')
+    const repair = await workflowsMigration(db, workflows)
+    expect(repair).toContain('create trigger "run_version"')
+    await pg.exec(repair!)
+    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+  })
+
+  it('answers a save with the row as saved, whose ETag the next save can send, and numbers no version for other fields', async () => {
+    const id = await create('Tagged', definition({ Echo: { Type: 'Pass', End: true } }))
+    const save = (body: unknown, etag: string) =>
+      admin.request(`/api/v1/workflows/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', 'x-user': 'ada', 'if-match': etag }, body: JSON.stringify(body) })
+    const read = await as('ada', `/workflows/${id}`)
+    const changed = await save({ definition: definition({ Echo: { Type: 'Pass', Output: 1, End: true } }) }, read.headers.get('etag')!)
+    expect(changed.status).toBe(200)
+    expect(await changed.json()).toMatchObject({ version: 2 })
+    expect(changed.headers.get('etag')).toBe((await as('ada', `/workflows/${id}`)).headers.get('etag'))
+    const renamed = await save({ name: 'Renamed' }, changed.headers.get('etag')!)
+    expect(renamed.status).toBe(200)
+    expect(await renamed.json()).toMatchObject({ name: 'Renamed', version: 2 })
+  })
+
   it('runs a branch and a step per item to the expected records, each with its input, output, logs and timing', async () => {
     const id = await create('Prices', definition({
       Check: { Type: 'Choice', Choices: [{ Condition: '{% $count($states.context.Execution.Input.prices) > 0 %}', Next: 'Each' }], Default: 'Empty' },

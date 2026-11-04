@@ -20,7 +20,6 @@ const workflowsResource = (schema: string) =>
       description: f.text().optional().max(2000),
       definition: f.json(),
       version: f.integer().optional().readOnly(),
-      saved_by: f.text().optional().readOnly(),
       tenant_id: f.text().optional().readOnly(),
       created_at: f.timestamp().readOnly().dbDefault(),
       updated_at: f.timestamp().readOnly().dbDefault().sortable(),
@@ -35,11 +34,11 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .icon('workflow')
   .title((r) => r.name)
   .help('Steps that run one after another along their edges, written in the States Language with JSONata expressions. Each save is a new version; a run keeps the version it started on.')
-  .fields((r) => ({ definition: r.definition.help('Its trigger and its state machine in the States Language with JSONata, every value read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned'), saved_by: r.saved_by.label('Saved by'), updated_at: r.updated_at.label('Updated') }))
+  .fields((r) => ({ definition: r.definition.help('Its trigger and its state machine in the States Language with JSONata, every value read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned'), updated_at: r.updated_at.label('Updated') }))
   .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
   .layout((r) => [
     l.section('Workflow', [r.name, r.description, r.definition]),
-    l.sidebar([r.version, r.saved_by, r.created_at, r.updated_at]),
+    l.sidebar([r.version, r.created_at, r.updated_at]),
     l.related('Runs', { resource: 'workflow_runs', field: 'workflow_id', columns: ['status', 'version', 'created_at', 'duration_ms', 'error'] }),
     l.related('Versions', { resource: 'workflow_versions', field: 'workflow_id', columns: ['version', 'saved_by', 'saved_at'] }),
   ])
@@ -91,6 +90,7 @@ const runsResource = (schema: string) =>
     })
     .primaryKey((r) => r.id)
     .tenant((r) => r.tenant_id)
+    .author((r) => r.started_by)
     .explicitGrants()
     .access({ update: () => false, delete: () => false })
 
@@ -122,7 +122,7 @@ const stepsResource = (schema: string) =>
   resource('workflow_steps')
     .table(`${schema}.steps`)
     .fields({
-      id: f.bigint().readOnly(),
+      id: f.bigint().readOnly().sortable(),
       run_id: f.relation('workflow_runs').readOnly().filterable(),
       tenant_id: f.text().optional().readOnly(),
       scope: f.text().readOnly(),

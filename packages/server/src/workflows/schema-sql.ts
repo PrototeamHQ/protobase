@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 2
+export const workflowsVersion = 3
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -26,7 +26,6 @@ export const tablesSql = (schema: string) => {
   "description" text,
   "definition" jsonb not null,
   "version" integer,
-  "saved_by" text,
   "tenant_id" text,
   "created_at" timestamptz not null default now(),
   "updated_at" timestamptz not null default now()
@@ -95,6 +94,7 @@ create index if not exists "workflows_name" on ${s}."workflows" ("name");
 create index if not exists "workflows_updated_at" on ${s}."workflows" ("updated_at");
 create index if not exists "workflows_name_search" on ${s}."workflows" using gin ("name" gin_trgm_ops);
 create index if not exists "versions_tenant" on ${s}."versions" ("tenant_id");
+alter table ${s}."runs" add column if not exists "key" text;
 create unique index if not exists "runs_key" on ${s}."runs" ("workflow_id", "key");
 create index if not exists "runs_workflow" on ${s}."runs" ("workflow_id", "created_at");
 create index if not exists "runs_tenant" on ${s}."runs" ("tenant_id");
@@ -105,13 +105,34 @@ create index if not exists "steps_status" on ${s}."steps" ("status");
 create index if not exists "steps_state" on ${s}."steps" ("state")`
 }
 
+/** The triggers `functionsSql` makes, which the startup check finds on their tables. */
+export const workflowsTriggers = ['workflow_version', 'run_version']
+
 /**
- * A run takes its workflow's current version as it is created, and refuses a workflow of another tenant as one
- * that is not there, and one that has no saved version.
+ * A workflow numbers its next version as a save changes its definition, in the row the write returns, so its ETag is
+ * the saved row's; the save hook keeps that version's definition and who saved it. A run takes its workflow's current
+ * version as it is created, and refuses a workflow of another tenant as one that is not there, and one that has no
+ * saved version.
  */
-export const runStartSql = (schema: string) => {
+export const functionsSql = (schema: string) => {
   const s = quoteIdent(schema)
-  return `create or replace function ${s}."run_version"() returns trigger
+  return `create or replace function ${s}."workflow_version"() returns trigger
+language plpgsql as $$
+begin
+  if tg_op = 'INSERT' then
+    new.version := 1;
+    return new;
+  end if;
+  -- The write holds the row, so a save in another transaction numbers its version after this one.
+  new.version := case when new.definition is distinct from old.definition then coalesce(old.version, 0) + 1 else old.version end;
+  new.updated_at := now();
+  return new;
+end
+$$;
+drop trigger if exists "workflow_version" on ${s}."workflows";
+create trigger "workflow_version" before insert or update on ${s}."workflows" for each row execute function ${s}."workflow_version"();
+
+create or replace function ${s}."run_version"() returns trigger
 language plpgsql as $$
 declare
   found record;
