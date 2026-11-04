@@ -41,6 +41,6 @@ export const readProblems = (source: string, { place, visible, firstOfItem }: { 
     else problems.push(`reads $states.${field}, which is not there${place === 'state' ? '' : ` (here: $states.${statesFields[place]})`}`)
   }
   for (const name of reads.variables) if (!visible.has(name)) problems.push(`reads $${name}, which no state that can run before it assigns`)
-  if (/\$eval\s*\(/.test(source)) problems.push('calls $eval, whose reads cannot be checked')
+  if (reads.evaluates) problems.push('uses $eval, whose reads cannot be checked')
   return [...new Set(problems)]
 }

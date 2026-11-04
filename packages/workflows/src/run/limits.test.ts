@@ -166,6 +166,19 @@ describe('the runner, keeping secrets out of what it records', () => {
     expect(JSON.stringify(port.steps)).not.toContain(btoa(`user:${secret}`).slice(0, 12))
   })
 
+  it('keeps a value as [redacted] whatever spelling reads the secret: quoted names and comments', async () => {
+    const port = memoryRunner({}, { secrets: { TICKETS_TOKEN: secret } })
+    await port.start('spelled', definition({
+      Keep: {
+        Type: 'Pass',
+        Assign: { quoted: '{% $base64encode($states.`context`.`Secrets`.TICKETS_TOKEN) %}', commented: '{% $base64encode($states /* a */ . context . /* b */ Secrets.TICKETS_TOKEN) %}' },
+        End: true,
+      },
+    }), {})
+    await port.drain()
+    expect(port.steps[0]!.assigned).toEqual({ quoted: '[redacted]', commented: '[redacted]' })
+  })
+
   it('refuses a secret too short to blank out', () => {
     expect(() => memoryRunner({}, { secrets: { PIN: '1234' } })).toThrow('A secret workflows read is shorter than 8 characters, too short to blank out of what runs record')
   })

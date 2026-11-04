@@ -1,4 +1,5 @@
-import { compile, expressionSource, isJsonataError } from '../definition/expressions'
+import { compile, expressionSource, isJsonataError, parse } from '../definition/expressions'
+import { expressionReads } from '../definition/reads'
 import { StepError } from './errors'
 
 /** The values an expression reads by name: the variables in scope and `states`. */
@@ -13,11 +14,16 @@ const evaluated = async (source: string, bindings: Bindings, field: string) => {
   }
 }
 
-// The check lets an expression read a secret only as `$states.context.Secrets.<NAME>`, so this finds every one that does.
-const secretRead = /\$states\s*\.\s*context\s*\.\s*Secrets\b/
-
-/** Whether an expression reads one of the app's secrets. */
-export const readsSecret = (source: string) => secretRead.test(source)
+/**
+ * Whether an expression reads one of the app's secrets, from its syntax tree, so no spelling (a quoted name, a comment)
+ * hides one. The check lets a secret be read only as `$states.context.Secrets.<NAME>`; a read of `$states` or its
+ * `context` whole counts too, and so does an expression that does not parse, rather than being trusted.
+ */
+export const readsSecret = (source: string) => {
+  const parsed = parse(source)
+  if ('error' in parsed) return true
+  return expressionReads(parsed.expression).states.some(([field, next]) => field === undefined || (field === 'context' && (next === undefined || next === 'Secrets')))
+}
 
 /** What a value computed from a secret is kept as, however the expression changed it, such as encoded or cut apart. */
 export const secretValue = '[redacted]'

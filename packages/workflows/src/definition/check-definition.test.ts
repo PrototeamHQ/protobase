@@ -67,8 +67,33 @@ describe('checkDefinition', () => {
       'State "A", field "Assign.total": reads the state\'s input; read the run\'s input as $states.context.Execution.Input and an earlier result by the variable a state assigned it to',
       'State "A", field "Assign.copy": reads $states.input, which only the first state of a Map\'s item processor may read (as the item)',
       'State "A", field "Assign.other": reads $missing, which no state that can run before it assigns',
-      'State "A", field "Assign.run": calls $eval, whose reads cannot be checked',
+      'State "A", field "Assign.run": uses $eval, whose reads cannot be checked',
       'State "B", field "Output": reads the state\'s input; read the run\'s input as $states.context.Execution.Input and an earlier result by the variable a state assigned it to',
+    ])
+  })
+
+  it('refuses $eval passed on as a value, and a name that only a function or block inside binds', () => {
+    const definition = {
+      QueryLanguage: 'JSONata',
+      StartAt: 'A',
+      States: {
+        A: {
+          Type: 'Pass',
+          Assign: {
+            alias: '{% ($f := $eval; $f("$states.input")) %}',
+            text: '{% "a $eval(1) in a text" %}',
+            param: '{% $missing + $count($map([1], function($missing) { $missing })) %}',
+            inner: '{% ($n := 1; $n) + $n %}',
+            recursive: '{% ($f := function($n) { $n < 1 ? 0 : $f($n - 1) }; $f(3)) %}',
+          },
+          End: true,
+        },
+      },
+    }
+    expect(check(definition)).toEqual([
+      'State "A", field "Assign.alias": uses $eval, whose reads cannot be checked',
+      'State "A", field "Assign.param": reads $missing, which no state that can run before it assigns',
+      'State "A", field "Assign.inner": reads $n, which no state that can run before it assigns',
     ])
   })
 
