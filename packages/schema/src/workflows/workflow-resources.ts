@@ -7,7 +7,7 @@ const runStatuses = ['queued', 'running', 'waiting', 'succeeded', 'failed'] as c
 const stepStatuses = ['succeeded', 'retrying', 'caught', 'failed'] as const
 
 /**
- * Workflows: a definition in the States Language with JSONata, checked on every save, each save a new version. A
+ * Workflows: a trigger and a state machine in the States Language with JSONata, checked on every save, each save a new version. A
  * role's wildcard such as `*.read` reaches none of the workflow resources: their runs read and send data as the
  * definition says, so each is granted on its own.
  */
@@ -35,7 +35,7 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .icon('workflow')
   .title((r) => r.name)
   .help('Steps that run one after another along their edges, written in the States Language with JSONata expressions. Each save is a new version; a run keeps the version it started on.')
-  .fields((r) => ({ definition: r.definition.help('The States Language with JSONata, every value read by name: the run\'s input as $trigger, an earlier result by the variable a state assigned'), saved_by: r.saved_by.label('Saved by'), updated_at: r.updated_at.label('Updated') }))
+  .fields((r) => ({ definition: r.definition.help('Its trigger and its state machine in the States Language with JSONata, every value read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned'), saved_by: r.saved_by.label('Saved by'), updated_at: r.updated_at.label('Updated') }))
   .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
   .layout((r) => [
     l.section('Workflow', [r.name, r.description, r.definition]),
@@ -101,7 +101,7 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   .help('A run of a workflow with its input. It takes up where it stands after a restart; each of its steps is listed with what it read, gave and logged.')
   .fields((r) => ({
     workflow_id: r.workflow_id.label('Workflow'),
-    input: r.input.help('Read by every state as $trigger'),
+    input: r.input.help('Read by every state as $states.context.Execution.Input'),
     key: r.key.help('A workflow runs once per key, such as the record a trigger found ready'),
     status: r.status.valueLabels({ queued: 'Queued', running: 'Running', waiting: 'Waiting', succeeded: 'Succeeded', failed: 'Failed' }).valueColors({ succeeded: 'green', failed: 'red' }),
     resume_at: r.resume_at.label('Goes on at'),
@@ -154,11 +154,11 @@ const stepsView = view<ReturnType<typeof stepsResource>>('workflow_steps')
   .title((r) => r.state)
   .fields((r) => ({
     run_id: r.run_id.label('Run'),
-    scope: r.scope.help('Where the step ran: empty for the run itself, or the Map item or Parallel branch, such as Each.3[0]').format('code'),
+    scope: r.scope.help('Where the step ran: empty for the run itself, or the Map item, such as Each.3[0]').format('code'),
     seq: r.seq.label('Step'),
     attempt: r.attempt.label('Try'),
     status: r.status.valueLabels({ succeeded: 'Succeeded', retrying: 'Retried', caught: 'Caught', failed: 'Failed' }).valueColors({ succeeded: 'green', failed: 'red' }),
-    input: r.input.help('Fields whose name says they hold a secret, such as Authorization, are redacted'),
+    input: r.input.help("The app's secrets, and fields whose name says they hold one such as Authorization, are blanked out"),
     assigned: r.assigned.label('Variables assigned'),
     next: r.next.label('Goes on to'),
     resume_at: r.resume_at.label('Next state not before'),

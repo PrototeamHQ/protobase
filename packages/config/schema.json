@@ -662,7 +662,53 @@
       "description": "Workflows made in the admin app and run on the app's jobs (see `WorkflowsOptions`); `{}` turns them on.",
       "anyOf": [
         {
-          "$ref": "#/definitions/WorkflowsOptions"
+          "type": "object",
+          "properties": {
+            "schema": {
+              "description": "The schema of the workflows, their versions, runs and steps; default `workflows`.",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "allowPrivateAddresses": {
+              "description": "Lets the `app:http` step reach private, loopback and link-local addresses, for development and tests. Default\nfalse: a URL whose host resolves to one fails the step, so a workflow cannot reach the app's own network.",
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "secrets": {
+              "description": "The environment variables workflows may read, each as `$states.context.Secrets.<NAME>`; no other is reachable.\nTheir values are blanked out of all a run records. Startup stops when one is unset or shorter than 8 characters.",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "$ref": "#/definitions/EnvValue"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
         },
         {
           "$ref": "#/definitions/EnvValue"
@@ -3552,34 +3598,6 @@
           "anyOf": [
             {
               "type": "number"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "WorkflowsOptions": {
-      "type": "object",
-      "properties": {
-        "schema": {
-          "description": "The schema of the workflows, their versions, runs and steps; default `workflows`.",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
-        "allowPrivateAddresses": {
-          "description": "Lets the `http` step reach private, loopback and link-local addresses, for development and tests. Default false:\na URL whose host resolves to one fails the step, so a workflow cannot reach the app's own network.",
-          "anyOf": [
-            {
-              "type": "boolean"
             },
             {
               "$ref": "#/definitions/EnvValue"

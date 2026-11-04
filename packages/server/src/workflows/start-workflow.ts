@@ -2,12 +2,13 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import { currentJobs } from '../jobs/current'
 import type { TenantValue } from '../types'
+import { checkRunInput } from './input-limits'
 import { segmentJobName } from './segment-job'
 
 export type StartWorkflowOptions = {
   /** The workflow's id. */
   workflow: string
-  /** What its states read as `$trigger`. */
+  /** What its states read as `$states.context.Execution.Input`; at most 1 MiB as JSON, nested at most 64 deep. */
   input?: unknown
   /** The workflow's tenant, in an app with tenants. */
   tenant?: TenantValue
@@ -27,6 +28,7 @@ export type StartWorkflowOptions = {
  * `db`'s own transaction when it is one, so the run starts when the caller's writes commit, or not at all.
  */
 export const startWorkflow = async (db: Db, { workflow, input, tenant, startedBy, key, schema = 'workflows' }: StartWorkflowOptions) => {
+  checkRunInput(input)
   const job = currentJobs().definition(segmentJobName)
   if (!job) throw new Error('Workflows are not running in this app: add `workflows: {}` to protobase.config.ts')
   const runs = sql.id(schema, 'runs')

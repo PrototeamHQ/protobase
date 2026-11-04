@@ -1,26 +1,34 @@
 import type { Db } from '@protobase/query'
 import { createRunner, type SegmentQueue, type TaskHandlers } from '@protobase/workflows'
 import { defineJob } from '../jobs/define-job'
-import type { JobDefinition } from '../jobs/job-types'
+import type { JobContext, JobDefinition } from '../jobs/job-types'
 import { postgresRunStore } from './store'
 
 /** The job that runs one segment of a workflow run. */
 export const segmentJobName = 'workflows.segment'
+
+export type WorkflowsRunnerInput = {
+  schema: string
+  /** The step types of a segment, given the job that runs it. */
+  tasks: (job: JobContext) => TaskHandlers
+  secrets: Readonly<Record<string, string>>
+}
 
 /**
  * The runner on the app's jobs: each segment is a `workflows.segment` job, kept once per run while it waits. Its
  * timeout is above a segment's time plus the longest step's, so a job that times out is a worker that died, and its
  * next try takes the run up from its last saved step.
  */
-export const workflowsRunner = (schema: string, tasks: TaskHandlers) => {
+export const workflowsRunner = ({ schema, tasks, secrets }: WorkflowsRunnerInput) => {
   let job: JobDefinition<{ run: string }> | undefined
+  const store = postgresRunStore(schema)
   const queue: SegmentQueue<Db> = {
     schedule: async (db, run, at) => void (await job!.enqueue(db, { run }, { key: run, ...(at && { runAt: at }) })),
   }
-  const runner = createRunner({ store: postgresRunStore(schema), queue, tasks })
+  const runner = createRunner({ store, queue, tasks: {}, secrets })
   job = defineJob<{ run: string }>({
     name: segmentJobName,
-    run: ({ run }, { db, signal }) => runner.segment(db, run, signal),
+    run: ({ run }, context) => createRunner({ store, queue, tasks: tasks(context), secrets }).segment(context.db, run, context.signal),
     maxAttempts: 10,
     retryDelay: '5 seconds',
     timeout: '10 minutes',
