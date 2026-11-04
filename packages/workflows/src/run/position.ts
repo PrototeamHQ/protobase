@@ -2,7 +2,7 @@ import type { Machine } from '../definition/types'
 import type { SavedStep } from './port'
 
 /**
- * Where a scope stands (the whole run, a Map's item or a Parallel's branch), folded from the steps it saved: at a state
+ * Where a scope stands (the whole run or a Map's item), folded from the steps it saved: at a state
  * with its input and variables, or ended with its output, or failed. `seq` numbers its next step.
  */
 export type Position =

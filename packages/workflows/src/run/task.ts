@@ -22,7 +22,7 @@ export const runTask = async (context: SegmentContext, state: TaskState, args: u
   const signal = AbortSignal.any([context.signal, timeout])
   const log = (message: string) => void logs.push({ at: context.now().toISOString(), message })
   try {
-    return await Promise.race([handler(args, { signal, idempotencyKey, log }), aborted(signal)])
+    return await Promise.race([handler(args, { runId: context.runId, signal, idempotencyKey, log, redact: context.redactor.text }), aborted(signal)])
   } catch (error) {
     if (context.signal.aborted || error instanceof SupersededError) throw error
     if (timeout.aborted) throw new StepError('States.Timeout', `The step ran longer than ${state.TimeoutSeconds ?? limits.defaultTaskTimeoutSeconds} seconds`)

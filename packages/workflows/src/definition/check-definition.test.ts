@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { checkDefinition } from './check-definition'
 import { problemText } from './problem'
 
-const check = (definition: unknown) => checkDefinition(definition, { resources: ['http'] }).map(problemText)
+const check = (machine: object, trigger: object = { manual: {} }) => checkDefinition({ trigger, stateMachine: machine }, { resources: ['http'] }).map(problemText)
 
 const fetchAndBranch = {
   QueryLanguage: 'JSONata',
   StartAt: 'Fetch',
   States: {
-    Fetch: { Type: 'Task', Resource: 'http', Arguments: { url: '{% $trigger.url %}' }, Assign: { answer: '{% $states.result.body %}' }, Next: 'Big' },
+    Fetch: { Type: 'Task', Resource: 'http', Arguments: { url: '{% $states.context.Execution.Input.url %}' }, Assign: { answer: '{% $states.result.body %}' }, Next: 'Big' },
     Big: { Type: 'Choice', Choices: [{ Condition: '{% $count($answer.items) > 2 %}', Next: 'Each' }], Default: 'Done' },
     Each: {
       Type: 'Map',
@@ -32,12 +32,12 @@ describe('checkDefinition', () => {
       'State "A", field "Retry[0].IntervalSeconds": must be integer',
     ])
     expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Pass', InputPath: '$.x', End: true } } })).toEqual(['State "A": InputPath is not a field here'])
-    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Sleep' } } })).toEqual(['State "A", field "Type": must be one of Pass, Task, Choice, Wait, Succeed, Fail, Map and Parallel'])
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Sleep' } } })).toEqual(['State "A", field "Type": must be one of Task, Choice, Pass, Map, Wait, Succeed and Fail'])
   })
 
   it('refuses a state that neither goes on nor ends, and the JSONPath language', () => {
     expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Pass' } } })).toEqual(['State "A": needs either Next or End'])
-    expect(check({ QueryLanguage: 'JSONPath', StartAt: 'A', States: { A: { Type: 'Pass', End: true } } })).toEqual(['Field "QueryLanguage": must be "JSONata"'])
+    expect(check({ QueryLanguage: 'JSONPath', StartAt: 'A', States: { A: { Type: 'Pass', End: true } } })).toEqual(['Field "stateMachine.QueryLanguage": must be "JSONata"'])
   })
 
   it('refuses an edge to no state, an unreached state and an unknown step type', () => {
@@ -64,11 +64,11 @@ describe('checkDefinition', () => {
       },
     }
     expect(check(definition)).toEqual([
-      'State "A", field "Assign.total": reads the state\'s input; read the run\'s input as $trigger and an earlier result by the variable a state assigned it to',
+      'State "A", field "Assign.total": reads the state\'s input; read the run\'s input as $states.context.Execution.Input and an earlier result by the variable a state assigned it to',
       'State "A", field "Assign.copy": reads $states.input, which only the first state of a Map\'s item processor may read (as the item)',
-      'State "A", field "Assign.other": reads $missing, which no state assigns in this scope',
+      'State "A", field "Assign.other": reads $missing, which no state that can run before it assigns',
       'State "A", field "Assign.run": calls $eval, whose reads cannot be checked',
-      'State "B", field "Output": reads the state\'s input; read the run\'s input as $trigger and an earlier result by the variable a state assigned it to',
+      'State "B", field "Output": reads the state\'s input; read the run\'s input as $states.context.Execution.Input and an earlier result by the variable a state assigned it to',
     ])
   })
 
@@ -80,7 +80,7 @@ describe('checkDefinition', () => {
         A: {
           Type: 'Task',
           Resource: 'http',
-          Arguments: { url: '{% ($base := $trigger.base; $base & "/" & $join($map($trigger.items[price > 1], function($item) { $item.id }), ",")) %}' },
+          Arguments: { url: '{% ($base := $states.context.Execution.Input.base; $base & "/" & $join($map($states.context.Execution.Input.items[price > 1], function($item) { $item.id }), ",")) %}' },
           Output: '{% $states.errorOutput %}',
           Catch: [{ ErrorEquals: ['States.ALL'], Assign: { failure: '{% $states.errorOutput.Cause %}' }, Next: 'B' }],
           Next: 'B',
@@ -91,23 +91,23 @@ describe('checkDefinition', () => {
     expect(check(definition)).toEqual(['State "A", field "Output": reads $states.errorOutput, which is not there (here: $states.result)'])
   })
 
-  it('names states inside a Map and a Parallel by their path, and a parse error by its place', () => {
+  it('names states inside a Map by their path, and a parse error by its place', () => {
     const definition = {
       QueryLanguage: 'JSONata',
       StartAt: 'Each',
       States: {
         Each: {
           Type: 'Map',
-          Items: '{% $trigger.items %}',
+          Items: '{% $states.context.Execution.Input.items %}',
           ItemProcessor: { StartAt: 'First', States: { First: { Type: 'Pass', Next: 'Second' }, Second: { Type: 'Pass', Output: '{% $states.input %}', End: true } } },
-          Next: 'Both',
+          Next: 'Last',
         },
-        Both: { Type: 'Parallel', Branches: [{ StartAt: 'One', States: { One: { Type: 'Pass', Output: '{% 1 + %}', End: true } } }], End: true },
+        Last: { Type: 'Pass', Output: '{% 1 + %}', End: true },
       },
     }
     expect(check(definition)).toEqual([
       'State "Each/Second", field "Output": reads $states.input, which only the first state of a Map\'s item processor may read (as the item)',
-      'State "Both/0/One", field "Output": does not parse: Unexpected end of expression (at character 5)',
+      'State "Last", field "Output": does not parse: Unexpected end of expression (at character 5)',
     ])
   })
 
@@ -120,6 +120,71 @@ describe('checkDefinition', () => {
         After: { Type: 'Pass', Output: '{% $item %}', End: true },
       },
     }
-    expect(check(definition)).toEqual(['State "After", field "Output": reads $item, which no state assigns in this scope'])
+    expect(check(definition)).toEqual(['State "After", field "Output": reads $item, which no state that can run before it assigns'])
+  })
+})
+
+describe('checkDefinition, the rules of the decided profile', () => {
+  const pass = { Type: 'Pass', End: true }
+
+  it('takes each trigger, and refuses two, a cron of 6 fields, an unknown time zone and an event of no resource', () => {
+    for (const trigger of [{ webhook: {} }, { schedule: { cron: '0 6 * * *', timezone: 'Europe/Amsterdam' } }, { mail: { mailbox: 'support' } }, { record: { events: ['deals.created'] } }, { manual: {} }]) {
+      expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: pass } }, trigger)).toEqual([])
+    }
+    const machine = { QueryLanguage: 'JSONata', StartAt: 'A', States: { A: pass } }
+    expect(check(machine, { webhook: {}, manual: {} })).toEqual(['Field "trigger": holds exactly one trigger: webhook, schedule, mail, record or manual'])
+    expect(check(machine, { schedule: { cron: '0 0 6 * * *', timezone: 'Mars/Olympus' } })).toEqual([
+      'Field "trigger.schedule.cron": must be a cron of 5 fields, such as 0 6 * * *',
+      'Field "trigger.schedule.timezone": "Mars/Olympus" is not an IANA time zone, such as Europe/Amsterdam',
+    ])
+    expect(check(machine, { record: { events: ['created'] } })).toEqual(['Field "trigger.record.events[0]": must be an event named <resource>.<event>, such as deals.created'])
+  })
+
+  it('refuses Parallel, more than 19 retries, more than 20 at once and a state name used twice', () => {
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Parallel', Branches: [], End: true } } })).toEqual(['State "A", field "Type": must be one of Task, Choice, Pass, Map, Wait, Succeed and Fail'])
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Task', Resource: 'http', Retry: [{ ErrorEquals: ['States.ALL'], MaxAttempts: 20 }], End: true } } })).toEqual(['State "A", field "Retry[0].MaxAttempts": must be <= 19'])
+    const map = (concurrency: number, inner: string) => ({ Type: 'Map', Items: '{% [1] %}', MaxConcurrency: concurrency, ItemProcessor: { StartAt: inner, States: { [inner]: pass } }, End: true })
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: map(21, 'B') } })).toEqual(['State "A", field "MaxConcurrency": must be <= 20'])
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: map(0, 'A') } })).toEqual(['State "A": is a state name used twice; names are unique across the whole state machine, Maps included'])
+  })
+
+  it('refuses more than 100 states, counting the ones inside Maps, and a definition or expression over its size', () => {
+    const states = Object.fromEntries(Array.from({ length: 100 }, (_, index) => [`S${index}`, index === 99 ? pass : { Type: 'Pass', Next: `S${index + 1}` }]))
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'S0', States: states })).toEqual([])
+    const more = { ...states, S99: { Type: 'Map', Items: '{% [1] %}', ItemProcessor: { StartAt: 'In', States: { In: pass } }, End: true } }
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'S0', States: more })).toEqual(['Field "stateMachine.States": holds 101 states, more than the 100 a workflow may have'])
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Pass', Output: `{% ${'1 + '.repeat(1200)}1 %}`, End: true } } })).toEqual(['State "A", field "Output": is 4803 characters long, more than the 4096 an expression may be'])
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Pass', Comment: 'x'.repeat(256 * 1024), End: true } } })).toEqual([`The definition is ${256 * 1024 + 137} bytes as JSON, more than the 262144 a workflow may have`])
+  })
+
+  it('reads of $states.context: only the input, the start time and a secret by name', () => {
+    const reading = (expression: string) => check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Pass', Output: `{% ${expression} %}`, End: true } } })
+    expect(reading('[$states.context.Execution.Input.body.id, $states.context.Execution.StartTime, $states.context.Secrets.API_TOKEN]')).toEqual([])
+    expect(reading('$states.context.Secrets')).toEqual(['State "A", field "Output": reads $states.context.Secrets as a whole; read one secret by its name, such as $states.context.Secrets.API_TOKEN'])
+    expect(reading('$states.context.Secrets.*')).toEqual(['State "A", field "Output": reads $states.context.Secrets as a whole; read one secret by its name, such as $states.context.Secrets.API_TOKEN'])
+    expect(reading('$states.context.Execution')).toEqual(['State "A", field "Output": reads $states.context.Execution; $states.context holds only Execution.Input, Execution.StartTime and Secrets.<NAME>'])
+    expect(reading('$states.context.State.Name')).toEqual(['State "A", field "Output": reads $states.context.State.Name; $states.context holds only Execution.Input, Execution.StartTime and Secrets.<NAME>'])
+  })
+
+  it('sees a variable only in the states that can run after the one that assigns it, and keeps an outer name from an inner Assign', () => {
+    const definition = {
+      QueryLanguage: 'JSONata',
+      StartAt: 'Pick',
+      States: {
+        Pick: { Type: 'Choice', Choices: [{ Condition: '{% true %}', Next: 'Left', Assign: { side: '{% "left" %}' } }], Default: 'Right' },
+        Left: { Type: 'Pass', Assign: { left: '{% $side %}' }, Next: 'Join' },
+        Right: { Type: 'Pass', Output: '{% $left %}', Next: 'Join' },
+        Join: {
+          Type: 'Map',
+          Items: '{% [$side] %}',
+          ItemProcessor: { StartAt: 'Item', States: { Item: { Type: 'Pass', Assign: { side: '{% $states.input %}' }, End: true } } },
+          End: true,
+        },
+      },
+    }
+    expect(check(definition)).toEqual([
+      'State "Right", field "Output": reads $left, which no state that can run before it assigns',
+      'State "Join/Item", field "Assign": cannot assign $side, which an outer state assigns already',
+    ])
   })
 })

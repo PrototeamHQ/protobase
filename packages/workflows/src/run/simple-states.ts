@@ -16,7 +16,7 @@ export const runPass = async (state: PassState | SucceedState, call: StateCall):
   next: state.Type === 'Pass' ? nextOf(state) : null,
   input: call.position.input,
   output: await outputOf(state, call),
-  assigned: await evaluateAssign(state.Assign, call.bindings),
+  assigned: await evaluateAssign('Assign' in state ? state.Assign : undefined, call.bindings),
   logs: call.logs,
 })
 

@@ -1,8 +1,8 @@
-/**
- * The variable a run's input is read by, in every state: `$trigger`, whether a person, the app's code or a trigger
- * started the run.
- */
-export const inputVariable = 'trigger'
+/** Variables a definition cannot assign: `$states`, which the runner gives each expression. */
+export const reservedVariables = new Set(['states'])
 
-/** Variables a definition cannot assign: the run's input and the `$states` the runner gives each expression. */
-export const reservedVariables = new Set([inputVariable, 'states'])
+/**
+ * What an expression may read of `$states.context`, as name paths: the run's input and start time, and a secret by its
+ * name (`Secrets.<NAME>`, the name required).
+ */
+export const contextReads = [['Execution', 'Input'], ['Execution', 'StartTime'], ['Secrets']] as const

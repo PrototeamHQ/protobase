@@ -1,0 +1,50 @@
+{
+  "trigger": {
+    "schedule": {
+      "cron": "0 7 * * 1",
+      "timezone": "Europe/Amsterdam"
+    }
+  },
+  "stateMachine": {
+    "QueryLanguage": "JSONata",
+    "StartAt": "Download",
+    "States": {
+      "Download": {
+        "Type": "Task",
+        "Resource": "app:http",
+        "Arguments": {
+          "method": "GET",
+          "url": "https://reports.example.com/sales/latest.pdf",
+          "response": "file"
+        },
+        "Assign": {
+          "pdf": "{% $states.result.body %}"
+        },
+        "Next": "SaveReport"
+      },
+      "SaveReport": {
+        "Type": "Task",
+        "Resource": "app:records.create",
+        "Arguments": {
+          "resource": "reports",
+          "data": {
+            "title": "Rapport des ventes — édition hebdomadaire",
+            "pdf": "{% $pdf %}"
+          }
+        },
+        "Next": "MailFinance"
+      },
+      "MailFinance": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "finance@example.com",
+          "subject": "Rapport des ventes",
+          "attachments": "{% [$pdf] %}",
+          "text": "{% 'Bonjour, ci-joint le rapport des ventes (' & $pdf.size & ' octets).' %}"
+        },
+        "End": true
+      }
+    }
+  }
+}

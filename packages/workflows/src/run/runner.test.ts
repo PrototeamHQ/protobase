@@ -3,7 +3,10 @@ import type { Definition } from '../definition/types'
 import { StepError } from './errors'
 import { memoryRunner } from './memory-port'
 
-const definition = (states: Definition['States'], startAt = Object.keys(states)[0]!): Definition => ({ QueryLanguage: 'JSONata', StartAt: startAt, States: states })
+const definition = (states: Definition['stateMachine']['States'], startAt = Object.keys(states)[0]!): Definition => ({
+  trigger: { manual: {} },
+  stateMachine: { QueryLanguage: 'JSONata', StartAt: startAt, States: states },
+})
 const pick = <T extends object>(rows: T[], ...keys: (keyof T)[]) => rows.map((row) => Object.fromEntries(keys.map((key) => [key, row[key]])))
 
 describe('the runner', () => {
@@ -17,7 +20,7 @@ describe('the runner', () => {
       },
     })
     await port.start('r1', definition({
-      Fetch: { Type: 'Task', Resource: 'fetch', Arguments: { list: '{% $trigger.list %}' }, Assign: { items: '{% $states.result.items %}' }, Next: 'Any' },
+      Fetch: { Type: 'Task', Resource: 'fetch', Arguments: { list: '{% $states.context.Execution.Input.list %}' }, Assign: { items: '{% $states.result.items %}' }, Next: 'Any' },
       Any: { Type: 'Choice', Choices: [{ Condition: '{% $count($items) > 0 %}', Next: 'Each' }], Default: 'None' },
       Each: {
         Type: 'Map',
@@ -26,7 +29,7 @@ describe('the runner', () => {
         Assign: { doubled: '{% $states.result %}' },
         Next: 'Merge',
       },
-      Merge: { Type: 'Succeed', Output: '{% {"total": $sum($doubled), "list": $trigger.list} %}' },
+      Merge: { Type: 'Succeed', Output: '{% {"total": $sum($doubled), "list": $states.context.Execution.Input.list} %}' },
       None: { Type: 'Succeed' },
     }), { list: 'prices' })
     await port.drain()
@@ -85,7 +88,7 @@ describe('the runner', () => {
     const port = memoryRunner({ note: async (args) => void calls.push((args as { at: string }).at) })
     await port.start('r3', definition({
       Before: { Type: 'Task', Resource: 'note', Arguments: { at: 'before' }, Next: 'Pause' },
-      Pause: { Type: 'Wait', Seconds: '{% $trigger.seconds %}', Next: 'After' },
+      Pause: { Type: 'Wait', Seconds: '{% $states.context.Execution.Input.seconds %}', Next: 'After' },
       After: { Type: 'Task', Resource: 'note', Arguments: { at: 'after' }, End: true },
     }), { seconds: 3600 })
     await port.step()
@@ -129,24 +132,16 @@ describe('the runner', () => {
 
   it('names a thrown error of no name States.TaskFailed, and redacts secrets in the input it records', async () => {
     const port = memoryRunner({ call: async () => { throw new Error('connection reset') } })
-    await port.start('r6', definition({ Call: { Type: 'Task', Resource: 'call', Arguments: { url: 'https://example.test', headers: { Authorization: '{% $trigger.key %}' } }, End: true } }), { key: 'Bearer s3cret' })
+    await port.start('r6', definition({ Call: { Type: 'Task', Resource: 'call', Arguments: { url: 'https://example.test', headers: { Authorization: '{% $states.context.Execution.Input.key %}' } }, End: true } }), { key: 'Bearer s3cret' })
     await port.drain()
     expect(port.run('r6')).toMatchObject({ status: 'failed', error: 'States.TaskFailed', cause: 'connection reset' })
     expect(port.steps[0]!.input).toEqual({ url: 'https://example.test', headers: { Authorization: '[redacted]' } })
   })
 
-  it('runs Parallel branches and a Map whose item waits, ending the segment until the wait is over', async () => {
+  it('runs a Map whose item waits, ending the segment until the wait is over', async () => {
     const port = memoryRunner({})
     await port.start('r7', definition({
-      Both: {
-        Type: 'Parallel',
-        Branches: [
-          { StartAt: 'One', States: { One: { Type: 'Pass', Output: '{% $trigger.a %}', End: true } } },
-          { StartAt: 'Two', States: { Two: { Type: 'Pass', Output: '{% $trigger.b %}', End: true } } },
-        ],
-        Assign: { sums: '{% $states.result %}' },
-        Next: 'Each',
-      },
+      Both: { Type: 'Pass', Assign: { sums: '{% [$states.context.Execution.Input.a, $states.context.Execution.Input.b] %}' }, Next: 'Each' },
       Each: {
         Type: 'Map',
         Items: '{% $sums %}',

@@ -5,8 +5,11 @@ type Node = { type: string; value?: unknown; [key: string]: unknown }
 /** What an expression reads: each `$name` it does not bind itself, `$states.<field>` by field, and reads of its input. */
 export type Reads = {
   variables: Set<string>
-  /** `input`, `result`, `errorOutput`, `context`, or `''` for `$states` on its own. */
-  states: Set<string>
+  /**
+   * Each read of `$states` as the field names that follow it, up to the first step that is not a name: `['input']`,
+   * `['context', 'Execution', 'Input', 'total']`, or `[]` for `$states` on its own.
+   */
+  states: string[][]
   /** A read of the evaluation's input (`$`, `$$`, a bare field name, `*`, `**` or `%`), which the profile refuses. */
   input: boolean
 }
@@ -29,7 +32,7 @@ export const builtInFunctions = new Set(
 export const expressionReads = (expression: Expression): Reads => {
   const bound = new Set<string>()
   const variables = new Set<string>()
-  const states = new Set<string>()
+  const states: string[][] = []
   let input = false
   // `$states` as the first step of a path, which the path reports with its field.
   const inPath = new WeakSet<Node>()
@@ -46,14 +49,16 @@ export const expressionReads = (expression: Expression): Reads => {
     }
     if (inputReads.has(value.type) && rooted) input = true
     if (value.type === 'path' && Array.isArray(value.steps)) {
-      const [first, second] = value.steps as Node[]
+      const [first] = value.steps as Node[]
       if (first?.type === 'variable' && first.value === 'states') {
         inPath.add(first)
-        states.add(second?.type === 'name' ? String(second.value) : '')
+        const rest = (value.steps as Node[]).slice(1)
+        const end = rest.findIndex((step) => step.type !== 'name' || step.stages !== undefined || step.predicate !== undefined)
+        states.push(rest.slice(0, end === -1 ? rest.length : end + (rest[end]?.type === 'name' ? 1 : 0)).map((step) => String(step.value)))
       }
       ;(value.steps as Node[]).forEach((step, index) => visit(step, index === 0 ? rooted : false))
     } else if (value.type === 'variable' && value.value === 'states' && !inPath.has(value)) {
-      states.add('')
+      states.push([])
     }
     for (const [key, child] of Object.entries(value)) {
       if (key === 'steps' && value.type === 'path') continue

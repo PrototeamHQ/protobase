@@ -1,0 +1,26 @@
+{
+  "trigger": {
+    "webhook": {}
+  },
+  "stateMachine": {
+    "QueryLanguage": "JSONata",
+    "StartAt": "CreateLead",
+    "States": {
+      "CreateLead": {
+        "Type": "Task",
+        "Resource": "app:records.create",
+        "Arguments": {
+          "resource": "leads",
+          "data": {
+            "name": "{% $states.context.Execution.Input.body.contact.first_name & ' ' & $states.context.Execution.Input.body.contact.last_name %}",
+            "email": "{% $lowercase($states.context.Execution.Input.body.contact.email) %}",
+            "company": "{% $states.context.Execution.Input.body.company.name %}",
+            "notes": "{% $states.context.Execution.Input.body.message %}",
+            "received_at": "{% $states.context.Execution.Input.body.submitted_at %}"
+          }
+        },
+        "End": true
+      }
+    }
+  }
+}

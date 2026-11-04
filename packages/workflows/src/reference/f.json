@@ -1,0 +1,44 @@
+{
+  "trigger": {
+    "record": {
+      "events": [
+        "leads.created"
+      ]
+    }
+  },
+  "stateMachine": {
+    "QueryLanguage": "JSONata",
+    "StartAt": "PostToSlack",
+    "States": {
+      "PostToSlack": {
+        "Type": "Task",
+        "Resource": "app:piece",
+        "Arguments": {
+          "piece": "slack",
+          "action": "send_channel_message",
+          "connection": "sales_slack",
+          "props": {
+            "channel": "C0SALES01",
+            "text": "{% 'New lead: ' & $states.context.Execution.Input.after.name & ' from ' & $states.context.Execution.Input.after.company & ' (' & $states.context.Execution.Input.after.email & ')' %}"
+          }
+        },
+        "Assign": {
+          "slackMessage": "{% $states.result %}"
+        },
+        "Next": "SaveTs"
+      },
+      "SaveTs": {
+        "Type": "Task",
+        "Resource": "app:records.update",
+        "Arguments": {
+          "resource": "leads",
+          "key": "{% $states.context.Execution.Input.after.id %}",
+          "data": {
+            "slack_ts": "{% $slackMessage.ts %}"
+          }
+        },
+        "End": true
+      }
+    }
+  }
+}

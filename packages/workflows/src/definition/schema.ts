@@ -3,7 +3,7 @@ import { limits } from '../limits'
 const expression = { type: 'string', pattern: '^\\{%[\\s\\S]*%\\}$' }
 const name = { type: 'string', minLength: 1, maxLength: 80 }
 const errorNames = { type: 'array', minItems: 1, items: { type: 'string', minLength: 1 } }
-const assign = { type: 'object', propertyNames: { pattern: '^[A-Za-z_][A-Za-z0-9_]*$' } }
+const assign = { type: 'object', propertyNames: { pattern: '^[A-Za-z][A-Za-z0-9_]*$' } }
 const common = { Type: {}, Comment: { type: 'string' }, Output: {}, Assign: assign, QueryLanguage: { const: 'JSONata' } }
 const flow = { Next: name, End: { const: true } }
 const nextOrEnd = { oneOf: [{ required: ['Next'], not: { required: ['End'] } }, { required: ['End'], not: { required: ['Next'] } }] }
@@ -32,8 +32,8 @@ const state = (type: string, properties: Record<string, unknown>, { required = [
 })
 
 /**
- * The JSON Schema of a workflow definition: the States Language with JSONata expressions, in the named-reads profile.
- * It checks the shape; `checkDefinition` also checks the edges and what each expression reads.
+ * The JSON Schema of a workflow definition: its trigger, and a state machine in the States Language with JSONata
+ * expressions, in the named-reads profile. It checks the shape; `checkDefinition` also checks the edges and what each expression reads.
  */
 export const definitionSchema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
@@ -50,9 +50,33 @@ export const definitionSchema = {
       },
     },
     definition: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['trigger', 'stateMachine'],
+      properties: { trigger: { $ref: '#/definitions/trigger' }, stateMachine: { $ref: '#/definitions/stateMachine' } },
+    },
+    trigger: {
+      type: 'object',
+      minProperties: 1,
+      maxProperties: 1,
+      additionalProperties: false,
+      properties: {
+        webhook: { type: 'object', additionalProperties: false },
+        schedule: { type: 'object', additionalProperties: false, required: ['cron'], properties: { cron: { type: 'string' }, timezone: { type: 'string' } } },
+        mail: { type: 'object', additionalProperties: false, required: ['mailbox'], properties: { mailbox: name } },
+        record: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['events'],
+          properties: { events: { type: 'array', minItems: 1, items: { type: 'string', pattern: '^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$' } } },
+        },
+        manual: { type: 'object', additionalProperties: false },
+      },
+    },
+    stateMachine: {
       allOf: [{ $ref: '#/definitions/machine' }],
       required: ['QueryLanguage'],
-      properties: { QueryLanguage: { const: 'JSONata' }, Version: { type: 'string' }, StartAt: {}, States: {}, Comment: {} },
+      properties: { QueryLanguage: { const: 'JSONata' }, StartAt: {}, States: {}, Comment: {} },
       additionalProperties: false,
     },
     processor: {
@@ -60,7 +84,6 @@ export const definitionSchema = {
       properties: { ProcessorConfig: { type: 'object', additionalProperties: false, properties: { Mode: { const: 'INLINE' } } }, StartAt: {}, States: {}, Comment: {} },
       additionalProperties: false,
     },
-    branch: { allOf: [{ $ref: '#/definitions/machine' }], properties: { StartAt: {}, States: {}, Comment: {} }, additionalProperties: false },
     state: {
       type: 'object',
       required: ['Type'],
@@ -79,7 +102,7 @@ export const definitionSchema = {
         state('Wait', { ...flow, Seconds: { anyOf: [{ type: 'integer', minimum: 0, maximum: limits.waitSeconds }, expression] }, Timestamp: { type: 'string' } }, {
           allOf: [nextOrEnd, { oneOf: [{ required: ['Seconds'] }, { required: ['Timestamp'] }] }],
         }),
-        state('Succeed', {}),
+        { type: 'object', additionalProperties: false, required: ['Type'], properties: { Type: { const: 'Succeed' }, Comment: { type: 'string' }, Output: {}, QueryLanguage: { const: 'JSONata' } } },
         // Fail ends the run with an error, so it has no Output or Assign.
         { type: 'object', additionalProperties: false, required: ['Type'], properties: { Type: { const: 'Fail' }, Comment: { type: 'string' }, QueryLanguage: { const: 'JSONata' }, Error: { type: 'string' }, Cause: { type: 'string' } } },
         state('Map', {
@@ -89,10 +112,6 @@ export const definitionSchema = {
           ItemProcessor: { $ref: '#/definitions/processor' },
           MaxConcurrency: { type: 'integer', minimum: 0, maximum: limits.mapConcurrency },
         }, { required: ['ItemProcessor', 'Items'], ...nextOrEnd }),
-        state('Parallel', { ...flow, ...recovery, Arguments: {}, Branches: { type: 'array', minItems: 1, maxItems: limits.parallelBranches, items: { $ref: '#/definitions/branch' } } }, {
-          required: ['Branches'],
-          ...nextOrEnd,
-        }),
       ],
     },
   },

@@ -19,16 +19,26 @@ export type TaskState = Common & Flow & { Type: 'Task'; Resource: string; Argume
 export type ChoiceRule = { Condition: string; Next: string; Comment?: string; Output?: Template; Assign?: Record<string, Template> }
 export type ChoiceState = Common & { Type: 'Choice'; Choices: ChoiceRule[]; Default?: string }
 export type WaitState = Common & Flow & { Type: 'Wait'; Seconds?: number | string; Timestamp?: string }
-export type SucceedState = Common & { Type: 'Succeed' }
+export type SucceedState = Omit<Common, 'Assign'> & { Type: 'Succeed' }
 export type FailState = Omit<Common, 'Output' | 'Assign'> & { Type: 'Fail'; Error?: string; Cause?: string }
 export type MapState = Common &
   Flow & { Type: 'Map'; Items: Template; ItemProcessor: Machine; MaxConcurrency?: number; Retry?: Retrier[]; Catch?: Catcher[] }
-export type ParallelState = Common & Flow & { Type: 'Parallel'; Arguments?: Template; Branches: Machine[]; Retry?: Retrier[]; Catch?: Catcher[] }
 
-export type State = PassState | TaskState | ChoiceState | WaitState | SucceedState | FailState | MapState | ParallelState
+export type State = PassState | TaskState | ChoiceState | WaitState | SucceedState | FailState | MapState
 
-/** States and where they start: a whole definition, a Map's item processor or one of a Parallel's branches. */
+/** States and where they start: a whole state machine, or a Map's item processor. */
 export type Machine = { StartAt: string; States: Record<string, State>; Comment?: string }
 
-/** A workflow definition: the States Language with JSONata expressions, in the named-reads profile. */
-export type Definition = Machine & { QueryLanguage: 'JSONata'; Version?: string }
+/** The state machine of a workflow: the States Language with JSONata expressions, in the named-reads profile. */
+export type StateMachine = Machine & { QueryLanguage: 'JSONata' }
+
+/** What starts a workflow's runs: exactly one of these keys. */
+export type Trigger =
+  | { webhook: Record<string, never> }
+  | { schedule: { cron: string; timezone?: string } }
+  | { mail: { mailbox: string } }
+  | { record: { events: string[] } }
+  | { manual: Record<string, never> }
+
+/** A workflow definition: its trigger, and the state machine a run runs from `StartAt`. */
+export type Definition = { trigger: Trigger; stateMachine: StateMachine }

@@ -14,13 +14,13 @@ export const retryDelaySeconds = (retrier: Retrier, retries: number) => {
 }
 
 const caught = async (catcher: Catcher, failure: ErrorOutput, bindings: Bindings, logs: StepLog[]): Promise<StateResult> => {
-  const after = { ...bindings, states: { errorOutput: failure } }
+  const after = { ...bindings, states: { ...(bindings.states as object), errorOutput: failure } }
   const output = catcher.Output === undefined ? failure : await evaluateTemplate(catcher.Output, after, 'Output')
   return { kind: 'step', status: 'caught', next: catcher.Next, output, assigned: await evaluateAssign(catcher.Assign, after), error: failure.Error, cause: failure.Cause, logs }
 }
 
 /**
- * What a failed Task, Map or Parallel does: the first retrier that names its error tries it again after its delay
+ * What a failed Task or Map does: the first retrier that names its error tries it again after its delay
  * while it has tries left; else the first catcher that names it goes on to its `Next`; else the state fails.
  */
 export const recover = async (state: Recoverable, position: Extract<Position, { kind: 'at' }>, failure: ErrorOutput, bindings: Bindings, now: Date, logs: StepLog[]): Promise<StateResult> => {

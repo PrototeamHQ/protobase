@@ -6,7 +6,7 @@ import type { LoadedRun, RunStore, StepRecord, TaskHandlers } from './port'
  * The runner over a port kept in memory, with a clock tests move: for the package's unit tests. `drain` runs a run's
  * segments as the queue would, moving the clock to each wait's end, until nothing is queued.
  */
-export const memoryRunner = (tasks: TaskHandlers, { budgetMs }: { budgetMs?: number } = {}) => {
+export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps }: { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number } = {}) => {
   let clock = new Date('2026-11-04T12:00:00Z')
   const runs = new Map<string, LoadedRun & Record<string, unknown>>()
   const steps: StepRecord[] = []
@@ -25,14 +25,14 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs }: { budgetMs?: num
       runs.set(id, { ...run, ...change })
     },
   }
-  const runner = createRunner({ store, queue: { schedule: async (_, runId, at) => void queued.push({ runId, ...(at && { at }) }) }, tasks, now: () => clock, ...(budgetMs !== undefined && { budgetMs }) })
+  const runner = createRunner({ store, queue: { schedule: async (_, runId, at) => void queued.push({ runId, ...(at && { at }) }) }, tasks, now: () => clock, ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }) })
   return {
     runner,
     steps,
     run: (id: string) => runs.get(id)!,
     now: () => clock,
     start: async (id: string, definition: Definition, input: unknown) => {
-      runs.set(id, { id, definition, input, status: 'queued' })
+      runs.set(id, { id, definition, input, status: 'queued', startedAt: clock })
       await runner.start(null, id)
     },
     /** Runs one queued segment, moving the clock to its time; false when none is queued. */

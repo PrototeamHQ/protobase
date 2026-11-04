@@ -28,17 +28,24 @@ export type SavedStep = {
 
 export type StepLog = { at: string; message: string }
 
-/** All a step records: what the runner reads, and its type, input (secrets redacted), logs and timing. */
+/** All a step records: what the runner reads, and its type, input, logs and timing, with every secret redacted. */
 export type StepRecord = SavedStep & { type: string; input?: unknown; logs: StepLog[]; startedAt: Date; finishedAt: Date }
 
 /** What a step type's handler gets beside its arguments. */
 export type TaskContext = {
+  /** The run's id: files a step stores for the run are kept under it. */
+  runId: string
   /** Aborted when the step's timeout passes, or when the worker stops. */
   signal: AbortSignal
   /** The same for every try of this step in this run: a receiver that dedupes by it sees a repeated try once. */
   idempotencyKey: string
-  /** Adds a line to the step's logs. Never log a secret. */
+  /** Adds a line to the step's logs, with the app's secrets blanked out; a step keeps `limits.logLines` lines. */
   log: (message: string) => void
+  /**
+   * The text with the app's secrets blanked out. The runner blanks them out of all a step records; a step that cuts a
+   * text short, such as an answer's body in an error, blanks it first, so the cut leaves no part of a secret.
+   */
+  redact: (text: string) => string
 }
 
 /**
@@ -50,8 +57,8 @@ export type TaskHandler = (args: unknown, context: TaskContext) => Promise<unkno
 /** The interpreter's back end: the step types by the name a Task's `Resource` gives. */
 export type TaskHandlers = Readonly<Record<string, TaskHandler>>
 
-/** A run as the runner loads it: its pinned definition and its input. */
-export type LoadedRun = { id: string; definition: Definition; input: unknown; status: RunStatus }
+/** A run as the runner loads it: its pinned definition, its input and when it started. */
+export type LoadedRun = { id: string; definition: Definition; input: unknown; status: RunStatus; startedAt: Date }
 
 export type RunStatus = 'queued' | 'running' | 'waiting' | 'succeeded' | 'failed'
 

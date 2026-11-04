@@ -11,7 +11,7 @@ export const postgresRunStore = (schema: string): RunStore<Db> => {
   const steps = sql.id(schema, 'steps')
   return {
     load: async (db, id) => {
-      const { rows } = await sql<{ id: string; definition: Definition; input: unknown; status: 'queued' }>`select r.id, v.definition, r.input, r.status
+      const { rows } = await sql<{ id: string; definition: Definition; input: unknown; status: 'queued'; startedAt: Date }>`select r.id, v.definition, r.input, r.status, r.created_at as "startedAt"
         from ${runs} r join ${versions} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${id}`.execute(db)
       return rows[0]
     },

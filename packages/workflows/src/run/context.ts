@@ -1,10 +1,12 @@
 import type { SavedStep, StepLog, StepRecord, TaskHandlers } from './port'
+import type { Redactor } from './redact'
 
 /** What every scope of one segment shares. */
 export type SegmentContext = {
   runId: string
-  /** The run's input, read as `$trigger`. */
-  trigger: unknown
+  /** What expressions read as `$states.context`: the run's input and start time, and the secrets by name. */
+  stateContext: { Execution: { Input: unknown; StartTime: string }; Secrets: Readonly<Record<string, string>> }
+  redactor: Redactor
   tasks: TaskHandlers
   /** The job's signal: aborted when the worker stops, which ends the segment without saving the step in progress. */
   signal: AbortSignal
@@ -15,11 +17,12 @@ export type SegmentContext = {
   saved: ReadonlyMap<string, readonly SavedStep[]>
   /** Saves a step, throwing `SupersededError` when another segment saved it first. */
   save: (step: StepRecord) => Promise<void>
-  /** Steps of the run so far, the saved ones and this segment's. */
+  /** Steps of the run so far, the saved ones and this segment's, and the most it may take. */
   steps: { count: number }
+  maxSteps: number
 }
 
-/** How a scope's state ran: a step to save, or a Map or Parallel that waits on its items. */
+/** How a scope's state ran: a step to save, or a Map that waits on its items. */
 export type StateResult =
   | {
       kind: 'step'

@@ -1,6 +1,6 @@
 import type { Paused, ScopeOutcome } from './context'
 
-/** How a Map's items or a Parallel's branches ended in this segment: all with their outputs in order, or not. */
+/** How a Map's items ended in this segment: all with their outputs in order, or not. */
 export type FanOutOutcome = { kind: 'ended'; outputs: unknown[] } | { kind: 'failed'; error: string; cause: string } | Paused
 
 /**

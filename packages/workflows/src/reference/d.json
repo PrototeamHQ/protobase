@@ -1,0 +1,71 @@
+{
+  "trigger": {
+    "record": {
+      "events": [
+        "orders.created"
+      ]
+    }
+  },
+  "stateMachine": {
+    "QueryLanguage": "JSONata",
+    "StartAt": "Charge",
+    "States": {
+      "Charge": {
+        "Type": "Task",
+        "Resource": "app:http",
+        "Arguments": {
+          "method": "POST",
+          "url": "https://payments.example.com/charges",
+          "body": {
+            "order_id": "{% $states.context.Execution.Input.after.id %}",
+            "amount": "{% $states.context.Execution.Input.after.total %}"
+          }
+        },
+        "Retry": [
+          {
+            "ErrorEquals": [
+              "States.ALL"
+            ],
+            "IntervalSeconds": 10,
+            "MaxAttempts": 3,
+            "BackoffRate": 2
+          }
+        ],
+        "Catch": [
+          {
+            "ErrorEquals": [
+              "States.ALL"
+            ],
+            "Next": "MarkFailed",
+            "Assign": {
+              "chargeError": "{% $states.errorOutput %}"
+            }
+          }
+        ],
+        "End": true
+      },
+      "MarkFailed": {
+        "Type": "Task",
+        "Resource": "app:records.update",
+        "Arguments": {
+          "resource": "orders",
+          "key": "{% $states.context.Execution.Input.after.id %}",
+          "data": {
+            "status": "payment_failed"
+          }
+        },
+        "Next": "TellOps"
+      },
+      "TellOps": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "ops@example.com",
+          "subject": "{% 'Payment failed for order ' & $states.context.Execution.Input.after.id %}",
+          "text": "{% $chargeError.Cause %}"
+        },
+        "End": true
+      }
+    }
+  }
+}

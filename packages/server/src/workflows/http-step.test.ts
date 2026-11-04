@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { StepError } from '@protobase/workflows'
 import { httpBodyLimit, httpStep } from './http-step'
 
-const context = () => ({ signal: new AbortController().signal, idempotencyKey: 'run/0', log: (message: string) => void logs.push(message) })
+const context = () => ({ runId: 'run', signal: new AbortController().signal, idempotencyKey: 'run/0', log: (message: string) => void logs.push(message), redact: (text: string) => text })
 const logs: string[] = []
 const seen: { method?: string; url?: string; body: string; type?: string }[] = []
 

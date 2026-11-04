@@ -1,4 +1,4 @@
-import type { MapState, ParallelState, TaskState } from '../definition/types'
+import type { MapState, TaskState } from '../definition/types'
 import { limits } from '../limits'
 import type { StateResult } from './context'
 import { errorOutput, StepError } from './errors'
@@ -38,22 +38,12 @@ const map = async (state: MapState, call: StateCall): Promise<Ran> => {
   return { result: outcome.outputs, input }
 }
 
-const parallel = async (state: ParallelState, call: StateCall): Promise<Ran> => {
-  const input = state.Arguments === undefined ? call.position.input : await evaluateTemplate(state.Arguments, call.bindings, 'Arguments')
-  const outer = visibleVariables(call.bindings)
-  const scopes = state.Branches.map((branch, index) => () => call.runScope(branch, innerScope(call.scope, call.name, call.position.seq, index), input, outer))
-  const outcome = await fanOut(scopes, scopes.length)
-  if (outcome.kind === 'blocked' || outcome.kind === 'yielded') return outcome
-  if (outcome.kind === 'failed') return { failure: { Error: outcome.error, Cause: outcome.cause }, input: redacted(input) }
-  return { result: outcome.outputs, input: redacted(input) }
-}
 
 // Runs the state, a failure of its own as the error it names.
-const attempt = async (state: TaskState | MapState | ParallelState, call: StateCall): Promise<Ran> => {
+const attempt = async (state: TaskState | MapState, call: StateCall): Promise<Ran> => {
   try {
     if (state.Type === 'Task') return await task(state, call)
-    if (state.Type === 'Map') return await map(state, call)
-    return await parallel(state, call)
+    return await map(state, call)
   } catch (error) {
     if (!(error instanceof StepError)) throw error
     return { failure: errorOutput(error), input: undefined }
@@ -61,15 +51,15 @@ const attempt = async (state: TaskState | MapState | ParallelState, call: StateC
 }
 
 /**
- * A Task, a Map or a Parallel: its result shaped by `Output` and `Assign`, which read it as `$states.result`; a failure,
+ * A Task or a Map: its result shaped by `Output` and `Assign`, which read it as `$states.result`; a failure,
  * its own or an item's, goes to its retriers and catchers.
  */
-export const runResultState = async (state: TaskState | MapState | ParallelState, call: StateCall): Promise<StateResult> => {
+export const runResultState = async (state: TaskState | MapState, call: StateCall): Promise<StateResult> => {
   const ran = await attempt(state, call)
   if ('kind' in ran) return ran
   const now = call.context.now()
   if ('failure' in ran) return { ...(await recover(state, call.position, ran.failure, call.bindings, now, call.logs)), ...(ran.input !== undefined && { input: ran.input }) } as StateResult
-  const after = { ...call.bindings, states: { result: ran.result } }
+  const after = { ...call.bindings, states: { ...(call.bindings.states as object), result: ran.result } }
   const shaped = async () => ({
     output: state.Output === undefined ? ran.result : await evaluateTemplate(state.Output, after, 'Output'),
     assigned: await evaluateAssign(state.Assign, after),

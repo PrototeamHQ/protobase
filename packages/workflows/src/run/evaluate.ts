@@ -1,7 +1,7 @@
 import { compile, expressionSource, isJsonataError } from '../definition/expressions'
 import { StepError } from './errors'
 
-/** The values an expression reads by name: `trigger`, the variables in scope and `states`. */
+/** The values an expression reads by name: the variables in scope and `states`. */
 export type Bindings = Record<string, unknown>
 
 const evaluated = async (source: string, bindings: Bindings, field: string) => {

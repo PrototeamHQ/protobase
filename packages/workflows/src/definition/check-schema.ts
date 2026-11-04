@@ -5,9 +5,11 @@ import { fieldPath, type Problem } from './problem'
 const ajv = new Ajv({ allErrors: true, discriminator: true, strict: false })
 const validate = ajv.compile(definitionSchema)
 
-// `/States/Each/ItemProcessor/States/Fetch/Retry/0` as the state `Each/Fetch` and its field `Retry[0]`.
+// `/stateMachine/States/Each/ItemProcessor/States/Fetch/Retry/0` as the state `Each/Fetch` and its field `Retry[0]`;
+// `/trigger/schedule` as the field `trigger.schedule`.
 const located = (pointer: string): Pick<Problem, 'state' | 'field'> => {
-  const parts = pointer.split('/').slice(1).map((part) => part.replaceAll('~1', '/').replaceAll('~0', '~'))
+  const all = pointer.split('/').slice(1).map((part) => part.replaceAll('~1', '/').replaceAll('~0', '~'))
+  const parts = all[0] === 'stateMachine' && all[1] === 'States' ? all.slice(1) : all
   const state: string[] = []
   let field: string[] = []
   for (let index = 0; index < parts.length; index++) {
@@ -17,8 +19,6 @@ const located = (pointer: string): Pick<Problem, 'state' | 'field'> => {
       field = []
     } else if (part === 'ItemProcessor' && parts[index + 1] === 'States') {
       continue
-    } else if (part === 'Branches' && parts[index + 2] === 'States') {
-      state.push(parts[++index]!)
     } else {
       field.push(part)
     }
@@ -30,8 +30,11 @@ const message = (error: ErrorObject) => {
   if (error.keyword === 'additionalProperties') return `${error.params.additionalProperty} is not a field here`
   if (error.keyword === 'required') return `${error.params.missingProperty} is missing`
   if (error.keyword === 'const') return `must be ${JSON.stringify(error.params.allowedValue)}`
-  if (error.keyword === 'discriminator') return 'must be one of Pass, Task, Choice, Wait, Succeed, Fail, Map and Parallel'
+  if (error.keyword === 'discriminator') return 'must be one of Task, Choice, Pass, Map, Wait, Succeed and Fail'
+  if (error.keyword === 'pattern' && error.instancePath.startsWith('/trigger/')) return 'must be an event named <resource>.<event>, such as deals.created'
+  if (error.keyword === 'pattern' && error.instancePath.endsWith('/Assign')) return 'names a variable with letters, digits and _, starting with a letter'
   if (error.keyword === 'pattern') return 'must be an expression written as {% ... %}'
+  if (error.keyword === 'maxProperties' || error.keyword === 'minProperties') return error.instancePath === '/trigger' ? 'holds exactly one trigger: webhook, schedule, mail, record or manual' : (error.message ?? 'is not valid')
   if (error.keyword === 'oneOf' && error.schemaPath.endsWith('/oneOf')) return 'needs exactly one of these'
   return error.message ?? 'is not valid'
 }

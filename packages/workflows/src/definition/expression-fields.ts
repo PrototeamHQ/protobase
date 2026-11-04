@@ -11,16 +11,16 @@ export const stateExpressions = (state: State) => {
   const add = (value: unknown, base: (string | number)[], place: ExpressionPlace) => {
     for (const { path, source } of templateExpressions(value, base)) found.push({ field: fieldPath(path), source, place })
   }
-  // A Task, Map or Parallel shapes its result with Output and Assign; the other states have no result.
-  const after: ExpressionPlace = state.Type === 'Task' || state.Type === 'Map' || state.Type === 'Parallel' ? 'result' : 'state'
+  // A Task or Map shapes its result with Output and Assign; the other states have no result.
+  const after: ExpressionPlace = state.Type === 'Task' || state.Type === 'Map' ? 'result' : 'state'
   if (state.Type === 'Fail') {
     add(state.Error, ['Error'], 'state')
     add(state.Cause, ['Cause'], 'state')
     return found
   }
   add(state.Output, ['Output'], after)
-  add(state.Assign, ['Assign'], after)
-  if (state.Type === 'Task' || state.Type === 'Parallel') add(state.Arguments, ['Arguments'], 'state')
+  if ('Assign' in state) add(state.Assign, ['Assign'], after)
+  if (state.Type === 'Task') add(state.Arguments, ['Arguments'], 'state')
   if (state.Type === 'Map') add(state.Items, ['Items'], 'state')
   if (state.Type === 'Wait') {
     add(state.Seconds, ['Seconds'], 'state')
