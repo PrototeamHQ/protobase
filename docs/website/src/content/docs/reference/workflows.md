@@ -117,13 +117,9 @@ One request to a URL built at run time:
 
 The result is `{ status, headers, body }`, with the body parsed when the answer says it is JSON, and without the cookies the answer sets. A status from 300 up fails the step with `Http.StatusError`; a redirect is never followed. The step resolves the URL's host when it runs and refuses it, with `Http.AddressRefused`, unless every address is public, then connects to the very address it checked, so a URL built from a webhook's payload cannot reach the app's own network. It reads at most 10 MiB of the answer's body: a larger one fails the step with `Http.ResponseTooLarge`, rather than being cut short.
 
-<gap>Workflows cannot read or write the app's records or send mail because those step types are not implemented.</gap>
-
 ## Runs and their steps
 
 A run starts when it is created, through the API or the admin app, in the same transaction: `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "input": { ... } }`. From the app's own code, such as a job or a write hook, `startWorkflow(db, { workflow, input, tenant, startedBy })` from `@protobase/server` starts one in `db`'s transaction, so it starts when the caller's writes commit, or not at all. With a `key`, such as `orders:42`, a workflow runs once per key: a start with a key it has a run for already, in this transaction or another, starts nothing and returns that run's id.
-
-<gap>Workflows cannot start on a webhook, an event or a schedule because triggers are not implemented.</gap>
 
 Each step is saved as it ends, as a `workflow_steps` record: the state, its type, the scope it ran in (empty for the run itself, `Each.3[0]` for item 0 of the Map `Each` that was step 3), its number, its try, its status (`succeeded`, `retrying`, `caught` or `failed`), its input, output and assigned variables, its logs, when it started and ended and how long it took, its error and cause, and where it goes on to. In a Task's recorded input, every field whose name says it holds a secret, such as `Authorization`, `token`, `password` or `apiKey`, is `[redacted]`. A run's status is `queued`, `running`, `waiting` (with the time it goes on), `succeeded` with its output, or `failed` with its error and cause.
 
