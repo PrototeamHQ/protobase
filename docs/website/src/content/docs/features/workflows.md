@@ -17,8 +17,8 @@ description: Graphs of steps the server runs along their edges, written in a lan
 - [Runs that survive restarts](/reference/workflows/#how-a-run-is-run) (beta): A run takes up where it stood after a restart or a crashed worker, never running a saved step again, and every limit fails closed.
 - [Who may run workflows](/reference/workflows/#who-may-do-what) (beta): Making, changing and running workflows and reading their runs are each granted by name, within the tenant.
 - [Workflows over MCP](/reference/mcp/#workflows) (beta): AI clients find, write, validate, change by a small edit and test-run workflows as the signed-in person, and read each step of a run to fix the one that failed and re-run it from there.
-- [Record triggers](/reference/workflows/#apprecord) (beta): A workflow starts once for each record that becomes ready, at once or when a time in it comes, read as the user who turned it on.
-- [Triggers turned on while the app runs](/reference/workflows/#turning-a-trigger-on) (beta): Turning a workflow on, changing it or turning it off registers its trigger on every server process, with no restart.
+- [Record triggers](/reference/workflows/#apprecord) (beta): A workflow starts once for each record that becomes ready, at once or when a time in it comes, read as the user who saved the enabled version.
+- [Triggers turned on while the app runs](/reference/workflows/#turning-a-trigger-on) (beta): Turning a workflow on or changing it registers its trigger on every server process, and turning it off stops it, with no restart.
 - [Workflow plugins](/reference/workflow-plugins/) (beta): A file of the app or a package adds trigger and step types through the same public interface the built-in types use.
 - [Guarded requests for plugins](/reference/workflow-plugins/#sending-requests) (beta): A plugin's requests reach only public addresses, follow no redirect and read at most 10 MiB.
 - [Webhook trigger](/reference/workflow-plugins/#polling-and-webhook-coming-soon) (coming soon): A workflow starts from a signed call to a URL of its own, limited in size and rate.

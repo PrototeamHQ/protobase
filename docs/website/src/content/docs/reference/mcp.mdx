@@ -94,7 +94,7 @@ In an app with [workflows](/reference/workflows/), the endpoint also offers tool
 
 | Tool | What it does |
 | --- | --- |
-| `list_workflow_types` | The step types a Task names as its `Resource` and the triggers a definition holds, built-in and [plugin](/reference/workflow-plugins/) ones alike, each by id with its label, description, input and output as JSON Schema, the errors a step fails with, and whether the app can run it. |
+| `list_workflow_types` | The step types a Task names as its `Resource` and the triggers a definition holds, built-in and [plugin](/reference/workflow-plugins/) ones alike, each by id with its label, description, input as JSON Schema and, when the type declares one, its output, the errors a step fails with, and whether the app can run it. |
 | `list_workflows` | A page of the workflows the person may read, newest change first, without their definitions: `filter` on `name`, `page_size` (20 by default, at most 100) and `page_token`. |
 | `get_workflow` | One workflow with its whole definition and its ETag. |
 | `validate_workflow` | Checks a `definition`, or a workflow's `id` with an `edit` of its saved definition, as a save checks it, and saves nothing: `{ valid: true }`, or `{ valid: false, problems }`. |
