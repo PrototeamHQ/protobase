@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isReactModule, isVendorModule, npmPackage } from './shell-chunks'
+import { isReactModule, isVendorModule, libChunkName, npmPackage } from './shell-chunks'
 
 const bun = (name: string, file: string) => `/app/node_modules/.bun/${name.replace('/', '+')}@1.0.0/node_modules/${name}/${file}`
 
@@ -11,6 +11,13 @@ describe('npmPackage', () => {
     expect(npmPackage(bun('@tanstack/react-query', 'build/index.js'))).toBe('@tanstack/react-query')
     expect(npmPackage('C:\\app\\node_modules\\@tanstack\\react-query\\build\\index.js')).toBe('@tanstack/react-query')
     expect(npmPackage('/app/packages/ui/src/app/main.tsx')).toBeUndefined()
+  })
+})
+
+describe('libChunkName', () => {
+  it("names a lazily loaded package's chunk after the package, without @ or slash", () => {
+    expect(libChunkName(bun('@xyflow/react', 'dist/esm/index.js'))).toBe('lib-xyflow-react')
+    expect(libChunkName('/app/node_modules/maplibre-gl/dist/maplibre-gl.js')).toBe('lib-maplibre-gl')
   })
 })
 
