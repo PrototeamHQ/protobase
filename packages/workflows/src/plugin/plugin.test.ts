@@ -39,6 +39,7 @@ describe('definePlugin and loadPlugins', () => {
     expect(() => definePlugin({ name: 'Acme', label: 'A' })).toThrow('lowercase letters')
     expect(() => definePlugin({ name: 'a', label: 'A', steps: { 'Do-it': acme.steps.greet } })).toThrow('"Do-it" is not a type key')
     expect(() => definePlugin({ name: 'a', label: 'A', steps: { x: { ...acme.steps.greet, connection: 'nope' } } })).toThrow('the connection "nope"')
+    expect(() => definePlugin({ name: 'a', label: 'A', connections: { '': acme.connections.account }, steps: { x: { ...acme.steps.greet, connection: '' } } })).toThrow("a connection's name is not empty")
     expect(() => definePlugin({ name: 'a', label: 'A', steps: { new_order: acme.steps.greet }, triggers: { new_order: acme.triggers.new_order } })).toThrow('"new_order" is both a step and a trigger')
     expect(() => loadPlugins([{ plugin: acme, source: '@acme/one' }, { plugin: acme, source: 'workflows/plugins/acme.ts' }])).toThrow('@acme/one and workflows/plugins/acme.ts')
   })

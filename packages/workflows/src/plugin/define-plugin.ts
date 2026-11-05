@@ -16,6 +16,8 @@ export const checkPlugin = (plugin: Plugin, where = `Workflow plugin "${plugin.n
   const shared = Object.keys(plugin.steps ?? {}).find((key) => Object.hasOwn(plugin.triggers ?? {}, key))
   if (shared !== undefined) throw new Error(`${where}: "${shared}" is both a step and a trigger; give each type its own key`)
   const connections = Object.keys(plugin.connections ?? {})
+  // A type with the connection "" would read as one without a connection.
+  if (connections.includes('')) throw new Error(`${where}: a connection's name is not empty`)
   for (const [key, type] of [...Object.entries(plugin.triggers ?? {}), ...Object.entries(plugin.steps ?? {})]) {
     if (type.connection !== undefined && !connections.includes(type.connection)) throw new Error(`${where}: ${key} uses the connection "${type.connection}", which the plugin does not declare`)
   }
