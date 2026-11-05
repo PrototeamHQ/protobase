@@ -21,3 +21,15 @@ export const textValue = (text: string): unknown => {
     return text
   }
 }
+
+/** What a field of names separated by commas writes: the list of its names, nothing when it has none. */
+export const namesValue = (text: string): string[] | undefined => {
+  const names = text
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
+  return names.length > 0 ? names : undefined
+}
+
+/** A list of names as its field shows it, separated by commas; any other value as `valueText` shows it. */
+export const namesText = (value: unknown) => (Array.isArray(value) && value.every((name) => typeof name === 'string') ? value.join(', ') : valueText(value))

@@ -45,6 +45,7 @@ export const TriggerFields = ({ trigger, problems, disabled, onChange }: Trigger
             label={inputLabel(field.name)}
             kind={field.kind}
             required={'required' in field && field.required}
+            {...(field.kind === 'names' && { help: text('namesHelp') })}
             value={input[field.name]}
             error={errorAt(problems, `trigger.${kind}.${field.name}`)}
             disabled={disabled}

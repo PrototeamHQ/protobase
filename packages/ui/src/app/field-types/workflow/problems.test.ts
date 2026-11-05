@@ -24,4 +24,9 @@ describe('definitionProblems', () => {
     const unknownBuiltIn = { ...definition, stateMachine: { ...definition.stateMachine, States: { Shout: { ...shout, Resource: 'app:nope' } }, StartAt: 'Shout' } } as unknown as Definition
     expect(definitionProblems(unknownBuiltIn).map((problem) => [problem.state, problem.field])).toEqual([['Shout', 'Resource']])
   })
+
+  it("refuses a record trigger's key that is not a list of names, as its input schema does", () => {
+    expect(definitionProblems(withTrigger({ 'app:record': { resource: 'invoices', key: 'due_at' } }))).toEqual([{ field: 'trigger.app:record.key', message: 'is a list of names, separated by commas' }])
+    expect(definitionProblems(withTrigger({ 'app:record': { resource: 'invoices', key: ['due_at'] } }))).toEqual([])
+  })
 })

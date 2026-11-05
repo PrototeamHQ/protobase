@@ -22,13 +22,20 @@ export const problemsByNode = (problems: readonly Problem[]) => {
   return { byNode, whole }
 }
 
-// A trigger type's input without a field it needs; the server checks the rest of its input on save.
-const requiredFields =
+const isNames = (value: unknown) => Array.isArray(value) && value.every((name) => typeof name === 'string')
+
+// A trigger type's input without a field it needs, or with names that are no list; the server checks the rest of its
+// input on save.
+const inputProblems =
   (inputs: readonly StepInput[]): TriggerCheck =>
   (input) =>
-    inputs.filter((field) => field.required && (input[field.name] === undefined || input[field.name] === '')).map((field) => ({ field: field.name, message: 'is missing' }))
+    inputs.flatMap((field) => {
+      const value = input[field.name]
+      if (value === undefined || value === '') return field.required ? [{ field: field.name, message: 'is missing' }] : []
+      return field.kind === 'names' && !isNames(value) ? [{ field: field.name, message: 'is a list of names, separated by commas' }] : []
+    })
 
-const triggers = Object.fromEntries(Object.entries(workflowTriggerTypes).map(([type, inputs]) => [type, requiredFields(inputs)]))
+const triggers = Object.fromEntries(Object.entries(workflowTriggerTypes).map(([type, inputs]) => [type, inputProblems(inputs)]))
 
 // The built-in plugin, whose every type the editor knows; it does not know an app's own plugins' types.
 const builtIn = 'app:'

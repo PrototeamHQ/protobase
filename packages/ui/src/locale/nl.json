@@ -556,6 +556,7 @@
     "triggerUnknown": "Kies een trigger",
     "triggerInput": "Invoer",
     "triggerOtherHelp": "Een trigger van een eigen plug-in van de app: de invoer staat er zoals hij is, en de server controleert hem bij het opslaan.",
+    "namesHelp": "Namen gescheiden door komma's.",
     "startsWhen": "Start een run",
     "stepType": "Staptype",
     "arguments": "Argumenten",
