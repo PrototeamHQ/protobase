@@ -14,9 +14,10 @@ import { nestingDepth } from '../nesting'
 
 /**
  * What a definition is checked against beside the language: the step types (Task resources) the app has, the
- * arguments each needs (`required`, by step type), and its trigger types, each with the check of its input.
+ * arguments each needs (`required`, by step type), its trigger types, each with the check of its input, and why the
+ * app cannot run a type it knows (`unavailable`, by step or trigger type).
  */
-export type CheckOptions = { resources: readonly string[]; required?: Readonly<Record<string, readonly string[]>>; triggers: Readonly<Record<string, TriggerCheck>> }
+export type CheckOptions = { resources: readonly string[]; required?: Readonly<Record<string, readonly string[]>>; triggers: Readonly<Record<string, TriggerCheck>>; unavailable?: Readonly<Record<string, string>> }
 
 type Scope = { path: string[]; outer: ReadonlySet<string>; item: boolean }
 
@@ -48,7 +49,9 @@ const machineProblems = (machine: Machine, scope: Scope, options: CheckOptions):
       if (reservedVariables.has(variable) || builtInFunctions.has(variable)) problems.push({ state: where(name), field: 'Assign', message: `cannot assign $${variable}, a name the runner or JSONata keeps` })
       if (scope.outer.has(variable)) problems.push({ state: where(name), field: 'Assign', message: `cannot assign $${variable}, which an outer state assigns already` })
     }
-    if (state.Type === 'Task' && !options.resources.includes(state.Resource)) {
+    if (state.Type === 'Task' && options.unavailable && Object.hasOwn(options.unavailable, state.Resource)) {
+      problems.push({ state: where(name), field: 'Resource', message: `"${state.Resource}" cannot run in this app: ${options.unavailable[state.Resource]}` })
+    } else if (state.Type === 'Task' && !options.resources.includes(state.Resource)) {
       problems.push({ state: where(name), field: 'Resource', message: `"${state.Resource}" is not a step type; use one of ${options.resources.join(', ')}` })
     }
     if (state.Type === 'Task') for (const missing of missingArguments(state, options)) problems.push({ state: where(name), field: `Arguments.${missing}`, message: `is missing; ${state.Resource} needs it` })
@@ -89,5 +92,5 @@ export const checkDefinition = (definition: unknown, options: CheckOptions): Pro
   const shape = schemaProblems(definition)
   if (shape.length > 0) return shape
   const document = definition as Definition
-  return [...triggerProblems(document.trigger, options.triggers), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false }, options)]
+  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false }, options)]
 }

@@ -251,4 +251,13 @@ describe('checkDefinition, the rules of the decided profile', () => {
     expect(withRequired({ url: 'https://example.com' })).toEqual([])
     expect(withRequired('{% {"url": "https://example.com"} %}')).toEqual([])
   })
+
+  it('refuses a step or trigger type the app knows but cannot run, with the reason', () => {
+    const unavailable = { 'acme:poll': 'This app does not run polling triggers yet', 'acme:send': 'It signs in through a connection' }
+    const machine = { QueryLanguage: 'JSONata', StartAt: 'Send', States: { Send: { Type: 'Task', Resource: 'acme:send', End: true } } }
+    expect(checkDefinition({ trigger: { 'acme:poll': {} }, stateMachine: machine }, { resources: ['http'], triggers, unavailable }).map(problemText)).toEqual([
+      'Field "trigger": "acme:poll" cannot run in this app: This app does not run polling triggers yet',
+      'State "Send", field "Resource": "acme:send" cannot run in this app: It signs in through a connection',
+    ])
+  })
 })
