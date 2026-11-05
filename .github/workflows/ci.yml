@@ -172,13 +172,24 @@ jobs:
       group: storybook-${{ matrix.shard }}-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    # On a hosted runner the job runs in the Playwright image of the lockfile's Playwright version, which carries
+    # Chromium's system packages: installing them from the apt mirror can take the whole timeout. A self-hosted runner's
+    # server provides them. Raise the tag with Playwright in bun.lock.
+    container: ${{ !(github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER) && 'mcr.microsoft.com/playwright:v1.63.0-noble' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
+      # In the image git runs as root on a checkout the runner's user owns, and refuses it unless it is marked safe.
+      - if: runner.environment == 'github-hosted'
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - if: runner.environment != 'github-hosted'
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
+      # The Playwright image has no unzip, which setup-bun needs; the npm package brings Bun's binary without it.
+      - if: runner.environment == 'github-hosted'
+        run: npm install --global bun@1.4.4
       # Before the site's gate, which reads the module graph through Vitest.
       - run: bun install --frozen-lockfile
       - *check-base
@@ -186,8 +197,9 @@ jobs:
         name: Find whether the changes reach the site or Storybook
         id: site
         run: bun scripts/affected-site.mjs
+      # In the image, Chromium is already installed when its Playwright version matches the lockfile's.
       - if: steps.site.outputs.run == 'true'
-        run: bun x --bun playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
+        run: bun x --bun playwright install chromium
       - if: steps.site.outputs.run == 'true'
         run: bun run build-storybook
       - if: steps.site.outputs.run == 'true'
