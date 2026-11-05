@@ -59,8 +59,9 @@ export const definitionSchema = {
       type: 'object',
       minProperties: 1,
       maxProperties: 1,
-      // `manual`, or a trigger type `<plugin>:<key>` with its input; the plugin's schema checks the input.
+      // `manual`, which takes no input, or a trigger type `<plugin>:<key>` with its input; the plugin's schema checks that.
       propertyNames: { pattern: '^(manual|[a-z][a-z0-9_]*:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*)$' },
+      properties: { manual: { type: 'object', maxProperties: 0 } },
       additionalProperties: { type: 'object' },
     },
     stateMachine: {

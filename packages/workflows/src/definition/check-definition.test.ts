@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkDefinition } from './check-definition'
+import { schemaProblems } from './check-schema'
 import { problemText } from './problem'
 
 const triggers = { 'app:schedule': (input: Record<string, unknown>) => (typeof input.cron === 'string' ? [] : [{ field: 'cron', message: 'is missing' }]), 'acme:new_order': () => [] }
@@ -184,6 +185,8 @@ describe('checkDefinition, the rules of the decided profile', () => {
     expect(check(machine, { 'app:schedule': {} })).toEqual(['Field "trigger.app:schedule.cron": is missing'])
     expect(check(machine, { 'app:mail': {} })).toEqual(['Field "trigger": "app:mail" is not a trigger type; use manual or one of app:schedule, acme:new_order'])
     expect(check(machine, { manual: { at: 1 } })).toEqual(['Field "trigger.manual": takes no input'])
+    // The exported schema refuses it too, without the trigger types a check is given.
+    expect(schemaProblems({ trigger: { manual: { at: 1 } }, stateMachine: machine })).toEqual([{ field: 'trigger.manual', message: 'takes no input' }])
     expect(check(machine, { Webhook: {} })).toContain('Field "trigger": names a trigger type <plugin>:<key>, such as app:record, or manual')
   })
 
