@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 4
+export const workflowsVersion = 5
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -123,6 +123,8 @@ create table if not exists ${s}."triggers" (
   "updated_at" timestamptz not null default now()
 );
 create unique index if not exists "triggers_workflow" on ${s}."triggers" ("workflow_id") where "status" <> 'stopping';
+create index if not exists "triggers_workflow_id" on ${s}."triggers" ("workflow_id");
+create index if not exists "triggers_updated_at" on ${s}."triggers" ("updated_at");
 create index if not exists "triggers_status_type" on ${s}."triggers" ("status", "type");
 create index if not exists "triggers_connection" on ${s}."triggers" ("connection_id");
 create index if not exists "triggers_tenant" on ${s}."triggers" ("tenant_id")`

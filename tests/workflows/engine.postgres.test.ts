@@ -117,6 +117,23 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(await workflowsMigration(db, workflows)).toBeUndefined()
   })
 
+  it('adds the triggers table and enabled_version to a schema of the version before them', async () => {
+    await pg.exec(`drop table workflows.triggers; alter table workflows.workflows drop column enabled_version;
+      comment on function workflows.run_version() is 'Protobase workflows 4'`)
+    const upgrade = await workflowsMigration(db, workflows)
+    expect(upgrade).toContain('create table if not exists "workflows"."triggers"')
+    await pg.exec(upgrade!)
+    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+  })
+
+  it('writes the schema again when the triggers table is gone', async () => {
+    await pg.exec('drop table workflows.triggers')
+    const repair = await workflowsMigration(db, workflows)
+    expect(repair).toContain('create table if not exists "workflows"."triggers"')
+    await pg.exec(repair!)
+    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+  })
+
   it('answers a save with the row as saved, whose ETag the next save can send, and numbers no version for other fields', async () => {
     const id = await create('Tagged', definition({ Echo: { Type: 'Pass', End: true } }))
     const save = (body: unknown, etag: string) =>
