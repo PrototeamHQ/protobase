@@ -5,7 +5,7 @@ import type { Db } from '@protobase/query'
 import type { ResourceChange } from '../../changes/resource-change'
 import { defineJob } from '../../jobs/define-job'
 import type { Row } from '../../types'
-import { readyAt, readyWhen } from '../ready/ready-when'
+import { readyAt, readyWhen, resolveTimeTerms } from '../ready/ready-when'
 import { readyContext, startIfReady, type ReadyInput } from '../ready/ready-start'
 import { activeTriggers, currentTrigger } from './trigger-row'
 import { printFilter } from '@protobase/schema'
@@ -56,7 +56,8 @@ export const triggerJobs = (input: ReadyInput) => {
       if (!split.ok) return
       const filter = split.when.filter && printFilter(split.when.filter)
       const page = await records.list(spec.resource, { ...(filter && { filter }), page_size: passSize, ...(page_token && { page_token }) })
-      for (const record of page.items) await queueCheck(db, trigger, model.primaryKey, split.when.timeTerms, record)
+      const timeTerms = resolveTimeTerms(model, split.when.timeTerms)
+      for (const record of page.items) await queueCheck(db, trigger, model.primaryKey, timeTerms, record)
       if (page.next_page_token) await start.enqueue(db, { trigger: id, generation, page_token: page.next_page_token })
     },
   })
@@ -82,10 +83,11 @@ export const triggerJobs = (input: ReadyInput) => {
       const model = spec && input.deps().registry.find(spec.resource)?.model
       const split = spec && readyWhen(spec.when)
       if (!spec || !model || !split?.ok) continue
+      const timeTerms = resolveTimeTerms(model, split.when.timeTerms)
       for (const change of changes) {
         if (change.resource !== spec.resource || !change.after) continue
         if (String(change.tenant ?? '') !== String(trigger.tenant_id ?? '')) continue
-        await queueCheck(db, trigger, model.primaryKey, split.when.timeTerms, change.after)
+        await queueCheck(db, trigger, model.primaryKey, timeTerms, change.after)
       }
     }
   }

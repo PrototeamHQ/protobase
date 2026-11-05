@@ -1,4 +1,4 @@
-import { parseFilter, printFilter, type FilterExpr } from '@protobase/schema'
+import { parseFilter, printFilter, type FilterExpr, type ResourceModel } from '@protobase/schema'
 
 /**
  * A time term of `when`: `<field> <= now() - <duration>`, ready once the field's time plus `afterMs` has come; a strict
@@ -69,3 +69,9 @@ export const readyAt = (timeTerms: readonly TimeTerm[], record: Record<string, u
   if (Number.isNaN(ready.getTime())) return
   return ready
 }
+
+/** The field a time term names, by its name or one of its aliases, as the record read carries it. */
+export const timeField = (model: ResourceModel, name: string) => Object.values(model.fields).find((field) => field.name === name || field.aliases.includes(name))
+
+/** The time terms with each field named as the record carries it; a term on no field of the model keeps its name. */
+export const resolveTimeTerms = (model: ResourceModel, terms: readonly TimeTerm[]) => terms.map((term) => ({ ...term, field: timeField(model, term.field)?.name ?? term.field }))
