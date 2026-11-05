@@ -203,3 +203,7 @@ export type {
   AssistantMessageRequest,
   AssistantActionRequest,
 } from './assistant/protocol'
+export { cellKind, isEmptyFileCell, type CellKind, type FileCell, type FileDate, type FileJson } from './user-tables/cell-kind'
+export { columnTypeReader, inferColumnType, maxShortText, minWholeDigits, widerFieldTypes, type ColumnType, type ColumnTypeReader, type DecimalType } from './user-tables/column-type'
+export { fieldNamesOf, tableNameOf } from './user-tables/column-names'
+export { userTableNameIssue, type UserTableFieldType, type UserTableNameIssue } from './user-tables/names'

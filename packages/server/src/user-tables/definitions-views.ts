@@ -19,13 +19,15 @@ export const fieldTypeLabels: Record<DefinitionFieldType, string> = {
 
 /**
  * The tables list of the admin app, for whoever may make tables: a table's page has its fields, a link to add one and a
- * link to the table's own list, which shows once the app serves it. The title field is set once its field exists.
+ * link to the table's own list, which shows once the app serves it. The title field is set once its field exists. Its
+ * Import makes a new table from a file, with its fields and records.
  */
 export const tablesView = view<Definitions['tables']>(tablesResourceName)
   .names({ singular: 'Table', plural: 'Tables' })
   .title((r) => r.plural_label)
   .help('The tables people add to the app. Open one to give it fields or to go to its records.')
   .nav({ creatorsOnly: true, order: 0 })
+  .import('table')
   .fields((r) => ({
     name: r.name.label('Name').format('code').help('Its address and the name of its database table: lowercase letters, digits and _, starting with a letter. It cannot change later.'),
     plural_label: r.plural_label.label('Plural label').help('Its name in the sidebar and above its list, such as Notes.'),
