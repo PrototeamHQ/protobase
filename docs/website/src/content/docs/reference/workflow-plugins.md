@@ -107,6 +107,10 @@ triggers: {
 
 ### Polling and webhook
 
+:::caution[Beta]
+A webhook trigger that registers its own URL cannot subscribe in an app without sign-in, since it reads the app's public address from the sign-in origin, and a poll job that failed all its tries does not start polling again by itself: retry it in the admin app's failed jobs.
+:::
+
 A polling trigger asks a service for new items on a schedule:
 
 ```ts

@@ -116,6 +116,10 @@ Starts one run for each record of `resource` that becomes ready, with `{ resourc
 
 ### app:webhook
 
+:::caution[Beta]
+The rate limits count per server process, not across the app's processes, and `hmac` and `bearer` calls carry no signed time, so a captured call can be sent again while its secret holds.
+:::
+
 ```json
 { "app:webhook": { "auth": { "mode": "standard_webhooks" }, "body_limit": 1048576, "per_minute": 60 } }
 ```
