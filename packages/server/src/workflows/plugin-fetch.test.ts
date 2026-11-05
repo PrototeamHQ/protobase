@@ -51,6 +51,13 @@ describe("the plugin context's fetch", () => {
     expect(received).not.toContain('/inside')
   })
 
+  it('refuses a maxBytes that is no number of bytes before it sends anything', async () => {
+    const fetch = pluginFetch({ allowPrivateAddresses: true })
+    const before = received.length
+    for (const maxBytes of [Number.NaN, -1, Number.POSITIVE_INFINITY]) await expect(fetch(`http://127.0.0.1:${port}/`, { maxBytes })).rejects.toBeInstanceOf(RangeError)
+    expect(received.length).toBe(before)
+  })
+
   it('counts the body as it came off the wire and never decodes it, so a gzip bomb costs at most its cap', async () => {
     const fetch = pluginFetch({ allowPrivateAddresses: true })
     const answer = await fetch(`http://127.0.0.1:${port}/bomb`)
