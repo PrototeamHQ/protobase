@@ -27,6 +27,10 @@ const item = (prefix: string, shown: LayoutItemModel): LayoutItemModel => {
   } as LayoutItemModel
 }
 
+// Activity's table sits in the events schema the app picks, `changes` unless it renames it, so it is keyed as `changes.history`.
+const tableKey = (model: ResourceModel) =>
+  model.name === 'record_history' && model.table.name === 'history' ? 'changes.history' : `${model.table.schema ?? 'public'}.${model.table.name}`
+
 const action = (prefix: string, shown: ActionModel): ActionModel => ({
   ...shown,
   label: translated(`${prefix}.label`, shown.label),
@@ -42,7 +46,7 @@ const action = (prefix: string, shown: ActionModel): ActionModel => ({
  */
 export const translatedView = (view: ViewModel, model: ResourceModel | undefined): ViewModel => {
   if (!model) return view
-  const at = `${model.table.schema ?? 'public'}.${model.table.name}`
+  const at = tableKey(model)
   return {
     ...view,
     ...(view.names && { names: { singular: translated(`${at}.names.singular`, view.names.singular), plural: translated(`${at}.names.plural`, view.names.plural) } }),
