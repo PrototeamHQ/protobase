@@ -15,10 +15,13 @@ export const hookMode = (input: Record<string, unknown>): HookMode | undefined =
 
 export const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
 
-/** Whether `secret` is one this mode can check signatures with: a Standard Webhooks secret is `whsec_` and 24+ bytes in base64. */
+/**
+ * Whether `secret` is one this mode can check signatures with: a Standard Webhooks secret is `whsec_` and 24+ bytes in
+ * padded base64, as strict as the signature check decodes it.
+ */
 const usable = (mode: HookMode, secret: string) => {
   if (mode !== 'standard_webhooks') return secret.length >= 32 && secret.length <= 512
-  const match = /^whsec_([A-Za-z0-9+/]+={0,2})$/.exec(secret)
+  const match = /^whsec_((?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$/.exec(secret)
   return Boolean(match) && Buffer.from(match![1]!, 'base64').length >= 24 && secret.length <= 512
 }
 

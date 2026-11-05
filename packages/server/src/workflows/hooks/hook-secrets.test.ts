@@ -16,6 +16,9 @@ describe('webhook secrets', () => {
     const given = `whsec_${Buffer.alloc(24, 7).toString('base64')}`
     expect(hookSecret('standard_webhooks', given)).toBe(given)
     expect(() => hookSecret('standard_webhooks', 'whsec_c2hvcnQ=')).toThrow(HttpProblem)
+    // 25 bytes' worth of base64 without its padding, which the signature check cannot decode.
+    expect(() => hookSecret('standard_webhooks', `whsec_${'A'.repeat(34)}`)).toThrow(HttpProblem)
+    expect(usableSecret('standard_webhooks', `whsec_${'A'.repeat(34)}`)).toBe(false)
     expect(() => hookSecret('bearer', 'short')).toThrow(HttpProblem)
     expect(usableSecret('standard_webhooks', 'not whsec')).toBe(false)
     expect(usableSecret('hmac', null)).toBe(false)
