@@ -151,7 +151,7 @@ Only calls that pass the check spend `per_minute`, so someone who knows the URL 
 { "app:schedule": { "cron": "0 6 * * 1-5", "timezone": "Europe/Amsterdam" } }
 ```
 
-Starts one run at each time of a five-field cron, in an IANA time zone (default UTC), with `{ scheduled_at }` as the run's input. A time starts one run however many server processes run. A time missed while no worker ran is skipped: the next run is at the next time after the worker came back.
+Starts one run at each time of a five-field cron, in an IANA time zone (default UTC), with `{ scheduled_at }` as the run's input. A time starts one run however many server processes run. The first time missed while no worker ran starts one run, late, once a worker is back; the other times missed meanwhile start none.
 
 ### Reading values by name
 
