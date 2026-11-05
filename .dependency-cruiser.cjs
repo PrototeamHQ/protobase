@@ -22,6 +22,20 @@ module.exports = {
       to: { path: '^packages/', pathNot: '^packages/workflows/' },
     },
     {
+      name: 'workflow-plugins-public-only',
+      comment: 'The built-in workflow plugins import only the public plugin interface, @protobase/workflows/plugin, as a custom plugin must.',
+      severity: 'error',
+      from: { path: '^packages/workflow-plugins/' },
+      to: { path: '^packages/', pathNot: ['^packages/workflow-plugins/', '^packages/workflows/src/plugin/index\\.ts$'] },
+    },
+    {
+      name: 'workflow-plugins-no-network',
+      comment: "The built-in workflow plugins send only through the plugin context's fetch, which checks the address it connects to: no network module or HTTP client of their own.",
+      severity: 'error',
+      from: { path: '^packages/workflow-plugins/' },
+      to: { path: '^(node:)?(http|https|http2|net|tls|dgram)$|(^|/)node_modules/undici/|^undici$' },
+    },
+    {
       name: 'layout-runs-anywhere',
       comment: '@protobase/layout imports only schema: layouts are built in the config, checked on the server and rendered in the browser.',
       severity: 'error',
@@ -51,10 +65,10 @@ module.exports = {
     },
     {
       name: 'server-imports',
-      comment: '@protobase/server imports only schema, layout, query and workflows.',
+      comment: '@protobase/server imports only schema, layout, query, workflows and the built-in workflow plugins.',
       severity: 'error',
       from: { path: '^packages/server/' },
-      to: { path: '^packages/', pathNot: '^packages/(server|schema|layout|query|workflows)/' },
+      to: { path: '^packages/', pathNot: '^packages/(server|schema|layout|query|workflows|workflow-plugins)/' },
     },
     {
       name: 'config-types-only',
