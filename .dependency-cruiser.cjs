@@ -30,10 +30,10 @@ module.exports = {
     },
     {
       name: 'workflow-plugins-no-network',
-      comment: "The built-in workflow plugins send only through the plugin context's fetch, which checks the address it connects to: no network module or HTTP client of their own.",
+      comment: "The built-in workflow plugins send only through the plugin context's fetch, which checks the address it connects to: they import nothing but their own files and the plugin interface, so no Node module (http, net, dns, ...) or HTTP client of their own.",
       severity: 'error',
       from: { path: '^packages/workflow-plugins/' },
-      to: { path: '^(node:)?(http|https|http2|net|tls|dgram)$|(^|/)node_modules/undici/|^undici$' },
+      to: { pathNot: ['^packages/workflow-plugins/', '^packages/workflows/src/plugin/index\\.ts$', '^@protobase/workflows/plugin$'] },
     },
     {
       name: 'layout-runs-anywhere',
