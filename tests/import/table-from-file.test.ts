@@ -79,6 +79,6 @@ describe('a table from a file', () => {
     const read = await readColumns(source, undefined, () => {})
     const proposal = changeField({ ...proposeTable('refused.csv', read, [], 63), singularLabel: 'Row' }, 0, { name: 'select' })
     await expect(client.batchWrite(createTableOps('user_tables', proposal))).rejects.toThrow()
-    expect((await client.list('user_tables', { filter: 'name = "refused"' })).items).toEqual([])
+    expect((await client.list('user_tables', { filter: 'table_name = "refused"' })).items).toEqual([])
   })
 })
