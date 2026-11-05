@@ -1,0 +1,629 @@
+{
+  "resources": [
+    {
+      "name": "failed_jobs",
+      "table": {
+        "schema": "jobs",
+        "name": "failed"
+      },
+      "fields": {
+        "id": {
+          "name": "id",
+          "column": "id",
+          "type": "uuid",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "name": {
+          "name": "name",
+          "column": "name",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": true,
+          "aliases": []
+        },
+        "error": {
+          "name": "error",
+          "column": "error",
+          "type": "text",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "attempts": {
+          "name": "attempts",
+          "column": "attempts",
+          "type": "integer",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "failed_at": {
+          "name": "failed_at",
+          "column": "failed_at",
+          "type": "timestamp",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": true,
+          "aliases": []
+        },
+        "created_at": {
+          "name": "created_at",
+          "column": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": true,
+          "aliases": []
+        },
+        "key": {
+          "name": "key",
+          "column": "key",
+          "type": "text",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "payload": {
+          "name": "payload",
+          "column": "payload",
+          "type": "json",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "output": {
+          "name": "output",
+          "column": "output",
+          "type": "json",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "retry": {
+          "name": "retry",
+          "column": "retry",
+          "type": "boolean",
+          "nullable": false,
+          "readOnly": false,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        }
+      },
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "record_history",
+      "table": {
+        "schema": "outbox",
+        "name": "history"
+      },
+      "fields": {
+        "id": {
+          "name": "id",
+          "column": "id",
+          "type": "bigint",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": true,
+          "aliases": []
+        },
+        "resource": {
+          "name": "resource",
+          "column": "resource",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "record_key": {
+          "name": "record_key",
+          "column": "record_key",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "column": "tenant_id",
+          "type": "text",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "operation": {
+          "name": "operation",
+          "column": "operation",
+          "type": "enum",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": [],
+          "enumValues": [
+            "create",
+            "update",
+            "delete",
+            "undelete"
+          ]
+        },
+        "before": {
+          "name": "before",
+          "column": "before",
+          "type": "json",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "after": {
+          "name": "after",
+          "column": "after",
+          "type": "json",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "changed": {
+          "name": "changed",
+          "column": "changed",
+          "type": "json",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "column": "actor_id",
+          "type": "text",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "actor_roles": {
+          "name": "actor_roles",
+          "column": "actor_roles",
+          "type": "json",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "database_role": {
+          "name": "database_role",
+          "column": "database_role",
+          "type": "text",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "transaction": {
+          "name": "transaction",
+          "column": "transaction",
+          "type": "bigint",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "at": {
+          "name": "at",
+          "column": "at",
+          "type": "timestamp",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        }
+      },
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "name": "record_comments",
+      "table": {
+        "schema": "comments",
+        "name": "comments"
+      },
+      "fields": {
+        "id": {
+          "name": "id",
+          "column": "id",
+          "type": "bigint",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": true,
+          "aliases": []
+        },
+        "resource": {
+          "name": "resource",
+          "column": "resource",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "record_key": {
+          "name": "record_key",
+          "column": "record_key",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "column": "tenant_id",
+          "type": "text",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "author_id": {
+          "name": "author_id",
+          "column": "author_id",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "body": {
+          "name": "body",
+          "column": "body",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "mentions": {
+          "name": "mentions",
+          "column": "mentions",
+          "type": "json",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "created_at": {
+          "name": "created_at",
+          "column": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": [],
+          "default": {
+            "db": true
+          }
+        }
+      },
+      "primaryKey": [
+        "id"
+      ]
+    }
+  ],
+  "views": [
+    {
+      "resource": "failed_jobs",
+      "fields": {
+        "name": {
+          "label": "Job"
+        },
+        "error": {
+          "label": "Last error"
+        },
+        "attempts": {
+          "label": "Attempts"
+        },
+        "failed_at": {
+          "label": "Failed"
+        },
+        "created_at": {
+          "label": "Enqueued"
+        },
+        "key": {
+          "label": "Key"
+        },
+        "payload": {
+          "label": "Payload"
+        },
+        "output": {
+          "label": "Error details"
+        }
+      },
+      "filters": [],
+      "layout": [
+        {
+          "kind": "section",
+          "title": "Failure",
+          "fields": [
+            "error",
+            "output"
+          ]
+        },
+        {
+          "kind": "section",
+          "title": "Job",
+          "fields": [
+            "name",
+            "key",
+            "payload"
+          ]
+        },
+        {
+          "kind": "sidebar",
+          "fields": [
+            "attempts",
+            "failed_at",
+            "created_at"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "name": "retry",
+          "label": "Retry",
+          "bulk": false,
+          "icon": "rotate-ccw",
+          "confirm": "Run this job once more, from now?",
+          "run": {
+            "kind": "update",
+            "values": {
+              "retry": true
+            }
+          }
+        },
+        {
+          "name": "delete",
+          "label": "Delete",
+          "bulk": false,
+          "icon": "trash-2",
+          "confirm": "Delete this job? It will not run again.",
+          "run": {
+            "kind": "delete"
+          }
+        }
+      ],
+      "names": {
+        "singular": "Failed job",
+        "plural": "Failed jobs"
+      },
+      "icon": "triangle-alert",
+      "title": "name",
+      "help": "Jobs that used up their attempts, or failed for good. Retry one once its cause is fixed: it gets one more attempt.",
+      "list": {
+        "sort": [
+          [
+            "failed_at",
+            "desc"
+          ]
+        ],
+        "columns": [
+          "name",
+          "error",
+          "attempts",
+          "failed_at"
+        ]
+      }
+    },
+    {
+      "resource": "record_history",
+      "fields": {
+        "resource": {
+          "label": "Resource"
+        },
+        "record_key": {
+          "label": "Record"
+        },
+        "operation": {
+          "label": "Operation",
+          "valueLabels": {
+            "create": "Created",
+            "update": "Updated",
+            "delete": "Deleted",
+            "undelete": "Restored"
+          }
+        },
+        "before": {
+          "label": "Before"
+        },
+        "after": {
+          "label": "After"
+        },
+        "actor_id": {
+          "label": "By"
+        },
+        "actor_roles": {
+          "label": "Acting as"
+        },
+        "database_role": {
+          "label": "Database role"
+        },
+        "changed": {
+          "label": "Changed fields"
+        },
+        "transaction": {
+          "label": "Transaction"
+        },
+        "at": {
+          "label": "When"
+        }
+      },
+      "filters": [],
+      "layout": [
+        {
+          "kind": "section",
+          "title": "Change",
+          "fields": [
+            "resource",
+            "record_key",
+            "operation",
+            "changed"
+          ]
+        },
+        {
+          "kind": "section",
+          "title": "Before and after",
+          "fields": [
+            "before",
+            "after"
+          ]
+        },
+        {
+          "kind": "sidebar",
+          "fields": [
+            "at",
+            "actor_id",
+            "actor_roles",
+            "database_role",
+            "transaction"
+          ]
+        }
+      ],
+      "actions": [],
+      "names": {
+        "singular": "Change",
+        "plural": "Activity"
+      },
+      "icon": "history",
+      "title": "record_key",
+      "help": "Every change of the records whose resource keeps history, from the app or straight in the database, newest first.",
+      "list": {
+        "sort": [
+          [
+            "id",
+            "desc"
+          ]
+        ],
+        "columns": [
+          "at",
+          "resource",
+          "record_key",
+          "operation",
+          "actor_id",
+          "changed"
+        ]
+      }
+    },
+    {
+      "resource": "record_comments",
+      "fields": {
+        "resource": {
+          "label": "Resource"
+        },
+        "record_key": {
+          "label": "Record"
+        },
+        "author_id": {
+          "label": "By"
+        },
+        "body": {
+          "label": "Comment"
+        },
+        "mentions": {
+          "label": "Mentions"
+        },
+        "created_at": {
+          "label": "When"
+        }
+      },
+      "filters": [],
+      "layout": [
+        {
+          "kind": "section",
+          "title": "Comment",
+          "fields": [
+            "resource",
+            "record_key",
+            "body",
+            "mentions"
+          ]
+        },
+        {
+          "kind": "sidebar",
+          "fields": [
+            "created_at",
+            "author_id"
+          ]
+        }
+      ],
+      "actions": [],
+      "names": {
+        "singular": "Comment",
+        "plural": "Comments"
+      },
+      "icon": "message-square",
+      "title": "record_key",
+      "help": "Every comment on the records whose resource takes comments, newest first. Delete one to take it down.",
+      "list": {
+        "sort": [
+          [
+            "id",
+            "desc"
+          ]
+        ],
+        "columns": [
+          "created_at",
+          "resource",
+          "record_key",
+          "author_id",
+          "body"
+        ]
+      }
+    }
+  ]
+}
