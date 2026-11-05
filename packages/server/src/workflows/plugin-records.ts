@@ -2,12 +2,14 @@ import { sql } from 'kysely'
 import { StepError } from '@protobase/workflows'
 import type { PluginRecords } from '@protobase/workflows/plugin'
 import { assistantRecords, toolEntry, type RecordKeyInput } from '../assistant/records'
+import { runBatch } from '../batch/run-batch'
 import type { BatchOperation } from '../batch/schema'
 import type { Deps } from '../deps'
 import { issueTicket } from '../files/ticket'
 import { HttpProblem } from '../problem'
 import { tenantScope } from '../tenant'
 import type { Row, Session, TenantValue } from '../types'
+import { effectsStore } from './effects-store'
 import { runFileRef } from './run-files'
 
 /** The roles a user acts with now in a tenant: none for one who is banned, gone or holds no role. */
@@ -60,29 +62,34 @@ const refusedAs = (error: unknown): never => {
 }
 
 /**
- * The plugin context's `records` for a run: the app's API as the user who saved the version the run runs, so its
- * access rules, tenant scope, validation and write hooks apply as they do to that user's own requests. A file value
- * of the run's own in a file field is written as the upload ticket the write takes.
+ * The plugin context's `records` for one try of a step: the app's API as the user who saved the version the run runs, so
+ * its access rules, tenant scope, validation and write hooks apply as they do to that user's own requests. A file value
+ * of the run's own in a file field is written as the upload ticket the write takes. Each create keeps the step's
+ * idempotency key and its place among the step's creates with its records, so a retry of the step after they committed,
+ * such as after a crash before the step was saved, creates none again and returns them.
  */
-export const pluginRecords = (input: RecordsInput, runId: string): PluginRecords => {
+export const pluginRecords = (input: RecordsInput, runId: string, idempotencyKey: string): PluginRecords => {
   const open = async () => {
     const deps = input.deps()
     const session = await runSession(input, runId)
     return { deps, session, records: assistantRecords(deps, session) }
   }
   const guarded = <T>(work: () => Promise<T>) => work().catch(refusedAs)
+  let creates = 0
+  // Several records are created in one batch, all or none, so a retry after one fails does not create the others again;
+  // one record is a batch of one.
+  const createAll = async (resource: string, data: Row[]) => {
+    const key = `${idempotencyKey}:${creates++}`
+    const deps = input.deps()
+    const session = await runSession(input, runId)
+    const operations: BatchOperation[] = []
+    for (const item of data) operations.push({ op: 'create', resource, data: await withTickets(deps, session, resource, item, runId) })
+    const results = await runBatch(deps, session, operations, { key, store: effectsStore(input.schema, runId) })
+    return results.flatMap((result) => (result.op === 'create' ? [result.record] : []))
+  }
   return {
-    create: (resource, data) => guarded(async () => {
-      const { deps, session, records } = await open()
-      return (await records.create(resource, await withTickets(deps, session, resource, data, runId))).record
-    }),
-    createMany: (resource, data) => guarded(async () => {
-      const { deps, session, records } = await open()
-      const operations: BatchOperation[] = []
-      for (const item of data) operations.push({ op: 'create', resource, data: await withTickets(deps, session, resource, item, runId) })
-      const results = await records.batch(operations)
-      return results.flatMap((result) => (result.op === 'create' ? [result.record] : []))
-    }),
+    create: (resource, data) => guarded(async () => (await createAll(resource, [data]))[0]!),
+    createMany: (resource, data) => guarded(() => createAll(resource, data)),
     update: (resource, key, data) => guarded(async () => {
       const { deps, session, records } = await open()
       return (await records.update(resource, key as RecordKeyInput, await withTickets(deps, session, resource, data, runId))).record

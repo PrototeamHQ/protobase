@@ -34,7 +34,7 @@ type Record_ = Record<string, unknown>
 /**
  * The app's records, read and written as the user who saved the version the run runs, with the roles they hold now,
  * through the API: its access rules, tenant scope, validation and write hooks apply. A refusal fails the step with
- * `Records.Refused`.
+ * `Records.Refused`. A create in a retry of a step after its records committed creates none again and returns them.
  */
 export type PluginRecords = {
   create(resource: string, data: Record_): Promise<Record_>
