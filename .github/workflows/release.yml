@@ -99,6 +99,9 @@ jobs:
   commits:
     if: ${{ !inputs.tag }}
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -110,13 +113,22 @@ jobs:
       - name: Lint the pushed commits
         env:
           BEFORE: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
         # A force-push's before is not an ancestor of the pushed commit and may be on no branch the clone has, so it is
         # fetched by its hash, and the push added only the commits that neither before nor a release tag holds: a push
         # that restores released history adds none. Without before, the pushed commit is linted alone. A run by hand has
-        # no before, so it lints the commits since the newest release tag, the ones it releases.
+        # no before, so it lints as a push would: the commits since the head the previous release run linted
+        # (scripts/release-lint), so a malformed commit already on main fails one release, not every later one; without
+        # such a run it lints the commits since the newest release tag.
         run: |
           if [ -z "$BEFORE" ]; then
-            bun x --bun commitlint --from "$(git describe --tags --abbrev=0 --match 'v[0-9]*')" --to "$GITHUB_SHA" --verbose
+            linted=$(bun scripts/release-lint/main.ts)
+            if [ -z "$linted" ] || ! git merge-base --is-ancestor "$linted" "$GITHUB_SHA"; then
+              linted=$(git describe --tags --abbrev=0 --match 'v[0-9]*')
+            fi
+            if [ "$(git rev-parse "$linted^{commit}")" != "$GITHUB_SHA" ]; then
+              bun x --bun commitlint --from "$linted" --to "$GITHUB_SHA" --verbose
+            fi
           elif [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then
             bun x --bun commitlint --last --verbose
           elif git merge-base --is-ancestor "$BEFORE" "$GITHUB_SHA" 2>/dev/null; then
