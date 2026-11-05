@@ -81,4 +81,10 @@ describe('triggerChecks', () => {
     expect(check({ shop: 'closed' })).toEqual([{ field: 'shop', message: 'is closed' }])
     expect(check({ shop: 'open' })).toEqual([])
   })
+
+  it('reports a missing property at its own field', () => {
+    const due = { kind: 'ready', label: 'Due', description: 'Each due invoice.', input: { type: 'object', required: ['resource'], properties: { invoice: { type: 'object', required: ['id'] } } }, ready: () => ({ resource: 'invoices' }) } as const
+    const check = triggerChecks([definePlugin({ name: 'billing', label: 'Billing', triggers: { due } })])['billing:due']!
+    expect(check({ invoice: {} })).toEqual([{ field: 'resource', message: 'is missing' }, { field: 'invoice.id', message: 'is missing' }])
+  })
 })
