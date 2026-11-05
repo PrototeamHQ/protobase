@@ -96,7 +96,7 @@ describe('the reference flows of the language report', () => {
 
   it('d: a charge retried 3 times after the first try, then the order marked and ops mailed the error', async () => {
     const app = fakeApp({}, new Set(['https://payments.example.com/charges']))
-    const port = await run('d', { event: 'orders.created', resource: 'orders', key: '17', after: { id: 17, customer_email: 'c@example.com', total: 99.5 } }, app)
+    const port = await run('d', { resource: 'orders', key: '17', record: { id: 17, customer_email: 'c@example.com', total: 99.5 } }, app)
     expect(port.run('d').status).toBe('succeeded')
     const charges = app.calls.filter((call) => call.resource === 'app:http')
     // Every try sends the same key, so a payment service that dedupes by it charges the order once.
@@ -117,7 +117,7 @@ describe('the reference flows of the language report', () => {
 
   it('f: a new lead posted through a piece, and the lead keeps the message\'s timestamp', async () => {
     const app = fakeApp()
-    const port = await run('f', { event: 'leads.created', resource: 'leads', key: '5', after: { id: 5, name: 'Ada', email: 'ada@example.com', company: 'AE' } }, app)
+    const port = await run('f', { resource: 'leads', key: '5', record: { id: 5, name: 'Ada', email: 'ada@example.com', company: 'AE' } }, app)
     expect(port.run('f').status).toBe('succeeded')
     expect(app.calls).toEqual([
       { resource: 'app:piece', args: { piece: 'slack', action: 'send_channel_message', connection: 'sales_slack', props: { channel: 'C0SALES01', text: 'New lead: Ada from AE (ada@example.com)' } } },
