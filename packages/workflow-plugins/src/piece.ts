@@ -20,7 +20,7 @@ export const pieceSteps: Record<string, StepType> = {
       },
     },
     output: { description: 'what the action returns' },
-    errors: { Error: 'always, until connectors are implemented' },
+    errors: { Error: 'always, until connectors are implemented', InvalidArguments: 'piece, action or connection is missing' },
     run: async () => {
       throw new StepError('Piece.Error', 'No piece runs in this app yet')
     },
