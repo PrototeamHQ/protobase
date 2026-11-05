@@ -222,6 +222,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('polling triggers, turne
     expect(await savePoll(db, 'workflows', { ...retry, generation: 6 }, [{ key: 'old', data: 1 }], outcome)).toBeUndefined()
     expect(await savePoll(db, 'workflows', retry, [{ key: 'new', data: 1 }], outcome)).toHaveLength(1)
     expect((await runsOf(workflow.id)).map((run) => run.key)).toEqual(['new'])
+    // Another process's poll, under the next job, sees the same item and the item's run starts once.
+    await sql`update workflows.triggers set poll_job_id = 'job-3' where id = ${row!.id}`.execute(db)
+    const other = { trigger: row!.id, generation: 7, job: 'job-3', attempt: 1 }
+    expect(await claimTrigger(db, 'workflows', other)).toBeTruthy()
+    expect(await savePoll(db, 'workflows', other, [{ key: 'new', data: 2 }], outcome)).toEqual([])
+    expect((await runsOf(workflow.id)).map((run) => run.key)).toEqual(['new'])
     await sql`delete from workflows.triggers where id = ${row!.id}`.execute(db)
   })
 
