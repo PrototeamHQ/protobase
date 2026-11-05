@@ -20,7 +20,7 @@ export type IssueWebhook = (session: Session, id: string, secret: string | undef
 export const enableWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'enable_workflow',
-    description: `Turns a workflow's trigger on (enabled: true) on version, which must be its current version as create_workflow, update_workflow or get_workflow gave it, or off (enabled: false), and returns JSON { id, enabled_version }. A workflow saved since that version is refused; read it again. While on, its trigger starts runs: a webhook trigger once its URL is issued with new_webhook_url, a polling trigger at its next poll. A later save keeps it on, on the new version. The user approves it in their client first.${onlyNote(input)}`,
+    description: `Turns a workflow's trigger on (enabled: true) on version, which must be its current version as create_workflow, update_workflow or get_workflow gave it, or off (enabled: false), and returns JSON { id, enabled_version }. A workflow saved since that version is refused; read it again. While on, its trigger starts runs: a webhook trigger whose sender you give a URL once it is issued with new_webhook_url, one that registers its own URL with its service as soon as it did, a polling trigger at its next poll. A later save keeps it on, on the new version. The user approves it in their client first.${onlyNote(input)}`,
     parameters: {
       type: 'object',
       properties: {
@@ -55,7 +55,7 @@ export const enableWorkflowTool = (input: WriteRecordToolsInput = {}) =>
 export const newWebhookUrlTool = (issue: IssueWebhook, input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'new_webhook_url',
-    description: `Issues a new URL and secret for a workflow that starts from a webhook trigger (such as app:webhook), and returns JSON { url, secret }, shown this once: the app keeps no way to show them again, and the workflow's old URL stops. Pass secret to keep one the sender makes itself (a Standard Webhooks sender's whsec_ secret); without it the app makes one. The sender then POSTs to the url, signed as the trigger's auth mode says. The user approves it in their client first.${onlyNote(input)}`,
+    description: `Issues a new URL and secret for a workflow that starts from a webhook trigger whose sender you give a URL (such as app:webhook), and returns JSON { url, secret }, shown this once: the app keeps no way to show them again, and the workflow's old URL stops. Pass secret to keep one the sender makes itself (a Standard Webhooks sender's whsec_ secret); without it the app makes one. The sender then POSTs to the url, signed as the trigger's auth mode says. A trigger that registers its own URL with its service is refused: turning the workflow on is all it needs. The user approves it in their client first.${onlyNote(input)}`,
     parameters: { type: 'object', properties: { id: idParameter, secret: { type: 'string', description: "The sender's own secret, when it makes one; omit it to have the app make one." } }, required: ['id'] },
     annotations: writes,
     run: async (args, context) => {
