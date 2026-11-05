@@ -3,10 +3,14 @@ import { appPlugin } from '@protobase/workflow-plugins'
 import { loadPlugins, typeCatalog, typeList } from '@protobase/workflows'
 import { definePlugin } from '@protobase/workflows/plugin'
 
-/** A plugin as an app's own package writes one: a trigger and a step, each with a required input, and a polling trigger. */
+/**
+ * A plugin as an app's own package writes one: a trigger and a step, each with a required input, and a polling trigger
+ * that signs in through a connection.
+ */
 export const examplePlugin = definePlugin({
   name: 'acme',
   label: 'Acme',
+  connections: { mail: { label: 'Acme mail', oauth: { authorization_url: 'https://acme.test/authorize', token_url: 'https://acme.test/token' } } },
   triggers: {
     overdue: {
       kind: 'ready',
@@ -20,6 +24,7 @@ export const examplePlugin = definePlugin({
       label: 'New mail',
       description: 'Starts one run for each new mail.',
       input: { type: 'object', properties: {} },
+      connection: 'mail',
       every: '1 minute',
       start: async () => null,
       poll: async () => ({ items: [], cursor: null }),
@@ -36,9 +41,9 @@ export const examplePlugin = definePlugin({
 })
 
 /**
- * The type list of an app with the built-in plugin and `examplePlugin`, as the server serves it: a polling trigger is
- * not available, as it is not in this version of the app.
+ * The type list of an app with the built-in plugin and `examplePlugin`, as the server serves it: a type that signs in
+ * through a connection is not available, as this version of the app cannot make one.
  */
 export const exampleWorkflowTypes: WorkflowTypeList = typeCatalog(
-  typeList(loadPlugins([{ plugin: appPlugin, source: '@protobase/workflow-plugins' }, { plugin: examplePlugin, source: 'acme' }]), (type) => (type.kind === 'polling' ? 'This app does not run polling triggers yet' : undefined)),
+  typeList(loadPlugins([{ plugin: appPlugin, source: '@protobase/workflow-plugins' }, { plugin: examplePlugin, source: 'acme' }]), (type) => (type.connection ? 'It signs in through a connection, which this app cannot make yet' : undefined)),
 )
