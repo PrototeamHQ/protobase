@@ -58,6 +58,12 @@ export const fieldsSql = () => `create table ${definitionsSchema}.fields (
 )`
 
 /**
+ * Serves a table's fields in position order, the order its own fields take: the admin's scan guard accepts a sort on
+ * `position` only from an index that reaches it with `table_id` pinned. It also reaches a fields table made before it.
+ */
+export const fieldsPositionIndexSql = () => `create index if not exists fields_position_idx on ${definitionsSchema}.fields (table_id, position)`
+
+/**
  * Brings a definitions table made before organizations to the shape of `tablesSql`: a name unique per organization and
  * the served name.
  */

@@ -29,7 +29,7 @@ The tables users add and their definitions live in two schemas of the app's data
 
 | Schema | What it holds |
 | --- | --- |
-| `table_definitions` | `tables`, one row per table users add, with its singular and plural label, its title field, a version, 1 when it is added, its organization with organizations, and its table's name, and `fields`, each table's fields in order with their label, type and whether they are required |
+| `table_definitions` | `tables`, one row per table users add, with its singular and plural label, its title field, a version, 1 when it is added, its organization with organizations, and its table's name, and `fields`, each table's fields in order with their label, type and whether they are required, indexed by table and position so a table's fields list in their order |
 | `user_tables` | the tables themselves, each with an `id bigint generated always as identity` primary key and a column per field, and with organizations an `organization_id` column |
 
 With `userTables: true`, [`protobase migration`](/reference/cli/#migration) writes a migration that adds both schemas, the two definition tables and the `pg_trgm` extension when it is missing, and grants the app's database role CREATE on `user_tables` alone, and writes nothing once the database has them. Apply it with the project's other migrations; the server never creates them itself. At start, `dev` and `serve` stop while one is missing; `PROTOBASE_STARTUP_CHECKS=false` skips that check in `serve`, as it skips the others.

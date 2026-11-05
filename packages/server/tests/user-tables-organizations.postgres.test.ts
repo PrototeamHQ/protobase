@@ -198,6 +198,7 @@ describe.skipIf(!ready)('the migration of a definitions schema made before organ
     await old.exec(beforeOrganizations)
     const migration = (await userTablesMigration(old.db))!
     expect(migration).toContain('drop constraint tables_name_key')
+    expect(migration).toContain('create index if not exists fields_position_idx on table_definitions.fields (table_id, position)')
     await old.exec(migration)
     expect(await userTablesMigration(old.db)).toBeUndefined()
     const served = await userTableResources(old.db)

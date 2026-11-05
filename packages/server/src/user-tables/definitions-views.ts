@@ -59,5 +59,5 @@ export const fieldsView = view<Definitions['fields']>(fieldsResourceName)
     scale: r.scale.label('Decimals').help('For a decimal number only: how many of those digits come after the decimal point.'),
     required: r.required.notOnCreate(),
   }))
-  .list((r) => ({ columns: [r.label, r.name, r.type, r.position], sort: [[r.position, 'asc']] }))
+  .list((r) => ({ columns: [r.label, r.name, r.type, r.position], sort: [[r.table_id, 'asc'], [r.position, 'asc']] }))
   .layout((r) => [l.section('Field', [r.table_id, r.label, r.name, r.type, r.position]), l.section('Decimal number', [r.precision, r.scale])])

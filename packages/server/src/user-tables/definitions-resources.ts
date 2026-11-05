@@ -69,7 +69,9 @@ export const definitionsResources = ({ roles, taken, organizations = false }: { 
   const fields = resource(fieldsResourceName)
     .table(`${definitionsSchema}.fields`)
     .fields({
-      table_id: f.relation(tablesResourceName).access(createOnly).filterable(),
+      // The primary key (table_id, name) serves table_id, and the index (table_id, position) position with table_id
+      // pinned; a list of every table's fields sorts by table_id first.
+      table_id: f.relation(tablesResourceName).access(createOnly).filterable().sortable(),
       name: f.text().access(createOnly),
       label: f.text().max(maxLabelLength),
       type: f.enum(definitionFieldTypes).access(createOnly),

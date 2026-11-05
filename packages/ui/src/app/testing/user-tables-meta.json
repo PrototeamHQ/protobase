@@ -106,7 +106,7 @@
           "nullable": false,
           "readOnly": false,
           "filterable": true,
-          "sortable": false,
+          "sortable": true,
           "aliases": [],
           "relation": {
             "resource": "user_tables",
@@ -437,6 +437,10 @@
       },
       "list": {
         "sort": [
+          [
+            "table_id",
+            "asc"
+          ],
           [
             "position",
             "asc"
