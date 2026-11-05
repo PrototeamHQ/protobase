@@ -165,7 +165,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
   it('creates a webhook workflow, turns it on, gets its URL, and reads the run a signed call started', async () => {
     const echo = { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Pass', Output: '{% $states.context.Execution.Input.body %}', End: true } } }
     const { id } = await ana('create_workflow', { name: 'Hook', definition: { trigger: { 'app:webhook': {} }, stateMachine: echo } })
-    expect(await ana('enable_workflow', { id, enabled: true })).toEqual({ id, enabled_version: 1 })
+    expect(await ana('enable_workflow', { id, enabled: true, version: 1 })).toEqual({ id, enabled_version: 1 })
     const { url, secret } = await ana('new_webhook_url', { id })
     expect(url).toMatch(/\/api\/workflows\/hooks\/[\w-]{43}$/)
     const body = '{"order":7}'
@@ -191,7 +191,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     expect(await bo('create_workflow', { name: 'Mine', definition: definition({ Done: { Type: 'Succeed' } }) })).toEqual(hidden('workflows'))
     expect(await bo('update_workflow', { id, name: 'Taken' })).toEqual(hidden('workflows'))
     expect(await bo('run_workflow', { id, input: {} })).toEqual(hidden('workflow_runs'))
-    expect(await bo('enable_workflow', { id, enabled: true })).toMatchObject({ error: 'not-found' })
+    expect(await bo('enable_workflow', { id, enabled: true, version: 1 })).toMatchObject({ error: 'not-found' })
     expect(await bo('new_webhook_url', { id })).toMatchObject({ error: 'not-found' })
     expect(await counts()).toEqual(before)
     expect((await ana('get_workflow', { id })).workflow.name).toBe('Private')
