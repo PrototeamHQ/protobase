@@ -35,7 +35,7 @@ describe('the workflow types the editor reads', () => {
       const served = await answer.json()
       expect(served).toEqual(JSON.parse(JSON.stringify(typeCatalog(types))))
       expect(served.step_types.map((type: { id: string }) => type.id)).toContain('example:shout')
-      expect(served.triggers.map((type: { id: string }) => type.id)).toEqual(['manual', 'app:record', 'example:new_note'])
+      expect(served.triggers.map((type: { id: string }) => type.id)).toEqual(['manual', 'app:record', 'app:schedule', 'app:webhook', 'example:new_note'])
     }
   })
 
