@@ -8,6 +8,7 @@ import { loadPlugins } from './load-plugins'
 import { stepHandlers } from './step-handlers'
 import { triggerChecks } from './trigger-checks'
 import { typeList } from './type-list'
+import type { Plugin } from './types'
 
 const acme = definePlugin({
   name: 'acme',
@@ -38,7 +39,14 @@ describe('definePlugin and loadPlugins', () => {
     expect(() => definePlugin({ name: 'Acme', label: 'A' })).toThrow('lowercase letters')
     expect(() => definePlugin({ name: 'a', label: 'A', steps: { 'Do-it': acme.steps.greet } })).toThrow('"Do-it" is not a type key')
     expect(() => definePlugin({ name: 'a', label: 'A', steps: { x: { ...acme.steps.greet, connection: 'nope' } } })).toThrow('the connection "nope"')
+    expect(() => definePlugin({ name: 'a', label: 'A', connections: { '': acme.connections.account }, steps: { x: { ...acme.steps.greet, connection: '' } } })).toThrow("a connection's name is not empty")
+    expect(() => definePlugin({ name: 'a', label: 'A', steps: { new_order: acme.steps.greet }, triggers: { new_order: acme.triggers.new_order } })).toThrow('"new_order" is both a step and a trigger')
     expect(() => loadPlugins([{ plugin: acme, source: '@acme/one' }, { plugin: acme, source: 'workflows/plugins/acme.ts' }])).toThrow('@acme/one and workflows/plugins/acme.ts')
+  })
+
+  it("refuses a loaded module's default that is no plugin, or breaks definePlugin's checks, naming its source", () => {
+    expect(() => loadPlugins([{ plugin: undefined as unknown as Plugin, source: 'workflows/plugins/empty.ts' }])).toThrow('workflows/plugins/empty.ts does not export a workflow plugin')
+    expect(() => loadPlugins([{ plugin: { name: 'Acme', label: 'A' }, source: '@acme/one' }])).toThrow('Workflow plugin "Acme" of @acme/one: a plugin\'s name')
   })
 })
 
@@ -57,6 +65,8 @@ describe('stepHandlers', () => {
   it('runs a step with its input and the run, and refuses an input that does not fit as <prefix>.InvalidArguments', async () => {
     await expect(handlers['acme:greet']!({ name: 'Ada' }, task)).resolves.toEqual({ text: 'Hello Ada from run-1' })
     await expect(handlers['acme:greet']!({}, task)).rejects.toEqual(new StepError('Acme.InvalidArguments', "Arguments must have required property 'name'"))
+    // Arguments that evaluate to null are checked as null, not as an empty object a schema without required would take.
+    await expect(handlers['acme:token']!(null, task)).rejects.toEqual(new StepError('Step.InvalidArguments', 'Arguments must be object'))
   })
 
   it("gives a step only its own declared connection, which names no other", async () => {
@@ -70,5 +80,11 @@ describe('triggerChecks', () => {
     expect(check({ shop: 1 })).toEqual([{ field: 'shop', message: 'must be string' }])
     expect(check({ shop: 'closed' })).toEqual([{ field: 'shop', message: 'is closed' }])
     expect(check({ shop: 'open' })).toEqual([])
+  })
+
+  it('reports a missing property at its own field', () => {
+    const due = { kind: 'ready', label: 'Due', description: 'Each due invoice.', input: { type: 'object', required: ['resource'], properties: { invoice: { type: 'object', required: ['id'] } } }, ready: () => ({ resource: 'invoices' }) } as const
+    const check = triggerChecks([definePlugin({ name: 'billing', label: 'Billing', triggers: { due } })])['billing:due']!
+    expect(check({ invoice: {} })).toEqual([{ field: 'resource', message: 'is missing' }, { field: 'invoice.id', message: 'is missing' }])
   })
 })

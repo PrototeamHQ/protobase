@@ -17,6 +17,8 @@ const nullBodyStatuses = new Set([204, 205, 304])
  * wire, since the client decodes no `Content-Encoding`. Past that it throws `ResponseTooLargeError`.
  */
 export const pluginFetch = ({ allowPrivateAddresses = false, resolve, ca }: PluginFetchOptions = {}): PluginFetch => async (url, init = {}) => {
+  // A limit that is no number of bytes, such as NaN, would read nothing and pass an empty body off as the answer.
+  if (init.maxBytes !== undefined && !(Number.isFinite(init.maxBytes) && init.maxBytes >= 0)) throw new RangeError(`maxBytes is ${init.maxBytes}; give a number of bytes, 0 or more`)
   const maxBytes = Math.min(init.maxBytes ?? fetchMaxBytes, fetchMaxBytes)
   const { method = 'GET', headers, body, signal } = init
   const answer = await pinnedRequest(url, { method, ...(headers && { headers }), ...(body !== undefined && { body }), ...(signal && { signal }) }, { allowPrivateAddresses, ...(resolve && { resolve }), ...(ca && { ca }) }).catch((error: unknown) => {

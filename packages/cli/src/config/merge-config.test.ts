@@ -15,7 +15,8 @@ const folder = ({ resources, functions = {}, modules = {} }: { resources?: Recor
   ...(resources && { resources: async () => resources }),
   functions: Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, async () => ({ default: source })])),
   module: (file) => (file in modules ? async () => ({ default: modules[file] }) : undefined),
-  folder: (dir) => Object.keys(modules).filter((file) => file.startsWith(`${dir}/`)).sort(),
+  // As the project's folders list them: the folder's own .ts files, tests and declarations left out.
+  folder: (dir) => Object.keys(modules).filter((file) => file.startsWith(`${dir}/`) && /^[^/]+\.ts$/.test(file.slice(dir.length + 1)) && !/\.(test|d)\.ts$/.test(file)).sort(),
   package: () => Promise.reject(new Error('no packages')),
 })
 

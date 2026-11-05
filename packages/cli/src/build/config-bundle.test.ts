@@ -172,7 +172,7 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
       ...probe(`import { DataGrid } from '@protobase/ui'\nexport { DataGrid }\n`),
     })
     await expect(buildConfigBundle({ projectDir, outFile: path.join(projectDir, 'dist/out.js') })).rejects.toThrow(
-      '@protobase/ui is not available to a served config; of the @protobase packages and their dependencies it may import @protobase/config, @protobase/schema, @protobase/layout, @protobase/layout/jsx-runtime, @protobase/query, @protobase/server, @protobase/server/pdf, @protobase/server/email, kysely,',
+      '@protobase/ui is not available to a served config; of the @protobase packages and their dependencies it may import @protobase/config, @protobase/schema, @protobase/layout, @protobase/layout/jsx-runtime, @protobase/query, @protobase/server, @protobase/server/pdf, @protobase/workflows/plugin, @protobase/server/email, kysely,',
     )
   })
 
@@ -197,6 +197,17 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
     for (const id of ['pg', 'postgres', 'kysely/helpers/postgres', 'zod']) expect(code).toContain(`from "${id}"`)
     expect(code).not.toContain('node_modules')
     expect((await bundledResources(outFile)).found).toEqual(['function', 'function', 'function', 'function'])
+  })
+
+  it("leaves the workflow plugin interface to the serve runtime, so a plugin's StepError is the runner's", async () => {
+    projectDir = await createProject({
+      ...probe(`import { StepError, definePlugin } from '@protobase/workflows/plugin'\nexport const found = [typeof StepError, typeof definePlugin]\n`),
+    })
+    const outFile = path.join(projectDir, 'dist/protobase.config.js')
+    await buildConfigBundle({ projectDir, outFile })
+    const code = await readFile(outFile, 'utf8')
+    expect(code).toContain('from "@protobase/workflows/plugin"')
+    expect((await bundledResources(outFile)).found).toEqual(['function', 'function'])
   })
 
   it('leaves the Hono middleware an API function may use to the serve runtime', async () => {

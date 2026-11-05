@@ -1,10 +1,10 @@
 import { existsSync, readdirSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { conventionConfig } from '../project/convention'
 import { uiDirs } from '../project/convention-files'
 import { functionFiles } from '../project/functions-folder'
+import { packageEntry } from './package-entry'
 import type { ImportModules } from './read-config'
 
 type Module = Record<string, unknown>
@@ -53,6 +53,6 @@ export const sourceFiles = (projectDir: string, importModules: ImportModules): P
     functions: Object.fromEntries(functionFiles(projectDir).map(({ name, file }) => [name, one(file)])),
     module: (file) => (existsSync(path.join(projectDir, file)) ? one(path.join(projectDir, file)) : undefined),
     folder: (folder) => folderFiles(projectDir, folder),
-    package: (name) => import(/* @vite-ignore */ pathToFileURL(createRequire(path.join(projectDir, 'package.json')).resolve(name)).href),
+    package: (name) => import(/* @vite-ignore */ pathToFileURL(packageEntry(name, projectDir)).href),
   }
 }

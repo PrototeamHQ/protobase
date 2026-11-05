@@ -30,13 +30,14 @@ export default definePlugin({
         properties: { customer: { type: 'string' }, amount: { type: 'number', minimum: 0 } },
       },
       output: { type: 'object', properties: { id: { type: 'string' } } },
-      run: async ({ input, fetch, idempotencyKey }) => {
+      run: async ({ input, fetch, signal, redact, idempotencyKey }) => {
         const answer = await fetch('https://api.acme.example/invoices', {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'idempotency-key': idempotencyKey },
           body: JSON.stringify(input),
+          signal,
         })
-        if (!answer.ok) throw new StepError('Acme.Refused', `${answer.status}: ${(await answer.text()).slice(0, 200)}`)
+        if (!answer.ok) throw new StepError('Acme.Refused', `${answer.status}: ${redact(await answer.text()).slice(0, 200)}`)
         return { id: ((await answer.json()) as { id: string }).id }
       },
     },
@@ -74,7 +75,7 @@ What `run` gets, and nothing more:
 | `files` | `keep(bytes, name, type)` stores a file of the run and returns its file value; `read(value, field)` reads one the run kept. No other file of the app is reachable. |
 | `mail` | `send(message)` from the app's own sender; `undefined` when the app sends no mail. |
 | `connection` | `accessToken()` of the connection the step declares, or `undefined`. |
-| `runId`, `idempotencyKey` | The run, and a key that is the same for every try of this step in this run: send it where the receiver deduplicates. |
+| `runId`, `idempotencyKey` | The run, and a key that every retry of this visit of the step shares, while a later visit of the same state, such as in a loop, gets a new one: send it where the receiver deduplicates. |
 | `signal` | Aborted at the step's timeout, or when the worker stops; pass it on to `fetch`. |
 | `log(message)`, `redact(text)` | A line in the step's logs, and the text with the app's secrets blanked out, both as the runner records them. |
 
@@ -102,7 +103,7 @@ triggers: {
 },
 ```
 
-`ready(input)` returns the resource, the readiness filter `when` and the `key` fields, and the engine runs it as it runs [`app:record`](/reference/workflows/#apprecord): one run per record that becomes ready, at the time its time terms say, read as the user who enabled the workflow.
+`ready(input)` returns the resource, the readiness filter `when` and the `key` fields, and the engine runs it as it runs [`app:record`](/reference/workflows/#apprecord): one run per record that becomes ready, at the time its time terms say, read as the user who saved the enabled version.
 
 ### Polling and webhook (coming soon)
 

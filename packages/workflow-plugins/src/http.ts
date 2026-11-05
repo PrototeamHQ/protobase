@@ -29,9 +29,20 @@ const requestBody = async (given: unknown, method: string, headers: Headers, { f
   return JSON.stringify(given)
 }
 
+// The file name in the URL's last segment, kept as it is when an escape in it does not decode, such as `a%zz`.
+const fileName = (url: URL) => {
+  const segment = url.pathname.slice(url.pathname.lastIndexOf('/') + 1)
+  try {
+    return decodeURIComponent(segment)
+  } catch (error) {
+    if (!(error instanceof URIError)) throw error
+    return segment
+  }
+}
+
 // The answer's body as `response` says: parsed JSON (null when empty), text, or a file the run keeps.
 const answerBody = async (bytes: Uint8Array, reading: string, url: URL, type: string | null, { files }: StepContext) => {
-  if (reading === 'file') return files.keep(bytes, decodeURIComponent(url.pathname.slice(url.pathname.lastIndexOf('/') + 1)), type?.split(';')[0]?.trim() || 'application/octet-stream')
+  if (reading === 'file') return files.keep(bytes, fileName(url), type?.split(';')[0]?.trim() || 'application/octet-stream')
   const text = new TextDecoder().decode(bytes)
   if (reading === 'text') return text
   if (text.trim() === '') return null
@@ -42,6 +53,8 @@ const answerBody = async (bytes: Uint8Array, reading: string, url: URL, type: st
     throw new StepError('Http.InvalidBody', `${url.host} answered with a body that is not JSON; read it with "response": "text"`)
   }
 }
+
+const loggedUrl = (given: string) => given.replace(/^([^:/?#]+:\/\/)[^/?#]*@/, '$1').replace(/[?#].*$/, '')
 
 const send = async (context: StepContext) => {
   const { input, signal, log, redact } = context
@@ -55,9 +68,9 @@ const send = async (context: StepContext) => {
     throw new StepError('Http.Network', `No answer from ${url.host}: ${error instanceof Error ? error.message : String(error)}`)
   })
   const bytes = new Uint8Array(await answer.arrayBuffer())
-  // The URL as it was given, without its query: the runner blanks secrets out of logs as they were written, which the
-  // parsed URL's encoding of them would hide.
-  log(`${method} ${input.url as string}`.replace(/[?#].*$/, '') + `: ${answer.status} in ${Date.now() - started} ms`)
+  // The URL as it was given, without its user name and password or its query: the runner blanks secrets out of logs as
+  // they were written, which the parsed URL's encoding of them would hide.
+  log(`${method} ${loggedUrl(input.url as string)}: ${answer.status} in ${Date.now() - started} ms`)
   if (answer.status < 200 || answer.status > 299) {
     const excerpt = redact(new TextDecoder().decode(bytes)).slice(0, causeBodyLength)
     throw new StepError('Http.Status', `${url.host} answered ${answer.status}${excerpt ? `: ${excerpt}` : ''}`)

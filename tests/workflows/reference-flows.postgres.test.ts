@@ -112,7 +112,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("the report's reference 
   })
 
   it('d: a charge that goes through ends the run; one that keeps failing marks the order and mails ops the error', async () => {
-    const order = { event: 'orders.created', resource: 'orders', key: '1', after: { id: 1, customer_email: 'c@example.com', total: 99.5 } }
+    const order = { resource: 'orders', key: '1', record: { id: 1, customer_email: 'c@example.com', total: 99.5 } }
     expect(await runRow(await runFlow('d', d, order))).toMatchObject({ status: 'succeeded' })
     expect(received.filter((request) => request.url === '/payments/charges').map((request) => JSON.parse(request.body))).toEqual([{ order_id: 1, amount: 99.5 }])
 
@@ -120,7 +120,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("the report's reference 
     chargeStatus = 502
     const quick = structuredClone(d) as typeof d
     quick.stateMachine.States.Charge.Retry = [{ ErrorEquals: ['States.ALL'], IntervalSeconds: 1, MaxAttempts: 3, BackoffRate: 1 }]
-    const failing = await runFlow('d (quick retries)', quick, { ...order, key: '2', after: { id: 2, customer_email: 'd@example.com', total: 12 } })
+    const failing = await runFlow('d (quick retries)', quick, { ...order, key: '2', record: { id: 2, customer_email: 'd@example.com', total: 12 } })
     expect(await runRow(failing)).toMatchObject({ status: 'succeeded' })
     expect(received.filter((request) => request.url === '/payments/charges')).toHaveLength(5)
     expect((await sql`select id, status from orders order by id`.execute(db)).rows).toEqual([{ id: 1, status: null }, { id: 2, status: 'payment_failed' }])

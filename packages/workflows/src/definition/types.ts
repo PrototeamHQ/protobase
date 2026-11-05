@@ -33,7 +33,7 @@ export type Machine = { StartAt: string; States: Record<string, State>; Comment?
 export type StateMachine = Machine & { QueryLanguage: 'JSONata' }
 
 /** What starts a workflow's runs: one key, `manual` or a trigger type `<plugin>:<key>`, holding its input. */
-export type Trigger = Record<string, Record<string, unknown>>
+export type Trigger = { manual?: Record<string, unknown>; [type: `${string}:${string}`]: Record<string, unknown> }
 
 /** A workflow definition: its trigger, and the state machine a run runs from `StartAt`. */
 export type Definition = { trigger: Trigger; stateMachine: StateMachine }

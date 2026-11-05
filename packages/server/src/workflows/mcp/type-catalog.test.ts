@@ -9,4 +9,10 @@ describe('the type catalog', () => {
     expect(catalog.triggers.map((type) => type.id)).toEqual(['manual', 'app:record'])
     expect(catalog.step_types[0]).toMatchObject({ kind: 'step', available: true, errors: expect.objectContaining({ 'Http.AddressRefused': 'the host is not a public address' }) })
   })
+
+  it('says only an automatic trigger needs its workflow enabled, as run_workflow runs a disabled one', () => {
+    const { note } = typeCatalog([])
+    expect(note).toContain('A trigger other than manual starts runs only while its workflow is enabled')
+    expect(note).toContain('a manual workflow needs no enabled_version')
+  })
 })

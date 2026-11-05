@@ -3,7 +3,7 @@ import { checkWebhookUrl, isPrivateAddress } from './address-check'
 
 describe('isPrivateAddress', () => {
   it('blocks loopback, private, link-local and similar addresses, in both families', () => {
-    for (const address of ['127.0.0.1', '10.1.2.3', '172.16.0.1', '172.31.255.255', '192.168.1.1', '169.254.169.254', '100.64.0.1', '0.0.0.0', '::1', '::', 'fd00::1', 'fe80::1', '::ffff:127.0.0.1',
+    for (const address of ['127.0.0.1', '10.1.2.3', '172.16.0.1', '172.31.255.255', '192.168.1.1', '169.254.169.254', '100.64.0.1', '198.18.0.1', '198.19.255.255', '0.0.0.0', '::1', '::', 'fd00::1', 'fe80::1', '::ffff:127.0.0.1',
       '::ffff:7f00:1', '::ffff:a00:1', '::ffff:a9fe:a9fe', '::a00:1', '::ffff:0:a00:1', '::ffff:0:127.0.0.1', '64:ff9b::a00:1', '64:ff9b:1::1', '2002:a00:1::1', 'fec0::1', 'fe80::1%eth0', 'ff02::1', '224.0.0.1', '240.0.0.1', '255.255.255.255']) {
       expect([address, isPrivateAddress(address)]).toEqual([address, true])
     }

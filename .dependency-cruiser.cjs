@@ -30,10 +30,10 @@ module.exports = {
     },
     {
       name: 'workflow-plugins-no-network',
-      comment: "The built-in workflow plugins send only through the plugin context's fetch, which checks the address it connects to: no network module or HTTP client of their own.",
+      comment: "The built-in workflow plugins send only through the plugin context's fetch, which checks the address it connects to: they import nothing but their own files and the plugin interface, so no Node module (http, net, dns, ...) or HTTP client of their own.",
       severity: 'error',
       from: { path: '^packages/workflow-plugins/' },
-      to: { path: '^(node:)?(http|https|http2|net|tls|dgram)$|(^|/)node_modules/undici/|^undici$' },
+      to: { pathNot: ['^packages/workflow-plugins/', '^packages/workflows/src/plugin/index\\.ts$', '^@protobase/workflows/plugin$'] },
     },
     {
       name: 'layout-runs-anywhere',
@@ -79,10 +79,10 @@ module.exports = {
     },
     {
       name: 'cli-imports',
-      comment: '@protobase/cli imports only config, schema, layout, query, server and ui, and the pins in @protobase/mobile\'s package.json, which its build inlines.',
+      comment: '@protobase/cli imports only config, schema, layout, query, server and ui, the workflow plugin interface it hands config bundles as a host module, and the pins in @protobase/mobile\'s package.json, which its build inlines.',
       severity: 'error',
       from: { path: '^packages/cli/' },
-      to: { path: '^packages/', pathNot: ['^packages/(cli|config|schema|layout|query|server|ui)/', mobilePins] },
+      to: { path: '^packages/', pathNot: ['^packages/(cli|config|schema|layout|query|server|ui)/', '^packages/workflows/src/plugin/index\\.ts$', mobilePins] },
     },
     {
       name: 'packages-through-entry-points',

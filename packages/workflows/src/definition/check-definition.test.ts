@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { checkDefinition } from './check-definition'
+import { schemaProblems } from './check-schema'
 import { problemText } from './problem'
+import type { Trigger } from './types'
 
 const triggers = { 'app:schedule': (input: Record<string, unknown>) => (typeof input.cron === 'string' ? [] : [{ field: 'cron', message: 'is missing' }]), 'acme:new_order': () => [] }
 const check = (machine: object, trigger: object = { manual: {} }) => checkDefinition({ trigger, stateMachine: machine }, { resources: ['http'], triggers }).map(problemText)
@@ -180,11 +182,16 @@ describe('checkDefinition, the rules of the decided profile', () => {
   it('takes manual and the trigger types the app has, checked by their type, and refuses two, an unknown type and a bad name', () => {
     const machine = { QueryLanguage: 'JSONata', StartAt: 'A', States: { A: pass } }
     for (const trigger of [{ 'app:schedule': { cron: '0 6 * * *' } }, { 'acme:new_order': {} }, { manual: {} }]) expect(check(machine, trigger)).toEqual([])
-    expect(check(machine, { 'app:schedule': {}, manual: {} })).toEqual(['Field "trigger": holds exactly one trigger: a trigger type such as app:webhook, or manual'])
+    expect(check(machine, { 'app:schedule': {}, manual: {} })).toEqual(['Field "trigger": holds exactly one trigger: a trigger type such as app:record, or manual'])
     expect(check(machine, { 'app:schedule': {} })).toEqual(['Field "trigger.app:schedule.cron": is missing'])
     expect(check(machine, { 'app:mail': {} })).toEqual(['Field "trigger": "app:mail" is not a trigger type; use manual or one of app:schedule, acme:new_order'])
     expect(check(machine, { manual: { at: 1 } })).toEqual(['Field "trigger.manual": takes no input'])
-    expect(check(machine, { Webhook: {} })).toContain('Field "trigger": names a trigger type <plugin>:<key>, such as app:webhook, or manual')
+    // The exported schema refuses it too, without the trigger types a check is given.
+    expect(schemaProblems({ trigger: { manual: { at: 1 } }, stateMachine: machine })).toEqual([{ field: 'trigger.manual', message: 'takes no input' }])
+    expect(check(machine, { Webhook: {} })).toContain('Field "trigger": names a trigger type <plugin>:<key>, such as app:record, or manual')
+    // @ts-expect-error The Trigger type takes only manual and <plugin>:<key>, as the schema does.
+    const legacy: Trigger = { record: { events: [] } }
+    expect(check(machine, legacy)).toContain('Field "trigger": names a trigger type <plugin>:<key>, such as app:record, or manual')
   })
 
   it('refuses Parallel, more than 19 retries, more than 20 at once and a state name used twice', () => {
