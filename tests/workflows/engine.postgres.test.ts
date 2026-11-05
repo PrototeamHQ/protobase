@@ -141,7 +141,9 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     const runId = await run(id, { prices: [4, 8] })
     await finished(runId)
     expect(await runRow(runId)).toMatchObject({ status: 'succeeded', output: 15 })
-    const saved = await steps(runId)
+    // The items run side by side, so their rows land in either order.
+    const [first, ...rest] = await steps(runId)
+    const saved = [first!, ...rest.slice(0, 2).sort((a, b) => String(a.scope).localeCompare(String(b.scope))), ...rest.slice(2)]
     expect(saved.map(({ scope, seq, state, status, input, output }) => ({ scope, seq, state, status, input, output }))).toEqual([
       { scope: '', seq: 0, state: 'Check', status: 'succeeded', input: { prices: [4, 8] }, output: { prices: [4, 8] } },
       { scope: 'Each.1[0]', seq: 0, state: 'Tax', status: 'succeeded', input: 4, output: 5 },
