@@ -41,7 +41,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     database = await openPostgresDatabase('auth')
     await database.exec((await jobsSchemaMigration(database.db))!)
     await database.exec((await workflowsMigration(database.db, workflows))!)
-    pool = new pg.Pool({ connectionString: database.url, max: 2 })
+    pool = database.pool({ max: 2 })
     const store = { dialect: database.dialect, query: async (text: string, params?: readonly unknown[]) => ({ rows: (await pool.query(text, params as unknown[])).rows }) }
     const { resources } = configExports(workflowsModule(workflows))
     served = await serveMcp(undefined, {
