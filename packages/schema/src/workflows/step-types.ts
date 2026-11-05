@@ -1,8 +1,9 @@
 /**
  * How a step type's argument is written: `text`, one line, which may be an expression; `choice`, one of `options`;
- * `json`, any JSON value or an expression, such as an object of field values.
+ * `json`, any JSON value or an expression, such as an object of field values; `names`, a list of names, typed on one
+ * line separated by commas.
  */
-export type StepInputKind = 'text' | 'choice' | 'json'
+export type StepInputKind = 'text' | 'choice' | 'json' | 'names'
 
 /** An argument of a step type: its name in `Arguments`, how it is written, and whether a save needs it. */
 export type StepInput = { name: string; kind: StepInputKind; required?: boolean; options?: readonly string[] }
@@ -10,6 +11,7 @@ export type StepInput = { name: string; kind: StepInputKind; required?: boolean;
 const text = (name: string, required = false): StepInput => ({ name, kind: 'text', ...(required && { required }) })
 const json = (name: string, required = false): StepInput => ({ name, kind: 'json', ...(required && { required }) })
 const choice = (name: string, options: readonly string[]): StepInput => ({ name, kind: 'choice', options })
+const names = (name: string): StepInput => ({ name, kind: 'names' })
 
 /**
  * The step types a workflow's Task names as its `Resource`, each with its arguments: the server runs them, a save
@@ -31,3 +33,13 @@ export type WorkflowStepType = keyof typeof workflowStepTypes
 export const requiredStepInputs = Object.fromEntries(
   Object.entries(workflowStepTypes).map(([type, inputs]) => [type, inputs.filter((input: StepInput) => input.required).map((input) => input.name)]),
 ) as Record<WorkflowStepType, string[]>
+
+/**
+ * The trigger types the editor offers beside `manual`, each with its input: a save refuses one without a required field,
+ * and the editor draws a form of them.
+ */
+export const workflowTriggerTypes = {
+  'app:record': [text('resource', true), text('when'), names('key')],
+} as const satisfies Record<string, readonly StepInput[]>
+
+export type WorkflowTriggerType = keyof typeof workflowTriggerTypes

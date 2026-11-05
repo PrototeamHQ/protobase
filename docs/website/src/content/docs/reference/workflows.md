@@ -4,7 +4,7 @@ description: Workflows written as state machines in the States Language with JSO
 ---
 
 :::caution[Beta]
-Workflows run when they are started through the API, over MCP, from the app's code or by a test run in the admin app. Triggers and sign-in connections to other services are not built yet.
+Workflows run when they are started through the API, over MCP, from the app's code or by a test run in the admin app, and from record triggers. Webhook and polling triggers and sign-in connections to other services are not built yet.
 :::
 
 A **workflow** is a graph of steps that the server runs one after another along its edges: fetch something, decide, run a step per item, merge the results, write records, send mail. It is written in the **States Language**, the JSON language of state machines, with **JSONata** as its expression language, in a profile of it that reads every value by name. A language model writes and changes it as easily as a person, and the same document is what the server checks and runs. Each run records every step it takes, with what the step read, gave and logged.
@@ -17,7 +17,7 @@ import { defineConfig } from '@protobase/config'
 export default defineConfig({ workflows: { secrets: ['TICKETS_TOKEN'] } })
 ```
 
-It adds four resources, over a `workflows` schema that [`protobase migration`](/reference/cli/#migration) writes (`NNN_workflows.sql`), and the `workflows.segment` [job](/reference/jobs/) that runs them:
+It adds five resources, over a `workflows` schema that [`protobase migration`](/reference/cli/#migration) writes (`NNN_workflows.sql`), and the `workflows.segment` [job](/reference/jobs/) that runs them:
 
 | Resource | |
 | --- | --- |
@@ -25,12 +25,14 @@ It adds four resources, over a `workflows` schema that [`protobase migration`](/
 | `workflow_versions` | Every version of every definition as it was saved, with who saved it and when. Read-only. |
 | `workflow_runs` | A run, started by creating it with `workflow_id` and an `input`, or with `rerun_of` to [re-run a failed run](#re-running-a-failed-run); it runs the version its workflow had then. Its status, output, error and timing are written by the runner. |
 | `workflow_steps` | Every step of every run. Read-only. |
+| `workflow_triggers` | The trigger of each enabled workflow that has one besides `manual`: its type, status and last error. Read-only. |
 
 | `workflows` | |
 | --- | --- |
 | `schema` | The schema of its tables, for a database that has a `workflows` schema already. Default `workflows`. |
 | `secrets` | The environment variables workflows may read, by name. Startup stops when one is unset or shorter than 8 characters. |
-| `allowPrivateAddresses` | Lets the `app:http` step reach private, loopback and link-local addresses, for development and tests. Default false. |
+| `allowPrivateAddresses` | Lets the `app:http` step, and every plugin's `fetch`, reach private, loopback and link-local addresses, for development and tests. Default false. |
+| `plugins` | Packages of [workflow plugins](/reference/workflow-plugins/) to run, by name, beside the app's own in `workflows/plugins/<name>.ts`. |
 
 Records steps act as each workflow's last editor, with the roles the project's sign-in gives them now. A project that signs people in otherwise exports its own, `async ({ id, tenant }) => [...]`, as the default of `workflows/saved-by-roles.ts` (`createAdmin` takes it as `workflows.savedByRoles`); without either, startup stops.
 
@@ -40,7 +42,7 @@ A definition is one JSON document: the workflow's trigger, and the state machine
 
 ```json
 {
-  "trigger": { "record": { "events": ["orders.created"] } },
+  "trigger": { "app:record": { "resource": "orders", "when": "status = 'placed'" } },
   "stateMachine": {
     "QueryLanguage": "JSONata",
     "StartAt": "Charge",
@@ -51,7 +53,7 @@ A definition is one JSON document: the workflow's trigger, and the state machine
         "Arguments": {
           "method": "POST",
           "url": "https://payments.example.com/charges",
-          "body": { "order_id": "{% $states.context.Execution.Input.after.id %}", "amount": "{% $states.context.Execution.Input.after.total %}" }
+          "body": { "order_id": "{% $states.context.Execution.Input.record.id %}", "amount": "{% $states.context.Execution.Input.record.total %}" }
         },
         "Retry": [{ "ErrorEquals": ["States.ALL"], "IntervalSeconds": 10, "MaxAttempts": 3, "BackoffRate": 2 }],
         "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "Assign": { "chargeError": "{% $states.errorOutput %}" } }],
@@ -60,7 +62,7 @@ A definition is one JSON document: the workflow's trigger, and the state machine
       "MarkFailed": {
         "Type": "Task",
         "Resource": "app:records.update",
-        "Arguments": { "resource": "orders", "key": "{% $states.context.Execution.Input.after.id %}", "data": { "status": "payment_failed" } },
+        "Arguments": { "resource": "orders", "key": "{% $states.context.Execution.Input.record.id %}", "data": { "status": "payment_failed" } },
         "Next": "TellOps"
       },
       "TellOps": {
@@ -68,7 +70,7 @@ A definition is one JSON document: the workflow's trigger, and the state machine
         "Resource": "app:mail.send",
         "Arguments": {
           "to": "ops@example.com",
-          "subject": "{% 'Payment failed for order ' & $states.context.Execution.Input.after.id %}",
+          "subject": "{% 'Payment failed for order ' & $states.context.Execution.Input.record.id %}",
           "text": "{% $chargeError.Cause %}"
         },
         "End": true
@@ -82,17 +84,33 @@ The document holds no layout: the [editor](#the-editor) lays the graph out from 
 
 ### Triggers
 
-`trigger` holds exactly one of these; its payload is the run's input.
+`trigger` holds one key: `manual`, or a trigger type `<plugin>:<key>` with its input. The built-in ones are the `app` plugin's; a [workflow plugin](/reference/workflow-plugins/) adds its own the same way, and `list_workflow_types` over MCP lists them all with their inputs.
 
 | Trigger | Starts a run | The input holds |
 | --- | --- | --- |
-| `"webhook": {}` | on each POST to the workflow's webhook address | `{ body, headers, query }` |
-| `"schedule": { "cron", "timezone" }` | on a 5-field cron, in an IANA time zone (default `UTC`) | `{ scheduled_at }`, ISO 8601 with the zone's offset |
-| `"mail": { "mailbox" }` | on each mail arriving in that mailbox | `{ from, to, subject, text, html, received_at, attachments }` |
-| `"record": { "events": ["<resource>.<event>"] }` | on each of those record events, such as `deals.created` | `{ event, resource, key, after, before, changed }` |
 | `"manual": {}` | when someone runs the workflow by hand | the input they give |
+| `"app:record": { "resource", "when", "key" }` | once per record that becomes ready | `{ resource, key, record }` |
 
-A save checks a trigger's shape; runs start through the API, over MCP, from the app's code or by a [test run](#test-runs). <gap>A webhook, schedule, mail or record trigger cannot start runs because the triggers are not implemented.</gap>
+A save checks a trigger's input against its type, and refuses a type the app does not have; besides triggers, runs start through the API, over MCP, from the app's code or by a [test run](#test-runs). <gap>A workflow cannot start from a webhook or a schedule because the webhook and polling triggers are not implemented.</gap>
+
+### Turning a trigger on
+
+A trigger starts runs only while its workflow is enabled: set `enabled_version` to the workflow's current `version` through the API, in the admin app or with `update_workflow`, and clear it to turn the workflow off. The trigger is registered at once on every server process, with no restart, and its status, `active` or `failing` with its last error, is the workflow's `workflow_triggers` record. A save of an enabled workflow keeps it enabled on its new version; a new version whose trigger has the same type and input keeps the running trigger as it is, and any other change stops it and starts the new one. A trigger's runs run the enabled version and act as the user who saved it, as any run acts as its version's saver.
+
+### app:record
+
+```json
+{ "app:record": { "resource": "invoices", "when": "status = 'sent' AND due_at <= now() - 3d", "key": ["due_at"] } }
+```
+
+Starts one run for each record of `resource` that becomes ready, with `{ resource, key, record }` as the run's input, so the record's fields are read as `$states.context.Execution.Input.record.<field>`. Without `when`, every record is ready once it exists, so each new record starts one run.
+
+- **`when`** is a [filter](/reference/api/#filters) on the resource's filterable fields. `now()` may stand only in AND terms of the form `<timestamp or date field> <= now() - <duration>` (or `<`): such a term says when a record becomes ready, and the run starts at that time with no write, such as three days after an invoice's `due_at`. Any other use of `now()`, such as inside an OR, `search()` and `similar()` are refused at save, naming the term.
+- **One run per ready key:** the record's key, plus the values of the `key` fields. A record that stays ready over later writes starts no second run; one whose `due_at` changes is ready again under a new key.
+- **Who reads it:** the record is read through the API as the user who saved the enabled version, in the workflow's tenant, and `when` is checked on what they may read, so a record they cannot read, or a field they cannot see, never reaches a run. A saver who holds no role any more, or whom the API refuses, marks the trigger `failing`; the next write it reads a record on makes it active again, and it then passes over the records it missed. A key field the saver cannot read marks it `failing` too.
+- **When it looks:** a write to the resource, through the API or the database, reaches the trigger through [events](/reference/events/), so the resource must declare some; turning a workflow on also starts runs for the records ready already, 100 per job. No periodic sweep runs.
+
+<gap>A workflow cannot start on every write of a record because an every-change trigger is not implemented; a record trigger starts once per ready key.</gap> <gap>An owner is not told when a trigger starts failing because trigger alerts are not implemented.</gap>
 
 ### Reading values by name
 
@@ -112,7 +130,7 @@ A state's `Assign` is evaluated with the variables as they were when the state w
 
 The save is refused, naming each state and field, when the document does not fit the profile:
 
-- a field does not belong to its state or has the wrong type, or the trigger is not exactly one of the above, with a 5-field cron and a known time zone;
+- a field does not belong to its state or has the wrong type, or the trigger is not exactly one of `manual` or an available `<plugin>:<key>` type with input that fits that type's schema;
 - a `Next`, `Default` or catcher names no state, a state is never reached, or a state name is used twice, Maps included;
 - a Task names a step type the app does not have, or the state type is not one of Task, Choice, Pass, Map, Wait, Succeed and Fail;
 - an expression does not parse, or reads anything but the names above: the state's input as JSONata's context (a bare field name, `$`, `$$`), `$states.input` outside an item's first state, `$states.context` but for the three reads above, a variable no state that can run before it assigns, or `$eval`;
@@ -120,7 +138,7 @@ The save is refused, naming each state and field, when the document does not fit
 
 The problem's `problems` lists them as `{ state, field, message }`, where a state inside a Map is named by its path, such as `Each/Total`. The document's JSON Schema is `definitionSchema` of `@protobase/workflows`, and `checkDefinition` runs the whole check.
 
-<gap>A save cannot refuse a Task's missing or unknown argument because checking `Arguments` per step type is not implemented.</gap> The step fails its run instead, with an error such as `Http.InvalidArguments` whose cause names the argument.
+A save refuses a Task that leaves out an argument its step type needs, as [the editor](#the-editor) describes. <gap>A save cannot refuse a Task's unknown argument because checking `Arguments` against the step type's whole schema at save is not implemented.</gap> The step fails its run instead, with an error such as `Http.InvalidArguments` whose cause names the argument.
 
 ### States
 
@@ -148,12 +166,14 @@ A workflow's record page in the admin app, `/workflows/<id>`, and its create for
 - **Adding a step.** *Add a step* adds a Task of a step type, or a Choice, Map, Wait, Pass, Succeed or Fail, named `Step 1`, `Step 2` and so on. It goes into the Map chosen, or the Map the chosen step is in, else into the workflow; it ends the run, or its item, until it is connected, and in a workflow or Map without steps it is the first.
 - **Connecting steps.** Drag from a step's handle to another step, or tap one handle and then the other: the bottom handle sets `Next`, a Choice's *When* handle adds a rule and its *Otherwise* handle sets `Default`, a Task's or Map's *On error* handle adds a catcher of `States.ALL`, and the trigger's handle sets `StartAt`. A step leads only to steps of its own machine, so an edge into or out of a Map is refused. The chosen step's form sets the same edges with menus: *Goes on to*, each rule's and catcher's *Then goes to*, and *Otherwise goes to*.
 - **Removing.** Delete or Backspace removes the chosen step or edge, as does the form's *Remove step*. Removing a step removes the edges to it: a `Next` to it becomes `End`, and a rule, `Default` or catcher naming it goes. Removing the first step of a workflow or Map makes the first step left in it the first.
-- **A step's form.** Choosing a step opens its form under the graph: its name, which renames every edge to it, then what its type takes. A Task's form has a field for each argument of its step type, the ones it needs marked, as listed under [Step types](#step-types); a Choice's its rules and `Default`; a Map's `Items` and `MaxConcurrency`; a Wait's `Seconds`; a Pass's and a Succeed's `Output`; a Fail's `Error` and `Cause`. A field takes text, an expression (`{% ... %}`) or JSON; an emptied field is left out. *The step as JSON* edits every field of the step, such as `Retry`, `Assign` and `TimeoutSeconds`. The trigger's form picks the trigger and its schedule, mailbox or events.
+- **A step's form.** Choosing a step opens its form under the graph: its name, which renames every edge to it, then what its type takes. A Task's form has a field for each argument of its step type, the ones it needs marked, as listed under [Step types](#step-types); a Choice's its rules and `Default`; a Map's `Items` and `MaxConcurrency`; a Wait's `Seconds`; a Pass's and a Succeed's `Output`; a Fail's `Error` and `Cause`. A field takes text, an expression (`{% ... %}`) or JSON; an emptied field is left out. *The step as JSON* edits every field of the step, such as `Retry`, `Assign` and `TimeoutSeconds`. The trigger's form picks the trigger and its input, such as a record trigger's resource, `when` and `key`.
 - **Problems on their step.** The editor runs the same check as a save on every change, and shows each problem on the step it names, as a count on its box and a list and a marked field in its form; a problem with the trigger or the first step shows on the trigger, and one about the whole document above the graph. Saving writes the definition through the API, where the save hook checks it again: a definition with a problem is refused with the 400 above, whose `errors` hold each problem for the `definition` field, with its state and field in `params`.
 
-A save also refuses a Task that leaves out an argument its step type needs, such as `app:http` without `url`, unless its `Arguments` is one expression, whose value is known only when it runs. A user who may read a workflow but not change it sees the same graph and forms, locked. <gap>The editor cannot undo a single change because an undo history is not implemented.</gap>
+A save also refuses a Task that leaves out an argument its step type needs, such as `app:http` without `url`, unless its `Arguments` is one expression, whose value is known only when it runs. A user who may read a workflow but not change it sees the same graph and forms, locked. <gap>The editor cannot undo a single change because an undo history is not implemented.</gap> A plugin's own trigger and step types in a stored workflow are left to the save to check, and a plugin trigger shows its type and input, read-only. <gap>The editor cannot offer a plugin's own trigger and step types because reading the app's type list in the editor is not implemented.</gap>
 
 ## Step types
+
+The built-in step types are the `app` plugin's, written on the same [plugin interface](/reference/workflow-plugins/) as any other; a plugin's step is a Task with `"Resource": "<plugin>:<key>"`. A step's `Arguments` are checked against its type's input schema before it runs: one that does not fit fails as `<Prefix>.InvalidArguments`, such as `Http.InvalidArguments`.
 
 ### app:http
 
@@ -247,9 +267,9 @@ The workflow resources take only [named grants](/reference/access/#resources-tha
 
 | Grant | |
 | --- | --- |
-| `workflows.create`, `workflows.update`, `workflows.delete` | Make, change and delete workflows. Each save that changes the definition makes the saver the workflow's last editor, whom its records steps act as. |
+| `workflows.create`, `workflows.update`, `workflows.delete` | Make, change and delete workflows, and turn them on and off. Each save that changes the definition makes the saver the workflow's last editor, whom its records steps and its trigger act as. |
 | `workflow_runs.create` | Run a workflow, with any input. The API writes only the fields a caller reads, so it goes with `workflow_runs.read`, and the caller must read the workflow too. |
-| `workflows.read`, `workflow_versions.read`, `workflow_runs.read`, `workflow_steps.read` | Read workflows, their versions, runs and steps, the steps' inputs and outputs included. |
+| `workflows.read`, `workflow_versions.read`, `workflow_runs.read`, `workflow_steps.read`, `workflow_triggers.read` | Read workflows, their versions, runs, steps and triggers, the steps' inputs and outputs included. |
 
 ```ts
 defineRoles({
@@ -258,7 +278,7 @@ defineRoles({
 })
 ```
 
-All four are scoped to the tenant like any resource with `.tenant()`. A run takes its workflow's tenant; a start of another tenant's workflow is refused as one of a workflow that is not there.
+All five are scoped to the tenant like any resource with `.tenant()`. A run takes its workflow's tenant; a start of another tenant's workflow is refused as one of a workflow that is not there.
 
 ## How a run is run
 

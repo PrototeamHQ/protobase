@@ -20,6 +20,7 @@ const workflowsResource = (schema: string) =>
       description: f.text().optional().max(2000),
       definition: f.json(),
       version: f.integer().optional().readOnly(),
+      enabled_version: f.integer().optional(),
       tenant_id: f.text().optional().readOnly(),
       created_at: f.timestamp().readOnly().dbDefault(),
       updated_at: f.timestamp().readOnly().dbDefault().sortable(),
@@ -35,6 +36,7 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .title((r) => r.name)
   .help('Steps that run one after another along their edges, written in the States Language with JSONata expressions. Each save that changes its definition is a new version; a run keeps the version it started on.')
   .fields((r) => ({
+    enabled_version: r.enabled_version.label('Enabled version').help('The version whose trigger starts runs; set it to the current version to turn the trigger on, and clear it to turn it off. A save keeps an enabled workflow enabled on its new version.'),
     definition: r.definition
       .help('Its trigger and its steps, drawn as a graph that lays itself out. Every value is read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned')
       .widget('workflow'),
@@ -43,8 +45,9 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
   .actions((a) => [a.link('test_run', { label: 'Test run', icon: 'play', to: { kind: 'create', resource: 'workflow_runs', values: { workflow_id: '{id}' } } })])
   .layout((r) => [
-    l.section('Workflow', [r.name, r.description, r.definition]),
+    l.section('Workflow', [r.name, r.description, r.enabled_version, r.definition]),
     l.sidebar([r.version, r.created_at, r.updated_at]),
+    l.related('Trigger', { resource: 'workflow_triggers', field: 'workflow_id', columns: ['type', 'status', 'version', 'last_error', 'updated_at'] }),
     l.related('Runs', { resource: 'workflow_runs', field: 'workflow_id', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'version', 'error'] }),
     l.related('Versions', { resource: 'workflow_versions', field: 'workflow_id', columns: ['version', 'saved_by', 'saved_at'] }),
   ])
@@ -185,6 +188,41 @@ const stepsView = view<ReturnType<typeof stepsResource>>('workflow_steps')
     l.sidebar([r.status, r.attempt, r.next, r.resume_at, r.started_at, r.finished_at, r.duration_ms]),
   ])
 
+const triggerStatuses = ['active', 'failing', 'needs_sign_in', 'stopping'] as const
+
+/** The trigger of each enabled workflow, as the engine keeps it: its type, status and last error, never its state. */
+const triggersResource = (schema: string) =>
+  resource('workflow_triggers')
+    .table(`${schema}.triggers`)
+    .fields({
+      id: f.uuid().readOnly().dbDefault(),
+      workflow_id: f.relation('workflows').readOnly().filterable(),
+      version: f.integer().readOnly(),
+      type: f.text().readOnly(),
+      status: f.enum(triggerStatuses).readOnly().filterable(),
+      last_error: f.json().optional().readOnly(),
+      next_poll_at: f.timestamp().optional().readOnly(),
+      tenant_id: f.text().optional().readOnly(),
+      updated_at: f.timestamp().readOnly().dbDefault().sortable(),
+    })
+    .primaryKey((r) => r.id)
+    .tenant((r) => r.tenant_id)
+    .explicitGrants()
+    .access({ create: () => false, update: () => false, delete: () => false })
+
+const triggersView = view<ReturnType<typeof triggersResource>>('workflow_triggers')
+  .names({ singular: 'Workflow trigger', plural: 'Workflow triggers' })
+  .icon('zap')
+  .title((r) => r.type)
+  .fields((r) => ({
+    workflow_id: r.workflow_id.label('Workflow'),
+    status: r.status.valueLabels({ active: 'Active', failing: 'Failing', needs_sign_in: 'Needs sign-in', stopping: 'Stopping' }).valueColors({ active: 'green', failing: 'red', needs_sign_in: 'amber' }),
+    last_error: r.last_error.label('Last error'),
+    next_poll_at: r.next_poll_at.label('Next poll'),
+    updated_at: r.updated_at.label('Updated'),
+  }))
+  .list((r) => ({ columns: [r.workflow_id, r.type, r.status, r.updated_at], sort: [[r.updated_at, 'desc']] }))
+
 /**
  * The resources and views `workflows` adds to an app, over the tables of `schema`: Workflows with their versions, runs
  * and steps. Config only; the server checks and runs them.
@@ -198,4 +236,6 @@ export const workflowResources = (schema: string) => ({
   workflowRunsView: runsView,
   workflowSteps: stepsResource(schema),
   workflowStepsView: stepsView,
+  workflowTriggers: triggersResource(schema),
+  workflowTriggersView: triggersView,
 })

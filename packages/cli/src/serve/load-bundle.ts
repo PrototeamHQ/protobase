@@ -30,6 +30,7 @@ const projectFiles = ({ resources, functions, modules }: BundleFiles, packages: 
   ...(resources && { resources }),
   functions,
   module: (file) => modules[file],
+  folder: (folder) => Object.keys(modules).filter((file) => file.startsWith(`${folder}/`) && !file.slice(folder.length + 1).includes('/')).sort(),
   package: async (name) => {
     const load = packages[name]
     if (!load) throw new Error(`The bundle carries no ${name}; build it again`)

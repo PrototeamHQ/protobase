@@ -2,10 +2,19 @@
  * A step's failure by name, as `Catch` and `Retry` match it in `ErrorEquals`: a step type throws one with its own
  * names (such as `Http.Status`); any other error a step throws counts as `States.TaskFailed`.
  */
+// Marks a StepError of any copy of this package: a plugin loaded by its own import can bring a second copy, whose
+// class `instanceof` would not otherwise match.
+const brand = Symbol.for('protobase.workflows.StepError')
+
 export class StepError extends Error {
   override name = 'StepError'
+  readonly [brand] = true
   constructor(readonly error: string, readonly reason: string) {
     super(`${error}: ${reason}`)
+  }
+
+  static [Symbol.hasInstance](value: unknown) {
+    return typeof value === 'object' && value !== null && (value as Record<symbol, unknown>)[brand] === true
   }
 }
 

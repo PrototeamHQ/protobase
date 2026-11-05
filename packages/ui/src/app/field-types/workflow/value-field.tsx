@@ -4,7 +4,7 @@ import { Input } from '../../../primitives/input'
 import { Select } from '../../../primitives/select'
 import { Textarea } from '../../../primitives/textarea'
 import { Field } from '../../../record-view/field'
-import { textValue, valueText } from './value-text'
+import { namesText, namesValue, textValue, valueText } from './value-text'
 import { text } from './messages'
 
 export type ValueFieldProps = {
@@ -27,11 +27,13 @@ export type ValueFieldProps = {
 // Text on one line is the value, and emptied it is none; JSON is parsed when it parses.
 const readText = (text: string) => (text === '' ? undefined : text)
 
+const reads = { text: readText, choice: readText, json: textValue, names: namesValue } satisfies Record<StepInputKind, (text: string) => unknown>
+
 /**
- * A value of a state as a labelled field: text on one line, one of `options`, or a JSON value or expression on several
- * lines. Emptied, it is left out of the definition.
+ * A value of a state as a labelled field: text on one line, one of `options`, a JSON value or expression on several
+ * lines, or names on one line separated by commas. Emptied, it is left out of the definition.
  */
-export const ValueField = ({ label, kind, options = [], required, help, value, error, onChange, disabled, read = kind === 'json' ? textValue : readText, write = valueText }: ValueFieldProps) => {
+export const ValueField = ({ label, kind, options = [], required, help, value, error, onChange, disabled, read = reads[kind], write = kind === 'names' ? namesText : valueText }: ValueFieldProps) => {
   const [typed, setTyped] = useState<string>()
   // The text stays as it is typed while it writes the value the field holds, rather than written anew on every key
   const shown = typed !== undefined && JSON.stringify(read(typed)) === JSON.stringify(value) ? typed : write(value)

@@ -12,10 +12,13 @@ import e from './e.json'
 import f from './f.json'
 import g from './g.json'
 
-/** The seven reference flows of the decided language report, a to g, as it gives them. */
+/** The seven reference flows of the decided language report, a to g, each on a trigger an app can have. */
 const flows = { a, b, c, d, e, f, g } as unknown as Record<string, Definition>
 
 const resources = ['app:http', 'app:records.create', 'app:records.update', 'app:records.get', 'app:records.list', 'app:mail.send', 'app:piece']
+
+// The flows' triggers beside manual: the built-in plugin's app:record, and incoming mail as a plugin would add it.
+const triggers = Object.fromEntries(['app:record', 'inbox:new_mail'].map((id) => [id, () => []]))
 
 type Call = { resource: string; args: Record<string, unknown> }
 
@@ -51,7 +54,7 @@ const mail = (subject: string) => ({ from: 'ada@example.com', to: 'support@app.t
 
 describe('the reference flows of the language report', () => {
   it.each(Object.keys(flows))('flow %s passes the check with the app\'s step types', (name) => {
-    expect(checkDefinition(flows[name], { resources })).toEqual([])
+    expect(checkDefinition(flows[name], { resources, triggers })).toEqual([])
   })
 
   it('a: a webhook POST becomes a lead', async () => {
@@ -93,7 +96,7 @@ describe('the reference flows of the language report', () => {
 
   it('d: a charge retried 3 times after the first try, then the order marked and ops mailed the error', async () => {
     const app = fakeApp({}, new Set(['https://payments.example.com/charges']))
-    const port = await run('d', { event: 'orders.created', resource: 'orders', key: '17', after: { id: 17, customer_email: 'c@example.com', total: 99.5 } }, app)
+    const port = await run('d', { resource: 'orders', key: '17', record: { id: 17, customer_email: 'c@example.com', total: 99.5 } }, app)
     expect(port.run('d').status).toBe('succeeded')
     const charges = app.calls.filter((call) => call.resource === 'app:http')
     // Every try sends the same key, so a payment service that dedupes by it charges the order once.
@@ -114,7 +117,7 @@ describe('the reference flows of the language report', () => {
 
   it('f: a new lead posted through a piece, and the lead keeps the message\'s timestamp', async () => {
     const app = fakeApp()
-    const port = await run('f', { event: 'leads.created', resource: 'leads', key: '5', after: { id: 5, name: 'Ada', email: 'ada@example.com', company: 'AE' } }, app)
+    const port = await run('f', { resource: 'leads', key: '5', record: { id: 5, name: 'Ada', email: 'ada@example.com', company: 'AE' } }, app)
     expect(port.run('f').status).toBe('succeeded')
     expect(app.calls).toEqual([
       { resource: 'app:piece', args: { piece: 'slack', action: 'send_channel_message', connection: 'sales_slack', props: { channel: 'C0SALES01', text: 'New lead: Ada from AE (ada@example.com)' } } },

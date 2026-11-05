@@ -659,7 +659,7 @@
       ]
     },
     "workflows": {
-      "description": "Workflows made in the admin app and run on the app's jobs (see `WorkflowsOptions`); `{}` turns them on. Its saver roles are `workflows/saved-by-roles.ts`.",
+      "description": "Workflows made in the admin app and run on the app's jobs (see `WorkflowsOptions`); `{}` turns them on. Its saver\nroles are `workflows/saved-by-roles.ts`; its own plugins are `workflows/plugins/<name>.ts`.",
       "anyOf": [
         {
           "type": "object",
@@ -688,6 +688,27 @@
             },
             "secrets": {
               "description": "The environment variables workflows may read, each as `$states.context.Secrets.<NAME>`; no other is reachable.\nTheir values are blanked out of all a run records. Startup stops when one is unset or shorter than 8 characters.",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "$ref": "#/definitions/EnvValue"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "plugins": {
+              "description": "Packages of workflow plugins the app runs beside the built-in types and its own plugins, by package name.",
               "anyOf": [
                 {
                   "type": "array",

@@ -6,4 +6,4 @@ import { workflowsSchema, type WorkflowsOptions } from './options'
  * over a `workflows` schema that `protobase migration` writes. Who may make, change and run them and read their runs
  * is the resources' access (`workflows.create`, `workflow_runs.create`, `workflow_steps.read`, ...).
  */
-export const workflowsModule = (options: WorkflowsOptions = {}) => workflowResources(workflowsSchema(options))
+export const workflowsModule = (options: Pick<WorkflowsOptions, 'schema'> = {}) => workflowResources(workflowsSchema(options))

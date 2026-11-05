@@ -41,7 +41,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     database = await openPostgresDatabase('auth')
     await database.exec((await jobsSchemaMigration(database.db))!)
     await database.exec((await workflowsMigration(database.db, workflows))!)
-    pool = new pg.Pool({ connectionString: database.url, max: 2 })
+    pool = database.pool({ max: 2 })
     const store = { dialect: database.dialect, query: async (text: string, params?: readonly unknown[]) => ({ rows: (await pool.query(text, params as unknown[])).rows }) }
     const { resources } = configExports(workflowsModule(workflows))
     served = await serveMcp(undefined, {
@@ -113,8 +113,10 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
 
   it('finds the types, creates a two-step workflow, runs it and reads each step', async () => {
     const types = await ana('list_workflow_types')
-    expect(types.step_types.map((type: { resource: string }) => type.resource)).toContain('app:http')
-    expect(types.step_types.find((type: { resource: string }) => type.resource === 'app:http').arguments.url).toEqual({ required: true, takes: 'an http or https URL' })
+    expect(types.step_types.map((type: { id: string }) => type.id)).toContain('app:http')
+    const http = types.step_types.find((type: { id: string }) => type.id === 'app:http')
+    expect(http.input.required).toEqual(['url'])
+    expect(http.input.properties.url).toEqual({ type: 'string', description: 'an http or https URL' })
     const created = await ana('create_workflow', { name: 'Greet', definition: definition({ Fetch: fetchGreeting('Shape'), Shape: { Type: 'Pass', Output: '{% { "said": $greeting } %}', End: true } }) })
     expect(created).toMatchObject({ id: expect.any(String), version: 1 })
     expect((await ana('list_workflows')).items).toEqual([expect.objectContaining({ id: created.id, name: 'Greet', version: 1 })])

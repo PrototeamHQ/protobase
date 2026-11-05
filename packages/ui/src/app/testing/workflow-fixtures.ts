@@ -5,7 +5,7 @@ import type { Definition } from '@protobase/workflows'
  * catches a failed fetch. The tests and stories draw and edit it.
  */
 export const ticketsWorkflow: Definition = {
-  trigger: { schedule: { cron: '0 8 * * 1', timezone: 'Europe/Amsterdam' } },
+  trigger: { 'app:record': { resource: 'tickets', when: "status = 'open'" } },
   stateMachine: {
     QueryLanguage: 'JSONata',
     StartAt: 'Fetch',

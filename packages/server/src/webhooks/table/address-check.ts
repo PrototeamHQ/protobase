@@ -3,10 +3,10 @@ import { isIP } from 'node:net'
 
 const v4 = (address: string) => address.split('.').map(Number) as [number, number, number, number]
 
-// Loopback, private, link-local, carrier-grade NAT, "this network" and multicast or reserved.
+// Loopback, private, link-local, carrier-grade NAT, benchmarking (198.18/15), "this network" and multicast or reserved.
 const privateV4 = (address: string) => {
   const [a, b] = v4(address)
-  return a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b < 128) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b < 32) || (a === 192 && b === 168)
+  return a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b < 128) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b < 32) || (a === 192 && b === 168) || (a === 198 && (b === 18 || b === 19))
 }
 
 // The eight 16-bit groups of an IPv6 address, any spelling: compressed, with a dotted IPv4 tail or a zone.

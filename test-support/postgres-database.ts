@@ -21,12 +21,16 @@ export const postgresTemplateReady = async (key: SnapshotTemplateKey) => {
   return false
 }
 
-/** A clone of a test template: its URL, a pool and Kysely over it, and `exec` for any number of statements. */
+/**
+ * A clone of a test template: its URL, a pool and Kysely over it, `exec` for any number of statements, and `pool` for
+ * another pool on it, such as a second serving process's, which `close` ends and waits for too.
+ */
 export type PostgresDatabase = {
   url: string
   db: Kysely<any>
   dialect: PostgresDialect
   exec: (sql: string) => Promise<void>
+  pool: (config?: Omit<pg.PoolConfig, 'connectionString'>) => pg.Pool
   close: () => Promise<void>
 }
 
@@ -39,23 +43,29 @@ export const openPostgresDatabase = async (key: SnapshotTemplateKey): Promise<Po
   const database = `${template.database.replace(/_template$/, '')}_clone_${randomBytes(4).toString('hex')}`
   await cloneTemplate(template, database)
   const url = databaseUrl(database)
-  const pool = new pg.Pool({ connectionString: url, max: 5 })
-  const dialect = new PostgresDialect({ pool })
   // pool.end() resolves once it has asked its clients to end, before their connections close; dropping the database
   // `with (force)` then would terminate a backend still open, and its idle client's 57P01 reaches the pool uncaught.
+  const pools: pg.Pool[] = []
   const open = new Set<pg.PoolClient>()
   const waiting: (() => void)[] = []
-  pool.on('connect', (client) => open.add(client))
-  pool.on('remove', (client) => {
-    open.delete(client)
-    if (!open.size) waiting.splice(0).forEach((resolve) => resolve())
-  })
+  const openPool = (config: Omit<pg.PoolConfig, 'connectionString'> = {}) => {
+    const pool = new pg.Pool({ ...config, connectionString: url })
+    pool.on('connect', (client) => open.add(client))
+    pool.on('remove', (client) => {
+      open.delete(client)
+      if (!open.size) waiting.splice(0).forEach((resolve) => resolve())
+    })
+    pools.push(pool)
+    return pool
+  }
   const allClosed = () => (open.size ? new Promise<void>((resolve) => waiting.push(resolve)) : Promise.resolve())
   const close = async () => {
-    if (!pool.ending) await pool.end()
+    await Promise.all(pools.filter((pool) => !pool.ending).map((pool) => pool.end()))
     await allClosed()
     await dropDatabase(database)
   }
+  const pool = openPool({ max: 5 })
+  const dialect = new PostgresDialect({ pool })
   if (TestRunner.getCurrentTest()) onTestFinished(close)
-  return { url, db: new Kysely<any>({ dialect }), dialect, exec: async (sql) => void (await pool.query(sql)), close }
+  return { url, db: new Kysely<any>({ dialect }), dialect, exec: async (sql) => void (await pool.query(sql)), pool: openPool, close }
 }

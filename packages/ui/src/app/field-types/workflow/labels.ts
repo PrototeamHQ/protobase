@@ -1,3 +1,4 @@
+import type { WorkflowTriggerType } from '@protobase/schema/internal'
 import type { State, Trigger } from '@protobase/workflows'
 import type { NodeStatus } from './node-trace'
 import { text } from './messages'
@@ -53,22 +54,17 @@ const inputLabels: Record<string, () => string> = {
   action: () => text('inputAction'),
   connection: () => text('inputConnection'),
   props: () => text('inputProps'),
+  when: () => text('inputWhen'),
 }
 
 export const inputLabel = (name: string) => inputLabels[name]?.() ?? name
 
-// The key of each member of a union
-type KeyOf<T> = T extends unknown ? keyof T : never
-
-export type TriggerKind = KeyOf<Trigger>
+export type TriggerKind = 'manual' | WorkflowTriggerType
 
 /** The triggers, in the order the trigger's menu lists them. */
 export const triggerKinds: { kind: TriggerKind; label: () => string }[] = [
   { kind: 'manual', label: () => text('triggerManual') },
-  { kind: 'webhook', label: () => text('triggerWebhook') },
-  { kind: 'schedule', label: () => text('triggerSchedule') },
-  { kind: 'mail', label: () => text('triggerMail') },
-  { kind: 'record', label: () => text('triggerRecord') },
+  { kind: 'app:record', label: () => text('triggerRecord') },
 ]
 
 /** The trigger's kind: the one key it holds. */
@@ -77,9 +73,16 @@ export const triggerKind = (trigger: Trigger | undefined): TriggerKind | undefin
   return triggerKinds.find((entry) => entry.kind === kind)?.kind
 }
 
+/** The type a trigger names that the editor does not offer, such as one of the app's own plugins'. */
+export const otherTriggerType = (trigger: Trigger | undefined): string | undefined => {
+  const [type] = Object.keys(trigger ?? {})
+  return type && triggerKind(trigger) === undefined ? type : undefined
+}
+
+/** The trigger's label: its kind's, or the type it names when the editor does not offer it. */
 export const triggerLabel = (trigger: Trigger | undefined) => {
   const kind = triggerKind(trigger)
-  return triggerKinds.find((entry) => entry.kind === kind)?.label() ?? text('triggerUnknown')
+  return triggerKinds.find((entry) => entry.kind === kind)?.label() ?? otherTriggerType(trigger) ?? text('triggerUnknown')
 }
 
 const nodeStatusLabels: Record<NodeStatus, () => string> = {

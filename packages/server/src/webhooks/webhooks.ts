@@ -35,6 +35,8 @@ export type WebhooksInput = {
   log: (line: string) => void
   /** The subscriptions people made in the admin app (`webhooks()`), and the check of their URLs' addresses. */
   table?: { subscriptions: TableSubscriptions; allowPrivateAddresses: boolean }
+  /** Also gets each dispatched batch of changes, in the dispatch's transaction: the workflows' ready triggers. */
+  onChanges?: (trx: Db, changes: readonly ResourceChange[]) => Promise<void>
 }
 
 /** A delivery waiting in the job queue: the event as its subscriber sees it, never a sensitive value. */
@@ -105,7 +107,7 @@ const deliveryGroup = ({ subscription, change }: Delivery) => `${subscription.na
  *
  * No jobs without a resource with events or history; the subscriptions must name declared events.
  */
-export const createWebhooks = ({ deps, subscriptions, functions, channels, schema, log, table }: WebhooksInput) => {
+export const createWebhooks = ({ deps, subscriptions, functions, channels, schema, log, table, onChanges }: WebhooksInput) => {
   const entries = deps.registry.entries
   const models = entries.map((entry) => entry.model)
   const problems = subscriptionProblems(subscriptions, models, Object.keys(functions))
@@ -317,6 +319,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
       for (const { change, subscription } of failures) await dispatchChange.enqueue(trx, { change, ...(subscription !== undefined && { subscription }) })
       await writeHistory(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.history))
       await writeNotices(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.live))
+      await onChanges?.(trx, changes)
       await deleteOutbox(trx, schema, rows.map((row) => row.id))
     })
     for (const [index, { subscription, event }] of now.entries()) report(subscription.name, event, 1, results[index]!)

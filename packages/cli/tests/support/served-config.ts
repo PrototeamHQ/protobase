@@ -31,6 +31,7 @@ export const servedConfig = ({ config = {}, authenticate, jobs = {}, functions =
     resources: async () => config,
     functions: Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, async () => ({ default: source })])),
     module: (file) => (file in modules ? async () => modules[file]! : undefined),
+    folder: (folder) => Object.keys(modules).filter((file) => file.startsWith(`${folder}/`)).sort(),
     package: (name) => Promise.reject(new Error(`no package ${name} in a test`)),
   }
   const declared = Object.fromEntries(definitions.map(({ name, options: { name: _, run: __, payload: ___, ...options } }) => [name, options]))

@@ -419,7 +419,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, workflows: Boolean(engine), own: (options.mcp !== false && options.mcp?.tools) || [] })
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: engine.types }), own: (options.mcp !== false && options.mcp?.tools) || [] })
     const instructions = engine ? `${mcpInstructions}\n${workflowInstructions}` : mcpInstructions
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
@@ -498,7 +498,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   // Before the system endpoints, which want a token for everything under them
   app.route(systemPath || '/', webManifestRoute(appName, identity, icons))
   app.route(deps.systemPath || '/', system)
-  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
+  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }), ...(engine && { onChanges: engine.onChanges }) })
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), sqlSends: sqlSends(realtime), report })
-  return Object.assign(app, { startRealtimePrune: prune, decryptField, metaPath: `${deps.systemPath}/meta`, jobs: [...webhooks.jobs, ...(engine ? [engine.job] : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
+  return Object.assign(app, { startRealtimePrune: prune, decryptField, metaPath: `${deps.systemPath}/meta`, jobs: [...webhooks.jobs, ...(engine ? engine.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
 }

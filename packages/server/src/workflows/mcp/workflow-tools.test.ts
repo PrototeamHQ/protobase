@@ -1,15 +1,18 @@
+import { f, resource } from '@protobase/schema'
 import { describe, expect, it, vi } from 'vitest'
 import type { ApprovalAnswer } from '../../assistant/approval'
 import type { ToolRecords } from '../../assistant/records'
 import type { ReadableResources, ToolContext } from '../../assistant/tools'
 import { badRequest, forbidden } from '../../problem'
-import { getWorkflowRunTool, validateWorkflowTool } from './workflow-read-tools'
+import { workflowTypes } from '../workflow-types'
+import { getWorkflowRunTool, workflowReadTools } from './workflow-read-tools'
 import { createWorkflowTool, runWorkflowTool, updateWorkflowTool } from './workflow-write-tools'
 
 const machine = (states: Record<string, unknown>) => ({ QueryLanguage: 'JSONata', StartAt: Object.keys(states)[0], States: states })
 const fetchUrl = (url: string) => ({ trigger: { manual: {} }, stateMachine: machine({ Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url }, End: true } }) })
 const saved = { record: { id: 'w1', name: 'Fetch', version: 1, definition: fetchUrl('https://a.example') }, etag: '"v1"' }
 const readable = { models: [], views: [] } as unknown as ReadableResources
+const validateWorkflowTool = workflowReadTools(workflowTypes()).find((tool) => tool.name === 'validate_workflow')!
 
 const contextWith = (records: Partial<ToolRecords>, answer: ApprovalAnswer = 'approved') => {
   const approve = vi.fn(async () => answer)
@@ -41,6 +44,21 @@ describe('validate_workflow', () => {
     expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit }, context)).problems).toEqual([expect.objectContaining({ state: 'Fetch', field: 'Resource' })])
     const refusing = contextWith({ get: () => Promise.reject(forbidden('forbidden', 'You may not read workflows')) })
     expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit }, refusing.context))).toEqual({ error: 'forbidden', message: 'You may not read workflows' })
+  })
+
+  it("checks a record trigger against the resources and fields the caller may read, so it names none hidden from them", async () => {
+    const captured = (name: string) => resource(name).table(name).fields({ id: f.integer(), status: f.text().filterable(), salary: f.integer() }).primaryKey((r) => r.id).events((e) => e.crud()).toModel()
+    const app = { orders: captured('orders'), payroll: captured('payroll') }
+    const tool = workflowReadTools(workflowTypes([], (name) => app[name as keyof typeof app])).find((candidate) => candidate.name === 'validate_workflow')!
+    const { salary: _salary, ...visible } = app.orders.fields
+    const { context } = contextWith({})
+    const caller = { ...context, resources: async () => ({ models: [{ ...app.orders, fields: visible }], views: [] }) as unknown as ReadableResources }
+    const onRecord = (input: Record<string, unknown>) => ({ trigger: { 'app:record': input }, stateMachine: machine({ Done: { Type: 'Succeed' } }) })
+    const problems = async (input: Record<string, unknown>) => JSON.parse(await tool.run({ definition: onRecord(input) }, caller)).problems?.map((problem: { message: string }) => problem.message)
+    expect(await problems({ resource: 'orders', key: ['status'] })).toBeUndefined()
+    expect(await problems({ resource: 'payroll' })).toEqual(['"payroll" is not a resource of this app'])
+    expect(await problems({ resource: 'payroll', key: ['salary'] })).toEqual(['"payroll" is not a resource of this app'])
+    expect(await problems({ resource: 'orders', key: ['salary'] })).toEqual(['orders has no field "salary"'])
   })
 
   it('takes a definition or an id with an edit, not both', async () => {

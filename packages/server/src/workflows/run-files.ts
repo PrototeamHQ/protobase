@@ -1,3 +1,4 @@
+import { isFileValue } from '@protobase/workflows/plugin'
 import { StepError } from '@protobase/workflows'
 import type { FilesRuntime } from '../files/runtime'
 import { cleanName, formatUri, parseUri, type FileRef } from '../files/uri'
@@ -25,22 +26,19 @@ const runStore = (files: FilesRuntime | undefined) => {
 
 /**
  * Stores bytes a step of the run got, such as an answer's body, as a file of the run's own, under a name of the
- * runner's choosing: no part of its path comes from the workflow or the answer.
+ * runner's choosing: no part of its path comes from the workflow or the answer. At most `runFileLimit` bytes.
  */
 export const storeRunFile = async (files: FilesRuntime | undefined, runId: string, bytes: Uint8Array, name: string, type: string): Promise<FileValue> => {
   const store = runStore(files)
+  // A file larger than a run reads back would be kept for nothing.
+  if (bytes.length > runFileLimit) throw new StepError('States.TaskFailed', `${cleanName(name)} is larger than ${runFileLimit / 1024 / 1024} MiB, the most a run keeps of one file`)
   const path = `${prefix(runId)}${crypto.randomUUID()}`
   await store.put(path, new Blob([bytes as BlobPart]).stream())
   const clean = cleanName(name)
   return { uri: formatUri({ provider, path, name: clean, size: bytes.length }), name: clean, type, size: bytes.length }
 }
 
-/** Whether a value has a file value's shape, all four fields; an object with only a `uri` is other data. */
-export const isFileValue = (value: unknown): value is FileValue => {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const { uri, name, type, size } = value as Partial<Record<keyof FileValue, unknown>>
-  return typeof uri === 'string' && typeof name === 'string' && typeof type === 'string' && typeof size === 'number'
-}
+export { isFileValue }
 
 /**
  * The file a file value names, when it is one the run stored itself; a step fails on any other, so a workflow cannot
