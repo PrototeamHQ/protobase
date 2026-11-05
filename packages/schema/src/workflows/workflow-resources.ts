@@ -45,8 +45,8 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
   .actions((a) => [a.link('test_run', { label: 'Test run', icon: 'play', to: { kind: 'create', resource: 'workflow_runs', values: { workflow_id: '{id}' } } })])
   .layout((r) => [
-    l.section('Workflow', [r.name, r.description, r.definition]),
-    l.sidebar([r.version, r.enabled_version, r.created_at, r.updated_at]),
+    l.section('Workflow', [r.name, r.description, r.enabled_version, r.definition]),
+    l.sidebar([r.version, r.created_at, r.updated_at]),
     l.related('Trigger', { resource: 'workflow_triggers', field: 'workflow_id', columns: ['type', 'status', 'version', 'last_error', 'updated_at'] }),
     l.related('Runs', { resource: 'workflow_runs', field: 'workflow_id', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'version', 'error'] }),
     l.related('Versions', { resource: 'workflow_versions', field: 'workflow_id', columns: ['version', 'saved_by', 'saved_at'] }),
