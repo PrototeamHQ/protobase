@@ -29,9 +29,20 @@ const requestBody = async (given: unknown, method: string, headers: Headers, { f
   return JSON.stringify(given)
 }
 
+// The file name in the URL's last segment, kept as it is when an escape in it does not decode, such as `a%zz`.
+const fileName = (url: URL) => {
+  const segment = url.pathname.slice(url.pathname.lastIndexOf('/') + 1)
+  try {
+    return decodeURIComponent(segment)
+  } catch (error) {
+    if (!(error instanceof URIError)) throw error
+    return segment
+  }
+}
+
 // The answer's body as `response` says: parsed JSON (null when empty), text, or a file the run keeps.
 const answerBody = async (bytes: Uint8Array, reading: string, url: URL, type: string | null, { files }: StepContext) => {
-  if (reading === 'file') return files.keep(bytes, decodeURIComponent(url.pathname.slice(url.pathname.lastIndexOf('/') + 1)), type?.split(';')[0]?.trim() || 'application/octet-stream')
+  if (reading === 'file') return files.keep(bytes, fileName(url), type?.split(';')[0]?.trim() || 'application/octet-stream')
   const text = new TextDecoder().decode(bytes)
   if (reading === 'text') return text
   if (text.trim() === '') return null
