@@ -79,10 +79,10 @@ module.exports = {
     },
     {
       name: 'cli-imports',
-      comment: '@protobase/cli imports only config, schema, layout, query, server and ui, and the pins in @protobase/mobile\'s package.json, which its build inlines.',
+      comment: '@protobase/cli imports only config, schema, layout, query, server and ui, the workflow plugin interface it hands config bundles as a host module, and the pins in @protobase/mobile\'s package.json, which its build inlines.',
       severity: 'error',
       from: { path: '^packages/cli/' },
-      to: { path: '^packages/', pathNot: ['^packages/(cli|config|schema|layout|query|server|ui)/', mobilePins] },
+      to: { path: '^packages/', pathNot: ['^packages/(cli|config|schema|layout|query|server|ui)/', '^packages/workflows/src/plugin/index\\.ts$', mobilePins] },
     },
     {
       name: 'packages-through-entry-points',
