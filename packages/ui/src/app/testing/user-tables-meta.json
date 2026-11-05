@@ -26,8 +26,8 @@
           "type": "text",
           "nullable": false,
           "readOnly": false,
-          "filterable": true,
-          "sortable": true,
+          "filterable": false,
+          "sortable": false,
           "aliases": []
         },
         "singular_label": {
@@ -349,7 +349,7 @@
       "list": {
         "sort": [
           [
-            "name",
+            "id",
             "asc"
           ]
         ],

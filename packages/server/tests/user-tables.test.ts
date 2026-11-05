@@ -100,6 +100,17 @@ describe('tables defined in the database', () => {
     expect((await call('admin', '/notes?order_by=body')).status).toBe(400)
     expect((await call('admin', '/notes?order_by=title')).status).toBe(200)
   })
+  it('lists the tables with a filter on each field it declares filterable and a sort on each it declares sortable', async () => {
+    const meta = await (await call('admin', '/api/meta')).json()
+    const fields: { name: string; type: string; filterable: boolean; sortable: boolean }[] = Object.values(meta.resources.find((model: { name: string }) => model.name === 'user_tables').fields)
+    // A value of each type the resource has a filterable field of.
+    const values: Record<string, string> = { bigint: '1', text: '"notes"' }
+    const queries = [
+      ...fields.filter((field) => field.filterable).map((field) => `filter=${encodeURIComponent(`${field.name} = ${values[field.type]}`)}`),
+      ...fields.filter((field) => field.sortable).map((field) => `order_by=${field.name}`),
+    ]
+    for (const query of queries) expect((await call('admin', `/user_tables?${query}`)).status, query).toBe(200)
+  })
   it('gives a role with wildcard grants nothing of it, answering 404 as for a resource it does not know: no list, record, search, write, /meta or API document entry', async () => {
     for (const role of ['reader', 'editor']) {
       for (const path of ['/notes', '/notes/1', `/notes?filter=${encodeURIComponent('search("first")')}`]) {
