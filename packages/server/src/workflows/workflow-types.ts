@@ -39,6 +39,7 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
   const available = new Set(types.filter((type) => type.kind !== 'step' && type.available).map((type) => type.id))
   const ready = readyTriggers(plugins)
   const steps = types.filter((type) => type.kind === 'step' && type.available)
+  const reasons = Object.fromEntries(types.flatMap((type) => (type.reason === undefined ? [] : [[type.id, type.reason]])))
   const own = triggerChecks(plugins)
   // A ready trigger is checked against the resources of `against` too, once its input fits its schema.
   const checkWith = (against: Models): CheckOptions => {
@@ -54,6 +55,7 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
       resources: steps.map((type) => type.id),
       required: Object.fromEntries(steps.map((type) => [type.id, requiredInputs(type.input)])),
       triggers: Object.fromEntries(checks.filter(([id]) => available.has(id))),
+      unavailable: reasons,
     }
   }
   const check = checkWith(models)

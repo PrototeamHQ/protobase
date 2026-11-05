@@ -1,9 +1,8 @@
 import type { ResourceModel } from '@protobase/schema'
-import { checkDefinition, type CheckOptions, type TypeEntry } from '@protobase/workflows'
+import { checkDefinition, typeCatalog, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
 import { defineTool, type ToolContext } from '../../assistant/tools'
 import { mergePatch } from './merge-patch'
-import { typeCatalog } from './type-catalog'
 import { definitionParameter, editParameter, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
 
 const reads = { readOnlyHint: true, openWorldHint: false }

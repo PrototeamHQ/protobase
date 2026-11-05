@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { typeCatalog } from '@protobase/workflows'
 import { workflowTypes } from '../workflow-types'
-import { typeCatalog } from './type-catalog'
 
 describe('the type catalog', () => {
   it('lists the built-in steps and triggers as their plugin declares them, and manual', () => {

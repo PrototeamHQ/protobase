@@ -1,3 +1,4 @@
+import type { WorkflowTypeList } from '@protobase/client'
 import type { State } from '@protobase/workflows'
 import { CatchFields } from './catch-fields'
 import { ChoiceFields } from './choice-fields'
@@ -10,6 +11,8 @@ import { text } from './messages'
 
 export type StateFieldsProps = {
   state: State
+  /** The app's trigger and step types, which a Task's step type is one of. */
+  types: WorkflowTypeList
   /** The names of the states of its machine, which it may lead to. */
   names: readonly string[]
   problems: readonly NodeProblem[]
@@ -35,14 +38,14 @@ const NextField = ({ state, names, problems, disabled, onChange }: StateFieldsPr
 
 /** The fields of a state by its type: what it does, where it goes on to, and a Task's or Map's error paths. */
 export const StateFields = (props: StateFieldsProps) => {
-  const { state, problems, disabled, onChange } = props
+  const { state, types, problems, disabled, onChange } = props
   const value = (field: string, label: string, kind: 'text' | 'json', help?: string) => (
     <ValueField label={label} kind={kind} help={help} value={(state as Record<string, unknown>)[field]} error={errorAt(problems, field)} disabled={disabled} onChange={(next) => onChange(withField(state, field, next))} />
   )
   if (state.Type === 'Task') {
     return (
       <>
-        <TaskFields state={state} problems={problems} disabled={disabled} onChange={onChange} />
+        <TaskFields state={state} types={types} problems={problems} disabled={disabled} onChange={onChange} />
         <NextField {...props} />
         <CatchFields {...props} state={state} />
       </>

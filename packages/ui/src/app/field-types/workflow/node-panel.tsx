@@ -1,4 +1,5 @@
 import { Flag, Trash2 } from 'lucide-react'
+import type { WorkflowTypeList } from '@protobase/client'
 import type { Definition, State } from '@protobase/workflows'
 import { Button } from '../../../primitives/button'
 import { allNames, machineAt, pathOf, splitPath, stateAt, triggerId, type StatePath } from './definition'
@@ -14,6 +15,8 @@ import { text } from './messages'
 
 export type NodePanelProps = {
   definition: Definition
+  /** The app's trigger and step types. */
+  types: WorkflowTypeList
   /** The trigger's id or a state's path. */
   selected: string
   problems: readonly NodeProblem[]
@@ -31,7 +34,7 @@ const Heading = ({ kind, name }: { kind: string; name: string }) => (
   </div>
 )
 
-const StatePanel = ({ definition, selected: path, problems, onChange, onSelect }: NodePanelProps) => {
+const StatePanel = ({ definition, types, selected: path, problems, onChange, onSelect }: NodePanelProps) => {
   const state = stateAt(definition, path)
   if (!state) return null
   const { scope, name } = splitPath(path)
@@ -52,7 +55,7 @@ const StatePanel = ({ definition, selected: path, problems, onChange, onSelect }
           onSelect(pathOf(scope, to))
         }}
       />
-      <StateFields state={state} names={Object.keys(machine.States)} problems={problems} disabled={disabled} onChange={(next) => change(replaceState(definition, path, next))} />
+      <StateFields state={state} types={types} names={Object.keys(machine.States)} problems={problems} disabled={disabled} onChange={(next) => change(replaceState(definition, path, next))} />
       <details className="sm:col-span-2">
         <summary className="cursor-pointer text-body font-medium text-muted-foreground">{text('asJson')}</summary>
         <div className="mt-3">
@@ -96,14 +99,14 @@ const StatePanel = ({ definition, selected: path, problems, onChange, onSelect }
 
 /** The chosen node's fields under the canvas: the trigger's, or a state's with its problems, name and actions. */
 export const NodePanel = (props: NodePanelProps) => {
-  const { definition, selected, problems, onChange } = props
+  const { definition, types, selected, problems, onChange } = props
   return (
     <section aria-label={text('chosenStep')} className="grid gap-4 rounded-lg border bg-background p-4 sm:grid-cols-2">
       {selected === triggerId ? (
         <>
           <Heading kind={text('trigger')} name={triggerLabel(definition.trigger)} />
           <ProblemList problems={problems} />
-          <TriggerFields trigger={definition.trigger} problems={problems} disabled={!onChange} onChange={(trigger) => onChange?.(setTrigger(definition, trigger))} />
+          <TriggerFields trigger={definition.trigger} types={types} problems={problems} disabled={!onChange} onChange={(trigger) => onChange?.(setTrigger(definition, trigger))} />
         </>
       ) : (
         <StatePanel {...props} selected={selected as StatePath} />
