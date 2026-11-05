@@ -1,7 +1,7 @@
 export { checkDefinition, type CheckOptions } from './definition/check-definition'
 export { definitionSchema } from './definition/schema'
 export { problemText, type Problem } from './definition/problem'
-export type { Catcher, ChoiceRule, Definition, Machine, Retrier, State, StateMachine, Trigger } from './definition/types'
+export type { Catcher, ChoiceRule, ChoiceState, Definition, Machine, MapState, Retrier, State, StateMachine, TaskState, Trigger } from './definition/types'
 export { limits } from './limits'
 export { nestingDepth } from './nesting'
 export { StepError, type ErrorOutput } from './run/errors'

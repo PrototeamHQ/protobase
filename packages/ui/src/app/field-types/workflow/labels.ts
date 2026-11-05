@@ -1,0 +1,82 @@
+import type { State, Trigger } from '@protobase/workflows'
+import { text } from './messages'
+
+/** The step types' names, by the `Resource` a Task names; a step type without one shows as it is written. */
+const stepTypeLabels: Record<string, () => string> = {
+  'app:http': () => text('stepHttp'),
+  'app:records.create': () => text('stepRecordsCreate'),
+  'app:records.update': () => text('stepRecordsUpdate'),
+  'app:records.get': () => text('stepRecordsGet'),
+  'app:records.list': () => text('stepRecordsList'),
+  'app:mail.send': () => text('stepMailSend'),
+  'app:piece': () => text('stepPiece'),
+}
+
+export const stepTypeLabel = (resource: string) => stepTypeLabels[resource]?.() ?? resource
+
+/** The states' types other than Task, which shows its step type's name. */
+const stateTypeLabels: Record<Exclude<State['Type'], 'Task'>, () => string> = {
+  Pass: () => text('typePass'),
+  Choice: () => text('typeChoice'),
+  Wait: () => text('typeWait'),
+  Map: () => text('typeMap'),
+  Succeed: () => text('typeSucceed'),
+  Fail: () => text('typeFail'),
+}
+
+export const stateTypeLabel = (type: Exclude<State['Type'], 'Task'>) => stateTypeLabels[type]?.() ?? type
+
+/** What a state is, as its node and panel name it: its step type for a Task, else its type. */
+export const stateLabel = (state: State) => (state.Type === 'Task' ? stepTypeLabel(String(state.Resource)) : stateTypeLabel(state.Type))
+
+/** The arguments' and fields' names in the forms, by their name in the definition; one without shows as it is written. */
+const inputLabels: Record<string, () => string> = {
+  url: () => text('inputUrl'),
+  method: () => text('inputMethod'),
+  headers: () => text('inputHeaders'),
+  query: () => text('inputQuery'),
+  body: () => text('inputBody'),
+  response: () => text('inputResponse'),
+  resource: () => text('inputResource'),
+  data: () => text('inputData'),
+  key: () => text('inputKey'),
+  filter: () => text('inputFilter'),
+  order_by: () => text('inputOrderBy'),
+  limit: () => text('inputLimit'),
+  to: () => text('inputTo'),
+  subject: () => text('inputSubject'),
+  text: () => text('inputText'),
+  html: () => text('inputHtml'),
+  attachments: () => text('inputAttachments'),
+  piece: () => text('inputPiece'),
+  action: () => text('inputAction'),
+  connection: () => text('inputConnection'),
+  props: () => text('inputProps'),
+}
+
+export const inputLabel = (name: string) => inputLabels[name]?.() ?? name
+
+// The key of each member of a union
+type KeyOf<T> = T extends unknown ? keyof T : never
+
+export type TriggerKind = KeyOf<Trigger>
+
+/** The triggers, in the order the trigger's menu lists them. */
+export const triggerKinds: { kind: TriggerKind; label: () => string }[] = [
+  { kind: 'manual', label: () => text('triggerManual') },
+  { kind: 'webhook', label: () => text('triggerWebhook') },
+  { kind: 'schedule', label: () => text('triggerSchedule') },
+  { kind: 'mail', label: () => text('triggerMail') },
+  { kind: 'record', label: () => text('triggerRecord') },
+]
+
+/** The trigger's kind: the one key it holds. */
+export const triggerKind = (trigger: Trigger | undefined): TriggerKind | undefined => {
+  const [kind] = Object.keys(trigger ?? {})
+  return triggerKinds.find((entry) => entry.kind === kind)?.kind
+}
+
+export const triggerLabel = (trigger: Trigger | undefined) => {
+  const kind = triggerKind(trigger)
+  return triggerKinds.find((entry) => entry.kind === kind)?.label() ?? text('triggerUnknown')
+}

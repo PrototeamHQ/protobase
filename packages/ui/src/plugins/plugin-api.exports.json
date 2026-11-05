@@ -41,6 +41,7 @@
     "ResponsiveDialog",
     "Section",
     "Segmented",
+    "Select",
     "SidePanel",
     "SignInPrompt",
     "Spinner",

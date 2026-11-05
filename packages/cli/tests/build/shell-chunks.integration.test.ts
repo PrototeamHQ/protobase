@@ -5,7 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildShell, readShell } from '../../src/build/shell'
 import { pinnedNative } from '../../src/mobile/pinned-packages'
 
-// A lazy chunk that imports `app` or `vendor` is downloaded again whenever they change: on every release for `app`.
+// A lazy chunk is downloaded again whenever a chunk it imports changes. First-party chunks change on every release,
+// third-party ones only with a dependency update, which downloads `vendor` again anyway.
 const largeChunk = 50_000
 
 type Chunk = { file: string; size: number; imports: string[] }
@@ -60,10 +61,15 @@ describe('the built shell’s chunk graph', () => {
     }
   })
 
-  it('has no large lazy chunk that imports app or vendor', () => {
+  it('loads no chunk of a lazily loaded library from the start', () => {
+    expect([...initial].filter((file) => named(file, 'lib'))).toEqual([])
+  })
+
+  it('has no large lazy chunk that imports a chunk of first-party code', () => {
+    const thirdParty = (file: string) => named(file, 'react') || named(file, 'vendor') || named(file, 'lib') || named(file, 'rolldown-runtime')
     const lazy = [...chunks.values()].filter((chunk) => !initial.has(chunk.file) && chunk.size > largeChunk)
     expect(lazy.length).toBeGreaterThan(0)
-    expect(lazy.filter((chunk) => importsChunk(chunk, 'app') || importsChunk(chunk, 'vendor')).map((chunk) => chunk.file)).toEqual([])
+    expect(lazy.filter((chunk) => !chunk.imports.every(thirdParty)).map((chunk) => chunk.file)).toEqual([])
   })
 
   it('names in protobase.shell.json the native packages it runs on in the mobile app', async () => {

@@ -1,0 +1,58 @@
+/* React Flow in the app's colours, and handles big enough to tap on a phone. */
+.pb-workflow {
+  --xy-background-color: var(--color-surface);
+  --xy-background-pattern-color: var(--color-border);
+  --xy-edge-stroke: var(--color-border-strong);
+  --xy-edge-stroke-selected: var(--color-primary);
+  --xy-edge-label-background-color: var(--color-background);
+  --xy-edge-label-color: var(--color-muted-foreground);
+  --xy-connectionline-stroke: var(--color-primary);
+  --xy-handle-background-color: var(--color-background);
+  --xy-handle-border-color: var(--color-primary);
+  --xy-controls-button-background-color: var(--color-background);
+  --xy-controls-button-background-color-hover: var(--color-muted);
+  --xy-controls-button-color: var(--color-foreground);
+  --xy-controls-button-border-color: var(--color-border);
+  --xy-attribution-background-color: transparent;
+}
+.pb-workflow .react-flow__node {
+  /* The box is drawn by the node's own content */
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.pb-workflow .react-flow__handle {
+  width: 10px;
+  height: 10px;
+  border-width: 2px;
+}
+.pb-workflow .pb-workflow-handle-catch {
+  --xy-handle-border-color: var(--color-danger);
+}
+.pb-workflow .pb-workflow-catch .react-flow__edge-path {
+  stroke: var(--color-danger);
+  stroke-dasharray: 4 3;
+}
+.pb-workflow-handle-label {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--color-muted-foreground);
+  pointer-events: none;
+}
+.pb-workflow .react-flow__handle-right .pb-workflow-handle-label {
+  top: -14px;
+  left: 4px;
+  transform: none;
+}
+@media (pointer: coarse) {
+  .pb-workflow .react-flow__handle {
+    width: 18px;
+    height: 18px;
+  }
+}

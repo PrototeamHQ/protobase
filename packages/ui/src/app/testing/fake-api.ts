@@ -26,6 +26,8 @@ export type FakeApiInput = {
   bottomBar?: Omit<BottomBarModel, 'roles'>
   /** The sign-in prompts `/meta` names, as it does for a visitor. */
   signIn?: SignInViewModel[]
+  /** Runs before every create and update with the row as it would be saved; throws an `ApiError` to refuse it, as a write hook would. */
+  beforeWrite?: (resource: string, row: Row) => void
   /** Runs after every write, for what a database trigger or write hook would do (one default card, say). */
   afterWrite?: (resource: string, row: Row, rows: Record<string, Row[]>) => void
   /** Answers `reveal` instead of the stored value, to count reveals or refuse them. */
@@ -113,7 +115,7 @@ const filled = <G extends { value: unknown; count: number }>(groups: G[], stride
   })
 }
 
-export const fakeApi = ({ resources, views = [], pages = [], account, rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate }: FakeApiInput) => {
+export const fakeApi = ({ resources, views = [], pages = [], account, rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, beforeWrite, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
   const models = Object.fromEntries(resources.map((model) => [model.name, model]))
   let version = 0
@@ -262,6 +264,7 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
       const model = models[resource]!
       const [keyField] = model.primaryKey
       const row = { ...body, [keyField!]: body[keyField!] ?? table(resource).length + 1 + version }
+      beforeWrite?.(resource, row)
       table(resource).push(row)
       keep(resource, 'create', undefined, row)
       write(resource, row)
@@ -270,6 +273,7 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
     update: async (resource: string, key: string, patch: Row) => {
       const row = find(resource, key)
       const before = { ...row }
+      beforeWrite?.(resource, { ...row, ...attached(patch) })
       Object.assign(row, attached(patch))
       keep(resource, 'update', before, row)
       write(resource, row)

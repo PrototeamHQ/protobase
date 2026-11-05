@@ -34,7 +34,12 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .icon('workflow')
   .title((r) => r.name)
   .help('Steps that run one after another along their edges, written in the States Language with JSONata expressions. Each save that changes its definition is a new version; a run keeps the version it started on.')
-  .fields((r) => ({ definition: r.definition.help('Its trigger and its state machine in the States Language with JSONata, every value read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned'), updated_at: r.updated_at.label('Updated') }))
+  .fields((r) => ({
+    definition: r.definition
+      .help('Its trigger and its steps, drawn as a graph that lays itself out. Every value is read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned')
+      .widget('workflow'),
+    updated_at: r.updated_at.label('Updated'),
+  }))
   .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
   .layout((r) => [
     l.section('Workflow', [r.name, r.description, r.definition]),
