@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 3
+export const workflowsVersion = 4
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -53,6 +53,7 @@ create table if not exists ${s}."runs" (
   "cause" text,
   "resume_at" timestamptz,
   "started_by" text,
+  "rerun_of" uuid references ${s}."runs" ("id") on delete set null,
   "tenant_id" text,
   "created_at" timestamptz not null default now(),
   "finished_at" timestamptz,
@@ -96,6 +97,8 @@ create index if not exists "workflows_name_search" on ${s}."workflows" using gin
 create index if not exists "versions_tenant" on ${s}."versions" ("tenant_id");
 alter table ${s}."runs" add column if not exists "key" text;
 create unique index if not exists "runs_key" on ${s}."runs" ("workflow_id", "key");
+alter table ${s}."runs" add column if not exists "rerun_of" uuid references ${s}."runs" ("id") on delete set null;
+create index if not exists "runs_rerun_of" on ${s}."runs" ("rerun_of");
 create index if not exists "runs_workflow" on ${s}."runs" ("workflow_id", "created_at");
 create index if not exists "runs_tenant" on ${s}."runs" ("tenant_id");
 create index if not exists "runs_status" on ${s}."runs" ("status");
@@ -112,7 +115,7 @@ export const workflowsTriggers = ['workflow_version', 'run_version']
  * A workflow numbers its next version as a save changes its definition, in the row the write returns, so its ETag is
  * the saved row's; the save hook keeps that version's definition and who saved it. A run takes its workflow's current
  * version as it is created, and refuses a workflow of another tenant as one that is not there, and one that has no
- * saved version.
+ * saved version. A re-run takes the input of the run it re-runs, which the start hook checks.
  */
 export const functionsSql = (schema: string) => {
   const s = quoteIdent(schema)
@@ -146,6 +149,9 @@ begin
     raise exception 'Workflow % has no saved version', new.workflow_id using errcode = '23503';
   end if;
   new.version := found.version;
+  if new.rerun_of is not null then
+    select r.input into new.input from ${s}."runs" r where r.id = new.rerun_of and r.workflow_id = new.workflow_id;
+  end if;
   return new;
 end
 $$;

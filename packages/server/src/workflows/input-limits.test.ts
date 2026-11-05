@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HttpProblem } from '../problem'
-import { checkRunInput } from './input-limits'
+import { checkRunInput, runInputCheck } from './input-limits'
 
 const nested = (depth: number) => {
   let value: unknown = 1
@@ -28,5 +28,12 @@ describe("a run's input limits", () => {
 
   it('refuses an input nested 100,000 deep without overflowing the stack', () => {
     expect(refusal(nested(100_000))).toEqual([400, 'input-too-deep'])
+  })
+
+  it('refuses a re-run given an input of its own, as it runs on the input of the run it re-runs', async () => {
+    const check = (body: object) => runInputCheck({ resource: 'workflow_runs', operation: 'create', body })
+    await expect(check({ workflow_id: 'w', rerun_of: 'r', input: { day: 1 } })).rejects.toMatchObject({ status: 400, slug: 'rerun-input' })
+    await expect(check({ workflow_id: 'w', rerun_of: 'r', input: null })).resolves.toBeUndefined()
+    await expect(check({ workflow_id: 'w', input: { day: 1 } })).resolves.toBeUndefined()
   })
 })

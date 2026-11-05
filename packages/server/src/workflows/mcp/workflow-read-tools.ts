@@ -70,7 +70,7 @@ export const validateWorkflowTool = defineTool({
   },
 })
 
-const runFields = ['id', 'workflow_id', 'version', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'created_at', 'finished_at', 'duration_ms']
+const runFields = ['id', 'workflow_id', 'version', 'rerun_of', 'started_by', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'created_at', 'finished_at', 'duration_ms']
 const stepFields = ['state', 'scope', 'seq', 'type', 'attempt', 'status', 'input', 'output', 'assigned', 'logs', 'error', 'cause', 'next', 'resume_at', 'duration_ms']
 
 /** A run with its steps in the order they ran, a page at a time. */

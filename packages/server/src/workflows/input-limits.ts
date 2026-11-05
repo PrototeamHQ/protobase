@@ -14,9 +14,11 @@ export const checkRunInput = (input: unknown) => {
 
 /**
  * The same limits on a run's input as the API sent it, before the body is validated, whose walk of a deeply nested
- * value would overflow the call stack.
+ * value would overflow the call stack; a re-run takes the input of the run it re-runs, so it is given none.
  */
 export const runInputCheck: WriteCheck = async ({ resource, operation, body }) => {
   if (resource !== 'workflow_runs' || operation !== 'create' || typeof body !== 'object' || body === null) return
-  checkRunInput((body as { input?: unknown }).input)
+  const { input, rerun_of } = body as { input?: unknown; rerun_of?: unknown }
+  if (rerun_of != null && input != null) throw badRequest('rerun-input', 'A re-run runs on the input of the run it re-runs: give it no input')
+  checkRunInput(input)
 }
