@@ -12,13 +12,13 @@ import e from './e.json'
 import f from './f.json'
 import g from './g.json'
 
-/** The seven reference flows of the decided language report, a to g, as it gives them. */
+/** The seven reference flows of the decided language report, a to g, each on a trigger an app can have. */
 const flows = { a, b, c, d, e, f, g } as unknown as Record<string, Definition>
 
 const resources = ['app:http', 'app:records.create', 'app:records.update', 'app:records.get', 'app:records.list', 'app:mail.send', 'app:piece']
 
-// The flows' triggers: the built-in ones, and incoming mail as a plugin would add it.
-const triggers = Object.fromEntries(['app:webhook', 'app:schedule', 'app:record', 'inbox:new_mail'].map((id) => [id, () => []]))
+// The flows' triggers beside manual: the built-in plugin's app:record, and incoming mail as a plugin would add it.
+const triggers = Object.fromEntries(['app:record', 'inbox:new_mail'].map((id) => [id, () => []]))
 
 type Call = { resource: string; args: Record<string, unknown> }
 
