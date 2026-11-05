@@ -12,5 +12,8 @@ describe('webhook paths', () => {
   it('takes the key out of a request log line', () => {
     expect(redactHookKeys('--> POST /api/workflows/hooks/s3cr3tKey_-x?a=1 202 3ms')).toBe('--> POST /api/workflows/hooks/[key]?a=1 202 3ms')
     expect(redactHookKeys('<-- GET /api/v1/workflows')).toBe('<-- GET /api/v1/workflows')
+    expect(redactHookKeys('<-- POST /api/%77orkflows/%68ooks/s3cr3tKey_-x?a=1')).toBe('<-- POST /api/workflows/hooks/[key]?a=1')
+    expect(redactHookKeys('<-- POST /api/workflows/hooks/s3cr3t%20Key%ZZ')).toBe('<-- POST /api/workflows/hooks/[key]')
+    expect(redactHookKeys('<-- GET /api/v1/%E4%ZZ')).toBe('<-- GET /api/v1/%E4%ZZ')
   })
 })
