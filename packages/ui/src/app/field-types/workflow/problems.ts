@@ -1,6 +1,7 @@
-import { requiredStepInputs, workflowStepTypes, workflowTriggerTypes, type StepInput } from '@protobase/schema/internal'
-import { checkDefinition, type Definition, type Machine, type Problem, type TriggerCheck } from '@protobase/workflows'
+import type { WorkflowTypeList } from '@protobase/client'
+import { checkDefinition, type Definition, type Problem, type TriggerCheck } from '@protobase/workflows'
 import { triggerId } from './definition'
+import { schemaInputs, type TypeInput } from './type-inputs'
 
 /** A problem as its node shows it: the field it is about, if any, and what is wrong. */
 export type NodeProblem = { field?: string; message: string }
@@ -27,7 +28,7 @@ const isNames = (value: unknown) => Array.isArray(value) && value.every((name) =
 // A trigger type's input without a field it needs, or with names that are no list; the server checks the rest of its
 // input on save.
 const inputProblems =
-  (inputs: readonly StepInput[]): TriggerCheck =>
+  (inputs: readonly TypeInput[]): TriggerCheck =>
   (input) =>
     inputs.flatMap((field) => {
       const value = input[field.name]
@@ -35,27 +36,18 @@ const inputProblems =
       return field.kind === 'names' && !isNames(value) ? [{ field: field.name, message: 'is a list of names, separated by commas' }] : []
     })
 
-const triggers = Object.fromEntries(Object.entries(workflowTriggerTypes).map(([type, inputs]) => [type, inputProblems(inputs)]))
-
-// The built-in plugin, whose every type the editor knows; it does not know an app's own plugins' types.
-const builtIn = 'app:'
-const pluginType = /^[a-z][a-z0-9_]*:/
-const ofPlugin = (type: string) => pluginType.test(type) && !type.startsWith(builtIn)
-
-// Every Task's step type, the ones inside Maps too.
-const taskTypes = (machine: Machine): string[] =>
-  Object.values(machine.States).flatMap((state) => {
-    if (state.Type === 'Task') return typeof state.Resource === 'string' ? [state.Resource] : []
-    return state.Type === 'Map' && state.ItemProcessor?.States ? taskTypes(state.ItemProcessor) : []
-  })
-
 /**
- * The check every save of a workflow runs on the server, with the trigger and step types the editor knows. A type of
- * one of the app's own plugins, which the editor does not list, passes: the server checks it, and its input, on save.
+ * The check every save of a workflow runs on the server, against the app's trigger and step types as the server lists
+ * them, its plugins' included: an unknown type, a type the app cannot run, and a missing input it requires.
  */
-export const definitionProblems = (definition: Definition) => {
-  const trigger = Object.keys(definition.trigger ?? {})[0]
-  const pluginTrigger = trigger !== undefined && ofPlugin(trigger) && !(trigger in triggers) ? { [trigger]: () => [] } : {}
-  const pluginSteps = taskTypes(definition.stateMachine).filter((type) => ofPlugin(type) && !(type in workflowStepTypes))
-  return checkDefinition(definition, { resources: [...Object.keys(workflowStepTypes), ...pluginSteps], required: requiredStepInputs, triggers: { ...triggers, ...pluginTrigger } })
+export const definitionProblems = (definition: Definition, types: WorkflowTypeList) => {
+  const steps = types.step_types.filter((type) => type.available)
+  const triggers = types.triggers.filter((type) => type.available && type.id !== 'manual')
+  const unavailable = [...types.step_types, ...types.triggers].filter((type) => !type.available)
+  return checkDefinition(definition, {
+    resources: steps.map((type) => type.id),
+    required: Object.fromEntries(steps.map((type) => [type.id, schemaInputs(type.input).filter((input) => input.required).map((input) => input.name)])),
+    triggers: Object.fromEntries(triggers.map((type) => [type.id, inputProblems(schemaInputs(type.input))])),
+    unavailable: Object.fromEntries(unavailable.map((type) => [type.id, type.reason ?? ''])),
+  })
 }

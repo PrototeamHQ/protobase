@@ -1,15 +1,15 @@
 import { useState } from 'react'
-import type { StepInputKind } from '@protobase/schema/internal'
 import { Input } from '../../../primitives/input'
 import { Select } from '../../../primitives/select'
 import { Textarea } from '../../../primitives/textarea'
 import { Field } from '../../../record-view/field'
+import type { InputKind } from './type-inputs'
 import { namesText, namesValue, textValue, valueText } from './value-text'
 import { text } from './messages'
 
 export type ValueFieldProps = {
   label: string
-  kind: StepInputKind
+  kind: InputKind
   options?: readonly string[]
   required?: boolean
   help?: string
@@ -27,11 +27,12 @@ export type ValueFieldProps = {
 // Text on one line is the value, and emptied it is none; JSON is parsed when it parses.
 const readText = (text: string) => (text === '' ? undefined : text)
 
-const reads = { text: readText, choice: readText, json: textValue, names: namesValue } satisfies Record<StepInputKind, (text: string) => unknown>
+const reads = { text: readText, value: textValue, choice: readText, json: textValue, names: namesValue } satisfies Record<InputKind, (text: string) => unknown>
 
 /**
- * A value of a state as a labelled field: text on one line, one of `options`, a JSON value or expression on several
- * lines, or names on one line separated by commas. Emptied, it is left out of the definition.
+ * A value of a state as a labelled field: text on one line, a value such as a number on one line, one of `options`, a
+ * JSON value or expression on several lines, or names on one line separated by commas. Emptied, it is left out of the
+ * definition.
  */
 export const ValueField = ({ label, kind, options = [], required, help, value, error, onChange, disabled, read = reads[kind], write = kind === 'names' ? namesText : valueText }: ValueFieldProps) => {
   const [typed, setTyped] = useState<string>()

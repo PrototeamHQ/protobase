@@ -7,6 +7,7 @@ import { problemText, type Definition } from '@protobase/workflows'
 import { App } from '../../app'
 import { fakeApi } from '../../testing/fake-api'
 import { ticketsWorkflow } from '../../testing/workflow-fixtures'
+import { exampleWorkflowTypes } from '../../../../../../test-support/workflow-types'
 import { definitionProblems } from './problems'
 
 const meta = { title: 'Plugins/Field types/Workflow', parameters: { layout: 'fullscreen' } } satisfies Meta
@@ -37,7 +38,7 @@ let stored: Record<string, unknown> | undefined
 // A save is checked as the server checks it, and refused as it is: a 400 naming each problem on the definition.
 const checkSave = (resource: string, row: Record<string, unknown>) => {
   if (resource !== 'workflows') return
-  const problems = definitionProblems(row.definition as Definition)
+  const problems = definitionProblems(row.definition as Definition, exampleWorkflowTypes)
   if (problems.length === 0) return
   const detail = `The workflow cannot be saved: ${problems.map(problemText).join('; ')}`
   const errors = problems.map((problem) => ({ code: 'invalid-workflow', field: 'definition', message: problemText(problem), params: { state: problem.state, field: problem.field } }))
@@ -162,6 +163,35 @@ export const MissingInputChecks: StoryObj = {
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
     expect(await canvas.findByText('State "Fetch", field "Arguments.url": is missing; app:http needs it')).toBeVisible()
     expect(stored).toBeUndefined()
+  },
+}
+
+/**
+ * The add-step menu and the trigger's form offer the app's own plugins' types beside the built-in ones, draw their
+ * forms from each one's input schema and refuse a missing input; a type the app cannot run is not offered.
+ */
+export const PluginTypesChecks: StoryObj = {
+  ...NewWorkflow,
+  name: "Offers a plugin's trigger and step types (checks)",
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const panel = () => within(canvas.getByRole('region', { name: 'Chosen step' }))
+    const add = await canvas.findByRole('combobox', { name: 'Add a step' })
+    expect(within(add).getByRole('option', { name: 'HTTP request' })).toBeInTheDocument()
+    await userEvent.selectOptions(add, 'Shout')
+    const text = await panel().findByRole('textbox', { name: /^Text/ })
+    expect(panel().getByRole('textbox', { name: /^loud/ })).toBeInTheDocument()
+    await waitFor(() => expect(text).toHaveAttribute('aria-invalid', 'true'))
+    expect(panel().getByText('Arguments.text: is missing; acme:shout needs it')).toBeVisible()
+    await userEvent.click(canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="trigger"]')!)
+    const startsWhen = await panel().findByRole('combobox', { name: 'Starts a run' })
+    expect(within(startsWhen).getAllByRole('option').map((option) => option.textContent)).toEqual(['Run by hand', 'Record ready', 'Invoice overdue'])
+    await userEvent.selectOptions(startsWhen, 'Invoice overdue')
+    const days = await panel().findByRole('textbox', { name: /^days/ })
+    await waitFor(() => expect(days).toHaveAttribute('aria-invalid', 'true'))
+    await userEvent.type(days, '3')
+    await waitFor(() => expect(days).not.toHaveAttribute('aria-invalid', 'true'))
   },
 }
 

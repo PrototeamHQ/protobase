@@ -1,9 +1,11 @@
-import type { WorkflowTriggerType } from '@protobase/schema/internal'
 import type { State, Trigger } from '@protobase/workflows'
 import type { NodeStatus } from './node-trace'
 import { text } from './messages'
 
-/** The step types' names, by the `Resource` a Task names; a step type without one shows as it is written. */
+/**
+ * The built-in step types' names, by the `Resource` a Task names; another shows the label the type list gives it,
+ * `listed`, or, without one, as it is written.
+ */
 const stepTypeLabels: Record<string, () => string> = {
   'app:http': () => text('stepHttp'),
   'app:records.create': () => text('stepRecordsCreate'),
@@ -14,7 +16,7 @@ const stepTypeLabels: Record<string, () => string> = {
   'app:piece': () => text('stepPiece'),
 }
 
-export const stepTypeLabel = (resource: string) => stepTypeLabels[resource]?.() ?? resource
+export const stepTypeLabel = (resource: string, listed?: string) => stepTypeLabels[resource]?.() ?? listed ?? resource
 
 /** The states' types other than Task, which shows its step type's name. */
 const stateTypeLabels: Record<Exclude<State['Type'], 'Task'>, () => string> = {
@@ -31,7 +33,10 @@ export const stateTypeLabel = (type: Exclude<State['Type'], 'Task'>) => stateTyp
 /** What a state is, as its node and panel name it: its step type for a Task, else its type. */
 export const stateLabel = (state: State) => (state.Type === 'Task' ? stepTypeLabel(String(state.Resource)) : stateTypeLabel(state.Type))
 
-/** The arguments' and fields' names in the forms, by their name in the definition; one without shows as it is written. */
+/**
+ * The arguments' and fields' names in the forms, by their name in the definition; another shows the title its schema
+ * gives it, or, without one, as it is written.
+ */
 const inputLabels: Record<string, () => string> = {
   url: () => text('inputUrl'),
   method: () => text('inputMethod'),
@@ -57,32 +62,23 @@ const inputLabels: Record<string, () => string> = {
   when: () => text('inputWhen'),
 }
 
-export const inputLabel = (name: string) => inputLabels[name]?.() ?? name
+export const inputLabel = (name: string, title?: string) => inputLabels[name]?.() ?? title ?? name
 
-export type TriggerKind = 'manual' | WorkflowTriggerType
-
-/** The triggers, in the order the trigger's menu lists them. */
-export const triggerKinds: { kind: TriggerKind; label: () => string }[] = [
-  { kind: 'manual', label: () => text('triggerManual') },
-  { kind: 'app:record', label: () => text('triggerRecord') },
-]
-
-/** The trigger's kind: the one key it holds. */
-export const triggerKind = (trigger: Trigger | undefined): TriggerKind | undefined => {
-  const [kind] = Object.keys(trigger ?? {})
-  return triggerKinds.find((entry) => entry.kind === kind)?.kind
+/** The built-in triggers' names; another shows the label the type list gives it, `listed`, or as it is written. */
+const triggerLabels: Record<string, () => string> = {
+  manual: () => text('triggerManual'),
+  'app:record': () => text('triggerRecord'),
 }
 
-/** The type a trigger names that the editor does not offer, such as one of the app's own plugins'. */
-export const otherTriggerType = (trigger: Trigger | undefined): string | undefined => {
-  const [type] = Object.keys(trigger ?? {})
-  return type && triggerKind(trigger) === undefined ? type : undefined
-}
+export const triggerTypeLabel = (type: string, listed?: string) => triggerLabels[type]?.() ?? listed ?? type
 
-/** The trigger's label: its kind's, or the type it names when the editor does not offer it. */
+/** The type a trigger names: the one key it holds. */
+export const triggerType = (trigger: Trigger | undefined): string | undefined => Object.keys(trigger ?? {})[0]
+
+/** The trigger's label: its type's, or a prompt to choose one when it has none. */
 export const triggerLabel = (trigger: Trigger | undefined) => {
-  const kind = triggerKind(trigger)
-  return triggerKinds.find((entry) => entry.kind === kind)?.label() ?? otherTriggerType(trigger) ?? text('triggerUnknown')
+  const type = triggerType(trigger)
+  return type === undefined ? text('triggerUnknown') : triggerTypeLabel(type)
 }
 
 const nodeStatusLabels: Record<NodeStatus, () => string> = {

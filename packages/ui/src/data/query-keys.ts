@@ -55,6 +55,8 @@ export const keys = {
   rings: ['call-rings'] as const,
   /** A record's calls, as its call mark shows them (`useRecordCalls`). */
   recordCalls: (resource: string, key: string) => ['record-calls', resource, key] as const,
+  /** The app's workflow trigger and step types, as the workflow editor reads them (`useWorkflowTypes`). */
+  workflowTypes: ['workflow-types'] as const,
   /** A public form, as `/-/forms/<name>` draws it. */
   publicForm: (name: string) => ['public-form', name] as const,
 }
