@@ -1,4 +1,4 @@
-import { Background, Controls, ReactFlow, ReactFlowProvider, useReactFlow, type Connection, type Edge, type EdgeChange, type IsValidConnection, type NodeChange } from '@xyflow/react'
+import { Background, Controls, ReactFlow, ReactFlowProvider, useReactFlow, useUpdateNodeInternals, type Connection, type Edge, type EdgeChange, type IsValidConnection, type NodeChange } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './workflow-canvas.css'
 import { useEffect, useMemo, useState } from 'react'
@@ -39,13 +39,20 @@ const FitOnLayout = ({ laidOut }: { laidOut: unknown }) => {
   return null
 }
 
+// Each new layout measures every node's handles again: a Map's box grows with the states inside it, and its edges
+// leave from where its handles are now.
+const MeasureOnLayout = ({ laidOut, ids }: { laidOut: unknown; ids: string[] }) => {
+  const updateNodeInternals = useUpdateNodeInternals()
+  useEffect(() => {
+    if (laidOut) updateNodeInternals(ids)
+  }, [laidOut])
+  return null
+}
+
 const Canvas = ({ definition, problems, selected, onSelect, onChange, traces }: WorkflowCanvasProps) => {
   const graph = useMemo(() => definitionGraph(definition), [definition])
   const boxes = useLayout(graph)
-  // The sizes React Flow measured, handed back with each node: a node without one loses its handles' places, and its
-  // edges vanish until it is measured again
-  const [measured, setMeasured] = useState<ReadonlyMap<string, { width: number; height: number }>>(new Map())
-  const nodes = useMemo(() => flowNodes(graph, boxes, problems, selected, traces).map((node) => ({ ...node, measured: measured.get(node.id) })), [graph, boxes, problems, selected, traces, measured])
+  const nodes = useMemo(() => flowNodes(graph, boxes, problems, selected, traces), [graph, boxes, problems, selected, traces])
   // The edge chosen, which Delete removes
   const [chosenEdge, setChosenEdge] = useState<string>()
   const edges = useMemo(() => flowEdges(graph).map((edge) => ({ ...edge, selected: edge.id === chosenEdge })), [graph, chosenEdge])
@@ -62,10 +69,6 @@ const Canvas = ({ definition, problems, selected, onSelect, onChange, traces }: 
     // A node chosen by the keyboard opens its form as a click does
     const picked = changes.find((change) => change.type === 'select' && change.selected)
     if (picked?.type === 'select') onSelect(graphId(picked.id))
-    const sized = changes.flatMap((change) => (change.type === 'dimensions' && change.dimensions ? [[change.id, change.dimensions] as const] : []))
-    if (sized.length === 0) return
-    // Only the nodes drawn now are kept
-    setMeasured((current) => new Map([...current, ...sized].filter(([id]) => nodes.some((node) => node.id === id))))
   }
   const onEdgesChange = (changes: EdgeChange[]) => {
     for (const change of changes) {
@@ -121,6 +124,7 @@ const Canvas = ({ definition, problems, selected, onSelect, onChange, traces }: 
       <Background gap={16} />
       <Controls showInteractive={false} />
       <FitOnLayout laidOut={boxes} />
+      <MeasureOnLayout laidOut={boxes} ids={nodes.map((node) => node.id)} />
     </ReactFlow>
   )
 }

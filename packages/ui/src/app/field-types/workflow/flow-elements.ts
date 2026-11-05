@@ -33,6 +33,9 @@ export const flowNodes = (graph: Graph, boxes: ReadonlyMap<string, Box> | undefi
       position: { x: box.x, y: box.y },
       width: box.width,
       height: box.height,
+      // The node is drawn at its box's size, so React Flow knows it from the first render: a node handed over without
+      // one loses its handles' places, and its edges vanish until its size changes
+      measured: { width: box.width, height: box.height },
       data: { node, problems: problems.get(node.id) ?? [], ...(traces?.has(node.id) && { trace: traces.get(node.id) }) },
       draggable: false,
       deletable: node.kind === 'state',
