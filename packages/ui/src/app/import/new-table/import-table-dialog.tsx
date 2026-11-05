@@ -12,7 +12,6 @@ import { fieldTexts } from './field-texts'
 import { hasProblems, proposalProblems } from './proposal-problems'
 import { TableFieldsStep } from './table-fields-step'
 import { useTableImportFlow, type TableImportFlow } from './use-table-import-flow'
-import { formatTag } from '../../../locale/active-locale'
 
 export type ImportTableDialogProps = {
   /** The resource of the tables users add. */
@@ -68,7 +67,7 @@ export const ImportTableDialog = ({ tables, resources, views, onClose, sourceFor
           <>
             {cancelButton}
             <Button variant="primary" loading={step.kind === 'creating'} disabled={!problems || hasProblems(problems)} onClick={flow.create}>
-              {text('makeTable', { count: rows.toLocaleString(formatTag()), rows })}
+              {text('makeTable', { rows })}
             </Button>
           </>
         )
