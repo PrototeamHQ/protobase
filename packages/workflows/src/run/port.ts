@@ -37,7 +37,7 @@ export type TaskContext = {
   runId: string
   /** Aborted when the step's timeout passes, or when the worker stops. */
   signal: AbortSignal
-  /** The same for every try of this step in this run: a receiver that dedupes by it sees a repeated try once. */
+  /** The same for every retry of one visit of this step in this run, so a receiver that dedupes by it sees a repeated try once; a later visit gets a new one. */
   idempotencyKey: string
   /** Adds a line to the step's logs, with the app's secrets blanked out; a step keeps `limits.logLines` lines. */
   log: (message: string) => void

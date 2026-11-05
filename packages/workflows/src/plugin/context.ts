@@ -76,7 +76,7 @@ export type PluginServices = {
 export type StepContext<Input = Record<string, unknown>> = PluginServices & {
   input: Input
   runId: string
-  /** The same for every try of this step in this run. */
+  /** The same for every retry of one visit of this step in this run; a later visit of the step, such as in a loop, gets a new one. */
   idempotencyKey: string
   /** Aborted at the step's timeout, or when the worker stops. */
   signal: AbortSignal
