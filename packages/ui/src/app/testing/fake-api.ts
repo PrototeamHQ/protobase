@@ -185,17 +185,32 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
     }
   }
 
-  // A batch write's `update`, as a ranked board's drop sends it, or `reorder`, as sorting by hand does: the records
+  // A batch write's `create`, with a `ref` later operations name the record by (`{ $ref }`), as a table made with its
+  // fields is; `update`, as a ranked board's drop sends it; or `reorder`, as sorting by hand does: the records
   // numbered `start`, `start` + 1, ... (1, 2, 3, ... by default) in the order of their keys. A record is refused when its ETag is stale; unlike the server, the
   // fake keeps the operations before a refused one
-  type BatchOp = { op: string; resource: string; key?: string | number; data?: Row; etag?: string; field?: string; keys?: Array<string | number>; start?: number; etags?: Record<string, string> }
-  const batchOp = async (op: BatchOp) => {
+  type BatchOp = { op: string; resource: string; key?: unknown; data?: Row; ref?: string; etag?: string; field?: string; keys?: Array<string | number>; start?: number; etags?: Record<string, string> }
+  const batchOp = async (op: BatchOp, made: Map<string, { resource: string; record: Row }>) => {
+    const resolved = (value: unknown) => {
+      if (typeof value !== 'object' || value === null || !('$ref' in value)) return value
+      const { $ref, field } = value as { $ref: string; field?: string }
+      const earlier = made.get($ref)
+      if (!earlier) throw new Error(`Not implemented: the fake API's batch has no record made as ${$ref}`)
+      return earlier.record[field ?? models[earlier.resource]!.primaryKey[0]!]
+    }
+    if (op.op === 'create') {
+      const data = Object.fromEntries(Object.entries(op.data ?? {}).map(([name, value]) => [name, resolved(value)]))
+      const created = await client.create(op.resource, data)
+      if (op.ref) made.set(op.ref, { resource: op.resource, record: created.record as Row })
+      return { op: 'create', resource: op.resource, ...(op.ref && { ref: op.ref }), record: created.record, etag: created.etag }
+    }
     if (op.op === 'update') {
+      op = { ...op, key: resolved(op.key) }
       const key = String(op.key)
       if (![undefined, '*', find(op.resource, key).etag].includes(op.etag)) throw stale()
       return { op: 'update', resource: op.resource, ...(await client.update(op.resource, key, op.data!)) }
     }
-    if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only update and reorder, not ${op.op}`)
+    if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only create, update and reorder, not ${op.op}`)
     const { resource, field } = op as { resource: string; field: string }
     const keys = op.keys!.map(String)
     const start = op.start ?? 1
@@ -289,7 +304,8 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
     },
     batchWrite: async (ops: BatchOp[]) => {
       const results = []
-      for (const op of ops) results.push(await batchOp(op))
+      const made = new Map<string, { resource: string; record: Row }>()
+      for (const op of ops) results.push(await batchOp(op, made))
       return { results }
     },
     remove: async (resource: string, key: string) => {
