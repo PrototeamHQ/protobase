@@ -1,7 +1,22 @@
 import type { PollingTrigger } from '@protobase/workflows/plugin'
 
-// A field is a comma-separated list of any length, each item `*`, a number or a range, with an optional step.
-const cronField = /^(\*|\d+(-\d+)?)(\/\d+)?(,(\*|\d+(-\d+)?)(\/\d+)?)*$/
+// The bounds of the five fields: minute, hour, day of month, month, day of week (0 and 7 are Sunday).
+const fieldBounds: readonly (readonly [number, number])[] = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 7]]
+
+// One list item: `*`, a number or a range, with an optional step.
+const cronItem = /^(?:\*|(\d+)(?:-(\d+))?)(?:\/(\d+))?$/
+
+// A field is a comma-separated list of any length, each item inside the field's bounds, a range not reversed and a step above 0.
+const cronField = (field: string, [min, max]: readonly [number, number]) =>
+  field.split(',').every((item) => {
+    const match = cronItem.exec(item)
+    if (!match) return false
+    const [, from, to, step] = match
+    if (step !== undefined && Number(step) === 0) return false
+    if (from === undefined) return true
+    const last = to === undefined ? Number(from) : Number(to)
+    return Number(from) >= min && last <= max && Number(from) <= last
+  })
 
 const knownZone = (zone: string) => {
   try {
@@ -17,7 +32,7 @@ const knownZone = (zone: string) => {
 const scheduleProblems = (input: Record<string, unknown>) => {
   const problems: { field: string; message: string }[] = []
   const fields = String(input.cron).trim().split(/\s+/)
-  if (fields.length !== 5 || !fields.every((field) => cronField.test(field))) problems.push({ field: 'cron', message: 'must be a cron of 5 fields, such as 0 6 * * *' })
+  if (fields.length !== 5 || !fields.every((field, index) => cronField(field, fieldBounds[index]!))) problems.push({ field: 'cron', message: 'must be a cron of 5 fields, each within its range, such as 0 6 * * *' })
   const zone = input.timezone
   if (typeof zone === 'string' && !knownZone(zone)) problems.push({ field: 'timezone', message: `"${zone}" is not an IANA time zone, such as Europe/Amsterdam` })
   return problems

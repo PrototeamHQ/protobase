@@ -8,7 +8,11 @@ describe('app:schedule', () => {
     expect(schedule.check!({ cron: '0 6 * * 1-5', timezone: 'Europe/Amsterdam' })).toEqual([])
     expect(schedule.check!({ cron: '0 9 * * 1,2,3' })).toEqual([])
     expect(schedule.check!({ cron: '0 0 1,15,20 * *' })).toEqual([])
-    expect(schedule.check!({ cron: '0 6 * *' })).toEqual([{ field: 'cron', message: 'must be a cron of 5 fields, such as 0 6 * * *' }])
+    expect(schedule.check!({ cron: '0 6 * *' })).toEqual([{ field: 'cron', message: 'must be a cron of 5 fields, each within its range, such as 0 6 * * *' }])
+    expect(schedule.check!({ cron: '*/15 0-23/2 1-31 1-12 0-7' })).toEqual([])
+    for (const cron of ['60 * * * *', '0 25 * * *', '0 0 0 * *', '0 0 * 13 *', '0 0 * * 8', '*/0 * * * *', '30-10 * * * *', '0 9 * * 1,9', '0 6 * * mon']) {
+      expect(schedule.check!({ cron })).toEqual([{ field: 'cron', message: 'must be a cron of 5 fields, each within its range, such as 0 6 * * *' }])
+    }
     expect(schedule.check!({ cron: '0 6 * * *', timezone: 'Mars/Olympus' })).toEqual([{ field: 'timezone', message: '"Mars/Olympus" is not an IANA time zone, such as Europe/Amsterdam' }])
   })
 
