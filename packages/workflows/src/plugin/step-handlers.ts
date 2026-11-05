@@ -15,8 +15,8 @@ export type StepWiring = {
 const handler = (id: string, type: StepType, wiring: StepWiring): TaskHandler => {
   const validate = ajv.compile(type.input)
   const prefix = type.errorPrefix ?? 'Step'
-  return async (args, task) => {
-    const input = args ?? {}
+  // The runner passes the Arguments as evaluated, `{}` when a Task has none, so an evaluated null is checked as null.
+  return async (input, task) => {
     if (!validate(input)) {
       const problems = (validate.errors ?? []).map((error) => `${error.instancePath.slice(1).replaceAll('/', '.') || 'Arguments'} ${error.message}`)
       throw new StepError(`${prefix}.InvalidArguments`, problems.join('; '))

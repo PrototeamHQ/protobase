@@ -64,6 +64,8 @@ describe('stepHandlers', () => {
   it('runs a step with its input and the run, and refuses an input that does not fit as <prefix>.InvalidArguments', async () => {
     await expect(handlers['acme:greet']!({ name: 'Ada' }, task)).resolves.toEqual({ text: 'Hello Ada from run-1' })
     await expect(handlers['acme:greet']!({}, task)).rejects.toEqual(new StepError('Acme.InvalidArguments', "Arguments must have required property 'name'"))
+    // Arguments that evaluate to null are checked as null, not as an empty object a schema without required would take.
+    await expect(handlers['acme:token']!(null, task)).rejects.toEqual(new StepError('Step.InvalidArguments', 'Arguments must be object'))
   })
 
   it("gives a step only its own declared connection, which names no other", async () => {
