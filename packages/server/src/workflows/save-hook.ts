@@ -6,7 +6,7 @@ import type { TriggerJobs } from './triggers/trigger-jobs'
 import { syncTrigger } from './triggers/trigger-sync'
 
 /**
- * Checks a workflow's definition on every save that changes it, and as it is turned on, against the language's schema
+ * Checks a workflow's definition on every save that changes it, and as it is turned on (not off), against the language's schema
  * and the named-reads profile, with the trigger and step types the app has, and keeps a changed definition as the
  * version the table's trigger numbered, saved by the caller. Then it keeps the workflow's trigger in step with its
  * enabled version. A refusal is a 400 problem naming each state and field, also listed as `problems`, and as the
@@ -20,7 +20,8 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
   const changed = event.operation === 'create' || event.after.version !== event.before?.version
   const enabling = event.after.enabled_version !== (event.before?.enabled_version ?? null)
   if (!changed && !enabling) return
-  const problems = checkDefinition(event.after.definition, types)
+  // Turning a workflow off never depends on its definition still checking, as after an app update removed a plugin.
+  const problems = changed || event.after.enabled_version !== null ? checkDefinition(event.after.definition, types) : []
   if (problems.length > 0) {
     const errors = problems.map((problem) => ({ code: 'invalid-workflow', field: 'definition', message: problemText(problem), params: { state: problem.state, field: problem.field } }))
     throw badRequest('invalid-workflow', `The workflow cannot be saved: ${problems.map(problemText).join('; ')}`, { problems, errors })
