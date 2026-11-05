@@ -31,3 +31,13 @@ export type WorkflowStepType = keyof typeof workflowStepTypes
 export const requiredStepInputs = Object.fromEntries(
   Object.entries(workflowStepTypes).map(([type, inputs]) => [type, inputs.filter((input: StepInput) => input.required).map((input) => input.name)]),
 ) as Record<WorkflowStepType, string[]>
+
+/**
+ * The trigger types the editor offers beside `manual`, each with its input: a save refuses one without a required field,
+ * and the editor draws a form of them.
+ */
+export const workflowTriggerTypes = {
+  'app:record': [text('resource', true), text('when'), json('key')],
+} as const satisfies Record<string, readonly StepInput[]>
+
+export type WorkflowTriggerType = keyof typeof workflowTriggerTypes

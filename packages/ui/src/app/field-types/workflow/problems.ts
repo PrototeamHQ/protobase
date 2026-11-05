@@ -1,5 +1,5 @@
-import { requiredStepInputs, workflowStepTypes } from '@protobase/schema/internal'
-import { checkDefinition, type Definition, type Problem } from '@protobase/workflows'
+import { requiredStepInputs, workflowStepTypes, workflowTriggerTypes, type StepInput } from '@protobase/schema/internal'
+import { checkDefinition, type Definition, type Problem, type TriggerCheck } from '@protobase/workflows'
 import { triggerId } from './definition'
 
 /** A problem as its node shows it: the field it is about, if any, and what is wrong. */
@@ -22,5 +22,13 @@ export const problemsByNode = (problems: readonly Problem[]) => {
   return { byNode, whole }
 }
 
-/** The check every save of a workflow runs on the server, with the step types the app has. */
-export const definitionProblems = (definition: Definition) => checkDefinition(definition, { resources: Object.keys(workflowStepTypes), required: requiredStepInputs })
+// A trigger type's input without a field it needs; the server checks the rest of its input on save.
+const requiredFields =
+  (inputs: readonly StepInput[]): TriggerCheck =>
+  (input) =>
+    inputs.filter((field) => field.required && (input[field.name] === undefined || input[field.name] === '')).map((field) => ({ field: field.name, message: 'is missing' }))
+
+const triggers = Object.fromEntries(Object.entries(workflowTriggerTypes).map(([type, inputs]) => [type, requiredFields(inputs)]))
+
+/** The check every save of a workflow runs on the server, with the trigger and step types the app has. */
+export const definitionProblems = (definition: Definition) => checkDefinition(definition, { resources: Object.keys(workflowStepTypes), required: requiredStepInputs, triggers })
