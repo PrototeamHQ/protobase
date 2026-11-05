@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto'
 import { HttpProblem } from '../problem'
 
 export type SignatureOptions = {
@@ -20,10 +21,12 @@ const decodeHex = (text: string) => (/^(?:[0-9a-f]{2})+$/i.test(text) ? new Uint
 const decodeBase64 = (text: string) =>
   /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(text) && text.length > 0 ? Uint8Array.from(atob(text), (char) => char.charCodeAt(0)) : undefined
 
-// Web Crypto's HMAC verify compares in constant time.
+// Compared in constant time here: some Node releases' Web Crypto HMAC verify compares with a plain memcmp.
 const verifyHmac = async (key: Uint8Array<ArrayBuffer>, hash: string, signature: Uint8Array<ArrayBuffer>, content: string) => {
-  const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash }, false, ['verify'])
-  return crypto.subtle.verify('HMAC', cryptoKey, signature, new TextEncoder().encode(content))
+  const cryptoKey = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash }, false, ['sign'])
+  const expected = new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(content)))
+  // A digest's length is public, so a signature of another length is refused before the compare, which needs equal ones.
+  return signature.length === expected.length && timingSafeEqual(signature, expected)
 }
 
 /**
