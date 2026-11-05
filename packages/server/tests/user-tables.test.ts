@@ -111,6 +111,35 @@ describe('tables defined in the database', () => {
     ]
     for (const query of queries) expect((await call('admin', `/user_tables?${query}`)).status, query).toBe(200)
   })
+  it("lists a table's fields with a filter on each field it declares filterable and, with the table pinned, a sort on each it declares sortable", async () => {
+    const meta = await (await call('admin', '/api/meta')).json()
+    const fields: { name: string; type: string; filterable: boolean; sortable: boolean }[] = Object.values(meta.resources.find((model: { name: string }) => model.name === 'user_table_fields').fields)
+    // A value of each type the resource has a filterable field of; a relation holds its table's id.
+    const values: Record<string, string> = { relation: '2' }
+    const pinned = `filter=${encodeURIComponent('table_id = 2')}`
+    const queries = [
+      ...fields.filter((field) => field.filterable).map((field) => `filter=${encodeURIComponent(`${field.name} = ${values[field.type]}`)}`),
+      ...fields.filter((field) => field.sortable).map((field) => `${pinned}&order_by=${field.name}`),
+    ]
+    for (const query of queries) expect((await call('admin', `/user_table_fields?${query}`)).status, query).toBe(200)
+    const listed = await (await call('admin', `/user_table_fields?${pinned}&order_by=position`)).json()
+    expect(listed.items.map((field: { name: string }) => field.name)).toEqual(['title', 'due'])
+  })
+  it("refuses the fields of a table sorted by position without the index the migration adds", async () => {
+    await pg.exec('drop index table_definitions.fields_position_idx')
+    // The scan guard reads a table's indexes once, so an admin made now sees the table without it.
+    const unindexed = createAdmin({ resources: [orders], userTables: tables, db, authenticate: testAuthenticator, options: { roles } })
+    const response = await unindexed.request(`/api/v1/user_table_fields?filter=${encodeURIComponent('table_id = 2')}&order_by=position`, { headers: as(1, 'admin') })
+    await pg.exec('create index fields_position_idx on table_definitions.fields (table_id, position)')
+    expect(response.status).toBe(400)
+  })
+  it("sends only reads the scan guard accepts from the Fields section of a table's page and the fields list", async () => {
+    const meta = await (await call('admin', '/api/meta')).json()
+    const related = meta.views.find((shown: { resource: string }) => shown.resource === 'user_tables').layout.find((item: { kind: string }) => item.kind === 'related')
+    expect((await call('admin', `/user_table_fields?filter=${encodeURIComponent(`${related.field} = 2`)}&order_by=${related.sort}`)).status).toBe(200)
+    const sort: [string, string][] = meta.views.find((shown: { resource: string }) => shown.resource === 'user_table_fields').list.sort
+    expect((await call('admin', `/user_table_fields?order_by=${encodeURIComponent(sort.map(([field, direction]) => `${field} ${direction}`).join(', '))}`)).status).toBe(200)
+  })
   it('gives a role with wildcard grants nothing of it, answering 404 as for a resource it does not know: no list, record, search, write, /meta or API document entry', async () => {
     for (const role of ['reader', 'editor']) {
       for (const path of ['/notes', '/notes/1', `/notes?filter=${encodeURIComponent('search("first")')}`]) {
