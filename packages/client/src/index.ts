@@ -8,6 +8,7 @@ export { pollThenSocket, type LiveSocket, type PollThenSocketOptions } from './p
 export type { DevicesClient, RegisteredDevice, WebDeviceRegistration } from './devices'
 export type { InboxNotification, InboxPage, NotificationHistoryClient } from './notification-history'
 export type { Availability, PersonStatus, StatusClient, StatusInput } from './status'
+export type { WorkflowTypeEntry, WorkflowTypeList } from './workflow-types'
 export { availabilities, heldStatus, maxStatusText, statusTextProblem } from '@protobase/schema/internal'
 export type { RecordCall, RecordCallsHandlers } from './record-calls'
 export type { CallRing, RingsClient } from './rings'

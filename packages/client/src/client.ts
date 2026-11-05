@@ -10,6 +10,7 @@ import { channelsClient } from './channels'
 import type { SocketLike } from './channel-connection'
 import { devicesClient } from './devices'
 import { statusClient } from './status'
+import { workflowTypesClient } from './workflow-types'
 import { notificationHistoryClient } from './notification-history'
 import { recordCallsClient } from './record-calls'
 import { ringsClient } from './rings'
@@ -396,13 +397,16 @@ export const createClient = (options: ClientOptions = {}) => {
   /** People's own status, and that of those who share an organization with the signed-in person (see `statusClient`). */
   const status = statusClient(send)
 
+  /** The app's workflow trigger and step types, each with its input's JSON Schema (see `workflowTypesClient`). */
+  const workflowTypes = workflowTypesClient(send)
+
   /** The calls that ring the signed-in user, and declining one (see `ringsClient`). */
   const rings = ringsClient(send)
 
   /** Whether the calls of the organization the signed-in user works in take guests (see `callGuestsClient`). */
   const callGuests = callGuestsClient(send)
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, devices, notifications, status, calls, watchCalls, rings, callGuests }
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes }
 }
 
 export type Client = ReturnType<typeof createClient>
