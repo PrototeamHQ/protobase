@@ -14,7 +14,7 @@ const triggerOf = (definition: unknown) => {
 /**
  * Keeps a workflow's trigger row in step with its enabled version, in the write's transaction, queueing its jobs in that
  * same write: turning it on inserts a running trigger and queues its start; a new version with the same type and input
- * keeps the row, so its state carries over; any other change, or turning it off, stops the old row and starts a new one.
+ * keeps the row, so its state carries over, and passes over the records again; any other change, or turning it off, stops the old row and starts a new one.
  * Only the current version can be turned on.
  */
 export const syncTrigger = async (trx: Db, schema: string, jobs: Pick<TriggerJobs, 'start' | 'stop'>, workflow: Row) => {
@@ -23,11 +23,15 @@ export const syncTrigger = async (trx: Db, schema: string, jobs: Pick<TriggerJob
   const wanted = enabled === null ? undefined : triggerOf(workflow.definition)
   const triggers = sql.id(schema, 'triggers')
   const id = String(workflow.id)
-  const { rows } = await sql<{ id: string; same: boolean }>`select id, (type = ${wanted?.type ?? null} and input = ${JSON.stringify(wanted?.input ?? null)}::jsonb and connection_id is null) as same
+  const { rows } = await sql<{ id: string; generation: number; version: number; same: boolean }>`select id, generation, version, (type = ${wanted?.type ?? null} and input = ${JSON.stringify(wanted?.input ?? null)}::jsonb and connection_id is null) as same
     from ${triggers} where workflow_id = ${id} and status <> 'stopping'`.execute(trx)
   const existing = rows[0]
   if (existing?.same) {
-    await sql`update ${triggers} set version = ${enabled}, updated_at = now() where id = ${existing.id}`.execute(trx)
+    if (existing.version === enabled) return
+    // A new version reads as its own saver, who may read records the last one could not: it starts active and passes
+    // over the records again, which the ready keys keep from starting a record twice.
+    await sql`update ${triggers} set version = ${enabled}, status = 'active', consecutive_failures = 0, last_error = null, updated_at = now() where id = ${existing.id}`.execute(trx)
+    await jobs.start.enqueue(trx, { trigger: existing.id, generation: existing.generation })
     return
   }
   if (existing) {

@@ -6,8 +6,8 @@ import type { ResourceChange } from '../../changes/resource-change'
 import { defineJob } from '../../jobs/define-job'
 import type { Row } from '../../types'
 import { readyAt, readyWhen, resolveTimeTerms } from '../ready/ready-when'
-import { readyContext, startIfReady, type ReadyInput } from '../ready/ready-start'
-import { activeTriggers, currentTrigger } from './trigger-row'
+import { orRefusal, readyContext, startIfReady, type ReadyInput } from '../ready/ready-start'
+import { activeTriggers, currentTrigger, triggerFailed } from './trigger-row'
 import { printFilter } from '@protobase/schema'
 
 /** Records one enable pass reads per job. */
@@ -30,7 +30,9 @@ export const triggerJobs = (input: ReadyInput) => {
     timeout: '5 minutes',
     run: async ({ trigger: id, generation, key }, { db }) => {
       const trigger = await currentTrigger(db, schema, id, generation)
-      if (trigger) await startIfReady(input, db, trigger, key)
+      if (!trigger) return
+      // A trigger that works again passes over its records once more, for those it missed while failing.
+      if (await startIfReady(input, db, trigger, key)) await start.enqueue(db, { trigger: id, generation })
     },
   })
 
@@ -49,13 +51,16 @@ export const triggerJobs = (input: ReadyInput) => {
     run: async ({ trigger: id, generation, page_token }, { db }) => {
       const trigger = await currentTrigger(db, schema, id, generation)
       if (!trigger || !input.declared(trigger.type)) return
-      const context = await readyContext(input, trigger)
-      if (!context) return
-      const { spec, model, records } = context
+      const found = await orRefusal(readyContext(input, trigger))
+      if ('refused' in found) return triggerFailed(db, schema, trigger, 'refused', found.refused)
+      if (!found.value) return
+      const { spec, model, records } = found.value
       const split = readyWhen(spec.when)
       if (!split.ok) return
       const filter = split.when.filter && printFilter(split.when.filter)
-      const page = await records.list(spec.resource, { ...(filter && { filter }), page_size: passSize, ...(page_token && { page_token }) })
+      const listed = await orRefusal(records.list(spec.resource, { ...(filter && { filter }), page_size: passSize, ...(page_token && { page_token }) }))
+      if ('refused' in listed) return triggerFailed(db, schema, trigger, 'refused', listed.refused)
+      const page = listed.value
       const timeTerms = resolveTimeTerms(model, split.when.timeTerms)
       for (const record of page.items) await queueCheck(db, trigger, model.primaryKey, timeTerms, record)
       if (page.next_page_token) await start.enqueue(db, { trigger: id, generation, page_token: page.next_page_token })

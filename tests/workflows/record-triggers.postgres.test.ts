@@ -26,8 +26,10 @@ const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 
   builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'workflow_triggers.read', 'invoices.*'],
 })
 const people: Record<string, number> = { ada: 1, bob: 2 }
+// Users whose roles a test takes away for a while.
+const revoked = new Set<string>()
 const workflows: WorkflowsOptions = {
-  savedByRoles: async ({ id, tenant }) => (String(people[id]) === String(tenant) ? ['builder'] : []),
+  savedByRoles: async ({ id, tenant }) => (String(people[id]) === String(tenant) && !revoked.has(id) ? ['builder'] : []),
   plugins: [{ plugin: example, source: 'workflow-plugin-example' }],
 }
 
@@ -112,7 +114,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
     const earlier = await until(() => runsOf(workflow.id), (found) => found.length >= 2)
     const soon = await invoice('ada', { status: 'sent', due_at: ago(3 * day - 3000) })
     const changed = await invoice('ada', { status: 'sent', due_at: ago(3 * day - 3000) })
-    await as('ada', `/invoices/${changed}`, 'PATCH', { status: 'paid' })
+    // Draft, not paid: the next test's trigger reads paid invoices and must find none from this one.
+    await as('ada', `/invoices/${changed}`, 'PATCH', { status: 'draft' })
     const later = async () => (await runsOf(workflow.id)).slice(earlier.length).map((run) => run.input.record.id)
     expect(await later()).toEqual([])
     await until(later, (ids) => ids.length >= 1)
@@ -132,6 +135,21 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
     await invoice('ada', { status: 'paid', due_at: ago(day) })
     await new Promise((resolve) => setTimeout(resolve, 1500))
     expect(await runsOf(workflow.id)).toEqual([])
+  })
+
+  it('marks its trigger failing while the saver holds no role, then works again and starts the records it missed', async () => {
+    const workflow = await save('ada', { 'app:record': { resource: 'invoices', when: "status = 'sent' AND due_at <= now() - 300d" } })
+    await enable('ada', workflow.id, 1)
+    await until(() => triggersOf(workflow.id), (rows) => rows.length === 1)
+    revoked.add('ada')
+    const missed = await invoice('ada', { status: 'sent', due_at: ago(400 * day) })
+    expect(await until(() => triggersOf(workflow.id), (rows) => rows[0]?.status === 'failing')).toMatchObject([{ status: 'failing' }])
+    revoked.delete('ada')
+    const later = await invoice('ada', { status: 'sent', due_at: ago(400 * day) })
+    const ids = await until(async () => (await runsOf(workflow.id)).map((run) => run.input.record.id), (found) => found.length >= 2)
+    expect(ids.toSorted()).toEqual([missed, later].toSorted())
+    expect(await triggersOf(workflow.id)).toMatchObject([{ status: 'active' }])
+    await enable('ada', workflow.id, null)
   })
 
   it('refuses a when with now() inside an OR, or on a field not indexed for filtering, and turning on an old version', async () => {
