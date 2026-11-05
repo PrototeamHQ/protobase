@@ -8,6 +8,7 @@ import { loadPlugins } from './load-plugins'
 import { stepHandlers } from './step-handlers'
 import { triggerChecks } from './trigger-checks'
 import { typeList } from './type-list'
+import type { Plugin } from './types'
 
 const acme = definePlugin({
   name: 'acme',
@@ -40,6 +41,11 @@ describe('definePlugin and loadPlugins', () => {
     expect(() => definePlugin({ name: 'a', label: 'A', steps: { x: { ...acme.steps.greet, connection: 'nope' } } })).toThrow('the connection "nope"')
     expect(() => definePlugin({ name: 'a', label: 'A', steps: { new_order: acme.steps.greet }, triggers: { new_order: acme.triggers.new_order } })).toThrow('"new_order" is both a step and a trigger')
     expect(() => loadPlugins([{ plugin: acme, source: '@acme/one' }, { plugin: acme, source: 'workflows/plugins/acme.ts' }])).toThrow('@acme/one and workflows/plugins/acme.ts')
+  })
+
+  it("refuses a loaded module's default that is no plugin, or breaks definePlugin's checks, naming its source", () => {
+    expect(() => loadPlugins([{ plugin: undefined as unknown as Plugin, source: 'workflows/plugins/empty.ts' }])).toThrow('workflows/plugins/empty.ts does not export a workflow plugin')
+    expect(() => loadPlugins([{ plugin: { name: 'Acme', label: 'A' }, source: '@acme/one' }])).toThrow('Workflow plugin "Acme" of @acme/one: a plugin\'s name')
   })
 })
 
