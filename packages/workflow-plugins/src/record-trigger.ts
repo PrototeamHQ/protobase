@@ -1,6 +1,7 @@
 import type { ReadyTrigger } from '@protobase/workflows/plugin'
 
-const name = { type: 'string', pattern: '^[A-Za-z_][A-Za-z0-9_]*$' }
+// A resource or field name: a resource takes any name, such as purchase-orders, and the save checks that it exists.
+const name = { type: 'string', minLength: 1 }
 
 /**
  * `app:record`: one run per record of `resource` that becomes ready, as `when` says, with the record as the run's input.
