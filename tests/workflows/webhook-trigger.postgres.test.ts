@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto'
+import { readdir } from 'node:fs/promises'
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
@@ -231,6 +232,16 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     expect((await signed(hook.url, hook.secret, body)).status).toBe(202)
     const [run] = await runsOf(hook.id)
     expect(run!.input.body).toMatchObject({ name: 'body', type: 'application/json', size: body.length, uri: expect.stringContaining(`workflows/${run!.id}/`) })
+  })
+
+  it('leaves no file of a body over 1 MiB behind when the call starts no run', async () => {
+    const hook = await hooked({ body_limit: 2 * 1024 * 1024 }, 'ada', 'fixture:broken')
+    const stored = async () => (await readdir(folder.dir, { recursive: true, withFileTypes: true })).filter((entry) => entry.isFile()).length
+    const before = await stored()
+    const response = await signed(hook.url, hook.secret, JSON.stringify({ blob: 'z'.repeat(1536 * 1024) }))
+    expect(response.status).toBe(500)
+    expect(await runsOf(hook.id)).toEqual([])
+    expect(await stored()).toBe(before)
   })
 
   it('takes a trigger\'s calls a minute, spent only by calls that carry its secret', async () => {

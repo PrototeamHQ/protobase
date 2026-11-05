@@ -90,17 +90,22 @@ export const hookRoute = (input: HookRouteInput) => {
     const large = bytes.length > inlineBodyBytes
     if (large && !input.files()?.providers.private) throw refused(new HttpProblem(413, 'body-too-large', 'Payload Too Large', `The body is over ${inlineBodyBytes} bytes, and this app keeps no files for larger ones`))
     const file = large ? await storeRunFile(input.files(), runId, bytes, 'body', request.headers.get('content-type') ?? 'application/octet-stream') : undefined
-    const event = hookEvent(request, bytes, signatureHeader, file)
-    const received = await callPlugin(() => type.receive({ request: receivedRequest(request, bytes, signatureHeader), event, idempotencyKey: key, input: target.input }), input.redact)
-    if (!('value' in received)) throw new Error(`The webhook trigger ${target.type} failed: ${'failed' in received ? received.failed : received.expired}`)
-    const { items, response } = received.value
-    const problem = itemsProblem(items, file ? 1 : itemCeiling, false)
-    if (problem) throw new Error(`The webhook trigger ${target.type} ${problem}`)
-    const ids = await startHookRuns(db, schema, target, items, runId)
-    // The call's run was started before: the body kept for this one is not needed.
-    if (file && ids[0] !== runId) await removeRunFile(input.files(), file)
-    if (response) return response
-    return ids.length === 1 ? c.json({ run_id: ids[0] }, 202) : c.json({ run_ids: ids }, 202)
+    // The body's file is removed on every path that started no run under `runId`: a failed call, or one whose run started before.
+    let started = false
+    try {
+      const event = hookEvent(request, bytes, signatureHeader, file)
+      const received = await callPlugin(() => type.receive({ request: receivedRequest(request, bytes, signatureHeader), event, idempotencyKey: key, input: target.input }), input.redact)
+      if (!('value' in received)) throw new Error(`The webhook trigger ${target.type} failed: ${'failed' in received ? received.failed : received.expired}`)
+      const { items, response } = received.value
+      const problem = itemsProblem(items, file ? 1 : itemCeiling, false)
+      if (problem) throw new Error(`The webhook trigger ${target.type} ${problem}`)
+      const ids = await startHookRuns(db, schema, target, items, runId)
+      started = ids[0] === runId
+      if (response) return response
+      return ids.length === 1 ? c.json({ run_id: ids[0] }, 202) : c.json({ run_ids: ids }, 202)
+    } finally {
+      if (file && !started) await removeRunFile(input.files(), file)
+    }
   })
 
   return app
