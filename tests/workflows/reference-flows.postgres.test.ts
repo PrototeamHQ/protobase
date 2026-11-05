@@ -88,7 +88,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("the report's reference 
   }
   const runRow = async (id: string) => (await sql<{ status: string; error: string | null; cause: string | null }>`select status, error, cause from workflows.runs where id = ${id}`.execute(db)).rows[0]!
   const runFlow = async (name: string, flow: unknown, input: unknown) => {
-    const workflow = await post('/workflows', { name, definition: pointedAt(flow, base) })
+    // Runs start by hand here: the flows' triggers are not what this test is about.
+    const workflow = await post('/workflows', { name, definition: { ...pointedAt(flow, base), trigger: { manual: {} } } })
     const run = await post('/workflow_runs', { workflow_id: workflow, input })
     await vi.waitFor(async () => expect(['succeeded', 'failed']).toContain((await runRow(run)).status), { timeout: 20_000, interval: 50 })
     return run

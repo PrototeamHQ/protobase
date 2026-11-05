@@ -113,8 +113,10 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
 
   it('finds the types, creates a two-step workflow, runs it and reads each step', async () => {
     const types = await ana('list_workflow_types')
-    expect(types.step_types.map((type: { resource: string }) => type.resource)).toContain('app:http')
-    expect(types.step_types.find((type: { resource: string }) => type.resource === 'app:http').arguments.url).toEqual({ required: true, takes: 'an http or https URL' })
+    expect(types.step_types.map((type: { id: string }) => type.id)).toContain('app:http')
+    const http = types.step_types.find((type: { id: string }) => type.id === 'app:http')
+    expect(http.input.required).toEqual(['url'])
+    expect(http.input.properties.url).toEqual({ type: 'string', description: 'an http or https URL' })
     const created = await ana('create_workflow', { name: 'Greet', definition: definition({ Fetch: fetchGreeting('Shape'), Shape: { Type: 'Pass', Output: '{% { "said": $greeting } %}', End: true } }) })
     expect(created).toMatchObject({ id: expect.any(String), version: 1 })
     expect((await ana('list_workflows')).items).toEqual([expect.objectContaining({ id: created.id, name: 'Greet', version: 1 })])

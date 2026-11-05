@@ -2,23 +2,32 @@ import { sql } from 'kysely'
 import { checkDefinition, problemText, type CheckOptions } from '@protobase/workflows'
 import { badRequest } from '../problem'
 import type { PipelineHook } from '../types'
+import type { TriggerJobs } from './triggers/trigger-jobs'
+import { syncTrigger } from './triggers/trigger-sync'
 
 /**
- * Checks a workflow's definition on every save that changes it, against the language's schema and the named-reads
- * profile, with the trigger and step types the app has, and keeps it as the version the table's trigger numbered, saved by
- * the caller. A refusal is a 400 problem naming each state and field, also listed as `problems`, and as the `definition`
- * field's `errors` with the state and field in their `params`, for a form to show each on its step; the write rolls back.
+ * Checks a workflow's definition on every save that changes it, and as it is turned on, against the language's schema
+ * and the named-reads profile, with the trigger and step types the app has, and keeps a changed definition as the
+ * version the table's trigger numbered, saved by the caller. Then it keeps the workflow's trigger in step with its
+ * enabled version. A refusal is a 400 problem naming each state and field, also listed as `problems`, and as the
+ * `definition` field's `errors` with the state and field in their `params`, for a form to show each on its step; the
+ * write rolls back.
  */
-export const workflowSaveHook = (schema: string, types: CheckOptions): PipelineHook => async (event, trx) => {
+export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick<TriggerJobs, 'start' | 'stop'>): PipelineHook => async (event, trx) => {
   if (event.resource.name !== 'workflows' || !event.after) return
   if (event.operation !== 'create' && event.operation !== 'update') return
   // The trigger numbers a new version only when the definition changed.
-  if (event.operation === 'update' && event.after.version === event.before?.version) return
+  const changed = event.operation === 'create' || event.after.version !== event.before?.version
+  const enabling = event.after.enabled_version !== (event.before?.enabled_version ?? null)
+  if (!changed && !enabling) return
   const problems = checkDefinition(event.after.definition, types)
   if (problems.length > 0) {
     const errors = problems.map((problem) => ({ code: 'invalid-workflow', field: 'definition', message: problemText(problem), params: { state: problem.state, field: problem.field } }))
     throw badRequest('invalid-workflow', `The workflow cannot be saved: ${problems.map(problemText).join('; ')}`, { problems, errors })
   }
-  await sql`insert into ${sql.id(schema, 'versions')} (workflow_id, version, definition, saved_by, tenant_id)
-    select w.id, w.version, w.definition, ${String(event.user.id)}, w.tenant_id from ${sql.id(schema, 'workflows')} w where w.id = ${String(event.after.id)}`.execute(trx)
+  if (changed) {
+    await sql`insert into ${sql.id(schema, 'versions')} (workflow_id, version, definition, saved_by, tenant_id)
+      select w.id, w.version, w.definition, ${String(event.user.id)}, w.tenant_id from ${sql.id(schema, 'workflows')} w where w.id = ${String(event.after.id)}`.execute(trx)
+  }
+  await syncTrigger(trx, schema, jobs, event.after)
 }

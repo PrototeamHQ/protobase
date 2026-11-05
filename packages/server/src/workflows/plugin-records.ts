@@ -19,18 +19,21 @@ export type RecordsInput = { deps: () => Deps; schema: string; roles: SaverRoles
 const ticketSeconds = 60
 
 /**
- * The session a run's records steps act in: the user who saved the version the run pinned, with the roles they hold
- * now in the run's tenant, so a workflow never does more than its last editor may do today.
+ * The session of the user who saved a version, with the roles they hold now in its tenant, so a workflow never does
+ * more than its last editor may do today.
  */
-const saverSession = async ({ deps, schema, roles }: RecordsInput, runId: string): Promise<Session> => {
+export const saverSession = async (roles: SaverRoles, savedBy: string | null, tenant: string | undefined): Promise<Session> => {
+  if (!savedBy) throw new StepError('Records.Refused', "The run's version was not saved by a user, so its steps act on no records")
+  const held = await roles({ id: savedBy, ...(tenant !== undefined && { tenant }) })
+  if (held.length === 0) throw new StepError('Records.Refused', "The workflow's last editor holds no role here any more, so its steps act on no records")
+  return { user: { id: savedBy, roles: held }, ...(tenant !== undefined && { tenant, organization: { id: tenant } }) }
+}
+
+/** The session a run's records steps act in: that of the user who saved the version the run pinned, in the run's tenant. */
+const runSession = async ({ deps, schema, roles }: RecordsInput, runId: string) => {
   const { rows } = await sql<{ saved_by: string | null; tenant_id: string | null }>`select v.saved_by, r.tenant_id from ${sql.id(schema, 'runs')} r
     join ${sql.id(schema, 'versions')} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${runId}`.execute(deps().db)
-  const row = rows[0]
-  if (!row?.saved_by) throw new StepError('Records.Refused', "The run's version was not saved by a user, so its steps act on no records")
-  const tenant = row.tenant_id ?? undefined
-  const held = await roles({ id: row.saved_by, ...(tenant !== undefined && { tenant }) })
-  if (held.length === 0) throw new StepError('Records.Refused', "The workflow's last editor holds no role here any more, so its steps act on no records")
-  return { user: { id: row.saved_by, roles: held }, ...(tenant !== undefined && { tenant, organization: { id: tenant } }) }
+  return saverSession(roles, rows[0]?.saved_by ?? null, rows[0]?.tenant_id ?? undefined)
 }
 
 // Field values as the API takes them: a number for a decimal field as its text, and a file value of the run's own in a
@@ -64,7 +67,7 @@ const refusedAs = (error: unknown): never => {
 export const pluginRecords = (input: RecordsInput, runId: string): PluginRecords => {
   const open = async () => {
     const deps = input.deps()
-    const session = await saverSession(input, runId)
+    const session = await runSession(input, runId)
     return { deps, session, records: assistantRecords(deps, session) }
   }
   const guarded = <T>(work: () => Promise<T>) => work().catch(refusedAs)

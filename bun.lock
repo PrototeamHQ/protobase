@@ -18,6 +18,7 @@
         "@protobase/query": "workspace:*",
         "@protobase/schema": "workspace:*",
         "@protobase/server": "workspace:*",
+        "@protobase/workflows": "workspace:*",
         "@seriousme/openapi-schema-validator": "^2.11.0",
         "@storybook/addon-docs": "^10.6.1",
         "@storybook/react-vite": "^10.6.1",
