@@ -13,6 +13,13 @@ export const keptHeaders = (headers: Headers, signatureHeader: string | undefine
   return Object.fromEntries([...headers].filter(([name]) => !dropped(name, signature)))
 }
 
+// Form fields by name: a name sent once is its text, a name sent more than once the list of its texts in order.
+const formFields = (params: URLSearchParams) =>
+  Object.fromEntries([...new Set(params.keys())].map((name) => {
+    const values = params.getAll(name)
+    return [name, values.length === 1 ? values[0]! : values]
+  }))
+
 const isJson = (type: string) => /^application\/([\w.+-]+\+)?json\b/i.test(type)
 
 // The body as JSON when it says so and parses, as form fields, or as text.
@@ -26,7 +33,7 @@ const parsedBody = (bytes: Uint8Array, type: string) => {
       return text
     }
   }
-  if (/^application\/x-www-form-urlencoded\b/i.test(type)) return Object.fromEntries(new URLSearchParams(text))
+  if (/^application\/x-www-form-urlencoded\b/i.test(type)) return formFields(new URLSearchParams(text))
   return text
 }
 

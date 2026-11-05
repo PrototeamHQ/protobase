@@ -12,6 +12,7 @@ describe('hookEvent', () => {
   it('parses JSON and form bodies, keeps other text, and leaves the address out', () => {
     expect(hookEvent(call({ 'content-type': 'application/json' }), new TextEncoder().encode('{"a":1}'), undefined)).toMatchObject({ method: 'POST', query: { x: '1' }, body: { a: 1 } })
     expect(hookEvent(call({ 'content-type': 'application/x-www-form-urlencoded' }), new TextEncoder().encode('a=1&b=2'), undefined).body).toEqual({ a: '1', b: '2' })
+    expect(hookEvent(call({ 'content-type': 'application/x-www-form-urlencoded' }), new TextEncoder().encode('tag=a&one=1&tag=b'), undefined).body).toEqual({ tag: ['a', 'b'], one: '1' })
     expect(hookEvent(call({ 'content-type': 'application/json' }), new TextEncoder().encode('{not json'), undefined).body).toBe('{not json')
     expect(JSON.stringify(hookEvent(call({}), new Uint8Array(), undefined))).not.toContain('the-key')
   })
