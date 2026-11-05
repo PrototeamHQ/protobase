@@ -3,7 +3,19 @@
  * stores as one (`{ date: '2026-03-01' }` or `{ date: '2026-03-01T14:30:00' }`, without a zone), a JSON file's nested
  * object or array (`{ json }`), or `null` for an empty cell.
  */
-export type FileCell = string | number | boolean | { date: string } | { json: unknown } | null
+export type FileCell = string | number | boolean | FileDate | FileJson | null
+
+/** A date or time a workbook stores as one. */
+export type FileDate = {
+  /** `2026-03-01`, or `2026-03-01T14:30:00` with its time and no zone. */
+  date: string
+}
+
+/** A JSON file's nested object or array. */
+export type FileJson = {
+  /** The value as the file states it. */
+  json: unknown
+}
 
 /** Whether the cell holds nothing: no value, or only spaces. */
 export const isEmptyFileCell = (cell: FileCell) => cell === null || (typeof cell === 'string' && cell.trim() === '')

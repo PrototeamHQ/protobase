@@ -2,7 +2,32 @@ import { cellKind, isEmptyFileCell, plainNumber, type CellKind, type FileCell } 
 import type { UserTableFieldType } from './names'
 
 /** The type a column of a file becomes, with a decimal's precision and scale. */
-export type ColumnType = { type: UserTableFieldType; precision?: number; scale?: number }
+export type ColumnType = {
+  /** The field type of a table users add. */
+  type: UserTableFieldType
+  /** A decimal's digits in all. */
+  precision?: number
+  /** A decimal's digits after the point. */
+  scale?: number
+}
+
+/** A decimal number's type, which always has its precision and scale. */
+export type DecimalType = ColumnType & {
+  /** Its digits in all, from 1 to 1000. */
+  precision: number
+  /** Its digits after the point, at most the precision. */
+  scale: number
+}
+
+/** Reads a column's cells one at a time; see `columnTypeReader`. */
+export type ColumnTypeReader = {
+  /** Reads one more cell of the column. */
+  add: (cell: FileCell) => void
+  /** The type every cell read so far is written as. */
+  type: () => ColumnType
+  /** The decimal number that holds every number read so far, for a column of numbers or one changed to a decimal. */
+  decimal: () => DecimalType
+}
 
 /** The most characters a `text` field holds; a column with a longer value is `long_text`. */
 export const maxShortText = 500
@@ -34,7 +59,7 @@ const kindTypes: Record<Exclude<CellKind, 'whole' | 'decimal' | 'text'>, UserTab
  * - A column with a nested JSON value is `json`, which holds its other values as they are.
  * - A column of mixed forms, or of no values, is text: `long_text` once a value is over `maxShortText` characters.
  */
-export const columnTypeReader = () => {
+export const columnTypeReader = (): ColumnTypeReader => {
   const kinds = new Set<CellKind>()
   let wholeDigits = 1
   let scale = 0
@@ -56,8 +81,7 @@ export const columnTypeReader = () => {
     }
   }
 
-  /** The decimal that holds every number of the column, for a column of numbers or one changed to a decimal. */
-  const decimal = (): ColumnType & { precision: number; scale: number } => {
+  const decimal = (): DecimalType => {
     const precision = Math.min(maxPrecision, Math.max(wholeDigits, minWholeDigits) + scale)
     return { type: 'decimal', precision, scale: Math.min(scale, precision) }
   }

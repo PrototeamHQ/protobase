@@ -1,4 +1,4 @@
-import { columnTypeReader, type ColumnType } from '@protobase/schema'
+import { columnTypeReader, type ColumnType, type DecimalType } from '@protobase/schema'
 import { cellText, isEmptyCell, type SheetRow } from '../sheet-cell'
 import type { SheetSource } from '../sheet-source'
 
@@ -6,7 +6,7 @@ import type { SheetSource } from '../sheet-source'
 const sampleRows = 5
 
 /** What reading a whole sheet found: its headers, each column's type and the decimal it would be, its first rows and how many rows it has. */
-export type ReadColumns = { headers: string[]; types: ColumnType[]; decimals: Array<ColumnType & { precision: number; scale: number }>; sample: SheetRow[]; rows: number }
+export type ReadColumns = { headers: string[]; types: ColumnType[]; decimals: DecimalType[]; sample: SheetRow[]; rows: number }
 
 /**
  * Reads every row of the sheet once, as it streams in, and keeps of each column only what its type needs (see

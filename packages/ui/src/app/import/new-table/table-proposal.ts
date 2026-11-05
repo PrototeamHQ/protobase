@@ -1,9 +1,9 @@
-import { fieldNamesOf, tableNameOf, type ColumnType, type UserTableFieldType } from '@protobase/schema'
+import { fieldNamesOf, tableNameOf, type ColumnType, type DecimalType, type UserTableFieldType } from '@protobase/schema'
 import { columnName } from '../sheet-cell'
 import type { ReadColumns } from './read-columns'
 
 /** A column of the file as the field it becomes, or left out; `inferred` is what its cells say, `decimal` the decimal that holds them. */
-export type ProposedField = { column: number; include: boolean; name: string; label: string; type: UserTableFieldType; inferred: ColumnType; decimal: ColumnType & { precision: number; scale: number } }
+export type ProposedField = { column: number; include: boolean; name: string; label: string; type: UserTableFieldType; inferred: ColumnType; decimal: DecimalType }
 
 /** The table a file becomes: its name, labels and title field, and a field per column. */
 export type TableProposal = { name: string; pluralLabel: string; singularLabel: string; titleField?: string; fields: ProposedField[] }
