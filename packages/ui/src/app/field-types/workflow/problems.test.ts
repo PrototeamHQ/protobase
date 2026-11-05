@@ -13,4 +13,15 @@ describe('definitionProblems', () => {
   it('refuses a trigger type the editor does not offer', () => {
     expect(definitionProblems(withTrigger({ 'app:schedule': { cron: '0 6 * * *' } })).map((problem) => problem.field)).toEqual(['trigger'])
   })
+
+  it("leaves a type of the app's own plugins, which the editor does not list, to the server", () => {
+    const shout = { Type: 'Task', Resource: 'example:shout', Arguments: { text: 'hi' }, End: true } as const
+    const definition: Definition = {
+      trigger: { 'acme:overdue': { days: 3 } },
+      stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Shout', States: { Shout: { ...shout, End: undefined, Next: 'Each' }, Each: { Type: 'Map', Items: '{% [1] %}', ItemProcessor: { StartAt: 'Inner', States: { Inner: { ...shout, Resource: 'other:step' } } }, End: true } } },
+    } as unknown as Definition
+    expect(definitionProblems(definition)).toEqual([])
+    const unknownBuiltIn = { ...definition, stateMachine: { ...definition.stateMachine, States: { Shout: { ...shout, Resource: 'app:nope' } }, StartAt: 'Shout' } } as unknown as Definition
+    expect(definitionProblems(unknownBuiltIn).map((problem) => [problem.state, problem.field])).toEqual([['Shout', 'Resource']])
+  })
 })

@@ -73,9 +73,16 @@ export const triggerKind = (trigger: Trigger | undefined): TriggerKind | undefin
   return triggerKinds.find((entry) => entry.kind === kind)?.kind
 }
 
+/** The type a trigger names that the editor does not offer, such as one of the app's own plugins'. */
+export const otherTriggerType = (trigger: Trigger | undefined): string | undefined => {
+  const [type] = Object.keys(trigger ?? {})
+  return type && triggerKind(trigger) === undefined ? type : undefined
+}
+
+/** The trigger's label: its kind's, or the type it names when the editor does not offer it. */
 export const triggerLabel = (trigger: Trigger | undefined) => {
   const kind = triggerKind(trigger)
-  return triggerKinds.find((entry) => entry.kind === kind)?.label() ?? text('triggerUnknown')
+  return triggerKinds.find((entry) => entry.kind === kind)?.label() ?? otherTriggerType(trigger) ?? text('triggerUnknown')
 }
 
 const nodeStatusLabels: Record<NodeStatus, () => string> = {
