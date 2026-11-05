@@ -180,11 +180,11 @@ describe('checkDefinition, the rules of the decided profile', () => {
   it('takes manual and the trigger types the app has, checked by their type, and refuses two, an unknown type and a bad name', () => {
     const machine = { QueryLanguage: 'JSONata', StartAt: 'A', States: { A: pass } }
     for (const trigger of [{ 'app:schedule': { cron: '0 6 * * *' } }, { 'acme:new_order': {} }, { manual: {} }]) expect(check(machine, trigger)).toEqual([])
-    expect(check(machine, { 'app:schedule': {}, manual: {} })).toEqual(['Field "trigger": holds exactly one trigger: a trigger type such as app:webhook, or manual'])
+    expect(check(machine, { 'app:schedule': {}, manual: {} })).toEqual(['Field "trigger": holds exactly one trigger: a trigger type such as app:record, or manual'])
     expect(check(machine, { 'app:schedule': {} })).toEqual(['Field "trigger.app:schedule.cron": is missing'])
     expect(check(machine, { 'app:mail': {} })).toEqual(['Field "trigger": "app:mail" is not a trigger type; use manual or one of app:schedule, acme:new_order'])
     expect(check(machine, { manual: { at: 1 } })).toEqual(['Field "trigger.manual": takes no input'])
-    expect(check(machine, { Webhook: {} })).toContain('Field "trigger": names a trigger type <plugin>:<key>, such as app:webhook, or manual')
+    expect(check(machine, { Webhook: {} })).toContain('Field "trigger": names a trigger type <plugin>:<key>, such as app:record, or manual')
   })
 
   it('refuses Parallel, more than 19 retries, more than 20 at once and a state name used twice', () => {
