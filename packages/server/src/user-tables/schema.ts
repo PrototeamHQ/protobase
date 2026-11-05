@@ -4,7 +4,7 @@ import { migrationCommand } from '../changes/capture-schema'
 import { definitionsSchema, userTablesSchema } from './names'
 import { fieldsPositionIndexSql, fieldsSql, nameIndexesSql, fieldsOrganizationSql, organizationsSql, schemasSql, tablesSql, versionDefaultSql } from './schema-sql'
 
-// Only reads the catalogue.
+// Only reads the catalogue. `to_regclass` resolves any relation in `pg_class`, an index such as `fields_position_idx` too.
 const current = (found: Awaited<ReturnType<typeof readUserTablesSchema>>) => found.tables && found.versionDefault && found.organizations && found.fields && found.positionIndex && found.data && found.trgm
 
 const readUserTablesSchema = async (db: Db) => {

@@ -127,11 +127,15 @@ describe('tables defined in the database', () => {
   })
   it("refuses the fields of a table sorted by position without the index the migration adds", async () => {
     await pg.exec('drop index table_definitions.fields_position_idx')
-    // The scan guard reads a table's indexes once, so an admin made now sees the table without it.
-    const unindexed = createAdmin({ resources: [orders], userTables: tables, db, authenticate: testAuthenticator, options: { roles } })
-    const response = await unindexed.request(`/api/v1/user_table_fields?filter=${encodeURIComponent('table_id = 2')}&order_by=position`, { headers: as(1, 'admin') })
-    await pg.exec('create index fields_position_idx on table_definitions.fields (table_id, position)')
-    expect(response.status).toBe(400)
+    // Restored even when the request throws, so the later tests keep the index.
+    try {
+      // The scan guard reads a table's indexes once, so an admin made now sees the table without it.
+      const unindexed = createAdmin({ resources: [orders], userTables: tables, db, authenticate: testAuthenticator, options: { roles } })
+      const response = await unindexed.request(`/api/v1/user_table_fields?filter=${encodeURIComponent('table_id = 2')}&order_by=position`, { headers: as(1, 'admin') })
+      expect(response.status).toBe(400)
+    } finally {
+      await pg.exec('create index fields_position_idx on table_definitions.fields (table_id, position)')
+    }
   })
   it("sends only reads the scan guard accepts from the Fields section of a table's page and the fields list", async () => {
     const meta = await (await call('admin', '/api/meta')).json()
