@@ -7,8 +7,11 @@ import { defineJob } from '../../jobs/define-job'
 import type { Row } from '../../types'
 import { readyAt, readyWhen, resolveTimeTerms } from '../ready/ready-when'
 import { orRefusal, readyContext, startIfReady, type ReadyInput } from '../ready/ready-start'
-import { activeTriggers, currentTrigger, triggerFailed } from './trigger-row'
+import { activeTriggers, currentTrigger, triggerFailed, type TriggerRow } from './trigger-row'
 import { printFilter } from '@protobase/schema'
+import { callPlugin, triggerContext } from './plugin-call'
+import { pollJobs } from './poll-job'
+import { triggerStarts, type TriggerStartInput } from './trigger-start'
 
 /** Records one enable pass reads per job. */
 const passSize = 100
@@ -18,12 +21,15 @@ type ReadyCheckPayload = { trigger: string; generation: number; key: Row }
 
 /**
  * The jobs that run triggers on every server process, so turning a workflow on, changing or turning it off needs no
- * restart: `workflows.trigger-start` (for a ready trigger, one pass over the records that already match, 100 per job),
- * `workflows.trigger-stop` (removes a stopped trigger), and `workflows.ready-check` (starts a run of one record when it
- * is ready, at the time its time terms say). Each acts only on the generation it was queued for.
+ * restart: `workflows.trigger-start` (for a ready trigger, one pass over the records that already match, 100 per job;
+ * for a polling one its first poll; for a subscribing webhook one its subscription), `workflows.trigger-stop`
+ * (unsubscribes a stopped webhook trigger at its provider and removes it), `workflows.ready-check` (starts a run of one
+ * record when it is ready, at the time its time terms say), and the poll and renewal jobs. Each acts only on the
+ * generation it was queued for.
  */
-export const triggerJobs = (input: ReadyInput) => {
+export const triggerJobs = (input: ReadyInput & TriggerStartInput) => {
   const { schema } = input
+  const polls = pollJobs(input)
 
   const readyCheck = defineJob<ReadyCheckPayload>({
     name: 'workflows.ready-check',
@@ -45,12 +51,18 @@ export const triggerJobs = (input: ReadyInput) => {
     await readyCheck.enqueue(db, { trigger: trigger.id, generation: trigger.generation, key }, { runAt: at, key: `ready:${trigger.id}:${trigger.generation}:${recordKey}:${at.toISOString()}` })
   }
 
-  const start = defineJob<StartPayload>({
+  const starts = triggerStarts(input, polls)
+
+  const start: ReturnType<typeof defineJob<StartPayload>> = defineJob<StartPayload>({
     name: 'workflows.trigger-start',
     timeout: '5 minutes',
-    run: async ({ trigger: id, generation, page_token }, { db }) => {
+    run: async ({ trigger: id, generation, page_token }, { db, signal }) => {
       const trigger = await currentTrigger(db, schema, id, generation)
-      if (!trigger || !input.declared(trigger.type)) return
+      if (!trigger) return
+      const restart = async (later: Db, at: Date) => void (await start.enqueue(later, { trigger: id, generation }, { runAt: at }))
+      if (input.polling(trigger.type)) return starts.startPolling(db, trigger, signal, restart)
+      if (input.webhooks(trigger.type)) return starts.startWebhook(db, trigger, signal, restart)
+      if (!input.declared(trigger.type)) return
       const found = await orRefusal(readyContext(input, trigger))
       if ('refused' in found) return triggerFailed(db, schema, trigger, 'refused', found.refused)
       if (!found.value) return
@@ -67,9 +79,24 @@ export const triggerJobs = (input: ReadyInput) => {
     },
   })
 
+  // A stopped webhook trigger's subscription is ended at its provider first; a sign-in that expired leaves nothing to end.
+  const unsubscribe = async (db: Db, trigger: string, signal: AbortSignal) => {
+    const { rows } = await sql<Pick<TriggerRow, 'type' | 'input'> & { store: unknown; subscribed: boolean }>`select type, input, store, store is not null as subscribed
+      from ${sql.id(schema, 'triggers')} where id = ${trigger} and status = 'stopping'`.execute(db)
+    const row = rows[0]
+    const type = row?.subscribed ? input.webhooks(row.type) : undefined
+    if (!row || !type?.unsubscribe) return
+    const end = type.unsubscribe
+    const outcome = await callPlugin(() => end({ ...triggerContext(input, row.input, signal), state: row.store }), input.redact)
+    // The job tries again, as for any error, until the provider ends the subscription.
+    if ('failed' in outcome) throw new Error(`The trigger's unsubscribe failed: ${outcome.failed}`)
+  }
+
   const stop = defineJob<{ trigger: string }>({
     name: 'workflows.trigger-stop',
-    run: async ({ trigger }, { db }) => {
+    timeout: '5 minutes',
+    run: async ({ trigger }, { db, signal }) => {
+      await unsubscribe(db, trigger, signal)
       await sql`delete from ${sql.id(schema, 'triggers')} where id = ${trigger} and status = 'stopping'`.execute(db)
     },
   })
@@ -97,7 +124,7 @@ export const triggerJobs = (input: ReadyInput) => {
     }
   }
 
-  return { jobs: [start, stop, readyCheck], start, stop, onChanges }
+  return { jobs: [start, stop, readyCheck, ...polls.jobs], start, stop, onChanges }
 }
 
 export type TriggerJobs = ReturnType<typeof triggerJobs>

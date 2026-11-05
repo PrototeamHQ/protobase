@@ -8,19 +8,29 @@ const acme = definePlugin({
   label: 'Acme',
   triggers: {
     watch: { kind: 'polling', label: 'Watch', description: 'Polls for new items.', input: { type: 'object' }, every: '1 minute', start: async () => null, poll: async () => ({ items: [], cursor: null }) },
+    signed_in: { kind: 'polling', label: 'Signed in', description: 'Polls as the user.', connection: 'acme', input: { type: 'object' }, every: '1 minute', start: async () => null, poll: async () => ({ items: [], cursor: null }) },
   },
-  connections: {},
+  connections: { acme: { label: 'Acme', signIn: 'acme' } },
   steps: {
     send: { label: 'Send', description: 'Sends.', input: { type: 'object' }, output: { type: 'object' }, run: async () => ({}) },
   },
 })
 
 describe('workflowTypes', () => {
-  it('saves the available steps and triggers only: a polling trigger is refused beside its plugin\'s step', () => {
+  it('saves the available steps and triggers only: a trigger that signs in is refused beside its plugin\'s step', () => {
     const { check, types } = workflowTypes([{ plugin: acme, source: 'acme' }])
     expect(check.resources).toContain('acme:send')
-    expect(Object.keys(check.triggers)).toEqual(['app:record'])
-    expect(types.find((type) => type.id === 'acme:watch')).toMatchObject({ available: false, reason: 'This app does not run polling triggers yet' })
+    expect(Object.keys(check.triggers)).toEqual(['app:record', 'app:schedule', 'app:webhook', 'acme:watch'])
+    expect(types.find((type) => type.id === 'acme:signed_in')).toMatchObject({ available: false, reason: 'It signs in through a connection, which this app cannot make yet' })
+  })
+
+  it('takes the reviewed webhook auth modes and limits only', () => {
+    const check = workflowTypes().check.triggers['app:webhook']!
+    expect(check({})).toEqual([])
+    expect(check({ auth: { mode: 'hmac', header: 'x-hub-signature-256', prefix: 'sha256=' }, body_limit: 10 * 1024 * 1024, per_minute: 120 })).toEqual([])
+    expect(check({ auth: { mode: 'url_only' } })).not.toEqual([])
+    expect(check({ body_limit: 10 * 1024 * 1024 + 1 })).not.toEqual([])
+    expect(check({ auth: { mode: 'hmac' } })).toEqual([{ field: 'auth.header', message: 'is missing: hmac reads its signature from this header' }])
   })
 
   it('takes a record trigger on any resource and field name, such as purchase-orders and due-at', () => {

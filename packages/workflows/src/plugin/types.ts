@@ -40,27 +40,46 @@ export type ReadyTrigger = TriggerBase & {
 /** One new thing a poll or a webhook call found: `key` is unique for the trigger, `data` becomes the run's input. */
 export type TriggerItem = { key: string; data: unknown }
 
+/** How often a polling trigger polls: a duration such as `1 minute`, or a cron in an IANA time zone (default UTC). */
+export type PollEvery = string | { cron: string; timezone?: string }
+
 /** A trigger that asks a service for new items on a schedule. */
 export type PollingTrigger = TriggerBase & {
   kind: 'polling'
-  /** A duration such as `1 minute`, or a cron in an IANA time zone. */
-  every: string | { cron: string; timezone?: string }
+  /** How often it polls, or how often for a given input, such as a schedule's own cron. */
+  every: PollEvery | ((input: Record<string, unknown>) => PollEvery)
   /** The most items one poll returns, at most 100. */
   limit?: number
+  /** Called once, when the trigger has no cursor yet: its first cursor, such as the newest item's id. */
   start: (context: TriggerContext) => Promise<unknown>
-  /** Items after `cursor`, and the next cursor, which must move forward. */
-  poll: (context: TriggerContext & { cursor: unknown; store: unknown; limit: number }) => Promise<{ items: TriggerItem[]; cursor: unknown; store?: unknown }>
+  /** Items after `cursor`, and the next cursor, which must move forward. `due` is the time this poll was queued for. */
+  poll: (context: TriggerContext & { cursor: unknown; store: unknown; limit: number; due: Date }) => Promise<{ items: TriggerItem[]; cursor: unknown; store?: unknown }>
 }
+
+/**
+ * A webhook call as the run sees it, once the route checked its signature: the method, the query, the headers without
+ * any credential (`authorization`, `cookie`, `webhook-*`, the signature header, `x-forwarded-*`), the body as JSON, form
+ * fields or text, or as a file of the run when it is over 1 MiB, and when it came. The address is left out: it holds
+ * the key.
+ */
+export type WebhookEvent = { method: string; query: Record<string, string>; headers: Record<string, string>; body: unknown; received_at: string }
+
+/** One run a webhook call starts: `key` starts it once per workflow, such as the sender's message id. */
+export type WebhookItem = { key?: string; data: unknown }
 
 /** A trigger that the app's webhook URL starts, after the route checked the call's signature. */
 export type WebhookTrigger = TriggerBase & {
   kind: 'webhook'
-  /** Registers the URL with the service, returning what `unsubscribe` and `renew` need. */
-  subscribe?: (context: TriggerContext & { url: string }) => Promise<unknown>
+  /** Registers the URL and its secret with the service, returning what `unsubscribe` and `renew` need. */
+  subscribe?: (context: TriggerContext & { url: string; secret: string }) => Promise<unknown>
   unsubscribe?: (context: TriggerContext & { state: unknown }) => Promise<void>
   renew?: (context: TriggerContext & { state: unknown }) => Promise<unknown>
   renewEvery?: string
-  receive: (context: { request: Request; input: Record<string, unknown> }) => Promise<{ items: TriggerItem[]; response?: Response }>
+  /**
+   * The runs a call starts, at most 100: `event` is the call as above, `request` the same call with its bytes, and
+   * `idempotencyKey` the signed `webhook-id` or the configured idempotency header, when the call has one.
+   */
+  receive: (context: { request: Request; event: WebhookEvent; idempotencyKey: string | undefined; input: Record<string, unknown> }) => Promise<{ items: WebhookItem[]; response?: Response }>
 }
 
 export type TriggerType = ReadyTrigger | PollingTrigger | WebhookTrigger

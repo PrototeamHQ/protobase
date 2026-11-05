@@ -32,7 +32,8 @@ module.exports = {
       name: 'workflow-plugins-no-network',
       comment: "The built-in workflow plugins send only through the plugin context's fetch, which checks the address it connects to: they import nothing but their own files and the plugin interface, so no Node module (http, net, dns, ...) or HTTP client of their own.",
       severity: 'error',
-      from: { path: '^packages/workflow-plugins/' },
+      // Their unit tests run under the test runner, never in a workflow.
+      from: { path: '^packages/workflow-plugins/', pathNot: '\\.test\\.ts$' },
       to: { pathNot: ['^packages/workflow-plugins/', '^packages/workflows/src/plugin/index\\.ts$', '^@protobase/workflows/plugin$'] },
     },
     {
