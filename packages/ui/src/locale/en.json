@@ -866,7 +866,8 @@
     "typesFromCells": "Each type is read from what all {rows} rows hold. A value that could be read two ways, such as 007, 1,5 or 03/04/2026, keeps its column text, and an empty cell stays empty. A type can change to a less specific one.",
     "couldNotMakeTable": "Could not make the table",
     "makeTable": "Make table with {count} {rows, plural, one {row} other {rows}}",
-    "openTable": "Open table"
+    "openTable": "Open table",
+    "labelTooLong": "At most {max} characters."
   },
   "app/list": {
     "noList": "There is no list called {name}.",

@@ -58,6 +58,11 @@ describe('proposalProblems', () => {
     expect(hasProblems(proposalProblems({ ...proposal, singularLabel: 'Contact' }, new Set(), 63))).toBe(false)
   })
 
+  it('refuses a label longer than a table or field takes', async () => {
+    const proposal = changeField({ ...(await proposed()), singularLabel: 'Contact' }, 0, { label: 'x'.repeat(201) })
+    expect(proposalProblems(proposal, new Set(), 63).fields[0]?.label).toBeDefined()
+  })
+
   it('needs a field', async () => {
     let proposal = await proposed()
     for (const column of [0, 1, 2, 3, 4]) proposal = changeField(proposal, column, { include: false })

@@ -1,4 +1,5 @@
 import { userTableNameIssue, type UserTableNameIssue } from '@protobase/schema'
+import { maxLabelLength } from '@protobase/schema/internal'
 import { text } from '../messages'
 import { includedFields, type TableProposal } from './table-proposal'
 
@@ -18,18 +19,23 @@ const issueText = (issue: UserTableNameIssue, name: string, maxBytes: number) =>
   return text('nameReservedField', { name })
 }
 
-const required = (value: string) => (value.trim() === '' ? text('needed') : undefined)
+// A label is needed, and fits
+const labelProblem = (value: string) => {
+  if (value.trim() === '') return text('needed')
+  if (value.trim().length > maxLabelLength) return text('labelTooLong', { max: maxLabelLength })
+  return
+}
 
 /**
  * The problems the server would refuse a proposal for that the page can tell: names outside the rules, a table name a
- * resource in `taken` has, two fields of one name, an empty label, or no field at all. The server checks it all again.
+ * resource in `taken` has, two fields of one name, an empty or too long label, or no field at all. The server checks it all again.
  */
 export const proposalProblems = (proposal: TableProposal, taken: ReadonlySet<string>, maxTableBytes: number): ProposalProblems => {
   const tableIssue = userTableNameIssue(proposal.name, 'table', maxTableBytes)
   const problems: ProposalProblems = {
     name: tableIssue ? issueText(tableIssue, proposal.name, maxTableBytes) : taken.has(proposal.name) ? text('nameTaken', { name: proposal.name }) : undefined,
-    pluralLabel: required(proposal.pluralLabel),
-    singularLabel: required(proposal.singularLabel),
+    pluralLabel: labelProblem(proposal.pluralLabel),
+    singularLabel: labelProblem(proposal.singularLabel),
     fields: {},
   }
   const included = includedFields(proposal)
@@ -39,7 +45,7 @@ export const proposalProblems = (proposal: TableProposal, taken: ReadonlySet<str
     const issue = userTableNameIssue(field.name, 'field')
     const name = issue ? issueText(issue, field.name, 63) : seen.has(field.name) ? text('nameTwice', { name: field.name }) : undefined
     seen.add(field.name)
-    const label = required(field.label)
+    const label = labelProblem(field.label)
     if (name || label) problems.fields[field.column] = { ...(name && { name }), ...(label && { label }) }
   }
   return problems

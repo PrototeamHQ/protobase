@@ -866,7 +866,8 @@
     "typesFromCells": "Elk type komt uit wat alle {rows} rijen bevatten. Een waarde die op twee manieren te lezen is, zoals 007, 1,5 of 03/04/2026, houdt de kolom tekst, en een lege cel blijft leeg. Een type kan naar een minder specifiek type.",
     "couldNotMakeTable": "Kon de tabel niet maken",
     "makeTable": "Tabel maken met {count} {rows, plural, one {rij} other {rijen}}",
-    "openTable": "Tabel openen"
+    "openTable": "Tabel openen",
+    "labelTooLong": "Hooguit {max} tekens."
   },
   "app/list": {
     "noList": "Er is geen lijst met de naam {name}.",

@@ -15,6 +15,9 @@ export const maxNameBytes = 63
  */
 export const maxOrganizationNameBytes = maxNameBytes - 21
 
+/** The most characters a label of a table or field users add has. */
+export const maxLabelLength = 200
+
 /** The column that holds the organization of each record of a table users add with organizations, and of each definition. */
 export const organizationColumn = 'organization_id'
 
