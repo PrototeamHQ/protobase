@@ -40,6 +40,19 @@ describe('createRateLimit', () => {
     expect(limit.spent('b', 1)).toBeGreaterThan(0)
     expect(limit.spent('c', 1)).toBeGreaterThan(0)
   })
+
+  it('drops the windows that ended before a new key, keeping those that still run', () => {
+    let at = 1_000_000
+    const limit = createRateLimit({ now: () => at, maxKeys: 2 })
+    limit.take('a', 1)
+    at += 30_000
+    limit.take('b', 1)
+    at += 30_000
+    // `a`'s window ended, so `c` takes its place and `b` is still counted.
+    limit.take('c', 1)
+    expect(limit.spent('b', 1)).toBeGreaterThan(0)
+    expect(limit.spent('c', 1)).toBeGreaterThan(0)
+  })
 })
 
 describe('clientAddress', () => {

@@ -22,8 +22,12 @@ export const createRateLimit = ({ now = Date.now, maxKeys = rateLimitKeys }: { n
   // In the order their windows began, so the first entry is the oldest.
   const windows = new Map<string, { start: number; count: number }>()
 
+  // From the oldest window up to the first that still runs, so a new key costs only the windows that ended.
   const prune = (at: number) => {
-    for (const [key, window] of windows) if (at - window.start >= windowMs) windows.delete(key)
+    for (const [key, window] of windows) {
+      if (at - window.start < windowMs) return
+      windows.delete(key)
+    }
   }
 
   const open = (key: string, at: number) => {
