@@ -1,4 +1,5 @@
 import type { ResourceModel } from '@protobase/schema'
+import type { IssueWebhook } from './webhook-tools'
 import { checkDefinition, typeCatalog, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
 import { defineTool, type ToolContext } from '../../assistant/tools'
@@ -12,7 +13,12 @@ const listed = ['id', 'name', 'description', 'version', 'updated_at']
  * The app's types, which the tools list and check definitions against: `checkWith` checks against the resources it is
  * given, so a check names only what its caller may read.
  */
-export type WorkflowCatalog = { types: readonly TypeEntry[]; checkWith: (models: (name: string) => ResourceModel | undefined) => CheckOptions }
+export type WorkflowCatalog = {
+  types: readonly TypeEntry[]
+  checkWith: (models: (name: string) => ResourceModel | undefined) => CheckOptions
+  /** Issues a workflow's webhook URL as the caller, for `new_webhook_url`. */
+  issueWebhook?: IssueWebhook
+}
 
 /** The step types and triggers a definition may name, with their arguments, results, errors and run inputs. */
 const listWorkflowTypesTool = (catalog: WorkflowCatalog) => defineTool({

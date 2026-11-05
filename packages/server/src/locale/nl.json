@@ -25,6 +25,9 @@
     "hidden": "verborgen",
     "yes": "Ja",
     "no": "Nee",
+    "webhookTitle": "Een nieuwe webhook-URL uitgeven voor {record}?",
+    "webhookBody": "De oude URL werkt meteen niet meer, en de nieuwe URL en het geheim worden eenmalig aan deze client getoond.",
+    "issue": "Uitgeven",
     "createNamedAction": "{resource} \"{title}\" aanmaken"
   },
   "mcp/approval": {

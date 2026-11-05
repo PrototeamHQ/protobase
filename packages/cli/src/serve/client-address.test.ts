@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clientAddress, readTrustedProxies } from './client-address'
+import { clientAddress, readTrustedProxies, withClientAddress } from './client-address'
 
 describe('clientAddress', () => {
   it("is the socket's peer without trusted proxies, whatever the client forwards", () => {
@@ -35,5 +35,19 @@ describe('readTrustedProxies', () => {
 
   it('refuses an entry that is neither', () => {
     expect(() => readTrustedProxies('10.0.0.0/33')).toThrow('not "10.0.0.0/33"')
+  })
+})
+
+describe('withClientAddress', () => {
+  it("replaces whatever a client forwards with its socket's address, so a new header gives it no new rate budget", async () => {
+    const seen: (string | null)[] = []
+    const fetch = withClientAddress((request) => {
+      seen.push(request.headers.get('x-forwarded-for'))
+      return new Response(null, { status: 204 })
+    }, [])
+    for (const spoofed of ['192.0.2.1', '192.0.2.2', '192.0.2.3']) {
+      await fetch(new Request('http://app.test/api/workflows/hooks/k', { method: 'POST', headers: { 'x-forwarded-for': spoofed } }), { incoming: { socket: { remoteAddress: '198.51.100.4' } } })
+    }
+    expect(seen).toEqual(['198.51.100.4', '198.51.100.4', '198.51.100.4'])
   })
 })

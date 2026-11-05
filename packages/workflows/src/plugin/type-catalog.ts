@@ -16,7 +16,7 @@ const manual: CatalogEntry = { id: 'manual', kind: 'manual', label: 'By hand', d
 export const typeCatalog = (types: readonly TypeEntry[]): TypeCatalog => ({
   step_types: types.filter((type) => type.kind === 'step').map(entry),
   triggers: [manual, ...types.filter((type) => type.kind !== 'step').map(entry)],
-  note: 'A definition holds its trigger as { "<id>": <input> }, such as { "app:record": { "resource": "orders" } }. A type with available false cannot be saved here; its reason says why. A trigger other than manual starts runs only while its workflow is enabled, its enabled_version set; run_workflow starts a run of any workflow, enabled or not, so a manual workflow needs no enabled_version.',
+  note: 'A definition holds its trigger as { "<id>": <input> }, such as { "app:record": { "resource": "orders" } }. A type with available false cannot be saved here; its reason says why. A trigger other than manual starts runs only while its workflow is enabled, its enabled_version set, as enable_workflow sets it; run_workflow starts a run of any workflow, enabled or not, so a manual workflow needs no enabled_version.',
 })
 
 /** The app's types, `manual` first among the triggers, as `typeCatalog` lists them. */

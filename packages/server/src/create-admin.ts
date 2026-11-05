@@ -67,6 +67,8 @@ import { subscriptionUrlCheck, subscriptionWriteCheck } from './webhooks/table/v
 import type { WebhooksOptions } from './webhooks/table/options'
 import { workflowEngine } from './workflows/workflow-engine'
 import { workflowTypesRoute } from './workflows/workflow-types-route'
+import { hooksBase } from './workflows/hooks/hook-paths'
+import { issueWebhook } from './workflows/hooks/issue-webhook'
 import type { WorkflowsOptions } from './workflows/options'
 import type { NotificationsOptions } from './notifications/options'
 import type { CallsOptions } from './calls/calls-options'
@@ -420,7 +422,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: engine.types }), own: (options.mcp !== false && options.mcp?.tools) || [] })
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
     const instructions = engine ? `${mcpInstructions}\n${workflowInstructions}` : mcpInstructions
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
@@ -494,6 +496,11 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   // With calls, the stream also tells each user's pages of the calls that ring them.
   if (appModels.some((model) => model.live) || deps.calls) {
     app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
+  }
+  // Before the system endpoints, which want a token for everything under them: the webhook address takes none.
+  if (engine) {
+    app.route(hooksBase(systemPath), engine.routes.hooks())
+    app.route(`${systemPath}/workflows`, guarded((routes) => void routes.route('/', engine.routes.issue())))
   }
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)

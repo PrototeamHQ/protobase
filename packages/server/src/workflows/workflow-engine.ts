@@ -7,6 +7,8 @@ import { workflowSecrets, workflowsSchema, type WorkflowsOptions } from './optio
 import { workflowSaveHook } from './save-hook'
 import { workflowsRunner } from './segment-job'
 import { runStartHook } from './start-hook'
+import { hookRoute } from './hooks/hook-route'
+import { issueRoute } from './hooks/issue-route'
 import { workflowDeleteHook } from './triggers/delete-hook'
 import { triggerJobs } from './triggers/trigger-jobs'
 import { workflowTypes } from './workflow-types'
@@ -38,5 +40,12 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     origin: () => auth?.origins[0],
     systemPath: () => deps().systemPath,
   })
-  return { hooks: [workflowSaveHook(schema, types.check, triggers), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema)], writeChecks: [runInputCheck], jobs: [job, ...triggers.jobs], onChanges: triggers.onChanges, types }
+  const webhooks = usable(types.webhooks)
+  const issue = { deps, schema, webhooks, origin: () => auth?.origins[0] }
+  // The public webhook address, and where a caller who may change a workflow issues its URL.
+  const routes = {
+    hooks: () => hookRoute({ db: deps().db, schema, webhooks, webhookTypes: () => [...types.webhooks.keys()].filter((id) => webhooks(id)), files: () => deps().files, report: (error) => deps().report(error), redact: redactor.text }),
+    issue: () => issueRoute(issue),
+  }
+  return { routes, issue, hooks: [workflowSaveHook(schema, types.check, triggers), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema)], writeChecks: [runInputCheck], jobs: [job, ...triggers.jobs], onChanges: triggers.onChanges, types }
 }
