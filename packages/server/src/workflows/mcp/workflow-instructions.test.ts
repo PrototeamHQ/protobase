@@ -8,4 +8,12 @@ describe('the workflow instructions', () => {
     const example = JSON.parse(workflowInstructions.slice(workflowInstructions.indexOf('An example: ') + 'An example: '.length))
     expect(checkDefinition(example, workflowTypes().check)).toEqual([])
   })
+
+  it('give the trigger as the value of "trigger", with { "manual": {} } as one of its forms', () => {
+    const document = workflowInstructions.split('\n').find((line) => line.startsWith('A definition is one JSON document'))!
+    expect(document).toContain('{ "trigger": <trigger>, "stateMachine": ')
+    expect(document).toContain('<trigger> is an object with one key: { "<trigger id>": <its input> }')
+    expect(document).toContain('or { "manual": {} }')
+    expect(document).not.toMatch(/\}, or \{ "manual"/)
+  })
 })
