@@ -1,4 +1,5 @@
 import type { State, Trigger } from '@protobase/workflows'
+import type { NodeStatus } from './node-trace'
 import { text } from './messages'
 
 /** The step types' names, by the `Resource` a Task names; a step type without one shows as it is written. */
@@ -80,3 +81,14 @@ export const triggerLabel = (trigger: Trigger | undefined) => {
   const kind = triggerKind(trigger)
   return triggerKinds.find((entry) => entry.kind === kind)?.label() ?? text('triggerUnknown')
 }
+
+const nodeStatusLabels: Record<NodeStatus, () => string> = {
+  succeeded: () => text('traceSucceeded'),
+  caught: () => text('traceCaught'),
+  retrying: () => text('traceRetrying'),
+  failed: () => text('traceFailed'),
+  current: () => text('traceCurrent'),
+}
+
+/** How a state did in a run, as its node's mark says it. */
+export const nodeStatusLabel = (status: NodeStatus) => nodeStatusLabels[status]()

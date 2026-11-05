@@ -2,12 +2,13 @@ import type { Edge, Node } from '@xyflow/react'
 import { triggerId } from './definition'
 import type { Graph, GraphNode } from './definition-graph'
 import { nodeSize, type Box } from './graph-layout'
+import type { NodeTrace } from './node-trace'
 import type { NodeProblem } from './problems'
 import { stateLabel, triggerLabel } from './labels'
 import { text } from './messages'
 
-/** What a node of the canvas draws from: its node of the graph and the problems the check found with it. */
-export type NodeData = { node: GraphNode; problems: NodeProblem[] }
+/** What a node of the canvas draws from: its node of the graph, the problems the check found with it, and how it did in a run. */
+export type NodeData = { node: GraphNode; problems: NodeProblem[]; trace?: NodeTrace }
 
 export type FlowNode = Node<NodeData, 'trigger' | 'state'>
 
@@ -21,7 +22,7 @@ export const graphId = (id: string) => (id === triggerFlowId ? triggerId : id.sl
  * The canvas's nodes, at the boxes the layout gave them: a Map holds the nodes inside it, which come after it, and a
  * node not laid out yet waits at the top left. Nodes are not dragged: the layout places them.
  */
-export const flowNodes = (graph: Graph, boxes: ReadonlyMap<string, Box> | undefined, problems: ReadonlyMap<string, NodeProblem[]>, selected: string | undefined): FlowNode[] =>
+export const flowNodes = (graph: Graph, boxes: ReadonlyMap<string, Box> | undefined, problems: ReadonlyMap<string, NodeProblem[]>, selected: string | undefined, traces?: ReadonlyMap<string, NodeTrace>): FlowNode[] =>
   graph.nodes.map((node) => {
     const box = boxes?.get(node.id) ?? { x: 0, y: 0, ...nodeSize }
     const parent = node.kind === 'state' ? node.parent : undefined
@@ -32,7 +33,7 @@ export const flowNodes = (graph: Graph, boxes: ReadonlyMap<string, Box> | undefi
       position: { x: box.x, y: box.y },
       width: box.width,
       height: box.height,
-      data: { node, problems: problems.get(node.id) ?? [] },
+      data: { node, problems: problems.get(node.id) ?? [], ...(traces?.has(node.id) && { trace: traces.get(node.id) }) },
       draggable: false,
       deletable: node.kind === 'state',
       selected: node.id === selected,

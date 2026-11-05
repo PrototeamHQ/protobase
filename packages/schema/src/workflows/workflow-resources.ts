@@ -109,10 +109,11 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   .fields((r) => ({
     id: r.id.label('Steps').widget('workflow_run'),
     workflow_id: r.workflow_id.label('Workflow'),
-    input: r.input.help('Read by every state as $states.context.Execution.Input; a re-run takes the input of the run it re-runs'),
+    input: r.input.widget('json').help('Read by every state as $states.context.Execution.Input; a re-run takes the input of the run it re-runs'),
     rerun_of: r.rerun_of.label('Re-run of').help('A failed run of the workflow: the re-run keeps its steps before the one that failed, and goes on from there on the workflow as it is now'),
     key: r.key.help('A workflow runs once per key, such as the record a trigger found ready'),
     status: r.status.valueLabels({ queued: 'Queued', running: 'Running', waiting: 'Waiting', succeeded: 'Succeeded', failed: 'Failed' }).valueColors({ succeeded: 'green', failed: 'red' }),
+    output: r.output.widget('json'),
     resume_at: r.resume_at.label('Goes on at'),
     started_by: r.started_by.label('Started by'),
     created_at: r.created_at.label('Started'),
