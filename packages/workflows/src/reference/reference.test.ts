@@ -17,6 +17,9 @@ const flows = { a, b, c, d, e, f, g } as unknown as Record<string, Definition>
 
 const resources = ['app:http', 'app:records.create', 'app:records.update', 'app:records.get', 'app:records.list', 'app:mail.send', 'app:piece']
 
+// The flows' triggers: the built-in ones, and incoming mail as a plugin would add it.
+const triggers = Object.fromEntries(['app:webhook', 'app:schedule', 'app:record', 'inbox:new_mail'].map((id) => [id, () => []]))
+
 type Call = { resource: string; args: Record<string, unknown> }
 
 // Step types that record each call and answer as the app's would: http by URL, records as created or updated.
@@ -51,7 +54,7 @@ const mail = (subject: string) => ({ from: 'ada@example.com', to: 'support@app.t
 
 describe('the reference flows of the language report', () => {
   it.each(Object.keys(flows))('flow %s passes the check with the app\'s step types', (name) => {
-    expect(checkDefinition(flows[name], { resources })).toEqual([])
+    expect(checkDefinition(flows[name], { resources, triggers })).toEqual([])
   })
 
   it('a: a webhook POST becomes a lead', async () => {

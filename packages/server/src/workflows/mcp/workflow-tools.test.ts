@@ -3,13 +3,15 @@ import type { ApprovalAnswer } from '../../assistant/approval'
 import type { ToolRecords } from '../../assistant/records'
 import type { ReadableResources, ToolContext } from '../../assistant/tools'
 import { badRequest, forbidden } from '../../problem'
-import { getWorkflowRunTool, validateWorkflowTool } from './workflow-read-tools'
+import { workflowTypes } from '../workflow-types'
+import { getWorkflowRunTool, workflowReadTools } from './workflow-read-tools'
 import { createWorkflowTool, runWorkflowTool, updateWorkflowTool } from './workflow-write-tools'
 
 const machine = (states: Record<string, unknown>) => ({ QueryLanguage: 'JSONata', StartAt: Object.keys(states)[0], States: states })
 const fetchUrl = (url: string) => ({ trigger: { manual: {} }, stateMachine: machine({ Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url }, End: true } }) })
 const saved = { record: { id: 'w1', name: 'Fetch', version: 1, definition: fetchUrl('https://a.example') }, etag: '"v1"' }
 const readable = { models: [], views: [] } as unknown as ReadableResources
+const validateWorkflowTool = workflowReadTools(workflowTypes()).find((tool) => tool.name === 'validate_workflow')!
 
 const contextWith = (records: Partial<ToolRecords>, answer: ApprovalAnswer = 'approved') => {
   const approve = vi.fn(async () => answer)

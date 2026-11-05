@@ -15,6 +15,7 @@ const folder = ({ resources, functions = {}, modules = {} }: { resources?: Recor
   ...(resources && { resources: async () => resources }),
   functions: Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, async () => ({ default: source })])),
   module: (file) => (file in modules ? async () => ({ default: modules[file] }) : undefined),
+  folder: (dir) => Object.keys(modules).filter((file) => file.startsWith(`${dir}/`)).sort(),
   package: () => Promise.reject(new Error('no packages')),
 })
 

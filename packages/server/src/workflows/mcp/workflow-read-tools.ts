@@ -1,21 +1,23 @@
-import { checkDefinition } from '@protobase/workflows'
+import { checkDefinition, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
 import { defineTool } from '../../assistant/tools'
-import { stepTypeNames } from '../step-types'
 import { mergePatch } from './merge-patch'
-import { stepTypeCatalog, triggerCatalog, triggerNote } from './type-catalog'
+import { typeCatalog } from './type-catalog'
 import { definitionParameter, editParameter, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
 
 const reads = { readOnlyHint: true, openWorldHint: false }
 const listed = ['id', 'name', 'description', 'version', 'updated_at']
 
+/** The app's types, which the tools list and check definitions against. */
+export type WorkflowCatalog = { types: readonly TypeEntry[]; check: CheckOptions }
+
 /** The step types and triggers a definition may name, with their arguments, results, errors and run inputs. */
-export const listWorkflowTypesTool = defineTool({
+const listWorkflowTypesTool = (catalog: WorkflowCatalog) => defineTool({
   name: 'list_workflow_types',
-  description: 'Lists what a workflow definition may name, as JSON ({ step_types, triggers }): each step type a Task names as its Resource, with its Arguments (required or not, and what each takes), its result and the errors it fails with; and each trigger, how the definition holds it and the input a run gets from it.',
+  description: "Lists what a workflow definition may name, as JSON ({ step_types, triggers }): each step type a Task names as its Resource and each trigger, by id, with its label, description, input (the Task's Arguments, or the trigger's input) and output as JSON Schema, the errors a step fails with, the connection it signs in with, and whether this app can run it.",
   parameters: { type: 'object', properties: {} },
   annotations: reads,
-  run: async () => JSON.stringify({ step_types: stepTypeCatalog, triggers: triggerCatalog, note: triggerNote }),
+  run: async () => JSON.stringify(typeCatalog(catalog.types)),
 })
 
 /** The workflows the caller may read, a page at a time, without their definitions. */
@@ -50,13 +52,13 @@ export const getWorkflowTool = defineTool({
   },
 })
 
-const checked = (definition: unknown) => {
-  const problems = checkDefinition(definition, { resources: stepTypeNames })
+const checked = (definition: unknown, check: CheckOptions) => {
+  const problems = checkDefinition(definition, check)
   return JSON.stringify(problems.length > 0 ? { valid: false, problems } : { valid: true })
 }
 
 /** Checks a definition, or a saved one with an edit, without saving anything. */
-export const validateWorkflowTool = defineTool({
+const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
   name: 'validate_workflow',
   description: 'Checks a definition as a save checks it, and saves nothing: pass a whole definition, or a workflow\'s id with an edit to check that edit of its saved definition. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected.',
   parameters: { type: 'object', properties: { definition: definitionParameter, id: idParameter, edit: editParameter } },
@@ -64,8 +66,8 @@ export const validateWorkflowTool = defineTool({
   run: async (args, context) => {
     const id = idOf(args)
     const edit = objectOf(args.edit)
-    if (args.definition !== undefined && id === undefined && edit === undefined) return checked(args.definition)
-    if (args.definition === undefined && id && edit) return context.records.get('workflows', id).then(({ record }) => checked(mergePatch(record.definition, edit)), refused)
+    if (args.definition !== undefined && id === undefined && edit === undefined) return checked(args.definition, catalog.check)
+    if (args.definition === undefined && id && edit) return context.records.get('workflows', id).then(({ record }) => checked(mergePatch(record.definition, edit), catalog.check), refused)
     return 'Pass either { "definition": { ... } } or { "id": "<id>", "edit": { ... } }.'
   },
 })
@@ -101,4 +103,4 @@ export const getWorkflowRunTool = defineTool({
 })
 
 /** The tools that read workflows, their types and runs, and check definitions. */
-export const workflowReadTools = () => [listWorkflowTypesTool, listWorkflowsTool, getWorkflowTool, validateWorkflowTool, getWorkflowRunTool]
+export const workflowReadTools = (catalog: WorkflowCatalog) => [listWorkflowTypesTool(catalog), listWorkflowsTool, getWorkflowTool, validateWorkflowTool(catalog), getWorkflowRunTool]

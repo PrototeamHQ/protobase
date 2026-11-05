@@ -21,7 +21,7 @@ const readWorkflowsSchema = async (db: Db, schema: string) => {
  * The SQL that brings the `workflows` schema to what `workflows` needs: its tables, indexes and the triggers that number a
  * workflow's versions and pin a run's; `undefined` when current. Tables are never dropped.
  */
-export const workflowsMigration = async (db: Db, options: WorkflowsOptions = {}) => {
+export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions, 'schema'> = {}) => {
   const schema = workflowsSchema(options)
   const found = await readWorkflowsSchema(db, schema)
   if (found.current) return undefined
@@ -30,7 +30,7 @@ export const workflowsMigration = async (db: Db, options: WorkflowsOptions = {})
 }
 
 /** Refuses to go on while the `workflows` schema lacks what `workflows` needs; the project's migrations add it. */
-export const checkWorkflowsSchema = async (db: Db, options: WorkflowsOptions = {}) => {
+export const checkWorkflowsSchema = async (db: Db, options: Pick<WorkflowsOptions, 'schema'> = {}) => {
   const schema = workflowsSchema(options)
   const found = await readWorkflowsSchema(db, schema)
   if (found.current) return

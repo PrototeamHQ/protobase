@@ -59,19 +59,9 @@ export const definitionSchema = {
       type: 'object',
       minProperties: 1,
       maxProperties: 1,
-      additionalProperties: false,
-      properties: {
-        webhook: { type: 'object', additionalProperties: false },
-        schedule: { type: 'object', additionalProperties: false, required: ['cron'], properties: { cron: { type: 'string' }, timezone: { type: 'string' } } },
-        mail: { type: 'object', additionalProperties: false, required: ['mailbox'], properties: { mailbox: name } },
-        record: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['events'],
-          properties: { events: { type: 'array', minItems: 1, items: { type: 'string', pattern: '^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$' } } },
-        },
-        manual: { type: 'object', additionalProperties: false },
-      },
+      // `manual`, or a trigger type `<plugin>:<key>` with its input; the plugin's schema checks the input.
+      propertyNames: { pattern: '^(manual|[a-z][a-z0-9_]*:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*)$' },
+      additionalProperties: { type: 'object' },
     },
     stateMachine: {
       allOf: [{ $ref: '#/definitions/machine' }],

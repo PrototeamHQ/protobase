@@ -1,11 +1,5 @@
 {
-  "trigger": {
-    "record": {
-      "events": [
-        "leads.created"
-      ]
-    }
-  },
+  "trigger": {"app:record": {"resource": "leads"}},
   "stateMachine": {
     "QueryLanguage": "JSONata",
     "StartAt": "PostToSlack",

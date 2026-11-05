@@ -5,7 +5,10 @@ import { secretRedactor, StepError } from '@protobase/workflows'
 import { localFiles } from '../files/local-files'
 import type { FilesRuntime } from '../files/runtime'
 import { tempDir } from '../files/testing/temp-dir'
-import { httpBodyLimit, httpStep } from './http-step'
+import { fetchMaxBytes as httpBodyLimit } from '@protobase/workflows/plugin'
+import { builtInStep, type BuiltInStepOptions } from './testing/built-in-step'
+
+const httpStep = (options: BuiltInStepOptions = {}) => builtInStep('app:http', options)
 
 const secret = 'tok-9c31d7a0b2e4'
 const redactor = secretRedactor([secret])
@@ -13,7 +16,7 @@ const logs: string[] = []
 const context = (runId = 'run-1') => ({ runId, signal: new AbortController().signal, idempotencyKey: `${runId}//0`, log: (message: string) => void logs.push(message), redact: redactor.text })
 const seen: { method?: string; url?: string; body: string; type?: string }[] = []
 
-describe('the app:http step', () => {
+describe('the app:http step, run through the plugin interface', () => {
   let server: Server
   let base: string
   let folder: Awaited<ReturnType<typeof tempDir>>
@@ -81,7 +84,7 @@ describe('the app:http step', () => {
     expect(cause).not.toContain(secret.slice(0, 3))
     expect(await failure(local()({ url: 'ftp:/nowhere' }, context()))).toEqual(['Http.AddressRefused', 'ftp: URLs are not requested; use http or https'])
     expect(await failure(local()({ url: base, method: 'HEAD' }, context()))).toEqual(['Http.InvalidArguments', 'method must be one of GET, POST, PUT, PATCH, DELETE'])
-    expect(await failure(local()({ url: base, response: 'xml' }, context()))).toEqual(['Http.InvalidArguments', 'response must be json, text or file'])
+    expect(await failure(local()({ url: base, response: 'xml' }, context()))).toEqual(['Http.InvalidArguments', 'response must be equal to one of the allowed values'])
   })
 
   it('fails when no answer comes as Http.Network', async () => {

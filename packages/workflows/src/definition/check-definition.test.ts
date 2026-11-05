@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { checkDefinition } from './check-definition'
 import { problemText } from './problem'
 
-const check = (machine: object, trigger: object = { manual: {} }) => checkDefinition({ trigger, stateMachine: machine }, { resources: ['http'] }).map(problemText)
+const triggers = { 'app:schedule': (input: Record<string, unknown>) => (typeof input.cron === 'string' ? [] : [{ field: 'cron', message: 'is missing' }]), 'acme:new_order': () => [] }
+const check = (machine: object, trigger: object = { manual: {} }) => checkDefinition({ trigger, stateMachine: machine }, { resources: ['http'], triggers }).map(problemText)
 
 const fetchAndBranch = {
   QueryLanguage: 'JSONata',
@@ -176,17 +177,14 @@ describe('checkDefinition', () => {
 describe('checkDefinition, the rules of the decided profile', () => {
   const pass = { Type: 'Pass', End: true }
 
-  it('takes each trigger, and refuses two, a cron of 6 fields, an unknown time zone and an event of no resource', () => {
-    for (const trigger of [{ webhook: {} }, { schedule: { cron: '0 6 * * *', timezone: 'Europe/Amsterdam' } }, { mail: { mailbox: 'support' } }, { record: { events: ['deals.created'] } }, { manual: {} }]) {
-      expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: pass } }, trigger)).toEqual([])
-    }
+  it('takes manual and the trigger types the app has, checked by their type, and refuses two, an unknown type and a bad name', () => {
     const machine = { QueryLanguage: 'JSONata', StartAt: 'A', States: { A: pass } }
-    expect(check(machine, { webhook: {}, manual: {} })).toEqual(['Field "trigger": holds exactly one trigger: webhook, schedule, mail, record or manual'])
-    expect(check(machine, { schedule: { cron: '0 0 6 * * *', timezone: 'Mars/Olympus' } })).toEqual([
-      'Field "trigger.schedule.cron": must be a cron of 5 fields, such as 0 6 * * *',
-      'Field "trigger.schedule.timezone": "Mars/Olympus" is not an IANA time zone, such as Europe/Amsterdam',
-    ])
-    expect(check(machine, { record: { events: ['created'] } })).toEqual(['Field "trigger.record.events[0]": must be an event named <resource>.<event>, such as deals.created'])
+    for (const trigger of [{ 'app:schedule': { cron: '0 6 * * *' } }, { 'acme:new_order': {} }, { manual: {} }]) expect(check(machine, trigger)).toEqual([])
+    expect(check(machine, { 'app:schedule': {}, manual: {} })).toEqual(['Field "trigger": holds exactly one trigger: a trigger type such as app:webhook, or manual'])
+    expect(check(machine, { 'app:schedule': {} })).toEqual(['Field "trigger.app:schedule.cron": is missing'])
+    expect(check(machine, { 'app:mail': {} })).toEqual(['Field "trigger": "app:mail" is not a trigger type; use manual or one of app:schedule, acme:new_order'])
+    expect(check(machine, { manual: { at: 1 } })).toEqual(['Field "trigger.manual": takes no input'])
+    expect(check(machine, { Webhook: {} })).toContain('Field "trigger": names a trigger type <plugin>:<key>, such as app:webhook, or manual')
   })
 
   it('refuses Parallel, more than 19 retries, more than 20 at once and a state name used twice', () => {

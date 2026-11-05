@@ -1,11 +1,5 @@
 {
-  "trigger": {
-    "record": {
-      "events": [
-        "orders.created"
-      ]
-    }
-  },
+  "trigger": {"app:record": {"resource": "orders"}},
   "stateMachine": {
     "QueryLanguage": "JSONata",
     "StartAt": "Charge",

@@ -32,13 +32,8 @@ export type Machine = { StartAt: string; States: Record<string, State>; Comment?
 /** The state machine of a workflow: the States Language with JSONata expressions, in the named-reads profile. */
 export type StateMachine = Machine & { QueryLanguage: 'JSONata' }
 
-/** What starts a workflow's runs: exactly one of these keys. */
-export type Trigger =
-  | { webhook: Record<string, never> }
-  | { schedule: { cron: string; timezone?: string } }
-  | { mail: { mailbox: string } }
-  | { record: { events: string[] } }
-  | { manual: Record<string, never> }
+/** What starts a workflow's runs: one key, `manual` or a trigger type `<plugin>:<key>`, holding its input. */
+export type Trigger = Record<string, Record<string, unknown>>
 
 /** A workflow definition: its trigger, and the state machine a run runs from `StartAt`. */
 export type Definition = { trigger: Trigger; stateMachine: StateMachine }

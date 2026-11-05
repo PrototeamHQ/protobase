@@ -1,3 +1,4 @@
+import type { LoadedPlugin } from '@protobase/workflows'
 import type { TenantValue } from '../types'
 
 /** Workflows made in the admin app (`workflows: {}`), kept with their runs in a schema of the app's database. */
@@ -20,13 +21,18 @@ export type WorkflowsOptions = {
    * false: a URL whose host resolves to one fails the step, so a workflow cannot reach the app's own network.
    */
   allowPrivateAddresses?: boolean
+  /**
+   * The app's workflow plugins, run beside the built-in types (`app:*`) through the same interface; the CLI loads them
+   * from `workflows.plugins` and `workflows/plugins/<name>.ts`. Two of one name stop startup, naming both sources.
+   */
+  plugins?: LoadedPlugin[]
 }
 
 const schemaPattern = /^[a-z_][a-z0-9_]*$/
 const secretName = /^[A-Z_][A-Z0-9_]*$/
 
 /** The schema of the options, checked. */
-export const workflowsSchema = (options: WorkflowsOptions = {}) => {
+export const workflowsSchema = (options: Pick<WorkflowsOptions, 'schema'> = {}) => {
   const schema = options.schema ?? 'workflows'
   if (!schemaPattern.test(schema)) throw new Error(`Invalid workflows schema "${schema}": use lowercase letters, digits and "_"`)
   // Postgres cuts a longer name to 63 bytes, so two configs could share one schema.

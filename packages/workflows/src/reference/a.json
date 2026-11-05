@@ -1,7 +1,5 @@
 {
-  "trigger": {
-    "webhook": {}
-  },
+  "trigger": {"app:webhook": {}},
   "stateMachine": {
     "QueryLanguage": "JSONata",
     "StartAt": "CreateLead",

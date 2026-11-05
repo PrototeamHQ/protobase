@@ -222,6 +222,7 @@
         "@protobase/layout": "workspace:*",
         "@protobase/query": "workspace:*",
         "@protobase/schema": "workspace:*",
+        "@protobase/workflow-plugins": "workspace:*",
         "@protobase/workflows": "workspace:*",
         "@react-email/render": "^2.1.0",
         "@react-pdf/primitives": "^4.4.0",
@@ -299,6 +300,13 @@
       },
       "devDependencies": {
         "@types/papaparse": "^5.5.2",
+      },
+    },
+    "packages/workflow-plugins": {
+      "name": "@protobase/workflow-plugins",
+      "version": "0.14.2",
+      "dependencies": {
+        "@protobase/workflows": "workspace:*",
       },
     },
     "packages/workflows": {
@@ -990,6 +998,8 @@
     "@protobase/server": ["@protobase/server@workspace:packages/server"],
 
     "@protobase/ui": ["@protobase/ui@workspace:packages/ui"],
+
+    "@protobase/workflow-plugins": ["@protobase/workflow-plugins@workspace:packages/workflow-plugins"],
 
     "@protobase/workflows": ["@protobase/workflows@workspace:packages/workflows"],
 

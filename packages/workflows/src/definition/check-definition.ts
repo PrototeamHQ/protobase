@@ -1,5 +1,5 @@
 import { schemaProblems } from './check-schema'
-import { triggerProblems } from './check-trigger'
+import { triggerProblems, type TriggerCheck } from './check-trigger'
 import { assignedNames, stateExpressions } from './expression-fields'
 import { expressionSource } from './expressions'
 import { edges, reachable } from './graph'
@@ -13,10 +13,10 @@ import { limits } from '../limits'
 import { nestingDepth } from '../nesting'
 
 /**
- * What a definition is checked against beside the language: the step types (Task resources) the app has, and the
- * arguments each needs (`required`, by step type).
+ * What a definition is checked against beside the language: the step types (Task resources) the app has, the
+ * arguments each needs (`required`, by step type), and its trigger types, each with the check of its input.
  */
-export type CheckOptions = { resources: readonly string[]; required?: Readonly<Record<string, readonly string[]>> }
+export type CheckOptions = { resources: readonly string[]; required?: Readonly<Record<string, readonly string[]>>; triggers: Readonly<Record<string, TriggerCheck>> }
 
 type Scope = { path: string[]; outer: ReadonlySet<string>; item: boolean }
 
@@ -89,5 +89,5 @@ export const checkDefinition = (definition: unknown, options: CheckOptions): Pro
   const shape = schemaProblems(definition)
   if (shape.length > 0) return shape
   const document = definition as Definition
-  return [...triggerProblems(document.trigger), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false }, options)]
+  return [...triggerProblems(document.trigger, options.triggers), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false }, options)]
 }

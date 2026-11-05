@@ -31,10 +31,10 @@ const message = (error: ErrorObject) => {
   if (error.keyword === 'required') return `${error.params.missingProperty} is missing`
   if (error.keyword === 'const') return `must be ${JSON.stringify(error.params.allowedValue)}`
   if (error.keyword === 'discriminator') return 'must be one of Task, Choice, Pass, Map, Wait, Succeed and Fail'
-  if (error.keyword === 'pattern' && error.instancePath.startsWith('/trigger/')) return 'must be an event named <resource>.<event>, such as deals.created'
+  if (error.keyword === 'pattern' && error.instancePath === '/trigger') return 'names a trigger type <plugin>:<key>, such as app:webhook, or manual'
   if (error.keyword === 'pattern' && error.instancePath.endsWith('/Assign')) return 'names a variable with letters, digits and _, starting with a letter'
   if (error.keyword === 'pattern') return 'must be an expression written as {% ... %}'
-  if (error.keyword === 'maxProperties' || error.keyword === 'minProperties') return error.instancePath === '/trigger' ? 'holds exactly one trigger: webhook, schedule, mail, record or manual' : (error.message ?? 'is not valid')
+  if (error.keyword === 'maxProperties' || error.keyword === 'minProperties') return error.instancePath === '/trigger' ? 'holds exactly one trigger: a trigger type such as app:webhook, or manual' : (error.message ?? 'is not valid')
   if (error.keyword === 'oneOf' && error.schemaPath.endsWith('/oneOf')) return 'needs exactly one of these'
   return error.message ?? 'is not valid'
 }

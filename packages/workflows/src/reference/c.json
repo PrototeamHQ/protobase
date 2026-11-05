@@ -1,10 +1,5 @@
 {
-  "trigger": {
-    "schedule": {
-      "cron": "0 6 * * *",
-      "timezone": "Europe/Amsterdam"
-    }
-  },
+  "trigger": {"app:schedule": {"cron": "0 6 * * *", "timezone": "Europe/Amsterdam"}},
   "stateMachine": {
     "QueryLanguage": "JSONata",
     "StartAt": "FetchProducts",
