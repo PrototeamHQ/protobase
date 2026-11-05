@@ -1,8 +1,9 @@
-import { StepError, type TaskHandler } from '@protobase/workflows'
+import { StepError, type TaskContext, type TaskHandler } from '@protobase/workflows'
 import type { FilesRuntime } from '../files/runtime'
 import { AddressRefusedError, pinnedRequest, type Resolve } from '../webhooks/table/pinned-request'
 import { readLimited } from '../webhooks/table/read-limited'
 import { isFileValue, readRunFile, storeRunFile } from './run-files'
+import type { ScratchFiles } from './scratch-files'
 
 /** The most of an answer's body the `http` step reads; a larger one fails the step. */
 export const httpBodyLimit = 10 * 1024 * 1024
@@ -53,6 +54,14 @@ export type HttpStepOptions = {
   resolve?: Resolve
   /** The app's files, where `response: "file"` keeps an answer and a file value's bytes are read from. */
   files?: () => FilesRuntime | undefined
+  /** The scratch disk that keeps a copy of the run's files, read first. */
+  scratch?: ScratchFiles
+}
+
+/** Whether a call only reads: a GET, which a run does again after a crash rather than recording it. */
+export const httpReads = (args: unknown) => {
+  const method = (args as HttpArguments | null)?.method
+  return method === undefined || (typeof method === 'string' && method.toUpperCase() === 'GET')
 }
 
 /**
@@ -60,13 +69,13 @@ export type HttpStepOptions = {
  * once and connects only to a public address it checked. It follows no redirect, reads at most `httpBodyLimit` of
  * the answer, and fails with `Http.Status` on a status outside 2xx, `Http.Network` when no answer came.
  */
-export const httpStep = ({ allowPrivateAddresses = false, resolve, files = () => undefined }: HttpStepOptions = {}): TaskHandler => async (args, { runId, signal, log, redact }) => {
+export const httpStep = ({ allowPrivateAddresses = false, resolve, files = () => undefined, scratch }: HttpStepOptions = {}): TaskHandler => Object.assign(async (args: unknown, { runId, signal, log, redact }: TaskContext) => {
   const given = (args ?? {}) as HttpArguments
   const { url, method, headers, response: reading } = checked(given)
   let body: string | Uint8Array | undefined
   if (given.body !== undefined && method !== 'GET') {
     if (isFileValue(given.body)) {
-      const file = await readRunFile(files(), runId, given.body, 'body')
+      const file = await readRunFile(files(), runId, given.body, 'body', scratch)
       body = file.bytes
       if (!headers.has('content-type')) headers.set('content-type', file.ref.type ?? 'application/octet-stream')
     } else if (typeof given.body === 'string') {
@@ -93,6 +102,6 @@ export const httpStep = ({ allowPrivateAddresses = false, resolve, files = () =>
   }
   // Cookies the receiver sets are sessions of its own, not data for later steps.
   const kept = Object.fromEntries([...answer.headers].filter(([name]) => name !== 'set-cookie'))
-  const keep = (data: Uint8Array, name: string, type: string) => storeRunFile(files(), runId, data, name, type)
+  const keep = (data: Uint8Array, name: string, type: string) => storeRunFile(files(), runId, data, name, type, scratch)
   return { status: answer.status, headers: kept, body: await answerBody(bytes, reading, url, answer.headers.get('content-type'), keep) }
-}
+}, { reads: httpReads })

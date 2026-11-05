@@ -10,6 +10,8 @@ import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
 import { jobsSchemaMigration } from '../src/jobs/schema'
 import { workflowsMigration } from '../src/workflows/schema'
 import { workflowsModule } from '../src/workflows/workflows-module'
+import { localFiles } from '../src/files/local-files'
+import { tempDir } from '../src/files/testing/temp-dir'
 import type { WorkflowsOptions } from '../src/workflows/options'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 import { password, serveMcp } from './support/mcp-app'
@@ -18,8 +20,8 @@ import { password, serveMcp } from './support/mcp-app'
 // on the app's jobs over real Postgres, whose workers poll on real timers that a recording cannot replay.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps'>({
-  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read'],
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs'>({
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*'],
   viewer: [],
 })
 const workflows: WorkflowsOptions = { allowPrivateAddresses: true }
@@ -35,6 +37,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
   let runtime: JobsRuntime
   let receiver: Server
   let base: string
+  let folder: Awaited<ReturnType<typeof tempDir>>
   const tokens: Record<string, string> = {}
 
   beforeAll(async () => {
@@ -44,10 +47,12 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     pool = new pg.Pool({ connectionString: database.url, max: 2 })
     const store = { dialect: database.dialect, query: async (text: string, params?: readonly unknown[]) => ({ rows: (await pool.query(text, params as unknown[])).rows }) }
     const { resources } = configExports(workflowsModule(workflows))
+    folder = await tempDir()
     served = await serveMcp(undefined, {
       existing: store,
       db: database.db,
       workflows,
+      files: { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-mcp-workflows' },
       tenant: '1',
       resources,
       auth: { roles: ['admin', 'builder', 'viewer'], defaultRole: 'viewer' },
@@ -71,6 +76,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     await new Promise((resolve) => receiver?.close(resolve))
     await pool?.end()
     await database?.close()
+    await folder?.remove()
   })
 
   // The JSON-RPC answer, sent as JSON or as one server-sent event.
@@ -91,13 +97,15 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     return JSON.parse(result.content[0]!.text)
   }
   const ana = (name: string, args: object = {}) => call('ana@example.com', name, args)
+  // Ended, with the trace its last segment writes in the background joined into one.
   const finished = async (runId: string): Promise<Run> => {
     let run: Run | undefined
     await vi.waitFor(async () => {
       run = await ana('get_workflow_run', { run_id: runId })
       expect(['succeeded', 'failed']).toContain(run!.run.status)
+      expect((await sql<{ trace_file: string | null }>`select trace_file from workflows.runs where id = ${runId}`.execute(database.db)).rows[0]!.trace_file).not.toBeNull()
     }, { timeout: 20_000, interval: 200 })
-    return run!
+    return (await ana('get_workflow_run', { run_id: runId })) as Run
   }
   const counts = async () => (await sql<{ workflows: number; runs: number }>`select (select count(*)::int from workflows.workflows) as workflows, (select count(*)::int from workflows.runs) as runs`.execute(database.db)).rows[0]!
 

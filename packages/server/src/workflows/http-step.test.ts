@@ -5,7 +5,7 @@ import { secretRedactor, StepError } from '@protobase/workflows'
 import { localFiles } from '../files/local-files'
 import type { FilesRuntime } from '../files/runtime'
 import { tempDir } from '../files/testing/temp-dir'
-import { httpBodyLimit, httpStep } from './http-step'
+import { httpBodyLimit, httpReads, httpStep } from './http-step'
 
 const secret = 'tok-9c31d7a0b2e4'
 const redactor = secretRedactor([secret])
@@ -53,6 +53,11 @@ describe('the app:http step', () => {
 
   const local = () => httpStep({ allowPrivateAddresses: true, files: () => files })
   const failure = (promise: Promise<unknown>) => promise.then(() => undefined, (error: unknown) => (error instanceof StepError ? [error.error, error.reason] : error))
+
+  it('counts a GET as a read, which a run does again after a crash, and every other method as a change it records', () => {
+    expect([undefined, 'GET', 'get', 'POST', 'DELETE'].map((method) => httpReads({ url: 'https://a.test', ...(method && { method }) }))).toEqual([true, true, true, false, false])
+    expect(httpStep().reads?.({ method: 'PUT' })).toBe(false)
+  })
 
   it('sends JSON with the query and returns the status, headers without cookies and the parsed body', async () => {
     const result = await local()({ url: `${base}/items`, method: 'post', query: { page: '2' }, body: { name: 'a' } }, context())

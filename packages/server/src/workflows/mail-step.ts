@@ -2,6 +2,7 @@ import { StepError, type TaskHandler } from '@protobase/workflows'
 import type { FilesRuntime } from '../files/runtime'
 import type { MailAttachment, Mailer } from '../mail/mail-message'
 import { readRunFile, runFileLimit } from './run-files'
+import type { ScratchFiles } from './scratch-files'
 
 /** The most addresses one `app:mail.send` step sends to. */
 export const mailRecipients = 50
@@ -28,13 +29,13 @@ const recipients = (value: unknown) => {
     .join(', ')
 }
 
-const attachmentsOf = async (value: unknown, files: FilesRuntime | undefined, runId: string): Promise<MailAttachment[]> => {
+const attachmentsOf = async (value: unknown, files: FilesRuntime | undefined, runId: string, scratch?: ScratchFiles): Promise<MailAttachment[]> => {
   if (value === undefined || value === null) return []
   if (!Array.isArray(value)) throw invalid('attachments must be a list of file values')
   const attachments: MailAttachment[] = []
   let total = 0
   for (const [index, item] of value.entries()) {
-    const { ref, bytes } = await readRunFile(files, runId, item, `attachments[${index}]`)
+    const { ref, bytes } = await readRunFile(files, runId, item, `attachments[${index}]`, scratch)
     total += bytes.length
     if (total > runFileLimit) throw invalid(`attachments are larger than ${runFileLimit / 1024 / 1024} MiB together`)
     attachments.push({ filename: ref.name, content: bytes, ...(ref.type && { contentType: ref.type }) })
@@ -47,7 +48,7 @@ const attachmentsOf = async (value: unknown, files: FilesRuntime | undefined, ru
  * sender. Its Message-ID comes from the step's idempotency key, the same for each try, so a receiver can tell a
  * repeated try from a new mail.
  */
-export const mailStep = (mail: () => Mailer | undefined, files: () => FilesRuntime | undefined): TaskHandler => async (args, { runId, idempotencyKey }) => {
+export const mailStep = (mail: () => Mailer | undefined, files: () => FilesRuntime | undefined, scratch?: ScratchFiles): TaskHandler => async (args, { runId, idempotencyKey }) => {
   const given = (args ?? {}) as Record<string, unknown>
   const mailer = mail()
   if (!mailer) throw new StepError('States.TaskFailed', 'The app sends no mail: set its mailer, or PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM')
@@ -60,7 +61,7 @@ export const mailStep = (mail: () => Mailer | undefined, files: () => FilesRunti
     text: given.text,
     ...(given.html !== undefined && { html: given.html }),
     headers: { 'Message-ID': messageId },
-    attachments: await attachmentsOf(given.attachments, files(), runId),
+    attachments: await attachmentsOf(given.attachments, files(), runId, scratch),
   })
   return { message_id: messageId }
 }

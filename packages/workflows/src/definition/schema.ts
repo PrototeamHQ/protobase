@@ -53,7 +53,7 @@ export const definitionSchema = {
       type: 'object',
       additionalProperties: false,
       required: ['trigger', 'stateMachine'],
-      properties: { trigger: { $ref: '#/definitions/trigger' }, stateMachine: { $ref: '#/definitions/stateMachine' } },
+      properties: { trigger: { $ref: '#/definitions/trigger' }, stateMachine: { $ref: '#/definitions/stateMachine' }, trace: { enum: ['all', 'failed', 'none'] } },
     },
     trigger: {
       type: 'object',
@@ -90,7 +90,7 @@ export const definitionSchema = {
       discriminator: { propertyName: 'Type' },
       oneOf: [
         state('Pass', flow, nextOrEnd),
-        state('Task', { ...flow, ...recovery, Resource: name, Arguments: {}, TimeoutSeconds: { type: 'integer', minimum: 1, maximum: limits.taskTimeoutSeconds } }, { required: ['Resource'], ...nextOrEnd }),
+        state('Task', { ...flow, ...recovery, Resource: name, Arguments: {}, TimeoutSeconds: { type: 'integer', minimum: 1, maximum: limits.taskTimeoutSeconds }, DoNotRepeat: { type: 'boolean' } }, { required: ['Resource'], ...nextOrEnd }),
         state('Choice', {
           Choices: {
             type: 'array',

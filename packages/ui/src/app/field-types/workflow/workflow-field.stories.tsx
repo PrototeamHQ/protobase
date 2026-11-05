@@ -13,8 +13,8 @@ const meta = { title: 'Plugins/Field types/Workflow', parameters: { layout: 'ful
 export default meta
 
 const parts = workflowResources('workflows')
-const resources = [parts.workflows, parts.workflowVersions, parts.workflowRuns, parts.workflowSteps].map((part) => part.toModel())
-const views = [parts.workflowsView, parts.workflowVersionsView, parts.workflowRunsView, parts.workflowStepsView].map((part) => part.toModel())
+const resources = [parts.workflows, parts.workflowVersions, parts.workflowRuns].map((part) => part.toModel())
+const views = [parts.workflowsView, parts.workflowVersionsView, parts.workflowRunsView].map((part) => part.toModel())
 
 const fetchOnly: Definition = {
   trigger: { manual: {} },
@@ -28,7 +28,6 @@ const rows = {
   ],
   workflow_versions: [],
   workflow_runs: [],
-  workflow_steps: [],
 }
 
 // The workflow a save stored, for the checks to read

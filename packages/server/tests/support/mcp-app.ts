@@ -74,6 +74,8 @@ export type ServeMcpOptions<Store extends McpStore = SnapshotDb> = {
   db?: CreateAdminInput['db']
   /** `createAdmin`'s workflows. */
   workflows?: CreateAdminInput['workflows']
+  /** `createAdmin`'s files, such as where workflows keep runs' traces. */
+  files?: CreateAdminInput['files']
   /** The one tenant everyone works in, for resources scoped to tenants. */
   tenant?: TenantValue
   /** `createAdmin`'s options. */
@@ -88,7 +90,7 @@ export type ServeMcpOptions<Store extends McpStore = SnapshotDb> = {
  * An app with MCP on, on a copy of the migrated store, with Ana (sales and accountant) and Root (admin); on `existing`,
  * a store served before, with its users as they are. Without the stores, it serves on `existing` and `db`.
  */
-export const serveMcp = async <Store extends McpStore = SnapshotDb>(stores: McpStores | undefined, { auth: options = {}, existing, db = stores?.fixture.db, workflows, tenant, admin, resources = allResources, authenticate: wrap = (own) => own }: ServeMcpOptions<Store> = {}) => {
+export const serveMcp = async <Store extends McpStore = SnapshotDb>(stores: McpStores | undefined, { auth: options = {}, existing, db = stores?.fixture.db, workflows, files, tenant, admin, resources = allResources, authenticate: wrap = (own) => own }: ServeMcpOptions<Store> = {}) => {
   if (!db || !(existing ?? stores)) throw new Error('serveMcp serves on the stores, or on a store and a database of its own')
   const store: Store | SnapshotDb = existing ?? (await stores!.migrated.clone())
   const auth = await authOn(store, options)
@@ -99,7 +101,7 @@ export const serveMcp = async <Store extends McpStore = SnapshotDb>(stores: McpS
     await createUser(auth, { email: 'bo@example.com', password, role: 'sales' })
   }
   const authenticate = betterAuthAuthenticator({ auth, ...(tenant !== undefined && { tenant }) })
-  const app = createAdmin({ resources, db, authenticate: wrap(authenticate), auth, ...(workflows && { workflows }), ...(admin && { options: admin }) })
+  const app = createAdmin({ resources, db, authenticate: wrap(authenticate), auth, ...(workflows && { workflows }), ...(files && { files }), ...(admin && { options: admin }) })
   const address = `198.51.100.${++client}`
 
   type Init = { body?: unknown; form?: Record<string, string>; cookie?: string; headers?: Record<string, string>; method?: string; from?: string | null }

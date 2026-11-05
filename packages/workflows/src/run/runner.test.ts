@@ -116,7 +116,7 @@ describe('the runner', () => {
       Slow: { Type: 'Task', Resource: 'slow', End: true },
     }), {})
     await expect(port.step(worker.signal)).rejects.toThrow('the worker stopped')
-    expect(port.steps.map((step) => step.state)).toEqual(['Before'])
+    expect(port.checkpoints.map((checkpoint) => checkpoint.state)).toEqual(['Before'])
     // The queue runs the failed job again, as pg-boss retries it.
     await port.runner.segment(null, 'r4', new AbortController().signal)
     expect(calls).toEqual(['before', 'slow', 'slow'])
@@ -167,7 +167,7 @@ describe('the runner', () => {
 
     const raced = memoryRunner({ tick: async () => 1 })
     await raced.start('r9', definition({ A: { Type: 'Task', Resource: 'tick', End: true } }), {})
-    raced.steps.push({ runId: 'r9', scope: '', seq: 0, state: 'A', type: 'Task', status: 'succeeded', attempt: 1, next: null, output: 2, logs: [], startedAt: raced.now(), finishedAt: raced.now() })
+    raced.checkpoints.push({ runId: 'r9', scope: '', seq: 0, state: 'A', type: 'Task', status: 'succeeded', fetchedAt: raced.now(), next: null, value: 2, variables: {}, attempt: 1, failures: [], clock: raced.now(), after: -1 })
     await raced.runner.segment(null, 'r9', new AbortController().signal)
     expect(raced.run('r9').status).toBe('succeeded')
   })
@@ -228,6 +228,6 @@ describe('the runner', () => {
     await port.start('r15', quiet, {})
     await port.drain()
     expect(port.run('r15')).toMatchObject({ status: 'succeeded', output: true })
-    expect(port.steps.filter((step) => step.runId === 'r15')).toHaveLength(2)
+    expect(port.traces.get('r15')!.flat()).toHaveLength(2)
   })
 })

@@ -706,6 +706,58 @@
                   "$ref": "#/definitions/EnvValue"
                 }
               ]
+            },
+            "trace": {
+              "description": "Which runs keep a trace, every step's input, output and logs as JSON lines in the private file provider: `all`\n(default), `failed` for only the runs that fail, or `none`. A workflow's definition (`trace`) and a run's own\n`trace` set it for theirs.",
+              "anyOf": [
+                {
+                  "enum": [
+                    "all",
+                    "failed",
+                    "none"
+                  ]
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "scratch": {
+              "description": "A local folder, such as a scratch disk, that keeps copies of runs' large files and values, at most `maxSize` (default\n`1 GB`), read before the private file provider. A copy may be gone, as the provider's is what a run relies on.",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "dir": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    },
+                    "maxSize": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "dir"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
             }
           },
           "additionalProperties": false

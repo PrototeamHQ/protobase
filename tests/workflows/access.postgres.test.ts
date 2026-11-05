@@ -1,10 +1,12 @@
+import { readFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, unauthorized, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
-import { workflowsModule } from '@protobase/server/internal'
+import { localFiles, workflowsModule } from '@protobase/server/internal'
+import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -13,12 +15,12 @@ const secret = 'wf-access-secret-7d2e91'
 process.env.WF_ACCESS_TOKEN = secret
 
 const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly(), text: f.text() }).primaryKey((r) => r.id)
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps' | 'notes'>({
-  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'notes.*'],
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'notes'>({
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'notes.*'],
   runner: ['workflows.read', 'workflow_runs.create', 'workflow_runs.read'],
   blind: ['workflow_runs.create', 'workflow_runs.read'],
   starter: ['workflows.read', 'workflow_runs.create'],
-  reader: ['workflows.read', 'workflow_runs.read', 'workflow_steps.read'],
+  reader: ['workflows.read', 'workflow_runs.read'],
 })
 // Who holds which role in which tenant; a test takes a role away by changing it.
 const people: Record<string, { tenant: string; roles: string[] }> = {
@@ -42,6 +44,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
   let admin: ReturnType<typeof createAdmin>
   let runtime: JobsRuntime
   let receiver: Server
+  let folder: Awaited<ReturnType<typeof tempDir>>
   let base: string
   const authorizations: string[] = []
 
@@ -56,7 +59,9 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
       if (!person) throw unauthorized('Sign in first')
       return { user: { id: request.headers.get('x-user')!, roles: person.roles }, tenant: person.tenant }
     }
-    admin = createAdmin({ resources, views, db, authenticate, workflows, options: { roles } })
+    folder = await tempDir()
+    const files = { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-access-tests' }
+    admin = createAdmin({ resources, views, db, files, authenticate, workflows, options: { roles } })
     receiver = createServer((request, response) => {
       authorizations.push(request.headers.authorization ?? '')
       response.writeHead(500, { 'content-type': 'text/plain' }).end(`denied for ${request.headers.authorization}`)
@@ -70,6 +75,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
     await runtime?.stop()
     await new Promise((resolve) => receiver?.close(resolve))
     await pg?.close()
+    await folder?.remove()
   })
 
   const as = (user: string | undefined, path: string, init: { method?: string; body?: unknown } = {}) =>
@@ -91,10 +97,10 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
     const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Mine', definition: echo() } }))
     const run = await created(await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: { card: 'private-input-31' } } }))
     await finished(run)
-    for (const path of [`/workflow_runs/${run}`, `/workflow_steps?filter=${encodeURIComponent(`run_id = "${run}"`)}`, `/workflows/${workflow}`]) {
+    for (const path of [`/workflow_runs/${run}`, `/workflows/${workflow}`]) {
       const response = await as('bob', path)
       expect(await response.text()).not.toContain('private-input-31')
-      if (!path.startsWith('/workflow_steps')) expect(response.status).toBe(404)
+      expect(response.status).toBe(404)
     }
     const [runs, versions] = [await count('workflows.runs'), await count('workflows.versions')]
     const start = await as('bob', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: {} } })
@@ -106,7 +112,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
     expect([await count('workflows.runs'), await count('workflows.versions')]).toEqual([runs, versions])
   })
 
-  it('starts runs only for a caller who may start and read them and read the workflow, and shows steps only to their readers', async () => {
+  it('starts runs only for a caller who may start and read them and read the workflow', async () => {
     const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Split', definition: echo() } }))
     const runs = await count('workflows.runs')
     expect([403, 404]).toContain((await as('reed', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: {} } })).status)
@@ -117,7 +123,6 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
     const run = await created(await as('rita', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: { from: 'rita' } } }))
     await finished(run)
     expect((await as('rita', `/workflow_runs/${run}`)).status).toBe(200)
-    expect([403, 404]).toContain((await as('rita', `/workflow_steps?filter=${encodeURIComponent(`run_id = "${run}"`)}`)).status)
     expect([403, 404]).toContain((await as('stan', `/workflow_runs/${run}`)).status)
     expect((await as('reed', `/workflow_runs/${run}`)).status).toBe(200)
   })
@@ -196,8 +201,13 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
     await finished(run)
     expect(authorizations).toEqual([`Bearer ${secret}`])
     expect((await runRow(run)).error).toBe('Reported')
-    const kept = await sql<{ text: string }>`select (select coalesce(json_agg(r), '[]')::text from workflows.runs r) || (select coalesce(json_agg(s), '[]')::text from workflows.steps s) || (select coalesce(json_agg(j.data), '[]')::text || coalesce(json_agg(j.output), '[]')::text from jobs.job j) as text`.execute(db)
+    const kept = await sql<{ text: string }>`select (select coalesce(json_agg(r), '[]')::text from workflows.runs r) || (select coalesce(json_agg(c), '[]')::text from workflows.checkpoints c) || (select coalesce(json_agg(j.data), '[]')::text || coalesce(json_agg(j.output), '[]')::text from jobs.job j) as text`.execute(db)
     expect(kept.rows[0]!.text).toContain('[redacted]')
     expect(kept.rows[0]!.text).not.toContain(secret)
+    // The trace keeps every step's input and output, its secrets blanked as the database's are.
+    await vi.waitFor(async () => expect((await sql<{ trace_file: string | null }>`select trace_file from workflows.runs where id = ${run}`.execute(db)).rows[0]!.trace_file).not.toBeNull(), { timeout: 10_000, interval: 50 })
+    const trace = await readFile(`${folder.dir}/workflows/${run}/trace.jsonl`, 'utf8')
+    expect(trace).toContain('[redacted]')
+    expect(trace).not.toContain(secret)
   })
 })

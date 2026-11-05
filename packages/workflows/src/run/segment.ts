@@ -2,7 +2,7 @@ import type { Definition } from '../definition/types'
 import { limits } from '../limits'
 import type { ScopeOutcome } from './context'
 import { SupersededError } from './errors'
-import type { SavedStep, StepRecord, TaskHandlers } from './port'
+import type { Checkpoint, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import { runScope } from './scope'
 
@@ -16,10 +16,10 @@ export type SegmentInput = {
   secrets: Readonly<Record<string, string>>
   /** Blanks the secrets out of what the run records. */
   redactor: Redactor
-  /** The steps the run saved so far. */
-  saved: readonly SavedStep[]
-  /** Saves steps in one guarded statement: false when any of their scopes and seqs is taken. */
-  save: (steps: readonly StepRecord[]) => Promise<boolean>
+  /** The latest checkpoint of each scope the run saved so far. */
+  saved: readonly Checkpoint[]
+  /** Saves checkpoints in one guarded statement: false when a scope has one newer than the one it follows. */
+  save: (checkpoints: readonly Checkpoint[]) => Promise<boolean>
   tasks: TaskHandlers
   signal: AbortSignal
   now?: () => Date
@@ -29,26 +29,32 @@ export type SegmentInput = {
   maxSteps?: number
 }
 
+/** How a segment ended, with the steps it ran for the run's trace. */
+export type SegmentOutcome = (ScopeOutcome | { kind: 'superseded' }) & { steps: StepRecord[] }
+
 /**
- * Runs a run's steps from where its saved steps leave it to its next wait: it ends or fails, waits until a time
- * (a Wait, a retry's delay), or yields once its time is up. `superseded` when another segment saved a step first.
+ * Runs a run's steps from where its checkpoints leave it to its next wait: it ends or fails, waits until a time
+ * (a Wait, a retry's delay), or yields once its time is up, saving its checkpoints on the way and as it pauses.
+ * `superseded` when another segment saved a newer checkpoint first.
  */
-export const runSegment = async ({ runId, definition, input, startedAt, secrets, redactor, saved, save, tasks, signal, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: SegmentInput): Promise<ScopeOutcome | { kind: 'superseded' }> => {
-  const byScope = new Map<string, SavedStep[]>()
-  for (const step of [...saved].sort((a, b) => a.seq - b.seq)) {
-    const steps = byScope.get(step.scope)
-    if (steps) steps.push(step)
-    else byScope.set(step.scope, [step])
-  }
+export const runSegment = async ({ runId, definition, input, startedAt, secrets, redactor, saved, save, tasks, signal, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: SegmentInput): Promise<SegmentOutcome> => {
+  const latest = new Map(saved.map((checkpoint) => [checkpoint.scope, checkpoint]))
+  // The seq of each scope's last saved checkpoint, which the next one follows.
+  const after = new Map(saved.map((checkpoint) => [checkpoint.scope, checkpoint.seq]))
+  const steps: StepRecord[] = []
   let superseded = false
-  // Steps kept until the next checkpoint saves them: the next segment runs again those of a segment that died first.
-  let kept: StepRecord[] = []
+  // Where each scope stands since its last save: the next segment runs again the steps of one that died first.
+  let kept = new Map<string, Omit<Checkpoint, 'after'>>()
   const write = async () => {
-    const steps = kept
-    kept = []
-    if (steps.length === 0 || (await save(steps))) return
+    const checkpoints = [...kept.values()].map((checkpoint) => ({ ...checkpoint, after: after.get(checkpoint.scope) ?? -1 }))
+    kept = new Map()
+    if (checkpoints.length === 0) return
+    if (await save(checkpoints)) {
+      for (const checkpoint of checkpoints) after.set(checkpoint.scope, checkpoint.seq)
+      return
+    }
     superseded = true
-    throw new SupersededError(`Step ${steps[0]!.seq} of scope "${steps[0]!.scope}" was saved by another segment`)
+    throw new SupersededError(`A checkpoint of scope "${checkpoints[0]!.scope}" was saved by another segment`)
   }
   const context = {
     runId,
@@ -58,21 +64,24 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     signal,
     now,
     deadline: Date.now() + budgetMs,
-    saved: byScope,
-    save: async (step: StepRecord, checkpoint: boolean) => {
-      kept.push(step)
-      if (checkpoint) await write()
+    saved: latest,
+    checkpoint: async (checkpoint: Omit<Checkpoint, 'after'>, save: boolean) => {
+      kept.set(checkpoint.scope, checkpoint)
+      if (save) await write()
     },
+    trace: (step: StepRecord) => void steps.push(step),
     superseded: () => superseded,
-    steps: { count: saved.length },
+    // Each scope numbers its steps from 0, so its latest checkpoint counts the steps it took up to it.
+    steps: { count: saved.reduce((count, checkpoint) => count + checkpoint.seq + 1, 0) },
     maxSteps,
   }
   try {
-    const outcome = await runScope(context, definition.stateMachine, '', input, {})
-    await write()
-    return outcome
+    const outcome = await runScope(context, definition.stateMachine, '', input, {}, startedAt)
+    // A run that ended needs no checkpoint: its outcome is the run's own.
+    if (outcome.kind === 'blocked' || outcome.kind === 'yielded') await write()
+    return { ...outcome, steps }
   } catch (error) {
     if (!(error instanceof SupersededError)) throw error
-    return { kind: 'superseded' }
+    return { kind: 'superseded', steps }
   }
 }

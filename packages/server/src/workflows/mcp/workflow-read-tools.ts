@@ -1,4 +1,4 @@
-import { checkDefinition } from '@protobase/workflows'
+import { checkDefinition, definitionWarnings, type Definition } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
 import { defineTool } from '../../assistant/tools'
 import { stepTypeNames } from '../step-types'
@@ -52,13 +52,15 @@ export const getWorkflowTool = defineTool({
 
 const checked = (definition: unknown) => {
   const problems = checkDefinition(definition, { resources: stepTypeNames })
-  return JSON.stringify(problems.length > 0 ? { valid: false, problems } : { valid: true })
+  if (problems.length > 0) return JSON.stringify({ valid: false, problems })
+  const warnings = definitionWarnings(definition as Definition)
+  return JSON.stringify({ valid: true, ...(warnings.length > 0 && { warnings }) })
 }
 
 /** Checks a definition, or a saved one with an edit, without saving anything. */
 export const validateWorkflowTool = defineTool({
   name: 'validate_workflow',
-  description: 'Checks a definition as a save checks it, and saves nothing: pass a whole definition, or a workflow\'s id with an edit to check that edit of its saved definition. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected.',
+  description: 'Checks a definition as a save checks it, and saves nothing: pass a whole definition, or a workflow\'s id with an edit to check that edit of its saved definition. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected. A valid definition may come with warnings of the same shape, which a save does not refuse, such as a value fetched once (DoNotRepeat) and read after a Wait, when it may have expired.',
   parameters: { type: 'object', properties: { definition: definitionParameter, id: idParameter, edit: editParameter } },
   annotations: reads,
   run: async (args, context) => {
@@ -70,35 +72,47 @@ export const validateWorkflowTool = defineTool({
   },
 })
 
-const runFields = ['id', 'workflow_id', 'version', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'created_at', 'finished_at', 'duration_ms']
-const stepFields = ['state', 'scope', 'seq', 'type', 'attempt', 'status', 'input', 'output', 'assigned', 'logs', 'error', 'cause', 'next', 'resume_at', 'duration_ms']
+const runFields = ['id', 'workflow_id', 'version', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'trace', 'created_at', 'finished_at', 'duration_ms']
+const stepFields = ['state', 'scope', 'seq', 'type', 'attempt', 'status', 'input', 'output', 'assigned', 'logs', 'error', 'cause', 'next', 'resumeAt', 'startedAt', 'finishedAt', 'recorded']
 
-/** A run with its steps in the order they ran, a page at a time. */
-export const getWorkflowRunTool = defineTool({
-  name: 'get_workflow_run',
-  description: 'Reads a run by its id, as JSON ({ run, steps, next_page_token }): its status (queued, running, waiting, succeeded or failed), input, output, error and cause, and its steps in the order they ran, each with its state, scope (empty, or the Map item it ran in), try, status (succeeded, retrying, caught or failed), input, output, assigned variables, logs, error and cause. A run goes on in the background: read it again while it is queued, running or waiting. Pass state to read only that state\'s steps; pass next_page_token back as page_token for more steps.',
-  parameters: {
-    type: 'object',
-    properties: {
-      run_id: { type: 'string', description: "The run's id, as run_workflow gives it." },
-      state: { type: 'string', description: "Only this state's steps." },
-      page_size: { type: 'integer', minimum: 1, maximum: 100, description: 'Steps per page, 20 by default.' },
-      page_token: { type: 'string', description: 'The next_page_token of the page before.' },
+/** The steps of a run's trace, in the order they ran. */
+export type TraceReader = (runId: string) => Promise<Record<string, unknown>[]>
+
+const offsetOf = (token: unknown) => {
+  const offset = Number(textOf(token) ?? 0)
+  return Number.isSafeInteger(offset) && offset >= 0 ? offset : 0
+}
+
+/** A run with the steps of its trace in the order they ran, a page at a time. */
+export const getWorkflowRunTool = (readTrace: TraceReader) =>
+  defineTool({
+    name: 'get_workflow_run',
+    description: "Reads a run by its id, as JSON ({ run, steps, next_page_token }): its status (queued, running, waiting, succeeded or failed), input, output, error and cause, and the steps of its trace in the order they ran, each with its state, scope (empty, or the Map item it ran in), try, status (succeeded, retrying, caught or failed), input, output, assigned variables, logs, error and cause. A run goes on in the background: read it again while it is queued, running or waiting; its trace grows as it goes. A run that keeps no trace (its trace setting none, or failed while it succeeds) lists no steps. Pass state to read only that state's steps; pass next_page_token back as page_token for more steps.",
+    parameters: {
+      type: 'object',
+      properties: {
+        run_id: { type: 'string', description: "The run's id, as run_workflow gives it." },
+        state: { type: 'string', description: "Only this state's steps." },
+        page_size: { type: 'integer', minimum: 1, maximum: 100, description: 'Steps per page, 20 by default.' },
+        page_token: { type: 'string', description: 'The next_page_token of the page before.' },
+      },
+      required: ['run_id'],
     },
-    required: ['run_id'],
-  },
-  annotations: reads,
-  run: async (args, context) => {
-    const id = textOf(args.run_id)
-    if (!id) return 'Pass the run\'s id as { "run_id": "<id>" }.'
-    const run = await context.records.get('workflow_runs', id, { fields: runFields }).then(({ record }) => record, refused)
-    if (typeof run === 'string') return run
-    const state = textOf(args.state)
-    const filter = `run_id = ${JSON.stringify(id)}${state ? ` AND state = ${JSON.stringify(state)}` : ''}`
-    const params = { filter, fields: stepFields, order_by: 'id', page_size: pageSizeOf(args.page_size, 20, 100), ...(textOf(args.page_token) && { page_token: textOf(args.page_token) }) }
-    return context.records.list('workflow_steps', params).then((page) => JSON.stringify({ run, steps: page.items.map(({ etag: _etag, permissions: _permissions, ...step }) => step), next_page_token: page.next_page_token }), refused)
-  },
-})
+    annotations: reads,
+    run: async (args, context) => {
+      const id = textOf(args.run_id)
+      if (!id) return 'Pass the run\'s id as { "run_id": "<id>" }.'
+      // Read through the run's own access first, so the trace of a run the caller may not read is never read.
+      const run = await context.records.get('workflow_runs', id, { fields: runFields }).then(({ record }) => record, refused)
+      if (typeof run === 'string') return run
+      const state = textOf(args.state)
+      const steps = (await readTrace(String(run.id))).filter((step) => !state || step.state === state)
+      const offset = offsetOf(args.page_token)
+      const end = offset + pageSizeOf(args.page_size, 20, 100)
+      const page = steps.slice(offset, end).map((step) => Object.fromEntries(stepFields.flatMap((field) => (field in step ? [[field, step[field]]] : []))))
+      return JSON.stringify({ run, steps: page, next_page_token: end < steps.length ? String(end) : '' })
+    },
+  })
 
 /** The tools that read workflows, their types and runs, and check definitions. */
-export const workflowReadTools = () => [listWorkflowTypesTool, listWorkflowsTool, getWorkflowTool, validateWorkflowTool, getWorkflowRunTool]
+export const workflowReadTools = (readTrace: TraceReader) => [listWorkflowTypesTool, listWorkflowsTool, getWorkflowTool, validateWorkflowTool, getWorkflowRunTool(readTrace)]

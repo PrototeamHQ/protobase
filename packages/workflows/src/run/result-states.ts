@@ -7,21 +7,34 @@ import { fanOut } from './fan-out'
 import { jsonBytes } from './json-bytes'
 import { redacted } from './redact'
 import { recover } from './recovery'
+import { stepFunctions } from './step-functions'
 import { innerScope, visibleVariables, type StateCall } from './step-input'
 import { runTask } from './task'
 
-type Ran = { result: unknown; input: unknown } | { failure: { Error: string; Cause: string }; input: unknown } | Extract<StateResult, { kind: 'blocked' | 'yielded' }>
+type Ran =
+  | { result: unknown; input: unknown; recorded?: boolean }
+  | { failure: { Error: string; Cause: string }; input: unknown; recorded?: boolean }
+  | Extract<StateResult, { kind: 'blocked' | 'yielded' }>
+
+// Whether a call is recorded: every call that changes the world, and a read marked not to be done again, by the Task
+// or else by its step type.
+const isRecorded = (state: TaskState, call: StateCall, args: unknown) => {
+  const handler = call.context.tasks[state.Resource]
+  if (!handler) return false
+  return !(handler.reads?.(args) ?? false) || (state.DoNotRepeat ?? handler.doNotRepeat ?? false)
+}
 
 const task = async (state: TaskState, call: StateCall): Promise<Ran> => {
   const args = await evaluateTemplate(state.Arguments ?? {}, call.bindings, 'Arguments')
   // Each try of a visit is a step of its own, so the key counts from the visit's first try: the same for every retry.
   const key = `${call.context.runId}/${call.scope}/${call.position.seq - call.position.attempt + 1}`
   const input = redacted(recordedArguments(state.Arguments ?? {}, args))
+  const recorded = isRecorded(state, call, args)
   return runTask(call.context, state, args, key, call.logs).then(
-    (result) => ({ result, input }),
+    (result) => ({ result, input, recorded }),
     (error: unknown) => {
       if (!(error instanceof StepError)) throw error
-      return { failure: errorOutput(error), input }
+      return { failure: errorOutput(error), input, recorded }
     },
   )
 }
@@ -63,14 +76,17 @@ const attempt = async (state: TaskState | MapState, call: StateCall): Promise<Ra
 
 /**
  * A Task or a Map: its result shaped by `Output` and `Assign`, which read it as `$states.result`; a failure,
- * its own or an item's, goes to its retriers and catchers.
+ * its own or an item's, goes to its retriers and catchers. In a recorded Task's `Output` and `Assign`, `$now` is when
+ * its result was fetched, which the checkpoint keeps as the scope's clock.
  */
 export const runResultState = async (state: TaskState | MapState, call: StateCall): Promise<StateResult> => {
   const ran = await attempt(state, call)
   if ('kind' in ran) return ran
   const now = call.context.now()
-  if ('failure' in ran) return { ...(await recover(state, call.position, ran.failure, call.bindings, now, call.logs)), ...(ran.input !== undefined && { input: ran.input }) } as StateResult
-  const after = { ...call.bindings, states: { ...(call.bindings.states as object), result: ran.result } }
+  const recorded = { ...(ran.recorded && { recorded: true, fetchedAt: now }) }
+  if ('failure' in ran) return { ...(await recover(state, call.position, ran.failure, call.bindings, now, call.logs)), ...(ran.input !== undefined && { input: ran.input }), ...recorded } as StateResult
+  const { now: fetched, millis } = stepFunctions(ran.recorded ? now : call.position.clock, '')
+  const after = { ...call.bindings, now: fetched, millis, states: { ...(call.bindings.states as object), result: ran.result } }
   const shaped = async () => ({
     output: state.Output === undefined ? ran.result : await evaluateKept(state.Output, after, 'Output'),
     assigned: await evaluateAssign(state.Assign, after),
@@ -79,6 +95,6 @@ export const runResultState = async (state: TaskState | MapState, call: StateCal
     if (!(error instanceof StepError)) throw error
     return { failure: errorOutput(error) }
   })
-  if ('failure' in done) return { ...(await recover(state, call.position, done.failure, call.bindings, now, call.logs)), input: ran.input } as StateResult
-  return { kind: 'step', status: 'succeeded', next: state.Next ?? null, input: ran.input, ...done, logs: call.logs }
+  if ('failure' in done) return { ...(await recover(state, call.position, done.failure, call.bindings, now, call.logs)), input: ran.input, ...recorded } as StateResult
+  return { kind: 'step', status: 'succeeded', next: state.Next ?? null, input: ran.input, ...done, logs: call.logs, ...recorded }
 }

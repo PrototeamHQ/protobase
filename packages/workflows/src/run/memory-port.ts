@@ -1,43 +1,66 @@
 import type { Definition } from '../definition/types'
 import { createRunner } from './runner'
-import type { LoadedRun, RunStore, StepRecord, TaskHandlers } from './port'
+import type { Checkpoint, LoadedRun, RunStore, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
+
+type MemoryOptions = { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number; traceMode?: TraceMode }
 
 /**
  * The runner over a port kept in memory, with a clock tests move: for the package's unit tests. `drain` runs a run's
- * segments as the queue would, moving the clock to each wait's end, until nothing is queued.
+ * segments as the queue would, moving the clock to each wait's end, until nothing is queued. `checkpoints` is what the
+ * database would hold, `writes` the checkpoints each save took, and `steps` every step the runs' kept traces hold.
  */
-export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps }: { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number } = {}) => {
+export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps, traceMode }: MemoryOptions = {}) => {
   let clock = new Date('2026-11-04T12:00:00Z')
   const runs = new Map<string, LoadedRun & Record<string, unknown>>()
-  const steps: (StepRecord & { runId: string })[] = []
+  const checkpoints: (Checkpoint & { runId: string })[] = []
   const queued: { runId: string; at?: Date }[] = []
-  /** How many steps each save took, in order. */
   const writes: number[] = []
+  const traces = new Map<string, StepRecord[][]>()
   const store: RunStore<null> = {
     load: async (_, id) => runs.get(id),
-    steps: async (_, runId) => steps.filter((saved) => saved.runId === runId),
+    checkpoints: async (_, runId) => checkpoints.filter((saved) => saved.runId === runId).map((saved) => structuredClone(saved)),
     save: async (_, runId, records) => {
       writes.push(records.length)
-      const taken = (step: StepRecord) => steps.some((saved) => saved.runId === runId && saved.scope === step.scope && saved.seq === step.seq)
-      if (records.some(taken)) return false
-      steps.push(...records.map((step) => ({ ...structuredClone(step), runId })))
+      const newer = (checkpoint: Checkpoint) => checkpoints.some((saved) => saved.runId === runId && saved.scope === checkpoint.scope && saved.seq > checkpoint.after)
+      if (records.some(newer)) return false
+      for (const record of records) {
+        const index = checkpoints.findIndex((saved) => saved.runId === runId && saved.scope === record.scope)
+        if (index >= 0) checkpoints.splice(index, 1)
+        checkpoints.push({ ...structuredClone(record), runId })
+      }
       return true
     },
     update: async (_, id, change) => {
       const run = runs.get(id)!
       if (run.status === 'succeeded' || run.status === 'failed') return
       runs.set(id, { ...run, ...change })
+      if (change.status !== 'succeeded' && change.status !== 'failed') return
+      for (let index = checkpoints.length - 1; index >= 0; index--) if (checkpoints[index]!.runId === id) checkpoints.splice(index, 1)
     },
   }
-  const runner = createRunner({ store, queue: { schedule: async (_, runId, at) => void queued.push({ runId, ...(at && { at }) }) }, tasks, now: () => clock, ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }) })
+  // Each segment's steps as a part of its run's trace; a run kept only when it fails drops its parts when it succeeds.
+  const trace: TraceSink = {
+    write: (runId, steps, { mode, ended }) => {
+      if (mode === 'none') return
+      if (mode === 'failed' && ended === 'succeeded') return void traces.delete(runId)
+      traces.set(runId, [...(traces.get(runId) ?? []), structuredClone([...steps])])
+    },
+  }
+  const schedule = async (_: null, runId: string, at?: Date) => void queued.push({ runId, ...(at && { at }) })
+  const runner = createRunner({ store, queue: { schedule }, tasks, trace, now: () => clock, ...(traceMode && { traceMode }), ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }) })
   return {
     runner,
-    steps,
+    store,
+    checkpoints,
     writes,
+    traces,
+    get steps() {
+      return [...traces.values()].flat(2)
+    },
     run: (id: string) => runs.get(id)!,
     now: () => clock,
-    start: async (id: string, definition: Definition, input: unknown) => {
-      runs.set(id, { id, definition, input, status: 'queued', startedAt: clock })
+    start: async (id: string, definition: Definition, input: unknown, trace?: TraceMode) => {
+      runs.set(id, { id, definition, input, status: 'queued', startedAt: clock, ...(trace && { trace }) })
       await runner.start(null, id)
     },
     /** Runs one queued segment, moving the clock to its time; false when none is queued. */
@@ -47,6 +70,10 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps 
       if (next.at && next.at > clock) clock = next.at
       await runner.segment(null, next.runId, signal)
       return true
+    },
+    /** Moves the clock on, as time passing between segments. */
+    tick: (ms: number) => {
+      clock = new Date(clock.getTime() + ms)
     },
     drain: async function () {
       for (let segments = 0; await this.step(); segments++) if (segments > 1000) throw new Error('The run did not settle')

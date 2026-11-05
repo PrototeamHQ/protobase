@@ -15,7 +15,12 @@ type Common = { Comment?: string; Output?: Template; Assign?: Record<string, Tem
 type Flow = { Next?: string; End?: boolean }
 
 export type PassState = Common & Flow & { Type: 'Pass' }
-export type TaskState = Common & Flow & { Type: 'Task'; Resource: string; Arguments?: Template; TimeoutSeconds?: number; Retry?: Retrier[]; Catch?: Catcher[] }
+/**
+ * A step of a step type. `DoNotRepeat` records a call that only reads, such as a GET of a signed URL that expires or
+ * works once, so it is never done again in the run; it overrides the step type's default. A call that changes the
+ * world is recorded whatever it says.
+ */
+export type TaskState = Common & Flow & { Type: 'Task'; Resource: string; Arguments?: Template; TimeoutSeconds?: number; DoNotRepeat?: boolean; Retry?: Retrier[]; Catch?: Catcher[] }
 export type ChoiceRule = { Condition: string; Next: string; Comment?: string; Output?: Template; Assign?: Record<string, Template> }
 export type ChoiceState = Common & { Type: 'Choice'; Choices: ChoiceRule[]; Default?: string }
 export type WaitState = Common & Flow & { Type: 'Wait'; Seconds?: number | string; Timestamp?: string }
@@ -40,5 +45,8 @@ export type Trigger =
   | { record: { events: string[] } }
   | { manual: Record<string, never> }
 
-/** A workflow definition: its trigger, and the state machine a run runs from `StartAt`. */
-export type Definition = { trigger: Trigger; stateMachine: StateMachine }
+/**
+ * A workflow definition: its trigger, the state machine a run runs from `StartAt`, and which of its runs keep a trace
+ * (`all`, `failed` or `none`), when it says, over the app's default.
+ */
+export type Definition = { trigger: Trigger; stateMachine: StateMachine; trace?: 'all' | 'failed' | 'none' }

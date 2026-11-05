@@ -104,5 +104,7 @@ const run = async (input: RecordsStepInput, operation: Operation, args: Record<s
  */
 export const recordsSteps = (input: RecordsStepInput): Record<`app:records.${Operation}`, TaskHandler> => {
   const step = (operation: Operation): TaskHandler => (args, context) => run(input, operation, rowOf(args ?? {}, 'Arguments'), context).catch(refusedAs)
-  return { 'app:records.create': step('create'), 'app:records.update': step('update'), 'app:records.get': step('get'), 'app:records.list': step('list') }
+  // A get or a list only reads, so a run does it again after a crash rather than recording it.
+  const reading = (operation: Operation) => Object.assign(step(operation), { reads: () => true })
+  return { 'app:records.create': step('create'), 'app:records.update': step('update'), 'app:records.get': reading('get'), 'app:records.list': reading('list') }
 }

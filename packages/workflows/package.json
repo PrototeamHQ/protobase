@@ -1,7 +1,7 @@
 {
   "name": "@protobase/workflows",
   "version": "0.14.2",
-  "description": "Workflows as state machines with JSONata expressions: their check, and a runner that saves every step.",
+  "description": "Workflows as state machines with JSONata expressions: their check, and a runner that saves only what a run needs to go on and traces every step.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

@@ -20,6 +20,17 @@ export type WorkflowsOptions = {
    * false: a URL whose host resolves to one fails the step, so a workflow cannot reach the app's own network.
    */
   allowPrivateAddresses?: boolean
+  /**
+   * Which runs keep a trace, every step's input, output and logs as JSON lines in the private file provider: `all`
+   * (default), `failed` for only the runs that fail, or `none`. A workflow's definition (`trace`) and a run's own
+   * `trace` set it for theirs.
+   */
+  trace?: 'all' | 'failed' | 'none'
+  /**
+   * A local folder, such as a scratch disk, that keeps copies of runs' large files and values, at most `maxSize` (default
+   * `1 GB`), read before the private file provider. A copy may be gone, as the provider's is what a run relies on.
+   */
+  scratch?: { dir: string; maxSize?: string }
 }
 
 const schemaPattern = /^[a-z_][a-z0-9_]*$/
@@ -44,3 +55,12 @@ export const workflowSecrets = (options: WorkflowsOptions, env: Record<string, s
       return [name, value]
     }),
   )
+
+const traceModes = ['all', 'failed', 'none']
+
+/** The trace runs keep when neither they nor their workflow says; startup stops on any other value than the three. */
+export const workflowsTraceMode = (options: WorkflowsOptions) => {
+  const mode = options.trace ?? 'all'
+  if (!traceModes.includes(mode)) throw new Error(`workflows.trace is "${String(mode)}": use all, failed or none`)
+  return mode
+}

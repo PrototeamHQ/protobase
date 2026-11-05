@@ -1,4 +1,4 @@
-import { edges } from './graph'
+import { reachedFrom } from './graph'
 import type { Machine, State } from './types'
 
 // The variables each edge of a state carries on, as the runner assigns them: a Choice rule's Assign (else the state's)
@@ -13,20 +13,6 @@ const passedOn = (state: State) => {
   }
   if ('Catch' in state) for (const catcher of state.Catch ?? []) along.push({ target: catcher.Next, names: Object.keys(catcher.Assign ?? {}) })
   return along
-}
-
-// The states reached from `start` along the edges, `start` itself included.
-const reachedFrom = (machine: Machine, start: string) => {
-  const seen = new Set<string>()
-  const stack = [start]
-  while (stack.length > 0) {
-    const name = stack.pop()!
-    const state = machine.States[name]
-    if (seen.has(name) || !state) continue
-    seen.add(name)
-    stack.push(...edges(state).map((edge) => edge.target))
-  }
-  return seen
 }
 
 /**
