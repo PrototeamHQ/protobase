@@ -34,7 +34,7 @@ export const tablesView = view<Definitions['tables']>(tablesResourceName)
     singular_label: r.singular_label.label('Singular label').help('What one record is called, such as Note.'),
     title_field: r.title_field.label('Title field').notOnCreate().help('The name of the text field that titles each record and that search looks in.'),
   }))
-  .list((r) => ({ columns: [r.plural_label, r.name], sort: [[r.name, 'asc']] }))
+  .list((r) => ({ columns: [r.plural_label, r.name], sort: [[r.id, 'asc']] }))
   .layout((r) => [
     l.section('Table', [r.plural_label, r.singular_label, r.name, r.title_field]),
     l.related('Fields', { resource: fieldsResourceName, field: 'table_id', columns: ['label', 'name', 'type'], sort: 'position', empty: 'No fields yet.' }),

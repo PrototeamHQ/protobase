@@ -47,7 +47,9 @@ export const definitionsResources = ({ roles, taken, organizations = false }: { 
     .table(`${definitionsSchema}.tables`)
     .fields({
       id: f.bigint().readOnly().dbDefault().filterable().sortable(),
-      name: f.text().access(createOnly).filterable().sortable(),
+      // Only partial indexes serve the name, one per organization or none, which the scan guard does not count, so it is
+      // neither filtered nor sorted on.
+      name: f.text().access(createOnly),
       singular_label: f.text().max(maxLabelLength),
       plural_label: f.text().max(maxLabelLength),
       title_field: f.text().optional(),
