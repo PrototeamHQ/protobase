@@ -45,6 +45,11 @@ describe('createSections', () => {
     expect(createSections(orders, view)[0]!.fields).toContain('total')
   })
 
+  it('leaves off a field the view keeps off the create form, wherever the layout names it', () => {
+    const view = { fields: { notes: { notOnCreate: true } }, layout: [{ kind: 'section', title: 'Order', fields: ['number', 'notes'] }] } as unknown as ViewModel
+    expect(createSections(orders, view).flatMap((section) => section.fields)).not.toContain('notes')
+  })
+
   it('puts a write-only field on the form only where a section names it', () => {
     const sealed = { ...orders, fields: { ...orders.fields, sealed: field('sealed', 'text', { sensitive: true, writeOnly: true }) } } as ResourceModel
     expect(createSections(sealed, undefined)[0]!.fields).not.toContain('sealed')

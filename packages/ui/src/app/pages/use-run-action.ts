@@ -26,7 +26,7 @@ const message = (error: unknown) => (error instanceof Error ? error.message : te
  * `runEach` runs one on each of several records it applies to, as a list's selection does, and says how that went.
  */
 export const useActionRunner = (resource: string, scope: LayoutRecord | undefined, afterRun?: (action: ActionModel) => void) => {
-  const { views } = useAdminMeta()
+  const { views, resources } = useAdminMeta()
   const { actions: handlers, components } = useProjectUi()
   const permissions = usePermissions(resource)
   const client = useClient()
@@ -37,7 +37,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
   const { go } = useAppAddress()
   const [running, setRunning] = useState<string>()
   // An update shows only while it would change the record, a link to a URL the record holds only while it holds one, its label naming the URL's host
-  const actions = (views[resource]?.actions ?? []).flatMap((action) => actionFor(action, scope?.record) ?? [])
+  const actions = (views[resource]?.actions ?? []).flatMap((action) => actionFor(action, scope?.record, resources) ?? [])
 
   // Why `action` cannot run on `on`, the record it would act on.
   const blockedOn = (action: ActionModel, on: LayoutRecord | undefined) => {
@@ -92,7 +92,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
   }
 
   /** Whether `action` shows and can run on `on`. */
-  const appliesOn = (action: ActionModel, on: LayoutRecord) => actionFor(action, on.record) !== undefined && !blockedOn(action, on)
+  const appliesOn = (action: ActionModel, on: LayoutRecord) => actionFor(action, on.record, resources) !== undefined && !blockedOn(action, on)
 
   // A failure on one record leaves the others to run; the toast counts them, with the first failure's message, and
   // the records the caller left out already as not applying (`skipped`).

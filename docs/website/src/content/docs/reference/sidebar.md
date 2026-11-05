@@ -30,6 +30,10 @@ view<typeof apps>('apps')
 
 `/meta` writes the session's organization into the list's opening filter, here `isNull(parent_id) AND organization_id = "<id>"`, and into the filter of its [recent records](#recent-records). Like any opening filter it applies when the address names no filter: the facet shows the organization chosen, and the person picks others or clears it, which lists every organization they are a member of. A link with its own filter replaces it, and switching organization opens the app again on the new one. A [named list](/reference/ui-config/#more-than-one-list) takes `tenant` in its own `nav`. `createAdmin` refuses to start when the view has no `.list(...)`, or the resource has no `.tenant()` on a `.filterable()` field.
 
+## Entries for creators
+
+`nav({ creatorsOnly: true })` shows the entry only to whoever its list offers **New**, as for the [create link](#create-link), for a list that is there to make records, such as the [tables users add](/reference/user-tables/#in-the-admin-app). Anyone else who may read the resource still opens it at its address.
+
 ## Create link
 
 `nav({ create: true })` puts a link to the resource's create form under its entry, reading "New <singular>" after the view's `names`; `create: { label }` gives it its own text. A chat's direct messages, with the conversations under the entry and a link to start one:

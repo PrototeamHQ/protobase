@@ -1,4 +1,4 @@
-import { Ban, Bath, Bed, KeyRound, MemoryStick, Power, RotateCw, RulerDimensionLine, Send, Square } from 'lucide-react'
+import { Ban, Bath, Bed, KeyRound, MemoryStick, Plus, Power, RotateCw, RulerDimensionLine, Send, Square, Table2 } from 'lucide-react'
 import { describe, expect, it } from 'vitest'
 import { actionIcon } from './action-icon'
 import { namedIcon } from './named-icon'
@@ -11,6 +11,8 @@ describe('namedIcon', () => {
     expect(namedIcon('bath')).toBe(Bath)
     expect(namedIcon('key')).toBe(KeyRound)
     expect(namedIcon('ban')).toBe(Ban)
+    expect(namedIcon('plus')).toBe(Plus)
+    expect(namedIcon('table')).toBe(Table2)
     expect(namedIcon('toString')).toBeUndefined()
     expect(namedIcon(undefined)).toBeUndefined()
   })

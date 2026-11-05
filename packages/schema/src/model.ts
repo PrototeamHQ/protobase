@@ -340,6 +340,8 @@ export type FieldViewModel = {
   helpWhen?: HelpWhen
   /** When the field shows on the record page: always, the default, only on its form or only on its read view. */
   when?: ShowWhen
+  /** Left off the create form, so a create leaves it empty or to its default; the server refuses it on a field a create needs. */
+  notOnCreate?: true
   /** The question a form or a list cell asks before the field's value first changes; cancelling keeps the value. */
   confirm?: string
   /** How the value is shown. */
@@ -1267,6 +1269,8 @@ export type NavRecentModel = {
 export type NavModel = {
   /** Hide the resource from the sidebar, for line or link tables. */
   hidden?: boolean
+  /** Show the entry only to whoever the list offers New, for a list that is there to make records, such as the tables users add. */
+  creatorsOnly?: true
   /** The sidebar group it sits in; its database schema when omitted. */
   group?: string
   /** Where it sorts within its group. */

@@ -8,12 +8,10 @@ An app's resources usually come from its code: a resource in `config/` over a ta
 ## Tables defined in the database
 
 :::caution[Beta]
-Tables are added through the API; the admin app has no screens for them yet.
+Tables are added through the API or the admin app.
 :::
 
 An app can keep tables its users add in its own database, beside the resources in its code. Each one is served like any other resource, at its own address with its list, record page, search and API. Every server process serves a new table within a second of it being added.
-
-<gap>Users cannot add a table from the admin app yet because its screens for tables and fields are not implemented.</gap>
 
 ### The switch
 
@@ -82,7 +80,7 @@ Measured with six fields per table on one machine running Postgres and the proce
 ## Adding tables and fields
 
 :::caution[Beta]
-Tables and fields are added through the API alone, and are never renamed, retyped or removed.
+Tables and fields are added through the API or the admin app, and are never renamed, retyped or removed.
 :::
 
 Someone with the right capability creates a table with its fields, or adds a field to it, through the app's API. It is created in the database at once, with an index for every field but JSON so its list can be filtered by it, and sorted by it unless it is long text, and only admins can see it until access is widened.
@@ -117,6 +115,24 @@ The answer has the table's record, so a client links to the new table at its `ta
 - **The rest of the app.** The process that made the change serves it before it answers, and every other process [within a second](#how-a-change-reaches-every-process). While a deploy freezes writes, a create answers as any write does then.
 
 Building an index holds the table's write lock, and every statement runs within the request's statement timeout (1 s by default). <gap>Adding a field to a table with very many records cannot finish when building its index takes longer than the statement timeout, because building it outside the request is not implemented; the field is then not added.</gap>
+
+## In the admin app
+
+:::caution[Beta]
+A table is made first and given its fields one by one, and a file cannot be imported into a new table yet.
+:::
+
+People who may add tables find **Tables** in the admin app, make a table with its fields and add fields later, on a computer or a phone. The new table appears in the sidebar at once.
+
+The screens are the admin app's standard list, record page and create forms over the [two resources](#adding-tables-and-fields), so they work the same in a browser, the installed web app and the native app, and come in [English and Dutch](/reference/languages/).
+
+- **Tables.** The sidebar's **Tables** group leads with a **Tables** entry, shown only to those who may create tables (`user_tables.create`, or admins without roles), and holds every table users added. The list shows each table's name and address.
+- **A new table.** **New table** asks for the plural label, the singular label and the name; the title field is set later, as no field exists yet. Saving opens the table's page.
+- **A table's page.** It shows the table's labels and name, and its fields in their order. **Add field** opens the form for a new field of the table, and **Open table** the table's own list, at its address. On a phone both sit in the top bar's **Record actions** menu.
+- **A new field.** The form asks for the label, the name, the type, chosen by its name in words, such as **Long text** or **Yes or no**, and the position, and for a decimal number its digits and decimals. Every field users add is optional, so the form does not ask.
+- **What changes later.** On a table's page, its labels and its title field, the name of one of its text fields; on a field's page, its label and position. The name, the type and a decimal's digits and decimals stay as made.
+
+<gap>A table cannot be made together with its fields in one form because a create form that adds related records is not implemented; each field is added from the table's page.</gap>
 
 ## Taking a table over as code
 

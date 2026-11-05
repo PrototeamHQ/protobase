@@ -24,12 +24,14 @@ import {
   Network,
   Play,
   Plug,
+  Plus,
   Power,
   RotateCw,
   RulerDimensionLine,
   Send,
   Server,
   Square,
+  Table2,
   Tag,
   Terminal,
   Upload,
@@ -76,6 +78,8 @@ const byName: Record<string, LucideIcon> = {
   memory: MemoryStick,
   plug: Plug,
   wrench: Wrench,
+  plus: Plus,
+  table: Table2,
 }
 
 /** The icon a name stands for, or nothing for a name the app does not know. */

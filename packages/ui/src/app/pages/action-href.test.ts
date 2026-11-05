@@ -40,6 +40,14 @@ describe('actionFor', () => {
     expect(actionFor(source, undefined)).toBeUndefined()
   })
 
+  it('shows a link to a resource the record names only once the app has that resource', () => {
+    const open: ActionModel = { name: 'open', label: 'Open table', bulk: false, run: { kind: 'link', to: { kind: 'list', resource: '{name}' } } }
+    expect(actionFor(open, { name: 'notes' }, { notes: {} })).toBe(open)
+    expect(actionFor(open, { name: 'notes' }, { tasks: {} })).toBeUndefined()
+    expect(actionFor(open, { name: null }, { notes: {} })).toBeUndefined()
+    expect(actionFor(open, { name: 'toString' })).toBeUndefined()
+  })
+
   it('leaves out an update on a record that holds its values already', () => {
     const markPaid: ActionModel = { name: 'markPaid', label: 'Mark as paid', bulk: false, run: { kind: 'update', values: { paid: true } } }
     expect(actionFor(markPaid, { paid: true })).toBeUndefined()

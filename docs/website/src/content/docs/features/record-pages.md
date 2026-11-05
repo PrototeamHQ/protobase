@@ -17,6 +17,7 @@ description: The page of one record, with its sections, related records, galleri
 - [Groups and tabs](/reference/ui-config/#groups): Parts of a record page sit under headings that open on click, or in tabs, and the open ones are kept in the address.
 - [Key facts](/reference/ui-config/#key-facts): A section shows its values side by side with icons.
 - [Confirming a change](/reference/ui-config/#confirming-a-change): A field that is easy to set by mistake asks a question before a person changes it in a form or a list cell, and Cancel keeps its value.
+- [Fields only once a record exists](/reference/ui-config/#names-and-columns): A view leaves a field off the create form, such as a choice among records added after it, and the record page shows it as usual.
 - [Help while editing](/reference/ui-config/#help-while-editing): Help lines meant for whoever changes a record show only on its form.
 - [Conditional sections](/reference/ui-config/#form-and-read-view): Sections and fields show only while editing, only while reading, or only when a condition on the record holds.
 - [Galleries](/reference/ui-config/#galleries): A record's photos show as tiles that open a full-screen lightbox, with keyboard and swipe navigation.
