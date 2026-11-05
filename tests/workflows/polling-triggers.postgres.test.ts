@@ -208,7 +208,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('polling triggers, turne
     // A trigger as a poll job left it, to claim by hand: the job's first try, then its retry under the same id.
     const [row] = (await sql<{ id: string }>`insert into workflows.triggers (workflow_id, version, tenant_id, type, input, status, generation, consecutive_failures, cursor, poll_job_id)
       values (${workflow.id}, 1, '1', 'feed:items', '{"feed":"j"}', 'active', 7, 0, '5', 'job-1') returning id`.execute(db)).rows
-    const { claimTrigger, savePoll } = await import('../../packages/server/src/workflows/triggers/trigger-claim')
+    const { claimTrigger, savePoll, setNextJob } = await import('../../packages/server/src/workflows/triggers/trigger-claim')
     const first = { trigger: row!.id, generation: 7, job: 'job-1', attempt: 1 }
     const retry = { ...first, attempt: 2 }
     expect(await claimTrigger(db, 'workflows', first)).toMatchObject({ cursor: 5 })
@@ -228,6 +228,10 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('polling triggers, turne
     expect(await claimTrigger(db, 'workflows', other)).toBeTruthy()
     expect(await savePoll(db, 'workflows', other, [{ key: 'new', data: 2 }], outcome)).toEqual([])
     expect((await runsOf(workflow.id)).map((run) => run.key)).toEqual(['new'])
+    // A restart names a new job while a try of the last one still holds its claim: the new job's first try claims it.
+    expect(await claimTrigger(db, 'workflows', other)).toBeTruthy()
+    await setNextJob(db, 'workflows', row!.id, 'job-4')
+    expect(await claimTrigger(db, 'workflows', { ...other, job: 'job-4' })).toBeTruthy()
     await sql`delete from workflows.triggers where id = ${row!.id}`.execute(db)
   })
 

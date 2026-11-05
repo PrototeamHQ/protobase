@@ -77,9 +77,12 @@ export const savePluginFailure = async (trx: Db, schema: string, claim: ClaimKey
   return rows.length > 0
 }
 
-/** Names the job that polls or renews the trigger next, on the row the transaction holds locked. */
+/**
+ * Names the job that polls or renews the trigger next, on the row the transaction holds locked. The new job's tries
+ * count from one, so a claim an older job's try still holds is dropped with it.
+ */
 export const setNextJob = async (trx: Db, schema: string, trigger: string, job: string) => {
-  await sql`update ${sql.id(schema, 'triggers')} set poll_job_id = ${job} where id = ${trigger}`.execute(trx)
+  await sql`update ${sql.id(schema, 'triggers')} set poll_job_id = ${job}, poll_attempt = null where id = ${trigger}`.execute(trx)
 }
 
 /**
