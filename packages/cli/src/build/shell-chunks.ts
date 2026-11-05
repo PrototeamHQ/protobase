@@ -38,6 +38,6 @@ export const shellCodeSplitting = {
   groups: [
     { name: 'react', test: isReactModule, priority: 2 },
     { name: 'vendor', test: (id: string) => isVendorModule(id) || id === preloadHelper, tags: ['$initial' as const], priority: 1 },
-    { name: libChunkName, test: isVendorModule },
+    { name: libChunkName, debugName: 'lib', test: isVendorModule },
   ],
 }
