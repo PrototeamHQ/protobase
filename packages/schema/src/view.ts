@@ -291,11 +291,12 @@ export class ViewBuilder<R extends {
   }
 
   /**
-   * Whether the list page offers Import, which creates or updates records from an .xlsx or CSV file the user picks
-   * (`true`, the default, to users who may create records); `.import(false)` turns it off. See
+   * Whether the list page offers Import, which creates or updates records from an .xlsx, CSV or JSON file the user
+   * picks (`true`, the default, to users who may create records); `.import(false)` turns it off. `.import('table')`
+   * makes it a new table users add from the file instead, as the Tables list of user tables does. See
    * [Importing records](docs/website/src/content/docs/reference/ui-config.mdx#importing-records).
    */
-  import(enabled: boolean) {
+  import(enabled: boolean | 'table') {
     return this.next({ import: enabled })
   }
 

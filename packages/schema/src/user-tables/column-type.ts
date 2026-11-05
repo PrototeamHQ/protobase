@@ -57,7 +57,7 @@ export const columnTypeReader = () => {
   }
 
   /** The decimal that holds every number of the column, for a column of numbers or one changed to a decimal. */
-  const decimal = (): ColumnType => {
+  const decimal = (): ColumnType & { precision: number; scale: number } => {
     const precision = Math.min(maxPrecision, Math.max(wholeDigits, minWholeDigits) + scale)
     return { type: 'decimal', precision, scale: Math.min(scale, precision) }
   }

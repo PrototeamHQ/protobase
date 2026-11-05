@@ -345,6 +345,7 @@
         "creatorsOnly": true,
         "order": 0
       },
+      "import": "table",
       "list": {
         "sort": [
           [

@@ -7,7 +7,12 @@ import { text as message } from './messages'
  * How the file writes what is ambiguous in text: the decimal separator of numbers (`1,234.5` or `1.234,5`), and whether
  * a date such as 03/04/2026 starts with the day or the month. ISO dates (2026-04-03) read the same either way.
  */
-export type ConvertOptions = { decimal: DecimalSeparator; dateOrder: 'dmy' | 'mdy' }
+export type ConvertOptions = {
+  decimal: DecimalSeparator
+  dateOrder: 'dmy' | 'mdy'
+  /** A true or false cell fills a text field as the file shows it (TRUE or FALSE), as in a table made from the file. */
+  booleanText?: boolean
+}
 
 export type Converted = { ok: true; value: unknown } | { ok: false; problem: string }
 
@@ -114,7 +119,8 @@ const enumValue = (field: FieldModel, hints: FieldViewModel | undefined, cell: S
   return problem(message('notOneOf', { cell: quoted(cell), values: values.map((value) => enumLabel(value, hints?.valueLabels)).join(', ') }))
 }
 
-const textValue = (cell: SheetCell): Converted => (typeof cell === 'boolean' ? problem(message('notText', { cell: quoted(cell) })) : ok(cellText(cell)))
+const textValue = (cell: SheetCell, options: ConvertOptions): Converted =>
+  typeof cell === 'boolean' && !options.booleanText ? problem(message('notText', { cell: quoted(cell) })) : ok(cellText(cell))
 
 // A JSON file's value as it is: a nested object or array, or a string, number or boolean
 const jsonValue = (cell: SheetCell): Converted => (isSheetJson(cell) ? ok(cell.json) : ok(cell))
@@ -146,7 +152,7 @@ export const convertCell = (field: FieldModel, hints: FieldViewModel | undefined
     case 'uuid':
     case 'currency':
     case 'country':
-      return textValue(cell)
+      return textValue(cell, options)
     default:
       throw new Error(`Not implemented: importing ${field.type} fields, which importableFields leaves out`)
   }

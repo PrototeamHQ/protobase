@@ -1459,8 +1459,11 @@ export type ViewModel = {
   signIn?: SignInPromptModel
   /** The list page's button that saves its filter as a search of the user's own. */
   saveSearch?: SaveSearchModel
-  /** Whether the list page offers Import, which creates or updates records from an .xlsx or CSV file; it does when omitted. */
-  import?: boolean
+  /**
+   * Whether the list page offers Import, which creates or updates records from an .xlsx, CSV or JSON file; it does when
+   * omitted. `table` makes it a new table users add from the file, with its fields and records.
+   */
+  import?: boolean | 'table'
   /** The list page shows the user's saved searches of another resource, each with what it finds, instead of rows. */
   searchesOf?: SearchesOfModel
   /** Whether the list page offers Export, and the most rows a file holds; offered without a limit when omitted. */
