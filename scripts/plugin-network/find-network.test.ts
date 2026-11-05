@@ -12,11 +12,18 @@ describe('findNetworkUses', () => {
     ['dynamic-import', ['1: import()']],
     ['require', ['1: require']],
     ['web-socket', ['1: WebSocket']],
+    ['declared-fetch', ['2: fetch']],
+    ['process', ['1: process']],
+    ['global-object', ['1: global']],
   ])('refuses %s', (name, expected) => {
     expect(found(name)).toEqual(expected)
   })
 
   it("takes the context's fetch, read from it or destructured", () => {
     expect(found('context-fetch')).toEqual([])
+  })
+
+  it('takes a type that names a global, which sends nothing', () => {
+    expect(found('type-only')).toEqual([])
   })
 })

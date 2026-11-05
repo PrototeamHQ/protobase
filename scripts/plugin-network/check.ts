@@ -9,7 +9,7 @@ import { findNetworkUses } from './find-network'
 
 const root = path.join(import.meta.dirname, '../../packages/workflow-plugins/src')
 const files = readdirSync(root, { recursive: true, encoding: 'utf8' })
-  .filter((name) => name.endsWith('.ts') && !/\.(test|d)\.ts$/.test(name))
+  .filter((name) => /\.[mc]?tsx?$/.test(name) && !/\.(test|d)\.[mc]?tsx?$/.test(name))
   .map((name) => path.join(root, name))
 const uses = findNetworkUses(files)
 for (const use of uses) console.error(`${path.relative(process.cwd(), use.file)}:${use.line}: ${use.what} is a way out besides the plugin context's fetch`)
