@@ -14,11 +14,30 @@ vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
 // A webhook type whose plugin fails on every call, and one subscribed at its provider, which a delete unsubscribes.
 const unsubscribed: unknown[] = []
+// A webhook type whose plugin holds each call until the test lets it go, and says when it holds one.
+const gate = () => {
+  let open = () => {}
+  const promise = new Promise<void>((resolve) => void (open = resolve))
+  return { promise, open }
+}
+let holding = gate()
+let release = gate()
 const fixtures = definePlugin({
   name: 'fixture',
   label: 'Fixture',
   triggers: {
     broken: { kind: 'webhook', label: 'Broken', description: 'Fails every call.', input: { type: 'object', properties: webhookInputProperties }, receive: async () => { throw new Error('the plugin broke') } },
+    held: {
+      kind: 'webhook',
+      label: 'Held',
+      description: 'Holds each call until the test lets it go.',
+      input: { type: 'object', properties: webhookInputProperties },
+      receive: async ({ event }) => {
+        holding.open()
+        await release.promise
+        return { items: [{ data: event }] }
+      },
+    },
     subscribed: {
       kind: 'webhook',
       label: 'Subscribed',
@@ -320,6 +339,18 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     const response = await live.request(hook.url, { method: 'POST', body, headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.9', 'webhook-id': id, 'webhook-timestamp': String(at), 'webhook-signature': sign(hook.secret, id, at, body) } })
     expect(response.status).toBe(202)
     expect(await runsOf(hook.id)).toHaveLength(1)
+  })
+
+  it('starts no run for a call that was taken while its workflow was turned off', async () => {
+    holding = gate()
+    release = gate()
+    const hook = await hooked({}, 'ada', 'fixture:held')
+    const response = signed(hook.url, hook.secret)
+    await holding.promise
+    expect((await enable('ada', hook.id, null)).status).toBe(200)
+    release.open()
+    expect((await response).status).toBe(404)
+    expect(await runsOf(hook.id)).toEqual([])
   })
 
   it('stops a deleted workflow\'s subscribed trigger, ending its subscription with its state', async () => {

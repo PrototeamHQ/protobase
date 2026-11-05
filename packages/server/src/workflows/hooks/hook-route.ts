@@ -100,6 +100,7 @@ export const hookRoute = (input: HookRouteInput) => {
       const problem = itemsProblem(items, file ? 1 : itemCeiling, false)
       if (problem) throw new Error(`The webhook trigger ${target.type} ${problem}`)
       const ids = await startHookRuns(db, schema, target, items, runId)
+      if (!ids) throw refused(notFound('There is no webhook at this address'))
       started = ids[0] === runId
       if (response) return response
       return ids.length === 1 ? c.json({ run_id: ids[0] }, 202) : c.json({ run_ids: ids }, 202)
