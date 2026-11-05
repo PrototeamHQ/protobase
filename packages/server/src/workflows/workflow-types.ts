@@ -35,7 +35,8 @@ type Models = (name: string) => ResourceModel | undefined
 export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Models = () => undefined) => {
   const plugins = loadPlugins([{ plugin: appPlugin, source: '@protobase/workflow-plugins' }, ...loaded])
   const types = typeList(plugins, unavailable)
-  const available = new Set(types.filter((type) => type.available).map((type) => type.id))
+  // Trigger types only: a step's id never makes a trigger available.
+  const available = new Set(types.filter((type) => type.kind !== 'step' && type.available).map((type) => type.id))
   const ready = readyTriggers(plugins)
   const steps = types.filter((type) => type.kind === 'step' && type.available)
   const own = triggerChecks(plugins)
