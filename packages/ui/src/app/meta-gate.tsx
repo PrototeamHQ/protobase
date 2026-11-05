@@ -56,6 +56,8 @@ const WithSources = ({ meta, children }: { meta: MetaData; children: ReactNode }
 
 // Below `AppLocale`, which draws it anew when the language changes, so the built-in views read the language it sets.
 const TranslatedMeta = ({ meta, children }: { meta: MetaData; children: ReactNode }) => {
+  // `[meta]` is enough: `AppLocale` renders its children under `key={active}`, so a language switch remounts this
+  // component and the memo runs again in the new language.
   const translated = useMemo(() => withTranslatedViews(meta), [meta])
   return <MetaContext.Provider value={translated}>{children}</MetaContext.Provider>
 }
