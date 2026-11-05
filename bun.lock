@@ -92,6 +92,7 @@
         "@protobase/schema": "workspace:*",
         "@protobase/server": "workspace:*",
         "@protobase/ui": "workspace:*",
+        "@protobase/workflows": "workspace:*",
         "@react-email/render": "^2.1.0",
         "@scalar/hono-api-reference": "^0.12.10",
         "@sentry/vite-plugin": "^11.10.0",
