@@ -26,10 +26,12 @@ const runStore = (files: FilesRuntime | undefined) => {
 
 /**
  * Stores bytes a step of the run got, such as an answer's body, as a file of the run's own, under a name of the
- * runner's choosing: no part of its path comes from the workflow or the answer.
+ * runner's choosing: no part of its path comes from the workflow or the answer. At most `runFileLimit` bytes.
  */
 export const storeRunFile = async (files: FilesRuntime | undefined, runId: string, bytes: Uint8Array, name: string, type: string): Promise<FileValue> => {
   const store = runStore(files)
+  // A file larger than a run reads back would be kept for nothing.
+  if (bytes.length > runFileLimit) throw new StepError('States.TaskFailed', `${cleanName(name)} is larger than ${runFileLimit / 1024 / 1024} MiB, the most a run keeps of one file`)
   const path = `${prefix(runId)}${crypto.randomUUID()}`
   await store.put(path, new Blob([bytes as BlobPart]).stream())
   const clean = cleanName(name)
