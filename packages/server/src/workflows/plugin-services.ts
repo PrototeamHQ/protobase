@@ -21,5 +21,5 @@ export const runFiles = (files: () => FilesRuntime | undefined, runId: string): 
 /** What the app gives a plugin's step in a run: the guarded fetch, records as the saver, the run's files and the mailer. */
 export const pluginServices = ({ deps, schema, roles, allowPrivateAddresses }: ServicesInput, mail: Mailer | undefined) => {
   const fetch = pluginFetch({ allowPrivateAddresses })
-  return (task: TaskContext): PluginServices => ({ fetch, records: pluginRecords({ deps, schema, roles }, task.runId), files: runFiles(() => deps().files, task.runId), mail })
+  return (task: TaskContext): PluginServices => ({ fetch, records: pluginRecords({ deps, schema, roles }, task.runId, task.idempotencyKey), files: runFiles(() => deps().files, task.runId), mail })
 }

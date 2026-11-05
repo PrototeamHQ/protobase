@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 5
+export const workflowsVersion = 6
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -128,6 +128,20 @@ create index if not exists "triggers_updated_at" on ${s}."triggers" ("updated_at
 create index if not exists "triggers_status_type" on ${s}."triggers" ("status", "type");
 create index if not exists "triggers_connection" on ${s}."triggers" ("connection_id");
 create index if not exists "triggers_tenant" on ${s}."triggers" ("tenant_id")`
+}
+
+/**
+ * What a step that changes records kept under its idempotency key, written with its records, so a retry of the step
+ * after they committed writes nothing and returns them. Its rows go with their run.
+ */
+export const effectsSql = (schema: string) => {
+  const s = quoteIdent(schema)
+  return `create table if not exists ${s}."effects" (
+  "run_id" uuid not null references ${s}."runs" ("id") on delete cascade,
+  "key" text not null,
+  "result" jsonb,
+  primary key ("run_id", "key")
+)`
 }
 
 /** An index for each filter and sort the API takes, and pg_trgm ones for the search over names. */
