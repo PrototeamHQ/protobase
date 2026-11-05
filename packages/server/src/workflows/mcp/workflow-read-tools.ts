@@ -1,6 +1,7 @@
+import type { ResourceModel } from '@protobase/schema'
 import { checkDefinition, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
-import { defineTool } from '../../assistant/tools'
+import { defineTool, type ToolContext } from '../../assistant/tools'
 import { mergePatch } from './merge-patch'
 import { typeCatalog } from './type-catalog'
 import { definitionParameter, editParameter, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
@@ -8,8 +9,11 @@ import { definitionParameter, editParameter, idOf, idParameter, objectOf, pageSi
 const reads = { readOnlyHint: true, openWorldHint: false }
 const listed = ['id', 'name', 'description', 'version', 'updated_at']
 
-/** The app's types, which the tools list and check definitions against. */
-export type WorkflowCatalog = { types: readonly TypeEntry[]; check: CheckOptions }
+/**
+ * The app's types, which the tools list and check definitions against: `checkWith` checks against the resources it is
+ * given, so a check names only what its caller may read.
+ */
+export type WorkflowCatalog = { types: readonly TypeEntry[]; checkWith: (models: (name: string) => ResourceModel | undefined) => CheckOptions }
 
 /** The step types and triggers a definition may name, with their arguments, results, errors and run inputs. */
 const listWorkflowTypesTool = (catalog: WorkflowCatalog) => defineTool({
@@ -52,8 +56,11 @@ export const getWorkflowTool = defineTool({
   },
 })
 
-const checked = (definition: unknown, check: CheckOptions) => {
-  const problems = checkDefinition(definition, check)
+// Checked against the resources the caller may read, each with their fields only, so a problem tells them nothing of a
+// resource or field hidden from them: one they cannot read is "not a resource of this app".
+const checked = async (definition: unknown, catalog: WorkflowCatalog, context: ToolContext) => {
+  const { models } = await context.resources()
+  const problems = checkDefinition(definition, catalog.checkWith((name) => models.find((model) => model.name === name)))
   return JSON.stringify(problems.length > 0 ? { valid: false, problems } : { valid: true })
 }
 
@@ -66,8 +73,8 @@ const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
   run: async (args, context) => {
     const id = idOf(args)
     const edit = objectOf(args.edit)
-    if (args.definition !== undefined && id === undefined && edit === undefined) return checked(args.definition, catalog.check)
-    if (args.definition === undefined && id && edit) return context.records.get('workflows', id).then(({ record }) => checked(mergePatch(record.definition, edit), catalog.check), refused)
+    if (args.definition !== undefined && id === undefined && edit === undefined) return checked(args.definition, catalog, context)
+    if (args.definition === undefined && id && edit) return context.records.get('workflows', id).then(({ record }) => checked(mergePatch(record.definition, edit), catalog, context), refused)
     return 'Pass either { "definition": { ... } } or { "id": "<id>", "edit": { ... } }.'
   },
 })
