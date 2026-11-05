@@ -54,6 +54,8 @@ const answerBody = async (bytes: Uint8Array, reading: string, url: URL, type: st
   }
 }
 
+const loggedUrl = (given: string) => given.replace(/^([^:/?#]+:\/\/)[^/?#]*@/, '$1').replace(/[?#].*$/, '')
+
 const send = async (context: StepContext) => {
   const { input, signal, log, redact } = context
   const { url, method, headers, reading } = checked(input)
@@ -66,9 +68,9 @@ const send = async (context: StepContext) => {
     throw new StepError('Http.Network', `No answer from ${url.host}: ${error instanceof Error ? error.message : String(error)}`)
   })
   const bytes = new Uint8Array(await answer.arrayBuffer())
-  // The URL as it was given, without its query: the runner blanks secrets out of logs as they were written, which the
-  // parsed URL's encoding of them would hide.
-  log(`${method} ${input.url as string}`.replace(/[?#].*$/, '') + `: ${answer.status} in ${Date.now() - started} ms`)
+  // The URL as it was given, without its user name and password or its query: the runner blanks secrets out of logs as
+  // they were written, which the parsed URL's encoding of them would hide.
+  log(`${method} ${loggedUrl(input.url as string)}: ${answer.status} in ${Date.now() - started} ms`)
   if (answer.status < 200 || answer.status > 299) {
     const excerpt = redact(new TextDecoder().decode(bytes)).slice(0, causeBodyLength)
     throw new StepError('Http.Status', `${url.host} answered ${answer.status}${excerpt ? `: ${excerpt}` : ''}`)
