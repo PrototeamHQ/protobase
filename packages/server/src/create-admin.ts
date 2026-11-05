@@ -491,17 +491,15 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
       app.route(storagePath, storageRoutes({ deps: storage, report }))
     }
   }
+  // Before the live stream's guard, which wants a token for everything under the system path: the webhook address takes none.
+  if (engine) app.route(hooksBase(systemPath), engine.routes.hooks())
   // After `/api/sb`, which the guard's token check under the system path would otherwise stand before.
   // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
   // With calls, the stream also tells each user's pages of the calls that ring them.
   if (appModels.some((model) => model.live) || deps.calls) {
     app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
   }
-  // Before the system endpoints, which want a token for everything under them: the webhook address takes none.
-  if (engine) {
-    app.route(hooksBase(systemPath), engine.routes.hooks())
-    app.route(`${systemPath}/workflows`, guarded((routes) => void routes.route('/', engine.routes.issue())))
-  }
+  if (engine) app.route(`${systemPath}/workflows`, guarded((routes) => void routes.route('/', engine.routes.issue())))
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)
   // Before the system endpoints, which want a token for everything under them

@@ -309,6 +309,19 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     expect((await issue('ada', workflow.id, 'whsec_c2hvcnQ=')).status).toBe(400)
   })
 
+  it('takes a signed call in an app with a live resource and no anonymous role, whose stream wants a token', async () => {
+    const hook = await hooked()
+    const module = workflowsModule(workflows)
+    const { resources, views } = configExports({ ...module, workflows: module.workflows.live() })
+    const live = createAdmin({ resources, views, db, authenticate: () => { throw Object.assign(new Error('no user'), { status: 401 }) }, workflows, options: { roles } })
+    const body = '{"event":"paid"}'
+    const id = 'msg_live'
+    const at = now()
+    const response = await live.request(hook.url, { method: 'POST', body, headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.9', 'webhook-id': id, 'webhook-timestamp': String(at), 'webhook-signature': sign(hook.secret, id, at, body) } })
+    expect(response.status).toBe(202)
+    expect(await runsOf(hook.id)).toHaveLength(1)
+  })
+
   it('stops a deleted workflow\'s subscribed trigger, ending its subscription with its state', async () => {
     const workflow = await save('ada', { 'fixture:subscribed': {} })
     await enable('ada', workflow.id, 1)
