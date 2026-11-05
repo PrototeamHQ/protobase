@@ -1,6 +1,6 @@
 import type { PollingTrigger } from '@protobase/workflows/plugin'
 
-// One cron field: `*`, a number, a range, a list or a step, as five-field cron writes them.
+// A field is a comma-separated list of any length, each item `*`, a number or a range, with an optional step.
 const cronField = /^(\*|\d+(-\d+)?)(\/\d+)?(,(\*|\d+(-\d+)?)(\/\d+)?)*$/
 
 const knownZone = (zone: string) => {
