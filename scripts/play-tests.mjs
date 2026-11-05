@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { chromium, errors as playwrightErrors } from 'playwright'
 import { routeFiles } from './lib/routed-files.mjs'
+import { withDeadline } from './play-tests/deadline.mjs'
 import { parseShard, shardOf } from './play-tests/shard.mjs'
 
 /**
@@ -19,14 +20,9 @@ const browser = await chromium.launch()
 // on Windows and Linux.
 const scrollbars = stories.some((story) => story.tags.includes('scrollbars')) ? await chromium.launch({ ignoreDefaultArgs: ['--hide-scrollbars'] }) : undefined
 
-// The error a story's play function raised, or undefined when it rendered and played.
-const playStory = async (story) => {
-  // The Storybook viewport toolbar does not apply when an iframe is opened directly, so phone stories get a phone-sized page,
-  // "keyboard" stories the part of an iPhone 17 above its keyboard, which the app shrinks the page to, and "wide" stories a
-  // desktop screen wider than a page's centred column beside the sidebar.
-  // Times show in the viewer's zone, so every page has the same one, whatever the machine's, and one that is not UTC.
-  const viewport = story.tags.includes('keyboard') ? { width: 402, height: 478 } : story.tags.includes('phone') ? { width: 360, height: 740 } : story.tags.includes('wide') ? { width: 1920, height: 1080 } : { width: 1280, height: 720 }
-  const context = await (story.tags.includes('scrollbars') ? scrollbars : browser).newContext({ viewport, timezoneId: 'Europe/Amsterdam' })
+// The error a story's play function raised, or undefined when it rendered and played. `progress.step` says what it
+// waits on, for a story that hangs.
+const playIn = async (context, story, progress) => {
   const base = await routeFiles(context, storybookDir)
   const page = await context.newPage()
   // Storybook installs its channel by assigning this global; an accessor attaches the listeners in that same assignment,
@@ -53,23 +49,46 @@ const playStory = async (story) => {
   const logged = []
   page.on('console', (message) => message.type() === 'error' && logged.push(message.text()))
   page.on('requestfailed', (request) => logged.push(`${request.failure()?.errorText} ${request.url()}`))
+  progress.step = 'opening the page'
   await page.goto(`${base}/iframe.html?id=${story.id}&viewMode=story`)
+  progress.step = 'waiting for a Storybook event'
   // A page whose Storybook runtime never loaded sends no event at all; it fails with the page's console errors and failed
   // requests.
   const settled = await page.waitForFunction(() => window.__sbEvents?.length > 0, null, { timeout: 30_000 }).catch((error) => {
     if (error instanceof playwrightErrors.TimeoutError) return undefined
     throw error
   })
+  progress.step = 'reading what Storybook sent'
   if (!settled) {
     const phase = await page.evaluate(() => window.__sbPhase ?? 'no channel installed')
-    await context.close()
     return { name: 'noStoryEvent', message: [`Storybook sent no event within 30 s (last phase: ${phase})`, ...logged].join('\n  ') }
   }
   const events = await page.evaluate(() => window.__sbEvents.map((event) => ({ name: event.name, message: String(event.payload?.message ?? event.payload?.description ?? '') })))
-  await context.close()
   const error = events.find((event) => event.name !== 'storyRendered')
   if (!error) return undefined
   return { ...error, message: error.message || logged.join('\n  ') }
+}
+
+// A story's whole time, above the 30 s Storybook gets to send an event; the slowest stories take under 10 s.
+const storySeconds = 60
+const timedOut = Symbol('timed out')
+
+// A story that has not finished within storySeconds fails, naming what it waited on, and its context closes, so the run
+// goes on with the next story (play-tests/deadline.mjs).
+const playStory = async (story) => {
+  // The Storybook viewport toolbar does not apply when an iframe is opened directly, so phone stories get a phone-sized page,
+  // "keyboard" stories the part of an iPhone 17 above its keyboard, which the app shrinks the page to, and "wide" stories a
+  // desktop screen wider than a page's centred column beside the sidebar.
+  // Times show in the viewer's zone, so every page has the same one, whatever the machine's, and one that is not UTC.
+  const viewport = story.tags.includes('keyboard') ? { width: 402, height: 478 } : story.tags.includes('phone') ? { width: 360, height: 740 } : story.tags.includes('wide') ? { width: 1920, height: 1080 } : { width: 1280, height: 720 }
+  const context = await (story.tags.includes('scrollbars') ? scrollbars : browser).newContext({ viewport, timezoneId: 'Europe/Amsterdam' })
+  const progress = { step: 'setting up the page' }
+  const outcome = await withDeadline(playIn(context, story, progress), storySeconds * 1000, timedOut)
+  await context.close()
+  // Closing the context ends the calls still waiting on its page: they fail as their target closed, which the timeout
+  // below stands for.
+  if (outcome !== timedOut) return outcome
+  return { name: 'storyTimedOut', message: `did not finish within ${storySeconds} s while ${progress.step}` }
 }
 
 // Four pages at a time: a story mostly waits on rendering. Results print in story order.
