@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { formatDateTime, formatTime } from '../../../format/date'
+import { formatDateTime } from '../../../format/date'
+import { formatTag } from '../../../locale/active-locale'
 import { Badge } from '../../../primitives/badge'
 import { AppLink } from '../../use-app-address'
 import { JsonBlock } from '../json/json-block'
@@ -19,11 +20,14 @@ export const Part = ({ title, children }: { title: string; children: ReactNode }
 )
 
 
+// A log line's time to the second, on the viewer's clock: a step's lines are often within the same minute
+const logTime = (at: string) => new Intl.DateTimeFormat(formatTag(), { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(Date.parse(at))
+
 const Logs = ({ logs }: { logs: NonNullable<StepRow['logs']> }) => (
   <ol className="grid gap-0.5 rounded-md bg-muted/60 px-3 py-2 font-mono text-xs">
     {logs.map((line, index) => (
       <li key={index} className="whitespace-pre-wrap break-words">
-        <time dateTime={line.at} className="text-muted-foreground">{formatTime(Date.parse(line.at))}</time> {line.message}
+        <time dateTime={line.at} className="text-muted-foreground">{logTime(line.at)}</time> {line.message}
       </li>
     ))}
   </ol>
