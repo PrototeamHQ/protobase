@@ -237,7 +237,7 @@ describe('checkDefinition, the rules of the decided profile', () => {
 
   it("refuses a Task without an argument its step type needs, unless its Arguments is one expression", () => {
     const task = (Arguments: unknown) => ({ QueryLanguage: 'JSONata', StartAt: 'Fetch', States: { Fetch: { Type: 'Task', Resource: 'http', ...(Arguments !== undefined && { Arguments }), End: true } } })
-    const withRequired = (Arguments: unknown) => checkDefinition({ trigger: { manual: {} }, stateMachine: task(Arguments) }, { resources: ['http'], required: { http: ['url'] } }).map(problemText)
+    const withRequired = (Arguments: unknown) => checkDefinition({ trigger: { manual: {} }, stateMachine: task(Arguments) }, { resources: ['http'], required: { http: ['url'] }, triggers }).map(problemText)
     expect(withRequired({ method: 'GET' })).toEqual(['State "Fetch", field "Arguments.url": is missing; http needs it'])
     expect(withRequired(undefined)).toEqual(['State "Fetch", field "Arguments.url": is missing; http needs it'])
     expect(withRequired({ url: '' })).toEqual(['State "Fetch", field "Arguments.url": is missing; http needs it'])
