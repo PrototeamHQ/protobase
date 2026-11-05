@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { checkDefinition } from './check-definition'
 import { schemaProblems } from './check-schema'
 import { problemText } from './problem'
+import type { Trigger } from './types'
 
 const triggers = { 'app:schedule': (input: Record<string, unknown>) => (typeof input.cron === 'string' ? [] : [{ field: 'cron', message: 'is missing' }]), 'acme:new_order': () => [] }
 const check = (machine: object, trigger: object = { manual: {} }) => checkDefinition({ trigger, stateMachine: machine }, { resources: ['http'], triggers }).map(problemText)
@@ -188,6 +189,9 @@ describe('checkDefinition, the rules of the decided profile', () => {
     // The exported schema refuses it too, without the trigger types a check is given.
     expect(schemaProblems({ trigger: { manual: { at: 1 } }, stateMachine: machine })).toEqual([{ field: 'trigger.manual', message: 'takes no input' }])
     expect(check(machine, { Webhook: {} })).toContain('Field "trigger": names a trigger type <plugin>:<key>, such as app:record, or manual')
+    // @ts-expect-error The Trigger type takes only manual and <plugin>:<key>, as the schema does.
+    const legacy: Trigger = { record: { events: [] } }
+    expect(check(machine, legacy)).toContain('Field "trigger": names a trigger type <plugin>:<key>, such as app:record, or manual')
   })
 
   it('refuses Parallel, more than 19 retries, more than 20 at once and a state name used twice', () => {
