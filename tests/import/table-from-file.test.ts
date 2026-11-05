@@ -1,6 +1,7 @@
 import { Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createClient } from '@protobase/client'
+import { defineRoles } from '@protobase/schema'
 import { createAdmin } from '../../packages/server/src/create-admin'
 import { readDefinitionsVersion } from '../../packages/server/src/user-tables/definitions-version'
 import { reloadingAdmin } from '../../packages/server/src/user-tables/reloading-admin'
@@ -15,6 +16,8 @@ import { memorySheetSource } from '../../packages/ui/src/app/import/sheet-source
 import { as, testAuthenticator } from '../../test-support/server'
 import { openSnapshotDb, type SnapshotDb } from '../../test-support/sql-snapshot'
 
+const roles = defineRoles({ admin: ['*'] })
+
 // A file made into a table through the real API: the table and its fields in one batch, then the rows as Import writes
 // them, each field filterable on the list
 describe('a table from a file', () => {
@@ -26,7 +29,7 @@ describe('a table from a file', () => {
     pg = await openSnapshotDb('empty')
     db = new Kysely({ dialect: pg.dialect })
     await pg.exec((await userTablesMigration(db))!)
-    const build = (tables: Awaited<ReturnType<typeof userTableResources>>) => createAdmin({ resources: [], userTables: tables, db, authenticate: testAuthenticator, options: {} })
+    const build = (tables: Awaited<ReturnType<typeof userTableResources>>) => createAdmin({ resources: [], userTables: tables, db, authenticate: testAuthenticator, options: { roles } })
     const app = reloadingAdmin({ first: build(await userTableResources(db)), version: await readDefinitionsVersion(db), readVersion: () => readDefinitionsVersion(db), readTables: () => userTableResources(db), build })
     client = createClient({ baseUrl: 'http://localhost/api/v1', fetch: async (input, init) => app.request(String(input), { ...init, headers: { ...Object.fromEntries(new Headers(init?.headers)), ...as(1, 'admin') } }) })
   })
