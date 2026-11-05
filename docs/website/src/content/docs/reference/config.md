@@ -140,6 +140,7 @@ The other files belong to an option, and are described with it:
 | `jobs/<name>.ts` | [`jobs`](/reference/config/jobs-and-events/#jobs) |
 | `webhooks/owner-roles.ts` | [`webhooks`](/reference/config/jobs-and-events/#webhooks) |
 | `workflows/saved-by-roles.ts` | [`workflows`](/reference/config/jobs-and-events/#workflows) |
+| `workflows/plugins/<name>.ts` | [`workflows.plugins`](/reference/config/jobs-and-events/#workflowsplugins) |
 | `notifications/store.ts`, `notifications/history-store.ts`, `notifications/senders.ts` | [`notifications`](/reference/config/jobs-and-events/#notifications) |
 | `files/<name>.ts` | [`files.providers`](/reference/config/files/#filesproviders) |
 
@@ -162,6 +163,7 @@ export default defineUi({ extends: [tasksUi] })
 | assistant tools of `assistant/tools.ts` | the extensions' first, in order, then the app's | an error naming the tool and both folders |
 | MCP tools of `mcp/tools.ts` | the extensions' first, in order, then the app's | an error naming the tool and both folders |
 | `jobs`, functions, file providers (`files.providers`) | all kept, by name | an error naming the name and both folders |
+| workflow plugins of `workflows/plugins/` | all kept | an error naming the plugin and both sources |
 | `files.trustedHosts` | all kept | |
 | the other keys of `files` | each the app's own; otherwise the last config that sets it | |
 | `writeHooks` | all run, in the same order | |
