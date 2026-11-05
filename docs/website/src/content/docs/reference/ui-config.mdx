@@ -453,7 +453,7 @@ view<typeof auditLog>('audit_log').export(false)
 
 ## Importing records
 
-A list page offers **Import** beside **New** to a user who may create the resource's records; `.import(false)` on the view turns it off. It opens a dialog that creates or updates records from an Excel workbook (`.xlsx`), a CSV file (UTF-8, its delimiter a comma, semicolon or tab, found from the first line) or a JSON file (`.json`, UTF-8) that holds an array of objects. See [Importing records from a spreadsheet](/guides/import-records/) for a walk through.
+A list page offers **Import** beside **New** to a user who may create the resource's records; `.import(false)` on the view turns it off, and `.import('table')` makes it [a new table from the file](/reference/user-tables/#a-table-from-a-file) instead, as the **Tables** list of [user tables](/reference/user-tables/) does. It opens a dialog that creates or updates records from an Excel workbook (`.xlsx`), a CSV file (UTF-8, its delimiter a comma, semicolon or tab, found from the first line) or a JSON file (`.json`, UTF-8) that holds an array of objects. See [Importing records from a spreadsheet](/guides/import-records/) for a walk through.
 
 ```ts
 view<typeof invoices>('invoices').import(false)
