@@ -8,7 +8,7 @@ const resources = recorded.resources as unknown as ResourceModel[]
 const views = recorded.views as unknown as ViewModel[]
 const permissions = recorded.permissions as unknown as Record<string, ResourcePermissions>
 
-const notesTable = { id: 1, name: 'notes', singular_label: 'Note', plural_label: 'Notes', title_field: 'title', version: 3 }
+const notesTable = { id: 1, name: 'notes', table_name: 'notes', singular_label: 'Note', plural_label: 'Notes', title_field: 'title', version: 3 }
 const notesFields = [
   { table_id: 1, name: 'title', label: 'Title', type: 'text', required: false, position: 1, precision: null, scale: null },
   { table_id: 1, name: 'body', label: 'Body', type: 'long_text', required: false, position: 2, precision: null, scale: null },
@@ -27,7 +27,10 @@ export const fakeUserTables = ({ made = true }: { made?: boolean } = {}): { clie
     permissions,
     rows: { user_tables: made ? [notesTable] : [], user_table_fields: made ? notesFields : [], notes: [{ id: 1, title: 'First note', body: 'Written on a phone.' }] },
     afterWrite: (resource, row) => {
-      if (resource === 'user_tables' && row.name === 'notes') served = true
+      if (resource !== 'user_tables') return
+      // The database names the table after the definition, as it does in an app without organizations.
+      row.table_name ??= row.name
+      if (row.name === 'notes') served = true
     },
   })
   const meta: Client['meta'] = async (etag) => {

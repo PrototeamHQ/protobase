@@ -82,10 +82,10 @@ describe('tables defined in the database', () => {
     const document = await (await call('admin', '/api/openapi.json')).json()
     expect(Object.keys(document.paths)).toEqual(expect.arrayContaining(['/orders', '/notes', '/notes/{key}']))
   })
-  it('gives an admin the views tables are made in, with the link to a table by its name', async () => {
+  it('gives an admin the views tables are made in, with the link to a table at its address', async () => {
     const meta = await (await call('admin', '/api/meta')).json()
     const tablesView = meta.views.find((shown: { resource: string }) => shown.resource === 'user_tables')
-    expect(tablesView.actions.map((action: { run: unknown }) => action.run)).toContainEqual({ kind: 'link', to: { kind: 'list', resource: '{name}' } })
+    expect(tablesView.actions.map((action: { run: unknown }) => action.run)).toContainEqual({ kind: 'link', to: { kind: 'list', resource: '{table_name}' } })
     // The admin app's stories of tables users add stand on this answer.
     const shown = ['user_tables', 'user_table_fields', 'notes']
     const recorded = {

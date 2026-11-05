@@ -72,6 +72,19 @@
           "default": {
             "db": true
           }
+        },
+        "table_name": {
+          "name": "table_name",
+          "column": "table_name",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": [],
+          "default": {
+            "db": true
+          }
         }
       },
       "primaryKey": [
@@ -301,7 +314,7 @@
             "kind": "link",
             "to": {
               "kind": "list",
-              "resource": "{name}"
+              "resource": "{table_name}"
             }
           }
         },

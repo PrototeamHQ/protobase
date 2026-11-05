@@ -128,7 +128,7 @@ The screens are the admin app's standard list, record page and create forms over
 
 - **Tables.** The sidebar's **Tables** group leads with a **Tables** entry, shown only to those who may create tables (`user_tables.create`, or admins without roles), and holds every table users added. The list shows each table's name and address.
 - **A new table.** **New table** asks for the plural label, the singular label and the name; the title field is set later, as no field exists yet. Saving opens the table's page.
-- **A table's page.** It shows the table's labels and name, and its fields in their order. **Add field** opens the form for a new field of the table, and **Open table** the table's own list, at `/<name>`. On a phone both sit in the top bar's **Record actions** menu.
+- **A table's page.** It shows the table's labels and name, and its fields in their order. **Add field** opens the form for a new field of the table, and **Open table** the table's own list, at its address. On a phone both sit in the top bar's **Record actions** menu.
 - **A new field.** The form asks for the label, the name, the type, chosen by its name in words, such as **Long text** or **Yes or no**, and the position, and for a decimal number its digits and decimals. Every field users add is optional, so the form does not ask.
 - **What changes later.** On a table's page, its labels and its title field, the name of one of its text fields; on a field's page, its label and position. The name, the type and a decimal's digits and decimals stay as made.
 
