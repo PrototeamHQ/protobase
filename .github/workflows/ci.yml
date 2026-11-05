@@ -180,6 +180,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # In the image git runs as root on a checkout the runner's user owns, and refuses it unless it is marked safe.
+      - if: runner.environment == 'github-hosted'
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - if: runner.environment != 'github-hosted'
         uses: oven-sh/setup-bun@v2
         with:
