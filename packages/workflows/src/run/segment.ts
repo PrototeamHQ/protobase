@@ -18,8 +18,8 @@ export type SegmentInput = {
   redactor: Redactor
   /** The steps the run saved so far. */
   saved: readonly SavedStep[]
-  /** Saves a step in one guarded statement: false when its scope and seq are taken. */
-  save: (step: StepRecord) => Promise<boolean>
+  /** Saves steps in one guarded statement: false when any of their scopes and seqs is taken. */
+  save: (steps: readonly StepRecord[]) => Promise<boolean>
   tasks: TaskHandlers
   signal: AbortSignal
   now?: () => Date
@@ -41,6 +41,15 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     else byScope.set(step.scope, [step])
   }
   let superseded = false
+  // Steps kept until the next checkpoint saves them: the next segment runs again those of a segment that died first.
+  let kept: StepRecord[] = []
+  const write = async () => {
+    const steps = kept
+    kept = []
+    if (steps.length === 0 || (await save(steps))) return
+    superseded = true
+    throw new SupersededError(`Step ${steps[0]!.seq} of scope "${steps[0]!.scope}" was saved by another segment`)
+  }
   const context = {
     runId,
     stateContext: { Execution: { Input: input, StartTime: startedAt.toISOString() }, Secrets: secrets },
@@ -50,17 +59,18 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     now,
     deadline: Date.now() + budgetMs,
     saved: byScope,
-    save: async (step: StepRecord) => {
-      if (await save(step)) return
-      superseded = true
-      throw new SupersededError(`Step ${step.seq} of scope "${step.scope}" was saved by another segment`)
+    save: async (step: StepRecord, checkpoint: boolean) => {
+      kept.push(step)
+      if (checkpoint) await write()
     },
     superseded: () => superseded,
     steps: { count: saved.length },
     maxSteps,
   }
   try {
-    return await runScope(context, definition.stateMachine, '', input, {})
+    const outcome = await runScope(context, definition.stateMachine, '', input, {})
+    await write()
+    return outcome
   } catch (error) {
     if (!(error instanceof SupersededError)) throw error
     return { kind: 'superseded' }

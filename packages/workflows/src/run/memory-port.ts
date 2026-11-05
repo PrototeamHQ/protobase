@@ -11,12 +11,16 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps 
   const runs = new Map<string, LoadedRun & Record<string, unknown>>()
   const steps: (StepRecord & { runId: string })[] = []
   const queued: { runId: string; at?: Date }[] = []
+  /** How many steps each save took, in order. */
+  const writes: number[] = []
   const store: RunStore<null> = {
     load: async (_, id) => runs.get(id),
     steps: async (_, runId) => steps.filter((saved) => saved.runId === runId),
-    save: async (_, runId, step) => {
-      if (steps.some((saved) => saved.runId === runId && saved.scope === step.scope && saved.seq === step.seq)) return false
-      steps.push({ ...structuredClone(step), runId })
+    save: async (_, runId, records) => {
+      writes.push(records.length)
+      const taken = (step: StepRecord) => steps.some((saved) => saved.runId === runId && saved.scope === step.scope && saved.seq === step.seq)
+      if (records.some(taken)) return false
+      steps.push(...records.map((step) => ({ ...structuredClone(step), runId })))
       return true
     },
     update: async (_, id, change) => {
@@ -29,6 +33,7 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps 
   return {
     runner,
     steps,
+    writes,
     run: (id: string) => runs.get(id)!,
     now: () => clock,
     start: async (id: string, definition: Definition, input: unknown) => {
