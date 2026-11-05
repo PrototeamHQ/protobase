@@ -4,7 +4,7 @@ description: Workflows written as state machines in the States Language with JSO
 ---
 
 :::caution[Beta]
-Workflows run when they are started through the API, over MCP or from the app's code. Triggers and sign-in connections to other services are not built yet.
+Workflows run when they are started through the API, over MCP, from the app's code or by a test run in the admin app. Triggers and sign-in connections to other services are not built yet.
 :::
 
 A **workflow** is a graph of steps that the server runs one after another along its edges: fetch something, decide, run a step per item, merge the results, write records, send mail. It is written in the **States Language**, the JSON language of state machines, with **JSONata** as its expression language, in a profile of it that reads every value by name. A language model writes and changes it as easily as a person, and the same document is what the server checks and runs. Each run records every step it takes, with what the step read, gave and logged.
@@ -23,7 +23,7 @@ It adds four resources, over a `workflows` schema that [`protobase migration`](/
 | --- | --- |
 | `workflows` | A name, a description and the definition. Each save that changes the definition is checked, and kept as the workflow's next version, saved by the caller. |
 | `workflow_versions` | Every version of every definition as it was saved, with who saved it and when. Read-only. |
-| `workflow_runs` | A run, started by creating it with `workflow_id` and an `input`; it runs the version its workflow had then. Its status, output, error and timing are written by the runner. |
+| `workflow_runs` | A run, started by creating it with `workflow_id` and an `input`, or with `rerun_of` to [re-run a failed run](#re-running-a-failed-run); it runs the version its workflow had then. Its status, output, error and timing are written by the runner. |
 | `workflow_steps` | Every step of every run. Read-only. |
 
 | `workflows` | |
@@ -92,7 +92,7 @@ The document holds no layout: the [editor](#the-editor) lays the graph out from 
 | `"record": { "events": ["<resource>.<event>"] }` | on each of those record events, such as `deals.created` | `{ event, resource, key, after, before, changed }` |
 | `"manual": {}` | when someone runs the workflow by hand | the input they give |
 
-A save checks a trigger's shape; runs start through the API, over MCP or from the app's code. <gap>A webhook, schedule, mail or record trigger cannot start runs because the triggers are not implemented.</gap>
+A save checks a trigger's shape; runs start through the API, over MCP, from the app's code or by a [test run](#test-runs). <gap>A webhook, schedule, mail or record trigger cannot start runs because the triggers are not implemented.</gap>
 
 ### Reading values by name
 
@@ -209,9 +209,37 @@ Each step is recorded as a `workflow_steps` record: the state, its type, the sco
 
 A workflow reads a secret only by name, `$states.context.Secrets.TICKETS_TOKEN`, and only one the config's `workflows.secrets` lists; the values are never part of the definition. Every value of the listed secrets is blanked out as `[redacted]` wherever it appears in what a run records: a step's input, output, variables, logs, error and cause, and the run's output, error and cause. In a Task's recorded input, every field whose name says it holds a secret, such as `Authorization`, `token` or `apiKey`, is blanked out too. A value an expression computes from a secret, however it changes it, such as `'Basic ' & $base64encode(...)`, is kept whole as `[redacted]`: in a Task's `Arguments` the step type gets the value and the record keeps `[redacted]`; in an `Output`, an `Assign`, a Map's `Items` or a Fail's `Error` and `Cause` the value itself is `[redacted]`, so later states read that. Read a secret in the `Arguments` of the Task that sends it. A secret that comes back changed in a step's result, such as one a server encodes in its answer, is not the value the runner looks for, and is kept as it came. A run's input is kept as its caller gave it, so a secret's value never belongs in it.
 
+### Following and debugging a run
+
+A workflow's page in the admin app lists its runs, newest first, with their status, who or what started them, when, how long they took, their version and error. A run's page, `/workflow_runs/<id>`, draws the workflow's graph as the run's version has it, the `workflow_run` [field type](/reference/plugins/#workflow) on the run's `id`, with a mark on each state:
+
+| Mark | |
+| --- | --- |
+| Succeeded, Caught, Failed | How the state's last step ended; for a state inside a Map, the worst of its items. A failed state's box is red. |
+| Retrying | Its last try failed and a retrier tries it again. |
+| Running | The run is on it, or goes on to it next. |
+
+A state that took more than one step, by its tries, its visits or a Map's items, says how many. Choosing a state lists its steps under the graph in the order they ran, 20 at a time with *Show more*: each with its try, the Map item it ran in, its status, when it started and how long it took, its error and cause, input, output, the variables it assigned and its logs, and a link to the step's own page. Choosing the trigger shows the run's input. The page opens on the state that failed, the innermost one when a Map's item failed, so a failed run shows its error and logs at once.
+
+While a run is queued, running or waiting, the page reads the run and its steps again every second, through the API as the person, so the marks, the step lists and the run's fields change as it goes, without a reload; it stops once the run has ended. The graph marks the states of a run's first 500 steps; the run's *Steps* list has them all. Everything the page shows is what the run recorded, so a [secret](#secrets) shows as `[redacted]` wherever it would have been.
+
+### Re-running a failed run
+
+A failed run's page offers *Re-run from the failed step*. It opens the form for a new run with `workflow_id` and `rerun_of` filled in; creating it, through the form or `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "rerun_of": "..." }`, starts a run that:
+
+- runs on the workflow's version now, so fix the step first, and on the earlier run's input: a re-run given an `input` of its own is refused with `rerun-input`;
+- keeps the earlier run's steps, copied as they were, but the try that failed and that state's retried tries before it, so the failed state runs again from its first try and none of the steps before it runs again. A Map that runs again keeps its finished items and runs again only those that had not finished, each from where it stood;
+- is refused, and nothing starts, when the earlier run is not one of the workflow's runs the person may read (404), did not fail (`run-not-failed`), or would go on at a state the version no longer has (`rerun-refused`, naming the state).
+
+A kept step's card on the run's page says it is from the earlier run, as it finished before the re-run started; the earlier run's page lists its re-runs.
+
+### Test runs
+
+A workflow's page offers *Test run*: the form for a new run of the workflow, whose `input` takes a sample input as JSON, which every state reads as `$states.context.Execution.Input`. Creating it opens the run's page, which follows it as it runs. A test run is a run like any other: its steps do what they do, as the workflow's last editor, with the version saved last.
+
 ## Over MCP
 
-An AI client signed in to the app's [MCP endpoint](/reference/mcp/#workflows) finds, makes, changes and test-runs workflows as the person: it lists the step types and triggers with their arguments, reads and validates definitions, saves one whole or by a small edit, starts a run with an input, and reads each of the run's steps with its input, output, logs and error. The endpoint's instructions describe this language, and a refused definition comes back with its problems, each naming the state and field.
+An AI client signed in to the app's [MCP endpoint](/reference/mcp/#workflows) finds, makes, changes and test-runs workflows as the person: it lists the step types and triggers with their arguments, reads and validates definitions, saves one whole or by a small edit, starts a run with an input, reads each of the run's steps with its input, output, logs and error, and re-runs a failed run from its failed step once the workflow is fixed. The endpoint's instructions describe this language, and a refused definition comes back with its problems, each naming the state and field.
 
 ## Who may do what
 

@@ -101,7 +101,7 @@ In an app with [workflows](/reference/workflows/), the endpoint also offers tool
 | `get_workflow_run` | A run's status, input, output, error and cause, with its steps in the order they ran, each with its state, scope, try, status, input, output, assigned variables, logs, error and cause; `state` reads one state's steps, a page of 20 by default. |
 | `create_workflow` | Creates a workflow from its `name`, `description` and `definition`, and returns its `id`, `version` and ETag. |
 | `update_workflow` | Changes a workflow's definition by an `edit` or whole, as `definition`, and its `name` or `description`, and returns its `id`, new `version` and ETag. With the `etag` that `get_workflow` gave, it fails when someone changed the workflow since; an edit without one is saved against the version it was applied to. |
-| `run_workflow` | Starts a run of a workflow's current version with an `input`, and returns its `run_id` and `status`. |
+| `run_workflow` | Starts a run of a workflow's current version with an `input`, and returns its `run_id` and `status`. With `rerun_of`, a failed run's id, it [re-runs](/reference/workflows/#re-running-a-failed-run) that run from its failed step instead, on its input. |
 
 An `edit` is a [JSON Merge Patch](https://www.rfc-editor.org/rfc/rfc7396) of the saved definition: only what changes, at its place in the document. An object merges into the object there, `null` removes a member, and any other value, a list included, replaces it. Changing one argument of one state:
 
@@ -109,7 +109,7 @@ An `edit` is a [JSON Merge Patch](https://www.rfc-editor.org/rfc/rfc7396) of the
 { "id": "...", "edit": { "stateMachine": { "States": { "Notify": { "Arguments": { "url": "https://hooks.example.com/v2" } } } } } }
 ```
 
-A definition the save check refuses comes back as `{ "error": "invalid-workflow", "message": ..., "problems": [...] }`, each problem `{ state, field, message }` naming the state, the field and what was expected, as `validate_workflow` gives them; nothing is saved. A run goes on in the background on the app's jobs, so `run_workflow` returns while it is queued: the client reads it with `get_workflow_run` until it has `succeeded` or `failed`, fixes the step that failed and runs it again.
+A definition the save check refuses comes back as `{ "error": "invalid-workflow", "message": ..., "problems": [...] }`, each problem `{ state, field, message }` naming the state, the field and what was expected, as `validate_workflow` gives them; nothing is saved. A run goes on in the background on the app's jobs, so `run_workflow` returns while it is queued: the client reads it with `get_workflow_run` until it has `succeeded` or `failed`, fixes the step that failed and re-runs the run from that step.
 
 `create_workflow`, `update_workflow` and `run_workflow` come with [writes](#writes), and the person approves each first, as any write, unless they hold one of the [roles without approval](#writes-without-approval); with writes limited to some resources, they save on `workflows` and run on `workflow_runs` only when the list names them. A run does what its steps do, such as requests, mail and record writes, as the workflow's last editor.
 
