@@ -2,9 +2,11 @@ import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { CircleAlert } from 'lucide-react'
 import type { State } from '@protobase/workflows'
 import { cn } from '../../../lib/cn'
+import { Badge } from '../../../primitives/badge'
 import type { EdgeKind } from './definition-graph'
 import type { FlowNode } from './flow-elements'
-import { stateLabel, triggerLabel } from './labels'
+import { nodeStatusLabel, stateLabel, triggerLabel } from './labels'
+import { nodeTones, type NodeTrace } from './node-trace'
 import { text } from './messages'
 
 type Source = { kind: EdgeKind; position: Position; left?: string; label?: string }
@@ -39,11 +41,19 @@ const ProblemCount = ({ count }: { count: number }) =>
     </span>
   )
 
-const boxClass = (selected: boolean, problems: number) =>
-  cn('rounded-lg border bg-background text-body shadow-sm', problems > 0 ? 'border-danger' : 'border-border-strong', selected && 'ring-2 ring-primary/40')
+// How the state did in a run, and how many steps it took when more than one
+const TraceMark = ({ trace }: { trace: NodeTrace }) => (
+  <span className="flex shrink-0 flex-col items-end gap-0.5">
+    <Badge tone={nodeTones[trace.status]}>{nodeStatusLabel(trace.status)}</Badge>
+    {trace.steps > 1 && <span className="text-xs tabular-nums text-muted-foreground">{text('traceSteps', { count: trace.steps })}</span>}
+  </span>
+)
 
-// The name and what the state is, over each other, with the count of its problems
-const Title = ({ name, kind, problems, first }: { name: string; kind: string; problems: number; first?: boolean }) => (
+const boxClass = (selected: boolean, problems: number, trace?: NodeTrace) =>
+  cn('rounded-lg border bg-background text-body shadow-sm', problems > 0 || trace?.status === 'failed' ? 'border-danger' : 'border-border-strong', selected && 'ring-2 ring-primary/40')
+
+// The name and what the state is, over each other, with the count of its problems or its mark in a run
+const Title = ({ name, kind, problems, first, trace }: { name: string; kind: string; problems: number; first?: boolean; trace?: NodeTrace }) => (
   <div className="flex min-w-0 items-start justify-between gap-2">
     <div className="min-w-0">
       <div className="truncate text-xs text-muted-foreground">
@@ -53,17 +63,18 @@ const Title = ({ name, kind, problems, first }: { name: string; kind: string; pr
       <div className="truncate font-medium text-foreground">{name}</div>
     </div>
     <ProblemCount count={problems} />
+    {trace && <TraceMark trace={trace} />}
   </div>
 )
 
 /** A state: a box with its name, what it is and the handles its edges leave from; a Map's holds the states inside it. */
 export const StateNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>) => {
-  const { node, problems } = data
+  const { node, problems, trace } = data
   if (node.kind !== 'state') return null
   return (
-    <div className={cn(boxClass(selected, problems.length), 'h-full px-3 py-2', node.state.Type === 'Map' && 'bg-muted/40')}>
+    <div className={cn(boxClass(selected, problems.length, trace), 'h-full px-3 py-2', node.state.Type === 'Map' && 'bg-muted/40')}>
       <Handle id="in" type="target" position={Position.Top} isConnectable={isConnectable} />
-      <Title name={node.name} kind={stateLabel(node.state)} problems={problems.length} first={node.first && node.parent !== undefined} />
+      <Title name={node.name} kind={stateLabel(node.state)} problems={problems.length} first={node.first && node.parent !== undefined} trace={trace} />
       <Sources state={node.state} editable={isConnectable} />
     </div>
   )

@@ -41,10 +41,11 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
     updated_at: r.updated_at.label('Updated'),
   }))
   .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
+  .actions((a) => [a.link('test_run', { label: 'Test run', icon: 'play', to: { kind: 'create', resource: 'workflow_runs', values: { workflow_id: '{id}' } } })])
   .layout((r) => [
     l.section('Workflow', [r.name, r.description, r.definition]),
     l.sidebar([r.version, r.created_at, r.updated_at]),
-    l.related('Runs', { resource: 'workflow_runs', field: 'workflow_id', columns: ['status', 'version', 'created_at', 'duration_ms', 'error'] }),
+    l.related('Runs', { resource: 'workflow_runs', field: 'workflow_id', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'version', 'error'] }),
     l.related('Versions', { resource: 'workflow_versions', field: 'workflow_id', columns: ['version', 'saved_by', 'saved_at'] }),
   ])
 
@@ -88,6 +89,7 @@ const runsResource = (schema: string) =>
       cause: f.text().optional().readOnly(),
       resume_at: f.timestamp().optional().readOnly(),
       started_by: f.text().optional().readOnly(),
+      rerun_of: f.relation('workflow_runs').optional().filterable(),
       tenant_id: f.text().optional().readOnly(),
       created_at: f.timestamp().readOnly().dbDefault().sortable(),
       finished_at: f.timestamp().optional().readOnly(),
@@ -105,21 +107,29 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   .title((r) => r.created_at)
   .help('A run of a workflow with its input. It takes up where it stands after a restart; each of its steps is listed with what it read, gave and logged.')
   .fields((r) => ({
+    id: r.id.label('Steps').widget('workflow_run'),
     workflow_id: r.workflow_id.label('Workflow'),
-    input: r.input.help('Read by every state as $states.context.Execution.Input'),
+    input: r.input.widget('json').help('Read by every state as $states.context.Execution.Input; a re-run takes the input of the run it re-runs'),
+    rerun_of: r.rerun_of.label('Re-run of').help('A failed run of the workflow: the re-run keeps its steps before the one that failed, and goes on from there on the workflow as it is now'),
     key: r.key.help('A workflow runs once per key, such as the record a trigger found ready'),
     status: r.status.valueLabels({ queued: 'Queued', running: 'Running', waiting: 'Waiting', succeeded: 'Succeeded', failed: 'Failed' }).valueColors({ succeeded: 'green', failed: 'red' }),
+    output: r.output.widget('json'),
     resume_at: r.resume_at.label('Goes on at'),
     started_by: r.started_by.label('Started by'),
     created_at: r.created_at.label('Started'),
     finished_at: r.finished_at.label('Finished'),
     duration_ms: r.duration_ms.label('Duration (ms)'),
   }))
-  .list((r) => ({ columns: [r.created_at, r.workflow_id, r.status, r.duration_ms, r.error], sort: [[r.created_at, 'desc']] }))
+  .list((r) => ({ columns: [r.created_at, r.workflow_id, r.status, r.started_by, r.duration_ms, r.error], sort: [[r.created_at, 'desc']] }))
+  .actions((a) => [
+    a.link('rerun', { label: 'Re-run from the failed step', icon: 'restart', to: { kind: 'create', resource: 'workflow_runs', values: { workflow_id: '{workflow_id}', rerun_of: '{id}' } }, when: 'status = "failed"' }),
+  ])
   .layout((r) => [
+    l.section('Trace', [r.id]),
     l.section('Run', [r.workflow_id, r.input, r.output, r.error, r.cause]),
-    l.sidebar([r.status, r.version, r.started_by, r.created_at, r.resume_at, r.finished_at, r.duration_ms]),
+    l.sidebar([r.status, r.version, r.started_by, r.rerun_of, r.created_at, r.resume_at, r.finished_at, r.duration_ms]),
     l.related('Steps', { resource: 'workflow_steps', field: 'run_id', columns: ['scope', 'seq', 'state', 'status', 'attempt', 'duration_ms', 'error'] }),
+    l.related('Re-runs', { resource: 'workflow_runs', field: 'rerun_of', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'error'] }),
   ])
 
 /** Every step of every run: its input with secrets redacted, output, variables, logs, timing, try and error. */

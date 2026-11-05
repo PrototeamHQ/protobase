@@ -8,6 +8,7 @@ import { connect, disconnect, removeState } from './definition-edits'
 import { definitionGraph, type EdgeKind, type GraphNode } from './definition-graph'
 import { flowEdges, flowNodes, graphId, type FlowNode } from './flow-elements'
 import { StateNode, TriggerNode } from './flow-nodes'
+import type { NodeTrace } from './node-trace'
 import type { NodeProblem } from './problems'
 import { useLayout } from './use-layout'
 import { text } from './messages'
@@ -22,6 +23,8 @@ export type WorkflowCanvasProps = {
   onSelect: (id: string | undefined) => void
   /** Without it, the graph is only shown. */
   onChange?: (definition: Definition) => void
+  /** How each state did in a run, by its path, marked on its node. */
+  traces?: ReadonlyMap<string, NodeTrace>
 }
 
 // The machine a node's states lead within: the Maps it is inside, or the trigger's, the whole workflow's.
@@ -36,13 +39,13 @@ const FitOnLayout = ({ laidOut }: { laidOut: unknown }) => {
   return null
 }
 
-const Canvas = ({ definition, problems, selected, onSelect, onChange }: WorkflowCanvasProps) => {
+const Canvas = ({ definition, problems, selected, onSelect, onChange, traces }: WorkflowCanvasProps) => {
   const graph = useMemo(() => definitionGraph(definition), [definition])
   const boxes = useLayout(graph)
   // The sizes React Flow measured, handed back with each node: a node without one loses its handles' places, and its
   // edges vanish until it is measured again
   const [measured, setMeasured] = useState<ReadonlyMap<string, { width: number; height: number }>>(new Map())
-  const nodes = useMemo(() => flowNodes(graph, boxes, problems, selected).map((node) => ({ ...node, measured: measured.get(node.id) })), [graph, boxes, problems, selected, measured])
+  const nodes = useMemo(() => flowNodes(graph, boxes, problems, selected, traces).map((node) => ({ ...node, measured: measured.get(node.id) })), [graph, boxes, problems, selected, traces, measured])
   // The edge chosen, which Delete removes
   const [chosenEdge, setChosenEdge] = useState<string>()
   const edges = useMemo(() => flowEdges(graph).map((edge) => ({ ...edge, selected: edge.id === chosenEdge })), [graph, chosenEdge])

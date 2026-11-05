@@ -119,6 +119,14 @@ describe('run_workflow and get_workflow_run', () => {
     expect(create).toHaveBeenCalledWith('workflow_runs', { workflow_id: 'w1', input: { order: 42 } })
   })
 
+  it('re-runs a failed run without an input of its own', async () => {
+    const create = vi.fn(async () => ({ record: { id: 'r2', status: 'queued' }, etag: '"v1"' }))
+    const { context } = contextWith({ create })
+    expect(JSON.parse(await runWorkflowTool().run({ id: 'w1', rerun_of: 'r1' }, context))).toEqual({ run_id: 'r2', status: 'queued' })
+    expect(create).toHaveBeenCalledWith('workflow_runs', { workflow_id: 'w1', rerun_of: 'r1' })
+    expect(await runWorkflowTool().run({ id: 'w1', rerun_of: 'r1', input: {} }, context)).toMatch(/without input/)
+  })
+
   it("reads the run, then its steps in the order they ran, one state's when asked", async () => {
     const list = vi.fn(async () => ({ items: [{ state: 'Fetch', status: 'failed', error: 'Http.Status', etag: '"s"' }], next_page_token: '', total_size_estimate: 1 }))
     const { context } = contextWith({ get: async () => ({ record: { id: 'r1', status: 'failed' }, etag: '"r"' }), list })

@@ -491,6 +491,9 @@
     "unknownMember": "Onbekend lid",
     "searchMembers": "Leden zoeken"
   },
+  "app/field-types/json": {
+    "notJson": "Dit is nog geen JSON: het veld houdt de laatste waarde die het wel was."
+  },
   "app/field-types/workflow": {
     "addStep": "Stap toevoegen",
     "addStepInside": "Stap toevoegen aan {map}",
@@ -595,7 +598,32 @@
     "stepJson": "JSON",
     "stepJsonHelp": "Elk veld van de stap, zoals Retry, Assign en TimeoutSeconds.",
     "startHere": "Hier beginnen",
-    "removeStep": "Stap verwijderen"
+    "removeStep": "Stap verwijderen",
+    "traceSucceeded": "Gelukt",
+    "traceCaught": "Opgevangen",
+    "traceRetrying": "Opnieuw",
+    "traceFailed": "Mislukt",
+    "traceCurrent": "Bezig",
+    "traceSteps": "{count, plural, one {# stap} other {# stappen}}"
+  },
+  "app/field-types/workflow-run": {
+    "chosenStep": "Gekozen stap",
+    "trigger": "Trigger",
+    "runInput": "De invoer van de run",
+    "notRun": "Deze stap liep niet in deze run.",
+    "stepTry": "Poging {attempt}",
+    "itemOf": "Item {index} van {map}",
+    "kept": "Uit de eerdere run",
+    "duration": "{ms, number} ms",
+    "openStep": "Stap openen",
+    "error": "Fout",
+    "input": "Invoer",
+    "output": "Uitvoer",
+    "variables": "Toegekende variabelen",
+    "logs": "Logs",
+    "showMore": "Meer tonen",
+    "loadFailed": "De run kon niet worden gelezen",
+    "cut": "De grafiek markeert de eerste {count, number} stappen van de run; de lijst Stappen hieronder heeft ze allemaal."
   },
   "app/gallery": {
     "couldNotLoad": "Kon de foto’s niet laden",

@@ -148,6 +148,10 @@ Each part gets:
 
 [Adding a field type](/guides/field-type/) builds one step by step.
 
+### JSON
+
+`json` is a field type Protobase brings for any JSON field a form should edit, such as a workflow run's `input`: `r.input.widget('json')`. The form edits the value as JSON text, the record page shows it written out on several lines, and a list's table on one. Text that does not parse yet says so under the box and leaves the value as it last parsed; an emptied box is null. It takes the form's whole width. A plugin that registers a field type named `json` replaces it.
+
 ### Members
 
 `members` is a field type Protobase brings, for a JSON field that holds an array of user ids, such as who may read a private channel. No plugin registers it; a view picks it as it picks any other:
@@ -165,6 +169,8 @@ The create form and the record's form pick the members of the organization the s
 ### Workflow
 
 `workflow` is the field type the `workflows` resource draws its `definition` with: the [workflow editor](/reference/workflows/#the-editor). Another JSON field holding a workflow's definition picks it as `r.definition.widget('workflow')`. It takes the form's whole width, and a list's table shows how many steps the workflow has. A plugin that registers a field type named `workflow` replaces it.
+
+`workflow_run` is the field type the `workflow_runs` resource draws its own `id` with: the run's [trace](/reference/workflows/#following-and-debugging-a-run) on its workflow's graph, with the chosen step's records under it. Another uuid field holding a run's id picks it as `r.run_id.widget('workflow_run')`. It takes the whole width, and a list's table shows the id. A plugin that registers a field type named `workflow_run` replaces it.
 
 ## Building
 

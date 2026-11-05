@@ -1,6 +1,7 @@
 import type { Definition } from '../definition/types'
 import { createRunner } from './runner'
 import type { LoadedRun, RunStore, StepRecord, TaskHandlers } from './port'
+import { rerunSteps } from './rerun'
 
 /**
  * The runner over a port kept in memory, with a clock tests move: for the package's unit tests. `drain` runs a run's
@@ -38,6 +39,14 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps 
     now: () => clock,
     start: async (id: string, definition: Definition, input: unknown) => {
       runs.set(id, { id, definition, input, status: 'queued', startedAt: clock })
+      await runner.start(null, id)
+    },
+    /** Re-runs the failed run `earlier` as `id` on `definition`, with its input and the steps a re-run keeps. */
+    rerun: async (id: string, earlier: string, definition: Definition) => {
+      const kept = rerunSteps(definition.stateMachine, steps.filter((step) => step.runId === earlier))
+      if ('problem' in kept) throw new Error(kept.problem)
+      steps.push(...kept.steps.map((step) => ({ ...structuredClone(step), runId: id })))
+      runs.set(id, { id, definition, input: runs.get(earlier)!.input, status: 'queued', startedAt: clock })
       await runner.start(null, id)
     },
     /** Runs one queued segment, moving the clock to its time; false when none is queued. */

@@ -491,6 +491,9 @@
     "unknownMember": "Unknown member",
     "searchMembers": "Search members"
   },
+  "app/field-types/json": {
+    "notJson": "This is not JSON yet: the field keeps the last value that was."
+  },
   "app/field-types/workflow": {
     "addStep": "Add a step",
     "addStepInside": "Add a step to {map}",
@@ -595,7 +598,32 @@
     "stepJson": "JSON",
     "stepJsonHelp": "Every field of the step, such as Retry, Assign and TimeoutSeconds.",
     "startHere": "Start here",
-    "removeStep": "Remove step"
+    "removeStep": "Remove step",
+    "traceSucceeded": "Succeeded",
+    "traceCaught": "Caught",
+    "traceRetrying": "Retrying",
+    "traceFailed": "Failed",
+    "traceCurrent": "Running",
+    "traceSteps": "{count, plural, one {# step} other {# steps}}"
+  },
+  "app/field-types/workflow-run": {
+    "chosenStep": "Chosen step",
+    "trigger": "Trigger",
+    "runInput": "The run's input",
+    "notRun": "This step did not run in this run.",
+    "stepTry": "Try {attempt}",
+    "itemOf": "Item {index} of {map}",
+    "kept": "From the earlier run",
+    "duration": "{ms, number} ms",
+    "openStep": "Open step",
+    "error": "Error",
+    "input": "Input",
+    "output": "Output",
+    "variables": "Variables assigned",
+    "logs": "Logs",
+    "showMore": "Show more",
+    "loadFailed": "The run could not be read",
+    "cut": "The graph marks the run's first {count, number} steps; the Steps list below has them all."
   },
   "app/gallery": {
     "couldNotLoad": "Could not load the photos",
