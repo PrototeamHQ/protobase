@@ -13,6 +13,33 @@ describe('createRateLimit', () => {
     at += 40_000
     expect(limit.take('contact|1.2.3.4', 5)).toBe(0)
   })
+
+  it('tells whether a key spent its takes without taking one', () => {
+    let at = 1_000_000
+    const limit = createRateLimit({ now: () => at })
+    expect(limit.spent('1.2.3.4', 2)).toBe(0)
+    limit.take('1.2.3.4', 2)
+    expect(limit.spent('1.2.3.4', 2)).toBe(0)
+    limit.take('1.2.3.4', 2)
+    at += 15_000
+    expect(limit.spent('1.2.3.4', 2)).toBe(45)
+    at += 45_000
+    expect(limit.spent('1.2.3.4', 2)).toBe(0)
+  })
+
+  it('keeps at most maxKeys, forgetting the oldest window first', () => {
+    let at = 1_000_000
+    const limit = createRateLimit({ now: () => at, maxKeys: 2 })
+    limit.take('a', 1)
+    at += 1
+    limit.take('b', 1)
+    at += 1
+    limit.take('c', 1)
+    // `a` was forgotten, so it may take again; `b` and `c` are still counted.
+    expect(limit.spent('a', 1)).toBe(0)
+    expect(limit.spent('b', 1)).toBeGreaterThan(0)
+    expect(limit.spent('c', 1)).toBeGreaterThan(0)
+  })
 })
 
 describe('clientAddress', () => {
