@@ -19,6 +19,10 @@ on:
   check_suite:
     types: [completed]
   status:
+  # An approval or a dismissed review can lift the change request that blocked the merge; it runs this file from the
+  # pull request's merge commit, so the merge job below takes it and the review job adds no check of its name for it.
+  pull_request_review:
+    types: [submitted, dismissed]
 
 # Merging a pull request takes contents: write: https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps#repository-permissions-for-contents
 # Starting release.yml after a merge takes actions: write.
@@ -31,6 +35,18 @@ permissions:
 
 jobs:
   review:
+    if: github.event_name != 'pull_request_review'
+    uses: protobase-community/.github/.github/workflows/ai-pr-review.yml@main # zizmor: ignore[unpinned-uses] main is the reviewed version
+    with:
+      auto-merge: true
+      framework-generic: true
+      dispatch-after-merge: release.yml
+    secrets:
+      SCW_PR_REVIEW_SECRET_KEY: ${{ secrets.SCW_PR_REVIEW_SECRET_KEY }}
+
+  # Only tries the merge again, under a name of its own, so the review event leaves the review's check alone.
+  merge:
+    if: github.event_name == 'pull_request_review'
     uses: protobase-community/.github/.github/workflows/ai-pr-review.yml@main # zizmor: ignore[unpinned-uses] main is the reviewed version
     with:
       auto-merge: true
