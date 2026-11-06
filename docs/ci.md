@@ -23,6 +23,10 @@ Pull requests run the checks on GitHub's runners. Pushes to `main`, which the re
 - Go back to GitHub's runners: `gh variable delete CHECK_RUNNER`; no commit is needed either way.
 - Stop it, on the server: `systemctl disable --now actions.runner.PrototeamHQ-protobase.hetzner-{1..5}`. Delete the variable first, since pushes to `main` and `fm/**` wait for a runner that is offline.
 
+## Merging on approval
+
+A pull request with the `auto-merge-approvals` label squash-merges once every check on its head passed and CodeRabbit or an account with write access approved that head after the label was added (`.github/workflows/auto-merge-approvals.yml`, with the rules in `scripts/auto-merge-approvals/decision.ts`).
+
 ## Release speed
 
 `bun run release:speed` reports how fast releases are tested and built: for the `release` and `ci` workflows and each of their jobs, the p50, p90 and latest wall, queue and run time over the last successful runs, and whether the workflow's p50 meets its target, by how much. It reads the Actions API through `gh`, so locally it needs `gh auth login`. The `release-speed` workflow runs it daily and after each release run of `main` and writes the report to its job summary: the release workflow's last job, `release-speed`, dispatches it with the run's id, and the report waits for that run to complete, so it counts that release; the report measures a release up to its last job before that one. It only reports, so it never holds up or fails a release.
