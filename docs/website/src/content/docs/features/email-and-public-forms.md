@@ -10,7 +10,7 @@ description: Mail the app sends, the PDF documents it makes, and forms for peopl
 - [Unsubscribe headers](/reference/email/#templates): Your emails carry header fields of their own, such as a one-click unsubscribe link for bulk mail.
 - [Attachments](/reference/email/#attachments): A message carries files, such as an invoice's PDF, through the app's mail or someone's own mailbox.
 - [PDF documents](/reference/pdf/#documents): PDF files such as invoices and quotes are React components with typed data, rendered from jobs, hooks or functions and attached to mail as they are.
-- [Mail from your own mailbox](/reference/email/#from-someones-own-mailbox) (beta): People link their Gmail on the account page, and the app's functions send mail from it, with a clear error when the link is missing or expired.
+- [Mail from your own mailbox](/reference/email/#from-someones-own-mailbox) (beta): People link their Gmail on the account page, and the app's functions send mail from it; an action offers to connect the mailbox right there when the link is missing or expired.
 - [Public forms](/reference/forms/#what-the-visitor-sees): A form at its own address lets people without an account create a record, such as a contact request.
 - [Bot check](/reference/forms/#bot-check): Each submission passes a check in the browser, without a third-party service or a puzzle.
 - [Form rate limit](/reference/forms/#rate-limit): Each client sends only a set number of submissions per minute.

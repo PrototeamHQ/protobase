@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ActionModel } from '@protobase/schema'
 import { fillAddress, updateValues } from '@protobase/schema/internal'
 import { useClient, useResourceClient } from '../../data/api-provider'
+import { useMailboxToastAction } from '../../mailbox/use-mailbox-toast-action'
 import { useToast } from '../../toasts'
 import { useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
@@ -33,6 +34,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
   // A handler works on the API that serves the resource, functions included: a source's for one drawn from it.
   const handlerClient = useResourceClient(resource)
   const toast = useToast()
+  const mailboxAction = useMailboxToastAction()
   const refresh = useRefreshResource()
   const { go } = useAppAddress()
   const [running, setRunning] = useState<string>()
@@ -76,11 +78,14 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     afterRun?.(action)
   }
 
-  // `on` is another record than the scope's, such as a list's row.
+  // `on` is another record than the scope's, such as a list's row. A failure for want of a mailbox offers to connect one.
   const run = async (action: ActionModel, on = scope) => {
     if (blockedOn(action, on)) return
     setRunning(action.name)
-    await perform(action, on).catch((error: unknown) => toast.show({ state: 'error', title: text('failed', { label: action.label }), description: message(error) }))
+    await perform(action, on).catch((error: unknown) => {
+      const connect = mailboxAction(error)
+      toast.show({ state: 'error', title: text('failed', { label: action.label }), description: message(error), ...(connect && { action: connect }) })
+    })
     setRunning(undefined)
   }
 

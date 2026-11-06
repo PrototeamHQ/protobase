@@ -224,6 +224,7 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
         ai: aiShape(model),
       }),
       inputs: inputsShape(models),
+      mailbox: s.data,
     },
     { requires: ['run', 'inputs', 'when'] },
   )

@@ -1451,6 +1451,15 @@
     "shownIn": "Getoond in {zone}",
     "fileMissing": "Bestand ontbreekt"
   },
+  "mailbox": {
+    "missingTitle": "Koppel een mailbox om te versturen",
+    "expiredTitle": "Koppel je mailbox opnieuw",
+    "missing": "Mail gaat uit vanuit je eigen mailbox, en er is er nog geen gekoppeld. {names} koppelen vraagt je daar in te loggen en het versturen van mail toe te staan, en brengt je daarna hier terug.",
+    "expired": "{names} neemt geen mail van deze app meer aan, bijvoorbeeld omdat de koppeling is verwijderd of verlopen. Opnieuw koppelen vraagt je daar in te loggen en brengt je daarna hier terug.",
+    "signInOnly": "Je logt in met {provider}, maar daarmee mag de app geen mail versturen: koppel {name} om ermee te versturen.",
+    "connect": "{name} koppelen",
+    "connectAgain": "{name} opnieuw koppelen"
+  },
   "markdown": {
     "write": "Schrijven",
     "preview": "Voorbeeld",

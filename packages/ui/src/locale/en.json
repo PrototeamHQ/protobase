@@ -1451,6 +1451,15 @@
     "shownIn": "Shown in {zone}",
     "fileMissing": "File missing"
   },
+  "mailbox": {
+    "missingTitle": "Connect a mailbox to send",
+    "expiredTitle": "Connect your mailbox again",
+    "missing": "Mail goes out from your own mailbox, and none is connected yet. Connecting {names} asks you to sign in there and allow sending mail, then brings you back here.",
+    "expired": "{names} no longer accepts mail from this app, as when the link was removed or ran out. Connecting it again asks you to sign in there, then brings you back here.",
+    "signInOnly": "You sign in with {provider}, but that sign-in does not allow sending mail: connect {name} to send from it.",
+    "connect": "Connect {name}",
+    "connectAgain": "Connect {name} again"
+  },
   "markdown": {
     "write": "Write",
     "preview": "Preview",

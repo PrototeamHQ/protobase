@@ -915,6 +915,18 @@ A custom input's component gets the answer as `value` (`null` when empty), `onCh
 
 <StoryFrame id="record-page-action-inputs--dialog" title="Create invoice, asking for a due date, who to bill and how to send it" height={720} />
 
+### Actions that send from someone's mailbox
+
+An `a.action` whose handler sends mail from the signed-in person's [own mailbox](/reference/email/#from-someones-own-mailbox), such as an invoice from their Gmail, says so with `mailbox: true`. While they have linked no mailbox, its dialog offers to connect one instead of running: **Connect Gmail** starts the same sign-in as the account page's and comes back to the page they were on, where the action runs. Someone who signs in with Google without having allowed it to send mail is told that sign-in is no mailbox. The check needs a dialog, so give the action `confirm` or inputs:
+
+```ts
+a.action('send_invoice', { label: 'Send', icon: 'send', mailbox: true, confirm: 'Send the invoice from your own mailbox?' })
+```
+
+Any action whose handler fails with a function's [mailbox problem](/reference/email/#from-someones-own-mailbox) (`not_linked` or `link_expired`) gets the same offer in place of the bare error, worded **Connect Gmail again** for an expired link: in its dialog, or as its error toast's button. A failure that is not about the mailbox shows as it is. <gap>An action that comes back from connecting a mailbox cannot reopen its dialog because keeping an open dialog in the page's address is not implemented; the person presses the button again.</gap>
+
+<StoryFrame id="record-page-send-from-a-mailbox--no-mailbox" title="Send with no mailbox linked, offering to connect Gmail" height={600} />
+
 ### Where an action applies
 
 `when` limits an action to the records it applies to, with the same [AIP-160](https://google.aip.dev/160) conditions a section's [`when`](#form-and-read-view) takes, over the record's own fields: `status = 'running'`, `status != 'stopped' AND locked = false`. On a record it does not hold for, the button is left out, or, with `otherwise: 'disable'`, shown disabled with `reason` as its tooltip. `variant: 'danger'` draws the button in red, as Delete is, and its question's button too:

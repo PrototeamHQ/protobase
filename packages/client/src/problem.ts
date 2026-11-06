@@ -28,6 +28,10 @@ export type ProblemDetails = {
   existing?: { key: string }
   /** For `strong-sign-in-required`: how many minutes old the strong sign-in may be. */
   minutes?: number
+  /** For a message that could not go out from the person's own mailbox: why, `not_linked` or `link_expired`. */
+  code?: string
+  /** For a mailbox link that expired: its mail provider, such as `gmail`. */
+  provider?: string
 }
 
 /** A non-2xx response, parsed from `application/problem+json`. */
