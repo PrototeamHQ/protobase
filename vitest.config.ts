@@ -105,6 +105,7 @@ const snapshotIsolated = [
   'packages/server/tests/sources.test.ts',
   'packages/server/tests/staff-sign-in.integration.test.ts',
   'packages/server/tests/strong-sign-in-auth.test.ts',
+  'packages/server/tests/two-factor-confirmation.test.ts',
   'packages/server/tests/webhook-table.test.ts',
 ]
 const snapshotProject = (name: string, include: string[], exclude: string[], isolate: boolean) => ({

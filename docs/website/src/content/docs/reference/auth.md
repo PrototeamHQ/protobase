@@ -378,7 +378,7 @@ On their account page, people turn on a second step after a password or an email
 - **Authenticator app:** the page shows a QR code (and the key, to type in), the person confirms it with a code from the app, and gets ten backup codes that each work once instead of a code. New backup codes replace the old ones.
 - **Emailed code:** with mail configured, a 6-digit code mailed at each sign-in, valid for 10 minutes. An account with an app can also choose an emailed code at sign-in. Backup codes come with the app only.
 
-Turning it on, off, or making new backup codes asks for the account's password when it has one. Without one, turning it on from a session that signed in more than a day ago, on an account without a passkey, asks to [confirm it's them](#confirming-an-account-change) first. At sign-in, a correct password or code answers `{ "twoFactorRedirect": true, "twoFactorMethods": ["totp", "otp"] }` instead of a session, and `POST /api/auth/two-factor/verify-totp`, `verify-otp` or `verify-backup-code` with `{ code, trustDevice? }` finishes it; `trustDevice` skips the step in that browser for 30 days. Ten wrong codes in a row lock the account's second step for 15 minutes.
+Turning it on, off, or making new backup codes asks for the account's password when it has one. Without one, turning it on, reading the authenticator link (`/two-factor/get-totp-uri`) or making new backup codes from a session that signed in more than a day ago asks to [confirm it's them](#confirming-an-account-change) first. At sign-in, a correct password or code answers `{ "twoFactorRedirect": true, "twoFactorMethods": ["totp", "otp"] }` instead of a session, and `POST /api/auth/two-factor/verify-totp`, `verify-otp` or `verify-backup-code` with `{ code, trustDevice? }` finishes it; `trustDevice` skips the step in that browser for 30 days. Ten wrong codes in a row lock the account's second step for 15 minutes.
 
 Sign-in with GitHub or another [provider](#sign-in-with-github) is not asked for the second step.
 
@@ -405,7 +405,7 @@ An account with neither a passkey nor a second step has nothing stronger to conf
 Better Auth's own check of a fresh session, which could only be met by signing out and in again, is off (`freshAge: 0`). In its place, a session that signed in more than a day ago confirms it's them in place, as above, before a change that needs it, else the change is `403 STRONG_SIGN_IN_REQUIRED`; the confirmation counts for 15 minutes:
 
 - adding a passkey;
-- turning on [two-factor authentication](#two-factor-authentication) on an account without a password, a passkey or a second step (an account with a password gives it instead);
+- turning on [two-factor authentication](#two-factor-authentication), reading its authenticator link or making new backup codes, on an account without a password (an account with a password gives it instead);
 - unlinking a sign-in provider (`/unlink-account`);
 - [deleting the account](#deleting-the-account) without a password.
 
