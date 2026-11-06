@@ -58,3 +58,30 @@ describe('stopConnection', () => {
     expect(issued).toEqual([])
   })
 })
+
+describe('stopConnection, while the token is fetched', () => {
+  // Ada's account, which `during` changes as the token is fetched.
+  const changing = (during: (owned: Record<string, ConnectionAccount[]>) => void) => {
+    const owned: Record<string, ConnectionAccount[]> = { ada: [adaAccount] }
+    const accessToken = async () => {
+      during(owned)
+      return 'access-1'
+    }
+    const accounts: ConnectionAccounts = { find: async (userId, accountId) => owned[userId]?.find((account) => account.id === accountId), accessToken }
+    return accounts
+  }
+
+  it('gives no token once the account is deleted, or linked to someone else', async () => {
+    for (const during of [(owned: Record<string, ConnectionAccount[]>) => void (owned.ada = []), (owned: Record<string, ConnectionAccount[]>) => void Object.assign(owned, { ada: [], grace: [adaAccount] })]) {
+      const failure = await connect(changing(during), {}).connection.accessToken().catch((error: unknown) => error)
+      expect(failure).toEqual(notConnected)
+      expect(`${JSON.stringify(failure)} ${(failure as Error).message}`).not.toContain('access-1')
+    }
+  })
+
+  it('gives no token when reading the account again fails', async () => {
+    const { accounts } = accountsOf({ ada: [adaAccount] })
+    const find = vi.fn(accounts.find).mockImplementationOnce(accounts.find).mockRejectedValueOnce(new Error('connection terminated'))
+    await expect(connect({ ...accounts, find }, {}).connection.accessToken()).rejects.toEqual(new Error('connection terminated'))
+  })
+})
