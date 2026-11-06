@@ -48,7 +48,9 @@ export type ConnectionConsent = ReturnType<typeof connectionConsent>
 
 /**
  * Keeps who turned a version on, as its runs' steps read it, and withdraws the consent when the workflow is turned
- * off: every version's runs then sign in through no account until it is turned on again.
+ * off: every version's runs then sign in through no account until it is turned on again. Someone else turning a
+ * version on withdraws the earlier person's consent on every other version, so a waiting run of one of them signs in
+ * through no account of theirs; the earlier versions the same person turned on keep it.
  */
 export const saveConsent = async (trx: Db, schema: string, workflowId: string, enabled: number | null, enabledBy: string | null) => {
   const versions = sql.id(schema, 'versions')
@@ -56,5 +58,6 @@ export const saveConsent = async (trx: Db, schema: string, workflowId: string, e
     await sql`update ${versions} set enabled_by = null where workflow_id = ${workflowId} and enabled_by is not null`.execute(trx)
     return
   }
+  await sql`update ${versions} set enabled_by = null where workflow_id = ${workflowId} and version <> ${enabled} and enabled_by is distinct from ${enabledBy}`.execute(trx)
   await sql`update ${versions} set enabled_by = ${enabledBy} where workflow_id = ${workflowId} and version = ${enabled}`.execute(trx)
 }

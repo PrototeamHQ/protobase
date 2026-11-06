@@ -61,6 +61,8 @@ const acmePlugin = (origin: string) =>
 const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps' | 'workflow_triggers'>({
   builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'workflow_triggers.read'],
   reader: ['workflows.read', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'workflow_triggers.read'],
+  // Changes only the workflows named Other.
+  narrow: ['workflows.read', { 'workflows.update': { filter: "name = 'Other'" } }, 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'workflow_triggers.read'],
 })
 
 const until = async <T>(read: () => Promise<T>, done: (value: T) => boolean, ms = 15_000) => {
@@ -201,6 +203,32 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     expect(await run(grace, workflow.id)).toMatchObject({ status: 'failed', cause: expect.stringContaining('no connection it may use') })
     held.set(ada, ['builder'])
     expect(await run(grace, workflow.id)).toMatchObject({ status: 'succeeded' })
+  })
+
+  it('gives no token once the update row filter of the person who turned it on leaves the workflow out', async () => {
+    const account = (await connect())!
+    const workflow = await save(ada, account)
+    await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })
+    held.set(ada, ['narrow'])
+    const refused = await run(grace, workflow.id)
+    held.set(ada, ['builder'])
+    expect(refused).toMatchObject({ status: 'failed', cause: expect.stringContaining('no connection it may use') })
+    await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
+  })
+
+  it("withdraws the consent on other versions once someone else turns one on, and keeps the same person's", async () => {
+    const account = (await connect())!
+    const workflow = await save(ada, account)
+    await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })
+    const then = definition(account)
+    const states = { Use: { Type: 'Task', Resource: 'acme:token', Next: 'Done' }, Done: { Type: 'Succeed' } }
+    expect((await as(ada, `/workflows/${workflow.id}`, 'PATCH', { definition: { ...then, stateMachine: { ...then.stateMachine, States: states } } })).status).toBe(200)
+    const consents = async () => (await sql<{ version: number; enabled_by: string | null }>`select version, enabled_by from workflows.versions where workflow_id = ${workflow.id} order by version`.execute(db)).rows
+    expect(await consents()).toEqual([{ version: 1, enabled_by: ada }, { version: 2, enabled_by: ada }])
+    const unconnected = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Succeed' } } } }
+    expect((await as(grace, `/workflows/${workflow.id}`, 'PATCH', { definition: unconnected })).status).toBe(200)
+    expect(await consents()).toEqual([{ version: 1, enabled_by: null }, { version: 2, enabled_by: null }, { version: 3, enabled_by: grace }])
+    await as(grace, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
   })
 
   it('gives a step no further token once its account is disconnected between two requests', async () => {
