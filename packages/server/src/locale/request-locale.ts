@@ -14,5 +14,7 @@ const acceptedTags = (header: string) =>
     .map(({ tag }) => tag)
 
 /** The language a request's user reads: the app's (`options.locale`) when it sets one, else their `Accept-Language`'s. */
-export const requestLocale = (appLocale: Locale | undefined, request: Request): Locale =>
-  appLocale ?? pickLocale(acceptedTags(request.headers.get('accept-language') ?? ''))
+export const requestLocale = (appLocale: Locale | undefined, request: Request): Locale => appLocale ?? headersLocale(request.headers)
+
+/** The language a request's headers ask for, by its `Accept-Language`; the default one without headers. */
+export const headersLocale = (headers: Headers | undefined): Locale => pickLocale(acceptedTags(headers?.get('accept-language') ?? ''))

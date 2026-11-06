@@ -14,11 +14,13 @@ export type SealedOutcome = 'revoked' | 'refused' | 'unreadable'
 /** Encrypts a token with the app's current secret, so only the app reads it back. */
 export const sealToken = (key: SecretKey, token: string) => symmetricEncrypt({ key, data: token })
 
-// The decrypt reads nothing outside: whatever it throws, as after the secret it was sealed with was retired, the token
-// cannot be read with this app's secret, which the caller reports as `unreadable`.
-const open = async (key: SecretKey, token: string) => {
+/**
+ * A stored token decrypted, or undefined when it does not decrypt. The decrypt reads nothing outside: whatever it
+ * throws, as after the secret it was sealed with was retired, the token cannot be read with this app's secret.
+ */
+export const readable = async (decrypt: () => Promise<string>) => {
   try {
-    return await symmetricDecrypt({ key, data: token })
+    return await decrypt()
   } catch (error) {
     if (error instanceof Error) return
     throw error
@@ -32,7 +34,8 @@ const open = async (key: SecretKey, token: string) => {
 export const sealedRevoker = (connections: readonly ResolvedConnection[], key: () => Promise<SecretKey>, allowPrivateAddresses: boolean) => async ({ provider, hint, token }: SealedRevocation): Promise<SealedOutcome> => {
   const connection = connections.find((candidate) => candidate.providerId === provider && candidate.revocationUrl)
   if (!connection?.revocationUrl) return 'unreadable'
-  const plain = await open(await key(), token)
+  const secret = await key()
+  const plain = await readable(() => symmetricDecrypt({ key: secret, data: token }))
   if (plain === undefined) return 'unreadable'
   return (await revokeToken({ url: connection.revocationUrl, client: connection.client, token: plain, hint, allowPrivateAddresses })) ? 'revoked' : 'refused'
 }

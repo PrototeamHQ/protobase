@@ -33,5 +33,23 @@
   "mcp/approval": {
     "cannotAsk": "Deze client kan je niet vragen een wijziging goed te keuren, dus er is niets opgeslagen; gebruik een client die MCP-elicitation ondersteunt.",
     "approve": "Goedkeuren"
+  },
+  "better-auth/connections": {
+    "CONNECTION_NOT_FOUND": "Je hebt geen gekoppeld account met deze id.",
+    "FAILED_TO_UNLINK_LAST_ACCOUNT": "Dit is je enige manier om in te loggen: voeg een andere toe voordat je deze ontkoppelt.",
+    "CONNECTIONS_STARTING": "Koppelingen worden gestart: probeer het zo opnieuw.",
+    "CONNECTION_NOT_SIGN_IN": "Deze provider koppelt een account aan een workflow; je logt er niet mee in.",
+    "CONNECTION_UNLINK_REFUSED": "Dit account is gekoppeld aan workflows: ontkoppel het onder Koppelingen."
+  },
+  "workflows/connections": {
+    "ownSignInOnly": "Alleen de eigenaar van elke koppeling die deze workflow gebruikt, ingelogd als zichzelf, kan hem aanzetten: zet hem uit om hem op te slaan, en de eigenaar zet hem weer aan in de beheerapp",
+    "unbound": "Koppel een account voor {connections} in de koppelingen van de workflow voordat je hem aanzet",
+    "notConnected": "Deze workflow heeft geen koppeling die hij mag gebruiken voor {key}: de eigenaar koppelt een account en zet de workflow aan",
+    "linkExpired": "Met het account dat voor {key} gekoppeld is, lukt inloggen niet meer: de eigenaar koppelt het opnieuw",
+    "undeclared": "{step} logt in via \"{name}\", die deze app niet declareert",
+    "stopNotConnected": "Deze trigger heeft geen koppeling waarmee hij zijn abonnement voor {key} mag beëindigen: het account waarmee het gemaakt is, is niet meer gekoppeld",
+    "stopLinkExpired": "Met het account dat voor {key} gekoppeld is, lukt inloggen niet meer, dus deze trigger kan zijn abonnement daarmee niet beëindigen",
+    "disconnected": "Het gekoppelde account is ontkoppeld: de eigenaar koppelt het opnieuw",
+    "subscriptionNotEnded": "Het abonnement kon niet worden beëindigd bij de provider: {reason}"
   }
 }

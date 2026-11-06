@@ -1,9 +1,8 @@
-import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
+import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { storedScopes } from '../../personal-mail/linked-accounts'
 import { holdsScopes } from '../../workflows/connections/connection-provider'
+import { connectionRefusal } from './connection-refusal'
 import type { ResolvedConnection } from './declared-connections'
-
-const refused = () => new APIError('FORBIDDEN', { code: 'CONNECTION_UNLINK_REFUSED', message: 'This account is connected to workflows: disconnect it under Connections.' })
 
 /**
  * Better Auth's `/unlink-account` would delete an account without revoking its token or stopping the triggers on it,
@@ -23,7 +22,7 @@ export const unlinkGuard = (connections: readonly ResolvedConnection[]) => {
       // Without a session, or an account id, Better Auth's endpoint refuses the request itself.
       if (!session || typeof accountId !== 'string') return
       const account = (await ctx.context.internalAdapter.findAccounts(session.user.id)).find((candidate) => candidate.id === accountId)
-      if (account && connected(account)) throw refused()
+      if (account && connected(account)) throw connectionRefusal('FORBIDDEN', 'CONNECTION_UNLINK_REFUSED', ctx.headers)
     }),
   }
 }

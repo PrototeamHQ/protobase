@@ -4,7 +4,8 @@ import { ConnectionError, type ConnectionDeclaration, type PluginConnection } fr
 import type { Deps } from '../../deps'
 import type { SaverRoles } from '../plugin-records'
 import type { ConnectionAccounts } from './connection-accounts'
-import { connectionProviderId, holdsScopes } from './connection-provider'
+import { accountToken } from './account-token'
+import type { ConnectionTexts } from './connection-texts'
 import { enablerMayUpdate } from './enabler-authority'
 import { singleFlight } from './single-flight'
 
@@ -14,7 +15,7 @@ export type VersionRef = { workflowId: string; version: number }
 /** What a connection is looked up with: the plugin's declaration of it, and where its type runs. */
 export type ConnectionUse = { plugin: string; name: string; declaration: ConnectionDeclaration; version: () => Promise<VersionRef | undefined>; secret: (token: string) => void }
 
-export type ConnectionTokensInput = { deps: () => Deps; schema: string; roles: SaverRoles; accounts: ConnectionAccounts; refresh: ReturnType<typeof sharedRefresh> }
+export type ConnectionTokensInput = { deps: () => Deps; schema: string; roles: SaverRoles; accounts: ConnectionAccounts; refresh: ReturnType<typeof sharedRefresh>; text: ConnectionTexts }
 
 type Consent = { account: string | null; enabled_by: string | null; tenant_id: string | null }
 
@@ -37,15 +38,16 @@ export const sharedRefresh = (accounts: ConnectionAccounts) => {
 
 /**
  * The connection a step or trigger declared, bound by its workflow. Each `accessToken()` checks afresh, caching nothing:
- * the version it runs binds an account to the connection, the person who turned that version on owns that account of
- * the connection's provider with its scopes, and may still update the workflow in its tenant. Anything else is
- * `not_connected`, with one message that tells nothing of whether the account exists; a refresh the provider refuses
- * is `link_expired`. The token is blanked out of all the step records (`secret`).
+ * the version it runs binds an account to the connection, the person who turned that version on may still update the
+ * workflow in its tenant, and owns that account of the connection's provider with its scopes, before and after its
+ * token is fetched (`accountToken`). Anything else is `not_connected`, with one message that tells nothing of whether
+ * the account exists; a refresh the provider refuses is `link_expired`. The token is blanked out of all the step records (`secret`).
  */
-export const connectionTokens = ({ deps, schema, roles, accounts, refresh: tokenOf }: ConnectionTokensInput) => {
+export const connectionTokens = ({ deps, schema, roles, accounts, refresh, text }: ConnectionTokensInput) => {
+  const tokenOf = accountToken({ accounts, refresh })
   return (use: ConnectionUse): PluginConnection => {
     const key = `${use.plugin}:${use.name}`
-    const notConnected = () => new ConnectionError('not_connected', `This workflow has no connection it may use for ${key}: its owner connects an account and turns the workflow on`)
+    const notConnected = () => new ConnectionError('not_connected', text('notConnected', { key }))
     return {
       accessToken: async () => {
         const ref = await use.version()
@@ -56,11 +58,8 @@ export const connectionTokens = ({ deps, schema, roles, accounts, refresh: token
         const consent = rows[0]
         if (!consent?.account || !consent.enabled_by) throw notConnected()
         if (!(await enablerMayUpdate(db, deps(), roles, consent.enabled_by, consent.tenant_id ?? undefined, ref.workflowId))) throw notConnected()
-        const account = await accounts.find(consent.enabled_by, consent.account)
-        if (!account || account.providerId !== connectionProviderId(use.plugin, use.name, use.declaration) || !holdsScopes(account.scopes, use.declaration)) throw notConnected()
-        const token = await tokenOf(consent.enabled_by, account.id, account.refreshToken)
-        if (!token) throw new ConnectionError('link_expired', `The account connected for ${key} no longer signs in: its owner connects it again`)
-        use.secret(token)
+        const token = await tokenOf({ ...use, userId: consent.enabled_by, accountId: consent.account }, notConnected)
+        if (!token) throw new ConnectionError('link_expired', text('linkExpired', { key }))
         return token
       },
     }

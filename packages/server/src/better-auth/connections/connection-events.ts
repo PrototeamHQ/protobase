@@ -12,7 +12,12 @@ export type ConnectionListener = {
   uses: (userId: string, accountIds: string[]) => Promise<AccountUses>
   /** A disconnected account's token the provider did not revoke: queue it to be revoked again later. */
   revokeLater: (revocation: SealedRevocation) => Promise<void>
+  /** A disconnected account's token that is not revoked and not queued, and why, for the app's error report; never the token. */
+  unrevoked: (failure: Unrevoked) => void
 }
+
+/** Why a disconnected account's token was left unrevoked: it did not decrypt, the revocation or its queueing threw. */
+export type Unrevoked = { provider: string; reason: 'unreadable' | 'revoke_failed' | 'queue_failed' }
 
 /** The workflows that use each account, by its id. */
 export type AccountUses = Record<string, { id: string; name: string }[]>
@@ -35,6 +40,7 @@ export const connectionEvents = () => {
       if (!listener) throw new Error('No workflows listen to queue the revocation')
       await listener.revokeLater(revocation)
     },
+    unrevoked: (failure: Unrevoked) => listener?.unrevoked(failure),
   }
 }
 

@@ -31,8 +31,6 @@ const mocking = [
   'packages/cli/src/supabase/register.test.ts',
   'packages/cli/src/supabase/functions/samples.test.ts',
   'packages/client/src/sign-in-flows.test.ts',
-  'packages/server/src/better-auth/connections/connect-callback.test.ts',
-  'packages/server/src/better-auth/connections/disconnect.test.ts',
   'packages/server/src/dropped-connections.test.ts',
   'packages/server/src/files/providers.test.ts',
   'packages/server/src/files/store-file.test.ts',
@@ -70,6 +68,9 @@ const databaseTests = ['packages/*/tests/**/*.test.ts', glue]
 // fixed clock never empties, so they would carry over from file to file.
 const snapshotIsolated = [
   'packages/cli/tests/supabase/supabase-users.test.ts',
+  'packages/server/src/better-auth/connections/connect-callback.test.ts',
+  'packages/server/src/better-auth/connections/disconnect.test.ts',
+  'packages/server/src/better-auth/connections/unlink-guard.test.ts',
   'packages/server/tests/account-change-confirmation.test.ts',
   'packages/server/tests/admin-users.test.ts',
   'packages/server/tests/app-tokens.test.ts',
@@ -147,7 +148,7 @@ export default defineConfig({
         test: {
           name: 'unit',
           include: unit,
-          exclude: [...configDefaults.exclude, ...mocking],
+          exclude: [...configDefaults.exclude, ...mocking, ...snapshotIsolated],
           setupFiles: ['test-support/no-database.setup.ts'],
           isolate: false,
         },

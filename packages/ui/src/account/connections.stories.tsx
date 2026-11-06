@@ -18,16 +18,16 @@ const google: WorkflowConnection = {
 }
 
 /** A signed-in session on an app whose workflow plugins declare a Google connection, which Ana connected once. */
-const connectionsSession = (connections: WorkflowConnection[], disconnectAccount: AuthSession['account']['disconnectAccount'] = fn(async () => {})): AuthSession => {
+const connectionsSession = (connections: WorkflowConnection[], disconnectAccount: AuthSession['account']['disconnectAccount'] = fn(async () => 'revoked' as const), workflowConnections = async () => connections): AuthSession => {
   const base = createStaticSession('story-token', { id: 'u-ana', email: 'ana@shop.example', name: 'Ana de Vries', role: 'sales' })
   // Refuses to start, so the story stays on the page instead of leaving for Google.
   const connectAccount = fn(async () => {
     throw new AuthError('Google is not set up.', 400, 'PROVIDER_NOT_FOUND')
   })
-  return { ...base, account: { ...base.account, workflowConnections: async () => connections, connectAccount, disconnectAccount } }
+  return { ...base, account: { ...base.account, workflowConnections, connectAccount, disconnectAccount } }
 }
 
-const disconnect = fn(async () => {})
+const disconnect = fn(async () => 'queued' as const)
 
 /**
  * A connected account a trigger waits on: the block says to connect it again, links the workflow that uses it, and
@@ -51,6 +51,32 @@ export const ConnectedChecks: StoryObj = {
     expect(dialog.getByText(/Google ends everything you allowed this app at once/)).toBeVisible()
     await userEvent.click(dialog.getByRole('button', { name: 'Disconnect' }))
     await waitFor(() => expect(disconnect).toHaveBeenCalledWith('acc-1'))
+    expect(await section.findByRole('status')).toHaveTextContent('the app asks again for a few hours')
+  },
+}
+
+const refusedDisconnect = fn(async (): Promise<'revoked'> => {
+  throw new AuthError('Could not disconnect the account', 500, 'INTERNAL_SERVER_ERROR')
+})
+const readConnections = fn(async () => [google])
+
+/** A disconnect that fails: the dialog shows why, and the block reads the accounts again, as it does after any answer. */
+export const DisconnectFailedChecks: StoryObj = {
+  name: 'Reads the accounts again after a failed disconnect (checks)',
+  tags: ['play'],
+  render: () => (
+    <AuthProvider session={connectionsSession([google], refusedDisconnect, readConnections)}>
+      <ConnectionsBlock />
+    </AuthProvider>
+  ),
+  play: async ({ canvasElement }) => {
+    const section = within(await within(canvasElement).findByRole('region', { name: 'Connections' }))
+    const reads = readConnections.mock.calls.length
+    await userEvent.click(section.getByRole('button', { name: 'Disconnect' }))
+    const dialog = within(await within(canvasElement.ownerDocument.body).findByRole('dialog'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Disconnect' }))
+    expect(await dialog.findByText('Could not disconnect the account')).toBeVisible()
+    await waitFor(() => expect(readConnections.mock.calls.length).toBe(reads + 1))
   },
 }
 /** No connection declared: the block leaves itself out. */

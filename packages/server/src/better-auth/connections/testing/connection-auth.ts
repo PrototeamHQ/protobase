@@ -31,7 +31,7 @@ export const connectionAuth = async (origin: string, { checkOrigin = false, list
   }
   const store: Record<string, Record<string, unknown>[]> = { user: [], account: [], session: [], verification: [], two_factor: [], passkey: [], sign_in_policy: [], jwks: [] }
   const events = connectionEvents()
-  if (listener !== false) events.set({ linked: async () => {}, disconnected: async () => {}, needsSignIn: async () => [], uses: async () => ({}), revokeLater: async () => {}, ...listener })
+  if (listener !== false) events.set({ linked: async () => {}, disconnected: async () => {}, needsSignIn: async () => [], uses: async () => ({}), revokeLater: async () => {}, unrevoked: () => {}, ...listener })
   const resolved = resolveConnections(acmeConnections(origin), base.connections!, base.socialProviders as never, true)
   let instance: { $context: Promise<{ adapter: never }> } | undefined
   const options = betterAuthOptions(base, { roles: ['admin', 'user'], definitions: roleDefinitions(), defaultRole: 'user', context: (() => instance!.$context) as never, connections: { resolved, events, allowPrivateAddresses: true } })
@@ -45,8 +45,8 @@ export const connectionAuth = async (origin: string, { checkOrigin = false, list
     const signedIn = await auth.api.signInEmail({ body: { email, password }, returnHeaders: true })
     const cookies = new Map(signedIn.headers.getSetCookie().map((line) => line.split(';')[0]!.split('=') as [string, string]))
     const answers: string[] = []
-    const request = async (path: string, init: { method?: string; body?: object; origin?: string; cookies?: boolean } = {}) => {
-      const headers = { ...(init.cookies !== false && { cookie: [...cookies].map(([name, value]) => `${name}=${value}`).join('; ') }), origin: init.origin ?? appOrigin, ...(init.body && { 'content-type': 'application/json' }) }
+    const request = async (path: string, init: { method?: string; body?: object; origin?: string; cookies?: boolean; language?: string } = {}) => {
+      const headers = { ...(init.cookies !== false && { cookie: [...cookies].map(([name, value]) => `${name}=${value}`).join('; ') }), origin: init.origin ?? appOrigin, ...(init.body && { 'content-type': 'application/json' }), ...(init.language && { 'accept-language': init.language }) }
       const response = await auth.handler(new Request(`${appOrigin}/api/auth${path}`, { method: init.method ?? 'GET', headers, ...(init.body && { body: JSON.stringify(init.body) }) }))
       for (const line of response.headers.getSetCookie()) cookies.set(...(line.split(';')[0]!.split('=') as [string, string]))
       const text = await response.text()

@@ -1,14 +1,15 @@
 import type { BetterAuthOptions } from 'better-auth'
-import { APIError, getOAuthState } from 'better-auth/api'
+import { getOAuthState } from 'better-auth/api'
+import { connectionRefusal } from './connection-refusal'
 import type { ConnectionEvents } from './connection-events'
 import type { ResolvedConnection } from './declared-connections'
 
 type DatabaseHooks = NonNullable<BetterAuthOptions['databaseHooks']>
 type AccountHooks = NonNullable<DatabaseHooks['account']>
 type SessionHooks = NonNullable<DatabaseHooks['session']>
-type HookContext = { path?: string; params?: Record<string, string | undefined> } | null | undefined
+type HookContext = { path?: string; params?: Record<string, string | undefined>; headers?: Headers } | null | undefined
 
-const refused = () => new APIError('FORBIDDEN', { code: 'CONNECTION_NOT_SIGN_IN', message: 'This provider connects an account to a workflow; it does not sign in.' })
+const refused = (context: HookContext) => connectionRefusal('FORBIDDEN', 'CONNECTION_NOT_SIGN_IN', context?.headers)
 
 /**
  * The account and session hooks of workflow connections. An account of a connection's provider written by a link
@@ -21,13 +22,13 @@ export const connectionAccountHooks = (connections: readonly ResolvedConnection[
   const own = new Set(connections.filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId))
   const onOwnCallback = (context: HookContext) => context?.path === '/callback/:id' && own.has(context.params?.id ?? '')
   const guard = async (_: unknown, context: HookContext) => {
-    if (onOwnCallback(context) && !(await getOAuthState())?.link) throw refused()
+    if (onOwnCallback(context) && !(await getOAuthState())?.link) throw refused(context)
   }
   const resume = async (account: { id: string; providerId: string }) => {
     if (providers.has(account.providerId) && (await getOAuthState())?.link) await events.linked(account.id)
   }
   const account: AccountHooks = { create: { before: guard, after: resume }, update: { before: guard, after: resume } }
-  const session: SessionHooks = { create: { before: async (_, context) => { if (onOwnCallback(context)) throw refused() } } }
+  const session: SessionHooks = { create: { before: async (_, context) => { if (onOwnCallback(context)) throw refused(context) } } }
   return { account, session }
 }
 

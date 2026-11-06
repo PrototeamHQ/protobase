@@ -1,43 +1,47 @@
 import { PlugZap } from 'lucide-react'
 import { Fragment, useState } from 'react'
-import { AuthError, type WorkflowConnection } from '@protobase/client'
+import { AuthError, type ConnectionRevocation, type WorkflowConnection } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import { RecordLink } from '../app/displays/record-link'
 import { formatDate } from '../format'
 import { Badge } from '../primitives/badge'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
-import { AccountSection, SectionError } from './account-section'
+import { AccountSection, SectionError, SectionNotice } from './account-section'
 import { text } from './messages'
 
 export type ConnectionsSectionProps = {
   connections: WorkflowConnection[]
   /** Leaves for the provider to connect an account; rejects with `AuthError`, which the section shows. */
   onConnect: (connection: WorkflowConnection) => Promise<void>
-  /** Rejects with `AuthError`, which the section shows. */
-  onDisconnect: (accountId: string) => Promise<void>
+  /** Answers what became of the account's token, which the section says; rejects with `AuthError`, which it shows. */
+  onDisconnect: (accountId: string) => Promise<ConnectionRevocation>
   /** Why the last connect did not go through, as the provider came back with it. */
   error?: string
 }
 
 type Chosen = { connection: WorkflowConnection; accountId: string }
 
+const disconnected = { revoked: 'disconnectedRevoked', queued: 'disconnectedQueued', not_revoked: 'disconnectedNotRevoked' } as const satisfies Record<ConnectionRevocation, string>
+
 // Revoking at Google ends every grant the account gave this app, the sign-in and a linked mailbox included.
 const wholeGrant = (connection: WorkflowConnection) => connection.provider === 'google'
 
 /**
  * The accounts the person connected for their workflows' steps to use, by the connection the app's plugins declare:
- * each one connects an account, again when a trigger waits for it, and disconnects one, which revokes its token. Each
- * account links to the workflows that use it.
+ * each one connects an account, again when a trigger waits for it, and disconnects one, which revokes its token and
+ * says whether the provider took it. Each account links to the workflows that use it.
  */
 export const ConnectionsSection = ({ connections, onConnect, onDisconnect, error: returned }: ConnectionsSectionProps) => {
   const [busy, setBusy] = useState<string>()
   const [error, setError] = useState(returned)
   const [chosen, setChosen] = useState<Chosen>()
+  const [notice, setNotice] = useState<string>()
 
   const attempt = async (key: string, work: () => Promise<void>) => {
     setBusy(key)
     setError(undefined)
+    setNotice(undefined)
     try {
       await work()
       setChosen(undefined)
@@ -52,6 +56,7 @@ export const ConnectionsSection = ({ connections, onConnect, onDisconnect, error
   return (
     <AccountSection title={text('connections')} description={text('connectionsDescription')}>
       <SectionError message={chosen ? undefined : error} />
+      <SectionNotice message={notice} />
       <ul className="divide-y rounded-md border">
         {connections.map((connection) => (
           <li key={connection.key} className="flex flex-col gap-2 px-3 py-2.5">
@@ -96,7 +101,7 @@ export const ConnectionsSection = ({ connections, onConnect, onDisconnect, error
           actions={
             <>
               <Button onClick={() => setChosen(undefined)}>{text('cancel')}</Button>
-              <Button variant="danger" loading={busy === chosen.accountId} onClick={() => void attempt(chosen.accountId, () => onDisconnect(chosen.accountId))}>
+              <Button variant="danger" loading={busy === chosen.accountId} onClick={() => void attempt(chosen.accountId, async () => setNotice(text(disconnected[await onDisconnect(chosen.accountId)])))}>
                 {text('disconnect')}
               </Button>
             </>

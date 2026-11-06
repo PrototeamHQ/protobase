@@ -3,6 +3,7 @@ import type { Definition } from '@protobase/workflows'
 import type { Session } from '../../types'
 import type { ConnectionAccount, ConnectionAccounts } from './connection-accounts'
 import { connectionConsent } from './connection-consent'
+import { connectionTexts } from './connection-texts'
 
 const scope = 'https://www.googleapis.com/auth/gmail.readonly'
 const google = { label: 'Google account', signIn: 'google', scopes: [scope] }
@@ -12,7 +13,7 @@ const owned: Record<string, ConnectionAccount[]> = {
   grace: [{ id: 'acc-grace', providerId: 'google', scopes: [scope], refreshToken: 'r3' }],
 }
 const accounts: ConnectionAccounts = { find: async (userId, id) => owned[userId]?.find((account) => account.id === id), accessToken: async () => undefined }
-const consent = connectionConsent({ accounts, declarationOf: (key) => (key === 'acme:google' ? google : undefined), connectionOf: { 'acme:inbox': 'acme:google' } })
+const consent = connectionConsent({ accounts, declarationOf: (key) => (key === 'acme:google' ? google : undefined), connectionOf: { 'acme:inbox': 'acme:google' }, text: connectionTexts(undefined) })
 
 const own = (id: string, extra: Partial<Session> = {}): Session => ({ user: { id, roles: ['builder'] }, signIn: { staff: false }, ...extra })
 const definition = (connections?: Record<string, string>): Definition => ({
@@ -39,6 +40,11 @@ describe('connectionConsent', () => {
     for (const session of [own('ada', { signIn: { staff: true } }), own('ada', { client: { id: 'mcp-client', scopes: [] } }), own('ada', { signIn: undefined }), own('ada', { anonymous: true })]) {
       expect(await refusal(consent(session, bound))).toMatchObject({ status: 403, slug: 'own-sign-in-only' })
     }
+  })
+
+  it("refuses in the app's language", async () => {
+    const dutch = connectionConsent({ accounts, declarationOf: () => google, connectionOf: { 'acme:inbox': 'acme:google' }, text: connectionTexts('nl') })
+    expect(await refusal(dutch(own('ada'), definition({ 'acme:google': 'acc-grace' })))).toMatchObject({ slug: 'own-sign-in-only', message: expect.stringContaining('Alleen de eigenaar') })
   })
 
   it('refuses turning on a version whose connection binds no account yet', async () => {
