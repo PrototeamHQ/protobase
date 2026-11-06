@@ -17,6 +17,7 @@ import { connectionWiring } from './connections/connection-wiring'
 import { connectionUses } from './connections/connection-uses'
 import { connectionTriggers } from './connections/connection-triggers'
 import { connectionRevocations } from './connections/connection-revocations'
+import { connectionRelease } from './connections/connection-release'
 import type { TokenAuth } from '../personal-mail/linked-accounts'
 import type { Locale } from '@protobase/schema/internal'
 import { connectionTexts } from './connections/connection-texts'
@@ -57,9 +58,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   auth?.connections.events.set({
     ...connectionTriggers(() => deps().db, schema, triggers, text),
     uses: connectionUses({ deps, schema, roles }),
-    revokeLater: async (revocation) => revocations?.revokeLater(deps().db, revocation),
-    // A token left valid at its provider is the app's to look into: reported by its reason, never with the token or the error that stopped it.
-    unrevoked: ({ provider, reason }) => deps().report(new Error(`A disconnected account's token of ${provider} is not revoked: ${reason}`)),
+    ...connectionRelease({ db: () => deps().db, revocations, report: (error) => deps().report(error) }),
   })
   const webhooks = usable(types.webhooks)
   const issue = { deps, schema, webhooks, origin: () => auth?.origins[0] }

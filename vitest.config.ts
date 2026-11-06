@@ -70,6 +70,7 @@ const snapshotIsolated = [
   'packages/cli/tests/supabase/supabase-users.test.ts',
   'packages/server/src/better-auth/connections/connect-callback.test.ts',
   'packages/server/src/better-auth/connections/disconnect.test.ts',
+  'packages/server/src/better-auth/connections/release-user-connections.test.ts',
   'packages/server/src/better-auth/connections/unlink-guard.test.ts',
   'packages/server/tests/account-change-confirmation.test.ts',
   'packages/server/tests/admin-users.test.ts',

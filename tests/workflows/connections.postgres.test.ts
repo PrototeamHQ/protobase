@@ -1,7 +1,7 @@
 import { sql, type Kysely } from 'kysely'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { authSchemaMigration, configExports, createAdmin, createUser, startJobs, workflowsMigration, type AdminAuth, type JobsRuntime, type Session, type WorkflowsOptions } from '@protobase/server'
+import { authSchemaMigration, configExports, createAdmin, createUser, deleteUser, startJobs, workflowsMigration, type AdminAuth, type JobsRuntime, type Session, type WorkflowsOptions } from '@protobase/server'
 import { createAuth, workflowsModule } from '@protobase/server/internal'
 import { ConnectionError, definePlugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
@@ -103,7 +103,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
   let grace: string
   // The role each user holds in tenant 1 now, which the run-time check reads.
   const held = new Map<string, string[]>()
-  const cookies = new Map<string, string>()
+  // Each browser's cookies, by the address it signed in with.
+  const cookies = new Map<string, Map<string, string>>()
 
   beforeAll(async () => {
     fake = await fakeOAuthServer()
@@ -143,22 +144,25 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     await fake?.close()
   })
 
-  // Ada's browser: signed in with her password, then through Better Auth's handler as the account page calls it.
-  const browser = async (path: string, init: { method?: string; body?: object } = {}) => {
-    if (cookies.size === 0) {
-      const signedIn = await auth.api.signInEmail({ body: { email: 'ada@example.com', password }, returnHeaders: true })
-      for (const line of signedIn.headers.getSetCookie()) cookies.set(...(line.split(';')[0]!.split('=') as [string, string]))
+  // Ada's browser, or that of `email`: signed in with her password, then through Better Auth's handler as the account page calls it.
+  const browser = async (path: string, init: { method?: string; body?: object; email?: string } = {}) => {
+    const email = init.email ?? 'ada@example.com'
+    const jar = cookies.get(email) ?? new Map<string, string>()
+    if (!cookies.has(email)) {
+      const signedIn = await auth.api.signInEmail({ body: { email, password }, returnHeaders: true })
+      for (const line of signedIn.headers.getSetCookie()) jar.set(...(line.split(';')[0]!.split('=') as [string, string]))
+      cookies.set(email, jar)
     }
-    const headers = { cookie: [...cookies].map(([name, value]) => `${name}=${value}`).join('; '), origin: baseURL, ...(init.body && { 'content-type': 'application/json' }) }
+    const headers = { cookie: [...jar].map(([name, value]) => `${name}=${value}`).join('; '), origin: baseURL, ...(init.body && { 'content-type': 'application/json' }) }
     const response = await auth.handler(new Request(`${baseURL}/api/auth${path}`, { method: init.method ?? 'GET', headers, ...(init.body && { body: JSON.stringify(init.body) }) }))
-    for (const line of response.headers.getSetCookie()) cookies.set(...(line.split(';')[0]!.split('=') as [string, string]))
+    for (const line of response.headers.getSetCookie()) jar.set(...(line.split(';')[0]!.split('=') as [string, string]))
     return { response, text: await response.text() }
   }
-  const connect = async () => {
-    const start = await browser('/link-social', { method: 'POST', body: { provider, callbackURL: '/account', disableRedirect: true } })
+  const connect = async (email = 'ada@example.com', user = ada) => {
+    const start = await browser('/link-social', { method: 'POST', body: { provider, callbackURL: '/account', disableRedirect: true }, email })
     const state = new URL((JSON.parse(start.text) as { url: string }).url).searchParams.get('state')
-    await browser(`/callback/${provider}?code=code-${Date.now()}&state=${state}`)
-    return (await sql<{ id: string }>`select id from auth.account where provider_id = ${provider} and user_id = ${ada}`.execute(db)).rows[0]?.id
+    await browser(`/callback/${provider}?code=code-${Date.now()}&state=${state}`, { email })
+    return (await sql<{ id: string }>`select id from auth.account where provider_id = ${provider} and user_id = ${user}`.execute(db)).rows[0]?.id
   }
 
   const as = async (user: string, path: string, method = 'GET', body?: unknown, extra: Record<string, string> = {}) => {
@@ -309,6 +313,24 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     expect(polled[0]).toBe(waiting!.cursor)
     await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
   })
+  it("waits for a new sign-in once its owner is deleted, their account's token revoked at the provider", async () => {
+    const mae = String((await createUser(auth, { email: 'mae@example.com', password, role: 'admin' })).id)
+    held.set(mae, ['builder'])
+    // The fake provider has one person, whom Ada's account is: she lets it go before Mae connects it.
+    const adas = (await sql<{ id: string }>`select id from auth.account where provider_id = ${provider} and user_id = ${ada}`.execute(db)).rows[0]?.id
+    if (adas) await browser('/connections/disconnect', { method: 'POST', body: { accountId: adas } })
+    const account = (await connect('mae@example.com', mae))!
+    const workflow = await save(mae, account, { 'acme:inbox': {} })
+    expect((await as(mae, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })).status).toBe(200)
+    const trigger = async () => (await sql<{ status: string; cursor: number }>`select status, cursor from workflows.triggers where workflow_id = ${workflow.id}`.execute(db)).rows[0]
+    await until(trigger, (row) => (row?.cursor ?? 0) >= 1)
+    const revoked = fake.callsTo('/revoke').length
+    await deleteUser(auth, 'mae@example.com')
+    expect((await trigger())!.status).toBe('needs_sign_in')
+    expect(fake.callsTo('/revoke')).toHaveLength(revoked + 1)
+    expect((await sql`select id from auth.account where id = ${account}`.execute(db)).rows).toEqual([])
+  })
+
   it("lists on the account page the workflows that use an account: turned on by its owner, binding it, and still theirs to change", async () => {
     const account = (await connect())!
     const named = async (user: string, name: string) => (await as(user, '/workflows', 'POST', { name, definition: definition(account) })).body as { id: string; version: number }
