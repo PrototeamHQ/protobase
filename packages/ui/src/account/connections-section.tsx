@@ -7,6 +7,7 @@ import { Badge } from '../primitives/badge'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
 import { AccountSection, SectionError } from './account-section'
+import { text } from './messages'
 
 export type ConnectionsSectionProps = {
   connections: WorkflowConnection[]
@@ -41,12 +42,13 @@ export const ConnectionsSection = ({ connections, onConnect, onDisconnect, error
     } catch (failure) {
       if (!(failure instanceof AuthError)) throw failure
       setError(authMessage(failure))
+    } finally {
+      setBusy(undefined)
     }
-    setBusy(undefined)
   }
 
   return (
-    <AccountSection title="Connections" description="Accounts at other services that your workflows sign in with. A workflow uses one only once you turn it on yourself.">
+    <AccountSection title={text('connections')} description={text('connectionsDescription')}>
       <SectionError message={chosen ? undefined : error} />
       <ul className="divide-y rounded-md border">
         {connections.map((connection) => (
@@ -55,17 +57,17 @@ export const ConnectionsSection = ({ connections, onConnect, onDisconnect, error
               <PlugZap className="size-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1 truncate font-medium">{connection.label}</span>
               <Button size="sm" loading={busy === connection.key} disabled={busy !== undefined} onClick={() => void attempt(connection.key, () => onConnect(connection))}>
-                {connection.accounts.length > 0 ? `Connect ${connection.label} again` : `Connect ${connection.label}`}
+                {connection.accounts.length > 0 ? text('connectAgain', { name: connection.label }) : text('connect', { name: connection.label })}
               </Button>
             </div>
             {connection.accounts.map((account) => (
               <div key={account.id} className="flex flex-wrap items-center gap-3 pl-7 text-sm">
                 <span className="min-w-0 flex-1 text-muted-foreground">
-                  Connected {formatDate(Date.parse(account.created_at))} · <code className="text-xs">{account.id}</code>
+                  {text('connectedOn', { date: formatDate(Date.parse(account.created_at)) })} · <code className="text-xs">{account.id}</code>
                 </span>
-                {account.needs_sign_in ? <Badge tone="amber">Connect it again</Badge> : <Badge tone="green">Connected</Badge>}
+                {account.needs_sign_in ? <Badge tone="amber">{text('connectionNeedsSignIn')}</Badge> : <Badge tone="green">{text('connected')}</Badge>}
                 <Button size="sm" variant="ghost" onClick={() => setChosen({ connection, accountId: account.id })}>
-                  Disconnect
+                  {text('disconnect')}
                 </Button>
               </div>
             ))}
@@ -74,14 +76,14 @@ export const ConnectionsSection = ({ connections, onConnect, onDisconnect, error
       </ul>
       {chosen && (
         <Dialog
-          title={`Disconnect ${chosen.connection.label}?`}
-          description={`Workflows that sign in with it stop until you connect an account again.${wholeGrant(chosen.connection) ? ' Google ends everything you allowed this app at once: a mailbox linked through this account stops sending too.' : ''}`}
+          title={text('disconnectTitle', { name: chosen.connection.label })}
+          description={wholeGrant(chosen.connection) ? `${text('disconnectDescription')} ${text('disconnectWholeGrant')}` : text('disconnectDescription')}
           onClose={() => setChosen(undefined)}
           actions={
             <>
-              <Button onClick={() => setChosen(undefined)}>Cancel</Button>
+              <Button onClick={() => setChosen(undefined)}>{text('cancel')}</Button>
               <Button variant="danger" loading={busy === chosen.accountId} onClick={() => void attempt(chosen.accountId, () => onDisconnect(chosen.accountId))}>
-                Disconnect
+                {text('disconnect')}
               </Button>
             </>
           }
