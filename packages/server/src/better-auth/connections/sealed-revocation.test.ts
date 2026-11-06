@@ -13,7 +13,7 @@ afterEach(async () => await fake.close())
 const revoker = () => sealedRevoker(resolveConnections(acmeConnections(fake.origin), { 'acme:account': acmeClient }, {}, true), async () => secret, true)
 
 describe('a sealed revocation tried again', () => {
-  it('sends the token it decrypts to the connection's revocation URL, as the provider answers', async () => {
+  it('sends the token it decrypts to the revocation URL of the connection, as the provider answers', async () => {
     const token = await sealToken(secret, 'refresh-1')
     expect(token).not.toContain('refresh-1')
     fake.answers['/revoke'] = 'revoke-error'
