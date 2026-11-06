@@ -4,6 +4,8 @@ import { betterAuthOptions, type CreateAuthOptions } from '../../create-auth'
 import { roleDefinitions } from '../../organizations/role-definitions'
 import { connectionEvents, type ConnectionListener } from '../connection-events'
 import { resolveConnections, type DeclaredConnection } from '../declared-connections'
+import { releaseUserConnections } from '../release-user-connections'
+import { userDeletion } from '../../user-deletion'
 
 const password = 'correct horse battery'
 export const appOrigin = 'https://admin.example.com'
@@ -18,7 +20,8 @@ export const acmeClient = { clientId: 'acme-client', clientSecret: 'acme-client-
 
 /**
  * Better Auth with Protobase's options and the connections of `acmeConnections` on a store in memory, its OAuth calls
- * going to the fake provider at `origin`; Ada and Grace signed in with their passwords, each in a browser of their own.
+ * going to the fake provider at `origin`, deleting a user's connected accounts as `createAuth` does; Ada and Grace
+ * signed in with their passwords, each in a browser of their own.
  */
 export const connectionAuth = async (origin: string, { checkOrigin = false, listener }: { checkOrigin?: boolean; listener?: Partial<ConnectionListener> | false } = {}) => {
   const base: CreateAuthOptions = {
@@ -34,14 +37,17 @@ export const connectionAuth = async (origin: string, { checkOrigin = false, list
   if (listener !== false) events.set({ linked: async () => {}, disconnected: async () => {}, needsSignIn: async () => [], uses: async () => ({}), revokeLater: async () => {}, unrevoked: () => {}, ...listener })
   const resolved = resolveConnections(acmeConnections(origin), base.connections!, base.socialProviders as never, true)
   let instance: { $context: Promise<{ adapter: never }> } | undefined
-  const options = betterAuthOptions(base, { roles: ['admin', 'user'], definitions: roleDefinitions(), defaultRole: 'user', context: (() => instance!.$context) as never, connections: { resolved, events, allowPrivateAddresses: true } })
+  const context = (() => instance!.$context) as never
+  const deletion = userDeletion()
+  deletion.set('connections', releaseUserConnections({ connections: resolved, events, allowPrivateAddresses: true, context }))
+  const options = betterAuthOptions(base, { roles: ['admin', 'user'], definitions: roleDefinitions(), defaultRole: 'user', context, deletion, connections: { resolved, events, allowPrivateAddresses: true } })
   // Better Auth keeps its rate limits in memory shared by every instance in the process, which other test files read too.
   const auth = betterAuth({ ...options, database: memoryAdapter(store), rateLimit: { ...options.rateLimit, enabled: false }, advanced: { ...options.advanced, disableOriginCheck: !checkOrigin } })
   instance = auth as never
 
   // A browser of someone signed in: its cookies, and every answer it got, for the checks that none carries a token.
-  const browser = async (email: string) => {
-    const user = (await auth.api.createUser({ body: { email, password, name: email, role: 'user' } })).user
+  const browser = async (email: string, role: 'user' | 'admin' = 'user') => {
+    const user = (await auth.api.createUser({ body: { email, password, name: email, role } })).user
     const signedIn = await auth.api.signInEmail({ body: { email, password }, returnHeaders: true })
     const cookies = new Map(signedIn.headers.getSetCookie().map((line) => line.split(';')[0]!.split('=') as [string, string]))
     const answers: string[] = []
@@ -60,5 +66,5 @@ export const connectionAuth = async (origin: string, { checkOrigin = false, list
     }
     return { user, request, answers, startConnect, cookies }
   }
-  return { auth, store, browser, resolved }
+  return { auth, store, browser, resolved, deletion }
 }

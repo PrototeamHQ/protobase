@@ -1,6 +1,5 @@
 import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
-import { storedScopes } from '../../personal-mail/linked-accounts'
-import { holdsScopes } from '../../workflows/connections/connection-provider'
+import { accountConnection } from './account-connection'
 import { connectionRefusal } from './connection-refusal'
 import type { ResolvedConnection } from './declared-connections'
 
@@ -11,9 +10,7 @@ import type { ResolvedConnection } from './declared-connections'
  * not among them passes on to its own answer, the same for someone else's account as for none.
  */
 export const unlinkGuard = (connections: readonly ResolvedConnection[]) => {
-  const own = new Set(connections.filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId))
-  const connected = (account: { providerId: string; scope?: string | null }) =>
-    own.has(account.providerId) || connections.some((connection) => connection.providerId === account.providerId && holdsScopes(storedScopes(account.scope), connection.declaration))
+  const connectionOf = accountConnection(connections)
   return {
     matcher: (context: { path?: string }) => context.path === '/unlink-account',
     handler: createAuthMiddleware(async (ctx) => {
@@ -22,7 +19,7 @@ export const unlinkGuard = (connections: readonly ResolvedConnection[]) => {
       // Without a session, or an account id, Better Auth's endpoint refuses the request itself.
       if (!session || typeof accountId !== 'string') return
       const account = (await ctx.context.internalAdapter.findAccounts(session.user.id)).find((candidate) => candidate.id === accountId)
-      if (account && connected(account)) throw connectionRefusal('FORBIDDEN', 'CONNECTION_UNLINK_REFUSED', ctx.headers)
+      if (account && connectionOf(account)) throw connectionRefusal('FORBIDDEN', 'CONNECTION_UNLINK_REFUSED', ctx.headers)
     }),
   }
 }

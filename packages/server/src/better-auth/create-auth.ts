@@ -15,6 +15,7 @@ import { listConnections } from './connections/list-connections'
 import { connectionProvidersPlugin } from './connections/connection-oauth-provider'
 import { refreshRefusalsPlugin } from './refresh-refusals'
 import { connectionsPlugin } from './connections/connections-plugin'
+import { releaseUserConnections } from './connections/release-user-connections'
 import { sealedRevoker } from './connections/sealed-revocation'
 import { resolveConnections, type ConnectionClient, type DeclaredConnection, type ResolvedConnection } from './connections/declared-connections'
 import { endReplacedSession } from './end-replaced-session'
@@ -606,6 +607,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
   const mobile = mobileRequests()
   const deletion = userDeletion()
+  // Deleting a user revokes their connected accounts and parks the triggers on them, as disconnecting each would.
+  if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
   const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
