@@ -3,6 +3,7 @@
 //
 //   GITHUB_REPOSITORY=owner/name GITHUB_EVENT_NAME=status GITHUB_EVENT_PATH=event.json GITHUB_RUN_ID=1 GITHUB_TOKEN=... bun scripts/auto-merge-approvals/main.ts
 import { readFileSync } from 'node:fs'
+import { afterMerge } from './after-merge'
 import { checksState, reviewBotFinished } from './checks'
 import { approvedLogins, pullRefusal, refusal } from './decision'
 import { gitHub } from './github'
@@ -56,15 +57,6 @@ async function merge(number: number, sha: string) {
   throw new Error(`GitHub refused to merge #${number}: its merge state is ${now.mergeable_state}`)
 }
 
-// A merge with GITHUB_TOKEN starts no workflow, but these two calls do, and GitHub leaves its head branch behind. A
-// branch another open pull request merges into is kept, since deleting it would close that pull request.
-async function afterMerge(number: number, base: string, head: string, mergeCommit: string) {
-  await github.dispatchWorkflow('release.yml', base)
-  await github.dispatch('pull_request_merged', { number, base, sha: mergeCommit })
-  if (!(await github.deletesHeadOnMerge()) || (await github.openPullsOnto(head)) > 0) return
-  await github.deleteBranch(head)
-}
-
 for (const number of await pullNumbers()) {
   const pull = await github.pullRequest(number)
   const reason = await whyNot(pull)
@@ -79,5 +71,5 @@ for (const number of await pullNumbers()) {
     continue
   }
   console.log(`Merged #${number} as ${mergeCommit.slice(0, 7)}.`)
-  await afterMerge(number, pull.base.ref, pull.head.ref, mergeCommit)
+  await afterMerge(github, { number, base: pull.base.ref, head: pull.head.ref, mergeCommit })
 }
