@@ -92,7 +92,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     const plugin = acmePlugin(fake.origin)
     const workflows: WorkflowsOptions = { savedByRoles: async ({ id, tenant }) => (String(tenant) === '1' ? (held.get(id) ?? []) : []), plugins: [{ plugin, source: 'acme' }], allowPrivateAddresses: true }
     auth = createAuth({
-      database: { dialect: pg.dialect, type: 'postgres' },
+      database: { dialect: pg.dialect, type: 'postgres', schemaName: 'auth' },
       baseURL,
       secret,
       mailer: false,
