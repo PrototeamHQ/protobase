@@ -10,7 +10,7 @@ export const webhookTriggers: Record<string, WebhookTrigger> = {
     label: 'Webhook',
     description: 'Starts one run for each call of the workflow\'s webhook URL that carries its secret; new_webhook_url issues the URL.',
     input: { type: 'object', additionalProperties: false, properties: webhookInputProperties },
-    output: { type: 'object', description: '{ method, query, headers, body, received_at }: the call without its credentials; a body over 1 MiB is a file of the run' },
+    output: { type: 'object', description: '{ method, query, headers, body, received_at }: the call without its credentials; a body that makes it over 1 MiB as JSON is a file of the run' },
     check: webhookInputCheck,
     receive: async ({ event, idempotencyKey }) => ({ items: [{ ...(idempotencyKey !== undefined && { key: idempotencyKey }), data: event }] }),
   },

@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import type { Db } from '@protobase/query'
+import { limits } from '@protobase/workflows'
 import { webhookBodyCeiling, webhookBodyDefault, type WebhookTrigger } from '@protobase/workflows/plugin'
 import type { FilesRuntime } from '../../files/runtime'
 import { clientAddress, createRateLimit } from '../../forms/rate-limit'
@@ -8,7 +9,7 @@ import { callPlugin } from '../triggers/plugin-call'
 import { itemCeiling, itemsProblem, runKeyLength } from '../triggers/poll-result'
 import { removeRunFile, storeRunFile } from '../run-files'
 import { authenticated, hmacOptions, idempotencyKey } from './hook-auth'
-import { hookEvent, inlineBodyBytes, receivedRequest } from './hook-event'
+import { hookEvent, overInputLimit, receivedRequest } from './hook-event'
 import { webhookParams } from './hook-paths'
 import { hookMode } from './hook-secrets'
 import { findHook } from './hook-store'
@@ -84,16 +85,17 @@ export const hookRoute = (input: HookRouteInput) => {
     const key = idempotencyKey(request, mode, target.input)
     if (key !== undefined && key.length > runKeyLength) throw refused(badRequest('invalid-idempotency-key', `The call's id is over ${runKeyLength} characters`))
 
-    // A body over the run input's limit is kept as a file of the run it starts, made under a run id chosen now.
+    // A call over the run input's limit as JSON keeps its body as a file of the run it starts, made under a run id chosen now.
     const runId = crypto.randomUUID()
     const signatureHeader = mode === 'hmac' ? hmacOptions(target.input).header : undefined
-    const large = bytes.length > inlineBodyBytes
-    if (large && !input.files()?.providers.private) throw refused(new HttpProblem(413, 'body-too-large', 'Payload Too Large', `The body is over ${inlineBodyBytes} bytes, and this app keeps no files for larger ones`))
+    const inline = hookEvent(request, bytes, signatureHeader)
+    const large = overInputLimit(inline)
+    if (large && !input.files()?.providers.private) throw refused(new HttpProblem(413, 'body-too-large', 'Payload Too Large', `The call is over a run input's ${limits.inputBytes} bytes as JSON, and this app keeps no files for larger ones`))
     const file = large ? await storeRunFile(input.files(), runId, bytes, 'body', request.headers.get('content-type') ?? 'application/octet-stream') : undefined
     // The body's file is removed on every path that started no run under `runId`: a failed call, or one whose run started before.
     let started = false
     try {
-      const event = hookEvent(request, bytes, signatureHeader, file)
+      const event = file ? hookEvent(request, bytes, signatureHeader, file) : inline
       const received = await callPlugin(() => type.receive({ request: receivedRequest(request, bytes, signatureHeader), event, idempotencyKey: key, input: target.input }), input.redact)
       if (!('value' in received)) throw new Error(`The webhook trigger ${target.type} failed: ${'failed' in received ? received.failed : received.expired}`)
       const { items, response } = received.value

@@ -59,7 +59,7 @@ export type PollingTrigger = TriggerBase & {
 /**
  * A webhook call as the run sees it, once the route checked its signature: the method, the query, the headers without
  * any credential (`authorization`, `cookie`, `webhook-*`, the signature header, `x-forwarded-*`), the body as JSON, form
- * fields or text, or as a file of the run when it is over 1 MiB, and when it came. The address is left out: it holds
+ * fields or text, or as a file of the run when the call would be over 1 MiB as JSON, and when it came. The address is left out: it holds
  * the key.
  */
 export type WebhookEvent = { method: string; query: Record<string, string>; headers: Record<string, string>; body: unknown; received_at: string }

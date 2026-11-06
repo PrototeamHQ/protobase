@@ -1,7 +1,11 @@
+import { limits } from '@protobase/workflows'
 import type { FileValue, WebhookEvent } from '@protobase/workflows/plugin'
 
-/** The largest body a run keeps in its input; a larger one is a file of the run. */
-export const inlineBodyBytes = 1024 * 1024
+/**
+ * Whether the call as its run sees it is over a run input's limit as JSON, which escaping makes larger than the body
+ * itself: its body is then kept as a file of the run instead.
+ */
+export const overInputLimit = (event: WebhookEvent) => new TextEncoder().encode(JSON.stringify(event)).length > limits.inputBytes
 
 // Credentials and what the proxies in front added: no run, step or log sees them.
 const dropped = (name: string, signatureHeader: string | undefined) =>
@@ -38,8 +42,8 @@ const parsedBody = (bytes: Uint8Array, type: string) => {
 }
 
 /**
- * The call as its run sees it: method, query, headers without credentials, the body, or `file` when the body is over
- * 1 MiB and the caller kept it as a file of the run, and when it came. The address is left out: it holds the key.
+ * The call as its run sees it: method, query, headers without credentials, the body, or `file` when the caller kept the
+ * body as a file of the run, as for a call over the run input's 1 MiB, and when it came. The address is left out: it holds the key.
  */
 export const hookEvent = (request: Request, bytes: Uint8Array, signatureHeader: string | undefined, file?: FileValue): WebhookEvent => ({
   method: request.method,

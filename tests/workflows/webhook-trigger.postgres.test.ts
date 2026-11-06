@@ -253,6 +253,14 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     expect(run!.input.body).toMatchObject({ name: 'body', type: 'application/json', size: body.length, uri: expect.stringContaining(`workflows/${run!.id}/`) })
   })
 
+  it('keeps a body under 1 MiB as a file when escaping makes the run input over 1 MiB as JSON', async () => {
+    const hook = await hooked()
+    const quotes = '"'.repeat(600_000)
+    expect((await signed(hook.url, hook.secret, quotes)).status).toBe(202)
+    const [run] = await runsOf(hook.id)
+    expect(run!.input.body).toMatchObject({ name: 'body', size: quotes.length, uri: expect.stringContaining(`workflows/${run!.id}/`) })
+  })
+
   it('leaves no file of a body over 1 MiB behind when the call starts no run', async () => {
     const hook = await hooked({ body_limit: 2 * 1024 * 1024 }, 'ada', 'fixture:broken')
     const stored = async () => (await readdir(folder.dir, { recursive: true, withFileTypes: true })).filter((entry) => entry.isFile()).length

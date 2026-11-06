@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hookEvent, keptHeaders, receivedRequest } from './hook-event'
+import { hookEvent, keptHeaders, overInputLimit, receivedRequest } from './hook-event'
 
 const call = (headers: Record<string, string>, body = '{"a":1}') => new Request('https://app.test/api/workflows/hooks/the-key?x=1', { method: 'POST', headers, body })
 
@@ -21,5 +21,14 @@ describe('hookEvent', () => {
     const request = receivedRequest(call({ authorization: 'Bearer s' }), new Uint8Array(), undefined)
     expect(request.url).toBe('https://app.test/?x=1')
     expect(request.headers.get('authorization')).toBeNull()
+  })
+})
+
+describe('overInputLimit', () => {
+  it('measures the call as its run input, escaped as JSON, rather than its body', () => {
+    // 600 000 quotes are under 1 MiB as a body, and twice that once JSON escapes each one.
+    const quotes = new TextEncoder().encode('"'.repeat(600_000))
+    expect(overInputLimit(hookEvent(call({ 'content-type': 'text/plain' }), quotes, undefined))).toBe(true)
+    expect(overInputLimit(hookEvent(call({ 'content-type': 'text/plain' }), new TextEncoder().encode('a'.repeat(600_000)), undefined))).toBe(false)
   })
 })
