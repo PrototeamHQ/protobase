@@ -31,7 +31,7 @@ export const connectionAuth = async (origin: string, { checkOrigin = false, list
   }
   const store: Record<string, Record<string, unknown>[]> = { user: [], account: [], session: [], verification: [], two_factor: [], passkey: [], sign_in_policy: [], jwks: [] }
   const events = connectionEvents()
-  events.set({ linked: async () => {}, disconnected: async () => {}, needsSignIn: async () => [], ...listener })
+  events.set({ linked: async () => {}, disconnected: async () => {}, needsSignIn: async () => [], uses: async () => ({}), ...listener })
   const resolved = resolveConnections(acmeConnections(origin), base.connections!, base.socialProviders as never, true)
   let instance: { $context: Promise<{ adapter: never }> } | undefined
   const options = betterAuthOptions(base, { roles: ['admin', 'user'], definitions: roleDefinitions(), defaultRole: 'user', context: (() => instance!.$context) as never, connections: { resolved, events, allowPrivateAddresses: true } })

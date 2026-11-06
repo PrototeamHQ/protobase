@@ -11,6 +11,7 @@ import { personalMailer } from '../personal-mail/personal-mailer'
 import { mailLinkHooks } from '../personal-mail/mail-link-hooks'
 import { bothAccountHooks, connectionAccountHooks } from './connections/connection-account-hooks'
 import { connectionEvents, type ConnectionEvents } from './connections/connection-events'
+import { listConnections } from './connections/list-connections'
 import { connectionProvidersPlugin } from './connections/connection-oauth-provider'
 import { refreshRefusalsPlugin } from './refresh-refusals'
 import { connectionsPlugin } from './connections/connections-plugin'
@@ -50,6 +51,7 @@ import { rolesPlugin } from './roles/roles-plugin'
 import { versionedSecrets } from './secret-versions'
 import { signingKeyRotation, signingKeys } from './signing-keys'
 import type { RoleSession, RoleUser } from './roles/session-role'
+import type { Session } from '../types'
 import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { appSignInPolicy } from './app-sign-in-policy'
 import { signInPolicyPlugin } from './policy-plugin'
@@ -664,8 +666,15 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     personalMailer: (userId: string) => personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), personalMail, userId),
     /** What workflow connections can sign in with: whether tokens are stored encrypted, the sign-in providers, the connections with a client. */
     connectionSupport: { encrypted: options.encryptOAuthTokens === true, signInProviders: socialProviders, clients: connectionClients },
-    /** The workflow connections people connect accounts through, and the listener (`set`) the workflows give for their links and disconnects. */
-    connections: { declared: resolvedConnections, events: { set: events.set } },
+    /**
+     * The workflow connections people connect accounts through, the listener (`set`) the workflows give for their links
+     * and disconnects, and `list`, on the server only, of the session's own person's accounts, as `GET /connections` lists them.
+     */
+    connections: {
+      declared: resolvedConnections,
+      events: { set: events.set },
+      list: async (session: Session) => listConnections({ findAccounts: async (userId) => (await auth.$context).internalAdapter.findAccounts(userId), connections: resolvedConnections, events }, session.user.id),
+    },
     /** The OAuth provider for MCP clients, when on: the endpoint's resource (its URL) and path, and the scope its tokens carry. */
     mcp: mcp && { resource: mcp.resource, path: mcp.path, scope: mcpScope },
   })

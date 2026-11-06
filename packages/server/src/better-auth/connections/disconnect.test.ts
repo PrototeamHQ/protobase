@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TokenAuth } from '../../personal-mail/linked-accounts'
 import { betterAuthConnectionAccounts } from '../../workflows/connections/connection-accounts'
-import { connectionAuth } from './testing/connection-auth'
+import { acmeClient, connectionAuth } from './testing/connection-auth'
 import { fakeOAuthServer } from './testing/fake-oauth-server'
 
 const provider = 'workflow-acme-account'
@@ -69,12 +69,25 @@ describe('disconnecting a connected account', () => {
     expect(fake.callsTo('/revoke')).toEqual([])
   })
 
-  it('lists the connections with the accounts that fit them, never a token', async () => {
-    const { ada, accountId } = await connected({ listener: { needsSignIn: async (ids) => ids } })
-    const listed = JSON.parse((await ada.request('/connections')).text) as { connections: { key: string; accounts: { id: string; needs_sign_in: boolean }[] }[] }
+  it('lists the connections with the accounts that fit them and the workflows that use them, never a token', async () => {
+    const uses = vi.fn(async (_userId: string, ids: string[]) => Object.fromEntries(ids.map((id) => [id, [{ id: 'wf-1', name: 'Report' }]])))
+    const { ada, accountId } = await connected({ listener: { needsSignIn: async (ids) => ids, uses } })
+    const listed = JSON.parse((await ada.request('/connections')).text) as { connections: { key: string; accounts: Record<string, unknown>[] }[] }
     expect(listed.connections.map(({ key }) => key)).toEqual(['acme:account', 'acme:google'])
-    expect(listed.connections[0]!.accounts).toEqual([expect.objectContaining({ id: accountId, needs_sign_in: true })])
-    for (const answer of ada.answers) expect(answer).not.toContain('snapshot-')
+    expect(listed.connections[0]!.accounts).toEqual([{ id: accountId, scopes: expect.arrayContaining(['openid']), created_at: expect.any(String), needs_sign_in: true, used_by: [{ id: 'wf-1', name: 'Report' }] }])
+    expect(uses).toHaveBeenCalledExactlyOnceWith(String(ada.user.id), [accountId])
+    for (const answer of ada.answers) for (const secret of ['snapshot-', acmeClient.clientSecret]) expect(answer).not.toContain(secret)
+  })
+
+  it("lists only the signed-in person's own accounts, and none without a session", async () => {
+    const { browser, ada, accountId } = await connected()
+    const grace = await browser('grace@example.com')
+    const listed = JSON.parse((await grace.request('/connections')).text) as { connections: { accounts: unknown[] }[] }
+    expect(listed.connections.flatMap(({ accounts }) => accounts)).toEqual([])
+    const without = await ada.request('/connections', { cookies: false })
+    expect(without.response.status).toBe(401)
+    expect(without.text).not.toContain(accountId)
+    expect(without.text).not.toContain('connections')
   })
 })
 

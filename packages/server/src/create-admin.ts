@@ -422,7 +422,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
     const instructions = engine ? `${mcpInstructions}\n${workflowInstructions}` : mcpInstructions
     const approvals = mcpApprovals()
     const { resource } = auth.mcp

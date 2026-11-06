@@ -1,7 +1,8 @@
 import { PlugZap } from 'lucide-react'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { AuthError, type WorkflowConnection } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
+import { RecordLink } from '../app/displays/record-link'
 import { formatDate } from '../format'
 import { Badge } from '../primitives/badge'
 import { Button } from '../primitives/button'
@@ -26,7 +27,8 @@ const wholeGrant = (connection: WorkflowConnection) => connection.provider === '
 
 /**
  * The accounts the person connected for their workflows' steps to use, by the connection the app's plugins declare:
- * each one connects an account, again when a trigger waits for it, and disconnects one, which revokes its token.
+ * each one connects an account, again when a trigger waits for it, and disconnects one, which revokes its token. Each
+ * account links to the workflows that use it.
  */
 export const ConnectionsSection = ({ connections, onConnect, onDisconnect, error: returned }: ConnectionsSectionProps) => {
   const [busy, setBusy] = useState<string>()
@@ -61,15 +63,27 @@ export const ConnectionsSection = ({ connections, onConnect, onDisconnect, error
               </Button>
             </div>
             {connection.accounts.map((account) => (
-              <div key={account.id} className="flex flex-wrap items-center gap-3 pl-7 text-sm">
-                <span className="min-w-0 flex-1 text-muted-foreground">
-                  {text('connectedOn', { date: formatDate(Date.parse(account.created_at)) })} · <code className="text-xs">{account.id}</code>
-                </span>
-                {account.needs_sign_in ? <Badge tone="amber">{text('connectionNeedsSignIn')}</Badge> : <Badge tone="green">{text('connected')}</Badge>}
-                <Button size="sm" variant="ghost" onClick={() => setChosen({ connection, accountId: account.id })}>
-                  {text('disconnect')}
-                </Button>
-              </div>
+              <Fragment key={account.id}>
+                <div className="flex flex-wrap items-center gap-3 pl-7 text-sm">
+                  <span className="min-w-0 flex-1 text-muted-foreground">
+                    {text('connectedOn', { date: formatDate(Date.parse(account.created_at)) })} · <code className="text-xs">{account.id}</code>
+                  </span>
+                  {account.needs_sign_in ? <Badge tone="amber">{text('connectionNeedsSignIn')}</Badge> : <Badge tone="green">{text('connected')}</Badge>}
+                  <Button size="sm" variant="ghost" onClick={() => setChosen({ connection, accountId: account.id })}>
+                    {text('disconnect')}
+                  </Button>
+                </div>
+                {account.used_by.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-7 text-sm">
+                    <span className="text-muted-foreground">{text('connectionUsedBy')}</span>
+                    {account.used_by.map((workflow) => (
+                      <RecordLink key={workflow.id} resource="workflows" recordKey={workflow.id} className="font-medium text-primary-text hover:underline">
+                        {workflow.name}
+                      </RecordLink>
+                    ))}
+                  </div>
+                )}
+              </Fragment>
             ))}
           </li>
         ))}

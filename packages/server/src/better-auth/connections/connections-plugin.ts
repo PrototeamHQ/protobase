@@ -2,10 +2,9 @@ import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, createAuthMiddleware, sessionMiddleware } from 'better-auth/api'
 import { decryptOAuthToken } from 'better-auth/oauth2'
 import * as z from 'zod'
-import { storedScopes } from '../../personal-mail/linked-accounts'
-import { holdsScopes } from '../../workflows/connections/connection-provider'
 import type { ConnectionEvents } from './connection-events'
 import type { ResolvedConnection } from './declared-connections'
+import { listConnections } from './list-connections'
 import { revokeToken } from './revoke-token'
 
 export const connectionPaths = { list: '/connections', disconnect: '/connections/disconnect' }
@@ -17,7 +16,8 @@ const notFound = () => new APIError('NOT_FOUND', { code: 'CONNECTION_NOT_FOUND',
 
 /**
  * The signed-in person's connections: `GET /connections` lists each connection the app's workflow plugins declare with
- * the person's accounts that fit it, and whether a trigger waits for one to be signed in again, never a token.
+ * the person's accounts that fit it, whether a trigger waits for one to be signed in again and the workflows that use
+ * it, never a token (see `listConnections`).
  * `POST /connections/disconnect` revokes an account's token at its provider, then deletes it whatever the provider
  * answered, and stops the triggers on it; their own account only, and never the last account they sign in with. Connecting is
  * Better Auth's `/link-social`; a sign-in (not a link) through a provider only connections use is refused.
@@ -28,19 +28,8 @@ export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }
     id: 'protobase-connections',
     endpoints: {
       listConnections: createAuthEndpoint(connectionPaths.list, { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
-        const accounts = await ctx.context.internalAdapter.findAccounts(ctx.context.session.user.id)
-        const fitting = (connection: ResolvedConnection) => accounts.filter((account) => account.providerId === connection.providerId && holdsScopes(storedScopes(account.scope), connection.declaration))
-        const waiting = new Set(await events.needsSignIn(connections.flatMap((connection) => fitting(connection).map((account) => account.id))))
-        return ctx.json({
-          connections: connections.map((connection) => ({
-            key: connection.key,
-            label: connection.declaration.label,
-            provider: connection.providerId,
-            scopes: connection.declaration.scopes ?? [],
-            link_params: connection.declaration.link_params ?? {},
-            accounts: fitting(connection).map((account) => ({ id: account.id, scopes: storedScopes(account.scope), created_at: account.createdAt, needs_sign_in: waiting.has(account.id) })),
-          })),
-        })
+        const adapter = ctx.context.internalAdapter
+        return ctx.json({ connections: await listConnections({ findAccounts: (userId) => adapter.findAccounts(userId), connections, events }, ctx.context.session.user.id) })
       }),
       disconnectConnection: createAuthEndpoint(connectionPaths.disconnect, { method: 'POST', use: [sessionMiddleware], body: z.object({ accountId: z.string() }) }, async (ctx) => {
         const adapter = ctx.context.internalAdapter
