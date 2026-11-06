@@ -35,7 +35,8 @@ export const connectionAuth = async (origin: string, { checkOrigin = false, list
   const resolved = resolveConnections(acmeConnections(origin), base.connections!, base.socialProviders as never, true)
   let instance: { $context: Promise<{ adapter: never }> } | undefined
   const options = betterAuthOptions(base, { roles: ['admin', 'user'], definitions: roleDefinitions(), defaultRole: 'user', context: (() => instance!.$context) as never, connections: { resolved, events, allowPrivateAddresses: true } })
-  const auth = betterAuth({ ...options, database: memoryAdapter(store), advanced: { ...options.advanced, disableOriginCheck: !checkOrigin } })
+  // Better Auth keeps its rate limits in memory shared by every instance in the process, which other test files read too.
+  const auth = betterAuth({ ...options, database: memoryAdapter(store), rateLimit: { ...options.rateLimit, enabled: false }, advanced: { ...options.advanced, disableOriginCheck: !checkOrigin } })
   instance = auth as never
 
   // A browser of someone signed in: its cookies, and every answer it got, for the checks that none carries a token.
