@@ -31,4 +31,8 @@ describe('connections in a definition', () => {
     expect(check(definition({ connections: { 'acme:google': '' } }))).toHaveLength(1)
     expect(check(definition({ connections: { google: 'account-1' } })).length).toBeGreaterThan(0)
   })
+
+  it('leaves the bindings unchecked for a caller that knows no connections, as the editor', () => {
+    expect(checkDefinition(definition({ connections: { 'acme:google': 'account-1' } }), { resources: ['acme:send'], triggers: { 'acme:inbox': () => [] } })).toEqual([])
+  })
 })

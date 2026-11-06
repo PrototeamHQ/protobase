@@ -17,7 +17,7 @@ import { nestingDepth } from '../nesting'
  * What a definition is checked against beside the language: the step types (Task resources) the app has, the
  * arguments each needs (`required`, by step type), its trigger types, each with the check of its input, and why the
  * app cannot run a type it knows (`unavailable`, by step or trigger type), and the connection `<plugin>:<connection>`
- * each type that signs in uses (`connections`, by step or trigger type).
+ * each type that signs in uses (`connections`, by step or trigger type); without it the bindings are not checked.
  */
 export type CheckOptions = {
   resources: readonly string[]
@@ -100,5 +100,5 @@ export const checkDefinition = (definition: unknown, options: CheckOptions): Pro
   const shape = schemaProblems(definition)
   if (shape.length > 0) return shape
   const document = definition as Definition
-  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...connectionProblems(document, options.connections ?? {}), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false }, options)]
+  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...(options.connections ? connectionProblems(document, options.connections) : []), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false }, options)]
 }
