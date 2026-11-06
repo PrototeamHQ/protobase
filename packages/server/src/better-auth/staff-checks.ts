@@ -75,6 +75,7 @@ const accountChanges = [
   '/delete-user',
   '/link-social',
   '/unlink-account',
+  '/connections/disconnect',
   '/revoke-sessions',
   '/revoke-other-sessions',
   '/two-factor/enable',

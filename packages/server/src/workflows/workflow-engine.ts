@@ -14,6 +14,7 @@ import { triggerJobs } from './triggers/trigger-jobs'
 import { workflowTypes } from './workflow-types'
 import { betterAuthConnectionAccounts } from './connections/connection-accounts'
 import { connectionWiring } from './connections/connection-wiring'
+import { connectionTriggers } from './connections/connection-triggers'
 import type { TokenAuth } from '../personal-mail/linked-accounts'
 
 /**
@@ -45,6 +46,8 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     origin: () => auth?.origins[0],
     systemPath: () => deps().systemPath,
   })
+  // Linking an account again resumes its triggers; disconnecting it stops them.
+  auth?.connections.events.set(connectionTriggers(() => deps().db, schema, triggers))
   const webhooks = usable(types.webhooks)
   const issue = { deps, schema, webhooks, origin: () => auth?.origins[0] }
   // The public webhook address, and where a caller who may change a workflow issues its URL.

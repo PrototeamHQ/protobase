@@ -9,6 +9,11 @@ import { betterAuthLinkedAccounts, type TokenAuth } from '../personal-mail/linke
 import { resolvePersonalMail, type PersonalMailProviderId } from '../personal-mail/personal-mail-providers'
 import { personalMailer } from '../personal-mail/personal-mailer'
 import { mailLinkHooks } from '../personal-mail/mail-link-hooks'
+import { bothAccountHooks, connectionAccountHooks } from './connections/connection-account-hooks'
+import { connectionEvents, type ConnectionEvents } from './connections/connection-events'
+import { connectionProvidersPlugin } from './connections/connection-oauth-provider'
+import { connectionsPlugin } from './connections/connections-plugin'
+import { resolveConnections, type ConnectionClient, type DeclaredConnection, type ResolvedConnection } from './connections/declared-connections'
 import { endReplacedSession } from './end-replaced-session'
 import { authBasePath } from './auth-base-path'
 import { authLogger } from './auth-logger'
@@ -164,6 +169,11 @@ export type CreateAuthOptions = {
    * `{baseURL}/api/auth/callback/workflow-<plugin>-<connection>`. A connection through one of `socialProviders` needs none.
    */
   connections?: Record<string, ConnectionClient>
+  /**
+   * The connections the app's workflow plugins declare, which people connect accounts through (`createAdmin` passes
+   * them from `workflows.plugins`), and whether their providers may be at private addresses, for development and tests.
+   */
+  workflowConnections?: { declared: DeclaredConnection[]; allowPrivateAddresses?: boolean }
   /** Runs after a user is created, by any route: `createUser`, an admin, or a social sign-up. Default none. */
   onUserCreated?: UserCreatedHook
   /**
@@ -235,6 +245,25 @@ export type CreateAuthOptions = {
 // The session hooks, with a new session ending the one the browser's cookie held (see `endReplacedSession`).
 const withEndedReplaced = <H extends { create?: object }>(hooks: H) => ({ ...hooks, create: { ...hooks.create, after: endReplacedSession } })
 
+type SessionHooks = NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['session']>
+type SessionCreateBefore = NonNullable<NonNullable<SessionHooks['create']>['before']>
+
+// A session the connections refuse, as one a connection's own provider would start, is refused before any other hook.
+const refusingConnectionSessions = (hooks: SessionHooks, refuse: SessionCreateBefore | undefined): SessionHooks => {
+  if (!refuse) return hooks
+  const before = hooks.create?.before
+  return {
+    ...hooks,
+    create: {
+      ...hooks.create,
+      before: async (session, context) => {
+        await refuse(session, context)
+        return before?.(session, context)
+      },
+    },
+  }
+}
+
 type UserCreateHooks = NonNullable<NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['user']>['create']>
 
 /** Better Auth's `databaseHooks.user.create.after`: the created user (with its `role`) and the request context, `null` outside a request. */
@@ -301,6 +330,8 @@ type Resolved = {
   deletion?: UserDeletion
   /** The addresses of the accounts no one changes or deletes, from `PROTOBASE_LOCKED_ACCOUNTS` (see `lockAccounts`). */
   lockedAccounts?: string[]
+  /** The workflow connections, from `resolveConnections`, and the listener of their links and disconnects. */
+  connections?: { resolved: ResolvedConnection[]; events: ConnectionEvents; allowPrivateAddresses: boolean }
 } & AuthPlugins
 
 /**
@@ -332,7 +363,9 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
+  const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
+  const ownProviders = (connections?.resolved ?? []).filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId)
   const secure = options.baseURL.startsWith('https://')
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   const hosts = passkeyHosts([options.baseURL, ...origins])
@@ -407,7 +440,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     account: {
       ...coreNames.account,
       // Someone signed in links a provider account with another address on purpose, from their account page.
-      accountLinking: { allowDifferentEmails: true },
+      // A connection's own provider links only, from someone signed in, as sign-in through it is refused, so its
+      // account's address need not be one it vouches for.
+      accountLinking: { allowDifferentEmails: true, ...(ownProviders.length > 0 && { trustedProviders: ownProviders }) },
       ...(options.encryptOAuthTokens && { encryptOAuthTokens: true }),
     },
     plugins: [
@@ -426,6 +461,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail), confirmationCodePlugin(mail)] : []),
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail, defaultPolicy: signInPolicy })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
+      ...(connections && connections.resolved.length > 0
+        ? [connectionProvidersPlugin(connections.resolved, { allowPrivateAddresses: connections.allowPrivateAddresses }), connectionsPlugin({ connections: connections.resolved, events: connections.events, allowPrivateAddresses: connections.allowPrivateAddresses })]
+        : []),
       ...(saml.length > 0 ? [loaded(plugins.samlPlugin, 'sso.saml')(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
       passwordChecksPlugin(),
@@ -476,9 +514,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         },
         update: { before: async (user) => ({ data: confirmedOnUpdate(user, new Date()) }) },
       },
-      session: withEndedReplaced(organizations ? sessionOrganizationHooks(context) : {}),
-      // Linking a mailbox makes that account the one mail goes through.
-      account: mailLinkHooks(resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)),
+      session: refusingConnectionSessions(withEndedReplaced(organizations ? sessionOrganizationHooks(context) : {}) as SessionHooks, connectionHooks?.session.create?.before),
+      // Linking a mailbox makes that account the one mail goes through; linking a connection's account resumes its triggers.
+      account: ((mail) => (connectionHooks ? bothAccountHooks(mail, connectionHooks.account) : mail))(mailLinkHooks(resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true))),
     },
     rateLimit: {
       enabled: true,
@@ -546,8 +584,13 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings), socialProviders)
   const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...(platformSignIn ? [platformSignIn.provider] : [])])
   const personalMail = resolvePersonalMail(options.personalMail ?? [], socialProviders, options.encryptOAuthTokens === true)
-  const connectionClients = Object.keys(options.connections ?? {})
-  if (connectionClients.length > 0 && options.encryptOAuthTokens !== true) throw new Error("auth.connections: the connected accounts' tokens would be stored in plain text; turn on auth.encryptOAuthTokens")
+  if (Object.keys(options.connections ?? {}).length > 0 && options.encryptOAuthTokens !== true) throw new Error("auth.connections: the connected accounts' tokens would be stored in plain text; turn on auth.encryptOAuthTokens")
+  const allowPrivateAddresses = options.workflowConnections?.allowPrivateAddresses === true
+  const resolvedConnections = resolveConnections(options.workflowConnections?.declared ?? [], options.connections ?? {}, (options.socialProviders ?? {}) as Record<string, { clientId?: unknown; clientSecret?: unknown }>, allowPrivateAddresses)
+  const clash = resolvedConnections.find(({ declaration, providerId }) => 'oauth' in declaration && socialProviders.includes(providerId))
+  if (clash) throw new Error(`Workflow plugin "${clash.plugin}": its connection "${clash.name}" signs in as "${clash.providerId}", which is a sign-in provider's id too`)
+  const connectionClients = resolvedConnections.filter(({ declaration, client }) => 'oauth' in declaration && client).map(({ key }) => key)
+  const events = connectionEvents()
   const origins = resolveOrigins(options.baseURL, options.origins ?? platformOrigins())
   const passkeyDomain = resolvePasskeyDomain(options.passkeyDomain ?? platformPasskeyDomain(), [options.baseURL, ...origins])
   const organizations = options.organizations && resolveOrganizations(options.organizations, definitions)
@@ -558,7 +601,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const mobile = mobileRequests()
   const deletion = userDeletion()
   const lockedAccounts = platformLockedAccounts()
-  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), context })
+  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
@@ -618,15 +661,14 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     personalMailer: (userId: string) => personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), personalMail, userId),
     /** What workflow connections can sign in with: whether tokens are stored encrypted, the sign-in providers, the connections with a client. */
     connectionSupport: { encrypted: options.encryptOAuthTokens === true, signInProviders: socialProviders, clients: connectionClients },
+    /** The workflow connections people connect accounts through, and the listener (`set`) the workflows give for their links and disconnects. */
+    connections: { declared: resolvedConnections, events: { set: events.set } },
     /** The OAuth provider for MCP clients, when on: the endpoint's resource (its URL) and path, and the scope its tokens carry. */
     mcp: mcp && { resource: mcp.resource, path: mcp.path, scope: mcpScope },
   })
 }
 
 export type AdminAuth = ReturnType<typeof createAuth>
-
-/** The OAuth client an app's owner made at a provider for a workflow connection. */
-export type ConnectionClient = { clientId: string; clientSecret: string }
 
 /** `createAuth` with the optional plugins its options turn on loaded first (see `loadAuthPlugins`). */
 export const buildAuth = async (options: CreateAuthOptions): Promise<AdminAuth> => createAuth(options, await loadAuthPlugins(options))

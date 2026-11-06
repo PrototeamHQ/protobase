@@ -19,6 +19,23 @@ export type ConnectionTokensInput = { deps: () => Deps; schema: string; roles: S
 type Consent = { account: string | null; enabled_by: string | null; tenant_id: string | null }
 
 /**
+ * An account's valid access token, refreshed when it expired, with overlapping refreshes of one account joined into
+ * one. Another worker may rotate the refresh token between this one's read (`before`, the stored refresh token) and its
+ * refresh, which the provider then refuses: reading the account once more tells that apart, and the stored token is
+ * then the fresh one. Undefined when the provider refused it.
+ */
+export const sharedRefresh = (accounts: ConnectionAccounts) => {
+  const refresh = singleFlight<string | undefined>()
+  return async (userId: string, accountId: string, before: string | null) => {
+    const token = await refresh(accountId, () => accounts.accessToken(userId, accountId))
+    if (token) return token
+    const after = await accounts.find(userId, accountId)
+    if (!after || after.refreshToken === before) return
+    return refresh(accountId, () => accounts.accessToken(userId, accountId))
+  }
+}
+
+/**
  * The connection a step or trigger declared, bound by its workflow. Each `accessToken()` checks afresh, caching nothing:
  * the version it runs binds an account to the connection, the person who turned that version on owns that account of
  * the connection's provider with its scopes, and may still update the workflow in its tenant. Anything else is
@@ -26,18 +43,7 @@ type Consent = { account: string | null; enabled_by: string | null; tenant_id: s
  * is `link_expired`. The token is blanked out of all the step records (`secret`).
  */
 export const connectionTokens = ({ deps, schema, roles, accounts }: ConnectionTokensInput) => {
-  const refresh = singleFlight<string | undefined>()
-
-  // Overlapping refreshes of one account join here. Another worker may rotate the refresh token between this one's
-  // read and its refresh, which the provider then refuses: reading the account once more tells that apart, and the
-  // stored token is then the fresh one.
-  const tokenOf = async (userId: string, accountId: string, before: string | null) => {
-    const token = await refresh(accountId, () => accounts.accessToken(userId, accountId))
-    if (token) return token
-    const after = await accounts.find(userId, accountId)
-    if (!after || after.refreshToken === before) return
-    return refresh(accountId, () => accounts.accessToken(userId, accountId))
-  }
+  const tokenOf = sharedRefresh(accounts)
 
   return (use: ConnectionUse): PluginConnection => {
     const key = `${use.plugin}:${use.name}`
