@@ -51,10 +51,10 @@ describe('stopConnection', () => {
     await expect(connect(narrowed.accounts, {}).connection.accessToken()).rejects.toEqual(notConnected)
   })
 
-  it('fails link_expired and gives no token when the provider refuses the refresh', async () => {
+  it('fails not_connected and gives no token when the provider refuses the refresh', async () => {
     const { accounts } = accountsOf({ ada: [adaAccount] }, { refused: true })
     const { connection, issued } = connect(accounts, {})
-    await expect(connection.accessToken()).rejects.toEqual(new ConnectionError('link_expired', 'The account connected for acme:account no longer signs in: its owner connects it again'))
+    await expect(connection.accessToken()).rejects.toEqual(new ConnectionError('not_connected', 'The account connected for acme:account no longer signs in, so this trigger cannot end its subscription with it'))
     expect(issued).toEqual([])
   })
 })

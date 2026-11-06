@@ -12,7 +12,8 @@ export type StopConnectionInput = { accounts: ConnectionAccounts; refresh: Retur
  * The connection a stopped trigger's unsubscribe signs in with, once its workflow's consent was withdrawn: only the
  * account its row recorded, while that account still belongs to the person its row recorded as having turned it on,
  * of the connection's provider and with its scopes. A row that recorded neither, as one from before they were kept,
- * gets nothing. Each `accessToken()` checks afresh, caching nothing; only the trigger stop job holds one.
+ * gets nothing. A refresh the provider refuses is `not_connected` too: the subscription stays, recorded, until its
+ * owner ends it. Each `accessToken()` checks afresh, caching nothing; only the trigger stop job holds one.
  */
 export const stopConnection = ({ accounts, refresh }: StopConnectionInput) => (use: StopUse): PluginConnection => {
   const key = `${use.plugin}:${use.name}`
@@ -23,7 +24,7 @@ export const stopConnection = ({ accounts, refresh }: StopConnectionInput) => (u
       const account = await accounts.find(use.userId, use.accountId)
       if (!account || account.providerId !== connectionProviderId(use.plugin, use.name, use.declaration) || !holdsScopes(account.scopes, use.declaration)) throw notConnected()
       const token = await refresh(use.userId, account.id, account.refreshToken)
-      if (!token) throw new ConnectionError('link_expired', `The account connected for ${key} no longer signs in: its owner connects it again`)
+      if (!token) throw new ConnectionError('not_connected', `The account connected for ${key} no longer signs in, so this trigger cannot end its subscription with it`)
       use.secret(token)
       return token
     },
