@@ -26,6 +26,20 @@ export type Passkey = { id: string; name?: string; createdAt?: string; backedUp:
  */
 export type ConnectedApp = { clientId: string; name?: string; allowedAt: string; access: { role: string; organization?: string }[] }
 
+/**
+ * A connection a workflow plugin declares, which the person connects an account through for their workflows' steps to
+ * use: its `<plugin>:<connection>` key, label, the provider and scopes it links with, and their accounts that fit it,
+ * each marked when a trigger waits for it to be connected again. Tokens never leave the server.
+ */
+export type WorkflowConnection = {
+  key: string
+  label: string
+  provider: string
+  scopes: string[]
+  link_params: Record<string, string>
+  accounts: { id: string; scopes: string[]; created_at: string; needs_sign_in: boolean }[]
+}
+
 /** A new authenticator app: the `otpauth://` URI it scans, and the backup codes that work once each instead of a code. */
 export type AuthenticatorSetup = { totpURI: string; backupCodes: string[] }
 
@@ -120,6 +134,30 @@ export const accountSecurity = (client: BetterAuthClient) => ({
     const { data, error } = await client.linkSocial({ provider: link.provider, scopes: link.scopes, additionalParams: link.params, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })
     if (error || !data?.url) throw authError(error, 'Could not start linking the mailbox')
     return data.url
+  },
+
+  /** The connections the app's workflow plugins declare, with the person's accounts that fit each; none in an app without. */
+  workflowConnections: async (): Promise<WorkflowConnection[]> => {
+    const { data, error } = await client.$fetch<{ connections: WorkflowConnection[] }>('/connections')
+    if (error?.status === 404) return []
+    if (error || !data) throw authError(error, 'Could not read your connections')
+    return data.connections
+  },
+
+  /**
+   * Starts connecting an account for a workflow connection: resolves with the provider's authorization URL, for the page
+   * to go to. The provider sends the browser back to `callbackURL`, with `?error=<code>` when it did not go through.
+   */
+  connectAccount: async (connection: WorkflowConnection, callbackURL: string) => {
+    const { data, error } = await client.linkSocial({ provider: connection.provider, scopes: connection.scopes, additionalParams: connection.link_params, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })
+    if (error || !data?.url) throw authError(error, 'Could not start connecting the account')
+    return data.url
+  },
+
+  /** Disconnects an account: its token is revoked at the provider and deleted, and the triggers on it wait for a new one. */
+  disconnectAccount: async (accountId: string) => {
+    const { error } = await client.$fetch('/connections/disconnect', { method: 'POST', body: { accountId } })
+    if (error) throw authError(error, 'Could not disconnect the account')
   },
 
   /** The apps the person allowed to act as them, newest first; on an app with MCP on. */

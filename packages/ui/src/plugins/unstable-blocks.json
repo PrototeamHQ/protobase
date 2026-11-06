@@ -12,6 +12,7 @@
     "account/blocks/passkeys-block#PasskeysBlock",
     "account/blocks/password-block#PasswordBlock",
     "account/blocks/personal-mail-block#PersonalMailBlock",
+    "account/blocks/connections-block#ConnectionsBlock",
     "account/blocks/profile-block#ProfileBlock",
     "account/blocks/two-factor-block#TwoFactorBlock",
     "account/sign-in-policy-page#SignInPolicyPage",
