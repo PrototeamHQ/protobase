@@ -248,16 +248,36 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     await as(grace, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
   })
 
-  it('keeps a turned-off webhook trigger stopping with its reason, as its subscription cannot be ended without the consent', async () => {
+  const pushedTrigger = async (workflow: string) => (await sql<{ id: string; status: string; store: unknown; enabled_by: string | null }>`select id, status, store, enabled_by from workflows.triggers where workflow_id = ${workflow}`.execute(db)).rows[0]
+  const subscribed = async (workflow: string) => until(() => pushedTrigger(workflow), (row) => row?.store !== null && row?.store !== undefined)
+  const triggerById = async (id: string) => (await sql<{ id: string }>`select id from workflows.triggers where id = ${id}`.execute(db)).rows
+
+  it("ends a turned-off webhook trigger's subscription through the account it was made with, and gives its runs no token", async () => {
+    unsubscribed.length = 0
     const account = (await connect())!
     const workflow = await save(ada, account, { 'acme:pushed': {} })
     expect((await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })).status).toBe(200)
-    const trigger = async () => (await sql<{ status: string; store: unknown; last_error: { code: string; message: string } | null }>`select status, store, last_error from workflows.triggers where workflow_id = ${workflow.id}`.execute(db)).rows[0]
-    expect(await until(trigger, (row) => row?.store !== null && row?.store !== undefined)).toMatchObject({ status: 'active', store: { subscription: 'sub-1' } })
+    expect(await subscribed(workflow.id)).toMatchObject({ status: 'active', store: { subscription: 'sub-1' }, enabled_by: ada })
     await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
-    const stopped = await until(trigger, (row) => row?.last_error !== null && row?.last_error !== undefined)
-    expect(stopped).toMatchObject({ status: 'stopping', last_error: { code: 'not_connected', message: expect.stringContaining('could not be ended at the provider') } })
-    expect(unsubscribed).toEqual([])
+    await until(async () => unsubscribed.length, (count) => count > 0)
+    expect(await until(() => pushedTrigger(workflow.id), (row) => row === undefined)).toBeUndefined()
+    expect(unsubscribed).toEqual([{ subscription: 'sub-1' }])
+    expect(await run(ada, workflow.id)).toMatchObject({ status: 'failed', cause: expect.stringContaining('no connection it may use') })
+    expect(await everything()).not.toMatch(/snapshot-(access|refresh)_token/)
+  })
+
+  it("ends the subscription through its maker's account once someone else turns on a version with another trigger", async () => {
+    unsubscribed.length = 0
+    const account = (await connect())!
+    const workflow = await save(ada, account, { 'acme:pushed': {} })
+    await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })
+    const { id } = (await subscribed(workflow.id))!
+    const unconnected = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Succeed' } } } }
+    expect((await as(grace, `/workflows/${workflow.id}`, 'PATCH', { definition: unconnected })).status).toBe(200)
+    await until(async () => unsubscribed.length, (count) => count > 0)
+    expect(await until(() => triggerById(id), (rows) => rows.length === 0)).toEqual([])
+    expect(unsubscribed).toEqual([{ subscription: 'sub-1' }])
+    await as(grace, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
   })
 
   it('gives a step no further token once its account is disconnected between two requests', async () => {

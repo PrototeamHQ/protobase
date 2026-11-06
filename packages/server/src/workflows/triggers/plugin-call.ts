@@ -43,6 +43,12 @@ export type TriggerRef = { type: string; input: Record<string, unknown>; workflo
 /** The connection a trigger's type declared, bound by its workflow, which hands each token it gives to `secret`; none for a type without one. */
 export type TriggerConnect = (trigger: TriggerRef, secret: (token: string) => void) => PluginConnection | undefined
 
+/** A stopped trigger, with the account and the person its row recorded when it was turned on. */
+export type StoppedTrigger = TriggerRef & { connection_id: string | null; enabled_by: string | null }
+
+/** The connection a stopped trigger's unsubscribe gets, through the account and person it recorded; only the trigger stop job takes one. */
+export type StopConnect = (trigger: StoppedTrigger, secret: (token: string) => void) => PluginConnection | undefined
+
 export type TriggerContextInput = { allowPrivateAddresses: boolean; connect?: TriggerConnect }
 
 /**

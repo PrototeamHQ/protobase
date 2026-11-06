@@ -46,7 +46,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     redact: redactor.text,
     origin: () => auth?.origins[0],
     systemPath: () => deps().systemPath,
-  })
+  }, connections.stopping)
   // Linking an account again resumes its triggers; disconnecting it stops them. The account page lists what uses each one.
   auth?.connections.events.set({ ...connectionTriggers(() => deps().db, schema, triggers), uses: connectionUses({ deps, schema, roles }) })
   const webhooks = usable(types.webhooks)
