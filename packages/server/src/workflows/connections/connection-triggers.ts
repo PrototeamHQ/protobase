@@ -4,7 +4,8 @@ import type { TriggerJobs } from '../triggers/trigger-jobs'
 
 /**
  * The triggers of connected accounts, as sign-in tells of them: a link resumes the triggers waiting on that account's
- * sign-in, which poll again from the cursor they kept; a disconnect makes the running ones wait for a new sign-in.
+ * sign-in, which poll again from the cursor they kept or renew the subscription they kept; a disconnect makes the
+ * running ones wait for a new sign-in.
  */
 export const connectionTriggers = (db: () => Db, schema: string, jobs: Pick<TriggerJobs, 'start'>) => {
   const triggers = sql.id(schema, 'triggers')

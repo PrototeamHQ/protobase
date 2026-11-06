@@ -56,6 +56,17 @@ describe('triggerStarts', () => {
     expect(saved?.sql).toContain("status = 'active', consecutive_failures = 0, last_error = null")
   })
 
+  it('renews a kept subscription at once for a trigger that resumes, subscribing no second time', async () => {
+    const { db, statements } = recordedDb(({ sql }) => (sql.startsWith('select cursor') ? [{ ...fresh, has_store: true }] : sql.startsWith('update') ? [{ '?column?': 1 }] : []))
+    const queued = jobs()
+    const subscribe = vi.fn(async () => ({ id: 'sub-2' }))
+    const webhook: WebhookTrigger = { ...described, kind: 'webhook', subscribe, renew: async () => ({ id: 'sub-1' }), receive: async () => ({ items: [] }) }
+    await starts({ webhook }, queued).startWebhook(db, trigger, new AbortController().signal, async () => {})
+    expect(subscribe).not.toHaveBeenCalled()
+    expect(queued.renew.enqueue).toHaveBeenCalledOnce()
+    expect(statements.some(({ sql }) => sql.startsWith('insert into "workflows"."hooks"'))).toBe(false)
+  })
+
   it('keeps the URL key and secret out of the error a failed subscribe records', async () => {
     const { db, statements } = recordedDb(answer)
     const webhook: WebhookTrigger = {
