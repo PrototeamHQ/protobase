@@ -7,7 +7,7 @@ import { refused } from '../../assistant/record-tool-args'
 import { defineTool } from '../../assistant/tools'
 import { recordName, updateApproval } from '../../assistant/write-prompts'
 import { notApproved, onlyNote, outside, type WriteRecordToolsInput } from '../../assistant/write-tool-limits'
-import { notFound, preconditionFailed } from '../../problem'
+import { HttpProblem, notFound, preconditionFailed } from '../../problem'
 import type { Session } from '../../types'
 import { idOf, idParameter, textOf } from './workflow-tool-args'
 
@@ -16,11 +16,20 @@ const writes = { readOnlyHint: false, destructiveHint: false, openWorldHint: fal
 /** Issues a workflow's webhook URL as the caller; the server answers 404 for a workflow they may not change. */
 export type IssueWebhook = (session: Session, id: string, secret: string | undefined) => Promise<{ url: string; secret: string }>
 
+// A version that signs in through someone's connected account is turned on by its owner, signed in as themselves: an
+// outside app acting for them never can, so the tool says where they do it instead of passing on the refusal.
+const enableRefused = (error: unknown) => {
+  if (error instanceof HttpProblem && error.slug === 'own-sign-in-only') {
+    return JSON.stringify({ error: 'own-sign-in-only', message: "This workflow signs in through a connected account, so it was not turned on: the account's owner turns it on in the admin app, on the workflow's page, signed in as themselves. Saving it stays open to you." })
+  }
+  return refused(error)
+}
+
 /** Turns a workflow's trigger on, on its current version, or off, once the user approves it. */
 export const enableWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'enable_workflow',
-    description: `Turns a workflow's trigger on (enabled: true) on version, which must be its current version as create_workflow, update_workflow or get_workflow gave it, or off (enabled: false), and returns JSON { id, enabled_version }. A workflow saved since that version is refused; read it again. While on, its trigger starts runs: a webhook trigger whose sender you give a URL once it is issued with new_webhook_url, one that registers its own URL with its service as soon as it did, a polling trigger at its next poll. A later save keeps it on, on the new version. The user approves it in their client first.${onlyNote(input)}`,
+    description: `Turns a workflow's trigger on (enabled: true) on version, which must be its current version as create_workflow, update_workflow or get_workflow gave it, or off (enabled: false), and returns JSON { id, enabled_version }. A workflow saved since that version is refused; read it again. While on, its trigger starts runs: a webhook trigger whose sender you give a URL once it is issued with new_webhook_url, one that registers its own URL with its service as soon as it did, a polling trigger at its next poll. A later save keeps it on, on the new version. A workflow that signs in through a connected account (its connections) is turned on only by that account's owner in the admin app: here it is refused with error own-sign-in-only. The user approves it in their client first.${onlyNote(input)}`,
     parameters: {
       type: 'object',
       properties: {
@@ -47,7 +56,7 @@ export const enableWorkflowTool = (input: WriteRecordToolsInput = {}) =>
       const answer = await context.approve(updateApproval(text, described, id, before.record, data))
       if (answer !== 'approved') return notApproved(answer)
       // Turned on with the etag the version was read with, so a save since then fails rather than leave an older version on.
-      return context.records.update('workflows', id, data, args.enabled ? { etag: before.etag } : {}).then(({ record }) => JSON.stringify({ id: record.id, enabled_version: record.enabled_version }), refused)
+      return context.records.update('workflows', id, data, args.enabled ? { etag: before.etag } : {}).then(({ record }) => JSON.stringify({ id: record.id, enabled_version: record.enabled_version }), enableRefused)
     },
   })
 
