@@ -14,7 +14,7 @@ export type VersionRef = { workflowId: string; version: number }
 /** What a connection is looked up with: the plugin's declaration of it, and where its type runs. */
 export type ConnectionUse = { plugin: string; name: string; declaration: ConnectionDeclaration; version: () => Promise<VersionRef | undefined>; secret: (token: string) => void }
 
-export type ConnectionTokensInput = { deps: () => Deps; schema: string; roles: SaverRoles; accounts: ConnectionAccounts }
+export type ConnectionTokensInput = { deps: () => Deps; schema: string; roles: SaverRoles; accounts: ConnectionAccounts; refresh: ReturnType<typeof sharedRefresh> }
 
 type Consent = { account: string | null; enabled_by: string | null; tenant_id: string | null }
 
@@ -42,9 +42,7 @@ export const sharedRefresh = (accounts: ConnectionAccounts) => {
  * `not_connected`, with one message that tells nothing of whether the account exists; a refresh the provider refuses
  * is `link_expired`. The token is blanked out of all the step records (`secret`).
  */
-export const connectionTokens = ({ deps, schema, roles, accounts }: ConnectionTokensInput) => {
-  const tokenOf = sharedRefresh(accounts)
-
+export const connectionTokens = ({ deps, schema, roles, accounts, refresh: tokenOf }: ConnectionTokensInput) => {
   return (use: ConnectionUse): PluginConnection => {
     const key = `${use.plugin}:${use.name}`
     const notConnected = () => new ConnectionError('not_connected', `This workflow has no connection it may use for ${key}: its owner connects an account and turns the workflow on`)

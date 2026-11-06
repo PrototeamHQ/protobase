@@ -35,5 +35,5 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
   const enabled = event.after.enabled_version as number | null
   const enabledBy = enabled === null ? null : await consent(event.session, event.after.definition as Definition)
   await saveConsent(trx, schema, id, enabled, enabledBy)
-  await syncTrigger(trx, schema, jobs, event.after, types.connections)
+  await syncTrigger(trx, schema, jobs, event.after, enabledBy, types.connections)
 }

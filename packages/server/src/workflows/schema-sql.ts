@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 8
+export const workflowsVersion = 9
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -128,6 +128,8 @@ create table if not exists ${s}."triggers" (
   "updated_at" timestamptz not null default now()
 );
 alter table ${s}."triggers" add column if not exists "poll_attempt" integer;
+-- Who turned the trigger's version on: the only person whose account its stop job ends the subscription through.
+alter table ${s}."triggers" add column if not exists "enabled_by" text;
 -- A deleted workflow's trigger stays, without its workflow, until its stop job unsubscribed it at its provider.
 alter table ${s}."triggers" alter column "workflow_id" drop not null;
 do $$ begin
