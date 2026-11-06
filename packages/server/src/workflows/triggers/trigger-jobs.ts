@@ -79,25 +79,34 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput) => {
     },
   })
 
-  // A stopped webhook trigger's subscription is ended at its provider first; a sign-in that expired leaves nothing to end.
+  /**
+   * Ends a stopped webhook trigger's subscription at its provider: whether nothing is left there, so the trigger can go.
+   * Any error is tried again, as the job's, until the provider ends it. A sign-in the unsubscribe can no longer use, as
+   * once the workflow was turned off and so its connection with it, or once the provider refused it, cannot end it:
+   * the trigger then stays `stopping` with that error, as the record of a subscription the provider may still hold.
+   */
   const unsubscribe = async (db: Db, trigger: string, signal: AbortSignal) => {
     const { rows } = await sql<Pick<TriggerRow, 'type' | 'input' | 'workflow_id' | 'version'> & { store: unknown; subscribed: boolean }>`select type, input, workflow_id, version, store, store is not null as subscribed
       from ${sql.id(schema, 'triggers')} where id = ${trigger} and status = 'stopping'`.execute(db)
     const row = rows[0]
     const type = row?.subscribed ? input.webhooks(row.type) : undefined
-    if (!row || !type?.unsubscribe) return
+    if (!row || !type?.unsubscribe) return true
     const end = type.unsubscribe
     const call = triggerCall(input, row, signal, input.redact)
     const outcome = await callPlugin(() => end({ ...call.context, state: row.store }), call.redact)
-    // The job tries again, as for any error, until the provider ends the subscription.
-    if ('failed' in outcome) throw new Error(`The trigger's unsubscribe failed: ${outcome.failed}`)
+    if ('value' in outcome) return true
+    if ('failed' in outcome && !outcome.unconnected) throw new Error(`The trigger's unsubscribe failed: ${outcome.failed}`)
+    const reason = 'expired' in outcome ? outcome.expired : outcome.failed
+    const error = JSON.stringify({ code: 'expired' in outcome ? 'link_expired' : 'not_connected', message: `The subscription could not be ended at the provider: ${reason}`, at: new Date().toISOString() })
+    await sql`update ${sql.id(schema, 'triggers')} set last_error = ${error}::jsonb, updated_at = now() where id = ${trigger} and status = 'stopping'`.execute(db)
+    return false
   }
 
   const stop = defineJob<{ trigger: string }>({
     name: 'workflows.trigger-stop',
     timeout: '5 minutes',
     run: async ({ trigger }, { db, signal }) => {
-      await unsubscribe(db, trigger, signal)
+      if (!(await unsubscribe(db, trigger, signal))) return
       await sql`delete from ${sql.id(schema, 'triggers')} where id = ${trigger} and status = 'stopping'`.execute(db)
     },
   })

@@ -4,8 +4,11 @@ import { pluginFetch } from '../plugin-fetch'
 /** The longest a plugin's error message is kept on its trigger, which the workflow's readers see. */
 const messageLength = 1_000
 
-/** What a plugin's trigger code gave: its value, its expired sign-in, or its error, as the trigger records it. */
-export type PluginOutcome<T> = { value: T } | { expired: string } | { failed: string }
+/**
+ * What a plugin's trigger code gave: its value, its expired sign-in, or its error, as the trigger records it, with
+ * `unconnected` set when the error is that its workflow may use no connection any more (`not_connected`).
+ */
+export type PluginOutcome<T> = { value: T } | { expired: string } | { failed: string; unconnected?: true }
 
 /**
  * Runs a plugin's trigger code: any error it throws is the plugin's, which the trigger records rather than the job
@@ -20,6 +23,7 @@ export const callPlugin = <T>(work: () => Promise<T>, redact: (text: string) => 
       (error: unknown) => {
         const message = redact(error instanceof Error ? error.message : String(error)).slice(0, messageLength)
         if (error instanceof ConnectionError && error.code === 'link_expired') return { expired: message }
+        if (error instanceof ConnectionError && error.code === 'not_connected') return { failed: message, unconnected: true as const }
         return { failed: message }
       },
     )

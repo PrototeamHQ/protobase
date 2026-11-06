@@ -18,6 +18,7 @@ const provider = 'workflow-acme-account'
 let between: () => Promise<void> = async () => {}
 let inboxExpired = false
 const polled: unknown[] = []
+const unsubscribed: unknown[] = []
 
 const acmePlugin = (origin: string) =>
   definePlugin({
@@ -40,6 +41,22 @@ const acmePlugin = (origin: string) =>
       },
     },
     triggers: {
+      pushed: {
+        kind: 'webhook',
+        label: 'Pushed mail',
+        description: 'Subscribes as the connected account.',
+        input: { type: 'object', properties: { auth: { type: 'object' } } },
+        connection: 'account',
+        subscribe: async ({ connection }) => {
+          await connection!.accessToken()
+          return { subscription: 'sub-1' }
+        },
+        unsubscribe: async ({ connection, state }) => {
+          await connection!.accessToken()
+          unsubscribed.push(state)
+        },
+        receive: async () => ({ items: [] }),
+      },
       inbox: {
         kind: 'polling',
         label: 'New mail',
@@ -229,6 +246,18 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     expect((await as(grace, `/workflows/${workflow.id}`, 'PATCH', { definition: unconnected })).status).toBe(200)
     expect(await consents()).toEqual([{ version: 1, enabled_by: null }, { version: 2, enabled_by: null }, { version: 3, enabled_by: grace }])
     await as(grace, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
+  })
+
+  it('keeps a turned-off webhook trigger stopping with its reason, as its subscription cannot be ended without the consent', async () => {
+    const account = (await connect())!
+    const workflow = await save(ada, account, { 'acme:pushed': {} })
+    expect((await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })).status).toBe(200)
+    const trigger = async () => (await sql<{ status: string; store: unknown; last_error: { code: string; message: string } | null }>`select status, store, last_error from workflows.triggers where workflow_id = ${workflow.id}`.execute(db)).rows[0]
+    expect(await until(trigger, (row) => row?.store !== null && row?.store !== undefined)).toMatchObject({ status: 'active', store: { subscription: 'sub-1' } })
+    await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
+    const stopped = await until(trigger, (row) => row?.last_error !== null && row?.last_error !== undefined)
+    expect(stopped).toMatchObject({ status: 'stopping', last_error: { code: 'not_connected', message: expect.stringContaining('could not be ended at the provider') } })
+    expect(unsubscribed).toEqual([])
   })
 
   it('gives a step no further token once its account is disconnected between two requests', async () => {

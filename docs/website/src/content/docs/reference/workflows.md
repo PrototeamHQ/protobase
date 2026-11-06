@@ -237,6 +237,8 @@ A workflow names the account each of its connections uses in its definition's `c
 
 A workflow uses one person's accounts: one whose connections name accounts of two people can never be turned on.
 
+<gap>Turning off a workflow whose webhook trigger signs in through a connection cannot end its subscription at the provider because the consent ends with the workflow and an unsubscribe that outlives it is not implemented; the trigger stays `stopping` with that error in `workflow_triggers`.</gap>
+
 ## Step types
 
 The built-in step types are the `app` plugin's, written on the same [plugin interface](/reference/workflow-plugins/) as any other; a plugin's step is a Task with `"Resource": "<plugin>:<key>"`. A step's `Arguments` are checked against its type's input schema before it runs: one that does not fit fails as `<Prefix>.InvalidArguments`, such as `Http.InvalidArguments`.
