@@ -4,7 +4,7 @@ description: Add trigger and step types to workflows from a file of the app or a
 ---
 
 :::caution[Beta]
-Plugins add step types and record triggers. They also add polling and webhook triggers, which run within the limits named in their section. The interface declares connections that sign in to other services, but the app does not run them.
+Plugins add step types and record triggers. They also add polling and webhook triggers, which run within the limits named in their section, and connections that sign in to other services as an account a person connected, within the limits named under [Connections](#connections).
 :::
 
 A **workflow plugin** adds trigger and step types to an app's [workflows](/reference/workflows/). Its types are named `<plugin>:<key>`, such as `acme:create_invoice`: a Task names a step type as its `Resource`, and a definition's `trigger` holds a trigger type with its input. The built-in types, `app:http`, `app:records.*`, `app:mail.send` and `app:record`, are a plugin like any other, written on this interface alone, so a plugin's types run, are checked and are listed exactly as they are.
@@ -141,9 +141,62 @@ triggers: {
 
 A webhook trigger takes calls of the workflow's URL, [as `app:webhook` does](/reference/workflows/#appwebhook): the route checks the call's signature by the trigger's `auth` before any plugin code sees it, so spread `webhookInputProperties` from `@protobase/workflows/plugin` into the trigger's input schema. `receive({ request, event, idempotencyKey, input })` gets the call without its credentials and returns the runs it starts, at most 100, each `{ key?, data }`, and may return a `response` to answer with instead of `202`, such as a service's URL check. A trigger that registers its URL with its service itself declares `subscribe({ url, secret })`, which the app calls as the workflow is turned on with a URL it makes for the plugin alone, and returns the subscription's state; `renew` runs every `renewEvery` (default `1 day`) and `unsubscribe` as the workflow is turned off or deleted. Such a trigger has no URL to issue by hand. <gap>A webhook trigger that registers its own URL cannot subscribe in an app without sign-in because reading the app's public address from elsewhere is not implemented.</gap> <gap>A poll job that failed all its tries cannot start polling again by itself because a sweep of stopped triggers is not implemented; retrying the job in the admin app's failed jobs resumes it.</gap>
 
-## Connections (coming soon)
+## Connections
 
-`connections` declares the sign-ins a plugin's types use: one of the app's sign-in providers by name (`signIn`), or an OAuth provider of its own (`oauth`), with the `scopes` it asks for. A step or trigger names one as its `connection`, and gets only that one, through the workflow's own binding: the context takes no connection id, so a plugin cannot reach another workflow's sign-in. <gap>A type that declares a connection cannot run because connections are not implemented; the type list marks it unavailable, and a save that uses it is refused.</gap>
+A plugin's `connections` declare the sign-ins its types use, each under a name of lowercase letters, digits and `_`:
+
+```ts
+connections: {
+  // Through one of the app's sign-in providers (auth.socialProviders), with the scopes connecting asks for:
+  google: {
+    label: 'Google account',
+    signIn: 'google',
+    scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
+    link_params: { access_type: 'offline', prompt: 'consent' },
+    revocation_url: 'https://oauth2.googleapis.com/revoke',
+  },
+  // Or through an OAuth 2.0 provider of its own, whose client the app's owner sets in auth.connections:
+  account: {
+    label: 'Acme account',
+    scopes: ['read'],
+    oauth: {
+      authorization_url: 'https://acme.example/oauth/authorize',
+      token_url: 'https://acme.example/oauth/token',
+      user_info_url: 'https://acme.example/oauth/me',
+      revocation_url: 'https://acme.example/oauth/revoke',
+    },
+  },
+},
+```
+
+| Key | What it is |
+| --- | --- |
+| `label` | What the account page and the type list call it. |
+| `scopes` | What connecting asks for. An account counts for the connection only while it holds every one of them. |
+| `link_params` | More authorization parameters, such as those that ask for a refresh token. |
+| `signIn` | One of the app's sign-in providers, whose client and endpoints it uses. |
+| `oauth` | The provider's `authorization_url`, `token_url` and `user_info_url` (which answers the account's `sub` or `id`), its `revocation_url`, and `pkce` (default `true`). |
+| `revocation_url` | Where disconnecting revokes the token ([RFC 7009](https://www.rfc-editor.org/rfc/rfc7009)). Without one, disconnecting deletes it only. |
+
+Every URL is `https`. A host given by its address, or `localhost`, is refused at startup unless `workflows.allowPrivateAddresses` is on, for development and tests. The app sends each request only to the URL the plugin declares, through the [guarded request](#sending-requests). That request resolves the host once, refuses a private address and follows no redirect, so a declaration can never send a code, a token or the client secret to the app's own network.
+
+A type that names a connection is available once the app can make it. An `oauth` connection needs `auth.encryptOAuthTokens` and its client in `auth.connections`. A `signIn` connection needs `auth.encryptOAuthTokens` and its provider in `auth.socialProviders`. The type list gives the reason a type is not available. The client of an `oauth` connection is set by `<plugin>:<connection>`, and its redirect URI is `<baseURL>/api/auth/callback/workflow-<plugin>-<connection>`:
+
+```ts
+auth: {
+  encryptOAuthTokens: true,
+  connections: { 'acme:account': { clientId: process.env.ACME_CLIENT_ID!, clientSecret: process.env.ACME_CLIENT_SECRET! } },
+},
+```
+
+A step or a trigger hook gets the connection its type declares as `connection`, and nothing else. It has no connection id, so a plugin cannot reach another workflow's account. `connection.accessToken()` gives a token that is valid now, refreshed first when it expired, and checks every time that the workflow may still use the account, as [Connecting an account](/reference/workflows/#connecting-an-account) says. It throws a `ConnectionError`:
+
+- **`not_connected`:** the workflow may not use an account for the connection.
+- **`link_expired`:** the provider refused the refresh, so the account's owner connects it again. A trigger that throws this waits for that sign-in.
+
+The token is blanked out of the step's logs, error and output, and out of the trigger's error, before they are kept. A plugin never puts it in its input or output.
+
+An account connected through a provider of a connection's own never signs anyone in to the app, and never signs anyone up. <gap>A connection cannot be shared between people of an organization because shared connections are not implemented; each account is its owner's alone.</gap>
 
 ## The type list
 
