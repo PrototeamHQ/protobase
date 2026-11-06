@@ -101,4 +101,12 @@ describe("a connected account's access token", () => {
     fake.answers['/token'] = 'token-refresh-invalid-grant'
     expect(await betterAuthConnectionAccounts(auth as unknown as TokenAuth).accessToken(ada.user.id, accountId)).toBeUndefined()
   })
+
+  it('throws once the provider cannot be reached, so the step tries again rather than asking for a new sign-in', async () => {
+    const { auth, store, ada, accountId } = await connected()
+    store.account!.find((account) => account.id === accountId)!.access_token_expires_at = new Date(Date.now() - 1000)
+    await fake.close()
+    await expect(betterAuthConnectionAccounts(auth as unknown as TokenAuth).accessToken(ada.user.id, accountId)).rejects.toMatchObject({ body: { code: 'FAILED_TO_GET_ACCESS_TOKEN' } })
+    fake = await fakeOAuthServer()
+  })
 })

@@ -16,8 +16,31 @@ type Guarded = { allowPrivateAddresses: boolean }
 const guardedJson = async (url: string, init: { method: string; headers: Record<string, string>; body?: string }, { allowPrivateAddresses }: Guarded) => {
   const response = await pinnedRequest(url, { ...init, signal: AbortSignal.timeout(requestTimeoutMs) }, { allowPrivateAddresses })
   const bytes = await readLimited(response, answerBytes)
-  if (!response.ok) throw new Error(`The provider answered ${response.status}`)
+  if (!response.ok) throw new ProviderAnswerError(response.status, oauthError(bytes))
   return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>
+}
+
+/** A provider's answer that is not a success: its status, and its OAuth `error` code when it gives one, as `invalid_grant`. */
+export class ProviderAnswerError extends Error {
+  constructor(
+    readonly status: number,
+    readonly error: string | undefined,
+  ) {
+    super(`The provider answered ${status}${error ? ` (${error})` : ''}`)
+  }
+}
+
+// The `error` code of an OAuth error answer (RFC 6749, section 5.2); none for an answer that is not such JSON.
+const oauthError = (bytes: Uint8Array) => {
+  let body: unknown
+  try {
+    body = JSON.parse(new TextDecoder().decode(bytes))
+  } catch (error) {
+    if (error instanceof SyntaxError) return
+    throw error
+  }
+  const code = typeof body === 'object' && body !== null ? (body as { error?: unknown }).error : undefined
+  return typeof code === 'string' ? code : undefined
 }
 
 const tokenRequest = async (url: string, request: { body: URLSearchParams; headers: Record<string, string> }, guarded: Guarded) =>

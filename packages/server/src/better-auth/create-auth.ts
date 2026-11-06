@@ -12,6 +12,7 @@ import { mailLinkHooks } from '../personal-mail/mail-link-hooks'
 import { bothAccountHooks, connectionAccountHooks } from './connections/connection-account-hooks'
 import { connectionEvents, type ConnectionEvents } from './connections/connection-events'
 import { connectionProvidersPlugin } from './connections/connection-oauth-provider'
+import { refreshRefusalsPlugin } from './refresh-refusals'
 import { connectionsPlugin } from './connections/connections-plugin'
 import { resolveConnections, type ConnectionClient, type DeclaredConnection, type ResolvedConnection } from './connections/declared-connections'
 import { endReplacedSession } from './end-replaced-session'
@@ -464,6 +465,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(connections && connections.resolved.length > 0
         ? [connectionProvidersPlugin(connections.resolved, { allowPrivateAddresses: connections.allowPrivateAddresses }), connectionsPlugin({ connections: connections.resolved, events: connections.events, allowPrivateAddresses: connections.allowPrivateAddresses })]
         : []),
+      // After the plugins that add providers, so it marks the refusals of every provider's refresh.
+      refreshRefusalsPlugin(),
       ...(saml.length > 0 ? [loaded(plugins.samlPlugin, 'sso.saml')(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
       passwordChecksPlugin(),

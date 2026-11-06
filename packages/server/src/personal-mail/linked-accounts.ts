@@ -1,5 +1,6 @@
 import { APIError } from 'better-auth/api'
 import type { AuthContext } from 'better-auth'
+import { watchRefusals } from '../better-auth/refresh-refusals'
 import { PersonalMailError } from './personal-mail-error'
 
 /** A provider account linked to a user: its row id, its provider, the scopes it holds and when it was created. */
@@ -23,7 +24,7 @@ export const storedScopes = (scope: string | null | undefined) => (scope ?? '').
 /**
  * The accounts Better Auth keeps, with the tokens it stores, decrypted when `encryptOAuthTokens` is on. Its
  * `getAccessToken` refreshes a token within five seconds of expiry with the provider's refresh token and stores the new
- * one; when the provider refuses the refresh, as for a revoked grant, that is `link_expired`.
+ * one; when the provider refuses the refresh token, as for a revoked grant, that is `link_expired`.
  */
 export const betterAuthLinkedAccounts = (auth: TokenAuth): LinkedAccounts => ({
   accounts: async (userId) => {
@@ -39,13 +40,12 @@ export const betterAuthLinkedAccounts = (auth: TokenAuth): LinkedAccounts => ({
 
 /**
  * A valid access token of the account, refreshed first when it expired; undefined when the provider refused the refresh
- * or the account holds none.
+ * token (`invalid_grant`) or the account holds none. A refresh that failed otherwise, as when the provider was down,
+ * throws, so the caller tries again later rather than asking the person to connect the account again.
  */
 export const accountAccessToken = async (auth: TokenAuth, userId: string, accountId: string) => {
-  try {
-    return (await auth.api.getAccessToken({ body: { accountId, userId } })).accessToken || undefined
-  } catch (error) {
-    if (error instanceof APIError && error.body?.code === 'FAILED_TO_GET_ACCESS_TOKEN') return
-    throw error
-  }
+  const answer = await watchRefusals(() => auth.api.getAccessToken({ body: { accountId, userId } }))
+  if ('value' in answer) return answer.value.accessToken || undefined
+  if (answer.refused && answer.error instanceof APIError && answer.error.body?.code === 'FAILED_TO_GET_ACCESS_TOKEN') return
+  throw answer.error
 }
