@@ -9,6 +9,7 @@ import { readyAt, readyWhen, resolveTimeTerms } from '../ready/ready-when'
 import { orRefusal, readyContext, startIfReady, type ReadyInput } from '../ready/ready-start'
 import { activeTriggers, currentTrigger, triggerFailed } from './trigger-row'
 import { printFilter } from '@protobase/schema'
+import type { WebhookTrigger } from '@protobase/workflows/plugin'
 import { callPlugin, triggerCall, type StopConnect, type StoppedTrigger } from './plugin-call'
 import { pollJobs } from './poll-job'
 import { triggerStarts, type TriggerStartInput } from './trigger-start'
@@ -21,15 +22,21 @@ type StartPayload = { trigger: string; generation: number; page_token?: string }
 type ReadyCheckPayload = { trigger: string; generation: number; key: Row }
 
 /**
+ * What the stop job ends a subscription with: every webhook type the app's plugins hold, also one a save no longer takes,
+ * as after its connection's client was removed, so its subscription is still ended; and the connection it signs in with.
+ */
+export type StopInput = { webhooks: (type: string) => WebhookTrigger | undefined; connect?: StopConnect }
+
+/**
  * The jobs that run triggers on every server process, so turning a workflow on, changing or turning it off needs no
  * restart: `workflows.trigger-start` (for a ready trigger, one pass over the records that already match, 100 per job;
  * for a polling one its first poll; for a subscribing webhook one its subscription), `workflows.trigger-stop`
  * (unsubscribes a stopped webhook trigger at its provider and removes it), `workflows.ready-check` (starts a run of one
  * record when it is ready, at the time its time terms say), and the poll and renewal jobs. Each acts only on the
- * generation it was queued for. `stopConnect` is the stop job's alone, kept out of the `input` every other job gets, and
+ * generation it was queued for. `stop` is the stop job's alone, kept out of the `input` every other job gets, and
  * `text` the words of a subscription it could not end.
  */
-export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: ConnectionTexts, stopConnect?: StopConnect) => {
+export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: ConnectionTexts, stop: StopInput) => {
   const { schema } = input
   const polls = pollJobs(input)
 
@@ -84,7 +91,7 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
   /**
    * Ends a stopped webhook trigger's subscription at its provider: whether nothing is left there, so the trigger can go.
    * Any error is tried again, as the job's, until the provider ends it. It signs in through the account its row recorded,
-   * as the person who turned it on, even once the workflow was turned off or deleted (`stopConnect`). An account that is
+   * as the person who turned it on, even once the workflow was turned off or deleted (`stop.connect`). An account that is
    * no longer theirs, or a sign-in the provider refused, cannot end it: the trigger then stays `stopping` with that
    * error, as the record of a subscription the provider may still hold.
    */
@@ -92,10 +99,10 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
     const { rows } = await sql<StoppedTrigger & { store: unknown; subscribed: boolean }>`select type, input, workflow_id, version, connection_id, enabled_by, store, store is not null as subscribed
       from ${sql.id(schema, 'triggers')} where id = ${trigger} and status = 'stopping'`.execute(db)
     const row = rows[0]
-    const type = row?.subscribed ? input.webhooks(row.type) : undefined
+    const type = row?.subscribed ? stop.webhooks(row.type) : undefined
     if (!row || !type?.unsubscribe) return true
     const end = type.unsubscribe
-    const call = triggerCall({ allowPrivateAddresses: input.allowPrivateAddresses, connect: (_, secret) => stopConnect?.(row, secret) }, row, signal, input.redact)
+    const call = triggerCall({ allowPrivateAddresses: input.allowPrivateAddresses, connect: (_, secret) => stop.connect?.(row, secret) }, row, signal, input.redact)
     const outcome = await callPlugin(() => end({ ...call.context, state: row.store }), call.redact)
     if ('value' in outcome) return true
     if ('failed' in outcome && !outcome.unconnected) throw new Error(`The trigger's unsubscribe failed: ${outcome.failed}`)
@@ -105,7 +112,7 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
     return false
   }
 
-  const stop = defineJob<{ trigger: string }>({
+  const stopJob = defineJob<{ trigger: string }>({
     name: 'workflows.trigger-stop',
     timeout: '5 minutes',
     run: async ({ trigger }, { db, signal }) => {
@@ -137,7 +144,7 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
     }
   }
 
-  return { jobs: [start, stop, readyCheck, ...polls.jobs], start, stop, onChanges }
+  return { jobs: [start, stopJob, readyCheck, ...polls.jobs], start, stop: stopJob, onChanges }
 }
 
 export type TriggerJobs = ReturnType<typeof triggerJobs>

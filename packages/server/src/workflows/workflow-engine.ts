@@ -50,7 +50,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     redact: redactor.text,
     origin: () => auth?.origins[0],
     systemPath: () => deps().systemPath,
-  }, text, connections.stopping)
+  }, text, { webhooks: (type) => types.webhooks.get(type), connect: connections.stopping })
   // Linking an account again resumes its triggers; disconnecting it stops them, and queues a revocation the provider did not take.
   // The account page lists what uses each one.
   const revocations = auth && auth.connections.declared.length > 0 ? connectionRevocations(schema, auth.connections.revokeSealed) : undefined
