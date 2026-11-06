@@ -142,7 +142,7 @@ An attachment is only the bytes given: a file path or URL is never read in its p
 ## From someone's own mailbox
 
 :::caution[Beta]
-Gmail is the only mail provider so far, and only API functions send from a mailbox: jobs cannot yet.
+Gmail is the only mail provider so far. API functions, and workflow steps that the person turned on themselves, send from a mailbox. A job's own code cannot yet.
 :::
 
 An app can send mail from the signed-in person's own mailbox instead of the app's address, such as an invoice from the account holder's Gmail, so replies reach them. They link the mailbox once on the [account page](/reference/auth/#account-page) ("Connect Gmail" under **Mailbox**), which asks the provider for leave to send mail and nothing else; the app's functions then send through it. `auth.personalMail` names the providers people may link, each through the app's sign-in provider of the same company; Gmail links through Google sign-in (see [Send mail from Gmail](/guides/send-from-gmail/) for the Google setup):
