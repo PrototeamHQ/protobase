@@ -19,7 +19,7 @@ const notFound = () => new APIError('NOT_FOUND', { code: 'CONNECTION_NOT_FOUND',
  * The signed-in person's connections: `GET /connections` lists each connection the app's workflow plugins declare with
  * the person's accounts that fit it, and whether a trigger waits for one to be signed in again, never a token.
  * `POST /connections/disconnect` revokes an account's token at its provider, then deletes it whatever the provider
- * answered, and stops the triggers on it; their own account only, and never the last way they sign in. Connecting is
+ * answered, and stops the triggers on it; their own account only, and never the last account they sign in with. Connecting is
  * Better Auth's `/link-social`; a sign-in (not a link) through a provider only connections use is refused.
  */
 export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }: ConnectionsPluginInput) => {
@@ -48,8 +48,10 @@ export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }
         const account = accounts.find((candidate) => candidate.id === ctx.body.accountId)
         const connection = account && connections.find((candidate) => candidate.providerId === account.providerId)
         if (!account || !connection) throw notFound()
-        // As Better Auth's own unlinking: the last account is the person's only way to sign in.
-        if (accounts.length === 1) throw new APIError('BAD_REQUEST', { code: 'FAILED_TO_UNLINK_LAST_ACCOUNT', message: 'This is your only way to sign in: add another before you disconnect it.' })
+        // As Better Auth's own unlinking: the last account that signs in is the person's only way to sign in. An account of
+        // a provider only connections use never signs in, so disconnecting it is always allowed.
+        const signIns = accounts.filter((candidate) => !own.has(candidate.providerId))
+        if (!own.has(account.providerId) && signIns.length === 1) throw new APIError('BAD_REQUEST', { code: 'FAILED_TO_UNLINK_LAST_ACCOUNT', message: 'This is your only way to sign in: add another before you disconnect it.' })
         const stored = account.refreshToken ?? account.accessToken
         const token = stored ? await decryptOAuthToken(stored, ctx.context) : undefined
         let revoked = false

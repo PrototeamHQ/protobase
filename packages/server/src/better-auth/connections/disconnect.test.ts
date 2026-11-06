@@ -49,6 +49,13 @@ describe('disconnecting a connected account', () => {
     fake = await fakeOAuthServer()
   })
 
+  it('disconnects it for someone who signs in without a linked account, as with a passkey, since it never signs in', async () => {
+    const { store, ada, accountId } = await connected()
+    store.account = store.account!.filter((account) => account.provider_id !== 'credential')
+    expect(JSON.parse((await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })).text)).toEqual({ disconnected: true, revoked: true })
+    expect(remaining(store, accountId)).toBe(false)
+  })
+
   it("refuses someone else's account, one that is not there, no session and another site, keeping the account", async () => {
     const { store, browser, ada, accountId } = await connected({ checkOrigin: true })
     const grace = await browser('grace@example.com')
