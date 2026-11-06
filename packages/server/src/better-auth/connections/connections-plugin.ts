@@ -6,6 +6,7 @@ import type { ConnectionEvents } from './connection-events'
 import type { ResolvedConnection } from './declared-connections'
 import { listConnections } from './list-connections'
 import { revokeToken } from './revoke-token'
+import { unlinkGuard } from './unlink-guard'
 
 export const connectionPaths = { list: '/connections', disconnect: '/connections/disconnect' }
 
@@ -20,7 +21,8 @@ const notFound = () => new APIError('NOT_FOUND', { code: 'CONNECTION_NOT_FOUND',
  * it, never a token (see `listConnections`).
  * `POST /connections/disconnect` revokes an account's token at its provider, then deletes it whatever the provider
  * answered, and stops the triggers on it; their own account only, and never the last account they sign in with. Connecting is
- * Better Auth's `/link-social`; a sign-in (not a link) through a provider only connections use is refused.
+ * Better Auth's `/link-social`; a sign-in (not a link) through a provider only connections use is refused, and so is
+ * Better Auth's `/unlink-account` of a connection.
  */
 export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }: ConnectionsPluginInput) => {
   const own = new Set(connections.filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId))
@@ -63,6 +65,7 @@ export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }
             if (typeof provider === 'string' && own.has(provider)) throw new APIError('FORBIDDEN', { code: 'CONNECTION_NOT_SIGN_IN', message: 'This provider connects an account to a workflow; it does not sign in.' })
           }),
         },
+        unlinkGuard(connections),
       ],
     },
   } satisfies BetterAuthPlugin
