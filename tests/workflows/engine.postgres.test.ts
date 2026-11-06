@@ -126,6 +126,14 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(await workflowsMigration(db, workflows)).toBeUndefined()
   })
 
+  it('adds connection_revocations to a schema of the version before it', async () => {
+    await pg.exec(`drop table workflows.connection_revocations; comment on function workflows.run_version() is 'Protobase workflows 9'`)
+    const upgrade = await workflowsMigration(db, workflows)
+    expect(upgrade).toContain('create table if not exists "workflows"."connection_revocations"')
+    await pg.exec(upgrade!)
+    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+  })
+
   it('writes the schema again when the triggers table is gone', async () => {
     await pg.exec('drop table workflows.triggers')
     const repair = await workflowsMigration(db, workflows)

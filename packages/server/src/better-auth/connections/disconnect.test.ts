@@ -1,3 +1,4 @@
+import { symmetricDecrypt } from 'better-auth/crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TokenAuth } from '../../personal-mail/linked-accounts'
 import { betterAuthConnectionAccounts } from '../../workflows/connections/connection-accounts'
@@ -47,6 +48,48 @@ describe('disconnecting a connected account', () => {
     expect(remaining(again.store, again.accountId)).toBe(false)
     for (const spy of logged) for (const call of spy.mock.calls) expect(JSON.stringify(call)).not.toContain('snapshot-')
     fake = await fakeOAuthServer()
+  })
+
+  it('queues a token the provider did not revoke, encrypted with the app secret, and only that once', async () => {
+    const revokeLater = vi.fn(async () => {})
+    const { auth, ada, accountId } = await connected({ listener: { revokeLater } })
+    fake.answers['/revoke'] = 'revoke-error'
+    await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })
+    expect(revokeLater).toHaveBeenCalledTimes(1)
+    const queued = (revokeLater.mock.calls[0] as unknown as [{ provider: string; hint: string; token: string }])[0]
+    expect(queued).toMatchObject({ provider, hint: 'refresh_token' })
+    expect(queued.token).not.toContain('snapshot-')
+    expect(await symmetricDecrypt({ key: (await auth.$context).secretConfig, data: queued.token })).toBe('snapshot-refresh_token-1')
+
+    expect((await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })).response.status).toBe(404)
+    expect(revokeLater).toHaveBeenCalledTimes(1)
+  })
+
+  it('queues nothing once the provider revoked the token', async () => {
+    const revokeLater = vi.fn(async () => {})
+    const { ada, accountId } = await connected({ listener: { revokeLater } })
+    await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })
+    expect(revokeLater).not.toHaveBeenCalled()
+  })
+
+  it('refuses before revoking or deleting anything while no workflows listen to queue a revocation', async () => {
+    const { store, ada, accountId } = await connected({ listener: false })
+    const answer = await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })
+    expect(answer.response.status).toBe(503)
+    expect(remaining(store, accountId)).toBe(true)
+    expect(fake.callsTo('/revoke')).toEqual([])
+  })
+
+  it('keeps the account and its token when the revocation it did not take cannot be queued', async () => {
+    const disconnected = vi.fn(async () => {})
+    const revokeLater = vi.fn(async () => {
+      throw new Error('queue down')
+    })
+    const { store, ada, accountId } = await connected({ listener: { revokeLater, disconnected } })
+    fake.answers['/revoke'] = 'revoke-error'
+    expect((await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })).response.status).toBe(500)
+    expect(remaining(store, accountId)).toBe(true)
+    expect(disconnected).not.toHaveBeenCalled()
   })
 
   it('disconnects it for someone who signs in without a linked account, as with a passkey, since it never signs in', async () => {
