@@ -138,6 +138,26 @@ describe('the runner', () => {
     expect(port.steps[0]!.input).toEqual({ url: 'https://example.test', headers: { Authorization: '[redacted]' } })
   })
 
+  it('blanks a value a step marks secret, such as its access token, out of its logs, output, error and the run', async () => {
+    const token = 'ya29.issued-access-token'
+    const port = memoryRunner({
+      use: async (_, { secret, log }) => {
+        secret(token)
+        log(`Authorization: Bearer ${token}`)
+        return { echoed: token }
+      },
+      fail: async (_, { secret }) => {
+        secret(token)
+        throw new Error(`the provider refused ${token}`)
+      },
+    })
+    await port.start('r6b', definition({ Use: { Type: 'Task', Resource: 'use', Next: 'Fail' }, Fail: { Type: 'Task', Resource: 'fail', End: true } }), {})
+    await port.drain()
+    expect(port.run('r6b')).toMatchObject({ status: 'failed', cause: 'the provider refused [redacted]' })
+    expect(JSON.stringify([port.run('r6b'), port.steps])).not.toContain(token)
+    expect(port.steps[0]).toMatchObject({ output: { echoed: '[redacted]' }, logs: [{ message: 'Authorization: Bearer [redacted]' }] })
+  })
+
   it('runs a Map whose item waits, ending the segment until the wait is over', async () => {
     const port = memoryRunner({})
     await port.start('r7', definition({

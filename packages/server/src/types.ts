@@ -63,6 +63,8 @@ export type WriteEvent = {
   tenant?: TenantValue
   /** The writer is a visitor without a token, through a public form. */
   anonymous?: true
+  /** The writer's session as the API resolved it, for a hook that allows a write only for someone signed in as themselves (`ownSignInUser`). */
+  session: Session
   before?: Row
   after?: Row
 }

@@ -84,14 +84,28 @@ export type WebhookTrigger = TriggerBase & {
 
 export type TriggerType = ReadyTrigger | PollingTrigger | WebhookTrigger
 
-/** A sign-in a plugin's types use: one of the app's sign-in providers, or an OAuth provider of its own. */
+/** The endpoints of an OAuth 2.0 provider a connection signs in with that is not one of the app's sign-in providers. */
+export type OAuthEndpoints = {
+  authorization_url: string
+  token_url: string
+  /** Answers the account's `sub` or `id`, and its `email` and `name` when it has them, for the access token. */
+  user_info_url: string
+  /** Where disconnecting revokes the token (RFC 7009); without it, disconnecting only deletes it. */
+  revocation_url?: string
+  /** Sends a PKCE challenge (S256); default true. */
+  pkce?: boolean
+}
+
+/**
+ * A sign-in a plugin's types use: one of the app's sign-in providers (`signIn`, such as `google`), or an OAuth provider
+ * of its own (`oauth`), whose client id and secret the app's owner gives in `auth.connections`. Connecting asks for
+ * `scopes` with `link_params`, such as those that ask for a refresh token.
+ */
 export type ConnectionDeclaration = {
   label: string
   scopes?: string[]
-} & (
-  | { signIn: string }
-  | { oauth: { authorization_url: string; token_url: string; user_info_url?: string; revocation_url?: string; pkce?: boolean } }
-)
+  link_params?: Record<string, string>
+} & ({ signIn: string; revocation_url?: string } | { oauth: OAuthEndpoints })
 
 /** A workflow plugin: the trigger and step types it adds, and the sign-ins they use. */
 export type Plugin = {

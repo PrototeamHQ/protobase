@@ -46,6 +46,8 @@ export type TaskContext = {
    * text short, such as an answer's body in an error, blanks it first, so the cut leaves no part of a secret.
    */
   redact: (text: string) => string
+  /** Blanks `value` out of all this step and the rest of its segment record, such as an access token it was given. */
+  secret: (value: string) => void
 }
 
 /**

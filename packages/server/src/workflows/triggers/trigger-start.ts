@@ -3,7 +3,7 @@ import type { Db } from '@protobase/query'
 import { hookMode } from '../hooks/hook-secrets'
 import { hookPath } from '../hooks/hook-paths'
 import { saveHook } from '../hooks/hook-store'
-import { callPlugin, redactAlso, triggerContext, type PluginOutcome } from './plugin-call'
+import { callPlugin, redactAlso, triggerCall, type PluginOutcome } from './plugin-call'
 import { renewEvery, type PollJobs, type PollJobsInput } from './poll-job'
 import { stateProblem } from './poll-result'
 import { backoffPollAt, firstPollAt, nextPollAt, pollEvery } from './poll-schedule'
@@ -66,7 +66,8 @@ export const triggerStarts = (input: TriggerStartInput, jobs: PollJobs) => {
     const due = first.value
     let cursor = state.cursor
     if (!state.has_cursor) {
-      const outcome = await callPlugin(() => type.start(triggerContext(input, trigger.input, signal)), redact)
+      const call = triggerCall(input, trigger, signal, redact)
+      const outcome = await callPlugin(() => type.start(call.context), call.redact)
       if (!('value' in outcome)) return startFailed(db, schema, trigger, outcome, state.consecutive_failures, restart)
       const problem = stateProblem(outcome.value)
       if (problem) return startFailed(db, schema, trigger, { failed: `The start ${problem}` }, state.consecutive_failures, restart)
@@ -88,7 +89,8 @@ export const triggerStarts = (input: TriggerStartInput, jobs: PollJobs) => {
     // The trigger's error is seen by the workflow's readers, who must not learn the URL or secret from it; a
     // `whsec_` secret is blanked out without its prefix too, since its base64 is the key that signs.
     const hidden = redactAlso([key, secret, secret.replace(/^whsec_/, '')], redact)
-    const outcome = await callPlugin(() => subscribe({ ...triggerContext(input, trigger.input, signal), url: `${origin}${hookPath(input.systemPath(), key)}`, secret }), hidden)
+    const call = triggerCall(input, trigger, signal, hidden)
+    const outcome = await callPlugin(() => subscribe({ ...call.context, url: `${origin}${hookPath(input.systemPath(), key)}`, secret }), call.redact)
     if (!('value' in outcome)) return startFailed(db, schema, trigger, outcome, state.consecutive_failures, restart)
     const problem = stateProblem(outcome.value)
     if (problem) return startFailed(db, schema, trigger, { failed: `The subscription ${problem}` }, state.consecutive_failures, restart)

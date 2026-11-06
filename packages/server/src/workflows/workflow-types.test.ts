@@ -17,11 +17,18 @@ const acme = definePlugin({
 })
 
 describe('workflowTypes', () => {
-  it('saves the available steps and triggers only: a trigger that signs in is refused beside its plugin\'s step', () => {
+  it('saves the available steps and triggers only: a trigger that signs in is refused while the app cannot make its connection', () => {
     const { check, types } = workflowTypes([{ plugin: acme, source: 'acme' }])
     expect(check.resources).toContain('acme:send')
     expect(Object.keys(check.triggers)).toEqual(['app:record', 'app:schedule', 'app:webhook', 'acme:watch'])
-    expect(types.find((type) => type.id === 'acme:signed_in')).toMatchObject({ available: false, reason: 'It signs in through a connection, which this app cannot make yet' })
+    expect(types.find((type) => type.id === 'acme:signed_in')).toMatchObject({ available: false, reason: 'It signs in through a connection, and this app has no sign-in to connect an account with' })
+  })
+
+  it('makes a trigger that signs in available once the app has its sign-in provider, naming its connection for the check', () => {
+    const { check, types } = workflowTypes([{ plugin: acme, source: 'acme' }], undefined, { encrypted: true, signInProviders: ['acme'], clients: [] })
+    expect(types.find((type) => type.id === 'acme:signed_in')).toMatchObject({ available: true })
+    expect(Object.keys(check.triggers)).toContain('acme:signed_in')
+    expect(check.connections).toEqual({ 'acme:signed_in': 'acme:acme' })
   })
 
   it('takes the reviewed webhook auth modes and limits only', () => {

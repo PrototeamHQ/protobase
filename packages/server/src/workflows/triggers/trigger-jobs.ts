@@ -9,7 +9,7 @@ import { readyAt, readyWhen, resolveTimeTerms } from '../ready/ready-when'
 import { orRefusal, readyContext, startIfReady, type ReadyInput } from '../ready/ready-start'
 import { activeTriggers, currentTrigger, triggerFailed, type TriggerRow } from './trigger-row'
 import { printFilter } from '@protobase/schema'
-import { callPlugin, triggerContext } from './plugin-call'
+import { callPlugin, triggerCall } from './plugin-call'
 import { pollJobs } from './poll-job'
 import { triggerStarts, type TriggerStartInput } from './trigger-start'
 
@@ -81,13 +81,14 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput) => {
 
   // A stopped webhook trigger's subscription is ended at its provider first; a sign-in that expired leaves nothing to end.
   const unsubscribe = async (db: Db, trigger: string, signal: AbortSignal) => {
-    const { rows } = await sql<Pick<TriggerRow, 'type' | 'input'> & { store: unknown; subscribed: boolean }>`select type, input, store, store is not null as subscribed
+    const { rows } = await sql<Pick<TriggerRow, 'type' | 'input' | 'workflow_id' | 'version'> & { store: unknown; subscribed: boolean }>`select type, input, workflow_id, version, store, store is not null as subscribed
       from ${sql.id(schema, 'triggers')} where id = ${trigger} and status = 'stopping'`.execute(db)
     const row = rows[0]
     const type = row?.subscribed ? input.webhooks(row.type) : undefined
     if (!row || !type?.unsubscribe) return
     const end = type.unsubscribe
-    const outcome = await callPlugin(() => end({ ...triggerContext(input, row.input, signal), state: row.store }), input.redact)
+    const call = triggerCall(input, row, signal, input.redact)
+    const outcome = await callPlugin(() => end({ ...call.context, state: row.store }), call.redact)
     // The job tries again, as for any error, until the provider ends the subscription.
     if ('failed' in outcome) throw new Error(`The trigger's unsubscribe failed: ${outcome.failed}`)
   }

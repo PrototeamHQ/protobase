@@ -24,7 +24,7 @@ export const runTask = async (context: SegmentContext, state: TaskState, args: u
   // A worker that stopped already starts no step: it would run unsaved, and run again in the next segment.
   context.signal.throwIfAborted()
   try {
-    return await Promise.race([handler(args, { runId: context.runId, signal, idempotencyKey, log, redact: context.redactor.text }), aborted(signal)])
+    return await Promise.race([handler(args, { runId: context.runId, signal, idempotencyKey, log, redact: context.redactor.text, secret: context.redactor.add }), aborted(signal)])
   } catch (error) {
     if (context.signal.aborted || error instanceof SupersededError) throw error
     if (timeout.aborted) throw new StepError('States.Timeout', `The step ran longer than ${state.TimeoutSeconds ?? limits.defaultTaskTimeoutSeconds} seconds`)

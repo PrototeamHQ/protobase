@@ -26,7 +26,7 @@ describe('definitionProblems', () => {
   })
 
   it('refuses a type the list marks not available, with its reason', () => {
-    expect(check(withTrigger({ 'acme:inbox': {} } as Definition['trigger']))).toEqual([{ field: 'trigger', message: '"acme:inbox" cannot run in this app: It signs in through a connection, which this app cannot make yet' }])
+    expect(check(withTrigger({ 'acme:inbox': {} } as Definition['trigger']))).toEqual([{ field: 'trigger', message: '"acme:inbox" cannot run in this app: It signs in through acme:mail, whose OAuth client this app does not set in auth.connections' }])
   })
 
   it("refuses a record trigger's key that is not a list of names, as its input schema does", () => {

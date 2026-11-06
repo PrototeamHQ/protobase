@@ -31,17 +31,21 @@ export const betterAuthLinkedAccounts = (auth: TokenAuth): LinkedAccounts => ({
     return accounts.map((account) => ({ id: account.id, providerId: account.providerId, scopes: storedScopes(account.scope), createdAt: account.createdAt }))
   },
   accessToken: async (userId, account, provider) => {
-    const accessToken = await validAccessToken(auth, userId, account.id, provider)
+    const accessToken = await accountAccessToken(auth, userId, account.id)
     if (!accessToken) throw new PersonalMailError('link_expired', provider)
     return accessToken
   },
 })
 
-const validAccessToken = async (auth: TokenAuth, userId: string, accountId: string, provider: string) => {
+/**
+ * A valid access token of the account, refreshed first when it expired; undefined when the provider refused the refresh
+ * or the account holds none.
+ */
+export const accountAccessToken = async (auth: TokenAuth, userId: string, accountId: string) => {
   try {
-    return (await auth.api.getAccessToken({ body: { accountId, userId } })).accessToken
+    return (await auth.api.getAccessToken({ body: { accountId, userId } })).accessToken || undefined
   } catch (error) {
-    if (error instanceof APIError && error.body?.code === 'FAILED_TO_GET_ACCESS_TOKEN') throw new PersonalMailError('link_expired', provider)
+    if (error instanceof APIError && error.body?.code === 'FAILED_TO_GET_ACCESS_TOKEN') return
     throw error
   }
 }

@@ -7,7 +7,7 @@ import type { MailMessage } from '../mail/mail-message'
 import { builtInStep } from './testing/built-in-step'
 import { storeRunFile } from './run-files'
 
-const context = (runId = 'run-1') => ({ runId, signal: new AbortController().signal, idempotencyKey: `${runId}//3`, log: () => undefined, redact: (text: string) => text })
+const context = (runId = 'run-1') => ({ runId, signal: new AbortController().signal, idempotencyKey: `${runId}//3`, log: () => undefined, redact: (text: string) => text, secret: () => {} })
 const failure = (promise: Promise<unknown>) => promise.then(() => undefined, (error: unknown) => (error instanceof StepError ? [error.error, error.reason] : error))
 
 describe('the app:mail.send step', () => {

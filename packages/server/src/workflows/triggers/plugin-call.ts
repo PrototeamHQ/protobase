@@ -1,4 +1,4 @@
-import { ConnectionError, type TriggerContext } from '@protobase/workflows/plugin'
+import { ConnectionError, type PluginConnection, type TriggerContext } from '@protobase/workflows/plugin'
 import { pluginFetch } from '../plugin-fetch'
 
 /** The longest a plugin's error message is kept on its trigger, which the workflow's readers see. */
@@ -33,15 +33,25 @@ export const redactAlso = (values: readonly string[], redact: (text: string) => 
   return (text: string) => redact(blanked.reduce((kept, value) => kept.replaceAll(value, '[redacted]'), text))
 }
 
-export type TriggerContextInput = { allowPrivateAddresses: boolean }
+/** The trigger a hook runs for: its type, and the workflow version it runs, none once its workflow was deleted. */
+export type TriggerRef = { type: string; input: Record<string, unknown>; workflow_id: string | null; version: number }
+
+/** The connection a trigger's type declared, bound by its workflow, which hands each token it gives to `secret`; none for a type without one. */
+export type TriggerConnect = (trigger: TriggerRef, secret: (token: string) => void) => PluginConnection | undefined
+
+export type TriggerContextInput = { allowPrivateAddresses: boolean; connect?: TriggerConnect }
 
 /**
- * What a trigger's hooks get: its input, the guarded `fetch`, and the job's signal, which aborts at its timeout. No
- * type that needs a connection runs yet, so it has none.
+ * What one call of a trigger's hook gets: its input, its connection, the guarded `fetch`, and the job's signal, which
+ * aborts at its timeout; and `redact` for its outcome, which also blanks out each token its connection gave this call.
  */
-export const triggerContext = ({ allowPrivateAddresses }: TriggerContextInput, input: Record<string, unknown>, signal: AbortSignal): TriggerContext => ({
-  input,
-  connection: undefined,
-  fetch: pluginFetch({ allowPrivateAddresses }),
-  signal,
-})
+export const triggerCall = ({ allowPrivateAddresses, connect }: TriggerContextInput, trigger: TriggerRef, signal: AbortSignal, redact: (text: string) => string) => {
+  const issued: string[] = []
+  const context: TriggerContext = {
+    input: trigger.input,
+    connection: connect?.(trigger, (token) => void issued.push(token)),
+    fetch: pluginFetch({ allowPrivateAddresses }),
+    signal,
+  }
+  return { context, redact: (text: string) => redactAlso(issued, redact)(text) }
+}

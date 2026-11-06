@@ -1,0 +1,22 @@
+import type { Deps } from '../../deps'
+import { fetchReadable } from '../../fetch-readable'
+import { deletedRows } from '../../params'
+import { requestAccess } from '../../request-access'
+import type { Db } from '@protobase/query'
+import type { SaverRoles } from '../plugin-records'
+
+/**
+ * Whether the person who turned a workflow on may still do so: with the roles they hold now in its tenant, they may
+ * update workflows and read this one. Losing either, as when they were demoted or left the organization, withdraws
+ * the connection their consent gave its runs.
+ */
+export const enablerMayUpdate = async (db: Db, deps: Deps, roles: SaverRoles, enabledBy: string, tenant: string | undefined, workflowId: string) => {
+  const held = await roles({ id: enabledBy, ...(tenant !== undefined && { tenant }) })
+  if (held.length === 0) return false
+  const entry = deps.registry.find('workflows')!
+  const session = { user: { id: enabledBy, roles: held }, ...(tenant !== undefined && { tenant, organization: { id: tenant } }) }
+  const access = await requestAccess(deps, entry, session)
+  if (!access.resolved.operations.update) return false
+  const key = access.full.fields[access.full.primaryKey[0]!]!
+  return Boolean(await fetchReadable(db, access, [workflowId], deletedRows(access.full, false), { fields: [key] }))
+}

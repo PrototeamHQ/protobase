@@ -156,8 +156,14 @@ export type CreateAuthOptions = {
    * `socialProviders` must have: Gmail through `google`. Needs `encryptOAuthTokens`. Default none.
    */
   personalMail?: PersonalMailProviderId[]
-  /** Encrypt the OAuth access and refresh tokens Better Auth stores for social sign-ins, with `secret`; `personalMail` needs it. Default off. */
+  /** Encrypt the OAuth access and refresh tokens Better Auth stores for social sign-ins, with `secret`; `personalMail` and workflow connections need it. Default off. */
   encryptOAuthTokens?: boolean
+  /**
+   * The OAuth client of each workflow plugin's connection that signs in through a provider of its own, by
+   * `<plugin>:<connection>`, such as `{ 'acme:account': { clientId, clientSecret } }`; its redirect URI is
+   * `{baseURL}/api/auth/callback/workflow-<plugin>-<connection>`. A connection through one of `socialProviders` needs none.
+   */
+  connections?: Record<string, ConnectionClient>
   /** Runs after a user is created, by any route: `createUser`, an admin, or a social sign-up. Default none. */
   onUserCreated?: UserCreatedHook
   /**
@@ -540,6 +546,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings), socialProviders)
   const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...(platformSignIn ? [platformSignIn.provider] : [])])
   const personalMail = resolvePersonalMail(options.personalMail ?? [], socialProviders, options.encryptOAuthTokens === true)
+  const connectionClients = Object.keys(options.connections ?? {})
+  if (connectionClients.length > 0 && options.encryptOAuthTokens !== true) throw new Error("auth.connections: the connected accounts' tokens would be stored in plain text; turn on auth.encryptOAuthTokens")
   const origins = resolveOrigins(options.baseURL, options.origins ?? platformOrigins())
   const passkeyDomain = resolvePasskeyDomain(options.passkeyDomain ?? platformPasskeyDomain(), [options.baseURL, ...origins])
   const organizations = options.organizations && resolveOrganizations(options.organizations, definitions)
@@ -608,12 +616,17 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     personalMail,
     /** Mail from `userId`'s own mailbox, through the mail provider they linked (see `personalMailer`). */
     personalMailer: (userId: string) => personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), personalMail, userId),
+    /** What workflow connections can sign in with: whether tokens are stored encrypted, the sign-in providers, the connections with a client. */
+    connectionSupport: { encrypted: options.encryptOAuthTokens === true, signInProviders: socialProviders, clients: connectionClients },
     /** The OAuth provider for MCP clients, when on: the endpoint's resource (its URL) and path, and the scope its tokens carry. */
     mcp: mcp && { resource: mcp.resource, path: mcp.path, scope: mcpScope },
   })
 }
 
 export type AdminAuth = ReturnType<typeof createAuth>
+
+/** The OAuth client an app's owner made at a provider for a workflow connection. */
+export type ConnectionClient = { clientId: string; clientSecret: string }
 
 /** `createAuth` with the optional plugins its options turn on loaded first (see `loadAuthPlugins`). */
 export const buildAuth = async (options: CreateAuthOptions): Promise<AdminAuth> => createAuth(options, await loadAuthPlugins(options))

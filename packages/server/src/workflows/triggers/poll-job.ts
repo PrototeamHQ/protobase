@@ -3,7 +3,7 @@ import type { PollingTrigger, WebhookTrigger } from '@protobase/workflows/plugin
 import { defineJob } from '../../jobs/define-job'
 import type { JobDefinition } from '../../jobs/job-types'
 import { queueRuns } from '../start-workflow'
-import { callPlugin, triggerContext, type TriggerContextInput } from './plugin-call'
+import { callPlugin, triggerCall, type TriggerContextInput } from './plugin-call'
 import { itemCeiling, pollProblem, stateProblem } from './poll-result'
 import { backoffPollAt, nextPollAt, pollEvery } from './poll-schedule'
 import { claimTrigger, saveNeedsSignIn, savePluginFailure, savePoll, saveRenewal, setNextJob, type ClaimKey } from './trigger-claim'
@@ -59,8 +59,8 @@ export const pollJobs = (input: PollJobsInput) => {
       if (!('value' in interval)) return failed(db, poll, claim, 'expired' in interval ? interval.expired : interval.failed, backoffPollAt('1 minute', claimed.consecutive_failures + 1, new Date()))
       const every = interval.value
       const limit = pollLimit(type)
-      const context = triggerContext(input, claimed.input, signal)
-      const outcome = await callPlugin(() => type.poll({ ...context, cursor: claimed.cursor, store: claimed.store, limit, due: new Date(due) }), redact)
+      const call = triggerCall(input, claimed, signal, redact)
+      const outcome = await callPlugin(() => type.poll({ ...call.context, cursor: claimed.cursor, store: claimed.store, limit, due: new Date(due) }), call.redact)
       const now = new Date()
       if ('expired' in outcome) return saveNeedsSignIn(db, schema, claim, claimed, outcome.expired)
       const backoff = backoffPollAt(every, claimed.consecutive_failures + 1, now)
@@ -90,8 +90,8 @@ export const pollJobs = (input: PollJobsInput) => {
       const type = claimed && input.webhooks(claimed.type)
       if (!claimed || !type?.renew) return
       const renewal = type.renew
-      const context = triggerContext(input, claimed.input, signal)
-      const outcome = await callPlugin(() => renewal({ ...context, state: claimed.store }), redact)
+      const call = triggerCall(input, claimed, signal, redact)
+      const outcome = await callPlugin(() => renewal({ ...call.context, state: claimed.store }), call.redact)
       const now = new Date()
       if ('expired' in outcome) return saveNeedsSignIn(db, schema, claim, claimed, outcome.expired)
       // A renewal that failed is tried again well before the subscription it renews runs out.

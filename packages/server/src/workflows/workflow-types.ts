@@ -1,21 +1,10 @@
 import { appPlugin } from '@protobase/workflow-plugins'
-import { ConnectionError, type JsonSchema, type Plugin, type PollingTrigger, type ReadyTrigger, type TriggerType, type WebhookTrigger } from '@protobase/workflows/plugin'
-import { loadPlugins, stepHandlers, triggerChecks, typeList, type CheckOptions, type LoadedPlugin, type TaskHandlers, type TriggerCheck, type Unavailable } from '@protobase/workflows'
+import type { JsonSchema, Plugin, PollingTrigger, ReadyTrigger, TriggerType, WebhookTrigger } from '@protobase/workflows/plugin'
+import { connectionUnavailable, loadPlugins, stepHandlers, triggerChecks, typeList, type CheckOptions, type ConnectionSupport, type LoadedPlugin, type StepWiring, type TaskHandlers, type TriggerCheck } from '@protobase/workflows'
 import type { ResourceModel } from '@protobase/schema'
 import type { Mailer } from '../mail/mail-message'
 import { pluginServices, type ServicesInput } from './plugin-services'
 import { readyProblems } from './ready/ready-check'
-
-// What this version of the app cannot run yet: a type that signs in.
-const unavailable: Unavailable = (type) => {
-  if (type.connection) return 'It signs in through a connection, which this app cannot make yet'
-  return
-}
-
-// The connection a step declared: none can be made yet, so it gives no token.
-const noConnection = (stepId: string, name: string) => ({
-  accessToken: () => Promise.reject(new ConnectionError('not_connected', `${stepId} signs in through "${name}", and this workflow has no sign-in for it`)),
-})
 
 // The arguments a type's input schema requires, which a save refuses a Task without.
 const requiredInputs = (input: JsonSchema) => (Array.isArray(input.required) ? (input.required as string[]) : [])
@@ -33,10 +22,13 @@ type Models = (name: string) => ResourceModel | undefined
  * The trigger and step types of an app: the built-in plugin, `app`, then the app's own, all through the same loader and
  * interface. `types` is the list the MCP tools and the editor read; `check` is what a save checks a definition against,
  * the available types only, and `checkWith` the same check against other resources, such as those a caller may read.
+ * A type that signs in is available once the app can make its connection, as `support` says.
  */
-export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Models = () => undefined) => {
+export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Models = () => undefined, support?: ConnectionSupport) => {
   const plugins = loadPlugins([{ plugin: appPlugin, source: '@protobase/workflow-plugins' }, ...loaded])
-  const types = typeList(plugins, unavailable)
+  const types = typeList(plugins, connectionUnavailable(support))
+  // The connection `<plugin>:<connection>` of each type that signs in, by the type's id.
+  const connections = Object.fromEntries(types.flatMap((type) => (type.connection ? [[type.id, `${type.plugin}:${type.connection.name}`]] : [])))
   // Trigger types only: a step's id never makes a trigger available.
   const available = new Set(types.filter((type) => type.kind !== 'step' && type.available).map((type) => type.id))
   const ready = readyTriggers(plugins)
@@ -60,12 +52,13 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
       required: Object.fromEntries(steps.map((type) => [type.id, requiredInputs(type.input)])),
       triggers: Object.fromEntries(checks.filter(([id]) => available.has(id))),
       unavailable: reasons,
+      connections,
     }
   }
   const check = checkWith(models)
-  /** The step types of one segment, which sends mail with the mailer of the job that runs it. */
-  const tasks = (input: ServicesInput, mail: Mailer | undefined): TaskHandlers => stepHandlers(plugins, { services: pluginServices(input, mail), connection: noConnection })
-  return { plugins, types, check, checkWith, tasks, ready, polling, webhooks, available: (id: string) => available.has(id) }
+  /** The step types of one segment, which sends mail with the mailer of the job that runs it, and signs in through `connection`. */
+  const tasks = (input: ServicesInput, mail: Mailer | undefined, connection: StepWiring['connection']): TaskHandlers => stepHandlers(plugins, { services: pluginServices(input, mail), connection })
+  return { plugins, types, check, checkWith, tasks, ready, polling, webhooks, connections, available: (id: string) => available.has(id) }
 }
 
 export type WorkflowTypes = ReturnType<typeof workflowTypes>

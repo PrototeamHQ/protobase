@@ -1,9 +1,10 @@
 import { sql } from 'kysely'
-import { checkDefinition, problemText, type CheckOptions } from '@protobase/workflows'
+import { checkDefinition, problemText, type CheckOptions, type Definition } from '@protobase/workflows'
 import { badRequest } from '../problem'
 import type { PipelineHook } from '../types'
 import type { TriggerJobs } from './triggers/trigger-jobs'
 import { syncTrigger } from './triggers/trigger-sync'
+import { saveConsent, type ConnectionConsent } from './connections/connection-consent'
 
 /**
  * Checks a workflow's definition on every save that changes it, and as it is turned on (not off), against the language's schema
@@ -13,7 +14,7 @@ import { syncTrigger } from './triggers/trigger-sync'
  * `definition` field's `errors` with the state and field in their `params`, for a form to show each on its step; the
  * write rolls back.
  */
-export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick<TriggerJobs, 'start' | 'stop'>): PipelineHook => async (event, trx) => {
+export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick<TriggerJobs, 'start' | 'stop'>, consent: ConnectionConsent): PipelineHook => async (event, trx) => {
   if (event.resource.name !== 'workflows' || !event.after) return
   if (event.operation !== 'create' && event.operation !== 'update') return
   // The trigger numbers a new version only when the definition changed.
@@ -30,5 +31,9 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
     await sql`insert into ${sql.id(schema, 'versions')} (workflow_id, version, definition, saved_by, tenant_id)
       select w.id, w.version, w.definition, ${String(event.user.id)}, w.tenant_id from ${sql.id(schema, 'workflows')} w where w.id = ${String(event.after.id)}`.execute(trx)
   }
-  await syncTrigger(trx, schema, jobs, event.after)
+  const id = String(event.after.id)
+  const enabled = event.after.enabled_version as number | null
+  const enabledBy = enabled === null ? null : await consent(event.session, event.after.definition as Definition)
+  await saveConsent(trx, schema, id, enabled, enabledBy)
+  await syncTrigger(trx, schema, jobs, event.after, types.connections)
 }

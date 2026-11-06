@@ -168,7 +168,8 @@ export const MissingInputChecks: StoryObj = {
 
 /**
  * The add-step menu and the trigger's form offer the app's own plugins' types beside the built-in ones, draw their
- * forms from each one's input schema and refuse a missing input; a type the app cannot run is not offered.
+ * forms from each one's input schema and refuse a missing input; a type that signs in is offered once the app can make
+ * its connection, and one whose connection it cannot make is not.
  */
 export const PluginTypesChecks: StoryObj = {
   ...NewWorkflow,
@@ -179,6 +180,7 @@ export const PluginTypesChecks: StoryObj = {
     const panel = () => within(canvas.getByRole('region', { name: 'Chosen step' }))
     const add = await canvas.findByRole('combobox', { name: 'Add a step' })
     expect(within(add).getByRole('option', { name: 'HTTP request' })).toBeInTheDocument()
+    expect(within(add).getByRole('option', { name: 'Mail labels' })).toBeInTheDocument()
     await userEvent.selectOptions(add, 'Shout')
     const text = await panel().findByRole('textbox', { name: /^Text/ })
     expect(panel().getByRole('textbox', { name: /^loud/ })).toBeInTheDocument()

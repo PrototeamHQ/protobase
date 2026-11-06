@@ -1981,10 +1981,31 @@
           ]
         },
         "encryptOAuthTokens": {
-          "description": "Encrypt the OAuth access and refresh tokens Better Auth stores for social sign-ins, with `secret`; `personalMail` needs it. Default off.",
+          "description": "Encrypt the OAuth access and refresh tokens Better Auth stores for social sign-ins, with `secret`; `personalMail` and workflow connections need it. Default off.",
           "anyOf": [
             {
               "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "connections": {
+          "description": "The OAuth client of each workflow plugin's connection that signs in through a provider of its own, by\n`<plugin>:<connection>`, such as `{ 'acme:account': { clientId, clientSecret } }`; its redirect URI is\n`{baseURL}/api/auth/callback/workflow-<plugin>-<connection>`. A connection through one of `socialProviders` needs none.",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ConnectionClient"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
             },
             {
               "$ref": "#/definitions/EnvValue"
@@ -2096,6 +2117,36 @@
           ]
         }
       },
+      "additionalProperties": false
+    },
+    "ConnectionClient": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "clientSecret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "clientId",
+        "clientSecret"
+      ],
       "additionalProperties": false
     },
     "UserTableOptions": {
