@@ -7,6 +7,7 @@ import { reservedVariables } from './names'
 import type { Problem } from './problem'
 import { builtInFunctions } from './reads'
 import { readProblems } from './check-reads'
+import { connectionProblems } from './used-connections'
 import type { Definition, Machine, TaskState } from './types'
 import { visibleVariables } from './visible'
 import { limits } from '../limits'
@@ -15,9 +16,16 @@ import { nestingDepth } from '../nesting'
 /**
  * What a definition is checked against beside the language: the step types (Task resources) the app has, the
  * arguments each needs (`required`, by step type), its trigger types, each with the check of its input, and why the
- * app cannot run a type it knows (`unavailable`, by step or trigger type).
+ * app cannot run a type it knows (`unavailable`, by step or trigger type), and the connection `<plugin>:<connection>`
+ * each type that signs in uses (`connections`, by step or trigger type); without it the bindings are not checked.
  */
-export type CheckOptions = { resources: readonly string[]; required?: Readonly<Record<string, readonly string[]>>; triggers: Readonly<Record<string, TriggerCheck>>; unavailable?: Readonly<Record<string, string>> }
+export type CheckOptions = {
+  resources: readonly string[]
+  required?: Readonly<Record<string, readonly string[]>>
+  triggers: Readonly<Record<string, TriggerCheck>>
+  unavailable?: Readonly<Record<string, string>>
+  connections?: Readonly<Record<string, string>>
+}
 
 type Scope = { path: string[]; outer: ReadonlySet<string>; item: boolean }
 
@@ -82,7 +90,7 @@ const wholeProblems = (definition: Definition): Problem[] => {
 
 /**
  * Why a definition cannot be saved, as it is checked on every save: its size and nesting, its shape against `definitionSchema`, its
- * trigger, then each edge, each Task's step type and what each expression reads, in the named-reads profile. Empty when
+ * trigger and the connections it binds, then each edge, each Task's step type and what each expression reads, in the named-reads profile. Empty when
  * it can be saved.
  */
 export const checkDefinition = (definition: unknown, options: CheckOptions): Problem[] => {
@@ -92,5 +100,5 @@ export const checkDefinition = (definition: unknown, options: CheckOptions): Pro
   const shape = schemaProblems(definition)
   if (shape.length > 0) return shape
   const document = definition as Definition
-  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false }, options)]
+  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...(options.connections ? connectionProblems(document, options.connections) : []), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false }, options)]
 }

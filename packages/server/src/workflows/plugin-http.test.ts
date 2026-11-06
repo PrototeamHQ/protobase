@@ -13,7 +13,7 @@ const httpStep = (options: BuiltInStepOptions = {}) => builtInStep('app:http', o
 const secret = 'tok-9c31d7a0b2e4'
 const redactor = secretRedactor([secret])
 const logs: string[] = []
-const context = (runId = 'run-1') => ({ runId, signal: new AbortController().signal, idempotencyKey: `${runId}//0`, log: (message: string) => void logs.push(message), redact: redactor.text })
+const context = (runId = 'run-1') => ({ runId, signal: new AbortController().signal, idempotencyKey: `${runId}//0`, log: (message: string) => void logs.push(message), redact: redactor.text, secret: redactor.add })
 const seen: { method?: string; url?: string; body: string; type?: string }[] = []
 
 describe('the app:http step, run through the plugin interface', () => {

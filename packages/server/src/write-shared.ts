@@ -83,6 +83,7 @@ export const notifier = (deps: Deps, access: RequestAccess, removed: ScheduledDe
     user: session.user,
     ...(session.tenant !== undefined && { tenant: session.tenant }),
     ...(session.anonymous && { anonymous: true as const }),
+    session,
     ...(before && { before: maskEncrypted(access.full, before) }),
     ...(after && { after: maskEncrypted(access.full, after) }),
   }

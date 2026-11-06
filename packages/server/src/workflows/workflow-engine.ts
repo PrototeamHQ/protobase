@@ -12,6 +12,10 @@ import { issueRoute } from './hooks/issue-route'
 import { workflowDeleteHook } from './triggers/delete-hook'
 import { triggerJobs } from './triggers/trigger-jobs'
 import { workflowTypes } from './workflow-types'
+import { betterAuthConnectionAccounts } from './connections/connection-accounts'
+import { connectionWiring } from './connections/connection-wiring'
+import { connectionTriggers } from './connections/connection-triggers'
+import type { TokenAuth } from '../personal-mail/linked-accounts'
 
 /**
  * What `createAdmin` needs for `workflows`: the hooks that check saves and start runs, the check of a run's input before
@@ -23,10 +27,12 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const schema = workflowsSchema(options)
   const roles = options.savedByRoles ?? (auth && betterAuthOwnerRoles(auth))
   if (!roles) throw new Error("workflows act on records as each workflow's last editor, with their current roles: give the config `auth` (Better Auth), or `workflows.savedByRoles`")
-  const input = { deps, schema, roles, allowPrivateAddresses: Boolean(options.allowPrivateAddresses) }
   const secrets = workflowSecrets(options, globalThis.process?.env ?? {})
-  const types = workflowTypes(options.plugins, (name) => deps().registry.find(name)?.model)
-  const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail), secrets })
+  const types = workflowTypes(options.plugins, (name) => deps().registry.find(name)?.model, auth?.connectionSupport)
+  const accounts = auth && betterAuthConnectionAccounts(auth as unknown as TokenAuth)
+  const connections = connectionWiring({ deps, schema, roles, accounts, plugins: types.plugins, connectionOf: types.connections, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }) })
+  const input = { deps, schema, roles, allowPrivateAddresses: Boolean(options.allowPrivateAddresses), connect: connections.trigger }
+  const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets })
   const redactor = secretRedactor(Object.values(secrets))
   // Only the types a save takes: a trigger of a type no longer available, as after an app update, does nothing.
   const usable = <T>(found: Map<string, T>) => (type: string) => (types.check.triggers[type] ? found.get(type) : undefined)
@@ -40,6 +46,8 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     origin: () => auth?.origins[0],
     systemPath: () => deps().systemPath,
   })
+  // Linking an account again resumes its triggers; disconnecting it stops them.
+  auth?.connections.events.set(connectionTriggers(() => deps().db, schema, triggers))
   const webhooks = usable(types.webhooks)
   const issue = { deps, schema, webhooks, origin: () => auth?.origins[0] }
   // The public webhook address, and where a caller who may change a workflow issues its URL.
@@ -47,5 +55,5 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     hooks: () => hookRoute({ db: deps().db, schema, webhooks, webhookTypes: () => [...types.webhooks.keys()].filter((id) => webhooks(id)), files: () => deps().files, report: (error) => deps().report(error), redact: redactor.text }),
     issue: () => issueRoute(issue),
   }
-  return { routes, issue, hooks: [workflowSaveHook(schema, types.check, triggers), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema)], writeChecks: [runInputCheck], jobs: [job, ...triggers.jobs], onChanges: triggers.onChanges, types }
+  return { routes, issue, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema)], writeChecks: [runInputCheck], jobs: [job, ...triggers.jobs], onChanges: triggers.onChanges, types }
 }

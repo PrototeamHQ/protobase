@@ -13,7 +13,7 @@ import type { Plugin } from './types'
 const acme = definePlugin({
   name: 'acme',
   label: 'Acme',
-  connections: { account: { label: 'Acme account', oauth: { authorization_url: 'https://acme.test/authorize', token_url: 'https://acme.test/token' } } },
+  connections: { account: { label: 'Acme account', oauth: { authorization_url: 'https://acme.test/authorize', token_url: 'https://acme.test/token', user_info_url: 'https://acme.test/me' } } },
   steps: {
     greet: {
       label: 'Greet',
@@ -30,7 +30,7 @@ const acme = definePlugin({
   },
 })
 
-const task: TaskContext = { runId: 'run-1', signal: new AbortController().signal, idempotencyKey: 'run-1:0', log: () => {}, redact: (text) => text }
+const task: TaskContext = { runId: 'run-1', signal: new AbortController().signal, idempotencyKey: 'run-1:0', log: () => {}, redact: (text) => text, secret: () => {} }
 const services = {} as PluginServices
 const notConnected = () => ({ accessToken: () => Promise.reject(new ConnectionError('not_connected', 'No sign-in')) })
 
@@ -39,7 +39,14 @@ describe('definePlugin and loadPlugins', () => {
     expect(() => definePlugin({ name: 'Acme', label: 'A' })).toThrow('lowercase letters')
     expect(() => definePlugin({ name: 'a', label: 'A', steps: { 'Do-it': acme.steps.greet } })).toThrow('"Do-it" is not a type key')
     expect(() => definePlugin({ name: 'a', label: 'A', steps: { x: { ...acme.steps.greet, connection: 'nope' } } })).toThrow('the connection "nope"')
-    expect(() => definePlugin({ name: 'a', label: 'A', connections: { '': acme.connections.account }, steps: { x: { ...acme.steps.greet, connection: '' } } })).toThrow("a connection's name is not empty")
+    expect(() => definePlugin({ name: 'a', label: 'A', connections: { '': acme.connections.account }, steps: { x: { ...acme.steps.greet, connection: '' } } })).toThrow('"" is not a connection name')
+  })
+
+  it("refuses a connection's endpoint that is not https, except on this machine", () => {
+    const oauth = (token_url: string) => ({ label: 'A', oauth: { ...acme.connections.account.oauth, token_url } })
+    expect(() => definePlugin({ name: 'a', label: 'A', connections: { account: oauth('http://acme.test/token') } })).toThrow("the connection \"account\"'s token_url must be an https URL")
+    expect(() => definePlugin({ name: 'a', label: 'A', connections: { account: { label: 'A', signIn: 'google', revocation_url: 'ftp://x' } } })).toThrow('revocation_url must be an https URL')
+    expect(() => definePlugin({ name: 'a', label: 'A', connections: { account: oauth('http://127.0.0.1:4000/token') } })).not.toThrow()
     expect(() => definePlugin({ name: 'a', label: 'A', steps: { new_order: acme.steps.greet }, triggers: { new_order: acme.triggers.new_order } })).toThrow('"new_order" is both a step and a trigger')
     expect(() => loadPlugins([{ plugin: acme, source: '@acme/one' }, { plugin: acme, source: 'workflows/plugins/acme.ts' }])).toThrow('@acme/one and workflows/plugins/acme.ts')
   })

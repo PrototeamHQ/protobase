@@ -86,4 +86,9 @@ export type StepContext<Input = Record<string, unknown>> = PluginServices & {
   redact: (text: string) => string
   /** Undefined unless the step declares a `connection`. */
   connection: PluginConnection | undefined
+  /**
+   * Sends from the own mailbox of the person who turned on the version this run runs, signed in as themselves, while
+   * they may still change the workflow; undefined when the app links no mailboxes (`auth.personalMail`).
+   */
+  mailbox: PluginMail | undefined
 }

@@ -1,16 +1,19 @@
 import type { WorkflowTypeList } from '@protobase/client'
 import { appPlugin } from '@protobase/workflow-plugins'
-import { loadPlugins, typeCatalog, typeList } from '@protobase/workflows'
+import { connectionUnavailable, loadPlugins, typeCatalog, typeList } from '@protobase/workflows'
 import { definePlugin } from '@protobase/workflows/plugin'
 
 /**
- * A plugin as an app's own package writes one: a trigger and a step, each with a required input, and a polling trigger
- * that signs in through a connection.
+ * A plugin as an app's own package writes one: a trigger and a step, each with a required input, a polling trigger
+ * that signs in through an OAuth provider of its own, and a step that signs in through the app's Google sign-in.
  */
 export const examplePlugin = definePlugin({
   name: 'acme',
   label: 'Acme',
-  connections: { mail: { label: 'Acme mail', oauth: { authorization_url: 'https://acme.test/authorize', token_url: 'https://acme.test/token' } } },
+  connections: {
+    google: { label: 'Google account', signIn: 'google', scopes: ['https://www.googleapis.com/auth/gmail.readonly'] },
+    mail: { label: 'Acme mail', oauth: { authorization_url: 'https://acme.test/authorize', token_url: 'https://acme.test/token', user_info_url: 'https://acme.test/me' } },
+  },
   triggers: {
     overdue: {
       kind: 'ready',
@@ -37,13 +40,27 @@ export const examplePlugin = definePlugin({
       input: { type: 'object', required: ['text'], properties: { text: { type: 'string' }, loud: { type: 'boolean' } } },
       run: async ({ input }) => ({ text: String(input.text).toUpperCase() }),
     },
+    labels: {
+      label: 'Mail labels',
+      description: 'Lists the labels of the connected Google mailbox.',
+      input: { type: 'object', properties: {} },
+      connection: 'google',
+      run: async () => ({ labels: [] }),
+    },
   },
 })
 
 /**
- * The type list of an app with the built-in plugin and `examplePlugin`, as the server serves it: a type that signs in
- * through a connection is not available, as this version of the app cannot make one.
+ * What the example app connects accounts with, as the server reads it from `auth`: its Google sign-in, with encrypted
+ * tokens, and no OAuth client for `acme:mail`.
+ */
+export const exampleConnectionSupport = { encrypted: true, signInProviders: ['google'], clients: [] }
+
+/**
+ * The type list of an app with the built-in plugin and `examplePlugin`, as the server serves it, by the server's own
+ * rule: `acme:labels` signs in through Google, which the app has, while `acme:inbox` is not available, as the app sets
+ * no client for its connection.
  */
 export const exampleWorkflowTypes: WorkflowTypeList = typeCatalog(
-  typeList(loadPlugins([{ plugin: appPlugin, source: '@protobase/workflow-plugins' }, { plugin: examplePlugin, source: 'acme' }]), (type) => (type.connection ? 'It signs in through a connection, which this app cannot make yet' : undefined)),
+  typeList(loadPlugins([{ plugin: appPlugin, source: '@protobase/workflow-plugins' }, { plugin: examplePlugin, source: 'acme' }]), connectionUnavailable(exampleConnectionSupport)),
 )

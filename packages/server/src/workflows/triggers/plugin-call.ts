@@ -1,11 +1,14 @@
-import { ConnectionError, type TriggerContext } from '@protobase/workflows/plugin'
+import { ConnectionError, type PluginConnection, type TriggerContext } from '@protobase/workflows/plugin'
 import { pluginFetch } from '../plugin-fetch'
 
 /** The longest a plugin's error message is kept on its trigger, which the workflow's readers see. */
 const messageLength = 1_000
 
-/** What a plugin's trigger code gave: its value, its expired sign-in, or its error, as the trigger records it. */
-export type PluginOutcome<T> = { value: T } | { expired: string } | { failed: string }
+/**
+ * What a plugin's trigger code gave: its value, its expired sign-in, or its error, as the trigger records it, with
+ * `unconnected` set when the error is that its workflow may use no connection any more (`not_connected`).
+ */
+export type PluginOutcome<T> = { value: T } | { expired: string } | { failed: string; unconnected?: true }
 
 /**
  * Runs a plugin's trigger code: any error it throws is the plugin's, which the trigger records rather than the job
@@ -20,6 +23,7 @@ export const callPlugin = <T>(work: () => Promise<T>, redact: (text: string) => 
       (error: unknown) => {
         const message = redact(error instanceof Error ? error.message : String(error)).slice(0, messageLength)
         if (error instanceof ConnectionError && error.code === 'link_expired') return { expired: message }
+        if (error instanceof ConnectionError && error.code === 'not_connected') return { failed: message, unconnected: true as const }
         return { failed: message }
       },
     )
@@ -33,15 +37,25 @@ export const redactAlso = (values: readonly string[], redact: (text: string) => 
   return (text: string) => redact(blanked.reduce((kept, value) => kept.replaceAll(value, '[redacted]'), text))
 }
 
-export type TriggerContextInput = { allowPrivateAddresses: boolean }
+/** The trigger a hook runs for: its type, and the workflow version it runs, none once its workflow was deleted. */
+export type TriggerRef = { type: string; input: Record<string, unknown>; workflow_id: string | null; version: number }
+
+/** The connection a trigger's type declared, bound by its workflow, which hands each token it gives to `secret`; none for a type without one. */
+export type TriggerConnect = (trigger: TriggerRef, secret: (token: string) => void) => PluginConnection | undefined
+
+export type TriggerContextInput = { allowPrivateAddresses: boolean; connect?: TriggerConnect }
 
 /**
- * What a trigger's hooks get: its input, the guarded `fetch`, and the job's signal, which aborts at its timeout. No
- * type that needs a connection runs yet, so it has none.
+ * What one call of a trigger's hook gets: its input, its connection, the guarded `fetch`, and the job's signal, which
+ * aborts at its timeout; and `redact` for its outcome, which also blanks out each token its connection gave this call.
  */
-export const triggerContext = ({ allowPrivateAddresses }: TriggerContextInput, input: Record<string, unknown>, signal: AbortSignal): TriggerContext => ({
-  input,
-  connection: undefined,
-  fetch: pluginFetch({ allowPrivateAddresses }),
-  signal,
-})
+export const triggerCall = ({ allowPrivateAddresses, connect }: TriggerContextInput, trigger: TriggerRef, signal: AbortSignal, redact: (text: string) => string) => {
+  const issued: string[] = []
+  const context: TriggerContext = {
+    input: trigger.input,
+    connection: connect?.(trigger, (token) => void issued.push(token)),
+    fetch: pluginFetch({ allowPrivateAddresses }),
+    signal,
+  }
+  return { context, redact: (text: string) => redactAlso(issued, redact)(text) }
+}

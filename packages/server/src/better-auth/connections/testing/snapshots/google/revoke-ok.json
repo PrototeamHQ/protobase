@@ -1,0 +1,6 @@
+{
+  "stand_in": true,
+  "recorded_at": null,
+  "request": { "method": "POST", "url": "https://oauth2.googleapis.com/revoke", "form": ["token", "token_type_hint", "client_id", "client_secret"] },
+  "response": { "status": 200, "headers": { "content-type": "application/json; charset=utf-8" }, "body": {} }
+}

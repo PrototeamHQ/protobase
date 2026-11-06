@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 7
+export const workflowsVersion = 8
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -105,6 +105,8 @@ do $$ begin
     alter table ${s}."workflows" add constraint "workflows_enabled_version" foreign key ("id", "enabled_version") references ${s}."versions" ("workflow_id", "version") deferrable initially deferred;
   end if;
 end $$;
+-- Who turned the version on, signed in as themselves: the consent its runs sign in through their connections with.
+alter table ${s}."versions" add column if not exists "enabled_by" text;
 create table if not exists ${s}."triggers" (
   "id" uuid primary key default gen_random_uuid(),
   "workflow_id" uuid references ${s}."workflows" ("id") on delete set null,

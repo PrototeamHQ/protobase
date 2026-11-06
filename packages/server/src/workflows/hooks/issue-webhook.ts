@@ -4,10 +4,9 @@ import type { Deps } from '../../deps'
 import { fetchReadable } from '../../fetch-readable'
 import { deletedRows } from '../../params'
 import { badRequest, notFound } from '../../problem'
-import { fetchRecord } from '../../records'
-import { recordDecision, requestAccess, targetFilter, type RequestAccess } from '../../request-access'
-import { tenantScope } from '../../tenant'
-import type { Row, Session } from '../../types'
+import { requestAccess } from '../../request-access'
+import type { Session } from '../../types'
+import { mayUpdateWorkflow } from '../may-update-workflow'
 import { hookPath } from './hook-paths'
 import { hookMode } from './hook-secrets'
 import { saveHook } from './hook-store'
@@ -16,19 +15,6 @@ export type IssueInput = { deps: () => Deps; schema: string; webhooks: (type: st
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const missing = () => notFound('No workflows with this key that you may change')
-
-// Whether the caller may change this record as the record update path decides it: the update row filter and the
-// record-level update rule, beside the read access `fetchReadable` checked.
-const mayUpdate = async (trx: Db, access: RequestAccess, id: string, record: Row) => {
-  const tenant = tenantScope(access.entry, access.session)?.tenantValue
-  const key = [access.full.fields[access.full.primaryKey[0]!]!]
-  const filter = targetFilter(access, 'update')
-  if (filter && !(await fetchRecord(trx, access.entry, [id], tenant, { filter, fields: key }))) return false
-  if (!access.resolved.recordChecks.includes('update')) return true
-  const decision = await recordDecision(access, 'update', record)
-  if (typeof decision === 'boolean') return decision
-  return Boolean(await fetchRecord(trx, access.entry, [id], tenant, { filter: decision, fields: key }))
-}
 
 /**
  * Gives a workflow a new webhook URL and secret, as `POST .../workflows/<id>/webhook` and `new_webhook_url` do: only for
@@ -43,7 +29,7 @@ export const issueWebhook = async ({ deps, schema, webhooks, origin }: IssueInpu
   if (!access.resolved.operations.update) throw missing()
   return deps().db.transaction().execute(async (trx) => {
     const found = await fetchReadable(trx, access, [id], deletedRows(access.full, false), { lock: true })
-    if (!found || !(await mayUpdate(trx, access, id, found.record))) throw missing()
+    if (!found || !(await mayUpdateWorkflow(trx, access, id, found.record))) throw missing()
     const record = found.record
     const [type, input] = Object.entries((record.definition as { trigger: Record<string, Record<string, unknown>> }).trigger)[0]!
     const trigger = webhooks(type)

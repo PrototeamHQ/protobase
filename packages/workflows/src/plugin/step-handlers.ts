@@ -1,7 +1,7 @@
 import { Ajv } from 'ajv'
 import { StepError } from '../run/errors'
 import type { TaskContext, TaskHandler, TaskHandlers } from '../run/port'
-import type { PluginConnection, PluginServices } from './context'
+import type { PluginConnection, PluginMail, PluginServices } from './context'
 import type { Plugin, StepType } from './types'
 
 const ajv = new Ajv({ allErrors: true, strict: false })
@@ -10,6 +10,8 @@ const ajv = new Ajv({ allErrors: true, strict: false })
 export type StepWiring = {
   services: (task: TaskContext) => PluginServices
   connection: (stepId: string, name: string, task: TaskContext) => PluginConnection
+  /** The mailbox of the person who turned the run's version on; none when the app links no mailboxes. */
+  mailbox?: (task: TaskContext) => PluginMail | undefined
 }
 
 const handler = (id: string, type: StepType, wiring: StepWiring): TaskHandler => {
@@ -23,7 +25,7 @@ const handler = (id: string, type: StepType, wiring: StepWiring): TaskHandler =>
     }
     const connection = type.connection === undefined ? undefined : wiring.connection(id, type.connection, task)
     const { runId, idempotencyKey, signal, log, redact } = task
-    return type.run({ ...wiring.services(task), input: input as Record<string, unknown>, runId, idempotencyKey, signal, log, redact, connection })
+    return type.run({ ...wiring.services(task), input: input as Record<string, unknown>, runId, idempotencyKey, signal, log, redact, connection, mailbox: wiring.mailbox?.(task) })
   }
 }
 

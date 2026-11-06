@@ -1,7 +1,7 @@
 export type { FileValue, JsonSchema, PluginConnection, PluginFetch, PluginFetchInit, PluginFiles, PluginMail, PluginMailMessage, PluginRecords, PluginServices, StepContext } from './context'
 export { ConnectionError } from './connection-error'
 export { definePlugin, pluginApi } from './define-plugin'
-export type { ConnectionDeclaration, Plugin, PollEvery, PollingTrigger, ReadyTrigger, StepType, TriggerContext, TriggerItem, TriggerType, WebhookEvent, WebhookItem, WebhookTrigger } from './types'
+export type { ConnectionDeclaration, OAuthEndpoints, Plugin, PollEvery, PollingTrigger, ReadyTrigger, StepType, TriggerContext, TriggerItem, TriggerType, WebhookEvent, WebhookItem, WebhookTrigger } from './types'
 export { StepError } from '../run/errors'
 export { AddressRefusedError, fetchMaxBytes, ResponseTooLargeError } from './fetch-errors'
 export { isFileValue } from './file-value'

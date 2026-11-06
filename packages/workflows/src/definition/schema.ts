@@ -53,7 +53,13 @@ export const definitionSchema = {
       type: 'object',
       additionalProperties: false,
       required: ['trigger', 'stateMachine'],
-      properties: { trigger: { $ref: '#/definitions/trigger' }, stateMachine: { $ref: '#/definitions/stateMachine' } },
+      properties: { trigger: { $ref: '#/definitions/trigger' }, stateMachine: { $ref: '#/definitions/stateMachine' }, connections: { $ref: '#/definitions/connections' } },
+    },
+    // The account each connection `<plugin>:<connection>` the definition's types sign in with goes through, by its id.
+    connections: {
+      type: 'object',
+      propertyNames: { pattern: '^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$' },
+      additionalProperties: { type: 'string', minLength: 1, maxLength: 255 },
     },
     trigger: {
       type: 'object',

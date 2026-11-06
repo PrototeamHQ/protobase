@@ -142,7 +142,7 @@ An attachment is only the bytes given: a file path or URL is never read in its p
 ## From someone's own mailbox
 
 :::caution[Beta]
-Gmail is the only mail provider so far, and only API functions send from a mailbox: jobs cannot yet.
+Gmail is the only mail provider so far. API functions, and workflow steps that the person turned on themselves, send from a mailbox. A job's own code cannot yet.
 :::
 
 An app can send mail from the signed-in person's own mailbox instead of the app's address, such as an invoice from the account holder's Gmail, so replies reach them. They link the mailbox once on the [account page](/reference/auth/#account-page) ("Connect Gmail" under **Mailbox**), which asks the provider for leave to send mail and nothing else; the app's functions then send through it. `auth.personalMail` names the providers people may link, each through the app's sign-in provider of the same company; Gmail links through Google sign-in (see [Send mail from Gmail](/guides/send-from-gmail/) for the Google setup):
@@ -179,10 +179,9 @@ export default defineFunction(async (request, { personalMail }) => {
 
 - **Sender:** the provider sends as the linked address; Gmail sets the From header to it.
 - **Which account:** mail goes out through the account the person connected for mail last. Connecting Gmail with another Google account takes the mail scopes off the earlier one in the app's store, and signing in with the earlier one does not take the mail back; connecting it again does. When the chosen account's link fails, sending fails: it never falls back to another account. Of two accounts that both still hold the mail scopes, as when both connected before this rule came in, mail goes through the one linked to the person last, until they connect one again.
-- **Only the person:** mail goes out from a mailbox only for someone signed in as themselves. Staff [signed in as them](/reference/auth/#staff-sign-in), or an outside app acting for them, is refused with a `403` problem (`own-sign-in-only`), and nothing is sent.
+- **Only the person:** mail goes out from a mailbox only for someone signed in as themselves, or from a [workflow step's `mailbox`](/reference/workflow-plugins/#step-types) in a version that person turned on while signed in as themselves, and only while they may still change the workflow. Staff [signed in as them](/reference/auth/#staff-sign-in), an outside app acting for them, and a job's own code cannot send from it; a request is refused with a `403` problem (`own-sign-in-only`), a step fails with `not_linked`, and nothing is sent. Turning the workflow off, or someone else turning a new version on, ends the first person's consent.
 - **Providers:** Gmail, through Google sign-in. A provider is added to Protobase behind the same `PersonalMailProvider` shape: its sign-in provider, the scopes linking asks for, and how it sends.
 - <gap>The account page cannot show which account a mailbox is linked through or disconnect it because unlinking a mailbox is not implemented.</gap>
-- <gap>Jobs cannot send from someone's own mailbox because a job's context has no personal mailer.</gap>
 - <gap>Mailboxes other than Gmail cannot be linked because no other mail provider is implemented.</gap>
 
 ## In a bundle
