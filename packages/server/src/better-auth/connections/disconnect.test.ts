@@ -183,6 +183,14 @@ describe('disconnecting a connected account', () => {
     expect(fake.callsTo('/revoke')).toEqual([])
   })
 
+  it('refuses in the language the request asks for, keeping the code', async () => {
+    const { ada } = await connected()
+    const dutch = await ada.request('/connections/disconnect', { method: 'POST', body: { accountId: 'no-such-account' }, language: 'nl-NL,nl;q=0.9' })
+    expect(JSON.parse(dutch.text)).toMatchObject({ code: 'CONNECTION_NOT_FOUND', message: 'Je hebt geen gekoppeld account met deze id.' })
+    const english = await ada.request('/connections/disconnect', { method: 'POST', body: { accountId: 'no-such-account' } })
+    expect(JSON.parse(english.text)).toMatchObject({ code: 'CONNECTION_NOT_FOUND', message: 'You have no connected account with this id.' })
+  })
+
   it('lists the connections with the accounts that fit them and the workflows that use them, never a token', async () => {
     const uses = vi.fn(async (_userId: string, ids: string[]) => Object.fromEntries(ids.map((id) => [id, [{ id: 'wf-1', name: 'Report' }]])))
     const { ada, accountId } = await connected({ listener: { needsSignIn: async (ids) => ids, uses } })

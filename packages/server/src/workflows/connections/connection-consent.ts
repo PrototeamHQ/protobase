@@ -6,6 +6,7 @@ import { ownSignInUser } from '../../notifications/caller'
 import { badRequest, forbidden } from '../../problem'
 import type { Session } from '../../types'
 import type { ConnectionAccounts } from './connection-accounts'
+import type { ConnectionTexts } from './connection-texts'
 import { connectionProviderId, holdsScopes } from './connection-provider'
 
 /** What the consent reads: the connected accounts, each connection's declaration by `<plugin>:<connection>`, and each type's connection by its id. */
@@ -13,11 +14,11 @@ export type ConsentInput = {
   accounts: ConnectionAccounts
   declarationOf: (key: string) => ConnectionDeclaration | undefined
   connectionOf: Readonly<Record<string, string>>
+  text: ConnectionTexts
 }
 
 /** The refusal of every account the caller may not turn on, the same whether it exists or not. */
-export const notOwnConnection = () =>
-  forbidden('own-sign-in-only', 'Only the owner of each connection this workflow uses, signed in as themselves, can turn it on: turn it off to save it, and its owner turns it on again in the admin app')
+const notOwnConnection = (text: ConnectionTexts) => forbidden('own-sign-in-only', text('ownSignInOnly'))
 
 /**
  * Turning a version on is the consent that lets its runs sign in through the accounts it binds: it is refused unless
@@ -26,20 +27,20 @@ export const notOwnConnection = () =>
  * keeps as `enabled_by`: the caller when they are signed in as themselves, else nobody, as for a version that binds
  * no account turned on by an outside app.
  */
-export const connectionConsent = ({ accounts, declarationOf, connectionOf }: ConsentInput) => async (session: Session, definition: Definition) => {
+export const connectionConsent = ({ accounts, declarationOf, connectionOf, text }: ConsentInput) => async (session: Session, definition: Definition) => {
   const keys = [...usedConnections(definition, connectionOf)]
   if (keys.length === 0) {
     if (session.anonymous || session.client || session.signIn?.staff !== false) return null
     return String(session.user.id)
   }
   const unbound = keys.filter((key) => !definition.connections?.[key])
-  if (unbound.length > 0) throw badRequest('invalid-workflow', `Connect an account for ${unbound.join(', ')} in the workflow's connections before turning it on`)
+  if (unbound.length > 0) throw badRequest('invalid-workflow', text('unbound', { connections: unbound.join(', ') }))
   const userId = ownSignInUser(session, 'turn on a workflow that signs in through their connection')
   for (const key of keys) {
     const declaration = declarationOf(key)!
     const [plugin, name] = key.split(':') as [string, string]
     const account = await accounts.find(userId, definition.connections![key]!)
-    if (!account || account.providerId !== connectionProviderId(plugin, name, declaration) || !holdsScopes(account.scopes, declaration)) throw notOwnConnection()
+    if (!account || account.providerId !== connectionProviderId(plugin, name, declaration) || !holdsScopes(account.scopes, declaration)) throw notOwnConnection(text)
   }
   return userId
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ConnectionError } from '@protobase/workflows/plugin'
 import type { ConnectionAccount, ConnectionAccounts } from './connection-accounts'
+import { connectionTexts } from './connection-texts'
 import { sharedRefresh } from './connection-tokens'
 import { stopConnection, type StopUse } from './stop-connection'
 
@@ -16,7 +17,7 @@ const accountsOf = (owned: Record<string, ConnectionAccount[]>, { refused = fals
 
 const connect = (accounts: ConnectionAccounts, use: Partial<StopUse>) => {
   const issued: string[] = []
-  const connection = stopConnection({ accounts, refresh: sharedRefresh(accounts) })({ plugin: 'acme', name: 'account', declaration, accountId: 'acc-1', userId: 'ada', secret: (token) => void issued.push(token), ...use })
+  const connection = stopConnection({ accounts, refresh: sharedRefresh(accounts), text: connectionTexts(undefined) })({ plugin: 'acme', name: 'account', declaration, accountId: 'acc-1', userId: 'ada', secret: (token) => void issued.push(token), ...use })
   return { connection, issued }
 }
 

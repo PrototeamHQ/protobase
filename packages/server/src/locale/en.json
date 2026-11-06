@@ -33,5 +33,23 @@
   "mcp/approval": {
     "cannotAsk": "This client cannot ask you to approve a change, so nothing was written; use a client that supports MCP elicitation.",
     "approve": "Approve"
+  },
+  "better-auth/connections": {
+    "CONNECTION_NOT_FOUND": "You have no connected account with this id.",
+    "FAILED_TO_UNLINK_LAST_ACCOUNT": "This is your only way to sign in: add another before you disconnect it.",
+    "CONNECTIONS_STARTING": "Connections are starting: try again in a moment.",
+    "CONNECTION_NOT_SIGN_IN": "This provider connects an account to a workflow; it does not sign in.",
+    "CONNECTION_UNLINK_REFUSED": "This account is connected to workflows: disconnect it under Connections."
+  },
+  "workflows/connections": {
+    "ownSignInOnly": "Only the owner of each connection this workflow uses, signed in as themselves, can turn it on: turn it off to save it, and its owner turns it on again in the admin app",
+    "unbound": "Connect an account for {connections} in the workflow's connections before turning it on",
+    "notConnected": "This workflow has no connection it may use for {key}: its owner connects an account and turns the workflow on",
+    "linkExpired": "The account connected for {key} no longer signs in: its owner connects it again",
+    "undeclared": "{step} signs in through \"{name}\", which this app does not declare",
+    "stopNotConnected": "This trigger has no connection it may end its subscription with for {key}: the account it was made with is no longer connected",
+    "stopLinkExpired": "The account connected for {key} no longer signs in, so this trigger cannot end its subscription with it",
+    "disconnected": "The connected account was disconnected: its owner connects it again",
+    "subscriptionNotEnded": "The subscription could not be ended at the provider: {reason}"
   }
 }

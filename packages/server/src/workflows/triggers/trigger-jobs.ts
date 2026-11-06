@@ -12,6 +12,7 @@ import { printFilter } from '@protobase/schema'
 import { callPlugin, triggerCall, type StopConnect, type StoppedTrigger } from './plugin-call'
 import { pollJobs } from './poll-job'
 import { triggerStarts, type TriggerStartInput } from './trigger-start'
+import type { ConnectionTexts } from '../connections/connection-texts'
 
 /** Records one enable pass reads per job. */
 const passSize = 100
@@ -25,9 +26,10 @@ type ReadyCheckPayload = { trigger: string; generation: number; key: Row }
  * for a polling one its first poll; for a subscribing webhook one its subscription), `workflows.trigger-stop`
  * (unsubscribes a stopped webhook trigger at its provider and removes it), `workflows.ready-check` (starts a run of one
  * record when it is ready, at the time its time terms say), and the poll and renewal jobs. Each acts only on the
- * generation it was queued for. `stopConnect` is the stop job's alone, kept out of the `input` every other job gets.
+ * generation it was queued for. `stopConnect` is the stop job's alone, kept out of the `input` every other job gets, and
+ * `text` the words of a subscription it could not end.
  */
-export const triggerJobs = (input: ReadyInput & TriggerStartInput, stopConnect?: StopConnect) => {
+export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: ConnectionTexts, stopConnect?: StopConnect) => {
   const { schema } = input
   const polls = pollJobs(input)
 
@@ -98,7 +100,7 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, stopConnect?:
     if ('value' in outcome) return true
     if ('failed' in outcome && !outcome.unconnected) throw new Error(`The trigger's unsubscribe failed: ${outcome.failed}`)
     const reason = 'expired' in outcome ? outcome.expired : outcome.failed
-    const error = JSON.stringify({ code: 'expired' in outcome ? 'link_expired' : 'not_connected', message: `The subscription could not be ended at the provider: ${reason}`, at: new Date().toISOString() })
+    const error = JSON.stringify({ code: 'expired' in outcome ? 'link_expired' : 'not_connected', message: text('subscriptionNotEnded', { reason }), at: new Date().toISOString() })
     await sql`update ${sql.id(schema, 'triggers')} set last_error = ${error}::jsonb, updated_at = now() where id = ${trigger} and status = 'stopping'`.execute(db)
     return false
   }

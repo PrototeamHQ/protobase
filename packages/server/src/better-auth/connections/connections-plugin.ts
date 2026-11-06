@@ -1,8 +1,9 @@
 import type { BetterAuthPlugin } from 'better-auth'
-import { APIError, createAuthEndpoint, createAuthMiddleware, sessionMiddleware } from 'better-auth/api'
+import { createAuthEndpoint, createAuthMiddleware, sessionMiddleware } from 'better-auth/api'
 import { decryptOAuthToken } from 'better-auth/oauth2'
 import * as z from 'zod'
 import type { ConnectionEvents } from './connection-events'
+import { connectionRefusal } from './connection-refusal'
 import type { ResolvedConnection } from './declared-connections'
 import { disconnectAccount } from './disconnect-account'
 import { listConnections } from './list-connections'
@@ -11,9 +12,6 @@ import { unlinkGuard } from './unlink-guard'
 export const connectionPaths = { list: '/connections', disconnect: '/connections/disconnect' }
 
 export type ConnectionsPluginInput = { connections: readonly ResolvedConnection[]; events: ConnectionEvents; allowPrivateAddresses: boolean }
-
-// The same answer for an account that is not there and one of someone else's, so it tells nothing of other accounts.
-const notFound = () => new APIError('NOT_FOUND', { code: 'CONNECTION_NOT_FOUND', message: 'You have no connected account with this id.' })
 
 /**
  * The signed-in person's connections: `GET /connections` lists each connection the app's workflow plugins declare with
@@ -38,13 +36,14 @@ export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }
         const accounts = await adapter.findAccounts(ctx.context.session.user.id)
         const account = accounts.find((candidate) => candidate.id === ctx.body.accountId)
         const connection = account && connections.find((candidate) => candidate.providerId === account.providerId)
-        if (!account || !connection) throw notFound()
+        // The same answer for an account that is not there and one of someone else's, so it tells nothing of other accounts.
+        if (!account || !connection) throw connectionRefusal('NOT_FOUND', 'CONNECTION_NOT_FOUND', ctx.headers)
         // As Better Auth's own unlinking: the last account that signs in is the person's only way to sign in. An account of
         // a provider only connections use never signs in, so disconnecting it is always allowed.
         const signIns = accounts.filter((candidate) => !own.has(candidate.providerId))
-        if (!own.has(account.providerId) && signIns.length === 1) throw new APIError('BAD_REQUEST', { code: 'FAILED_TO_UNLINK_LAST_ACCOUNT', message: 'This is your only way to sign in: add another before you disconnect it.' })
+        if (!own.has(account.providerId) && signIns.length === 1) throw connectionRefusal('BAD_REQUEST', 'FAILED_TO_UNLINK_LAST_ACCOUNT', ctx.headers)
         // A token the provider may not take is kept for a later try, so disconnecting waits until the workflows can queue it.
-        if (connection.revocationUrl && !events.listening()) throw new APIError('SERVICE_UNAVAILABLE', { code: 'CONNECTIONS_STARTING', message: 'Connections are starting: try again in a moment.' })
+        if (connection.revocationUrl && !events.listening()) throw connectionRefusal('SERVICE_UNAVAILABLE', 'CONNECTIONS_STARTING', ctx.headers)
         const revocation = await disconnectAccount({
           account,
           connection,
@@ -63,7 +62,7 @@ export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }
           matcher: (context) => context.path === '/sign-in/social',
           handler: createAuthMiddleware(async (ctx) => {
             const provider = (ctx.body as { provider?: unknown } | undefined)?.provider
-            if (typeof provider === 'string' && own.has(provider)) throw new APIError('FORBIDDEN', { code: 'CONNECTION_NOT_SIGN_IN', message: 'This provider connects an account to a workflow; it does not sign in.' })
+            if (typeof provider === 'string' && own.has(provider)) throw connectionRefusal('FORBIDDEN', 'CONNECTION_NOT_SIGN_IN', ctx.headers)
           }),
         },
         unlinkGuard(connections),

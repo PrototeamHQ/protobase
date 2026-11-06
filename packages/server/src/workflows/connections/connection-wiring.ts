@@ -10,6 +10,7 @@ import type { SaverRoles } from '../plugin-records'
 import type { StopConnect, TriggerConnect } from '../triggers/plugin-call'
 import type { ConnectionAccounts } from './connection-accounts'
 import { connectionConsent } from './connection-consent'
+import type { ConnectionTexts } from './connection-texts'
 import { connectionTokens, sharedRefresh, type VersionRef } from './connection-tokens'
 import { stopConnection } from './stop-connection'
 
@@ -22,6 +23,7 @@ export type ConnectionWiringInput = {
   connectionOf: Readonly<Record<string, string>>
   /** Mail from a person's own mailbox; none when the app links no mailboxes. */
   personalMailer?: (userId: string) => Mailer
+  text: ConnectionTexts
 }
 
 // The accounts of an app without sign-in: none, so every connection is `not_connected`.
@@ -33,15 +35,15 @@ const noAccounts: ConnectionAccounts = { find: async () => undefined, accessToke
  * unsubscribe gets (`stopping`), bound by the account and person its row recorded, which only the trigger stop job takes.
  * One refresh of an account is shared by them all.
  */
-export const connectionWiring = ({ deps, schema, roles, accounts = noAccounts, plugins, connectionOf, personalMailer }: ConnectionWiringInput) => {
+export const connectionWiring = ({ deps, schema, roles, accounts = noAccounts, plugins, connectionOf, personalMailer, text }: ConnectionWiringInput) => {
   const declarationOf = (key: string) => {
     const [plugin, name] = key.split(':') as [string, string]
     return plugins.find((candidate) => candidate.name === plugin)?.connections?.[name]
   }
-  const consent = connectionConsent({ accounts, declarationOf, connectionOf })
+  const consent = connectionConsent({ accounts, declarationOf, connectionOf, text })
   const refresh = sharedRefresh(accounts)
-  const tokens = connectionTokens({ deps, schema, roles, accounts, refresh })
-  const stopTokens = stopConnection({ accounts, refresh })
+  const tokens = connectionTokens({ deps, schema, roles, accounts, refresh, text })
+  const stopTokens = stopConnection({ accounts, refresh, text })
   const connectionFor = (type: string) => {
     const key = connectionOf[type]
     const declaration = key === undefined ? undefined : declarationOf(key)
@@ -59,7 +61,7 @@ export const connectionWiring = ({ deps, schema, roles, accounts = noAccounts, p
     return run?.version == null ? undefined : { workflowId: run.workflow_id, version: run.version }
   }
   const step: StepWiring['connection'] = (stepId, name, task) =>
-    use(stepId, () => runVersion(task.runId), task.secret) ?? { accessToken: () => Promise.reject(new ConnectionError('not_connected', `${stepId} signs in through "${name}", which this app does not declare`)) }
+    use(stepId, () => runVersion(task.runId), task.secret) ?? { accessToken: () => Promise.reject(new ConnectionError('not_connected', text('undeclared', { step: stepId, name }))) }
   const trigger: TriggerConnect = (row, secret) => use(row.type, async () => (row.workflow_id === null ? undefined : { workflowId: row.workflow_id, version: row.version }), secret)
   const stopping: StopConnect = (row, secret) => {
     const connection = connectionFor(row.type)

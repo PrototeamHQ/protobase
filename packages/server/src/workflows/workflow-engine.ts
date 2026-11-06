@@ -18,6 +18,8 @@ import { connectionUses } from './connections/connection-uses'
 import { connectionTriggers } from './connections/connection-triggers'
 import { connectionRevocations } from './connections/connection-revocations'
 import type { TokenAuth } from '../personal-mail/linked-accounts'
+import type { Locale } from '@protobase/schema/internal'
+import { connectionTexts } from './connections/connection-texts'
 
 /**
  * What `createAdmin` needs for `workflows`: the hooks that check saves and start runs, the check of a run's input before
@@ -25,14 +27,15 @@ import type { TokenAuth } from '../personal-mail/linked-accounts'
  * ready triggers, and the segment job, whose step
  * types act on records as each workflow's last editor (from Better Auth unless the options say otherwise).
  */
-export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth?: AdminAuth) => {
+export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth?: AdminAuth, locale?: Locale) => {
   const schema = workflowsSchema(options)
   const roles = options.savedByRoles ?? (auth && betterAuthOwnerRoles(auth))
   if (!roles) throw new Error("workflows act on records as each workflow's last editor, with their current roles: give the config `auth` (Better Auth), or `workflows.savedByRoles`")
   const secrets = workflowSecrets(options, globalThis.process?.env ?? {})
   const types = workflowTypes(options.plugins, (name) => deps().registry.find(name)?.model, auth?.connectionSupport)
   const accounts = auth && betterAuthConnectionAccounts(auth as unknown as TokenAuth)
-  const connections = connectionWiring({ deps, schema, roles, accounts, plugins: types.plugins, connectionOf: types.connections, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }) })
+  const text = connectionTexts(locale)
+  const connections = connectionWiring({ deps, schema, roles, accounts, plugins: types.plugins, connectionOf: types.connections, text, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }) })
   const input = { deps, schema, roles, allowPrivateAddresses: Boolean(options.allowPrivateAddresses), connect: connections.trigger }
   const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets })
   const redactor = secretRedactor(Object.values(secrets))
@@ -47,12 +50,12 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     redact: redactor.text,
     origin: () => auth?.origins[0],
     systemPath: () => deps().systemPath,
-  }, connections.stopping)
+  }, text, connections.stopping)
   // Linking an account again resumes its triggers; disconnecting it stops them, and queues a revocation the provider did not take.
   // The account page lists what uses each one.
   const revocations = auth && auth.connections.declared.length > 0 ? connectionRevocations(schema, auth.connections.revokeSealed) : undefined
   auth?.connections.events.set({
-    ...connectionTriggers(() => deps().db, schema, triggers),
+    ...connectionTriggers(() => deps().db, schema, triggers, text),
     uses: connectionUses({ deps, schema, roles }),
     revokeLater: async (revocation) => revocations?.revokeLater(deps().db, revocation),
     // A token left valid at its provider is the app's to look into: reported by its reason, never with the token or the error that stopped it.
