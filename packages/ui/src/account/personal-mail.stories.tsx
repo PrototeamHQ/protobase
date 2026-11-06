@@ -10,12 +10,12 @@ export default meta
 const gmail = { id: 'gmail', name: 'Gmail', provider: 'google', scopes: ['https://www.googleapis.com/auth/gmail.send'], params: { access_type: 'offline', prompt: 'consent' } }
 
 /** A signed-in session on an app that sends mail from people's own Gmail, with the mailbox linked or not. */
-const mailboxSession = (linked: string[], linkPersonalMail: AuthSession['account']['linkPersonalMail'] = fn()): AuthSession => {
+const mailboxSession = (linked: string[], linkPersonalMail: AuthSession['account']['linkPersonalMail'] = fn(), providers: string[] = []): AuthSession => {
   const base = createStaticSession('story-token', { id: 'u-ana', email: 'ana@shop.example', name: 'Ana de Vries', role: 'sales' })
   return {
     ...base,
     status: async () => ({ ...(await base.status()), personalMail: [gmail] }),
-    account: { ...base.account, linkedPersonalMail: async () => linked, linkPersonalMail },
+    account: { ...base.account, linkedPersonalMail: async () => linked, linkedProviders: async () => providers, linkPersonalMail },
   }
 }
 
@@ -30,6 +30,22 @@ export const NotLinked: StoryObj = {
   play: async ({ canvasElement }) => {
     const mailbox = within(await within(canvasElement).findByRole('region', { name: 'Mailbox' }))
     expect(mailbox.getByText('Gmail')).toBeVisible()
+    expect(mailbox.getByRole('button', { name: 'Connect Gmail' })).toBeEnabled()
+  },
+}
+
+/** Signed in with Google, which did not allow sending mail: the block says that sign-in is no mailbox, and still offers to connect Gmail. */
+export const GoogleSignInOnly: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <AuthProvider session={mailboxSession([], fn(), ['google'])}>
+      <PersonalMailBlock />
+    </AuthProvider>
+  ),
+  play: async ({ canvasElement }) => {
+    const mailbox = within(await within(canvasElement).findByRole('region', { name: 'Mailbox' }))
+    expect(await mailbox.findByText('You sign in with Google, but that sign-in does not allow sending mail: connect Gmail to send from it.')).toBeVisible()
+    expect(mailbox.queryByText('Connected')).toBeNull()
     expect(mailbox.getByRole('button', { name: 'Connect Gmail' })).toBeEnabled()
   },
 }

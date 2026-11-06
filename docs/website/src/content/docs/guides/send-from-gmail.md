@@ -64,4 +64,4 @@ export default defineFunction(async (request, { personalMail }) => {
 })
 ```
 
-The message goes out from the linked Gmail, and shows in its Sent folder. When the person linked nothing the call answers `409` with `code: "not_linked"`, and when Google no longer honours the link, as after they removed the app from their Google account, `code: "link_expired"`: point them to Account → Mailbox to connect Gmail again.
+The message goes out from the linked Gmail, and shows in its Sent folder. When the person linked nothing the call answers `409` with `code: "not_linked"`, and when Google no longer honours the link, as after they removed the app from their Google account, `code: "link_expired"`. An action whose handler calls the function offers to connect Gmail right in its dialog then; mark it `mailbox: true` and it offers that before it runs, while nothing is linked ([Actions that send from someone's mailbox](/reference/ui-config/#actions-that-send-from-someones-mailbox)).

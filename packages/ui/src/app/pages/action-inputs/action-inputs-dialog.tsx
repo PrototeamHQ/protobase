@@ -7,6 +7,7 @@ import { isChosen, type Draft } from '../../create/create-values'
 import { ErrorBanner } from '../../error-banner'
 import { FieldEditor } from '../../field-editor'
 import { useAdminMeta } from '../../meta-gate'
+import { useActionMailbox } from '../../../mailbox/use-action-mailbox'
 import { useProjectUi } from '../project-ui'
 import { answeredValues, inputField, inputHints, refusedAnswers, startingAnswers } from './input-answers'
 import { inputErrors } from './input-errors'
@@ -65,12 +66,13 @@ export const ActionInputsDialog = ({ action, label, danger, onCancel, onSubmit }
   const [running, setRunning] = useState(false)
   const formId = useId()
   const { shown, values } = answeredValues(action.inputs, draft)
+  const mailbox = useActionMailbox(action, failure)
 
   const submit = async () => {
     const refused = refusedAnswers(action.inputs, values)
     setErrors(refused)
     setFailure(undefined)
-    if (Object.keys(refused).length > 0) return
+    if (Object.keys(refused).length > 0 || mailbox.blocked) return
     setRunning(true)
     await onSubmit(values).catch((error: unknown) => {
       setErrors(inputErrors(error, action.inputs))
@@ -93,7 +95,7 @@ export const ActionInputsDialog = ({ action, label, danger, onCancel, onSubmit }
       actions={
         <>
           <Button onClick={onCancel}>{text('cancel')}</Button>
-          <Button variant={danger ? 'danger' : 'primary'} type="submit" form={formId} loading={running}>
+          <Button variant={danger ? 'danger' : 'primary'} type="submit" form={formId} loading={running} disabled={mailbox.blocked}>
             {label}
           </Button>
         </>
@@ -107,7 +109,8 @@ export const ActionInputsDialog = ({ action, label, danger, onCancel, onSubmit }
           void submit()
         }}
       >
-        {failure !== undefined && Object.keys(errors).length === 0 && <ErrorBanner title={text('failed', { label })} error={failure} />}
+        {failure !== undefined && Object.keys(errors).length === 0 && !mailbox.explained && <ErrorBanner title={text('failed', { label })} error={failure} />}
+        {mailbox.notice}
         {action.inputs
           .filter((input) => shown.has(input.name))
           .map((input) => (

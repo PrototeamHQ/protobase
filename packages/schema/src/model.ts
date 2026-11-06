@@ -1197,6 +1197,11 @@ export type ActionModel = {
   run?: ActionRun
   /** What the button asks for in a dialog before the action runs: a handler gets the answers as `values`, an update writes them through `set`. */
   inputs?: ActionInputModel[]
+  /**
+   * Whether the handler sends mail from the person's own mailbox (`mailbox: true`): its dialog offers to connect one
+   * instead of running while none is linked.
+   */
+  mailbox?: boolean
 }
 
 /**
