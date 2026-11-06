@@ -1,7 +1,7 @@
 # AI review of every pull request; see protobase-community/.github's ai-pr-review workflow. A review that finds no
-# issues also merges the pull request once every other check passed, except a release from development into the
-# default branch or a pull request with the do-not-merge label. A merge with GITHUB_TOKEN starts no workflow, so the
-# review then starts release.yml with workflow_dispatch, which releases main's head as a push would.
+# issues also merges the pull request once every other check passed, except a pull request with the do-not-merge
+# label. A merge with GITHUB_TOKEN starts no workflow, so the review then starts release.yml with workflow_dispatch,
+# which releases main's head as a push would.
 # pull_request_target runs this file from the base branch and never checks out the pull request.
 name: ai-review
 
