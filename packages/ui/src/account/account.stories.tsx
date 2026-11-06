@@ -161,6 +161,25 @@ export const TwoFactorOnWithApp: StoryObj<TwoFactorSectionProps> = {
   },
 }
 
+/** New backup codes for an account without a password, from an older session: it confirms it's them in place. */
+export const NewBackupCodesConfirmInPlace: StoryObj<TwoFactorSectionProps> = {
+  tags: ['play'],
+  args: { ...twoFactor, enabled: true, authenticatorApp: true, needsPassword: false, onNewBackupCodes: fn(async () => Promise.reject(new AuthError("Confirm it's you first", 403, 'STRONG_SIGN_IN_REQUIRED'))) },
+  render: (args) => (
+    <QueryClientProvider client={new QueryClient()}>
+      <TwoFactorSection {...args} />
+    </QueryClientProvider>
+  ),
+  play: async ({ canvasElement, args }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'New backup codes' }))
+    const dialog = within(document.body)
+    await userEvent.click(dialog.getByRole('button', { name: 'Make new codes' }))
+    expect(args.onNewBackupCodes).toHaveBeenCalledWith(undefined)
+    const step = within(await dialog.findByRole('region', { name: "Confirm it's you" }))
+    expect(step.getByText("This change needs you to confirm it's you in the last 15 minutes.")).toBeVisible()
+  },
+}
+
 export const TwoFactorRequiredByEmail: StoryObj<TwoFactorSectionProps> = {
   tags: ['play'],
   args: { ...twoFactor, rule: 'required', enabled: true },

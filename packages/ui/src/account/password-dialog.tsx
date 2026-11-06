@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { AuthError } from '@protobase/client'
+import { confirmationMinutes } from '@protobase/schema/internal'
+import { ConfirmSignIn } from '../app/confirm-sign-in'
 import { authMessage } from '../auth/auth-messages'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
@@ -19,20 +21,26 @@ export type PasswordDialogProps = {
   onClose: () => void
 }
 
-/** Confirms a change to the account's sign-in, with the password when it has one. */
+/**
+ * Confirms a change to the account's sign-in, with the password when it has one. Without one, an older session that the
+ * change refuses (`STRONG_SIGN_IN_REQUIRED`) confirms it's them in place, and the change runs again.
+ */
 export const PasswordDialog = ({ title, description, confirmLabel, danger, needsPassword, onConfirm, onClose }: PasswordDialogProps) => {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+  const [confirming, setConfirming] = useState(false)
 
   const confirm = async () => {
     setBusy(true)
     setError(undefined)
+    setConfirming(false)
     try {
       await onConfirm(needsPassword ? password : undefined)
     } catch (failure) {
       if (!(failure instanceof AuthError)) throw failure
-      setError(authMessage(failure))
+      if (failure.code === 'STRONG_SIGN_IN_REQUIRED') setConfirming(true)
+      else setError(authMessage(failure))
       setBusy(false)
     }
   }
@@ -62,6 +70,7 @@ export const PasswordDialog = ({ title, description, confirmLabel, danger, needs
           {error}
         </p>
       )}
+      {confirming && <ConfirmSignIn purpose="change" minutes={confirmationMinutes} onConfirmed={() => void confirm()} />}
     </Dialog>
   )
 }
