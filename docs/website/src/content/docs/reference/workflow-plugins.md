@@ -176,7 +176,7 @@ connections: {
 | `scopes` | What connecting asks for. An account counts for the connection only while it holds every one of them. |
 | `link_params` | More authorization parameters, such as those that ask for a refresh token. |
 | `signIn` | One of the app's sign-in providers, whose client and endpoints it uses. |
-| `oauth` | The provider's `authorization_url`, `token_url` and `user_info_url` (which answers the account's `sub` or `id`), its `revocation_url`, and `pkce` (default `true`). |
+| `oauth` | The provider's `authorization_url`, `token_url` and `user_info_url`, each required (`user_info_url` answers the account's `sub` or `id`), its `revocation_url`, and `pkce` (default `true`). |
 | `revocation_url` | Where disconnecting revokes the token ([RFC 7009](https://www.rfc-editor.org/rfc/rfc7009)). Without one, disconnecting deletes it only. |
 
 Every URL is `https`. A host given by its address, or `localhost`, is refused at startup unless `workflows.allowPrivateAddresses` is on, for development and tests. The app sends each request only to the URL the plugin declares, through the [guarded request](#sending-requests). That request resolves the host once, refuses a private address and follows no redirect, so a declaration can never send a code, a token or the client secret to the app's own network.
