@@ -20,7 +20,7 @@ export const acmeClient = { clientId: 'acme-client', clientSecret: 'acme-client-
  * Better Auth with Protobase's options and the connections of `acmeConnections` on a store in memory, its OAuth calls
  * going to the fake provider at `origin`; Ada and Grace signed in with their passwords, each in a browser of their own.
  */
-export const connectionAuth = async (origin: string, { checkOrigin = false, listener }: { checkOrigin?: boolean; listener?: Partial<ConnectionListener> } = {}) => {
+export const connectionAuth = async (origin: string, { checkOrigin = false, listener }: { checkOrigin?: boolean; listener?: Partial<ConnectionListener> | false } = {}) => {
   const base: CreateAuthOptions = {
     database: undefined,
     baseURL: appOrigin,
@@ -31,7 +31,7 @@ export const connectionAuth = async (origin: string, { checkOrigin = false, list
   }
   const store: Record<string, Record<string, unknown>[]> = { user: [], account: [], session: [], verification: [], two_factor: [], passkey: [], sign_in_policy: [], jwks: [] }
   const events = connectionEvents()
-  events.set({ linked: async () => {}, disconnected: async () => {}, needsSignIn: async () => [], uses: async () => ({}), revokeLater: async () => {}, ...listener })
+  if (listener !== false) events.set({ linked: async () => {}, disconnected: async () => {}, needsSignIn: async () => [], uses: async () => ({}), revokeLater: async () => {}, ...listener })
   const resolved = resolveConnections(acmeConnections(origin), base.connections!, base.socialProviders as never, true)
   let instance: { $context: Promise<{ adapter: never }> } | undefined
   const options = betterAuthOptions(base, { roles: ['admin', 'user'], definitions: roleDefinitions(), defaultRole: 'user', context: (() => instance!.$context) as never, connections: { resolved, events, allowPrivateAddresses: true } })

@@ -44,6 +44,8 @@ export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }
         // a provider only connections use never signs in, so disconnecting it is always allowed.
         const signIns = accounts.filter((candidate) => !own.has(candidate.providerId))
         if (!own.has(account.providerId) && signIns.length === 1) throw new APIError('BAD_REQUEST', { code: 'FAILED_TO_UNLINK_LAST_ACCOUNT', message: 'This is your only way to sign in: add another before you disconnect it.' })
+        // A token the provider may not take is kept for a later try, so disconnecting waits until the workflows can queue it.
+        if (connection.revocationUrl && !events.listening()) throw new APIError('SERVICE_UNAVAILABLE', { code: 'CONNECTIONS_STARTING', message: 'Connections are starting: try again in a moment.' })
         const stored = account.refreshToken ?? account.accessToken
         const token = stored ? await decryptOAuthToken(stored, ctx.context) : undefined
         const hint = account.refreshToken ? 'refresh_token' : 'access_token'
@@ -51,11 +53,12 @@ export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }
         try {
           if (connection.revocationUrl && token) revoked = await revokeToken({ url: connection.revocationUrl, client: connection.client, token, hint, allowPrivateAddresses })
         } finally {
+          // A provider that did not take it gets it again later, from a job that keeps it encrypted with the app's secret.
+          // Queued first: when queueing fails, the account and its token stay for the next disconnect.
+          if (connection.revocationUrl && token && !revoked) await events.revokeLater({ provider: account.providerId, hint, token: await sealToken(ctx.context.secretConfig, token) })
           // Deleted whatever the provider did, so no later step can use the token.
           await adapter.deleteAccount(account.id)
           await events.disconnected(account.id)
-          // A provider that did not take it gets it again later, from a job that keeps it encrypted with the app's secret.
-          if (connection.revocationUrl && token && !revoked) await events.revokeLater({ provider: account.providerId, hint, token: await sealToken(ctx.context.secretConfig, token) })
         }
         return ctx.json({ disconnected: true, revoked })
       }),

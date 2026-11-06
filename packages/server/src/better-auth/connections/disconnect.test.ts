@@ -72,6 +72,26 @@ describe('disconnecting a connected account', () => {
     expect(revokeLater).not.toHaveBeenCalled()
   })
 
+  it('refuses before revoking or deleting anything while no workflows listen to queue a revocation', async () => {
+    const { store, ada, accountId } = await connected({ listener: false })
+    const answer = await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })
+    expect(answer.response.status).toBe(503)
+    expect(remaining(store, accountId)).toBe(true)
+    expect(fake.callsTo('/revoke')).toEqual([])
+  })
+
+  it('keeps the account and its token when the revocation it did not take cannot be queued', async () => {
+    const disconnected = vi.fn(async () => {})
+    const revokeLater = vi.fn(async () => {
+      throw new Error('queue down')
+    })
+    const { store, ada, accountId } = await connected({ listener: { revokeLater, disconnected } })
+    fake.answers['/revoke'] = 'revoke-error'
+    expect((await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })).response.status).toBe(500)
+    expect(remaining(store, accountId)).toBe(true)
+    expect(disconnected).not.toHaveBeenCalled()
+  })
+
   it('disconnects it for someone who signs in without a linked account, as with a passkey, since it never signs in', async () => {
     const { store, ada, accountId } = await connected()
     store.account = store.account!.filter((account) => account.provider_id !== 'credential')

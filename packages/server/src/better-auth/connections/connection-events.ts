@@ -29,7 +29,12 @@ export const connectionEvents = () => {
     disconnected: async (accountId: string) => listener?.disconnected(accountId),
     needsSignIn: async (accountIds: string[]) => (listener && accountIds.length > 0 ? listener.needsSignIn(accountIds) : []),
     uses: async (userId: string, accountIds: string[]): Promise<AccountUses> => (listener && accountIds.length > 0 ? listener.uses(userId, accountIds) : {}),
-    revokeLater: async (revocation: SealedRevocation) => listener?.revokeLater(revocation),
+    /** Whether a revocation can be queued: disconnecting refuses before it deletes anything when it cannot. */
+    listening: () => listener !== undefined,
+    revokeLater: async (revocation: SealedRevocation) => {
+      if (!listener) throw new Error('No workflows listen to queue the revocation')
+      await listener.revokeLater(revocation)
+    },
   }
 }
 
