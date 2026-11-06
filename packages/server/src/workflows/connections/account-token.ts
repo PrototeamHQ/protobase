@@ -1,12 +1,14 @@
 import type { ConnectionDeclaration, ConnectionError } from '@protobase/workflows/plugin'
 import type { ConnectionAccount, ConnectionAccounts } from './connection-accounts'
 import { connectionProviderId, holdsScopes } from './connection-provider'
-import type { sharedRefresh } from './connection-tokens'
 
 /** The account a connection signs in through: the person's account of this id, and what the connection asks of it. */
 export type AccountUse = { userId: string; accountId: string; plugin: string; name: string; declaration: ConnectionDeclaration; secret: (token: string) => void }
 
-export type AccountTokenInput = { accounts: ConnectionAccounts; refresh: ReturnType<typeof sharedRefresh> }
+/** An account's valid access token, refreshed when it expired from `before`, its stored refresh token (`sharedRefresh`). */
+type Refresh = (userId: string, accountId: string, before: string | null) => Promise<string | undefined>
+
+export type AccountTokenInput = { accounts: ConnectionAccounts; refresh: Refresh }
 
 /**
  * An access token of a person's account, while it is theirs, of the connection's provider and with its scopes: checked
