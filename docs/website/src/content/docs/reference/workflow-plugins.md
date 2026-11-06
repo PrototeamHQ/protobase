@@ -75,6 +75,7 @@ What `run` gets, and nothing more:
 | `files` | `keep(bytes, name, type)` stores a file of the run and returns its file value; `read(value, field)` reads one the run kept. No other file of the app is reachable. |
 | `mail` | `send(message)` from the app's own sender; `undefined` when the app sends no mail. |
 | `connection` | `accessToken()` of the connection the step declares, or `undefined`. |
+| `mailbox` | `send(message)` from the [own mailbox](/reference/email/#from-someones-own-mailbox) of the person who turned on the version the run runs, signed in as themselves, while they may still change the workflow; otherwise it fails `not_linked` and sends nothing. `undefined` when the app links no mailboxes. |
 | `runId`, `idempotencyKey` | The run, and a key that every retry of this visit of the step shares, while a later visit of the same state, such as in a loop, gets a new one: send it where the receiver deduplicates. |
 | `signal` | Aborted at the step's timeout, or when the worker stops; pass it on to `fetch`. |
 | `log(message)`, `redact(text)` | A line in the step's logs, and the text with the app's secrets blanked out, both as the runner records them. |

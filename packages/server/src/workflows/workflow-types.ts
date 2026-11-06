@@ -56,8 +56,9 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
     }
   }
   const check = checkWith(models)
-  /** The step types of one segment, which sends mail with the mailer of the job that runs it, and signs in through `connection`. */
-  const tasks = (input: ServicesInput, mail: Mailer | undefined, connection: StepWiring['connection']): TaskHandlers => stepHandlers(plugins, { services: pluginServices(input, mail), connection })
+  /** The step types of one segment, which sends mail with the mailer of the job that runs it, signs in through `connection`, and sends from the enabler's `mailbox`. */
+  const tasks = (input: ServicesInput, mail: Mailer | undefined, connection: StepWiring['connection'], mailbox?: StepWiring['mailbox']): TaskHandlers =>
+    stepHandlers(plugins, { services: pluginServices(input, mail), connection, ...(mailbox && { mailbox }) })
   return { plugins, types, check, checkWith, tasks, ready, polling, webhooks, connections, available: (id: string) => available.has(id) }
 }
 

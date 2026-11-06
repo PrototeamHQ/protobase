@@ -30,9 +30,9 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const secrets = workflowSecrets(options, globalThis.process?.env ?? {})
   const types = workflowTypes(options.plugins, (name) => deps().registry.find(name)?.model, auth?.connectionSupport)
   const accounts = auth && betterAuthConnectionAccounts(auth as unknown as TokenAuth)
-  const connections = connectionWiring({ deps, schema, roles, accounts, plugins: types.plugins, connectionOf: types.connections })
+  const connections = connectionWiring({ deps, schema, roles, accounts, plugins: types.plugins, connectionOf: types.connections, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }) })
   const input = { deps, schema, roles, allowPrivateAddresses: Boolean(options.allowPrivateAddresses), connect: connections.trigger }
-  const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step), secrets })
+  const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets })
   const redactor = secretRedactor(Object.values(secrets))
   // Only the types a save takes: a trigger of a type no longer available, as after an app update, does nothing.
   const usable = <T>(found: Map<string, T>) => (type: string) => (types.check.triggers[type] ? found.get(type) : undefined)
