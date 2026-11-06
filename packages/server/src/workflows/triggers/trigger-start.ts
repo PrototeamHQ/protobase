@@ -59,6 +59,10 @@ export const triggerStarts = (input: TriggerStartInput, jobs: PollJobs) => {
     const type = input.polling(trigger.type)
     const state = type && (await stateOf(db, schema, trigger))
     if (!type || !state) return
+    // A dynamic `every` is the plugin's code too: what it throws is recorded like a refused start.
+    const first = await callPlugin(async () => firstPollAt(pollEvery(type, trigger.input), new Date()), redact)
+    if (!('value' in first)) return startFailed(db, schema, trigger, first, state.consecutive_failures, restart)
+    const due = first.value
     let cursor = state.cursor
     if (!state.has_cursor) {
       const outcome = await callPlugin(() => type.start(triggerContext(input, trigger.input, signal)), redact)
@@ -67,7 +71,6 @@ export const triggerStarts = (input: TriggerStartInput, jobs: PollJobs) => {
       if (problem) return startFailed(db, schema, trigger, { failed: `The start ${problem}` }, state.consecutive_failures, restart)
       cursor = outcome.value
     }
-    const due = firstPollAt(pollEvery(type, trigger.input), new Date())
     await saveStart(db, schema, trigger, 'cursor', cursor, due, (trx) => jobs.poll.enqueue(trx, { trigger: trigger.id, generation: trigger.generation, due: due.toISOString() }, { runAt: due }))
   }
 

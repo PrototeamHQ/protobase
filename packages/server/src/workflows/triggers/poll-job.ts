@@ -54,7 +54,10 @@ export const pollJobs = (input: PollJobsInput) => {
       const claimed = await claimTrigger(db, schema, claim)
       const type = claimed && input.polling(claimed.type)
       if (!claimed || !type) return
-      const every = pollEvery(type, claimed.input)
+      // A dynamic `every` that throws fails the poll as the plugin's error, backing off as an interval of a minute would.
+      const interval = await callPlugin(async () => pollEvery(type, claimed.input), redact)
+      if (!('value' in interval)) return failed(db, poll, claim, 'expired' in interval ? interval.expired : interval.failed, backoffPollAt('1 minute', claimed.consecutive_failures + 1, new Date()))
+      const every = interval.value
       const limit = pollLimit(type)
       const context = triggerContext(input, claimed.input, signal)
       const outcome = await callPlugin(() => type.poll({ ...context, cursor: claimed.cursor, store: claimed.store, limit, due: new Date(due) }), redact)
