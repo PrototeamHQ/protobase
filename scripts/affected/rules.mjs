@@ -73,6 +73,8 @@ export const edges = [
   { from: ['packages/ui/src/tokens.test.ts'], reads: ['packages/ui/src/tokens.css'] },
   { from: ['scripts/plugin-network/find-network.test.ts'], reads: ['scripts/plugin-network/fixtures/**'] },
   { from: ['packages/ui/src/app/index-html.test.ts', 'packages/ui/src/theme/theme-preference.test.ts'], reads: ['packages/ui/src/app/index.html'] },
+  // The fake OAuth provider of the connection tests answers from a provider's recorded answers, read by path.
+  { from: ['packages/server/src/better-auth/connections/testing/snapshots.ts'], reads: ['packages/server/src/better-auth/connections/testing/snapshots/**'] },
   // The check that @protobase/ui's stable entry exports its building blocks reads every module of its source.
   { from: ['scripts/ui-exports/building-blocks.test.ts'], reads: ['packages/ui/src/**'] },
   // The examples' tests run on a clone of a template database, migrated and seeded from the example.
