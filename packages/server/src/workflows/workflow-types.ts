@@ -1,15 +1,14 @@
 import { appPlugin } from '@protobase/workflow-plugins'
-import { ConnectionError, type JsonSchema, type Plugin, type ReadyTrigger } from '@protobase/workflows/plugin'
+import { ConnectionError, type JsonSchema, type Plugin, type PollingTrigger, type ReadyTrigger, type TriggerType, type WebhookTrigger } from '@protobase/workflows/plugin'
 import { loadPlugins, stepHandlers, triggerChecks, typeList, type CheckOptions, type LoadedPlugin, type TaskHandlers, type TriggerCheck, type Unavailable } from '@protobase/workflows'
 import type { ResourceModel } from '@protobase/schema'
 import type { Mailer } from '../mail/mail-message'
 import { pluginServices, type ServicesInput } from './plugin-services'
 import { readyProblems } from './ready/ready-check'
 
-// What this version of the app cannot run yet: a type that signs in, and triggers that poll or take webhook calls.
+// What this version of the app cannot run yet: a type that signs in.
 const unavailable: Unavailable = (type) => {
   if (type.connection) return 'It signs in through a connection, which this app cannot make yet'
-  if (type.kind === 'polling' || type.kind === 'webhook') return `This app does not run ${type.kind} triggers yet`
   return
 }
 
@@ -21,9 +20,12 @@ const noConnection = (stepId: string, name: string) => ({
 // The arguments a type's input schema requires, which a save refuses a Task without.
 const requiredInputs = (input: JsonSchema) => (Array.isArray(input.required) ? (input.required as string[]) : [])
 
+/** The triggers of `plugins` of one kind, by id. */
+const triggersOfKind = <T extends TriggerType>(plugins: readonly Plugin[], kind: T['kind']) =>
+  new Map(plugins.flatMap((plugin) => Object.entries(plugin.triggers ?? {}).flatMap(([key, type]): [string, T][] => (type.kind === kind ? [[`${plugin.name}:${key}`, type as T]] : []))))
+
 /** The ready triggers of `plugins`, by id. */
-export const readyTriggers = (plugins: readonly Plugin[]) =>
-  new Map(plugins.flatMap((plugin) => Object.entries(plugin.triggers ?? {}).flatMap(([key, type]): [string, ReadyTrigger][] => (type.kind === 'ready' ? [[`${plugin.name}:${key}`, type]] : []))))
+export const readyTriggers = (plugins: readonly Plugin[]) => triggersOfKind<ReadyTrigger>(plugins, 'ready')
 
 type Models = (name: string) => ResourceModel | undefined
 
@@ -38,6 +40,8 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
   // Trigger types only: a step's id never makes a trigger available.
   const available = new Set(types.filter((type) => type.kind !== 'step' && type.available).map((type) => type.id))
   const ready = readyTriggers(plugins)
+  const polling = triggersOfKind<PollingTrigger>(plugins, 'polling')
+  const webhooks = triggersOfKind<WebhookTrigger>(plugins, 'webhook')
   const steps = types.filter((type) => type.kind === 'step' && type.available)
   const reasons = Object.fromEntries(types.flatMap((type) => (type.reason === undefined ? [] : [[type.id, type.reason]])))
   const own = triggerChecks(plugins)
@@ -61,7 +65,7 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
   const check = checkWith(models)
   /** The step types of one segment, which sends mail with the mailer of the job that runs it. */
   const tasks = (input: ServicesInput, mail: Mailer | undefined): TaskHandlers => stepHandlers(plugins, { services: pluginServices(input, mail), connection: noConnection })
-  return { plugins, types, check, checkWith, tasks, ready }
+  return { plugins, types, check, checkWith, tasks, ready, polling, webhooks, available: (id: string) => available.has(id) }
 }
 
 export type WorkflowTypes = ReturnType<typeof workflowTypes>

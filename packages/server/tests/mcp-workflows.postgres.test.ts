@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { sql } from 'kysely'
@@ -108,7 +109,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     const initialized = await rpc('ana@example.com', 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'client', version: '1.0.0' } })
     expect(initialized.instructions).toContain('$states.context.Execution.Input')
     const tools = ((await rpc('ana@example.com', 'tools/list')).tools as Array<{ name: string }>).map((tool) => tool.name)
-    expect(tools).toEqual(expect.arrayContaining(['list_workflow_types', 'list_workflows', 'get_workflow', 'validate_workflow', 'create_workflow', 'update_workflow', 'run_workflow', 'get_workflow_run']))
+    expect(tools).toEqual(expect.arrayContaining(['list_workflow_types', 'list_workflows', 'get_workflow', 'validate_workflow', 'create_workflow', 'update_workflow', 'run_workflow', 'get_workflow_run', 'enable_workflow', 'new_webhook_url']))
   })
 
   it('finds the types, creates a two-step workflow, runs it and reads each step', async () => {
@@ -161,6 +162,24 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     expect(await counts()).toEqual(before)
   })
 
+  it('creates a webhook workflow, turns it on, gets its URL, and reads the run a signed call started', async () => {
+    const echo = { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Pass', Output: '{% $states.context.Execution.Input.body %}', End: true } } }
+    const { id } = await ana('create_workflow', { name: 'Hook', definition: { trigger: { 'app:webhook': {} }, stateMachine: echo } })
+    expect(await ana('enable_workflow', { id, enabled: true, version: 1 })).toEqual({ id, enabled_version: 1 })
+    const { url, secret } = await ana('new_webhook_url', { id })
+    expect(url).toMatch(/\/api\/workflows\/hooks\/[\w-]{43}$/)
+    const body = '{"order":7}'
+    const at = Math.floor(Date.now() / 1000)
+    const signature = createHmac('sha256', Buffer.from(secret.replace(/^whsec_/, ''), 'base64')).update(`msg_1.${at}.${body}`).digest('base64')
+    const response = await served.app.request(url, { method: 'POST', body, headers: { 'content-type': 'application/json', 'webhook-id': 'msg_1', 'webhook-timestamp': String(at), 'webhook-signature': `v1,${signature}` } })
+    expect(response.status).toBe(202)
+    const { run_id } = (await response.json()) as { run_id: string }
+    const { run, steps } = await finished(run_id)
+    expect(run).toMatchObject({ status: 'succeeded', output: { order: 7 } })
+    expect(steps.map((step) => [step.state, step.status])).toEqual([['Done', 'succeeded']])
+    expect(await ana('enable_workflow', { id, enabled: false })).toEqual({ id, enabled_version: null })
+  })
+
   it('lets a person without the grants list, change or run no workflow', async () => {
     const { id } = await ana('create_workflow', { name: 'Private', definition: definition({ Done: { Type: 'Succeed' } }) })
     const before = await counts()
@@ -172,6 +191,8 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     expect(await bo('create_workflow', { name: 'Mine', definition: definition({ Done: { Type: 'Succeed' } }) })).toEqual(hidden('workflows'))
     expect(await bo('update_workflow', { id, name: 'Taken' })).toEqual(hidden('workflows'))
     expect(await bo('run_workflow', { id, input: {} })).toEqual(hidden('workflow_runs'))
+    expect(await bo('enable_workflow', { id, enabled: true, version: 1 })).toMatchObject({ error: 'not-found' })
+    expect(await bo('new_webhook_url', { id })).toMatchObject({ error: 'not-found' })
     expect(await counts()).toEqual(before)
     expect((await ana('get_workflow', { id })).workflow.name).toBe('Private')
   })

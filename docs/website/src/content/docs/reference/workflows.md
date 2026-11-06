@@ -4,7 +4,7 @@ description: Workflows written as state machines in the States Language with JSO
 ---
 
 :::caution[Beta]
-Workflows run when they are started through the API, over MCP, from the app's code or by a test run in the admin app, and from record triggers. Webhook and polling triggers and sign-in connections to other services are not built yet.
+Workflows run when they are started through the API, over MCP, from the app's code or by a test run in the admin app, and from record triggers. They also run from webhook and polling triggers, within the limits named at the start of their sections. Connections that sign in to other services are not built.
 :::
 
 A **workflow** is a graph of steps that the server runs one after another along its edges: fetch something, decide, run a step per item, merge the results, write records, send mail. It is written in the **States Language**, the JSON language of state machines, with **JSONata** as its expression language, in a profile of it that reads every value by name. A language model writes and changes it as easily as a person, and the same document is what the server checks and runs. Each run records every step it takes, with what the step read, gave and logged.
@@ -90,12 +90,14 @@ The document holds no layout: the [editor](#the-editor) lays the graph out from 
 | --- | --- | --- |
 | `"manual": {}` | when someone runs the workflow by hand | the input they give |
 | `"app:record": { "resource", "when", "key" }` | once per record that becomes ready | `{ resource, key, record }` |
+| `"app:webhook": { "auth", "body_limit", "per_minute", "idempotency_header" }` | once per signed call of its [URL](#appwebhook) | `{ method, query, headers, body, received_at }` |
+| `"app:schedule": { "cron", "timezone" }` | at each time of the [cron](#appschedule) | `{ scheduled_at }` |
 
-A save checks a trigger's input against its type, and refuses a type the app does not have; besides triggers, runs start through the API, over MCP, from the app's code or by a [test run](#test-runs). <gap>A workflow cannot start from a webhook or a schedule because the webhook and polling triggers are not implemented.</gap>
+A save checks a trigger's input against its type, and refuses a type the app does not have; besides triggers, runs start through the API, over MCP, from the app's code or by a [test run](#test-runs). A plugin's [polling and webhook triggers](/reference/workflow-plugins/#polling-and-webhook) run as these do.
 
 ### Turning a trigger on
 
-A trigger starts runs only while its workflow is enabled: set `enabled_version` to the workflow's current `version` through the API, in the admin app or with `update_workflow`, and clear it to turn the workflow off. The trigger is registered at once on every server process, with no restart, and its status, `active` or `failing` with its last error, is the workflow's `workflow_triggers` record. A save of an enabled workflow keeps it enabled on its new version; a new version whose trigger has the same type and input keeps the running trigger as it is, and any other change stops it and starts the new one. A trigger's runs run the enabled version and act as the user who saved it, as any run acts as its version's saver.
+A trigger starts runs only while its workflow is enabled: set `enabled_version` to the workflow's current `version` through the API, in the admin app or with `enable_workflow` over MCP, and clear it to turn the workflow off. The trigger is registered at once on every server process, with no restart, and its status, `active` or `failing` with its last error, is the workflow's `workflow_triggers` record. A save of an enabled workflow keeps it enabled on its new version; a new version whose trigger has the same type and input keeps the running trigger as it is, and any other change stops it and starts the new one. A trigger's runs run the enabled version and act as the user who saved it, as any run acts as its version's saver.
 
 ### app:record
 
@@ -111,6 +113,49 @@ Starts one run for each record of `resource` that becomes ready, with `{ resourc
 - **When it looks:** a write to the resource, through the API or the database, reaches the trigger through [events](/reference/events/), so the resource must declare some; turning a workflow on also starts runs for the records ready already, 100 per job. No periodic sweep runs.
 
 <gap>A workflow cannot start on every write of a record because an every-change trigger is not implemented; a record trigger starts once per ready key.</gap> <gap>An owner is not told when a trigger starts failing because trigger alerts are not implemented.</gap>
+
+### app:webhook
+
+:::caution[Beta]
+The rate limits count per server process, not across the app's processes, and `hmac` and `bearer` calls carry no signed time, so a captured call can be sent again while its secret holds.
+:::
+
+```json
+{ "app:webhook": { "auth": { "mode": "standard_webhooks" }, "body_limit": 1048576, "per_minute": 60 } }
+```
+
+Starts one run for each call of the workflow's own URL that proves it comes from the sender. Issue the URL with `POST /api/workflows/<id>/webhook`, or `new_webhook_url` over MCP: it answers `{ url, secret }` once, and the app keeps only a hash of the URL's key, so it cannot show them again. Send `{ "secret": "<secret>" }` to keep a secret the sender makes itself, such as a Standard Webhooks sender's `whsec_` secret. A new URL replaces the old one, which stops at once. Issuing needs the right to change that workflow in your tenant; anyone else gets 404.
+
+The sender POSTs to the URL. `auth.mode` says how a call proves it is theirs:
+
+| `auth.mode` | The call carries |
+| --- | --- |
+| `standard_webhooks` (default) | `webhook-id`, `webhook-timestamp` and `webhook-signature` headers, signed with the secret, at most five minutes off |
+| `hmac` | an HMAC of the body in `auth.header`, after `auth.prefix`, in `auth.encoding` (`hex` or `base64`) with `auth.hash` (`SHA-1`, `SHA-256` or `SHA-512`) |
+| `bearer` | `Authorization: Bearer <secret>`; the app keeps only the secret's hash |
+
+The run's input is `{ method, query, headers, body, received_at }`: `body` is the JSON, the form fields (a field sent more than once as the list of its values) or the text sent, and a body that makes the input over 1 MiB as JSON, as escaping can before the body itself is, is a [file of the run](#file-values), which needs the app's `private` file provider. `headers` leaves out `authorization`, `cookie`, every `webhook-*` header, the `hmac` signature header and `x-forwarded-*`, and the input never holds the URL, so no credential reaches a run, its steps or its logs. A `standard_webhooks` call starts one run per `webhook-id`, and an `hmac` or `bearer` call one per value of the `idempotency_header` you name, when it sends one; the id is at most 200 characters.
+
+The URL answers `202 { run_id }`, or:
+
+| Status | When |
+| --- | --- |
+| `404` | the key opens no running webhook trigger: unknown, turned off, deleted, or the enabled version has another trigger |
+| `405` | the method is not POST |
+| `413` | the body is over `body_limit` bytes (default 1 MiB, at most 10 MiB, counted as it streams) |
+| `401` | the call does not carry the secret or a valid signature |
+| `429` | over `per_minute` calls that passed the check (default 60), or the client's address was refused 30 times this minute |
+| `400` | the id is over 200 characters |
+
+Only calls that pass the check spend `per_minute`, so someone who knows the URL but not the secret cannot use up the sender's calls. Both limits count per server process, so an app on several processes takes up to that many times more. The client's address is the one [`protobase serve`](/reference/cli/#serve) sets from the connection and its trusted proxies; behind another server, the limit is only as good as the `X-Forwarded-For` it sets. `hmac` and `bearer` calls carry no signed time, so a captured call can be sent again while its secret holds, unless the sender's idempotency header stops it; `standard_webhooks` refuses one more than five minutes old. Changing `auth.mode` to `standard_webhooks` or `hmac` after a `bearer` URL needs a new URL, since the app kept only the bearer secret's hash. With the request log on, the log shows the URL's key as `[key]`.
+
+### app:schedule
+
+```json
+{ "app:schedule": { "cron": "0 6 * * 1-5", "timezone": "Europe/Amsterdam" } }
+```
+
+Starts one run at each time of a five-field cron, in an IANA time zone (default UTC), with `{ scheduled_at }` as the run's input. A time starts one run however many server processes run. The first time missed while no worker ran starts one run, late, once a worker is back; the other times missed meanwhile start none.
 
 ### Reading values by name
 
@@ -169,7 +214,7 @@ A workflow's record page in the admin app, `/workflows/<id>`, and its create for
 - **A step's form.** Choosing a step opens its form under the graph: its name, which renames every edge to it, then what its type takes. A Task's form has a field for each argument of its step type's input schema, the ones it needs marked, as listed under [Step types](#step-types) or by its plugin: one line of text for a string, one line for a number or `true` and `false`, a menu for an `enum`, names separated by commas for a list of strings, and JSON for anything else; a Choice's its rules and `Default`; a Map's `Items` and `MaxConcurrency`; a Wait's `Seconds`; a Pass's and a Succeed's `Output`; a Fail's `Error` and `Cause`. A field takes text, an expression (`{% ... %}`) or JSON; an emptied field is left out. *The step as JSON* edits every field of the step, such as `Retry`, `Assign` and `TimeoutSeconds`. The trigger's form picks among the app's triggers, its plugins' included, and draws a field for each input of its schema the same way, such as a record trigger's resource, `when` and `key`.
 - **Problems on their step.** The editor runs the same check as a save on every change, and shows each problem on the step it names, as a count on its box and a list and a marked field in its form; a problem with the trigger or the first step shows on the trigger, and one about the whole document above the graph. Saving writes the definition through the API, where the save hook checks it again: a definition with a problem is refused with the 400 above, whose `errors` hold each problem for the `definition` field, with its state and field in `params`.
 
-A save also refuses a Task that leaves out an argument its step type needs, such as `app:http` without `url`, unless its `Arguments` is one expression, whose value is known only when it runs. A user who may read a workflow but not change it sees the same graph and forms, locked. <gap>The editor cannot undo a single change because an undo history is not implemented.</gap> The editor reads the app's types from `GET /api/workflows/types`, `client.workflowTypes()` of `@protobase/client`: the same list `list_workflow_types` gives over MCP, `{ step_types, triggers }`, which only a user who may read workflows gets. A type the app cannot run, such as a polling or webhook trigger in this version, is not offered, and the check refuses it with the reason; a stored trigger of such a type, or of a type the app does not have, shows its type and input, read-only. <gap>A box on the graph cannot name a plugin's trigger or step type by its label because handing the type list to the canvas is not implemented; it shows the type's id, such as `acme:shout`.</gap>
+A save also refuses a Task that leaves out an argument its step type needs, such as `app:http` without `url`, unless its `Arguments` is one expression, whose value is known only when it runs. A user who may read a workflow but not change it sees the same graph and forms, locked. <gap>The editor cannot undo a single change because an undo history is not implemented.</gap> The editor reads the app's types from `GET /api/workflows/types`, `client.workflowTypes()` of `@protobase/client`: the same list `list_workflow_types` gives over MCP, `{ step_types, triggers }`, which only a user who may read workflows gets. A type the app cannot run, such as one that signs in to another service through a connection, is not offered, and the check refuses it with the reason; a stored trigger of such a type, or of a type the app does not have, shows its type and input, read-only. <gap>A box on the graph cannot name a plugin's trigger or step type by its label because handing the type list to the canvas is not implemented; it shows the type's id, such as `acme:shout`.</gap>
 
 ## Step types
 
@@ -259,7 +304,7 @@ A workflow's page offers *Test run*: the form for a new run of the workflow, who
 
 ## Over MCP
 
-An AI client signed in to the app's [MCP endpoint](/reference/mcp/#workflows) finds, makes, changes and test-runs workflows as the person: it lists the step types and triggers with their arguments, reads and validates definitions, saves one whole or by a small edit, starts a run with an input, reads each of the run's steps with its input, output, logs and error, and re-runs a failed run from its failed step once the workflow is fixed. The endpoint's instructions describe this language, and a refused definition comes back with its problems, each naming the state and field.
+An AI client signed in to the app's [MCP endpoint](/reference/mcp/#workflows) finds, makes, changes and test-runs workflows as the person: it lists the step types and triggers with their arguments, reads and validates definitions, saves one whole or by a small edit, starts a run with an input, reads each of the run's steps with its input, output, logs and error, and re-runs a failed run from its failed step once the workflow is fixed, turns a workflow's trigger on and off, and issues a webhook trigger's URL. The endpoint's instructions describe this language, and a refused definition comes back with its problems, each naming the state and field.
 
 ## Who may do what
 

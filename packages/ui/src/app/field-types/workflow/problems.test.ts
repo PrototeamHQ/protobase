@@ -21,12 +21,12 @@ describe('definitionProblems', () => {
   })
 
   it('refuses a type the app does not have', () => {
-    expect(check(withTrigger({ 'app:schedule': { cron: '0 6 * * *' } } as Definition['trigger'])).map((problem) => problem.field)).toEqual(['trigger'])
+    expect(check(withTrigger({ 'other:trigger': {} } as Definition['trigger'])).map((problem) => problem.field)).toEqual(['trigger'])
     expect(check(withStep({ Resource: 'other:step' })).map((problem) => [problem.state, problem.field])).toEqual([['Step', 'Resource']])
   })
 
   it('refuses a type the list marks not available, with its reason', () => {
-    expect(check(withTrigger({ 'acme:inbox': {} } as Definition['trigger']))).toEqual([{ field: 'trigger', message: '"acme:inbox" cannot run in this app: This app does not run polling triggers yet' }])
+    expect(check(withTrigger({ 'acme:inbox': {} } as Definition['trigger']))).toEqual([{ field: 'trigger', message: '"acme:inbox" cannot run in this app: It signs in through a connection, which this app cannot make yet' }])
   })
 
   it("refuses a record trigger's key that is not a list of names, as its input schema does", () => {

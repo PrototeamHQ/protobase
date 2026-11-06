@@ -62,3 +62,10 @@ export const readRunFile = async (files: FilesRuntime | undefined, runId: string
   if (bytes.length > runFileLimit) throw new StepError('States.TaskFailed', `${field} is larger than ${runFileLimit / 1024 / 1024} MiB`)
   return { ref, bytes }
 }
+
+/** Removes a file a run stored, as when the run it was kept for turned out to be started already. */
+export const removeRunFile = async (files: FilesRuntime | undefined, value: FileValue) => {
+  const ref = parseUri(value.uri)
+  if (!ref) throw new Error(`${value.uri} is not a file URI`)
+  await runStore(files).delete(ref.path)
+}

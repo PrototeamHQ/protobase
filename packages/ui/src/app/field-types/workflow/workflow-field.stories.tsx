@@ -186,7 +186,7 @@ export const PluginTypesChecks: StoryObj = {
     expect(panel().getByText('Arguments.text: is missing; acme:shout needs it')).toBeVisible()
     await userEvent.click(canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="trigger"]')!)
     const startsWhen = await panel().findByRole('combobox', { name: 'Starts a run' })
-    expect(within(startsWhen).getAllByRole('option').map((option) => option.textContent)).toEqual(['Run by hand', 'Record ready', 'Invoice overdue'])
+    expect(within(startsWhen).getAllByRole('option').map((option) => option.textContent)).toEqual(['Run by hand', 'Record ready', 'Schedule', 'Webhook', 'Invoice overdue'])
     await userEvent.selectOptions(startsWhen, 'Invoice overdue')
     const days = await panel().findByRole('textbox', { name: /^days/ })
     await waitFor(() => expect(days).toHaveAttribute('aria-invalid', 'true'))

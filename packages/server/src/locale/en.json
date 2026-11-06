@@ -25,6 +25,9 @@
     "hidden": "hidden",
     "yes": "Yes",
     "no": "No",
+    "webhookTitle": "Issue a new webhook URL for {record}?",
+    "webhookBody": "Its old URL stops at once, and the new URL and secret are shown to this client once.",
+    "issue": "Issue",
     "createNamedAction": "Create {resource} \"{title}\""
   },
   "mcp/approval": {

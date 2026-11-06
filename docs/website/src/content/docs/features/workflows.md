@@ -21,5 +21,5 @@ description: Graphs of steps the server runs along their edges, written in a lan
 - [Triggers turned on while the app runs](/reference/workflows/#turning-a-trigger-on) (beta): Turning a workflow on or changing it registers its trigger on every server process, and turning it off stops it, with no restart.
 - [Workflow plugins](/reference/workflow-plugins/) (beta): A file of the app or a package adds trigger and step types through the same public interface the built-in types use.
 - [Guarded requests for plugins](/reference/workflow-plugins/#sending-requests) (beta): A plugin's requests reach only public addresses, follow no redirect and read at most 10 MiB.
-- [Webhook trigger](/reference/workflow-plugins/#polling-and-webhook-coming-soon) (coming soon): A workflow starts from a signed call to a URL of its own, limited in size and rate.
-- [Polling triggers](/reference/workflow-plugins/#polling-and-webhook-coming-soon) (coming soon): A workflow starts once for each new item a plugin finds on a schedule.
+- [Webhook trigger](/reference/workflows/#appwebhook) (beta): A workflow starts from a signed call to a URL of its own, limited in size and rate.
+- [Polling triggers](/reference/workflow-plugins/#polling-and-webhook) (beta): A workflow starts once for each new item a plugin finds on a schedule, or at each time of a cron with `app:schedule`.

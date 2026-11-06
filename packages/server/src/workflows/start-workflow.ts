@@ -23,19 +23,21 @@ export type StartWorkflowOptions = {
   schema?: string
   /** The version to run, as a trigger runs the enabled one; default the workflow's current version. */
   version?: number
+  /** The run's id, when the caller kept something under it first, such as a webhook's large body; default a new one. */
+  id?: string
 }
 
 /**
  * Starts a run of a workflow from the app's own code, such as a job or a write hook, and returns the run's id. In
  * `db`'s own transaction when it is one, so the run starts when the caller's writes commit, or not at all.
  */
-export const startWorkflow = async (db: Db, { workflow, input, tenant, startedBy, key, schema = 'workflows', version }: StartWorkflowOptions) => {
+export const startWorkflow = async (db: Db, { workflow, input, tenant, startedBy, key, schema = 'workflows', version, id: runId }: StartWorkflowOptions) => {
   checkRunInput(input)
   const job = currentJobs().definition(segmentJobName)
   if (!job) throw new Error('Workflows are not running in this app: add `workflows: {}` to protobase.config.ts')
   const runs = sql.id(schema, 'runs')
-  const { rows } = await sql<{ id: string }>`insert into ${runs} (workflow_id, version, input, tenant_id, started_by, key)
-    values (${workflow}, ${version ?? null}, ${input === undefined ? null : JSON.stringify(input)}::jsonb, ${tenant === undefined ? null : String(tenant)}, ${startedBy ?? null}, ${key ?? null})
+  const { rows } = await sql<{ id: string }>`insert into ${runs} (id, workflow_id, version, input, tenant_id, started_by, key)
+    values (${runId === undefined ? sql`gen_random_uuid()` : sql`${runId}::uuid`}, ${workflow}, ${version ?? null}, ${input === undefined ? null : JSON.stringify(input)}::jsonb, ${tenant === undefined ? null : String(tenant)}, ${startedBy ?? null}, ${key ?? null})
     on conflict (workflow_id, key) do nothing returning id`.execute(db)
   // The unique key holds against a start in another transaction too: the later one waits for it, then starts nothing.
   if (rows.length === 0) {
@@ -48,4 +50,11 @@ export const startWorkflow = async (db: Db, { workflow, input, tenant, startedBy
   const id = rows[0]!.id
   await job.enqueue(db, { run: id }, { key: id })
   return id
+}
+
+/** Queues the first segment of runs a trigger inserted itself, in `db`'s transaction. */
+export const queueRuns = async (db: Db, ids: readonly string[]) => {
+  const job = currentJobs().definition(segmentJobName)
+  if (!job) throw new Error('Workflows are not running in this app: add `workflows: {}` to protobase.config.ts')
+  for (const id of ids) await job.enqueue(db, { run: id }, { key: id })
 }

@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 6
+export const workflowsVersion = 7
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -92,7 +92,9 @@ export const triggerStateBytes = 64 * 1024
 /**
  * Which version of a workflow is on (`enabled_version`, null when off), and one row per trigger of an enabled version:
  * its type and input, and the state its kind keeps. A change raises `generation`, so a job queued for an older one
- * ends without acting. A trigger being stopped stays `stopping` until its stop job removes it. Written whole each time:
+ * ends without acting. A poll or renewal acts only as the job `poll_job_id` names, on the try `poll_attempt` claimed,
+ * so a try that ran past its timeout writes nothing once its retry claimed the trigger. A deleted workflow leaves its
+ * trigger without a workflow, which its delete hook stops. A trigger being stopped stays `stopping` until its stop job removes it. Written whole each time:
  * every statement is idempotent.
  */
 export const triggersSql = (schema: string) => {
@@ -105,7 +107,7 @@ do $$ begin
 end $$;
 create table if not exists ${s}."triggers" (
   "id" uuid primary key default gen_random_uuid(),
-  "workflow_id" uuid not null references ${s}."workflows" ("id") on delete cascade,
+  "workflow_id" uuid references ${s}."workflows" ("id") on delete set null,
   "version" integer not null,
   "tenant_id" text,
   "type" text not null,
@@ -116,12 +118,22 @@ create table if not exists ${s}."triggers" (
   "cursor" jsonb check (octet_length("cursor"::text) <= ${triggerStateBytes}),
   "store" jsonb check (octet_length("store"::text) <= ${triggerStateBytes}),
   "poll_job_id" text,
+  "poll_attempt" integer,
   "consecutive_failures" integer not null,
   "last_error" jsonb,
   "next_poll_at" timestamptz,
   "created_at" timestamptz not null default now(),
   "updated_at" timestamptz not null default now()
 );
+alter table ${s}."triggers" add column if not exists "poll_attempt" integer;
+-- A deleted workflow's trigger stays, without its workflow, until its stop job unsubscribed it at its provider.
+alter table ${s}."triggers" alter column "workflow_id" drop not null;
+do $$ begin
+  if exists (select 1 from pg_constraint where conname = 'triggers_workflow_id_fkey' and confdeltype = 'c' and connamespace = ${`'${schema.replaceAll("'", "''")}'`}::regnamespace) then
+    alter table ${s}."triggers" drop constraint "triggers_workflow_id_fkey";
+    alter table ${s}."triggers" add constraint "triggers_workflow_id_fkey" foreign key ("workflow_id") references ${s}."workflows" ("id") on delete set null;
+  end if;
+end $$;
 create unique index if not exists "triggers_workflow" on ${s}."triggers" ("workflow_id") where "status" <> 'stopping';
 create index if not exists "triggers_workflow_id" on ${s}."triggers" ("workflow_id");
 create index if not exists "triggers_updated_at" on ${s}."triggers" ("updated_at");

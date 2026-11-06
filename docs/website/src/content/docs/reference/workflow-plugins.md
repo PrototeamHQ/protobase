@@ -4,7 +4,7 @@ description: Add trigger and step types to workflows from a file of the app or a
 ---
 
 :::caution[Beta]
-Plugins add step types and record triggers. Polling and webhook triggers, and connections that sign in to other services, are declared by the interface but not run yet.
+Plugins add step types and record triggers. They also add polling and webhook triggers, which run within the limits named in their section. The interface declares connections that sign in to other services, but the app does not run them.
 :::
 
 A **workflow plugin** adds trigger and step types to an app's [workflows](/reference/workflows/). Its types are named `<plugin>:<key>`, such as `acme:create_invoice`: a Task names a step type as its `Resource`, and a definition's `trigger` holds a trigger type with its input. The built-in types, `app:http`, `app:records.*`, `app:mail.send` and `app:record`, are a plugin like any other, written on this interface alone, so a plugin's types run, are checked and are listed exactly as they are.
@@ -105,9 +105,41 @@ triggers: {
 
 `ready(input)` returns the resource, the readiness filter `when` and the `key` fields, and the engine runs it as it runs [`app:record`](/reference/workflows/#apprecord): one run per record that becomes ready, at the time its time terms say, read as the user who saved the enabled version.
 
-### Polling and webhook (coming soon)
+### Polling and webhook
 
-The interface declares `kind: 'polling'`, with `every`, `limit`, `start` and `poll`, and `kind: 'webhook'`, with `receive` and the optional `subscribe`, `unsubscribe` and `renew`. <gap>A plugin's polling or webhook trigger cannot start runs because the polling and webhook triggers are not implemented; the type list marks them unavailable.</gap>
+:::caution[Beta]
+A webhook trigger that registers its own URL cannot subscribe in an app without sign-in, since it reads the app's public address from the sign-in origin, and a poll job that failed all its tries does not start polling again by itself: retry it in the admin app's failed jobs.
+:::
+
+A polling trigger asks a service for new items on a schedule:
+
+```ts
+type Order = { id: number }
+
+triggers: {
+  new_order: {
+    kind: 'polling',
+    label: 'New order',
+    description: 'Starts a run for each new order.',
+    input: { type: 'object', properties: {} },
+    every: '1 minute',
+    limit: 50,
+    start: async ({ fetch }) => ((await (await fetch('https://shop.example/orders/latest')).json()) as Order).id,
+    // At most `limit` orders after the cursor, oldest first, so a backlog is read a page per poll.
+    poll: async ({ fetch, cursor, limit }) => {
+      const orders = (await (await fetch(`https://shop.example/orders?after=${cursor}&sort=asc&limit=${limit}`)).json()) as Order[]
+      return { items: orders.map((order) => ({ key: String(order.id), data: order })), cursor: orders.at(-1)?.id ?? cursor }
+    },
+  },
+},
+```
+
+- **`every`** is a duration such as `1 minute` (at least a second), or `{ cron, timezone }`, or a function of the trigger's input that returns either, as `app:schedule` takes its cron from its input. `poll` gets `due`, the time the poll was queued for.
+- **`start`** runs once, when the trigger has no cursor yet, and returns the first one. A new version of the workflow with the same trigger input keeps the cursor and does not call `start` again; turning the workflow off and on starts afresh.
+- **`poll`** gets `limit` and returns the items after `cursor`, at most `limit` (default and most 100), each with a `key` of at most 200 characters, and the next cursor, which must move forward. Each item starts one run, once per workflow and key, with `data` as its input, so an item seen on two polls, or by two processes, starts one run. `store` keeps a value of its own across polls; the cursor and `store` hold at most 64 KiB of JSON each.
+- **Errors:** a poll that throws, gives more items than its limit, or a cursor too large, starts no run: the trigger is `failing` with the error, and polls again after `every × 2ⁿ`, at most an hour; its next poll that works makes it `active`. A `ConnectionError('link_expired')` makes every trigger on that sign-in `needs_sign_in` and stops their polls. A poll may run for five minutes, when its `signal` aborts. A poll that was still running as its workflow was turned off or changed starts nothing.
+
+A webhook trigger takes calls of the workflow's URL, [as `app:webhook` does](/reference/workflows/#appwebhook): the route checks the call's signature by the trigger's `auth` before any plugin code sees it, so spread `webhookInputProperties` from `@protobase/workflows/plugin` into the trigger's input schema. `receive({ request, event, idempotencyKey, input })` gets the call without its credentials and returns the runs it starts, at most 100, each `{ key?, data }`, and may return a `response` to answer with instead of `202`, such as a service's URL check. A trigger that registers its URL with its service itself declares `subscribe({ url, secret })`, which the app calls as the workflow is turned on with a URL it makes for the plugin alone, and returns the subscription's state; `renew` runs every `renewEvery` (default `1 day`) and `unsubscribe` as the workflow is turned off or deleted. Such a trigger has no URL to issue by hand. <gap>A webhook trigger that registers its own URL cannot subscribe in an app without sign-in because reading the app's public address from elsewhere is not implemented.</gap> <gap>A poll job that failed all its tries cannot start polling again by itself because a sweep of stopped triggers is not implemented; retrying the job in the admin app's failed jobs resumes it.</gap>
 
 ## Connections (coming soon)
 
