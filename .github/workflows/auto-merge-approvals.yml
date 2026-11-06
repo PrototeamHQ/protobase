@@ -1,0 +1,57 @@
+# Merges a pull request with the auto-merge-approvals label once it is approved after the label was added, by CodeRabbit
+# or by anyone with write access, and every check on its head passed; scripts/auto-merge-approvals/decision.ts holds the
+# rules. A merge with GITHUB_TOKEN starts no workflow, so the script then starts release.yml with workflow_dispatch and
+# sends the pull_request_merged event docs.yml deploys on. No checkout here takes anything from the pull request.
+name: auto-merge-approvals
+
+on:
+  # An approval must come after the label, so adding the label never merges. Taking do-not-merge off or leaving draft can.
+  pull_request_target: # zizmor: ignore[dangerous-triggers] nothing from the pull request runs
+    types: [ready_for_review, unlabeled]
+  # An approval, or a dismissed change request. It runs this file from the pull request's merge commit.
+  pull_request_review:
+    types: [submitted, dismissed]
+  # The repository's CI workflows, by name: each run that finishes tries again. Never list auto-merge-approvals itself.
+  workflow_run:
+    workflows: [ci, docs, image, pr-title, release-speed]
+    types: [completed]
+  # Another app's check suite or commit status that finishes tries again too, as its completion starts no workflow_run.
+  check_suite:
+    types: [completed]
+  status:
+
+# Merging takes contents: write, as do repository_dispatch and deleting the branch: https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps#repository-permissions-for-contents
+# Starting release.yml after a merge takes actions: write.
+permissions:
+  actions: write
+  checks: read
+  contents: write
+  pull-requests: write
+  statuses: read
+
+jobs:
+  merge:
+    # A fork's pull request, branch or check suite runs nothing, and neither does a pull request without the label,
+    # which also keeps a review of the pull request that adds this file from looking for a script main lacks.
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.head_repository.full_name == github.repository) ||
+      (github.event_name == 'check_suite' && github.event.check_suite.pull_requests[0] != null) ||
+      (github.event_name == 'status' && github.event.state != 'pending') ||
+      ((github.event_name == 'pull_request_review' || github.event_name == 'pull_request_target') &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        contains(github.event.pull_request.labels.*.name, 'auto-merge-approvals'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # A review event's default ref is the pull request's merge commit, so main is named.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: scripts/auto-merge-approvals
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun scripts/auto-merge-approvals/main.ts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
