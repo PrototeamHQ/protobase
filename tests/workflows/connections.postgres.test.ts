@@ -356,7 +356,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
       const workflow = await save(ada, account, { 'acme:inbox': {} })
       await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })
       fake.answers['/revoke'] = 'revoke-error'
-      expect(JSON.parse((await browser('/connections/disconnect', { method: 'POST', body: { accountId: account } })).text)).toEqual({ disconnected: true, revoked: false })
+      expect(JSON.parse((await browser('/connections/disconnect', { method: 'POST', body: { accountId: account } })).text)).toEqual({ disconnected: true, revocation: 'queued' })
       const [row] = await revocations()
       expect(row).toMatchObject({ provider, hint: 'refresh_token' })
       expect(row!.token).not.toMatch(/snapshot-/)
@@ -393,13 +393,16 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
       expect(fake.callsTo('/revoke')).toHaveLength(calls)
     })
 
-    it('keeps no token when its job cannot be queued', async () => {
+    it('keeps no token when its job cannot be queued, still disconnecting the account and reporting it without the token', async () => {
       const account = (await connect())!
       fake.answers['/revoke'] = 'revoke-error'
       vi.spyOn(revokeJob(), 'enqueue').mockRejectedValueOnce(new Error('queue down'))
-      vi.spyOn(console, 'error').mockImplementation(() => {})
-      expect((await browser('/connections/disconnect', { method: 'POST', body: { accountId: account } })).response.ok).toBe(false)
+      const reported = vi.spyOn(console, 'error').mockImplementation(() => {})
+      expect(JSON.parse((await browser('/connections/disconnect', { method: 'POST', body: { accountId: account } })).text)).toEqual({ disconnected: true, revocation: 'not_revoked' })
       expect(await revocations()).toEqual([])
+      expect((await sql`select id from auth.account where id = ${account}`.execute(db)).rows).toEqual([])
+      expect(JSON.stringify(reported.mock.calls.map(([error]) => String(error)))).toContain('queue_failed')
+      expect(JSON.stringify(reported.mock.calls.map(([error]) => String(error)))).not.toMatch(/snapshot-|\$ba\$|queue down/)
     })
   })
 })

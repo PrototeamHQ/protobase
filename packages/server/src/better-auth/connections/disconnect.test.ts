@@ -1,9 +1,17 @@
 import { symmetricDecrypt } from 'better-auth/crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Unrevoked } from './connection-events'
+import { revokeToken } from './revoke-token'
 import type { TokenAuth } from '../../personal-mail/linked-accounts'
 import { betterAuthConnectionAccounts } from '../../workflows/connections/connection-accounts'
 import { acmeClient, connectionAuth } from './testing/connection-auth'
 import { fakeOAuthServer } from './testing/fake-oauth-server'
+
+// The provider's revocation as it is, unless a test makes it throw.
+vi.mock('./revoke-token', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./revoke-token')>()
+  return { revokeToken: vi.fn(actual.revokeToken) }
+})
 
 const provider = 'workflow-acme-account'
 let fake: Awaited<ReturnType<typeof fakeOAuthServer>>
@@ -29,7 +37,7 @@ describe('disconnecting a connected account', () => {
     const disconnected = vi.fn(async () => {})
     const { store, ada, accountId } = await connected({ listener: { disconnected } })
     const answer = await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })
-    expect(JSON.parse(answer.text)).toEqual({ disconnected: true, revoked: true })
+    expect(JSON.parse(answer.text)).toEqual({ disconnected: true, revocation: 'revoked' })
     expect(fake.callsTo('/revoke')).toEqual([expect.objectContaining({ form: expect.objectContaining({ token: 'snapshot-refresh_token-1', token_type_hint: 'refresh_token' }) })])
     expect(remaining(store, accountId)).toBe(false)
     expect(disconnected).toHaveBeenCalledWith(accountId)
@@ -39,12 +47,12 @@ describe('disconnecting a connected account', () => {
     const logged = [vi.spyOn(console, 'log'), vi.spyOn(console, 'error'), vi.spyOn(console, 'warn')]
     const { store, ada, accountId } = await connected()
     fake.answers['/revoke'] = 'revoke-error'
-    expect(JSON.parse((await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })).text)).toEqual({ disconnected: true, revoked: false })
+    expect(JSON.parse((await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })).text)).toEqual({ disconnected: true, revocation: 'queued' })
     expect(remaining(store, accountId)).toBe(false)
 
     const again = await connected()
     await fake.close()
-    expect(JSON.parse((await again.ada.request('/connections/disconnect', { method: 'POST', body: { accountId: again.accountId } })).text)).toEqual({ disconnected: true, revoked: false })
+    expect(JSON.parse((await again.ada.request('/connections/disconnect', { method: 'POST', body: { accountId: again.accountId } })).text)).toEqual({ disconnected: true, revocation: 'queued' })
     expect(remaining(again.store, again.accountId)).toBe(false)
     for (const spy of logged) for (const call of spy.mock.calls) expect(JSON.stringify(call)).not.toContain('snapshot-')
     fake = await fakeOAuthServer()
@@ -80,22 +88,85 @@ describe('disconnecting a connected account', () => {
     expect(fake.callsTo('/revoke')).toEqual([])
   })
 
-  it('keeps the account and its token when the revocation it did not take cannot be queued', async () => {
-    const disconnected = vi.fn(async () => {})
+  it('deletes the account when the revocation it did not take cannot be queued, answering it not revoked and reporting why', async () => {
+    const unrevoked = vi.fn((_failure: Unrevoked) => {})
     const revokeLater = vi.fn(async () => {
       throw new Error('queue down')
     })
-    const { store, ada, accountId } = await connected({ listener: { revokeLater, disconnected } })
+    const { store, ada, accountId } = await connected({ listener: { revokeLater, unrevoked } })
     fake.answers['/revoke'] = 'revoke-error'
+    const answer = await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })
+    expect(JSON.parse(answer.text)).toEqual({ disconnected: true, revocation: 'not_revoked' })
+    expect(remaining(store, accountId)).toBe(false)
+    expect(unrevoked.mock.calls).toEqual([[{ provider, reason: 'queue_failed' }]])
+  })
+
+  it('deletes an account whose stored token does not decrypt without calling the provider, answering it not revoked', async () => {
+    const unrevoked = vi.fn((_failure: Unrevoked) => {})
+    const disconnected = vi.fn(async () => {})
+    const { store, ada, accountId } = await connected({ listener: { unrevoked, disconnected } })
+    store.account!.find((account) => account.id === accountId)!.refresh_token = '$ba$99$00ff00ff'
+    const answer = await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })
+    expect(JSON.parse(answer.text)).toEqual({ disconnected: true, revocation: 'not_revoked' })
+    expect(remaining(store, accountId)).toBe(false)
+    expect(disconnected).toHaveBeenCalledWith(accountId)
+    expect(fake.callsTo('/revoke')).toEqual([])
+    expect(unrevoked.mock.calls).toEqual([[{ provider, reason: 'unreadable' }]])
+    expect(answer.text).not.toContain('$ba$')
+  })
+
+  it('deletes the account and queues its token when the revocation throws, saying nothing of the error', async () => {
+    vi.mocked(revokeToken).mockRejectedValueOnce(new TypeError('snapshot-refresh_token-1 broke the request'))
+    const unrevoked = vi.fn((_failure: Unrevoked) => {})
+    const revokeLater = vi.fn(async () => {})
+    const { store, ada, accountId } = await connected({ listener: { unrevoked, revokeLater } })
+    const answer = await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })
+    expect(JSON.parse(answer.text)).toEqual({ disconnected: true, revocation: 'queued' })
+    expect(remaining(store, accountId)).toBe(false)
+    expect(revokeLater).toHaveBeenCalledTimes(1)
+    expect(unrevoked.mock.calls).toEqual([[{ provider, reason: 'revoke_failed' }]])
+  })
+
+  it('keeps the account, revoking nothing, when its triggers cannot be stopped, and disconnecting again finishes it', async () => {
+    const disconnected = vi.fn(async () => {})
+    disconnected.mockRejectedValueOnce(new Error('database down'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { store, ada, accountId } = await connected({ listener: { disconnected } })
+    const failed = await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })
+    expect(failed.response.status).toBe(500)
+    expect(failed.text).not.toContain('disconnected')
+    expect(remaining(store, accountId)).toBe(true)
+    expect(fake.callsTo('/revoke')).toEqual([])
+
+    const again = await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })
+    expect(JSON.parse(again.text)).toEqual({ disconnected: true, revocation: 'revoked' })
+    expect(remaining(store, accountId)).toBe(false)
+    expect(disconnected).toHaveBeenCalledTimes(2)
+  })
+
+  it('answers the error when the account cannot be deleted, its triggers already stopped, and disconnecting again finishes it', async () => {
+    const disconnected = vi.fn(async () => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { auth, store, ada, accountId } = await connected({ listener: { disconnected } })
+    vi.spyOn((await auth.$context).internalAdapter, 'deleteAccount').mockRejectedValueOnce(new Error('database down'))
     expect((await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })).response.status).toBe(500)
     expect(remaining(store, accountId)).toBe(true)
-    expect(disconnected).not.toHaveBeenCalled()
+    expect(disconnected).toHaveBeenCalledWith(accountId)
+
+    expect(JSON.parse((await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })).text)).toEqual({ disconnected: true, revocation: 'revoked' })
+    expect(remaining(store, accountId)).toBe(false)
+  })
+
+  it('leaves no token for a workflow once it answered', async () => {
+    const { auth, ada, accountId } = await connected()
+    await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })
+    expect(await betterAuthConnectionAccounts(auth as unknown as TokenAuth).find(String(ada.user.id), accountId)).toBeUndefined()
   })
 
   it('disconnects it for someone who signs in without a linked account, as with a passkey, since it never signs in', async () => {
     const { store, ada, accountId } = await connected()
     store.account = store.account!.filter((account) => account.provider_id !== 'credential')
-    expect(JSON.parse((await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })).text)).toEqual({ disconnected: true, revoked: true })
+    expect(JSON.parse((await ada.request('/connections/disconnect', { method: 'POST', body: { accountId } })).text)).toEqual({ disconnected: true, revocation: 'revoked' })
     expect(remaining(store, accountId)).toBe(false)
   })
 

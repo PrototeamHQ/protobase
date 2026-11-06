@@ -55,6 +55,8 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     ...connectionTriggers(() => deps().db, schema, triggers),
     uses: connectionUses({ deps, schema, roles }),
     revokeLater: async (revocation) => revocations?.revokeLater(deps().db, revocation),
+    // A token left valid at its provider is the app's to look into: reported by its reason, never with the token or the error that stopped it.
+    unrevoked: ({ provider, reason }) => deps().report(new Error(`A disconnected account's token of ${provider} is not revoked: ${reason}`)),
   })
   const webhooks = usable(types.webhooks)
   const issue = { deps, schema, webhooks, origin: () => auth?.origins[0] }

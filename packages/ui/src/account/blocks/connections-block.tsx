@@ -15,5 +15,5 @@ export const ConnectionsBlock = () => {
   const { data: connections, error, reload } = useAccountData(useCallback(() => account.workflowConnections(), [account]), text('couldNotReadMethods'))
   if (!connections) return <AccountLoading error={error} />
   if (connections.length === 0) return null
-  return <ConnectionsSection connections={connections} onConnect={connectAccount} onDisconnect={(id) => account.disconnectAccount(id).then(reload)} error={linkError && providerMessage(linkError, text('theProvider'))} />
+  return <ConnectionsSection connections={connections} onConnect={connectAccount} onDisconnect={(id) => account.disconnectAccount(id).finally(reload)} error={linkError && providerMessage(linkError, text('theProvider'))} />
 }

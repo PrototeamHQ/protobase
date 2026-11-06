@@ -32,6 +32,9 @@ export type ConnectedApp = { clientId: string; name?: string; allowedAt: string;
  * each marked when a trigger waits for it to be connected again, with the workflows it turned on that use it. Tokens
  * never leave the server.
  */
+/** What disconnecting an account did with its token: the provider revoked it, it is tried again later, or neither. */
+export type ConnectionRevocation = 'revoked' | 'queued' | 'not_revoked'
+
 export type WorkflowConnection = {
   key: string
   label: string
@@ -155,10 +158,14 @@ export const accountSecurity = (client: BetterAuthClient) => ({
     return data.url
   },
 
-  /** Disconnects an account: its token is revoked at the provider and deleted, and the triggers on it wait for a new one. */
-  disconnectAccount: async (accountId: string) => {
-    const { error } = await client.$fetch('/connections/disconnect', { method: 'POST', body: { accountId } })
-    if (error) throw authError(error, 'Could not disconnect the account')
+  /**
+   * Disconnects an account: the triggers on it wait for a new one, its token is revoked at the provider and the account
+   * deleted. Answers what became of the token at the provider.
+   */
+  disconnectAccount: async (accountId: string): Promise<ConnectionRevocation> => {
+    const { data, error } = await client.$fetch<{ revocation: ConnectionRevocation }>('/connections/disconnect', { method: 'POST', body: { accountId } })
+    if (error || !data) throw authError(error, 'Could not disconnect the account')
+    return data.revocation
   },
 
   /** The apps the person allowed to act as them, newest first; on an app with MCP on. */

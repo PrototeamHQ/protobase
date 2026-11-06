@@ -19,7 +19,7 @@ const rendered = (used_by: { id: string; name: string }[], basePath?: string) =>
     createElement(Router, {
       initialUrl: '/-/account',
       ...(basePath !== undefined && { basePath }),
-      children: createElement(ConnectionsSection, { connections: [connection(used_by)], onConnect: async () => {}, onDisconnect: async () => {} }),
+      children: createElement(ConnectionsSection, { connections: [connection(used_by)], onConnect: async () => {}, onDisconnect: async () => 'revoked' as const }),
     }),
   )
 
