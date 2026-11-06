@@ -55,4 +55,26 @@ describe('triggerStarts', () => {
     const saved = statements.find(({ sql }) => sql.includes('"store" = coalesce'))
     expect(saved?.sql).toContain("status = 'active', consecutive_failures = 0, last_error = null")
   })
+
+  it('keeps the URL key and secret out of the error a failed subscribe records', async () => {
+    const { db, statements } = recordedDb(answer)
+    const webhook: WebhookTrigger = {
+      ...described,
+      kind: 'webhook',
+      subscribe: async ({ url, secret }: { url: string; secret: string }) => {
+        throw new Error(`The service refused ${url} (${encodeURIComponent(url)}) with ${secret}, ${secret.slice('whsec_'.length)}`)
+      },
+      receive: async () => ({ items: [] }),
+    }
+    await starts({ webhook }).startWebhook(db, trigger, new AbortController().signal, async () => {})
+    const insert = statements.find(({ sql }) => sql.startsWith('insert into "workflows"."hooks"'))!
+    const message = recordedError(statements)!.message
+    expect(message).toContain('https://app.test/api/workflows/hooks/[redacted]')
+    expect(message).not.toMatch(/whsec_[A-Za-z0-9+/]/)
+    // The insert keeps the secret in clear for a standard_webhooks hook; none of what it holds is in the message.
+    const secret = String(insert.parameters[2])
+    expect(secret.startsWith('whsec_')).toBe(true)
+    expect(message).not.toContain(secret.slice('whsec_'.length))
+    expect(message).not.toContain(encodeURIComponent(secret.slice('whsec_'.length)))
+  })
 })

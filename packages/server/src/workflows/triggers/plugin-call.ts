@@ -24,6 +24,15 @@ export const callPlugin = <T>(work: () => Promise<T>, redact: (text: string) => 
       },
     )
 
+/**
+ * `redact` after blanking out `values` that only this call knew, such as a webhook's URL key and secret, as written and
+ * URL-encoded, so a message that quotes them keeps neither.
+ */
+export const redactAlso = (values: readonly string[], redact: (text: string) => string) => {
+  const blanked = [...new Set(values.flatMap((value) => [value, encodeURIComponent(value)]))].filter((value) => value.length > 0)
+  return (text: string) => redact(blanked.reduce((kept, value) => kept.replaceAll(value, '[redacted]'), text))
+}
+
 export type TriggerContextInput = { allowPrivateAddresses: boolean }
 
 /**
