@@ -29,7 +29,8 @@ export type ConnectedApp = { clientId: string; name?: string; allowedAt: string;
 /**
  * A connection a workflow plugin declares, which the person connects an account through for their workflows' steps to
  * use: its `<plugin>:<connection>` key, label, the provider and scopes it links with, and their accounts that fit it,
- * each marked when a trigger waits for it to be connected again. Tokens never leave the server.
+ * each marked when a trigger waits for it to be connected again, with the workflows it turned on that use it. Tokens
+ * never leave the server.
  */
 export type WorkflowConnection = {
   key: string
@@ -37,7 +38,7 @@ export type WorkflowConnection = {
   provider: string
   scopes: string[]
   link_params: Record<string, string>
-  accounts: { id: string; scopes: string[]; created_at: string; needs_sign_in: boolean }[]
+  accounts: { id: string; scopes: string[]; created_at: string; needs_sign_in: boolean; used_by: { id: string; name: string }[] }[]
 }
 
 /** A new authenticator app: the `otpauth://` URI it scans, and the backup codes that work once each instead of a code. */

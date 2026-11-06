@@ -1,10 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { AuthError, createStaticSession, type AuthSession, type WorkflowConnection } from '@protobase/client'
+import { Router } from '../app/router'
 import { AuthProvider } from '../auth/auth-provider'
 import { ConnectionsBlock } from './blocks/connections-block'
 
-const meta = { title: 'Account blocks/Connections', decorators: [(Story) => <div className="flex max-w-3xl flex-col gap-4 bg-surface p-6"><Story /></div>] } satisfies Meta
+const meta = { title: 'Account blocks/Connections', decorators: [(Story) => <Router initialUrl="/-/account"><div className="flex max-w-3xl flex-col gap-4 bg-surface p-6"><Story /></div></Router>] } satisfies Meta
 export default meta
 
 const google: WorkflowConnection = {
@@ -13,7 +14,7 @@ const google: WorkflowConnection = {
   provider: 'google',
   scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
   link_params: { access_type: 'offline', prompt: 'consent' },
-  accounts: [{ id: 'acc-1', scopes: ['https://www.googleapis.com/auth/gmail.readonly'], created_at: '2026-11-02T09:00:00Z', needs_sign_in: true }],
+  accounts: [{ id: 'acc-1', scopes: ['https://www.googleapis.com/auth/gmail.readonly'], created_at: '2026-11-02T09:00:00Z', needs_sign_in: true, used_by: [{ id: 'wf-1', name: 'Forward invoices' }] }],
 }
 
 /** A signed-in session on an app whose workflow plugins declare a Google connection, which Ana connected once. */
@@ -28,7 +29,10 @@ const connectionsSession = (connections: WorkflowConnection[], disconnectAccount
 
 const disconnect = fn(async () => {})
 
-/** A connected account a trigger waits on: the block says to connect it again, and disconnecting warns that Google ends every grant. */
+/**
+ * A connected account a trigger waits on: the block says to connect it again, links the workflow that uses it, and
+ * disconnecting warns that Google ends every grant.
+ */
 export const ConnectedChecks: StoryObj = {
   name: 'Connects and disconnects an account (checks)',
   tags: ['play'],
@@ -40,6 +44,7 @@ export const ConnectedChecks: StoryObj = {
   play: async ({ canvasElement }) => {
     const section = within(await within(canvasElement).findByRole('region', { name: 'Connections' }))
     expect(section.getByText('Connect it again')).toBeVisible()
+    expect(section.getByRole('link', { name: 'Forward invoices' })).toHaveAttribute('href', '/workflows/wf-1')
     expect(section.getByRole('button', { name: 'Connect Google account again' })).toBeEnabled()
     await userEvent.click(section.getByRole('button', { name: 'Disconnect' }))
     const dialog = within(await within(canvasElement.ownerDocument.body).findByRole('dialog'))

@@ -288,4 +288,29 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     expect(polled[0]).toBe(waiting!.cursor)
     await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
   })
+  it("lists on the account page the workflows that use an account: turned on by its owner, binding it, and still theirs to change", async () => {
+    const account = (await connect())!
+    const named = async (user: string, name: string) => (await as(user, '/workflows', 'POST', { name, definition: definition(account) })).body as { id: string; version: number }
+    const used = await named(ada, 'Mail')
+    const other = await named(ada, 'Other')
+    const off = await named(ada, 'Off')
+    for (const workflow of [used, other]) expect((await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })).status).toBe(200)
+    // Grace's workflow binds Ada's account and is turned on as Grace, which a save refuses, so it is written directly.
+    const forged = await named(grace, 'Forged')
+    await sql`update workflows.versions set enabled_by = ${grace} where workflow_id = ${forged.id}`.execute(db)
+    await sql`update workflows.workflows set enabled_version = ${forged.version} where id = ${forged.id}`.execute(db)
+    const usedBy = async () => {
+      const listed = JSON.parse((await browser('/connections')).text) as { connections: { accounts: { id: string; used_by: { id: string; name: string }[] }[] }[] }
+      return listed.connections.flatMap(({ accounts }) => accounts).find(({ id }) => id === account)!.used_by.map(({ id }) => id)
+    }
+    const listed = await usedBy()
+    expect(listed).toEqual(expect.arrayContaining([used.id, other.id]))
+    for (const id of [off.id, forged.id]) expect(listed).not.toContain(id)
+    held.set(ada, ['narrow'])
+    const narrowed = await usedBy()
+    held.set(ada, ['builder'])
+    expect(narrowed).toEqual([other.id])
+    for (const workflow of [used, other]) await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
+    await sql`update workflows.workflows set enabled_version = null where id = ${forged.id}`.execute(db)
+  })
 })

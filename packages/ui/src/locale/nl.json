@@ -78,6 +78,7 @@
     "connectionsDescription": "Accounts bij andere diensten waarmee je workflows inloggen. Een workflow gebruikt er pas een als je hem zelf aanzet.",
     "connectedOn": "Gekoppeld {date}",
     "connectionNeedsSignIn": "Opnieuw koppelen",
+    "connectionUsedBy": "Gebruikt door",
     "disconnect": "Ontkoppelen",
     "disconnectTitle": "{name} ontkoppelen?",
     "disconnectDescription": "Workflows die ermee inloggen stoppen. Om ze weer te gebruiken koppel je een account, kies je het in elke workflow en zet je de workflow weer aan.",

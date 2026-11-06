@@ -1,5 +1,6 @@
 import type { ResourceModel } from '@protobase/schema'
 import type { IssueWebhook } from './webhook-tools'
+import { listConnectionsTool, type ListConnections } from './connection-tools'
 import { checkDefinition, typeCatalog, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
 import { defineTool, type ToolContext } from '../../assistant/tools'
@@ -18,6 +19,8 @@ export type WorkflowCatalog = {
   checkWith: (models: (name: string) => ResourceModel | undefined) => CheckOptions
   /** Issues a workflow's webhook URL as the caller, for `new_webhook_url`. */
   issueWebhook?: IssueWebhook
+  /** The caller's own connected accounts, for `list_connections`; none without it. */
+  listConnections?: ListConnections
 }
 
 /** The step types and triggers a definition may name, with their arguments, results, errors and run inputs. */
@@ -114,5 +117,5 @@ export const getWorkflowRunTool = defineTool({
   },
 })
 
-/** The tools that read workflows, their types and runs, and check definitions. */
-export const workflowReadTools = (catalog: WorkflowCatalog) => [listWorkflowTypesTool(catalog), listWorkflowsTool, getWorkflowTool, validateWorkflowTool(catalog), getWorkflowRunTool]
+/** The tools that read workflows, their types and runs and the caller's connections, and check definitions. */
+export const workflowReadTools = (catalog: WorkflowCatalog) => [listWorkflowTypesTool(catalog), listWorkflowsTool, getWorkflowTool, validateWorkflowTool(catalog), getWorkflowRunTool, listConnectionsTool(catalog.listConnections)]

@@ -78,6 +78,7 @@
     "connectionsDescription": "Accounts at other services that your workflows sign in with. A workflow uses one only once you turn it on yourself.",
     "connectedOn": "Connected {date}",
     "connectionNeedsSignIn": "Connect it again",
+    "connectionUsedBy": "Used by",
     "disconnect": "Disconnect",
     "disconnectTitle": "Disconnect {name}?",
     "disconnectDescription": "Workflows that sign in with it stop. To use them again, connect an account, choose it in each workflow and turn the workflow on again.",
