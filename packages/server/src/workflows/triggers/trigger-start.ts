@@ -37,11 +37,12 @@ const startFailed = async (db: Db, schema: string, trigger: Started, outcome: Ex
   if (rows.length > 0 && !expired) await restart(db, backoffPollAt('1 minute', failures + 1, new Date()))
 }
 
-// Saves the state a start gave, only while there is none and the trigger runs on this generation, then queues its
-// first poll or renewal and names that job on the trigger, all in one transaction.
+// Saves the state a start gave, only while there is none and the trigger runs on this generation, and clears what an
+// earlier failed start recorded; then queues its first poll or renewal and names that job on the trigger, all in one
+// transaction.
 const saveStart = (db: Db, schema: string, trigger: Started, column: 'cursor' | 'store', value: unknown, nextAt: Date | undefined, next: ((trx: Db) => Promise<string>) | undefined) =>
   db.transaction().execute(async (trx) => {
-    const { rows } = await sql`update ${sql.id(schema, 'triggers')} set ${sql.ref(column)} = coalesce(${sql.ref(column)}, ${JSON.stringify(value ?? null)}::jsonb), next_poll_at = ${nextAt ?? null}, updated_at = now()
+    const { rows } = await sql`update ${sql.id(schema, 'triggers')} set ${sql.ref(column)} = coalesce(${sql.ref(column)}, ${JSON.stringify(value ?? null)}::jsonb), status = 'active', consecutive_failures = 0, last_error = null, next_poll_at = ${nextAt ?? null}, updated_at = now()
       where id = ${trigger.id} and generation = ${trigger.generation} and status in ('active', 'failing') returning 1`.execute(trx)
     if (rows.length === 0 || !next) return
     await setNextJob(trx, schema, trigger.id, await next(trx))

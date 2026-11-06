@@ -47,4 +47,12 @@ describe('triggerStarts', () => {
     expect(queued.poll.enqueue).not.toHaveBeenCalled()
     expect(restart).toHaveBeenCalledOnce()
   })
+
+  it('clears the status, failures and error an earlier failed start left once a start works', async () => {
+    const { db, statements } = recordedDb(answer)
+    const webhook: WebhookTrigger = { ...described, kind: 'webhook', subscribe: async () => ({ id: 'sub-1' }), receive: async () => ({ items: [] }) }
+    await starts({ webhook }).startWebhook(db, trigger, new AbortController().signal, async () => {})
+    const saved = statements.find(({ sql }) => sql.includes('"store" = coalesce'))
+    expect(saved?.sql).toContain("status = 'active', consecutive_failures = 0, last_error = null")
+  })
 })
