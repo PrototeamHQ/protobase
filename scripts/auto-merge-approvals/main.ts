@@ -71,5 +71,5 @@ for (const number of await pullNumbers()) {
     continue
   }
   console.log(`Merged #${number} as ${mergeCommit.slice(0, 7)}.`)
-  await afterMerge(github, { number, base: pull.base.ref, head: pull.head.ref, mergeCommit })
+  await afterMerge(github, { number, base: pull.base.ref, head: pull.head.ref })
 }

@@ -60,9 +60,6 @@ export function gitHub(token: string, repository: string) {
     async dispatchWorkflow(workflow: string, ref: string) {
       await request(`${repo}/actions/workflows/${workflow}/dispatches`, { method: 'POST', body: JSON.stringify({ ref }) })
     },
-    async dispatch(eventType: string, payload: Record<string, unknown>) {
-      await request(`${repo}/dispatches`, { method: 'POST', body: JSON.stringify({ event_type: eventType, client_payload: payload }) })
-    },
 
     deletesHeadOnMerge: async () => (await read<{ delete_branch_on_merge: boolean }>(repo)).delete_branch_on_merge,
     openPullsOnto: async (base: string) => (await read<unknown[]>(`${repo}/pulls?state=open&base=${encodeURIComponent(base)}&per_page=100`)).length,

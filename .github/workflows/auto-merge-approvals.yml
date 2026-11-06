@@ -1,7 +1,7 @@
 # Merges a pull request with the auto-merge-approvals label once it is approved after the label was added, by CodeRabbit
 # or by anyone with write access, and every check on its head passed; scripts/auto-merge-approvals/decision.ts holds the
-# rules. A merge with GITHUB_TOKEN starts no workflow, so the script then starts release.yml with workflow_dispatch and
-# sends the pull_request_merged event docs.yml deploys on. No checkout here takes anything from the pull request.
+# rules. A merge with GITHUB_TOKEN starts no workflow, so the script then starts release.yml and docs.yml with
+# workflow_dispatch. No checkout here takes anything from the pull request.
 name: auto-merge-approvals
 
 on:
@@ -20,8 +20,8 @@ on:
     types: [completed]
   status:
 
-# Merging takes contents: write, as do repository_dispatch and deleting the branch: https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps#repository-permissions-for-contents
-# Starting release.yml after a merge takes actions: write.
+# Merging takes contents: write, as does deleting the branch: https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps#repository-permissions-for-contents
+# Starting release.yml and docs.yml after a merge takes actions: write.
 permissions:
   actions: write
   checks: read
