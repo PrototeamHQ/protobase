@@ -36,7 +36,7 @@ const userOf = (raw: Record<string, unknown>) => {
  * A Better Auth provider for a connection with an OAuth provider of its own: it never signs up anyone, and sends its
  * code exchange, refresh and user request only to the URLs the plugin declares, each through the guarded request.
  */
-export const connectionOAuthProvider = (connection: ResolvedConnection & { client: ConnectionClient }, endpoints: OAuthEndpoints, guarded: Guarded): OAuthProvider => {
+export const connectionOAuthProvider = (connection: ResolvedConnection & { client: ConnectionClient }, endpoints: OAuthEndpoints, guarded: Guarded) => {
   const options = { clientId: connection.client.clientId, clientSecret: connection.client.clientSecret }
   const pkce = endpoints.pkce ?? true
   return {
@@ -45,7 +45,9 @@ export const connectionOAuthProvider = (connection: ResolvedConnection & { clien
     disableSignUp: true,
     disableImplicitSignUp: true,
     options,
-    createAuthorizationURL: (data) =>
+    // The account's stable id at the provider: its user endpoint's `sub`, or its `id`.
+    accountSubject: ({ profile }: { profile: Record<string, unknown> }) => String(profile.sub ?? profile.id ?? ''),
+    createAuthorizationURL: (data: Parameters<OAuthProvider['createAuthorizationURL']>[0]) =>
       createAuthorizationURL({
         id: connection.providerId,
         options,
@@ -56,11 +58,11 @@ export const connectionOAuthProvider = (connection: ResolvedConnection & { clien
         redirectURI: data.redirectURI,
         additionalParams: { ...connection.declaration.link_params },
       }),
-    validateAuthorizationCode: async (data) => {
+    validateAuthorizationCode: async (data: Parameters<OAuthProvider['validateAuthorizationCode']>[0]) => {
       const request = await authorizationCodeRequest({ code: data.code, ...(pkce && { codeVerifier: data.codeVerifier }), redirectURI: data.redirectURI, options, tokenEndpoint: endpoints.token_url, authentication: 'post' })
       return tokenRequest(endpoints.token_url, request, guarded)
     },
-    refreshAccessToken: async (refreshToken) => {
+    refreshAccessToken: async (refreshToken: string) => {
       const request = await refreshAccessTokenRequest({ refreshToken, options, tokenEndpoint: endpoints.token_url, authentication: 'post' })
       return tokenRequest(endpoints.token_url, request, guarded)
     },
@@ -68,7 +70,7 @@ export const connectionOAuthProvider = (connection: ResolvedConnection & { clien
       const raw = await guardedJson(endpoints.user_info_url, { method: 'GET', headers: { accept: 'application/json', authorization: `Bearer ${tokens.accessToken}` } }, guarded)
       return userOf(raw)
     },
-  } as OAuthProvider
+  }
 }
 
 /** Adds the connections' own OAuth providers to the instance's providers, so `/link-social` connects through them. */
@@ -76,6 +78,6 @@ export const connectionProvidersPlugin = (connections: readonly ResolvedConnecti
   const providers = connections.flatMap((connection) => ('oauth' in connection.declaration && connection.client ? [connectionOAuthProvider({ ...connection, client: connection.client }, connection.declaration.oauth, guarded)] : []))
   return {
     id: 'protobase-connection-providers',
-    init: (ctx) => ({ context: { socialProviders: [...providers, ...ctx.socialProviders] } }),
+    init: (ctx) => ({ context: { socialProviders: [...(providers as unknown as OAuthProvider[]), ...ctx.socialProviders] } }),
   } satisfies BetterAuthPlugin
 }
