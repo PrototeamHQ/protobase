@@ -4,7 +4,7 @@ description: Add trigger and step types to workflows from a file of the app or a
 ---
 
 :::caution[Beta]
-Plugins add step types and record triggers. Polling and webhook triggers, and connections that sign in to other services, are declared by the interface but not run yet.
+Plugins add step types and record triggers. They also add polling and webhook triggers, which run within the limits named in their section. The interface declares connections that sign in to other services, but the app does not run them.
 :::
 
 A **workflow plugin** adds trigger and step types to an app's [workflows](/reference/workflows/). Its types are named `<plugin>:<key>`, such as `acme:create_invoice`: a Task names a step type as its `Resource`, and a definition's `trigger` holds a trigger type with its input. The built-in types, `app:http`, `app:records.*`, `app:mail.send` and `app:record`, are a plugin like any other, written on this interface alone, so a plugin's types run, are checked and are listed exactly as they are.
