@@ -1,4 +1,6 @@
-/** What the workflows do when an account of a connection is linked or disconnected, and which accounts their triggers wait on. */
+import type { SealedRevocation } from './sealed-revocation'
+
+/** What the workflows do when an account of a connection is linked or disconnected, which accounts their triggers wait on, and the revocations they retry. */
 export type ConnectionListener = {
   /** An account was linked again: the triggers waiting on its sign-in poll again. */
   linked: (accountId: string) => Promise<void>
@@ -8,6 +10,8 @@ export type ConnectionListener = {
   needsSignIn: (accountIds: string[]) => Promise<string[]>
   /** The workflows among those `userId` turned on, and may still change, whose enabled version binds one of `accountIds`, by account. */
   uses: (userId: string, accountIds: string[]) => Promise<AccountUses>
+  /** A disconnected account's token the provider did not revoke: queue it to be revoked again later. */
+  revokeLater: (revocation: SealedRevocation) => Promise<void>
 }
 
 /** The workflows that use each account, by its id. */
@@ -25,6 +29,7 @@ export const connectionEvents = () => {
     disconnected: async (accountId: string) => listener?.disconnected(accountId),
     needsSignIn: async (accountIds: string[]) => (listener && accountIds.length > 0 ? listener.needsSignIn(accountIds) : []),
     uses: async (userId: string, accountIds: string[]): Promise<AccountUses> => (listener && accountIds.length > 0 ? listener.uses(userId, accountIds) : {}),
+    revokeLater: async (revocation: SealedRevocation) => listener?.revokeLater(revocation),
   }
 }
 

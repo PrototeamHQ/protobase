@@ -15,6 +15,7 @@ import { listConnections } from './connections/list-connections'
 import { connectionProvidersPlugin } from './connections/connection-oauth-provider'
 import { refreshRefusalsPlugin } from './refresh-refusals'
 import { connectionsPlugin } from './connections/connections-plugin'
+import { sealedRevoker } from './connections/sealed-revocation'
 import { resolveConnections, type ConnectionClient, type DeclaredConnection, type ResolvedConnection } from './connections/declared-connections'
 import { endReplacedSession } from './end-replaced-session'
 import { authBasePath } from './auth-base-path'
@@ -668,12 +669,14 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     connectionSupport: { encrypted: options.encryptOAuthTokens === true, signInProviders: socialProviders, clients: connectionClients },
     /**
      * The workflow connections people connect accounts through, the listener (`set`) the workflows give for their links
-     * and disconnects, and `list`, on the server only, of the session's own person's accounts, as `GET /connections` lists them.
+     * and disconnects, `list`, on the server only, of the session's own person's accounts, as `GET /connections` lists them,
+     * and how a revocation the provider did not take is tried again (`revokeSealed`).
      */
     connections: {
       declared: resolvedConnections,
       events: { set: events.set },
       list: async (session: Session) => listConnections({ findAccounts: async (userId) => (await auth.$context).internalAdapter.findAccounts(userId), connections: resolvedConnections, events }, session.user.id),
+      revokeSealed: sealedRevoker(resolvedConnections, async () => (await context()).secretConfig, allowPrivateAddresses),
     },
     /** The OAuth provider for MCP clients, when on: the endpoint's resource (its URL) and path, and the scope its tokens carry. */
     mcp: mcp && { resource: mcp.resource, path: mcp.path, scope: mcpScope },

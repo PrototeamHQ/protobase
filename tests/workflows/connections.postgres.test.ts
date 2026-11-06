@@ -1,11 +1,12 @@
 import { sql, type Kysely } from 'kysely'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
 import { authSchemaMigration, configExports, createAdmin, createUser, startJobs, workflowsMigration, type AdminAuth, type JobsRuntime, type Session, type WorkflowsOptions } from '@protobase/server'
 import { createAuth, workflowsModule } from '@protobase/server/internal'
 import { ConnectionError, definePlugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 import { fakeOAuthServer } from '../../packages/server/src/better-auth/connections/testing/fake-oauth-server'
+import { sealToken } from '../../packages/server/src/better-auth/connections/sealed-revocation'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -332,5 +333,73 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     expect(narrowed).toEqual([other.id])
     for (const workflow of [used, other]) await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
     await sql`update workflows.workflows set enabled_version = null where id = ${forged.id}`.execute(db)
+  })
+
+  describe('a revocation the provider did not take', () => {
+    type Row = { id: string; provider: string; hint: string; token: string }
+    const revocations = async () => (await sql<Row>`select id, provider, hint, token from workflows.connection_revocations`.execute(db)).rows
+    const revokeJob = () => app.jobs.find((job) => job.name === 'workflows.connection-revoke')!
+    // One try of the job, as the worker runs it, the `attempt`-th of `maxAttempts`.
+    const attempt = async (id: string, attempt: number, maxAttempts = 10) =>
+      await revokeJob().options.run({ revocation: id }, { db, job: { id: 'job', name: 'workflows.connection-revoke', attempt, maxAttempts, startedOn: new Date() }, signal: new AbortController().signal, decryptField: async () => null })
+    const queued = async (token: string) =>
+      (await sql<{ id: string }>`insert into workflows.connection_revocations (provider, hint, token) values (${provider}, 'refresh_token', ${token}) returning id`.execute(db)).rows[0]!.id
+    const jobRows = async () => JSON.stringify((await sql`select data, output from jobs.job where name = 'workflows.connection-revoke'`.execute(db)).rows)
+    afterEach(() => {
+      fake.answers['/revoke'] = 'revoke-ok'
+      vi.restoreAllMocks()
+      vi.spyOn(console, 'log').mockImplementation(() => {})
+    })
+
+    it('queues its token encrypted, revokes it on a retry once the provider takes it, and keeps nothing of it', async () => {
+      const account = (await connect())!
+      const workflow = await save(ada, account, { 'acme:inbox': {} })
+      await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })
+      fake.answers['/revoke'] = 'revoke-error'
+      expect(JSON.parse((await browser('/connections/disconnect', { method: 'POST', body: { accountId: account } })).text)).toEqual({ disconnected: true, revoked: false })
+      const [row] = await revocations()
+      expect(row).toMatchObject({ provider, hint: 'refresh_token' })
+      expect(row!.token).not.toMatch(/snapshot-/)
+      expect(await jobRows()).toContain(row!.id)
+      expect(await jobRows()).not.toMatch(/snapshot-|\$ba\$/)
+      expect((await sql<{ status: string }>`select status from workflows.triggers where workflow_id = ${workflow.id}`.execute(db)).rows[0]!.status).toBe('needs_sign_in')
+
+      await expect(attempt(row!.id, 1)).rejects.toThrow('tried again')
+      expect(await revocations()).toHaveLength(1)
+      fake.answers['/revoke'] = 'revoke-ok'
+      await attempt(row!.id, 2)
+      expect(fake.callsTo('/revoke').at(-1)!.form).toMatchObject({ token: expect.stringMatching(/^snapshot-refresh_token-/), token_type_hint: 'refresh_token' })
+      expect(await revocations()).toEqual([])
+      await attempt(row!.id, 3)
+      await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
+    })
+
+    it('drops its token on the last try the provider refuses, saying no more than that', async () => {
+      const logged = [vi.spyOn(console, 'log'), vi.spyOn(console, 'error'), vi.spyOn(console, 'warn')]
+      fake.answers['/revoke'] = 'revoke-error'
+      const id = await queued(await sealToken((await auth.$context).secretConfig, 'refresh-given-up'))
+      const failure = await attempt(id, 10).catch((error: unknown) => error as Error)
+      expect(failure).toMatchObject({ message: 'The provider did not revoke the token in 10 tries: it is dropped' })
+      expect(JSON.stringify([failure, (failure as Error).stack])).not.toMatch(/refresh-given-up|authorization|client_secret/i)
+      for (const spy of logged) for (const call of spy.mock.calls) expect(JSON.stringify(call)).not.toContain('refresh-given-up')
+      expect(await revocations()).toEqual([])
+    })
+
+    it('drops a token that no longer decrypts, as after the secret changed, failing for good without calling the provider', async () => {
+      const calls = fake.callsTo('/revoke').length
+      const id = await queued(await sealToken('a-retired-secret-a-retired-secret-12345', 'refresh-old-secret'))
+      await expect(attempt(id, 1)).rejects.toMatchObject({ name: 'FatalJobError' })
+      expect(await revocations()).toEqual([])
+      expect(fake.callsTo('/revoke')).toHaveLength(calls)
+    })
+
+    it('keeps no token when its job cannot be queued', async () => {
+      const account = (await connect())!
+      fake.answers['/revoke'] = 'revoke-error'
+      vi.spyOn(revokeJob(), 'enqueue').mockRejectedValueOnce(new Error('queue down'))
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      expect((await browser('/connections/disconnect', { method: 'POST', body: { accountId: account } })).response.ok).toBe(false)
+      expect(await revocations()).toEqual([])
+    })
   })
 })
