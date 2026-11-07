@@ -304,6 +304,13 @@ export type AppAddress =
       standard?: boolean
       /** `join` when the page joins the record's call, as a ring's Accept and a call mark's Join open it. */
       call?: 'join'
+      /**
+       * An earlier saved version of the record, by its number, as a field type that keeps versions draws it, such as a
+       * workflow's graph: the record page shows it read-only, as its read view.
+       */
+      version?: number
+      /** The run a workflow's page shows on its graph, by its key, on the version it ran on; `{field}` takes it from a record. */
+      run?: string
     }
   | {
       /** The form for a new record. */
@@ -997,6 +1004,8 @@ export type SectionModel = {
    * label/value rows; the form edits them as any section's.
    */
   presentation?: SectionPresentation
+  /** `page` spans the page above the main column and the sidebar; in the main column when omitted. */
+  width?: 'page'
   /** Whether it shows on the form, the read view or both, or a condition on the saved record that it shows while it holds. */
   when?: RecordWhen
 }
@@ -1477,6 +1486,8 @@ export type ViewModel = {
   create?: CreateModel
   /** The component of the app's own that is the whole record page, in place of the standard one. */
   record?: RecordPageModel
+  /** The address a record's page opens in its place, `{field}` replaced by the record's values. */
+  recordOpens?: AppAddress
   /** Public forms that create its records for people without an account, each at `/-/forms/<name>`. */
   forms?: FormModel[]
   /** Other lists of the resource, each with its own sidebar entry and address. */

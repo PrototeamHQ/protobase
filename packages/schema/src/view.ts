@@ -1,5 +1,6 @@
 import type {
   ActionModel,
+  AppAddress,
   CreateModel,
   ExportModel,
   FilterWidgetModel,
@@ -21,6 +22,7 @@ import type {
   SignInPromptModel,
   ViewModel,
 } from './model'
+import { addressPlaceholders } from './address-template'
 import { formNamePattern } from './form-address'
 import { layoutItems } from './layout-items'
 import { isMenuHref } from './menu-href'
@@ -378,6 +380,16 @@ export class ViewBuilder<R extends {
   }
 
   /**
+   * A record's page opens `to` in its place, replacing the address in the history, `{field}` in its resource, key and
+   * run replaced by the record's values: a workflow run's opens its workflow's page with the run on the graph. A caller
+   * who cannot see where it leads gets the record's own page. See
+   * [The record page](docs/website/src/content/docs/reference/ui-config.mdx#a-record-page-that-opens-another).
+   */
+  recordOpens(to: AppAddress) {
+    return this.next({ recordOpens: structuredClone(to) })
+  }
+
+  /**
    * This resource holds saved searches of `resource`, which a list page saves with `.saveSearch(...)`: its list page
    * shows each of the user's searches with its filters, its `controls` to change in place, the records it finds (with
    * `unseen`, newest first, those new since the user last opened its results marked) and a link to all of them. Throws in
@@ -468,6 +480,8 @@ export class ViewBuilder<R extends {
     if (typeof nav?.create === 'object' && nav.create.label.trim() === '') throw new Error(`View "${this.state.resource}": nav.create needs a label, or true for "New <singular>"`)
     const recentErrors = resource && nav?.recent ? navRecentErrors(nav.recent, resource) : []
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)
+    const opensUnknown = resource && this.state.recordOpens ? addressPlaceholders(this.state.recordOpens).find((name) => !Object.hasOwn(resource.fields, name)) : undefined
+    if (opensUnknown !== undefined) throw new Error(`View "${this.state.resource}": recordOpens names field "${opensUnknown}", which the resource does not have`)
     if (this.state.lists?.length && (listOf !== undefined || this.state.searchesOf)) {
       throw new Error(`View "${this.state.resource}": named lists cannot go with listOf or searchesOf, which replace the list page`)
     }

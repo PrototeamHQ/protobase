@@ -4,7 +4,9 @@ description: The page of one record, with its sections, related records, galleri
 ---
 
 - [Record page layout](/reference/ui-config/#the-record-page): Sections, a summary sidebar, related tables, maps, charts, galleries, history, comments and your own components.
-- [Full-width record pages](/reference/ui-config/#page-width): A view's record pages fill the whole area beside the sidebar instead of a centred column, with the sidebar cards still beside the sections.
+- [Full-width record pages](/reference/ui-config/#page-width): A view's record pages and create form fill the whole area beside the sidebar instead of a centred column, with the sidebar cards still beside the sections.
+- [Page-wide sections](/reference/ui-config/#page-wide-sections): A section spans the page above the main column and the sidebar cards, such as a workflow's graph, with Save in a bar at the foot of the window.
+- [Record pages that open another](/reference/ui-config/#a-record-page-that-opens-another): A record's page opens another address built from its fields in its place, such as a workflow run opening its workflow's page with the run shown.
 - [Full-area record pages](/reference/ui-config/#full-area-record-pages) (beta): A view draws its record pages with a component of its own that fills the area beside the sidebar and under the top bar, such as a chat channel, and links to the standard page.
 - [Read view and edit](/reference/ui-config/#read-view-and-edit): A record opens as a read-only fact sheet or a form, and Edit opens the form at its own address.
 - [Unsaved edits](/reference/ui-config/#editing-a-record): Unsaved changes to a record stay in the browser and can be resumed, and leaving a form, a dialog or a comment with changes asks first.

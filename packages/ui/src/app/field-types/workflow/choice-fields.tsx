@@ -16,7 +16,7 @@ export const ChoiceFields = ({ state, names, problems, disabled, onChange }: Cho
   return (
     <>
       {rules.map((rule, index) => (
-        <fieldset key={index} className="flex flex-col gap-3 rounded-md border p-3 sm:col-span-2">
+        <fieldset key={index} className="flex flex-col gap-3 rounded-md border p-3">
           <legend className="px-1 text-xs font-medium text-muted-foreground">{text('ruleNumber', { number: index + 1 })}</legend>
           <ValueField
             label={text('condition')}
@@ -37,7 +37,7 @@ export const ChoiceFields = ({ state, names, problems, disabled, onChange }: Cho
         </fieldset>
       ))}
       {!disabled && (
-        <div className="sm:col-span-2">
+        <div>
           <Button size="sm" onClick={() => onChange({ ...state, Choices: [...rules, { Condition: '', Next: '' }] })}>
             <Plus className="size-3.5" />
             {text('addRule')}

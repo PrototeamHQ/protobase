@@ -26,15 +26,19 @@ export const layout = {
    * shown only while the record is edited with `helpWhen: 'editing'` (the view's `.helpWhen(...)` when omitted).
    * `presentation: 'facts'` shows the read view's fields as a row of key facts, as a listing on a real estate site does:
    * each value under its field's `.icon(...)`, or under its label without one, leaving out the empty ones. See
-   * [Key facts](docs/website/src/content/docs/reference/ui-config.mdx#key-facts).
+   * [Key facts](docs/website/src/content/docs/reference/ui-config.mdx#key-facts). `width: 'page'` spans the page
+   * above the main column and the sidebar, as a workflow's graph does, and Save then stays in a bar at the foot of the
+   * window; it applies to a section outside tabs and groups. See
+   * [Page-wide sections](docs/website/src/content/docs/reference/ui-config.mdx#page-wide-sections).
    */
-  section: (title: string, fields: Ref[], o: { help?: string; helpWhen?: HelpWhen; presentation?: SectionPresentation; when?: RecordWhen } = {}): LayoutItemModel => ({
+  section: (title: string, fields: Ref[], o: { help?: string; helpWhen?: HelpWhen; presentation?: SectionPresentation; width?: 'page'; when?: RecordWhen } = {}): LayoutItemModel => ({
     kind: 'section',
     title,
     fields: fields.map((ref) => ref.name),
     ...(o.help !== undefined && { help: o.help }),
     ...(o.helpWhen !== undefined && { helpWhen: o.helpWhen }),
     ...(o.presentation !== undefined && { presentation: o.presentation }),
+    ...(o.width !== undefined && { width: o.width }),
     ...(o.when !== undefined && { when: o.when }),
   }),
   /**
