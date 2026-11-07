@@ -229,10 +229,18 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
     { requires: ['run', 'inputs', 'when'] },
   )
 
+// A sidebar group whose status field the caller cannot read lists its records without dots; one whose filter or order
+// reads a hidden field goes.
+const recentFor = (recent: NavRecentModel, model: ResourceModel) => {
+  const { status, tones, pulse, ...rest } = recent
+  const shown = status === undefined || Object.hasOwn(model.fields, status) ? recent : rest
+  return navRecentErrors(shown, model).length === 0 ? shown : undefined
+}
+
 // Every part of a view, and what a field the caller cannot read does to it. The compiler wants a shape for each part,
 // so a part added to ViewModel is named here before it reaches anyone.
 const viewShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>, createPages: ReadonlySet<string>, writeOnly: ReadonlySet<string>) => {
-  const nav = s.object<NavModel>({ hidden: s.data, creatorsOnly: s.data, group: s.data, order: s.data, tenant: s.data, create: s.data, recent: s.map<NavRecentModel>((recent) => (navRecentErrors(recent, model).length === 0 ? recent : undefined)) })
+  const nav = s.object<NavModel>({ hidden: s.data, creatorsOnly: s.data, group: s.data, order: s.data, tenant: s.data, create: s.data, recent: s.map<NavRecentModel>((recent) => recentFor(recent, model)) })
   // A chart goes when the caller cannot read a field it groups, counts over or adds up
   const chart = s.map<ChartModel>((chart) => (chartFields(chart).every((name) => Object.hasOwn(model.fields, name)) ? chart : undefined))
   return s.object<ViewModel>({
