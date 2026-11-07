@@ -5,6 +5,7 @@ import { checkDefinition, typeCatalog, type CheckOptions, type TypeEntry } from 
 import { refused } from '../../assistant/record-tool-args'
 import { defineTool, type ToolContext } from '../../assistant/tools'
 import { mergePatch } from './merge-patch'
+import { withStepsToCheck } from '../save-hook'
 import { definitionParameter, editParameter, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
 
 const reads = { readOnlyHint: true, openWorldHint: false }
@@ -68,7 +69,8 @@ export const getWorkflowTool = defineTool({
 // resource or field hidden from them: one they cannot read is "not a resource of this app".
 const checked = async (definition: unknown, catalog: WorkflowCatalog, context: ToolContext) => {
   const { models } = await context.resources()
-  const problems = checkDefinition(definition, catalog.checkWith((name) => models.find((model) => model.name === name)))
+  // As a save checks it: a definition with no steps yet is checked but for that
+  const problems = checkDefinition(withStepsToCheck(definition), catalog.checkWith((name) => models.find((model) => model.name === name)))
   return JSON.stringify(problems.length > 0 ? { valid: false, problems } : { valid: true })
 }
 
