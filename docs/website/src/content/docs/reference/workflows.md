@@ -333,7 +333,7 @@ While a run is queued, running or waiting, the page reads the run and its steps 
 Who marked a workflow resolved shows by name only in an app with organizations.
 :::
 
-Each workflow has a status from its last 10 ended runs, so you see which ones need attention without opening them. Runs that are queued, running or waiting do not count. A failed run counts until someone marks the workflow as resolved after it ended, or until a new version is saved: a failure on an older version than the workflow's latest no longer counts.
+Each workflow has a status from its last 10 ended runs, so you see which ones need attention without opening them. Runs that are queued, running or waiting do not count. A failed run counts until someone marks the workflow as resolved after it ended, until a new version is saved, as a failure on an older version than the workflow's latest no longer counts, or until it is no longer among the last 10 ended runs, such as after ten later successful runs.
 
 | Status | Mark | When |
 | --- | --- | --- |
