@@ -209,6 +209,10 @@ A workflow's record page in the admin app, `/workflows/<id>`, and its create for
 
 ### The workflow's page
 
+:::caution[Beta]
+An older version can be looked at, not restored or compared with another, the version selector lists only the latest 100, and the graph has no undo.
+:::
+
 A workflow's page is full width, and so is its create form. The graph spans the page, with a side panel beside it on a wide screen and under it on a narrow one; the workflow's name, description and enabled version, its trigger and its runs follow below, and Save stays at the foot of the window. Choosing a step shows its form in the side panel, in view beside the graph.
 
 - **Versions.** *Version*, above the graph, chooses which saved version the graph shows, each named with when it was saved, and the latest and the enabled one marked *(latest)* and *(enabled)*; it lists the latest 100. <gap>The version selector cannot offer a version older than the latest 100 because loading more of them into it is not implemented.</gap> Such a version still opens by its address. The latest version is the one you edit. An older one is read-only: no fields to fill in, no *Add a step*, no Save, and no editing on the graph. A bar above the graph, repeated at the top of the side panel, says in words which version is shown and which is the latest, with *Back to the latest*. The version is in the address, `/workflows/<id>?version=<number>`, so a link opens it.

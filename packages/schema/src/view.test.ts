@@ -464,6 +464,7 @@ describe('view builder', () => {
       { kind: 'group', title: 'More', collapsed: true, items: [{ kind: 'section', title: 'Details', fields: ['title'] }, { kind: 'related', title: 'Notes', ...related }] },
     ])
     expect(() => l.group('More', [l.sidebar([])])).toThrow('l.group "More" holds sections and related tables, not sidebar')
+    expect(() => l.group('More', [l.section('Graph', [], { width: 'page' })])).toThrow('l.group "More" cannot hold page-wide section "Graph": it spans the page only outside tabs and groups')
     const twice = view<typeof home>('home').layout(() => [l.group('More', []), l.group('More', [])])
     expect(() => twice.toModel(home.toModel())).toThrow('View "home": two groups are titled "More"')
   })
@@ -487,6 +488,7 @@ describe('view builder', () => {
     ])
     expect(() => l.tab('A', [l.sidebar([])])).toThrow('l.tab "A" holds main-column items, not sidebar')
     expect(() => l.tab('A', [l.tab('B', [])])).toThrow('l.tab "A" holds main-column items, not tab')
+    expect(() => l.tab('A', [l.section('Graph', [], { width: 'page' })])).toThrow('l.tab "A" cannot hold page-wide section "Graph": it spans the page only outside tabs and groups')
     expect(() => l.tab('A', [l.map('Where', { latitude: {} as never, longitude: {} as never, sidebar: true })])).toThrow('not a sidebar map')
     const apart = view<typeof home>('home').layout(() => [l.tab('A', []), l.section('S', []), l.tab('B', [])])
     expect(() => apart.toModel(home.toModel())).toThrow('View "home": tabs stand together, and "B" is apart from the others')
