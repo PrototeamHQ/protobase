@@ -11,13 +11,20 @@ export const describedAs = 'a device with auth, once the session it was register
 // The session token a cookie header carries, whose value is `token.signature`.
 export const tokenIn = (cookie: string) => decodeURIComponent(cookie.split('; ').find((part) => part.startsWith(`${sessionCookie}=`))!.slice(sessionCookie.length + 1)).split('.')[0]!
 
+// Auth sends its mail after the response, so `last` waits on the send itself rather than polling for it.
 export const recordingMailer = () => {
   const sent: MailMessage[] = []
-  const last = async (to: string) => {
-    await expect.poll(() => sent.some((message) => message.to === to), { timeout: 10_000 }).toBe(true)
-    return sent.findLast((message) => message.to === to)!.text
+  const waiting: { to: string; resolve: (text: string) => void }[] = []
+  const send = async (message: MailMessage) => {
+    sent.push(message)
+    for (const waiter of waiting.filter((waiter) => waiter.to === message.to)) waiter.resolve(message.text)
   }
-  return { last, mailer: { send: async (message: MailMessage) => void sent.push(message) } }
+  const last = (to: string) => {
+    const earlier = sent.findLast((message) => message.to === to)
+    if (earlier) return Promise.resolve(earlier.text)
+    return new Promise<string>((resolve) => waiting.push({ to, resolve }))
+  }
+  return { last, mailer: { send } }
 }
 
 // Alice signed in on two browsers, each registered in its own session, and Bob on one: each gets push to begin with.
