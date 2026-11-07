@@ -20,10 +20,12 @@ const checkedField = (model: ResourceModel, field: FieldPath, span: RelatedFilte
   return { field: checked.filter.field }
 }
 
-// The caller's access on the resource, undefined whenever they cannot list it. A rule on it failing for this caller's
-// id says it exists, so that counts as unlisted too, and no tenant does as for a `read` parent.
-const listAccess = async (access: RequestAccess, term: RelatedFilter) => {
-  const entry = access.deps.registry.find(term.resource)
+/**
+ * The caller's access on the resource, undefined whenever they cannot list it. A rule on it failing for this caller's id
+ * says it exists, so that counts as unlisted too, and no tenant does as for a `read` parent.
+ */
+export const listAccess = async (access: RequestAccess, resource: string) => {
+  const entry = access.deps.registry.find(resource)
   if (!entry || (entry.model.tenant && access.session.tenant === undefined)) return undefined
   const via = await requestAccess(access.deps, entry, access.session).catch((error: unknown) => {
     if (error instanceof HttpProblem && error.slug === 'owner-id-mismatch') return undefined
@@ -34,7 +36,7 @@ const listAccess = async (access: RequestAccess, term: RelatedFilter) => {
 
 // A term as one more read of the scope: the caller's list of the resource, in their own organization, and nothing else.
 const relatedRead = async (access: RequestAccess, model: ResourceModel, term: RelatedFilter): Promise<ParentRead> => {
-  const via = await listAccess(access, term)
+  const via = await listAccess(access, term.resource)
   if (!via) throw unknownTarget(term)
   const field = checkedField(model, term.field, term.span)
   if (field.errors) throw filterProblem('filter', field.errors)
@@ -66,15 +68,17 @@ const checkedTerms = async (access: RequestAccess, model: ResourceModel, ast: Fi
  * The caller's filter of a list-style read, checked against `model`, and the scope the read runs in. Each `related()`
  * term ANDed at the top of it becomes one more read of that scope, so it may do only what the caller could do in two
  * steps: list the resource with the subfilter, then filter on the keys. It reads the session's own organization, so a
- * list across organizations falls back to that one too.
+ * list across organizations falls back to that one too. `within` is what the server narrows the read by, such as the
+ * record a list stands under, read the same way but kept apart from the caller's own limits and from what a facet drops.
  */
-export const readFilter = async (access: RequestAccess, model: ResourceModel, full: ResourceModel, source?: string, maxLength?: number) => {
+export const readFilter = async (access: RequestAccess, model: ResourceModel, full: ResourceModel, source?: string, maxLength?: number, within?: FilterExpr) => {
   const parsed = source?.trim() ? parseFilter(source, maxLength ? { maxLength } : {}) : undefined
   if (parsed && !parsed.ok) throw filterProblem('filter', parsed.errors)
   const shape = parsed?.ast ? relatedErrors(parsed.ast) : []
   if (shape.length > 0) throw filterProblem('filter', shape)
   const { filter, parents } = await checkedTerms(access, model, parsed?.ast)
-  if (parents.length === 0) return { filter, scope: await readScope(access, full) }
-  const own = ownScope(access, full)
-  return { filter, scope: { ...own, parents: [...(own.parents ?? []), ...parents] } }
+  const kept = await checkedTerms(access, model, within)
+  const terms = [...parents, ...kept.parents]
+  const base = terms.length === 0 ? await readScope(access, full) : ownScope(access, full)
+  return { filter, scope: { ...base, ...(terms.length > 0 && { parents: [...(base.parents ?? []), ...terms] }), ...(kept.filter && { within: kept.filter }) } }
 }

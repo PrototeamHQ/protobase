@@ -23,6 +23,9 @@ export type Registry = {
 
 
 const etagSource = (model: ResourceModel): EtagSource | undefined => {
+  const named = model.etagFrom === undefined ? undefined : model.fields[model.etagFrom]
+  if (named?.nullable || named?.sensitive) throw new Error(`Resource "${model.name}": etagFrom names "${named.name}", which is ${named.sensitive ? 'sensitive' : 'optional'}: an ETag needs a value every record has and every reader may see moved`)
+  if (named) return { field: named, kind: named.type === 'timestamp' ? 'timestamp' : 'version' }
   const fields = Object.values(model.fields).filter((field) => field.readOnly)
   const version = fields.find((field) => field.column === 'version' && (field.type === 'integer' || field.type === 'bigint'))
   if (version) return { field: version, kind: 'version' }

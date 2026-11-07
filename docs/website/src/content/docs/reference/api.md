@@ -34,6 +34,7 @@ Under `/api/v1`:
 | --- | --- |
 | `GET /{resource}` | list: `filter`, `order_by`, `page_size` (50, max 500), `page_token`, `fields`, `labels`, `photos`, `photos_order_by`, `count=exact` |
 | `POST /{resource}:search` | same parameters as a JSON body (`fields` and `labels` arrays), for long filters |
+| `GET /{parent}/{key}/{resource}` | the list of `resource` that belongs to one record, see [Lists under a record](#lists-under-a-record) |
 | `GET /{resource}/{key}` | one record, with `ETag`; composite keys are `part,part`, each part percent-encoded |
 | `POST /{resource}` | create, `201` with `Location` and `ETag` |
 | `PATCH /{resource}/{key}` | partial update, `If-Match` required |
@@ -97,7 +98,7 @@ Access is resolved once per request and resource ([`resolveAccess`](/api/schema/
 - **Record-level rules** (a rule that needs the record, such as `status != 'locked'`) run in the write transaction with the stored record; a filter they return is checked in the database against the row as written, and a miss rolls the write back with `403`.
 - **`.own` on create**: when the create rule is limited to rows, the owner field is set to the caller unless given, and a row owned by someone else is refused with `403`.
 - **Seeking**: `:seek` resolves a row position to a page on the server, inside the caller's tenant, row filter and filter. No anchor value, column statistic or boundary token is ever returned (table-wide statistics include rows the caller may not see), only the page and the tokens of its own rows.
-- **ETags**: with a read-only `version` or `updated_at` column the ETag is a hash of that column's exact text, so it never shows a hidden value yet moves on every change. Without one it is a hash of the fields the caller may read, sensitive ones excluded: a change to a field they cannot read, or to a sensitive field, does not change their ETag.
+- **ETags**: with a read-only `version` or `updated_at` column the ETag is a hash of that column's exact text, so it never shows a hidden value yet moves on every change; `.etagFrom((r) => r.updated_at)` on a resource names the column, for a `version` that counts something else. Without one it is a hash of the fields the caller may read, sensitive ones excluded: a change to a field they cannot read, or to a sensitive field, does not change their ETag.
 - **Errors** never contain values of fields the caller cannot read; database errors leave out constraint and column names.
 
 The roles (the `roles` export of `config/roles.ts`, from `defineRoles`) make an operation without an explicit rule need the matching capability (`orders.update`), and limits each role to the [fields and rows](/reference/access/#capabilities) its capabilities list; `defaultAccess: 'allow' | 'deny'` in the config overrides the capability check. Without either, operations without a rule are allowed (single-admin projects).
@@ -162,6 +163,19 @@ It works in the `filter` of a list, `:search`, `:seek`, `:facets`, `:aggregate`,
 - It may do only what the caller could do in two steps, listing `resource` with the subfilter and then filtering with `in(field, ...)`: the [access](/reference/access/#related-records-in-filters) rules apply to both sides, and a resource the caller cannot list answers as one that does not exist.
 - The [scan guard](#safety) judges both tables. Besides `field` and the subfilter's columns, `key` needs a btree index under what the subfilter pins.
 - A [list across organizations](/reference/access/#lists-across-organizations) with a term reads the session's own organization alone, and so does the term.
+
+### Lists under a record
+
+`GET /{parent}/{key}/{resource}` is the list of `resource` that belongs to one record, with the same parameters as its own list: `/objectives/40/tasks?filter=state != "done"`. The other list methods work too: `/objectives/40/tasks:facets`, `POST /objectives/40/tasks:search` and the rest. It is a filter the path spells out, and a record keeps its one address, `/tasks/7`.
+
+- A relation of `resource` to `parent` leads there without a declaration: `/tasks/7/task_claims` keeps to `task_id = 7`, also in a `:facets` on `task_id`.
+- A link resource that declares its two relations with [`.links()`](/reference/data-config/#resource) joins them: `/objectives/40/tasks` reads as `related(id, objective_tasks.task_id, (objective_id = 40))`, the other side `/tasks/7/objectives`, and a resource a further step away, `/objectives/40/task_claims`, as `related(task_id, objective_tasks.task_id, (objective_id = 40))`.
+- The caller's own `filter` stands beside it, with its own [limits](#filtering-through-related-records); a `:facets` on the relation stays inside the record.
+- Where nothing leads there the answer is a `404`. Where several ways do, such as `task_dependencies` with its two relations to `tasks`, it is a `400` `ambiguous-parent` that names them, and a [`related()`](#filtering-through-related-records) filter says which. Links count only when the caller can list them.
+- The parent is read as the caller would read it first: one in another tenant, soft-deleted, outside their row filter or refused by a rule that reads the record answers the same `404` as one that does not exist. A resource they do nothing with answers as one that does not exist. A list of a resource they may not list answers as that list does.
+- A composite key has no list under it.
+
+MCP's `list_records` and `count_records` take the same as `belongs_to: { "resource": "objectives", "key": 40 }`, beside `filter`.
 
 ## Writes
 

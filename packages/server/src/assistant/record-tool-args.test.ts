@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { refused } from './record-tool-args'
+import { belongsToOf, refused } from './record-tool-args'
 
 // A database driver's error: its SQLSTATE and the raw message that must not reach the client.
 const databaseError = (code: string) => Object.assign(new Error('violates constraint "secret_internal_name"'), { code, constraint: 'secret_internal_name' })
@@ -19,5 +19,16 @@ describe('refused', () => {
   it('throws an error it has no refusal for', () => {
     const error = new Error('boom')
     expect(() => refused(error)).toThrow(error)
+  })
+})
+
+describe('belongsToOf', () => {
+  it('passes a resource and a key on, and nothing without one', () => {
+    expect(belongsToOf({})).toEqual({})
+    expect(belongsToOf({ belongs_to: { resource: 'objectives', key: 40 } })).toEqual({ belongs_to: { resource: 'objectives', key: 40 } })
+  })
+
+  it('refuses anything else, so it never reads as no filter at all', () => {
+    for (const belongs_to of [null, 'objectives', { resource: 'objectives' }, { resource: 'objectives', key: [40, 41] }]) expect(belongsToOf({ belongs_to })).toBeUndefined()
   })
 })

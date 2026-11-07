@@ -23,7 +23,7 @@ It adds six resources, over a `workflows` schema that [`protobase migration`](/r
 | --- | --- |
 | `workflows` | A name, a description and the definition. Each save that changes the definition is checked, and kept as the workflow's next version, saved by the caller. |
 | `workflow_versions` | Every version of every definition as it was saved, with who saved it and when. Read-only. |
-| `workflow_runs` | A run, started by creating it with `workflow_id` and an `input`, or with `rerun_of` to [re-run a failed run](#re-running-a-failed-run), and `replay: true` too to [replay a run](#replaying-a-run); it runs the version its workflow had then, and a re-run or a replay the input of the run it names. Its status, output, error and timing are written by the runner. |
+| `workflow_runs` | A run, started by creating it with `workflow_id` and an `input`, and a saved `version` to run another than the published one, or on a workflow that is off the one saved last, or with `rerun_of` to [re-run a failed run](#re-running-a-failed-run), and `replay: true` too to [replay a run](#replaying-a-run); it runs the version its workflow had then, and a re-run or a replay the input of the run it names. Its status, output, error and timing are written by the runner. |
 | `workflow_steps` | Every step of every run. Read-only. |
 | `workflow_triggers` | The trigger of each enabled workflow that has one besides `manual`: its type, status and last error. Read-only. |
 | `workflow_resolutions` | Each time someone [marked a workflow resolved](#run-status), by whom and when. Created only. |
@@ -35,7 +35,7 @@ It adds six resources, over a `workflows` schema that [`protobase migration`](/r
 | `allowPrivateAddresses` | Lets the `app:http` step, and every plugin's `fetch`, reach private, loopback and link-local addresses, for development and tests. Default false. |
 | `plugins` | Packages of [workflow plugins](/reference/workflow-plugins/) to run, by name, beside the app's own in `workflows/plugins/<name>.ts`. |
 
-Records steps act as each workflow's last editor, with the roles the project's sign-in gives them now. A project that signs people in otherwise exports its own, `async ({ id, tenant }) => [...]`, as the default of `workflows/saved-by-roles.ts` (`createAdmin` takes it as `workflows.savedByRoles`); without either, startup stops.
+Records steps act as the user who saved the run's version, with the roles the project's sign-in gives them now. A project that signs people in otherwise exports its own, `async ({ id, tenant }) => [...]`, as the default of `workflows/saved-by-roles.ts` (`createAdmin` takes it as `workflows.savedByRoles`); without either, startup stops.
 
 ## The document
 
@@ -98,7 +98,7 @@ A save checks a trigger's input against its type, and refuses a type the app doe
 
 ### Turning a trigger on
 
-A trigger starts runs only while its workflow is enabled: set `enabled_version` to the workflow's current `version` through the API, in the admin app or with `enable_workflow` over MCP, and clear it to turn the workflow off. The trigger is registered at once on every server process, with no restart, and its status, `active` or `failing` with its last error, is the workflow's `workflow_triggers` record. A save of an enabled workflow keeps it enabled on its new version; a new version whose trigger has the same type and input keeps the running trigger as it is, and any other change stops it and starts the new one. A trigger's runs run the enabled version and act as the user who saved it, as any run acts as its version's saver.
+A trigger starts runs only while its workflow is published: set `enabled_version` to any saved version through the API, in the admin app or with `enable_workflow` over MCP, and clear it to turn the workflow off. The trigger is registered at once on every server process, with no restart, and its status, `active` or `failing` with its last error, is the workflow's `workflow_triggers` record. A save makes a new version and changes nothing that is live, so a change can be run and tested first; publishing it moves `enabled_version`, and publishing an older version goes back to it. A published version whose trigger has the same type and input as the one before keeps the running trigger as it is, and any other change stops it and starts the new one. Runs in progress stay on their version. A trigger's runs run the enabled version and act as the user who saved it, as any run acts as its version's saver.
 
 ### app:record
 
@@ -373,7 +373,7 @@ A replay given an `input` of its own is refused with `rerun-input`, and one with
 
 ### Test runs
 
-A workflow's page offers *Test run*: the form for a new run of the workflow, whose `input` takes a sample input as JSON, which every state reads as `$states.context.Execution.Input`. Creating it opens the workflow's page with the run on the graph, followed as it runs. A test run is a run like any other: its steps do what they do, as the workflow's last editor, with the version saved last.
+A workflow's page offers *Test run*: the form for a new run of the workflow, whose `input` takes a sample input as JSON, which every state reads as `$states.context.Execution.Input`. Creating it opens the workflow's page with the run on the graph, followed as it runs. A test run is a run like any other, of the version saved last, which need not be published: its steps do what they do, acting as that version's saver.
 
 ## Over MCP
 

@@ -37,5 +37,6 @@ export const readConditions = (model: ResourceModel, scope?: Scope): Expression<
     ...(tenant ? [tenant] : []),
     ...(scope?.rowFilter ? [compileFilter(full, scope.rowFilter)] : []),
     ...(scope?.parents ?? []).map(parentCondition),
+    ...(scope?.within ? [compileFilter(full, scope.within)] : []),
   ]
 }
