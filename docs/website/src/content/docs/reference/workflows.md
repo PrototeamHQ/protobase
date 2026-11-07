@@ -161,6 +161,10 @@ Starts one run at each time of a five-field cron, in an IANA time zone (default 
 
 ### Reading values by name
 
+:::caution[Beta]
+`$now()` and `$millis()` give the time of the scope's last checkpoint, not the clock, and `$random()` and `$shuffle()` draw new numbers on each retry of a step.
+:::
+
 Every value a state reads has a name, so a step can be moved or added without the data around it shifting:
 
 | Name | Holds |
@@ -262,7 +266,7 @@ A workflow uses one person's accounts: one whose connections name accounts of tw
 
 The built-in step types are the `app` plugin's, written on the same [plugin interface](/reference/workflow-plugins/) as any other; a plugin's step is a Task with `"Resource": "<plugin>:<key>"`. A step's `Arguments` are checked against its type's input schema before it runs: one that does not fit fails as `<Prefix>.InvalidArguments`, such as `Http.InvalidArguments`.
 
-A step's call either changes the world, such as mail sent, a record written or a `POST`, or only reads, such as a `GET`, a record read or a list, as its type declares. A call that changes the world is **recorded**: its checkpoint is saved before the run goes on, with its result and the time it was fetched, so it never happens twice in a run. A read is done again when a crash comes before the next checkpoint.
+A step's call either changes the world, such as mail sent, a record written or a `POST`, or only reads, such as a `GET`, a record read or a list, as its type declares. A call that changes the world is **recorded**: its checkpoint is saved before the run goes on, with its result and the time it was fetched, so a run taken up again does not make it again. A call a crash cut off before its checkpoint was saved can happen again, as [How a run is run](#how-a-run-is-run) says. A read is done again when a crash comes before the next checkpoint.
 
 <gap>An author cannot wrap steps in a block that runs once, cached by what it reads, with a run and trace of its own, because blocks are not implemented.</gap> <gap>A workflow cannot store a file in a named storage configuration, or stream an answer into one, because the storage step and storage configurations are not implemented.</gap>
 
@@ -317,6 +321,10 @@ A run starts when it is created, through the API or the admin app, in the same t
 A run's status is `queued`, `running`, `waiting` (with the time it goes on), `succeeded` with its output, or `failed` with its error and cause.
 
 ### Traces
+
+:::caution[Beta]
+A trace that cannot be written is not kept, and a step a crash made run again is in the trace once for each time it ran.
+:::
 
 A run's **trace** keeps every step it took, one JSON object a line (JSONL): the state, its type, the scope it ran in (empty for the run itself, `Each.3[0]` for item 0 of the Map `Each` that was step 3), its number, its try, its status (`succeeded`, `retrying`, `caught` or `failed`), its input, output and assigned variables, its logs, when it started and ended, its error and cause, where it goes on to, and whether it was `recorded`. It is kept in the private file provider, not the database: each segment writes the steps it ran as a part under `workflows/<run>/trace/` in the background, once its checkpoints are saved, so the run never waits for it; the segment that ends the run joins the parts into `workflows/<run>/trace.jsonl`, which the run's **Trace** field (`trace_file`) then offers to download, and the run's page lists step by step. A step a crash made run again is in the trace once for each time it ran to the end of its segment. A trace that cannot be written goes to the app's error report (`onUnhandledError`), and the run goes on.
 
@@ -393,12 +401,16 @@ All four are scoped to the tenant like any resource with `.tenant()`. A run take
 
 ## How a run is run
 
+:::caution[Beta]
+A write cut off by a crash before its checkpoint is saved happens again, unless its receiver dedupes by the step's idempotency key, and a value a run keeps is at most 256 KiB.
+:::
+
 The runner is `@protobase/workflows`, a package with no other Protobase dependency, over a narrow port: where runs and their checkpoints are kept (here the `workflows` schema), the queue that runs them (here the app's [jobs](/reference/jobs/)), the step types, and where traces go (here the private file provider).
 
 - A run is run in **segments**, each a `workflows.segment` job whose payload is the run's id alone: one runs the run from where it stands to its next wait, then queues the next. A Wait whose time is still ahead, or a retry's delay, saves a checkpoint with the time the run goes on, ends the segment and queues the next one for that time, so a waiting run holds no worker. A segment hands the rest of the run on after a minute of steps.
 - The database keeps only what a run needs to go on: per scope (the run, or a Map item) its latest **checkpoint**, where it stands: the state it goes on to with that state's input, its variables, the try of a state being retried, and its clock. A checkpoint is saved after a recorded step (a call that changes the world, whose small result it keeps with the time it was fetched, never its input), after a Wait or a retry's delay, and for every scope that moved as the segment pauses; a step that only computes or reads saves nothing. A run that succeeds drops its checkpoints, and a run of only such steps that ends in its segment writes none; a run that fails keeps them for a [re-run](#re-running-a-failed-run).
 - Each save is **one statement**, which replaces a scope's checkpoint only when that is the one the segment took the scope up from, so a second segment of the same run that fell behind stops.
-- A worker that stops or dies mid-step leaves that step unsaved: its job is tried again and takes each scope up from its last checkpoint, so a recorded call never happens again, and the steps since run **at least once**: computing steps give the same values, as their clock and random numbers are the checkpoint's, and reads are done again. A value read before a Wait carries over it in the variables; read after the Wait for fresh data. A call whose effect happened before its checkpoint was saved, such as a request that was sent, happens again. Every try of a step, and every time a run taken up again reaches it, gets the same idempotency key, for a step type whose receiver dedupes by it, and `app:mail.send` makes it the mail's Message-ID. `app:records.create` keeps it with the records it creates, in their transaction, so a try after they committed creates none again and returns them as the first try created them. A job whose worker died is tried again once its timeout, 10 minutes, has passed.
+- A worker that stops or dies mid-step leaves that step unsaved: its job is tried again and takes each scope up from its last checkpoint, so a recorded call whose checkpoint was saved never happens again, and the steps since run **at least once**: computing steps give the same values, as their clock and random numbers are the checkpoint's, and reads are done again. A value read before a Wait carries over it in the variables; read after the Wait for fresh data. A call whose effect happened before its checkpoint was saved, such as a request that was sent, happens again. Every try of a step, and every time a run taken up again reaches it, gets the same idempotency key, for a step type whose receiver dedupes by it, and `app:mail.send` makes it the mail's Message-ID. `app:records.create` keeps it with the records it creates, in their transaction, so a try after they committed creates none again and returns them as the first try created them. A job whose worker died is tried again once its timeout, 10 minutes, has passed.
 - A Map's items run in the segment that reaches them, each under its own scope; an item that waits ends the segment once the others running settle, the items that ended are saved as ended, and the next segment takes each item up where it stands. A Map's `Items` is evaluated again by a segment that takes up an unfinished Map.
 - JSONata runs in the server's process under a time and a depth limit per expression; it reaches no file, network or code of the app.
 
