@@ -54,8 +54,12 @@ const withinLimits = (record: StepRecord): StepRecord => {
 export const runScope = async (context: SegmentContext, machine: Machine, scope: string, input: unknown, outer: Record<string, unknown>): Promise<ScopeOutcome> => {
   let position = foldPosition(machine, input, context.saved.get(scope) ?? [])
   for (;;) {
-    if (position.kind === 'ended') return { kind: 'ended', output: position.output }
     if (position.kind === 'failed') return { kind: 'failed', error: position.error, cause: position.cause }
+    if (position.kind === 'ended') {
+      // A scope whose last state was a Wait ends only once that time has passed.
+      if (position.resumeAt && position.resumeAt > context.now()) return { kind: 'blocked', until: position.resumeAt }
+      return { kind: 'ended', output: position.output }
+    }
     // Another Map item found the run gone on without this segment: this item stops too, before its next step.
     if (context.superseded()) throw new SupersededError(`Scope "${scope}" stopped: another segment saved a step of this run first`)
     if (position.resumeAt && position.resumeAt > context.now()) return { kind: 'blocked', until: position.resumeAt }
