@@ -784,6 +784,7 @@
     "versionMarked": "{option} ({marks})"
   },
   "app/field-types/workflow-status": {
+    "label": "{status, select, failing {Laatste run mislukt} unresolved {Eerdere fout onopgelost} healthy {Geen onopgeloste fouten} no_runs {Nog geen runs} resolved {Geen runs sinds opgelost} other {Geen runs sinds deze versie}}",
     "failing": "Laatste run mislukt, {when}",
     "unresolved": "{count, plural, one {# onopgeloste fout} other {# onopgeloste fouten}} in de laatste {runs, number} runs, laatste {when}",
     "healthy": "Geen onopgeloste fouten in de laatste {runs, number} runs, laatste run {when}",

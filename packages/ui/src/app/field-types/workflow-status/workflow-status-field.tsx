@@ -7,7 +7,7 @@ import type { FieldWidget, FieldWidgetProps } from '../field-widget'
 import { useWorkflowView } from '../workflow-page/use-workflow-page'
 import { workflowsResource, workflowViewAddress } from '../workflow-page/workflow-view'
 import { ResolvedBy } from './resolved-by'
-import { statusReason } from './status-reason'
+import { statusLabel, statusReason } from './status-reason'
 import { useResolve } from './use-resolve'
 import { text } from './messages'
 
@@ -48,10 +48,22 @@ const StatusDisplay = ({ value }: FieldWidgetProps<string>) => {
   return value === null || !view ? null : <StatusOf workflow={view.workflow} value={value} />
 }
 
+// The workflows list shows each status by its mark and name.
+const StatusCell = ({ value }: FieldWidgetProps<string>) => {
+  const label = statusLabel(value)
+  if (!label) return null
+  return (
+    <span className="inline-flex items-center gap-2">
+      <StatusDot tone={label.tone} />
+      {label.words}
+    </span>
+  )
+}
+
 /**
  * The built-in `workflow_status` field type, for a workflow's status from its last runs, as the `workflows` resource
  * shows its own: `r.run_status.widget('workflow_status')`. A workflow's page says the reason in words, linking to the
  * run it names, with Mark as resolved while a failure counts for whoever may change the workflow, and who last marked
- * it and when. See the workflows reference.
+ * it and when; a list shows the status by its mark and name. See the workflows reference.
  */
-export const workflowStatusField: FieldWidget = { of: [...builtInFieldTypes.workflow_status], display: StatusDisplay }
+export const workflowStatusField: FieldWidget = { of: [...builtInFieldTypes.workflow_status], display: StatusDisplay, cell: StatusCell }

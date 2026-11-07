@@ -784,6 +784,7 @@
     "versionMarked": "{option} ({marks})"
   },
   "app/field-types/workflow-status": {
+    "label": "{status, select, failing {Last run failed} unresolved {Earlier failure unresolved} healthy {No unresolved failures} no_runs {No runs yet} resolved {No runs since resolved} other {No runs since this version}}",
     "failing": "Last run failed, {when}",
     "unresolved": "{count, plural, one {# unresolved failure} other {# unresolved failures}} in the last {runs, number} runs, latest {when}",
     "healthy": "No unresolved failures in the last {runs, number} runs, last run {when}",

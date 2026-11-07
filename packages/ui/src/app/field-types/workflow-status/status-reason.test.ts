@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { statusReason } from './status-reason'
+import { statusLabel, statusReason } from './status-reason'
 
 vi.mock('../../../format/date', () => ({ formatDateTime: (ms: number) => new Date(ms).toISOString().slice(0, 16) }))
 
@@ -33,5 +33,19 @@ describe('statusReason', () => {
 
   it('has nothing to say of a record without a status, as for a caller who cannot read its runs', () => {
     expect(statusReason({ name: 'Nightly' })).toBeUndefined()
+  })
+})
+
+describe('statusLabel', () => {
+  it('names each status by its mark for a list cell, and none for a value that is no status', () => {
+    expect(['failing', 'unresolved', 'healthy', 'no_runs', 'resolved', 'new_version'].map(statusLabel)).toEqual([
+      { tone: 'danger', words: 'Last run failed' },
+      { tone: 'warning', words: 'Earlier failure unresolved' },
+      { tone: 'success', words: 'No unresolved failures' },
+      { tone: 'neutral', words: 'No runs yet' },
+      { tone: 'neutral', words: 'No runs since resolved' },
+      { tone: 'neutral', words: 'No runs since this version' },
+    ])
+    expect(statusLabel(null)).toBeUndefined()
   })
 })

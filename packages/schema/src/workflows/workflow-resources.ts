@@ -47,14 +47,14 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
       .help('Its trigger and its steps, drawn as a graph that lays itself out. Every value is read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned')
       .widget('workflow'),
     updated_at: r.updated_at.label('Updated'),
-    run_status: r.run_status.label('Status').valueLabels(workflowStatusLabels).widget('workflow_status'),
+    run_status: r.run_status.label('Status').valueLabels(workflowStatusLabels).valueColors({ failing: 'red', unresolved: 'amber', healthy: 'green' }).widget('workflow_status'),
     status_run_id: r.status_run_id.label('Status run'),
     status_run_at: r.status_run_at.label('Status run ended'),
     unresolved_failures: r.unresolved_failures.label('Unresolved failures'),
     resolved_at: r.resolved_at.label('Resolved'),
     resolved_by: r.resolved_by.label('Resolved by'),
   }))
-  .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
+  .list((r) => ({ columns: [r.name, r.run_status, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
   .recordWidth('full')
   .layout((r) => [
     l.section('Workflow', [r.run_status, r.name, r.description, r.enabled_version]),
