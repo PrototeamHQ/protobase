@@ -8,15 +8,17 @@ import { jsonBytes } from './json-bytes'
 import { redacted } from './redact'
 import { recover } from './recovery'
 import { innerScope, visibleVariables, type StateCall } from './step-input'
+import { heldBack, replayedTask } from './replay'
 import { runTask } from './task'
 
-type Ran = { result: unknown; input: unknown } | { failure: { Error: string; Cause: string }; input: unknown } | Extract<StateResult, { kind: 'blocked' | 'yielded' }>
+type Ran = { result: unknown; input: unknown } | { held: true; input: unknown } | { failure: { Error: string; Cause: string }; input: unknown } | Extract<StateResult, { kind: 'blocked' | 'yielded' }>
 
 const task = async (state: TaskState, call: StateCall): Promise<Ran> => {
   const args = await evaluateTemplate(state.Arguments ?? {}, call.bindings, 'Arguments')
   // Each try of a visit is a step of its own, so the key counts from the visit's first try: the same for every retry.
   const key = `${call.context.runId}/${call.scope}/${call.position.seq - call.position.attempt + 1}`
   const input = redacted(recordedArguments(state.Arguments ?? {}, args))
+  if (heldBack(call.context, call.context.tasks[state.Resource], args)) return { held: true, input }
   return runTask(call.context, state, args, key, call.logs).then(
     (result) => ({ result, input }),
     (error: unknown) => {
@@ -68,6 +70,7 @@ const attempt = async (state: TaskState | MapState, call: StateCall): Promise<Ra
 export const runResultState = async (state: TaskState | MapState, call: StateCall): Promise<StateResult> => {
   const ran = await attempt(state, call)
   if ('kind' in ran) return ran
+  if ('held' in ran) return replayedTask(call.context, state as TaskState, { scope: call.scope, seq: call.position.seq, name: call.name }, ran.input, call.logs)
   const now = call.context.now()
   if ('failure' in ran) return { ...(await recover(state, call.position, ran.failure, call.bindings, now, call.logs)), ...(ran.input !== undefined && { input: ran.input }) } as StateResult
   const after = { ...call.bindings, states: { ...(call.bindings.states as object), result: ran.result } }

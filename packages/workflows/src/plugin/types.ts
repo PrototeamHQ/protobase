@@ -21,6 +21,12 @@ export type StepType = Described & {
   errorPrefix?: string
   /** Its result cache; without it the engine keeps and looks up nothing for it unless a workflow forces it on. */
   cache?: StepCache
+  /**
+   * Whether a call changes the outside world, such as sending mail or writing a record: a replay of a run calls no type
+   * that writes, and runs those that do not. It must be accurate. Undeclared, a function that throws or one that gives
+   * anything but `false`: it writes.
+   */
+  writes?: boolean | ((input: Record<string, unknown>) => boolean)
   run: (context: StepContext) => Promise<unknown>
 }
 

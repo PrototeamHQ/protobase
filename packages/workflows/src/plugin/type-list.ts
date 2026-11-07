@@ -16,6 +16,8 @@ export type TypeEntry = {
   connection?: { name: string } & ConnectionDeclaration
   /** A step type's cache advice: how much the workflow's author decides, the switch's default, and the warning before forcing it on. */
   cache?: { choice: CacheChoice; default?: boolean; disclaimer?: string }
+  /** Whether a step type's call changes the outside world, so a replay does not call it: `by_input` when that depends on its input. */
+  writes?: boolean | 'by_input'
   /** False when this app cannot run it, with the reason; a definition that uses it is not saved. */
   available: boolean
   reason?: string
@@ -32,6 +34,7 @@ const entry = (plugin: Plugin, key: string, type: StepType | TriggerType): Omit<
   ...('errors' in type && type.errors && { errors: Object.fromEntries(Object.entries(type.errors).map(([name, text]) => [`${type.errorPrefix ?? 'Step'}.${name}`, text])) }),
   ...(type.connection !== undefined && { connection: { name: type.connection, ...plugin.connections![type.connection]! } }),
   ...('cache' in type && type.cache && { cache: advice(type.cache) }),
+  ...(!('kind' in type) && { writes: typeof type.writes === 'function' ? ('by_input' as const) : type.writes !== false }),
 })
 
 const advice = ({ choice, default: on, disclaimer }: StepCache) => ({ choice, ...(on !== undefined && { default: on }), ...(disclaimer !== undefined && { disclaimer }) })

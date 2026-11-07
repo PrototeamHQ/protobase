@@ -11,9 +11,12 @@ export const postgresRunStore = (schema: string): RunStore<Db> => {
   const steps = sql.id(schema, 'steps')
   return {
     load: async (db, id) => {
-      const { rows } = await sql<{ id: string; definition: Definition; input: unknown; status: 'queued'; startedAt: Date }>`select r.id, v.definition, r.input, r.status, r.created_at as "startedAt"
+      const { rows } = await sql<{ id: string; definition: Definition; input: unknown; status: 'queued'; startedAt: Date; replay: boolean | null; rerun_of: string | null }>`select r.id, v.definition, r.input, r.status, r.created_at as "startedAt", r.replay, r.rerun_of
         from ${runs} r join ${versions} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${id}`.execute(db)
-      return rows[0]
+      if (!rows[0]) return
+      // A replay stays one when the run it replays is gone (its key set to null): its writing steps then give nothing.
+      const { replay, rerun_of, ...run } = rows[0]
+      return { ...run, ...(replay === true && { replayOf: rerun_of }) }
     },
     steps: async (db, id) => {
       const { rows } = await sql<SavedStep>`select scope, seq, state, status, attempt, output, assigned, next, resume_at as "resumeAt", error, cause

@@ -7,13 +7,14 @@ const errors = { Refused: 'the API refused it, its status and message in the cau
 
 type Key = string | number | (string | number)[]
 
-const step = (label: string, description: string, input: Record<string, unknown>, output: string, run: (context: StepContext) => Promise<unknown>): StepType => ({
+const step = (label: string, description: string, input: Record<string, unknown>, output: string, writes: boolean, run: (context: StepContext) => Promise<unknown>): StepType => ({
   label,
   description,
   errorPrefix: 'Records',
   input: { type: 'object', ...input },
   output: { description: output },
   errors,
+  writes,
   run,
 })
 
@@ -35,6 +36,7 @@ export const recordsSteps: Record<string, StepType> = {
     "Creates records of the app's resources, as the workflow's last editor.",
     { required: ['resource', 'data'], properties: { resource, data: { description: 'an object of field values, or a list of them, created in one batch: all or none', anyOf: [fieldValues, { type: 'array', items: fieldValues }] } } },
     'the created record, or the list of them',
+    true,
     async ({ input, records }) => {
       const many = listOf(input.data)
       // Several records are created in one batch, all or none, so a retry after one fails does not create the others again.
@@ -47,6 +49,7 @@ export const recordsSteps: Record<string, StepType> = {
     "Updates one record, as the workflow's last editor.",
     { required: ['resource', 'key', 'data'], properties: { resource, key, data: { ...fieldValues, description: 'an object of the field values to change' } } },
     'the updated record',
+    true,
     async ({ input, records }) => records.update(input.resource as string, input.key as Key, input.data as Record<string, unknown>),
   ),
   'records.get': step(
@@ -54,6 +57,7 @@ export const recordsSteps: Record<string, StepType> = {
     "Reads one record, as the workflow's last editor.",
     { required: ['resource', 'key'], properties: { resource, key } },
     'the record',
+    false,
     async ({ input, records }) => records.get(input.resource as string, input.key as Key),
   ),
   'records.list': step(
@@ -69,6 +73,7 @@ export const recordsSteps: Record<string, StepType> = {
       },
     },
     '{ records }',
+    false,
     async ({ input, records }) => ({
       records: await records.list(input.resource as string, {
         ...(input.filter !== undefined && { filter: input.filter as string }),

@@ -43,7 +43,9 @@ export const createRunner = <Db>({ store, queue, tasks, cache, secrets = {}, now
       // One per segment, so the tokens its steps were given are blanked from all it records, and kept no longer.
       const redactor = secretRedactor(Object.values(secrets))
       const segment = { runId, definition: run.definition, input: run.input, startedAt: run.startedAt, secrets, redactor, tasks, ...(cache && { cache }), signal, now, budgetMs, maxSteps }
-      const outcome = await runSegment({ ...segment, saved: await store.steps(db, runId), save: (steps) => store.save(db, runId, steps) })
+      // A replay's flag is the run's own: when the steps it replays cannot be read, the segment fails before any state runs.
+      const replayed = run.replayOf === undefined ? undefined : run.replayOf === null ? [] : await store.steps(db, run.replayOf)
+      const outcome = await runSegment({ ...segment, ...(replayed && { replayed }), saved: await store.steps(db, runId), save: (steps) => store.save(db, runId, steps) })
       if (outcome.kind === 'superseded') return
       if (outcome.kind === 'ended') return store.update(db, runId, { status: 'succeeded', output: redactor.value(outcome.output) })
       if (outcome.kind === 'failed') return store.update(db, runId, { status: 'failed', error: redactor.text(outcome.error), cause: redactor.text(outcome.cause) })

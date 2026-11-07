@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { heldBackLog } from '@protobase/workflows'
 import { formatDateTime } from '../../../format/date'
 import { formatTag } from '../../../locale/active-locale'
 import { Badge } from '../../../primitives/badge'
@@ -35,10 +36,12 @@ const Logs = ({ logs }: { logs: NonNullable<StepRow['logs']> }) => (
 
 /**
  * One step of a run: its try, item, status, timing and a link to its own page, then its error, input, output, variables
- * and logs, as the run recorded them, secrets blanked out. A step kept from the run it re-runs says so.
+ * and logs, as the run recorded them, secrets blanked out. A step kept from the run it re-runs says so, and so does one
+ * a replay did not send.
  */
 export const StepCard = ({ step, runStartedAt }: { step: StepRow; runStartedAt: string }) => {
   const kept = Date.parse(step.finished_at) < Date.parse(runStartedAt)
+  const heldBack = step.logs?.some((line) => line.message === heldBackLog) ?? false
   const items = scopeItems(step.scope)
   return (
     <article aria-label={text('stepTry', { attempt: step.attempt })} className="grid gap-3 rounded-lg border bg-background p-3">
@@ -51,6 +54,7 @@ export const StepCard = ({ step, runStartedAt }: { step: StepRow; runStartedAt: 
         ))}
         <Badge tone={nodeTones[step.status]}>{nodeStatusLabel(step.status)}</Badge>
         {kept && <Badge tone="violet">{text('kept')}</Badge>}
+        {heldBack && <Badge tone="violet">{text('notSent')}</Badge>}
         <time dateTime={step.started_at} className="text-muted-foreground">{formatDateTime(Date.parse(step.started_at))}</time>
         <span className="tabular-nums text-muted-foreground">{text('duration', { ms: Number(step.duration_ms ?? 0) })}</span>
         <AppLink to={{ kind: 'record', resource: 'workflow_steps', key: String(step.id) }} className="ml-auto font-medium text-primary-text hover:underline">

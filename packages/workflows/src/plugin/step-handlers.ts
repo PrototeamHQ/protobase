@@ -5,6 +5,7 @@ import type { PluginConnection, PluginMail, PluginServices } from './context'
 import { cachePlan } from './cache-plan'
 import { cachedRun, reuse, type CallParts } from './cached-run'
 import type { Plugin, StepType } from './types'
+import { writesFor } from './writes'
 
 const ajv = new Ajv({ allErrors: true, strict: false })
 
@@ -20,7 +21,7 @@ const handler = (id: string, type: StepType, wiring: StepWiring): TaskHandler =>
   const validate = ajv.compile(type.input)
   const prefix = type.errorPrefix ?? 'Step'
   // The runner passes the Arguments as evaluated, `{}` when a Task has none, so an evaluated null is checked as null.
-  return async (input, task) => {
+  const call: TaskHandler = async (input, task) => {
     if (!validate(input)) {
       const problems = (validate.errors ?? []).map((error) => `${error.instancePath.slice(1).replaceAll('/', '.') || 'Arguments'} ${error.message}`)
       throw new StepError(`${prefix}.InvalidArguments`, problems.join('; '))
@@ -37,6 +38,8 @@ const handler = (id: string, type: StepType, wiring: StepWiring): TaskHandler =>
     if (connection && plan.identity.connection) await connection.accessToken()
     return cachedRun(plan, id, parts, task, run)
   }
+  // Arguments that are not an object are no input the type's `writes` can read: they count as writing.
+  return Object.assign(call, { writes: (input: unknown) => (input !== null && typeof input === 'object' && !Array.isArray(input) ? writesFor(type, input as Record<string, unknown>) : true) })
 }
 
 /** The runner's step types from the plugins' steps, each checking its input against its schema before it runs. */

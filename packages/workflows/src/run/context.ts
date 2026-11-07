@@ -12,6 +12,11 @@ export type SegmentContext = {
   tasks: TaskHandlers
   /** Where step types that cache keep their results, and the namer of the secrets in their keys. */
   cache?: { store: StepCacheStore; nameSecrets: SecretNamer }
+  /**
+   * In a replay, the steps of the run it replays by scope and seq: a Task whose type writes gives what that step gave
+   * instead of running, and a Wait does not wait.
+   */
+  replay?: { steps: ReadonlyMap<string, SavedStep> }
   /** The job's signal: aborted when the worker stops, which ends the segment without saving the step in progress. */
   signal: AbortSignal
   now: () => Date

@@ -71,6 +71,12 @@ describe('typeList', () => {
     expect(typeList([cached], () => undefined)[0]!.cache).toEqual({ choice: 'discouraged', disclaimer: 'Results go stale.' })
   })
 
+  it('serves whether a step writes, never its function', () => {
+    const plugin = definePlugin({ name: 'a', label: 'A', steps: { plain: acme.steps.greet, reads: { ...acme.steps.greet, writes: false }, depends: { ...acme.steps.greet, writes: (input) => input.method !== 'GET' } } })
+    expect(typeList([plugin], () => undefined).map((type) => type.writes)).toEqual([true, false, 'by_input'])
+    expect(typeList([acme], () => undefined)[2]!.writes).toBeUndefined()
+  })
+
   it('refuses a step that advises against forcing its cache on without saying why', () => {
     expect(() => definePlugin({ name: 'a', label: 'A', steps: { get: { ...acme.steps.greet, cache: { choice: 'discouraged', disclaimer: ' ', ttl: 60 } } } })).toThrow('give the cache a `disclaimer`')
   })

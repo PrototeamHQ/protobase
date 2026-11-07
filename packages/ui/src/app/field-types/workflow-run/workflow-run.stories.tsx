@@ -47,28 +47,51 @@ const gated: Definition = {
   },
 }
 
+/** Reads today's open tickets, then mails a summary composed from them. */
+const mailSummary: Definition = {
+  trigger: { manual: {} },
+  stateMachine: {
+    QueryLanguage: 'JSONata',
+    StartAt: 'Fetch',
+    States: {
+      Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://tickets.example.com/open' }, Assign: { count: '{% $count($states.result.body.items) %}' }, Next: 'Compose' },
+      Compose: { Type: 'Pass', Assign: { text: '{% $string($count) & " open tickets" %}' }, Next: 'Mail' },
+      Mail: { Type: 'Task', Resource: 'app:mail.send', Arguments: { to: 'team@example.com', subject: 'Open tickets', text: '{% $text %}' }, End: true },
+    },
+  },
+}
+
 const workflow = (id: number, name: string, definition: Definition) => ({ id, name, description: null, definition, version: 1 })
 const version = (id: number, definition: Definition) => ({ workflow_id: id, version: 1, definition, saved_by: 'u-ada', saved_at: '2026-11-04T09:00:00Z' })
 
 // What the stories' steps did, for the checks to read, and the gate the gated step waits on
-const calls = { fetch: 0, store: 0 }
+const calls = { fetch: 0, store: 0, mail: 0 }
 let openGate = () => {}
 
 const Workspace = ({ start, runs = [] }: { start: string; runs?: Record<string, unknown>[] }) => {
   const [api] = useState(() => {
     calls.fetch = 0
     calls.store = 0
+    calls.mail = 0
     const gate = new Promise<void>((resolve) => (openGate = resolve))
     const engine = fakeWorkflowEngine({
       tables: () => api.rows,
       secrets: { TICKETS_TOKEN: token },
       tasks: {
-        'app:http': async (args, { log }) => {
-          const { url, headers } = args as { url: string; headers?: { Authorization: string } }
-          if (url.includes('gate')) await gate
-          calls.fetch++
-          log(`GET ${url} as ${headers?.Authorization ?? 'nobody'}`)
-          return { status: 200, headers: {}, body: { items: [{ title: 'Printer jam' }] } }
+        // A GET reads, as the built-in step says, so a replay sends it again.
+        'app:http': Object.assign(
+          async (args: unknown, { log }: { log: (message: string) => void }) => {
+            const { url, headers } = args as { url: string; headers?: { Authorization: string } }
+            if (url.includes('gate')) await gate
+            calls.fetch++
+            log(`GET ${url} as ${headers?.Authorization ?? 'nobody'}`)
+            return { status: 200, headers: {}, body: { items: [{ title: 'Printer jam' }] } }
+          },
+          { writes: () => false },
+        ),
+        'app:mail.send': async () => {
+          calls.mail++
+          return { message_id: `<m-${calls.mail}@example.com>` }
         },
         'app:records.create': async (args, { log }) => {
           const { resource } = args as { resource: string }
@@ -80,8 +103,8 @@ const Workspace = ({ start, runs = [] }: { start: string; runs?: Record<string, 
       },
     })
     const rows = {
-      workflows: [workflow(1, 'Sync tickets', syncTickets('tikets')), workflow(2, 'Ask and wait', gated)],
-      workflow_versions: [version(1, syncTickets('tikets')), version(2, gated)],
+      workflows: [workflow(1, 'Sync tickets', syncTickets('tikets')), workflow(2, 'Ask and wait', gated), workflow(3, 'Mail the summary', mailSummary)],
+      workflow_versions: [version(1, syncTickets('tikets')), version(2, gated), version(3, mailSummary)],
       workflow_runs: [],
       workflow_steps: [],
     }
@@ -133,7 +156,7 @@ export const FailsFixedAndRerunChecks: StoryObj = {
     // The page opens on the step that failed
     await waitFor(() => expect(panel(canvasElement).getByText('Records.Refused')).toBeVisible())
     expect(panel(canvasElement).getByText(/There is no resource "tikets"/)).toBeVisible()
-    expect(calls).toEqual({ fetch: 1, store: 1 })
+    expect(calls).toEqual({ fetch: 1, store: 1, mail: 0 })
 
     // The first step's output and logs, with the secret blanked out of its input and logs
     await userEvent.click(await nodeOf(canvasElement, 'Fetch'))
@@ -156,7 +179,7 @@ export const FailsFixedAndRerunChecks: StoryObj = {
     await userEvent.click(await canvas.findByRole('link', { name: 'Re-run from the failed step' }))
     await userEvent.click(await canvas.findByRole('button', { name: /^Create/ }))
     await markOf(canvasElement, 'Store', 'Succeeded')
-    expect(calls).toEqual({ fetch: 1, store: 2 })
+    expect(calls).toEqual({ fetch: 1, store: 2, mail: 0 })
     await userEvent.click(await nodeOf(canvasElement, 'Fetch'))
     await waitFor(() => expect(panel(canvasElement).getByText('From the earlier run')).toBeVisible())
   },
@@ -181,5 +204,29 @@ export const TestRunChecks: StoryObj = {
     openGate()
     await markOf(canvasElement, 'Ask', 'Succeeded')
     expect(calls.fetch).toBe(1)
+  },
+}
+
+/** A run that mailed a summary. */
+export const MailedRun: StoryObj = { name: 'A run that sent a mail', render: () => <Workspace start="/workflow_runs/run-1" runs={[{ workflow_id: 3, input: {} }]} /> }
+
+/** The run is replayed from its page: the read runs again and the summary is composed, but the mail is not sent. */
+export const ReplayChecks: StoryObj = {
+  ...MailedRun,
+  name: 'A replay sends no mail (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await markOf(canvasElement, 'Mail', 'Succeeded')
+    expect(calls).toEqual({ fetch: 1, store: 0, mail: 1 })
+    await userEvent.click(await canvas.findByRole('link', { name: 'Replay' }))
+    await userEvent.click(await canvas.findByRole('button', { name: /^Create/ }))
+    await waitFor(() => expect(calls.fetch).toBe(2), { timeout: 10_000 })
+    await markOf(canvasElement, 'Mail', 'Succeeded')
+    expect(calls).toEqual({ fetch: 2, store: 0, mail: 1 })
+    await userEvent.click(await nodeOf(canvasElement, 'Mail'))
+    await waitFor(() => expect(panel(canvasElement).getAllByText('Not sent: replay')).toHaveLength(2))
+    expect(panel(canvasElement).getByText(/"text": "1 open tickets"/)).toBeVisible()
+    expect(panel(canvasElement).getByText(/<m-1@example\.com>/)).toBeVisible()
   },
 }

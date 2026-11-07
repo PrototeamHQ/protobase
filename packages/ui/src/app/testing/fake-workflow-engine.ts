@@ -6,7 +6,8 @@ const ended = new Set(['succeeded', 'failed'])
 
 /**
  * The workflow runner of `@protobase/workflows` over the fake API's rows, for stories: a run created through the fake
- * API is given its workflow's version and, for a re-run, the earlier run's input and the steps a re-run keeps, as the
+ * API is given its workflow's version and, for a re-run, the earlier run's input and the steps a re-run keeps (for a
+ * replay, that run's version and input), as the
  * server's trigger and start hook do; then its segments run on timers, saving steps and changing the run as the server
  * does. A saved workflow whose definition changed gets its next version.
  */
@@ -33,7 +34,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
   const store: RunStore<null> = {
     load: async (_, id) => {
       const run = runOf(id)
-      return { id, definition: definitionOf(run), input: run.input, status: run.status as 'queued', startedAt: new Date(String(run.created_at)) }
+      return { id, definition: definitionOf(run), input: run.input, status: run.status as 'queued', startedAt: new Date(String(run.created_at)), ...(run.replay === true && { replayOf: String(run.rerun_of) }) }
     },
     steps: async (_, id) => table('workflow_steps').filter((row) => row.run_id === id).map(savedOf),
     save: async (_, id, records) => {
@@ -64,12 +65,14 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
   const runner = createRunner({ store, queue: { schedule: async (_, id, at) => void setTimeout(() => segment(id), at ? Math.max(0, at.getTime() - Date.now()) : 50) }, tasks, ...(secrets && { secrets }) })
 
   return {
-    /** Before a run is created: its id, status, version and start, and a re-run's input, as the table's trigger sets them. */
+    /** Before a run is created: its id, status, version and start, and a re-run's or a replay's input, as the table's trigger sets them. */
     beforeWrite: (resource: string, row: Row) => {
       if (resource !== 'workflow_runs' || row.status !== undefined) return
       const workflow = table('workflows').find((candidate) => same(candidate.id, row.workflow_id))!
       const earlier = row.rerun_of == null ? undefined : runOf(String(row.rerun_of))
-      Object.assign(row, { id: `run-${++runs}`, status: 'queued', version: workflow.version, created_at: new Date().toISOString(), started_by: 'u-ada', ...(earlier && { input: earlier.input }) })
+      // A form writes a boolean as text.
+      const replay = row.replay === true || row.replay === 'true'
+      Object.assign(row, { id: `run-${++runs}`, status: 'queued', version: replay ? earlier!.version : workflow.version, replay: replay || null, created_at: new Date().toISOString(), started_by: 'u-ada', ...(earlier && { input: earlier.input }) })
     },
     /** After a write: a changed workflow's next version, and a new run started, a re-run after the steps it keeps. */
     afterWrite: (resource: string, row: Row) => {
@@ -83,7 +86,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
       }
       if (resource !== 'workflow_runs') return
       const id = String(row.id)
-      if (row.rerun_of != null) {
+      if (row.rerun_of != null && row.replay !== true) {
         const earlier = table('workflow_steps').filter((step) => same(step.run_id, row.rerun_of))
         const kept = rerunSteps(definitionOf(row).stateMachine, earlier.map(savedOf))
         if ('problem' in kept) throw new Error(kept.problem)
