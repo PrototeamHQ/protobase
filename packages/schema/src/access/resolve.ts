@@ -120,12 +120,12 @@ const decide = async (rule: AccessFn, ctx: AccessContext) => {
   }
 }
 
-// Whether the caller holds a capability on every row and field, as a resource with `.explicitGrants()` takes it: what
-// an operation without a rule would allow, for a field rule about another resource.
+// Whether the caller holds a capability on every row and field, as a resource with `.explicitGrants()` takes it, for a
+// field rule about another resource. With roles only the caller's grant counts, whatever `defaultAccess` says, since
+// the capability is about records an explicit-grants resource opens only to a grant.
 const holdsFor = (options: ResolveOptions, user: AccessUser) => (capability: string) => {
-  if (options.defaultAccess) return options.defaultAccess === 'allow'
-  if (!options.roles) return true
-  return options.roles.holds?.(user, capability, { explicitGrants: true }) ?? false
+  if (options.roles) return options.roles.holds?.(user, capability, { explicitGrants: true }) ?? false
+  return options.defaultAccess !== 'deny'
 }
 
 const verdict = async (rule: ((ctx: AccessContext) => unknown) | undefined, ctx: AccessContext, fallback: boolean, what: string) => {

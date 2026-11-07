@@ -180,6 +180,8 @@ describe('resolveAccess', () => {
     for (const roles of [['own'], ['wide'], []]) expect(await readable(roles, { roles: held })).toEqual(['id'])
     expect(await readable([], {})).toEqual(['id', 'last_run'])
     expect(await readable([], { defaultAccess: 'deny' })).toEqual(['id'])
+    expect(await readable([], { roles: held, defaultAccess: 'allow' })).toEqual(['id'])
+    expect(await readable(['reader'], { roles: held, defaultAccess: 'deny' })).toEqual(['id', 'last_run'])
   })
 
   it('no readable columns when reading is denied; defaultAccess controls resources without rules', async () => {
