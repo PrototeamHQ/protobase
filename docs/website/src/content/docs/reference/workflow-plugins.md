@@ -92,6 +92,10 @@ A plugin sends through `context.fetch`, never through the global `fetch`, Node's
 
 ### Caching results
 
+:::caution[Beta]
+<gap>A run cannot be replayed with its outside writes not sent and its reads served from the cache because replaying a run is not implemented.</gap>
+:::
+
 A step type can reuse the result of an identical earlier call, from any run of any workflow, so a slow or costly lookup with a small result runs once. Caching is for such steps: a quick read, such as a local file, runs faster than a lookup in the cache, and only fills the app's database. A type without `cache` costs nothing: the engine looks up, keeps and tracks nothing for it.
 
 ```ts
@@ -113,11 +117,11 @@ lookup: {
 | `key` | What a call's key covers. `reads` (default): only the input values `run` read, everything it serialised, listed or handed to `fetch` counting as read. `input`: the whole input. A function of the input: its value, as JSON; one that throws or gives nothing leaves the call uncached. Under `reads`, a value read only after `run` returned is not in the key, so a type that reads its input in a callback later uses `input`. |
 | `actsAs` | `records`, as the person who saved the version, and `mailbox`, as the person who turned it on: the services a cached call may act through, each adding that person to the key. |
 
-Two calls share a result only when their keys match and they act as the same people: the run's tenant always; the saver and the enabler where `actsAs` lists them; and the account the version binds to the type's connection, with the person who turned it on. The app reads these from the run, never from the step. A call that used `records` or `mailbox` without listing them, or touched the run's files, which are the run's alone, runs as always and is not kept. Only a call that succeeded is kept, at most 256 KiB of it as the run records it, so secrets are blanked out. Each type keeps at most 1,000 results per tenant, and the ones that expire soonest go first. A cache that cannot be read within two seconds or written leaves the step to run without it.
+Two calls share a result only when their keys match and they act as the same people: the run's tenant always; the saver and the enabler where `actsAs` lists them; and the account the version binds to the type's connection, with the person who turned it on. The app reads these from the run, never from the step. A call that used `records` or `mailbox` without listing them, or touched the run's files, which are the run's alone, runs as always and is not kept. Only a call that succeeded with a result is kept, at most 256 KiB of it as the run records it, so secrets are blanked out. Each type keeps at most 1,000 results per tenant, and the ones that expire soonest go first. A cache that cannot be read within two seconds or written leaves the step to run without it.
 
-A workflow forces the cache on with `Cache: true` on its Task, even for a type without `cache` or with a hidden one: such a type keys on its whole input and on every person a step can act as, and keeps a result for an hour. A Task with `Cache: false` never uses it.
+A workflow forces the cache on with `Cache: true` on its Task, even for a type without `cache` or with a hidden one. A type without `cache` then keys on its whole input and on every person a step can act as, and keeps a result for an hour; a type with `cache` keeps its own `ttl`, `key`, `use` and `actsAs`. A Task with `Cache: false` never uses it.
 
-Secrets are never kept. A step always gets a secret's current value, and a key holds the secret's name where the input held its value, so changing a secret and running again calls the step with the new value whenever the old result no longer matches. A hit whose input named a secret that has changed since says so in the step's logs, and in `secrets_changed`, by a fingerprint of the value under the app's secret, `PROTOBASE_SECRET`. Without one, the app cannot tell. A cached step that decides on access, such as whether someone may do something, keeps its answer until its result expires. The results are kept in the workflows schema's `step_cache`. <gap>A run cannot be replayed with its outside writes not sent and its reads served from the cache because replaying a run is not implemented.</gap>
+Secrets are never kept. A step always gets a secret's current value, and a key holds the secret's name where the input held its value, so changing a secret and running again calls the step with the new value whenever the old result no longer matches. A hit whose input named a secret that has changed since says so in the step's logs, and in `secrets_changed`, by a fingerprint of the value under the app's secret, `PROTOBASE_SECRET`. Without one, the app cannot tell. A cached step that decides on access, such as whether someone may do something, keeps its answer until its result expires. The results are kept in the workflows schema's `step_cache`.
 
 ## Trigger types
 

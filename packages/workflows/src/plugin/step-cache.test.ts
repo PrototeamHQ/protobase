@@ -92,6 +92,14 @@ describe('a step type that returns hits', () => {
     expect(memory.calls.write).toBe(0)
   })
 
+  it('keeps no call that returned nothing, so a later call returns nothing too', async () => {
+    const { call, memory, seen } = setup(returning, () => undefined)
+    await call({ url: 'a' })
+    expect((await call({ url: 'a' })).output).toBeUndefined()
+    expect(seen).toHaveLength(2)
+    expect(memory.calls.write).toBe(0)
+  })
+
   it('keeps no result of a call that acted as someone its key does not hold', async () => {
     const { call, memory } = setup(returning, async ({ records }) => records.get('orders', 1))
     expect((await call({ url: 'a' })).logs).toContain('The result was not cached: the step used records')
@@ -183,6 +191,15 @@ describe('the cache settings', () => {
     expect(memory.calls.write).toBe(1)
   })
 
+  it('a hidden cache forced on keeps its own time to live and key', async () => {
+    const { call, seen, clock } = setup({ choice: 'hidden', ttl: 60, key: (input) => input.url })
+    const first = await call({ url: 'a', other: 1 }, { setting: true })
+    expect((await call({ url: 'a', other: 2 }, { setting: true })).output).toEqual(first.output)
+    clock.at = new Date(clock.at.getTime() + 61_000)
+    expect((await call({ url: 'a', other: 1 }, { setting: true })).output).not.toEqual(first.output)
+    expect(seen).toHaveLength(2)
+  })
+
   it('a time to live that is missing, zero, negative or unreadable keeps nothing', async () => {
     for (const ttl of [0, -1, Number.NaN, 'later', undefined]) {
       const { call, memory } = setup({ choice: 'hidden', ttl: ttl as number })
@@ -199,6 +216,14 @@ describe('the cache settings', () => {
       expect(seen).toHaveLength(2)
       expect(memory.calls.lookup + memory.calls.write).toBe(0)
     }
+  })
+
+  it('a custom key is its value as JSON, so a date keys on its time', async () => {
+    const { call, seen } = setup({ choice: 'hidden', ttl: 60, key: (input) => new Date(String(input.when)) })
+    const first = await call({ when: '2026-01-01' })
+    expect((await call({ when: '2026-01-02' })).output).not.toEqual(first.output)
+    expect((await call({ when: '2026-01-01' })).output).toEqual(first.output)
+    expect(seen).toHaveLength(2)
   })
 
   it('a custom key shares one result between inputs it gives the same value', async () => {
