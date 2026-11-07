@@ -21,7 +21,7 @@ export type StartWorkflowOptions = {
   key?: string
   /** The schema of `workflows`, when the config names another. Default `workflows`. */
   schema?: string
-  /** The version to run, as a trigger runs the enabled one; default the workflow's current version. */
+  /** The version to run; default the published one, or on a workflow that is off the one saved last. */
   version?: number
   /** The run's id, when the caller kept something under it first, such as a webhook's large body; default a new one. */
   id?: string

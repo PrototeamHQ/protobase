@@ -1,7 +1,6 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import type { Definition } from '@protobase/workflows'
-import { badRequest } from '../../problem'
 import type { Row } from '../../types'
 import type { TriggerJobs } from './trigger-jobs'
 
@@ -21,12 +20,11 @@ const triggerOf = (definition: unknown, connectionOf: Readonly<Record<string, st
  * The row keeps the account the trigger's connection binds (`connectionOf` names each type's connection), so an
  * expired sign-in stops every trigger on it, and connecting it again resumes them; and who turned it on (`enabledBy`,
  * which the save's consent decided), through whose account its stop job ends its subscription once it stops. A stopped
- * row keeps both. Only the current version can be turned on.
+ * row keeps both. `definition` is the enabled version's, any saved one; none when the workflow is off.
  */
-export const syncTrigger = async (trx: Db, schema: string, jobs: Pick<TriggerJobs, 'start' | 'stop'>, workflow: Row, enabledBy: string | null, connectionOf: Readonly<Record<string, string>> = {}) => {
+export const syncTrigger = async (trx: Db, schema: string, jobs: Pick<TriggerJobs, 'start' | 'stop'>, workflow: Row, definition: Definition | undefined, enabledBy: string | null, connectionOf: Readonly<Record<string, string>> = {}) => {
   const enabled = workflow.enabled_version as number | null
-  if (enabled !== null && enabled !== workflow.version) throw badRequest('invalid-workflow', `Only the current version can be enabled: set enabled_version to ${String(workflow.version)}, or clear it to turn the workflow off`)
-  const wanted = enabled === null ? undefined : triggerOf(workflow.definition, connectionOf)
+  const wanted = definition === undefined ? undefined : triggerOf(definition, connectionOf)
   const triggers = sql.id(schema, 'triggers')
   const id = String(workflow.id)
   const { rows } = await sql<{ id: string; generation: number; version: number; same: boolean }>`select id, generation, version, (type = ${wanted?.type ?? null} and input = ${JSON.stringify(wanted?.input ?? null)}::jsonb and connection_id is not distinct from ${wanted?.connection ?? null}::text) as same

@@ -27,6 +27,8 @@ const workflowsResource = (schema: string) =>
     })
     .primaryKey((r) => r.id)
     .tenant((r) => r.tenant_id)
+    // `version` counts definitions: a publish or a new name is a change of the record all the same
+    .etagFrom((r) => r.updated_at)
     .search((r) => [r.name])
     .explicitGrants()
 
@@ -34,9 +36,9 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .names({ singular: 'Workflow', plural: 'Workflows' })
   .icon('workflow')
   .title((r) => r.name)
-  .help('Steps that run one after another along their edges, written in the States Language with JSONata expressions. Each save that changes its definition is a new version; a run keeps the version it started on.')
+  .help('Steps that run one after another along their edges, written in the States Language with JSONata expressions. Each save that changes its definition is a new version, which goes live only once it is published; a run keeps the version it started on.')
   .fields((r) => ({
-    enabled_version: r.enabled_version.label('Enabled version').help('The version whose trigger starts runs; set it to the current version to turn the trigger on, and clear it to turn it off. A save keeps an enabled workflow enabled on its new version.'),
+    enabled_version: r.enabled_version.label('Published version').help('The saved version that is live: its trigger starts runs, and so does a start that names no version. Set it to any saved version to publish that version, and clear it to turn the workflow off. A save never changes it.'),
     definition: r.definition
       .help('Its trigger and its steps, drawn as a graph that lays itself out. Every value is read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned')
       .widget('workflow'),
@@ -79,14 +81,14 @@ const versionsView = view<ReturnType<typeof versionsResource>>('workflow_version
   .fields((r) => ({ saved_by: r.saved_by.label('Saved by'), saved_at: r.saved_at.label('Saved') }))
   .list((r) => ({ columns: [r.workflow_id, r.version, r.saved_by, r.saved_at], sort: [[r.version, 'desc']] }))
 
-/** A run of a workflow, started by creating it with its input: it runs the version its workflow has then. */
+/** A run of a workflow, started by creating it with its input: it runs the version it names, else the published one, or on a workflow that is off the one saved last. */
 const runsResource = (schema: string) =>
   resource('workflow_runs')
     .table(`${schema}.runs`)
     .fields({
       id: f.uuid().readOnly().dbDefault(),
       workflow_id: f.relation('workflows').filterable(),
-      version: f.integer().optional().readOnly(),
+      version: f.integer().optional(),
       input: f.json().optional(),
       key: f.text().optional().max(200),
       status: f.enum(runStatuses).readOnly().dbDefault().filterable(),

@@ -85,7 +85,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
   const invoice = async (user: string, data: Record<string, unknown>) => (await as(user, '/invoices', 'POST', data)).body.id as number
   const runsOf = async (workflow: string) =>
     (await sql<{ key: string; input: { record: { id: number } }; status: string }>`select key, input, status from workflows.runs where workflow_id = ${workflow} order by created_at`.execute(db)).rows
-  const triggersOf = async (workflow: string) => (await sql<{ id: string; status: string }>`select id, status from workflows.triggers where workflow_id = ${workflow}`.execute(db)).rows
+  const triggersOf = async (workflow: string) => (await sql<{ id: string; status: string; version: number }>`select id, status, version from workflows.triggers where workflow_id = ${workflow}`.execute(db)).rows
   const machine = { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Succeed', Output: '{% $states.context.Execution.Input.record.id %}' } } }
   const save = async (user: string, trigger: unknown) => (await as(user, '/workflows', 'POST', { name: 'Remind', definition: { trigger, stateMachine: machine } })).body
   const enable = (user: string, id: string, version: number | null) => as(user, `/workflows/${id}`, 'PATCH', { enabled_version: version })
@@ -128,8 +128,11 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
     await enable('ada', workflow.id, 1)
     const [first] = await triggersOf(workflow.id)
     await as('ada', `/workflows/${workflow.id}`, 'PATCH', { description: 'the same trigger', definition: { trigger: { 'app:record': { resource: 'invoices', when: "status = 'paid'" } }, stateMachine: { ...machine, Comment: 'v2' } } })
+    // A save leaves what is published alone; publishing moves the trigger along
     expect(await triggersOf(workflow.id)).toEqual([first])
-    expect((await as('ada', `/workflows/${workflow.id}`)).body.enabled_version).toBe(2)
+    expect((await as('ada', `/workflows/${workflow.id}`)).body.enabled_version).toBe(1)
+    await enable('ada', workflow.id, 2)
+    expect(await triggersOf(workflow.id)).toEqual([{ ...first, version: 2 }])
     await enable('ada', workflow.id, null)
     expect(await until(() => triggersOf(workflow.id), (rows) => rows.length === 0)).toEqual([])
     await invoice('ada', { status: 'paid', due_at: ago(day) })
@@ -152,7 +155,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
     await enable('ada', workflow.id, null)
   })
 
-  it('refuses a when with now() inside an OR, or on a field not indexed for filtering, and turning on an old version', async () => {
+  it('refuses a when with now() inside an OR, or on a field not indexed for filtering, and turning on a version never saved', async () => {
     const or = await as('ada', '/workflows', 'POST', { name: 'Bad', definition: { trigger: { 'app:record': { resource: 'invoices', when: "status = 'sent' OR due_at <= now()" } }, stateMachine: machine } })
     expect(or.status).toBe(400)
     expect(JSON.stringify(or.body.problems)).toContain('uses now() other than as')
@@ -160,7 +163,11 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
     expect(unindexed.status).toBe(400)
     const workflow = await save('ada', { 'app:record': { resource: 'invoices' } })
     await as('ada', `/workflows/${workflow.id}`, 'PATCH', { definition: { trigger: { 'app:record': { resource: 'invoices', when: "status = 'paid'" } }, stateMachine: machine } })
-    expect((await enable('ada', workflow.id, 1)).status).toBe(400)
+    expect((await enable('ada', workflow.id, 3)).status).toBe(400)
+    // A version saved before the latest publishes as any other, as going back to it does
+    expect((await enable('ada', workflow.id, 1)).status).toBe(200)
+    expect((await triggersOf(workflow.id)).map((row) => row.version)).toEqual([1])
+    await enable('ada', workflow.id, null)
   })
 
   it("runs a plugin's own trigger and step from a package of its own, as it runs the built-in ones", async () => {
