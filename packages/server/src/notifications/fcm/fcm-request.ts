@@ -1,7 +1,7 @@
 import type { Device } from '../device'
 import { isJsonObject, mergeJson, type JsonObject, type JsonValue } from '../json-value'
 import { PushMessageError, type PushMessage } from '../message'
-import { tapUrl } from '../tap-url'
+import { tapUrl } from '@protobase/schema/internal'
 import { checkFcmFields } from './platform-fields'
 
 // Data keys FCM keeps for itself and refuses in a message.
