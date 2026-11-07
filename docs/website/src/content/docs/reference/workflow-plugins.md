@@ -7,7 +7,7 @@ description: Add trigger and step types to workflows from a file of the app or a
 Plugins add step types and record triggers. They also add polling and webhook triggers, which run within the limits named in their section, and connections that sign in to other services as an account a person connected, within the limits named under [Connections](#connections).
 :::
 
-A **workflow plugin** adds trigger and step types to an app's [workflows](/reference/workflows/). Its types are named `<plugin>:<key>`, such as `acme:create_invoice`: a Task names a step type as its `Resource`, and a definition's `trigger` holds a trigger type with its input. The built-in types, `app:http`, `app:records.*`, `app:mail.send` and `app:record`, are a plugin like any other, written on this interface alone, so a plugin's types run, are checked and are listed exactly as they are.
+A **workflow plugin** adds trigger and step types to an app's [workflows](/reference/workflows/). Its types are named `<plugin>:<key>`, such as `acme:create_invoice`: a Task names a step type as its `Resource`, and a definition's `trigger` holds a trigger type with its input. The built-in types, `app:http`, `app:records.*`, `app:mail.send` and `app:record`, are a plugin like any other, written on this interface alone, so a plugin's types run, are checked and are listed exactly as they are. So is every [default plugin](#default-plugins), such as [incoming Gmail mail](#incoming-gmail-mail).
 
 ## Writing a plugin
 
@@ -45,6 +45,8 @@ export default definePlugin({
 })
 ```
 
+For a whole plugin to read, with a connection, a polling cursor, a refused token and bounded run input, see the Gmail plugin's source, `packages/workflow-plugins/src/gmail/` in the repository, which [the next section](#incoming-gmail-mail) describes.
+
 `definePlugin` checks the plugin's names: its `name` is lowercase letters, digits and `_`, each type's key is lowercase words joined by `_` or `.`, and a type that names a connection must find it among the plugin's `connections`.
 
 ### Installing it
@@ -52,7 +54,7 @@ export default definePlugin({
 - **The app's own:** the default export of `workflows/plugins/<name>.ts`, found by its path as jobs are. An [extension](/reference/config/#extensions) adds its own from its folder.
 - **From a package:** listed by name in [`workflows.plugins`](/reference/config/jobs-and-events/#workflowsplugins), its default export the plugin. The package is a dependency of the app.
 
-Two plugins of one name stop startup, naming both. A plugin is server code that runs with the app's rights, like the app's own code: load only plugins you trust. The interface's version is `pluginApi`, `1`; releases add optional keys to it and never break it.
+Two plugins of one name stop startup, naming both. The exception is an app's own plugin named like a [default plugin](#default-plugins) other than `app`, which takes that default's place, such as one that pins its own version. A plugin is server code that runs with the app's rights, like the app's own code: load only plugins you trust. The interface's version is `pluginApi`, `1`; releases add optional keys to it and never break it.
 
 ## Step types
 
@@ -90,6 +92,10 @@ A plugin sends through `context.fetch`, never through the global `fetch`, Node's
 
 ### Caching results
 
+:::caution[Beta]
+<gap>A run cannot be replayed with its outside writes not sent and its reads served from the cache because replaying a run is not implemented.</gap>
+:::
+
 A step type can reuse the result of an identical earlier call, from any run of any workflow, so a slow or costly lookup with a small result runs once. Caching is for such steps: a quick read, such as a local file, runs faster than a lookup in the cache, and only fills the app's database. A type without `cache` costs nothing: the engine looks up, keeps and tracks nothing for it.
 
 ```ts
@@ -111,11 +117,11 @@ lookup: {
 | `key` | What a call's key covers. `reads` (default): only the input values `run` read, everything it serialised, listed or handed to `fetch` counting as read. `input`: the whole input. A function of the input: its value, as JSON; one that throws or gives nothing leaves the call uncached. Under `reads`, a value read only after `run` returned is not in the key, so a type that reads its input in a callback later uses `input`. |
 | `actsAs` | `records`, as the person who saved the version, and `mailbox`, as the person who turned it on: the services a cached call may act through, each adding that person to the key. |
 
-Two calls share a result only when their keys match and they act as the same people: the run's tenant always; the saver and the enabler where `actsAs` lists them; and the account the version binds to the type's connection, with the person who turned it on. The app reads these from the run, never from the step. A cached call of a type with a connection checks the connection before it looks up the cache, as its `accessToken()` does, so once the run may no longer use the account, the call fails `not_connected` rather than return an earlier result. A call that used `records` or `mailbox` without listing them, or touched the run's files, which are the run's alone, runs as always and is not kept. Only a call that succeeded is kept, at most 256 KiB of it as the run records it, so secrets are blanked out. Each type keeps at most 1,000 results per tenant, and the ones that expire soonest go first. A cache that cannot be read within two seconds or written leaves the step to run without it.
+Two calls share a result only when their keys match and they act as the same people: the run's tenant always; the saver and the enabler where `actsAs` lists them; and the account the version binds to the type's connection, with the person who turned it on. The app reads these from the run, never from the step. A cached call of a type with a connection checks the connection before it looks up the cache, as its `accessToken()` does, so once the run may no longer use the account, the call fails `not_connected` rather than return an earlier result. A call that used `records` or `mailbox` without listing them, or touched the run's files, which are the run's alone, runs as always and is not kept. Only a call that succeeded with a result is kept, at most 256 KiB of it as the run records it, so secrets are blanked out. Each type keeps at most 1,000 results per tenant, and the ones that expire soonest go first. A cache that cannot be read within two seconds or written leaves the step to run without it.
 
-A workflow forces the cache on with `Cache: true` on its Task, even for a type without `cache` or with a hidden one: such a type keys on its whole input and on every person a step can act as, and keeps a result for an hour. A Task with `Cache: false` never uses it.
+A workflow forces the cache on with `Cache: true` on its Task, even for a type without `cache` or with a hidden one. A type without `cache` then keys on its whole input and on every person a step can act as, and keeps a result for an hour; a type with `cache` keeps its own `ttl`, `key`, `use` and `actsAs`. A Task with `Cache: false` never uses it.
 
-Secrets are never kept. A step always gets a secret's current value, and a key holds the secret's name where the input held its value, so changing a secret and running again calls the step with the new value whenever the old result no longer matches. A hit whose input named a secret that has changed since says so in the step's logs, and in `secrets_changed`, by a fingerprint of the value under the app's secret, `PROTOBASE_SECRET`. Without one, the app cannot tell. A cached step that decides on access, such as whether someone may do something, keeps its answer until its result expires. The results are kept in the workflows schema's `step_cache`. <gap>A run cannot be replayed with its outside writes not sent and its reads served from the cache because replaying a run is not implemented.</gap>
+Secrets are never kept. A step always gets a secret's current value, and a key holds the secret's name where the input held its value, so changing a secret and running again calls the step with the new value whenever the old result no longer matches. A hit whose input named a secret that has changed since says so in the step's logs, and in `secrets_changed`, by a fingerprint of the value under the app's secret, `PROTOBASE_SECRET`. Without one, the app cannot tell. A cached step that decides on access, such as whether someone may do something, keeps its answer until its result expires. The results are kept in the workflows schema's `step_cache`.
 
 ## Trigger types
 
@@ -229,6 +235,57 @@ A step or a trigger hook gets the connection its type declares as `connection`, 
 The token is blanked out of the step's logs, error and output, and out of the trigger's error, before they are kept. A plugin never puts it in its input or output.
 
 An account connected through a provider of a connection's own never signs anyone in to the app, and never signs anyone up. <gap>A connection cannot be shared between people of an organization because shared connections are not implemented; each account is its owner's alone.</gap>
+
+## Default plugins
+
+Every app has these plugins besides `app`. A type that signs in is offered once the app can make its connection, as [Connections](#connections) says.
+
+### Incoming Gmail mail
+
+:::caution[Beta]
+The Gmail plugin is tested against a stand-in of Gmail's API written to Google's published reference, but has not yet been checked against a real Google account. Mail starts its run within about a minute of arriving, not at once.
+:::
+
+`gmail:new_mail` starts one run for each new mail on a label of a connected Gmail mailbox. It reads the mailbox with read-only access, so a workflow it starts cannot send, change or delete mail through it.
+
+To use it, turn on Google sign-in (`auth.socialProviders.google`) with `auth.encryptOAuthTokens`, and add the scope `https://www.googleapis.com/auth/gmail.readonly` to the app's Google consent screen (Data Access), as [Send mail from Gmail](/guides/send-from-gmail/) does for its own scope. `gmail.readonly` is a restricted scope: until Google has verified the app, the consent screen warns that the app is unverified, and at most 100 people can connect. The person whose mailbox it is connects their Google account under **Connections** on the account page, binds that account in the workflow and turns the workflow on:
+
+```json
+{ "trigger": { "gmail:new_mail": { "label": "INBOX", "from": "@supplier.example", "subject": "invoice" } }, "connections": { "gmail:google": "<account id>" }, "stateMachine": { ... } }
+```
+
+| Input | What it does |
+| --- | --- |
+| `label` | The label to watch, by name or id. Default `INBOX`. A label the mailbox does not have fails the trigger, naming it. |
+| `from` | Only mail whose sender's name or address contains this. |
+| `to` | Only mail with a To or Cc recipient whose name or address contains this. |
+| `subject` | Only mail whose subject contains this. |
+
+Each filter ignores case, and a mail must pass every filter that is set. A mail without the value a filter reads, such as one with no sender, does not pass.
+
+A run's input is the mail:
+
+```json
+{
+  "message_id": "18c2f0a9d3e4b5a6",
+  "thread_id": "18c2f0a9d3e4b5a6",
+  "from": { "name": "Ada", "address": "ada@example.com" },
+  "to": [{ "name": "Grace", "address": "grace@example.com" }],
+  "cc": [],
+  "subject": "Invoice 7",
+  "date": "2026-11-05T10:00:00.000Z",
+  "text": "Attached.",
+  "html": "<p>Attached.</p>",
+  "attachments": [{ "filename": "invoice-7.pdf", "content_type": "application/pdf", "size": 48213 }],
+  "truncated": false
+}
+```
+
+- **The values** are as the mail states them, and `null` where it states none. `html` is the sender's own markup: treat it as untrusted wherever a workflow passes it on. Attachments come as their names, types and sizes, not their content.
+- **Bounds:** each value has a fixed most length, such as 1,000 characters for the subject and 128 Ki characters for `text` and for `html`, and at most 50 recipients of each kind and 50 attachments. When the mail is still too large, `html` and then `text` are left out. A mail over about 7.5 MiB, whose answer from Gmail, in base64, is then over 10 MiB, or one too deeply nested to read, gives its headers alone, with `text`, `html` and `attachments` as `null`. A NUL character, or half of a character's surrogate pair, is left out, since the database cannot store it. `truncated` is `true` whenever something was cut short or left out.
+- **When it starts:** from the moment the workflow is turned on. Mail already in the mailbox starts no run.
+- **Polling:** every minute, the trigger reads the mailbox's history after where it stood, at most 90 mails a poll and the rest on the next poll, so each mail starts one run and none is skipped. Every mail it reads counts toward the 90, whether or not it passes the filters. Two triggers on one mailbox share Google's quota for that mailbox. When Google no longer keeps the history after the trigger's place, which can happen after a long time off, the trigger lists the label's mail since its last full read instead, 90 a poll, and then goes on from the history. <gap>A new Gmail mail cannot start its run at once because push notices from the mailbox are not implemented; the trigger polls every minute.</gap>
+- **Sign-in:** the token is refreshed when it expires. When Google refuses the refresh, or refuses the token twice in a row, the trigger waits for the account's owner to connect it again, as [Polling and webhook](#polling-and-webhook) describes.
 
 ## The type list
 

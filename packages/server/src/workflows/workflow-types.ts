@@ -1,8 +1,8 @@
-import { appPlugin } from '@protobase/workflow-plugins'
 import type { JsonSchema, Plugin, PollingTrigger, ReadyTrigger, TriggerType, WebhookTrigger } from '@protobase/workflows/plugin'
 import { connectionUnavailable, loadPlugins, stepHandlers, triggerChecks, typeList, type CheckOptions, type ConnectionSupport, type LoadedPlugin, type StepWiring, type TaskHandlers, type TriggerCheck } from '@protobase/workflows'
 import type { ResourceModel } from '@protobase/schema'
 import type { Mailer } from '../mail/mail-message'
+import { workflowPlugins } from './default-plugins'
 import { pluginServices, type ServicesInput } from './plugin-services'
 import { readyProblems } from './ready/ready-check'
 
@@ -19,13 +19,13 @@ export const readyTriggers = (plugins: readonly Plugin[]) => triggersOfKind<Read
 type Models = (name: string) => ResourceModel | undefined
 
 /**
- * The trigger and step types of an app: the built-in plugin, `app`, then the app's own, all through the same loader and
+ * The trigger and step types of an app: the default plugins, then the app's own, all through the same loader and
  * interface. `types` is the list the MCP tools and the editor read; `check` is what a save checks a definition against,
  * the available types only, and `checkWith` the same check against other resources, such as those a caller may read.
  * A type that signs in is available once the app can make its connection, as `support` says.
  */
 export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Models = () => undefined, support?: ConnectionSupport) => {
-  const plugins = loadPlugins([{ plugin: appPlugin, source: '@protobase/workflow-plugins' }, ...loaded])
+  const plugins = loadPlugins(workflowPlugins(loaded))
   const types = typeList(plugins, connectionUnavailable(support))
   // The connection `<plugin>:<connection>` of each type that signs in, by the type's id.
   const connections = Object.fromEntries(types.flatMap((type) => (type.connection ? [[type.id, `${type.plugin}:${type.connection.name}`]] : [])))
