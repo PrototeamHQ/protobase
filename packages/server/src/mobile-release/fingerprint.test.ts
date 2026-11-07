@@ -22,4 +22,9 @@ describe('nativeFingerprint', () => {
   it("changes with @protobase/mobile's native contract", () => {
     expect(nativeFingerprint({ ...pinned, '@protobase/mobile': 'native-7' })).not.toBe(nativeFingerprint({ ...pinned, '@protobase/mobile': 'native-6' }))
   })
+
+  it('changes when native push is on, and only then', () => {
+    expect(nativeFingerprint(pinned, {}, { push: true })).not.toBe(nativeFingerprint(pinned))
+    expect(nativeFingerprint(pinned, {}, { push: false })).toBe(nativeFingerprint(pinned))
+  })
 })

@@ -18,21 +18,29 @@ export const releaseOrigin = (issuer: string | undefined) => {
   return undefined
 }
 
-export type ServedReleaseInput = { site?: ServedSite; mobile?: MobileConfig; issuer?: string; signingKey?: KeyObject; serverVersion: string }
+export type ServedReleaseInput = {
+  site?: ServedSite
+  mobile?: MobileConfig
+  issuer?: string
+  signingKey?: KeyObject
+  serverVersion: string
+  /** Whether the app has `notifications()`, with which its binaries compile native push in. */
+  push?: boolean
+}
 
 /**
  * The release of the app's files a server offers its mobile app: every file the site serves, its SPA page naming the
- * API origin as the app's own files do, for binaries of the fingerprint of the site's native packages and the project's
- * plugins. Signed, its statement binds it to its order, the app id, that fingerprint and the server's Protobase version.
+ * API origin as the app's own files do, for binaries of the fingerprint of the site's native packages, the project's
+ * plugins and whether it has native push. Signed, its statement binds it to its order, the app id, that fingerprint and the server's Protobase version.
  * None without a mobile section, without the site's files (the API alone, whose files a host serves), a site that
  * names no native packages (a bundle built before them), an API origin an app calls, or, signed, an order.
  */
-export const servedRelease = async ({ site, mobile, issuer, signingKey, serverVersion }: ServedReleaseInput): Promise<OfferedRelease | undefined> => {
+export const servedRelease = async ({ site, mobile, issuer, signingKey, serverVersion, push = false }: ServedReleaseInput): Promise<OfferedRelease | undefined> => {
   const origin = releaseOrigin(issuer)
   if (!mobile || !site?.native || !origin) return undefined
   const order = releaseOrder(site)
   if (signingKey && !order) return undefined
-  const fingerprint = nativeFingerprint(site.native, mobile.plugins)
+  const fingerprint = nativeFingerprint(site.native, mobile.plugins, { push })
   const files = await Promise.all(
     (await siteFiles(site)).map(async ({ href, file }) => ({
       href,

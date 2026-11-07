@@ -38,6 +38,12 @@ describe('servedRelease', () => {
     expect(new TextDecoder().decode(release?.files.get('index.html')?.content)).toContain('content="https://shop.example.com"')
   })
 
+  it('runs on binaries with native push when the app has notifications()', async () => {
+    const release = await servedRelease({ site: site(), mobile, issuer: 'https://shop.example.com', serverVersion, push: true })
+    expect(release?.fingerprint).toBe(nativeFingerprint(native, mobile.plugins, { push: true }))
+    expect(release?.fingerprint).not.toBe(nativeFingerprint(native, mobile.plugins))
+  })
+
   it('is none without a mobile section, a site naming its native packages or an origin an app calls', async () => {
     expect(await servedRelease({ site: site(), issuer: 'https://shop.example.com', serverVersion })).toBeUndefined()
     expect(await servedRelease({ mobile, issuer: 'https://shop.example.com', serverVersion })).toBeUndefined()
