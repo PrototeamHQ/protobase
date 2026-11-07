@@ -1,0 +1,80 @@
+{
+  "stand_in": false,
+  "recorded_at": "2026-11-07T17:51:25.146Z",
+  "request": {
+    "method": "POST",
+    "url": "https://fcm.googleapis.com/v1/projects/recording-no-access/messages:send",
+    "headers": {
+      "authorization": "Bearer snapshot-access_token-1"
+    },
+    "body": {
+      "message": {
+        "notification": {
+          "title": "Task assigned",
+          "body": "Review the plan"
+        },
+        "data": {
+          "task": "1",
+          "kind": "assigned",
+          "url": "https://app.example.com/tasks/1",
+          "user": "user-1"
+        },
+        "android": {
+          "ttl": "600s",
+          "priority": "HIGH",
+          "collapse_key": "task-1",
+          "notification": {
+            "tag": "task-1",
+            "sound": "default",
+            "notification_count": 3,
+            "channel_id": "tasks",
+            "color": "#3366ff"
+          }
+        },
+        "fcm_options": {
+          "analytics_label": "tasks"
+        },
+        "token": "cRecordingToken0:APA91bRecording0Recording0Recording0Recording0Recording0Recording0Recording0Recording0Recording0Recording0Recording0Recording0Recording0Recording0"
+      }
+    }
+  },
+  "response": {
+    "status": 403,
+    "headers": {
+      "content-type": "application/json; charset=UTF-8"
+    },
+    "body": {
+      "error": {
+        "code": 403,
+        "message": "Permission denied on resource project recording-no-access.",
+        "status": "PERMISSION_DENIED",
+        "details": [
+          {
+            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+            "reason": "CONSUMER_INVALID",
+            "domain": "googleapis.com",
+            "metadata": {
+              "service": "fcm.googleapis.com",
+              "containerInfo": "recording-no-access",
+              "consumer": "projects/recording-no-access"
+            }
+          },
+          {
+            "@type": "type.googleapis.com/google.rpc.LocalizedMessage",
+            "locale": "en-US",
+            "message": "Permission denied on resource project recording-no-access."
+          },
+          {
+            "@type": "type.googleapis.com/google.rpc.Help",
+            "links": [
+              {
+                "description": "Google developers console",
+                "url": "https://console.developers.google.com"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
