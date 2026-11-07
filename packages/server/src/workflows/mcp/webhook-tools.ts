@@ -7,7 +7,7 @@ import { refused } from '../../assistant/record-tool-args'
 import { defineTool } from '../../assistant/tools'
 import { recordName, updateApproval } from '../../assistant/write-prompts'
 import { notApproved, onlyNote, outside, type WriteRecordToolsInput } from '../../assistant/write-tool-limits'
-import { HttpProblem, notFound, preconditionFailed } from '../../problem'
+import { HttpProblem, notFound } from '../../problem'
 import type { Session } from '../../types'
 import { idOf, idParameter, textOf } from './workflow-tool-args'
 
@@ -25,17 +25,17 @@ const enableRefused = (error: unknown) => {
   return refused(error)
 }
 
-/** Turns a workflow's trigger on, on its current version, or off, once the user approves it. */
+/** Publishes a saved version of a workflow, which puts its trigger on it, or turns the workflow off, once the user approves it. */
 export const enableWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'enable_workflow',
-    description: `Turns a workflow's trigger on (enabled: true) on version, which must be its current version as create_workflow, update_workflow or get_workflow gave it, or off (enabled: false), and returns JSON { id, enabled_version }. A workflow saved since that version is refused; read it again. While on, its trigger starts runs: a webhook trigger whose sender you give a URL once it is issued with new_webhook_url, one that registers its own URL with its service as soon as it did, a polling trigger at its next poll. A later save keeps it on, on the new version. A workflow that signs in through a connected account (its connections) is turned on only by that account's owner in the admin app: here it is refused with error own-sign-in-only. The user approves it in their client first.${onlyNote(input)}`,
+    description: `Publishes a saved version of a workflow (enabled: true), any version create_workflow, update_workflow or get_workflow gave, which puts its trigger on that version, or turns the workflow off (enabled: false), and returns JSON { id, enabled_version }. While on, its trigger starts runs: a webhook trigger whose sender you give a URL once it is issued with new_webhook_url, one that registers its own URL with its service as soon as it did, a polling trigger at its next poll. A later save changes nothing here: the published version stays until this tool publishes another. A workflow that signs in through a connected account (its connections) is turned on only by that account's owner in the admin app: here it is refused with error own-sign-in-only. The user approves it in their client first.${onlyNote(input)}`,
     parameters: {
       type: 'object',
       properties: {
         id: idParameter,
         enabled: { type: 'boolean', description: 'true to turn it on, false to turn it off.' },
-        version: { type: 'integer', description: "With enabled: true, the version to turn on: the workflow's current version." },
+        version: { type: 'integer', description: 'With enabled: true, the saved version to publish.' },
       },
       required: ['id', 'enabled'],
     },
@@ -43,20 +43,18 @@ export const enableWorkflowTool = (input: WriteRecordToolsInput = {}) =>
     run: async (args, context) => {
       const id = idOf(args)
       const version = args.version
-      if (!id || typeof args.enabled !== 'boolean' || (args.enabled && !Number.isInteger(version))) return 'Pass { "id": "<id>", "enabled": true, "version": <its current version> } or { "id": "<id>", "enabled": false }.'
+      if (!id || typeof args.enabled !== 'boolean' || (args.enabled && !Number.isInteger(version))) return 'Pass { "id": "<id>", "enabled": true, "version": <a saved version> } or { "id": "<id>", "enabled": false }.'
       const refusal = outside(input, 'workflows')
       if (refusal) return refusal
       const before = await recordBefore(context, 'workflows', id, undefined)
       if (typeof before === 'string') return before
       if (!before) return refused(notFound('No workflows with this key that you may read'))
-      // The version is one of the arguments the approval is bound to, so a save while it waits cannot turn on another.
-      if (args.enabled && before.record.version !== version) return refused(preconditionFailed(`The workflow was saved since version ${version}; its current version is ${before.record.version}`))
       const data = { enabled_version: args.enabled ? version : null }
       const { text, described } = await approvalTexts(context, 'workflows')
       const answer = await context.approve(updateApproval(text, described, id, before.record, data))
       if (answer !== 'approved') return notApproved(answer)
-      // Turned on with the etag the version was read with, so a save since then fails rather than leave an older version on.
-      return context.records.update('workflows', id, data, args.enabled ? { etag: before.etag } : {}).then(({ record }) => JSON.stringify({ id: record.id, enabled_version: record.enabled_version }), enableRefused)
+      // The version is one of the arguments the approval is bound to, and a saved version never changes
+      return context.records.update('workflows', id, data, {}).then(({ record }) => JSON.stringify({ id: record.id, enabled_version: record.enabled_version }), enableRefused)
     },
   })
 

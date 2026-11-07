@@ -134,6 +134,26 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(await workflowsMigration(db, workflows)).toBeUndefined()
   })
 
+  it('keeps a save out of what is published: a start runs the published version unless it names one, and refuses a version never saved', async () => {
+    const id = await create('Echo', definition({ Echo: { Type: 'Pass', Output: 'one', End: true } }))
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 1 } })).status).toBe(200)
+    const saved = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: definition({ Echo: { Type: 'Pass', Output: 'two', End: true } }) } })
+    expect(await saved.json()).toMatchObject({ version: 2, enabled_version: 1 })
+    const published = await run(id, {})
+    const test = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {}, version: 2 } })
+    const tried = (await test.json()).id as string
+    await finished(published)
+    await finished(tried)
+    expect(await runRow(published)).toMatchObject({ output: 'one', version: 1 })
+    expect(await runRow(tried)).toMatchObject({ output: 'two', version: 2 })
+    expect((await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {}, version: 9 } })).status).toBeGreaterThanOrEqual(400)
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 9 } })).status).toBe(400)
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: null } })).status).toBe(200)
+    const off = await run(id, {})
+    await finished(off)
+    expect(await runRow(off)).toMatchObject({ output: 'two', version: 2 })
+  })
+
   it('writes the run trigger again on a schema of the version whose replays ran their run\'s version', async () => {
     await pg.exec(`comment on function workflows.run_version() is 'Protobase workflows 13'`)
     const upgrade = await workflowsMigration(db, workflows)

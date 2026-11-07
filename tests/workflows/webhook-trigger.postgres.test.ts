@@ -184,6 +184,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     }
     const moved = await hooked()
     await as('ada', `/api/v1/workflows/${moved.id}`, 'PATCH', { definition: { trigger: { manual: {} }, stateMachine: echo } })
+    await as('ada', `/api/v1/workflows/${moved.id}`, 'PATCH', { enabled_version: 2 })
     expect((await signed(moved.url, moved.secret)).status).toBe(404)
     expect(await runsOf(hook.id)).toEqual([])
     expect(await runsOf(moved.id)).toEqual([])
