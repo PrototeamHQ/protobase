@@ -153,6 +153,11 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 2 } })).status).toBe(200)
     const stale = await admin.request(`/api/v1/workflows/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', 'x-user': 'ada', 'if-match': read }, body: JSON.stringify({ enabled_version: 1 }) })
     expect(stale.status).toBe(412)
+    // Two writes of one batch are two ETags too
+    const batch = await admin.request('/api/v1:batchWrite', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user': 'ada' }, body: JSON.stringify({ ops: ['one', 'two'].map((name) => ({ op: 'update', resource: 'workflows', key: id, data: { description: name }, etag: '*' })) }) })
+    expect(batch.status).toBe(200)
+    const [first, second] = (await batch.json()).results as { etag: string }[]
+    expect(first!.etag).not.toBe(second!.etag)
     expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: null } })).status).toBe(200)
     const off = await run(id, {})
     await finished(off)

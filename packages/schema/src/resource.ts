@@ -251,7 +251,8 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
 
   /**
    * The read-only field whose change makes a record's new ETag, for a table whose `version` column does not change on
-   * every write. Without it a `version` column is used, then `updated_at`, then a hash of the row.
+   * every write: one every record has, and not a sensitive one. Without it a `version` column is used, then
+   * `updated_at`, then a hash of the row.
    */
   etagFrom(pick: (r: FieldRefs<F>) => Ref) {
     return this.next({ etagFrom: pick(this.refs()).name })

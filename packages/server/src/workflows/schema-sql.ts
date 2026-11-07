@@ -207,7 +207,8 @@ begin
   end if;
   -- The write holds the row, so a save in another transaction numbers its version after this one.
   new.version := case when new.definition is distinct from old.definition then coalesce(old.version, 0) + 1 else old.version end;
-  new.updated_at := now();
+  -- The clock, not now(): two writes in one transaction, as a batch that saves and publishes, are two ETags.
+  new.updated_at := clock_timestamp();
   return new;
 end
 $$;
