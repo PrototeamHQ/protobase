@@ -138,16 +138,27 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("a workflow's status fro
     const pool = pg.pool({ max: 2 })
     const [failing, succeeding] = [await pool.connect(), await pool.connect()]
     const end = (status: string, id: string, at: string) => `update workflows.runs set status = '${status}', finished_at = '${at}' where id = '${id}'`
-    await failing.query('begin')
-    await failing.query(end('failed', first, '2026-01-01T10:00:00Z'))
-    // The second run ends while the first one's transaction still holds the workflow, and waits for it to commit.
-    const ended = succeeding.query(end('succeeded', second, '2026-01-01T10:00:01Z'))
-    await vi.waitFor(async () => expect((await failing.query(`select 1 from pg_stat_activity where wait_event_type = 'Lock' and query like 'update workflows.runs%'`)).rowCount).toBe(1), { timeout: 5_000, interval: 20 })
-    await failing.query('commit')
-    await ended
-    failing.release()
-    succeeding.release()
-    await pool.end()
+    const { rows: [{ pid }] } = await succeeding.query('select pg_backend_pid() as pid')
+    // Reads the activity afresh on each poll: inside a transaction PostgreSQL keeps the first snapshot it took.
+    const waiting = async () => {
+      await failing.query('select pg_stat_clear_snapshot()')
+      return (await failing.query(`select 1 from pg_stat_activity where datname = current_database() and pid = $1 and wait_event_type = 'Lock'`, [pid])).rowCount
+    }
+    try {
+      await failing.query('begin')
+      await failing.query(end('failed', first, '2026-01-01T10:00:00Z'))
+      // The second run ends while the first one's transaction still holds the workflow, and waits for it to commit.
+      const ended = succeeding.query(end('succeeded', second, '2026-01-01T10:00:01Z'))
+      await vi.waitFor(async () => expect(await waiting()).toBe(1), { timeout: 5_000, interval: 20 })
+      await failing.query('commit')
+      await ended
+    } finally {
+      // After the commit this rollback only warns that no transaction is open.
+      await failing.query('rollback')
+      failing.release()
+      succeeding.release()
+      await pool.end()
+    }
     expect(await status(workflow)).toEqual({ status: 'unresolved', run: first, failures: 1 })
   })
 
