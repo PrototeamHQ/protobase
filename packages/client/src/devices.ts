@@ -7,16 +7,23 @@ import type { Transport } from './transport'
  */
 export type WebDeviceRegistration = { kind: 'web'; endpoint: string; keys: { p256dh: string; auth: string }; userAgent?: string; userId?: string }
 
+/**
+ * An Android app's FCM registration token as it registers it, with the user whose tap started the registration, which
+ * the server refuses as for a browser.
+ */
+export type FcmDeviceRegistration = { kind: 'fcm'; token: string; userAgent?: string; userId?: string }
+
 /** A device as the server answers it: never its token or keys. */
 export type RegisteredDevice = { id: string; kind: 'web' | 'apns' | 'fcm'; createdAt: string; lastSeenAt: string }
 
 /**
  * The signed-in user's own devices (`/api/notifications/devices`): `register` adds or refreshes the device the request
- * comes from, and rejects with an `ApiError` of slug `device-held` when another user holds the browser's endpoint, or
+ * comes from, and rejects with an `ApiError` of slug `device-held` when another user holds the browser's endpoint or the
+ * app's token, or
  * `other-user` when the user it names is not the one signed in; `remove` removes one by its id.
  */
 export const devicesClient = (send: Transport) => ({
-  register: async (device: WebDeviceRegistration): Promise<RegisteredDevice> => (await send({ method: 'POST', path: devicesPath(''), system: true, body: device })).json() as Promise<RegisteredDevice>,
+  register: async (device: WebDeviceRegistration | FcmDeviceRegistration): Promise<RegisteredDevice> => (await send({ method: 'POST', path: devicesPath(''), system: true, body: device })).json() as Promise<RegisteredDevice>,
   remove: async (id: string) => {
     await send({ method: 'DELETE', path: devicesPath('', id), system: true })
   },

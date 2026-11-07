@@ -6,6 +6,8 @@ export type NativeBridge = {
   getPlatform(): string
   isPluginAvailable(name: string): boolean
   nativePromise(plugin: string, method: string, options: object): Promise<unknown>
+  /** Calls `callback` with each event `event` of the plugin, and with one it kept for the first listener. */
+  addListener(plugin: string, event: string, callback: (data: unknown) => void): { remove(): Promise<void> }
   /** What a plugin's call rejects with. */
   Exception?: abstract new (...args: never[]) => Error
 }

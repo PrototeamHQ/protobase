@@ -7,7 +7,7 @@ class Refused extends Error {}
 
 const nativeBridge = (plugins: string[]) => {
   const nativePromise = vi.fn(async (_plugin: string, method: string) => (method.startsWith('get') ? { bundleId: null } : undefined))
-  const bridge: NativeBridge = { isNativePlatform: () => true, getPlatform: () => 'android', isPluginAvailable: (name) => plugins.includes(name), nativePromise, Exception: Refused }
+  const bridge: NativeBridge = { isNativePlatform: () => true, getPlatform: () => 'android', isPluginAvailable: (name) => plugins.includes(name), nativePromise, addListener: () => ({ remove: async () => {} }), Exception: Refused }
   return { bridge, nativePromise }
 }
 
