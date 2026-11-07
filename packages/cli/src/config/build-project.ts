@@ -1,7 +1,7 @@
 import type { PostgresPool } from 'kysely'
 import type { Db } from '@protobase/query'
 import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, StatusOptions, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
-import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions } from '@protobase/server/internal'
+import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions, workflowPlugins } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
 import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
 import { userTablesOn } from './user-tables-config'
@@ -35,9 +35,9 @@ export const projectAuth = async (config: MergedConfig, { db, pool }: AppDatabas
   )
 }
 
-/** The connections the workflows' plugins declare, which people connect accounts through at sign-in. */
+/** The connections the workflows' plugins declare, the defaults' among them, which people connect accounts through at sign-in. */
 const workflowConnectionsOf = (workflows: WorkflowsOptions) => ({
-  declared: (workflows.plugins ?? []).flatMap(({ plugin }) => Object.entries(plugin.connections ?? {}).map(([name, declaration]) => ({ plugin: plugin.name, name, declaration }))),
+  declared: workflowPlugins(workflows.plugins).flatMap(({ plugin }) => Object.entries(plugin.connections ?? {}).map(([name, declaration]) => ({ plugin: plugin.name, name, declaration }))),
   allowPrivateAddresses: workflows.allowPrivateAddresses === true,
 })
 

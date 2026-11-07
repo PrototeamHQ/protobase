@@ -28,7 +28,7 @@ describe('workflowTypes', () => {
     const { check, types } = workflowTypes([{ plugin: acme, source: 'acme' }], undefined, { encrypted: true, signInProviders: ['acme'], clients: [] })
     expect(types.find((type) => type.id === 'acme:signed_in')).toMatchObject({ available: true })
     expect(Object.keys(check.triggers)).toContain('acme:signed_in')
-    expect(check.connections).toEqual({ 'acme:signed_in': 'acme:acme' })
+    expect(check.connections).toEqual({ 'acme:signed_in': 'acme:acme', 'gmail:new_mail': 'gmail:google' })
   })
 
   it('takes the reviewed webhook auth modes and limits only', () => {

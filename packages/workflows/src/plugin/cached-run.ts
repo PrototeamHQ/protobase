@@ -56,12 +56,13 @@ const shapesOf = async (plan: CachePlan, type: string, task: TaskContext): Promi
   return (await tolerant(task, 'be read', () => plan.cache.store.shapes(type))) ?? []
 }
 
-// The key value of a custom key function: undefined, so the call is not cached, when it throws or gives nothing.
+// The key value of a custom key function, as JSON writes it, so a date keys on its time: undefined, so the call is not
+// cached, when it throws or gives nothing JSON can write.
 const customValue = (plan: CachePlan, input: Record<string, unknown>, task: TaskContext) => {
   if (typeof plan.key !== 'function') return input
   try {
-    const value = plan.key(input)
-    return value ?? undefined
+    const json = JSON.stringify(plan.key(input))
+    return json === undefined ? undefined : (JSON.parse(json) ?? undefined)
   } catch {
     task.log("The step type's cache key failed; the step ran without the cache")
     return
@@ -78,8 +79,8 @@ const logHit = (task: TaskContext, entry: CacheEntry) => {
 /**
  * One call of a step type with its cache on: the result of an earlier call with the same key and identity when the
  * type returns hits, else the step's own run, offered the earlier result when it asks for one, whose fresh result is
- * kept. A failure, a reused result, a result over `limits.cacheValueBytes` and a call that acted as someone its key
- * does not hold are not kept.
+ * kept. A failure, no result, a reused result, a result over `limits.cacheValueBytes` and a call that acted as someone
+ * its key does not hold are not kept.
  */
 export const cachedRun = async (plan: CachePlan, type: string, parts: CallParts, task: TaskContext, run: (parts: CallParts) => Promise<unknown>) => {
   const { cache } = plan
@@ -94,8 +95,10 @@ export const cachedRun = async (plan: CachePlan, type: string, parts: CallParts,
   const tracked = plan.key === 'reads' ? trackReads(structuredClone(parts.input)) : undefined
   const returned = await run({ ...watched(parts.services, parts.mailbox, plan.actsAs, used), input: tracked?.input ?? parts.input, ...(entry && plan.use === 'offer' && { earlier: earlierOf(entry) }) })
   if (returned instanceof Reused) return returned.output
+  // A call that returned nothing is not kept: a store would give it back as null.
+  if (returned === undefined) return
   // The result as JSON, as its step record keeps it, taken before the reads: an input value it hands back is one it read.
-  const result = returned === undefined ? undefined : JSON.parse(JSON.stringify(returned))
+  const result = JSON.parse(JSON.stringify(returned))
   await keep(cache, task, { ...call, plan, keyValue, used, shape: tracked ? { reads: tracked.paths() } : plan.key === 'input' ? { input: true } : { custom: true }, result })
   return result
 }
