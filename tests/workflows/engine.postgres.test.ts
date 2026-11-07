@@ -158,6 +158,14 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(batch.status).toBe(200)
     const [first, second] = (await batch.json()).results as { etag: string }[]
     expect(first!.etag).not.toBe(second!.etag)
+    const made = await admin.request('/api/v1:batchWrite', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-user': 'ada' },
+      body: JSON.stringify({ ops: [{ op: 'create', resource: 'workflows', ref: 'new', data: { name: 'Made', definition: definition({ Echo: { Type: 'Pass', Output: 'one', End: true } }) } }, { op: 'update', resource: 'workflows', key: { $ref: 'new' }, etag: '*', data: { enabled_version: 1 } }] }),
+    })
+    expect(made.status).toBe(200)
+    const [created, live] = (await made.json()).results as { etag: string }[]
+    expect(created!.etag).not.toBe(live!.etag)
     expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: null } })).status).toBe(200)
     const off = await run(id, {})
     await finished(off)
