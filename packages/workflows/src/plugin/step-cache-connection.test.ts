@@ -3,6 +3,7 @@ import type { TaskContext } from '../run/port'
 import { memoryCache } from '../run/cache/memory-cache'
 import { secretNamer } from '../run/cache/secret-names'
 import { cachePlan } from './cache-plan'
+import { errorOutput } from '../run/errors'
 import { ConnectionError } from './connection-error'
 import type { PluginServices } from './context'
 import { stepHandlers } from './step-handlers'
@@ -32,7 +33,9 @@ describe('a cached step type with a connection', () => {
     expect(await call({ url: 'a' })).toEqual(first)
     expect(state.tokens).toBe(2)
     state.signedIn = false
-    await expect(call({ url: 'a' })).rejects.toMatchObject({ code: 'not_connected' })
+    const refused = await call({ url: 'a' }).catch((error: unknown) => error)
+    expect(refused).toMatchObject({ code: 'not_connected' })
+    expect(errorOutput(refused)).toEqual({ Error: 'States.TaskFailed', Cause: 'No connection' })
     expect(memory.calls).toEqual({ shapes: 2, lookup: 1, write: 1 })
   })
 
