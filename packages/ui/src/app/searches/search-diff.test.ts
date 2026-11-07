@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkFilter, evaluateFilter, f, parseFilter, resource } from '@protobase/schema'
-import { addedFilter, filterChanges, netChange, removedFilter } from './search-diff'
+import { addedFilter, canDiff, filterChanges, netChange, removedFilter } from './search-diff'
 
 const homes = resource('homes')
   .table('homes')
@@ -96,9 +96,14 @@ describe('netChange', () => {
   })
 })
 
-describe('a filter with related()', () => {
-  it('stays a term of its own, which needs no guard for a missing value', () => {
-    expect(addedFilter('rent > 1', 'rent > 1 AND related(id, leases.home_id)')).toBe('(rent > 1 AND related(id, leases.home_id)) AND NOT (rent > 1 AND rent:*)')
-    expect(addedFilter('related(id, leases.home_id)', 'rent > 1')).toBe('rent > 1 AND NOT related(id, leases.home_id)')
+describe('canDiff', () => {
+  it('takes filters the API can negate', () => {
+    expect(canDiff('rent > 1', 'garden = true')).toBe(true)
+    expect(canDiff('', '')).toBe(true)
+  })
+
+  it('refuses a filter that holds related() on either side, which the API takes under no NOT', () => {
+    expect(canDiff('related(id, leases.home_id)', 'rent > 1')).toBe(false)
+    expect(canDiff('rent > 1', 'rent > 1 AND related(id, leases.home_id)')).toBe(false)
   })
 })

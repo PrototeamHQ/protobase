@@ -1155,6 +1155,7 @@
     "noPlural": "No {plural}.",
     "update": "Update",
     "addedRemoved": "{added} added, {removed} removed",
+    "noRecordsDiff": "This search goes through related records, so the records it would add and drop are not shown.",
     "searchSaved": "Search saved",
     "openPlural": "Open <lower>{plural}</lower>",
     "couldNotSave": "Could not save the search",

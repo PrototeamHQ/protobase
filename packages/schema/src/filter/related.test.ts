@@ -60,7 +60,7 @@ describe('checkFilter', () => {
   })
 
   it('so an event or a webhook cannot hold it', () => {
-    expect(checkEventFilter(claims, 'related(task_id, links.task_id)')).not.toEqual([])
+    expect(checkEventFilter(claims, 'related(task_id, links.task_id)')).toMatchObject({ problem: expect.stringContaining('related()') })
   })
 })
 

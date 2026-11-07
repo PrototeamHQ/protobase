@@ -1155,6 +1155,7 @@
     "noPlural": "Geen {plural}.",
     "update": "Bijwerken",
     "addedRemoved": "{added} erbij, {removed} eraf",
+    "noRecordsDiff": "Deze zoekopdracht loopt via gerelateerde records, dus de records die erbij komen en afvallen worden niet getoond.",
     "searchSaved": "Zoekopdracht bewaard",
     "openPlural": "{plural} openen",
     "couldNotSave": "Kon de zoekopdracht niet bewaren",
