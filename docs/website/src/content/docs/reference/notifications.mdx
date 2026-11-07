@@ -61,7 +61,7 @@ Who may call them:
 
 A device is one token, or one endpoint for a browser. An Android or iOS token someone else had moves to the caller, as a new device with a new id that keeps nothing of the previous user's, so a shared phone notifies whoever signed in on it last. A browser's endpoint never moves: registering one another user holds is a `409` of type `device-held` that stores nothing, and the browser subscribes again for a new endpoint, as [the browser helper](#in-the-browser) does. A user keeps up to 20 devices: registering one more removes their least recently seen. Deleting a user removes their devices.
 
-With Protobase's auth, a device belongs to the sign-in session it was registered in. Once that session ends, the device gets no more push and is removed at the next send: when the user signs out, someone signs in on the same browser, the user signs out everywhere, a password change signs out their other devices, an admin ends their sessions or bans them, or the session expires. Registering the device again ties it to the session of that request, which the browser helper does on its own for the same user. With an app's own authenticator, a device stays its user's until it is removed with `DELETE`.
+With Protobase's auth, a device belongs to the sign-in session it was registered in. Once that session ends, the device gets no more push and is removed at the next send: when the user signs out, someone signs in on the same browser, the user signs out everywhere, a password change signs out their other devices, an admin ends their sessions or bans them, or the session expires. A device with no session recorded, such as one registered before devices kept their session, counts as ended too. Registering the device again ties it to the session of that request, which the browser helper does on its own for the same user, so such a device gets push again once its browser registers it. With an app's own authenticator, a device stays its user's until it is removed with `DELETE`. <gap>Devices cannot end with a session of an app's own authenticator because a way for `authenticate` to report that a session ended is not implemented.</gap>
 
 The path comes from `devicesPath('/api', id)`, and the name of its id parameter from `deviceIdParam`, both exported by `@protobase/server`.
 
@@ -188,7 +188,7 @@ Without them Web Push is off and the app has no sender for browsers. One or two 
 
 The private key is a secret: keep it out of client code, `VITE_` variables and the repository. Anyone holding it and the stored subscriptions can push to every subscribed browser. Browsers subscribe with the public key, which `/meta` gives every caller as `notifications.webPushKey`, so a new key pair breaks every subscription until its browser registers again.
 
-Each message is encrypted for its browser and signed with the key. It goes only to an endpoint on one of the browsers' push services, never through a redirect; a device stored with any other endpoint, or with keys that are not a subscription's, is `refused`. <gap>Web Push cannot deliver to a push service outside the browsers' own because adding one to the list is not implemented.</gap> A message's `platform.web` sets the request's `ttl`, `urgency` and `topic` and fields merged into the JSON the browser receives (`payload`), in place of those built from the message; every URL in that JSON is checked as the message's `url` is. The JSON also carries `user`, the id of the user the device is registered for, over any `user` in `payload`, and at most 3993 bytes.
+Each message is encrypted for its browser and signed with the key. It goes only to an endpoint on one of the browsers' push services, never through a redirect, and only to the address the endpoint's host resolves to when it is sent, which must be public: an endpoint whose host resolves to a private, loopback or link-local address gets no request and is `refused`; a device stored with any other endpoint, or with keys that are not a subscription's, is `refused`. <gap>Web Push cannot deliver to a push service outside the browsers' own because adding one to the list is not implemented.</gap> A message's `platform.web` sets the request's `ttl`, `urgency` and `topic` and fields merged into the JSON the browser receives (`payload`), in place of those built from the message; every URL in that JSON is checked as the message's `url` is. The JSON also carries `user`, the id of the user the device is registered for, over any `user` in `payload`, and at most 3993 bytes.
 
 ### In the browser
 
@@ -238,7 +238,7 @@ const store: DeviceStore = {
 export default store
 ```
 
-Every method takes and returns plain data: the user id as text, and devices as `{ id, userId, kind, token, p256dh, auth, environment, appId, userAgent, sessionId, createdAt, lastSeenAt }`, with `token` the endpoint for a browser and `sessionId` the sign-in session it was registered in. A method given an empty user id, id or token throws. `listByIds` and `removeGone` act on any user's devices, for the code that sends; the endpoints never call them. A store missing a method stops startup, naming it.
+Every method takes and returns plain data: the user id as text, and devices as `{ id, userId, kind, token, p256dh, auth, environment, appId, userAgent, sessionId, createdAt, lastSeenAt }`, with `token` the endpoint for a browser and `sessionId` the sign-in session it was registered in. A store keeps `sessionId` as `register` gives it and returns it: with Protobase's auth, a device whose store returns no `sessionId` gets no push and is removed at the next send. A method given an empty user id, id or token throws. `listByIds` and `removeGone` act on any user's devices, for the code that sends; the endpoints never call them. A store missing a method stops startup, naming it.
 
 When Protobase's auth deletes a user, by an admin or with `protobase users delete`, it calls the store's `removeAllForUser` before anything is deleted, so a store that throws stops the deletion, and once more afterwards. An app that deletes users otherwise calls `deviceStore(db, notifications).removeAllForUser(userId)` as it deletes one, with the config's `notifications` (the devices table's names), or the `removeAllForUser` of its own `notifications/store.ts`.
 
@@ -280,7 +280,7 @@ const sender: PushSender = {
 export default [sender]
 ```
 
-`send` takes a message and a batch of devices of those kinds, and answers each device by its id with a result:
+`send` takes a message and a batch of devices of those kinds, and answers each device by its id with a result. The send job is what calls it, and only with devices that may get push now: with Protobase's auth, ones whose session stands. Send through [`sendNotification`](#sending), never by calling a sender yourself, which would skip that check. The results:
 
 | Result | |
 | --- | --- |
