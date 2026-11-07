@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { browser, password, serve } from './support/notifications-app'
+import { browser, origin, password, serve } from './support/notifications-app'
 import { describedAs, expectLeft, recordingMailer, signedIn } from './support/session-end'
 
 // Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
