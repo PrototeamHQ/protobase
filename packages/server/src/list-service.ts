@@ -1,4 +1,5 @@
 import { countUpTo, estimateCount, listQuery, seekToPosition } from '@protobase/query'
+import type { FilterExpr } from '@protobase/schema'
 import { checkedSort } from './filter-input'
 import type { Deps } from './deps'
 import { deletedRows, listParams, pageSizeOf, parseParams, seekParams, selectedFields } from './params'
@@ -26,14 +27,14 @@ export const exactCountLimit = 10_000
  * `labels` names the records the returned relations point at, each read under the related resource's own access, and
  * `photos` brings each record's first photos, read under the photos' resource's own access.
  */
-export const listRecords = async (deps: Deps, entry: Entry, session: Session, input: unknown, maxFilterLength?: number, jump = false) => {
+export const listRecords = async (deps: Deps, entry: Entry, session: Session, input: unknown, maxFilterLength?: number, jump = false, within?: FilterExpr) => {
   const params = jump ? parseParams(seekParams, input) : parseParams(listParams, input)
   const access = await requestAccess(deps, entry, session)
   requireOperation(access, 'list')
   const showDeleted = deletedRows(access.full, params.show_deleted) === 'show'
   const full = showDeleted ? { ...access.full, softDelete: undefined } : access.full
   const model = showDeleted ? { ...access.model, softDelete: undefined } : access.model
-  const { filter, scope } = await readFilter(access, model, full, params.filter, maxFilterLength)
+  const { filter, scope } = await readFilter(access, model, full, params.filter, maxFilterLength, within)
   const sort = checkedSort(model, params.order_by)
   const columns = selectedFields(model, params.fields)
   const labels = await labelRequests(deps, session, model, columns, params.labels)

@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { facetCounts, histogram, series, withoutField } from '@protobase/query'
 import { parentCondition, tenantCondition, type Granularity, type Scope } from '@protobase/query'
 import type { Deps } from './deps'
-import type { ResourceModel } from '@protobase/schema'
+import type { FilterExpr, ResourceModel } from '@protobase/schema'
 import { badRequest } from './problem'
 import { parseParams } from './params'
 import { labelRequests, relatedLabels } from './related-labels'
@@ -35,19 +35,19 @@ const rangeMs = { '1h': hourMs, '24h': 24 * hourMs, '7d': 7 * 24 * hourMs, '30d'
 
 // Aggregates are reads: the caller's filter is checked against the model as the caller sees it (a hidden field is an
 // unknown field), and the tenant and the access row filter are applied by the query layer's scope.
-export const scoped = async (deps: Deps, entry: Entry, session: Session, source?: string) => {
+export const scoped = async (deps: Deps, entry: Entry, session: Session, source?: string, within?: FilterExpr) => {
   const access = await requestAccess(deps, entry, session)
   requireOperation(access, 'list')
-  return { access, model: access.model, ...(await readFilter(access, access.model, access.full, source)) }
+  return { access, model: access.model, ...(await readFilter(access, access.model, access.full, source, undefined, within)) }
 }
 
 /**
  * Counts per value of a field, ignoring the filter's own terms on that field (AIP-160 filters, UI facet panels). With
  * `label`, a relation's values carry the `label` field of the record each points at, read as a list's `labels` reads it.
  */
-export const facets = async (deps: Deps, entry: Entry, session: Session, input: unknown) => {
+export const facets = async (deps: Deps, entry: Entry, session: Session, input: unknown, within?: FilterExpr) => {
   const params = parseParams(facetParams, input)
-  const { model, filter: checked, scope } = await scoped(deps, entry, session, params.filter)
+  const { model, filter: checked, scope } = await scoped(deps, entry, session, params.filter, within)
   const labels = params.label === undefined ? [] : await labelRequests(deps, session, model, [params.field], `${params.field}.${params.label}`)
   const others = withoutField(checked, params.field)
   const warning = await deps.guard(entry, { ...(others && { filter: others }), groupBy: params.field }, { model, scope })
@@ -71,7 +71,7 @@ const earliest = async (deps: Deps, access: RequestAccess, fieldName: string, sc
   const target = access.model.fields[fieldName]!
   // A list across tenants names them all, as the query layer reads them
   const across = scope.tenantValues ? [tenantCondition(access.full, scope)!] : []
-  const conditions = [...scopeConditions(access.full, scope.tenantValue), ...across, ...filterCondition(access.full, scope.rowFilter), ...(scope.parents ?? []).map(parentCondition)]
+  const conditions = [...scopeConditions(access.full, scope.tenantValue), ...across, ...filterCondition(access.full, scope.rowFilter), ...(scope.parents ?? []).map(parentCondition), ...filterCondition(access.full, scope.within)]
   const result = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) =>
     sql<{ lowest: string | null }>`select min(${columnId(target)})::text as lowest from ${tableId(access.full)} as t${whereClause(conditions)}`.execute(trx))
   return result.rows[0]?.lowest ?? undefined
@@ -99,9 +99,9 @@ export const seriesRange = async (deps: Deps, access: RequestAccess, field: stri
 }
 
 /** Row counts per calendar bucket of a date or timestamp field, empty buckets included. */
-export const timeSeries = async (deps: Deps, entry: Entry, session: Session, input: unknown) => {
+export const timeSeries = async (deps: Deps, entry: Entry, session: Session, input: unknown, within?: FilterExpr) => {
   const params = parseParams(seriesParams, input)
-  const { access, model, filter: checked, scope } = await scoped(deps, entry, session, params.filter)
+  const { access, model, filter: checked, scope } = await scoped(deps, entry, session, params.filter, within)
   // A hidden field is refused exactly like an unknown one
   if (!model.fields[params.field]) throw badRequest('invalid-parameter', `Unknown field "${params.field}"`, { errors: [{ parameter: 'field', message: 'Unknown field' }] })
   const timeZone = params.time_zone ?? 'UTC'
@@ -114,9 +114,9 @@ export const timeSeries = async (deps: Deps, entry: Entry, session: Session, inp
 }
 
 /** Equal-width buckets between the filtered minimum and maximum of a numeric field. */
-export const numericHistogram = async (deps: Deps, entry: Entry, session: Session, input: unknown) => {
+export const numericHistogram = async (deps: Deps, entry: Entry, session: Session, input: unknown, within?: FilterExpr) => {
   const params = parseParams(histogramParams, input)
-  const { model, filter: checked, scope } = await scoped(deps, entry, session, params.filter)
+  const { model, filter: checked, scope } = await scoped(deps, entry, session, params.filter, within)
   const result = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) =>
     histogram(trx, model, params.field, checked, params.buckets, scope))
   return { field: params.field, ...result }

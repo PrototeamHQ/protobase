@@ -34,6 +34,7 @@ Under `/api/v1`:
 | --- | --- |
 | `GET /{resource}` | list: `filter`, `order_by`, `page_size` (50, max 500), `page_token`, `fields`, `labels`, `photos`, `photos_order_by`, `count=exact` |
 | `POST /{resource}:search` | same parameters as a JSON body (`fields` and `labels` arrays), for long filters |
+| `GET /{parent}/{key}/{resource}` | the list of `resource` that belongs to one record, see [Lists under a record](#lists-under-a-record) |
 | `GET /{resource}/{key}` | one record, with `ETag`; composite keys are `part,part`, each part percent-encoded |
 | `POST /{resource}` | create, `201` with `Location` and `ETag` |
 | `PATCH /{resource}/{key}` | partial update, `If-Match` required |
@@ -162,6 +163,19 @@ It works in the `filter` of a list, `:search`, `:seek`, `:facets`, `:aggregate`,
 - It may do only what the caller could do in two steps, listing `resource` with the subfilter and then filtering with `in(field, ...)`: the [access](/reference/access/#related-records-in-filters) rules apply to both sides, and a resource the caller cannot list answers as one that does not exist.
 - The [scan guard](#safety) judges both tables. Besides `field` and the subfilter's columns, `key` needs a btree index under what the subfilter pins.
 - A [list across organizations](/reference/access/#lists-across-organizations) with a term reads the session's own organization alone, and so does the term.
+
+### Lists under a record
+
+`GET /{parent}/{key}/{resource}` is the list of `resource` that belongs to one record, with the same parameters as its own list: `/objectives/40/tasks?filter=state != "done"`. The other list methods work too: `/objectives/40/tasks:facets`, `POST /objectives/40/tasks:search` and the rest. It is a filter the path spells out, and a record keeps its one address, `/tasks/7`.
+
+- A relation of `resource` to `parent` leads there without a declaration: `/tasks/7/task_claims` keeps to `task_id = 7`, also in a `:facets` on `task_id`.
+- A link resource that declares its two relations with [`.links()`](/reference/data-config/#resource) joins them: `/objectives/40/tasks` reads as `related(id, objective_tasks.task_id, (objective_id = 40))`, the other side `/tasks/7/objectives`, and a resource a further step away, `/objectives/40/task_claims`, as `related(task_id, objective_tasks.task_id, (objective_id = 40))`.
+- The caller's own `filter` stands beside it, with its own [limits](#filtering-through-related-records); a `:facets` on the relation stays inside the record.
+- Where nothing leads there the answer is a `404`. Where several ways do, such as `task_dependencies` with its two relations to `tasks`, it is a `400` `ambiguous-parent` that names them, and a [`related()`](#filtering-through-related-records) filter says which. Links count only when the caller can list them.
+- The parent is read as the caller would read it first: one in another tenant, soft-deleted, outside their row filter or refused by a rule that reads the record answers the same `404` as one that does not exist. A resource they do nothing with answers as one that does not exist. A list of a resource they may not list answers as that list does.
+- A composite key has no list under it.
+
+MCP's `list_records` and `count_records` take the same as `belongs_to: { "resource": "objectives", "key": 40 }`, beside `filter`.
 
 ## Writes
 

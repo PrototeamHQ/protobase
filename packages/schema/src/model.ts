@@ -150,6 +150,8 @@ export type ResourceModel = {
   }
   /** The records its records belong to, and the access on them writing its records needs (`.parent()`). */
   parents?: ParentModel[]
+  /** The two relations a link resource joins (`.links()`), so each side lists the other at `/{parent}/{key}/{resource}`. */
+  links?: readonly [string, string]
   /** The events its changes raise (`.events()`), the catalogue subscriptions pick from. */
   events?: EventModel[]
   /** Whether every change of its records is kept, with who made it (`.history()`). */

@@ -23,6 +23,7 @@ export type ResourceState = {
   author?: string
   position?: { field: string; within?: string; after?: PositionAfterModel }
   parents?: ParentModel[]
+  links?: readonly [string, string]
   events?: EventSpec[]
   history?: boolean
   comments?: boolean
@@ -108,6 +109,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.explicitGrants && { explicitGrants: true as const }),
     ...(state.position && { position: { ...state.position } }),
     ...(state.parents && { parents: state.parents.map((parent) => ({ ...parent })) }),
+    ...(state.links && { links: state.links }),
     ...(state.openExisting && { openExisting: [...state.openExisting] }),
   }
 }
@@ -196,6 +198,20 @@ const parentProblems = (model: ResourceModel) =>
     ].map((problem) => `parent "${name}" ${problem}`)
   })
 
+// A link joins two relations, each read by a `related()` term, so each must be one the filter can go through.
+const linkProblems = (model: ResourceModel) => {
+  if (!model.links) return []
+  const [first, second] = model.links
+  const problems = model.links.flatMap((name) => {
+    const field = Object.hasOwn(model.fields, name) ? model.fields[name]! : undefined
+    if (!field) return ['is not a field']
+    if (!field.relation) return [`is ${field.type}, not a relation`]
+    if (field.relation.columns.length !== 1) return ['is a relation of several columns (not implemented)']
+    return field.filterable ? [] : ['is not filterable']
+  }).map((problem) => `link ${problem}`)
+  return first === second ? [...problems, 'link names one relation twice'] : problems
+}
+
 // A job writes an AI field through the API, after the write, from fields the model may see: text or an enum, empty until
 // it is filled, and read from plain fields only, so that no fill feeds another or itself.
 const aiProblems = (model: ResourceModel) =>
@@ -218,7 +234,7 @@ const aiProblems = (model: ResourceModel) =>
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

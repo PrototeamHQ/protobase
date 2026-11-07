@@ -1,7 +1,7 @@
 import type { FieldModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { notFound } from '../problem'
 import { everyField, listFields } from './list-fields'
-import { filterParameter, invalidShowDeleted, keyOf, keyParameter, refused, resourceOf, resourceParameter, showDeletedOf, showDeletedParameter } from './record-tool-args'
+import { belongsToOf, belongsToParameter, filterParameter, invalidBelongsTo, invalidShowDeleted, keyOf, keyParameter, refused, resourceOf, resourceParameter, showDeletedOf, showDeletedParameter } from './record-tool-args'
 import { countRecordsTool } from './count-records-tool'
 import { defineTool, type ReadableResources, type ToolContext } from './tools'
 
@@ -109,13 +109,14 @@ const listedFields = async (resource: string, value: unknown, context: ToolConte
 export const listRecordsTool = () =>
   defineTool({
     name: 'list_records',
-    description: `Finds records of a resource and returns a page of them as JSON ({ items, next_page_token, total_size_estimate }). Name the fields you need in fields, such as ["id", "status"]; without it each record has its resource's list_fields, the columns of its table in the app, and the page names the others in omitted_fields: pass ["*"] for every field. filter uses AIP-160 syntax on filterable fields, such as status = "open" AND amount > 10, and reaches through related records with related(field, resource.key, (subfilter)), ANDed with the rest, such as related(task_id, objective_tasks.task_id, (objective_id = 40)) for the claims of an objective's tasks: both fields point at one resource, as links_to and linked_from show. order_by takes a comma-separated list of sortable fields, each optionally followed by desc. total_size_estimate is an estimate, not an exact count. Keep page_size small and pass next_page_token back as page_token for the next page; it is empty on the last. show_deleted: true also returns soft-deleted records.`,
+    description: `Finds records of a resource and returns a page of them as JSON ({ items, next_page_token, total_size_estimate }). Name the fields you need in fields, such as ["id", "status"]; without it each record has its resource's list_fields, the columns of its table in the app, and the page names the others in omitted_fields: pass ["*"] for every field. filter uses AIP-160 syntax on filterable fields, such as status = "open" AND amount > 10, and reaches through related records with related(field, resource.key, (subfilter)), ANDed with the rest, such as related(task_id, objective_tasks.task_id, (objective_id = 40)) for the claims of an objective's tasks: both fields point at one resource, as links_to and linked_from show. belongs_to asks the same as a resource and a key, such as { "resource": "objectives", "key": 40 }, beside filter. order_by takes a comma-separated list of sortable fields, each optionally followed by desc. total_size_estimate is an estimate, not an exact count. Keep page_size small and pass next_page_token back as page_token for the next page; it is empty on the last. show_deleted: true also returns soft-deleted records.`,
     parameters: {
       type: 'object',
       properties: {
         resource: resourceParameter,
         fields: fieldsParameter('without it, the list_fields describe_resource names'),
         filter: filterParameter,
+        belongs_to: belongsToParameter,
         order_by: { type: 'string', description: 'Sortable fields, comma-separated, each optionally followed by desc, such as created_at desc.' },
         page_size: { type: 'integer', minimum: 1, maximum: maxPageSize, description: `Records per page, ${defaultPageSize} by default.` },
         page_token: { type: 'string', description: 'The next_page_token of the previous page.' },
@@ -129,9 +130,12 @@ export const listRecordsTool = () =>
       if (!resource) return 'Pass the resource as { "resource": "<name>" }.'
       const showDeleted = showDeletedOf(args)
       if (showDeleted === undefined) return invalidShowDeleted
+      const belonging = belongsToOf(args)
+      if (!belonging) return invalidBelongsTo
       const { fields, omitted } = await listedFields(resource, args.fields, context)
       const params = {
         ...(typeof args.filter === 'string' && { filter: args.filter }),
+        ...belonging,
         ...(typeof args.order_by === 'string' && { order_by: args.order_by }),
         ...(typeof args.page_token === 'string' && { page_token: args.page_token }),
         ...(fields && { fields }),

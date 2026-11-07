@@ -131,6 +131,9 @@ describe('resource builder', () => {
     expect(() => transfers.parent((r) => r.source_vm_id, 'delete' as 'read').toModel()).toThrow('parent "source_vm_id" needs "delete", not "read" or "update"')
     expect(() => transfers.parent((r) => r.source_vm_id, 'read').parent((r) => r.source_vm_id, 'update').toModel()).toThrow('parent "source_vm_id" is given twice')
     expect(() => transfers.parent(() => ({ name: 'gone' }), 'read').toModel()).toThrow('parent "gone" is not a field')
+    expect(() => transfers.links((r) => [r.note, r.source_vm_id]).toModel()).toThrow('link is text, not a relation')
+    expect(() => transfers.links((r) => [r.wide_id, r.source_vm_id]).toModel()).toThrow('link is a relation of several columns (not implemented)')
+    expect(() => transfers.links((r) => [r.source_vm_id, r.source_vm_id]).toModel()).toThrow('link names one relation twice')
   })
 
   it('keeps history and takes comments only when asked', () => {

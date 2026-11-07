@@ -5,12 +5,12 @@ import { mapRecordsLimit, mapRecordsZoom } from '../map-service'
 import { writableFields, type RequestAccess } from '../request-access'
 import { pascal } from './naming'
 
-const param = (name: string) => ({ $ref: `#/components/parameters/${name}` })
-const error = (name: string) => ({ $ref: `#/components/responses/${name}` })
+export const param = (name: string) => ({ $ref: `#/components/parameters/${name}` })
+export const error = (name: string) => ({ $ref: `#/components/responses/${name}` })
 const json = (schema: object) => ({ 'application/json': { schema } })
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
 
-const listParameters = (entry: Entry) =>
+export const listParameters = (entry: Entry) =>
   ['filter', 'orderBy', 'pageSize', 'pageToken', 'fields', 'labels', 'photos', 'photosOrderBy', 'count', ...(entry.model.softDelete ? ['showDeleted'] : [])].map(param)
 
 const field = (description: string) => ({ name: 'field', in: 'query', required: true, description, schema: { type: 'string' } })
@@ -35,7 +35,7 @@ const photos = {
   additionalProperties: { type: 'array', items: { type: 'object' } },
 }
 
-const page = (name: string, seek = false) => json({
+export const page = (name: string, seek = false) => json({
   type: 'object',
   required: ['items', 'next_page_token', 'total_size_estimate'],
   properties: {
@@ -84,7 +84,7 @@ const withoutDenied = (paths: Record<string, Record<string, any>>, access: Reque
     }),
   )
 
-const auth = { 401: error('Unauthorized') }
+export const auth = { 401: error('Unauthorized') }
 
 /** The paths of one resource: AIP-132 list, AIP-131 get, AIP-133 create, AIP-134 update, AIP-135 delete, and the `:` helpers (AIP-136). */
 export const resourcePaths = (access: RequestAccess) => {

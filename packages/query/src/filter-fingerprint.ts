@@ -28,9 +28,9 @@ const hash = (text: string) => {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)
 }
 
-/** A short fingerprint of the filter a cursor was issued for and the `related()` terms of its scope; empty without either. */
+/** A short fingerprint of the filter a cursor was issued for and what its scope narrows it by; empty without either. */
 export const filterFingerprint = (filter: CheckedFilter | undefined, scope?: Scope) => {
   const terms = relatedTerms(scope)
-  if (terms.length > 0) return hash(canonical({ filter, terms }))
+  if (terms.length > 0 || scope?.within) return hash(canonical({ filter, terms, within: scope?.within }))
   return filter ? hash(canonical(filter)) : ''
 }

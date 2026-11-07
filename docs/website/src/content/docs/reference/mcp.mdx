@@ -81,6 +81,12 @@ To find records through related ones, a client filters with [`related()`](/refer
 { "resource": "task_claims", "filter": "related(task_id, objective_tasks.task_id, (objective_id = 40))" }
 ```
 
+For the records of one record it passes `belongs_to`, as the [list under a record](/reference/api/#lists-under-a-record) does, with `filter` beside it:
+
+```json
+{ "resource": "tasks", "belongs_to": { "resource": "objectives", "key": 40 }, "filter": "state != \"done\"" }
+```
+
 A refusal, such as a resource the person may not read, a bad filter or a field the person may not read, comes back to the client as text it can act on, `{ "error": ..., "message": ... }`.
 
 ### Comments

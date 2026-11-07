@@ -141,6 +141,7 @@ export const uncoveredColumns = (model: ResourceModel, table: TableIndexes, quer
     ...columnOf(full.softDelete ?? model.softDelete),
     ...pinnedColumns(scope?.rowFilter),
     ...pinnedColumns(query.filter),
+    ...pinnedColumns(scope?.within),
     ...(scope?.parents ?? []).flatMap((read) => (read.related ? [read.field.column] : [])),
   ])
   const ctx = (use: ColumnUse, of = model): Context => ({ model: of, indexes: table.indexes, use })
@@ -150,6 +151,7 @@ export const uncoveredColumns = (model: ResourceModel, table: TableIndexes, quer
     ...(scope?.rowFilter ? walk(ctx('access', full), scope.rowFilter, pinned, false) : []),
     ...(scope?.parents ?? []).flatMap((read) => need(ctx(read.related ? 'related' : 'parent', full), read.field, 'btree', pinned)),
     ...(query.filter ? walk(ctx('filter'), query.filter, pinned, false) : []),
+    ...(scope?.within ? walk(ctx('filter', full), scope.within, pinned, false) : []),
     ...(query.selects ? need(ctx('related', full), query.selects, 'btree', pinned) : []),
     ...(sortField ? need(ctx('sort'), sortField, 'btree', pinned) : []),
     ...(groupField ? need(ctx('facet'), groupField, 'btree', pinned) : []),

@@ -86,7 +86,7 @@ export const requestAccess = async (deps: Deps, entry: Entry, session: Session, 
   return { entry, session, resolved, full: entry.model, readable, model: withoutSensitive(readable), parents, deps }
 }
 
-const hasNoAccess = (resolved: ResolvedAccess) => !Object.values(resolved.operations).some(Boolean)
+export const hasNoAccess = (resolved: ResolvedAccess) => !Object.values(resolved.operations).some(Boolean)
 
 /**
  * 403 when the operation is denied, 401 for a request without a token; a resource the user can do nothing with does not
