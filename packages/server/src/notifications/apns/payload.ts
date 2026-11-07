@@ -1,6 +1,6 @@
 import { mergeJson, type JsonObject } from '../json-value'
 import { maxTtlSeconds, PushMessageError, type PushMessage, type Urgency } from '../message'
-import { tapUrl } from '../tap-url'
+import { tapUrl } from '@protobase/schema/internal'
 
 /** The most a notification's JSON may hold for APNs. */
 export const maxApnsPayloadBytes = 4096
