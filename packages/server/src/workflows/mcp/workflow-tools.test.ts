@@ -130,11 +130,13 @@ describe('update_workflow', () => {
 })
 
 describe('run_workflow and get_workflow_run', () => {
-  it('starts a run with its input once approved', async () => {
+  it('starts a run of the version saved last with its input once approved, unless it names a version', async () => {
     const create = vi.fn(async () => ({ record: { id: 'r1', status: 'queued' }, etag: '"v1"' }))
     const { context } = contextWith({ create })
     expect(JSON.parse(await runWorkflowTool().run({ id: 'w1', input: { order: 42 } }, context))).toEqual({ run_id: 'r1', status: 'queued' })
-    expect(create).toHaveBeenCalledWith('workflow_runs', { workflow_id: 'w1', input: { order: 42 } })
+    expect(create).toHaveBeenCalledWith('workflow_runs', { workflow_id: 'w1', input: { order: 42 }, version: saved.record.version })
+    await runWorkflowTool().run({ id: 'w1', version: 1 }, context)
+    expect(create).toHaveBeenLastCalledWith('workflow_runs', { workflow_id: 'w1', input: {}, version: 1 })
   })
 
   it('re-runs a failed run without an input of its own', async () => {

@@ -134,6 +134,8 @@ A list's filter can reach through other records with [`related(field, resource.k
 
 A link record the caller reads can narrow a list by a record they cannot read: with `related(project_id, memberships.project_id)`, a ticket matches through a membership of a project hidden from them, because they could read that membership and that ticket anyway. Going through `projects` instead, `related(project_id, projects.id)`, keeps to the projects they read. `total_size_estimate` comes from the planner's statistics of the whole table, as on any list.
 
+A [list under a record](/reference/api/#lists-under-a-record), `/objectives/40/tasks`, is stricter, since its address names one record: the parent is read first as the caller would read it, and a parent they cannot read answers the same `404` as one that does not exist.
+
 Only a read of the API resolves `related()`: access rules, role filters and the other places a filter is stored refuse it. <gap>An access rule cannot filter through related records because `related()` in rules is not implemented.</gap>
 
 ## Lists across organizations

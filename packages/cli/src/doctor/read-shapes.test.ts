@@ -191,6 +191,17 @@ describe('readShapes', () => {
     expect(found).toMatchObject([{ resource: 'offices', request: 'GET /offices', from: 'its records keep to the "agency_id" parents the caller reads', query: {}, scope: { parents: [{ field: { name: 'agency_id' } }] } }])
   })
 
+  it('reads a declared link by either side for the key on the other', () => {
+    const links = resource('links').table('links')
+      .fields({ objective_id: f.relation('objectives').filterable(), task_id: f.relation('tasks').filterable() })
+      .primaryKey((r) => [r.objective_id, r.task_id]).links((r) => [r.objective_id, r.task_id])
+    const found = readShapes({ models: [links.toModel()], views: [], pages: [] }).filter((shape) => shape.query.selects)
+    expect(found).toMatchObject([
+      { resource: 'links', from: 'it links objective_id to task_id', query: { filter: { field: { name: 'objective_id' } }, selects: { name: 'task_id' } } },
+      { resource: 'links', from: 'it links task_id to objective_id', query: { filter: { field: { name: 'task_id' } }, selects: { name: 'objective_id' } } },
+    ])
+  })
+
   it('reads a list in no order of its own when it names none and its key is not sortable, as the app asks for it', () => {
     const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id)
     const found = readShapes({ models: [notes.toModel()], views: [view<typeof notes>('notes').list((r) => ({ columns: [r.body] })).toModel()], pages: [] })

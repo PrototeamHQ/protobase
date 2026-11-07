@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { groupTotals, series, type Measure } from '@protobase/query'
-import type { ResourceModel } from '@protobase/schema'
+import type { FilterExpr, ResourceModel } from '@protobase/schema'
 import { splitGroups } from './aggregate-splits'
 import { scoped, seriesRange } from './aggregate-service'
 import type { Deps } from './deps'
@@ -65,9 +65,9 @@ const isDated = (model: ResourceModel, field: string) => {
  * each with how many there are and, with `sum`, `average` or `maximum`, that of a numeric field. Read as a list is: the caller's
  * filter on the model as they see it, inside their tenant and row filter; the scan guard judges the grouped field.
  */
-export const aggregate = async (deps: Deps, entry: Entry, session: Session, input: unknown) => {
+export const aggregate = async (deps: Deps, entry: Entry, session: Session, input: unknown, within?: FilterExpr) => {
   const params = parseParams(aggregateParams, input)
-  const { access, model, filter, scope } = await scoped(deps, entry, session, params.filter)
+  const { access, model, filter, scope } = await scoped(deps, entry, session, params.filter, within)
   // A hidden field is refused exactly like an unknown one
   if (!Object.hasOwn(model.fields, params.group_by)) throw invalid('group_by', `Unknown field "${params.group_by}"`)
   const measure = measureOf(params)
