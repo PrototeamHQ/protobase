@@ -83,7 +83,7 @@ export const channelsView = view<typeof channels>('channels').nav({ recent: { or
 | Key | Meaning |
 | --- | --- |
 | `status` | The field whose value picks each record's dot. Typed against the resource's fields. Optional: without it, records have no dot, as a chat's channels. |
-| `tones` | Dot colour per status value: `neutral`, `info`, `success`, `warning` or `danger`. Values not listed are `neutral`. Optional. |
+| `tones` | Dot per status value, each with a colour and a shape of its own, so a status does not rest on colour alone: `neutral` a gray ring, `info` a diamond in the primary colour, `success` a green dot, `warning` an orange triangle, `danger` a red square. Values not listed are `neutral`. Optional. |
 | `pulse` | Status values whose dot pulses, for states in progress (a deploy running, an order being picked). Needs `status`. |
 | `filter` | Which records qualify, as AIP-160 text, exactly as `?filter=` on the list API. Use it to leave out finished or inactive records, or to keep them while they are recent: `status != "stopped" OR updated_at > now() - 7d`. |
 | `orderBy` | AIP-132 order, as `?order_by=`; the list's `sort` when omitted. |
