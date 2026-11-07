@@ -32,6 +32,9 @@ export type TopBarProps = {
 /** An icon button of the top bar on a mobile screen, as the menu, back and search buttons are. */
 export const topBarButton = 'inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden'
 
+/** The back button that shows the page it goes to, as the trail on a phone leaves that crumb to it: one link, one target. */
+const backWithLabel = 'inline-flex h-11 min-w-0 items-center gap-1 rounded-md pr-2 pl-3 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden'
+
 export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOpen, menuControls, search, sticky, slotRef, ref }: TopBarProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
   const back = backTarget(breadcrumb)
@@ -69,9 +72,10 @@ export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOp
               event.preventDefault()
               follow(back.href)
             }}
-            className={cn(topBarButton, !onMenu && '-ml-3')}
+            className={cn(back.shown ? backWithLabel : topBarButton, !onMenu && '-ml-3')}
           >
-            <ChevronLeft className="size-5" />
+            <ChevronLeft className="size-5 shrink-0" aria-hidden />
+            {back.shown && <span className="truncate">{back.label}</span>}
           </a>
         )}
         <Breadcrumb parts={breadcrumb} onNavigate={onNavigate} />
