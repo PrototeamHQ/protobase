@@ -162,17 +162,19 @@ describe('keptAssigned', () => {
   const step = { scope: '', state: 'Fetch', status: 'succeeded', output: { id: 7, name: 'Ada' } }
 
   it('gives a variable that keeps the whole result that result, whatever the step assigned it then, and keeps the others as they ran', () => {
-    expect(keptAssigned(machine, { ...step, assigned: { whole: 7, id: 7 } })).toEqual({ whole: { id: 7, name: 'Ada' }, id: 7 })
-    expect(keptAssigned(machine, { ...step, assigned: null })).toEqual({ whole: { id: 7, name: 'Ada' } })
+    expect(keptAssigned(machine, machine, { ...step, assigned: { whole: 7, id: 7 } })).toEqual({ whole: { id: 7, name: 'Ada' }, id: 7 })
+    expect(keptAssigned(machine, machine, { ...step, assigned: null })).toEqual({ whole: { id: 7, name: 'Ada' } })
   })
 
   it('keeps what a step that failed into a catcher assigned', () => {
-    expect(keptAssigned(machine, { ...step, status: 'caught', output: { Error: 'Fetch.Refused' }, assigned: { whole: 'fallback' } })).toBeUndefined()
+    expect(keptAssigned(machine, machine, { ...step, status: 'caught', output: { Error: 'Fetch.Refused' }, assigned: { whole: 'fallback' } })).toBeUndefined()
   })
 
   it('changes nothing that already holds the result, nor a state that shapes its result', () => {
-    expect(keptAssigned(machine, { ...step, assigned: { whole: { id: 7, name: 'Ada' }, id: 7 } })).toBeUndefined()
+    expect(keptAssigned(machine, machine, { ...step, assigned: { whole: { id: 7, name: 'Ada' }, id: 7 } })).toBeUndefined()
     const shaped = definition({ Fetch: { Type: 'Task', Resource: 'fetch', Output: '{% $states.result.id %}', Assign: { whole: '{% $states.result %}' }, End: true } }).stateMachine
-    expect(keptAssigned(shaped, { ...step, assigned: null })).toBeUndefined()
+    expect(keptAssigned(shaped, shaped, { ...step, assigned: null })).toBeUndefined()
+    // Shaped in the run it keeps from, its output is not its whole result, so nothing is made of it
+    expect(keptAssigned(machine, shaped, { ...step, output: 7, assigned: { whole: { id: 7, name: 'Ada' } } })).toBeUndefined()
   })
 })

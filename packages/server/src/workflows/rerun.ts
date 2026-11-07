@@ -29,6 +29,9 @@ export const keepEarlierSteps = async (trx: Db, deps: Deps, schema: string, even
   const steps = sql.id(schema, 'steps')
   const { rows } = await sql<EarlierStep & { id: string; output: unknown; assigned: unknown }>`select id, scope, seq, state, status, next, output, assigned from ${steps} where run_id = ${earlier}`.execute(trx)
   const machine = versions[0]!.definition.stateMachine
+  const { rows: earlierVersions } = await sql<{ definition: Definition }>`select v.definition from ${sql.id(schema, 'runs')} r
+    join ${sql.id(schema, 'versions')} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${earlier}`.execute(trx)
+  const ran = earlierVersions[0]!.definition.stateMachine
   const kept = from ? rerunFromSteps(machine, rows, from) : rerunSteps(machine, rows)
   if ('problem' in kept) throw badRequest('rerun-refused', `The run cannot be re-run on the workflow as it is now: ${kept.problem}`)
   if (kept.steps.length === 0) return
@@ -36,7 +39,7 @@ export const keepEarlierSteps = async (trx: Db, deps: Deps, schema: string, even
   await sql`insert into ${steps} (run_id, tenant_id, ${columns}) select ${run}, tenant_id, ${columns} from ${steps}
     where id in (${sql.join(kept.steps.map((step) => step.id))})`.execute(trx)
   for (const step of kept.steps) {
-    const assigned = keptAssigned(machine, step)
+    const assigned = keptAssigned(machine, ran, step)
     if (assigned) await sql`update ${steps} set assigned = ${JSON.stringify(assigned)}::jsonb where run_id = ${run} and scope = ${step.scope} and seq = ${step.seq}`.execute(trx)
   }
 }

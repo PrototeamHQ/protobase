@@ -47,7 +47,7 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
       const earlierSteps = steps.filter((step) => step.runId === earlier)
       const kept = from === undefined ? rerunSteps(definition.stateMachine, earlierSteps) : rerunFromSteps(definition.stateMachine, earlierSteps, from)
       if ('problem' in kept) throw new Error(kept.problem)
-      steps.push(...kept.steps.map((step) => ({ ...structuredClone(step), assigned: keptAssigned(definition.stateMachine, step) ?? step.assigned, runId: id })))
+      steps.push(...kept.steps.map((step) => ({ ...structuredClone(step), assigned: keptAssigned(definition.stateMachine, runs.get(earlier)!.definition.stateMachine, step) ?? step.assigned, runId: id })))
       runs.set(id, { id, definition, input: runs.get(earlier)!.input, status: 'queued', startedAt: clock })
       await runner.start(null, id)
     },
