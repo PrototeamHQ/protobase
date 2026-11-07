@@ -336,7 +336,7 @@ A failed run, shown on its workflow's page, offers *Re-run from the failed step*
 
 With `rerun_from`, the name of a state of the workflow itself, it re-runs any run that ended, succeeded or failed, from that state: the steps before its first visit stay as they ran, and it and all after it run again, so what they send goes out again. A kept step whose state now has a variable that keeps its whole result, `"Assign": { "customer": "{% $states.result %}" }`, gets that variable from what it gave, unless the state shapes its result with `Output`. `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "rerun_of": "...", "rerun_from": "Store" }` does it. It is refused when the run has not ended (`run-not-ended`), never reached that state, or the version no longer has it or no longer starts there (`rerun-refused`), and without `rerun_of` (`rerun-from-without-run`).
 
-A workflow may be created with no steps: its `definition` then defaults to one with `manual` as its trigger and no states. Such a version is kept, and refused as it is published or run.
+A workflow may be created with no steps: its `definition` then defaults to one with `manual` as its trigger and no states. A save of a definition with no states checks the rest of it as any save does; such a version is kept, and refused as it is published or run.
 
 A kept step's card says it is from the earlier run, as it finished before the re-run started; the earlier run's own page lists its re-runs.
 

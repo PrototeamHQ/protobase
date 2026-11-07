@@ -13,6 +13,16 @@ const savedDefinition = async (trx: Db, schema: string, workflow: string, versio
   return rows[0]?.definition
 }
 
+/**
+ * A definition with no steps as the check reads it: with one that ends the run at once, so its trigger and every other
+ * field are checked all the same, and only the want of steps is let through.
+ */
+export const withStepsToCheck = (definition: unknown) => {
+  const machine = (definition as Partial<Definition> | null)?.stateMachine
+  if (!machine || typeof machine.States !== 'object' || machine.States === null || Object.keys(machine.States).length > 0 || machine.StartAt !== '') return definition
+  return { ...(definition as Definition), stateMachine: { ...machine, StartAt: 'Done', States: { Done: { Type: 'Succeed' } } } }
+}
+
 const refuseProblems = (definition: unknown, types: CheckOptions) => {
   const problems = checkDefinition(definition, types)
   if (problems.length === 0) return
@@ -40,7 +50,7 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
   const id = String(event.after.id)
   if (changed) {
     // A workflow starts with no steps; a version without any is kept, and refused as it is published or run.
-    if (Object.keys((event.after.definition as Definition).stateMachine?.States ?? { state: true }).length > 0) refuseProblems(event.after.definition, types)
+    refuseProblems(withStepsToCheck(event.after.definition), types)
     await sql`insert into ${sql.id(schema, 'versions')} (workflow_id, version, definition, saved_by, tenant_id)
       select w.id, w.version, w.definition, ${String(event.user.id)}, w.tenant_id from ${sql.id(schema, 'workflows')} w where w.id = ${id}`.execute(trx)
   }
