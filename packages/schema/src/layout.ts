@@ -3,6 +3,12 @@ import type { CardPhotosModel, RecordChartRange, CommentsSectionModel, GroupItem
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
+// A page-wide section spans the page only at the top of the layout, so a tab or group cannot hold one
+const refusePageWide = (builder: string, title: string, items: LayoutItemModel[]) => {
+  const wide = items.find((item) => item.kind === 'section' && item.width === 'page')
+  if (wide?.kind === 'section') throw new Error(`${builder} "${title}" cannot hold page-wide section "${wide.title}": it spans the page only outside tabs and groups`)
+}
+
 /**
  * The items of a record page, for a view's `.layout((r) => [...])`, exported as `l`. See
  * [The record page](docs/website/src/content/docs/reference/ui-config.mdx#the-record-page).
@@ -67,12 +73,14 @@ export const layout = {
   }),
   /**
    * A heading over sections and related tables in the main column; `collapsed: true` keeps it closed until the person
-   * opens it, or a link to the record does (the address names the open groups by title). Throws on any other item. See
+   * opens it, or a link to the record does (the address names the open groups by title). Throws on any other item and
+   * on a page-wide section. See
    * [Groups](docs/website/src/content/docs/reference/ui-config.mdx#groups).
    */
   group: (title: string, items: LayoutItemModel[], o: { collapsed?: boolean; when?: RecordWhen } = {}): LayoutItemModel => {
     const wrong = items.find((item) => item.kind !== 'section' && item.kind !== 'related')
     if (wrong) throw new Error(`l.group "${title}" holds sections and related tables, not ${wrong.kind}`)
+    refusePageWide('l.group', title, items)
     return {
       kind: 'group',
       title,
@@ -84,12 +92,14 @@ export const layout = {
   /**
    * A tab of the record page holding main-column items: sections, groups, related tables, custom components, maps,
    * charts, galleries, history and comments. A view's tabs stand together and show as one strip, the first tab open unless the
-   * address names another; items before and after them show on every tab. Throws on a sidebar item or another tab. See
+   * address names another; items before and after them show on every tab. Throws on a sidebar item, another tab or a
+   * page-wide section. See
    * [Tabs](docs/website/src/content/docs/reference/ui-config.mdx#tabs).
    */
   tab: (title: string, items: LayoutItemModel[]): LayoutItemModel => {
     const wrong = items.find((item) => item.kind === 'sidebar' || item.kind === 'tab' || ((item.kind === 'custom' || item.kind === 'map') && item.sidebar))
     if (wrong) throw new Error(`l.tab "${title}" holds main-column items, not ${wrong.kind === 'sidebar' || wrong.kind === 'tab' ? wrong.kind : `a sidebar ${wrong.kind}`}`)
+    refusePageWide('l.tab', title, items)
     return { kind: 'tab', title, items: items as TabItemModel[] }
   },
   /** A table of the records of another resource that point at this one, directly or through a join table. */

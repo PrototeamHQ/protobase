@@ -544,7 +544,7 @@ view<typeof objectives>('objectives').recordWidth('full')
 
 ### Page-wide sections
 
-`l.section(title, fields, { width: 'page' })` spans the page above the main column and the sidebar cards, for a field that needs the room, such as a workflow's graph; Save then stays in a bar at the foot of the window, on a wide screen as on a phone. It applies to a section outside tabs and groups. On the create form it is a section like the others.
+`l.section(title, fields, { width: 'page' })` spans the page above the main column and the sidebar cards, for a field that needs the room, such as a workflow's graph; Save then stays in a bar at the foot of the window, on a wide screen as on a phone. It applies to a section outside tabs and groups: `l.tab` and `l.group` throw on one. On the create form it is a section like the others.
 
 ```ts
 view<typeof workflows>('workflows')
