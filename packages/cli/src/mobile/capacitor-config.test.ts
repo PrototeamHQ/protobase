@@ -28,6 +28,12 @@ describe('capacitorConfig', () => {
     })
   })
 
+  it('turns page inspection off by name in an iOS release only', () => {
+    expect(capacitorConfig({ ...base, platform: 'ios', release: true }).ios).toEqual({ webContentsDebuggingEnabled: false })
+    expect(capacitorConfig({ ...base, platform: 'ios' })).not.toHaveProperty('ios')
+    expect(capacitorConfig({ ...base, release: true })).not.toHaveProperty('ios')
+  })
+
   it('compiles in the configured plugins, and Protobase\'s after them', () => {
     expect(capacitorConfig({ ...base, plugins: ['@capacitor/camera', 'x'] }).includePlugins).toEqual(['@capacitor/camera', 'x', '@capacitor/keyboard', '@protobase/mobile'])
   })

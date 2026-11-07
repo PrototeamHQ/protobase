@@ -2,7 +2,6 @@ import { sql } from 'kysely'
 import { z } from 'zod'
 import { facetCounts, histogram, series, withoutField } from '@protobase/query'
 import { parentCondition, tenantCondition, type Granularity, type Scope } from '@protobase/query'
-import { checkedFilter } from './filter-input'
 import type { Deps } from './deps'
 import type { ResourceModel } from '@protobase/schema'
 import { badRequest } from './problem'
@@ -10,7 +9,7 @@ import { parseParams } from './params'
 import { labelRequests, relatedLabels } from './related-labels'
 import type { Entry } from './registry'
 import { rangeEnd, rangeStart } from './range-ends'
-import { readScope } from './read-scope'
+import { readFilter } from './related-filter'
 import { requestAccess, requireOperation, type RequestAccess } from './request-access'
 import { columnId, filterCondition, scopeConditions, tableId, whereClause } from './sql-parts'
 import { readTransaction } from './transactions'
@@ -39,7 +38,7 @@ const rangeMs = { '1h': hourMs, '24h': 24 * hourMs, '7d': 7 * 24 * hourMs, '30d'
 export const scoped = async (deps: Deps, entry: Entry, session: Session, source?: string) => {
   const access = await requestAccess(deps, entry, session)
   requireOperation(access, 'list')
-  return { access, model: access.model, filter: checkedFilter(access.model, source), scope: await readScope(access) }
+  return { access, model: access.model, ...(await readFilter(access, access.model, access.full, source)) }
 }
 
 /**

@@ -49,10 +49,19 @@ const expanded = (node: unknown): unknown => {
   return Object.fromEntries(Object.entries(node).map(([key, value]) => [key, expanded(value)]))
 }
 
+// Only a list-style read of the API resolves `related()`, which nothing can evaluate against a record's values.
+const callsRelated = (node: unknown): boolean => {
+  if (Array.isArray(node)) return node.some(callsRelated)
+  if (typeof node !== 'object' || node === null) return false
+  if ((node as Call).kind === 'call' && (node as Call).name === 'related') return true
+  return Object.values(node).some(callsRelated)
+}
+
 export const parseCondition = (source: string): ConditionParse => {
   const parsed = parseFilter(source)
   if (!parsed.ok) return { ok: false, message: parsed.errors.map((error) => error.message).join('; ') }
   if (!parsed.ast) return { ok: false, message: 'the condition is empty' }
+  if (callsRelated(parsed.ast)) return { ok: false, message: "related() only works in a list's filter" }
   return { ok: true, ast: parsed.ast, paths: [...new Set(memberPaths(parsed.ast))] }
 }
 

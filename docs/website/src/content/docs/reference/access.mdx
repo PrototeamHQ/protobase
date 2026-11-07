@@ -123,6 +123,19 @@ A record often belongs to another one through a relation, such as an operation t
 - **The parent is locked until the write commits** (`FOR NO KEY UPDATE`), so a VM handed to someone else or deleted at the same moment is waited for and checked again. That is the cost: writes of records under one parent, and through an `update` parent under one ancestor, run one after another. The server's database role needs `UPDATE` on the parent's table to take the lock. Two writes that lock the same records in opposite orders, such as two batches writing under VM A then B and B then A, can deadlock: Postgres rolls one back, which answers `409` and writes nothing, and the client sends it again.
 - The record page and `/api/meta` count the check, so the admin app offers no Edit or Delete the server would refuse. `/api/sb/rest/v1` does not use Protobase's access rules at all, so this check is not part of it.
 
+## Related records in filters
+
+A list's filter can reach through other records with [`related(field, resource.key, (subfilter))`](/reference/api/#filtering-through-related-records). It may do only what the caller could do in two steps, listing `resource` with the subfilter and then filtering with `in(field, ...)`, so it never tells a row or field they cannot read.
+
+- **The caller's list of `resource`.** The term is one more condition on the read, and its subquery is that list: their tenant, row filter, soft delete and `read` parents there. The outer list's own tenant and row filter stay, so a term can only remove rows. `show_deleted` reaches the outer rows only.
+- **The caller's fields.** The subfilter and `key` are checked against the resource as the caller sees it, so a hidden, sensitive or write-only field is refused like an unknown one, and `search("text")` in a subfilter reads only the search fields they read.
+- **Nothing about what they cannot list.** A resource that does not exist, one they cannot list, one whose `read` or `list` rule [reads the record](#rules-that-read-the-record), a tenant-scoped one for a caller without a tenant, a wrong `key`, and fields that do not point at one resource all answer the same `400` `Unknown field`. A term in the wrong place or over the limits is refused before any of that is looked at.
+- **The session's own organization.** A term reads that organization alone, and a list [across organizations](#lists-across-organizations) with a term falls back to it too.
+
+A link record the caller reads can narrow a list by a record they cannot read: with `related(project_id, memberships.project_id)`, a ticket matches through a membership of a project hidden from them, because they could read that membership and that ticket anyway. Going through `projects` instead, `related(project_id, projects.id)`, keeps to the projects they read. `total_size_estimate` comes from the planner's statistics of the whole table, as on any list.
+
+Only a read of the API resolves `related()`: access rules, role filters and the other places a filter is stored refuse it. <gap>An access rule cannot filter through related records because `related()` in rules is not implemented.</gap>
+
 ## Lists across organizations
 
 :::caution[Beta]

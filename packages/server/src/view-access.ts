@@ -5,7 +5,7 @@ import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentEr
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { recordChartErrors } from './view-record-chart'
-import { openErrors, relatedErrors } from './view-related'
+import { openErrors, relatedSectionErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { searchesOfFor } from './view-saved-search'
 import { actionWhenFields } from './view-action-when'
@@ -20,7 +20,7 @@ const pruneRelated = (item: RelatedModel, resource: string, models: Record<strin
   const visible = models[item.resource] ? columns?.filter((column) => resolveFieldPath(models, item.resource, column).ok) : undefined
   const narrowed: RelatedModel = visible && visible.length > 0 ? { ...rest, columns: visible } : rest
   const opened = open !== undefined && openErrors({ ...narrowed, open }, models).length === 0 ? { ...narrowed, open } : narrowed
-  return relatedErrors(opened, resource, models).length === 0 ? opened : undefined
+  return relatedSectionErrors(opened, resource, models).length === 0 ? opened : undefined
 }
 
 // A chart keeps the series the caller can read, and goes with none left or when they cannot use the rest.

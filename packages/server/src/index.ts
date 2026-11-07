@@ -111,6 +111,8 @@ export { maxRecipients, maxMessageBytes, NotificationSendError, type Notificatio
 export { webPushSender, type WebPushOptions } from './notifications/web-push/web-push-sender'
 export { readVapidSettings, vapidPublicKeyVariable, vapidPrivateKeyVariable, vapidSubjectVariable, type VapidSettings } from './notifications/web-push/vapid-settings'
 export { generateVapidKeys } from './notifications/web-push/keys'
+export { fcmSender, type FcmOptions } from './notifications/fcm/fcm-sender'
+export { readFcmSettings, fcmServiceAccountVariable, type FcmSettings } from './notifications/fcm/fcm-settings'
 export { statusMigration, checkStatusSchema } from './status/schema'
 export { onDoNotDisturb } from './status/do-not-disturb'
 export { statusNames, type StatusOptions } from './status/options'

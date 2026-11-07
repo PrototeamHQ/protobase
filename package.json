@@ -11,6 +11,7 @@
     "db:down": "docker compose down",
     "test": "vitest run --project 'unit*' --project 'snapshot*'",
     "record:google": "bun scripts/google-recording/record.ts",
+    "record:fcm": "bun scripts/fcm-recording/record.ts",
     "test:record": "bun run test:db snapshots && SQL_SNAPSHOT=record vitest run --project 'snapshot*'",
     "test:integration": "vitest run --project 'integration*'",
     "test:smoke": "vitest run --project integration tests/smoke",

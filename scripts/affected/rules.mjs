@@ -77,6 +77,8 @@ export const edges = [
   { from: ['packages/server/src/better-auth/connections/testing/snapshots.ts'], reads: ['packages/server/src/better-auth/connections/testing/snapshots/**'] },
   // The leak scan of the committed Google recordings reads them by path; the Gmail fake's are under test-support/.
   { from: ['scripts/google-recording/snapshot-files.test.ts'], reads: ['packages/server/src/better-auth/connections/testing/snapshots/google/**'] },
+  // The FCM sender's tests answer from the recorded token endpoint and FCM answers, read by path.
+  { from: ['packages/server/src/notifications/fcm/testing/recordings.ts'], reads: ['packages/server/src/notifications/fcm/testing/recordings/**'] },
   // The check that @protobase/ui's stable entry exports its building blocks reads every module of its source.
   { from: ['scripts/ui-exports/building-blocks.test.ts'], reads: ['packages/ui/src/**'] },
   // The examples' tests run on a clone of a template database, migrated and seeded from the example.

@@ -61,6 +61,21 @@ const wordOf = (node: Operand) => {
   }
 }
 
+// The subfilter is a group in parentheses, or a function call alone in them, as `related(...)` is when it nests. A bare
+// value would lower to nothing and drop the whole filter without an error.
+const isSubfilter = (arg: Arg): arg is Generic => ['sequence', 'and', 'or', 'not', 'compare', 'has', 'present', 'global', 'call'].includes(arg.kind)
+
+const lowerRelated = (l: Lowering, node: Call, field: FieldPath | undefined, bad: (usage: string) => undefined): FilterExpr | undefined => {
+  const [, target, subfilter, ...rest] = node.args
+  const usage = 'related(field, resource.field, (filter))'
+  if (!field || target?.kind !== 'member' || target.path.length !== 2 || rest.length > 0) return bad(usage)
+  const related = { kind: 'related', field, resource: target.path[0]!, key: target.path[1]!, span: node.span } as const
+  if (!subfilter) return related
+  if (!isSubfilter(subfilter)) return bad(usage)
+  const filter = lower(l, subfilter)
+  return filter && { ...related, filter }
+}
+
 const lowerCall = (l: Lowering, node: Call): FilterExpr | undefined => {
   const [first, second, ...rest] = node.args
   const field = first?.kind === 'member' ? fieldOf(l, first) : undefined
@@ -83,6 +98,8 @@ const lowerCall = (l: Lowering, node: Call): FilterExpr | undefined => {
       return field && string(second) !== undefined && rest.length === 0 ? { kind: 'regex', field, pattern: string(second)!, span: node.span } : bad('regex(field, "pattern")')
     case 'isNull':
       return field && !second ? { kind: 'isNull', field, span: node.span } : bad('isNull(field)')
+    case 'related':
+      return lowerRelated(l, node, field, bad)
     default:
       l.errors.push(filterError('unknown-function', `Unknown function "${node.name}"`, `Available functions: ${Object.keys(functions).join(', ')}`, node.span))
       return undefined

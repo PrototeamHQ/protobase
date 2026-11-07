@@ -1,7 +1,13 @@
 import type { CheckedFilter } from '@protobase/schema'
+import type { Scope } from './scope'
+
+// The `related()` terms of a read, which leave the filter for its scope; a cursor continues only the list that held them.
+const relatedTerms = (scope?: Scope): unknown[] =>
+  (scope?.parents ?? []).flatMap(({ field, parent, related }) =>
+    related ? [{ column: field.column, resource: parent?.model.name, key: parent?.key.column, subfilter: related.filter, terms: relatedTerms(parent?.scope) }] : [])
 
 /** The filter's structure without source spans, each field named by its column, so equal filters match however they were written. */
-const canonical = (filter: CheckedFilter) =>
+const canonical = (filter: unknown) =>
   JSON.stringify(filter, (key, value: unknown) => {
     if (key === 'span') return undefined
     if (key === 'field') return (value as { column: string }).column
@@ -22,5 +28,9 @@ const hash = (text: string) => {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)
 }
 
-/** A short fingerprint of the filter a cursor was issued for; empty without a filter. */
-export const filterFingerprint = (filter: CheckedFilter | undefined) => (filter ? hash(canonical(filter)) : '')
+/** A short fingerprint of the filter a cursor was issued for and the `related()` terms of its scope; empty without either. */
+export const filterFingerprint = (filter: CheckedFilter | undefined, scope?: Scope) => {
+  const terms = relatedTerms(scope)
+  if (terms.length > 0) return hash(canonical({ filter, terms }))
+  return filter ? hash(canonical(filter)) : ''
+}

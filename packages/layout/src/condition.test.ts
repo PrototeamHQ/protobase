@@ -8,6 +8,11 @@ const parsed = (source: string): Condition => {
 }
 
 describe('conditions', () => {
+  it('refuses related(), which only a read of the API resolves', () => {
+    expect(parseCondition('related(a, b.c, (d = 1))').ok).toBe(false)
+    expect(parseCondition('e = 1 AND NOT related(a, b.c)').ok).toBe(false)
+  })
+
   it('lists the values a condition names, once each', () => {
     expect(parsed("status = 'active' AND billing_profiles.count > 1 OR status = 'trial'").paths).toEqual(['status', 'billing_profiles.count'])
   })

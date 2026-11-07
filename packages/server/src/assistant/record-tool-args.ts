@@ -36,6 +36,11 @@ export const keyOf = (value: unknown): RecordKeyInput | undefined => {
 
 export const resourceParameter = { type: 'string', description: 'The resource\'s name, as list_resources gives it.' }
 
+export const filterParameter = {
+  type: 'string',
+  description: 'An AIP-160 filter on filterable fields, such as status = "open" AND amount > 10. related(field, resource.key, (subfilter)), ANDed with the rest, keeps the records whose field holds the key of a record of resource that meets the subfilter.',
+}
+
 export const keyParameter = {
   description: 'The record\'s key: its value, or the values of its key fields in order when the key has several.',
   anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'array', items: { type: ['string', 'number'] }, minItems: 1 }],
