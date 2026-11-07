@@ -57,10 +57,11 @@ const Reports = ({ path }: { path: string }) => {
   )
 }
 
-// The record page is open when its breadcrumb ends in a link to it.
-const opened = async (canvasElement: HTMLElement, href: string) => {
-  const trail = within(await within(canvasElement).findByRole('navigation', { name: 'Breadcrumb' }))
-  await waitFor(() => expect(trail.getByRole('link', { current: 'page' })).toHaveAttribute('href', href))
+// The record page is open when its heading names the report and its key links to the task it belongs to.
+const opened = async (canvasElement: HTMLElement, title: string) => {
+  const canvas = within(canvasElement)
+  expect(await canvas.findByRole('heading', { name: title })).toBeVisible()
+  await waitFor(() => expect(canvas.getByRole('link', { name: 'Fix login' })).toHaveAttribute('href', '/tasks/task-7'))
 }
 
 /** A list row opens the record by the related task's id, not by the title the list shows for it. */
@@ -69,7 +70,7 @@ export const ListRowOpensRecord: StoryObj = {
   render: () => <Reports path="/reports" />,
   play: async ({ canvasElement }) => {
     await userEvent.click(await within(canvasElement).findByText('Login works again'))
-    await opened(canvasElement, '/reports/task-7')
+    await opened(canvasElement, 'Login works again')
   },
 }
 
@@ -79,7 +80,7 @@ export const RelatedRowOpensRecord: StoryObj = {
   render: () => <Reports path="/tasks/task-7" />,
   play: async ({ canvasElement }) => {
     await userEvent.click(await within(canvasElement).findByText('Login works again'))
-    await opened(canvasElement, '/reports/task-7')
+    await opened(canvasElement, 'Login works again')
   },
 }
 
@@ -94,6 +95,6 @@ export const EditAndSave: StoryObj = {
     await userEvent.type(summary, 'Login fixed for good')
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(stored.reports![0]!.summary).toBe('Login fixed for good'))
-    await opened(canvasElement, '/reports/task-7')
+    await opened(canvasElement, 'Login fixed for good')
   },
 }

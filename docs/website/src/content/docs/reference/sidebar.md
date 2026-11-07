@@ -93,7 +93,7 @@ export const channelsView = view<typeof channels>('channels').nav({ recent: { or
 The entry then works like this:
 
 - The label opens the full list, as before; the chevron beside it shows or hides the records. The choice is kept per entry in this browser (`localStorage`), and an entry starts open.
-- Each record shows its title (the view's `title`, as in breadcrumbs) and opens its record page. The open record is highlighted.
+- Each record shows its title (the view's `title`, as in its record page's heading) and opens its record page. The open record is highlighted.
 - "View all" ends the list and opens the full list, like the label.
 - Only text sidebars (`text-large`, `text-small`, and the phone drawer) show the records; icon sidebars keep a plain entry.
 
