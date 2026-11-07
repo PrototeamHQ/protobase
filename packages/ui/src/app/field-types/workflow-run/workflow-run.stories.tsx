@@ -165,8 +165,13 @@ export const FailsFixedAndRerunChecks: StoryObj = {
     expect(panel(canvasElement).getByText(/"Authorization": "\[redacted\]"/)).toBeVisible()
     expect(canvasElement.textContent).not.toContain(token)
 
-    // Fixed in the editor
-    await userEvent.click(canvas.getAllByRole('link', { name: 'Sync tickets' })[0]!)
+    // The run is shown on its workflow's page, read-only, on the version it ran on
+    await waitFor(() => expect(canvas.getByRole('combobox', { name: 'Version' })).toHaveValue('1'))
+    expect(canvas.getAllByText(/is shown on version 1, the version it ran on/)).toHaveLength(2)
+    expect(canvas.queryByRole('button', { name: 'Save' })).toBeNull()
+
+    // Fixed in the editor, once the run is closed
+    await userEvent.click(canvas.getAllByRole('link', { name: 'Close the run' })[0]!)
     await userEvent.click(await nodeOf(canvasElement, 'Store'))
     const resource = await within(await canvas.findByRole('region', { name: 'Chosen step' })).findByRole('textbox', { name: /^Resource/ })
     await userEvent.clear(resource)
@@ -174,14 +179,28 @@ export const FailsFixedAndRerunChecks: StoryObj = {
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(canvas.getByRole('button', { name: 'Save' })).toBeDisabled())
 
-    // Re-run from the failed step
-    await userEvent.click(await waitFor(() => canvasElement.querySelector<HTMLElement>('main a[href="/workflow_runs/run-1"]') ?? Promise.reject(new Error('No link to the run yet'))))
+    // Re-run from the failed step, the run opened again from the run selector, now on the version before the fix
+    const runs = await canvas.findByRole('combobox', { name: 'Run' })
+    await userEvent.selectOptions(runs, within(runs).getByRole('option', { name: /Failed, version 1$/ }))
+    await waitFor(() => expect(canvas.getAllByText(/the latest is version 2|is shown on version 1/).length).toBeGreaterThan(0))
     await userEvent.click(await canvas.findByRole('link', { name: 'Re-run from the failed step' }))
     await userEvent.click(await canvas.findByRole('button', { name: /^Create/ }))
     await markOf(canvasElement, 'Store', 'Succeeded')
     expect(calls).toEqual({ fetch: 1, store: 2, mail: 0 })
     await userEvent.click(await nodeOf(canvasElement, 'Fetch'))
     await waitFor(() => expect(panel(canvasElement).getByText('From the earlier run')).toBeVisible())
+
+    // Choosing the version before the fix closes the run and shows that version read-only, with the way back
+    await userEvent.selectOptions(canvas.getByRole('combobox', { name: 'Version' }), '1')
+    await waitFor(() => expect(canvas.getAllByText('Version 1 is shown, read-only; the latest is version 2.')).toHaveLength(2))
+    expect(canvas.getByRole('combobox', { name: 'Run' })).toHaveValue('')
+    expect(canvas.queryByRole('combobox', { name: 'Add a step' })).toBeNull()
+    expect(canvas.queryByRole('button', { name: 'Save' })).toBeNull()
+    await userEvent.click(await nodeOf(canvasElement, 'Store'))
+    expect(await within(await canvas.findByRole('region', { name: 'Chosen step' })).findByRole('textbox', { name: /^Resource/ })).toBeDisabled()
+    await userEvent.click(canvas.getAllByRole('link', { name: 'Back to the latest' })[0]!)
+    expect(await canvas.findByRole('combobox', { name: 'Add a step' })).toBeInTheDocument()
+    expect(canvas.getByRole('button', { name: 'Save' })).toBeInTheDocument()
   },
 }
 
