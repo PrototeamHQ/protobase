@@ -54,6 +54,17 @@ describe('boundItem', () => {
     expect(bounded.subject).toHaveLength(bounds.subjectLength)
   })
 
+  it('leaves out NUL and lone surrogates, keeping whole pairs, and says so', () => {
+    const bounded = boundItem(item({ subject: 'a\u0000b\uD800c\uDC00d\uD83D\uDE00', from: { name: '\u0000', address: null } }))
+    expect(bounded).toMatchObject({ subject: 'abcd\uD83D\uDE00', from: { name: '', address: null }, truncated: true })
+  })
+
+  it('never cuts between the halves of a surrogate pair', () => {
+    const bounded = boundItem(item({ subject: 'x'.repeat(bounds.subjectLength - 1) + '\uD83D\uDE00' }))
+    expect(bounded.subject).toBe('x'.repeat(bounds.subjectLength - 1))
+    expect(bounded.truncated).toBe(true)
+  })
+
   it('keeps text when leaving out html is enough', () => {
     const bounded = boundItem(item({ text: 'x'.repeat(bounds.bodyLength), html: escaped(bounds.bodyLength) }))
     expect(bounded.html).toBeNull()

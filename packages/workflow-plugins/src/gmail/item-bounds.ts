@@ -36,16 +36,24 @@ export const bounds = {
 
 const jsonBytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length
 
+// NUL and a lone surrogate, which JSON escapes but the database's JSON refuses, so a run could not keep its input.
+const unstorable = /\u0000|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g
+
 /**
- * Cuts each value of `item` to its bound, then leaves out `html` and then `text` while the item is over `itemBytes` as
- * JSON. Every other value together stays under it even when each character is escaped, so the result always fits.
+ * Leaves out of each value what the database cannot store and cuts it to its bound, never between the halves of a
+ * surrogate pair, then leaves out `html` and then `text` while the item is over `itemBytes` as JSON. Every other value
+ * together stays under it even when each character is escaped, so the result always fits.
  */
 export const boundItem = (item: MailItem): MailItem => {
   let truncated = item.truncated
   const cut = (value: string | null, most: number) => {
-    if (value === null || value.length <= most) return value
+    if (value === null) return value
+    const storable = value.replace(unstorable, '')
+    if (storable.length !== value.length) truncated = true
+    if (storable.length <= most) return storable
     truncated = true
-    return value.slice(0, most)
+    const splitsPair = /[\uD800-\uDBFF]/.test(storable.charAt(most - 1))
+    return storable.slice(0, splitsPair ? most - 1 : most)
   }
   const few = <T>(list: T[], most: number) => {
     if (list.length <= most) return list
