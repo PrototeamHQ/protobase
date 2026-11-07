@@ -34,6 +34,7 @@ Under `/api/v1`:
 | --- | --- |
 | `GET /{resource}` | list: `filter`, `order_by`, `page_size` (50, max 500), `page_token`, `fields`, `labels`, `photos`, `photos_order_by`, `count=exact` |
 | `POST /{resource}:search` | same parameters as a JSON body (`fields` and `labels` arrays), for long filters |
+| `GET /{parent}/{key}/{resource}` | the list of `resource` that belongs to one record, see [Lists under a record](#lists-under-a-record) |
 | `GET /{resource}/{key}` | one record, with `ETag`; composite keys are `part,part`, each part percent-encoded |
 | `POST /{resource}` | create, `201` with `Location` and `ETag` |
 | `PATCH /{resource}/{key}` | partial update, `If-Match` required |
@@ -97,7 +98,7 @@ Access is resolved once per request and resource ([`resolveAccess`](/api/schema/
 - **Record-level rules** (a rule that needs the record, such as `status != 'locked'`) run in the write transaction with the stored record; a filter they return is checked in the database against the row as written, and a miss rolls the write back with `403`.
 - **`.own` on create**: when the create rule is limited to rows, the owner field is set to the caller unless given, and a row owned by someone else is refused with `403`.
 - **Seeking**: `:seek` resolves a row position to a page on the server, inside the caller's tenant, row filter and filter. No anchor value, column statistic or boundary token is ever returned (table-wide statistics include rows the caller may not see), only the page and the tokens of its own rows.
-- **ETags**: with a read-only `version` or `updated_at` column the ETag is a hash of that column's exact text, so it never shows a hidden value yet moves on every change. Without one it is a hash of the fields the caller may read, sensitive ones excluded: a change to a field they cannot read, or to a sensitive field, does not change their ETag.
+- **ETags**: with a read-only `version` or `updated_at` column the ETag is a hash of that column's exact text, so it never shows a hidden value yet moves on every change; `.etagFrom((r) => r.updated_at)` on a resource names the column, for a `version` that counts something else. Without one it is a hash of the fields the caller may read, sensitive ones excluded: a change to a field they cannot read, or to a sensitive field, does not change their ETag.
 - **Errors** never contain values of fields the caller cannot read; database errors leave out constraint and column names.
 
 The roles (the `roles` export of `config/roles.ts`, from `defineRoles`) make an operation without an explicit rule need the matching capability (`orders.update`), and limits each role to the [fields and rows](/reference/access/#capabilities) its capabilities list; `defaultAccess: 'allow' | 'deny'` in the config overrides the capability check. Without either, operations without a rule are allowed (single-admin projects).
@@ -142,7 +143,39 @@ The queue is an `AuditQueue`, `{ publish(event): Promise<void> }`, the default e
 
 ## Filters
 
-`filter` and `order_by` are AIP-160 and AIP-132 text, checked against the model (filterable and sortable fields only). Functions: `in(field, v, ...)`, `search("text")` and bare words (every word, ignoring case, anywhere inside one of the resource's search fields, so `port` finds "Portfolio"; `%`, `_` and `\` are literal; a [`digitsEnd`](/reference/data-config/#resource) field matches only the end of its digits), `similar(field, "text")`, `regex(field, "pattern")`, `isNull(field)`, `now()` with offsets such as `now() - 7d`. A filter is capped at 10,000 characters in a query string and 200,000 in a `:search` body.
+`filter` and `order_by` are AIP-160 and AIP-132 text, checked against the model (filterable and sortable fields only). Functions: `in(field, v, ...)`, `search("text")` and bare words (every word, ignoring case, anywhere inside one of the resource's search fields, so `port` finds "Portfolio"; `%`, `_` and `\` are literal; a [`digitsEnd`](/reference/data-config/#resource) field matches only the end of its digits), `similar(field, "text")`, `regex(field, "pattern")`, `isNull(field)`, `now()` with offsets such as `now() - 7d`, and [`related(field, resource.key, (filter))`](#filtering-through-related-records). A filter is capped at 10,000 characters in a query string and 200,000 in a `:search` body. A proxy in front of the API can refuse a long URL sooner with a `431`, counting the headers too: Protobase Cloud refused about 8,000 characters. So send a long filter to `:search`, as `client.list` does when its query string passes 4,000 characters.
+
+### Filtering through related records
+
+`related(field, resource.key, (subfilter))` keeps the records whose `field` holds the `key` of a record of `resource` that meets the subfilter, in one read, so a client never reads the keys first and sends them back:
+
+```text
+task_claims   related(task_id, objective_tasks.task_id, (objective_id = 40)) AND claimed_at >= now() - 7d
+tasks         related(id, objective_tasks.task_id, (objective_id = 40)) AND state != "done"
+preconditions related(task_id, tasks.id, (state != "done" AND related(id, objective_tasks.task_id, (objective_id = 40))))
+```
+
+It works in the `filter` of a list, `:search`, `:seek`, `:facets`, `:aggregate`, `:series`, `:histogram` and `:map`, in `/api/v1` and in MCP's `list_records` and `count_records`, and `where.related('task_id', 'objective_tasks', 'task_id', where.eq('objective_id', 40))` builds it in code.
+
+- `field` is a filterable field of the resource read, and `key` one of `resource`. Both point at one resource: each is a relation to it, or its own single key. A null `field` does not match.
+- It is a term ANDed at the top of the filter or of a subfilter. `NOT` and `OR` refuse it, as does anything else that takes a filter: access rules, role filters, a view's opening filter, events, subscriptions, workflow conditions and page conditions.
+- A filter holds at most 3 terms, those in subfilters included, and nests at most 2 levels.
+- It may do only what the caller could do in two steps, listing `resource` with the subfilter and then filtering with `in(field, ...)`: the [access](/reference/access/#related-records-in-filters) rules apply to both sides, and a resource the caller cannot list answers as one that does not exist.
+- The [scan guard](#safety) judges both tables. Besides `field` and the subfilter's columns, `key` needs a btree index under what the subfilter pins.
+- A [list across organizations](/reference/access/#lists-across-organizations) with a term reads the session's own organization alone, and so does the term.
+
+### Lists under a record
+
+`GET /{parent}/{key}/{resource}` is the list of `resource` that belongs to one record, with the same parameters as its own list: `/objectives/40/tasks?filter=state != "done"`. The other list methods work too: `/objectives/40/tasks:facets`, `POST /objectives/40/tasks:search` and the rest. It is a filter the path spells out, and a record keeps its one address, `/tasks/7`.
+
+- A relation of `resource` to `parent` leads there without a declaration: `/tasks/7/task_claims` keeps to `task_id = 7`, also in a `:facets` on `task_id`.
+- A link resource that declares its two relations with [`.links()`](/reference/data-config/#resource) joins them: `/objectives/40/tasks` reads as `related(id, objective_tasks.task_id, (objective_id = 40))`, the other side `/tasks/7/objectives`, and a resource a further step away, `/objectives/40/task_claims`, as `related(task_id, objective_tasks.task_id, (objective_id = 40))`.
+- The caller's own `filter` stands beside it, with its own [limits](#filtering-through-related-records); a `:facets` on the relation stays inside the record.
+- Where nothing leads there the answer is a `404`. Where several ways do, such as `task_dependencies` with its two relations to `tasks`, it is a `400` `ambiguous-parent` that names them, and a [`related()`](#filtering-through-related-records) filter says which. Links count only when the caller can list them.
+- The parent is read as the caller would read it first: one in another tenant, soft-deleted, outside their row filter or refused by a rule that reads the record answers the same `404` as one that does not exist. A resource they do nothing with answers as one that does not exist. A list of a resource they may not list answers as that list does.
+- A composite key has no list under it.
+
+MCP's `list_records` and `count_records` take the same as `belongs_to: { "resource": "objectives", "key": 40 }`, beside `filter`.
 
 ## Writes
 
@@ -201,7 +234,7 @@ The API sends no CORS headers until it has something to allow: other websites in
 
 - Every request runs in a transaction with `SET LOCAL statement_timeout` (`statementTimeoutMs`, default 1 s), so a slow query fails where it runs instead of holding a connection that other requests wait for. List, search, get, histogram, series, map and seek transactions are read-only. A query that runs longer is stopped: a `504` `statement-timeout` that names the request, its limit and the ways out, such as `GET /api/v1/orders ran a query longer than 1 s, so the database stopped it. Make the query faster, such as with an index or a narrower filter, or move the work into a function or job with longQueries: true, whose queries may run up to 30 s.` It goes to the app's error hook (`hooks/error.ts`, `createAdmin`'s `options.onUnhandledError`) and the [error tracker](#error-reporting) like a `500`. A read that needs longer has no way to opt out: give it an index, or move it into a [function](/guides/api-functions/#long-queries) or [job](/reference/jobs/) with `longQueries`.
 - Under `protobase dev` and `serve`, a request waits at most 2 seconds for a free database connection. When every connection stays busy that long, it is a `503` `connections-busy` with `Retry-After: 1` that names the request, reported the same way, rather than a request that hangs behind slow ones. A request that finds room for a new connection waits up to 30 seconds for it to open, such as while a database that scaled to zero wakes.
-- **Scan guard**: a list, `:search`, `:seek`, `:map` page, card photos, `:facets` and `:aggregate` read only columns an index serves, so they stay cheap however many rows match. The server reads each table's valid indexes from the catalog once, then checks every column the caller's filter, the role's row filter, the sort's first field, a facet's or an aggregate's grouped field and a [`read` parent](/reference/access/#records-that-belong-to-another)'s relation read, and the columns of the parent's own row filter against the parent's table:
+- **Scan guard**: a list, `:search`, `:seek`, `:map` page, card photos, `:facets` and `:aggregate` read only columns an index serves, so they stay cheap however many rows match. The server reads each table's valid indexes from the catalog once, then checks every column the caller's filter, the role's row filter, the sort's first field, a facet's or an aggregate's grouped field a [`read` parent](/reference/access/#records-that-belong-to-another)'s relation read and a [`related()`](#filtering-through-related-records) term's `field`, the columns of the parent's own row filter against the parent's table, and the subfilter's columns and `key` of a term against its resource's table:
   - Comparisons, `in`, null checks, sorts and facets need a btree index with the column as a key, every key before it pinned by the query: by `=` or `in` in the filter (outside `OR` and `NOT`), by the tenant or by soft delete. `(for_sale, status, published_at desc)` serves `for_sale = true AND status = "available"` sorted by `published_at desc`, but not `status` alone. `=` on text may use a pg_trgm index instead.
   - Patterns (`name = "*port*"`), `regex()`, `similar()` and `search()` need a pg_trgm (GIN or GiST) index on each column they read, a `digitsEnd` search field one on its digits; JSON `field:value` needs a GIN index.
   - A partial index counts for nothing, and a resource on a plain view or a foreign table, which has no indexes of its own, is not checked.

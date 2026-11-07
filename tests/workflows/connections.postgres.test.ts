@@ -250,10 +250,13 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     const then = definition(account)
     const states = { Use: { Type: 'Task', Resource: 'acme:token', Next: 'Done' }, Done: { Type: 'Succeed' } }
     expect((await as(ada, `/workflows/${workflow.id}`, 'PATCH', { definition: { ...then, stateMachine: { ...then.stateMachine, States: states } } })).status).toBe(200)
+    expect((await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: 2 })).status).toBe(200)
     const consents = async () => (await sql<{ version: number; enabled_by: string | null }>`select version, enabled_by from workflows.versions where workflow_id = ${workflow.id} order by version`.execute(db)).rows
     expect(await consents()).toEqual([{ version: 1, enabled_by: ada }, { version: 2, enabled_by: ada }])
     const unconnected = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Succeed' } } } }
     expect((await as(grace, `/workflows/${workflow.id}`, 'PATCH', { definition: unconnected })).status).toBe(200)
+    expect(await consents()).toEqual([{ version: 1, enabled_by: ada }, { version: 2, enabled_by: ada }, { version: 3, enabled_by: null }])
+    expect((await as(grace, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: 3 })).status).toBe(200)
     expect(await consents()).toEqual([{ version: 1, enabled_by: null }, { version: 2, enabled_by: null }, { version: 3, enabled_by: grace }])
     await as(grace, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: null })
   })
@@ -283,7 +286,10 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })
     const { id } = (await subscribed(workflow.id))!
     const unconnected = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Succeed' } } } }
-    expect((await as(grace, `/workflows/${workflow.id}`, 'PATCH', { definition: unconnected })).status).toBe(200)
+    const saved = await as(grace, `/workflows/${workflow.id}`, 'PATCH', { definition: unconnected })
+    expect(saved.status).toBe(200)
+    expect(unsubscribed).toEqual([])
+    expect((await as(grace, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: saved.body.version })).status).toBe(200)
     await until(async () => unsubscribed.length, (count) => count > 0)
     expect(await until(() => triggerById(id), (rows) => rows.length === 0)).toEqual([])
     expect(unsubscribed).toEqual([{ subscription: 'sub-1' }])

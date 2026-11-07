@@ -37,7 +37,7 @@ export type StepRecord = {
 }
 
 /** What a replay takes of a step of the run it replays, as that run's trace keeps it. */
-export type ReplayedStep = Pick<StepRecord, 'scope' | 'seq' | 'state' | 'status' | 'next' | 'output' | 'assigned' | 'error' | 'cause'>
+export type ReplayedStep = Pick<StepRecord, 'scope' | 'seq' | 'state' | 'status' | 'attempt' | 'output' | 'error' | 'cause'>
 
 /**
  * Where one scope stands, as a checkpoint saves it: all a later segment needs to take the scope up without running its
@@ -63,6 +63,8 @@ export type Checkpoint = {
   /** The try of the next state, from 1, and the errors of its earlier tries. */
   attempt: number
   failures: string[]
+  /** The visits of each state the scope began so far, which a replay matches its steps by. */
+  visits: Record<string, number>
   /** The next state may not run before this time. */
   resumeAt?: Date | null
   /** What `$now` gives the scope's next steps: the time of its last recorded step, its last wait's end, or the run's start. */
@@ -117,10 +119,10 @@ export type LoadedRun = {
   startedAt: Date
   trace?: TraceMode | null
   /**
-   * The run this one replays: its steps that write are not called but give what that run's steps gave, as its trace
-   * keeps them; null when that run is gone, so they give nothing. Absent: no replay.
+   * The run this one replays, with the definition it ran: its steps that write are not called but give what that
+   * run's steps gave, as its trace keeps them; null when that run is gone, so they give nothing. Absent: no replay.
    */
-  replayOf?: string | null
+  replayOf?: { id: string; definition: Definition } | null
 }
 
 export type RunStatus = 'queued' | 'running' | 'waiting' | 'succeeded' | 'failed'

@@ -11,3 +11,6 @@ knowledge_base:
         applyTo: ".github/**,scripts/**,package.json,vitest.config.ts"
       - files: "docs/snapshot-tests.md"
         applyTo: "**/*.test.ts,**/*.sql.json,test-support/**,scripts/test-db/**"
+reviews:
+  auto_review:
+    auto_pause_after_reviewed_commits: 0

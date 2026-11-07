@@ -1,7 +1,7 @@
 import { ApiError, type Client, type HistoryChange, type MentionableUser, type RecordComment, type MapLayerModel, type PluginRef, type PublicForm, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult, type WorkflowRunTrace, type WorkflowTypeList } from '@protobase/client'
 import { evaluateCondition, parseCondition, type PageModel } from '@protobase/layout'
-import { checkFilter, evaluateFilter, parseFilter, type BottomBarModel, type CardPhotosModel, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
-import { cardPhotoLimit, encodeKey, matchesSearch } from '@protobase/schema/internal'
+import { checkFilter, evaluateFilter, parseFilter, printFilter, type BottomBarModel, type CardPhotosModel, type RelatedFilter, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
+import { cardPhotoLimit, encodeKey, matchesSearch, splitRelated } from '@protobase/schema/internal'
 import { fakeForms } from './fake-forms'
 import { exampleWorkflowTypes } from '../../../../../test-support/workflow-types'
 
@@ -82,8 +82,24 @@ const sorter = (orderBy: string | undefined) => {
   }
 }
 
-const matches = (filter: string | undefined, model: ResourceModel | undefined) => {
+type Tables = { rows: (resource: string) => Row[]; model: (resource: string) => ResourceModel | undefined }
+
+// `related()` as the server answers it: the row's field holds the key of a row of the resource that meets the subfilter.
+const relatedTest = (term: RelatedFilter, tables: Tables) => {
+  const keys = new Set(tables.rows(term.resource).filter(matches(term.filter && printFilter(term.filter), tables.model(term.resource), tables)).map((row) => String(row[term.key])))
+  const field = term.field.path[0]!
+  return (row: Row) => row[field] !== null && row[field] !== undefined && keys.has(String(row[field]))
+}
+
+const matches = (filter: string | undefined, model: ResourceModel | undefined, tables: Tables): ((row: Row) => unknown) => {
   if (!filter) return () => true
+  const whole = parseFilter(filter)
+  const { terms, rest } = whole.ast ? splitRelated(whole.ast) : { terms: [], rest: undefined }
+  if (terms.length > 0) {
+    const others = matches(rest && printFilter(rest), model, tables)
+    const tests = terms.map((term) => relatedTest(term, tables))
+    return (row) => Boolean(others(row)) && tests.every((test) => test(row))
+  }
   const search = /^search\("((?:[^"\\]|\\.)*)"\)$/.exec(filter)
   if (search) {
     const text = JSON.parse(`"${search[1]}"`) as string
@@ -157,7 +173,8 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
   }
 
   type ListParams = { filter?: string; orderBy?: string; pageSize?: number; pageToken?: string; labels?: Record<string, string>; photos?: CardPhotosModel }
-  const select = (resource: string, params: ListParams) => table(resource).filter(matches(params.filter, models[resource])).sort(sorter(params.orderBy))
+  const tables: Tables = { rows: (resource) => table(resource), model: (resource) => models[resource] }
+  const select = (resource: string, params: ListParams) => table(resource).filter(matches(params.filter, models[resource], tables)).sort(sorter(params.orderBy))
   // The names `labels` asks for: each relation's records among the fake's rows, by key, those with a name
   const namesOf = (resource: string, items: Row[], labels: Record<string, string>) =>
     Object.fromEntries(Object.entries(labels).map(([relation, field]) => {

@@ -3,11 +3,12 @@ import { limits } from '../limits'
 import type { ScopeOutcome, SegmentContext, StateResult } from './context'
 import { StepError, SupersededError } from './errors'
 import { jsonBytes } from './json-bytes'
-import { advance, checkpointOf, positionOf, startPosition } from './position'
+import { advance, checkpointOf, positionOf, startPosition, visitOf } from './position'
 import type { StepLog, StepRecord } from './port'
 import { runResultState } from './result-states'
 import { runChoice, runFail, runPass, runWait } from './simple-states'
-import { bindingsOf, type StateCall } from './step-input'
+import { bindingsOf, innerScope, type StateCall } from './step-input'
+import { itemScope } from './replay-match'
 
 const runState = (state: State, call: StateCall): Promise<StateResult> => {
   if (state.Type === 'Pass' || state.Type === 'Succeed') return runPass(state, call)
@@ -54,7 +55,8 @@ const withinLimits = (record: StepRecord): StepRecord => {
  * save the scope's checkpoint before it goes on, with every other scope's kept since the last; any other step only
  * keeps it, as running it again gives the same.
  */
-export const runScope = async (context: SegmentContext, machine: Machine, scope: string, input: unknown, outer: Record<string, unknown>, clock: Date): Promise<ScopeOutcome> => {
+export const runScope = async (context: SegmentContext, machine: Machine, where: { scope: string; logical: string }, input: unknown, outer: Record<string, unknown>, clock: Date): Promise<ScopeOutcome> => {
+  const { scope, logical } = where
   const saved = context.saved.get(scope)
   let position = saved ? positionOf(saved) : startPosition(machine, input, clock)
   for (;;) {
@@ -72,8 +74,11 @@ export const runScope = async (context: SegmentContext, machine: Machine, scope:
     const name = position.state
     const state = machine.States[name]!
     const startedAt = context.now()
-    const at = position
-    const call: StateCall = { context, name, scope, position, bindings: bindingsOf(context, outer, scope, position), logs: [], runScope: (inner, key, value, seen) => runScope(context, inner, key, value, seen, at.clock) }
+    const from = position
+    const visit = visitOf(position)
+    const item = (index: number) => ({ scope: innerScope(scope, name, from.seq, index), logical: itemScope(logical, name, visit, index) })
+    const runItem = (inner: Machine, index: number, value: unknown, seen: Record<string, unknown>) => runScope(context, inner, item(index), value, seen, from.clock)
+    const call: StateCall = { context, name, scope, logical, position, visit, bindings: bindingsOf(context, outer, scope, position), logs: [], runScope: runItem }
     // The step's place under the cap is taken before it runs, so Map items running at once cannot pass the cap together;
     // a state that saves no step gives it back. One that throws ends the segment, whose count goes with it.
     context.steps.count++

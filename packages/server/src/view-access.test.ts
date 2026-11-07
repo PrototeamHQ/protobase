@@ -71,6 +71,14 @@ describe('pruneView', () => {
     expect(names(without({ repairs: ['customerId'] }))).toEqual(['quote'])
   })
 
+  it("keeps the address a record's page opens only while the caller can follow it", () => {
+    const repairsView = view<typeof repairs>('repairs').recordOpens({ kind: 'record', resource: 'customers', key: '{customerId}' }).toModel()
+    const opens = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).recordOpens
+    expect(opens(all)).toEqual({ kind: 'record', resource: 'customers', key: '{customerId}' })
+    expect(opens(without({}, ['customers']))).toBeUndefined()
+    expect(opens(without({ repairs: ['customerId'] }))).toBeUndefined()
+  })
+
   it('keeps a create link with values beyond the fields only when the resource opens a create page', () => {
     const customersView = view<typeof customers>('customers')
       .actions((a) => [a.link('book', { label: 'Book a repair', to: { kind: 'create', resource: 'repairs', values: { owner_id: '{id}' } } })])
@@ -249,7 +257,7 @@ describe('pruneView', () => {
 
   it("keeps a gallery's image and photos as far as the caller can load them, and leaves out one with neither", () => {
     const photos = { resource: 'repair_photos', field: 'repairId', image: 'photo', sort: 'position' }
-    const written = view<typeof repairs>('repairs').recordMode('read').helpWhen('editing').layout((r) => [l.section('Repair', [r.status], { help: 'As booked', helpWhen: 'always', presentation: 'facts' })]).toModel()
+    const written = view<typeof repairs>('repairs').recordMode('read').helpWhen('editing').layout((r) => [l.section('Repair', [r.status], { help: 'As booked', helpWhen: 'always', presentation: 'facts', width: 'page' })]).toModel()
     // The repair's own picture stands in for a file field: pruning reads only whether the caller may see it
     written.layout = [...written.layout, { kind: 'gallery', title: 'Photos', image: 'costPrice', photos }]
     const galleries = (models: Record<string, ResourceModel>) => pruneView(written, models.repairs!, models).layout.filter((item) => item.kind === 'gallery')

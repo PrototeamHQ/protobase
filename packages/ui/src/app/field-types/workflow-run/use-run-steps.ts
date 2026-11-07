@@ -17,12 +17,13 @@ export const stepRow = (step: WorkflowTraceStep): StepRow => ({
   duration_ms: Date.parse(step.finishedAt) - Date.parse(step.startedAt),
 })
 
-/** The steps of a run's trace in the order they ran, read again every second while `following`. */
-export const useRunSteps = (runId: string, following: boolean) => {
+/** The steps of a run's trace in the order they ran, read again every second while `following`. Without a run nothing is read. */
+export const useRunSteps = (runId: string | undefined, following: boolean) => {
   const client = useClient()
   return useQuery({
-    queryKey: keys.workflowRunTrace(runId),
-    queryFn: async () => (await client.workflowRunTrace(runId)).steps.map(stepRow),
+    queryKey: keys.workflowRunTrace(runId ?? ''),
+    queryFn: async () => (await client.workflowRunTrace(runId!)).steps.map(stepRow),
+    enabled: runId !== undefined,
     refetchInterval: following ? followMs : false,
   })
 }

@@ -10,7 +10,7 @@ import { Skeleton } from '../../primitives/skeleton'
 import { EmbeddedList } from '../embedded-list/embedded-list'
 import { defaultOrderBy } from '../list-order'
 import { countQuery } from '../pages/use-layout-data'
-import { addedFilter, filterChanges, netChange, removedFilter, type FilterChange } from './search-diff'
+import { addedFilter, canDiff, filterChanges, netChange, removedFilter, type FilterChange } from './search-diff'
 import { useFilterChips } from './use-filter-chips'
 import { text } from './messages'
 
@@ -75,6 +75,41 @@ const RecordsSide = ({ model, view, title, filter, total, plural }: RecordsSideP
   )
 }
 
+type RecordsDiffProps = {
+  model: ResourceModel
+  view: ViewModel | undefined
+  before: string
+  after: string
+}
+
+/** How many more or fewer records the search finds, and the records it would add and drop, each found by the list API. */
+const RecordsDiff = ({ model, view, before, after }: RecordsDiffProps) => {
+  const added = useMemo(() => addedFilter(before, after), [before, after])
+  const removed = useMemo(() => removedFilter(before, after), [before, after])
+  const addedCount = useDiffCount(model, added)
+  const removedCount = useDiffCount(model, removed)
+  const singular = (view?.names?.singular ?? humanize(model.name)).toLowerCase()
+  const plural = (view?.names?.plural ?? humanize(model.name)).toLowerCase()
+  const counted = addedCount !== undefined && removedCount !== undefined
+
+  return (
+    <>
+      {counted ? (
+        <p>
+          <span className="font-semibold">{netChange(addedCount, removedCount, singular, plural)}</span>
+          <span className="text-muted-foreground">
+            : {text('addedRemoved', { added: count(addedCount, singular, plural), removed: removedCount })}
+          </span>
+        </p>
+      ) : (
+        <Skeleton className="h-4 w-48" />
+      )}
+      <RecordsSide model={model} view={view} title={text('added')} filter={added} total={addedCount} plural={plural} />
+      <RecordsSide model={model} view={view} title={text('removed')} filter={removed} total={removedCount} plural={plural} />
+    </>
+  )
+}
+
 type UpdateSearchDialogProps = {
   /** The resource searched and its view. */
   model: ResourceModel
@@ -94,18 +129,11 @@ type UpdateSearchDialogProps = {
 }
 
 /**
- * Asks before a saved search takes the list's filter: what changes in its filters, how many more or fewer records it
- * finds, and the records it would add and drop, each found by the list API (`addedFilter`, `removedFilter`).
+ * Asks before a saved search takes the list's filter: what changes in its filters and, unless a filter goes through
+ * related records, how the records it finds change.
  */
 export const UpdateSearchDialog = ({ model, view, title, before, after, saveNewLabel, updating, creating, onUpdate, onSaveNew, onCancel }: UpdateSearchDialogProps) => {
   const changes = filterChanges(useFilterChips(model, before), useFilterChips(model, after))
-  const added = useMemo(() => addedFilter(before, after), [before, after])
-  const removed = useMemo(() => removedFilter(before, after), [before, after])
-  const addedCount = useDiffCount(model, added)
-  const removedCount = useDiffCount(model, removed)
-  const singular = (view?.names?.singular ?? humanize(model.name)).toLowerCase()
-  const plural = (view?.names?.plural ?? humanize(model.name)).toLowerCase()
-  const counted = addedCount !== undefined && removedCount !== undefined
 
   return (
     <ResponsiveDialog
@@ -127,18 +155,7 @@ export const UpdateSearchDialog = ({ model, view, title, before, after, saveNewL
     >
       <div className="flex flex-col gap-4">
         {changes.length > 0 && <FilterChanges changes={changes} />}
-        {counted ? (
-          <p>
-            <span className="font-semibold">{netChange(addedCount, removedCount, singular, plural)}</span>
-            <span className="text-muted-foreground">
-              : {text('addedRemoved', { added: count(addedCount, singular, plural), removed: removedCount })}
-            </span>
-          </p>
-        ) : (
-          <Skeleton className="h-4 w-48" />
-        )}
-        <RecordsSide model={model} view={view} title={text('added')} filter={added} total={addedCount} plural={plural} />
-        <RecordsSide model={model} view={view} title={text('removed')} filter={removed} total={removedCount} plural={plural} />
+        {canDiff(before, after) ? <RecordsDiff model={model} view={view} before={before} after={after} /> : <p className="text-muted-foreground">{text('noRecordsDiff')}</p>}
       </div>
     </ResponsiveDialog>
   )

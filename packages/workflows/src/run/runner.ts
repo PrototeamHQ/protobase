@@ -48,7 +48,7 @@ export const createRunner = <Db>({ store, queue, tasks, cache, secrets = {}, tra
       const redactor = secretRedactor(Object.values(secrets))
       const segment = { runId, definition: run.definition, input: run.input, startedAt: run.startedAt, secrets, redactor, tasks, ...(cache && { cache }), signal, now, budgetMs, maxSteps }
       // A replay takes the steps of the run it replays from that run's trace: none when the run or its trace is gone.
-      const replayed = run.replayOf === undefined ? undefined : run.replayOf === null ? [] : ((await trace?.read(run.replayOf)) ?? [])
+      const replayed = run.replayOf === undefined ? undefined : { definition: run.replayOf?.definition ?? run.definition, steps: run.replayOf ? ((await trace?.read(run.replayOf.id)) ?? []) : [] }
       const outcome = await runSegment({ ...segment, ...(replayed && { replayed }), saved: await store.checkpoints(db, runId), save: (checkpoints) => store.save(db, runId, checkpoints) })
       const mode = run.trace ?? run.definition.trace ?? traceMode
       const traced = (end?: 'succeeded' | 'failed') => trace?.write(runId, outcome.steps, { mode, ...(end && { ended: end }) })

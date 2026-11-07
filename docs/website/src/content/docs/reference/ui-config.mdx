@@ -536,11 +536,31 @@ A record opened from a list, by its row or its card, shows the fields the list l
 
 ### Page width
 
-The record page sits in a centred column about 1100px wide. `.recordWidth('full')` makes it fill the content pane beside the sidebar instead, with the sidebar cards still on the right, for a record with wide sections or related tables; `'column'` is the default. On a phone both look the same.
+The record page sits in a centred column about 1100px wide. `.recordWidth('full')` makes it fill the content pane beside the sidebar instead, with the sidebar cards still on the right, for a record with wide sections or related tables, and makes its create form as wide; `'column'` is the default. On a phone both look the same.
 
 ```ts
 view<typeof objectives>('objectives').recordWidth('full')
 ```
+
+### Page-wide sections
+
+`l.section(title, fields, { width: 'page' })` spans the page above the main column and the sidebar cards, for a field that needs the room, such as a workflow's graph; Save then stays in a bar at the foot of the window, on a wide screen as on a phone. It applies to a section outside tabs and groups: `l.tab` and `l.group` throw on one. On the create form it is a section like the others.
+
+```ts
+view<typeof workflows>('workflows')
+  .recordWidth('full')
+  .layout((r) => [l.section('Workflow', [r.name, r.description]), l.section('Graph', [r.definition], { width: 'page' })])
+```
+
+### A record page that opens another
+
+`.recordOpens(to)` sends a record's page to another address in its place, its `{field}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names, gets the record's own page. The record's own page stays at its address with `?standard=true`.
+
+```ts
+view<typeof workflowRuns>('workflow_runs').recordOpens({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })
+```
+
+A record address can also carry `version`, an earlier saved version of the record shown by a field type that keeps versions, such as the `workflow` field type: the record page then shows its read view, without Save or Edit.
 
 ### Full-area record pages
 
@@ -796,7 +816,7 @@ Without any configuration, the record page's rail has a **Related records** card
 | `resource` | The records listed. Required. |
 | `field` | Without `through` or `from`: the relation on `resource` that holds this record's key. With `from`: the field of `resource` that holds that value. With `through`: the field of `resource` matched against the keys the join records hold. Filterable. Required. |
 | `from` | A field of this record whose value `field` must hold, instead of this record's key, such as the task of a question, to list the task's links: `{ resource: 'task_links', field: 'task_id', from: 'task_id' }`. Same type as `field` (a relation to the same resource), not sensitive, and not with `through`. A record with no value lists nothing. |
-| `through` | `{ resource, field, key?, filter? }`: the join records whose `field` (a filterable relation) holds this record's key; their `key` values (default their primary key) pick the listed records. All of them are read. |
+| `through` | `{ resource, field, key?, filter? }`: the join records whose `field` (a filterable relation) holds this record's key; their `key` values (default their primary key, filterable, and pointing at one resource with `field`) pick the listed records, in one read with [`related()`](/reference/api/#filtering-through-related-records), so an index must serve `key` too. |
 | `filter`, `sort` | AIP-160 and AIP-132 on `resource`, as in the list API. `filter` narrows the listed records, `through.filter` the join records. |
 | `columns` | Fields of `resource`, through relations too (`unit_id.property_id`); default the view's list columns without `field`. The first links to the record a row opens. With `presentation: 'cards'`, the fields each card shows. |
 | `presentation` | `'cards'` shows the records as [cards](#related-records-as-cards) instead of the table or display. |

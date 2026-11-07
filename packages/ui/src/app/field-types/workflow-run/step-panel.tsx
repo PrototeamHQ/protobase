@@ -44,7 +44,7 @@ const StateSteps = ({ run, name }: { run: Run; name: string }) => {
 }
 
 /**
- * What the chosen node did in the run, under the graph: the trigger's input, or each step of the state with its input,
+ * What the chosen node did in the run, in the side panel: the trigger's input, or each step of the state with its input,
  * output, logs, timing, try and error.
  */
 export const StepPanel = ({ definition, run, selected, types }: { definition: Definition; run: Run; selected: string; types?: WorkflowTypeList }) => {

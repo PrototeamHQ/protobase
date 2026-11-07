@@ -29,7 +29,7 @@ export const keepEarlierCheckpoints = async (trx: Db, deps: Deps, schema: string
   const { rows } = await sql<EarlierCheckpoint>`select scope, next from ${checkpoints} where run_id = ${earlier}`.execute(trx)
   const problem = rerunProblem(versions[0]!.definition.stateMachine, rows)
   if (problem) throw badRequest('rerun-refused', `The run cannot be re-run on the workflow as it is now: ${problem}`)
-  await sql`insert into ${checkpoints} (run_id, scope, seq, follows, state, type, status, fetched_at, next, value, variables, attempt, failures, resume_at, clock)
-    select ${run}, scope, seq, follows, state, type, status, fetched_at, next, value, variables, 1, '[]'::jsonb, null, now()
+  await sql`insert into ${checkpoints} (run_id, scope, seq, follows, state, type, status, fetched_at, next, value, variables, attempt, failures, visits, resume_at, clock)
+    select ${run}, scope, seq, follows, state, type, status, fetched_at, next, value, variables, 1, '[]'::jsonb, visits, null, now()
     from ${checkpoints} where run_id = ${earlier}`.execute(trx)
 }

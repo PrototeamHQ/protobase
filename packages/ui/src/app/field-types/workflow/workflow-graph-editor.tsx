@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import type { WorkflowTypeList } from '@protobase/client'
 import type { Definition } from '@protobase/workflows'
 import { AddStep } from './add-step'
 import { definitionOf, pathOf, stateAt, triggerId } from './definition'
 import { addState, freeName, type NewState } from './definition-edits'
+import { GraphFrame, PanelHint } from './graph-frame'
 import { NodePanel } from './node-panel'
 import { ProblemList } from './problem-list'
 import { definitionProblems, problemsByNode } from './problems'
@@ -17,6 +18,8 @@ export type WorkflowGraphEditorProps = {
   types: WorkflowTypeList
   /** Without it, the workflow is only shown. */
   onChange?: (definition: Definition) => void
+  /** What the side panel says first, such as that the version shown is only read. */
+  notice?: ReactNode
 }
 
 // A new state goes into the Map chosen, or the Map the chosen state is in, else into the workflow itself.
@@ -28,10 +31,10 @@ const scopeFor = (definition: Definition, selected: string | undefined): string[
 
 /**
  * A workflow's definition as a graph to see and edit: the menu that adds a state, the canvas, which ELK lays out on
- * each change, and the chosen node's fields under it. Every problem the save's check would refuse it for shows on the
+ * each change, and the chosen node's fields in the side panel beside it. Every problem the save's check would refuse it for shows on the
  * node it names as it is edited, and the rest above the canvas.
  */
-export const WorkflowGraphEditor = ({ value, types, onChange }: WorkflowGraphEditorProps) => {
+export const WorkflowGraphEditor = ({ value, types, onChange, notice }: WorkflowGraphEditorProps) => {
   // The form hands the value over anew on each render: the definition changes only when its JSON does
   const json = JSON.stringify(value ?? null)
   const definition = useMemo(() => definitionOf(JSON.parse(json)), [json])
@@ -57,10 +60,19 @@ export const WorkflowGraphEditor = ({ value, types, onChange }: WorkflowGraphEdi
         </div>
       )}
       <ProblemList problems={checked.whole} />
-      <div className="h-[28rem] overflow-hidden rounded-lg border max-sm:h-[22rem]">
-        <WorkflowCanvas definition={definition} problems={checked.byNode} selected={selected} onSelect={setChosen} onChange={onChange} types={types} />
-      </div>
-      {selected !== undefined && <NodePanel definition={definition} types={types} selected={selected} problems={checked.byNode.get(selected) ?? []} onChange={onChange} onSelect={setChosen} />}
+      <GraphFrame
+        canvas={<WorkflowCanvas definition={definition} problems={checked.byNode} selected={selected} onSelect={setChosen} onChange={onChange} types={types} />}
+        panel={
+          <>
+            {notice}
+            {selected === undefined ? (
+              <PanelHint>{text('pickNode')}</PanelHint>
+            ) : (
+              <NodePanel definition={definition} types={types} selected={selected} problems={checked.byNode.get(selected) ?? []} onChange={onChange} onSelect={setChosen} />
+            )}
+          </>
+        }
+      />
     </div>
   )
 }

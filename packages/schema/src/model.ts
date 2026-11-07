@@ -150,6 +150,8 @@ export type ResourceModel = {
   }
   /** The records its records belong to, and the access on them writing its records needs (`.parent()`). */
   parents?: ParentModel[]
+  /** The two relations a link resource joins (`.links()`), so each side lists the other at `/{parent}/{key}/{resource}`. */
+  links?: readonly [string, string]
   /** The events its changes raise (`.events()`), the catalogue subscriptions pick from. */
   events?: EventModel[]
   /** Whether every change of its records is kept, with who made it (`.history()`). */
@@ -158,6 +160,8 @@ export type ResourceModel = {
   comments?: true
   /** Whether open pages refresh as soon as its records change (`.live()`). */
   live?: true
+  /** The field whose change makes a record's new ETag (`.etagFrom()`), in place of a `version` or `updated_at` column found by name. */
+  etagFrom?: string
   /** Whether role wildcards such as `*.read` leave it out, so only `*` and capabilities naming it grant it (`.explicitGrants()`). */
   explicitGrants?: true
   /**
@@ -304,6 +308,13 @@ export type AppAddress =
       standard?: boolean
       /** `join` when the page joins the record's call, as a ring's Accept and a call mark's Join open it. */
       call?: 'join'
+      /**
+       * An earlier saved version of the record, by its number, as a field type that keeps versions draws it, such as a
+       * workflow's graph: the record page shows it read-only, as its read view.
+       */
+      version?: number
+      /** The run a workflow's page shows on its graph, by its key, on the version it ran on; `{field}` takes it from a record. */
+      run?: string
     }
   | {
       /** The form for a new record. */
@@ -997,6 +1008,8 @@ export type SectionModel = {
    * label/value rows; the form edits them as any section's.
    */
   presentation?: SectionPresentation
+  /** `page` spans the page above the main column and the sidebar; in the main column when omitted. */
+  width?: 'page'
   /** Whether it shows on the form, the read view or both, or a condition on the saved record that it shows while it holds. */
   when?: RecordWhen
 }
@@ -1477,6 +1490,8 @@ export type ViewModel = {
   create?: CreateModel
   /** The component of the app's own that is the whole record page, in place of the standard one. */
   record?: RecordPageModel
+  /** The address a record's page opens in its place, `{field}` replaced by the record's values. */
+  recordOpens?: AppAddress
   /** Public forms that create its records for people without an account, each at `/-/forms/<name>`. */
   forms?: FormModel[]
   /** Other lists of the resource, each with its own sidebar entry and address. */
@@ -1640,14 +1655,14 @@ export type CompareOp = '=' | '!=' | '<' | '<=' | '>' | '>='
 /**
  * A filter's syntax tree: AIP-160 with the functions the API adds (`search`, `similar`, `regex`, `isNull`, `in`); see
  * [Filters](docs/website/src/content/docs/reference/api.md#filters). `F` is how a field is represented: a `FieldPath` when
- * parsed (`FilterExpr`), a `FieldModel` once checked (`CheckedFilter`).
+ * parsed (`FilterExpr`), a `FieldModel` once checked (`CheckedFilter`). `Extra` is what only one of them holds.
  */
-export type FilterOf<F> =
+export type FilterOf<F, Extra = never> =
   | {
       /** Every one of `args` holds (`AND`). */
       kind: 'and'
       /** The filters joined. */
-      args: FilterOf<F>[]
+      args: FilterOf<F, Extra>[]
       /** Where it stands in the filter text. */
       span: Span
     }
@@ -1655,7 +1670,7 @@ export type FilterOf<F> =
       /** One of `args` holds (`OR`). */
       kind: 'or'
       /** The filters joined. */
-      args: FilterOf<F>[]
+      args: FilterOf<F, Extra>[]
       /** Where it stands in the filter text. */
       span: Span
     }
@@ -1663,7 +1678,7 @@ export type FilterOf<F> =
       /** `arg` does not hold (`NOT`, `-`). */
       kind: 'not'
       /** The filter negated. */
-      arg: FilterOf<F>
+      arg: FilterOf<F, Extra>
       /** Where it stands in the filter text. */
       span: Span
     }
@@ -1743,9 +1758,29 @@ export type FilterOf<F> =
       /** Where it stands in the filter text. */
       span: Span
     }
+  | Extra
+
+/**
+ * `related(field, resource.key, (filter))`: the field holds the `key` of a record of `resource` the caller may list that
+ * meets the filter. A list-style read of the API resolves it, so a parsed filter may hold it and a checked one never does.
+ */
+export type RelatedFilter = {
+  /** Which filter this is. */
+  kind: 'related'
+  /** The field of this resource that is matched. */
+  field: FieldPath
+  /** The resource read. */
+  resource: string
+  /** Its field whose values `field` is matched against. */
+  key: string
+  /** What its records must meet; every record the caller may list without one. */
+  filter?: FilterExpr
+  /** Where it stands in the filter text. */
+  span: Span
+}
 
 /** A filter as parsed, its fields as written (`parseFilter`). */
-export type FilterExpr = FilterOf<FieldPath>
+export type FilterExpr = FilterOf<FieldPath, RelatedFilter>
 
 /** A filter checked against a resource, its fields resolved to the resource's (`checkFilter`). */
 export type CheckedFilter = FilterOf<FieldModel>

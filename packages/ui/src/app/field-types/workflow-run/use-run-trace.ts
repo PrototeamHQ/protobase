@@ -28,11 +28,11 @@ const useFollow = (following: boolean) => {
 }
 
 /**
- * A run with what its trace draws: the run, the definition of the version it runs, and the steps of its trace in the
- * order they ran, followed while the run goes on.
+ * A run with what its trace draws: the run as stored, the definition of the version it runs, and the steps of its trace
+ * in the order they ran, followed while the run goes on. Without a run nothing is read.
  */
-export const useRunTrace = (runId: string) => {
-  const run = useRecord('workflow_runs', runId)
+export const useRunTrace = (runId: string | undefined) => {
+  const run = useRecord('workflow_runs', runId ?? '', runId !== undefined)
   const record = run.data?.record
   const versioned = record?.workflow_id != null && record.version != null
   const version = useRecord('workflow_versions', [String(record?.workflow_id ?? ''), Number(record?.version ?? 0)], versioned)
@@ -40,10 +40,14 @@ export const useRunTrace = (runId: string) => {
   const steps = useRunSteps(runId, going)
   useFollow(going)
   return {
+    id: runId,
     run: record,
+    stored: run.data,
     definition: version.data ? definitionOf(version.data.record.definition) : undefined,
     steps: (steps.data ?? []) satisfies TraceStep[],
     going,
     error: run.error ?? version.error ?? steps.error,
   }
 }
+
+export type RunTraceData = ReturnType<typeof useRunTrace>

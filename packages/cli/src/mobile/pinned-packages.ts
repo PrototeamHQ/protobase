@@ -24,9 +24,13 @@ export const pinnedNative: Record<string, string> = {
 
 const liveUpdate = '@capawesome/capacitor-live-update'
 
+/** Capacitor's push plugin, which @protobase/mobile pins and an Android app with `notifications()` compiles in. */
+export const pushPlugin = '@capacitor/push-notifications'
+
 /** Why the plugin `key`, a package that is or names `name`, may not be listed; `undefined` when it may. */
 export const pinnedProblem = (key: string, name = key) => {
   if (name === liveUpdate) return `mobile.plugins lists ${key}, ${liveUpdate}: live updates come with Protobase's updater, which mobile.publicKey turns on; remove it from mobile.plugins`
+  if (name === pushPlugin) return `mobile.plugins lists ${key}, ${pushPlugin}: native push comes with notifications(); remove it from mobile.plugins`
   if (pinnedPackages.has(name)) return `mobile.plugins lists ${key}, which ${name === key ? 'comes' : `installs ${name}, which comes`} with Protobase at a fixed version: remove it from mobile.plugins`
   return undefined
 }

@@ -78,7 +78,7 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
     },
     /** Replays the run `of` as `id` on `definition` from its start, with its input. */
     replay: async (id: string, of: string, definition: Definition) => {
-      runs.set(id, { id, definition, input: runs.get(of)!.input, status: 'queued', startedAt: clock, replayOf: of })
+      runs.set(id, { id, definition, input: runs.get(of)!.input, status: 'queued', startedAt: clock, replayOf: { id: of, definition: runs.get(of)!.definition } })
       await runner.start(null, id)
     },
     /** Runs one queued segment, moving the clock to its time; false when none is queued. */

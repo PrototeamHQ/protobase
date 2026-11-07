@@ -54,8 +54,9 @@ const relatedShapes = (item: RelatedModel, owner: string, models: Models): ReadS
   const extra = item.filter ? ` AND (${item.filter})` : ''
   const via = item.through && models[item.through.resource]
   const viaField = via && via.fields[item.through!.field]
+  const selects = via && via.fields[item.through!.key ?? via.primaryKey[0]!]
   const join: ReadShape[] = via && viaField
-    ? [{ resource: via.name, request: request(via.name, `${viaField.name} = …${item.through!.filter ? ` AND (${item.through!.filter})` : ''}`, undefined), from, query: { filter: all([compare(viaField), configFilter(via, item.through!.filter)]) } }]
+    ? [{ resource: via.name, request: request(via.name, `${viaField.name} = …${item.through!.filter ? ` AND (${item.through!.filter})` : ''}`, undefined), from, query: { filter: all([compare(viaField), configFilter(via, item.through!.filter)]), ...(selects && { selects }) } }]
     : []
   const matched = item.through ? anyOf(match) : compare(match)
   const text = item.through ? `${match.name} in (…)` : `${match.name} = …`

@@ -119,14 +119,14 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
 
   // Reads a price and stock, composes a mail from them, then writes: mail, a record, a record update, a POST, a DELETE,
   // and a step that says nothing of writing. The Wait shows a replay does not wait.
-  const order = (greeting: string) => ({
+  const order = (greeting: string, stock = '/stock') => ({
     trigger: { manual: {} },
     stateMachine: {
       QueryLanguage: 'JSONata',
       StartAt: 'Price',
       States: {
         Price: { Type: 'Task', Resource: 'acme:price', Arguments: { sku: '{% $states.context.Execution.Input.sku %}', token: '{% $states.context.Secrets.REPLAY_TOKEN %}' }, Assign: { amount: '{% $states.result.amount %}' }, Next: 'Stock' },
-        Stock: { Type: 'Task', Resource: 'app:http', Arguments: { url: `${base}/stock` }, Assign: { stock: '{% $states.result.body.stock %}' }, Next: 'Compose' },
+        Stock: { Type: 'Task', Resource: 'app:http', Arguments: { url: `${base}${stock}` }, Assign: { stock: '{% $states.result.body.stock %}' }, Next: 'Compose' },
         Compose: { Type: 'Pass', Assign: { text: `{% "${greeting}: " & $string($amount) & " EUR, " & $string($stock) & " left" %}` }, Next: 'Pause' },
         Pause: { Type: 'Wait', Seconds: 1, Next: 'Mail' },
         Mail: { Type: 'Task', Resource: 'app:mail.send', Arguments: { to: 'buyer@example.com', subject: 'Your order', text: '{% $text %}' }, Next: 'Note' },
@@ -147,35 +147,36 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
     return { workflow, run }
   }
 
-  it('sends none of the outside writes, gives what they gave, serves the cached read, reads live on a miss and composes again', async () => {
+  it('runs the version saved since, sending none of the outside writes, which give what they gave, serving the unchanged read from the cache and reading a changed one live', async () => {
     const { workflow, run } = await ranOrder()
     const original = await byState(run)
     const before = { sent: sent.length, received: [...received], notified: notified.length, lookups: lookups.length, notes: (await sql`select id, text from notes`.execute(db)).rows }
     // The secret the price lookup was given changes since its result was kept, as a new value's fingerprint would.
     await sql`update workflows.step_cache set secrets = jsonb_set(secrets, '{REPLAY_TOKEN}', '"an-older-fingerprint"') where secrets ? 'REPLAY_TOKEN'`.execute(db)
-    // A later version that greets otherwise: the replay runs the one the run ran.
-    await as('ada', `/workflows/${workflow}`, { method: 'PATCH', body: { definition: order('Bye') } })
+    // The fix: a later version that greets otherwise and reads the stock of another warehouse.
+    await as('ada', `/workflows/${workflow}`, { method: 'PATCH', body: { definition: order('Bye', '/stock?warehouse=2') } })
+    const current = (await sql<{ version: number }>`select version from workflows.workflows where id = ${workflow}`.execute(db)).rows[0]!.version
+    expect(current).toBe((await runRow(run)).version + 1)
 
     const replay = await created(await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, rerun_of: run, replay: true } }))
     await finished(replay)
-    expect(await runRow(replay)).toMatchObject({ status: 'succeeded', version: (await runRow(run)).version })
+    expect(await runRow(replay)).toMatchObject({ status: 'succeeded', version: current })
     expect(sent).toHaveLength(before.sent)
     expect(notified).toHaveLength(before.notified)
     expect(lookups).toHaveLength(before.lookups)
-    expect(received).toEqual([...before.received, 'GET /stock'])
+    expect(received).toEqual([...before.received, 'GET /stock?warehouse=2'])
     expect((await sql`select id, text from notes`.execute(db)).rows).toEqual(before.notes)
 
     const steps = await byState(replay)
     expect(steps.Price!.output).toEqual(original.Price!.output)
     expect(steps.Price!.logs.map((log) => log.message).join('\n')).toContain('An earlier result from')
     expect(steps.Price!.logs.map((log) => log.message)).toContain('The secret REPLAY_TOKEN changed since that result was kept')
-    expect(steps.Mail!.input).toMatchObject({ text: 'Hello: 11 EUR, 3 left' })
     expect(steps.Pause!.resume_at).toBeNull()
     for (const state of ['Mail', 'Note', 'Edit', 'Post', 'Delete', 'Notify']) {
       expect(steps[state]!.output).toEqual(original[state]!.output)
       expect(steps[state]!.logs.map((log) => log.message)).toEqual(['Not sent: replay'])
     }
-    expect(steps.Mail!.input).toEqual({ to: 'buyer@example.com', subject: 'Your order', text: 'Hello: 11 EUR, 3 left' })
+    expect(steps.Mail!.input).toEqual({ to: 'buyer@example.com', subject: 'Your order', text: 'Bye: 11 EUR, 3 left' })
     const kept = JSON.stringify([await stepsOf(replay), await runRow(replay)])
     expect(kept).not.toContain(secret)
   })

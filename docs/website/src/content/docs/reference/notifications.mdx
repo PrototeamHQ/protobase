@@ -8,7 +8,7 @@ import StoryFrame from '../../../components/StoryFrame.astro'
 ## Turning them on
 
 :::caution[Beta]
-Push reaches browsers; push on Android and iOS is coming soon.
+Push reaches browsers and the Android app; push on iOS is coming soon.
 :::
 
 Notifications tell a user about something in the app, in a bell in the top bar and as push on their devices. [Send notifications](/guides/push-notifications/) walks through turning them on and sending the first one. You turn them on in `protobase.config.ts`:
@@ -23,12 +23,12 @@ export default defineConfig({
 
 Then run `protobase migration`, which writes the [devices and history tables](#table-names), and the jobs schema that [sending](#sending) runs on, as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while a table is missing or lacks what notifications need, and name it. Without `notifications` there is none of it: no endpoints, no tables and no migration.
 
-Every signed-in user gets [the bell](#the-bell), and browsers receive push through [Web Push](#web-push); push on Android and iOS is coming soon. `notifications: { ui: false }` keeps only the backend, [without the bell](#without-the-bell).
+Every signed-in user gets [the bell](#the-bell), browsers receive push through [Web Push](#web-push), and the Android app through [FCM](#android); push on iOS is coming soon. `notifications: { ui: false }` keeps only the backend, [without the bell](#without-the-bell).
 
 ## Devices
 
 :::caution[Beta]
-Only browsers receive push yet, through [Web Push](#web-push): push on Android and iOS is coming soon.
+Browsers receive push through [Web Push](#web-push), and the Android app through [FCM](#android): push on iOS is coming soon.
 :::
 
 A device is where a user receives push: a browser's push subscription, or an Android or iOS app's push token. Each signed-in user registers and removes only their own, through the API:
@@ -68,7 +68,7 @@ The path comes from `devicesPath('/api', id)`, and the name of its id parameter 
 ## Sending
 
 :::caution[Beta]
-Only browsers receive push yet; push on Android and iOS is coming soon. <gap>A send can reach a device twice, or keep an entry twice in a history store of your own, when a worker stops mid-send because saving the send's progress in the same step as the push is not implemented.</gap>
+Browsers and the Android app receive push; push on iOS is coming soon. <gap>A send can reach a device twice, or keep an entry twice in a history store of your own, when a worker stops mid-send because saving the send's progress in the same step as the push is not implemented.</gap>
 :::
 
 [Send notifications](/guides/push-notifications/) sends one from a record change, step by step. You send a notification from your server code, such as a job, a hook, an event subscription or an API function, with `sendNotification(db, to, message)` from `@protobase/server`. It is queued as a background job in `db`'s transaction when `db` is one, so it goes out only once your write commits, and nothing goes out when the transaction rolls back. A running job also has it as `sendNotification` in its context, beside `mail`, when the app has `notifications`.
@@ -192,7 +192,7 @@ Each message is encrypted for its browser and signed with the key. It goes only 
 
 ### In the browser
 
-`usePushNotifications()` from `@protobase/ui` turns push on and off for the signed-in user in this browser, for your own button or menu item. Its `state` tells whether push is `on`, `off`, `blocked` because the user refused notifications in the browser's settings, or `unsupported`, and `loading` until it knows. Hide the button while it is `unsupported`: the browser has no Web Push, the app has no VAPID keys, or it runs in the Android or iOS app.
+`usePushNotifications()` from `@protobase/ui` turns push on and off for the signed-in user in this browser, or in the Android app, for your own button or menu item. Its `state` tells whether push is `on`, `off`, `blocked` because the user refused notifications in the browser's or the phone's settings, or `unsupported`, and `loading` until it knows. Hide the button while it is `unsupported`: the browser has no Web Push, the app has no VAPID keys, the Android app was built without `google-services.json`, or it runs in the iOS app.
 
 ```tsx
 import { Button, usePushNotifications } from '@protobase/ui'
@@ -210,9 +210,34 @@ export const PushButton = () => {
 - Only someone signed in as themselves can turn push on: a visitor's click and staff signed in as the user do nothing.
 - On iPhone and iPad, push works in the app added to the Home Screen; a browser tab answers `unsupported`.
 - Signing out turns push off in this browser, and so does someone else signing in on it: what the browser showed is closed, the app's badge cleared, and the device removed. Signing in again as the same user keeps it on. Each push names the user its device is registered for, and the browser shows nothing of a push for another user than the one it holds push for.
-- A tap on a notification whose url is on your app's origin opens that page in the app, in an open window of it or a new one; any other url opens in a new tab.
+- A tap on a notification opens its `platform.web.payload` `notification.navigate`, or its `url` when it has none, and each of the payload's `notification.actions` shows as a button that opens its own `navigate`, or the notification's url when it has none. The browser checks each url again as the server does and opens nothing for one that fails; no other field, such as `data`, is ever opened. A url on your app's origin opens that page in the app, in an open window of it or a new one; any other url opens in a new tab.
 
 `protobase serve` and `protobase dev` both serve the service worker that shows notifications, `protobase dev` only when the app has `notifications`.
+
+## Android
+
+:::caution[Beta]
+Push on Android is new.
+:::
+
+Android devices receive push through Firebase Cloud Messaging's HTTP v1 API. You create a service account key in your Firebase project (Project settings, Service accounts, Generate new private key) and set its JSON as `PROTOBASE_FCM_SERVICE_ACCOUNT`. Without it, Android devices are skipped. `protobase mobile` sets the app up from your `google-services.json`: see [Push notifications in the mobile app guide](/guides/mobile-app/#9-push-notifications).
+
+JSON that is not a service account key, a `project_id` that is not a Google project id, or a `private_key` that is not an RSA key of at least 2048 bits stops startup, naming the variable without its value. The key is a secret: keep it out of client code, `VITE_` variables and the repository. Anyone holding it can push to every Android device of the project.
+
+The server signs in as the service account with a token scoped to sending through FCM only, and keeps one token until five minutes before it expires. When no token can be had before the first request, the send fails with nothing pushed and is retried; a token that fails later retries only the devices still waiting for one. Requests go only to Google's token endpoint and to FCM, for the key's own project, never through a redirect; the URLs in the key's JSON are not read. A device is removed only when FCM reports its token unregistered. Any other refusal, such as a key without access to the project, keeps the device and retries it. A device stored with a token that is not an FCM token is `refused`.
+
+A message's title and body are the notification. Its `data` and `url` reach the app as FCM's data, the url under `url`, which the app opens on tap; a message whose `data` holds a `url` of its own is refused, each value a string (other JSON as its text), with `user`, the id of the user the device is registered for, over any `user` given. Its `ttl`, `urgency`, `tag`, `sound` and `badge` set the Android delivery and notification. A message's `platform.fcm` is merged over these, and may set only:
+
+| Field | |
+| --- | --- |
+| `notification` | `title`, `body` and `image` |
+| `data` | more data, each value a string |
+| `android` | `collapse_key`, `priority`, `ttl`, `direct_boot_ok`, and its `notification`: `title`, `body`, `icon`, `color`, `sound`, `tag`, `channel_id`, `image`, `ticker`, `sticky`, `notification_priority`, `default_sound`, `default_vibrate_timings`, `visibility`, `notification_count` and `local_only` |
+| `fcm_options` | `analytics_label` |
+
+Any other field is refused, such as `token`, `topic`, `webpush` or `click_action`, so a message cannot reach another device or act on tap beyond its `url`. After the merge, the data's `url` and every `image` are checked as the message's `url` is, and a data key FCM keeps for itself, such as `from` or one starting with `google`, is refused. <gap>A message over FCM's 4096-byte limit cannot be refused before it is sent because checking its size for FCM is not implemented, so FCM refuses it and the device is retried.</gap>
+
+`fcmSender(readFcmSettings(process.env)!)` from `@protobase/server` is the built-in sender, to list beside [your own senders](#senders).
 
 ## Your own parts
 
@@ -266,7 +291,7 @@ A notification is `{ id, userId, title, body, url, data, createdAt, readAt }`, a
 
 ### Senders
 
-A sender delivers notifications to the devices of the kinds it names, through their push service. Web Push is built in; your own senders, such as from a package, are the default export of `notifications/senders.ts`, an array, and they replace the built-in ones, at most one for each kind. To keep Web Push beside them, list it too: `webPushSender(readVapidSettings(process.env)!)` from `@protobase/server` is the built-in sender, and `readVapidSettings` reads the [VAPID variables](#web-push), `undefined` when none is set:
+A sender delivers notifications to the devices of the kinds it names, through their push service. Web Push and FCM are built in; your own senders, such as from a package, are the default export of `notifications/senders.ts`, an array, and they replace the built-in ones, at most one for each kind. To keep Web Push beside them, list it too: `webPushSender(readVapidSettings(process.env)!)` from `@protobase/server` is the built-in sender, and `readVapidSettings` reads the [VAPID variables](#web-push), `undefined` when none is set:
 
 ```ts
 // notifications/senders.ts

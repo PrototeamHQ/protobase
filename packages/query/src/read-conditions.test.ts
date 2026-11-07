@@ -16,6 +16,27 @@ const parent = { model: channels, key: channels.fields.id!, scope: { tenantValue
 
 const text = (condition: ReturnType<typeof parentCondition>) => compiled(sql`${condition}`)
 
+describe('parentCondition of a related() term', () => {
+  const searched = resource('channels').table('channels').fields({ id: f.integer(), name: f.text(), code: f.text() }).primaryKey((r) => r.id).search((r) => [r.name, r.code]).toModel()
+  const visible = { ...searched, search: ['name'] }
+  const term = (filter?: ReturnType<typeof checkFilter>) => ({
+    field: messages.fields.thread_id!,
+    parent: { model: searched, key: searched.fields.id!, scope: {} },
+    related: { model: visible, ...(filter?.ok && { filter: filter.filter }) },
+  })
+
+  it('does not keep a null relation', () => {
+    expect(text(parentCondition(term())).sql).toBe('"t"."thread_id" in (select "t"."id" from "channels" as "t")')
+  })
+
+  it('reads its subfilter as the caller sees the resource, so a search stays off hidden fields', () => {
+    const { sql: query, parameters } = text(parentCondition(term(checkFilter(visible, where.search('x')))))
+    expect(query).toContain('"t"."name"')
+    expect(query).not.toContain('"t"."code"')
+    expect(parameters).toEqual(['%x%'])
+  })
+})
+
 describe('parentCondition', () => {
   it("keeps the rows whose parent is inside the caller's scope on it, by one subquery on its key", () => {
     const { sql: query, parameters } = text(parentCondition({ field: messages.fields.channel_id!, parent }))

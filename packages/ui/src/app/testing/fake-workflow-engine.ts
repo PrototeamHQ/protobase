@@ -7,8 +7,8 @@ const ended = new Set(['succeeded', 'failed'])
 
 /**
  * The workflow runner of `@protobase/workflows` over the fake API's rows, for stories: a run created through the fake
- * API is given its workflow's version and, for a re-run, the earlier run's input and checkpoints (for a replay, that
- * run's version and input), as the server's trigger and start hook do; then its segments run on timers, keeping
+ * API is given its workflow's version and, for a re-run or a replay, the earlier run's input, and for a re-run the
+ * earlier run's checkpoints, as the server's trigger and start hook do; then its segments run on timers, keeping
  * checkpoints and traces in memory and changing the run as the server does. `trace` reads a run's trace as the API
  * serves it. A saved workflow whose definition changed gets its next version.
  */
@@ -24,7 +24,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
   const store: RunStore<null> = {
     load: async (_, id) => {
       const run = runOf(id)
-      return { id, definition: definitionOf(run), input: run.input, status: run.status as 'queued', startedAt: new Date(String(run.created_at)), ...(run.replay === true && { replayOf: String(run.rerun_of) }) }
+      return { id, definition: definitionOf(run), input: run.input, status: run.status as 'queued', startedAt: new Date(String(run.created_at)), ...(run.replay === true && { replayOf: { id: String(run.rerun_of), definition: definitionOf(runOf(String(run.rerun_of))) } }) }
     },
     checkpoints: async (_, id) => structuredClone(checkpoints.get(id) ?? []),
     save: async (_, id, saved) => {
@@ -69,7 +69,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
       const earlier = row.rerun_of == null ? undefined : runOf(String(row.rerun_of))
       // A form writes a boolean as text.
       const replay = row.replay === true || row.replay === 'true'
-      Object.assign(row, { id: `run-${++runs}`, status: 'queued', version: replay ? earlier!.version : workflow.version, replay: replay || null, created_at: new Date().toISOString(), started_by: 'u-ada', ...(earlier && { input: earlier.input }) })
+      Object.assign(row, { id: `run-${++runs}`, status: 'queued', version: workflow.version, replay: replay || null, created_at: new Date().toISOString(), started_by: 'u-ada', ...(earlier && { input: earlier.input }) })
     },
     /** After a write: a changed workflow's next version, and a new run started, a re-run from the earlier run's checkpoints. */
     afterWrite: (resource: string, row: Row) => {

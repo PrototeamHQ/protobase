@@ -2,11 +2,11 @@ import type { Definition } from '../definition/types'
 import { limits } from '../limits'
 import type { ScopeOutcome } from './context'
 import { SupersededError } from './errors'
-import type { Checkpoint, ReplayedStep, StepRecord, TaskHandlers } from './port'
+import type { Checkpoint, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import { secretNamer } from './cache/secret-names'
-import { replayedSteps } from './replay'
+import { replayOf, type Replayed } from './replay-of'
 import { runScope } from './scope'
 
 export type SegmentInput = {
@@ -26,8 +26,8 @@ export type SegmentInput = {
   tasks: TaskHandlers
   /** Where step types that cache keep their results; none keeps nothing. */
   cache?: StepCacheStore
-  /** In a replay, the steps of the run it replays, from its trace. */
-  replayed?: readonly ReplayedStep[]
+  /** In a replay, the run it replays, with its steps from its trace. */
+  replayed?: Replayed
   signal: AbortSignal
   now?: () => Date
   /** How long the segment takes new steps. Default `limits.segmentMs`. */
@@ -69,7 +69,7 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     redactor,
     tasks,
     ...(cache && { cache: { store: cache, nameSecrets: secretNamer(secrets) } }),
-    ...(replayed && { replay: { steps: replayedSteps(replayed) } }),
+    ...(replayed && { replay: replayOf(replayed) }),
     signal,
     now,
     deadline: Date.now() + budgetMs,
@@ -85,7 +85,7 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     maxSteps,
   }
   try {
-    const outcome = await runScope(context, definition.stateMachine, '', input, {}, startedAt)
+    const outcome = await runScope(context, definition.stateMachine, { scope: '', logical: '' }, input, {}, startedAt)
     // A run that ended needs no checkpoint: its outcome is the run's own.
     if (outcome.kind === 'blocked' || outcome.kind === 'yielded') await write()
     return { ...outcome, steps }

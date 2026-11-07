@@ -13,12 +13,16 @@ export type StateCall = {
   /** The state's name. */
   name: string
   scope: string
+  /** The scope with each Map named by its visit, which a replay matches steps by. */
+  logical: string
   position: At
+  /** Which visit of this state in its scope the step belongs to, from 0. */
+  visit: number
   /** The outer scopes' variables, this scope's, and `$states` with the run's context and the state's input. */
   bindings: Bindings
   logs: StepLog[]
-  /** Runs an inner scope (a Map item) under `key`, seeing these variables, from the clock of this one. */
-  runScope: (machine: Machine, key: string, input: unknown, outer: Record<string, unknown>) => Promise<ScopeOutcome>
+  /** Runs item `index` of this state's Map as an inner scope, seeing these variables, from the clock of this one. */
+  runScope: (machine: Machine, index: number, input: unknown, outer: Record<string, unknown>) => Promise<ScopeOutcome>
 }
 
 /**

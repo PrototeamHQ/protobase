@@ -8,7 +8,7 @@ import { saveSearchErrors, searchesOfErrors } from './view-saved-search'
 import { chartErrors } from './view-chart'
 import { mapDisplayErrors, mapErrors } from './view-map'
 import { recordChartErrors } from './view-record-chart'
-import { relatedActionErrors, relatedErrors } from './view-related'
+import { relatedActionErrors, relatedSectionErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { editableErrors } from './view-editable'
 import { actionWhenErrors, actionWhenFields } from './view-action-when'
@@ -102,6 +102,10 @@ const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string
     if (field !== undefined && !Object.hasOwn(model.fields, field)) return [`action "${name}": href names field "${field}", which ${model.name} does not have`]
     return 'to' in run ? addressErrors(run.to, { models, pages, source: model, createPages }).map((error) => `action "${name}": ${error}`) : []
   })
+
+// A record's page opens an address the app has, its `{field}`s fields of the record
+const opensErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, pages: ReadonlySet<string>, createPages: ReadonlySet<string>) =>
+  view.recordOpens ? addressErrors(view.recordOpens, { models, pages, source: model, createPages }).map((error) => `recordOpens: ${error}`) : []
 
 // An AI action writes, through the API, a text or enum field of the record, from a prompt that reads fields it has.
 const aiActionErrors = (view: ViewModel, model: ResourceModel) =>
@@ -221,7 +225,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
   const createPages = new Set(views.filter((view) => view.create).map((view) => view.resource))
   const viewProblems = (view: ViewModel, model: ResourceModel) => {
     const related = [
-      ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? [...relatedErrors(item, view.resource, models), ...relatedActionErrors(item, views)].map((error) => `related "${item.title}": ${error}`) : [])),
+      ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? [...relatedSectionErrors(item, view.resource, models), ...relatedActionErrors(item, views)].map((error) => `related "${item.title}": ${error}`) : [])),
       ...relatedColumnsErrors(view, model, models),
       ...(layoutItems(view.layout).filter((item) => item.kind === 'related' && item.lines).length > 1 ? ['only one related section holds the lines'] : []),
     ]
@@ -254,7 +258,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     ]
     const history = model.history ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
     const comments = model.comments ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...notOnCreateErrors(view, model), ...numberHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...notOnCreateErrors(view, model), ...numberHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...opensErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
   }
   // A named list is checked as a view of its own, without the record page, which the view's own check covers
   const problems = views.flatMap((view) => {

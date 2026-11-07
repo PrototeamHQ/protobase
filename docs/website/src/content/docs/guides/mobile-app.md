@@ -119,7 +119,9 @@ Use it as the upload key with Play App Signing. Set these variables in your shel
 
 Only Gradle gets them, for the length of the build: npm, its install scripts and Capacitor never do. The build needs the Android SDK and JDK 21.
 
-**iOS**, on a Mac with Xcode: `--team` is your Apple Developer team id, shown in your account's membership details. Xcode signs with the certificates and profiles of the account you added in its settings. For manual signing, pass `--certificate <name>` and `--profile <name>` too. <gap>Manual signing cannot use a certificate or profile name that holds `<`, `>` or `&` because writing the escaped export options is not implemented.</gap> If automatic signing finds no profile for a new app, run `protobase mobile open ios`, pick the team in Signing & Capabilities and archive once from Xcode (Product, Archive), which creates the profile; then build again.
+**iOS**, on a Mac with Xcode: `--team` is your Apple Developer team id, shown in your account's membership details. Xcode signs with the certificates and profiles of the account you added in its settings. For manual signing, pass `--certificate <name>` and `--profile <name>` too. <gap>Manual signing cannot use a certificate or profile name that holds `<`, `>` or `&` because writing the escaped export options is not implemented.</gap> Xcode creates the certificates and profiles a new app lacks.
+
+To sign without an account in Xcode, as on a build machine, make an App Store Connect API key with the Admin role and set `PROTOBASE_IOS_API_KEY_PATH` to its `.p8` file, absolute or relative to the project folder, `PROTOBASE_IOS_API_KEY_ID` to its key id and `PROTOBASE_IOS_API_KEY_ISSUER` to its issuer id. Set all three or none; manual signing ignores them. The bundle id must exist on the team first.
 
 ## 7. Live updates
 
@@ -147,7 +149,19 @@ Build the binary again. Each deploy of the app then reaches it: it downloads the
 You submit the app under your own developer account, on both stores: Apple rejects apps from a template or app generation service unless the provider of the app's content submits them ([App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) 4.2.6).
 
 - **What may change without a store release:** the app's files, which a later Protobase release can update over the air: the shell, UI plugins, theme, in-app logo and copy, and fixes and features within the app's purpose. Apple allows downloaded interpreted code that does not change the app's primary purpose ([Apple Developer Program License Agreement](https://developer.apple.com/support/terms/apple-developer-program-license-agreement/) 3.3.1(B)), and Google Play allows JavaScript in a WebView ([Device and Network Abuse](https://support.google.com/googleplay/android-developer/answer/9888379)).
-- **What needs a store release:** native code, Capacitor or plugin changes (`mobile.plugins`), permissions, the app's name, its home-screen icon and its splash screen.
+- **What needs a store release:** native code, Capacitor or plugin changes (`mobile.plugins`), turning [push](#9-push-notifications) on or off, permissions, the app's name, its home-screen icon and its splash screen.
 - **Big new features** still go through Apple's review with a store release, even when they could ship over the air: Apple asks that an app's features be documented and reviewed, none hidden (App Review Guidelines 2.3.1 and 2.5.19).
 - **Account deletion is built in:** Apple requires an app that lets people create an account to let them delete it in the app too (App Review Guidelines 5.1.1(v)). The account page's [Delete account](/reference/auth/#deleting-the-account) does that, on by default; keep `auth.accountDeletion` on for an app you submit.
 - **A plain WebView of an admin app risks rejection:** Apple expects an app to be more than a repackaged website (4.2). Native touches help, such as push notifications, sharing, the camera or biometric sign-in, through `mobile.plugins`.
+
+## 9. Push notifications
+
+With [`notifications()`](/reference/notifications/) on, `protobase mobile` sets push up in the app itself: there is no push setting in the mobile section. Push on iOS is coming soon.
+
+### Android
+
+Put your Firebase project's `google-services.json` in the project folder, next to `protobase.config.ts`. You download it from the Firebase console (Project settings, Your apps, an Android app whose package name is the mobile section's `appId`). Every `protobase mobile` run and build copies it into the Android app. Without it, the Android app builds without push and every run says so, naming the path. The server sends through FCM once you set [`PROTOBASE_FCM_SERVICE_ACCOUNT`](/reference/notifications/#android).
+
+The user turns push on from the bell, or from your own button with [`usePushNotifications`](/reference/notifications/#in-the-browser). Android 13 and later ask for the permission then. Signing out removes the phone's registration.
+
+A tap on a notification whose `url` is on your app's server opens that page inside the app. Any other `http` or `https` url opens in the phone's browser, never inside the app, and any other url opens nothing. Turning push on or off changes the app's native code, so it ships in a store release, not a [live update](#7-live-updates).

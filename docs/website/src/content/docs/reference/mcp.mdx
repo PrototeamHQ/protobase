@@ -52,7 +52,7 @@ Each tool reads as the signed-in person: their role's access rules, row filters,
 | Tool | What it does |
 | --- | --- |
 | `list_resources` | The resources the person may read, kept small for a client's first call: each one's name, label, the first line of its help, key and whether it soft deletes (`soft_delete`), without its fields. |
-| `describe_resource` | One resource the person may read, with its fields: each field's type, label, help, enum values, the resource a relation links to, and whether it is optional, read-only and taken by filters and sorts. It also names the resource's `list_fields`, what `list_records` returns when not told which. |
+| `describe_resource` | One resource the person may read, with its fields: each field's type, label, help, enum values, the resource a relation links to, and whether it is optional, read-only and taken by filters and sorts. `linked_from` names the relations of the other resources the person reads that point at this one. It also names the resource's `list_fields`, what `list_records` returns when not told which. |
 | `list_records` | A page of a resource's records: `fields`, `filter` in the API's [filter syntax](/reference/api/#filters), `order_by`, `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page and `total_size_estimate`, an estimate rather than an exact count. `show_deleted: true` also returns soft-deleted records. |
 | `count_records` | How many records a `filter` finds, without returning them: `{ count }` as the API's `count=exact` counts, or `{ more_than: 10000, estimate }` when more match. With `group_by`, a filterable field, the count per value instead, as [`:aggregate`](/reference/api/#routes) gives it: `{ group_by, groups: [{ value, count }] }`, largest first, adding up to what the filter finds, the first `limit` (100 by default, at most 1,000), with `label` naming a relation's values by a field of the records they link to. A date or timestamp `group_by` counts per day over the last 30 days. `show_deleted: true` also counts soft-deleted records. |
 | `get_record` | One record by its key, with its ETag, holding the `fields` asked for or, without them, every field. A composite key is passed as the values of its fields, in order. `show_deleted: true` also finds a soft-deleted record. |
@@ -73,6 +73,18 @@ The server tells each client this when it connects, in its instructions, and the
 
 ```json
 { "resource": "tasks", "key": "42", "fields": ["brief"] }
+```
+
+To find records through related ones, a client filters with [`related()`](/reference/api/#filtering-through-related-records) in one call instead of reading the keys first and sending them back:
+
+```json
+{ "resource": "task_claims", "filter": "related(task_id, objective_tasks.task_id, (objective_id = 40))" }
+```
+
+For the records of one record it passes `belongs_to`, as the [list under a record](/reference/api/#lists-under-a-record) does, with `filter` beside it:
+
+```json
+{ "resource": "tasks", "belongs_to": { "resource": "objectives", "key": 40 }, "filter": "state != \"done\"" }
 ```
 
 A refusal, such as a resource the person may not read, a bad filter or a field the person may not read, comes back to the client as text it can act on, `{ "error": ..., "message": ... }`.
@@ -102,8 +114,8 @@ In an app with [workflows](/reference/workflows/), the endpoint also offers tool
 | `list_connections` | The person's own [connected accounts](/reference/workflows/#connecting-an-account), by each connection the app's plugins declare: its key and label, and each account's `id`, scopes and `needs_sign_in`. A definition's `connections` binds an account by its `id`. It returns no token, and no one else's accounts. |
 | `create_workflow` | Creates a workflow from its `name`, `description` and `definition`, and returns its `id`, `version` and ETag. |
 | `update_workflow` | Changes a workflow's definition by an `edit` or whole, as `definition`, and its `name` or `description`, and returns its `id`, new `version` and ETag. With the `etag` that `get_workflow` gave, it fails when someone changed the workflow since; an edit without one is saved against the version it was applied to. |
-| `run_workflow` | Starts a run of a workflow's current version with an `input`, and returns its `run_id` and `status`. With `rerun_of`, a failed run's id, it [re-runs](/reference/workflows/#re-running-a-failed-run) that run from its failed step instead, on its input; with `replay: true` too, it [replays](/reference/workflows/#replaying-a-run) a run that ended, sending none of its outside writes. |
-| `enable_workflow` | Turns a workflow's trigger on (`enabled: true`) on the `version` it names, which must be the workflow's current version, or off, and returns its `enabled_version`. A workflow saved since that version is refused, so an approval never turns on a version the person did not see. One that uses a [connected account](/reference/workflows/#connecting-an-account) is turned on only by the account's owner in the admin app: the tool answers `own-sign-in-only` and says so. |
+| `run_workflow` | Starts a run of a workflow's version saved last, or of the `version` it names, with an `input`, and returns its `run_id` and `status`. With `rerun_of`, a failed run's id, it [re-runs](/reference/workflows/#re-running-a-failed-run) that run from its last checkpoint instead, on its input; with `replay: true` too, it [replays](/reference/workflows/#replaying-a-run) any ended run of the workflow on its current version, with that run's input, sending none of its outside writes. |
+| `enable_workflow` | Publishes the saved `version` it names (`enabled: true`), which puts the workflow's trigger on it, or turns the workflow off, and returns its `enabled_version`. A save never goes live by itself. One that uses a [connected account](/reference/workflows/#connecting-an-account) is turned on only by the account's owner in the admin app: the tool answers `own-sign-in-only` and says so. |
 | `new_webhook_url` | Issues a new URL and secret for a workflow that starts from a [webhook trigger](/reference/workflows/#appwebhook), keeping a `secret` the sender makes when given one, and returns `{ url, secret }`, shown this once; the old URL stops. |
 
 An `edit` is a [JSON Merge Patch](https://www.rfc-editor.org/rfc/rfc7396) of the saved definition: only what changes, at its place in the document. An object merges into the object there, `null` removes a member, and any other value, a list included, replaces it. Changing one argument of one state:

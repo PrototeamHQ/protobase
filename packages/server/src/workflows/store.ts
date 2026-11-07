@@ -11,16 +11,19 @@ export const postgresRunStore = (schema: string): RunStore<Db> => {
   const checkpoints = sql.id(schema, 'checkpoints')
   return {
     load: async (db, id) => {
-      const { rows } = await sql<{ id: string; definition: Definition; input: unknown; status: 'queued'; startedAt: Date; trace: TraceMode | null; replay: boolean | null; rerun_of: string | null }>`select r.id, v.definition, r.input, r.status, r.created_at as "startedAt", r.trace, r.replay, r.rerun_of
-        from ${runs} r join ${versions} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${id}`.execute(db)
+      const { rows } = await sql<{ id: string; definition: Definition; input: unknown; status: 'queued'; startedAt: Date; trace: TraceMode | null; replay: boolean | null; rerun_of: string | null; replayed: Definition | null }>`select r.id, v.definition, r.input, r.status, r.created_at as "startedAt", r.trace, r.replay, r.rerun_of, rv.definition as replayed
+        from ${runs} r join ${versions} v on v.workflow_id = r.workflow_id and v.version = r.version
+        left join ${runs} o on r.replay and o.id = r.rerun_of left join ${versions} rv on rv.workflow_id = o.workflow_id and rv.version = o.version
+        where r.id = ${id}`.execute(db)
       if (!rows[0]) return
       // A replay stays one when the run it replays is gone (its key set to null): its writing steps then give nothing.
-      const { replay, rerun_of, ...run } = rows[0]
-      return { ...run, ...(replay === true && { replayOf: rerun_of }) }
+      const { replay, rerun_of, replayed, ...run } = rows[0]
+      if (replay !== true) return run
+      return { ...run, replayOf: rerun_of === null || replayed === null ? null : { id: rerun_of, definition: replayed } }
     },
     checkpoints: async (db, id) => {
       const { rows } = await sql<Omit<Checkpoint, 'after'>>`select scope, seq, state, type, status, fetched_at as "fetchedAt", next, value, variables, attempt, failures,
-          resume_at as "resumeAt", clock
+          visits, resume_at as "resumeAt", clock
         from ${checkpoints} where run_id = ${id}`.execute(db)
       return rows.map((row) => ({ ...row, after: row.seq }))
     },
@@ -30,14 +33,14 @@ export const postgresRunStore = (schema: string): RunStore<Db> => {
       const row = (checkpoint: Checkpoint) =>
         sql`(${checkpoint.scope}, ${checkpoint.seq}::integer, ${checkpoint.after}::integer, ${checkpoint.state}, ${checkpoint.type}, ${checkpoint.status},
           ${checkpoint.fetchedAt}::timestamptz, ${checkpoint.next}, ${json(checkpoint.value)}::jsonb, ${JSON.stringify(checkpoint.variables)}::jsonb,
-          ${checkpoint.attempt}::integer, ${JSON.stringify(checkpoint.failures)}::jsonb, ${checkpoint.resumeAt ?? null}::timestamptz, ${checkpoint.clock}::timestamptz)`
+          ${checkpoint.attempt}::integer, ${JSON.stringify(checkpoint.failures)}::jsonb, ${JSON.stringify(checkpoint.visits)}::jsonb, ${checkpoint.resumeAt ?? null}::timestamptz, ${checkpoint.clock}::timestamptz)`
       const { rows } = await sql<{ scope: string }>`insert into ${checkpoints} as c
-        (run_id, scope, seq, follows, state, type, status, fetched_at, next, value, variables, attempt, failures, resume_at, clock)
+        (run_id, scope, seq, follows, state, type, status, fetched_at, next, value, variables, attempt, failures, visits, resume_at, clock)
         select ${id}::uuid, s.* from (values ${sql.join(saved.map(row))})
-          as s (scope, seq, follows, state, type, status, fetched_at, next, value, variables, attempt, failures, resume_at, clock)
+          as s (scope, seq, follows, state, type, status, fetched_at, next, value, variables, attempt, failures, visits, resume_at, clock)
         on conflict (run_id, scope) do update set seq = excluded.seq, follows = excluded.follows, state = excluded.state, type = excluded.type,
           status = excluded.status, fetched_at = excluded.fetched_at, next = excluded.next, value = excluded.value, variables = excluded.variables,
-          attempt = excluded.attempt, failures = excluded.failures, resume_at = excluded.resume_at, clock = excluded.clock
+          attempt = excluded.attempt, failures = excluded.failures, visits = excluded.visits, resume_at = excluded.resume_at, clock = excluded.clock
         where c.seq = excluded.follows
         returning scope`.execute(db)
       return rows.length === saved.length

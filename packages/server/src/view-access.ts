@@ -1,11 +1,11 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
-import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ViewModel } from '@protobase/schema'
+import type { ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { recordChartErrors } from './view-record-chart'
-import { openErrors, relatedErrors } from './view-related'
+import { openErrors, relatedSectionErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { searchesOfFor } from './view-saved-search'
 import { actionWhenFields } from './view-action-when'
@@ -20,7 +20,7 @@ const pruneRelated = (item: RelatedModel, resource: string, models: Record<strin
   const visible = models[item.resource] ? columns?.filter((column) => resolveFieldPath(models, item.resource, column).ok) : undefined
   const narrowed: RelatedModel = visible && visible.length > 0 ? { ...rest, columns: visible } : rest
   const opened = open !== undefined && openErrors({ ...narrowed, open }, models).length === 0 ? { ...narrowed, open } : narrowed
-  return relatedErrors(opened, resource, models).length === 0 ? opened : undefined
+  return relatedSectionErrors(opened, resource, models).length === 0 ? opened : undefined
 }
 
 // A chart keeps the series the caller can read, and goes with none left or when they cannot use the rest.
@@ -162,7 +162,7 @@ const fieldHints = (model: ResourceModel, writeOnly: ReadonlySet<string>) =>
 
 const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, writeOnly: ReadonlySet<string>) => {
   const when = recordWhenShape(resource, models)
-  const section = s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, when, fields: sectionFields(model, writeOnly) }, { requires: ['fields', 'when'] })
+  const section = s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, width: s.data, when, fields: sectionFields(model, writeOnly) }, { requires: ['fields', 'when'] })
   const related = s.map<RelatedModel>((item) => pruneRelated(item, resource, models))
   const group = s.object<GroupModel>({ kind: s.data, title: s.data, collapsed: s.data, when, items: s.list(s.oneOf({ section, related }), { nonEmpty: true }) }, { requires: ['items', 'when'] })
   const main = {
@@ -265,6 +265,8 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     export: s.data,
     create: s.data,
     record: s.data,
+    // A caller who cannot follow where a record's page leads gets the record's own page
+    recordOpens: s.map<AppAddress>((to) => (addressErrors(to, { models, source: model, createPages }).length === 0 ? to : undefined)),
     // Public forms have a route of their own, which serves each to anyone; `/meta` never carries them
     forms: s.map<FormModel[]>(() => undefined),
     lists: s.list(s.object<NamedListModel>({ name: s.data, names: s.data, nav, help: s.data, list: listShape(resource, model, models, prompted), filters: s.list(widgetShape), chart })),

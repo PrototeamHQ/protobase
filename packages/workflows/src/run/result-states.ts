@@ -8,15 +8,18 @@ import { jsonBytes } from './json-bytes'
 import { redacted } from './redact'
 import { recover } from './recovery'
 import { stepFunctions } from './step-functions'
-import { innerScope, visibleVariables, type StateCall } from './step-input'
-import { heldBack, replayedTask } from './replay'
+import { visibleVariables, type StateCall } from './step-input'
+import { emptyTask, heldBack, heldBackLog, replayedOutcome } from './replay'
 import { runTask } from './task'
 
+type Failure = { Error: string; Cause: string }
 type Ran =
   | { result: unknown; input: unknown; recorded?: boolean }
   | { held: true; input: unknown }
-  | { failure: { Error: string; Cause: string }; input: unknown; recorded?: boolean }
+  | { failure: Failure; input: unknown; recorded?: boolean }
   | Extract<StateResult, { kind: 'blocked' | 'yielded' }>
+/** What a state goes on with: a held-back step's is what the replayed run's step gave. */
+type Outcome = ({ result: unknown } | { failure: Failure }) & { input: unknown; held?: true; recorded?: boolean }
 
 const task = async (state: TaskState, call: StateCall): Promise<Ran> => {
   const args = await evaluateTemplate(state.Arguments ?? {}, call.bindings, 'Arguments')
@@ -45,7 +48,7 @@ const map = async (state: MapState, call: StateCall): Promise<Ran> => {
   // the Map fails once they pass it rather than after holding every one.
   let kept = 0
   const scopes = items.map((item, index) => async (): Promise<ScopeOutcome> => {
-    const outcome = await call.runScope(state.ItemProcessor, innerScope(call.scope, call.name, call.position.seq, index), item, outer)
+    const outcome = await call.runScope(state.ItemProcessor, index, item, outer)
     if (outcome.kind !== 'ended') return outcome
     kept += jsonBytes(outcome.output)
     if (kept <= limits.valueBytes) return outcome
@@ -59,7 +62,6 @@ const map = async (state: MapState, call: StateCall): Promise<Ran> => {
   return { result: outcome.outputs, input }
 }
 
-
 // Runs the state, a failure of its own as the error it names.
 const attempt = async (state: TaskState | MapState, call: StateCall): Promise<Ran> => {
   try {
@@ -71,18 +73,29 @@ const attempt = async (state: TaskState | MapState, call: StateCall): Promise<Ra
   }
 }
 
+// A held-back step goes on with what the replayed run's step gave, or ends with a null output when it gave nothing.
+const withReplayed = async (state: TaskState | MapState, call: StateCall): Promise<Outcome | StateResult> => {
+  const ran = await attempt(state, call)
+  if ('kind' in ran || !('held' in ran)) return ran
+  call.logs.push({ at: call.context.now().toISOString(), message: heldBackLog })
+  const outcome = replayedOutcome(call.context.replay!, { scope: call.scope, logical: call.logical, visit: call.visit, name: call.name })
+  if (!outcome) return emptyTask(state as TaskState, ran.input, call.logs)
+  return { held: true, input: ran.input, ...outcome }
+}
+
 /**
  * A Task or a Map: its result shaped by `Output` and `Assign`, which read it as `$states.result`; a failure,
  * its own or an item's, goes to its retriers and catchers. In a recorded Task's `Output` and `Assign`, `$now` is when
  * its result was fetched, which the checkpoint keeps as the scope's clock.
  */
 export const runResultState = async (state: TaskState | MapState, call: StateCall): Promise<StateResult> => {
-  const ran = await attempt(state, call)
+  const ran = await withReplayed(state, call)
   if ('kind' in ran) return ran
-  if ('held' in ran) return replayedTask(call.context, state as TaskState, { scope: call.scope, seq: call.position.seq, name: call.name }, ran.input, call.logs)
   const now = call.context.now()
   const recorded = { ...(ran.recorded && { recorded: true, fetchedAt: now }) }
-  if ('failure' in ran) return { ...(await recover(state, call.position, ran.failure, call.bindings, now, call.logs)), ...(ran.input !== undefined && { input: ran.input }), ...recorded } as StateResult
+  // A held-back step's error is the one its visit ended with after its retries, so only a catcher takes it.
+  const recoverable = 'held' in ran ? { ...(state.Catch && { Catch: state.Catch }) } : state
+  if ('failure' in ran) return { ...(await recover(recoverable, call.position, ran.failure, call.bindings, now, call.logs)), ...(ran.input !== undefined && { input: ran.input }), ...recorded } as StateResult
   const { now: fetched, millis } = stepFunctions(ran.recorded ? now : call.position.clock, '')
   const after = { ...call.bindings, now: fetched, millis, states: { ...(call.bindings.states as object), result: ran.result } }
   const shaped = async () => ({
@@ -93,6 +106,6 @@ export const runResultState = async (state: TaskState | MapState, call: StateCal
     if (!(error instanceof StepError)) throw error
     return { failure: errorOutput(error) }
   })
-  if ('failure' in done) return { ...(await recover(state, call.position, done.failure, call.bindings, now, call.logs)), input: ran.input, ...recorded } as StateResult
+  if ('failure' in done) return { ...(await recover(recoverable, call.position, done.failure, call.bindings, now, call.logs)), input: ran.input, ...recorded } as StateResult
   return { kind: 'step', status: 'succeeded', next: state.Next ?? null, input: ran.input, ...done, logs: call.logs, ...recorded }
 }

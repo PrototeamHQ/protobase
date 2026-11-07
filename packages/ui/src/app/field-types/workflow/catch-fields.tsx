@@ -31,7 +31,7 @@ export const CatchFields = <S extends Catching>({ state, names, problems, disabl
   return (
     <>
       {catchers.map((catcher, index) => (
-        <fieldset key={index} className="flex flex-col gap-3 rounded-md border border-danger/40 p-3 sm:col-span-2">
+        <fieldset key={index} className="flex flex-col gap-3 rounded-md border border-danger/40 p-3">
           <legend className="px-1 text-xs font-medium text-danger-text">{text('errorPathNumber', { number: index + 1 })}</legend>
           <ValueField
             label={text('errors')}
@@ -54,7 +54,7 @@ export const CatchFields = <S extends Catching>({ state, names, problems, disabl
         </fieldset>
       ))}
       {!disabled && (
-        <div className="sm:col-span-2">
+        <div>
           <Button size="sm" onClick={() => set([...catchers, { ErrorEquals: ['States.ALL'], Next: '' }])}>
             <Plus className="size-3.5" />
             {text('addErrorPath')}

@@ -145,6 +145,52 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(await workflowsMigration(db, workflows)).toBeUndefined()
   })
 
+  it('keeps a save out of what is published: a start runs the published version unless it names one, and refuses a version never saved', async () => {
+    const id = await create('Echo', definition({ Echo: { Type: 'Pass', Output: 'one', End: true } }))
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 1 } })).status).toBe(200)
+    const saved = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: definition({ Echo: { Type: 'Pass', Output: 'two', End: true } }) } })
+    expect(await saved.json()).toMatchObject({ version: 2, enabled_version: 1 })
+    const published = await run(id, {})
+    const test = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {}, version: 2 } })
+    const tried = (await test.json()).id as string
+    await finished(published)
+    await finished(tried)
+    expect(await runRow(published)).toMatchObject({ output: 'one', version: 1 })
+    expect(await runRow(tried)).toMatchObject({ output: 'two', version: 2 })
+    expect((await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {}, version: 9 } })).status).toBeGreaterThanOrEqual(400)
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 9 } })).status).toBe(400)
+    // A publish alone is a change of the record: an ETag read before it is stale
+    const read = (await as('ada', `/workflows/${id}`)).headers.get('etag')!
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 2 } })).status).toBe(200)
+    const stale = await admin.request(`/api/v1/workflows/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', 'x-user': 'ada', 'if-match': read }, body: JSON.stringify({ enabled_version: 1 }) })
+    expect(stale.status).toBe(412)
+    // Two writes of one batch are two ETags too
+    const batch = await admin.request('/api/v1:batchWrite', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user': 'ada' }, body: JSON.stringify({ ops: ['one', 'two'].map((name) => ({ op: 'update', resource: 'workflows', key: id, data: { description: name }, etag: '*' })) }) })
+    expect(batch.status).toBe(200)
+    const [first, second] = (await batch.json()).results as { etag: string }[]
+    expect(first!.etag).not.toBe(second!.etag)
+    const made = await admin.request('/api/v1:batchWrite', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-user': 'ada' },
+      body: JSON.stringify({ ops: [{ op: 'create', resource: 'workflows', ref: 'new', data: { name: 'Made', definition: definition({ Echo: { Type: 'Pass', Output: 'one', End: true } }) } }, { op: 'update', resource: 'workflows', key: { $ref: 'new' }, etag: '*', data: { enabled_version: 1 } }] }),
+    })
+    expect(made.status).toBe(200)
+    const [created, live] = (await made.json()).results as { etag: string }[]
+    expect(created!.etag).not.toBe(live!.etag)
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: null } })).status).toBe(200)
+    const off = await run(id, {})
+    await finished(off)
+    expect(await runRow(off)).toMatchObject({ output: 'two', version: 2 })
+  })
+
+  it('writes the run trigger again on a schema of the version whose replays ran their run\'s version', async () => {
+    await pg.exec(`comment on function workflows.run_version() is 'Protobase workflows 13'`)
+    const upgrade = await workflowsMigration(db, workflows)
+    expect(upgrade).toContain('create or replace function "workflows"."run_version"()')
+    await pg.exec(upgrade!)
+    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+  })
+
   it('writes the schema again when the triggers table is gone', async () => {
     await pg.exec('drop table workflows.triggers')
     const repair = await workflowsMigration(db, workflows)

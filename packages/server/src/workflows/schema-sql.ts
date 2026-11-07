@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 13
+export const workflowsVersion = 16
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -84,6 +84,7 @@ export const checkpointsSql = (schema: string) => {
   "variables" jsonb not null,
   "attempt" integer not null,
   "failures" jsonb not null,
+  "visits" jsonb not null,
   "resume_at" timestamptz,
   "clock" timestamptz not null,
   primary key ("run_id", "scope")
@@ -175,6 +176,7 @@ create index if not exists "workflows_name" on ${s}."workflows" ("name");
 create index if not exists "workflows_updated_at" on ${s}."workflows" ("updated_at");
 create index if not exists "workflows_name_search" on ${s}."workflows" using gin ("name" gin_trgm_ops);
 create index if not exists "versions_tenant" on ${s}."versions" ("tenant_id");
+create index if not exists "versions_version" on ${s}."versions" ("version");
 alter table ${s}."runs" add column if not exists "key" text;
 create unique index if not exists "runs_key" on ${s}."runs" ("workflow_id", "key");
 alter table ${s}."runs" add column if not exists "rerun_of" uuid references ${s}."runs" ("id") on delete set null;
@@ -191,9 +193,11 @@ export const workflowsTriggers = ['workflow_version', 'run_version']
 
 /**
  * A workflow numbers its next version as a save changes its definition, in the row the write returns, so its ETag is
- * the saved row's; the save hook keeps that version's definition and who saved it. A run takes its workflow's current
- * version as it is created, and refuses a workflow of another tenant as one that is not there, and one that has no
- * saved version. A re-run takes the input of the run it re-runs, which the start hook checks; a replay takes its version too.
+ * the saved row's; the save hook keeps that version's definition and who saved it, and publishes only as `enabled_version`
+ * is written. A run takes the version it names as it is created, else the published one, or the one saved last on a workflow
+ * that is off, and refuses a workflow of another tenant as one that is not there, one that has no saved version, and a
+ * version the workflow does not have. A re-run takes the input of the run it re-runs, which the start hook checks; a replay
+ * too; both run the version saved last unless they name one.
  */
 export const functionsSql = (schema: string) => {
   const s = quoteIdent(schema)
@@ -206,11 +210,8 @@ begin
   end if;
   -- The write holds the row, so a save in another transaction numbers its version after this one.
   new.version := case when new.definition is distinct from old.definition then coalesce(old.version, 0) + 1 else old.version end;
-  -- An enabled workflow stays enabled on its new version; the save hook moves its trigger along.
-  if new.version is distinct from old.version and old.enabled_version is not null and new.enabled_version is not distinct from old.enabled_version then
-    new.enabled_version := new.version;
-  end if;
-  new.updated_at := now();
+  -- Never the same twice, nor now(): two writes in one transaction, as a batch that saves and publishes, are two ETags.
+  new.updated_at := greatest(clock_timestamp(), old.updated_at + interval '1 microsecond');
   return new;
 end
 $$;
@@ -222,7 +223,7 @@ language plpgsql as $$
 declare
   found record;
 begin
-  select w.id, w.version, w.tenant_id into found from ${s}."workflows" w where w.id = new.workflow_id;
+  select w.id, w.version, w.enabled_version, w.tenant_id into found from ${s}."workflows" w where w.id = new.workflow_id;
   -- Another tenant's workflow is refused as one that is not there, so a start tells nothing of other tenants.
   if found.id is null or new.tenant_id is distinct from found.tenant_id then
     raise exception 'There is no workflow % here', new.workflow_id using errcode = '23503';
@@ -230,18 +231,20 @@ begin
   if found.version is null then
     raise exception 'Workflow % has no saved version', new.workflow_id using errcode = '23503';
   end if;
-  -- A replay runs the version of the run it replays, of this workflow and tenant, or nothing: never another version.
+  if new.version is not null and not exists (select from ${s}."versions" v where v.workflow_id = new.workflow_id and v.version = new.version) then
+    raise exception 'Workflow % has no version %', new.workflow_id, new.version using errcode = '23503';
+  end if;
+  -- A replay replays a run of this workflow and tenant.
   if new.replay then
-    new.version := null;
-    select r.version into new.version from ${s}."runs" r
-      where r.id = new.rerun_of and r.workflow_id = new.workflow_id and r.tenant_id is not distinct from new.tenant_id;
-    if new.version is null then
+    if not exists (select from ${s}."runs" r
+      where r.id = new.rerun_of and r.workflow_id = new.workflow_id and r.tenant_id is not distinct from new.tenant_id) then
       raise exception 'There is no run % of workflow % here to replay', new.rerun_of, new.workflow_id using errcode = '23503';
     end if;
   end if;
-  -- A trigger starts a run of the version that is enabled, which it gives; any other start runs the current one.
+  -- A re-run or a replay tries a fix, so it runs the version saved last. Any other start not naming its version runs
+  -- what is published, so a saved change stays out of production until it is, or the version saved last on a workflow that is off.
   if new.version is null then
-    new.version := found.version;
+    new.version := case when new.rerun_of is null then coalesce(found.enabled_version, found.version) else found.version end;
   end if;
   if new.rerun_of is not null then
     select r.input into new.input from ${s}."runs" r where r.id = new.rerun_of and r.workflow_id = new.workflow_id;

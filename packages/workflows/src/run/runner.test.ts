@@ -187,7 +187,7 @@ describe('the runner', () => {
 
     const raced = memoryRunner({ tick: async () => 1 })
     await raced.start('r9', definition({ A: { Type: 'Task', Resource: 'tick', End: true } }), {})
-    raced.checkpoints.push({ runId: 'r9', scope: '', seq: 0, state: 'A', type: 'Task', status: 'succeeded', fetchedAt: raced.now(), next: null, value: 2, variables: {}, attempt: 1, failures: [], clock: raced.now(), after: -1 })
+    raced.checkpoints.push({ runId: 'r9', scope: '', seq: 0, state: 'A', type: 'Task', status: 'succeeded', fetchedAt: raced.now(), next: null, value: 2, variables: {}, attempt: 1, failures: [], visits: {}, clock: raced.now(), after: -1 })
     await raced.runner.segment(null, 'r9', new AbortController().signal)
     expect(raced.run('r9').status).toBe('succeeded')
   })

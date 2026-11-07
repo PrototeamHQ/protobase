@@ -99,6 +99,7 @@ export type {
   CompareOp,
   FilterOf,
   FilterExpr,
+  RelatedFilter,
   CheckedFilter,
   FilterErrorCode,
   FilterError,

@@ -20,3 +20,18 @@ describe('uncoveredColumns of a read that keeps to its parents', () => {
     expect(uncoveredColumns(messages, table(btree('tenant_id', 'channel_id')), {}, scope)).toEqual([])
   })
 })
+
+describe('uncoveredColumns of a related() term', () => {
+  const term = { field: messages.fields.channel_id!, related: { model: messages } }
+
+  it('reads the relation as related, and pins it as in() does', () => {
+    expect(uncoveredColumns(messages, table(btree('id')), {}, { tenantValue: 1, parents: [term] })[0]).toMatchObject({ field: 'channel_id', use: 'related' })
+    expect(uncoveredColumns(messages, table(btree('channel_id', 'id')), { sort: [['id', 'asc']] }, { tenantValue: 1, parents: [term] })).toEqual([])
+  })
+
+  it('needs the key it selects served, under what the subfilter pins', () => {
+    const selects = messages.fields.channel_id!
+    expect(uncoveredColumns(messages, table(btree('id')), { selects })[0]).toMatchObject({ field: 'channel_id', use: 'related' })
+    expect(uncoveredColumns(messages, table(btree('channel_id')), { selects })).toEqual([])
+  })
+})

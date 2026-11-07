@@ -1,8 +1,11 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
-/** The classes of Protobase's native plugin that keep page script away from the session, by Java class name. */
-export const protobasePluginClasses = ['ProtobaseAuth', 'RefusedHttp', 'RefusedCookies', 'RefusedWebView', 'LocalServerGuard'].map((name) => `net.protobase.mobile.${name}`)
+/**
+ * The classes of Protobase's native plugin that keep page script away from the session, and ProtobaseExternal, which
+ * opens a url outside the app, by Java class name.
+ */
+export const protobasePluginClasses = ['ProtobaseAuth', 'RefusedHttp', 'RefusedCookies', 'RefusedWebView', 'LocalServerGuard', 'ProtobaseExternal'].map((name) => `net.protobase.mobile.${name}`)
 
 const liveUpdatePackage = '@capawesome/capacitor-live-update'
 const stockLiveUpdate = 'io.capawesome.capacitorjs.plugins.liveupdate.LiveUpdatePlugin'

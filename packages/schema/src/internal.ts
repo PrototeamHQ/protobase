@@ -1,6 +1,7 @@
 // Helpers the @protobase packages share with each other, which an app has no use for: they check, prune and match the
 // models the server sends, and are not part of the documented API.
 export { checkEventFilter } from './events/event-models'
+export { maxRelatedDepth, maxRelatedTerms, relatedErrors, relatedTarget, splitRelated } from './filter/related'
 export { webhookResources } from './webhooks/webhook-resources'
 export { workflowResources } from './workflows/workflow-resources'
 export { workflowTypesPath, type WorkflowCacheAdvice, type WorkflowTypeEntry, type WorkflowTypeList } from './workflows/workflow-types-path'
@@ -39,6 +40,7 @@ export { confirmationMinutes } from './confirmation-window'
 export { capacitorOrigin } from './capacitor-origins'
 export { pushRecord, serviceWorkerFile } from './push-record'
 export { deviceIdParam, devicesPath } from './devices-path'
+export { tapUrl } from './tap-url'
 export { historyIdParam, historyIdPattern, historyPath } from './history-path'
 export { availabilities, heldStatus, maxStatusText, statusPath, statusTextProblem, type Availability, type PersonStatus, type StatusInput } from './status'
 export { parseCapability } from './access/capability'

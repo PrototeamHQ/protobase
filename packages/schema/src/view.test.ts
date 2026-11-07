@@ -244,6 +244,12 @@ describe('view builder', () => {
     expect(() => view<typeof article>('article').record({ component: Built })).toThrow('record component takes a component declared with component(...), not the built-in block Card')
   })
 
+  it("opens another address in place of a record's page, naming only the record's fields", () => {
+    const to = { kind: 'record' as const, resource: 'issues', key: '{title}', run: '{id}' }
+    expect(view<typeof article>('article').recordOpens(to).toModel(article.toModel()).recordOpens).toEqual(to)
+    expect(() => view<typeof article>('article').recordOpens({ kind: 'record', resource: 'issues', key: '{issue_id}' }).toModel(article.toModel())).toThrow('recordOpens names field "issue_id", which the resource does not have')
+  })
+
   it("names where a card's further photos come from, as data the caller's photos cannot change", () => {
     const photos = { resource: 'article_photos', field: 'article_id', image: 'photo', sort: 'position' }
     const model = view<typeof article>('article')
@@ -458,6 +464,7 @@ describe('view builder', () => {
       { kind: 'group', title: 'More', collapsed: true, items: [{ kind: 'section', title: 'Details', fields: ['title'] }, { kind: 'related', title: 'Notes', ...related }] },
     ])
     expect(() => l.group('More', [l.sidebar([])])).toThrow('l.group "More" holds sections and related tables, not sidebar')
+    expect(() => l.group('More', [l.section('Graph', [], { width: 'page' })])).toThrow('l.group "More" cannot hold page-wide section "Graph": it spans the page only outside tabs and groups')
     const twice = view<typeof home>('home').layout(() => [l.group('More', []), l.group('More', [])])
     expect(() => twice.toModel(home.toModel())).toThrow('View "home": two groups are titled "More"')
   })
@@ -481,6 +488,7 @@ describe('view builder', () => {
     ])
     expect(() => l.tab('A', [l.sidebar([])])).toThrow('l.tab "A" holds main-column items, not sidebar')
     expect(() => l.tab('A', [l.tab('B', [])])).toThrow('l.tab "A" holds main-column items, not tab')
+    expect(() => l.tab('A', [l.section('Graph', [], { width: 'page' })])).toThrow('l.tab "A" cannot hold page-wide section "Graph": it spans the page only outside tabs and groups')
     expect(() => l.tab('A', [l.map('Where', { latitude: {} as never, longitude: {} as never, sidebar: true })])).toThrow('not a sidebar map')
     const apart = view<typeof home>('home').layout(() => [l.tab('A', []), l.section('S', []), l.tab('B', [])])
     expect(() => apart.toModel(home.toModel())).toThrow('View "home": tabs stand together, and "B" is apart from the others')
@@ -501,6 +509,10 @@ describe('view builder', () => {
     expect(() => l.gallery('Photos', {})).toThrow('l.gallery "Photos" needs an image field, photos or both')
     const titled = view<typeof home>('home').layout((r) => [l.gallery('Photos', { image: r.title })])
     expect(() => titled.toModel(home.toModel())).toThrow('View "home": gallery "Photos" shows "title" as its image, which is not a file field')
+  })
+
+  it('spans a section over the page', () => {
+    expect(view<typeof article>('article').layout((r) => [l.section('Body', [r.title], { width: 'page' })]).toModel().layout).toEqual([{ kind: 'section', title: 'Body', fields: ['title'], width: 'page' }])
   })
 
   it('shows a section as key facts, each under its icon', () => {

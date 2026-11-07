@@ -1,10 +1,16 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { aggregate } from '../aggregate-groups'
 import { facets, numericHistogram, timeSeries } from '../aggregate-service'
+import { belongingFilter } from '../belongs-to'
 import type { Deps } from '../deps'
+import { keyFromPath } from '../key'
 import { listRecords } from '../list-service'
 import { mapRecords } from '../map-service'
+import { listParams, parseParams } from '../params'
+import { notFound } from '../problem'
+import type { FilterExpr } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
+import type { Entry } from '../registry'
 import type { AdminEnv } from '../types'
 import { uploadFile } from '../files/upload'
 import { runWrite } from '../write-pipeline'
@@ -16,36 +22,63 @@ const searchFilterLength = 200_000
 
 const warningHeader = (warning?: string): Record<string, string> => (warning ? { 'X-Protobase-Warning': warning } : {})
 
+// The list-style methods that read: a resource's own list, or one under a record with the same parameters.
+const listMethod = async (c: Context<AdminEnv>, deps: Deps, entry: Entry, action: string, query: Record<string, string>, within?: FilterExpr) => {
+  const session = c.get('session')
+  if (action === '') {
+    const { body, warning } = await listRecords(deps, entry, session, query, undefined, false, within)
+    return c.json(body, 200, warningHeader(warning))
+  }
+  if (action === 'facets') {
+    const { body, warning } = await facets(deps, entry, session, query, within)
+    return c.json(body, 200, warningHeader(warning))
+  }
+  if (action === 'aggregate') {
+    const { body, warning } = await aggregate(deps, entry, session, query, within)
+    return c.json(body, 200, warningHeader(warning))
+  }
+  if (action === 'series') return c.json(await timeSeries(deps, entry, session, query, within))
+  if (action === 'histogram') return c.json(await numericHistogram(deps, entry, session, query, within))
+  if (action === 'map') {
+    const { body, warning } = await mapRecords(deps, entry, session, query, within)
+    return c.json(body, 200, warningHeader(warning))
+  }
+  if (action === 'seek') {
+    const { body, warning } = await listRecords(deps, entry, session, query, undefined, true, within)
+    return c.json(body, 200, warningHeader(warning))
+  }
+  return unknownAction(action)
+}
+
 export const collectionRoutes = (deps: Deps) => {
   const app = new Hono<AdminEnv>()
 
-  app.get('/:target', async (c) => {
+  app.get('/:target', (c) => {
     const { entry, action } = resolveTarget(deps, c.req.param('target'))
-    const session = c.get('session')
-    const query = c.req.query()
-    if (action === '') {
-      const { body, warning } = await listRecords(deps, entry, session, query)
-      return c.json(body, 200, warningHeader(warning))
-    }
-    if (action === 'facets') {
-      const { body, warning } = await facets(deps, entry, session, query)
-      return c.json(body, 200, warningHeader(warning))
-    }
-    if (action === 'aggregate') {
-      const { body, warning } = await aggregate(deps, entry, session, query)
-      return c.json(body, 200, warningHeader(warning))
-    }
-    if (action === 'series') return c.json(await timeSeries(deps, entry, session, query))
-    if (action === 'histogram') return c.json(await numericHistogram(deps, entry, session, query))
-    if (action === 'map') {
-      const { body, warning } = await mapRecords(deps, entry, session, query)
-      return c.json(body, 200, warningHeader(warning))
-    }
-    if (action === 'seek') {
-      const { body, warning } = await listRecords(deps, entry, session, query, undefined, true)
-      return c.json(body, 200, warningHeader(warning))
-    }
-    return unknownAction(action)
+    return listMethod(c, deps, entry, action, c.req.query())
+  })
+
+  // The list under a record: its parent's resource and key, and what is listed. A composite key has no such list.
+  const underRecord = (c: Context<AdminEnv>) => {
+    const { entry: parent } = resolveTarget(deps, c.req.param('parent')!)
+    const { entry, action } = resolveTarget(deps, c.req.param('target')!)
+    if (parent.keyTypes.length !== 1) throw notFound(`There is no list of ${entry.name} under ${parent.name}`)
+    return { parent, entry, action, key: keyFromPath(c, parent) }
+  }
+
+  // GET /{parent}/{key}/{resource}: a list of the records that belong to a record, a filter the path spells out
+  app.get('/:parent/:key/:target', async (c) => {
+    const { parent, entry, action, key } = underRecord(c)
+    return listMethod(c, deps, entry, action, c.req.query(), await belongingFilter(deps, entry, c.get('session'), parent, key))
+  })
+
+  app.post('/:parent/:key/:target', async (c) => {
+    const { parent, entry, action, key } = underRecord(c)
+    if (action !== 'search') return unknownAction(action)
+    const body = parseParams(listParams, await c.req.json())
+    const within = await belongingFilter(deps, entry, c.get('session'), parent, key)
+    const { body: page, warning } = await listRecords(deps, entry, c.get('session'), body, searchFilterLength, false, within)
+    return c.json(page, 200, warningHeader(warning))
   })
 
   app.post('/:target', async (c) => {
