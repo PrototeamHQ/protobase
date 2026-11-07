@@ -576,6 +576,24 @@ The standard record page, with the layout's sections, the related records, Edit 
 
 <StoryFrame id="record-page-full-area-record-page--repair-notes-page" title="A repair's notes filling the page, with a link to its details" height={560} />
 
+### Focus pages
+
+A focus page is for work on one big thing, such as a graph, a map or a canvas: a thin bar under the top bar, one notice at a time, a surface that takes the rest, and at most a panel on each side. The page does not scroll, so the surface is the window, and it is a sibling of the form rather than a change to it. Any record can have one:
+
+```ts
+// One field fills the page, drawn by its field type, and the framework saves it
+view<typeof boards>('boards').record((r) => ({ surface: r.pins }))
+
+// A component of the app's own, in the same frame
+view<typeof reports>('reports').record({ component: component('ReportStudio'), focus: true })
+```
+
+The bar gets the record's state, Save, its [actions](#actions-and-views-per-role) behind "...", *Discard changes* while there are any, and a link to the form at `?standard=true`, named after the record, such as *Workflow details*, where the layout's sections and related records stay. A refused save, a conflict and a restored draft show in the notice, a reader who may not change the record gets no Save, and the form shows instead when the surface throws. A caller who may not read the surface's field gets the form. The record's name is in the breadcrumb, with a hidden heading for screen readers. What fills the bar and panels, and how a surface reaches them, is under [Focus pages](/reference/custom-components/#focus-pages). `.record(...)` with `surface` needs a [field type](/reference/plugins/#field-types) that draws the whole area; the built-in `workflow` field is one.
+
+<StoryFrame id="record-page-focus-page--pin-board-page" title="A field type of the app's own on a focus page" height={560} />
+
+A create address can open a page in place of the form too, for a record made where it is used, as a workflow's test run is made in the workflow's page. `.createOpens(to)` replaces the address, its `{field}`s filled from the address's `values`; an address without them shows the form. A record address's `panel` (`?panel=<name>`) names a panel its surface opens with.
+
 ### Read view and edit
 
 `.recordMode(mode)` says how the record page opens to a user who may change the record:

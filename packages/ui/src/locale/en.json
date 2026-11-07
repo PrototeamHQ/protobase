@@ -1720,5 +1720,34 @@
     "blocked": "Blocked",
     "unblock": "Unblock",
     "block": "Block"
+  },
+  "focus-page": {
+    "tools": "Page tools",
+    "more": "More"
+  },
+  "search-picker": {
+    "search": "Search",
+    "nothing": "Nothing matches \"{query}\"."
+  },
+  "focus-record": {
+    "saving": "Saving…",
+    "unsaved": "Unsaved changes",
+    "unsavedShort": "Unsaved",
+    "saved": "Saved",
+    "readOnly": "Read-only",
+    "readOnlyWhy": "You may not change this record.",
+    "save": "Save",
+    "openDetails": "Open details",
+    "notSaved": "Your changes were not saved.",
+    "conflict": "Someone else saved this while you were working. Your choice covers the whole of it.",
+    "keepMine": "Keep mine",
+    "useTheirs": "Use theirs",
+    "restored": "Unsaved changes from before are back.",
+    "keep": "Keep",
+    "discard": "Discard",
+    "surfaceFailed": "This could not be drawn, so the form is shown.",
+    "detailsOf": "{noun} details",
+    "discardChanges": "Discard changes",
+    "discardAsk": "Discard your changes? This goes back to what is saved."
   }
 }

@@ -315,6 +315,7 @@ export type AppAddress =
       version?: number
       /** The run a workflow's page shows on its graph, by its key, on the version it ran on; `{field}` takes it from a record. */
       run?: string
+      panel?: string
     }
   | {
       /** The form for a new record. */
@@ -1492,6 +1493,8 @@ export type ViewModel = {
   record?: RecordPageModel
   /** The address a record's page opens in its place, `{field}` replaced by the record's values. */
   recordOpens?: AppAddress
+  /** Its create address opens this in place of the form (`.createOpens(...)`). */
+  createOpens?: AppAddress
   /** Public forms that create its records for people without an account, each at `/-/forms/<name>`. */
   forms?: FormModel[]
   /** Other lists of the resource, each with its own sidebar entry and address. */
@@ -1548,11 +1551,21 @@ export type CreateModel = {
   page: string
 }
 
-/** The record page as a component of the app's own (`.record(...)`), filling the content area. */
-export type RecordPageModel = {
-  /** The component, by the name `protobase.ui.tsx` exports it under. */
-  component: string
-}
+/**
+ * The record page as something else than the form (`.record(...)`): a component of the app's own, filling the content
+ * area, on a focus page with its bar and Save when `focus`; or a focus page whose surface is one field, drawn by its
+ * field type and saved by the framework.
+ */
+export type RecordPageModel =
+  | {
+      /** The component, by the name `protobase.ui.tsx` exports it under. */
+      component: string
+      focus?: boolean
+    }
+  | {
+      /** The field the page's surface draws. */
+      surface: string
+    }
 
 /** The list page's Export (`.export(...)`): how many rows a file may hold. */
 export type ExportModel = {

@@ -1720,5 +1720,34 @@
     "blocked": "Geblokkeerd",
     "unblock": "Deblokkeren",
     "block": "Blokkeren"
+  },
+  "focus-page": {
+    "tools": "Paginagereedschap",
+    "more": "Meer"
+  },
+  "search-picker": {
+    "search": "Zoeken",
+    "nothing": "Niets gevonden voor \"{query}\"."
+  },
+  "focus-record": {
+    "saving": "Opslaan…",
+    "unsaved": "Niet-opgeslagen wijzigingen",
+    "unsavedShort": "Niet opgeslagen",
+    "saved": "Opgeslagen",
+    "readOnly": "Alleen lezen",
+    "readOnlyWhy": "Je mag dit record niet wijzigen.",
+    "save": "Opslaan",
+    "openDetails": "Details openen",
+    "notSaved": "Je wijzigingen zijn niet opgeslagen.",
+    "conflict": "Iemand anders heeft dit opgeslagen terwijl je bezig was. Je keuze geldt voor het geheel.",
+    "keepMine": "Mijn versie houden",
+    "useTheirs": "Hun versie gebruiken",
+    "restored": "Niet-opgeslagen wijzigingen van eerder zijn terug.",
+    "keep": "Houden",
+    "discard": "Weggooien",
+    "surfaceFailed": "Dit kon niet worden getekend, dus het formulier staat er.",
+    "detailsOf": "Details van {noun}",
+    "discardChanges": "Wijzigingen weggooien",
+    "discardAsk": "Je wijzigingen weggooien? Dit gaat terug naar wat is opgeslagen."
   }
 }

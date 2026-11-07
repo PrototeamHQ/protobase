@@ -25,7 +25,10 @@ export const ActionMenu = ({ actions, label = text('actions'), className }: { ac
               const children = (
                 <>
                   <Icon className={cn('size-4 shrink-0', tone === 'danger' ? 'text-danger-text' : 'text-muted-foreground')} aria-hidden />
-                  <span className={cn('font-medium', tone === 'danger' && 'text-danger-text')}>{name}</span>
+                  <span className="min-w-0">
+                    <span className={cn('block font-medium', tone === 'danger' && 'text-danger-text')}>{name}</span>
+                    {blocked && <span className="block text-xs text-muted-foreground">{blocked}</span>}
+                  </span>
                 </>
               )
               return (

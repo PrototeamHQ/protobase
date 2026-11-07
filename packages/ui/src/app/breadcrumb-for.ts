@@ -21,7 +21,8 @@ export type BreadcrumbInput = {
 
 /** Group, then the page or resource list, then the record (or "New"): each with a page of its own links to it. */
 export const breadcrumbFor = ({ basePath, address, group, page, resourceLabel, recordTitle, recordLoading }: BreadcrumbInput): Crumb[] => {
-  const groupCrumb = group ? [group] : []
+  // A group named as the resource says the same thing twice
+  const groupCrumb = group && group !== resourceLabel ? [group] : []
   if (page) return [...groupCrumb, { label: page.title, href: appPath({ kind: 'page', page: page.name }, basePath) }]
   if (!address || address.kind === 'page') return [appText('admin')]
   const resource = resourceLabel ? [{ label: resourceLabel, href: appPath({ kind: 'list', resource: address.resource, ...(address.kind === 'list' && address.list && { list: address.list }) }, basePath) }] : []
