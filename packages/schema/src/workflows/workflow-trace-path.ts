@@ -1,6 +1,12 @@
 /** Where runs' traces are served under the API's system path (`/api`). */
 export const workflowRunsPath = (systemPath: string) => `${systemPath}/workflows/runs`
 
+/** The name of the run's id in a trace path. */
+export const workflowRunParam = 'run'
+
+/** The route of a run's trace under {@link workflowRunsPath}, as the server serves it. */
+export const workflowRunTraceRoute = `/:${workflowRunParam}/trace` as const
+
 /** The path of a run's trace, as the run's page reads it. */
 export const workflowRunTracePath = (systemPath: string, runId: string) => `${workflowRunsPath(systemPath)}/${encodeURIComponent(runId)}/trace`
 

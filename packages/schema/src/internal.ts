@@ -5,7 +5,7 @@ export { maxRelatedDepth, maxRelatedTerms, relatedErrors, relatedTarget, splitRe
 export { webhookResources } from './webhooks/webhook-resources'
 export { workflowResources } from './workflows/workflow-resources'
 export { workflowTypesPath, type WorkflowCacheAdvice, type WorkflowTypeEntry, type WorkflowTypeList } from './workflows/workflow-types-path'
-export { workflowRunsPath, workflowRunTracePath, type WorkflowRunTrace, type WorkflowTraceStep } from './workflows/workflow-trace-path'
+export { workflowRunParam, workflowRunsPath, workflowRunTraceRoute, workflowRunTracePath, type WorkflowRunTrace, type WorkflowTraceStep } from './workflows/workflow-trace-path'
 export { boardErrors, datesErrors, cardPhotoLimit, displayFields, tableDisplay } from './view-displays'
 export { fieldRefsIn, isFieldRef, markFieldRefs, unmarkFieldRefs } from './field-ref'
 export { pruneByShape, shapes, type PropShapes, type RefShape } from './ref-shape'

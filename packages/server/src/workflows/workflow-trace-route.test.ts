@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { workflowResources } from '@protobase/schema/internal'
+import { workflowResources, workflowRunsPath, workflowRunTracePath } from '@protobase/schema/internal'
 import type { Deps } from '../deps'
 import { createErrorHandler } from '../error-handler'
 import { buildRegistry } from '../registry'
@@ -17,7 +17,7 @@ const deps = { registry: buildRegistry([workflowResources('workflows').workflowR
 const run = '6f1c2a54-0d3e-4b6a-9a51-2f6c8e7d9b10'
 const steps = [{ scope: '', seq: 0, state: 'Fetch', status: 'succeeded', output: { n: 1 } }]
 
-// The route as the app mounts it, behind a guard that signs the caller in with `role`
+// The route as the app mounts it, under the runs' path the run's page reads from, behind a guard that signs the caller in with `role`
 const serve = (role: string, readTrace = vi.fn(async () => steps)) => {
   const app = new Hono<AdminEnv>()
   app.onError(createErrorHandler(undefined))
@@ -25,14 +25,14 @@ const serve = (role: string, readTrace = vi.fn(async () => steps)) => {
     c.set('session', { user: { id: '1', roles: [role] }, tenant: '1' })
     await next()
   })
-  app.route('/', workflowTraceRoute(deps, readTrace))
+  app.route(workflowRunsPath('/api'), workflowTraceRoute(deps, readTrace))
   return { app, readTrace }
 }
 
 describe("a run's trace, as its page reads it", () => {
   it('serves the steps of the trace to whoever reads the run', async () => {
     const { app, readTrace } = serve('reader')
-    const answer = await app.request(`/${run}/trace`)
+    const answer = await app.request(workflowRunTracePath('/api', run))
     expect(answer.status).toBe(200)
     expect(await answer.json()).toEqual({ steps })
     expect(readTrace).toHaveBeenCalledWith(run)
@@ -42,7 +42,7 @@ describe("a run's trace, as its page reads it", () => {
     for (const [role, key, row] of [['other', run, true], ['reader', 'not-a-run', true], ['reader', run, false]] as const) {
       readable.run = row
       const { app, readTrace } = serve(role)
-      expect((await app.request(`/${key}/trace`)).status).toBe(404)
+      expect((await app.request(workflowRunTracePath('/api', key))).status).toBe(404)
       expect(readTrace).not.toHaveBeenCalled()
     }
     readable.run = true
