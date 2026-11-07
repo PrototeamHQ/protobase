@@ -1,3 +1,4 @@
+import { expressionSource } from '../definition/expressions'
 import type { Machine } from '../definition/types'
 import type { SavedStep } from './port'
 
@@ -65,4 +66,44 @@ export const rerunSteps = <S extends EarlierStep>(machine: Machine, steps: reado
   }
   const problem = keepFrom('', machine)
   return problem ? { problem } : { steps: kept }
+}
+
+/** How a state keeps its whole result in a variable. */
+export const resultRead = '{% $states.result %}'
+
+/**
+ * What a kept step assigned, with each variable its state has on the version a re-run runs that keeps its whole result
+ * holding that result, whatever it held then: a step kept as it ran still gives what a later step now reads from it, and
+ * nothing runs again for it. Its other variables stay as they ran, and so does all a step that did not succeed assigned.
+ * The step's output is its whole result only where its state in `ran`, the version the earlier run ran, had no `Output`:
+ * a step whose result was shaped then keeps what it assigned, as nothing knows its whole result any more.
+ */
+export const keptAssigned = (machine: Machine, ran: Machine, step: { scope: string; state: string; status: string; output?: unknown; assigned?: unknown }) => {
+  // A step that failed into a catcher gave an error, not its result, and assigned what the catcher says
+  const state = step.scope === '' && step.status === 'succeeded' ? machine.States[step.state] : undefined
+  const before = ran.States[step.state]
+  const assign = state && 'Assign' in state ? (state.Assign as Record<string, unknown> | undefined) : undefined
+  if (!state || !assign || !before || ('Output' in before && before.Output !== undefined)) return undefined
+  const assigned = (step.assigned ?? {}) as Record<string, unknown>
+  const whole = Object.keys(assign).filter((name) => expressionSource(assign[name])?.trim() === '$states.result' && JSON.stringify(assigned[name]) !== JSON.stringify(step.output))
+  return whole.length === 0 ? undefined : { ...assigned, ...Object.fromEntries(whole.map((name) => [name, step.output])) }
+}
+
+/**
+ * The steps of an ended run that a re-run from `state`, a state of the workflow itself and not of a Map, keeps: those
+ * before its first visit, with the items of the Maps among them as they ran, so the run goes on at `state` with `machine`,
+ * the workflow's version now, and everything from there runs again. Returns the problem instead when the run never
+ * reached it, or the version does not have it or starts elsewhere.
+ */
+export const rerunFromSteps = <S extends EarlierStep>(machine: Machine, steps: readonly S[], state: string): { steps: S[] } | { problem: string } => {
+  const own = steps.filter((step) => step.scope === '').sort((a, b) => a.seq - b.seq)
+  const from = own.findIndex((step) => step.state === state)
+  if (from === -1) return { problem: `The run never reached state "${state}"` }
+  if (!Object.hasOwn(machine.States, state)) return { problem: `The workflow no longer has state "${state}"` }
+  if (from === 0 && machine.StartAt !== state) return { problem: `The workflow no longer starts at state "${state}"` }
+  const kept = own.slice(0, from)
+  const seqs = new Set(kept.map((step) => step.seq))
+  // A Map's item sits under the step of its Map, whose number its outermost scope carries
+  const inner = steps.filter((step) => step.scope !== '' && seqs.has(itemOf(step.scope.split('/')[0]!).seq))
+  return { steps: [...kept, ...inner] }
 }

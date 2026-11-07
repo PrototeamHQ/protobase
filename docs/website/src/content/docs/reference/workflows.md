@@ -334,6 +334,10 @@ A failed run, shown on its workflow's page, offers *Re-run from the failed step*
 - keeps the earlier run's steps, copied as they were, but the try that failed and that state's retried tries before it, so the failed state runs again from its first try and none of the steps before it runs again. A Map that runs again keeps its finished items and runs again only those that had not finished, each from where it stood;
 - is refused, and nothing starts, when the earlier run is not one of the workflow's runs the person may read (404), did not fail (`run-not-failed`), or would go on at a state the version no longer has (`rerun-refused`, naming the state).
 
+With `rerun_from`, the name of a state of the workflow itself, it re-runs any run that ended, succeeded or failed, from that state: the steps before its first visit stay as they ran, and it and all after it run again, so what they send goes out again. A kept step that succeeded, whose state now has a variable that keeps its whole result, `"Assign": { "customer": "{% $states.result %}" }`, gets that variable from what it gave, unless that state shaped its result with `Output` in the version the earlier run ran. A kept step that failed into a catcher keeps what it assigned then. A re-run needs read access to every step, as a replay does. `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "rerun_of": "...", "rerun_from": "Store" }` does it. It is refused when the run has not ended (`run-not-ended`), never reached that state, or the version no longer has it or no longer starts there (`rerun-refused`), and without `rerun_of` (`rerun-from-without-run`).
+
+A workflow may be created with no steps: its `definition` then defaults to one with `manual` as its trigger and no states. A save of a definition with no states checks the rest of it as any save does; such a version is kept, and refused as it is published or run.
+
 A kept step's card says it is from the earlier run, as it finished before the re-run started; the earlier run's own page lists its re-runs.
 
 ### Replaying a run
