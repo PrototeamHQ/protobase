@@ -84,10 +84,12 @@ $$;
 drop trigger if exists "workflow_version_status" on ${s}."workflows";
 create trigger "workflow_version_status" before update on ${s}."workflows" for each row execute function ${s}."workflow_version_status"();
 
--- A run that ends computes its workflow's status again.
+-- A run that ends computes its workflow's status again. The workflow is locked first, in a statement of its own, so a
+-- run of it ending at the same time has committed before the update's snapshot is taken, and the status counts both.
 create or replace function ${s}."run_status"() returns trigger
 language plpgsql as $$
 begin
+  perform 1 from ${s}."workflows" where id = new.workflow_id for no key update;
   update ${s}."workflows" w set ("run_status", "status_run_id", "status_run_at", "unresolved_failures") =
     (select st.run_status, st.status_run_id, st.status_run_at, st.unresolved_failures from ${s}."workflow_status"(w.id, w.version, w.resolved_at) st)
     where w.id = new.workflow_id;

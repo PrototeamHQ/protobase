@@ -131,6 +131,26 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("a workflow's status fro
     expect(await status(workflow)).toEqual({ status: 'healthy', run: last, failures: 0 })
   })
 
+  it('counts two runs that end at the same time, in transactions of their own', async () => {
+    const workflow = await newWorkflow('Together')
+    const first = await run(workflow, { wait: true }, ['waiting'])
+    const second = await run(workflow, { wait: true }, ['waiting'])
+    const pool = pg.pool({ max: 2 })
+    const [failing, succeeding] = [await pool.connect(), await pool.connect()]
+    const end = (status: string, id: string, at: string) => `update workflows.runs set status = '${status}', finished_at = '${at}' where id = '${id}'`
+    await failing.query('begin')
+    await failing.query(end('failed', first, '2026-01-01T10:00:00Z'))
+    // The second run ends while the first one's transaction still holds the workflow, and waits for it to commit.
+    const ended = succeeding.query(end('succeeded', second, '2026-01-01T10:00:01Z'))
+    await vi.waitFor(async () => expect((await failing.query(`select 1 from pg_stat_activity where wait_event_type = 'Lock' and query like 'update workflows.runs%'`)).rowCount).toBe(1), { timeout: 5_000, interval: 20 })
+    await failing.query('commit')
+    await ended
+    failing.release()
+    succeeding.release()
+    await pool.end()
+    expect(await status(workflow)).toEqual({ status: 'unresolved', run: first, failures: 1 })
+  })
+
   it('leaves the workflow as it was edited: a run that ends does not move its updated_at', async () => {
     const workflow = await newWorkflow('Untouched')
     const { updated_at: before } = await (await as('ada', `/workflows/${workflow}`)).json()
