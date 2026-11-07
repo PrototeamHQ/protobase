@@ -1,5 +1,7 @@
 import type { SavedStep, StepLog, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
+import type { StepCacheStore } from './cache/cache-port'
+import type { SecretNamer } from './cache/secret-names'
 
 /** What every scope of one segment shares. */
 export type SegmentContext = {
@@ -8,6 +10,8 @@ export type SegmentContext = {
   stateContext: { Execution: { Input: unknown; StartTime: string }; Secrets: Readonly<Record<string, string>> }
   redactor: Redactor
   tasks: TaskHandlers
+  /** Where step types that cache keep their results, and the namer of the secrets in their keys. */
+  cache?: { store: StepCacheStore; nameSecrets: SecretNamer }
   /** The job's signal: aborted when the worker stops, which ends the segment without saving the step in progress. */
   signal: AbortSignal
   now: () => Date

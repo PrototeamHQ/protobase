@@ -1,4 +1,5 @@
 import type { Definition } from '../definition/types'
+import type { TaskCache } from './cache/cache-port'
 
 /**
  * How a step ended: `succeeded`, `retrying` (it failed and a retrier tries it again), `caught` (it failed and a
@@ -48,6 +49,8 @@ export type TaskContext = {
   redact: (text: string) => string
   /** Blanks `value` out of all this step and the rest of its segment record, such as an access token it was given. */
   secret: (value: string) => void
+  /** The step cache, when the app keeps one; a step type that caches nothing never touches it. */
+  cache?: TaskCache
 }
 
 /**

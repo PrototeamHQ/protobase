@@ -2,6 +2,8 @@ import { Ajv } from 'ajv'
 import { StepError } from '../run/errors'
 import type { TaskContext, TaskHandler, TaskHandlers } from '../run/port'
 import type { PluginConnection, PluginMail, PluginServices } from './context'
+import { cachePlan } from './cache-plan'
+import { cachedRun, reuse, type CallParts } from './cached-run'
 import type { Plugin, StepType } from './types'
 
 const ajv = new Ajv({ allErrors: true, strict: false })
@@ -25,7 +27,12 @@ const handler = (id: string, type: StepType, wiring: StepWiring): TaskHandler =>
     }
     const connection = type.connection === undefined ? undefined : wiring.connection(id, type.connection, task)
     const { runId, idempotencyKey, signal, log, redact } = task
-    return type.run({ ...wiring.services(task), input: input as Record<string, unknown>, runId, idempotencyKey, signal, log, redact, connection, mailbox: wiring.mailbox?.(task) })
+    const run = ({ services, input, mailbox, earlier }: CallParts) => type.run({ ...services, input, runId, idempotencyKey, signal, log, redact, connection, mailbox, reuse, ...(earlier && { earlier }) })
+    const parts = { services: wiring.services(task), input: input as Record<string, unknown>, mailbox: wiring.mailbox?.(task) }
+    const plan = cachePlan(id, type, parts.input, task.cache)
+    if (plan && 'invalidTtl' in plan) log("The step type's cache gave no valid time to live; the step ran without the cache")
+    if (!plan || 'invalidTtl' in plan) return run(parts)
+    return cachedRun(plan, id, parts, task, run)
   }
 }
 

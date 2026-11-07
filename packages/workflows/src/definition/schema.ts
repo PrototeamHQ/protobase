@@ -87,7 +87,7 @@ export const definitionSchema = {
       discriminator: { propertyName: 'Type' },
       oneOf: [
         state('Pass', flow, nextOrEnd),
-        state('Task', { ...flow, ...recovery, Resource: name, Arguments: {}, TimeoutSeconds: { type: 'integer', minimum: 1, maximum: limits.taskTimeoutSeconds } }, { required: ['Resource'], ...nextOrEnd }),
+        state('Task', { ...flow, ...recovery, Resource: name, Arguments: {}, TimeoutSeconds: { type: 'integer', minimum: 1, maximum: limits.taskTimeoutSeconds }, Cache: { type: 'boolean' } }, { required: ['Resource'], ...nextOrEnd }),
         state('Choice', {
           Choices: {
             type: 'array',
