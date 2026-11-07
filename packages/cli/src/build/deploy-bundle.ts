@@ -58,7 +58,7 @@ const copyShell = async (publicDir: string, sourceMaps: boolean) => {
 // theme, checked and minified, and its icons; the project's db/migrations as migrations/; and the manifest saying which
 // paths go to the server, which Protobase version the bundle runs on, its plugins, theme, shell and migrations,
 // which icons are the project's own, the native packages the shell runs on in the mobile app, and with a mobile section
-// its plugins. Of the project's server config only the config folder runs at build time, to check its views against its resources; when it declares custom
+// its app id, plugins and whether it has native push. Of the project's server config only the config folder runs at build time, to check its views against its resources; when it declares custom
 // components, or extensions have UI configs, the UI is loaded once to check its names against the config's and each
 // other's.
 export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [], sourceMaps = false, onWarning }: DeployBundleInput): Promise<BundleManifest> => {
@@ -66,8 +66,8 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
   await removeOwnFolder(outDir, bundleNodeModules, 'nodeModules')
   await removeOwnFolder(outDir, bundleMigrations, 'migrations')
   const components = new Set<string>()
-  const { native, mobile } = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
-  const mobileSection = bundleMobile(mobile)
+  const { native, mobile, notifications } = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
+  const mobileSection = bundleMobile(mobile, notifications)
   await checkViews(projectDir)
   await checkUi(projectDir, extensions, components)
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []

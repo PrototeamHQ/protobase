@@ -8,7 +8,7 @@ import StoryFrame from '../../../components/StoryFrame.astro'
 ## Turning them on
 
 :::caution[Beta]
-Push reaches browsers; push on Android and iOS is coming soon.
+Push reaches browsers and the Android app. On iPhone and iPad the server delivers through [APNs](#ios), but the mobile app does not register for push yet.
 :::
 
 Notifications tell a user about something in the app, in a bell in the top bar and as push on their devices. [Send notifications](/guides/push-notifications/) walks through turning them on and sending the first one. You turn them on in `protobase.config.ts`:
@@ -23,12 +23,12 @@ export default defineConfig({
 
 Then run `protobase migration`, which writes the [devices and history tables](#table-names), and the jobs schema that [sending](#sending) runs on, as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while a table is missing or lacks what notifications need, and name it. Without `notifications` there is none of it: no endpoints, no tables and no migration.
 
-Every signed-in user gets [the bell](#the-bell), and browsers receive push through [Web Push](#web-push); push on Android and iOS is coming soon. `notifications: { ui: false }` keeps only the backend, [without the bell](#without-the-bell).
+Every signed-in user gets [the bell](#the-bell), browsers receive push through [Web Push](#web-push), the Android app through [FCM](#android) and iOS devices through [APNs](#ios). `notifications: { ui: false }` keeps only the backend, [without the bell](#without-the-bell).
 
 ## Devices
 
 :::caution[Beta]
-Only browsers receive push yet, through [Web Push](#web-push): push on Android and iOS is coming soon.
+Browsers receive push through [Web Push](#web-push), and the Android app through [FCM](#android). The server delivers to iOS devices through [APNs](#ios), but the mobile app does not register for push on iOS yet.
 :::
 
 A device is where a user receives push: a browser's push subscription, or an Android or iOS app's push token. Each signed-in user registers and removes only their own, through the API:
@@ -68,7 +68,7 @@ The path comes from `devicesPath('/api', id)`, and the name of its id parameter 
 ## Sending
 
 :::caution[Beta]
-Browsers receive push, and Android devices through [FCM](#android) once the mobile app registers them, which is coming soon; push on iOS is coming soon. <gap>A send can reach a device twice, or keep an entry twice in a history store of your own, when a worker stops mid-send because saving the send's progress in the same step as the push is not implemented.</gap>
+Browsers and the Android app receive push, and iOS devices through [APNs](#ios) once the mobile app registers them, which is coming soon. <gap>A send can reach a device twice, or keep an entry twice in a history store of your own, when a worker stops mid-send because saving the send's progress in the same step as the push is not implemented.</gap>
 :::
 
 [Send notifications](/guides/push-notifications/) sends one from a record change, step by step. You send a notification from your server code, such as a job, a hook, an event subscription or an API function, with `sendNotification(db, to, message)` from `@protobase/server`. It is queued as a background job in `db`'s transaction when `db` is one, so it goes out only once your write commits, and nothing goes out when the transaction rolls back. A running job also has it as `sendNotification` in its context, beside `mail`, when the app has `notifications`.
@@ -192,7 +192,7 @@ Each message is encrypted for its browser and signed with the key. It goes only 
 
 ### In the browser
 
-`usePushNotifications()` from `@protobase/ui` turns push on and off for the signed-in user in this browser, for your own button or menu item. Its `state` tells whether push is `on`, `off`, `blocked` because the user refused notifications in the browser's settings, or `unsupported`, and `loading` until it knows. Hide the button while it is `unsupported`: the browser has no Web Push, the app has no VAPID keys, or it runs in the Android or iOS app.
+`usePushNotifications()` from `@protobase/ui` turns push on and off for the signed-in user in this browser, or in the Android app, for your own button or menu item. Its `state` tells whether push is `on`, `off`, `blocked` because the user refused notifications in the browser's or the phone's settings, or `unsupported`, and `loading` until it knows. Hide the button while it is `unsupported`: the browser has no Web Push, the app has no VAPID keys, the Android app was built without `google-services.json`, or it runs in the iOS app.
 
 ```tsx
 import { Button, usePushNotifications } from '@protobase/ui'
@@ -214,19 +214,39 @@ export const PushButton = () => {
 
 `protobase serve` and `protobase dev` both serve the service worker that shows notifications, `protobase dev` only when the app has `notifications`.
 
-## Android
+## iOS
 
 :::caution[In development]
-The mobile app does not register for push on Android yet.
+The mobile app does not register for push on iOS yet.
 :::
 
-Android devices receive push through Firebase Cloud Messaging's HTTP v1 API. You create a service account key in your Firebase project (Project settings, Service accounts, Generate new private key) and set its JSON as `PROTOBASE_FCM_SERVICE_ACCOUNT`. Without it, Android devices are skipped. Setting the mobile app up is coming soon.
+iOS devices receive push through the Apple Push Notification service (APNs), with token authentication. You create an APNs key in your Apple developer account, under Certificates, Identifiers & Profiles, Keys, and set it in three environment variables:
+
+| Variable | |
+| --- | --- |
+| `PROTOBASE_APNS_KEY` | the text of the `.p8` file you download, from `-----BEGIN PRIVATE KEY-----` to `-----END PRIVATE KEY-----` |
+| `PROTOBASE_APNS_KEY_ID` | the key's id, ten letters and digits |
+| `PROTOBASE_APNS_TEAM_ID` | your team's id, ten letters and digits |
+
+Without them APNs is off and iOS devices are skipped. One or two of them set, a blank one, a key that is no APNs key or an id that is not ten letters and digits stops startup, naming the variable without its value, and so do the three set in an app without a [`mobile`](/guides/mobile-app/) section. The key is a secret: keep it out of client code, `VITE_` variables and the repository. Anyone holding it can push to every iOS device of your apps.
+
+The topic of every notification is the mobile app's `appId`. Each device goes to the environment it was registered with: development builds to the APNs sandbox, App Store and TestFlight builds to production. A device whose token is not lowercase hex, whose environment is neither `sandbox` nor `production`, or that was registered for another app id is `refused`.
+
+The notification's title and body are its alert, with its `badge` and `sound`; the JSON also holds `url`, `data` and `user`, the id of the user the device is registered for. `urgency` sets the priority (`very-low` and `low` wait until the device saves power less), `ttl` how long APNs keeps it for a device that is offline, 28 days without one, and `tag` the collapse id. A message's `platform.apns` is merged into the JSON, such as `{ aps: { 'thread-id': 'chat' } }`, never into the request's headers; a `url` in it is checked as the message's is, and the JSON holds at most 4096 bytes. APNs answering that the device is unregistered, or that its token is bad, removes the device; any other refusal, such as a wrong topic or key, is retried and then fails the send, so a mistake in the configuration removes no device.
+
+## Android
+
+:::caution[Beta]
+Push on Android is new, and a message over FCM's size limit is not refused before it is sent (see below).
+:::
+
+Android devices receive push through Firebase Cloud Messaging's HTTP v1 API. You create a service account key in your Firebase project (Project settings, Service accounts, Generate new private key) and set its JSON as `PROTOBASE_FCM_SERVICE_ACCOUNT`. Without it, Android devices are skipped. `protobase mobile` sets the app up from your `google-services.json`: see [Push notifications in the mobile app guide](/guides/mobile-app/#9-push-notifications).
 
 JSON that is not a service account key, a `project_id` that is not a Google project id, or a `private_key` that is not an RSA key of at least 2048 bits stops startup, naming the variable without its value. The key is a secret: keep it out of client code, `VITE_` variables and the repository. Anyone holding it can push to every Android device of the project.
 
 The server signs in as the service account with a token scoped to sending through FCM only, and keeps one token until five minutes before it expires. When no token can be had before the first request, the send fails with nothing pushed and is retried; a token that fails later retries only the devices still waiting for one. Requests go only to Google's token endpoint and to FCM, for the key's own project, never through a redirect; the URLs in the key's JSON are not read. A device is removed only when FCM reports its token unregistered. Any other refusal, such as a key without access to the project, keeps the device and retries it. A device stored with a token that is not an FCM token is `refused`.
 
-A message's title and body are the notification. Its `data` and `url` reach the app as FCM's data, each value a string (other JSON as its text), with `user`, the id of the user the device is registered for, over any `user` given. Its `ttl`, `urgency`, `tag`, `sound` and `badge` set the Android delivery and notification. A message's `platform.fcm` is merged over these, and may set only:
+A message's title and body are the notification. Its `data` and `url` reach the app as FCM's data, the url under `url`, which the app opens on tap; a message whose `data` holds a `url` of its own is refused, each value a string (other JSON as its text), with `user`, the id of the user the device is registered for, over any `user` given. Its `ttl`, `urgency`, `tag`, `sound` and `badge` set the Android delivery and notification. A message's `platform.fcm` is merged over these, and may set only:
 
 | Field | |
 | --- | --- |
@@ -291,7 +311,7 @@ A notification is `{ id, userId, title, body, url, data, createdAt, readAt }`, a
 
 ### Senders
 
-A sender delivers notifications to the devices of the kinds it names, through their push service. Web Push and FCM are built in; your own senders, such as from a package, are the default export of `notifications/senders.ts`, an array, and they replace the built-in ones, at most one for each kind. To keep Web Push beside them, list it too: `webPushSender(readVapidSettings(process.env)!)` from `@protobase/server` is the built-in sender, and `readVapidSettings` reads the [VAPID variables](#web-push), `undefined` when none is set:
+A sender delivers notifications to the devices of the kinds it names, through their push service. Web Push, APNs and FCM are built in; your own senders, such as from a package, are the default export of `notifications/senders.ts`, an array, and they replace the built-in ones, at most one for each kind. To keep a built-in one beside them, list it too: `webPushSender(readVapidSettings(process.env)!)` from `@protobase/server` is the built-in Web Push sender, and `readVapidSettings` reads the [VAPID variables](#web-push), `undefined` when none is set; `apnsSender(readApnsSettings(process.env)!, { appId })` is the built-in APNs sender, with the mobile app's `appId`, and `readApnsSettings` reads the [APNs variables](#ios) the same way:
 
 ```ts
 // notifications/senders.ts

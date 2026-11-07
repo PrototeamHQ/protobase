@@ -104,13 +104,11 @@ const expectTitled = async (canvasElement: HTMLElement, title: string) => {
   const canvas = within(canvasElement)
   const recent = await canvas.findByRole('list', { name: 'Recent direct messages' })
   expect(await within(recent).findByRole('link', { name: title })).toHaveAttribute('href', '/direct_messages/dm-1')
-  const trail = within(await canvas.findByRole('navigation', { name: 'Breadcrumb' }))
-  expect(await trail.findByRole('link', { name: title })).toHaveAttribute('aria-current', 'page')
   expect(await canvas.findByRole('heading', { name: title })).toBeVisible()
   await waitFor(() => expect(document.title).toContain(title))
 }
 
-/** Maya reads the conversation she has with Sam: it is named after him, in the sidebar, breadcrumb, heading and tab. */
+/** Maya reads the conversation she has with Sam: it is named after him, in the sidebar, heading and tab. */
 export const MayaSeesSam: StoryObj = {
   tags: ['play'],
   render: () => <Chat id="u-maya" name="Maya Jansen" />,

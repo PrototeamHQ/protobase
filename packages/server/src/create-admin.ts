@@ -286,8 +286,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const runsOnNote = readRunsOnNote(globalThis.process?.env ?? {})
   const errorReporting = errorReportingSettings(options.errorReporting, globalThis.process?.env ?? {})
   const maps = mapSettings(options.maps, globalThis.process?.env ?? {})
-  // At startup, so a wrong VAPID variable stops the server; the sending code calls them through these.
-  const senders = notifications ? notificationSenders(notifications) : []
+  // At startup, so a wrong VAPID or APNs variable stops the server; the sending code calls them through these.
+  const senders = notifications ? notificationSenders(notifications, globalThis.process?.env ?? {}, mobile) : []
   // Who sees a status follows organizations, so an app without them stops here.
   if (status) checkStatusAuth(auth)
   const statusTables = status && auth && { statuses: statusNames(status), members: { schema: storeSchema(auth), table: 'member' } }

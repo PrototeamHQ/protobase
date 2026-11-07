@@ -12,7 +12,7 @@ description: The sidebar, the user menu, the bottom bar on phones and the global
 - [User menu](/reference/user-menu/): Account pages, help links, security settings, setting a status, the theme switch and Sign out.
 - [Bottom bar](/reference/bottom-bar/): On phones, tabs along the bottom for each role's main screens.
 - [Global search](/reference/client/#global-search): A search box, also on Cmd+K or Ctrl+K, finds records in every resource and jumps to pages and New forms.
-- [Breadcrumbs](/reference/ui-config/#breadcrumbs): The top bar shows the group, list and record you are on, each a link back, and on a phone a back button to the one before.
+- [Breadcrumbs](/reference/ui-config/#breadcrumbs): The top bar shows the group and list you are on, each a link back, and on a phone a back button to the one before; a record page's heading names the record.
 - [Tab titles](/reference/ui-config/#names-and-columns): Browser tabs name the record, list or page they show, then the app.
 - [Update notice](/reference/versioning/#a-new-version-under-an-open-page): When the server runs a newer Protobase version, open pages offer a reload so the user can save their work first.
 - Config refresh: When the config or the user's roles change, open pages load the new menus, columns and permissions without a reload.

@@ -16,7 +16,7 @@ const install = (key: string, name: string) => {
 
 describe('pinnedPackages', () => {
   it('holds @protobase/mobile and every package it pins', () => {
-    expect([...pinnedPackages]).toEqual(expect.arrayContaining(['@protobase/mobile', '@capacitor/core', '@capacitor/app', '@capawesome/capacitor-live-update']))
+    expect([...pinnedPackages]).toEqual(expect.arrayContaining(['@protobase/mobile', '@capacitor/core', '@capacitor/app', '@capawesome/capacitor-live-update', '@capacitor/push-notifications']))
   })
 })
 
@@ -38,7 +38,7 @@ describe('pinnedNative', () => {
   })
 
   it('names the native sources @protobase/mobile publishes by its native contract', () => {
-    const recorded = { contract: 8, sources: '95f27c76e1f04190c631a30bac8308ded964cfafe437edabab3159f38d9e8462' }
+    const recorded = { contract: 9, sources: '2a71c411c47002a31eb59501f41b7e15ae5c9233d374327f1503a4fe51ff4347' }
     expect({ contract: mobilePackage.nativeContract, sources: nativeSources() }, 'the native sources of @protobase/mobile changed: raise nativeContract in its package.json, then record both here').toEqual(recorded)
   })
 })
@@ -58,6 +58,8 @@ describe('checkInstalledPlugins', () => {
     install('my-updater', '@capawesome/capacitor-live-update')
     install('x', '@capacitor/app')
     install('@capacitor/camera', '@capacitor/camera')
+    install('@capacitor/push-notifications', '@capacitor/push-notifications')
+    expect(() => checkInstalledPlugins(dir, ['@capacitor/push-notifications'])).toThrow('native push comes with notifications(); remove it from mobile.plugins')
     expect(() => checkInstalledPlugins(dir, ['my-updater'])).toThrow("mobile.plugins lists my-updater, @capawesome/capacitor-live-update: live updates come with Protobase's updater")
     expect(() => checkInstalledPlugins(dir, ['x'])).toThrow('mobile.plugins lists x, which installs @capacitor/app, which comes with Protobase at a fixed version')
     expect(() => checkInstalledPlugins(dir, ['@capacitor/camera'])).not.toThrow()
