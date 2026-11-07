@@ -22,7 +22,8 @@ process.env.PROTOBASE_SECRET = 'app-secret-for-the-replay-test'
 const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly(), text: f.text() }).primaryKey((r) => r.id)
 const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'notes'>({
   builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'notes.*'],
-  runner: ['workflows.read', 'workflow_runs.create', 'workflow_runs.read'],
+  // Reads the runs but not their traces, which a replay copies.
+  runner: ['workflows.read', 'workflow_runs.create', { 'workflow_runs.read': ['id', 'workflow_id', 'status', 'rerun_of', 'created_at'] }],
   reader: ['workflows.read', 'workflow_runs.read'],
 })
 const people: Record<string, { tenant: string; roles: string[] }> = {
@@ -181,7 +182,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
     expect(kept).not.toContain(secret)
   })
 
-  it('refuses a caller who may not read the steps or start runs, another tenant, and a run that is not one of the workflow', async () => {
+  it('refuses a caller who may not read the trace or start runs, another tenant, and a run that is not one of the workflow', async () => {
     const { workflow, run } = await ranOrder()
     const other = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Other', definition: order('Hi') } }))
     const runs = await count()
