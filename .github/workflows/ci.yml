@@ -450,7 +450,8 @@ jobs:
   # A Supabase project moved by the real `protobase import supabase` and served to supabase-js
   # (tests/supabase-move/client/): from Supabase's Postgres image, started as in record, into the service's Postgres.
   # pg_dump and psql come from Docker's postgres:18 (tests/supabase-move/client/pg-tools/). A push runs it when its
-  # changes reach the test (scripts/affected-tests.mjs); a pull request and a run by hand always do.
+  # changes reach the test (scripts/affected-tests.mjs); a pull request and a run by hand always do. Its postgres:18
+  # comes from mirror.gcr.io, the same image (same digest) as docker.io's, so no pull of this job depends on docker.io.
   supabase-move:
     if: github.event_name != 'schedule'
     concurrency:
@@ -459,7 +460,7 @@ jobs:
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     services:
       postgres:
-        image: postgres:18
+        image: mirror.gcr.io/library/postgres:18
         env:
           POSTGRES_USER: protobase
           POSTGRES_PASSWORD: protobase
