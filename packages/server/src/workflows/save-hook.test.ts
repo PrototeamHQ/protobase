@@ -15,5 +15,7 @@ describe('withStepsToCheck', () => {
   it('leaves a definition with steps, or with a first step named, as it is', () => {
     const named = { ...empty, stateMachine: { ...empty.stateMachine, StartAt: 'Gone' } }
     expect(withStepsToCheck(named)).toBe(named)
+    const listed = { ...empty, stateMachine: { ...empty.stateMachine, States: [] } }
+    expect(withStepsToCheck(listed)).toBe(listed)
   })
 })

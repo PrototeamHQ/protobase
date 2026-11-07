@@ -19,7 +19,7 @@ const savedDefinition = async (trx: Db, schema: string, workflow: string, versio
  */
 export const withStepsToCheck = (definition: unknown) => {
   const machine = (definition as Partial<Definition> | null)?.stateMachine
-  if (!machine || typeof machine.States !== 'object' || machine.States === null || Object.keys(machine.States).length > 0 || machine.StartAt !== '') return definition
+  if (!machine || typeof machine.States !== 'object' || machine.States === null || Array.isArray(machine.States) || Object.keys(machine.States).length > 0 || machine.StartAt !== '') return definition
   return { ...(definition as Definition), stateMachine: { ...machine, StartAt: 'Done', States: { Done: { Type: 'Succeed' } } } }
 }
 

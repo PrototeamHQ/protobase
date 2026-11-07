@@ -1,3 +1,4 @@
+import { expressionSource } from '../definition/expressions'
 import type { Machine } from '../definition/types'
 import type { SavedStep } from './port'
 
@@ -84,7 +85,7 @@ export const keptAssigned = (machine: Machine, ran: Machine, step: { scope: stri
   const assign = state && 'Assign' in state ? (state.Assign as Record<string, unknown> | undefined) : undefined
   if (!state || !assign || !before || ('Output' in before && before.Output !== undefined)) return undefined
   const assigned = (step.assigned ?? {}) as Record<string, unknown>
-  const whole = Object.keys(assign).filter((name) => assign[name] === resultRead && JSON.stringify(assigned[name]) !== JSON.stringify(step.output))
+  const whole = Object.keys(assign).filter((name) => expressionSource(assign[name])?.trim() === '$states.result' && JSON.stringify(assigned[name]) !== JSON.stringify(step.output))
   return whole.length === 0 ? undefined : { ...assigned, ...Object.fromEntries(whole.map((name) => [name, step.output])) }
 }
 

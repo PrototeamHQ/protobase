@@ -166,6 +166,11 @@ describe('keptAssigned', () => {
     expect(keptAssigned(machine, machine, { ...step, assigned: null })).toEqual({ whole: { id: 7, name: 'Ada' } })
   })
 
+  it('reads the whole result however the expression is spaced', () => {
+    const spaced = definition({ Fetch: { Type: 'Task', Resource: 'fetch', Assign: { whole: '{%  $states.result %}' }, End: true } }).stateMachine
+    expect(keptAssigned(spaced, spaced, { ...step, assigned: null })).toEqual({ whole: { id: 7, name: 'Ada' } })
+  })
+
   it('keeps what a step that failed into a catcher assigned', () => {
     expect(keptAssigned(machine, machine, { ...step, status: 'caught', output: { Error: 'Fetch.Refused' }, assigned: { whole: 'fallback' } })).toBeUndefined()
   })

@@ -7,10 +7,11 @@ import { deletedRows } from '../params'
 import { badRequest, notFound } from '../problem'
 import { requestAccess, requireOperation } from '../request-access'
 import type { WriteEvent } from '../types'
+import { readsAllSteps } from './replay'
 
 /**
  * Starts a re-run where the failed run it re-runs left off, or with `rerun_from` from that state of a run that ended:
- * refuses a run the caller cannot read (404), one of another workflow, one that did not fail or has not ended, and
+ * refuses a run the caller cannot read, or whose steps they cannot all read (404), one of another workflow, one that did not fail or has not ended, and
  * copies the steps a re-run keeps to the new run, in one statement, so the runner takes it up after them on the version
  * it runs. The table's trigger gave it the earlier run's input.
  */
@@ -19,6 +20,8 @@ export const keepEarlierSteps = async (trx: Db, deps: Deps, schema: string, even
   const earlier = String(event.after.rerun_of)
   const access = await requestAccess(deps, deps.registry.find('workflow_runs')!, { user: event.user, ...(event.tenant !== undefined && { tenant: event.tenant }) })
   requireOperation(access, 'read')
+  // The kept steps are copied to the new run, so the caller must read every one of them, as for a replay
+  if (!readsAllSteps(await requestAccess(deps, deps.registry.find('workflow_steps')!, { user: event.user, ...(event.tenant !== undefined && { tenant: event.tenant }) }))) throw notFound('No run of this workflow to re-run with this key')
   const found = await fetchReadable(trx, access, [earlier], deletedRows(access.full, false), { fields: [access.full.fields.workflow_id!, access.full.fields.status!] })
   if (!found || found.record.workflow_id !== event.after.workflow_id) throw notFound('No run of this workflow to re-run with this key')
   const from = event.after.rerun_from as string | null | undefined
