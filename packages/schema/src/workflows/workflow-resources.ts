@@ -43,9 +43,11 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
     updated_at: r.updated_at.label('Updated'),
   }))
   .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
-  .actions((a) => [a.link('test_run', { label: 'Test run', icon: 'play', to: { kind: 'create', resource: 'workflow_runs', values: { workflow_id: '{id}' } } })])
+  .recordWidth('full')
   .layout((r) => [
-    l.section('Workflow', [r.name, r.description, r.enabled_version, r.definition]),
+    l.section('Workflow', [r.name, r.description, r.enabled_version]),
+    // Its versions, runs and Test run are chosen above the graph, which spans the page
+    l.section('Graph', [r.definition], { width: 'page' }),
     l.sidebar([r.version, r.created_at, r.updated_at]),
     l.related('Trigger', { resource: 'workflow_triggers', field: 'workflow_id', columns: ['type', 'status', 'version', 'last_error', 'updated_at'] }),
     l.related('Runs', { resource: 'workflow_runs', field: 'workflow_id', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'version', 'error'] }),
@@ -72,6 +74,7 @@ const versionsResource = (schema: string) =>
 const versionsView = view<ReturnType<typeof versionsResource>>('workflow_versions')
   .names({ singular: 'Workflow version', plural: 'Workflow versions' })
   .icon('history')
+  .nav({ hidden: true })
   .title((r) => r.version)
   .fields((r) => ({ saved_by: r.saved_by.label('Saved by'), saved_at: r.saved_at.label('Saved') }))
   .list((r) => ({ columns: [r.workflow_id, r.version, r.saved_by, r.saved_at], sort: [[r.version, 'desc']] }))
@@ -108,7 +111,10 @@ const runsResource = (schema: string) =>
 const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   .names({ singular: 'Workflow run', plural: 'Workflow runs' })
   .icon('play')
+  .nav({ hidden: true })
   .title((r) => r.created_at)
+  // A run is shown on its workflow's graph, on the version it ran on
+  .recordOpens({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })
   .help('A run of a workflow with its input. It takes up where it stands after a restart; each of its steps is listed with what it read, gave and logged.')
   .fields((r) => ({
     id: r.id.label('Steps').widget('workflow_run'),
@@ -172,6 +178,7 @@ const stepsResource = (schema: string) =>
 const stepsView = view<ReturnType<typeof stepsResource>>('workflow_steps')
   .names({ singular: 'Workflow step', plural: 'Workflow steps' })
   .icon('list-checks')
+  .nav({ hidden: true })
   .title((r) => r.state)
   .fields((r) => ({
     run_id: r.run_id.label('Run'),
@@ -216,6 +223,7 @@ const triggersResource = (schema: string) =>
 const triggersView = view<ReturnType<typeof triggersResource>>('workflow_triggers')
   .names({ singular: 'Workflow trigger', plural: 'Workflow triggers' })
   .icon('zap')
+  .nav({ hidden: true })
   .title((r) => r.type)
   .fields((r) => ({
     workflow_id: r.workflow_id.label('Workflow'),

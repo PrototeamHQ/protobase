@@ -113,6 +113,12 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('action "old": href "/payments/{id}" points inside the app; give the link `to` instead')
   })
 
+  it("wants a record's page to open an address the app has", () => {
+    const opens = (to: AppAddress) => view<typeof payments>('payments').recordOpens(to).toModel()
+    expect(() => checkViews(registry, [opens({ kind: 'record', resource: 'payments', key: '{reference}', run: '{id}' })])).not.toThrow()
+    expect(() => checkViews(registry, [opens({ kind: 'record', resource: 'refunds', key: '{id}' })])).toThrow('View "payments": recordOpens: unknown resource "refunds"')
+  })
+
   it('wants action inputs to fit: a handler to get them, and a choice of records to pick from a resource the app has', () => {
     const asked = view<typeof payments>('payments').actions((a) => [a.action('refund', { label: 'Refund', inputs: (i) => [i.choice('to', { label: 'To', resource: 'payments' })] })]).toModel()
     expect(() => checkViews(registry, [asked])).not.toThrow()

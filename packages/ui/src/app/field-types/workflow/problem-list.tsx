@@ -5,7 +5,7 @@ import { text } from './messages'
 /** What the check says is wrong, each with the field it is about: a save is refused until none is left. */
 export const ProblemList = ({ problems }: { problems: readonly NodeProblem[] }) =>
   problems.length > 0 && (
-    <div className="rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-body text-danger-text sm:col-span-2">
+    <div className="rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-body text-danger-text">
       <p className="flex items-center gap-1.5 font-medium">
         <CircleAlert className="size-4" aria-hidden="true" />
         {text('cannotSave', { count: problems.length })}

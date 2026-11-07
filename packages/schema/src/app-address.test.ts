@@ -111,6 +111,14 @@ describe('readAppPath', () => {
     expect(readAppPath('/conversations/7?call=start', pages)).toEqual({ kind: 'record', resource: 'conversations', key: '7' })
   })
 
+  it("writes a workflow's version and run as version=<number> and run=<key>, and reads only a version from 1 as one", () => {
+    const address: AppAddress = { kind: 'record', resource: 'workflows', key: 'w-1', version: 3, run: 'r 7' }
+    expect(appPath(address)).toBe('/workflows/w-1?version=3&run=r+7')
+    expect(readAppPath(appPath(address), pages)).toEqual(address)
+    for (const version of ['0', '-1', '2.5', 'two', ''])
+      expect(readAppPath(`/workflows/w-1?version=${version}&run=`, pages)).toEqual({ kind: 'record', resource: 'workflows', key: 'w-1' })
+  })
+
   it('reads only edit=true as the form', () => {
     expect(readAppPath('/listings/42?edit=1', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
     expect(readAppPath('/listings/42?edit=false', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })

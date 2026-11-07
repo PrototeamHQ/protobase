@@ -28,7 +28,7 @@ export type NodePanelProps = {
 const isState = (value: unknown): value is State => typeof value === 'object' && value !== null && !Array.isArray(value) && typeof (value as { Type?: unknown }).Type === 'string'
 
 const Heading = ({ kind, name }: { kind: string; name: string }) => (
-  <div className="sm:col-span-2">
+  <div>
     <div className="text-xs text-muted-foreground">{kind}</div>
     <h3 className="truncate font-semibold text-foreground">{name}</h3>
   </div>
@@ -56,7 +56,7 @@ const StatePanel = ({ definition, types, selected: path, problems, onChange, onS
         }}
       />
       <StateFields state={state} types={types} names={Object.keys(machine.States)} problems={problems} disabled={disabled} onChange={(next) => change(replaceState(definition, path, next))} />
-      <details className="sm:col-span-2">
+      <details>
         <summary className="cursor-pointer text-body font-medium text-muted-foreground">{text('asJson')}</summary>
         <div className="mt-3">
           <ValueField
@@ -73,7 +73,7 @@ const StatePanel = ({ definition, types, selected: path, problems, onChange, onS
         </div>
       </details>
       {onChange && (
-        <div className="flex flex-wrap gap-2 sm:col-span-2">
+        <div className="flex flex-wrap gap-2">
           {machine.StartAt !== name && (
             <Button size="sm" onClick={() => change(startAt(definition, path))}>
               <Flag className="size-3.5" />
@@ -97,11 +97,11 @@ const StatePanel = ({ definition, types, selected: path, problems, onChange, onS
   )
 }
 
-/** The chosen node's fields under the canvas: the trigger's, or a state's with its problems, name and actions. */
+/** The chosen node's fields beside the canvas: the trigger's, or a state's with its problems, name and actions. */
 export const NodePanel = (props: NodePanelProps) => {
   const { definition, types, selected, problems, onChange } = props
   return (
-    <section aria-label={text('chosenStep')} className="grid gap-4 rounded-lg border bg-background p-4 sm:grid-cols-2">
+    <section aria-label={text('chosenStep')} className="flex flex-col gap-4 rounded-lg border bg-background p-4">
       {selected === triggerId ? (
         <>
           <Heading kind={text('trigger')} name={triggerLabel(definition.trigger, types)} />

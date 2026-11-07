@@ -34,19 +34,21 @@ const useFollow = (following: boolean) => {
 }
 
 /**
- * A run with what its trace draws: the run, the definition of the version it runs, and its first steps in the order they
- * ran, followed while the run goes on.
+ * A run with what its trace draws: the run as stored, the definition of the version it runs, and its first steps in the
+ * order they ran, followed while the run goes on. Without a run nothing is read.
  */
-export const useRunTrace = (runId: string) => {
-  const run = useRecord('workflow_runs', runId)
+export const useRunTrace = (runId: string | undefined) => {
+  const run = useRecord('workflow_runs', runId ?? '', runId !== undefined)
   const record = run.data?.record
   const versioned = record?.workflow_id != null && record.version != null
   const version = useRecord('workflow_versions', [String(record?.workflow_id ?? ''), Number(record?.version ?? 0)], versioned)
-  const steps = useList('workflow_steps', { filter: `run_id = ${JSON.stringify(runId)}`, orderBy: 'id', pageSize: traceStepLimit, fields: ['id', 'scope', 'state', 'status', 'next'] })
+  const steps = useList('workflow_steps', { filter: `run_id = ${JSON.stringify(runId ?? '')}`, orderBy: 'id', pageSize: traceStepLimit, fields: ['id', 'scope', 'state', 'status', 'next'], enabled: runId !== undefined })
   const going = goingOn.has(String(record?.status))
   useFollow(going)
   return {
+    id: runId,
     run: record,
+    stored: run.data,
     definition: version.data ? definitionOf(version.data.record.definition) : undefined,
     steps: steps.items as TraceStep[],
     cut: Boolean(steps.hasNextPage),
@@ -54,3 +56,5 @@ export const useRunTrace = (runId: string) => {
     error: run.error ?? version.error ?? steps.error,
   }
 }
+
+export type RunTraceData = ReturnType<typeof useRunTrace>
