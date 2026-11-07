@@ -249,6 +249,15 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
     return this.next({ explicitGrants: true })
   }
 
+  /**
+   * The read-only field whose change makes a record's new ETag, for a table whose `version` column does not change on
+   * every write: one every record has, and not a sensitive one. Without it a `version` column is used, then
+   * `updated_at`, then a hash of the row.
+   */
+  etagFrom(pick: (r: FieldRefs<F>) => Ref) {
+    return this.next({ etagFrom: pick(this.refs()).name })
+  }
+
   /** The code predicates (`match`) of its events, by event name. */
   eventMatches() {
     return eventMatches(this.toModel(), this.state.events ?? [])

@@ -3,7 +3,7 @@ import { showKeyboardAccessoryBar } from './native-keyboard'
 
 const bridgeOf = (platform: string, plugins: string[]) => {
   const nativePromise = vi.fn(async () => undefined)
-  return { bridge: { isNativePlatform: () => true, getPlatform: () => platform, isPluginAvailable: (name: string) => plugins.includes(name), nativePromise }, nativePromise }
+  return { bridge: { isNativePlatform: () => true, getPlatform: () => platform, isPluginAvailable: (name: string) => plugins.includes(name), nativePromise, addListener: () => ({ remove: async () => {} }) }, nativePromise }
 }
 
 describe('showKeyboardAccessoryBar', () => {

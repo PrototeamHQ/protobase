@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { jsonProblem, type JsonObject } from './json-value'
-import { tapUrl } from './tap-url'
+import { tapUrl } from '@protobase/schema/internal'
 
 /** How soon a push service delivers a message, as Web Push names it (RFC 8030); the other senders map it to theirs. */
 export const urgencies = ['very-low', 'low', 'normal', 'high'] as const

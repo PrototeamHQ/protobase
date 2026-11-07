@@ -29,6 +29,7 @@ export type ResourceState = {
   comments?: boolean
   live?: boolean
   explicitGrants?: boolean
+  etagFrom?: string
   openExisting?: string[]
 }
 
@@ -107,6 +108,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.comments && { comments: true as const }),
     ...(state.live && { live: true as const }),
     ...(state.explicitGrants && { explicitGrants: true as const }),
+    ...(state.etagFrom && { etagFrom: state.etagFrom }),
     ...(state.position && { position: { ...state.position } }),
     ...(state.parents && { parents: state.parents.map((parent) => ({ ...parent })) }),
     ...(state.links && { links: state.links }),
