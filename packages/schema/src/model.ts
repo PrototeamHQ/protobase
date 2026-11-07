@@ -1010,8 +1010,6 @@ export type SectionModel = {
    * label/value rows; the form edits them as any section's.
    */
   presentation?: SectionPresentation
-  /** `page` spans the page above the main column and the sidebar; in the main column when omitted. */
-  width?: 'page'
   /** Whether it shows on the form, the read view or both, or a condition on the saved record that it shows while it holds. */
   when?: RecordWhen
 }

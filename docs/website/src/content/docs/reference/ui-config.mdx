@@ -542,16 +542,6 @@ The record page sits in a centred column about 1100px wide. `.recordWidth('full'
 view<typeof objectives>('objectives').recordWidth('full')
 ```
 
-### Page-wide sections
-
-`l.section(title, fields, { width: 'page' })` spans the page above the main column and the sidebar cards, for a field that needs the room, such as a workflow's graph; Save then stays in a bar at the foot of the window, on a wide screen as on a phone. It applies to a section outside tabs and groups: `l.tab` and `l.group` throw on one. On the create form it is a section like the others.
-
-```ts
-view<typeof workflows>('workflows')
-  .recordWidth('full')
-  .layout((r) => [l.section('Workflow', [r.name, r.description]), l.section('Graph', [r.definition], { width: 'page' })])
-```
-
 ### A record page that opens another
 
 `.recordOpens(to)` sends a record's page to another address in its place, its `{field}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names or open the page it names, gets the record's own page. The record's own page stays at its address with `?standard=true`.
