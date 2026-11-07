@@ -1,34 +1,61 @@
-import type { TaskState } from '../definition/types'
+import type { Definition, Machine, State, TaskState } from '../definition/types'
 import type { SegmentContext, StateResult } from './context'
-import type { SavedStep, StepLog, TaskHandler } from './port'
+import type { SavedStep, StepLog, StepRecord, TaskHandler } from './port'
+import { mapNames, matchKey, rowsByScope, visitOutcomes } from './replay-match'
 
 /** The log line of a step a replay held back, which the run's page marks it by. */
 export const heldBackLog = 'Not sent: replay'
 
-const keyOf = (scope: string, seq: number) => `${scope}#${seq}`
+/** The run a replay replays: the definition it ran and its steps. */
+export type Replayed = { definition: Definition; steps: readonly SavedStep[] }
 
-export const replayedSteps = (steps: readonly SavedStep[]) => new Map(steps.map((step) => [keyOf(step.scope, step.seq), step]))
+/**
+ * What a replay matches its held-back steps by: the replayed run's last try of each visit, the definition it ran,
+ * and the replay's own steps so far, by scope, which `seen` adds to as the replay saves them.
+ */
+export const replayOf = (replayed: Replayed, saved: readonly SavedStep[]) => {
+  const seen = rowsByScope(saved)
+  return {
+    outcomes: visitOutcomes(replayed.steps),
+    machine: replayed.definition.stateMachine as Machine,
+    seen: seen as ReadonlyMap<string, readonly SavedStep[]>,
+    add: (step: StepRecord) => {
+      const rows = seen.get(step.scope)
+      if (rows) rows.push(step)
+      else seen.set(step.scope, [step])
+    },
+  }
+}
+
+export type Replay = ReturnType<typeof replayOf>
 
 /** Whether a replay holds back this call: anything but its type saying `false`, it writes. */
 export const heldBack = (context: SegmentContext, handler: TaskHandler | undefined, args: unknown) => Boolean(context.replay) && handler?.writes?.(args) !== false
 
-/**
- * A Task a replay holds back: it ends as the replayed run's step of the same scope, number and state ended, with its
- * output and variables, or with a null output and on to its next state when that run has no such step.
- */
-export const replayedTask = (context: SegmentContext, state: TaskState, at: { scope: string; seq: number; name: string }, input: unknown, logs: StepLog[]): StateResult => {
-  logs.push({ at: context.now().toISOString(), message: heldBackLog })
-  const step = context.replay?.steps.get(keyOf(at.scope, at.seq))
-  if (!step || step.state !== at.name) return { kind: 'step', status: 'succeeded', next: state.Next ?? null, input, output: null, logs }
-  return {
-    kind: 'step',
-    status: step.status,
-    next: step.next,
-    input,
-    output: step.output ?? null,
-    ...(step.assigned && { assigned: step.assigned }),
-    ...(step.error != null && { error: step.error }),
-    ...(step.cause != null && { cause: step.cause }),
-    logs,
+/** The replayed run's state of this name in the scope of these Map names. */
+const stateIn = (machine: Machine, maps: readonly string[], name: string): State | undefined => {
+  let inner: Machine | undefined = machine
+  for (const map of maps) {
+    const state: State | undefined = inner?.States[map]
+    inner = state?.Type === 'Map' ? state.ItemProcessor : undefined
   }
+  return inner?.States[name]
 }
+
+/**
+ * What a held-back step takes from the replayed run's step of the same state and visit of it in the same scope: its
+ * error, or its result, which only a Task that did not shape it with `Output` saved as it was. Undefined when that
+ * run has no such step, its step was still retrying, or saved its result shaped.
+ */
+export const replayedOutcome = (replay: Replay, at: { scope: string; seq: number; name: string }) => {
+  const key = matchKey(replay.seen, at.scope, at.name, at.seq)
+  const step = key === undefined ? undefined : replay.outcomes.get(key)
+  if (!step || step.status === 'retrying') return
+  if (step.status !== 'succeeded') return { failure: { Error: step.error ?? 'States.Runtime', Cause: step.cause ?? '' } }
+  const state = stateIn(replay.machine, mapNames(at.scope), at.name)
+  if (state?.Type !== 'Task' || state.Output !== undefined) return
+  return { result: step.output ?? null }
+}
+
+/** A held-back step the replayed run gave nothing for: a null output, on to its next state. */
+export const emptyTask = (state: TaskState, input: unknown, logs: StepLog[]): StateResult => ({ kind: 'step', status: 'succeeded', next: state.Next ?? null, input, output: null, logs })

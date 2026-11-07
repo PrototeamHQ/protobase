@@ -6,7 +6,7 @@ import type { SavedStep, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import { secretNamer } from './cache/secret-names'
-import { replayedSteps } from './replay'
+import { replayOf, type Replayed } from './replay'
 import { runScope } from './scope'
 
 export type SegmentInput = {
@@ -26,8 +26,8 @@ export type SegmentInput = {
   tasks: TaskHandlers
   /** Where step types that cache keep their results; none keeps nothing. */
   cache?: StepCacheStore
-  /** In a replay, the steps of the run it replays. */
-  replayed?: readonly SavedStep[]
+  /** In a replay, the run it replays. */
+  replayed?: Replayed
   signal: AbortSignal
   now?: () => Date
   /** How long the segment takes new steps. Default `limits.segmentMs`. */
@@ -48,6 +48,7 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     else byScope.set(step.scope, [step])
   }
   let superseded = false
+  const replay = replayed && replayOf(replayed, saved)
   // Steps kept until the next checkpoint saves them: the next segment runs again those of a segment that died first.
   let kept: StepRecord[] = []
   const write = async () => {
@@ -63,13 +64,14 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     redactor,
     tasks,
     ...(cache && { cache: { store: cache, nameSecrets: secretNamer(secrets) } }),
-    ...(replayed && { replay: { steps: replayedSteps(replayed) } }),
+    ...(replay && { replay }),
     signal,
     now,
     deadline: Date.now() + budgetMs,
     saved: byScope,
     save: async (step: StepRecord, checkpoint: boolean) => {
       kept.push(step)
+      replay?.add(step)
       if (checkpoint) await write()
     },
     superseded: () => superseded,

@@ -73,10 +73,10 @@ export type LoadedRun = {
   status: RunStatus
   startedAt: Date
   /**
-   * The run this one replays: its steps that write are not called but give what that run's steps gave; null when that
-   * run is gone, so they give nothing. Absent: no replay.
+   * The run this one replays, with the definition it ran: its steps that write are not called but give what that
+   * run's steps gave; null when that run is gone, so they give nothing. Absent: no replay.
    */
-  replayOf?: string | null
+  replayOf?: { id: string; definition: Definition } | null
 }
 
 export type RunStatus = 'queued' | 'running' | 'waiting' | 'succeeded' | 'failed'
