@@ -138,6 +138,26 @@ describe('the runner', () => {
     expect(port.steps[0]!.input).toEqual({ url: 'https://example.test', headers: { Authorization: '[redacted]' } })
   })
 
+  it('blanks a value a step marks secret, such as its access token, out of its logs, output, error and the run', async () => {
+    const token = 'ya29.issued-access-token'
+    const port = memoryRunner({
+      use: async (_, { secret, log }) => {
+        secret(token)
+        log(`Authorization: Bearer ${token}`)
+        return { echoed: token }
+      },
+      fail: async (_, { secret }) => {
+        secret(token)
+        throw new Error(`the provider refused ${token}`)
+      },
+    })
+    await port.start('r6b', definition({ Use: { Type: 'Task', Resource: 'use', Next: 'Fail' }, Fail: { Type: 'Task', Resource: 'fail', End: true } }), {})
+    await port.drain()
+    expect(port.run('r6b')).toMatchObject({ status: 'failed', cause: 'the provider refused [redacted]' })
+    expect(JSON.stringify([port.run('r6b'), port.steps])).not.toContain(token)
+    expect(port.steps[0]).toMatchObject({ output: { echoed: '[redacted]' }, logs: [{ message: 'Authorization: Bearer [redacted]' }] })
+  })
+
   it('runs a Map whose item waits, ending the segment until the wait is over', async () => {
     const port = memoryRunner({})
     await port.start('r7', definition({
@@ -172,11 +192,11 @@ describe('the runner', () => {
     expect(raced.run('r9').status).toBe('succeeded')
   })
 
-  it('fails a step whose output is larger than a step may save, which no catcher catches', async () => {
-    const port = memoryRunner({ big: async () => 'x'.repeat(1024 * 1024 + 1) })
+  it('fails a step whose output is over the 256 KiB a value is kept up to, with its size, which no catcher catches', async () => {
+    const port = memoryRunner({ big: async () => 'x'.repeat(256 * 1024 - 1) })
     await port.start('r10', definition({ Big: { Type: 'Task', Resource: 'big', Catch: [{ ErrorEquals: ['States.ALL'], Next: 'Fine' }], End: true }, Fine: { Type: 'Succeed' } }), {})
     await port.drain()
-    expect(port.run('r10')).toMatchObject({ status: 'failed', error: 'States.DataLimitExceeded', cause: "The step's output is larger than 1 MiB" })
+    expect(port.run('r10')).toMatchObject({ status: 'failed', error: 'States.DataLimitExceeded', cause: "The step's output is 262145 bytes as JSON, over the 256 KiB a value is kept up to; keep it in a store and pass a reference" })
   })
 
   it("keeps a matched choice's Output of null, rather than the Choice state's own", async () => {
