@@ -1,8 +1,7 @@
-import { parseFilter, printFilter, where, type FilterExpr, type ResourceModel } from '@protobase/schema'
+import { printFilter, where, type FilterExpr, type ResourceModel } from '@protobase/schema'
 import { relatedTarget } from '@protobase/schema/internal'
 import type { Deps } from './deps'
 import { fetchReadable } from './fetch-readable'
-import { filterProblem } from './filter-input'
 import { badRequest, notFound } from './problem'
 import type { Entry } from './registry'
 import { listAccess } from './related-filter'
@@ -44,9 +43,7 @@ const linkPaths = async (access: RequestAccess, parent: Entry, key: KeyValue) =>
 
 /** The ways a record of the child belongs to the parent record `key`: a relation to the parent, or through a declared link. */
 export const belongingPaths = async (access: RequestAccess, parent: Entry, key: KeyValue) => [
-  // A term, not `field = key`: it stands in the read's scope, where a facet on the field cannot drop it as it drops a
-  // filter's own terms, and it reads only the list the caller is asking for.
-  ...relationsTo(access.model, parent.name).map((field) => where.related(field.name, access.entry.name, field.name, where.eq(field.name, key))),
+  ...relationsTo(access.model, parent.name).map((field) => where.eq(field.name, key)),
   ...(await linkPaths(access, parent, key)),
 ]
 
@@ -60,18 +57,16 @@ const requireParent = async (deps: Deps, parent: Entry, session: Session, key: K
 }
 
 /**
- * The filter text of a list of `entry` under the parent record `key`, the caller's own `source` ANDed in: refused like a
- * list of `entry` when they may not list it, a 404 alike for a parent that is missing or hidden, or when no way leads
- * there, and a 400 when several do, since the path cannot say which is meant.
+ * What keeps a list of `entry` to the parent record `key`, for its read's `within`: refused like a list of `entry` when
+ * they may not list it, a 404 alike for a parent that is missing or hidden, or when no way leads there, and a 400 when
+ * several do, since the path cannot say which is meant.
  */
-export const belongingFilter = async (deps: Deps, entry: Entry, session: Session, parent: Entry, key: KeyValue[], source?: string, maxLength?: number) => {
+export const belongingFilter = async (deps: Deps, entry: Entry, session: Session, parent: Entry, key: KeyValue[]) => {
   const access = await requestAccess(deps, entry, session)
   requireOperation(access, 'list')
   await requireParent(deps, parent, session, key)
   const paths = parent.model.primaryKey.length === 1 ? await belongingPaths(access, parent, key[0]!) : []
   if (paths.length === 0) throw notFound(`There is no list of ${entry.name} under ${parent.name}`)
   if (paths.length > 1) throw badRequest('ambiguous-parent', `${entry.name} belongs to ${parent.name} in ${paths.length} ways: name one with a filter`, { paths: paths.map(printFilter) })
-  const parsed = source?.trim() ? parseFilter(source, maxLength ? { maxLength } : {}) : undefined
-  if (parsed && !parsed.ok) throw filterProblem('filter', parsed.errors)
-  return printFilter(parsed?.ast ? where.and(paths[0]!, parsed.ast) : paths[0]!)
+  return paths[0]!
 }

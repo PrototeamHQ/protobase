@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { FilterExpr } from '@protobase/schema'
 import { checkMapPosition, countUpTo, mapBuckets, maxMapZoom } from '@protobase/query'
 import type { Deps } from './deps'
 import { photosRequest } from './list-photos'
@@ -33,19 +34,19 @@ const mapParams = z.object({
  * few match or the map is close enough, as a list returns them, else buckets of a grid sized for the zoom. Both are
  * checked and scoped like a list.
  */
-export const mapRecords = async (deps: Deps, entry: Entry, session: Session, input: unknown) => {
+export const mapRecords = async (deps: Deps, entry: Entry, session: Session, input: unknown, within?: FilterExpr) => {
   const params = parseParams(mapParams, input)
   const access = await requestAccess(deps, entry, session)
   requireOperation(access, 'list')
   const position = { latitude: params.latitude, longitude: params.longitude }
   checkMapPosition(access.model, position)
-  const { filter, scope } = await readFilter(access, access.model, access.full, params.filter)
+  const { filter, scope } = await readFilter(access, access.model, access.full, params.filter, undefined, within)
   const found = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) => countUpTo(trx, access.model, mapRecordsLimit + 1, filter, scope))
 
   if (found <= mapRecordsLimit || params.zoom >= mapRecordsZoom) {
     const { latitude: _latitude, longitude: _longitude, zoom: _zoom, ...asked } = params
     const list = { ...asked, page_size: mapRecordsLimit, ...(found > mapRecordsLimit && { count: 'exact' }) }
-    const { body, warning } = await listRecords(deps, entry, session, list)
+    const { body, warning } = await listRecords(deps, entry, session, list, undefined, false, within)
     return { warning, body: { items: body.items, buckets: [], total_size: body.total_size ?? (found > mapRecordsLimit ? body.total_size_estimate : found), ...(body.labels && { labels: body.labels }), ...(body.photos && { photos: body.photos }) } }
   }
   // Buckets name no records, but `labels` and `photos` are checked all the same, so a wrong one fails at every zoom

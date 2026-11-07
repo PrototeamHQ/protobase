@@ -101,17 +101,17 @@ export const toolKey = (deps: Deps, resource: string, key: RecordKeyInput) => {
 export const assistantRecords = (deps: Deps, session: Session): ToolRecords => {
   const entryOf = (resource: string) => toolEntry(deps, resource)
   const keyOf = (resource: string, key: RecordKeyInput) => toolKey(deps, resource, key)
-  // A list under a record reads as the route does: the record first, then the filter that keeps to it.
-  const within = async <P extends { filter?: string; belongs_to?: BelongsTo }>(resource: string, { belongs_to, ...params }: P) => {
-    if (!belongs_to) return params
+  // A list under a record reads as the route does: the record first, then what keeps to it.
+  const within = async (resource: string, belongs_to: BelongsTo | undefined) => {
+    if (!belongs_to) return undefined
     const parent = toolKey(deps, belongs_to.resource, belongs_to.key)
     if (parent.entry.keyTypes.length !== 1) throw notFound(`There is no list of ${resource} under ${parent.entry.name}`)
-    return { ...params, filter: await belongingFilter(deps, entryOf(resource), session, parent.entry, parent.key, params.filter, filterLength) }
+    return belongingFilter(deps, entryOf(resource), session, parent.entry, parent.key)
   }
 
   return {
-    list: async (resource, params = {}) => (await listRecords(deps, entryOf(resource), session, await within(resource, params), filterLength)).body,
-    aggregate: async (resource, params) => (await aggregate(deps, entryOf(resource), session, await within(resource, params))).body as RecordGroups,
+    list: async (resource, params = {}) => (await listRecords(deps, entryOf(resource), session, params, filterLength, false, await within(resource, params.belongs_to))).body,
+    aggregate: async (resource, params) => (await aggregate(deps, entryOf(resource), session, params, await within(resource, params.belongs_to))).body as RecordGroups,
     get: async (resource, input, { show_deleted, fields } = {}) => {
       const { entry, key } = keyOf(resource, input)
       const { record, etag } = await readRecord(deps, entry, session, key, show_deleted)

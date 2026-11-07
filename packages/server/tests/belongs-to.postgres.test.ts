@@ -3,6 +3,7 @@ import { defineRoles, f, resource, type AccessContext } from '@protobase/schema'
 import { createAdmin } from '@protobase/server'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 import { signTestToken, testAuthenticator } from '../../../test-support/server'
+import type { Authenticator, Membership } from '../src/types'
 
 // A list under a record, `/objectives/40/tasks`, on real Postgres: a declared link rewrites the path to related(), and
 // the parent is read as the caller would read it, so one that is missing and one hidden from them answer alike.
@@ -46,14 +47,35 @@ const owned = resource('owned')
   .access({ read: ({ record, user }: AccessContext) => (record as { owner?: unknown } | undefined)?.owner === user?.id })
 const ownedNotes = resource('owned_notes').table('owned_notes').fields({ id: f.integer().readOnly().filterable(), owned_id: f.relation('owned').filterable() }).primaryKey((r) => r.id)
 
-const roles = defineRoles<'objectives' | 'tasks' | 'objective_tasks' | 'task_claims' | 'task_dependencies' | 'owned' | 'owned_notes'>({
+const softNotes = resource('soft_notes')
+  .table('soft_notes')
+  .fields({ id: f.integer().readOnly().filterable().sortable(), objective_id: f.relation('objectives').filterable(), org: f.integer().filterable(), at: f.timestamp().filterable(), deleted_at: f.timestamp().optional().readOnly() })
+  .primaryKey((r) => r.id)
+  .tenant((r) => r.org)
+  .softDelete((r) => r.deleted_at)
+
+const crossing = resource('crossing')
+  .table('crossing')
+  .fields({ id: f.integer().readOnly().filterable().sortable(), objective_id: f.relation('objectives').filterable(), org: f.integer().filterable(), at: f.timestamp().filterable() })
+  .primaryKey((r) => r.id)
+  .tenant((r) => r.org, { across: 'memberships' })
+
+const roles = defineRoles<'soft_notes' | 'crossing' | 'objectives' | 'tasks' | 'objective_tasks' | 'task_claims' | 'task_dependencies' | 'owned' | 'owned_notes'>({
   admin: ['*'],
-  member: [{ 'objectives.read': { filter: 'state != "secret"' } }, 'tasks.read', 'objective_tasks.read', 'task_claims.read', 'task_dependencies.read', 'owned.read', 'owned_notes.read'],
+  member: ['crossing.read', { 'objectives.read': { filter: 'state != "secret"' } }, 'tasks.read', 'objective_tasks.read', 'task_claims.read', 'task_dependencies.read', 'owned.read', 'owned_notes.read'],
   nolinks: ['objectives.read', 'tasks.read', 'task_claims.read'],
   writer: ['objectives.create', 'tasks.read'],
 })
 
-const as = (org: number, role: string) => ({ authorization: `Bearer ${signTestToken({ roles: [role], tenant: org })}` })
+// The tokens carry the memberships the store would answer.
+const authenticate: Authenticator = async (request) => {
+  const session = await testAuthenticator(request)
+  const token = request.headers.get('authorization')!.split(' ')[1]!
+  const { memberships } = JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString()) as { memberships?: Membership[] }
+  return memberships ? { ...session, memberships: async () => memberships } : session
+}
+
+const as = (org: number, role: string, memberships?: Membership[]) => ({ authorization: `Bearer ${signTestToken({ roles: [role], tenant: org, ...(memberships && { memberships }) })}` })
 const member = as(1, 'member')
 
 describe.skipIf(!(await postgresTemplateReady('empty')))('a list under a record', () => {
@@ -84,14 +106,22 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('a list under a record'
       create table owned (id integer primary key, owner text not null);
       create table owned_notes (id integer primary key, owned_id integer not null references owned);
       create index on owned_notes (owned_id);
+      create table soft_notes (id integer primary key, objective_id integer not null references objectives, org integer not null, at timestamptz not null, deleted_at timestamptz);
+      create index on soft_notes (objective_id);
+      create index on soft_notes (org, id);
+      create table crossing (id integer primary key, objective_id integer not null references objectives, org integer not null, at timestamptz not null);
+      create index on crossing (objective_id);
+      create index on crossing (org, id);
       insert into objectives values (40, 1, 'open', 'open', null), (41, 1, 'hidden', 'secret', null), (42, 1, 'gone', 'open', now()), (50, 2, 'theirs', 'open', null);
       insert into tasks values (1, 1, 'first', null), (2, 1, 'second', 1), (3, 1, 'outside', null), (9, 2, 'other tenant', null);
       insert into objective_tasks values (40, 1, 1), (40, 2, 1), (41, 3, 1), (42, 3, 1), (50, 9, 2);
       insert into task_claims values (1, 1, 1, 'ann'), (2, 2, 1, 'bob'), (3, 3, 1, 'ann');
       insert into task_dependencies values (1, 1, 2, 1);
       insert into owned values (1, 'tester'), (2, 'someone else');
-      insert into owned_notes values (1, 1), (2, 2);`)
-    app = createAdmin({ resources: [objectives, tasks, links, claims, dependencies, owned, ownedNotes], db: database.db, authenticate: testAuthenticator, options: { roles } })
+      insert into owned_notes values (1, 1), (2, 2);
+      insert into soft_notes values (1, 40, 1, '2026-01-01', now());
+      insert into crossing values (1, 40, 1, '2026-01-02'), (2, 50, 2, '2025-01-01'), (3, 41, 1, '2025-06-01');`)
+    app = createAdmin({ resources: [objectives, tasks, links, claims, dependencies, owned, ownedNotes, softNotes, crossing], db: database.db, authenticate, options: { roles } })
   })
   afterAll(async () => { await database?.close() })
 
@@ -179,6 +209,32 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('a list under a record'
     expect(ambiguous.status).toBe(400)
     expect((await ambiguous.json()).type).toBe('urn:protobase:problem:ambiguous-parent')
     expect((await get('/tasks/1/task_dependencies')).status).toBe(400)
+  })
+
+  it('takes three related() terms of the caller\'s beside it', async () => {
+    const term = 'related(id, task_claims.task_id)'
+    expect((await get(`/objectives/40/tasks?filter=${encodeURIComponent(`${term} AND ${term} AND ${term}`)}`)).status).toBe(200)
+    expect((await get(`/tasks/1/task_claims?filter=${encodeURIComponent('related(task_id, tasks.id) AND related(task_id, tasks.id) AND related(task_id, tasks.id)')}`)).status).toBe(200)
+  })
+
+  it('shows the soft-deleted records of a parent with show_deleted', async () => {
+    const shown = await (await get('/objectives/40/soft_notes?show_deleted=true', as(1, 'admin'))).json()
+    expect(shown.items.map((item: { id: number }) => item.id)).toEqual([1])
+    expect((await (await get('/objectives/40/soft_notes', as(1, 'admin'))).json()).items).toEqual([])
+  })
+
+  it('reads a list across organizations as far as it did', async () => {
+    expect(await ids('/objectives/40/crossing', as(1, 'admin', [{ tenant: 2, roles: ['admin'] }]))).toEqual([1])
+    expect(await ids('/objectives/50/crossing', as(2, 'admin', [{ tenant: 1, roles: ['admin'] }]))).toEqual([2])
+  })
+
+  it('keeps a series to the parent from its earliest record', async () => {
+    const series = await (await get('/objectives/40/soft_notes:series?field=at&range=all&granularity=day&to=2026-01-03', as(1, 'admin'))).json()
+    expect(series.points).toEqual([])
+    const crossing = await (await get('/objectives/40/crossing:series?field=at&range=all&granularity=day&to=2026-01-03')).json()
+    expect(crossing.points.map((point: { count: number }) => point.count)).toEqual([1])
+    const whole = await (await get('/crossing:series?field=at&range=all&granularity=day&to=2026-01-03')).json()
+    expect(whole.points.length).toBeGreaterThan(1)
   })
 
   it('counts and pages through the rewritten filter', async () => {

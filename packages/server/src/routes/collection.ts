@@ -8,6 +8,7 @@ import { listRecords } from '../list-service'
 import { mapRecords } from '../map-service'
 import { listParams, parseParams } from '../params'
 import { notFound } from '../problem'
+import type { FilterExpr } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
 import type { Entry } from '../registry'
 import type { AdminEnv } from '../types'
@@ -22,28 +23,28 @@ const searchFilterLength = 200_000
 const warningHeader = (warning?: string): Record<string, string> => (warning ? { 'X-Protobase-Warning': warning } : {})
 
 // The list-style methods that read: a resource's own list, or one under a record with the same parameters.
-const listMethod = async (c: Context<AdminEnv>, deps: Deps, entry: Entry, action: string, query: Record<string, string>) => {
+const listMethod = async (c: Context<AdminEnv>, deps: Deps, entry: Entry, action: string, query: Record<string, string>, within?: FilterExpr) => {
   const session = c.get('session')
   if (action === '') {
-    const { body, warning } = await listRecords(deps, entry, session, query)
+    const { body, warning } = await listRecords(deps, entry, session, query, undefined, false, within)
     return c.json(body, 200, warningHeader(warning))
   }
   if (action === 'facets') {
-    const { body, warning } = await facets(deps, entry, session, query)
+    const { body, warning } = await facets(deps, entry, session, query, within)
     return c.json(body, 200, warningHeader(warning))
   }
   if (action === 'aggregate') {
-    const { body, warning } = await aggregate(deps, entry, session, query)
+    const { body, warning } = await aggregate(deps, entry, session, query, within)
     return c.json(body, 200, warningHeader(warning))
   }
-  if (action === 'series') return c.json(await timeSeries(deps, entry, session, query))
-  if (action === 'histogram') return c.json(await numericHistogram(deps, entry, session, query))
+  if (action === 'series') return c.json(await timeSeries(deps, entry, session, query, within))
+  if (action === 'histogram') return c.json(await numericHistogram(deps, entry, session, query, within))
   if (action === 'map') {
-    const { body, warning } = await mapRecords(deps, entry, session, query)
+    const { body, warning } = await mapRecords(deps, entry, session, query, within)
     return c.json(body, 200, warningHeader(warning))
   }
   if (action === 'seek') {
-    const { body, warning } = await listRecords(deps, entry, session, query, undefined, true)
+    const { body, warning } = await listRecords(deps, entry, session, query, undefined, true, within)
     return c.json(body, 200, warningHeader(warning))
   }
   return unknownAction(action)
@@ -68,17 +69,15 @@ export const collectionRoutes = (deps: Deps) => {
   // GET /{parent}/{key}/{resource}: a list of the records that belong to a record, a filter the path spells out
   app.get('/:parent/:key/:target', async (c) => {
     const { parent, entry, action, key } = underRecord(c)
-    const query = c.req.query()
-    const filter = await belongingFilter(deps, entry, c.get('session'), parent, key, query.filter)
-    return listMethod(c, deps, entry, action, { ...query, filter })
+    return listMethod(c, deps, entry, action, c.req.query(), await belongingFilter(deps, entry, c.get('session'), parent, key))
   })
 
   app.post('/:parent/:key/:target', async (c) => {
     const { parent, entry, action, key } = underRecord(c)
     if (action !== 'search') return unknownAction(action)
     const body = parseParams(listParams, await c.req.json())
-    const filter = await belongingFilter(deps, entry, c.get('session'), parent, key, body.filter, searchFilterLength)
-    const { body: page, warning } = await listRecords(deps, entry, c.get('session'), { ...body, filter }, searchFilterLength)
+    const within = await belongingFilter(deps, entry, c.get('session'), parent, key)
+    const { body: page, warning } = await listRecords(deps, entry, c.get('session'), body, searchFilterLength, false, within)
     return c.json(page, 200, warningHeader(warning))
   })
 

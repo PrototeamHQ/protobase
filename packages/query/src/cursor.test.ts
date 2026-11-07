@@ -12,6 +12,13 @@ const keys: SortKey[] = [
 ]
 
 describe('cursor', () => {
+  it('continues only the list that was kept to the same record', () => {
+    const on = (value: string): Scope => ({ within: { kind: 'compare', op: '=', field: field('task_id', 'integer'), value: { kind: 'string', value, span: { start: 0, end: 0 } }, span: { start: 0, end: 0 } } })
+    const cursor = encodeCursor(keys, ['1', '2'], undefined, on('1'))
+    expect(decodeCursor(cursor, keys, undefined, on('1'))).toEqual(['1', '2'])
+    expect(() => decodeCursor(cursor, keys, undefined, on('2'))).toThrowError(expect.objectContaining({ code: 'invalid_cursor' }))
+  })
+
   it('continues only the list that held the same related() terms', () => {
     const target = { name: 'links', table: { name: 'links' } } as unknown as ResourceModel
     const key = field('task_id', 'integer')
