@@ -12,6 +12,8 @@ vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
 const secret = 'replay-secret-value-5c1f'
 process.env.REPLAY_TOKEN = secret
+// The cache keeps fingerprints of the secrets a result's input named only under an app secret.
+process.env.PROTOBASE_SECRET = 'app-secret-for-the-replay-test'
 
 const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly(), text: f.text() }).primaryKey((r) => r.id)
 const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps' | 'notes'>({
@@ -39,7 +41,8 @@ const plugin: Plugin = {
       input: { type: 'object' },
       writes: false,
       cache: { choice: 'hidden', ttl: '1 hour' },
-      run: async ({ input }) => (lookups.push(input), { sku: input.sku, amount: 10 + lookups.length }),
+      // It signs its request with the token, which puts the secret's name in the key.
+      run: async ({ input }) => (lookups.push(input), { sku: input.sku, signed: typeof input.token === 'string', amount: 10 + lookups.length }),
     },
     notify: {
       label: 'Notify',
@@ -143,6 +146,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
     const { workflow, run } = await ranOrder()
     const original = await byState(run)
     const before = { sent: sent.length, received: [...received], notified: notified.length, lookups: lookups.length, notes: (await sql`select id, text from notes`.execute(db)).rows }
+    // The secret the price lookup was given changes since its result was kept, as a new value's fingerprint would.
+    await sql`update workflows.step_cache set secrets = jsonb_set(secrets, '{REPLAY_TOKEN}', '"an-older-fingerprint"') where secrets ? 'REPLAY_TOKEN'`.execute(db)
     // A later version that greets otherwise: the replay runs the one the run ran.
     await as('ada', `/workflows/${workflow}`, { method: 'PATCH', body: { definition: order('Bye') } })
 
@@ -158,6 +163,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
     const steps = await byState(replay)
     expect(steps.Price!.output).toEqual(original.Price!.output)
     expect(steps.Price!.logs.map((log) => log.message).join('\n')).toContain('An earlier result from')
+    expect(steps.Price!.logs.map((log) => log.message)).toContain('The secret REPLAY_TOKEN changed since that result was kept')
     expect(steps.Mail!.input).toMatchObject({ text: 'Hello: 11 EUR, 3 left' })
     expect(steps.Pause!.resume_at).toBeNull()
     for (const state of ['Mail', 'Note', 'Edit', 'Post', 'Delete', 'Notify']) {
