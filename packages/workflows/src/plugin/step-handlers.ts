@@ -32,6 +32,9 @@ const handler = (id: string, type: StepType, wiring: StepWiring): TaskHandler =>
     const plan = cachePlan(id, type, parts.input, task.cache)
     if (plan && 'invalidTtl' in plan) log("The step type's cache gave no valid time to live; the step ran without the cache")
     if (!plan || 'invalidTtl' in plan) return run(parts)
+    // A cached call of a type with a connection checks it first, as its own code would: an earlier result never
+    // outlives the run's right to the account it was made with.
+    if (connection && plan.identity.connection) await connection.accessToken()
     return cachedRun(plan, id, parts, task, run)
   }
 }
