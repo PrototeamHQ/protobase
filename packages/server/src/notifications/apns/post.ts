@@ -64,5 +64,7 @@ export const postApns = (session: ClientHttp2Session, path: string, headers: Rec
       resolve({ status, ...(reason !== undefined && { reason }), ...(retryAfter !== undefined && { retryAfter }) })
     })
     stream.on('error', failed)
+    // A stream closed without `end` or `error` got no answer; after either one, the promise is already settled.
+    stream.on('close', () => resolve(undefined))
     stream.end(body)
   })
