@@ -56,6 +56,7 @@ export const belongsToParameter = {
 /** `belongs_to` as a tool passes it on: nothing without it, undefined when it is no resource and single key. */
 export const belongsToOf = (args: Record<string, unknown>) => {
   if (args.belongs_to === undefined) return {}
+  if (typeof args.belongs_to !== 'object' || args.belongs_to === null) return undefined
   const { resource, key } = args.belongs_to as { resource?: unknown; key?: unknown }
   return typeof resource === 'string' && (typeof key === 'string' || typeof key === 'number') ? { belongs_to: { resource, key } } : undefined
 }

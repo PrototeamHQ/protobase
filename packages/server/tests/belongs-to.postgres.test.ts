@@ -129,6 +129,10 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('a list under a record'
     expect((await search.json()).items.map((item: { id: number }) => item.id)).toEqual([1])
     expect((await (await get('/objectives/40/task_claims:facets?field=who')).json()).facets).toEqual(expect.arrayContaining([{ value: 'ann', count: 1 }, { value: 'bob', count: 1 }]))
     expect((await get('/objectives/40/tasks:nothing')).status).toBe(404)
+    for (const body of ['null', '[]', '{"filter":5}']) {
+      const refused = await app.request('/api/v1/objectives/40/tasks:search', { method: 'POST', headers: { ...member, 'content-type': 'application/json' }, body })
+      expect(refused.status).toBe(400)
+    }
   })
 
   it('17: a parent elsewhere, soft-deleted or row-filtered out answers as one that does not exist', async () => {

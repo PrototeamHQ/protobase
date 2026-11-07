@@ -6,6 +6,7 @@ import type { Deps } from '../deps'
 import { keyFromPath } from '../key'
 import { listRecords } from '../list-service'
 import { mapRecords } from '../map-service'
+import { listParams, parseParams } from '../params'
 import { notFound } from '../problem'
 import { encodeKey } from '@protobase/schema/internal'
 import type { Entry } from '../registry'
@@ -75,9 +76,8 @@ export const collectionRoutes = (deps: Deps) => {
   app.post('/:parent/:key/:target', async (c) => {
     const { parent, entry, action, key } = underRecord(c)
     if (action !== 'search') return unknownAction(action)
-    const body = (await c.req.json()) as { filter?: unknown }
-    const source = typeof body.filter === 'string' ? body.filter : undefined
-    const filter = await belongingFilter(deps, entry, c.get('session'), parent, key, source, searchFilterLength)
+    const body = parseParams(listParams, await c.req.json())
+    const filter = await belongingFilter(deps, entry, c.get('session'), parent, key, body.filter, searchFilterLength)
     const { body: page, warning } = await listRecords(deps, entry, c.get('session'), { ...body, filter }, searchFilterLength)
     return c.json(page, 200, warningHeader(warning))
   })
