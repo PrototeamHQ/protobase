@@ -51,6 +51,11 @@ const required = (answer: Response, call: string) => {
   if (!answer.ok) throw new Error(`${call} answered ${answer.status}`)
 }
 
+// An error call's answer, which is kept under the name of that error only when it has that error's status.
+const expected = (answer: Response, call: string, status: number) => {
+  if (answer.status !== status) throw new Error(`${call} answered ${answer.status}, not ${status}`)
+}
+
 /**
  * Records Google's answers for the Gmail fake and the server's Google snapshots, with `fetch` given: one refresh of the
  * real token, kept in memory only; a refresh and a revoke with `invalidToken`; then the Gmail calls the trigger makes,
@@ -145,8 +150,10 @@ export const recordGoogle = async (fetch: typeof globalThis.fetch, credentials: 
 
   // Google's answers to a message it has not, to a token it refuses and to a history id it no longer keeps.
   const unknown = await get('messages.get', 'messages/0000000000000000', [['format', 'raw']])
+  expected(unknown.answer, 'messages.get of an unknown message', 404)
   keep('message-not-found', 'messages/0000000000000000', [['format', 'raw']], unknown.answer, scrubGmail(unknown.body, mailbox).body)
   const refused = await get('getProfile', 'profile', [], { bearer: invalidToken })
+  expected(refused.answer, 'getProfile with the invalid token', 401)
   keep('unauthenticated', 'profile', [], refused.answer, scrubGmail(refused.body, mailbox).body)
   const expiredQuery: [string, string][] = [['startHistoryId', '1'], ['historyTypes', 'messageAdded'], ['labelId', 'INBOX'], ['maxResults', '100']]
   // A mailbox that still keeps its history from the start answers with its mail, which is never recorded.

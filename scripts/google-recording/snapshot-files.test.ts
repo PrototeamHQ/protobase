@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { matches, root } from '../affected/changes.mjs'
+import { edges, runEverything } from '../affected/rules.mjs'
 import { findLeak, mailboxPlaceholder, tokenFields } from './scrub'
 import { recordingDirs } from './write'
 
@@ -29,5 +31,12 @@ describe('the committed Google recordings', () => {
   it("give the mailbox's placeholder address as the profile's", () => {
     const profile = JSON.parse(files.find(({ file }) => file === 'profile.json')!.text) as { response: { body: { emailAddress: string } } }
     expect(profile.response.body.emailAddress).toBe(mailboxPlaceholder)
+  })
+
+  it('are scanned again whenever one of them changes', () => {
+    const self = relative(root, import.meta.filename)
+    const reads = edges.filter(({ from }) => matches(self, from)).flatMap((edge) => edge.reads ?? [])
+    const changed = Object.values(recordingDirs).map((dir) => relative(root, join(dir, readdirSync(dir)[0]!)))
+    expect(changed.filter((file) => !matches(file, [...runEverything, ...reads]))).toEqual([])
   })
 })

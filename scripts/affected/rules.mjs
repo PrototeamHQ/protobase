@@ -75,6 +75,8 @@ export const edges = [
   { from: ['packages/ui/src/app/index-html.test.ts', 'packages/ui/src/theme/theme-preference.test.ts'], reads: ['packages/ui/src/app/index.html'] },
   // The fake OAuth provider of the connection tests answers from a provider's recorded answers, read by path.
   { from: ['packages/server/src/better-auth/connections/testing/snapshots.ts'], reads: ['packages/server/src/better-auth/connections/testing/snapshots/**'] },
+  // The leak scan of the committed Google recordings reads them by path; the Gmail fake's are under test-support/.
+  { from: ['scripts/google-recording/snapshot-files.test.ts'], reads: ['packages/server/src/better-auth/connections/testing/snapshots/google/**'] },
   // The check that @protobase/ui's stable entry exports its building blocks reads every module of its source.
   { from: ['scripts/ui-exports/building-blocks.test.ts'], reads: ['packages/ui/src/**'] },
   // The examples' tests run on a clone of a template database, migrated and seeded from the example.
