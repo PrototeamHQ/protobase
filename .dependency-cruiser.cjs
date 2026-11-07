@@ -34,7 +34,9 @@ module.exports = {
       severity: 'error',
       // Their unit tests run under the test runner, never in a workflow.
       from: { path: '^packages/workflow-plugins/', pathNot: '\\.test\\.ts$' },
-      to: { pathNot: ['^packages/workflow-plugins/', '^packages/workflows/src/plugin/index\\.ts$', '^@protobase/workflows/plugin$'] },
+      // postal-mime, which the Gmail plugin parses mail with, has no dependencies, and its modules import only one
+      // another, with no fetch, XMLHttpRequest, WebSocket, require, dynamic import or Node module (read at 4.2.0).
+      to: { pathNot: ['^packages/workflow-plugins/', '^packages/workflows/src/plugin/index\\.ts$', '^@protobase/workflows/plugin$', '^node_modules/\\.bun/postal-mime@[0-9.]+/node_modules/postal-mime/'] },
     },
     {
       name: 'layout-runs-anywhere',
