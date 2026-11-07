@@ -15,6 +15,7 @@ const links = resource('objective_tasks')
   .table('objective_tasks')
   .fields({ objective_id: f.relation('objectives').filterable(), task_id: f.relation('tasks').filterable() })
   .primaryKey((r) => [r.objective_id, r.task_id])
+  .links((r) => [r.objective_id, r.task_id])
 const secrets = resource('secrets').table('secrets').fields({ id: f.integer().readOnly().filterable(), task_id: f.relation('tasks').filterable() }).primaryKey((r) => r.id)
 
 const roles = defineRoles<'objectives' | 'tasks' | 'objective_tasks' | 'secrets'>({
@@ -35,6 +36,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('related() over MCP', ()
     await database.exec(`
       create table objectives (id integer primary key);
       create table tasks (id integer primary key, title text not null);
+      create index on tasks (title);
       create table objective_tasks (objective_id integer not null references objectives, task_id integer not null references tasks, primary key (objective_id, task_id));
       create index on objective_tasks (task_id);
       create table secrets (id integer primary key, task_id integer not null references tasks);
@@ -81,6 +83,20 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('related() over MCP', ()
     expect(hidden.content.error).toBe('invalid-filter')
     expect(hidden.content.error).toBe(missing.content.error)
     expect(hidden.content.message.replace('secrets', 'X')).toBe(missing.content.message.replace('nothing', 'X'))
+  })
+
+  it('takes belongs_to beside filter', async () => {
+    const belongs_to = { resource: 'objectives', key: 40 }
+    const page = await call('list_records', { resource: 'tasks', fields: ['id'], belongs_to, filter: 'title = "in it"' })
+    expect(page.content.items.map((item: { id: number }) => item.id)).toEqual([1])
+    expect((await call('count_records', { resource: 'tasks', belongs_to })).content).toEqual({ count: 2 })
+    expect((await call('count_records', { resource: 'objective_tasks', belongs_to, group_by: 'objective_id' })).content.groups[0].count).toBe(2)
+  })
+
+  it('refuses belongs_to as the route does, and never as no filter at all', async () => {
+    expect((await call('list_records', { resource: 'tasks', belongs_to: { resource: 'objectives', key: 999 } })).content.error).toBe('not-found')
+    expect((await call('list_records', { resource: 'tasks', belongs_to: { resource: 'secrets', key: 1 } })).content.error).toBe('not-found')
+    expect((await call('list_records', { resource: 'tasks', belongs_to: { resource: 'objectives', key: [40, 41] } })).content.error).toBe('invalid-parameter')
   })
 
   it('names the relations that point at a resource, among those the caller reads', async () => {

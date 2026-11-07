@@ -354,6 +354,12 @@ describe('restrictModel', () => {
     expect(restrictModel(ranked.toModel(), await resolveAccess(ranked, user(7, 'sales')))).not.toHaveProperty('position')
   })
 
+  it('keeps a link declaration, which names fields, off the model a caller gets', async () => {
+    const links = resource('links').table('links').fields({ a_id: f.relation('as').filterable(), b_id: f.relation('bs').filterable() }).primaryKey((r) => [r.a_id, r.b_id]).links((r) => [r.a_id, r.b_id])
+    expect(links.toModel().links).toEqual(['a_id', 'b_id'])
+    expect(restrictModel(links.toModel(), await resolveAccess(links, user(1, 'lead')))).not.toHaveProperty('links')
+  })
+
   it('keeps a parent check only for a caller who can read its field', async () => {
     const child = resource('orders')
       .table('orders')

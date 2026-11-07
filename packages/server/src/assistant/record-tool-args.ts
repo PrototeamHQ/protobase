@@ -46,4 +46,20 @@ export const keyParameter = {
   anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'array', items: { type: ['string', 'number'] }, minItems: 1 }],
 }
 
+export const belongsToParameter = {
+  type: 'object',
+  properties: { resource: resourceParameter, key: keyParameter },
+  required: ['resource', 'key'],
+  description: 'Keeps to the records that belong to this record, by a relation or a declared link, such as { "resource": "objectives", "key": 40 } for an objective\'s tasks; filter then narrows them.',
+}
+
+/** `belongs_to` as a tool passes it on: nothing without it, undefined when it is no resource and single key. */
+export const belongsToOf = (args: Record<string, unknown>) => {
+  if (args.belongs_to === undefined) return {}
+  const { resource, key } = args.belongs_to as { resource?: unknown; key?: unknown }
+  return typeof resource === 'string' && (typeof key === 'string' || typeof key === 'number') ? { belongs_to: { resource, key } } : undefined
+}
+
+export const invalidBelongsTo = JSON.stringify({ error: 'invalid-parameter', message: 'Invalid parameter belongs_to: pass { "resource": "<name>", "key": <its key> }' })
+
 export const showDeletedParameter = { type: 'boolean', description: 'true also returns soft-deleted records; only on a resource list_resources marks soft_delete.' }

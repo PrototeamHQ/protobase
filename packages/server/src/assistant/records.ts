@@ -1,5 +1,6 @@
 import { encodeKey } from '@protobase/schema/internal'
 import { aggregate } from '../aggregate-groups'
+import { belongingFilter } from '../belongs-to'
 import { runBatch, type BatchResult } from '../batch/run-batch'
 import type { BatchOperation } from '../batch/schema'
 import type { Deps } from '../deps'
@@ -20,6 +21,8 @@ export type ToolRecord = { record: Row; etag: string }
 /** The list parameters of the REST API (AIP-132), as values rather than query text. */
 export type ListParams = {
   filter?: string
+  /** Keeps to the records that belong to this record, as `GET /{resource}/{key}/{listed}` does. */
+  belongs_to?: BelongsTo
   order_by?: string
   page_size?: number
   page_token?: string
@@ -39,8 +42,11 @@ export type RecordPage = {
   total_size?: number
 }
 
+/** A record whose records a read keeps to: its resource and key. */
+export type BelongsTo = { resource: string; key: string | number }
+
 /** The parameters of the REST API's `:aggregate` that count records per value of a field, as values. */
-export type AggregateParams = { group_by: string; filter?: string; limit?: number; label?: string }
+export type AggregateParams = { group_by: string; filter?: string; belongs_to?: BelongsTo; limit?: number; label?: string }
 
 /** Records per value of `group_by` as the REST API's `:aggregate` gives them, largest group first. */
 export type RecordGroups = { group_by: string; groups: Array<{ value: unknown; count: number; label?: string }> }
@@ -95,10 +101,17 @@ export const toolKey = (deps: Deps, resource: string, key: RecordKeyInput) => {
 export const assistantRecords = (deps: Deps, session: Session): ToolRecords => {
   const entryOf = (resource: string) => toolEntry(deps, resource)
   const keyOf = (resource: string, key: RecordKeyInput) => toolKey(deps, resource, key)
+  // A list under a record reads as the route does: the record first, then the filter that keeps to it.
+  const within = async <P extends { filter?: string; belongs_to?: BelongsTo }>(resource: string, { belongs_to, ...params }: P) => {
+    if (!belongs_to) return params
+    const parent = toolKey(deps, belongs_to.resource, belongs_to.key)
+    if (parent.entry.keyTypes.length !== 1) throw notFound(`There is no list of ${resource} under ${parent.entry.name}`)
+    return { ...params, filter: await belongingFilter(deps, entryOf(resource), session, parent.entry, parent.key, params.filter, filterLength) }
+  }
 
   return {
-    list: async (resource, params = {}) => (await listRecords(deps, entryOf(resource), session, params, filterLength)).body,
-    aggregate: async (resource, params) => (await aggregate(deps, entryOf(resource), session, params)).body as RecordGroups,
+    list: async (resource, params = {}) => (await listRecords(deps, entryOf(resource), session, await within(resource, params), filterLength)).body,
+    aggregate: async (resource, params) => (await aggregate(deps, entryOf(resource), session, await within(resource, params))).body as RecordGroups,
     get: async (resource, input, { show_deleted, fields } = {}) => {
       const { entry, key } = keyOf(resource, input)
       const { record, etag } = await readRecord(deps, entry, session, key, show_deleted)

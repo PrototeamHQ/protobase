@@ -20,10 +20,12 @@ const checkedField = (model: ResourceModel, field: FieldPath, span: RelatedFilte
   return { field: checked.filter.field }
 }
 
-// The caller's access on the resource, undefined whenever they cannot list it. A rule on it failing for this caller's
-// id says it exists, so that counts as unlisted too, and no tenant does as for a `read` parent.
-const listAccess = async (access: RequestAccess, term: RelatedFilter) => {
-  const entry = access.deps.registry.find(term.resource)
+/**
+ * The caller's access on the resource, undefined whenever they cannot list it. A rule on it failing for this caller's id
+ * says it exists, so that counts as unlisted too, and no tenant does as for a `read` parent.
+ */
+export const listAccess = async (access: RequestAccess, resource: string) => {
+  const entry = access.deps.registry.find(resource)
   if (!entry || (entry.model.tenant && access.session.tenant === undefined)) return undefined
   const via = await requestAccess(access.deps, entry, access.session).catch((error: unknown) => {
     if (error instanceof HttpProblem && error.slug === 'owner-id-mismatch') return undefined
@@ -34,7 +36,7 @@ const listAccess = async (access: RequestAccess, term: RelatedFilter) => {
 
 // A term as one more read of the scope: the caller's list of the resource, in their own organization, and nothing else.
 const relatedRead = async (access: RequestAccess, model: ResourceModel, term: RelatedFilter): Promise<ParentRead> => {
-  const via = await listAccess(access, term)
+  const via = await listAccess(access, term.resource)
   if (!via) throw unknownTarget(term)
   const field = checkedField(model, term.field, term.span)
   if (field.errors) throw filterProblem('filter', field.errors)
