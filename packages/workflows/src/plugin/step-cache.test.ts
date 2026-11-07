@@ -191,6 +191,15 @@ describe('the cache settings', () => {
     expect(memory.calls.write).toBe(1)
   })
 
+  it('a hidden cache forced on keeps its own time to live and key', async () => {
+    const { call, seen, clock } = setup({ choice: 'hidden', ttl: 60, key: (input) => input.url })
+    const first = await call({ url: 'a', other: 1 }, { setting: true })
+    expect((await call({ url: 'a', other: 2 }, { setting: true })).output).toEqual(first.output)
+    clock.at = new Date(clock.at.getTime() + 61_000)
+    expect((await call({ url: 'a', other: 1 }, { setting: true })).output).not.toEqual(first.output)
+    expect(seen).toHaveLength(2)
+  })
+
   it('a time to live that is missing, zero, negative or unreadable keeps nothing', async () => {
     for (const ttl of [0, -1, Number.NaN, 'later', undefined]) {
       const { call, memory } = setup({ choice: 'hidden', ttl: ttl as number })
