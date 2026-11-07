@@ -142,7 +142,8 @@ export const FailedRun: StoryObj = { name: 'A failed run', render: () => <Worksp
 
 /**
  * The failed run shows its failed step with its error and logs and the first step's output, the secret blanked out; the
- * step is fixed in the editor, and the re-run from the failed step succeeds without running the first step again.
+ * step is fixed in the editor, and the re-run from the failed step succeeds. The first step reads, so no checkpoint
+ * followed it and the re-run reads again.
  */
 export const FailsFixedAndRerunChecks: StoryObj = {
   ...FailedRun,
@@ -185,10 +186,9 @@ export const FailsFixedAndRerunChecks: StoryObj = {
     await userEvent.click(await canvas.findByRole('link', { name: 'Re-run from the failed step' }))
     await userEvent.click(await canvas.findByRole('button', { name: /^Create/ }))
     await markOf(canvasElement, 'Store', 'Succeeded')
-    expect(calls).toEqual({ fetch: 1, store: 2, mail: 0 })
-    // The re-run went on after the fetch, which its trace does not hold
-    await userEvent.click(await nodeOf(canvasElement, 'Fetch'))
-    await waitFor(() => expect(panel(canvasElement).getByText('This step did not run in this run.')).toBeVisible())
+    expect(calls).toEqual({ fetch: 2, store: 2, mail: 0 })
+    // The re-run read again, which its trace holds
+    await markOf(canvasElement, 'Fetch', 'Succeeded')
 
     // Choosing the version before the fix closes the run and shows that version read-only, with the way back
     await userEvent.selectOptions(canvas.getByRole('combobox', { name: 'Version' }), '1')
