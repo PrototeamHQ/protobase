@@ -16,7 +16,7 @@ afterEach(async () => {
 
 describe('the APNs sender against recorded APNs answers', () => {
   it('has recordings', () => {
-    expect(recordings.map(([file]) => file)).toContain('provider-token.json')
+    expect(recordings.map(([file]) => file)).toEqual(expect.arrayContaining(['device.json', 'provider-token.json']))
   })
 
   it.each(recordings)('%s: sends the request recorded and answers as recorded', async (_, recording) => {
