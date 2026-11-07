@@ -1,5 +1,6 @@
 import { resolveFieldPath } from '@protobase/layout'
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type RelatedModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { relatedTarget } from '@protobase/schema/internal'
 
 export const filterErrors = (model: ResourceModel, source: string | undefined) => {
   if (source === undefined) return []
@@ -38,6 +39,19 @@ const throughErrors = (through: NonNullable<RelatedModel['through']>, resource: 
     ...(key === undefined ? [`${via.name} has a composite key, so name the field to collect with "key"`] : Object.hasOwn(via.fields, key) ? [] : [`unknown field "${key}" on ${via.name}`]),
     ...filterErrors(via, through.filter).map((error) => `filter: ${error}`),
   ].map((error) => `through: ${error}`)
+}
+
+// A section reads through its join resource with `related()`, so the key must be filterable and meet the listed field.
+const sectionThroughErrors = (item: RelatedModel, models: Record<string, ResourceModel>) => {
+  const via = item.through && models[item.through.resource]
+  const key = via && throughKey(via, item.through!.key)
+  const target = models[item.resource]
+  const listed = target && Object.hasOwn(target.fields, item.field) ? target.fields[item.field] : undefined
+  const held = via && key !== undefined && Object.hasOwn(via.fields, key) ? via.fields[key] : undefined
+  if (!via || !held || !target || !listed) return []
+  if (!held.filterable) return [`through: "${held.name}" on ${via.name} is not filterable`]
+  const meets = relatedTarget(via, held) !== undefined && relatedTarget(via, held) === relatedTarget(target, listed)
+  return meets ? [] : [`through: "${held.name}" on ${via.name} and "${item.field}" on ${target.name} do not point at one resource`]
 }
 
 /** What is wrong with the relation a related section's rows open; empty without one. */
@@ -107,6 +121,9 @@ export const relatedErrors = (item: RelatedModel, resource: string, models: Reco
     ...linesErrors(item, target),
   ]
 }
+
+/** What is wrong with a related section, beyond what it shares with a related column: see `relatedErrors`. */
+export const relatedSectionErrors = (item: RelatedModel, resource: string, models: Record<string, ResourceModel>) => [...relatedErrors(item, resource, models), ...sectionThroughErrors(item, models)]
 
 /** The `actions` of a related section that are no named action of its resource's view, among `views`. */
 export const relatedActionErrors = (item: RelatedModel, views: readonly ViewModel[]) => {

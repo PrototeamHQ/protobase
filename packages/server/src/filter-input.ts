@@ -1,7 +1,7 @@
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type FilterError, type ResourceModel } from '@protobase/schema'
 import { badRequest } from './problem'
 
-const filterProblem = (parameter: 'filter' | 'order_by', errors: FilterError[]) =>
+export const filterProblem = (parameter: 'filter' | 'order_by', errors: FilterError[]) =>
   badRequest(parameter === 'filter' ? 'invalid-filter' : 'invalid-order-by', `The ${parameter} parameter is invalid: ${errors[0]!.message}`, {
     parameter,
     errors,

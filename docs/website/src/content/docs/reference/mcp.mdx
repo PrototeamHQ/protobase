@@ -52,7 +52,7 @@ Each tool reads as the signed-in person: their role's access rules, row filters,
 | Tool | What it does |
 | --- | --- |
 | `list_resources` | The resources the person may read, kept small for a client's first call: each one's name, label, the first line of its help, key and whether it soft deletes (`soft_delete`), without its fields. |
-| `describe_resource` | One resource the person may read, with its fields: each field's type, label, help, enum values, the resource a relation links to, and whether it is optional, read-only and taken by filters and sorts. It also names the resource's `list_fields`, what `list_records` returns when not told which. |
+| `describe_resource` | One resource the person may read, with its fields: each field's type, label, help, enum values, the resource a relation links to, and whether it is optional, read-only and taken by filters and sorts. `linked_from` names the relations of the other resources the person reads that point at this one. It also names the resource's `list_fields`, what `list_records` returns when not told which. |
 | `list_records` | A page of a resource's records: `fields`, `filter` in the API's [filter syntax](/reference/api/#filters), `order_by`, `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page and `total_size_estimate`, an estimate rather than an exact count. `show_deleted: true` also returns soft-deleted records. |
 | `count_records` | How many records a `filter` finds, without returning them: `{ count }` as the API's `count=exact` counts, or `{ more_than: 10000, estimate }` when more match. With `group_by`, a filterable field, the count per value instead, as [`:aggregate`](/reference/api/#routes) gives it: `{ group_by, groups: [{ value, count }] }`, largest first, adding up to what the filter finds, the first `limit` (100 by default, at most 1,000), with `label` naming a relation's values by a field of the records they link to. A date or timestamp `group_by` counts per day over the last 30 days. `show_deleted: true` also counts soft-deleted records. |
 | `get_record` | One record by its key, with its ETag, holding the `fields` asked for or, without them, every field. A composite key is passed as the values of its fields, in order. `show_deleted: true` also finds a soft-deleted record. |
@@ -73,6 +73,12 @@ The server tells each client this when it connects, in its instructions, and the
 
 ```json
 { "resource": "tasks", "key": "42", "fields": ["brief"] }
+```
+
+To find records through related ones, a client filters with [`related()`](/reference/api/#filtering-through-related-records) in one call instead of reading the keys first and sending them back:
+
+```json
+{ "resource": "task_claims", "filter": "related(task_id, objective_tasks.task_id, (objective_id = 40))" }
 ```
 
 A refusal, such as a resource the person may not read, a bad filter or a field the person may not read, comes back to the client as text it can act on, `{ "error": ..., "message": ... }`.

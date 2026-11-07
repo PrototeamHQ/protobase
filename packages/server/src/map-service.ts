@@ -1,13 +1,12 @@
 import { z } from 'zod'
 import { checkMapPosition, countUpTo, mapBuckets, maxMapZoom } from '@protobase/query'
 import type { Deps } from './deps'
-import { checkedFilter } from './filter-input'
 import { photosRequest } from './list-photos'
 import { listRecords } from './list-service'
 import { parseParams, selectedFields } from './params'
 import { labelRequests } from './related-labels'
 import type { Entry } from './registry'
-import { readScope } from './read-scope'
+import { readFilter } from './related-filter'
 import { requestAccess, requireOperation } from './request-access'
 import { readTransaction } from './transactions'
 import type { Session } from './types'
@@ -40,8 +39,7 @@ export const mapRecords = async (deps: Deps, entry: Entry, session: Session, inp
   requireOperation(access, 'list')
   const position = { latitude: params.latitude, longitude: params.longitude }
   checkMapPosition(access.model, position)
-  const filter = checkedFilter(access.model, params.filter)
-  const scope = await readScope(access)
+  const { filter, scope } = await readFilter(access, access.model, access.full, params.filter)
   const found = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) => countUpTo(trx, access.model, mapRecordsLimit + 1, filter, scope))
 
   if (found <= mapRecordsLimit || params.zoom >= mapRecordsZoom) {

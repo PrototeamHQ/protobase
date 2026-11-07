@@ -1,16 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
-import { createWhere, printFilter, type RelatedModel } from '@protobase/schema'
+import { createWhere, parseFilter, printFilter, type RelatedModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
 import { keys } from '../data/query-keys'
 import { listColumnNames } from '../live/columns-from-model'
-import { searchAll } from '../live/search-all'
-import { Skeleton } from '../primitives/skeleton'
 import { Section } from '../record-view'
 import { countQuery } from './pages/use-layout-data'
 import { EmbeddedDisplaySwitch, EmbeddedList } from './embedded-list/embedded-list'
 import { useEmbeddedDisplay } from './embedded-list/use-embedded-display'
-import { ErrorBanner } from './error-banner'
 import { RelatedCards } from './related-cards/related-cards'
 import { relatedOpens } from './related-opens'
 import { relatedHandOrder } from './hand-order/hand-order'
@@ -29,32 +26,18 @@ const and = (...parts: Array<string | undefined>) => {
 
 /**
  * The filter on the section's resource: its `field` is this record's key, or, through a join resource, one of the keys
- * all the join records that point at this record hold, read page by page. `null` when no join record does, so nothing
- * can match.
+ * the join records that point at this record hold. `null` without a key, so nothing can match.
  */
 const useMatch = (item: RelatedModel, value: string | number | boolean | null) => {
-  const client = useClient()
   const { resources } = useAdminMeta()
-  const through = item.through
-  const via = through ? resources[through.resource] : undefined
-  const key = through?.key ?? via?.primaryKey[0]
-  const viaFilter = through ? and(printFilter(where.eq(through.field, value!)), through.filter) : ''
-  const collected = useQuery({
-    queryKey: keys.list(via?.name ?? '', viaFilter, '', 0, `related:${key}`),
-    enabled: Boolean(via && key),
-    queryFn: async () => {
-      const joined = await searchAll(client, via!.name, { filter: viaFilter, fields: [key!] })
-      return [...new Set(joined.items.flatMap((row) => (row[key!] === null || row[key!] === undefined ? [] : [String(row[key!])])))]
-    },
-  })
-  if (value === null) return { filter: null, isPending: false, error: null }
-  if (!through) return { filter: and(printFilter(where.eq(item.field, value)), item.filter), isPending: false, error: null }
-  if (!collected.data) return { filter: undefined, isPending: collected.isPending, error: collected.error }
-  const filter = collected.data.length === 0 ? null : and(printFilter(where.in(item.field, collected.data)), item.filter)
-  return { filter, isPending: false, error: null }
+  const { through } = item
+  if (value === null) return null
+  if (!through) return and(printFilter(where.eq(item.field, value)), item.filter)
+  const key = through.key ?? resources[through.resource]?.primaryKey[0]
+  const links = parseFilter(and(printFilter(where.eq(through.field, value)), through.filter))
+  if (!links.ok || !key) return null
+  return and(printFilter(where.related(item.field, through.resource, key, links.ast)), item.filter)
 }
-
-const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-4 w-full" />)}</div>
 
 const Empty = ({ empty }: { empty: string | undefined }) => <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
 
@@ -73,24 +56,15 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   const [sorting, setSorting] = useState(false)
   // Only a section that hides while empty counts its records
   const client = useClient()
-  const counting = Boolean(item.hideEmpty && model && match.filter)
-  const count = useQuery({ queryKey: keys.count(item.resource, match.filter ?? ''), enabled: counting, queryFn: () => countQuery(client, model!, match.filter ?? '').queryFn() })
+  const counting = Boolean(item.hideEmpty && model && match)
+  const count = useQuery({ queryKey: keys.count(item.resource, match ?? ''), enabled: counting, queryFn: () => countQuery(client, model!, match ?? '').queryFn() })
   if (!model) return null
-  if (item.hideEmpty && (match.isPending || match.filter === null || (counting && (count.isPending || count.data === 0)))) return null
+  if (item.hideEmpty && (match === null || (counting && (count.isPending || count.data === 0)))) return null
   const opens = relatedOpens(item, model, resources)
   // The relation names this record on every row, so it is left out of the default columns
   const columns = item.columns ?? listColumnNames(model, view).filter((name) => name !== item.field)
-  // What it lists once the records it matches are known
-  const listed = (list: (filter: string) => ReactNode) =>
-    match.isPending ? (
-      <Loading />
-    ) : match.error ? (
-      <ErrorBanner title={text('couldNotLoadRelated')} error={match.error} />
-    ) : match.filter === null || match.filter === undefined ? (
-      <Empty empty={item.empty} />
-    ) : (
-      list(match.filter)
-    )
+  // What it lists, when it can match any record
+  const listed = (list: (filter: string) => ReactNode) => (match === null ? <Empty empty={item.empty} /> : list(match))
   if (item.presentation === 'cards') {
     return (
       <Section title={item.title} help={item.help}>

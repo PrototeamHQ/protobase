@@ -6,6 +6,7 @@ description: The API every resource gets, with filters, writes, errors and the t
 - [Generated REST API](/reference/api/#routes): List, get, create, update and delete endpoints for every resource, following the AIP API design guidelines.
 - [OpenAPI and reference](/reference/api/#meta-and-openapi-per-caller): An OpenAPI 3.1 document and an API reference page, each showing only what the caller may see and do.
 - [Filters](/reference/api/#filters): AIP-160 filters and ordering, with word search across a resource's search fields, lists of values and relative dates.
+- [Filtering through related records](/reference/api/#filtering-through-related-records): A list asks for the records that belong to another with a subfilter, such as an objective's tasks, in one read under the caller's access, instead of sending a list of keys.
 - [Counts, facets and charts](/reference/api/#routes): Endpoints for value counts, grouped sums and averages, records over time, histograms and paging to any row.
 - [Map queries](/reference/api/#maps): The records inside a map's view, or counts per area when there are many.
 - [Related names and photos](/reference/api/#related-names): A list response can carry the names of related records and each record's first photos.

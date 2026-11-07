@@ -1,5 +1,5 @@
 import { exactCountLimit } from '../list-service'
-import { invalidShowDeleted, refused, resourceOf, resourceParameter, showDeletedOf, showDeletedParameter } from './record-tool-args'
+import { filterParameter, invalidShowDeleted, refused, resourceOf, resourceParameter, showDeletedOf, showDeletedParameter } from './record-tool-args'
 import { defineTool, type ToolContext } from './tools'
 
 const maxGroups = 1000
@@ -23,7 +23,7 @@ export const countRecordsTool = () =>
       type: 'object',
       properties: {
         resource: resourceParameter,
-        filter: { type: 'string', description: 'An AIP-160 filter on filterable fields, such as status = "open" AND amount > 10.' },
+        filter: filterParameter,
         group_by: { type: 'string', description: 'A filterable field to count the records of per value, such as status.' },
         limit: { type: 'integer', minimum: 1, maximum: maxGroups, description: 'With group_by, the most groups to return, 100 by default.' },
         label: { type: 'string', description: 'With a relation group_by, a field of the linked resource to name each value by, such as name.' },
