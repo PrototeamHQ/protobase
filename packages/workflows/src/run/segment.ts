@@ -2,11 +2,11 @@ import type { Definition } from '../definition/types'
 import { limits } from '../limits'
 import type { ScopeOutcome } from './context'
 import { SupersededError } from './errors'
-import type { Checkpoint, StepRecord, TaskHandlers } from './port'
+import type { Checkpoint, ReplayedStep, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import { secretNamer } from './cache/secret-names'
-import { replayedSteps, type ReplayedStep } from './replay'
+import { replayedSteps } from './replay'
 import { runScope } from './scope'
 
 export type SegmentInput = {

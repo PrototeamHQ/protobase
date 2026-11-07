@@ -1,12 +1,9 @@
 import type { TaskState } from '../definition/types'
 import type { SegmentContext, StateResult } from './context'
-import type { StepLog, StepRecord, TaskHandler } from './port'
+import type { ReplayedStep, StepLog, TaskHandler } from './port'
 
 /** The log line of a step a replay held back, which the run's page marks it by. */
 export const heldBackLog = 'Not sent: replay'
-
-/** What a replay takes of a step of the run it replays, as that run's trace keeps it. */
-export type ReplayedStep = Pick<StepRecord, 'scope' | 'seq' | 'state' | 'status' | 'next' | 'output' | 'assigned' | 'error' | 'cause'>
 
 const keyOf = (scope: string, seq: number) => `${scope}#${seq}`
 

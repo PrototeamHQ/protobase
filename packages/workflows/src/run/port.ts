@@ -36,6 +36,9 @@ export type StepRecord = {
   recorded: boolean
 }
 
+/** What a replay takes of a step of the run it replays, as that run's trace keeps it. */
+export type ReplayedStep = Pick<StepRecord, 'scope' | 'seq' | 'state' | 'status' | 'next' | 'output' | 'assigned' | 'error' | 'cause'>
+
 /**
  * Where one scope stands, as a checkpoint saves it: all a later segment needs to take the scope up without running its
  * earlier steps again. It names the step that made it, and holds the state the scope goes on to with that state's input

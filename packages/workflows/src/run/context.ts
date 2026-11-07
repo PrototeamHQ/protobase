@@ -1,8 +1,7 @@
-import type { Checkpoint, StepLog, StepRecord, TaskHandlers } from './port'
+import type { Checkpoint, ReplayedStep, StepLog, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import type { SecretNamer } from './cache/secret-names'
-import type { ReplayedStep } from './replay'
 
 /** What every scope of one segment shares. */
 export type SegmentContext = {
