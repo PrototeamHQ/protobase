@@ -11,6 +11,6 @@ describe('a plugin of its own package in the type catalog', () => {
     // The same entry a built-in has, but the errors the fixture does not declare.
     expect(Object.keys(shout!).sort()).toEqual(Object.keys(builtIn!).filter((key) => key !== 'errors').sort())
     expect(shout).toMatchObject({ kind: 'step', label: 'Shout', available: true, input: { required: ['text'] } })
-    expect(catalog.triggers.map((type) => type.id)).toEqual(['manual', 'app:record', 'app:schedule', 'app:webhook', 'example:new_note'])
+    expect(catalog.triggers.map((type) => type.id)).toEqual(['manual', 'app:record', 'app:schedule', 'app:webhook', 'gmail:new_mail', 'example:new_note'])
   })
 })
