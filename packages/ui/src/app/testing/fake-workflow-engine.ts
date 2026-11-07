@@ -1,4 +1,4 @@
-import { createRunner, rerunSteps, type Definition, type RunStore, type SavedStep, type TaskHandlers } from '@protobase/workflows'
+import { createRunner, rerunFromSteps, rerunSteps, type Definition, type RunStore, type SavedStep, type TaskHandlers } from '@protobase/workflows'
 
 type Row = Record<string, unknown>
 
@@ -71,7 +71,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
       const earlier = row.rerun_of == null ? undefined : runOf(String(row.rerun_of))
       // A form writes a boolean as text.
       const replay = row.replay === true || row.replay === 'true'
-      Object.assign(row, { id: `run-${++runs}`, status: 'queued', version: workflow.version, replay: replay || null, created_at: new Date().toISOString(), started_by: 'u-ada', ...(earlier && { input: earlier.input }) })
+      Object.assign(row, { id: `run-${++runs}`, status: 'queued', version: row.version ?? (earlier ? workflow.version : (workflow.enabled_version ?? workflow.version)), replay: replay || null, created_at: new Date().toISOString(), started_by: 'u-ada', ...(earlier && { input: earlier.input }) })
     },
     /** After a write: a changed workflow's next version, and a new run started, a re-run after the steps it keeps. */
     afterWrite: (resource: string, row: Row) => {
@@ -87,7 +87,8 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
       const id = String(row.id)
       if (row.rerun_of != null && row.replay !== true) {
         const earlier = table('workflow_steps').filter((step) => same(step.run_id, row.rerun_of))
-        const kept = rerunSteps(definitionOf(row).stateMachine, earlier.map(savedOf))
+        const machine = definitionOf(row).stateMachine
+        const kept = row.rerun_from == null ? rerunSteps(machine, earlier.map(savedOf)) : rerunFromSteps(machine, earlier.map(savedOf), String(row.rerun_from))
         if ('problem' in kept) throw new Error(kept.problem)
         const ids = new Set(kept.steps.map((step) => step.id))
         table('workflow_steps').push(...earlier.filter((step) => ids.has(step.id)).map((step) => ({ ...structuredClone(step), id: ++steps, run_id: id, etag: undefined })))

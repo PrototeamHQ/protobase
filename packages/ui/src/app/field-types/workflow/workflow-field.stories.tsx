@@ -8,6 +8,7 @@ import { App } from '../../app'
 import { fakeApi } from '../../testing/fake-api'
 import { ticketsWorkflow } from '../../testing/workflow-fixtures'
 import { exampleWorkflowTypes } from '../../../../../../test-support/workflow-types'
+import { definitionOf } from './definition'
 import { definitionProblems } from './problems'
 
 const meta = { title: 'Plugins/Field types/Workflow', parameters: { layout: 'fullscreen' } } satisfies Meta
@@ -38,7 +39,10 @@ let stored: Record<string, unknown> | undefined
 // A save is checked as the server checks it, and refused as it is: a 400 naming each problem on the definition.
 const checkSave = (resource: string, row: Record<string, unknown>) => {
   if (resource !== 'workflows') return
-  const problems = definitionProblems(row.definition as Definition, exampleWorkflowTypes)
+  // A workflow starts with no steps, which the server keeps
+  const definition = definitionOf(row.definition)
+  if (Object.keys(definition.stateMachine.States).length === 0) return
+  const problems = definitionProblems(definition, exampleWorkflowTypes)
   if (problems.length === 0) return
   const detail = `The workflow cannot be saved: ${problems.map(problemText).join('; ')}`
   const errors = problems.map((problem) => ({ code: 'invalid-workflow', field: 'definition', message: problemText(problem), params: { state: problem.state, field: problem.field } }))
@@ -77,13 +81,22 @@ const laidOut = (canvasElement: HTMLElement, count: number) =>
     { timeout: 10_000 },
   )
 
+// Adds a step through the picker: Add step in the bar, its search, and Enter on what it finds
+const addStep = async (canvasElement: HTMLElement, search: string) => {
+  const canvas = within(canvasElement)
+  // A workflow with no steps has the picker open already
+  if (!canvas.queryByRole('complementary', { name: 'Add a step' })) await userEvent.click(await canvas.findByRole('button', { name: 'Add step' }))
+  const picker = within(await canvas.findByRole('complementary', { name: 'Add a step' }))
+  await userEvent.type(await picker.findByRole('combobox', { name: 'Search' }), `${search}{Enter}`)
+}
+
 const overlaps = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
 
 export const NewWorkflow: StoryObj = { name: 'A new workflow', render: () => <Workspace start="/workflows/new" /> }
 
 export const MadeThroughTheApi: StoryObj = { name: 'A workflow made through the API', render: () => <Workspace start="/workflows/1" /> }
 
-/** The create form adds three steps, connects them, one by its form and one on the canvas, and saves what it shows. */
+/** A new workflow starts with a name and no steps; steps added through the picker connect as they come, and Save stores what the graph shows. */
 export const CreatesAndConnectsChecks: StoryObj = {
   ...NewWorkflow,
   name: 'Creates and connects three steps (checks)',
@@ -91,38 +104,38 @@ export const CreatesAndConnectsChecks: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.type(await canvas.findByRole('textbox', { name: /^Name/ }), 'Daily digest')
-    const add = async (option: string) => userEvent.selectOptions(await canvas.findByRole('combobox', { name: 'Add a step' }), option)
-    await add('HTTP request')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create workflow' }))
+    expect(await canvas.findByRole('complementary', { name: 'Add a step' })).toBeVisible()
+    await addStep(canvasElement, 'HTTP request')
     const panel = () => within(canvas.getByRole('region', { name: 'Chosen step' }))
     await userEvent.type(await panel().findByRole('textbox', { name: /^URL/ }), 'https://news.example.com/today')
-    await add('Send mail')
+    await addStep(canvasElement, 'email')
     await userEvent.type(await panel().findByRole('textbox', { name: /^To/ }), 'team@example.com')
     await userEvent.type(panel().getByRole('textbox', { name: /^Subject/ }), 'Today')
     await userEvent.type(panel().getByRole('textbox', { name: /^Text/ }), "{{% $states.context.Execution.Input.body %}")
-    await add('Succeed')
-    // Step 1 goes on to step 2 by its form
-    await userEvent.click(await nodeOf(canvasElement, 'Step 1'))
-    await userEvent.selectOptions(await panel().findByRole('combobox', { name: 'Goes on to' }), 'Step 2')
-    // Step 2 goes on to step 3 by a tap on its handle, then on step 3's
+    await addStep(canvasElement, 'Succeed')
     await laidOut(canvasElement, 4)
-    await waitFor(() => expect(canvasElement.querySelectorAll('.react-flow__edge')).toHaveLength(2))
-    await userEvent.click((await nodeOf(canvasElement, 'Step 2')).querySelector('[data-handleid="next"]')!)
-    await userEvent.click((await nodeOf(canvasElement, 'Step 3')).querySelector('[data-handleid="in"]')!)
     await waitFor(() => expect(canvasElement.querySelectorAll('.react-flow__edge')).toHaveLength(3))
-    await userEvent.click(canvas.getByRole('button', { name: 'Create workflow' }))
-    await canvas.findByRole('heading', { name: 'Daily digest' })
-    expect(stored?.definition).toEqual({
-      trigger: { manual: {} },
-      stateMachine: {
-        QueryLanguage: 'JSONata',
-        StartAt: 'Step 1',
-        States: {
-          'Step 1': { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://news.example.com/today' }, Next: 'Step 2' },
-          'Step 2': { Type: 'Task', Resource: 'app:mail.send', Arguments: { to: 'team@example.com', subject: 'Today', text: '{% $states.context.Execution.Input.body %}' }, Next: 'Step 3' },
-          'Step 3': { Type: 'Succeed' },
+    // A connection redrawn by a tap on a handle, then on the step it leads to, as the form's Goes on to can too
+    await userEvent.click(await nodeOf(canvasElement, 'Step 1'))
+    await userEvent.selectOptions(await panel().findByRole('combobox', { name: 'Goes on to' }), 'Step 3')
+    await userEvent.click((await nodeOf(canvasElement, 'Step 1')).querySelector('[data-handleid="next"]')!)
+    await userEvent.click((await nodeOf(canvasElement, 'Step 2')).querySelector('[data-handleid="in"]')!)
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(stored?.definition).toEqual({
+        trigger: { manual: {} },
+        stateMachine: {
+          QueryLanguage: 'JSONata',
+          StartAt: 'Step 1',
+          States: {
+            'Step 1': { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://news.example.com/today' }, Next: 'Step 2' },
+            'Step 2': { Type: 'Task', Resource: 'app:mail.send', Arguments: { to: 'team@example.com', subject: 'Today', text: '{% $states.context.Execution.Input.body %}' }, Next: 'Step 3' },
+            'Step 3': { Type: 'Succeed' },
+          },
         },
-      },
-    })
+      }),
+    )
   },
 }
 
@@ -157,11 +170,16 @@ export const MissingInputChecks: StoryObj = {
     await userEvent.click(fetch)
     const panel = within(await canvas.findByRole('region', { name: 'Chosen step' }))
     await userEvent.clear(panel.getByRole('textbox', { name: /^URL/ }))
+    // Nothing is wrong yet, there is a field to fill in, until someone tries to go on
+    expect(await canvas.findByRole('button', { name: '1 field to fill in' })).toBeVisible()
+    expect(canvas.getByText('Draft on this browser')).toBeVisible()
+    expect(panel.getByRole('textbox', { name: /^URL/ })).not.toHaveAttribute('aria-invalid')
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    expect(await canvas.findByRole('alert')).toHaveTextContent('Your changes were not saved.')
     await waitFor(() => expect(within(fetch).getByText('1 problem')).toBeInTheDocument())
     expect(panel.getByText('Arguments.url: is missing; app:http needs it')).toBeVisible()
     expect(panel.getByRole('textbox', { name: /^URL/ })).toHaveAttribute('aria-invalid', 'true')
-    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
-    expect(await canvas.findByText('State "Fetch", field "Arguments.url": is missing; app:http needs it')).toBeVisible()
+    expect(canvas.getByText('Save refused')).toBeVisible()
     expect(stored).toBeUndefined()
   },
 }
@@ -172,19 +190,21 @@ export const MissingInputChecks: StoryObj = {
  * its connection, and one whose connection it cannot make is not.
  */
 export const PluginTypesChecks: StoryObj = {
-  ...NewWorkflow,
+  ...MadeThroughTheApi,
   name: "Offers a plugin's trigger and step types (checks)",
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const panel = () => within(canvas.getByRole('region', { name: 'Chosen step' }))
-    const add = await canvas.findByRole('combobox', { name: 'Add a step' })
-    expect(within(add).getByRole('option', { name: 'HTTP request' })).toBeInTheDocument()
-    expect(within(add).getByRole('option', { name: 'Mail labels' })).toBeInTheDocument()
-    await userEvent.selectOptions(add, 'Shout')
+    await userEvent.click(await canvas.findByRole('button', { name: 'Add step' }))
+    const picker = await canvas.findByRole('complementary', { name: 'Add a step' })
+    expect(within(picker).getByText('HTTP request')).toBeVisible()
+    expect(within(picker).getByText('Mail labels')).toBeVisible()
+    await userEvent.type(within(picker).getByRole('combobox', { name: 'Search' }), 'Shout{Enter}')
     expect(await canvas.findByRole('group', { name: /, Shout$/ })).toBeInTheDocument()
     const text = await panel().findByRole('textbox', { name: /^Text/ })
     expect(panel().getByRole('textbox', { name: /^loud/ })).toBeInTheDocument()
+    await userEvent.click(canvas.getByRole('button', { name: 'Test run' }))
     await waitFor(() => expect(text).toHaveAttribute('aria-invalid', 'true'))
     expect(panel().getByText('Arguments.text: is missing; acme:shout needs it')).toBeVisible()
     await userEvent.click(canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="trigger"]')!)
@@ -203,13 +223,13 @@ export const PluginTypesChecks: StoryObj = {
  * on; once on, its node carries the warning mark.
  */
 export const CacheForcedChecks: StoryObj = {
-  ...NewWorkflow,
+  ...MadeThroughTheApi,
   name: 'Marks a cache forced on against its step type (checks)',
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const page = within(canvasElement.ownerDocument.body)
-    await userEvent.selectOptions(await canvas.findByRole('combobox', { name: 'Add a step' }), 'Exchange rates')
+    await addStep(canvasElement, 'Exchange rates')
     const panel = within(await canvas.findByRole('region', { name: 'Chosen step' }))
     const cache = await panel.findByRole('switch', { name: 'Cache results' })
     expect(cache).toHaveAttribute('aria-checked', 'false')

@@ -1,7 +1,7 @@
-import { Background, Controls, ReactFlow, ReactFlowProvider, useReactFlow, useUpdateNodeInternals, type Connection, type Edge, type EdgeChange, type IsValidConnection, type NodeChange } from '@xyflow/react'
+import { Background, Controls, ReactFlow, ReactFlowProvider, useReactFlow, useStore, useUpdateNodeInternals, type Connection, type Edge, type EdgeChange, type IsValidConnection, type NodeChange } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './workflow-canvas.css'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { WorkflowTypeList } from '@protobase/client'
 import type { Definition } from '@protobase/workflows'
 import { triggerId } from './definition'
@@ -28,6 +28,8 @@ export type WorkflowCanvasProps = {
   traces?: ReadonlyMap<string, NodeTrace>
   /** The app's types, whose labels name the nodes and whose cache advice marks them. */
   types?: WorkflowTypeList
+  /** The canvas is the window, on a page that does not scroll, so the wheel pans it as on any canvas. */
+  fills?: boolean
 }
 
 // The machine a node's states lead within: the Maps it is inside, or the trigger's, the whole workflow's.
@@ -42,6 +44,21 @@ const FitOnLayout = ({ laidOut }: { laidOut: unknown }) => {
   return null
 }
 
+// A canvas that fills its page narrows as a panel opens: what was in its middle stays there.
+const KeepCentre = () => {
+  const flow = useReactFlow()
+  const width = useStore((state) => state.width)
+  const before = useRef(width)
+  useEffect(() => {
+    const change = width - before.current
+    before.current = width
+    if (change === 0 || width === 0) return
+    const { x, y, zoom } = flow.getViewport()
+    void flow.setViewport({ x: x + change / 2, y, zoom })
+  }, [width, flow])
+  return null
+}
+
 // Each new layout measures every node's handles again: a Map's box grows with the states inside it, and its edges
 // leave from where its handles are now.
 const MeasureOnLayout = ({ laidOut, ids }: { laidOut: unknown; ids: string[] }) => {
@@ -52,7 +69,7 @@ const MeasureOnLayout = ({ laidOut, ids }: { laidOut: unknown; ids: string[] }) 
   return null
 }
 
-const Canvas = ({ definition, problems, selected, onSelect, onChange, traces, types }: WorkflowCanvasProps) => {
+const Canvas = ({ definition, problems, selected, onSelect, onChange, traces, types, fills = false }: WorkflowCanvasProps) => {
   const graph = useMemo(() => definitionGraph(definition), [definition])
   const boxes = useLayout(graph)
   const nodes = useMemo(() => flowNodes(graph, boxes, problems, selected, traces, types), [graph, boxes, problems, selected, traces, types])
@@ -116,10 +133,10 @@ const Canvas = ({ definition, problems, selected, onSelect, onChange, traces, ty
       onDelete={onDelete}
       onNodeClick={(_, node) => onSelect(graphId(node.id))}
       onPaneClick={() => onSelect(undefined)}
-      // The page scrolls under the wheel and a finger: the canvas zooms by its buttons and by pinching
+      // Where the page scrolls under the wheel and a finger, the canvas zooms by its buttons and by pinching
       zoomOnScroll={false}
-      panOnScroll={false}
-      preventScrolling={false}
+      panOnScroll={fills}
+      preventScrolling={fills}
       minZoom={0.2}
       maxZoom={1.5}
       aria-label={text('canvas')}
@@ -127,6 +144,7 @@ const Canvas = ({ definition, problems, selected, onSelect, onChange, traces, ty
       <Background gap={16} />
       <Controls showInteractive={false} />
       <FitOnLayout laidOut={boxes} />
+      {fills && <KeepCentre />}
       <MeasureOnLayout laidOut={boxes} ids={nodes.map((node) => node.id)} />
     </ReactFlow>
   )

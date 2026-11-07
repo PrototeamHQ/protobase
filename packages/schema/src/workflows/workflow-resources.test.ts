@@ -10,13 +10,14 @@ describe('workflowResources', () => {
     expect(readOnly).not.toContain('enabled_version')
   })
 
-  it('leaves only Workflows in the sidebar, its graph across the page, and opens a run on its workflow', () => {
+  it('leaves only Workflows in the sidebar, its graph as the page, and opens a run on its workflow', () => {
     const parts = workflowResources('workflows')
     const hidden = [parts.workflowsView, parts.workflowVersionsView, parts.workflowRunsView, parts.workflowStepsView, parts.workflowTriggersView].map((view) => view.toModel().nav?.hidden === true)
     expect(hidden).toEqual([false, true, true, true, true])
     const workflows = parts.workflowsView.toModel()
     expect(workflows.recordWidth).toBe('full')
-    expect(workflows.layout.find((item) => item.kind === 'section' && item.fields.includes('definition'))).toMatchObject({ width: 'page' })
+    expect(workflows.record).toEqual({ surface: 'definition' })
+    expect(workflows.layout.some((item) => item.kind === 'section' && item.fields.includes('definition'))).toBe(false)
     expect(parts.workflowRunsView.toModel(parts.workflowRuns.toModel()).recordOpens).toEqual({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })
   })
 })

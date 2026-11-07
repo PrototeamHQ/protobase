@@ -13,6 +13,9 @@ import { text } from './messages'
 /** A step as the run's page reads it, every field the API gives. */
 export type StepRow = Record<string, unknown> & { id: string | number; scope: string; attempt: number; status: Exclude<NodeStatus, 'current'>; started_at: string; finished_at: string; logs: { at: string; message: string }[] | null }
 
+/** What can be done with a step's input or output where it shows, such as using it as a new run's input. */
+export type ValueActions = (value: unknown, part: 'input' | 'output') => ReactNode
+
 export const Part = ({ title, children }: { title: string; children: ReactNode }) => (
   <div className="grid gap-1">
     <h5 className="text-xs font-medium text-muted-foreground">{title}</h5>
@@ -39,10 +42,11 @@ const Logs = ({ logs }: { logs: NonNullable<StepRow['logs']> }) => (
  * and logs, as the run recorded them, secrets blanked out. A step kept from the run it re-runs says so, and so does one
  * a replay did not send.
  */
-export const StepCard = ({ step, runStartedAt }: { step: StepRow; runStartedAt: string }) => {
+export const StepCard = ({ step, runStartedAt, valueActions }: { step: StepRow; runStartedAt: string; valueActions?: ValueActions }) => {
   const kept = Date.parse(step.finished_at) < Date.parse(runStartedAt)
   const heldBack = step.logs?.some((line) => line.message === heldBackLog) ?? false
   const items = scopeItems(step.scope)
+  const output = step.output !== undefined && step.output !== null && <Part title={text('output')}><JsonBlock value={step.output} />{valueActions?.(step.output, 'output')}</Part>
   return (
     <article aria-label={text('stepTry', { attempt: step.attempt })} className="grid gap-3 rounded-lg border bg-background p-3">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 text-body">
@@ -69,8 +73,9 @@ export const StepCard = ({ step, runStartedAt }: { step: StepRow; runStartedAt: 
           </p>
         </Part>
       )}
-      {step.input !== undefined && step.input !== null && <Part title={text('input')}><JsonBlock value={step.input} /></Part>}
-      {step.output !== undefined && step.output !== null && <Part title={text('output')}><JsonBlock value={step.output} /></Part>}
+      {step.status !== 'failed' && output}
+      {step.input !== undefined && step.input !== null && <Part title={text('input')}><JsonBlock value={step.input} />{valueActions?.(step.input, 'input')}</Part>}
+      {step.status === 'failed' && output}
       {step.assigned != null && <Part title={text('variables')}><JsonBlock value={step.assigned} /></Part>}
       {step.logs && step.logs.length > 0 && <Part title={text('logs')}><Logs logs={step.logs} /></Part>}
     </article>

@@ -6,7 +6,7 @@ import type { BadgeTone } from '../../../primitives/badge'
  */
 export type NodeStatus = 'succeeded' | 'caught' | 'retrying' | 'failed' | 'current'
 
-/** A node's mark in a run: its status, and how many steps it took, every try and item counted. */
-export type NodeTrace = { status: NodeStatus; steps: number }
+/** A node's mark in a run: its status, how many steps it took, every try and item counted, and whether the step changed since. */
+export type NodeTrace = { status: NodeStatus; steps: number; changed?: boolean }
 
 export const nodeTones: Record<NodeStatus, BadgeTone> = { succeeded: 'green', caught: 'amber', retrying: 'amber', failed: 'red', current: 'blue' }

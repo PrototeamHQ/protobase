@@ -14,10 +14,10 @@ import { text } from './messages'
 const WorkflowGraphEditor = lazy(() => import('./workflow-graph-editor').then((module) => ({ default: module.WorkflowGraphEditor })))
 const WorkflowWorkbench = lazy(() => import('../workflow-page/workflow-workbench').then((module) => ({ default: module.WorkflowWorkbench })))
 
-const Loading = () => <Skeleton className="h-[28rem] w-full max-sm:h-[22rem]" />
+const Loading = () => <Skeleton className="h-full min-h-[22rem] w-full" />
 
 // The graph once the app's trigger and step types are read, which its menus, forms and check are drawn from: on a
-// workflow's page with its versions and runs, elsewhere, as on the create form, on its own
+// focus page with the workflow's versions and runs, elsewhere, as on the create form, on its own
 const Graph = ({ value, onChange }: { value: unknown; onChange?: (definition: Definition) => void }) => {
   const types = useWorkflowTypes()
   const view = useWorkflowView()

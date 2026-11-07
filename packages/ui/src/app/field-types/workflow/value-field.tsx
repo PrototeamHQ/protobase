@@ -5,6 +5,7 @@ import { Textarea } from '../../../primitives/textarea'
 import { Field } from '../../../record-view/field'
 import type { InputKind } from './type-inputs'
 import { namesText, namesValue, textValue, valueText } from './value-text'
+import { useValueInsert } from './value-insert-context'
 import { text } from './messages'
 
 export type ValueFieldProps = {
@@ -38,10 +39,12 @@ export const ValueField = ({ label, kind, options = [], required, help, value, e
   const [typed, setTyped] = useState<string>()
   // The text stays as it is typed while it writes the value the field holds, rather than written anew on every key
   const shown = typed !== undefined && JSON.stringify(read(typed)) === JSON.stringify(value) ? typed : write(value)
+  const insert = useValueInsert()
   const type = (next: string) => {
     setTyped(next)
     onChange(read(next))
   }
+  const offersInsert = insert !== undefined && !disabled && (kind === 'text' || kind === 'json' || kind === 'value')
   return (
     <Field label={label} required={required} help={help} error={error} wide={kind === 'json'}>
       {kind === 'choice' ? (
@@ -64,6 +67,11 @@ export const ValueField = ({ label, kind, options = [], required, help, value, e
         />
       ) : (
         <Input invalid={Boolean(error)} value={shown} disabled={disabled} onChange={(event) => type(event.target.value)} />
+      )}
+      {offersInsert && (
+        <button type="button" aria-label={text('insertValueInto', { field: label })} className="mt-1 text-xs font-medium text-primary-text hover:underline max-md:min-h-11" onClick={() => insert({ label, value, set: onChange })}>
+          {text('insertValue')}
+        </button>
       )}
     </Field>
   )

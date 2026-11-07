@@ -38,18 +38,20 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .title((r) => r.name)
   .help('Steps that run one after another along their edges, written in the States Language with JSONata expressions. Each save that changes its definition is a new version, which goes live only once it is published; a run keeps the version it started on.')
   .fields((r) => ({
-    enabled_version: r.enabled_version.label('Published version').help('The saved version that is live: its trigger starts runs, and so does a start that names no version. Set it to any saved version to publish that version, and clear it to turn the workflow off. A save never changes it.'),
+    description: r.description.notOnCreate(),
+    enabled_version: r.enabled_version.label('Published version').help('The saved version that is live: its trigger starts runs, and so does a start that names no version. Set it to any saved version to publish that version, and clear it to turn the workflow off. A save never changes it.').notOnCreate(),
     definition: r.definition
       .help('Its trigger and its steps, drawn as a graph that lays itself out. Every value is read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned')
-      .widget('workflow'),
+      .widget('workflow')
+      .notOnCreate(),
     updated_at: r.updated_at.label('Updated'),
   }))
   .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
   .recordWidth('full')
+  // The graph is the page; the name, the Trigger, Runs and Versions tables are on the form, a link away
+  .record((r) => ({ surface: r.definition }))
   .layout((r) => [
     l.section('Workflow', [r.name, r.description, r.enabled_version]),
-    // Its versions, runs and Test run are chosen above the graph, which spans the page
-    l.section('Graph', [r.definition], { width: 'page' }),
     l.sidebar([r.version, r.created_at, r.updated_at]),
     l.related('Trigger', { resource: 'workflow_triggers', field: 'workflow_id', columns: ['type', 'status', 'version', 'last_error', 'updated_at'] }),
     l.related('Runs', { resource: 'workflow_runs', field: 'workflow_id', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'version', 'error'] }),
@@ -118,6 +120,8 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   .title((r) => r.created_at)
   // A run is shown on its workflow's graph, on the version it ran on
   .recordOpens({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })
+  // A test run starts in place, on the workflow's page
+  .createOpens({ kind: 'record', resource: 'workflows', key: '{workflow_id}', panel: 'test_run' })
   .help('A run of a workflow with its input. It takes up where it stands after a restart; each of its steps is listed with what it read, gave and logged.')
   .fields((r) => ({
     id: r.id.label('Steps').widget('workflow_run'),
@@ -137,8 +141,8 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   }))
   .list((r) => ({ columns: [r.created_at, r.workflow_id, r.status, r.started_by, r.duration_ms, r.error], sort: [[r.created_at, 'desc']] }))
   .actions((a) => [
-    a.link('replay', { label: 'Replay', icon: 'history', to: { kind: 'create', resource: 'workflow_runs', values: { workflow_id: '{workflow_id}', rerun_of: '{id}', replay: 'true' } }, when: 'status = "succeeded" OR status = "failed"' }),
-    a.link('rerun', { label: 'Re-run from the failed step', icon: 'restart', to: { kind: 'create', resource: 'workflow_runs', values: { workflow_id: '{workflow_id}', rerun_of: '{id}' } }, when: 'status = "failed"' }),
+    a.link('replay', { label: 'Replay without writing', icon: 'history', to: { kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}', panel: 'replay' }, when: 'status = "succeeded" OR status = "failed"' }),
+    a.link('rerun', { label: 'Re-run from a step', icon: 'restart', to: { kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' }, when: 'status = "succeeded" OR status = "failed"' }),
   ])
   .layout((r) => [
     l.section('Trace', [r.id]),

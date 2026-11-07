@@ -1,6 +1,6 @@
 import type { AppAddress } from '@protobase/schema'
 
-/** The resource whose record pages draw a workflow with its versions and runs. */
+/** The resource of a workflow's record. */
 export const workflowsResource = 'workflows'
 
 /**
@@ -21,8 +21,8 @@ export const workflowViewAddress = ({ workflow, version, run }: WorkflowView): A
 /** The page showing `version` with no run, the address leaving out the latest, which the page shows by itself. */
 export const versionAddress = (workflow: string, version: number, latest: number | undefined) => workflowViewAddress({ workflow, ...(version !== latest && { version }) })
 
-/** The page showing the run on the version it ran on, which is in the address even when it is the latest: a run is only read. */
-export const runAddress = (workflow: string, run: string, version: number) => workflowViewAddress({ workflow, version, run })
+/** The page showing a run: on the latest version, to edit, when it ran on that one; else on the version it ran on, read-only. */
+export const runAddress = (workflow: string, run: string, version: number, latest: number | undefined) => workflowViewAddress({ workflow, ...(version !== latest && { version }), run })
 
-/** The page once the run shown is closed: the version it ran on stays, unless it is the latest. */
+/** The page with the run shown hidden: the version shown stays, unless it is the latest. */
 export const closedRunAddress = ({ workflow, version }: WorkflowView, latest: number | undefined) => (version === undefined ? workflowViewAddress({ workflow }) : versionAddress(workflow, version, latest))
