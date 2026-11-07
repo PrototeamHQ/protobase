@@ -120,7 +120,7 @@ export const RecordChecks: StoryObj = {
     expect(await canvas.findByText('Ticket 2 is open, from the Service desk')).toBeVisible()
     expect(await canvas.findByText('Asked the carrier for a trace.')).toBeVisible()
     const trail = within(canvas.getByRole('navigation', { name: 'Breadcrumb' }))
-    expect(trail.getByRole('link', { name: 'Parcel never arrived' })).toHaveAttribute('aria-current', 'page')
+    expect(trail.queryByText('Parcel never arrived')).toBeNull()
     await userEvent.click(trail.getByRole('link', { name: 'Tickets' }))
     await within(canvas.getByRole('main')).findByText('Wrong size delivered')
   },

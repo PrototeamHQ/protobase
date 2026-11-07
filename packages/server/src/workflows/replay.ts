@@ -8,9 +8,12 @@ import type { WriteEvent } from '../types'
 
 const notReplayable = () => notFound('No run of this workflow to replay with this key')
 
-// The replay gives its steps what the replayed run's steps gave, so the caller must read every one of them: steps are
-// granted apart from runs, and a row filter or a record rule on them would let the replay show steps they cannot read.
-const readsAllSteps = (access: RequestAccess) =>
+/**
+ * Whether the caller reads every step of every run: a replay gives its steps what the replayed run's steps gave, and a
+ * re-run copies the steps it keeps, so either needs it. Steps are granted apart from runs, and a row filter or a record
+ * rule on them would let the new run show steps the caller cannot read.
+ */
+export const readsAllSteps = (access: RequestAccess) =>
   access.resolved.operations.read && access.resolved.rowFilter.read === undefined && !access.resolved.recordChecks.includes('read') && access.parents.length === 0
 
 /**

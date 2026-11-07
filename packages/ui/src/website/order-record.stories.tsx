@@ -11,7 +11,7 @@ export default meta
 export const OrderRecord: StoryObj = {
   render: () => (
     <Screen>
-      <AppShell navGroups={sampleNavGroups} sidebarMode="text-small" activeItem="orders" breadcrumb={['Sales', 'Orders', 'SO-2026-048209']} user={adminUser} workspace="Veldhuis Supply">
+      <AppShell navGroups={sampleNavGroups} sidebarMode="text-small" activeItem="orders" breadcrumb={['Sales', { label: 'Orders', href: '#orders', above: true }]} user={adminUser} workspace="Veldhuis Supply">
         <div className="min-h-0 flex-1 overflow-y-auto">
           <OrderRecordView ticking={false} />
         </div>

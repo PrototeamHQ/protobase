@@ -85,7 +85,9 @@ const setup = (options: Options = {}) => {
       clear: async () => void ((record = undefined), log.push('forget')),
     },
     devices: {
-      register: async (device) => {
+      register: async (registration) => {
+        if (registration.kind !== 'web') throw new Error('A browser registers a web device')
+        const device = registration
         sent.push(device)
         log.push(`register ${device.userId}`)
         const { id } = options.register ? await options.register(device, ++attempts) : { id: 'device-1' }

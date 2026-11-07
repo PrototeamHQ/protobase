@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 15
+export const workflowsVersion = 17
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -55,6 +55,7 @@ create table if not exists ${s}."runs" (
   "started_by" text,
   "rerun_of" uuid references ${s}."runs" ("id") on delete set null,
   "replay" boolean,
+  "rerun_from" text,
   "tenant_id" text,
   "created_at" timestamptz not null default now(),
   "finished_at" timestamptz,
@@ -197,11 +198,16 @@ export const workflowsTriggers = ['workflow_version', 'run_version']
  * is written. A run takes the version it names as it is created, else the published one, or the one saved last on a workflow
  * that is off, and refuses a workflow of another tenant as one that is not there, one that has no saved version, and a
  * version the workflow does not have. A re-run takes the input of the run it re-runs, which the start hook checks; a replay
- * too; both run the version saved last unless they name one.
+ * too; both run the version saved last unless they name one. A workflow is created with no steps unless it says otherwise;
+ * such a version is kept but runs nothing.
  */
 export const functionsSql = (schema: string) => {
   const s = quoteIdent(schema)
-  return `create or replace function ${s}."workflow_version"() returns trigger
+  return `alter table ${s}."runs" add column if not exists "rerun_from" text;
+
+alter table ${s}."workflows" alter column "definition" set default '{"trigger":{"manual":{}},"stateMachine":{"QueryLanguage":"JSONata","StartAt":"","States":{}}}'::jsonb;
+
+create or replace function ${s}."workflow_version"() returns trigger
 language plpgsql as $$
 begin
   if tg_op = 'INSERT' then
@@ -248,6 +254,10 @@ begin
   -- what is published, so a saved change stays out of production until it is, or the version saved last on a workflow that is off.
   if new.version is null then
     new.version := case when new.rerun_of is null then coalesce(found.enabled_version, found.version) else found.version end;
+  end if;
+  -- Checked on the version the run takes, which a re-run or a replay takes otherwise than a start
+  if exists (select from ${s}."versions" v where v.workflow_id = new.workflow_id and v.version = new.version and v.definition -> 'stateMachine' -> 'States' = '{}'::jsonb) then
+    raise exception 'Workflow % has no steps to run', new.workflow_id using errcode = '23503';
   end if;
   if new.rerun_of is not null then
     select r.input into new.input from ${s}."runs" r where r.id = new.rerun_of and r.workflow_id = new.workflow_id;

@@ -84,8 +84,8 @@ export type ConfigBundleInput = {
 // @protobase packages, as the serve runtime supplies them to the bundle, so a project locked to another version loads no
 // second copy: under Bun as Bun's virtual modules, under Node through Vite's module runner, which resolves them from the
 // CLI with the other packages the runtime supplies. Returns the packages with native add-ons it imports, which the bundle has to carry (see
-// copyPackages), and the merged config's mobile section, unchecked.
-export const buildConfigBundle = async ({ projectDir, outFile, bun, extensions = [], components = new Set() }: ConfigBundleInput): Promise<{ native: NativeImport[]; mobile: unknown }> => {
+// copyPackages), the merged config's mobile section, unchecked, and whether it has `notifications()`.
+export const buildConfigBundle = async ({ projectDir, outFile, bun, extensions = [], components = new Set() }: ConfigBundleInput): Promise<{ native: NativeImport[]; mobile: unknown; notifications: boolean }> => {
   if (process.versions.bun !== undefined) provideCliModules()
   const cli = cliPackages()
   const packages = { ...cli, dedupe: [...new Set([...cli.dedupe, ...cliProtobaseIds().map((id) => packageName(id)!)])] }
@@ -94,5 +94,5 @@ export const buildConfigBundle = async ({ projectDir, outFile, bun, extensions =
   const native = new Map<string, NativeImport>()
   const plugins = [layoutCheck(), collectComponents(components), extensionImports(projectDir, extensions), servedImports(native), entry(file, bundleEntryCode(projectDir, extensions, [...(config.files?.images ? [config.files.images] : []), ...(config.workflows?.plugins ?? [])]))]
   await viteBundle({ root: projectDir, entry: file, outFile, bun, plugins })
-  return { native: [...native.values()], mobile: config.mobile }
+  return { native: [...native.values()], mobile: config.mobile, notifications: Boolean(config.notifications) }
 }
