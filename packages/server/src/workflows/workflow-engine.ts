@@ -6,6 +6,8 @@ import { secretRedactor } from '@protobase/workflows'
 import { workflowSecrets, workflowsSchema, type WorkflowsOptions } from './options'
 import { workflowSaveHook } from './save-hook'
 import { workflowsRunner } from './segment-job'
+import { postgresStepCache } from './cache/step-cache-store'
+import { secretFingerprints } from './cache/secret-fingerprints'
 import { runStartHook } from './start-hook'
 import { hookRoute } from './hooks/hook-route'
 import { issueRoute } from './hooks/issue-route'
@@ -32,13 +34,15 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const schema = workflowsSchema(options)
   const roles = options.savedByRoles ?? (auth && betterAuthOwnerRoles(auth))
   if (!roles) throw new Error("workflows act on records as each workflow's last editor, with their current roles: give the config `auth` (Better Auth), or `workflows.savedByRoles`")
-  const secrets = workflowSecrets(options, globalThis.process?.env ?? {})
+  const env = globalThis.process?.env ?? {}
+  const secrets = workflowSecrets(options, env)
   const types = workflowTypes(options.plugins, (name) => deps().registry.find(name)?.model, auth?.connectionSupport)
   const accounts = auth && betterAuthConnectionAccounts(auth as unknown as TokenAuth)
   const text = connectionTexts(locale)
   const connections = connectionWiring({ deps, schema, roles, accounts, plugins: types.plugins, connectionOf: types.connections, text, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }) })
   const input = { deps, schema, roles, allowPrivateAddresses: Boolean(options.allowPrivateAddresses), connect: connections.trigger }
-  const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets })
+  const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET))
+  const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets, cache })
   const redactor = secretRedactor(Object.values(secrets))
   // Only the types a save takes: a trigger of a type no longer available, as after an app update, does nothing.
   const usable = <T>(found: Map<string, T>) => (type: string) => (types.check.triggers[type] ? found.get(type) : undefined)

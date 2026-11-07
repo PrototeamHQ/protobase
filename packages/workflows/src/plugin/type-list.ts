@@ -1,5 +1,6 @@
 import type { ConnectionDeclaration, Plugin, StepType, TriggerType } from './types'
 import type { JsonSchema } from './context'
+import type { CacheChoice, StepCache } from './cache-types'
 
 /** A type as the MCP tools and the editor list it: built-in and plugin types alike. */
 export type TypeEntry = {
@@ -13,6 +14,8 @@ export type TypeEntry = {
   output?: JsonSchema
   errors?: Record<string, string>
   connection?: { name: string } & ConnectionDeclaration
+  /** A step type's cache advice: how much the workflow's author decides, the switch's default, and the warning before forcing it on. */
+  cache?: { choice: CacheChoice; default?: boolean; disclaimer?: string }
   /** False when this app cannot run it, with the reason; a definition that uses it is not saved. */
   available: boolean
   reason?: string
@@ -28,7 +31,10 @@ const entry = (plugin: Plugin, key: string, type: StepType | TriggerType): Omit<
   ...(type.output && { output: type.output }),
   ...('errors' in type && type.errors && { errors: Object.fromEntries(Object.entries(type.errors).map(([name, text]) => [`${type.errorPrefix ?? 'Step'}.${name}`, text])) }),
   ...(type.connection !== undefined && { connection: { name: type.connection, ...plugin.connections![type.connection]! } }),
+  ...('cache' in type && type.cache && { cache: advice(type.cache) }),
 })
+
+const advice = ({ choice, default: on, disclaimer }: StepCache) => ({ choice, ...(on !== undefined && { default: on }), ...(disclaimer !== undefined && { disclaimer }) })
 
 /** Why the app cannot run a type, or undefined when it can. */
 export type Unavailable = (type: Omit<TypeEntry, 'available'>) => string | undefined

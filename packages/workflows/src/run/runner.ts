@@ -1,4 +1,5 @@
 import { limits } from '../limits'
+import type { StepCacheStore } from './cache/cache-port'
 import type { RunStore, SegmentQueue, TaskHandlers } from './port'
 import { secretRedactor } from './redact'
 import { runSegment } from './segment'
@@ -11,6 +12,8 @@ export type RunnerPort<Db> = {
   store: RunStore<Db>
   queue: SegmentQueue<Db>
   tasks: TaskHandlers
+  /** Where step types that cache keep their results. */
+  cache?: StepCacheStore
   secrets?: Readonly<Record<string, string>>
   now?: () => Date
   budgetMs?: number
@@ -23,7 +26,7 @@ const ended = new Set(['succeeded', 'failed'])
  * The workflow runner over a port. `start` queues a run's first segment in `db`, which may be the caller's
  * transaction, so the run starts when it commits; `segment` is what the queue's job runs.
  */
-export const createRunner = <Db>({ store, queue, tasks, secrets = {}, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: RunnerPort<Db>) => {
+export const createRunner = <Db>({ store, queue, tasks, cache, secrets = {}, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: RunnerPort<Db>) => {
   // Made once here too, so a secret too short to blank out stops the app at startup.
   secretRedactor(Object.values(secrets))
   return {
@@ -39,7 +42,7 @@ export const createRunner = <Db>({ store, queue, tasks, secrets = {}, now = () =
       await store.update(db, runId, { status: 'running' })
       // One per segment, so the tokens its steps were given are blanked from all it records, and kept no longer.
       const redactor = secretRedactor(Object.values(secrets))
-      const segment = { runId, definition: run.definition, input: run.input, startedAt: run.startedAt, secrets, redactor, tasks, signal, now, budgetMs, maxSteps }
+      const segment = { runId, definition: run.definition, input: run.input, startedAt: run.startedAt, secrets, redactor, tasks, ...(cache && { cache }), signal, now, budgetMs, maxSteps }
       const outcome = await runSegment({ ...segment, saved: await store.steps(db, runId), save: (steps) => store.save(db, runId, steps) })
       if (outcome.kind === 'superseded') return
       if (outcome.kind === 'ended') return store.update(db, runId, { status: 'succeeded', output: redactor.value(outcome.output) })

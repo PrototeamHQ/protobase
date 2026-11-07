@@ -1,3 +1,4 @@
+import type { StepCache } from './cache-types'
 import type { JsonSchema, PluginConnection, PluginFetch, StepContext } from './context'
 
 /** What a type shows in the type list the MCP tools and the editor read. */
@@ -18,6 +19,8 @@ export type StepType = Described & {
   errors?: Record<string, string>
   /** The prefix of its error names, such as `Http`; an input that does not fit fails as `<prefix>.InvalidArguments`. Default `Step`. */
   errorPrefix?: string
+  /** Its result cache; without it the engine keeps and looks up nothing for it unless a workflow forces it on. */
+  cache?: StepCache
   run: (context: StepContext) => Promise<unknown>
 }
 

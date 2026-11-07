@@ -1,3 +1,5 @@
+import type { EarlierResult } from './cache-types'
+
 /** A JSON Schema (draft-07), as plain data: what a step or trigger takes and gives. */
 export type JsonSchema = Record<string, unknown>
 
@@ -91,4 +93,8 @@ export type StepContext<Input = Record<string, unknown>> = PluginServices & {
    * they may still change the workflow; undefined when the app links no mailboxes (`auth.personalMail`).
    */
   mailbox: PluginMail | undefined
+  /** For a step type whose cache offers it (`use: 'offer'`): the earlier call's result with the same key, when one serves. */
+  earlier?: EarlierResult
+  /** Wraps the result a step takes from `earlier`, cleaned or as it was, so the cache keeps the entry as it is. */
+  reuse: (output: unknown) => unknown
 }

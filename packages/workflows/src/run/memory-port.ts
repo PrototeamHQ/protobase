@@ -1,4 +1,5 @@
 import type { Definition } from '../definition/types'
+import type { StepCacheStore } from './cache/cache-port'
 import { createRunner } from './runner'
 import type { LoadedRun, RunStore, StepRecord, TaskHandlers } from './port'
 import { rerunSteps } from './rerun'
@@ -7,7 +8,7 @@ import { rerunSteps } from './rerun'
  * The runner over a port kept in memory, with a clock tests move: for the package's unit tests. `drain` runs a run's
  * segments as the queue would, moving the clock to each wait's end, until nothing is queued.
  */
-export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps }: { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number } = {}) => {
+export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps, cache }: { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number; cache?: StepCacheStore } = {}) => {
   let clock = new Date('2026-11-04T12:00:00Z')
   const runs = new Map<string, LoadedRun & Record<string, unknown>>()
   const steps: (StepRecord & { runId: string })[] = []
@@ -30,7 +31,7 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps 
       runs.set(id, { ...run, ...change })
     },
   }
-  const runner = createRunner({ store, queue: { schedule: async (_, runId, at) => void queued.push({ runId, ...(at && { at }) }) }, tasks, now: () => clock, ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }) })
+  const runner = createRunner({ store, queue: { schedule: async (_, runId, at) => void queued.push({ runId, ...(at && { at }) }) }, tasks, now: () => clock, ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }), ...(cache && { cache }) })
   return {
     runner,
     steps,

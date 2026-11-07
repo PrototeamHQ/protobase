@@ -1,3 +1,4 @@
+import type { WorkflowTypeList } from '@protobase/client'
 import type { State, Trigger } from '@protobase/workflows'
 import type { NodeStatus } from './node-trace'
 import { text } from './messages'
@@ -30,8 +31,12 @@ const stateTypeLabels: Record<Exclude<State['Type'], 'Task'>, () => string> = {
 
 export const stateTypeLabel = (type: Exclude<State['Type'], 'Task'>) => stateTypeLabels[type]?.() ?? type
 
-/** What a state is, as its node and panel name it: its step type for a Task, else its type. */
-export const stateLabel = (state: State) => (state.Type === 'Task' ? stepTypeLabel(String(state.Resource)) : stateTypeLabel(state.Type))
+/** What a state is, as its node and panel name it: its step type for a Task, by the label `types` lists, else its type. */
+export const stateLabel = (state: State, types?: WorkflowTypeList) => {
+  if (state.Type !== 'Task') return stateTypeLabel(state.Type)
+  const resource = String(state.Resource)
+  return stepTypeLabel(resource, types?.step_types.find((type) => type.id === resource)?.label)
+}
 
 /**
  * The arguments' and fields' names in the forms, by their name in the definition; another shows the title its schema
@@ -75,10 +80,10 @@ export const triggerTypeLabel = (type: string, listed?: string) => triggerLabels
 /** The type a trigger names: the one key it holds. */
 export const triggerType = (trigger: Trigger | undefined): string | undefined => Object.keys(trigger ?? {})[0]
 
-/** The trigger's label: its type's, or a prompt to choose one when it has none. */
-export const triggerLabel = (trigger: Trigger | undefined) => {
+/** The trigger's label: its type's, by the label `types` lists, or a prompt to choose one when it has none. */
+export const triggerLabel = (trigger: Trigger | undefined, types?: WorkflowTypeList) => {
   const type = triggerType(trigger)
-  return type === undefined ? text('triggerUnknown') : triggerTypeLabel(type)
+  return type === undefined ? text('triggerUnknown') : triggerTypeLabel(type, types?.triggers.find((entry) => entry.id === type)?.label)
 }
 
 const nodeStatusLabels: Record<NodeStatus, () => string> = {

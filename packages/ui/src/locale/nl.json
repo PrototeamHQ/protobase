@@ -702,7 +702,14 @@
     "traceRetrying": "Opnieuw",
     "traceFailed": "Mislukt",
     "traceCurrent": "Bezig",
-    "traceSteps": "{count, plural, one {# stap} other {# stappen}}"
+    "traceSteps": "{count, plural, one {# stap} other {# stappen}}",
+    "cacheResults": "Resultaten cachen",
+    "cacheHelp": "Gebruikt het resultaat van een gelijke eerdere aanroep van deze stap, uit elke run, in plaats van hem opnieuw uit te voeren.",
+    "cacheForcedAgainst": "Cache aangezet tegen het advies van deze stap in",
+    "cacheConfirmTitle": "Cache toch aanzetten?",
+    "cacheConfirm": "Toch aanzetten",
+    "cacheCancel": "Annuleren",
+    "cacheForceHelp": "Het staptype bepaalt wanneer het een eerder resultaat hergebruikt; zet dit aan om er een te hergebruiken voor elke gelijke aanroep van deze stap, uit elke run."
   },
   "app/field-types/workflow-run": {
     "chosenStep": "Gekozen stap",

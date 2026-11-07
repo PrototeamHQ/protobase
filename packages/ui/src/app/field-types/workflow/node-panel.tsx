@@ -43,7 +43,7 @@ const StatePanel = ({ definition, types, selected: path, problems, onChange, onS
   const change = (next: Definition) => onChange?.(next)
   return (
     <>
-      <Heading kind={stateLabel(state)} name={name} />
+      <Heading kind={stateLabel(state, types)} name={name} />
       <ProblemList problems={problems} />
       <RenameField
         key={path}
@@ -104,7 +104,7 @@ export const NodePanel = (props: NodePanelProps) => {
     <section aria-label={text('chosenStep')} className="grid gap-4 rounded-lg border bg-background p-4 sm:grid-cols-2">
       {selected === triggerId ? (
         <>
-          <Heading kind={text('trigger')} name={triggerLabel(definition.trigger)} />
+          <Heading kind={text('trigger')} name={triggerLabel(definition.trigger, types)} />
           <ProblemList problems={problems} />
           <TriggerFields trigger={definition.trigger} types={types} problems={problems} disabled={!onChange} onChange={(trigger) => onChange?.(setTrigger(definition, trigger))} />
         </>

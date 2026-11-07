@@ -2,6 +2,7 @@ import type { WorkflowTypeList } from '@protobase/client'
 import type { TaskState } from '@protobase/workflows'
 import { Select } from '../../../primitives/select'
 import { Field } from '../../../record-view/field'
+import { CacheField } from './cache-field'
 import { errorAt } from './field-errors'
 import { inputLabel, stepTypeLabel } from './labels'
 import type { NodeProblem } from './problems'
@@ -55,6 +56,7 @@ export const TaskFields = ({ state, types, problems, disabled, onChange }: TaskF
           />
         ))
       )}
+      <CacheField state={state} types={types} disabled={disabled} onChange={onChange} />
     </>
   )
 }

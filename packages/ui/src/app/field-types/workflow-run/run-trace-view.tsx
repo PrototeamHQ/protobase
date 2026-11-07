@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Skeleton } from '../../../primitives/skeleton'
 import { ErrorBanner } from '../../error-banner'
 import { WorkflowCanvas } from '../workflow/workflow-canvas'
+import { useWorkflowTypes } from '../workflow/use-workflow-types'
 import { nodeTraces } from './run-trace'
 import { StepPanel } from './step-panel'
 import { traceStepLimit, useRunTrace } from './use-run-trace'
@@ -16,6 +17,8 @@ const noProblems = new Map()
  */
 export const RunTrace = ({ runId }: { runId: string }) => {
   const trace = useRunTrace(runId)
+  // Only names the nodes by their types' labels: until it is read, or if it cannot be, they show their types' ids.
+  const types = useWorkflowTypes().data
   const { definition, steps, going } = trace
   const traces = useMemo(() => definition && nodeTraces(steps, { inProgress: going, startAt: definition.stateMachine.StartAt }), [definition, steps, going])
   // undefined until a node is chosen or the choice is cleared, which is null
@@ -29,9 +32,9 @@ export const RunTrace = ({ runId }: { runId: string }) => {
     <div className="flex flex-col gap-3">
       {trace.cut && <p className="text-xs text-muted-foreground">{text('cut', { count: traceStepLimit })}</p>}
       <div className="h-[28rem] overflow-hidden rounded-lg border max-sm:h-[22rem]">
-        <WorkflowCanvas definition={definition} problems={noProblems} selected={selected} onSelect={(id) => setChosen(id ?? null)} traces={traces} />
+        <WorkflowCanvas definition={definition} problems={noProblems} selected={selected} onSelect={(id) => setChosen(id ?? null)} traces={traces} {...(types && { types })} />
       </div>
-      {selected !== undefined && <StepPanel definition={definition} run={run} selected={selected} />}
+      {selected !== undefined && <StepPanel definition={definition} run={run} selected={selected} {...(types && { types })} />}
     </div>
   )
 }

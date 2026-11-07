@@ -34,4 +34,11 @@ export const limits = {
   /** A run's input: its size as JSON and how deeply its arrays and objects nest. */
   inputBytes: 1024 * 1024,
   inputDepth: 64,
+  /** A cached step result: the longest it serves, how long one a workflow forced on serves, its size as JSON, and the entries one step type keeps per tenant. */
+  cacheMaxSeconds: 30 * 24 * 3600,
+  cacheForcedSeconds: 3600,
+  cacheValueBytes: 256 * 1024,
+  cacheEntries: 1000,
+  /** How long a cache lookup may take before the step runs without it. */
+  cacheLookupMs: 2000,
 } as const

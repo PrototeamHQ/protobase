@@ -63,6 +63,16 @@ describe('typeList', () => {
     expect(list.map(({ id, kind, available }) => [id, kind, available])).toEqual([['acme:greet', 'step', true], ['acme:token', 'step', false], ['acme:new_order', 'ready', true]])
     expect(list[0]!.errors).toEqual({ 'Acme.Busy': 'Acme is busy' })
     expect(list[1]).toMatchObject({ reason: 'no sign-in', connection: { name: 'account', label: 'Acme account' } })
+    expect(list[0]!.cache).toBeUndefined()
+  })
+
+  it("serves a step's cache advice, never its functions", () => {
+    const cached = definePlugin({ name: 'a', label: 'A', steps: { get: { ...acme.steps.greet, cache: { choice: 'discouraged', disclaimer: 'Results go stale.', ttl: 60, when: () => true } } } })
+    expect(typeList([cached], () => undefined)[0]!.cache).toEqual({ choice: 'discouraged', disclaimer: 'Results go stale.' })
+  })
+
+  it('refuses a step that advises against forcing its cache on without saying why', () => {
+    expect(() => definePlugin({ name: 'a', label: 'A', steps: { get: { ...acme.steps.greet, cache: { choice: 'discouraged', disclaimer: ' ', ttl: 60 } } } })).toThrow('give the cache a `disclaimer`')
   })
 })
 

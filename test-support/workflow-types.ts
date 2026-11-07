@@ -40,6 +40,14 @@ export const examplePlugin = definePlugin({
       input: { type: 'object', required: ['text'], properties: { text: { type: 'string' }, loud: { type: 'boolean' } } },
       run: async ({ input }) => ({ text: String(input.text).toUpperCase() }),
     },
+    rates: {
+      label: 'Exchange rates',
+      description: "Looks up today's exchange rates.",
+      input: { type: 'object', properties: { base: { type: 'string' } } },
+      // Its disclaimer holds markup, which the editor shows as text.
+      cache: { choice: 'discouraged', disclaimer: 'Rates change by the minute. <script>window.injected = true</script>', ttl: '1 minute' },
+      run: async () => ({ rates: {} }),
+    },
     labels: {
       label: 'Mail labels',
       description: 'Lists the labels of the connected Google mailbox.',

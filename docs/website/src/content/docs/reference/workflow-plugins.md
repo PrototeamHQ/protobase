@@ -63,6 +63,7 @@ Two plugins of one name stop startup, naming both. A plugin is server code that 
 | `output` | The JSON Schema of what `run` returns, for the type list. |
 | `errorPrefix`, `errors` | The prefix of its error names, `Step` by default, and the errors it fails with by name, each with what it means. |
 | `connection` | The connection it signs in with, by the name the plugin declares it under. |
+| `cache` | Reuses the result of an identical earlier call: see [Caching results](#caching-results). Without it the engine looks up and keeps nothing for the type, unless a workflow forces it on. |
 | `run(context)` | Returns the step's result. It throws a `StepError` to fail with an error name of its own; any other error is `States.TaskFailed`. |
 
 What `run` gets, and nothing more:
@@ -79,12 +80,42 @@ What `run` gets, and nothing more:
 | `runId`, `idempotencyKey` | The run, and a key that every retry of this visit of the step shares, while a later visit of the same state, such as in a loop, gets a new one: send it where the receiver deduplicates. |
 | `signal` | Aborted at the step's timeout, or when the worker stops; pass it on to `fetch`. |
 | `log(message)`, `redact(text)` | A line in the step's logs, and the text with the app's secrets blanked out, both as the runner records them. |
+| `earlier`, `reuse(output)` | For a type whose cache offers hits: the earlier call's result, as [Caching results](#caching-results) says. |
 
 ### Sending requests
 
 `fetch` resolves the URL's host once, refuses it unless every address is public, and connects to the very address it checked, so a URL built from a run's data cannot reach the app's own network or a cloud metadata address. It follows no redirect: a 3xx comes back as it is, and a plugin that follows one calls `fetch` again with the new URL, whose host is checked in turn. It reads at most `maxBytes` of the answer's body as it comes, 10 MiB by default and at most, and never decodes a `Content-Encoding`, so a large or endless answer fails with `ResponseTooLargeError` instead of filling memory; a refused address fails with `AddressRefusedError`. [`workflows.allowPrivateAddresses`](/reference/config/jobs-and-events/#workflowsallowprivateaddresses) lets it reach private addresses, for development and tests.
 
 A plugin sends through `context.fetch`, never through the global `fetch`, Node's `http`, `https`, `net` or `tls`, or an HTTP client of its own: those are not guarded, so a workflow's data could make them reach the app's own network. The built-in plugins are held to this by the repository's boundary check, which fails on any of them.
+
+### Caching results
+
+A step type can reuse the result of an identical earlier call, from any run of any workflow, so a slow or costly lookup with a small result runs once. Caching is for such steps: a quick read, such as a local file, runs faster than a lookup in the cache, and only fills the app's database. A type without `cache` costs nothing: the engine looks up, keeps and tracks nothing for it.
+
+```ts
+lookup: {
+  label: 'Company lookup',
+  description: 'Finds a company by its registration number.',
+  input: { type: 'object', required: ['number'], properties: { number: { type: 'string' } } },
+  cache: { choice: 'force', ttl: '1 day', when: (input) => input.number !== '' },
+  run: async ({ input, fetch }) => (await fetch(`https://registry.example/companies/${input.number}`)).json(),
+}
+```
+
+| `cache` | |
+| --- | --- |
+| `choice` | How much the workflow's author decides: `hidden`, nothing; `switch`, a *Cache results* switch, off unless `default` is `true`; `force`, the type decides and the author may force it on; `discouraged`, the same, with a `disclaimer` the editor shows before forcing it on, which the plugin must give. |
+| `ttl` | How long a result serves: seconds, or text such as `10 minutes`, `1 hour` or `2 days`, at most 30 days; or a function of the input. A missing, zero, negative or unreadable one keeps nothing, and the step's logs say so. |
+| `when(input)` | Whether this call may use the cache at all; `false` looks up and keeps nothing. A workflow that forces the cache on overrides it, except for a `switch`, whose `Cache: true` only turns it on. |
+| `use` | `return` (default): a hit is the step's result, and `run` is not called. `offer`: `run` gets the earlier call as `earlier`, `{ output, cached_at, expires_at, secrets_changed }`, and decides: returning `reuse(output)`, with the earlier output as it is or cleaned, keeps the entry as it was; returning anything else is a fresh result that replaces it. `run` gets `earlier` only on a hit. |
+| `key` | What a call's key covers. `reads` (default): only the input values `run` read, everything it serialised, listed or handed to `fetch` counting as read. `input`: the whole input. A function of the input: its value, as JSON; one that throws or gives nothing leaves the call uncached. Under `reads`, a value read only after `run` returned is not in the key, so a type that reads its input in a callback later uses `input`. |
+| `actsAs` | `records`, as the person who saved the version, and `mailbox`, as the person who turned it on: the services a cached call may act through, each adding that person to the key. |
+
+Two calls share a result only when their keys match and they act as the same people: the run's tenant always; the saver and the enabler where `actsAs` lists them; and the account the version binds to the type's connection, with the person who turned it on. The app reads these from the run, never from the step. A call that used `records` or `mailbox` without listing them, or touched the run's files, which are the run's alone, runs as always and is not kept. Only a call that succeeded is kept, at most 256 KiB of it as the run records it, so secrets are blanked out. Each type keeps at most 1,000 results per tenant, and the ones that expire soonest go first. A cache that cannot be read within two seconds or written leaves the step to run without it.
+
+A workflow forces the cache on with `Cache: true` on its Task, even for a type without `cache` or with a hidden one: such a type keys on its whole input and on every person a step can act as, and keeps a result for an hour. A Task with `Cache: false` never uses it.
+
+Secrets are never kept. A step always gets a secret's current value, and a key holds the secret's name where the input held its value, so changing a secret and running again calls the step with the new value whenever the old result no longer matches. A hit whose input named a secret that has changed since says so in the step's logs, and in `secrets_changed`, by a fingerprint of the value under the app's secret, `PROTOBASE_SECRET`. Without one, the app cannot tell. A cached step that decides on access, such as whether someone may do something, keeps its answer until its result expires. The results are kept in the workflows schema's `step_cache`. <gap>A run cannot be replayed with its outside writes not sent and its reads served from the cache because replaying a run is not implemented.</gap>
 
 ## Trigger types
 
@@ -201,4 +232,4 @@ An account connected through a provider of a connection's own never signs anyone
 
 ## The type list
 
-[`list_workflow_types`](/reference/mcp/#workflows) over MCP lists every step and trigger type the app has, built-in and plugin ones alike, as their plugins declare them: id, label, description, input and output schemas, errors and connection, with `available: false` and a reason for a type the app cannot run. A save, and `validate_workflow`, check a definition against the same list.
+[`list_workflow_types`](/reference/mcp/#workflows) over MCP lists every step and trigger type the app has, built-in and plugin ones alike, as their plugins declare them: id, label, description, input and output schemas, errors, connection and a step type's cache advice (`choice`, `default` and `disclaimer`), with `available: false` and a reason for a type the app cannot run. A save, and `validate_workflow`, check a definition against the same list.

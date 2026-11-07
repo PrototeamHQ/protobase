@@ -182,6 +182,7 @@ export const PluginTypesChecks: StoryObj = {
     expect(within(add).getByRole('option', { name: 'HTTP request' })).toBeInTheDocument()
     expect(within(add).getByRole('option', { name: 'Mail labels' })).toBeInTheDocument()
     await userEvent.selectOptions(add, 'Shout')
+    expect(await canvas.findByRole('group', { name: /, Shout$/ })).toBeInTheDocument()
     const text = await panel().findByRole('textbox', { name: /^Text/ })
     expect(panel().getByRole('textbox', { name: /^loud/ })).toBeInTheDocument()
     await waitFor(() => expect(text).toHaveAttribute('aria-invalid', 'true'))
@@ -194,6 +195,34 @@ export const PluginTypesChecks: StoryObj = {
     await waitFor(() => expect(days).toHaveAttribute('aria-invalid', 'true'))
     await userEvent.type(days, '3')
     await waitFor(() => expect(days).not.toHaveAttribute('aria-invalid', 'true'))
+  },
+}
+
+/**
+ * A step whose type advises against forcing its cache on shows the type's disclaimer, as text, before the switch turns
+ * on; once on, its node carries the warning mark.
+ */
+export const CacheForcedChecks: StoryObj = {
+  ...NewWorkflow,
+  name: 'Marks a cache forced on against its step type (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const page = within(canvasElement.ownerDocument.body)
+    await userEvent.selectOptions(await canvas.findByRole('combobox', { name: 'Add a step' }), 'Exchange rates')
+    const panel = within(await canvas.findByRole('region', { name: 'Chosen step' }))
+    const cache = await panel.findByRole('switch', { name: 'Cache results' })
+    expect(cache).toHaveAttribute('aria-checked', 'false')
+    await userEvent.click(cache)
+    const dialog = within(await page.findByRole('dialog', { name: 'Force the cache on?' }))
+    expect(dialog.getByText('Rates change by the minute. <script>window.injected = true</script>')).toBeVisible()
+    expect((window as { injected?: boolean }).injected).toBeUndefined()
+    await userEvent.click(dialog.getByRole('button', { name: 'Turn on anyway' }))
+    await waitFor(() => expect(cache).toHaveAttribute('aria-checked', 'true'))
+    expect(await canvas.findByRole('group', { name: /Exchange rates, Caching forced on against this step's advice$/ })).toBeInTheDocument()
+    expect(canvas.getAllByTitle("Caching forced on against this step's advice")).toHaveLength(1)
+    await userEvent.click(cache)
+    await waitFor(() => expect(canvas.queryByTitle("Caching forced on against this step's advice")).toBeNull())
   },
 }
 
