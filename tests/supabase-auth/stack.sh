@@ -7,8 +7,9 @@ set -euo pipefail
 
 action=${1:?start or stop}
 name=${2:?a name for the containers}
-postgres_image=supabase/postgres:17.11.0.006
-auth_image=supabase/gotrue:v2.197.0
+# From ghcr.io, where Supabase publishes the same images as on docker.io, whose registry now and then fails a pull.
+postgres_image=ghcr.io/supabase/postgres:17.11.0.006
+auth_image=ghcr.io/supabase/gotrue:v2.197.0
 password=protobase
 jwt_secret=supabase-auth-test-jwt-secret-at-least-32-characters
 
