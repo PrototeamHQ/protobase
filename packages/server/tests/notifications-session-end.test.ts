@@ -86,8 +86,8 @@ describe('a device with auth, once the session it was registered in ends', () =>
   it('gets no push and is removed when the user is banned without their sessions ending', async () => {
     const served = await serve()
     await signedIn(served)
-    const admin = await served.cookieOf('root@example.com')
-    expect((await served.post('/api/auth/admin/update-user', { userId: served.alice.id, data: { banned: true } }, { cookie: admin })).status).toBe(200)
+    // Every ban endpoint also deletes the sessions, so the ban is written straight to the user row to leave them standing.
+    await served.pg.query('update "user" set banned = true where id = $1', [served.alice.id])
     expect((await served.pg.query('select count(*)::int as count from "session" where user_id = $1', [served.alice.id])).rows).toEqual([{ count: 2 }])
     await expectLeft(served, [])
   })
