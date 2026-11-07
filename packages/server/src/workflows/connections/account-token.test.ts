@@ -70,4 +70,33 @@ describe('accountToken', () => {
     expect(result).toEqual({ error: expect.objectContaining({ code: 'not_connected' }) })
     expect(accessToken).not.toHaveBeenCalled()
   })
+
+  it('checks each caller that joined one forced refresh on its own: one whose account moved away meanwhile gets nothing', async () => {
+    const owned: Record<string, ConnectionAccount[]> = { ada: [adaAccount], grace: [] }
+    let release = () => {}
+    const accounts: ConnectionAccounts = {
+      find: async (userId, accountId) => owned[userId]?.find((account) => account.id === accountId),
+      accessToken: vi.fn(async (_userId: string, _accountId: string, options?: { refresh?: boolean }) => {
+        expect(options).toEqual({ refresh: true })
+        await new Promise<void>((resolve) => (release = resolve))
+        return token
+      }),
+    }
+    const tokenOf = accountToken({ accounts, refresh: sharedRefresh(accounts) })
+    const refused = () => new ConnectionError('not_connected', 'none')
+    const use = { accountId: 'acc-1', plugin: 'acme', name: 'account', declaration, secret: () => {} }
+    const ada = tokenOf({ ...use, userId: 'ada' }, refused, { refresh: true })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    // Grace now holds the account and joins the refresh Ada started; then it goes back to Ada.
+    owned.grace = [adaAccount]
+    owned.ada = []
+    const grace = tokenOf({ ...use, userId: 'grace' }, refused, { refresh: true })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    owned.grace = []
+    owned.ada = [adaAccount]
+    release()
+    expect(await ada).toBe(token)
+    await expect(grace).rejects.toMatchObject({ code: 'not_connected' })
+    expect(accounts.accessToken).toHaveBeenCalledTimes(1)
+  })
 })

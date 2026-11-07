@@ -7,11 +7,11 @@ const account = () => {
   const state = { refreshToken: 'enc-refresh-1', refreshes: 0, refuse: false }
   const accounts: ConnectionAccounts = {
     find: async () => ({ id: 'acc-1', providerId: 'google', scopes: [], refreshToken: state.refreshToken }),
-    accessToken: async () => {
+    accessToken: async (_userId, _accountId, options) => {
       const refused = state.refuse
-      state.refreshes++
+      const refresh = ++state.refreshes
       await new Promise((resolve) => setTimeout(resolve, 5))
-      return refused ? undefined : `access-${state.refreshes}`
+      return refused ? undefined : `${options?.refresh ? 'forced' : 'access'}-${refresh}`
     },
   }
   return { state, accounts }
@@ -41,5 +41,13 @@ describe('sharedRefresh', () => {
     state.refuse = true
     expect(await sharedRefresh(accounts)('ada', 'acc-1', 'enc-refresh-1')).toBeUndefined()
     expect(state.refreshes).toBe(1)
+  })
+
+  it('forces a refresh when asked, joining only other forced ones, never a plain read in flight', async () => {
+    const { state, accounts } = account()
+    const tokenOf = sharedRefresh(accounts)
+    const tokens = await Promise.all([tokenOf('ada', 'acc-1', 'enc-refresh-1'), tokenOf('ada', 'acc-1', 'enc-refresh-1', { refresh: true }), tokenOf('ada', 'acc-1', 'enc-refresh-1', { refresh: true })])
+    expect(tokens).toEqual(['access-1', 'forced-2', 'forced-2'])
+    expect(state.refreshes).toBe(2)
   })
 })

@@ -21,9 +21,9 @@ export const stopConnection = ({ accounts, refresh, text }: StopConnectionInput)
   const key = `${use.plugin}:${use.name}`
   const notConnected = () => new ConnectionError('not_connected', text('stopNotConnected', { key }))
   return {
-    accessToken: async () => {
+    accessToken: async (options) => {
       if (!use.accountId || !use.userId) throw notConnected()
-      const token = await tokenOf({ ...use, userId: use.userId, accountId: use.accountId }, notConnected)
+      const token = await tokenOf({ ...use, userId: use.userId, accountId: use.accountId }, notConnected, options)
       if (!token) throw new ConnectionError('not_connected', text('stopLinkExpired', { key }))
       return token
     },

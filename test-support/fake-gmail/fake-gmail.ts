@@ -1,11 +1,12 @@
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { fetchMaxBytes, ResponseTooLargeError, type PluginFetch } from '@protobase/workflows/plugin'
+import { recording } from './recordings'
 
-// Every answer below is hand-written to the shapes of Google's public Gmail API reference, not recorded from Gmail:
-// https://developers.google.com/workspace/gmail/api/reference/rest/v1/users/getProfile, users.history/list,
-// users.messages/get, users.messages/list and users.labels/list, and the error shape of
-// https://cloud.google.com/apis/design/errors. They prove the plugin against its interface, not against real Gmail.
+// The answers below follow those recorded from a real Gmail mailbox (`./recordings`): the 401 and 404 answers and the
+// system labels are the recorded ones, and every other answer has its recording's shape, which
+// packages/workflow-plugins/src/gmail/fake-gmail.test.ts checks. What a recording cannot show, such as paging, a
+// history Google no longer keeps or a mailbox's own labels, follows Google's public Gmail API reference.
 
 /** A request the fake took: its method, its path below the API, its query and the token it carried. */
 export type GmailCall = { method: string; origin: string; path: string; query: URLSearchParams; token: string | undefined }
@@ -16,7 +17,13 @@ type Answer = { status: number; body?: unknown; headers?: Record<string, string>
 
 const json = ({ status, body, headers }: Answer) => new Response(body === undefined ? null : typeof body === 'string' ? body : JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } })
 
-// Google's error shape: https://cloud.google.com/apis/design/errors (hand-written).
+// Gmail's answers to a message it has not and to a token it refuses, as recorded.
+const recorded = (name: 'message-not-found' | 'unauthenticated'): Answer => {
+  const { status, body } = recording(name).response
+  return { status, body }
+}
+
+// Google's error shape, for an answer no recording shows: https://cloud.google.com/apis/design/errors.
 const googleError = (code: number, status: string, message: string): Answer => ({ status: code, body: { error: { code, message, status, errors: [{ message, domain: 'global', reason: status.toLowerCase() }] } } })
 
 const base64url = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64url')
@@ -40,11 +47,8 @@ export const fakeGmail = () => {
   let origin = 'https://gmail.fake'
   const mails = new Map<string, Mail>()
   const records: Record_[] = []
-  const labels = [
-    { id: 'INBOX', name: 'INBOX', type: 'system' },
-    { id: 'SENT', name: 'SENT', type: 'system' },
-    { id: 'Label_7', name: 'Invoices', type: 'user' },
-  ]
+  // The recorded system labels, and one of the mailbox's own, as Google's reference shows them.
+  const labels = [...(recording('labels').response.body as { labels: object[] }).labels, { id: 'Label_7', name: 'Invoices', type: 'user', messageListVisibility: 'show', labelListVisibility: 'labelShow' }]
   const calls: GmailCall[] = []
   // Deleted messages stay in the history, as Gmail's do, but getting one answers 404.
   const deleted = new Set<string>()
@@ -79,7 +83,7 @@ export const fakeGmail = () => {
     if (path === 'labels') return { status: 200, body: { labels } }
     if (path === 'history') {
       const start = Number(query.get('startHistoryId'))
-      if (start < expiredBelow) return googleError(404, 'NOT_FOUND', 'Requested entity was not found.')
+      if (start < expiredBelow) return recorded('message-not-found')
       const label = query.get('labelId')
       const matching = records
         .filter((record) => record.id > start)
@@ -103,13 +107,13 @@ export const fakeGmail = () => {
     const message = /^messages\/([^/]+)$/.exec(path)
     if (message) {
       const mail = mails.get(message[1]!)
-      if (!mail || deleted.has(mail.id)) return googleError(404, 'NOT_FOUND', 'Requested entity was not found.')
+      if (!mail || deleted.has(mail.id)) return recorded('message-not-found')
       const base = { id: mail.id, threadId: mail.threadId, labelIds: mail.labelIds, snippet: '', historyId: String(current), internalDate: String(mail.internalDate * 1000), sizeEstimate: mail.raw.length }
       if (query.get('format') === 'raw') return { status: 200, body: { ...base, raw: base64url(mail.raw) } }
       const wanted = query.getAll('metadataHeaders').map((name) => name.toLowerCase())
       return { status: 200, body: { ...base, payload: { mimeType: 'multipart/mixed', headers: headerLines(mail.raw).filter(({ name }) => wanted.includes(name.toLowerCase())) } } }
     }
-    return googleError(404, 'NOT_FOUND', 'Not Found')
+    return recorded('message-not-found')
   }
 
   const handle = async (request: Request) => {
@@ -118,7 +122,7 @@ export const fakeGmail = () => {
     const token = /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1]
     calls.push({ method: request.method, origin: url.origin, path, query: url.searchParams, token })
     if (url.origin !== origin) return json({ status: 200, body: { reached: 'elsewhere' } })
-    if (token === undefined || !tokens.has(token)) return json(googleError(401, 'UNAUTHENTICATED', 'Request had invalid authentication credentials.'))
+    if (token === undefined || !tokens.has(token)) return json(recorded('unauthenticated'))
     const failure = failures.findIndex((entry) => entry.path.test(path))
     if (failure !== -1) return json(failures.splice(failure, 1)[0]!.answer)
     if (request.method !== 'GET') return json(googleError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed'))

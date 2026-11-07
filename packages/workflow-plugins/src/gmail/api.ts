@@ -33,7 +33,7 @@ export type GmailApiInput = { origin: string; fetch: PluginFetch; connection: Pl
 
 /**
  * The few read-only Gmail calls the trigger makes, all GET, through the plugin context's `fetch`. The token goes only in
- * the `Authorization` header, asked for once a poll; a 401 asks for it again and tries once more, and a second 401 is an
+ * the `Authorization` header, asked for once a poll; a 401 asks for a refreshed one and tries once more, and a second 401 is an
  * expired sign-in. An error names the call and its status, never a URL, a header or Google's own message.
  */
 export const gmailApi = ({ origin, fetch, connection, signal }: GmailApiInput) => {
@@ -57,7 +57,7 @@ export const gmailApi = ({ origin, fetch, connection, signal }: GmailApiInput) =
     token ??= await connection.accessToken()
     let answer = await send(url, call, token, maxBytes)
     if (answer.status === 401) {
-      token = await connection.accessToken()
+      token = await connection.accessToken({ refresh: true })
       answer = await send(url, call, token, maxBytes)
       if (answer.status === 401) throw new ConnectionError('link_expired', 'Google refused the access token twice: sign in to the Google account again')
     }

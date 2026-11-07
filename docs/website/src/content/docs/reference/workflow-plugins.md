@@ -228,7 +228,7 @@ auth: {
 },
 ```
 
-A step or a trigger hook gets the connection its type declares as `connection`, and nothing else. It has no connection id, so a plugin cannot reach another workflow's account. `connection.accessToken()` gives a token that is valid now, refreshed first when it expired, and checks every time that the workflow may still use the account, as [Connecting an account](/reference/workflows/#connecting-an-account) says. It throws a `ConnectionError`:
+A step or a trigger hook gets the connection its type declares as `connection`, and nothing else. It has no connection id, so a plugin cannot reach another workflow's account. `connection.accessToken()` gives a token that is valid now, refreshed first when it expired, and checks every time that the workflow may still use the account, as [Connecting an account](/reference/workflows/#connecting-an-account) says. `connection.accessToken({ refresh: true })` refreshes it even before it expires, for a token the provider refused, such as after an answer of `401`. It throws a `ConnectionError`:
 
 - **`not_connected`:** the workflow may not use an account for the connection.
 - **`link_expired`:** the provider refused the refresh, so the account's owner connects it again. A trigger that throws this waits for that sign-in.
@@ -244,7 +244,7 @@ Every app has these plugins besides `app`. A type that signs in is offered once 
 ### Incoming Gmail mail
 
 :::caution[Beta]
-The Gmail plugin is tested against a stand-in of Gmail's API written to Google's published reference, but has not yet been checked against a real Google account. Mail starts its run within about a minute of arriving, not at once.
+Mail starts its run within about a minute of arriving, not at once.
 :::
 
 `gmail:new_mail` starts one run for each new mail on a label of a connected Gmail mailbox. It reads the mailbox with read-only access, so a workflow it starts cannot send, change or delete mail through it.

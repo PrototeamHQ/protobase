@@ -61,8 +61,11 @@ export type PluginMail = { send(message: PluginMailMessage): Promise<void> }
 
 /** The sign-in a step or trigger declared, bound by its workflow; it names no other. */
 export type PluginConnection = {
-  /** A current access token; throws `ConnectionError` when the workflow has no working sign-in for it. */
-  accessToken(): Promise<string>
+  /**
+   * A current access token; throws `ConnectionError` when the workflow has no working sign-in for it. `refresh` gets a
+   * new one even before the current one expires, for a token the provider refused.
+   */
+  accessToken(options?: { refresh?: boolean }): Promise<string>
 }
 
 /** What the app gives every hook of a plugin: its guarded requests, records, files and mail. */

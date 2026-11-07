@@ -1,0 +1,36 @@
+{
+  "recorded_at": "2026-11-07T08:44:24.867Z",
+  "request": {
+    "method": "GET",
+    "path": "messages",
+    "query": [
+      [
+        "labelIds",
+        "INBOX"
+      ],
+      [
+        "q",
+        "after:1794041064"
+      ],
+      [
+        "maxResults",
+        "100"
+      ]
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=UTF-8"
+    },
+    "body": {
+      "messages": [
+        {
+          "id": "1a1b52e3049a995f",
+          "threadId": "1a1b52e3049a995f"
+        }
+      ],
+      "resultSizeEstimate": 1
+    }
+  }
+}

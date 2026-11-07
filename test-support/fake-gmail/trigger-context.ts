@@ -1,12 +1,13 @@
 import type { PluginConnection, PollingTrigger } from '@protobase/workflows/plugin'
 import type { FakeGmail } from './fake-gmail'
 
-/** A connection that gives `tokens` in turn, then the last one again, counting how often it was asked. */
+/** A connection that gives `tokens` in turn, then the last one again, keeping whether each ask forced a refresh. */
 export const fakeConnection = (...tokens: string[]) => {
-  let asked = 0
-  const connection: PluginConnection & { asked: () => number } = {
-    accessToken: async () => tokens[Math.min(asked++, tokens.length - 1)]!,
-    asked: () => asked,
+  const refreshes: boolean[] = []
+  const connection: PluginConnection & { asked: () => number; refreshes: boolean[] } = {
+    accessToken: async (options) => tokens[Math.min(refreshes.push(options?.refresh === true) - 1, tokens.length - 1)]!,
+    asked: () => refreshes.length,
+    refreshes,
   }
   return connection
 }
