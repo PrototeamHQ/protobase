@@ -92,6 +92,14 @@ describe('a step type that returns hits', () => {
     expect(memory.calls.write).toBe(0)
   })
 
+  it('keeps no call that returned nothing, so a later call returns nothing too', async () => {
+    const { call, memory, seen } = setup(returning, () => undefined)
+    await call({ url: 'a' })
+    expect((await call({ url: 'a' })).output).toBeUndefined()
+    expect(seen).toHaveLength(2)
+    expect(memory.calls.write).toBe(0)
+  })
+
   it('keeps no result of a call that acted as someone its key does not hold', async () => {
     const { call, memory } = setup(returning, async ({ records }) => records.get('orders', 1))
     expect((await call({ url: 'a' })).logs).toContain('The result was not cached: the step used records')
