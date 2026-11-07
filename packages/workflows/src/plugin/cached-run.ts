@@ -92,8 +92,10 @@ export const cachedRun = async (plan: CachePlan, type: string, parts: CallParts,
   if (entry && plan.use === 'return') return entry.output
   const used = new Set<string>()
   const tracked = plan.key === 'reads' ? trackReads(structuredClone(parts.input)) : undefined
-  const result = await run({ ...watched(parts.services, parts.mailbox, plan.actsAs, used), input: tracked?.input ?? parts.input, ...(entry && plan.use === 'offer' && { earlier: earlierOf(entry) }) })
-  if (result instanceof Reused) return result.output
+  const returned = await run({ ...watched(parts.services, parts.mailbox, plan.actsAs, used), input: tracked?.input ?? parts.input, ...(entry && plan.use === 'offer' && { earlier: earlierOf(entry) }) })
+  if (returned instanceof Reused) return returned.output
+  // The result as JSON, as its step record keeps it, taken before the reads: an input value it hands back is one it read.
+  const result = returned === undefined ? undefined : JSON.parse(JSON.stringify(returned))
   await keep(cache, task, { ...call, plan, keyValue, used, shape: tracked ? { reads: tracked.paths() } : plan.key === 'input' ? { input: true } : { custom: true }, result })
   return result
 }

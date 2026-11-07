@@ -77,6 +77,13 @@ describe('a step type that returns hits', () => {
     expect((await call({ body: { a: 1, b: 3 } })).output).not.toEqual(first.output)
   })
 
+  it('keys on an input value it hands back in its result', async () => {
+    const { call, seen } = setup(returning, ({ input }) => ({ headers: input.headers, n: Math.random() }))
+    const first = await call({ headers: { accept: 'text/plain' } })
+    expect((await call({ headers: { accept: 'application/json' } })).output).not.toEqual(first.output)
+    expect(seen).toHaveLength(2)
+  })
+
   it('keeps no failure', async () => {
     const { call, memory } = setup(returning, () => {
       throw new StepError('T.Down', 'down')
