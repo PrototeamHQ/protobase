@@ -1,4 +1,4 @@
-import { isTransient } from '../web-push/post'
+import { isTransient } from './fcm-post'
 import { rs256, type FcmSettings } from './fcm-settings'
 
 /** Google's OAuth 2.0 token endpoint, fixed: the assertion is never sent where a service account's JSON says. */
