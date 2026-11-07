@@ -1,6 +1,6 @@
 import { verify } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { fcmAccessToken, fcmScope, tokenUrl } from './access-token'
+import { fcmAccessToken, FcmTokenError, fcmScope, tokenUrl } from './access-token'
 import { loadRecording } from './testing/recordings'
 import { testServiceAccount } from './testing/service-account'
 
@@ -110,10 +110,21 @@ describe('fcmAccessToken', () => {
     const tokens = fcmAccessToken(settings, { fetch: endpoint.fetch })
     for (const _ of answers) {
       const error = await tokens.token().catch((caught: Error) => caught)
-      expect(error).toBeInstanceOf(Error)
+      expect(error).toBeInstanceOf(FcmTokenError)
       expect((error as Error).message).toMatch(/^The FCM token exchange failed with status \d+$/)
       expect((error as Error).message).not.toContain('secret-token')
     }
+  })
+
+  it('fails as a failed mint when the token endpoint does not answer, and passes on any other error', async () => {
+    const timeout = (async () => {
+      throw new DOMException('The operation timed out.', 'TimeoutError')
+    }) as typeof fetch
+    await expect(fcmAccessToken(settings, { fetch: timeout }).token()).rejects.toBeInstanceOf(FcmTokenError)
+    const broken = (async () => {
+      throw new RangeError('unexpected')
+    }) as typeof fetch
+    await expect(fcmAccessToken(settings, { fetch: broken }).token()).rejects.toBeInstanceOf(RangeError)
   })
 
   it('takes a token type in any case', async () => {

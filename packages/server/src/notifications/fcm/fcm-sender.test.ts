@@ -102,6 +102,39 @@ describe('fcmSender', () => {
     expect(always.sent).toHaveLength(2)
   })
 
+  it('keeps the answers FCM gave when a later mint fails, and retries only the devices that needed it', async () => {
+    let ms = 0
+    const service = google()
+    let mints = 0
+    const fetch = (async (request: Request) => {
+      if (request.url !== 'https://oauth2.googleapis.com/token') return service.fetch(request)
+      // The first mint succeeds; the one the second batch needs, once the token nears its end, is a 503.
+      if (++mints === 1) return service.fetch(request)
+      return new Response(null, { status: 503 })
+    }) as typeof globalThis.fetch
+    const timed = (async (request: Request) => {
+      const answer = await fetch(request)
+      // Each FCM request takes long enough that the token needs minting again by the second batch.
+      if (request.url === sendUrl) ms += 3500 * 1000
+      return answer
+    }) as typeof globalThis.fetch
+    const devices = Array.from({ length: 10 }, (_, index) => fcmDevice({ id: `device-${index}`, token: `token-of-${index}` }))
+    const answers = await fcmSender(settings, { fetch: timed, now: () => ms }).send(message, devices)
+    expect(answers.map((answer) => answer.result)).toEqual([...Array(8).fill('ok'), 'retry', 'retry'])
+    expect(service.sent).toHaveLength(8)
+  })
+
+  it('retries the device when the mint after a refused access token fails', async () => {
+    const service = google((_, index) => (index === 0 ? recorded('send-unauthenticated')() : recorded('send-ok')()))
+    let mints = 0
+    const fetch = (async (request: Request) => {
+      if (request.url === 'https://oauth2.googleapis.com/token' && ++mints > 1) throw new DOMException('The operation timed out.', 'TimeoutError')
+      return service.fetch(request)
+    }) as typeof globalThis.fetch
+    expect(await fcmSender(settings, { fetch }).send(message, [fcmDevice()])).toEqual([{ id: 'device-1', result: 'retry' }])
+    expect(service.sent).toHaveLength(1)
+  })
+
   it('retries a device whose answer does not come', async () => {
     const timeout = (async () => {
       throw new DOMException('The operation timed out.', 'TimeoutError')
