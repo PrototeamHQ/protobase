@@ -230,7 +230,8 @@ describe('mobileBuild ios', () => {
     expect(readFileSync(path.join(ws(dir), 'ios/App/App/PrivacyInfo.xcprivacy'), 'utf8')).toContain('CA92.1')
     expect(readFileSync(path.join(ws(dir), 'ios/App/App/Info.plist'), 'utf8')).not.toContain('NSAppTransportSecurity')
     const config = JSON.parse(readFileSync(path.join(ws(dir), 'capacitor.config.json'), 'utf8'))
-    expect(Object.keys(config).sort()).toEqual(['android', 'appId', 'appName', 'appendUserAgent', 'includePlugins', 'plugins', 'webDir'])
+    expect(Object.keys(config).sort()).toEqual(['android', 'appId', 'appName', 'appendUserAgent', 'includePlugins', 'ios', 'plugins', 'webDir'])
+    expect(config.ios).toEqual({ webContentsDebuggingEnabled: false })
   })
 
   it('passes manual signing to Capacitor', async () => {
