@@ -42,11 +42,13 @@ export type FcmRequest = { message: JsonObject & { data: Record<string, string>;
 /**
  * The HTTP v1 request body for one device, from a checked message: its title and body as the notification, its data
  * and url as FCM's string data, its ttl, urgency, tag, sound and badge in the Android block, with `platform.fcm`
- * merged over them (only the fields `checkFcmFields` allows). After the merge the url and every image are checked as
- * the message's url is, a data key FCM keeps for itself is refused, the data carries the device's user as `user` over anything given, and the token is the
- * device's own.
+ * merged over them (only the fields `checkFcmFields` allows). The message's `data` may not hold a `url`: FCM's data is
+ * flat, and the app opens its `url` key on tap, so only the message's `url` or `platform.fcm.data.url` names it. After
+ * the merge the url and every image are checked as the message's url is, a data key FCM keeps for itself is refused,
+ * the data carries the device's user as `user` over anything given, and the token is the device's own.
  */
 export const fcmRequest = (message: PushMessage, device: Device): FcmRequest => {
+  if (message.data !== undefined && Object.hasOwn(message.data, 'url')) throw new PushMessageError('data.url')
   const built: JsonObject = present({
     notification: present({ title: message.title, body: message.body }),
     data: { ...message.data, ...(message.url !== undefined && { url: message.url }) },
