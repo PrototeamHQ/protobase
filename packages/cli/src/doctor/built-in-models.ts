@@ -20,9 +20,6 @@ export const builtInModels = (config: MergedConfig, models: ResourceModel[]) => 
   }
 }
 
-/**
- * A missing index on a built-in table as a recommendation: the app owns its schema, so a database migrated by an earlier
- * version still serves, and only the reads that need the index are refused until `protobase migration` writes it.
- */
+/** A missing index on a built-in table: its fix is the next migration Protobase writes, not one by hand. */
 export const builtInIndexIssues = (issues: Issue[]): Issue[] =>
-  issues.map((issue) => ({ ...issue, severity: 'warning', suggestion: `write it as a migration with \`protobase migration\` (${issue.suggestion})` }))
+  issues.map((issue) => ({ ...issue, suggestion: `write it as a migration with \`protobase migration\` (${issue.suggestion})` }))
