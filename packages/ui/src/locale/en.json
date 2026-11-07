@@ -719,6 +719,7 @@
     "stepTry": "Try {attempt}",
     "itemOf": "Item {index} of {map}",
     "kept": "From the earlier run",
+    "notSent": "Not sent: replay",
     "duration": "{ms, number} ms",
     "openStep": "Open step",
     "error": "Error",

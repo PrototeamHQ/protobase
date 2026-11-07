@@ -719,6 +719,7 @@
     "stepTry": "Poging {attempt}",
     "itemOf": "Item {index} van {map}",
     "kept": "Uit de eerdere run",
+    "notSent": "Niet verstuurd: replay",
     "duration": "{ms, number} ms",
     "openStep": "Stap openen",
     "error": "Fout",

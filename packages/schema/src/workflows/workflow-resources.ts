@@ -93,6 +93,7 @@ const runsResource = (schema: string) =>
       resume_at: f.timestamp().optional().readOnly(),
       started_by: f.text().optional().readOnly(),
       rerun_of: f.relation('workflow_runs').optional().filterable(),
+      replay: f.boolean().optional(),
       tenant_id: f.text().optional().readOnly(),
       created_at: f.timestamp().readOnly().dbDefault().sortable(),
       finished_at: f.timestamp().optional().readOnly(),
@@ -113,7 +114,8 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
     id: r.id.label('Steps').widget('workflow_run'),
     workflow_id: r.workflow_id.label('Workflow'),
     input: r.input.widget('json').help('Read by every state as $states.context.Execution.Input; a re-run takes the input of the run it re-runs'),
-    rerun_of: r.rerun_of.label('Re-run of').help('A failed run of the workflow: the re-run keeps its steps before the one that failed, and goes on from there on the workflow as it is now'),
+    rerun_of: r.rerun_of.label('Re-run of').help('A failed run of the workflow: the re-run keeps its steps before the one that failed, and goes on from there on the workflow as it is now; with Replay, a run that ended, run again from the start'),
+    replay: r.replay.label('Replay').help("With Re-run of, runs that run again from the start on its version and input: its steps that write, such as mail, record writes and requests other than GET, are not sent and give what they gave then, and its reads are served from the step cache"),
     key: r.key.help('A workflow runs once per key, such as the record a trigger found ready'),
     status: r.status.valueLabels({ queued: 'Queued', running: 'Running', waiting: 'Waiting', succeeded: 'Succeeded', failed: 'Failed' }).valueColors({ succeeded: 'green', failed: 'red' }),
     output: r.output.widget('json'),
@@ -125,12 +127,13 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   }))
   .list((r) => ({ columns: [r.created_at, r.workflow_id, r.status, r.started_by, r.duration_ms, r.error], sort: [[r.created_at, 'desc']] }))
   .actions((a) => [
+    a.link('replay', { label: 'Replay', icon: 'history', to: { kind: 'create', resource: 'workflow_runs', values: { workflow_id: '{workflow_id}', rerun_of: '{id}', replay: 'true' } }, when: 'status = "succeeded" OR status = "failed"' }),
     a.link('rerun', { label: 'Re-run from the failed step', icon: 'restart', to: { kind: 'create', resource: 'workflow_runs', values: { workflow_id: '{workflow_id}', rerun_of: '{id}' } }, when: 'status = "failed"' }),
   ])
   .layout((r) => [
     l.section('Trace', [r.id]),
     l.section('Run', [r.workflow_id, r.input, r.output, r.error, r.cause]),
-    l.sidebar([r.status, r.version, r.started_by, r.rerun_of, r.created_at, r.resume_at, r.finished_at, r.duration_ms]),
+    l.sidebar([r.status, r.version, r.started_by, r.rerun_of, r.replay, r.created_at, r.resume_at, r.finished_at, r.duration_ms]),
     l.related('Steps', { resource: 'workflow_steps', field: 'run_id', columns: ['scope', 'seq', 'state', 'status', 'attempt', 'duration_ms', 'error'] }),
     l.related('Re-runs', { resource: 'workflow_runs', field: 'rerun_of', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'error'] }),
   ])

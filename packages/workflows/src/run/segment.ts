@@ -6,6 +6,7 @@ import type { SavedStep, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import { secretNamer } from './cache/secret-names'
+import { replayedSteps } from './replay'
 import { runScope } from './scope'
 
 export type SegmentInput = {
@@ -25,6 +26,8 @@ export type SegmentInput = {
   tasks: TaskHandlers
   /** Where step types that cache keep their results; none keeps nothing. */
   cache?: StepCacheStore
+  /** In a replay, the steps of the run it replays. */
+  replayed?: readonly SavedStep[]
   signal: AbortSignal
   now?: () => Date
   /** How long the segment takes new steps. Default `limits.segmentMs`. */
@@ -37,7 +40,7 @@ export type SegmentInput = {
  * Runs a run's steps from where its saved steps leave it to its next wait: it ends or fails, waits until a time
  * (a Wait, a retry's delay), or yields once its time is up. `superseded` when another segment saved a step first.
  */
-export const runSegment = async ({ runId, definition, input, startedAt, secrets, redactor, saved, save, tasks, cache, signal, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: SegmentInput): Promise<ScopeOutcome | { kind: 'superseded' }> => {
+export const runSegment = async ({ runId, definition, input, startedAt, secrets, redactor, saved, save, tasks, cache, replayed, signal, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: SegmentInput): Promise<ScopeOutcome | { kind: 'superseded' }> => {
   const byScope = new Map<string, SavedStep[]>()
   for (const step of [...saved].sort((a, b) => a.seq - b.seq)) {
     const steps = byScope.get(step.scope)
@@ -60,6 +63,7 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     redactor,
     tasks,
     ...(cache && { cache: { store: cache, nameSecrets: secretNamer(secrets) } }),
+    ...(replayed && { replay: { steps: replayedSteps(replayed) } }),
     signal,
     now,
     deadline: Date.now() + budgetMs,

@@ -57,13 +57,27 @@ export type TaskContext = {
  * A step type, which a Task names as its `Resource`: it takes the Task's evaluated `Arguments` and returns its result.
  * It throws a `StepError` to fail with an error name of its own; any other error is `States.TaskFailed`.
  */
-export type TaskHandler = (args: unknown, context: TaskContext) => Promise<unknown>
+export type TaskHandler = ((args: unknown, context: TaskContext) => Promise<unknown>) & {
+  /** Whether a call with these arguments changes the outside world, never throwing; a replay calls none that does. Absent or anything but `false`: it does. */
+  writes?: (args: unknown) => boolean
+}
 
 /** The interpreter's back end: the step types by the name a Task's `Resource` gives. */
 export type TaskHandlers = Readonly<Record<string, TaskHandler>>
 
 /** A run as the runner loads it: its pinned definition, its input and when it started. */
-export type LoadedRun = { id: string; definition: Definition; input: unknown; status: RunStatus; startedAt: Date }
+export type LoadedRun = {
+  id: string
+  definition: Definition
+  input: unknown
+  status: RunStatus
+  startedAt: Date
+  /**
+   * The run this one replays: its steps that write are not called but give what that run's steps gave; null when that
+   * run is gone, so they give nothing. Absent: no replay.
+   */
+  replayOf?: string | null
+}
 
 export type RunStatus = 'queued' | 'running' | 'waiting' | 'succeeded' | 'failed'
 

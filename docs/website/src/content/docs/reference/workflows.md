@@ -23,7 +23,7 @@ It adds five resources, over a `workflows` schema that [`protobase migration`](/
 | --- | --- |
 | `workflows` | A name, a description and the definition. Each save that changes the definition is checked, and kept as the workflow's next version, saved by the caller. |
 | `workflow_versions` | Every version of every definition as it was saved, with who saved it and when. Read-only. |
-| `workflow_runs` | A run, started by creating it with `workflow_id` and an `input`, or with `rerun_of` to [re-run a failed run](#re-running-a-failed-run); it runs the version its workflow had then. Its status, output, error and timing are written by the runner. |
+| `workflow_runs` | A run, started by creating it with `workflow_id` and an `input`, or with `rerun_of` to [re-run a failed run](#re-running-a-failed-run), and `replay: true` too to [replay a run](#replaying-a-run); it runs the version its workflow had then, a replay the replayed run's. Its status, output, error and timing are written by the runner. |
 | `workflow_steps` | Every step of every run. Read-only. |
 | `workflow_triggers` | The trigger of each enabled workflow that has one besides `manual`: its type, status and last error. Read-only. |
 
@@ -321,6 +321,16 @@ A failed run's page offers *Re-run from the failed step*. It opens the form for 
 - is refused, and nothing starts, when the earlier run is not one of the workflow's runs the person may read (404), did not fail (`run-not-failed`), or would go on at a state the version no longer has (`rerun-refused`, naming the state).
 
 A kept step's card on the run's page says it is from the earlier run, as it finished before the re-run started; the earlier run's page lists its re-runs.
+
+### Replaying a run
+
+A run that ended, succeeded or failed, offers *Replay* on its page. It opens the form for a new run with `workflow_id`, `rerun_of` and `replay` filled in; creating it, through the form or `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "rerun_of": "...", "replay": true }`, starts a run that runs from the start on the replayed run's version and input, so you can look into what formed a message, such as a mail sent with the wrong contents, without sending it again:
+
+- a step whose type writes, such as `app:mail.send`, `app:records.create`, `app:records.update`, an `app:http` request with any method but `GET`, and a plugin's step that does not say it only reads, is not called: it gives what the replayed run's step of the same place gave, its output and variables, or a `null` output when that run has none there, and its logs say *Not sent: replay*;
+- a step that only reads, such as `app:records.get`, `app:records.list`, an `app:http` `GET`, or a plugin's step that says so, is served from the [step cache](/reference/workflow-plugins/#caching-results) when its type caches and an earlier result matches, saying so in its logs, with a line for each secret that changed since that result was kept; otherwise it runs again, as the same people a run of that version acts as;
+- Pass, Choice, Map, Succeed and Fail states compute as always, and a Wait goes on at once.
+
+A replay given an `input` of its own is refused with `rerun-input`, and one without `rerun_of` with `replay-without-run`. It is refused, and nothing starts, when the replayed run is not one of the workflow's runs in the person's tenant (409, as for a workflow that is not there), has not ended (`run-not-ended`), or when the person may not start runs of the workflow, read the run, or read all of its steps (404). A step holds back only as its type declares: a plugin's step that writes while it declares it only reads runs in a replay too, so a replay is no guard against a plugin that declares it wrongly.
 
 ### Test runs
 
