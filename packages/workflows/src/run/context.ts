@@ -1,5 +1,8 @@
 import type { Checkpoint, StepLog, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
+import type { StepCacheStore } from './cache/cache-port'
+import type { SecretNamer } from './cache/secret-names'
+import type { ReplayedStep } from './replay'
 
 /** What every scope of one segment shares. */
 export type SegmentContext = {
@@ -8,6 +11,13 @@ export type SegmentContext = {
   stateContext: { Execution: { Input: unknown; StartTime: string }; Secrets: Readonly<Record<string, string>> }
   redactor: Redactor
   tasks: TaskHandlers
+  /** Where step types that cache keep their results, and the namer of the secrets in their keys. */
+  cache?: { store: StepCacheStore; nameSecrets: SecretNamer }
+  /**
+   * In a replay, the steps of the run it replays by scope and seq: a Task whose type writes gives what that step gave
+   * instead of running, and a Wait does not wait.
+   */
+  replay?: { steps: ReadonlyMap<string, ReplayedStep> }
   /** The job's signal: aborted when the worker stops, which ends the segment without saving the step in progress. */
   signal: AbortSignal
   now: () => Date
@@ -42,7 +52,7 @@ export type StateResult =
       error?: string
       cause?: string
       logs: StepLog[]
-      /** A Task whose call is recorded: it changes the world, or must not be done again. */
+      /** A Task whose call is recorded: it changes the world. */
       recorded?: boolean
       /** When a recorded Task's result was fetched. */
       fetchedAt?: Date

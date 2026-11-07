@@ -1,5 +1,8 @@
 {
-  "unstable": {},
+  "unstable": {
+    "mailbox/use-action-mailbox#useActionMailbox": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true",
+    "mailbox/use-mailbox-toast-action#useMailboxToastAction": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true"
+  },
   "pending": [
     "account/account-page#AccountPage",
     "account/account-page#useAccountPage",
@@ -12,6 +15,7 @@
     "account/blocks/passkeys-block#PasskeysBlock",
     "account/blocks/password-block#PasswordBlock",
     "account/blocks/personal-mail-block#PersonalMailBlock",
+    "account/blocks/connections-block#ConnectionsBlock",
     "account/blocks/profile-block#ProfileBlock",
     "account/blocks/two-factor-block#TwoFactorBlock",
     "account/sign-in-policy-page#SignInPolicyPage",

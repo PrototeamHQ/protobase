@@ -20,7 +20,8 @@ export type TraceSinkInput = {
  * The trace of runs as JSON lines in the private file provider, one step a line with its input, output, logs and
  * timing. Each segment's steps are a part of their own, written in the background; the segment that ends the run joins
  * the parts into `trace.jsonl`, which the run's `trace_file` then names, or drops them when only a failing run keeps
- * one. A trace that cannot be written goes to the app's error report, and the run goes on.
+ * one. A trace that cannot be written goes to the app's error report, and the run goes on. A replay reads the trace of
+ * the run it replays through `read`.
  */
 export const traceSink = ({ files, kept, report }: TraceSinkInput): TraceSink => {
   const keep = async (runId: string, steps: readonly StepRecord[], dropped: boolean, ended: boolean) => {
@@ -41,6 +42,10 @@ export const traceSink = ({ files, kept, report }: TraceSinkInput): TraceSink =>
     write: (runId, steps, { mode, ended }) => {
       if (mode === 'none') return
       void keep(runId, steps, mode === 'failed' && ended === 'succeeded', ended !== undefined).catch(report)
+    },
+    read: async (runId) => {
+      const steps = await readTrace(files(), runId)
+      return steps.length > 0 ? (steps as unknown as StepRecord[]) : undefined
     },
   }
 }

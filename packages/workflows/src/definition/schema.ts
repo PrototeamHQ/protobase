@@ -53,25 +53,22 @@ export const definitionSchema = {
       type: 'object',
       additionalProperties: false,
       required: ['trigger', 'stateMachine'],
-      properties: { trigger: { $ref: '#/definitions/trigger' }, stateMachine: { $ref: '#/definitions/stateMachine' }, trace: { enum: ['all', 'failed', 'none'] } },
+      properties: { trigger: { $ref: '#/definitions/trigger' }, stateMachine: { $ref: '#/definitions/stateMachine' }, connections: { $ref: '#/definitions/connections' }, trace: { enum: ['all', 'failed', 'none'] } },
+    },
+    // The account each connection `<plugin>:<connection>` the definition's types sign in with goes through, by its id.
+    connections: {
+      type: 'object',
+      propertyNames: { pattern: '^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$' },
+      additionalProperties: { type: 'string', minLength: 1, maxLength: 255 },
     },
     trigger: {
       type: 'object',
       minProperties: 1,
       maxProperties: 1,
-      additionalProperties: false,
-      properties: {
-        webhook: { type: 'object', additionalProperties: false },
-        schedule: { type: 'object', additionalProperties: false, required: ['cron'], properties: { cron: { type: 'string' }, timezone: { type: 'string' } } },
-        mail: { type: 'object', additionalProperties: false, required: ['mailbox'], properties: { mailbox: name } },
-        record: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['events'],
-          properties: { events: { type: 'array', minItems: 1, items: { type: 'string', pattern: '^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$' } } },
-        },
-        manual: { type: 'object', additionalProperties: false },
-      },
+      // `manual`, which takes no input, or a trigger type `<plugin>:<key>` with its input; the plugin's schema checks that.
+      propertyNames: { pattern: '^(manual|[a-z][a-z0-9_]*:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*)$' },
+      properties: { manual: { type: 'object', maxProperties: 0 } },
+      additionalProperties: { type: 'object' },
     },
     stateMachine: {
       allOf: [{ $ref: '#/definitions/machine' }],
@@ -90,7 +87,7 @@ export const definitionSchema = {
       discriminator: { propertyName: 'Type' },
       oneOf: [
         state('Pass', flow, nextOrEnd),
-        state('Task', { ...flow, ...recovery, Resource: name, Arguments: {}, TimeoutSeconds: { type: 'integer', minimum: 1, maximum: limits.taskTimeoutSeconds }, DoNotRepeat: { type: 'boolean' } }, { required: ['Resource'], ...nextOrEnd }),
+        state('Task', { ...flow, ...recovery, Resource: name, Arguments: {}, TimeoutSeconds: { type: 'integer', minimum: 1, maximum: limits.taskTimeoutSeconds }, Cache: { type: 'boolean' } }, { required: ['Resource'], ...nextOrEnd }),
         state('Choice', {
           Choices: {
             type: 'array',

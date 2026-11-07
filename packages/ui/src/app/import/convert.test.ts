@@ -83,10 +83,11 @@ describe('convertCell', () => {
     expect(convert('enum', 'Finished', american, status)).toEqual({ ok: false, problem: '“Finished” is not one of In progress, Done' })
   })
 
-  it('keeps text as written, numbers as their digits, and refuses true or false as text', () => {
+  it('keeps text as written, numbers as their digits, and refuses true or false as text unless the table is made from the file', () => {
     expect(convert('text', ' Acme ')).toEqual({ ok: true, value: ' Acme ' })
     expect(convert('text', 612345678)).toEqual({ ok: true, value: '612345678' })
     expect(convert('text', true).ok).toBe(false)
+    expect(convert('text', true, { ...american, booleanText: true })).toEqual({ ok: true, value: 'TRUE' })
   })
 })
 

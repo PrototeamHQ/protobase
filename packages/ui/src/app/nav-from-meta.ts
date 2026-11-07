@@ -12,7 +12,8 @@ import { text as appText } from './messages'
 /** The sidebar item of a resource's list, or of one of its named lists. */
 export const navItemId = (resource: string, list?: string) => (list === undefined ? resource : `${resource}/${list}`)
 
-const groupLabels: Record<string, 'sales' | 'crm' | 'catalog' | 'inventory' | 'admin' | 'hr'> = { sales: 'sales', crm: 'crm', catalog: 'catalog', inventory: 'inventory', core: 'admin', hr: 'hr' }
+// The tables users add and the list they are made from sit together, under one group.
+const groupLabels: Record<string, 'sales' | 'crm' | 'catalog' | 'inventory' | 'admin' | 'hr' | 'tables'> = { sales: 'sales', crm: 'crm', catalog: 'catalog', inventory: 'inventory', core: 'admin', hr: 'hr', table_definitions: 'tables', user_tables: 'tables' }
 
 /** The group of a schema's resources: none for the default `public` schema, whose name would read as "visible to anyone". */
 const schemaGroup = (schema = 'public') => {
@@ -29,7 +30,7 @@ const createLink = (meta: MetaData, view: ViewModel, nav: NavModel | undefined, 
 
 /**
  * One sidebar group per `nav.group` (default: the database schema, none for `public`, and "Pages" for pages); `nav.hidden` and a place in
- * the user menu leave an entry out, `nav.order` sorts within a group, and `recent` (from `useNavRecent`) makes an entry
+ * the user menu leave an entry out, and `nav.creatorsOnly` for whoever the list does not offer New, `nav.order` sorts within a group, and `recent` (from `useNavRecent`) makes an entry
  * collapsible, and `create` links to the create form under it. Groups with pages come first, so a dashboard leads the sidebar. The resources of a source that cannot be
  * read are listed under its label, each with the problem. A visitor also gets the resources whose views ask them to sign
  * in, where those views place them, under "Account" without a group. Each named list of a view is an entry of its
@@ -57,7 +58,8 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
       groups.set(groupName, group)
       orders.set(item.id, order ?? Number.MAX_SAFE_INTEGER)
     }
-    if (!view.nav?.hidden) {
+    const offered = !view.nav?.creatorsOnly || createOffered(view, meta.pages, meta.permissions[view.resource] ?? allowEverything)
+    if (!view.nav?.hidden && offered) {
       add(
         defaultGroup,
         {

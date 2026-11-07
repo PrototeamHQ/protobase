@@ -36,11 +36,16 @@ export const activityView = view<ReturnType<typeof activityResource>>('record_hi
   .title((r) => r.record_key)
   .help('Every change of the records whose resource keeps history, from the app or straight in the database, newest first.')
   .fields((r) => ({
+    resource: r.resource.label('Resource'),
     record_key: r.record_key.label('Record'),
+    operation: r.operation.label('Operation').valueLabels({ create: 'Created', update: 'Updated', delete: 'Deleted', undelete: 'Restored' }),
+    before: r.before.label('Before'),
+    after: r.after.label('After'),
     actor_id: r.actor_id.label('By'),
     actor_roles: r.actor_roles.label('Acting as'),
     database_role: r.database_role.label('Database role'),
     changed: r.changed.label('Changed fields'),
+    transaction: r.transaction.label('Transaction'),
     at: r.at.label('When'),
   }))
   .list((r) => ({ columns: [r.at, r.resource, r.record_key, r.operation, r.actor_id, r.changed], sort: [[r.id, 'desc']] }))

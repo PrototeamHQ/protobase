@@ -1,9 +1,5 @@
 {
-  "trigger": {
-    "mail": {
-      "mailbox": "support"
-    }
-  },
+  "trigger": {"inbox:new_mail": {"mailbox": "support"}},
   "stateMachine": {
     "QueryLanguage": "JSONata",
     "StartAt": "SaveMail",

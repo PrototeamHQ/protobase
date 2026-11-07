@@ -31,6 +31,7 @@ export const commentsView = view<ReturnType<typeof commentsResource>>('record_co
   .title((r) => r.record_key)
   .help('Every comment on the records whose resource takes comments, newest first. Delete one to take it down.')
   .fields((r) => ({
+    resource: r.resource.label('Resource'),
     record_key: r.record_key.label('Record'),
     author_id: r.author_id.label('By'),
     body: r.body.label('Comment'),

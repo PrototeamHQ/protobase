@@ -1,26 +1,18 @@
 import type { Problem } from './problem'
 import type { Trigger } from './types'
 
-// One cron field: `*`, a number, a range, a list or a step, as five-field cron writes them.
-const cronField = /^(\*|\d+(-\d+)?)(\/\d+)?(,(\*|\d+(-\d+)?)(\/\d+)?)*$/
+/** Checks a trigger type's input: each problem's field is relative to the input, such as `cron`. */
+export type TriggerCheck = (input: Record<string, unknown>) => { field?: string; message: string }[]
 
-const knownZone = (zone: string) => {
-  try {
-    new Intl.DateTimeFormat('en', { timeZone: zone })
-    return true
-  } catch (error) {
-    if (!(error instanceof RangeError)) throw error
-    return false
-  }
-}
-
-/** What the schema cannot check of a trigger: a schedule's five cron fields and its IANA time zone. */
-export const triggerProblems = (trigger: Trigger): Problem[] => {
-  if (!('schedule' in trigger)) return []
-  const problems: Problem[] = []
-  const fields = trigger.schedule.cron.trim().split(/\s+/)
-  if (fields.length !== 5 || !fields.every((field) => cronField.test(field))) problems.push({ field: 'trigger.schedule.cron', message: 'must be a cron of 5 fields, such as 0 6 * * *' })
-  const zone = trigger.schedule.timezone
-  if (zone !== undefined && !knownZone(zone)) problems.push({ field: 'trigger.schedule.timezone', message: `"${zone}" is not an IANA time zone, such as Europe/Amsterdam` })
-  return problems
+/**
+ * What the schema cannot check of a trigger: that its type is one the app has and can run, `unavailable` holding why
+ * it cannot by type, and its input against that type.
+ */
+export const triggerProblems = (trigger: Trigger, triggers: Readonly<Record<string, TriggerCheck>>, unavailable: Readonly<Record<string, string>> = {}): Problem[] => {
+  const [type, input] = Object.entries(trigger)[0]!
+  if (type === 'manual') return Object.keys(input).length === 0 ? [] : [{ field: 'trigger.manual', message: 'takes no input' }]
+  if (Object.hasOwn(unavailable, type)) return [{ field: 'trigger', message: `"${type}" cannot run in this app: ${unavailable[type]}` }]
+  const check = triggers[type]
+  if (!check) return [{ field: 'trigger', message: `"${type}" is not a trigger type; use manual or one of ${Object.keys(triggers).join(', ')}` }]
+  return check(input).map((problem) => ({ field: `trigger.${type}${problem.field ? `.${problem.field}` : ''}`, message: problem.message }))
 }

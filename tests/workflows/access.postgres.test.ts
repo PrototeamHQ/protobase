@@ -178,6 +178,28 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
     expect(await count('notes')).toBe(before + 2)
   })
 
+  it('creates its records once when the step is tried again after they committed, and returns them again', async () => {
+    // The first save of the step fails after its record committed, as a worker that dies there would leave it.
+    await pg.exec(`create sequence crash_once;
+      create function crash_once() returns trigger language plpgsql as $$
+      begin
+        if new.state = 'WriteOnce' and nextval('crash_once') = 1 then raise exception 'the worker died'; end if;
+        return new;
+      end $$;
+      create trigger crash_once before insert on workflows.steps for each row execute function crash_once()`)
+    const workflow = await created(await as('ada', '/workflows', {
+      method: 'POST',
+      body: { name: 'Once', definition: definition({ WriteOnce: { Type: 'Task', Resource: 'app:records.create', Arguments: { resource: 'notes', data: { text: 'once' } }, End: true } }) },
+    }))
+    const run = await created(await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: {} } }))
+    await finished(run)
+    await pg.exec('drop trigger crash_once on workflows.steps')
+    const notes = (await sql<{ id: number }>`select id from notes where text = 'once'`.execute(db)).rows
+    expect(notes).toHaveLength(1)
+    const output = (await sql<{ status: string; output: unknown }>`select status, output from workflows.runs where id = ${run}`.execute(db)).rows[0]
+    expect(output).toEqual({ status: 'succeeded', output: { id: notes[0]!.id, text: 'once' } })
+  })
+
   it('sends a secret where the workflow puts it, and keeps it in no run, step or job, across a wait and on failure', async () => {
     const workflow = await created(await as('ada', '/workflows', {
       method: 'POST',

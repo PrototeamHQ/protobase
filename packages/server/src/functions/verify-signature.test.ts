@@ -24,6 +24,9 @@ describe('verifySignature', () => {
     expect(await refusal(verifySignature(github('sha256=zz'), options))).toEqual([401, 'invalid-signature', 'The x-hub-signature-256 signature does not match the body'])
     expect(await refusal(verifySignature(github(valid.replace(/.$/, (last) => (last === '0' ? '1' : '0'))), options))).toEqual([401, 'invalid-signature', expect.any(String)])
     expect(await refusal(verifySignature(post('{"action":"closed"}', { 'x-hub-signature-256': valid }), options))).toEqual([401, 'invalid-signature', expect.any(String)])
+    // A signature of another length than the digest is refused, never thrown on by the constant-time compare.
+    expect(await refusal(verifySignature(github(`sha256=${'ab'.repeat(8)}`), options))).toEqual([401, 'invalid-signature', expect.any(String)])
+    expect(await refusal(verifySignature(github(`sha256=${'ab'.repeat(500)}`), options))).toEqual([401, 'invalid-signature', expect.any(String)])
   })
 })
 

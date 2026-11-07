@@ -1,8 +1,8 @@
+import { isFileValue } from '@protobase/workflows/plugin'
 import { StepError } from '@protobase/workflows'
 import type { FilesRuntime } from '../files/runtime'
 import { cleanName, formatUri, parseUri, type FileRef } from '../files/uri'
 import { readLimited } from '../webhooks/table/read-limited'
-import type { ScratchFiles } from './scratch-files'
 
 /** The most bytes of one file a workflow stores or reads, as the `http` step reads at most. */
 export const runFileLimit = 10 * 1024 * 1024
@@ -31,41 +31,21 @@ const runStore = (files: FilesRuntime | undefined) => {
   return kept.store
 }
 
-/** Keeps bytes at `path` of the run's store, and a copy on the scratch disk when there is one. */
-export const putRunBytes = async (store: NonNullable<ReturnType<typeof privateRunStore>>, path: string, bytes: Uint8Array, scratch?: ScratchFiles) => {
-  await store.put(path, new Blob([bytes as BlobPart]).stream())
-  await scratch?.put(path, bytes)
-}
-
-/** The bytes at `path`, up to one more than `limit`: from the scratch disk when it still has them, else the run's store. */
-export const readRunBytes = async (store: NonNullable<ReturnType<typeof privateRunStore>>, path: string, limit: number, scratch?: ScratchFiles) => {
-  const near = await scratch?.read(path)
-  if (near) return near
-  const stream = await store.read(path)
-  if (!stream) return undefined
-  const bytes = await readLimited(new Response(stream), limit + 1)
-  if (bytes.length <= limit) await scratch?.put(path, bytes)
-  return bytes
-}
-
 /**
  * Stores bytes a step of the run got, such as an answer's body, as a file of the run's own, under a name of the
- * runner's choosing: no part of its path comes from the workflow or the answer.
+ * runner's choosing: no part of its path comes from the workflow or the answer. At most `runFileLimit` bytes.
  */
-export const storeRunFile = async (files: FilesRuntime | undefined, runId: string, bytes: Uint8Array, name: string, type: string, scratch?: ScratchFiles): Promise<FileValue> => {
+export const storeRunFile = async (files: FilesRuntime | undefined, runId: string, bytes: Uint8Array, name: string, type: string): Promise<FileValue> => {
   const store = runStore(files)
+  // A file larger than a run reads back would be kept for nothing.
+  if (bytes.length > runFileLimit) throw new StepError('States.TaskFailed', `${cleanName(name)} is larger than ${runFileLimit / 1024 / 1024} MiB, the most a run keeps of one file`)
   const path = `${prefix(runId)}${crypto.randomUUID()}`
-  await putRunBytes(store, path, bytes, scratch)
+  await store.put(path, new Blob([bytes as BlobPart]).stream())
   const clean = cleanName(name)
   return { uri: formatUri({ provider, path, name: clean, size: bytes.length }), name: clean, type, size: bytes.length }
 }
 
-/** Whether a value has a file value's shape, all four fields; an object with only a `uri` is other data. */
-export const isFileValue = (value: unknown): value is FileValue => {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const { uri, name, type, size } = value as Partial<Record<keyof FileValue, unknown>>
-  return typeof uri === 'string' && typeof name === 'string' && typeof type === 'string' && typeof size === 'number'
-}
+export { isFileValue }
 
 /**
  * The file a file value names, when it is one the run stored itself; a step fails on any other, so a workflow cannot
@@ -79,11 +59,20 @@ export const runFileRef = (runId: string, value: unknown, field: string): FileRe
   return { ...ref, ...(typeof type === 'string' && { type }) }
 }
 
-/** The bytes of a file the run stored itself, read up to `runFileLimit`, from the scratch disk first when there is one. */
-export const readRunFile = async (files: FilesRuntime | undefined, runId: string, value: unknown, field: string, scratch?: ScratchFiles) => {
+/** The bytes of a file the run stored itself, read up to `runFileLimit`. */
+export const readRunFile = async (files: FilesRuntime | undefined, runId: string, value: unknown, field: string) => {
   const ref = runFileRef(runId, value, field)
-  const bytes = await readRunBytes(runStore(files), ref.path, runFileLimit, scratch)
-  if (!bytes) throw new StepError('States.TaskFailed', `${field} names a file that is gone`)
+  const store = runStore(files)
+  const stream = await store.read(ref.path)
+  if (!stream) throw new StepError('States.TaskFailed', `${field} names a file that is gone`)
+  const bytes = await readLimited(new Response(stream), runFileLimit + 1)
   if (bytes.length > runFileLimit) throw new StepError('States.TaskFailed', `${field} is larger than ${runFileLimit / 1024 / 1024} MiB`)
   return { ref, bytes }
+}
+
+/** Removes a file a run stored, as when the run it was kept for turned out to be started already. */
+export const removeRunFile = async (files: FilesRuntime | undefined, value: FileValue) => {
+  const ref = parseUri(value.uri)
+  if (!ref) throw new Error(`${value.uri} is not a file URI`)
+  await runStore(files).delete(ref.path)
 }

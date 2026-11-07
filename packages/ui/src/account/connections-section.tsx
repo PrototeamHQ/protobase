@@ -1,0 +1,115 @@
+import { PlugZap } from 'lucide-react'
+import { Fragment, useState } from 'react'
+import { AuthError, type ConnectionRevocation, type WorkflowConnection } from '@protobase/client'
+import { authMessage } from '../auth/auth-messages'
+import { RecordLink } from '../app/displays/record-link'
+import { formatDate } from '../format'
+import { Badge } from '../primitives/badge'
+import { Button } from '../primitives/button'
+import { Dialog } from '../primitives/dialog'
+import { AccountSection, SectionError, SectionNotice } from './account-section'
+import { text } from './messages'
+
+export type ConnectionsSectionProps = {
+  connections: WorkflowConnection[]
+  /** Leaves for the provider to connect an account; rejects with `AuthError`, which the section shows. */
+  onConnect: (connection: WorkflowConnection) => Promise<void>
+  /** Answers what became of the account's token, which the section says; rejects with `AuthError`, which it shows. */
+  onDisconnect: (accountId: string) => Promise<ConnectionRevocation>
+  /** Why the last connect did not go through, as the provider came back with it. */
+  error?: string
+}
+
+type Chosen = { connection: WorkflowConnection; accountId: string }
+
+const disconnected = { revoked: 'disconnectedRevoked', queued: 'disconnectedQueued', not_revoked: 'disconnectedNotRevoked' } as const satisfies Record<ConnectionRevocation, string>
+
+// Revoking at Google ends every grant the account gave this app, the sign-in and a linked mailbox included.
+const wholeGrant = (connection: WorkflowConnection) => connection.provider === 'google'
+
+/**
+ * The accounts the person connected for their workflows' steps to use, by the connection the app's plugins declare:
+ * each one connects an account, again when a trigger waits for it, and disconnects one, which revokes its token and
+ * says whether the provider took it. Each account links to the workflows that use it.
+ */
+export const ConnectionsSection = ({ connections, onConnect, onDisconnect, error: returned }: ConnectionsSectionProps) => {
+  const [busy, setBusy] = useState<string>()
+  const [error, setError] = useState(returned)
+  const [chosen, setChosen] = useState<Chosen>()
+  const [notice, setNotice] = useState<string>()
+
+  const attempt = async (key: string, work: () => Promise<void>) => {
+    setBusy(key)
+    setError(undefined)
+    setNotice(undefined)
+    try {
+      await work()
+      setChosen(undefined)
+    } catch (failure) {
+      if (!(failure instanceof AuthError)) throw failure
+      setError(authMessage(failure))
+    } finally {
+      setBusy(undefined)
+    }
+  }
+
+  return (
+    <AccountSection title={text('connections')} description={text('connectionsDescription')}>
+      <SectionError message={chosen ? undefined : error} />
+      <SectionNotice message={notice} />
+      <ul className="divide-y rounded-md border">
+        {connections.map((connection) => (
+          <li key={connection.key} className="flex flex-col gap-2 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-3">
+              <PlugZap className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate font-medium">{connection.label}</span>
+              <Button size="sm" loading={busy === connection.key} disabled={busy !== undefined} onClick={() => void attempt(connection.key, () => onConnect(connection))}>
+                {connection.accounts.length > 0 ? text('connectAgain', { name: connection.label }) : text('connect', { name: connection.label })}
+              </Button>
+            </div>
+            {connection.accounts.map((account) => (
+              <Fragment key={account.id}>
+                <div className="flex flex-wrap items-center gap-3 pl-7 text-sm">
+                  <span className="min-w-0 flex-1 text-muted-foreground">
+                    {text('connectedOn', { date: formatDate(Date.parse(account.created_at)) })} · <code className="text-xs">{account.id}</code>
+                  </span>
+                  {account.needs_sign_in ? <Badge tone="amber">{text('connectionNeedsSignIn')}</Badge> : <Badge tone="green">{text('connected')}</Badge>}
+                  <Button size="sm" variant="ghost" onClick={() => setChosen({ connection, accountId: account.id })}>
+                    {text('disconnect')}
+                  </Button>
+                </div>
+                {account.used_by.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-7 text-sm">
+                    <span className="text-muted-foreground">{text('connectionUsedBy')}</span>
+                    {account.used_by.map((workflow) => (
+                      <RecordLink key={workflow.id} resource="workflows" recordKey={workflow.id} className="font-medium text-primary-text hover:underline">
+                        {workflow.name}
+                      </RecordLink>
+                    ))}
+                  </div>
+                )}
+              </Fragment>
+            ))}
+          </li>
+        ))}
+      </ul>
+      {chosen && (
+        <Dialog
+          title={text('disconnectTitle', { name: chosen.connection.label })}
+          description={wholeGrant(chosen.connection) ? `${text('disconnectDescription')} ${text('disconnectWholeGrant')}` : text('disconnectDescription')}
+          onClose={() => setChosen(undefined)}
+          actions={
+            <>
+              <Button onClick={() => setChosen(undefined)}>{text('cancel')}</Button>
+              <Button variant="danger" loading={busy === chosen.accountId} onClick={() => void attempt(chosen.accountId, async () => setNotice(text(disconnected[await onDisconnect(chosen.accountId)])))}>
+                {text('disconnect')}
+              </Button>
+            </>
+          }
+        >
+          {error && <SectionError message={error} />}
+        </Dialog>
+      )}
+    </AccountSection>
+  )
+}

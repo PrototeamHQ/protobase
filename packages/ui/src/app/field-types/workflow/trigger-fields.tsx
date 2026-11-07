@@ -1,78 +1,61 @@
+import type { WorkflowTypeList } from '@protobase/client'
 import type { Trigger } from '@protobase/workflows'
 import { Select } from '../../../primitives/select'
 import { Field } from '../../../record-view/field'
 import { errorAt } from './field-errors'
-import { triggerKind, triggerKinds, type TriggerKind } from './labels'
+import { inputLabel, triggerType, triggerTypeLabel } from './labels'
 import type { NodeProblem } from './problems'
+import { schemaInputs } from './type-inputs'
 import { ValueField } from './value-field'
 import { text } from './messages'
 
-type TriggerFieldsProps = { trigger: Trigger; problems: readonly NodeProblem[]; disabled?: boolean; onChange: (trigger: Trigger) => void }
+type TriggerFieldsProps = { trigger: Trigger; types: WorkflowTypeList; problems: readonly NodeProblem[]; disabled?: boolean; onChange: (trigger: Trigger) => void }
 
-// A trigger of each kind as it starts out, its fields still to fill in where it has any
-const fresh: Record<TriggerKind, Trigger> = {
-  manual: { manual: {} },
-  webhook: { webhook: {} },
-  schedule: { schedule: { cron: '' } },
-  mail: { mail: { mailbox: '' } },
-  record: { record: { events: [] } },
+const withInput = (type: string, input: Record<string, unknown>, name: string, value: unknown): Trigger => {
+  const { [name]: _, ...rest } = input
+  return { [type]: value === undefined ? rest : { ...rest, [name]: value } }
 }
 
-const eventNames = (typed: string) =>
-  typed
-    .split(',')
-    .map((name) => name.trim())
-    .filter(Boolean)
-
-const eventsText = (value: unknown) => (Array.isArray(value) ? value.join(', ') : '')
-
-/** What starts the workflow's runs: its kind, and the schedule, mailbox or record events it waits for. */
-export const TriggerFields = ({ trigger, problems, disabled, onChange }: TriggerFieldsProps) => {
-  const kind = triggerKind(trigger)
+/**
+ * What starts the workflow's runs: its type, among the triggers of `types` the app can run, its plugins' included, and
+ * a field for each input its input schema takes, the ones it needs marked. A trigger of a type the app cannot run or
+ * does not have shows its type and its input as they are, to read only; choosing another type replaces it.
+ */
+export const TriggerFields = ({ trigger, types, problems, disabled, onChange }: TriggerFieldsProps) => {
+  const type = triggerType(trigger)
+  const offered = types.triggers.filter((entry) => entry.available)
+  const chosen = offered.find((entry) => entry.id === type)
+  const other = type !== undefined && !chosen ? type : undefined
+  const input = type === undefined ? {} : (trigger[type as keyof Trigger] ?? {})
   return (
     <>
-      <Field label={text('startsWhen')} error={errorAt(problems, 'trigger')}>
-        <Select value={kind ?? ''} disabled={disabled} onChange={(event) => onChange(fresh[event.target.value as TriggerKind])}>
-          {kind === undefined && <option value="">{text('triggerUnknown')}</option>}
-          {triggerKinds.map((entry) => (
-            <option key={entry.kind} value={entry.kind}>
-              {entry.label()}
+      <Field label={text('startsWhen')} error={errorAt(problems, 'trigger')} help={other && text('triggerOtherHelp')}>
+        <Select value={type ?? ''} disabled={disabled} onChange={(event) => onChange({ [event.target.value]: {} })}>
+          {other !== undefined && <option value={other}>{triggerTypeLabel(other, types.triggers.find((entry) => entry.id === other)?.label)}</option>}
+          {type === undefined && <option value="">{text('triggerUnknown')}</option>}
+          {offered.map((entry) => (
+            <option key={entry.id} value={entry.id}>
+              {triggerTypeLabel(entry.id, entry.label)}
             </option>
           ))}
         </Select>
       </Field>
-      {'schedule' in trigger && (
-        <>
-          <ValueField label={text('cron')} kind="text" required help={text('cronHelp')} value={trigger.schedule.cron} error={errorAt(problems, 'trigger.schedule.cron')} disabled={disabled} onChange={(cron) => onChange({ schedule: { ...trigger.schedule, cron: String(cron ?? '') } })} />
+      {chosen &&
+        schemaInputs(chosen.input).map((field) => (
           <ValueField
-            label={text('timezone')}
-            kind="text"
-            help={text('timezoneHelp')}
-            value={trigger.schedule.timezone}
-            error={errorAt(problems, 'trigger.schedule.timezone')}
+            key={`${chosen.id}:${field.name}`}
+            label={inputLabel(field.name, field.title)}
+            kind={field.kind}
+            options={field.options}
+            required={field.required}
+            {...(field.kind === 'names' && { help: text('namesHelp') })}
+            value={input[field.name]}
+            error={errorAt(problems, `trigger.${chosen.id}.${field.name}`)}
             disabled={disabled}
-            onChange={(timezone) => {
-              const { timezone: _, ...rest } = trigger.schedule
-              onChange({ schedule: timezone === undefined ? rest : { ...rest, timezone: String(timezone) } })
-            }}
+            onChange={(value) => onChange(withInput(chosen.id, input, field.name, value))}
           />
-        </>
-      )}
-      {'mail' in trigger && <ValueField label={text('mailbox')} kind="text" required value={trigger.mail.mailbox} error={errorAt(problems, 'trigger.mail')} disabled={disabled} onChange={(mailbox) => onChange({ mail: { mailbox: String(mailbox ?? '') } })} />}
-      {'record' in trigger && (
-        <ValueField
-          label={text('events')}
-          kind="text"
-          required
-          help={text('eventsHelp')}
-          value={trigger.record.events}
-          read={eventNames}
-          write={eventsText}
-          error={errorAt(problems, 'trigger.record')}
-          disabled={disabled}
-          onChange={(events) => onChange({ record: { events: events as string[] } })}
-        />
-      )}
+        ))}
+      {other !== undefined && <ValueField label={text('triggerInput')} kind="json" value={input} error={errorAt(problems, `trigger.${other}`)} disabled onChange={() => undefined} />}
     </>
   )
 }

@@ -1,11 +1,5 @@
 {
-  "trigger": {
-    "record": {
-      "events": [
-        "orders.created"
-      ]
-    }
-  },
+  "trigger": {"app:record": {"resource": "orders", "when": "isNull(status)"}},
   "stateMachine": {
     "QueryLanguage": "JSONata",
     "StartAt": "Charge",
@@ -17,11 +11,11 @@
           "method": "POST",
           "url": "https://payments.example.com/charges",
           "headers": {
-            "Idempotency-Key": "{% 'order-' & $string($states.context.Execution.Input.after.id) & '-charge' %}"
+            "Idempotency-Key": "{% 'order-' & $string($states.context.Execution.Input.record.id) & '-charge' %}"
           },
           "body": {
-            "order_id": "{% $states.context.Execution.Input.after.id %}",
-            "amount": "{% $states.context.Execution.Input.after.total %}"
+            "order_id": "{% $states.context.Execution.Input.record.id %}",
+            "amount": "{% $states.context.Execution.Input.record.total %}"
           }
         },
         "Retry": [
@@ -52,7 +46,7 @@
         "Resource": "app:records.update",
         "Arguments": {
           "resource": "orders",
-          "key": "{% $states.context.Execution.Input.after.id %}",
+          "key": "{% $states.context.Execution.Input.record.id %}",
           "data": {
             "status": "payment_failed"
           }
@@ -64,7 +58,7 @@
         "Resource": "app:mail.send",
         "Arguments": {
           "to": "ops@example.com",
-          "subject": "{% 'Payment failed for order ' & $states.context.Execution.Input.after.id %}",
+          "subject": "{% 'Payment failed for order ' & $states.context.Execution.Input.record.id %}",
           "text": "{% $chargeError.Cause %}"
         },
         "End": true

@@ -92,7 +92,7 @@ export const buildConfigBundle = async ({ projectDir, outFile, bun, extensions =
   const config = await loadSourceConfig(projectDir, { command: 'build', extensions, importModules: (files) => importProjectFiles(files, projectDir, packages) })
   const file = path.join(projectDir, 'protobase-bundle-entry.js')
   const native = new Map<string, NativeImport>()
-  const plugins = [layoutCheck(), collectComponents(components), extensionImports(projectDir, extensions), servedImports(native), entry(file, bundleEntryCode(projectDir, extensions, config.files?.images ? [config.files.images] : []))]
+  const plugins = [layoutCheck(), collectComponents(components), extensionImports(projectDir, extensions), servedImports(native), entry(file, bundleEntryCode(projectDir, extensions, [...(config.files?.images ? [config.files.images] : []), ...(config.workflows?.plugins ?? [])]))]
   await viteBundle({ root: projectDir, entry: file, outFile, bun, plugins })
   return { native: [...native.values()], mobile: config.mobile }
 }

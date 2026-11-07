@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { WorkflowTypeList } from '@protobase/client'
 import type { Definition } from '@protobase/workflows'
 import { AddStep } from './add-step'
 import { definitionOf, pathOf, stateAt, triggerId } from './definition'
@@ -12,6 +13,8 @@ import { text } from './messages'
 export type WorkflowGraphEditorProps = {
   /** The definition as the field holds it; none starts an empty workflow. */
   value: unknown
+  /** The app's trigger and step types, its plugins' included, as the server lists them. */
+  types: WorkflowTypeList
   /** Without it, the workflow is only shown. */
   onChange?: (definition: Definition) => void
 }
@@ -28,11 +31,11 @@ const scopeFor = (definition: Definition, selected: string | undefined): string[
  * each change, and the chosen node's fields under it. Every problem the save's check would refuse it for shows on the
  * node it names as it is edited, and the rest above the canvas.
  */
-export const WorkflowGraphEditor = ({ value, onChange }: WorkflowGraphEditorProps) => {
+export const WorkflowGraphEditor = ({ value, types, onChange }: WorkflowGraphEditorProps) => {
   // The form hands the value over anew on each render: the definition changes only when its JSON does
   const json = JSON.stringify(value ?? null)
   const definition = useMemo(() => definitionOf(JSON.parse(json)), [json])
-  const checked = useMemo(() => problemsByNode(definitionProblems(definition)), [definition])
+  const checked = useMemo(() => problemsByNode(definitionProblems(definition, types)), [definition, types])
   const [chosen, setChosen] = useState<string>()
   // A node the definition no longer has is no longer chosen
   const selected = chosen === triggerId || (chosen !== undefined && stateAt(definition, chosen)) ? chosen : undefined
@@ -49,15 +52,15 @@ export const WorkflowGraphEditor = ({ value, onChange }: WorkflowGraphEditorProp
     <div className="flex flex-col gap-3">
       {onChange && (
         <div className="flex flex-wrap items-center gap-2">
-          <AddStep inside={scope.length > 0 ? scope.join('/') : undefined} onAdd={add} />
+          <AddStep types={types} inside={scope.length > 0 ? scope.join('/') : undefined} onAdd={add} />
           <p className="text-xs text-muted-foreground">{text('connectHelp')}</p>
         </div>
       )}
       <ProblemList problems={checked.whole} />
       <div className="h-[28rem] overflow-hidden rounded-lg border max-sm:h-[22rem]">
-        <WorkflowCanvas definition={definition} problems={checked.byNode} selected={selected} onSelect={setChosen} onChange={onChange} />
+        <WorkflowCanvas definition={definition} problems={checked.byNode} selected={selected} onSelect={setChosen} onChange={onChange} types={types} />
       </div>
-      {selected !== undefined && <NodePanel definition={definition} selected={selected} problems={checked.byNode.get(selected) ?? []} onChange={onChange} onSelect={setChosen} />}
+      {selected !== undefined && <NodePanel definition={definition} types={types} selected={selected} problems={checked.byNode.get(selected) ?? []} onChange={onChange} onSelect={setChosen} />}
     </div>
   )
 }

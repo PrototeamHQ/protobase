@@ -1,0 +1,72 @@
+import type { BetterAuthPlugin } from 'better-auth'
+import { createAuthEndpoint, createAuthMiddleware, sessionMiddleware } from 'better-auth/api'
+import { decryptOAuthToken } from 'better-auth/oauth2'
+import * as z from 'zod'
+import type { ConnectionEvents } from './connection-events'
+import { connectionRefusal } from './connection-refusal'
+import type { ResolvedConnection } from './declared-connections'
+import { disconnectAccount } from './disconnect-account'
+import { listConnections } from './list-connections'
+import { unlinkGuard } from './unlink-guard'
+
+export const connectionPaths = { list: '/connections', disconnect: '/connections/disconnect' }
+
+export type ConnectionsPluginInput = { connections: readonly ResolvedConnection[]; events: ConnectionEvents; allowPrivateAddresses: boolean }
+
+/**
+ * The signed-in person's connections: `GET /connections` lists each connection the app's workflow plugins declare with
+ * the person's accounts that fit it, whether a trigger waits for one to be signed in again and the workflows that use
+ * it, never a token (see `listConnections`).
+ * `POST /connections/disconnect` stops the triggers on an account, revokes its token at its provider and deletes it
+ * whatever the provider answered, answering what became of the token (`disconnectAccount`); their own account only,
+ * and never the last account they sign in with. Connecting is Better Auth's `/link-social`; a sign-in (not
+ * a link) through a provider only connections use is refused, and so is Better Auth's `/unlink-account` of a connection.
+ */
+export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }: ConnectionsPluginInput) => {
+  const own = new Set(connections.filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId))
+  return {
+    id: 'protobase-connections',
+    endpoints: {
+      listConnections: createAuthEndpoint(connectionPaths.list, { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
+        const adapter = ctx.context.internalAdapter
+        return ctx.json({ connections: await listConnections({ findAccounts: (userId) => adapter.findAccounts(userId), connections, events }, ctx.context.session.user.id) })
+      }),
+      disconnectConnection: createAuthEndpoint(connectionPaths.disconnect, { method: 'POST', use: [sessionMiddleware], body: z.object({ accountId: z.string() }) }, async (ctx) => {
+        const adapter = ctx.context.internalAdapter
+        const accounts = await adapter.findAccounts(ctx.context.session.user.id)
+        const account = accounts.find((candidate) => candidate.id === ctx.body.accountId)
+        const connection = account && connections.find((candidate) => candidate.providerId === account.providerId)
+        // The same answer for an account that is not there and one of someone else's, so it tells nothing of other accounts.
+        if (!account || !connection) throw connectionRefusal('NOT_FOUND', 'CONNECTION_NOT_FOUND', ctx.headers)
+        // As Better Auth's own unlinking: the last account that signs in is the person's only way to sign in. An account of
+        // a provider only connections use never signs in, so disconnecting it is always allowed.
+        const signIns = accounts.filter((candidate) => !own.has(candidate.providerId))
+        if (!own.has(account.providerId) && signIns.length === 1) throw connectionRefusal('BAD_REQUEST', 'FAILED_TO_UNLINK_LAST_ACCOUNT', ctx.headers)
+        // A token the provider may not take is kept for a later try, so disconnecting waits until the workflows can queue it.
+        if (connection.revocationUrl && !events.listening()) throw connectionRefusal('SERVICE_UNAVAILABLE', 'CONNECTIONS_STARTING', ctx.headers)
+        const revocation = await disconnectAccount({
+          account,
+          connection,
+          events,
+          deleteAccount: (accountId) => adapter.deleteAccount(accountId),
+          decrypt: (stored) => decryptOAuthToken(stored, ctx.context),
+          secret: ctx.context.secretConfig,
+          allowPrivateAddresses,
+        })
+        return ctx.json({ disconnected: true, revocation })
+      }),
+    },
+    hooks: {
+      before: [
+        {
+          matcher: (context) => context.path === '/sign-in/social',
+          handler: createAuthMiddleware(async (ctx) => {
+            const provider = (ctx.body as { provider?: unknown } | undefined)?.provider
+            if (typeof provider === 'string' && own.has(provider)) throw connectionRefusal('FORBIDDEN', 'CONNECTION_NOT_SIGN_IN', ctx.headers)
+          }),
+        },
+        unlinkGuard(connections),
+      ],
+    },
+  } satisfies BetterAuthPlugin
+}

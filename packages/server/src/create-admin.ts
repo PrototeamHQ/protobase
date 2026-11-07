@@ -4,7 +4,7 @@ import type { JWTPayload } from 'jose'
 import { accountPage, accountPageName, checkPages, settingsResources, withSettingsFields } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
-import { guestCallsPath, ringsPath, statusPath } from '@protobase/schema/internal'
+import { guestCallsPath, ringsPath, statusPath, workflowRunsPath, workflowTypesPath } from '@protobase/schema/internal'
 import { aiModel } from './ai/ai-model'
 import { hasAiActions, hasAiFields } from './ai/ai-fields'
 import { fillHook } from './ai/fill-hook'
@@ -66,6 +66,10 @@ import { webhookTable } from './webhooks/table/webhook-table'
 import { subscriptionUrlCheck, subscriptionWriteCheck } from './webhooks/table/validate-hook'
 import type { WebhooksOptions } from './webhooks/table/options'
 import { workflowEngine } from './workflows/workflow-engine'
+import { workflowTraceRoute } from './workflows/workflow-trace-route'
+import { workflowTypesRoute } from './workflows/workflow-types-route'
+import { hooksBase } from './workflows/hooks/hook-paths'
+import { issueWebhook } from './workflows/hooks/issue-webhook'
 import type { WorkflowsOptions } from './workflows/options'
 import type { NotificationsOptions } from './notifications/options'
 import type { CallsOptions } from './calls/calls-options'
@@ -298,7 +302,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const encryption = createEncryptionRuntime({ models: registry.entries.map((entry) => entry.model), env: globalThis.process?.env ?? {} })
   const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), ...(secret && { secret }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath, storage: servesKeys })
   const table = webhooksOptions && webhookTable(webhooksOptions, auth)
-  const engine = workflowsOptions && workflowEngine(workflowsOptions, () => deps, auth)
+  const engine = workflowsOptions && workflowEngine(workflowsOptions, () => deps, auth, locale)
   // AI fields and actions call the assistant's model; without a key they fail when used, and dev and serve stop at startup (see `checkAi`)
   const withAi = withAiFields || hasAiActions(viewModels)
   const model = withAi ? aiModel(options.assistant, globalThis.process?.env ?? {}) : undefined
@@ -419,7 +423,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { readTrace: engine.readTrace } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
     const instructions = engine ? `${mcpInstructions}\n${workflowInstructions}` : mcpInstructions
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
@@ -462,6 +466,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     if (auth) removeHistoryWithUsers(auth, history)
     app.route(historyPath(systemPath), guarded((routes) => void routes.route('/', historyRoutes(history, auth?.origins ?? []))))
   }
+  if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types))))
+  if (engine) app.route(workflowRunsPath(systemPath), guarded((routes) => void routes.route('/', workflowTraceRoute(deps, engine.readTrace))))
   if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))
   if (deps.calls) app.route(ringsPath(systemPath), guarded((routes) => void routes.route('/', ringRoutes(deps.calls!))))
   // The guests' lobby and call socket, which take only guests' tokens; with organizations, the admin's switch for them.
@@ -487,18 +493,21 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
       app.route(storagePath, storageRoutes({ deps: storage, report }))
     }
   }
+  // Before the live stream's guard, which wants a token for everything under the system path: the webhook address takes none.
+  if (engine) app.route(hooksBase(systemPath), engine.routes.hooks())
   // After `/api/sb`, which the guard's token check under the system path would otherwise stand before.
   // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
   // With calls, the stream also tells each user's pages of the calls that ring them.
   if (appModels.some((model) => model.live) || deps.calls) {
     app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
   }
+  if (engine) app.route(`${systemPath}/workflows`, guarded((routes) => void routes.route('/', engine.routes.issue())))
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)
   // Before the system endpoints, which want a token for everything under them
   app.route(systemPath || '/', webManifestRoute(appName, identity, icons))
   app.route(deps.systemPath || '/', system)
-  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
+  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }), ...(engine && { onChanges: engine.onChanges }) })
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), sqlSends: sqlSends(realtime), report })
-  return Object.assign(app, { startRealtimePrune: prune, decryptField, metaPath: `${deps.systemPath}/meta`, jobs: [...webhooks.jobs, ...(engine ? [engine.job] : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
+  return Object.assign(app, { startRealtimePrune: prune, decryptField, metaPath: `${deps.systemPath}/meta`, jobs: [...webhooks.jobs, ...(engine ? engine.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
 }

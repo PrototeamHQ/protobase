@@ -35,7 +35,7 @@ export type AuthHooks = {
  * `auth` in `protobase.config.ts`: the sign-in settings as data. The store is the app's own database, in `schema`;
  * the hooks and a mailer of the project's own are found in auth/hooks.ts and auth/mailer.ts.
  */
-export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'generateUserId' | 'onUserCreated' | 'mailer' | 'organizations' | 'mcp'> & {
+export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'generateUserId' | 'onUserCreated' | 'mailer' | 'organizations' | 'mcp' | 'workflowConnections'> & {
   /** Signs cookies and encrypts the JWT private keys, such as `PROTOBASE_SECRET`. Generate with `openssl rand -base64 32`. */
   secret?: string
   /** The schema of the auth store in the app's database; default `auth`. */
@@ -58,6 +58,8 @@ export type AppAuthInput = {
   hooks?: AuthHooks
   /** A mailer of the project's own, in place of the default. */
   mailer?: Mailer
+  /** The connections the app's workflow plugins declare, which people connect accounts through. */
+  workflowConnections?: CreateAuthOptions['workflowConnections']
 }
 
 const organizationOptions = (organizations: AuthSettings['organizations'], hooks: AuthHooks, app: HookContext): OrganizationsOptions | undefined => {
@@ -74,7 +76,7 @@ const organizationOptions = (organizations: AuthSettings['organizations'], hooks
 }
 
 /** createAuth's options for the `auth` settings, the store in the app's own database. */
-export const appAuthOptions = (settings: AuthSettings, { pool, db, hooks = {}, mailer }: AppAuthInput): CreateAuthOptions => {
+export const appAuthOptions = (settings: AuthSettings, { pool, db, hooks = {}, mailer, workflowConnections }: AppAuthInput): CreateAuthOptions => {
   const { schema = 'auth', secret, generateUserId, mailer: mail, organizations, mcp, ...rest } = settings
   if (!secret) throw new Error("the auth secret is not set: give it the app's secret, PROTOBASE_SECRET, made with `openssl rand -base64 32`")
   const app = { db }
@@ -90,6 +92,7 @@ export const appAuthOptions = (settings: AuthSettings, { pool, db, hooks = {}, m
     ...(mail === false ? { mailer: false as const } : mailer && { mailer }),
     ...(organizationsOptions && { organizations: organizationsOptions }),
     ...(mcp && { mcp }),
+    ...(workflowConnections && { workflowConnections }),
   }
 }
 

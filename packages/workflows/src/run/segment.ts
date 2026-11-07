@@ -4,6 +4,9 @@ import type { ScopeOutcome } from './context'
 import { SupersededError } from './errors'
 import type { Checkpoint, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
+import type { StepCacheStore } from './cache/cache-port'
+import { secretNamer } from './cache/secret-names'
+import { replayedSteps, type ReplayedStep } from './replay'
 import { runScope } from './scope'
 
 export type SegmentInput = {
@@ -21,6 +24,10 @@ export type SegmentInput = {
   /** Saves checkpoints in one guarded statement: false when a scope has one newer than the one it follows. */
   save: (checkpoints: readonly Checkpoint[]) => Promise<boolean>
   tasks: TaskHandlers
+  /** Where step types that cache keep their results; none keeps nothing. */
+  cache?: StepCacheStore
+  /** In a replay, the steps of the run it replays, from its trace. */
+  replayed?: readonly ReplayedStep[]
   signal: AbortSignal
   now?: () => Date
   /** How long the segment takes new steps. Default `limits.segmentMs`. */
@@ -37,7 +44,7 @@ export type SegmentOutcome = (ScopeOutcome | { kind: 'superseded' }) & { steps: 
  * (a Wait, a retry's delay), or yields once its time is up, saving its checkpoints on the way and as it pauses.
  * `superseded` when another segment saved a newer checkpoint first.
  */
-export const runSegment = async ({ runId, definition, input, startedAt, secrets, redactor, saved, save, tasks, signal, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: SegmentInput): Promise<SegmentOutcome> => {
+export const runSegment = async ({ runId, definition, input, startedAt, secrets, redactor, saved, save, tasks, cache, replayed, signal, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: SegmentInput): Promise<SegmentOutcome> => {
   const latest = new Map(saved.map((checkpoint) => [checkpoint.scope, checkpoint]))
   // The seq of each scope's last saved checkpoint, which the next one follows.
   const after = new Map(saved.map((checkpoint) => [checkpoint.scope, checkpoint.seq]))
@@ -61,6 +68,8 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     stateContext: { Execution: { Input: input, StartTime: startedAt.toISOString() }, Secrets: secrets },
     redactor,
     tasks,
+    ...(cache && { cache: { store: cache, nameSecrets: secretNamer(secrets) } }),
+    ...(replayed && { replay: { steps: replayedSteps(replayed) } }),
     signal,
     now,
     deadline: Date.now() + budgetMs,

@@ -41,10 +41,11 @@ const keptLogs = (logs: StepLog[], redact: (text: string) => string): StepLog[] 
 
 // A step whose input, output or variables are larger than a step may keep fails instead, and so does its run.
 const withinLimits = (record: StepRecord): StepRecord => {
-  const field = (['input', 'output', 'assigned'] as const).find((name) => jsonBytes(record[name]) > limits.valueBytes)
-  if (!field) return record
+  const sized = (['input', 'output', 'assigned'] as const).map((field) => ({ field, bytes: jsonBytes(record[field]) })).find(({ bytes }) => bytes > limits.valueBytes)
+  if (!sized) return record
   const { output: _, assigned: __, input: ___, ...rest } = record
-  return { ...rest, status: 'failed', next: null, resumeAt: null, error: 'States.DataLimitExceeded', cause: `The step's ${field} is larger than ${limits.valueBytes / 1024 / 1024} MiB` }
+  const cause = `The step's ${sized.field} is ${sized.bytes} bytes as JSON, over the ${limits.valueBytes / 1024} KiB a value is kept up to; keep it in a store and pass a reference`
+  return { ...rest, status: 'failed', next: null, resumeAt: null, error: 'States.DataLimitExceeded', cause }
 }
 
 /**
@@ -57,8 +58,12 @@ export const runScope = async (context: SegmentContext, machine: Machine, scope:
   const saved = context.saved.get(scope)
   let position = saved ? positionOf(saved) : startPosition(machine, input, clock)
   for (;;) {
-    if (position.kind === 'ended') return { kind: 'ended', output: position.output }
     if (position.kind === 'failed') return { kind: 'failed', error: position.error, cause: position.cause }
+    if (position.kind === 'ended') {
+      // A scope whose last state was a Wait ends only once that time has passed.
+      if (position.resumeAt && position.resumeAt > context.now()) return { kind: 'blocked', until: position.resumeAt }
+      return { kind: 'ended', output: position.output }
+    }
     // Another Map item found the run gone on without this segment: this item stops too, before its next step.
     if (context.superseded()) throw new SupersededError(`Scope "${scope}" stopped: another segment saved a step of this run first`)
     if (position.resumeAt && position.resumeAt > context.now()) return { kind: 'blocked', until: position.resumeAt }
@@ -85,6 +90,8 @@ export const runScope = async (context: SegmentContext, machine: Machine, scope:
     context.trace(record)
     const before = position
     position = advance(position, record)
+    // A scope that failed keeps the checkpoint before, which a run after a crash, or a re-run, goes on from.
+    if (position.kind === 'failed') continue
     // A recorded call must not happen twice, and a time to go on at would be set anew by a later run of its step.
     await context.checkpoint(checkpointOf(position, record, before.clock), record.recorded || Boolean(record.resumeAt))
   }

@@ -32,8 +32,11 @@ export const failedJobsView = view<typeof failedJobs>('failed_jobs')
   .fields((r) => ({
     name: r.name.label('Job'),
     error: r.error.label('Last error'),
+    attempts: r.attempts.label('Attempts'),
     failed_at: r.failed_at.label('Failed'),
     created_at: r.created_at.label('Enqueued'),
+    key: r.key.label('Key'),
+    payload: r.payload.label('Payload'),
     output: r.output.label('Error details'),
   }))
   .list((r) => ({ columns: [r.name, r.error, r.attempts, r.failed_at], sort: [[r.failed_at, 'desc']] }))

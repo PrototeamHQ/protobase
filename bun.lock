@@ -18,6 +18,8 @@
         "@protobase/query": "workspace:*",
         "@protobase/schema": "workspace:*",
         "@protobase/server": "workspace:*",
+        "@protobase/workflow-plugins": "workspace:*",
+        "@protobase/workflows": "workspace:*",
         "@seriousme/openapi-schema-validator": "^2.11.0",
         "@storybook/addon-docs": "^10.6.1",
         "@storybook/react-vite": "^10.6.1",
@@ -91,6 +93,7 @@
         "@protobase/schema": "workspace:*",
         "@protobase/server": "workspace:*",
         "@protobase/ui": "workspace:*",
+        "@protobase/workflows": "workspace:*",
         "@react-email/render": "^2.1.0",
         "@scalar/hono-api-reference": "^0.12.10",
         "@sentry/vite-plugin": "^11.10.0",
@@ -222,6 +225,7 @@
         "@protobase/layout": "workspace:*",
         "@protobase/query": "workspace:*",
         "@protobase/schema": "workspace:*",
+        "@protobase/workflow-plugins": "workspace:*",
         "@protobase/workflows": "workspace:*",
         "@react-email/render": "^2.1.0",
         "@react-pdf/primitives": "^4.4.0",
@@ -299,6 +303,14 @@
       },
       "devDependencies": {
         "@types/papaparse": "^5.5.2",
+      },
+    },
+    "packages/workflow-plugins": {
+      "name": "@protobase/workflow-plugins",
+      "version": "0.14.2",
+      "dependencies": {
+        "@protobase/workflows": "workspace:*",
+        "postal-mime": "^4.2.0",
       },
     },
     "packages/workflows": {
@@ -990,6 +1002,8 @@
     "@protobase/server": ["@protobase/server@workspace:packages/server"],
 
     "@protobase/ui": ["@protobase/ui@workspace:packages/ui"],
+
+    "@protobase/workflow-plugins": ["@protobase/workflow-plugins@workspace:packages/workflow-plugins"],
 
     "@protobase/workflows": ["@protobase/workflows@workspace:packages/workflows"],
 
@@ -2294,6 +2308,8 @@
     "pmtiles": ["pmtiles@4.5.0", "", { "dependencies": { "fflate": "^0.8.2" } }, "sha512-CBeD4SoUluFziGdy/8k7FOjQxQy486n+929W/tWophauvMICpkZ26vGBWhDt/6b1FZQWNaf4jFdT/5+q0Wii5w=="],
 
     "png-js": ["png-js@2.0.0", "", { "dependencies": { "fflate": "^0.8.2" } }, "sha512-GdzJuUMc6ZSpxFJWVxtOH1bzYHym+TOnveqUjb+VJIbZWbZzyiRGFiKhbiielfpYbgMlhHVhsJ0FTazfuRFkMA=="],
+
+    "postal-mime": ["postal-mime@4.2.0", "", {}, "sha512-QG5Rh8wY/zjwFF1lKWcBbwWcAWR5jWodmMPL4gMik43XDLebtWoAAPyG0lrE2kYYZ5IHTASrepGuGO0YIwNKAg=="],
 
     "postcss": ["postcss@8.5.29", "", { "dependencies": { "nanoid": "3.3.20", "picocolors": "1.1.1", "source-map-js": "1.2.2" } }, "sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ=="],
 

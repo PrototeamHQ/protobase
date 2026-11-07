@@ -14,6 +14,7 @@ import { adminUser } from './website/users'
 import { ConflictDialog } from './app/delete/dialogs'
 import { CreateRecordForm } from './app/create/create-record-form'
 import { fakeInvoiceClient } from './app/testing/fake-invoice-client'
+import { fakeUserTables } from './app/testing/fake-user-tables'
 import { createRowSource } from './data-grid'
 import { invoiceCount, invoiceRowAt, invoicesColumns, invoicesNaturalSort } from './data-grid/invoices-fixtures'
 import { ordersColumns, ordersNaturalSort } from './data-grid/orders-fixtures'
@@ -365,4 +366,186 @@ export const CreateFormPhone: Story = {
       />
     </div>
   ),
+}
+
+// The tables users add, made from the admin app on a phone: the page scrolls, never sideways.
+const fitsWidth = async () => waitFor(() => expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth))
+
+const tablesApp = (initialUrl: string, made = true) => (
+  <div className="h-screen">
+    <App client={fakeUserTables({ made }).client} auth={storySession} initialUrl={initialUrl} />
+  </div>
+)
+
+export const TablesPhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_tables'),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByRole('heading', { name: 'Tables' })).toBeInTheDocument()
+    expect(await canvas.findByText('notes')).toBeInTheDocument()
+    await fitsWidth()
+  },
+}
+
+export const NewTablePhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_tables/new'),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByLabelText(/Plural label/)).toBeInTheDocument()
+    // The title names a field, and a new table has none yet
+    expect(canvas.queryByLabelText(/Title field/)).toBeNull()
+    await fitsWidth()
+  },
+}
+
+export const NewFieldPhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_table_fields/new?table_id=1'),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('combobox', { name: /Type/ }))
+    const options = await canvas.findAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual(expect.arrayContaining(['Text', 'Long text', 'Whole number', 'Decimal number', 'Yes or no', 'Date and time']))
+    expect(options.map((option) => option.textContent)).not.toContain('long_text')
+    expect(canvas.queryByLabelText(/Required/)).toBeNull()
+  },
+}
+
+export const TableRecordPhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_tables/1'),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByRole('heading', { name: 'Fields' })).toBeInTheDocument()
+    expect(await canvas.findByText('Body')).toBeInTheDocument()
+    await userEvent.click(canvas.getByRole('button', { name: 'Record actions' }))
+    expect(await within(document.body).findByRole('menuitem', { name: 'Open table' })).toHaveAttribute('href', '/notes')
+    expect(within(document.body).getByRole('menuitem', { name: 'Add field' })).toHaveAttribute('href', '/user_table_fields/new?table_id=1')
+    await fitsWidth()
+  },
+}
+
+export const MakeTablePhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_tables/new', false),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(await canvas.findByLabelText(/Plural label/), 'Notes')
+    await userEvent.type(canvas.getByLabelText(/Singular label/), 'Note')
+    await userEvent.type(canvas.getByLabelText(/^Name/), 'notes')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create table' }))
+    expect(await canvas.findByRole('heading', { name: 'Fields' })).toBeInTheDocument()
+    // The server serves the new table at once; the app reads `/meta` again and links to it
+    window.dispatchEvent(new Event('focus'))
+    await userEvent.click(await canvas.findByRole('button', { name: 'Record actions' }))
+    expect(await within(document.body).findByRole('menuitem', { name: 'Open table' })).toHaveAttribute('href', '/notes')
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(canvas.getByRole('button', { name: 'Open navigation' }))
+    const drawer = within(await canvas.findByRole('dialog', { name: 'Navigation' }))
+    expect(drawer.getByRole('link', { name: 'Tables' })).toHaveAttribute('href', '/user_tables')
+    expect(await drawer.findByRole('link', { name: 'Notes' })).toHaveAttribute('href', '/notes')
+  },
+}
+
+// Import on a phone: the dialog is a sheet whose steps stack in one column, never wider than the screen.
+const dialogNamed = async (name: string) => within(await within(document.body).findByRole('dialog', { name }))
+const notesCsv = (rows: string[]) => new File([['Title,Body', ...rows].join('\n')], 'notes.csv', { type: 'text/csv' })
+
+const openImport = async (canvasElement: HTMLElement) => {
+  await userEvent.click(await within(canvasElement).findByRole('button', { name: 'Import' }))
+  return dialogNamed('Import notes')
+}
+
+export const ImportFilePhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/notes'),
+  play: async ({ canvasElement }) => {
+    const dialog = await openImport(canvasElement)
+    expect(dialog.getByLabelText('File')).toBeInTheDocument()
+    await fitsWidth()
+  },
+}
+
+export const ImportMappingPhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/notes'),
+  play: async ({ canvasElement }) => {
+    const dialog = await openImport(canvasElement)
+    await userEvent.upload(dialog.getByLabelText('File'), notesCsv(['Shopping,Milk and bread']))
+    expect(await dialog.findByLabelText('Field for Title', undefined, { timeout: 5000 })).toHaveValue('title')
+    await fitsWidth()
+  },
+}
+
+export const ImportResultPhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/notes'),
+  play: async ({ canvasElement }) => {
+    const dialog = await openImport(canvasElement)
+    await userEvent.upload(dialog.getByLabelText('File'), notesCsv(['Shopping,Milk and bread', ',No title']))
+    await userEvent.click(await dialog.findByRole('button', { name: 'Check rows' }, { timeout: 5000 }))
+    await userEvent.click(await dialog.findByRole('button', { name: 'Import 1 row' }, { timeout: 5000 }))
+    await waitFor(() => expect(dialog.getByLabelText('Import summary')).toHaveTextContent('Created1Updated0Skipped1Failed0'), { timeout: 5000 })
+    await fitsWidth()
+  },
+}
+
+// A new table from a file on a phone: the fields step proposes a field per column, typed from its cells
+const openTableFromFile = async (canvasElement: HTMLElement) => {
+  await userEvent.click(await within(canvasElement).findByRole('button', { name: 'From a file' }))
+  return dialogNamed('New table from a file')
+}
+
+export const TableFromFilePhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_tables', false),
+  play: async ({ canvasElement }) => {
+    const dialog = await openTableFromFile(canvasElement)
+    expect(dialog.getByLabelText('File')).toBeInTheDocument()
+    await fitsWidth()
+  },
+}
+
+export const TableFieldsPhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_tables', false),
+  play: async ({ canvasElement }) => {
+    const dialog = await openTableFromFile(canvasElement)
+    await userEvent.upload(dialog.getByLabelText('File'), notesCsv(['Shopping,007', 'Garden,1,5']))
+    expect(await dialog.findByLabelText('Type for Title', undefined, { timeout: 5000 })).toHaveValue('text')
+    // 007 and 1,5 could be read two ways, so the column stays text
+    expect(dialog.getByLabelText('Type for Body')).toHaveValue('text')
+    expect(dialog.getByLabelText('Name for Title')).toHaveValue('title')
+    expect(dialog.getByRole('button', { name: 'Make table with 2 rows' })).toBeDisabled()
+    await fitsWidth()
+  },
+}
+
+export const TableFromFileMadePhone: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => tablesApp('/user_tables', false),
+  play: async ({ canvasElement }) => {
+    const dialog = await openTableFromFile(canvasElement)
+    await userEvent.upload(dialog.getByLabelText('File'), notesCsv(['Shopping,Milk and bread', 'Garden,Water the plants']))
+    await userEvent.type(await dialog.findByLabelText(/Singular label/, undefined, { timeout: 5000 }), 'Note')
+    await userEvent.click(dialog.getByRole('button', { name: 'Make table with 2 rows' }))
+    // Every row written: the new table's list, with its records
+    const canvas = within(canvasElement)
+    expect(await canvas.findByRole('heading', { name: 'Notes' }, { timeout: 5000 })).toBeInTheDocument()
+    expect(await canvas.findByText('Garden')).toBeInTheDocument()
+    await fitsWidth()
+  },
 }

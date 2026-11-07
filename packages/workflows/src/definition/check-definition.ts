@@ -1,5 +1,5 @@
 import { schemaProblems } from './check-schema'
-import { triggerProblems } from './check-trigger'
+import { triggerProblems, type TriggerCheck } from './check-trigger'
 import { assignedNames, stateExpressions } from './expression-fields'
 import { expressionSource } from './expressions'
 import { edges, reachable } from './graph'
@@ -7,16 +7,25 @@ import { reservedVariables } from './names'
 import type { Problem } from './problem'
 import { builtInFunctions } from './reads'
 import { readProblems } from './check-reads'
+import { connectionProblems } from './used-connections'
 import type { Definition, Machine, TaskState } from './types'
 import { visibleVariables } from './visible'
 import { limits } from '../limits'
 import { nestingDepth } from '../nesting'
 
 /**
- * What a definition is checked against beside the language: the step types (Task resources) the app has, and the
- * arguments each needs (`required`, by step type).
+ * What a definition is checked against beside the language: the step types (Task resources) the app has, the
+ * arguments each needs (`required`, by step type), its trigger types, each with the check of its input, and why the
+ * app cannot run a type it knows (`unavailable`, by step or trigger type), and the connection `<plugin>:<connection>`
+ * each type that signs in uses (`connections`, by step or trigger type); without it the bindings are not checked.
  */
-export type CheckOptions = { resources: readonly string[]; required?: Readonly<Record<string, readonly string[]>> }
+export type CheckOptions = {
+  resources: readonly string[]
+  required?: Readonly<Record<string, readonly string[]>>
+  triggers: Readonly<Record<string, TriggerCheck>>
+  unavailable?: Readonly<Record<string, string>>
+  connections?: Readonly<Record<string, string>>
+}
 
 type Scope = { path: string[]; outer: ReadonlySet<string>; item: boolean }
 
@@ -48,7 +57,9 @@ const machineProblems = (machine: Machine, scope: Scope, options: CheckOptions):
       if (reservedVariables.has(variable) || builtInFunctions.has(variable)) problems.push({ state: where(name), field: 'Assign', message: `cannot assign $${variable}, a name the runner or JSONata keeps` })
       if (scope.outer.has(variable)) problems.push({ state: where(name), field: 'Assign', message: `cannot assign $${variable}, which an outer state assigns already` })
     }
-    if (state.Type === 'Task' && !options.resources.includes(state.Resource)) {
+    if (state.Type === 'Task' && options.unavailable && Object.hasOwn(options.unavailable, state.Resource)) {
+      problems.push({ state: where(name), field: 'Resource', message: `"${state.Resource}" cannot run in this app: ${options.unavailable[state.Resource]}` })
+    } else if (state.Type === 'Task' && !options.resources.includes(state.Resource)) {
       problems.push({ state: where(name), field: 'Resource', message: `"${state.Resource}" is not a step type; use one of ${options.resources.join(', ')}` })
     }
     if (state.Type === 'Task') for (const missing of missingArguments(state, options)) problems.push({ state: where(name), field: `Arguments.${missing}`, message: `is missing; ${state.Resource} needs it` })
@@ -79,7 +90,7 @@ const wholeProblems = (definition: Definition): Problem[] => {
 
 /**
  * Why a definition cannot be saved, as it is checked on every save: its size and nesting, its shape against `definitionSchema`, its
- * trigger, then each edge, each Task's step type and what each expression reads, in the named-reads profile. Empty when
+ * trigger and the connections it binds, then each edge, each Task's step type and what each expression reads, in the named-reads profile. Empty when
  * it can be saved.
  */
 export const checkDefinition = (definition: unknown, options: CheckOptions): Problem[] => {
@@ -89,5 +100,5 @@ export const checkDefinition = (definition: unknown, options: CheckOptions): Pro
   const shape = schemaProblems(definition)
   if (shape.length > 0) return shape
   const document = definition as Definition
-  return [...triggerProblems(document.trigger), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false }, options)]
+  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...(options.connections ? connectionProblems(document, options.connections) : []), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false }, options)]
 }

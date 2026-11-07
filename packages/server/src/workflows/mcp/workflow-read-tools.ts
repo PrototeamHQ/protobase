@@ -1,21 +1,37 @@
-import { checkDefinition, definitionWarnings, type Definition } from '@protobase/workflows'
+import type { ResourceModel } from '@protobase/schema'
+import type { IssueWebhook } from './webhook-tools'
+import { listConnectionsTool, type ListConnections } from './connection-tools'
+import { checkDefinition, typeCatalog, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
-import { defineTool } from '../../assistant/tools'
-import { stepTypeNames } from '../step-types'
+import { defineTool, type ToolContext } from '../../assistant/tools'
 import { mergePatch } from './merge-patch'
-import { stepTypeCatalog, triggerCatalog, triggerNote } from './type-catalog'
 import { definitionParameter, editParameter, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
 
 const reads = { readOnlyHint: true, openWorldHint: false }
 const listed = ['id', 'name', 'description', 'version', 'updated_at']
 
+/**
+ * The app's types, which the tools list and check definitions against: `checkWith` checks against the resources it is
+ * given, so a check names only what its caller may read.
+ */
+export type WorkflowCatalog = {
+  types: readonly TypeEntry[]
+  checkWith: (models: (name: string) => ResourceModel | undefined) => CheckOptions
+  /** Issues a workflow's webhook URL as the caller, for `new_webhook_url`. */
+  issueWebhook?: IssueWebhook
+  /** The caller's own connected accounts, for `list_connections`; none without it. */
+  listConnections?: ListConnections
+  /** The steps of a run's trace, for `get_workflow_run`. */
+  readTrace: TraceReader
+}
+
 /** The step types and triggers a definition may name, with their arguments, results, errors and run inputs. */
-export const listWorkflowTypesTool = defineTool({
+const listWorkflowTypesTool = (catalog: WorkflowCatalog) => defineTool({
   name: 'list_workflow_types',
-  description: 'Lists what a workflow definition may name, as JSON ({ step_types, triggers }): each step type a Task names as its Resource, with its Arguments (required or not, and what each takes), its result and the errors it fails with; and each trigger, how the definition holds it and the input a run gets from it.',
+  description: "Lists what a workflow definition may name, as JSON ({ step_types, triggers }): each step type a Task names as its Resource and each trigger, by id, with its label, description, input (the Task's Arguments, or the trigger's input) and output as JSON Schema, the errors a step fails with, the connection it signs in with, and whether this app can run it.",
   parameters: { type: 'object', properties: {} },
   annotations: reads,
-  run: async () => JSON.stringify({ step_types: stepTypeCatalog, triggers: triggerCatalog, note: triggerNote }),
+  run: async () => JSON.stringify(typeCatalog(catalog.types)),
 })
 
 /** The workflows the caller may read, a page at a time, without their definitions. */
@@ -50,29 +66,30 @@ export const getWorkflowTool = defineTool({
   },
 })
 
-const checked = (definition: unknown) => {
-  const problems = checkDefinition(definition, { resources: stepTypeNames })
-  if (problems.length > 0) return JSON.stringify({ valid: false, problems })
-  const warnings = definitionWarnings(definition as Definition)
-  return JSON.stringify({ valid: true, ...(warnings.length > 0 && { warnings }) })
+// Checked against the resources the caller may read, each with their fields only, so a problem tells them nothing of a
+// resource or field hidden from them: one they cannot read is "not a resource of this app".
+const checked = async (definition: unknown, catalog: WorkflowCatalog, context: ToolContext) => {
+  const { models } = await context.resources()
+  const problems = checkDefinition(definition, catalog.checkWith((name) => models.find((model) => model.name === name)))
+  return JSON.stringify(problems.length > 0 ? { valid: false, problems } : { valid: true })
 }
 
 /** Checks a definition, or a saved one with an edit, without saving anything. */
-export const validateWorkflowTool = defineTool({
+const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
   name: 'validate_workflow',
-  description: 'Checks a definition as a save checks it, and saves nothing: pass a whole definition, or a workflow\'s id with an edit to check that edit of its saved definition. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected. A valid definition may come with warnings of the same shape, which a save does not refuse, such as a value fetched once (DoNotRepeat) and read after a Wait, when it may have expired.',
+  description: 'Checks a definition as a save checks it, and saves nothing: pass a whole definition, or a workflow\'s id with an edit to check that edit of its saved definition. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected.',
   parameters: { type: 'object', properties: { definition: definitionParameter, id: idParameter, edit: editParameter } },
   annotations: reads,
   run: async (args, context) => {
     const id = idOf(args)
     const edit = objectOf(args.edit)
-    if (args.definition !== undefined && id === undefined && edit === undefined) return checked(args.definition)
-    if (args.definition === undefined && id && edit) return context.records.get('workflows', id).then(({ record }) => checked(mergePatch(record.definition, edit)), refused)
+    if (args.definition !== undefined && id === undefined && edit === undefined) return checked(args.definition, catalog, context)
+    if (args.definition === undefined && id && edit) return context.records.get('workflows', id).then(({ record }) => checked(mergePatch(record.definition, edit), catalog, context), refused)
     return 'Pass either { "definition": { ... } } or { "id": "<id>", "edit": { ... } }.'
   },
 })
 
-const runFields = ['id', 'workflow_id', 'version', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'trace', 'created_at', 'finished_at', 'duration_ms']
+const runFields = ['id', 'workflow_id', 'version', 'rerun_of', 'started_by', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'trace', 'created_at', 'finished_at', 'duration_ms']
 const stepFields = ['state', 'scope', 'seq', 'type', 'attempt', 'status', 'input', 'output', 'assigned', 'logs', 'error', 'cause', 'next', 'resumeAt', 'startedAt', 'finishedAt', 'recorded']
 
 /** The steps of a run's trace, in the order they ran. */
@@ -114,5 +131,5 @@ export const getWorkflowRunTool = (readTrace: TraceReader) =>
     },
   })
 
-/** The tools that read workflows, their types and runs, and check definitions. */
-export const workflowReadTools = (readTrace: TraceReader) => [listWorkflowTypesTool, listWorkflowsTool, getWorkflowTool, validateWorkflowTool, getWorkflowRunTool(readTrace)]
+/** The tools that read workflows, their types and runs and the caller's connections, and check definitions. */
+export const workflowReadTools = (catalog: WorkflowCatalog) => [listWorkflowTypesTool(catalog), listWorkflowsTool, getWorkflowTool, validateWorkflowTool(catalog), getWorkflowRunTool(catalog.readTrace), listConnectionsTool(catalog.listConnections)]

@@ -9,8 +9,9 @@ import { commentTools } from '../assistant/comment-tools'
 import { checkedTools } from '../assistant/checked-tools'
 import type { Session } from '../types'
 import type { McpWrites } from './mcp-writes'
-import { workflowReadTools, type TraceReader } from '../workflows/mcp/workflow-read-tools'
+import { workflowReadTools, type WorkflowCatalog } from '../workflows/mcp/workflow-read-tools'
 import { workflowWriteTools } from '../workflows/mcp/workflow-write-tools'
+import { webhookTools } from '../workflows/mcp/webhook-tools'
 
 export type McpToolsInput = {
   db: Db
@@ -29,9 +30,11 @@ export type McpToolsInput = {
   commented?: string[]
   /**
    * Offers the workflow tools, for an app with `workflows`: reading workflows, their types and runs, and checking
-   * definitions; with writes on, `create_workflow`, `update_workflow` and `run_workflow` too. Off by default.
+   * definitions against the app's types; with writes on, `create_workflow`, `update_workflow`, `run_workflow`,
+   * `enable_workflow` and `new_webhook_url` too.
+   * Off by default.
    */
-  workflows?: { readTrace: TraceReader }
+  workflows?: WorkflowCatalog
   /** The app's own tools, offered to every caller after the built-in ones. */
   own?: AssistantTool[]
 }
@@ -39,7 +42,7 @@ export type McpToolsInput = {
 const writeTools = (input: WriteRecordToolsInput) => [...writeRecordTools(input), batchWriteTool(input)]
 
 // Every name a built-in tool may take, whatever the options: an own tool cannot take one that turning an option on would offer.
-const builtInNames = (db: Db) => new Set([...readRecordTools(), ...writeTools({}), ...commentTools({ commented: ['comments'] }, {}), readOnlyQueryTool(db), ...workflowReadTools(async () => []), ...workflowWriteTools()].map((tool) => tool.name))
+const builtInNames = (db: Db) => new Set([...readRecordTools(), ...writeTools({}), ...commentTools({ commented: ['comments'] }, {}), readOnlyQueryTool(db), ...workflowReadTools({ types: [], checkWith: () => ({ resources: [], triggers: {} }), readTrace: async () => [] }), ...workflowWriteTools(), ...webhookTools({}, () => Promise.reject(new Error('Not called')))].map((tool) => tool.name))
 
 /** The app's own tools; one whose name is taken twice, or by a built-in tool, stops the server at startup. */
 const checkedOwnTools = (db: Db, own: AssistantTool[]) => {
@@ -62,7 +65,7 @@ export const mcpTools = ({ db, sql, writes, commented = [], workflows, own = [] 
   const limits = writes === false ? false : writes === true || !writes.resources ? {} : { resources: writes.resources }
   const write = limits === false ? [] : writeTools(limits)
   const comments = commentTools({ commented }, limits)
-  const flows = workflows ? [...workflowReadTools(workflows.readTrace), ...(limits === false ? [] : workflowWriteTools(limits))] : []
+  const flows = workflows ? [...workflowReadTools(workflows), ...(limits === false ? [] : [...workflowWriteTools(limits), ...webhookTools(limits, workflows.issueWebhook)])] : []
   const query = sql ? [readOnlyQueryTool(db)] : []
   return (session: Session): AssistantTool[] => [...read, ...write, ...comments, ...flows, ...(seesAssistant(session.user.roles) ? query : []), ...ownTools]
 }

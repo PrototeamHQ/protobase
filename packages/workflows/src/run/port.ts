@@ -1,4 +1,5 @@
 import type { Definition } from '../definition/types'
+import type { TaskCache } from './cache/cache-port'
 
 /**
  * How a step ended: `succeeded`, `retrying` (it failed and a retrier tries it again), `caught` (it failed and a
@@ -51,7 +52,7 @@ export type Checkpoint = {
   status: StepStatus
   /** When that step ended: for a Task, when its result was fetched. */
   fetchedAt: Date
-  /** The state the scope goes on to, which may be the same one retried; `null` once the scope ended or failed. */
+  /** The state the scope goes on to, which may be the same one retried; `null` once the scope ended. */
   next: string | null
   /** The next state's input, or the scope's output once it ended. */
   value?: unknown
@@ -63,8 +64,6 @@ export type Checkpoint = {
   resumeAt?: Date | null
   /** What `$now` gives the scope's next steps: the time of its last recorded step, its last wait's end, or the run's start. */
   clock: Date
-  error?: string | null
-  cause?: string | null
   /** The `seq` of the scope's checkpoint the segment took it up from, -1 for none: a save is refused when a newer one is there. */
   after: number
 }
@@ -75,7 +74,7 @@ export type TaskContext = {
   runId: string
   /** Aborted when the step's timeout passes, or when the worker stops. */
   signal: AbortSignal
-  /** The same for every try of this step in this run: a receiver that dedupes by it sees a repeated try once. */
+  /** The same for every retry of one visit of this step in this run, so a receiver that dedupes by it sees a repeated try once; a later visit gets a new one. */
   idempotencyKey: string
   /** Adds a line to the step's logs, with the app's secrets blanked out; a step keeps `limits.logLines` lines. */
   log: (message: string) => void
@@ -84,24 +83,42 @@ export type TaskContext = {
    * text short, such as an answer's body in an error, blanks it first, so the cut leaves no part of a secret.
    */
   redact: (text: string) => string
+  /** Blanks `value` out of all this step and the rest of its segment record, such as an access token it was given. */
+  secret: (value: string) => void
+  /** The step cache, when the app keeps one; a step type that caches nothing never touches it. */
+  cache?: TaskCache
 }
 
 /**
  * A step type, which a Task names as its `Resource`: it takes the Task's evaluated `Arguments` and returns its result.
  * It throws a `StepError` to fail with an error name of its own; any other error is `States.TaskFailed`.
  *
- * A call changes the world, such as a mail sent or a record written, unless `reads` says it only reads with these
+ * A call changes the world, such as a mail sent or a record written, unless `writes` says it does not with these
  * arguments: a call that changes the world is recorded, so it never happens twice in a run, and a read is done again
- * after a crash before the next checkpoint. `doNotRepeat` records a read too, for one whose result expires or works
- * once, such as a signed URL; a Task's own `DoNotRepeat` overrides it.
+ * after a crash before the next checkpoint.
  */
-export type TaskHandler = ((args: unknown, context: TaskContext) => Promise<unknown>) & { reads?: (args: unknown) => boolean; doNotRepeat?: boolean }
+export type TaskHandler = ((args: unknown, context: TaskContext) => Promise<unknown>) & {
+  /** Whether a call with these arguments changes the outside world, never throwing; a replay calls none that does. Absent or anything but `false`: it does. */
+  writes?: (args: unknown) => boolean
+}
 
 /** The interpreter's back end: the step types by the name a Task's `Resource` gives. */
 export type TaskHandlers = Readonly<Record<string, TaskHandler>>
 
 /** A run as the runner loads it: its pinned definition, its input, when it started, and its own trace setting, if any. */
-export type LoadedRun = { id: string; definition: Definition; input: unknown; status: RunStatus; startedAt: Date; trace?: TraceMode | null }
+export type LoadedRun = {
+  id: string
+  definition: Definition
+  input: unknown
+  status: RunStatus
+  startedAt: Date
+  trace?: TraceMode | null
+  /**
+   * The run this one replays: its steps that write are not called but give what that run's steps gave, as its trace
+   * keeps them; null when that run is gone, so they give nothing. Absent: no replay.
+   */
+  replayOf?: string | null
+}
 
 export type RunStatus = 'queued' | 'running' | 'waiting' | 'succeeded' | 'failed'
 
@@ -138,6 +155,10 @@ export type TraceMode = NonNullable<Definition['trace']>
 /**
  * Where runs' traces go, outside the database: each segment hands over the steps it ran, with every input and output,
  * once its checkpoints are saved, and returns at once, so writing them never holds up the run. `ended` on the segment
- * that ended the run; with `failed`, a run that succeeded keeps no trace.
+ * that ended the run; with `failed`, a run that succeeded keeps no trace. `read` gives an ended run's steps, as a replay
+ * of it takes them: undefined when it kept no trace.
  */
-export type TraceSink = { write(runId: string, steps: readonly StepRecord[], segment: { mode: TraceMode; ended?: 'succeeded' | 'failed' }): void }
+export type TraceSink = {
+  write(runId: string, steps: readonly StepRecord[], segment: { mode: TraceMode; ended?: 'succeeded' | 'failed' }): void
+  read(runId: string): Promise<readonly StepRecord[] | undefined>
+}

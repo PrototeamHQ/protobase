@@ -1,15 +1,17 @@
 import type { Definition } from '../definition/types'
+import type { StepCacheStore } from './cache/cache-port'
 import { createRunner } from './runner'
 import type { Checkpoint, LoadedRun, RunStore, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
+import { rerunCheckpoint, rerunProblem } from './rerun'
 
-type MemoryOptions = { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number; traceMode?: TraceMode }
+type MemoryOptions = { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number; traceMode?: TraceMode; cache?: StepCacheStore }
 
 /**
  * The runner over a port kept in memory, with a clock tests move: for the package's unit tests. `drain` runs a run's
  * segments as the queue would, moving the clock to each wait's end, until nothing is queued. `checkpoints` is what the
- * database would hold, `writes` the checkpoints each save took, and `steps` every step the runs' kept traces hold.
+ * database would hold (a failed run keeps them), `writes` the checkpoints each save took, and `steps` every step the runs' kept traces hold.
  */
-export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps, traceMode }: MemoryOptions = {}) => {
+export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps, traceMode, cache }: MemoryOptions = {}) => {
   let clock = new Date('2026-11-04T12:00:00Z')
   const runs = new Map<string, LoadedRun & Record<string, unknown>>()
   const checkpoints: (Checkpoint & { runId: string })[] = []
@@ -34,7 +36,8 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
       const run = runs.get(id)!
       if (run.status === 'succeeded' || run.status === 'failed') return
       runs.set(id, { ...run, ...change })
-      if (change.status !== 'succeeded' && change.status !== 'failed') return
+      // A failed run keeps its checkpoints, for a re-run to go on from.
+      if (change.status !== 'succeeded') return
       for (let index = checkpoints.length - 1; index >= 0; index--) if (checkpoints[index]!.runId === id) checkpoints.splice(index, 1)
     },
   }
@@ -43,11 +46,12 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
     write: (runId, steps, { mode, ended }) => {
       if (mode === 'none') return
       if (mode === 'failed' && ended === 'succeeded') return void traces.delete(runId)
-      traces.set(runId, [...(traces.get(runId) ?? []), structuredClone([...steps])])
+      if (steps.length > 0) traces.set(runId, [...(traces.get(runId) ?? []), structuredClone([...steps])])
     },
+    read: async (runId) => traces.get(runId)?.flat(),
   }
   const schedule = async (_: null, runId: string, at?: Date) => void queued.push({ runId, ...(at && { at }) })
-  const runner = createRunner({ store, queue: { schedule }, tasks, trace, now: () => clock, ...(traceMode && { traceMode }), ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }) })
+  const runner = createRunner({ store, queue: { schedule }, tasks, trace, now: () => clock, ...(traceMode && { traceMode }), ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }), ...(cache && { cache }) })
   return {
     runner,
     store,
@@ -55,12 +59,26 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
     writes,
     traces,
     get steps() {
-      return [...traces.values()].flat(2)
+      return [...traces].flatMap(([runId, parts]) => parts.flat().map((step) => ({ ...step, runId })))
     },
     run: (id: string) => runs.get(id)!,
     now: () => clock,
     start: async (id: string, definition: Definition, input: unknown, trace?: TraceMode) => {
       runs.set(id, { id, definition, input, status: 'queued', startedAt: clock, ...(trace && { trace }) })
+      await runner.start(null, id)
+    },
+    /** Re-runs the failed run `earlier` as `id` on `definition`, with its input, from its checkpoints. */
+    rerun: async (id: string, earlier: string, definition: Definition) => {
+      const kept = checkpoints.filter((saved) => saved.runId === earlier)
+      const problem = rerunProblem(definition.stateMachine, kept)
+      if (problem) throw new Error(problem)
+      checkpoints.push(...kept.map((saved) => ({ ...rerunCheckpoint(structuredClone(saved), clock), runId: id })))
+      runs.set(id, { id, definition, input: runs.get(earlier)!.input, status: 'queued', startedAt: clock })
+      await runner.start(null, id)
+    },
+    /** Replays the run `of` as `id` on `definition` from its start, with its input. */
+    replay: async (id: string, of: string, definition: Definition) => {
+      runs.set(id, { id, definition, input: runs.get(of)!.input, status: 'queued', startedAt: clock, replayOf: of })
       await runner.start(null, id)
     },
     /** Runs one queued segment, moving the clock to its time; false when none is queued. */

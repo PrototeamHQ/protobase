@@ -32,10 +32,10 @@ describe('mcpTools', () => {
   })
 
   it('offers the workflow tools with workflows on, the ones that save and run them only with writes on', () => {
-    const tools = (writes: McpWrites) => mcpTools({ db, sql: false, writes, workflows: { readTrace: async () => [] } })({ user: { id: 1, roles: ['sales'] } }).map((tool) => tool.name)
-    const reads = ['list_workflow_types', 'list_workflows', 'get_workflow', 'validate_workflow', 'get_workflow_run']
+    const tools = (writes: McpWrites) => mcpTools({ db, sql: false, writes, workflows: { types: [], checkWith: () => ({ resources: [], triggers: {} }), readTrace: async () => [] } })({ user: { id: 1, roles: ['sales'] } }).map((tool) => tool.name)
+    const reads = ['list_workflow_types', 'list_workflows', 'get_workflow', 'validate_workflow', 'get_workflow_run', 'list_connections']
     expect(tools(false)).toEqual([...records, ...reads])
-    expect(tools(true)).toEqual([...records, 'create_record', 'update_record', 'delete_record', 'batch_write', ...reads, 'create_workflow', 'update_workflow', 'run_workflow'])
+    expect(tools(true)).toEqual([...records, 'create_record', 'update_record', 'delete_record', 'batch_write', ...reads, 'create_workflow', 'update_workflow', 'run_workflow', 'enable_workflow'])
     expect(names(false, ['sales'], true)).not.toContain('list_workflows')
   })
 

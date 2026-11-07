@@ -11,7 +11,7 @@ const definition = (states: Definition['stateMachine']['States'], startAt = Obje
 })
 
 /** A step type that only reads, as a GET does. */
-const reading = (handler: TaskHandler): TaskHandler => Object.assign(handler, { reads: () => true })
+const reading = (handler: TaskHandler): TaskHandler => Object.assign(handler, { writes: () => false })
 
 /** A step type that stops the worker on its first call, as a crash mid-step does, and gives `result` after. */
 const crashingOnce = (worker: AbortController, result: unknown) => {
@@ -79,33 +79,52 @@ describe('when the runner saves checkpoints', () => {
     expect({ mails, gets }).toEqual({ mails: 1, gets: 2 })
   })
 
-  it("does not fetch again a GET the workflow marks DoNotRepeat, and keeps when its result was fetched", async () => {
+  it('gives a write the same idempotency key when a crash between its commit and its checkpoint makes the run call it again', async () => {
     const worker = new AbortController()
-    let gets = 0
-    const port = memoryRunner({ get: reading(async () => ({ url: `https://files.test/${++gets}` })), slow: crashingOnce(worker, 'done') })
+    // A records store that keeps one record per key, as the records step's effects do
+    const records = new Map<string, number>()
+    const keys: string[] = []
+    const port = memoryRunner({
+      lookup: reading(async () => 1),
+      create: async (_, { idempotencyKey, signal }) => {
+        keys.push(idempotencyKey)
+        if (!records.has(idempotencyKey)) records.set(idempotencyKey, records.size + 1)
+        if (keys.length > 1) return { key: records.get(idempotencyKey) }
+        // The record committed, and the worker stops before the step's result is recorded
+        worker.abort(new Error('the worker stopped'))
+        return new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason)))
+      },
+    })
+    await port.start('r7', definition({
+      Lookup: { Type: 'Task', Resource: 'lookup', Next: 'Create' },
+      Create: { Type: 'Task', Resource: 'create', Retry: [{ ErrorEquals: ['States.ALL'], MaxAttempts: 2 }], End: true },
+    }), {})
+    await expect(port.step(worker.signal)).rejects.toThrow('the worker stopped')
+    await port.runner.segment(null, 'r7', new AbortController().signal)
+
+    expect(port.run('r7')).toMatchObject({ status: 'succeeded', output: { key: 1 } })
+    expect(keys).toEqual(['r7//1', 'r7//1'])
+    expect(records.size).toBe(1)
+  })
+
+  it('does not call again a write a crash came after, and keeps when its result was fetched', async () => {
+    const worker = new AbortController()
+    let uploads = 0
+    const port = memoryRunner({ upload: async () => ({ ref: `files/${++uploads}` }), slow: crashingOnce(worker, 'done') })
     await port.start('r4', definition({
-      Link: { Type: 'Task', Resource: 'get', DoNotRepeat: true, Assign: { link: '{% $states.result.url %}', fetched: '{% $now() %}' }, Next: 'Slow' },
+      Upload: { Type: 'Task', Resource: 'upload', Assign: { ref: '{% $states.result.ref %}', fetched: '{% $now() %}' }, Next: 'Slow' },
       Slow: { Type: 'Task', Resource: 'slow', Next: 'Done' },
-      Done: { Type: 'Succeed', Output: '{% {"link": $link, "fetched": $fetched} %}' },
+      Done: { Type: 'Succeed', Output: '{% {"ref": $ref, "fetched": $fetched} %}' },
     }), {})
     const fetchedAt = port.now()
     port.tick(5000)
     await expect(port.step(worker.signal)).rejects.toThrow('the worker stopped')
-    expect(port.checkpoints[0]).toMatchObject({ state: 'Link', fetchedAt: new Date(fetchedAt.getTime() + 5000) })
+    expect(port.checkpoints[0]).toMatchObject({ state: 'Upload', fetchedAt: new Date(fetchedAt.getTime() + 5000) })
     port.tick(60_000)
     await port.runner.segment(null, 'r4', new AbortController().signal)
 
-    expect(gets).toBe(1)
-    expect(port.run('r4')).toMatchObject({ status: 'succeeded', output: { link: 'https://files.test/1', fetched: '2026-11-04T12:00:05.000Z' } })
-  })
-
-  it('records a GET whose step type sets DoNotRepeat, unless the Task turns it off', async () => {
-    const once = Object.assign(reading(async () => 1), { doNotRepeat: true })
-    const port = memoryRunner({ once })
-    await port.start('r5', definition({ A: { Type: 'Task', Resource: 'once', Next: 'B' }, B: { Type: 'Task', Resource: 'once', DoNotRepeat: false, End: true } }), {})
-    await port.drain()
-    expect(port.steps.map(({ state, recorded }) => ({ state, recorded }))).toEqual([{ state: 'A', recorded: true }, { state: 'B', recorded: false }])
-    expect(port.writes).toEqual([1])
+    expect(uploads).toBe(1)
+    expect(port.run('r4')).toMatchObject({ status: 'succeeded', output: { ref: 'files/1', fetched: '2026-11-04T12:00:05.000Z' } })
   })
 
   it('gives $now the time of the last checkpoint, the same after a crash', async () => {

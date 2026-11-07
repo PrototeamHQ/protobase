@@ -1,0 +1,72 @@
+{
+  "recorded_at": "2026-11-07T08:44:24.867Z",
+  "request": {
+    "method": "GET",
+    "path": "messages/1a1b52e3049a995f",
+    "query": [
+      [
+        "format",
+        "metadata"
+      ],
+      [
+        "metadataHeaders",
+        "From"
+      ],
+      [
+        "metadataHeaders",
+        "To"
+      ],
+      [
+        "metadataHeaders",
+        "Cc"
+      ],
+      [
+        "metadataHeaders",
+        "Subject"
+      ],
+      [
+        "metadataHeaders",
+        "Date"
+      ]
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=UTF-8"
+    },
+    "body": {
+      "id": "1a1b52e3049a995f",
+      "threadId": "1a1b52e3049a995f",
+      "labelIds": [
+        "UNREAD",
+        "INBOX"
+      ],
+      "snippet": "The invoice is attached.",
+      "payload": {
+        "mimeType": "multipart/mixed",
+        "headers": [
+          {
+            "name": "From",
+            "value": "Ada <ada@example.com>"
+          },
+          {
+            "name": "To",
+            "value": "Mailbox <mailbox@example.com>"
+          },
+          {
+            "name": "Subject",
+            "value": "Invoice 7"
+          },
+          {
+            "name": "Date",
+            "value": "Sat, 07 Nov 2026 08:44:25 GMT"
+          }
+        ]
+      },
+      "sizeEstimate": 977,
+      "historyId": "5316",
+      "internalDate": "1794041065000"
+    }
+  }
+}

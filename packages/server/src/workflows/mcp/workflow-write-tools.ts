@@ -4,7 +4,6 @@
  * tools ask. A refused definition comes back with its problems, each naming the state and field.
  */
 import { approvalTexts, recordBefore } from '../../assistant/record-before'
-import { definitionWarnings, type Definition } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
 import { defineTool } from '../../assistant/tools'
 import { createApproval, updateApproval } from '../../assistant/write-prompts'
@@ -18,17 +17,13 @@ const writes = { readOnlyHint: false, destructiveHint: false, openWorldHint: fal
 const nameParameter = { type: 'string', description: 'A name, 1 to 100 characters.' }
 const descriptionParameter = { type: 'string', description: 'What it does, for people; at most 2000 characters.' }
 
-// The saved workflow, with the warnings its definition comes with, which the save does not refuse.
-const saved = (record: Row, etag: string) => {
-  const warnings = definitionWarnings(record.definition as Definition)
-  return JSON.stringify({ id: record.id, version: record.version, etag, ...(warnings.length > 0 && { warnings }) })
-}
+const saved = (record: Row, etag: string) => JSON.stringify({ id: record.id, version: record.version, etag })
 
 /** Creates a workflow once the user approves it; a definition the check refuses saves nothing. */
 export const createWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'create_workflow',
-    description: `Creates a workflow from its name and whole definition, checked as validate_workflow checks it, and returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A definition that does not fit is refused with { error, problems }, each problem naming the state, the field and what was expected; nothing is saved then. The user approves each save in their client first.${onlyNote(input)}`,
+    description: `Creates a workflow from its name and whole definition, checked as validate_workflow checks it, and returns JSON { id, version, etag }. A definition that does not fit is refused with { error, problems }, each problem naming the state, the field and what was expected; nothing is saved then. The user approves each save in their client first.${onlyNote(input)}`,
     parameters: { type: 'object', properties: { name: nameParameter, description: descriptionParameter, definition: definitionParameter }, required: ['name', 'definition'] },
     annotations: writes,
     run: async (args, context) => {
@@ -49,7 +44,7 @@ export const createWorkflowTool = (input: WriteRecordToolsInput = {}) =>
 export const updateWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'update_workflow',
-    description: `Changes a workflow: its definition by a small edit (edit, a JSON Merge Patch of the saved definition) or whole (definition), and its name or description. The changed definition is checked as validate_workflow checks it and saved as the workflow's next version; runs started before keep theirs. Returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A definition that does not fit is refused with { error, problems }, each naming the state, the field and what was expected; nothing is saved then. Pass the etag get_workflow gave to fail when someone changed it since. The user approves each save in their client first.${onlyNote(input)}`,
+    description: `Changes a workflow: its definition by a small edit (edit, a JSON Merge Patch of the saved definition) or whole (definition), and its name or description. The changed definition is checked as validate_workflow checks it and saved as the workflow's next version; runs started before keep theirs. Returns JSON { id, version, etag }. A definition that does not fit is refused with { error, problems }, each naming the state, the field and what was expected; nothing is saved then. Pass the etag get_workflow gave to fail when someone changed it since. The user approves each save in their client first.${onlyNote(input)}`,
     parameters: {
       type: 'object',
       properties: { id: idParameter, edit: editParameter, definition: definitionParameter, name: nameParameter, description: descriptionParameter, etag: { type: 'string', description: 'The etag get_workflow gave, to fail when the workflow changed since.' } },
@@ -82,15 +77,27 @@ export const updateWorkflowTool = (input: WriteRecordToolsInput = {}) =>
 export const runWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'run_workflow',
-    description: `Starts a run of a workflow's current version with an input, which its states read as $states.context.Execution.Input, and returns JSON { run_id, status }. The run goes on in the background, doing what its steps do (requests, mail, record writes) as the workflow's last editor: read it with get_workflow_run until its status is succeeded or failed. The user approves each run in their client first.${onlyNote(input)}`,
-    parameters: { type: 'object', properties: { id: idParameter, input: { description: "The run's input, any JSON value, at most 1 MiB; an empty object by default." } }, required: ['id'] },
+    description: `Starts a run of a workflow's current version with an input, which its states read as $states.context.Execution.Input, and returns JSON { run_id, status }. With rerun_of, the id of a failed run of the workflow, it re-runs that run instead: on its input, going on from where that run last saved its place (after its last write) on the current version, so no write it finished happens again; fix the workflow first. With rerun_of and replay: true, it replays a run that ended instead: from the start on that run's version and input, sending none of its outside writes (mail, record writes, requests other than GET), which give what that run's trace says they gave (nothing when it kept no trace), and serving its reads from the step cache, so you can look into what a run read and composed. The run goes on in the background, doing what its steps do (requests, mail, record writes) as the workflow's last editor: read it with get_workflow_run until its status is succeeded or failed. The user approves each run in their client first.${onlyNote(input)}`,
+    parameters: {
+      type: 'object',
+      properties: {
+        id: idParameter,
+        input: { description: "The run's input, any JSON value, at most 256 KiB; an empty object by default. Not with rerun_of." },
+        rerun_of: { type: 'string', description: 'The id of a failed run of this workflow to re-run from its failed step, or of a run that ended to replay.' },
+        replay: { type: 'boolean', description: 'With rerun_of: replay that run, sending none of its outside writes.' },
+      },
+      required: ['id'],
+    },
     annotations: { ...writes, openWorldHint: true },
     run: async (args, context) => {
       const id = idOf(args)
       if (!id) return 'Pass { "id": "<id>", "input": { ... } }.'
       const refusal = outside(input, 'workflow_runs')
       if (refusal) return refusal
-      const data = { workflow_id: id, input: args.input ?? {} }
+      const rerun = textOf(args.rerun_of)
+      if (rerun && args.input !== undefined) return 'A re-run runs on the input of the run it re-runs: pass rerun_of without input.'
+      if (args.replay === true && !rerun) return 'A replay replays a run: pass the run as rerun_of.'
+      const data = rerun ? { workflow_id: id, rerun_of: rerun, ...(args.replay === true && { replay: true }) } : { workflow_id: id, input: args.input ?? {} }
       const { text, described } = await approvalTexts(context, 'workflow_runs')
       const answer = await context.approve(createApproval(text, described, data))
       if (answer !== 'approved') return notApproved(answer)

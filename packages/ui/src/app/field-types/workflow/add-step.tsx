@@ -1,4 +1,4 @@
-import { workflowStepTypes } from '@protobase/schema/internal'
+import type { WorkflowTypeList } from '@protobase/client'
 import type { State } from '@protobase/workflows'
 import { Select } from '../../../primitives/select'
 import type { NewState } from './definition-edits'
@@ -14,8 +14,11 @@ const chosen = (value: string): NewState | undefined => {
   return
 }
 
-/** A menu of what a new state can be: a step of each step type, and the states that steer the run. */
-export const AddStep = ({ inside, onAdd }: { inside: string | undefined; onAdd: (kind: NewState) => void }) => (
+/**
+ * A menu of what a new state can be: a step of each step type of `types` the app can run, its plugins' included, and
+ * the states that steer the run.
+ */
+export const AddStep = ({ types, inside, onAdd }: { types: WorkflowTypeList; inside: string | undefined; onAdd: (kind: NewState) => void }) => (
   <Select
     aria-label={inside ? text('addStepInside', { map: inside }) : text('addStep')}
     value=""
@@ -27,11 +30,13 @@ export const AddStep = ({ inside, onAdd }: { inside: string | undefined; onAdd: 
   >
     <option value="">{inside ? text('addStepInside', { map: inside }) : text('addStep')}</option>
     <optgroup label={text('steps')}>
-      {Object.keys(workflowStepTypes).map((type) => (
-        <option key={type} value={`task:${type}`}>
-          {stepTypeLabel(type)}
-        </option>
-      ))}
+      {types.step_types
+        .filter((type) => type.available)
+        .map((type) => (
+          <option key={type.id} value={`task:${type.id}`}>
+            {stepTypeLabel(type.id, type.label)}
+          </option>
+        ))}
     </optgroup>
     <optgroup label={text('flow')}>
       {flowTypes.map((type) => (

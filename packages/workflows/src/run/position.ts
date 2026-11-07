@@ -20,7 +20,14 @@ export type Position =
       resumeAt?: Date
       clock: Date
     }
-  | { kind: 'ended'; seq: number; output: unknown; variables: Record<string, unknown> }
+  | {
+      kind: 'ended'
+      seq: number
+      output: unknown
+      variables: Record<string, unknown>
+      /** The scope may not end before this time: its last state was a Wait. */
+      resumeAt?: Date
+    }
   | { kind: 'failed'; seq: number; error: string; cause: string }
 
 export const startPosition = (machine: Machine, input: unknown, clock: Date): Position => ({ kind: 'at', seq: 0, state: machine.StartAt, input, variables: {}, attempt: 1, failures: [], clock })
@@ -40,15 +47,14 @@ export const advance = (position: Position, step: StepRecord): Position => {
   }
   // A step that gave nothing goes on with null, which is what a checkpoint keeps and gives back.
   const output = step.output === undefined ? null : step.output
-  if (step.next === null) return { kind: 'ended', seq, output, variables }
+  if (step.next === null) return { kind: 'ended', seq, output, variables, ...(step.resumeAt && { resumeAt: step.resumeAt }) }
   return { kind: 'at', seq, state: step.next, input: output, variables, attempt: 1, failures: [], clock, ...(step.resumeAt && { resumeAt: step.resumeAt }) }
 }
 
 /** The checkpoint of a scope at `position`, after `step`, which made it; `clock` is the scope's before the step. */
-export const checkpointOf = (position: Position, step: StepRecord, clock: Date): Omit<Checkpoint, 'after'> => {
+export const checkpointOf = (position: Exclude<Position, { kind: 'failed' }>, step: StepRecord, clock: Date): Omit<Checkpoint, 'after'> => {
   const made = { scope: step.scope, seq: step.seq, state: step.state, type: step.type, status: step.status, fetchedAt: step.finishedAt }
-  if (position.kind === 'failed') return { ...made, next: null, variables: {}, attempt: 1, failures: [], clock, error: position.error, cause: position.cause }
-  if (position.kind === 'ended') return { ...made, next: null, value: position.output, variables: position.variables, attempt: 1, failures: [], clock }
+  if (position.kind === 'ended') return { ...made, next: null, value: position.output, variables: position.variables, attempt: 1, failures: [], clock, ...(position.resumeAt && { resumeAt: position.resumeAt }) }
   return { ...made, next: position.state, value: position.input, variables: position.variables, attempt: position.attempt, failures: position.failures, clock: position.clock, ...(position.resumeAt && { resumeAt: position.resumeAt }) }
 }
 
@@ -59,6 +65,5 @@ export const positionOf = (checkpoint: Checkpoint): Position => {
     const { next: state, value: input = null, variables, attempt, failures, clock, resumeAt } = checkpoint
     return { kind: 'at', seq, state, input, variables, attempt, failures, clock, ...(resumeAt && { resumeAt }) }
   }
-  if (checkpoint.status === 'failed') return { kind: 'failed', seq, error: checkpoint.error ?? 'States.Runtime', cause: checkpoint.cause ?? '' }
-  return { kind: 'ended', seq, output: checkpoint.value ?? null, variables: checkpoint.variables }
+  return { kind: 'ended', seq, output: checkpoint.value ?? null, variables: checkpoint.variables, ...(checkpoint.resumeAt && { resumeAt: checkpoint.resumeAt }) }
 }

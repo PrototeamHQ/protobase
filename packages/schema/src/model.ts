@@ -340,6 +340,8 @@ export type FieldViewModel = {
   helpWhen?: HelpWhen
   /** When the field shows on the record page: always, the default, only on its form or only on its read view. */
   when?: ShowWhen
+  /** Left off the create form, so a create leaves it empty or to its default; the server refuses it on a field a create needs. */
+  notOnCreate?: true
   /** The question a form or a list cell asks before the field's value first changes; cancelling keeps the value. */
   confirm?: string
   /** How the value is shown. */
@@ -1195,6 +1197,11 @@ export type ActionModel = {
   run?: ActionRun
   /** What the button asks for in a dialog before the action runs: a handler gets the answers as `values`, an update writes them through `set`. */
   inputs?: ActionInputModel[]
+  /**
+   * Whether the handler sends mail from the person's own mailbox (`mailbox: true`): its dialog offers to connect one
+   * instead of running while none is linked.
+   */
+  mailbox?: boolean
 }
 
 /**
@@ -1267,6 +1274,8 @@ export type NavRecentModel = {
 export type NavModel = {
   /** Hide the resource from the sidebar, for line or link tables. */
   hidden?: boolean
+  /** Show the entry only to whoever the list offers New, for a list that is there to make records, such as the tables users add. */
+  creatorsOnly?: true
   /** The sidebar group it sits in; its database schema when omitted. */
   group?: string
   /** Where it sorts within its group. */
@@ -1455,8 +1464,11 @@ export type ViewModel = {
   signIn?: SignInPromptModel
   /** The list page's button that saves its filter as a search of the user's own. */
   saveSearch?: SaveSearchModel
-  /** Whether the list page offers Import, which creates or updates records from an .xlsx or CSV file; it does when omitted. */
-  import?: boolean
+  /**
+   * Whether the list page offers Import, which creates or updates records from an .xlsx, CSV or JSON file; it does when
+   * omitted. `table` makes it a new table users add from the file, with its fields and records.
+   */
+  import?: boolean | 'table'
   /** The list page shows the user's saved searches of another resource, each with what it finds, instead of rows. */
   searchesOf?: SearchesOfModel
   /** Whether the list page offers Export, and the most rows a file holds; offered without a limit when omitted. */

@@ -24,6 +24,14 @@ describe('addressErrors', () => {
     expect(addressErrors({ kind: 'nope' } as never, { models })).toEqual(['an address\'s kind is list, record, create or page, not "nope"'])
   })
 
+  it('takes a resource from a field of the record, naming none of its fields', () => {
+    expect(addressErrors({ kind: 'list', resource: '{name}' }, { models, source: customers })).toEqual([])
+    expect(addressErrors({ kind: 'record', resource: '{name}', key: '{id}' }, { models, source: customers })).toEqual([])
+    expect(addressErrors({ kind: 'list', resource: '{bike}' }, { models, source: customers })).toEqual(['"{bike}" is not a field of customers'])
+    expect(addressErrors({ kind: 'list', resource: '{name}', filter: 'id = 1' }, { models, source: customers })).toEqual(['a link whose resource comes from the record ("{name}") names no filter, order or values'])
+    expect(addressErrors({ kind: 'create', resource: '{name}', values: { id: '1' } }, { models, source: customers })).toEqual(['a link whose resource comes from the record ("{name}") names no filter, order or values'])
+  })
+
   it('names placeholders the record does not have, or that have no record', () => {
     expect(addressErrors({ kind: 'record', resource: 'customers', key: '{ownerId}' }, { models, source: repairs })).toEqual(['"{ownerId}" is not a field of repairs'])
     expect(addressErrors({ kind: 'record', resource: 'customers', key: '{customerId}' }, { models })).toEqual(['"{customerId}" takes a value from the record, but the link sits on none'])

@@ -61,10 +61,14 @@ const waitUntil = async (state: WaitState, call: StateCall) => {
   return at
 }
 
-/** A Wait saves its step at once, with the time the next state may run: the segment ends there, and the queue wakes the run. */
+/** A Wait saves its step at once, with the time the next state may run: the segment ends there, and the queue wakes the run. A replay does not wait. */
 export const runWait = async (state: WaitState, call: StateCall): Promise<StateResult> => {
   const resumeAt = await waitUntil(state, call)
-  return { kind: 'step', status: 'succeeded', next: nextOf(state), input: call.position.input, output: await outputOf(state, call), assigned: await evaluateAssign(state.Assign, call.bindings), resumeAt, logs: call.logs }
+  const step = { kind: 'step', status: 'succeeded', next: nextOf(state), input: call.position.input, output: await outputOf(state, call), assigned: await evaluateAssign(state.Assign, call.bindings), logs: call.logs } as const
+  if (!call.context.replay) return { ...step, resumeAt }
+  // A replay goes on at once.
+  call.logs.push({ at: call.context.now().toISOString(), message: 'Not waited: replay' })
+  return step
 }
 
 export const runFail = async (state: FailState, call: StateCall): Promise<StateResult> => {

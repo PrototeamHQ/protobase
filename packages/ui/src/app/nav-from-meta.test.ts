@@ -198,6 +198,38 @@ describe('navFromMeta', () => {
     })
   })
 
+  it('shows an entry for creators only to a caller the list offers New', () => {
+    const permissions = (create: boolean) => ({ create, update: true, delete: true, conditional: [] })
+    const view = (resource: string, extra = {}) => ({ resource, fields: {}, filters: [], layout: [], actions: [], ...extra }) as unknown as ViewModel
+    const meta = (create: boolean) => ({
+      etag: '"x"',
+      appName: 'Protobase',
+      permissions: { forms: permissions(create) },
+      pages: {},
+      resources: { forms: model('forms', 'public'), answers: model('answers', 'public') },
+      views: { forms: view('forms', { nav: { creatorsOnly: true } }), answers: view('answers') },
+    })
+    const ids = (groups: ReturnType<typeof navFromMeta>) => groups.flatMap((group) => group.items.map((item) => item.id))
+    expect(ids(navFromMeta(meta(true)))).toEqual(['forms', 'answers'])
+    expect(ids(navFromMeta(meta(false)))).toEqual(['answers'])
+  })
+
+  it('puts the tables users add and the list they are made from under one Tables group', () => {
+    const view = (resource: string, extra = {}) => ({ resource, fields: {}, filters: [], layout: [], actions: [], ...extra }) as unknown as ViewModel
+    const meta = {
+      etag: '"x"',
+      appName: 'Protobase',
+      permissions: {},
+      pages: {},
+      resources: { user_tables: model('user_tables', 'table_definitions'), notes: model('notes', 'user_tables') },
+      views: { user_tables: view('user_tables', { names: { singular: 'Table', plural: 'Tables' }, nav: { order: 0 } }), notes: view('notes') },
+    }
+    expect(navFromMeta(meta).flatMap((group) => group.items.map((item) => [group.label, item.label, item.href]))).toEqual([
+      ['Tables', 'Tables', '/user_tables'],
+      ['Tables', 'Notes', '/notes'],
+    ])
+  })
+
   it('puts pages first, in their group or under Pages, and honours their nav', () => {
     const view = (resource: string, nav: object = {}) => ({ resource, fields: {}, filters: [], layout: [], actions: [], nav }) as unknown as ViewModel
     const page = (name: string, nav?: object) => ({ name, title: name.toUpperCase(), tree: { type: 'Page', props: { title: name }, children: [] }, ...(nav && { nav }) })

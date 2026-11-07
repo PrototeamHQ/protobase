@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addressPlaceholders, appHrefError, fillAddress, hrefField, hrefPlaceholders, leavesApp, linkActionError } from './address-template'
+import { addressPlaceholders, appHrefError, fillAddress, hrefField, hrefPlaceholders, leavesApp, linkActionError, resourceField } from './address-template'
 
 describe('fillAddress', () => {
   it('fills a record key and a list filter and order from the record', () => {
@@ -20,6 +20,15 @@ describe('fillAddress', () => {
       values: { listing_id: '42', body: 'About Keizersgracht 12' },
     })
     expect(addressPlaceholders({ kind: 'create', resource: 'notes', values: { listing_id: '{id}' } })).toEqual(['id'])
+  })
+
+  it('takes the resource from the record when it is only a placeholder', () => {
+    const to = { kind: 'list', resource: '{name}' } as const
+    expect(resourceField(to)).toBe('name')
+    expect(resourceField({ kind: 'list', resource: 'notes' })).toBeUndefined()
+    expect(addressPlaceholders(to)).toEqual(['name'])
+    expect(fillAddress(to, { name: 'notes' })).toEqual({ kind: 'list', resource: 'notes' })
+    expect(fillAddress({ kind: 'record', resource: '{name}', key: '{id}' }, { name: 'notes', id: 3 })).toEqual({ kind: 'record', resource: 'notes', key: '3' })
   })
 
   it('leaves a missing value empty and other addresses alone', () => {

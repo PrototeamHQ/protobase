@@ -1,0 +1,57 @@
+{
+  "recorded_at": "2026-11-07T08:44:24.867Z",
+  "request": {
+    "method": "GET",
+    "path": "history",
+    "query": [
+      [
+        "startHistoryId",
+        "5314"
+      ],
+      [
+        "historyTypes",
+        "messageAdded"
+      ],
+      [
+        "labelId",
+        "INBOX"
+      ],
+      [
+        "maxResults",
+        "100"
+      ]
+    ]
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=UTF-8"
+    },
+    "body": {
+      "history": [
+        {
+          "id": "5316",
+          "messages": [
+            {
+              "id": "1a1b52e3049a995f",
+              "threadId": "1a1b52e3049a995f"
+            }
+          ],
+          "messagesAdded": [
+            {
+              "message": {
+                "id": "1a1b52e3049a995f",
+                "threadId": "1a1b52e3049a995f",
+                "labelIds": [
+                  "UNREAD",
+                  "INBOX"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "historyId": "5339"
+    }
+  }
+}

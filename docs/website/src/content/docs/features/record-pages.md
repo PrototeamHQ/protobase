@@ -10,12 +10,14 @@ description: The page of one record, with its sections, related records, galleri
 - [Unsaved edits](/reference/ui-config/#editing-a-record): Unsaved changes to a record stay in the browser and can be resumed, and leaving a form, a dialog or a comment with changes asks first.
 - [Record forms](/reference/ui-config/#editing-a-record): Relations are picked from a list that narrows as you type, numbers are read as the browser's language writes them, and a refused save says under each field what is wrong.
 - [Titles per reader](/reference/ui-config/#titles-per-reader): A record without a name of its own, such as a direct message, is titled for each reader from its fields, such as after the other members, in the sidebar, breadcrumbs, heading, browser tab, relation links, list columns, relation pickers, filters and search.
+- [JSON fields on forms](/reference/plugins/#json) (beta): A JSON field, such as a workflow run's input, is edited on forms as JSON text and shown written out on several lines.
 - [Member fields](/reference/plugins/#members): A field that holds a list of people, such as a private channel's members, picks the organization's members by name on forms and shows them by avatar and name.
 - [Save feedback](/reference/ui-config/#the-record-page): A view shows saving on the Save button instead of in a toast.
 - [Save conflicts](/reference/ui-config/#editing-a-record): When someone else changed a record while you edited it, Save shows their value beside yours for each field you both changed, and you keep yours or take theirs.
 - [Groups and tabs](/reference/ui-config/#groups): Parts of a record page sit under headings that open on click, or in tabs, and the open ones are kept in the address.
 - [Key facts](/reference/ui-config/#key-facts): A section shows its values side by side with icons.
 - [Confirming a change](/reference/ui-config/#confirming-a-change): A field that is easy to set by mistake asks a question before a person changes it in a form or a list cell, and Cancel keeps its value.
+- [Fields only once a record exists](/reference/ui-config/#names-and-columns): A view leaves a field off the create form, such as a choice among records added after it, and the record page shows it as usual.
 - [Help while editing](/reference/ui-config/#help-while-editing): Help lines meant for whoever changes a record show only on its form.
 - [Conditional sections](/reference/ui-config/#form-and-read-view): Sections and fields show only while editing, only while reading, or only when a condition on the record holds.
 - [Galleries](/reference/ui-config/#galleries): A record's photos show as tiles that open a full-screen lightbox, with keyboard and swipe navigation.

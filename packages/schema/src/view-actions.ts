@@ -35,6 +35,13 @@ const named = (name: string, o: ActionOptions & { bulk?: boolean }): ActionModel
   }
 }
 
+/**
+ * `mailbox: true` says the handler sends mail from the person's own mailbox, such as an invoice: its dialog offers to
+ * connect one instead of running while none is linked.
+ * @inline
+ */
+type MailboxOption = { mailbox?: boolean }
+
 /** @inline */
 type InputsOption = { inputs?: (i: typeof inputs) => ActionInputModel[] }
 
@@ -52,8 +59,13 @@ export const actions = {
    * An action the app implements: it runs the handler registered under `name`. With `inputs`, such as
    * `(i) => [i.text('reason', { label: 'Reason' })]`, the button first asks for them in a dialog, and the handler gets the
    * answers as `values`. With `bulk` and no `inputs`, the list offers it for the selected rows too, and runs the handler on each it applies to.
+   * With `mailbox: true`, it sends from the person's own mailbox, and its dialog offers to connect one while none is linked.
    */
-  action: (name: string, o: ActionOptions & InputsOption & { bulk?: boolean }): ActionModel => ({ ...named(name, o), ...builtInputs(name, o.inputs) }),
+  action: (name: string, o: ActionOptions & InputsOption & MailboxOption & { bulk?: boolean }): ActionModel => ({
+    ...named(name, o),
+    ...builtInputs(name, o.inputs),
+    ...(o.mailbox && { mailbox: true }),
+  }),
   /**
    * Sets fields of the record, as one update with its ETag, for example `{ status: 'paid' }`. It is not offered on a
    * record that holds these values already. With `inputs`, the button first asks for them in a dialog, and a `set` value

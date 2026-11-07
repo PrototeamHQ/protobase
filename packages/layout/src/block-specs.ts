@@ -80,6 +80,7 @@ export const blockSpecs: Record<string, BlockSpec> = {
   TwoFactor: { children: false, props: {} },
   ConnectedAccounts: { children: false, props: {} },
   PersonalMail: { children: false, props: {} },
+  Connections: { children: false, props: {} },
   Devices: { children: false, props: {} },
   ConnectedApps: { children: false, props: {} },
   DeleteAccount: { children: false, props: {} },

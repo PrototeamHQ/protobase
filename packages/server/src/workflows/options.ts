@@ -1,3 +1,4 @@
+import type { LoadedPlugin } from '@protobase/workflows'
 import type { TenantValue } from '../types'
 
 /** Workflows made in the admin app (`workflows: {}`), kept with their runs in a schema of the app's database. */
@@ -21,23 +22,23 @@ export type WorkflowsOptions = {
    */
   allowPrivateAddresses?: boolean
   /**
+   * The app's workflow plugins, run beside the built-in types (`app:*`) through the same interface; the CLI loads them
+   * from `workflows.plugins` and `workflows/plugins/<name>.ts`. Two of one name stop startup, naming both sources.
+   */
+  plugins?: LoadedPlugin[]
+  /**
    * Which runs keep a trace, every step's input, output and logs as JSON lines in the private file provider: `all`
    * (default), `failed` for only the runs that fail, or `none`. A workflow's definition (`trace`) and a run's own
    * `trace` set it for theirs.
    */
   trace?: 'all' | 'failed' | 'none'
-  /**
-   * A local folder, such as a scratch disk, that keeps copies of runs' large files and values, at most `maxSize` (default
-   * `1 GB`), read before the private file provider. A copy may be gone, as the provider's is what a run relies on.
-   */
-  scratch?: { dir: string; maxSize?: string }
 }
 
 const schemaPattern = /^[a-z_][a-z0-9_]*$/
 const secretName = /^[A-Z_][A-Z0-9_]*$/
 
 /** The schema of the options, checked. */
-export const workflowsSchema = (options: WorkflowsOptions = {}) => {
+export const workflowsSchema = (options: Pick<WorkflowsOptions, 'schema'> = {}) => {
   const schema = options.schema ?? 'workflows'
   if (!schemaPattern.test(schema)) throw new Error(`Invalid workflows schema "${schema}": use lowercase letters, digits and "_"`)
   // Postgres cuts a longer name to 63 bytes, so two configs could share one schema.

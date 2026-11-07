@@ -144,11 +144,26 @@ export const projectWebhooks = async (config: MergedConfig): Promise<WebhooksOpt
   return { ...config.webhooks, ...(ownerRoles && { ownerRoles }) }
 }
 
-/** The workflows options, with the roles of workflows/saved-by-roles.ts when a config's folder has it. */
+// The plugins of `workflows.plugins`, by package name, then every config folder's workflows/plugins/<name>.ts, each its
+// default export; the server refuses two of one name, naming both sources.
+type Plugin = NonNullable<WorkflowsOptions['plugins']>[number]['plugin']
+
+const workflowPlugins = async (config: MergedConfig, packages: readonly string[]) => {
+  const project = config.sources.at(-1)!.files
+  const fromPackages = await Promise.all(packages.map(async (name) => ({ plugin: (await project.package(name)).default as Plugin, source: name })))
+  const fromFolders = await Promise.all(
+    config.sources.flatMap(({ files, label }) => files.folder('workflows/plugins').map(async (file) => ({ plugin: (await files.module(file)!()).default as Plugin, source: `${file} of ${label}` }))),
+  )
+  return [...fromPackages, ...fromFolders]
+}
+
+/** The workflows options, with the roles of workflows/saved-by-roles.ts when a config's folder has it, and the app's plugins. */
 export const projectWorkflows = async (config: MergedConfig): Promise<WorkflowsOptions | undefined> => {
   if (!config.workflows) return undefined
+  const { plugins: packages = [], ...options } = config.workflows
   const savedByRoles = await lastDefault<WorkflowsOptions['savedByRoles']>(config, 'workflows/saved-by-roles.ts')
-  return { ...config.workflows, ...(savedByRoles && { savedByRoles }) }
+  const plugins = await workflowPlugins(config, packages)
+  return { ...options, ...(savedByRoles && { savedByRoles }), ...(plugins.length > 0 && { plugins }) }
 }
 
 /**

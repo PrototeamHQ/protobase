@@ -22,6 +22,11 @@ describe('action conditions and variants', () => {
     })
   })
 
+  it('marks an action that sends from the person\'s own mailbox, and leaves the mark out otherwise', () => {
+    expect(a.action('send_invoice', { label: 'Send', mailbox: true })).toEqual({ name: 'send_invoice', label: 'Send', bulk: false, mailbox: true })
+    expect(a.action('archive', { label: 'Archive', mailbox: false })).toEqual({ name: 'archive', label: 'Archive', bulk: false })
+  })
+
   it('leaves out an explicit hide, the default', () => {
     expect(a.remove('drop', { label: 'Drop', when: "status = 'stopped'", otherwise: 'hide' })).toEqual({ name: 'drop', label: 'Drop', bulk: false, when: "status = 'stopped'", run: { kind: 'delete' } })
   })

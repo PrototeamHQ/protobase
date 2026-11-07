@@ -4,7 +4,7 @@ description: Workflows written as state machines in the States Language with JSO
 ---
 
 :::caution[Beta]
-Workflows run when they are started through the API, over MCP or from the app's code. Triggers and sign-in connections to other services are not built yet.
+Workflows run when they are started through the API, over MCP, from the app's code or by a test run in the admin app, and from record triggers. They also run from webhook and polling triggers, within the limits named at the start of their sections.
 :::
 
 A **workflow** is a graph of steps that the server runs one after another along its edges: fetch something, decide, run a step per item, merge the results, write records, send mail. It is written in the **States Language**, the JSON language of state machines, with **JSONata** as its expression language, in a profile of it that reads every value by name. A language model writes and changes it as easily as a person, and the same document is what the server checks and runs. Each run keeps a trace of every step it takes, with what the step read, gave and logged, outside the database, which holds only what a run needs to go on.
@@ -17,23 +17,24 @@ import { defineConfig } from '@protobase/config'
 export default defineConfig({ workflows: { secrets: ['TICKETS_TOKEN'] } })
 ```
 
-It adds three resources, over a `workflows` schema that [`protobase migration`](/reference/cli/#migration) writes (`NNN_workflows.sql`), and the `workflows.segment` [job](/reference/jobs/) that runs them:
+It adds four resources, over a `workflows` schema that [`protobase migration`](/reference/cli/#migration) writes (`NNN_workflows.sql`), and the `workflows.segment` [job](/reference/jobs/) that runs them:
 
 | Resource | |
 | --- | --- |
 | `workflows` | A name, a description and the definition. Each save that changes the definition is checked, and kept as the workflow's next version, saved by the caller. |
 | `workflow_versions` | Every version of every definition as it was saved, with who saved it and when. Read-only. |
-| `workflow_runs` | A run, started by creating it with `workflow_id`, an `input` and, if it says, its own `trace`; it runs the version its workflow had then. Its status, output, error, timing and trace file are written by the runner. |
+| `workflow_runs` | A run, started by creating it with `workflow_id`, an `input` and, if it says, its own `trace`, or with `rerun_of` to [re-run a failed run](#re-running-a-failed-run), and `replay: true` too to [replay a run](#replaying-a-run); it runs the version its workflow had then, a replay the replayed run's. Its status, output, error, timing and trace file are written by the runner. |
+| `workflow_triggers` | The trigger of each enabled workflow that has one besides `manual`: its type, status and last error. Read-only. |
 
 | `workflows` | |
 | --- | --- |
 | `schema` | The schema of its tables, for a database that has a `workflows` schema already. Default `workflows`. |
 | `secrets` | The environment variables workflows may read, by name. Startup stops when one is unset or shorter than 8 characters. |
-| `allowPrivateAddresses` | Lets the `app:http` step reach private, loopback and link-local addresses, for development and tests. Default false. |
+| `allowPrivateAddresses` | Lets the `app:http` step, and every plugin's `fetch`, reach private, loopback and link-local addresses, for development and tests. Default false. |
+| `plugins` | Packages of [workflow plugins](/reference/workflow-plugins/) to run, by name, beside the app's own in `workflows/plugins/<name>.ts`. |
 | `trace` | Which runs keep a [trace](#traces): `all` (default), `failed` or `none`. Any other value stops startup. |
-| `scratch` | `{ dir, maxSize }`: a local folder, such as a scratch disk, that keeps copies of runs' large files and values, at most `maxSize` (default `1 GB`), read before the private file provider. |
 
-Runs keep their traces, the files steps store and large values in the app's `private` [file provider](/reference/files/), local disk under `data/files/private` unless `PROTOBASE_FILES_PRIVATE` names an S3 bucket, so an app with workflows needs a files secret: `secret`, `files.secret`, `PROTOBASE_FILES_SECRET` or `PROTOBASE_SECRET`.
+Runs keep their traces and the files steps store in the app's `private` [file provider](/reference/files/), local disk under `data/files/private` unless `PROTOBASE_FILES_PRIVATE` names an S3 bucket, so an app with workflows needs a files secret: `secret`, `files.secret`, `PROTOBASE_FILES_SECRET` or `PROTOBASE_SECRET`.
 
 Records steps act as each workflow's last editor, with the roles the project's sign-in gives them now. A project that signs people in otherwise exports its own, `async ({ id, tenant }) => [...]`, as the default of `workflows/saved-by-roles.ts` (`createAdmin` takes it as `workflows.savedByRoles`); without either, startup stops.
 
@@ -43,7 +44,7 @@ A definition is one JSON document: the workflow's trigger, and the state machine
 
 ```json
 {
-  "trigger": { "record": { "events": ["orders.created"] } },
+  "trigger": { "app:record": { "resource": "orders", "when": "status = 'placed'" } },
   "stateMachine": {
     "QueryLanguage": "JSONata",
     "StartAt": "Charge",
@@ -54,7 +55,7 @@ A definition is one JSON document: the workflow's trigger, and the state machine
         "Arguments": {
           "method": "POST",
           "url": "https://payments.example.com/charges",
-          "body": { "order_id": "{% $states.context.Execution.Input.after.id %}", "amount": "{% $states.context.Execution.Input.after.total %}" }
+          "body": { "order_id": "{% $states.context.Execution.Input.record.id %}", "amount": "{% $states.context.Execution.Input.record.total %}" }
         },
         "Retry": [{ "ErrorEquals": ["States.ALL"], "IntervalSeconds": 10, "MaxAttempts": 3, "BackoffRate": 2 }],
         "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "MarkFailed", "Assign": { "chargeError": "{% $states.errorOutput %}" } }],
@@ -63,7 +64,7 @@ A definition is one JSON document: the workflow's trigger, and the state machine
       "MarkFailed": {
         "Type": "Task",
         "Resource": "app:records.update",
-        "Arguments": { "resource": "orders", "key": "{% $states.context.Execution.Input.after.id %}", "data": { "status": "payment_failed" } },
+        "Arguments": { "resource": "orders", "key": "{% $states.context.Execution.Input.record.id %}", "data": { "status": "payment_failed" } },
         "Next": "TellOps"
       },
       "TellOps": {
@@ -71,7 +72,7 @@ A definition is one JSON document: the workflow's trigger, and the state machine
         "Resource": "app:mail.send",
         "Arguments": {
           "to": "ops@example.com",
-          "subject": "{% 'Payment failed for order ' & $states.context.Execution.Input.after.id %}",
+          "subject": "{% 'Payment failed for order ' & $states.context.Execution.Input.record.id %}",
           "text": "{% $chargeError.Cause %}"
         },
         "End": true
@@ -85,17 +86,78 @@ The document holds no layout: the [editor](#the-editor) lays the graph out from 
 
 ### Triggers
 
-`trigger` holds exactly one of these; its payload is the run's input.
+`trigger` holds one key: `manual`, or a trigger type `<plugin>:<key>` with its input. The built-in ones are the `app` plugin's; a [workflow plugin](/reference/workflow-plugins/) adds its own the same way, and `list_workflow_types` over MCP lists them all with their inputs.
 
 | Trigger | Starts a run | The input holds |
 | --- | --- | --- |
-| `"webhook": {}` | on each POST to the workflow's webhook address | `{ body, headers, query }` |
-| `"schedule": { "cron", "timezone" }` | on a 5-field cron, in an IANA time zone (default `UTC`) | `{ scheduled_at }`, ISO 8601 with the zone's offset |
-| `"mail": { "mailbox" }` | on each mail arriving in that mailbox | `{ from, to, subject, text, html, received_at, attachments }` |
-| `"record": { "events": ["<resource>.<event>"] }` | on each of those record events, such as `deals.created` | `{ event, resource, key, after, before, changed }` |
 | `"manual": {}` | when someone runs the workflow by hand | the input they give |
+| `"app:record": { "resource", "when", "key" }` | once per record that becomes ready | `{ resource, key, record }` |
+| `"app:webhook": { "auth", "body_limit", "per_minute", "idempotency_header" }` | once per signed call of its [URL](#appwebhook) | `{ method, query, headers, body, received_at }` |
+| `"app:schedule": { "cron", "timezone" }` | at each time of the [cron](#appschedule) | `{ scheduled_at }` |
 
-A save checks a trigger's shape; runs start through the API, over MCP or from the app's code. <gap>A webhook, schedule, mail or record trigger cannot start runs because the triggers are not implemented.</gap>
+A save checks a trigger's input against its type, and refuses a type the app does not have; besides triggers, runs start through the API, over MCP, from the app's code or by a [test run](#test-runs). A plugin's [polling and webhook triggers](/reference/workflow-plugins/#polling-and-webhook) run as these do.
+
+### Turning a trigger on
+
+A trigger starts runs only while its workflow is enabled: set `enabled_version` to the workflow's current `version` through the API, in the admin app or with `enable_workflow` over MCP, and clear it to turn the workflow off. The trigger is registered at once on every server process, with no restart, and its status, `active` or `failing` with its last error, is the workflow's `workflow_triggers` record. A save of an enabled workflow keeps it enabled on its new version; a new version whose trigger has the same type and input keeps the running trigger as it is, and any other change stops it and starts the new one. A trigger's runs run the enabled version and act as the user who saved it, as any run acts as its version's saver.
+
+### app:record
+
+```json
+{ "app:record": { "resource": "invoices", "when": "status = 'sent' AND due_at <= now() - 3d", "key": ["due_at"] } }
+```
+
+Starts one run for each record of `resource` that becomes ready, with `{ resource, key, record }` as the run's input, so the record's fields are read as `$states.context.Execution.Input.record.<field>`. Without `when`, every record is ready once it exists, so each new record starts one run.
+
+- **`when`** is a [filter](/reference/api/#filters) on the resource's filterable fields. `now()` may stand only in AND terms of the form `<timestamp or date field> <= now() - <duration>` (or `<`): such a term says when a record becomes ready, and the run starts at that time with no write, such as three days after an invoice's `due_at`. Any other use of `now()`, such as inside an OR, `search()` and `similar()` are refused at save, naming the term.
+- **One run per ready key:** the record's key, plus the values of the `key` fields. A record that stays ready over later writes starts no second run; one whose `due_at` changes is ready again under a new key.
+- **Who reads it:** the record is read through the API as the user who saved the enabled version, in the workflow's tenant, and `when` is checked on what they may read, so a record they cannot read, or a field they cannot see, never reaches a run. A saver who holds no role any more, or whom the API refuses, marks the trigger `failing`; the next write it reads a record on makes it active again, and it then passes over the records it missed. A key field the saver cannot read marks it `failing` too.
+- **When it looks:** a write to the resource, through the API or the database, reaches the trigger through [events](/reference/events/), so the resource must declare some; turning a workflow on also starts runs for the records ready already, 100 per job. No periodic sweep runs.
+
+<gap>A workflow cannot start on every write of a record because an every-change trigger is not implemented; a record trigger starts once per ready key.</gap> <gap>An owner is not told when a trigger starts failing because trigger alerts are not implemented.</gap>
+
+### app:webhook
+
+:::caution[Beta]
+The rate limits count per server process, not across the app's processes, and `hmac` and `bearer` calls carry no signed time, so a captured call can be sent again while its secret holds.
+:::
+
+```json
+{ "app:webhook": { "auth": { "mode": "standard_webhooks" }, "body_limit": 1048576, "per_minute": 60 } }
+```
+
+Starts one run for each call of the workflow's own URL that proves it comes from the sender. Issue the URL with `POST /api/workflows/<id>/webhook`, or `new_webhook_url` over MCP: it answers `{ url, secret }` once, and the app keeps only a hash of the URL's key, so it cannot show them again. Send `{ "secret": "<secret>" }` to keep a secret the sender makes itself, such as a Standard Webhooks sender's `whsec_` secret. A new URL replaces the old one, which stops at once. Issuing needs the right to change that workflow in your tenant; anyone else gets 404.
+
+The sender POSTs to the URL. `auth.mode` says how a call proves it is theirs:
+
+| `auth.mode` | The call carries |
+| --- | --- |
+| `standard_webhooks` (default) | `webhook-id`, `webhook-timestamp` and `webhook-signature` headers, signed with the secret, at most five minutes off |
+| `hmac` | an HMAC of the body in `auth.header`, after `auth.prefix`, in `auth.encoding` (`hex` or `base64`) with `auth.hash` (`SHA-1`, `SHA-256` or `SHA-512`) |
+| `bearer` | `Authorization: Bearer <secret>`; the app keeps only the secret's hash |
+
+The run's input is `{ method, query, headers, body, received_at }`: `body` is the JSON, the form fields (a field sent more than once as the list of its values) or the text sent, and a body that makes the input over 256 KiB as JSON, as escaping can before the body itself is, is a [file of the run](#file-values), which needs the app's `private` file provider. `headers` leaves out `authorization`, `cookie`, every `webhook-*` header, the `hmac` signature header and `x-forwarded-*`, and the input never holds the URL, so no credential reaches a run, its steps or its logs. A `standard_webhooks` call starts one run per `webhook-id`, and an `hmac` or `bearer` call one per value of the `idempotency_header` you name, when it sends one; the id is at most 200 characters.
+
+The URL answers `202 { run_id }`, or:
+
+| Status | When |
+| --- | --- |
+| `404` | the key opens no running webhook trigger: unknown, turned off, deleted, or the enabled version has another trigger |
+| `405` | the method is not POST |
+| `413` | the body is over `body_limit` bytes (default 1 MiB, at most 10 MiB, counted as it streams) |
+| `401` | the call does not carry the secret or a valid signature |
+| `429` | over `per_minute` calls that passed the check (default 60), or the client's address was refused 30 times this minute |
+| `400` | the id is over 200 characters |
+
+Only calls that pass the check spend `per_minute`, so someone who knows the URL but not the secret cannot use up the sender's calls. Both limits count per server process, so an app on several processes takes up to that many times more. The client's address is the one [`protobase serve`](/reference/cli/#serve) sets from the connection and its trusted proxies; behind another server, the limit is only as good as the `X-Forwarded-For` it sets. `hmac` and `bearer` calls carry no signed time, so a captured call can be sent again while its secret holds, unless the sender's idempotency header stops it; `standard_webhooks` refuses one more than five minutes old. Changing `auth.mode` to `standard_webhooks` or `hmac` after a `bearer` URL needs a new URL, since the app kept only the bearer secret's hash. With the request log on, the log shows the URL's key as `[key]`.
+
+### app:schedule
+
+```json
+{ "app:schedule": { "cron": "0 6 * * 1-5", "timezone": "Europe/Amsterdam" } }
+```
+
+Starts one run at each time of a five-field cron, in an IANA time zone (default UTC), with `{ scheduled_at }` as the run's input. A time starts one run however many server processes run. The first time missed while no worker ran starts one run, late, once a worker is back; the other times missed meanwhile start none.
 
 ### Reading values by name
 
@@ -117,7 +179,7 @@ JSONata's `$now()` and `$millis()` give the time of the run's last [checkpoint](
 
 The save is refused, naming each state and field, when the document does not fit the profile:
 
-- a field does not belong to its state or has the wrong type, or the trigger is not exactly one of the above, with a 5-field cron and a known time zone;
+- a field does not belong to its state or has the wrong type, or the trigger is not exactly one of `manual` or an available `<plugin>:<key>` type with input that fits that type's schema;
 - a `Next`, `Default` or catcher names no state, a state is never reached, or a state name is used twice, Maps included;
 - a Task names a step type the app does not have, or the state type is not one of Task, Choice, Pass, Map, Wait, Succeed and Fail;
 - an expression does not parse, or reads anything but the names above: the state's input as JSONata's context (a bare field name, `$`, `$$`), `$states.input` outside an item's first state, `$states.context` but for the three reads above, a variable no state that can run before it assigns, or `$eval`;
@@ -125,15 +187,13 @@ The save is refused, naming each state and field, when the document does not fit
 
 The problem's `problems` lists them as `{ state, field, message }`, where a state inside a Map is named by its path, such as `Each/Total`. The document's JSON Schema is `definitionSchema` of `@protobase/workflows`, and `checkDefinition` runs the whole check.
 
-`definitionWarnings` finds what a save takes but may go wrong, in the same shape: a state that reads, after a Wait, a variable a step marked `DoNotRepeat` assigned before it, such as a signed URL that may have expired by then. `validate_workflow`, `create_workflow` and `update_workflow` return them as `warnings`. <gap>The editor cannot show a definition's warnings because drawing them on their step is not implemented.</gap>
-
-<gap>A save cannot refuse a Task's missing or unknown argument because checking `Arguments` per step type is not implemented.</gap> The step fails its run instead, with an error such as `Http.InvalidArguments` whose cause names the argument.
+A save refuses a Task that leaves out an argument its step type needs, as [the editor](#the-editor) describes. <gap>A save cannot refuse a Task's unknown argument because checking `Arguments` against the step type's whole schema at save is not implemented.</gap> The step fails its run instead, with an error such as `Http.InvalidArguments` whose cause names the argument.
 
 ### States
 
 | Type | |
 | --- | --- |
-| `Task` | Runs a step type, its `Resource`, with its `Arguments`; `TimeoutSeconds`, `Retry`, `Catch` and `DoNotRepeat`. |
+| `Task` | Runs a step type, its `Resource`, with its `Arguments`; `TimeoutSeconds`, `Retry` and `Catch`. `Cache` reuses the result of an identical earlier call: `true` forces it on, `false` turns it off, and without it the step type decides, as [Caching results](/reference/workflow-plugins/#caching-results) says. |
 | `Pass` | Shapes values with `Output` and `Assign`, and goes on. |
 | `Choice` | Goes to the `Next` of the first of its `Choices` whose `Condition` is true, else to its `Default`; with neither it fails with `States.NoChoiceMatched`. A rule may carry its own `Output` and `Assign`. |
 | `Wait` | Waits `Seconds`, or until a `Timestamp` (ISO 8601), as a number or an expression. |
@@ -152,17 +212,45 @@ A failing Task or Map fails with an error name: a step type's own, such as `Http
 A workflow's record page in the admin app, `/workflows/<id>`, and its create form draw the definition as a graph to edit, and save the same document the API saves:
 
 - **The graph lays itself out.** The trigger is on top, each state is a box, a Map is a box around the states it runs for each item, and each edge is drawn from the field that names it: a state's `Next`, a Choice's rules (labelled with their condition) and its `Default` ("Otherwise"), and a Task's or Map's catchers ("On error", dashed). The graph is laid out by ELK's layered algorithm, from top to bottom, each time a state or edge is added, removed or renamed; the document keeps no positions, so the graph a person sees is the one a model or the API wrote, and the one they edit is what a model reads back. The page scrolls under the wheel; the canvas zooms with its buttons and by pinching.
-- **Adding a step.** *Add a step* adds a Task of a step type, or a Choice, Map, Wait, Pass, Succeed or Fail, named `Step 1`, `Step 2` and so on. It goes into the Map chosen, or the Map the chosen step is in, else into the workflow; it ends the run, or its item, until it is connected, and in a workflow or Map without steps it is the first.
+- **Adding a step.** *Add a step* adds a Task of any step type the app can run, its plugins' included, or a Choice, Map, Wait, Pass, Succeed or Fail, named `Step 1`, `Step 2` and so on. It goes into the Map chosen, or the Map the chosen step is in, else into the workflow; it ends the run, or its item, until it is connected, and in a workflow or Map without steps it is the first.
 - **Connecting steps.** Drag from a step's handle to another step, or tap one handle and then the other: the bottom handle sets `Next`, a Choice's *When* handle adds a rule and its *Otherwise* handle sets `Default`, a Task's or Map's *On error* handle adds a catcher of `States.ALL`, and the trigger's handle sets `StartAt`. A step leads only to steps of its own machine, so an edge into or out of a Map is refused. The chosen step's form sets the same edges with menus: *Goes on to*, each rule's and catcher's *Then goes to*, and *Otherwise goes to*.
 - **Removing.** Delete or Backspace removes the chosen step or edge, as does the form's *Remove step*. Removing a step removes the edges to it: a `Next` to it becomes `End`, and a rule, `Default` or catcher naming it goes. Removing the first step of a workflow or Map makes the first step left in it the first.
-- **A step's form.** Choosing a step opens its form under the graph: its name, which renames every edge to it, then what its type takes. A Task's form has a field for each argument of its step type, the ones it needs marked, as listed under [Step types](#step-types); a Choice's its rules and `Default`; a Map's `Items` and `MaxConcurrency`; a Wait's `Seconds`; a Pass's and a Succeed's `Output`; a Fail's `Error` and `Cause`. A field takes text, an expression (`{% ... %}`) or JSON; an emptied field is left out. *The step as JSON* edits every field of the step, such as `Retry`, `Assign` and `TimeoutSeconds`. The trigger's form picks the trigger and its schedule, mailbox or events.
+- **A step's form.** Choosing a step opens its form under the graph: its name, which renames every edge to it, then what its type takes. A Task's form has a field for each argument of its step type's input schema, the ones it needs marked, as listed under [Step types](#step-types) or by its plugin: one line of text for a string, one line for a number or `true` and `false`, a menu for an `enum`, names separated by commas for a list of strings, and JSON for anything else; a Choice's its rules and `Default`; a Map's `Items` and `MaxConcurrency`; a Wait's `Seconds`; a Pass's and a Succeed's `Output`; a Fail's `Error` and `Cause`. A field takes text, an expression (`{% ... %}`) or JSON; an emptied field is left out. *The step as JSON* edits every field of the step, such as `Retry`, `Assign` and `TimeoutSeconds`. The trigger's form picks among the app's triggers, its plugins' included, and draws a field for each input of its schema the same way, such as a record trigger's resource, `when` and `key`.
 - **Problems on their step.** The editor runs the same check as a save on every change, and shows each problem on the step it names, as a count on its box and a list and a marked field in its form; a problem with the trigger or the first step shows on the trigger, and one about the whole document above the graph. Saving writes the definition through the API, where the save hook checks it again: a definition with a problem is refused with the 400 above, whose `errors` hold each problem for the `definition` field, with its state and field in `params`.
 
-A save also refuses a Task that leaves out an argument its step type needs, such as `app:http` without `url`, unless its `Arguments` is one expression, whose value is known only when it runs. A user who may read a workflow but not change it sees the same graph and forms, locked. <gap>The editor cannot undo a single change because an undo history is not implemented.</gap>
+A save also refuses a Task that leaves out an argument its step type needs, such as `app:http` without `url`, unless its `Arguments` is one expression, whose value is known only when it runs. A user who may read a workflow but not change it sees the same graph and forms, locked. <gap>The editor cannot undo a single change because an undo history is not implemented.</gap> The editor reads the app's types from `GET /api/workflows/types`, `client.workflowTypes()` of `@protobase/client`: the same list `list_workflow_types` gives over MCP, `{ step_types, triggers }`, which only a user who may read workflows gets. A type the app cannot run, such as one that signs in through a connection whose OAuth client the app does not set, is not offered, and the check refuses it with the reason; a stored trigger of such a type, or of a type the app does not have, shows its type and input, read-only. The boxes, their accessible names and a run's step headings name each type by the label the list gives it, such as *Shout* for `acme:shout`.
+
+A Task's form has a *Cache results* switch, unless its step type hides it. For a type whose plugin offers an on and off switch, it turns caching on or off. For any other type, the type decides when it reuses a result, and the switch forces it on for every call. A type whose plugin advises against forcing it on shows its plugin's warning first. Once forced on, its box carries an exclamation mark, also in its accessible name, so a screenshot shows at once that the warning was set aside.
+
+## Connecting an account
+
+:::caution[Beta]
+Each connected account belongs to the person who connected it, and only that person can turn on a workflow that uses it.
+:::
+
+A trigger or step type that signs in to another service, such as a mailbox, uses an account that someone connected. Each person connects their own accounts on the **Connections** section of the account page's Profile tab. Connecting takes them to the provider and back. Under each account, the section links each workflow that uses it: those the person turned on, whose enabled version binds the account, while they may still change them. The app keeps the account's tokens on the server, encrypted, and refreshes them when they expire. **Disconnect** first makes the triggers on the account wait for a new sign-in, then asks the provider to revoke the token when the connection has a revocation endpoint, and then deletes the account, so no step or trigger can use the token again, even one that was fetching it at that moment. The answer's `revocation` says what became of the token: `revoked` when the provider took it, `queued` when it did not answer or refused, and `not_revoked` when the connection has no revocation endpoint or the token could not be revoked or queued, as when it no longer decrypts with the app's secret; the section shows it. A queued token is tried again later, waiting from a minute up to an hour between tries, ten tries in all. Until then it keeps the token encrypted with the app's secret, in the workflows schema's `connection_revocations`, and drops it once the provider takes it, after the last try, or once the app's secret no longer decrypts it. A provider that never takes it keeps the token valid on its side. When stopping the triggers or deleting the account fails, disconnecting answers that error and keeps the account, and disconnecting again finishes the job. It answers `503` (`CONNECTIONS_STARTING`) and keeps the account while the workflows have not started. Deleting a user, by an admin, by themselves or with `protobase users delete`, does the same for each of their connected accounts before the user goes; when it cannot, as while the workflows have not started, the user and their accounts stay, and deleting them again finishes the job. <gap>A user deletion refused while the workflows start cannot answer in the language the request asks for because passing the request to the user-deletion listeners is not implemented.</gap> Its refusals come in the language the request asks for. <gap>Connection refusals from the auth endpoints cannot follow the app's `locale` setting because passing it to the auth instance, which is made before the app's options, is not implemented.</gap> The auth endpoint `/unlink-account` refuses an account that Connections lists (`403`, `CONNECTION_UNLINK_REFUSED`): disconnect it there. Connecting again makes a new account with a new id: bind it in the workflow's `connections` and turn the workflow on again. Revoking at Google ends everything the account allowed the app, the sign-in and a linked mailbox included, and the dialog says so.
+
+A workflow names the account each of its connections uses in its definition's `connections`, by `<plugin>:<connection>` and the account's id, which the Connections section shows, as does `list_connections` [over MCP](/reference/mcp/#workflows):
+
+```json
+{ "trigger": { "gmail:new_mail": {} }, "connections": { "gmail:google": "<account id>" }, "stateMachine": { ... } }
+```
+
+- **Saving:** anyone who may change the workflow saves it, an MCP client included. A save refuses a binding that no trigger or step of the workflow uses.
+- **Turning it on is the consent.** A workflow that uses a connection is turned on only by the owner of every account it names, signed in as themselves. Someone else, staff signed in as the owner, and an outside app acting for them get a `403` problem (`own-sign-in-only`), the same for an account that is not there. Over MCP, `enable_workflow` answers that the owner turns it on in the admin app. A save that keeps such a workflow on is turned on again by the person saving it, so only the owner saves it while it is on; anyone else turns it off first.
+- **At run time:** each time a step or trigger asks for a token, the app checks again. The version it runs must name the account, the person who turned that version on must own it, and that person must still be allowed to change the workflow in its tenant. Otherwise the token request throws a `not_connected` `ConnectionError`, and the step fails with `States.TaskFailed`. The same happens once the workflow is turned off, once the account is disconnected, and once that person lost the right to change workflows, even between two requests of one step. A run never records the token.
+- **Signing in again:** when the provider refuses a refresh token (`invalid_grant`), the step fails with `link_expired`, and every trigger on that account waits as `needs_sign_in`. The Connections section marks the account. Connecting the same account again, without disconnecting it first, resumes the triggers from where they stopped. A refresh that fails otherwise, as when the provider is down, fails only that try, which a `Retry` or the next poll repeats, and the account stays connected.
+- **Turning it off:** turning the workflow off, turning on a version with another trigger, or deleting the workflow ends a webhook trigger's subscription at the provider, also for a trigger type the app no longer saves, as after its connection's client was removed. The stop signs in through the account the subscription was made with, as the person who turned that version on, for that one call only; runs and steps still get `not_connected`. While that account is disconnected or no longer that person's, or when the provider refuses its sign-in, the trigger stays `stopping` in `workflow_triggers` with `not_connected`, as does one turned on before the app recorded who turned it on.
+
+A workflow uses one person's accounts: one whose connections name accounts of two people can never be turned on.
 
 ## Step types
 
-A step's call either changes the world, such as mail sent, a record written or a `POST`, or only reads, such as a `GET`, a record read or a list. A call that changes the world is **recorded**: its checkpoint is saved before the run goes on, so it never happens twice in a run. A read is done again when a crash comes before the next checkpoint. `"DoNotRepeat": true` on a Task records a read too, for a result that expires or works once, such as a signed URL from an incoming mail; a step type may make it its default, which `"DoNotRepeat": false` turns off.
+The built-in step types are the `app` plugin's, written on the same [plugin interface](/reference/workflow-plugins/) as any other; a plugin's step is a Task with `"Resource": "<plugin>:<key>"`. A step's `Arguments` are checked against its type's input schema before it runs: one that does not fit fails as `<Prefix>.InvalidArguments`, such as `Http.InvalidArguments`.
+
+A step's call either changes the world, such as mail sent, a record written or a `POST`, or only reads, such as a `GET`, a record read or a list, as its type declares. A call that changes the world is **recorded**: its checkpoint is saved before the run goes on, with its result and the time it was fetched, so it never happens twice in a run. A read is done again when a crash comes before the next checkpoint.
+
+<gap>An author cannot wrap steps in a block that runs once, cached by what it reads, with a run and trace of its own, because blocks are not implemented.</gap> <gap>A workflow cannot store a file in a named storage configuration, or stream an answer into one, because the storage step and storage configurations are not implemented.</gap>
 
 ### app:http
 
@@ -210,13 +298,13 @@ A file value is `{ uri, name, type, size }`, the handle to bytes in the app's st
 
 ## Runs and their steps
 
-A run starts when it is created, through the API or the admin app, in the same transaction: `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "input": { ... } }`. The input is at most 1 MiB as JSON and nests at most 64 levels; a larger one is refused with `input-too-large` or `input-too-deep` and no run. From the app's own code, such as a job or a write hook, `startWorkflow(db, { workflow, input, tenant, startedBy, trace })` from `@protobase/server` starts one in `db`'s transaction, so it starts when the caller's writes commit, or not at all. With a `key`, such as `orders:42`, a workflow runs once per key: a start with a key it has a run for already, in this transaction or another, starts nothing and returns that run's id.
+A run starts when it is created, through the API or the admin app, in the same transaction: `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "input": { ... } }`. The input is at most 256 KiB as JSON and nests at most 64 levels; a larger one is refused with `input-too-large` or `input-too-deep` and no run. From the app's own code, such as a job or a write hook, `startWorkflow(db, { workflow, input, tenant, startedBy, trace })` from `@protobase/server` starts one in `db`'s transaction, so it starts when the caller's writes commit, or not at all. With a `key`, such as `orders:42`, a workflow runs once per key: a start with a key it has a run for already, in this transaction or another, starts nothing and returns that run's id.
 
 A run's status is `queued`, `running`, `waiting` (with the time it goes on), `succeeded` with its output, or `failed` with its error and cause.
 
 ### Traces
 
-A run's **trace** keeps every step it took, one JSON object a line (JSONL): the state, its type, the scope it ran in (empty for the run itself, `Each.3[0]` for item 0 of the Map `Each` that was step 3), its number, its try, its status (`succeeded`, `retrying`, `caught` or `failed`), its input, output and assigned variables, its logs, when it started and ended, its error and cause, where it goes on to, and whether it was `recorded`. It is kept in the private file provider, not the database: each segment writes the steps it ran as a part under `workflows/<run>/trace/` in the background, once its checkpoints are saved, so the run never waits for it; the segment that ends the run joins the parts into `workflows/<run>/trace.jsonl`, which the run's **Trace** field (`trace_file`) then offers to download. <gap>The run's page cannot list the trace's steps one by one because a trace view is not implemented.</gap> A step a crash made run again is in the trace once for each time it ran to the end of its segment. A trace that cannot be written goes to the app's error report (`onUnhandledError`), and the run goes on.
+A run's **trace** keeps every step it took, one JSON object a line (JSONL): the state, its type, the scope it ran in (empty for the run itself, `Each.3[0]` for item 0 of the Map `Each` that was step 3), its number, its try, its status (`succeeded`, `retrying`, `caught` or `failed`), its input, output and assigned variables, its logs, when it started and ended, its error and cause, where it goes on to, and whether it was `recorded`. It is kept in the private file provider, not the database: each segment writes the steps it ran as a part under `workflows/<run>/trace/` in the background, once its checkpoints are saved, so the run never waits for it; the segment that ends the run joins the parts into `workflows/<run>/trace.jsonl`, which the run's **Trace** field (`trace_file`) then offers to download, and the run's page lists step by step. A step a crash made run again is in the trace once for each time it ran to the end of its segment. A trace that cannot be written goes to the app's error report (`onUnhandledError`), and the run goes on.
 
 Every run keeps a trace by default. The run's own `trace` (set as it is started), else its workflow definition's `trace`, else the config's `workflows.trace` says which: `all`, `failed`, which keeps the trace of a run that fails and drops the parts of one that succeeds, or `none`.
 
@@ -224,9 +312,47 @@ Every run keeps a trace by default. The run's own `trace` (set as it is started)
 
 A workflow reads a secret only by name, `$states.context.Secrets.TICKETS_TOKEN`, and only one the config's `workflows.secrets` lists; the values are never part of the definition. Every value of the listed secrets is blanked out as `[redacted]` wherever it appears in what a run records: a step's input, output, variables, logs, error and cause, and the run's output, error and cause, in the database and in the trace alike. In a Task's input, every field whose name says it holds a secret, such as `Authorization`, `token` or `apiKey`, is blanked out too. A value an expression computes from a secret, however it changes it, such as `'Basic ' & $base64encode(...)`, is kept whole as `[redacted]`: in a Task's `Arguments` the step type gets the value and the record keeps `[redacted]`; in an `Output`, an `Assign`, a Map's `Items` or a Fail's `Error` and `Cause` the value itself is `[redacted]`, so later states read that. Read a secret in the `Arguments` of the Task that sends it. A secret that comes back changed in a step's result, such as one a server encodes in its answer, is not the value the runner looks for, and is kept as it came. A run's input is kept as its caller gave it, so a secret's value never belongs in it.
 
+### Following and debugging a run
+
+A workflow's page in the admin app lists its runs, newest first, with their status, who or what started them, when, how long they took, their version and error. A run's page, `/workflow_runs/<id>`, draws the workflow's graph as the run's version has it, the `workflow_run` [field type](/reference/plugins/#workflow) on the run's `id`, with a mark on each state:
+
+| Mark | |
+| --- | --- |
+| Succeeded, Caught, Failed | How the state's last step ended; for a state inside a Map, the worst of its items. A failed state's box is red. |
+| Retrying | Its last try failed and a retrier tries it again. |
+| Running | The run is on it, or goes on to it next. |
+
+A state that took more than one step, by its tries, its visits or a Map's items, says how many. Choosing a state lists its steps under the graph in the order they ran, 20 at a time with *Show more*: each with its try, the Map item it ran in, its status, when it started and how long it took, its error and cause, input, output, the variables it assigned and its logs. Choosing the trigger shows the run's input. The page opens on the state that failed, the innermost one when a Map's item failed, so a failed run shows its error and logs at once.
+
+The page reads the steps from the run's [trace](#traces), at `/api/workflows/runs/<id>/trace`, for a person who may read the run and its `trace_file`. While a run is queued, running or waiting, the page reads the run and its trace again every second, so the marks, the step lists and the run's fields change as it goes, without a reload; it stops once the run has ended. A run that kept no trace says so. Everything the page shows is what the run recorded, so a [secret](#secrets) shows as `[redacted]` wherever it would have been.
+
+### Re-running a failed run
+
+A failed run's page offers *Re-run from the failed step*. A failed run keeps its [checkpoints](#how-a-run-is-run). It opens the form for a new run with `workflow_id` and `rerun_of` filled in; creating it, through the form or `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "rerun_of": "..." }`, starts a run that:
+
+- runs on the workflow's version now, so fix the step first, and on the earlier run's input: a re-run given an `input` of its own is refused with `rerun-input`;
+- goes on from the earlier run's checkpoints, as a run goes on after a crash: each scope from its last checkpoint, the state it stood at from its first try, at the re-run's own time. No recorded call before it, such as a mail sent or a record written, happens again; the reads and computing steps since run again. A Map that runs again keeps its finished items and runs again only those that had not finished, each from where it stood;
+- is refused, and nothing starts, when the earlier run is not one of the workflow's runs the person may read (404), did not fail (`run-not-failed`), or would go on at a state or in a Map the version no longer has (`rerun-refused`, naming it).
+
+The re-run's trace holds only the steps it ran itself; the earlier run's page lists its re-runs.
+
+### Replaying a run
+
+A run that ended, succeeded or failed, offers *Replay* on its page. It opens the form for a new run with `workflow_id`, `rerun_of` and `replay` filled in; creating it, through the form or `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "rerun_of": "...", "replay": true }`, starts a run that runs from the start on the replayed run's version and input, so you can look into what formed a message, such as a mail sent with the wrong contents, without sending it again:
+
+- a step whose type writes, such as `app:mail.send`, `app:records.create`, `app:records.update`, an `app:http` request with any method but `GET`, and a plugin's step that does not say it only reads, is not called: it gives what the replayed run's step of the same place gave, its output and variables, as that run's [trace](#traces) keeps them, or a `null` output when that run has none there or kept no trace, and its logs say *Not sent: replay*;
+- a step that only reads, such as `app:records.get`, `app:records.list`, an `app:http` `GET`, or a plugin's step that says so, is served from the [step cache](/reference/workflow-plugins/#caching-results) when its type caches and an earlier result matches, saying so in its logs, with a line for each secret that changed since that result was kept; otherwise it runs again, as the same people a run of that version acts as;
+- Pass, Choice, Map, Succeed and Fail states compute as always, and a Wait goes on at once.
+
+A replay given an `input` of its own is refused with `rerun-input`, and one without `rerun_of` with `replay-without-run`. It is refused, and nothing starts, when the replayed run is not one of the workflow's runs in the person's tenant (409, as for a workflow that is not there), has not ended (`run-not-ended`), or when the person may not start runs of the workflow, or read the run and its `trace_file` (404). A step holds back only as its type declares: a plugin's step that writes while it declares it only reads runs in a replay too, so a replay is no guard against a plugin that declares it wrongly.
+
+### Test runs
+
+A workflow's page offers *Test run*: the form for a new run of the workflow, whose `input` takes a sample input as JSON, which every state reads as `$states.context.Execution.Input`. Creating it opens the run's page, which follows it as it runs. A test run is a run like any other: its steps do what they do, as the workflow's last editor, with the version saved last.
+
 ## Over MCP
 
-An AI client signed in to the app's [MCP endpoint](/reference/mcp/#workflows) finds, makes, changes and test-runs workflows as the person: it lists the step types and triggers with their arguments, reads and validates definitions, saves one whole or by a small edit, starts a run with an input, and reads each step of the run's trace with its input, output, logs and error. The endpoint's instructions describe this language, and a refused definition comes back with its problems, each naming the state and field.
+An AI client signed in to the app's [MCP endpoint](/reference/mcp/#workflows) finds, makes, changes and test-runs workflows as the person: it lists the step types and triggers with their arguments, reads and validates definitions, saves one whole or by a small edit, starts a run with an input, reads each step of the run's trace with its input, output, logs and error, and re-runs a failed run from its last checkpoint once the workflow is fixed, turns a workflow's trigger on and off, and issues a webhook trigger's URL. The endpoint's instructions describe this language, and a refused definition comes back with its problems, each naming the state and field.
 
 ## Who may do what
 
@@ -234,9 +360,9 @@ The workflow resources take only [named grants](/reference/access/#resources-tha
 
 | Grant | |
 | --- | --- |
-| `workflows.create`, `workflows.update`, `workflows.delete` | Make, change and delete workflows. Each save that changes the definition makes the saver the workflow's last editor, whom its records steps act as. |
+| `workflows.create`, `workflows.update`, `workflows.delete` | Make, change and delete workflows, and turn them on and off. Each save that changes the definition makes the saver the workflow's last editor, whom its records steps and its trigger act as. |
 | `workflow_runs.create` | Run a workflow, with any input. The API writes only the fields a caller reads, so it goes with `workflow_runs.read`, and the caller must read the workflow too. |
-| `workflows.read`, `workflow_versions.read`, `workflow_runs.read` | Read workflows, their versions and runs, the runs' traces with every step's input and output included. |
+| `workflows.read`, `workflow_versions.read`, `workflow_runs.read`, `workflow_triggers.read` | Read workflows, their versions, runs and triggers, the runs' traces with every step's input and output included. |
 
 ```ts
 defineRoles({
@@ -245,18 +371,17 @@ defineRoles({
 })
 ```
 
-All three are scoped to the tenant like any resource with `.tenant()`. A run takes its workflow's tenant; a start of another tenant's workflow is refused as one of a workflow that is not there.
+All four are scoped to the tenant like any resource with `.tenant()`. A run takes its workflow's tenant; a start of another tenant's workflow is refused as one of a workflow that is not there.
 
 ## How a run is run
 
 The runner is `@protobase/workflows`, a package with no other Protobase dependency, over a narrow port: where runs and their checkpoints are kept (here the `workflows` schema), the queue that runs them (here the app's [jobs](/reference/jobs/)), the step types, and where traces go (here the private file provider).
 
 - A run is run in **segments**, each a `workflows.segment` job whose payload is the run's id alone: one runs the run from where it stands to its next wait, then queues the next. A Wait whose time is still ahead, or a retry's delay, saves a checkpoint with the time the run goes on, ends the segment and queues the next one for that time, so a waiting run holds no worker. A segment hands the rest of the run on after a minute of steps.
-- The database keeps only what a run needs to go on: per scope (the run, or a Map item) its latest **checkpoint**, where it stands: the state it goes on to with that state's input, its variables, the try of a state being retried, and its clock. A checkpoint is saved after a recorded step (a call that changes the world, or one marked `DoNotRepeat`, whose small result it keeps with the time it was fetched), after a Wait or a retry's delay, and for every scope that moved as the segment pauses; a step that only computes or reads saves nothing. A checkpoint's values larger than 16 KiB go to a file of the run in the private file provider, and the row keeps its path. A run that ends drops its checkpoints, and a run of only such steps that ends in its segment writes none. <gap>A run's files, its large values included, stay in the private file provider after it ends because deleting them is not implemented.</gap>
+- The database keeps only what a run needs to go on: per scope (the run, or a Map item) its latest **checkpoint**, where it stands: the state it goes on to with that state's input, its variables, the try of a state being retried, and its clock. A checkpoint is saved after a recorded step (a call that changes the world, whose small result it keeps with the time it was fetched, never its input), after a Wait or a retry's delay, and for every scope that moved as the segment pauses; a step that only computes or reads saves nothing. A run that succeeds drops its checkpoints, and a run of only such steps that ends in its segment writes none; a run that fails keeps them for a [re-run](#re-running-a-failed-run).
 - Each save is **one statement**, which replaces a scope's checkpoint only when that is the one the segment took the scope up from, so a second segment of the same run that fell behind stops.
-- A worker that stops or dies mid-step leaves that step unsaved: its job is tried again and takes each scope up from its last checkpoint, so a recorded call never happens again, and the steps since run **at least once**: computing steps give the same values, as their clock and random numbers are the checkpoint's, and reads are done again. A value read before a Wait carries over it in the variables; read after the Wait for fresh data. A call whose effect happened before its checkpoint was saved, such as a request that was sent, happens again. Every try of a step gets the same idempotency key, for a step type whose receiver dedupes by it, and `app:mail.send` makes it the mail's Message-ID. A job whose worker died is tried again once its timeout, 10 minutes, has passed.
+- A worker that stops or dies mid-step leaves that step unsaved: its job is tried again and takes each scope up from its last checkpoint, so a recorded call never happens again, and the steps since run **at least once**: computing steps give the same values, as their clock and random numbers are the checkpoint's, and reads are done again. A value read before a Wait carries over it in the variables; read after the Wait for fresh data. A call whose effect happened before its checkpoint was saved, such as a request that was sent, happens again. Every try of a step, and every time a run taken up again reaches it, gets the same idempotency key, for a step type whose receiver dedupes by it, and `app:mail.send` makes it the mail's Message-ID. `app:records.create` keeps it with the records it creates, in their transaction, so a try after they committed creates none again and returns them as the first try created them. A job whose worker died is tried again once its timeout, 10 minutes, has passed.
 - A Map's items run in the segment that reaches them, each under its own scope; an item that waits ends the segment once the others running settle, the items that ended are saved as ended, and the next segment takes each item up where it stands. A Map's `Items` is evaluated again by a segment that takes up an unfinished Map.
-- With `scratch`, the runner also keeps the run's files and large values on that local folder, the least recently used dropped beyond its size, and reads them there first; the private provider's copy is what a run relies on.
 - JSONata runs in the server's process under a time and a depth limit per expression; it reaches no file, network or code of the app.
 
 Every limit fails closed: a run or step that passes one fails, rather than going on with less.
@@ -271,8 +396,8 @@ Every limit fails closed: a run or step that passes one fails, rather than going
 | A Map's items | 10,000; beyond, the Map fails with `States.DataLimitExceeded` before any item runs. |
 | A Map's `MaxConcurrency` | 20. |
 | Steps of one run, every try and item counted | 50,000; beyond, the run fails with `States.Runtime`. |
-| The input, output and variables of a step | 1 MiB each, as JSON; beyond, the step fails with `States.DataLimitExceeded`. |
+| The input, output and variables of a step, and a Map's items' outputs together | 256 KiB each, as JSON; beyond, the step fails with `States.DataLimitExceeded`, whose cause gives the size. Keep large data in a store and pass a reference. |
 | A step's logs | 100 lines of 1,000 characters; more lines are left out with a last line saying how many. |
-| A run's input | 1 MiB as JSON, 64 levels deep. |
+| A run's input | 256 KiB as JSON, 64 levels deep. |
 | An answer `app:http` reads, a file a run keeps | 10 MiB. |
 | A Wait | 366 days, by `Seconds` or `Timestamp`. |

@@ -82,6 +82,15 @@ const textHintErrors = (view: ViewModel, model: ResourceModel) =>
     return [...textHints.filter((hint) => hints[hint]).map((hint) => `${hint} "${name}" needs a text field, not ${field.type}`), ...format]
   })
 
+// A create needs a value for a field that cannot be empty and has no default, so its form cannot leave it off; a boolean
+// holds one only while the form shows it.
+const notOnCreateErrors = (view: ViewModel, model: ResourceModel) =>
+  Object.entries(view.fields).flatMap(([name, hints]) => {
+    const field = model.fields[name]
+    if (!hints.notOnCreate || !field || field.nullable || field.default || field.readOnly) return []
+    return [`notOnCreate "${name}" is a field a create needs: make it optional or give it a default`]
+  })
+
 // A link goes to an address the app has, or leaves the app; a path in the app is written as an address, and a link
 // that is only a field's URL names a field the resource has.
 const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, pages: ReadonlySet<string>, createPages: ReadonlySet<string>) =>
@@ -245,7 +254,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     ]
     const history = model.history ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
     const comments = model.comments ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...numberHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...notOnCreateErrors(view, model), ...numberHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
   }
   // A named list is checked as a view of its own, without the record page, which the view's own check covers
   const problems = views.flatMap((view) => {

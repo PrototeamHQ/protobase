@@ -1,4 +1,4 @@
-import { addressPlaceholders } from './address-template'
+import { addressPlaceholders, resourceField } from './address-template'
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy } from './filter'
 import type { AppAddress, FilterErrorCode, ResourceModel } from './model'
 
@@ -36,7 +36,8 @@ const orderErrors = (model: ResourceModel, orderBy: string) => {
 }
 
 /**
- * What is wrong with a link's address against these models: an unknown resource or page, a `{field}` the record it sits
+ * What is wrong with a link's address against these models: an unknown resource or page, a filter, order or values
+ * beside a resource taken from the record (`'{field}'`), a `{field}` the record it sits
  * on does not have, a filter or order naming fields the resource does not have, or create values for fields it does not
  * have, unless its view opens a create page, which reads them. Empty when it can be followed.
  */
@@ -45,6 +46,11 @@ export const addressErrors = (to: AppAddress, { models, pages, source, createPag
     if (!source) return [`"{${name}}" takes a value from the record, but the link sits on none`]
     return Object.hasOwn(source.fields, name) ? [] : [`"{${name}}" is not a field of ${source.name}`]
   })
+  // A resource taken from the record is known only when the link is followed, so the address names none of its fields.
+  if (to.kind !== 'page' && resourceField(to) !== undefined) {
+    const named = to.kind === 'list' ? to.filter !== undefined || to.orderBy !== undefined : to.kind === 'create' && to.values !== undefined
+    return named ? [...placeholders, `a link whose resource comes from the record ("${to.resource}") names no filter, order or values`] : placeholders
+  }
   switch (to.kind) {
     case 'page':
       return pages && !pages.has(to.page) ? [`unknown page "${to.page}"`] : []

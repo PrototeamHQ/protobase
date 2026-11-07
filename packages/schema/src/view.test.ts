@@ -550,6 +550,7 @@ describe('view builder', () => {
   it('offers Import on the list page unless turned off', () => {
     expect(view<typeof article>('article').toModel().import).toBeUndefined()
     expect(view<typeof article>('article').import(false).toModel().import).toBe(false)
+    expect(view<typeof article>('article').import('table').toModel().import).toBe('table')
   })
 
   it('refuses display fields the resource does not have', () => {

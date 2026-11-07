@@ -86,6 +86,7 @@ Field hints:
 | --- | --- |
 | `.label(text)` | Instead of the name in words (`customer_id` would be "Customer" anyway). |
 | `.help(text, { when? })` | A line under the field on the record page and in forms. `when: 'editing'` shows it only while the record is edited; see [Help while editing](#help-while-editing). |
+| `.notOnCreate()` | Leaves the field off the create form, for one that makes sense only once the record exists, such as a choice among records added after it: the create leaves it empty or to its default, and the record page shows it as usual. The server stops at startup on a field a create needs, one that is not optional and has no default, a boolean too. |
 | `.confirm(question)` | Asks `question` before a person changes the value in a form or a list cell, and Cancel keeps it. See [Confirming a change](#confirming-a-change). |
 | `.format(format)` | `badge` shows statuses as coloured badges, `code` sets identifiers in monospace, as the list's identifier column too, `percent` adds a % sign, and `signed` shows a whole number in a list with its sign, green above zero and red below, such as a stock change of `+12` or `−3`; it needs an integer field. On a text field, `email`, `phone` and `url` show the value as a link that writes to it (`mailto:`), calls it (`tel:`, its digits and a leading +) or opens it in a new tab (only an `http` or `https` address; anything else stays text), on the record page, in its sidebar and in the list's cells but the title's, which links to the record; forms edit it in an email, phone or web address input, which brings up the keyboard for it on a mobile screen and offers the browser's autofill. Another field type with one of them stops the server at startup. `relative` on a timestamp shows it as "5 minutes ago" or "in 2 hours" in lists and on the record page, with the exact time on hover; `absolute` and `compact` are accepted and carried in `/meta` for apps that render their own lists. <gap>The admin does not use the `absolute` and `compact` formats yet.</gap> |
 | `.multiline()` | A text of several lines, such as a description: forms edit it in a box that grows with the text, so the page scrolls rather than the box, and the record page's sections, a page's field blocks and a card's subtitle keep its line breaks (a card shows the first three lines); the record's sidebar shows it on one line. On the record page and the create form it takes the whole width of its section. Only a text field takes it; the list's table shows the text on one line. |
@@ -452,7 +453,7 @@ view<typeof auditLog>('audit_log').export(false)
 
 ## Importing records
 
-A list page offers **Import** beside **New** to a user who may create the resource's records; `.import(false)` on the view turns it off. It opens a dialog that creates or updates records from an Excel workbook (`.xlsx`), a CSV file (UTF-8, its delimiter a comma, semicolon or tab, found from the first line) or a JSON file (`.json`, UTF-8) that holds an array of objects. See [Importing records from a spreadsheet](/guides/import-records/) for a walk through.
+A list page offers **Import** beside **New** to a user who may create the resource's records; `.import(false)` on the view turns it off, and `.import('table')` makes it [a new table from the file](/reference/user-tables/#a-table-from-a-file) instead, as the **Tables** list of [user tables](/reference/user-tables/) does. It opens a dialog that creates or updates records from an Excel workbook (`.xlsx`), a CSV file (UTF-8, its delimiter a comma, semicolon or tab, found from the first line) or a JSON file (`.json`, UTF-8) that holds an array of objects. See [Importing records from a spreadsheet](/guides/import-records/) for a walk through.
 
 ```ts
 view<typeof invoices>('invoices').import(false)
@@ -665,7 +666,7 @@ view<typeof listings>('listings')
   ])
 ```
 
-The read view shows the gallery; the form shows the cover photo's field and the table of photos to manage instead. The create form still offers every field the user may set: one only in items or fields meant for reading lands in its last section. A gallery's photo details leave out what the photo's own view shows only while editing. Lists, cards and filters show a field either way.
+The read view shows the gallery; the form shows the cover photo's field and the table of photos to manage instead. The create form still offers every field the user may set but those [`.notOnCreate()`](#names-and-columns) leaves off: one only in items or fields meant for reading lands in its last section. A gallery's photo details leave out what the photo's own view shows only while editing. Lists, cards and filters show a field either way.
 
 ### Editing a record
 
@@ -913,6 +914,18 @@ An empty answer is `null`. Before the handler runs, the dialog refuses a require
 A custom input's component gets the answer as `value` (`null` when empty), `onChange`, `invalid` while its answer is refused, the input's `props` and the `input` itself (`ActionInputProps`), as a [field type's](/reference/custom-components/#field-types) editor does. Without that component the button is disabled, with the reason as its tooltip. In `/api/meta`, a user who cannot read the resource of a choice does not get the action.
 
 <StoryFrame id="record-page-action-inputs--dialog" title="Create invoice, asking for a due date, who to bill and how to send it" height={720} />
+
+### Actions that send from someone's mailbox
+
+An `a.action` whose handler sends mail from the signed-in person's [own mailbox](/reference/email/#from-someones-own-mailbox), such as an invoice from their Gmail, says so with `mailbox: true`. While they have linked no mailbox, its dialog offers to connect one instead of running: **Connect Gmail** starts the same sign-in as the account page's and comes back to the page they were on, where the action runs. Someone who signs in with Google without having allowed it to send mail is told that sign-in is no mailbox. The check needs a dialog, so give the action `confirm` or inputs:
+
+```ts
+a.action('send_invoice', { label: 'Send', icon: 'send', mailbox: true, confirm: 'Send the invoice from your own mailbox?' })
+```
+
+Any action whose handler fails with a function's [mailbox problem](/reference/email/#from-someones-own-mailbox) (`not_linked` or `link_expired`) gets the same offer in place of the bare error, worded **Connect Gmail again** for an expired link: in its dialog, or as its error toast's button. A failure that is not about the mailbox shows as it is. <gap>An action that comes back from connecting a mailbox cannot reopen its dialog because keeping an open dialog in the page's address is not implemented; the person presses the button again.</gap>
+
+<StoryFrame id="record-page-send-from-a-mailbox--no-mailbox" title="Send with no mailbox linked, offering to connect Gmail" height={600} />
 
 ### Where an action applies
 

@@ -8,7 +8,7 @@ const runId = randomBytes(4).toString('hex')
 const testDatabase = 'scripts/test-db/global-setup.ts'
 // Unit tests sit next to the code; tests that start a database, a subprocess or the network live in each package's
 // tests/, and the examples' in tests/examples.
-const unit = ['packages/*/src/**/*.test.ts', 'commitlint.branch.config.test.ts', 'scripts/release-speed/**/*.test.ts', 'scripts/release-commits.test.ts', 'scripts/config-schema/**/*.test.ts', 'scripts/publish/**/*.test.ts', 'scripts/bump-repos/**/*.test.ts', 'scripts/play-tests/**/*.test.ts', 'scripts/docs-agent-files/**/*.test.ts', 'scripts/ui-exports/**/*.test.ts', 'docs-examples/**/*.test.ts', 'tests/apps/*/{config,jobs,hooks,emails,seed,map}/**/*.test.ts']
+const unit = ['packages/*/src/**/*.test.ts', 'commitlint.branch.config.test.ts', 'scripts/release-speed/**/*.test.ts', 'scripts/auto-merge-approvals/**/*.test.ts', 'scripts/release-commits.test.ts', 'scripts/release-lint/**/*.test.ts', 'scripts/config-schema/**/*.test.ts', 'scripts/publish/**/*.test.ts', 'scripts/bump-repos/**/*.test.ts', 'scripts/play-tests/**/*.test.ts', 'scripts/docs-agent-files/**/*.test.ts', 'scripts/ui-exports/**/*.test.ts', 'scripts/plugin-network/**/*.test.ts', 'scripts/google-recording/**/*.test.ts', 'docs-examples/**/*.test.ts', 'tests/apps/*/{config,jobs,hooks,emails,seed,map}/**/*.test.ts']
 // Unit tests share one module registry per worker (`isolate: false`), which saves most of their time. These replace a
 // module with `vi.mock`, change a global, the environment or the console without always putting it back, or send the
 // process signals that a handler another file loaded would act on, so each runs in a registry of its own (project
@@ -68,6 +68,10 @@ const databaseTests = ['packages/*/tests/**/*.test.ts', glue]
 // fixed clock never empties, so they would carry over from file to file.
 const snapshotIsolated = [
   'packages/cli/tests/supabase/supabase-users.test.ts',
+  'packages/server/src/better-auth/connections/connect-callback.test.ts',
+  'packages/server/src/better-auth/connections/disconnect.test.ts',
+  'packages/server/src/better-auth/connections/release-user-connections.test.ts',
+  'packages/server/src/better-auth/connections/unlink-guard.test.ts',
   'packages/server/tests/account-change-confirmation.test.ts',
   'packages/server/tests/admin-users.test.ts',
   'packages/server/tests/app-tokens.test.ts',
@@ -103,6 +107,7 @@ const snapshotIsolated = [
   'packages/server/tests/sources.test.ts',
   'packages/server/tests/staff-sign-in.integration.test.ts',
   'packages/server/tests/strong-sign-in-auth.test.ts',
+  'packages/server/tests/two-factor-confirmation.test.ts',
   'packages/server/tests/webhook-table.test.ts',
 ]
 const snapshotProject = (name: string, include: string[], exclude: string[], isolate: boolean) => ({
@@ -144,7 +149,7 @@ export default defineConfig({
         test: {
           name: 'unit',
           include: unit,
-          exclude: [...configDefaults.exclude, ...mocking],
+          exclude: [...configDefaults.exclude, ...mocking, ...snapshotIsolated],
           setupFiles: ['test-support/no-database.setup.ts'],
           isolate: false,
         },

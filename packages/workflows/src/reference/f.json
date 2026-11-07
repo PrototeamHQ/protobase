@@ -1,11 +1,5 @@
 {
-  "trigger": {
-    "record": {
-      "events": [
-        "leads.created"
-      ]
-    }
-  },
+  "trigger": {"app:record": {"resource": "leads"}},
   "stateMachine": {
     "QueryLanguage": "JSONata",
     "StartAt": "PostToSlack",
@@ -19,7 +13,7 @@
           "connection": "sales_slack",
           "props": {
             "channel": "C0SALES01",
-            "text": "{% 'New lead: ' & $states.context.Execution.Input.after.name & ' from ' & $states.context.Execution.Input.after.company & ' (' & $states.context.Execution.Input.after.email & ')' %}"
+            "text": "{% 'New lead: ' & $states.context.Execution.Input.record.name & ' from ' & $states.context.Execution.Input.record.company & ' (' & $states.context.Execution.Input.record.email & ')' %}"
           }
         },
         "Assign": {
@@ -32,7 +26,7 @@
         "Resource": "app:records.update",
         "Arguments": {
           "resource": "leads",
-          "key": "{% $states.context.Execution.Input.after.id %}",
+          "key": "{% $states.context.Execution.Input.record.id %}",
           "data": {
             "slack_ts": "{% $slackMessage.ts %}"
           }

@@ -16,11 +16,10 @@ type Flow = { Next?: string; End?: boolean }
 
 export type PassState = Common & Flow & { Type: 'Pass' }
 /**
- * A step of a step type. `DoNotRepeat` records a call that only reads, such as a GET of a signed URL that expires or
- * works once, so it is never done again in the run; it overrides the step type's default. A call that changes the
- * world is recorded whatever it says.
+ * `Cache` turns its step type's result cache on (`true`, forced when the type does not offer it) or off (`false`);
+ * without it, the type decides.
  */
-export type TaskState = Common & Flow & { Type: 'Task'; Resource: string; Arguments?: Template; TimeoutSeconds?: number; DoNotRepeat?: boolean; Retry?: Retrier[]; Catch?: Catcher[] }
+export type TaskState = Common & Flow & { Type: 'Task'; Resource: string; Arguments?: Template; TimeoutSeconds?: number; Cache?: boolean; Retry?: Retrier[]; Catch?: Catcher[] }
 export type ChoiceRule = { Condition: string; Next: string; Comment?: string; Output?: Template; Assign?: Record<string, Template> }
 export type ChoiceState = Common & { Type: 'Choice'; Choices: ChoiceRule[]; Default?: string }
 export type WaitState = Common & Flow & { Type: 'Wait'; Seconds?: number | string; Timestamp?: string }
@@ -37,16 +36,12 @@ export type Machine = { StartAt: string; States: Record<string, State>; Comment?
 /** The state machine of a workflow: the States Language with JSONata expressions, in the named-reads profile. */
 export type StateMachine = Machine & { QueryLanguage: 'JSONata' }
 
-/** What starts a workflow's runs: exactly one of these keys. */
-export type Trigger =
-  | { webhook: Record<string, never> }
-  | { schedule: { cron: string; timezone?: string } }
-  | { mail: { mailbox: string } }
-  | { record: { events: string[] } }
-  | { manual: Record<string, never> }
+/** What starts a workflow's runs: one key, `manual` or a trigger type `<plugin>:<key>`, holding its input. */
+export type Trigger = { manual?: Record<string, unknown>; [type: `${string}:${string}`]: Record<string, unknown> }
 
 /**
- * A workflow definition: its trigger, the state machine a run runs from `StartAt`, and which of its runs keep a trace
- * (`all`, `failed` or `none`), when it says, over the app's default.
+ * A workflow definition: its trigger, the state machine a run runs from `StartAt`, the connected account each
+ * connection `<plugin>:<connection>` of its types signs in with, by the account's id, and which of its runs keep a
+ * trace (`all`, `failed` or `none`), when it says, over the app's default.
  */
-export type Definition = { trigger: Trigger; stateMachine: StateMachine; trace?: 'all' | 'failed' | 'none' }
+export type Definition = { trigger: Trigger; stateMachine: StateMachine; connections?: Record<string, string>; trace?: 'all' | 'failed' | 'none' }

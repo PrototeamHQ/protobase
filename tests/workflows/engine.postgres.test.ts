@@ -128,6 +128,31 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(await workflowsMigration(db, workflows)).toBeUndefined()
   })
 
+  it('adds the triggers table and enabled_version to a schema of the version before them', async () => {
+    await pg.exec(`drop table workflows.triggers; alter table workflows.workflows drop column enabled_version;
+      comment on function workflows.run_version() is 'Protobase workflows 4'`)
+    const upgrade = await workflowsMigration(db, workflows)
+    expect(upgrade).toContain('create table if not exists "workflows"."triggers"')
+    await pg.exec(upgrade!)
+    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+  })
+
+  it('adds connection_revocations to a schema of the version before it', async () => {
+    await pg.exec(`drop table workflows.connection_revocations; comment on function workflows.run_version() is 'Protobase workflows 9'`)
+    const upgrade = await workflowsMigration(db, workflows)
+    expect(upgrade).toContain('create table if not exists "workflows"."connection_revocations"')
+    await pg.exec(upgrade!)
+    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+  })
+
+  it('writes the schema again when the triggers table is gone', async () => {
+    await pg.exec('drop table workflows.triggers')
+    const repair = await workflowsMigration(db, workflows)
+    expect(repair).toContain('create table if not exists "workflows"."triggers"')
+    await pg.exec(repair!)
+    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+  })
+
   it('answers a save with the row as saved, whose ETag the next save can send, and numbers no version for other fields', async () => {
     const id = await create('Tagged', definition({ Echo: { Type: 'Pass', End: true } }))
     const save = (body: unknown, etag: string) =>
@@ -217,6 +242,28 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(saved.map((step) => step.state)).toEqual(['Before', 'Hold', 'After'])
     expect((await runRow(runId)).status).toBe('succeeded')
     expect(await checkpoints(runId)).toBe(0)
+  })
+
+  it('re-runs a failed run from its failed step on the fixed workflow, on its input, keeping the steps before it', async () => {
+    const states = (total: string) => ({ Count: { Type: 'Pass', Assign: { size: '{% $count($states.context.Execution.Input.items) %}' }, Next: 'Total' }, Total: { Type: 'Pass', Output: total, End: true } })
+    const id = await create('Totals', definition(states("{% $error('not yet') %}")))
+    const failed = await run(id, { items: [1, 2, 3] })
+    await finished(failed)
+    expect(await runRow(failed)).toMatchObject({ status: 'failed', error: 'States.QueryEvaluationError' })
+    const refused = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, rerun_of: failed, input: { items: [] } } })
+    expect(refused.status).toBe(400)
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: definition(states('{% $size %}')) } })).status).toBe(200)
+    const response = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, rerun_of: failed } })
+    expect(response.status).toBe(201)
+    const rerun = (await response.json()).id as string
+    await finished(rerun)
+    expect(await runRow(rerun)).toMatchObject({ status: 'succeeded', output: 3, version: 2 })
+    const [before, after] = [await steps(failed), await steps(rerun)]
+    expect(after.map((step) => [step.state, step.status])).toEqual([['Count', 'succeeded'], ['Total', 'succeeded']])
+    expect(after[0]!.started_at).toEqual(before[0]!.started_at)
+    const again = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, rerun_of: rerun } })
+    expect(again.status).toBe(400)
+    expect((await again.json()).type).toContain('run-not-failed')
   })
 
   it('starts a run from the app\'s own code inside the caller\'s transaction, or not at all when it rolls back', async () => {
