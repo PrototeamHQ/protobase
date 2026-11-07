@@ -237,7 +237,7 @@ The notification's title and body are its alert, with its `badge` and `sound`; t
 ## Android
 
 :::caution[Beta]
-Push on Android is new.
+Push on Android is new, and a message over FCM's size limit is not refused before it is sent (see below).
 :::
 
 Android devices receive push through Firebase Cloud Messaging's HTTP v1 API. You create a service account key in your Firebase project (Project settings, Service accounts, Generate new private key) and set its JSON as `PROTOBASE_FCM_SERVICE_ACCOUNT`. Without it, Android devices are skipped. `protobase mobile` sets the app up from your `google-services.json`: see [Push notifications in the mobile app guide](/guides/mobile-app/#9-push-notifications).
