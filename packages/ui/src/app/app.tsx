@@ -1,3 +1,4 @@
+import { NativePushTap } from '../notifications/push/native-push-tap'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
 import { accountMenuItems, accountPath, readAccountPath, signInPolicyPath } from '../account/account-pages'
@@ -336,6 +337,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
       <LiveUpdateGate nativeBridge={nativeBridge} apiOrigin={apiOrigin}>
         <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })}>
           <Router basePath={basePath} initialUrl={initialUrl}>
+            {nativeBridge && apiOrigin && <NativePushTap nativeBridge={nativeBridge} apiOrigin={apiOrigin} />}
             <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
               <AuthLocale>
                 <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>

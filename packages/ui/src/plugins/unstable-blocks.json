@@ -1,7 +1,8 @@
 {
   "unstable": {
     "mailbox/use-action-mailbox#useActionMailbox": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true",
-    "mailbox/use-mailbox-toast-action#useMailboxToastAction": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true"
+    "mailbox/use-mailbox-toast-action#useMailboxToastAction": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true",
+    "notifications/push/native-push-tap#NativePushTap": "the shell mounts it in the Android app; an app gets push taps opened by turning notifications() on"
   },
   "pending": [
     "account/account-page#AccountPage",

@@ -2,7 +2,7 @@ import { generateKeyPairSync } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ChildOptions } from './child-process'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
@@ -115,6 +115,56 @@ describe('mobileRun', () => {
       }
     })
   }
+
+  describe('with notifications()', () => {
+    const withNotifications = (googleServices: boolean) => {
+      const dir = project("{ appId: 'com.example.shop' }")
+      writeFileSync(path.join(dir, 'protobase.config.ts'), "export default { mobile: { appId: 'com.example.shop' }, notifications: {} }\n")
+      if (googleServices) writeFileSync(path.join(dir, 'google-services.json'), '{"project_info":{}}')
+      return dir
+    }
+    const runIn = async (dir: string, platform: 'android' | 'ios') => {
+      const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+      const out: string[] = []
+      await mobileRun({ projectDir: dir, platform, api: 'https://api.example.com', extensions: [] }, (text) => void out.push(text), { run: fakeRun([]), build, fetch, capture })
+      const warnings = stderr.mock.calls.map(([text]) => String(text)).filter((text) => text.startsWith('warning:'))
+      stderr.mockRestore()
+      const ws = path.join(dir, '.protobase', 'mobile')
+      const config = JSON.parse(readFileSync(path.join(ws, 'capacitor.config.json'), 'utf8')) as { includePlugins: string[]; plugins: object }
+      return { ws, config, warnings, fingerprint: out.join('').match(/native fingerprint ([0-9a-f]{16})/)?.[1] }
+    }
+
+    it('compiles push into the Android app with the project\'s google-services.json in it', async () => {
+      const { ws, config, warnings } = await runIn(withNotifications(true), 'android')
+      expect(config.includePlugins).toContain('@capacitor/push-notifications')
+      expect(config.plugins).toHaveProperty('PushNotifications')
+      expect(readFileSync(path.join(ws, 'android', 'app', 'google-services.json'), 'utf8')).toBe('{"project_info":{}}')
+      expect(warnings.filter((text) => text.includes('google-services.json'))).toEqual([])
+    })
+
+    it('builds the Android app without push, saying so, when google-services.json is missing', async () => {
+      const dir = withNotifications(false)
+      const { ws, config, warnings } = await runIn(dir, 'android')
+      expect(config.includePlugins).not.toContain('@capacitor/push-notifications')
+      expect(existsSync(path.join(ws, 'android', 'app', 'google-services.json'))).toBe(false)
+      expect(warnings).toContain(`warning: ${path.join(dir, 'google-services.json')} is missing: the Android app builds without push. Put your Firebase project's google-services.json there to turn it on\n`)
+    })
+
+    it('leaves push out of the iOS app, which has none yet, without a warning', async () => {
+      const { config, warnings } = await runIn(withNotifications(true), 'ios')
+      expect(config.includePlugins).not.toContain('@capacitor/push-notifications')
+      expect(warnings.filter((text) => text.includes('google-services.json'))).toEqual([])
+    })
+
+    it('names native push in the fingerprint, so turning it on or off rebuilds the app natively', async () => {
+      const on = (await runIn(withNotifications(true), 'android')).fingerprint
+      rmSync(root, { recursive: true, force: true })
+      const off = (await runIn(project("{ appId: 'com.example.shop' }"), 'android')).fingerprint
+      expect(on).toMatch(/^[0-9a-f]{16}$/)
+      expect(off).toMatch(/^[0-9a-f]{16}$/)
+      expect(on).not.toBe(off)
+    })
+  })
 
   it('refuses a bad API or a pinned plugin before anything is installed', async () => {
     const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
