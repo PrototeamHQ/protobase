@@ -55,7 +55,9 @@ export const apnsService = async (reply: (request: ApnsRequest) => ApnsReply | '
       requests.push(request)
       const answer = reply(request)
       if (answer === 'destroy') return stream.session?.destroy()
+      // A late answer finds the stream closed when the sender stopped waiting for it.
       const respond = () => {
+        if (stream.closed || stream.destroyed) return
         stream.respond({ ':status': answer.status, 'apns-id': 'id', ...answer.headers })
         stream.end(answer.reason === undefined ? undefined : JSON.stringify({ reason: answer.reason }))
       }
