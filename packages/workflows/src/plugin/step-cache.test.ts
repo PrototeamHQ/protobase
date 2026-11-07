@@ -209,6 +209,14 @@ describe('the cache settings', () => {
     }
   })
 
+  it('a custom key is its value as JSON, so a date keys on its time', async () => {
+    const { call, seen } = setup({ choice: 'hidden', ttl: 60, key: (input) => new Date(String(input.when)) })
+    const first = await call({ when: '2026-01-01' })
+    expect((await call({ when: '2026-01-02' })).output).not.toEqual(first.output)
+    expect((await call({ when: '2026-01-01' })).output).toEqual(first.output)
+    expect(seen).toHaveLength(2)
+  })
+
   it('a custom key shares one result between inputs it gives the same value', async () => {
     const { call, seen } = setup({ choice: 'hidden', ttl: 60, key: (input) => String(input.url).toLowerCase() })
     await call({ url: 'A' })

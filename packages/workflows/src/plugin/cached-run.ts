@@ -56,12 +56,13 @@ const shapesOf = async (plan: CachePlan, type: string, task: TaskContext): Promi
   return (await tolerant(task, 'be read', () => plan.cache.store.shapes(type))) ?? []
 }
 
-// The key value of a custom key function: undefined, so the call is not cached, when it throws or gives nothing.
+// The key value of a custom key function, as JSON writes it, so a date keys on its time: undefined, so the call is not
+// cached, when it throws or gives nothing JSON can write.
 const customValue = (plan: CachePlan, input: Record<string, unknown>, task: TaskContext) => {
   if (typeof plan.key !== 'function') return input
   try {
-    const value = plan.key(input)
-    return value ?? undefined
+    const json = JSON.stringify(plan.key(input))
+    return json === undefined ? undefined : (JSON.parse(json) ?? undefined)
   } catch {
     task.log("The step type's cache key failed; the step ran without the cache")
     return
