@@ -2,6 +2,7 @@ import { f } from '../fields'
 import { layout as l } from '../layout'
 import { resource } from '../resource'
 import { view } from '../view'
+import { resolutionsResource, resolutionsView, workflowStatusFields, workflowStatusLabels, workflowStatusTones } from './workflow-status'
 
 const runStatuses = ['queued', 'running', 'waiting', 'succeeded', 'failed'] as const
 const stepStatuses = ['succeeded', 'retrying', 'caught', 'failed'] as const
@@ -24,6 +25,7 @@ const workflowsResource = (schema: string) =>
       tenant_id: f.text().optional().readOnly(),
       created_at: f.timestamp().readOnly().dbDefault(),
       updated_at: f.timestamp().readOnly().dbDefault().sortable(),
+      ...workflowStatusFields,
     })
     .primaryKey((r) => r.id)
     .tenant((r) => r.tenant_id)
@@ -34,6 +36,8 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .names({ singular: 'Workflow', plural: 'Workflows' })
   .icon('workflow')
   .title((r) => r.name)
+  // Every workflow under its entry, with the status of its last runs
+  .nav({ recent: { status: 'run_status', tones: workflowStatusTones, orderBy: 'name asc', limit: 20 } })
   .help('Steps that run one after another along their edges, written in the States Language with JSONata expressions. Each save that changes its definition is a new version; a run keeps the version it started on.')
   .fields((r) => ({
     enabled_version: r.enabled_version.label('Enabled version').help('The version whose trigger starts runs; set it to the current version to turn the trigger on, and clear it to turn it off. A save keeps an enabled workflow enabled on its new version.'),
@@ -41,11 +45,17 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
       .help('Its trigger and its steps, drawn as a graph that lays itself out. Every value is read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned')
       .widget('workflow'),
     updated_at: r.updated_at.label('Updated'),
+    run_status: r.run_status.label('Status').valueLabels(workflowStatusLabels).widget('workflow_status'),
+    status_run_id: r.status_run_id.label('Status run'),
+    status_run_at: r.status_run_at.label('Status run ended'),
+    unresolved_failures: r.unresolved_failures.label('Unresolved failures'),
+    resolved_at: r.resolved_at.label('Resolved'),
+    resolved_by: r.resolved_by.label('Resolved by'),
   }))
   .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
   .recordWidth('full')
   .layout((r) => [
-    l.section('Workflow', [r.name, r.description, r.enabled_version]),
+    l.section('Workflow', [r.run_status, r.name, r.description, r.enabled_version]),
     // Its versions, runs and Test run are chosen above the graph, which spans the page
     l.section('Graph', [r.definition], { width: 'page' }),
     l.sidebar([r.version, r.created_at, r.updated_at]),
@@ -249,4 +259,6 @@ export const workflowResources = (schema: string) => ({
   workflowStepsView: stepsView,
   workflowTriggers: triggersResource(schema),
   workflowTriggersView: triggersView,
+  workflowResolutions: resolutionsResource(schema),
+  workflowResolutionsView: resolutionsView,
 })

@@ -766,6 +766,19 @@
     "versionFailed": "The version could not be read",
     "versionMarked": "{option} ({marks})"
   },
+  "app/field-types/workflow-status": {
+    "failing": "Last run failed, {when}",
+    "unresolved": "{count, plural, one {# unresolved failure} other {# unresolved failures}} in the last {runs, number} runs, latest {when}",
+    "healthy": "No unresolved failures in the last {runs, number} runs, last run {when}",
+    "no_runs": "No runs yet",
+    "resolved": "No runs since resolved",
+    "new_version": "No runs since this version",
+    "resolvedBy": "Marked as resolved by {who}, {when}",
+    "you": "you",
+    "resolve": "Mark as resolved",
+    "resolveDone": "Marked as resolved",
+    "resolveFailed": "Could not mark as resolved"
+  },
   "app/gallery": {
     "couldNotLoad": "Could not load the photos",
     "showAll": "Show all {count} photos",

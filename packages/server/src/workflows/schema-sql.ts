@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 14
+export const workflowsVersion = 15
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -185,6 +185,9 @@ create index if not exists "steps_status" on ${s}."steps" ("status");
 create index if not exists "steps_state" on ${s}."steps" ("state")`
 }
 
+// The columns the status triggers write, which leave a workflow's updated_at as it is.
+const statusColumns = `array['run_status', 'status_run_id', 'status_run_at', 'unresolved_failures', 'resolved_at', 'resolved_by', 'updated_at']`
+
 /** The triggers `functionsSql` makes, which the startup check finds on their tables. */
 export const workflowsTriggers = ['workflow_version', 'run_version']
 
@@ -210,7 +213,10 @@ begin
   if new.version is distinct from old.version and old.enabled_version is not null and new.enabled_version is not distinct from old.enabled_version then
     new.enabled_version := new.version;
   end if;
-  new.updated_at := now();
+  -- Its status, which runs ending and marks as resolved write, is no change to the workflow itself.
+  if to_jsonb(new) - ${statusColumns} is distinct from to_jsonb(old) - ${statusColumns} then
+    new.updated_at := now();
+  end if;
   return new;
 end
 $$;

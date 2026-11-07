@@ -766,6 +766,19 @@
     "versionFailed": "De versie kon niet worden gelezen",
     "versionMarked": "{option} ({marks})"
   },
+  "app/field-types/workflow-status": {
+    "failing": "Laatste run mislukt, {when}",
+    "unresolved": "{count, plural, one {# onopgeloste fout} other {# onopgeloste fouten}} in de laatste {runs, number} runs, laatste {when}",
+    "healthy": "Geen onopgeloste fouten in de laatste {runs, number} runs, laatste run {when}",
+    "no_runs": "Nog geen runs",
+    "resolved": "Geen runs sinds opgelost",
+    "new_version": "Geen runs sinds deze versie",
+    "resolvedBy": "Als opgelost gemarkeerd door {who}, {when}",
+    "you": "jou",
+    "resolve": "Markeren als opgelost",
+    "resolveDone": "Gemarkeerd als opgelost",
+    "resolveFailed": "Markeren als opgelost is mislukt"
+  },
   "app/gallery": {
     "couldNotLoad": "Kon de foto’s niet laden",
     "showAll": "Alle {count} foto’s tonen",
