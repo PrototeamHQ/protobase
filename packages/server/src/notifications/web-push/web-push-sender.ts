@@ -43,7 +43,7 @@ const headersOf = (message: PushMessage) => {
  * The built-in Web Push sender (RFC 8030, 8291, 8292): delivers to `web` devices, signed with the VAPID pair and
  * encrypted for each device's keys. It checks the message as `pushMessage` does and throws before any request when it
  * is not one. A device whose endpoint is not on a browser's push service, or whose keys are not a subscription's, is
- * answered `refused` with no request. Each device's JSON carries its user's id as `user`. It logs nothing, and its errors and answers carry no endpoint, key or token.
+ * answered `refused` with no request, as is one whose host resolves to a private, loopback or link-local address. Each device's JSON carries its user's id as `user`. It logs nothing, and its errors and answers carry no endpoint, key or token.
  */
 export const webPushSender = (settings: VapidSettings, options: WebPushOptions = {}): PushSender => {
   const authorization = vapidAuthorizer(settings, options.now)
