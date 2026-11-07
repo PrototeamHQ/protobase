@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { expect, userEvent, waitFor, within } from 'storybook/test'
-import { createStaticSession, type Client } from '@protobase/client'
+import { expect, userEvent, within } from 'storybook/test'
+import { createStaticSession } from '@protobase/client'
 import { App } from './app'
 import { fakeApi } from './testing/fake-api'
 import { rentalResources, rentalRows, rentalViews } from './testing/rentals-domain'
@@ -11,12 +11,10 @@ export default meta
 
 const session = createStaticSession('story-token', { id: 'story', email: 'story@example.test', name: 'Story User', role: 'manager' })
 
-const Rentals = ({ path, held }: { path: string; held?: Promise<void> }) => {
-  const [client] = useState(() => {
-    const { client } = fakeApi({ resources: rentalResources, views: rentalViews, rows: rentalRows })
-    // Holds every record read until `held` settles, to show what the app looks like while one loads.
-    return held ? { ...client, get: ((resource: string, key: string) => held.then(() => client.get(resource, key))) as Client['get'] } : client
-  })
+const phone = { name: 'Phone', styles: { width: '390px', height: '844px' }, type: 'mobile' }
+
+const Rentals = ({ path }: { path: string }) => {
+  const [client] = useState(() => fakeApi({ resources: rentalResources, views: rentalViews, rows: rentalRows }).client)
   return (
     <div className="h-screen">
       <App client={client} auth={session} initialUrl={path} basePath="/admin" />
@@ -24,25 +22,47 @@ const Rentals = ({ path, held }: { path: string; held?: Promise<void> }) => {
   )
 }
 
-/** The list and the record are links; the default `public` schema is no sidebar group, so it is no crumb either. */
+/**
+ * A record page's trail ends at its list, linked and not the current page, since the heading names the record; the
+ * default `public` schema is no sidebar group, so it is no crumb either.
+ */
 export const RecordLinks: StoryObj = {
   tags: ['play'],
   render: () => <Rentals path="/admin/tenants/1" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const trail = within(await canvas.findByRole('navigation', { name: 'Breadcrumb' }))
-    const current = await trail.findByRole('link', { name: 'Ada de Vries' })
-    expect(current).toHaveAttribute('href', '/admin/tenants/1')
-    expect(current).toHaveAttribute('aria-current', 'page')
+    await canvas.findByRole('heading', { name: 'Ada de Vries' })
     const list = trail.getByRole('link', { name: 'Tenants' })
     expect(list).toHaveAttribute('href', '/admin/tenants')
     expect(list).not.toHaveAttribute('aria-current')
-    expect(trail.getAllByRole('link')).toHaveLength(2)
+    expect(trail.getAllByRole('link')).toHaveLength(1)
+    expect(trail.queryByText('Ada de Vries')).toBeNull()
     expect(trail.queryByText(/public/i)).toBeNull()
 
     await userEvent.click(list)
     await canvas.findByRole('link', { name: /New tenant/ })
     expect(trail.getByRole('link', { name: 'Tenants' })).toHaveAttribute('aria-current', 'page')
+  },
+}
+
+/** On a phone the top bar shows the list a record sits under, after a back button to it, and the heading names the record. */
+export const RecordOnPhone: StoryObj = {
+  tags: ['play', 'phone'],
+  parameters: { viewport: { options: { phone } } },
+  globals: { viewport: { value: 'phone' } },
+  render: () => <Rentals path="/admin/tenants/1" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole('heading', { name: 'Ada de Vries' })
+    const trail = within(canvas.getByRole('navigation', { name: 'Breadcrumb' }))
+    expect(trail.getByRole('link', { name: 'Tenants' })).toBeVisible()
+    expect(canvas.getByRole('link', { name: 'Back to Tenants' })).toHaveAttribute('href', '/admin/tenants')
+
+    await userEvent.click(canvas.getByRole('link', { name: 'Back to Tenants' }))
+    await canvas.findByRole('link', { name: /New tenant/ })
+    expect(trail.getByRole('link', { name: 'Tenants' })).toHaveAttribute('aria-current', 'page')
+    expect(canvas.queryByRole('link', { name: /^Back to/ })).toBeNull()
   },
 }
 
@@ -55,39 +75,5 @@ export const NewLinks: StoryObj = {
     const current = await trail.findByRole('link', { name: 'New' })
     expect(current).toHaveAttribute('href', '/admin/tenants/new')
     expect(current).toHaveAttribute('aria-current', 'page')
-  },
-}
-
-/** Holds the record's read until "Finish loading" is pressed. */
-const HeldRecord = () => {
-  const [gate] = useState(() => {
-    let release = () => {}
-    const held = new Promise<void>((resolve) => (release = resolve))
-    return { held, release }
-  })
-  return (
-    <>
-      <button type="button" className="fixed right-4 bottom-4 z-50 rounded border bg-background px-3 py-1.5 text-sm" onClick={gate.release}>
-        Finish loading
-      </button>
-      <Rentals path="/admin/tenants/1" held={gate.held} />
-    </>
-  )
-}
-
-/** While the record loads, its crumb is a skeleton linked to the record, not the raw key; then it shows the title. */
-export const RecordLoading: StoryObj = {
-  tags: ['play'],
-  render: () => <HeldRecord />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    const trail = within(await canvas.findByRole('navigation', { name: 'Breadcrumb' }))
-    const loading = await trail.findByRole('link', { name: 'Loading record' })
-    expect(loading).toHaveAttribute('href', '/admin/tenants/1')
-    expect(loading).toHaveAttribute('aria-busy', 'true')
-    expect(trail.queryByText('1')).toBeNull()
-
-    await userEvent.click(canvas.getByRole('button', { name: 'Finish loading' }))
-    await waitFor(() => expect(trail.getByRole('link', { name: 'Ada de Vries' })).toHaveAttribute('aria-current', 'page'))
   },
 }

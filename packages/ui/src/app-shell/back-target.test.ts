@@ -6,6 +6,10 @@ describe('backTarget', () => {
     expect(backTarget(['Leasing', { label: 'Tenants', href: '/admin/tenants' }, { label: 'Acme', href: '/admin/tenants/1' }])).toEqual({ label: 'Tenants', href: '/admin/tenants' })
   })
 
+  it('is the last crumb when the current page sits under it', () => {
+    expect(backTarget(['Leasing', { label: 'Tenants', href: '/admin/tenants', above: true }])).toEqual({ label: 'Tenants', href: '/admin/tenants' })
+  })
+
   it('is none on a top-level page', () => {
     expect(backTarget([{ label: 'Tenants', href: '/admin/tenants' }])).toBeUndefined()
     expect(backTarget([])).toBeUndefined()

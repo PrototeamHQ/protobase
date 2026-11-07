@@ -10,9 +10,6 @@ div | block
           nav .flex min-w-0 items-center gap-1.5 | flex row nowrap center normal
             span .min-w-0 items-center gap-1.5 hidden md:flex | none
               span .truncate text-muted-foreground | inline
-            span .min-w-0 items-center gap-1.5 hidden md:flex | none
-              svg .lucide lucide-chevron-right hidden size-3.5 shrink-0 text-faint-foreground md:block | none
-              a .truncate text-muted-foreground rounded-sm hover:text-foreground hover:underline | inline
             span .min-w-0 items-center gap-1.5 flex | flex row nowrap center normal
               svg .lucide lucide-chevron-right hidden size-3.5 shrink-0 text-faint-foreground md:block | none
               a .truncate font-semibold rounded-sm hover:text-foreground hover:underline | block

@@ -13,7 +13,7 @@ Nothing new is invented for a remote resource. Every page of the admin app is dr
 
 1. **The app names its sources.** Its `/api/meta` lists each source the caller may use: where its API is, what it is called, and the resources the app draws from it.
 2. **The browser reads each source's `/meta` itself,** with the signed-in person's own token, and keeps only the resources the app draws. The source answers as it answers anyone: with the resources the person may see there, each as they may see it, and the view for their role.
-3. **The app merges them into its own.** A remote resource's model, view and permissions sit next to the app's own resources, so every part of the app that reads a resource reads it the same way: the sidebar places it by its view's `nav`, the breadcrumbs name it by its view's names and title, the list page shows its columns, filters and displays.
+3. **The app merges them into its own.** A remote resource's model, view and permissions sit next to the app's own resources, so every part of the app that reads a resource reads it the same way: the sidebar places it by its view's `nav`, the breadcrumbs name it by its view's names, the list page shows its columns, filters and displays.
 4. **Every call about a remote resource goes to its source.** The app's client sends each call to the API that serves the resource, with the same token: lists, records, writes, aggregates, uploads. The app's server is not in between and stores nothing of it.
 
 So the source decides what a person sees and may do, exactly as in its own admin app, and the app decides where it shows it. The app does not wait for its sources: its own resources show at once, and a source's resources join when its `/meta` has loaded.
@@ -115,7 +115,7 @@ Everything the app draws for a resource of its own, for a remote resource too:
 | List page | Its columns, sort, filters, search, displays and chart, at `/<resource>`, with every list state in the address. |
 | Record page | Its sections, related records, sidebar, actions and custom sections, at `/<resource>/<key>`, saved back to the source with its ETag. |
 | Create form | At `/<resource>/new`, when the person may create there. |
-| Breadcrumbs | The sidebar group, the list and the record's title, each a link. |
+| Breadcrumbs | The sidebar group and the list, each a link. |
 | Global search | Its search fields, when it has them and a sidebar entry. |
 | Links and actions | Links to its own records and lists; `a.update` and `a.remove` write to the source; handlers run with the source's client (see [Custom components](#custom-components)). |
 | Files | Uploaded to the source, and downloaded from it. |

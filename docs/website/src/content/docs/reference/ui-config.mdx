@@ -33,7 +33,7 @@ export const repairsView = view<typeof repairs>('repairs')
 | Method | |
 | --- | --- |
 | `.names({ singular, plural })` | "New repair", "Repairs" in the sidebar, breadcrumbs and browser tabs. Default: the resource name in words. |
-| `.title((r) => r.number)` | The field that names a record: in breadcrumbs, browser tabs, the record page's heading, relation links and search results. |
+| `.title((r) => r.number)` | The field that names a record: in browser tabs, the record page's heading, relation links and search results. |
 | `.titleFrom(rule, (r) => [r.member_ids])` | A title derived in the browser for the person reading it, in place of `.title`, by the function `rule` names in the UI config's `titles`, from the fields picked. See [Titles per reader](#titles-per-reader). |
 | `.searchResult((r) => ({ title?, subtitle? }))` | A record in the [global search](/reference/client/#global-search): `title` is one field or several joined by spaces (`[r.first_name, r.last_name]`, default: `.title`), `subtitle` the line under it (default: the first search field not in the title), replaced by the search field the text matched when neither line shows it. |
 | `.list((r, d, c) => ({ columns, sort?, search?, filter?, editable?, displays?, default? }))` | The list's columns in order, fields or [related records](#related-records-in-a-list) (`c.related`); the `filter` it [opens with](#a-filter-the-list-opens-with); its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields, else the primary key's order when it is `.sortable()`, else none, which the API orders by the key; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; the columns [edited in their cell](#editing-in-the-list); other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
@@ -49,7 +49,7 @@ A browser tab names what it shows, then the app's name ([`name`](/reference/conf
 
 ### Breadcrumbs
 
-The top bar shows where a page is: the sidebar group, the list and the record's title, each a link back. On a phone, a back button before them goes to the one just before the current page.
+The top bar shows where a page is: the sidebar group and the list, each a link back. A record page's trail ends at its list, such as Sales › Orders, and the heading below names the record. On a phone the top bar shows only the last step, with a back button before it to the page above: the list on a record page.
 
 ### Titles per reader
 
@@ -70,7 +70,7 @@ export default defineUi({
 })
 ```
 
-The derived title names the record wherever `.title` would: the sidebar's [recent records](/reference/sidebar/#recent-records), whose list request reads the picked fields too, the breadcrumb, the record page's heading, the browser tab, the links of a record page's relation fields, related cards, the global search, unless the view's `.searchResult` gives a title, and every relation that points at such a record: a list's relation column and a card's relation field, which read the picked fields of a page's records in one request, the relation picker's options and a relation filter's values. The picker's typed text still matches the resource's search fields, or, without any, the derived titles of the records it loads. The record's key shows while the function returns nothing, such as while the members' names load, and when the reader cannot read a field it picks, or the UI config registers no function of that name. It is presentation only: no field, filter or sort reads it, and the search does not match it. Other members' names come only with organizations; without them, `member` finds no one.
+The derived title names the record wherever `.title` would: the sidebar's [recent records](/reference/sidebar/#recent-records), whose list request reads the picked fields too, the record page's heading, the browser tab, the links of a record page's relation fields, related cards, the global search, unless the view's `.searchResult` gives a title, and every relation that points at such a record: a list's relation column and a card's relation field, which read the picked fields of a page's records in one request, the relation picker's options and a relation filter's values. The picker's typed text still matches the resource's search fields, or, without any, the derived titles of the records it loads. The record's key shows while the function returns nothing, such as while the members' names load, and when the reader cannot read a field it picks, or the UI config registers no function of that name. It is presentation only: no field, filter or sort reads it, and the search does not match it. Other members' names come only with organizations; without them, `member` finds no one.
 
 <gap>An export of shown values and a chart grouped by a relation cannot name a record by its derived title because titling them per reader is not implemented.</gap>
 
@@ -564,7 +564,7 @@ A record address can also carry `version`, an earlier saved version of the recor
 
 ### Full-area record pages
 
-`.record({ component })` makes the record page at `/<resource>/<key>` a [custom component](/reference/custom-components/#full-area-record-pages) of the app's own, for a record that is used rather than filled in, such as a chat channel. The component fills the content area, at full width beside the sidebar and down to the bottom bar on a phone, and the page does not scroll, so the component scrolls its own parts, such as messages above a box that stays at the bottom. The sidebar, the top bar with its breadcrumb naming the record, the bottom bar and a right panel stay; the heading, Save, the action rail, the sections, the related records and the Details card are not drawn. A record that does not exist, or that the user may not read, shows the record page's usual notice, and the component is never drawn.
+`.record({ component })` makes the record page at `/<resource>/<key>` a [custom component](/reference/custom-components/#full-area-record-pages) of the app's own, for a record that is used rather than filled in, such as a chat channel. The component fills the content area, at full width beside the sidebar and down to the bottom bar on a phone, and the page does not scroll, so the component scrolls its own parts, such as messages above a box that stays at the bottom. The sidebar, the top bar with its breadcrumb naming the record, since the page has no heading, the bottom bar and a right panel stay; the heading, Save, the action rail, the sections, the related records and the Details card are not drawn. A record that does not exist, or that the user may not read, shows the record page's usual notice, and the component is never drawn.
 
 ```ts
 export const ChannelChat = component('ChannelChat')

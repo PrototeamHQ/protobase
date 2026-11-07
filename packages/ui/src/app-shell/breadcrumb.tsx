@@ -4,8 +4,12 @@ import { cn } from '../lib/cn'
 import { Skeleton } from '../primitives/skeleton'
 import { text } from './messages'
 
-/** One step of the top bar's trail: plain text, or a link when it has a page of its own. A loading crumb shows a skeleton, with its label for screen readers. */
-export type Crumb = string | { label: string; href?: string; loading?: boolean }
+/**
+ * One step of the top bar's trail: plain text, or a link when it has a page of its own. A loading crumb shows a skeleton,
+ * with its label for screen readers. A last crumb marked `above` is the page the shown one sits under, as a list is
+ * above its record: it is not marked as the current page, and the phone's back button goes to it.
+ */
+export type Crumb = string | { label: string; href?: string; loading?: boolean; above?: boolean }
 
 export type BreadcrumbProps = {
   parts: Crumb[]
@@ -21,7 +25,7 @@ export const Breadcrumb = ({ parts, onNavigate }: BreadcrumbProps) => (
   <nav aria-label={text('breadcrumb')} className="flex min-w-0 items-center gap-1.5">
     {parts.map((part, index) => {
       const last = index === parts.length - 1
-      const { label, href, loading } = typeof part === 'string' ? { label: part, href: undefined, loading: false } : part
+      const { label, href, loading, above } = typeof part === 'string' ? { label: part, href: undefined, loading: false, above: false } : part
       const content = loading ? <Skeleton className="w-24" /> : label
       const text = cn('truncate', last ? 'font-semibold' : 'text-muted-foreground')
       return (
@@ -30,7 +34,7 @@ export const Breadcrumb = ({ parts, onNavigate }: BreadcrumbProps) => (
           {href ? (
             <a
               href={href}
-              aria-current={last ? 'page' : undefined}
+              aria-current={last && !above ? 'page' : undefined}
               aria-label={loading ? label : undefined}
               aria-busy={loading || undefined}
               onClick={(event) => {
