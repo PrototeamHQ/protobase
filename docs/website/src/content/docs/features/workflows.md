@@ -20,6 +20,7 @@ description: Graphs of steps the server runs along their edges, written in a lan
 - [Record triggers](/reference/workflows/#apprecord) (beta): A workflow starts once for each record that becomes ready, at once or when a time in it comes, read as the user who saved the enabled version.
 - [Triggers turned on while the app runs](/reference/workflows/#turning-a-trigger-on) (beta): Turning a workflow on or changing it registers its trigger on every server process, and turning it off stops it, with no restart.
 - [Workflow plugins](/reference/workflow-plugins/) (beta): A file of the app or a package adds trigger and step types through the same public interface the built-in types use.
+- [Step cache](/reference/workflow-plugins/#caching-results) (beta): A plugin's step reuses the result of an identical earlier call from any run or workflow, as its plugin decides, while secrets always come in with their current value; a workflow can force it on, and the graph marks a step forced on against its plugin's advice.
 - [Guarded requests for plugins](/reference/workflow-plugins/#sending-requests) (beta): A plugin's requests reach only public addresses, follow no redirect and read at most 10 MiB.
 - [Webhook trigger](/reference/workflows/#appwebhook) (beta): A workflow starts from a signed call to a URL of its own, limited in size and rate.
 - [Polling triggers](/reference/workflow-plugins/#polling-and-webhook) (beta): A workflow starts once for each new item a plugin finds on a schedule, or at each time of a cron with `app:schedule`.
