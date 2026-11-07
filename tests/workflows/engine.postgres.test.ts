@@ -148,6 +148,11 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(await runRow(tried)).toMatchObject({ output: 'two', version: 2 })
     expect((await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {}, version: 9 } })).status).toBeGreaterThanOrEqual(400)
     expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 9 } })).status).toBe(400)
+    // A publish alone is a change of the record: an ETag read before it is stale
+    const read = (await as('ada', `/workflows/${id}`)).headers.get('etag')!
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 2 } })).status).toBe(200)
+    const stale = await admin.request(`/api/v1/workflows/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', 'x-user': 'ada', 'if-match': read }, body: JSON.stringify({ enabled_version: 1 }) })
+    expect(stale.status).toBe(412)
     expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: null } })).status).toBe(200)
     const off = await run(id, {})
     await finished(off)

@@ -27,6 +27,8 @@ const workflowsResource = (schema: string) =>
     })
     .primaryKey((r) => r.id)
     .tenant((r) => r.tenant_id)
+    // `version` counts definitions: a publish or a new name is a change of the record all the same
+    .etagFrom((r) => r.updated_at)
     .search((r) => [r.name])
     .explicitGrants()
 
