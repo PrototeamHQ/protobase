@@ -36,9 +36,31 @@ export const keyOf = (value: unknown): RecordKeyInput | undefined => {
 
 export const resourceParameter = { type: 'string', description: 'The resource\'s name, as list_resources gives it.' }
 
+export const filterParameter = {
+  type: 'string',
+  description: 'An AIP-160 filter on filterable fields, such as status = "open" AND amount > 10. related(field, resource.key, (subfilter)), ANDed with the rest, keeps the records whose field holds the key of a record of resource that meets the subfilter.',
+}
+
 export const keyParameter = {
   description: 'The record\'s key: its value, or the values of its key fields in order when the key has several.',
   anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'array', items: { type: ['string', 'number'] }, minItems: 1 }],
 }
+
+export const belongsToParameter = {
+  type: 'object',
+  properties: { resource: resourceParameter, key: { type: ['string', 'number'], description: 'The record\'s key.' } },
+  required: ['resource', 'key'],
+  description: 'Keeps to the records that belong to this record, by a relation or a declared link, such as { "resource": "objectives", "key": 40 } for an objective\'s tasks; filter then narrows them.',
+}
+
+/** `belongs_to` as a tool passes it on: nothing without it, undefined when it is no resource and single key. */
+export const belongsToOf = (args: Record<string, unknown>) => {
+  if (args.belongs_to === undefined) return {}
+  if (typeof args.belongs_to !== 'object' || args.belongs_to === null) return undefined
+  const { resource, key } = args.belongs_to as { resource?: unknown; key?: unknown }
+  return typeof resource === 'string' && (typeof key === 'string' || typeof key === 'number') ? { belongs_to: { resource, key } } : undefined
+}
+
+export const invalidBelongsTo = JSON.stringify({ error: 'invalid-parameter', message: 'Invalid parameter belongs_to: pass { "resource": "<name>", "key": <its key> }' })
 
 export const showDeletedParameter = { type: 'boolean', description: 'true also returns soft-deleted records; only on a resource list_resources marks soft_delete.' }

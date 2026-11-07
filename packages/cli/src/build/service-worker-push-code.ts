@@ -8,9 +8,13 @@ import { pushRecord } from '@protobase/schema/internal'
  *   names the subscription's endpoint and the push names the record's user. A push without a title shows the app's
  *   name alone. A push with no record, or for another endpoint or user, shows nothing: the worker closes what it showed,
  *   clears the badge, drops the record and unsubscribes.
- * - `notificationclick` opens the notification's url only when it is an absolute `http` or `https` URL, parsed without
- *   a base: on the worker's own origin in a window of the app, focused and navigated there, or in a new window when none
- *   is open; on any other origin always in a new window. Anything else opens nothing, whoever showed the notification.
+ * - A push's tap opens its `notification.navigate`, or its `url` when it has none, and each of its `notification.actions`
+ *   shows as a button that opens the action's own `navigate`, or the tap's url when it has none. Nothing else in the
+ *   push, such as its `data`, is kept for a tap.
+ * - `notificationclick` opens the tapped action's url, or the notification's for a tap on no action it knows, only when
+ *   it is an absolute `http` or `https` URL, parsed without a base: on the worker's own origin in a window of the app,
+ *   focused and navigated there, or in a new window when none is open; on any other origin always in a new window.
+ *   Anything else opens nothing, whoever showed the notification, and a failing action never falls back to another url.
  * - `pushsubscriptionchange` marks an existing record for renewal, which the helper registers once its user is signed
  *   in; the worker has no token to do so itself.
  */
@@ -59,6 +63,22 @@ const pushData = (data) => {
 }
 
 const text = (value) => (typeof value === 'string' ? value : undefined)
+const plainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
+
+// The checked urls a tap may open: the notification's, and per action [action, url], with null for a navigate that
+// fails, so its button opens nothing. Pairs rather than an object keyed by the push's action names.
+const tapTargets = (push) => {
+  const notification = plainObject(push.notification) ? push.notification : {}
+  const url = notification.navigate !== undefined ? tapUrl(notification.navigate) : tapUrl(push.url)
+  const actions = (Array.isArray(notification.actions) ? notification.actions : []).filter(
+    (action) => plainObject(action) && text(action.action) !== undefined && text(action.title) !== undefined,
+  )
+  return {
+    url,
+    buttons: actions.map((action) => ({ action: action.action, title: action.title })),
+    actions: actions.map((action) => [action.action, action.navigate === undefined ? url ?? null : tapUrl(action.navigate) ?? null]),
+  }
+}
 
 // This browser is no longer registered for anyone: nothing it showed stays, and it gets no more pushes.
 const forgetPush = async () => {
@@ -75,11 +95,12 @@ const showPush = async (data) => {
   const push = pushData(data)
   if (!push || text(push.title) === undefined) return self.registration.showNotification(text(record.appName) || self.location.host, {})
   if (push.user !== record.userId) return forgetPush()
-  const url = tapUrl(push.url)
+  const { url, buttons, actions } = tapTargets(push)
   const options = {}
   if (text(push.body) !== undefined) options.body = push.body
   if (text(push.tag) !== undefined) options.tag = push.tag
-  if (url !== undefined) options.data = { url }
+  if (buttons.length > 0) options.actions = buttons
+  if (url !== undefined || actions.length > 0) options.data = { ...(url !== undefined && { url }), ...(actions.length > 0 && { actions }) }
   if (typeof push.badge === 'number' && self.navigator.setAppBadge) await self.navigator.setAppBadge(push.badge)
   return self.registration.showNotification(push.title, options)
 }
@@ -98,15 +119,22 @@ const openInApp = async (url) => {
   }
 }
 
-const openTap = (notification) => {
+// The url a tap opens, checked again: page code may show a notification with any data.
+const tappedUrl = (data, action) => {
+  if (!plainObject(data)) return undefined
+  const pair = action && Array.isArray(data.actions) ? data.actions.find((entry) => Array.isArray(entry) && entry[0] === action) : undefined
+  return tapUrl(pair ? pair[1] : data.url)
+}
+
+const openTap = (notification, action) => {
   notification.close()
-  const url = tapUrl(notification.data && notification.data.url)
+  const url = tappedUrl(notification.data, action)
   if (url === undefined) return Promise.resolve()
   return new URL(url).origin === self.location.origin ? openInApp(url) : self.clients.openWindow(url)
 }
 
 self.addEventListener('push', (event) => event.waitUntil(showPush(event.data)))
-self.addEventListener('notificationclick', (event) => event.waitUntil(openTap(event.notification)))
+self.addEventListener('notificationclick', (event) => event.waitUntil(openTap(event.notification, event.action)))
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(readPushRecord().then((record) => record && writePushRecord({ ...record, renew: true })))
 })

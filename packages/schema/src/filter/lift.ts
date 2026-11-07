@@ -1,9 +1,9 @@
 import type { Expr as Generic, Operand } from 'aip-parsers/filter'
-import type { CheckedFilter, FieldModel, FieldPath, FilterExpr, FilterOf, FilterValue, Literal } from '../model'
+import type { CheckedFilter, FieldModel, FieldPath, FilterExpr, FilterOf, FilterValue, Literal, RelatedFilter } from '../model'
 import { libraryType } from './profile'
 
 type Field = FieldPath | FieldModel
-type Node = FilterOf<Field>
+type Node = FilterOf<Field, RelatedFilter>
 
 // Checked fields carry their type, so the evaluator converts quoted values by it.
 const member = (field: Field, span: Node['span']): Operand =>
@@ -57,6 +57,8 @@ export const lift = (node: Node, options: LiftOptions = {}): Generic => {
     case 'isNull':
       if (options.expand) return { kind: 'not', arg: { kind: 'present', left: member(node.field, node.span), span: node.span }, span: node.span }
       return call('isNull', [member(node.field, node.span)], node.span)
+    case 'related':
+      return { kind: 'call', name: 'related', args: [member(node.field, node.span), { kind: 'member', path: [node.resource, node.key], span: node.span }, ...(node.filter ? [next(node.filter)] : [])], span: node.span }
   }
 }
 

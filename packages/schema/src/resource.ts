@@ -180,6 +180,22 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   }
 
   /**
+   * Declares the resource's records links between two others, such as tasks and the objectives they serve, so a record
+   * of either side lists the other's records, and those that point at them, at
+   * [`/{parent}/{key}/{resource}`](docs/website/src/content/docs/reference/api.md#lists-under-a-record). Both are
+   * filterable relations of one column. A list still reads as itself: a task's address stays `/tasks/{key}`.
+   *
+   * @example
+   * ```ts
+   * .links((r) => [r.objective_id, r.task_id])
+   * ```
+   */
+  links(pick: (r: FieldRefs<F>) => readonly [Ref, Ref]) {
+    const [first, second] = pick(this.refs())
+    return this.next({ links: [first.name, second.name] })
+  }
+
+  /**
    * The events changes to its records raise, captured in the database for every write, from the API or elsewhere. See
    * [Declaring events](docs/website/src/content/docs/reference/events.mdx#declaring-events).
    *

@@ -25,6 +25,7 @@ const surely = (expr: FilterExpr): FilterExpr => {
     case 'search':
     case 'present':
     case 'isNull':
+    case 'related':
       return expr
     default:
       return guarded(expr, expr)
@@ -43,6 +44,7 @@ const surelyNot = (expr: FilterExpr): FilterExpr => {
     case 'search':
     case 'present':
     case 'isNull':
+    case 'related':
       return where.not(expr)
     default:
       return guarded(expr, where.not(expr))
@@ -55,6 +57,15 @@ const read = (text: string) => {
   if (!parsed.ok) throw new Error(`The filter cannot be read: ${parsed.errors.map((error) => error.message).join('; ')}`)
   return parsed.ast
 }
+
+const holdsRelated = (expr: FilterExpr): boolean => {
+  if (expr.kind === 'and' || expr.kind === 'or') return expr.args.some(holdsRelated)
+  if (expr.kind === 'not') return holdsRelated(expr.arg)
+  return expr.kind === 'related'
+}
+
+/** Whether the records two filters differ by can be found: the API takes no `NOT related()`, so a filter holding one cannot. */
+export const canDiff = (before: string, after: string) => ![read(before), read(after)].some((expr) => expr && holdsRelated(expr))
 
 /**
  * The filter of the records `after` finds and `before` does not, for the list API: `after AND NOT before`, with a record

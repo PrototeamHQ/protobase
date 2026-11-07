@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkFilter, evaluateFilter, f, parseFilter, resource } from '@protobase/schema'
-import { addedFilter, filterChanges, netChange, removedFilter } from './search-diff'
+import { addedFilter, canDiff, filterChanges, netChange, removedFilter } from './search-diff'
 
 const homes = resource('homes')
   .table('homes')
@@ -93,5 +93,17 @@ describe('netChange', () => {
     expect(netChange(7, 2, 'home', 'homes')).toBe('5 more homes')
     expect(netChange(0, 1, 'home', 'homes')).toBe('1 fewer home')
     expect(netChange(3, 3, 'home', 'homes')).toBe('As many homes')
+  })
+})
+
+describe('canDiff', () => {
+  it('takes filters the API can negate', () => {
+    expect(canDiff('rent > 1', 'garden = true')).toBe(true)
+    expect(canDiff('', '')).toBe(true)
+  })
+
+  it('refuses a filter that holds related() on either side, which the API takes under no NOT', () => {
+    expect(canDiff('related(id, leases.home_id)', 'rent > 1')).toBe(false)
+    expect(canDiff('rent > 1', 'rent > 1 AND related(id, leases.home_id)')).toBe(false)
   })
 })

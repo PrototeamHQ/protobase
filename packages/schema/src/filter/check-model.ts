@@ -5,6 +5,7 @@ import { checkValue } from './check-value'
 import { resolveField, type CheckContext } from './check-field'
 import { filterError } from './errors'
 import { compareOps, isOpaque } from './operators'
+import { relatedRefused } from './related'
 
 const value = (ctx: CheckContext, field: FieldModel, node: FilterValue) => {
   const problem = checkValue(field, node)
@@ -103,6 +104,9 @@ const checkNode = (ctx: CheckContext, node: FilterExpr): CheckedFilter | undefin
       const field = checkText(ctx, node.kind, node.field)
       return field && { ...node, field }
     }
+    case 'related':
+      ctx.errors.push(relatedRefused(node.span))
+      return undefined
   }
 }
 

@@ -150,6 +150,8 @@ export type ResourceModel = {
   }
   /** The records its records belong to, and the access on them writing its records needs (`.parent()`). */
   parents?: ParentModel[]
+  /** The two relations a link resource joins (`.links()`), so each side lists the other at `/{parent}/{key}/{resource}`. */
+  links?: readonly [string, string]
   /** The events its changes raise (`.events()`), the catalogue subscriptions pick from. */
   events?: EventModel[]
   /** Whether every change of its records is kept, with who made it (`.history()`). */
@@ -1651,14 +1653,14 @@ export type CompareOp = '=' | '!=' | '<' | '<=' | '>' | '>='
 /**
  * A filter's syntax tree: AIP-160 with the functions the API adds (`search`, `similar`, `regex`, `isNull`, `in`); see
  * [Filters](docs/website/src/content/docs/reference/api.md#filters). `F` is how a field is represented: a `FieldPath` when
- * parsed (`FilterExpr`), a `FieldModel` once checked (`CheckedFilter`).
+ * parsed (`FilterExpr`), a `FieldModel` once checked (`CheckedFilter`). `Extra` is what only one of them holds.
  */
-export type FilterOf<F> =
+export type FilterOf<F, Extra = never> =
   | {
       /** Every one of `args` holds (`AND`). */
       kind: 'and'
       /** The filters joined. */
-      args: FilterOf<F>[]
+      args: FilterOf<F, Extra>[]
       /** Where it stands in the filter text. */
       span: Span
     }
@@ -1666,7 +1668,7 @@ export type FilterOf<F> =
       /** One of `args` holds (`OR`). */
       kind: 'or'
       /** The filters joined. */
-      args: FilterOf<F>[]
+      args: FilterOf<F, Extra>[]
       /** Where it stands in the filter text. */
       span: Span
     }
@@ -1674,7 +1676,7 @@ export type FilterOf<F> =
       /** `arg` does not hold (`NOT`, `-`). */
       kind: 'not'
       /** The filter negated. */
-      arg: FilterOf<F>
+      arg: FilterOf<F, Extra>
       /** Where it stands in the filter text. */
       span: Span
     }
@@ -1754,9 +1756,29 @@ export type FilterOf<F> =
       /** Where it stands in the filter text. */
       span: Span
     }
+  | Extra
+
+/**
+ * `related(field, resource.key, (filter))`: the field holds the `key` of a record of `resource` the caller may list that
+ * meets the filter. A list-style read of the API resolves it, so a parsed filter may hold it and a checked one never does.
+ */
+export type RelatedFilter = {
+  /** Which filter this is. */
+  kind: 'related'
+  /** The field of this resource that is matched. */
+  field: FieldPath
+  /** The resource read. */
+  resource: string
+  /** Its field whose values `field` is matched against. */
+  key: string
+  /** What its records must meet; every record the caller may list without one. */
+  filter?: FilterExpr
+  /** Where it stands in the filter text. */
+  span: Span
+}
 
 /** A filter as parsed, its fields as written (`parseFilter`). */
-export type FilterExpr = FilterOf<FieldPath>
+export type FilterExpr = FilterOf<FieldPath, RelatedFilter>
 
 /** A filter checked against a resource, its fields resolved to the resource's (`checkFilter`). */
 export type CheckedFilter = FilterOf<FieldModel>
