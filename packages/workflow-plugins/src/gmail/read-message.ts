@@ -17,8 +17,9 @@ const rawOrTooLarge = (api: GmailApi, id: string) =>
   })
 
 /**
- * One message as a run's input: read whole, at most 10 MiB of answer, else from its headers alone when it is larger or
- * too complex to parse; `undefined` when it was deleted since it was listed.
+ * One message as a run's input: read whole, at most 10 MiB of answer, which holds the mail in base64 and so about
+ * 7.5 MiB of mail, else from its headers alone when it is larger or too complex to parse; `undefined` when it was
+ * deleted since it was listed.
  */
 export const readMessage = async (api: GmailApi, ref: MessageRef) => {
   const raw = await unlessDeleted(rawOrTooLarge(api, ref.id))

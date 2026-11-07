@@ -45,9 +45,17 @@ describe('readMessage', () => {
     expect(gmail.calls.map(({ path }) => path)).toEqual([expect.stringMatching(/^messages\/[0-9a-f]+$/)])
   })
 
-  it('reads a mail over 10 MiB from its headers alone, with no body and no attachments', async () => {
+  // An attachment's content is base64 in the mail, which Gmail's answer holds in base64 again: 6 MiB of content makes
+  // a mail of 8 MiB and an answer over 10 MiB, 5 MiB a mail of 6.7 MiB and an answer under it.
+  it('reads a mail of about 7 MiB whole', async () => {
+    const { read } = setup()
+    const item = await read(mail({ subject: 'Large', attachments: [{ filename: 'big.bin', content: 'x'.repeat(5 * 1024 * 1024) }] }))
+    expect(item).toMatchObject({ subject: 'Large', text: 'Hi there', attachments: [{ filename: 'big.bin', size: 5 * 1024 * 1024 }], truncated: false })
+  })
+
+  it('reads a mail over about 7.5 MiB from its headers alone, with no body and no attachments', async () => {
     const { gmail, read } = setup()
-    const item = await read(mail({ subject: 'Huge', attachments: [{ filename: 'big.bin', content: 'x'.repeat(9 * 1024 * 1024) }] }))
+    const item = await read(mail({ subject: 'Huge', attachments: [{ filename: 'big.bin', content: 'x'.repeat(6 * 1024 * 1024) }] }))
     expect(item).toMatchObject({ from: { name: 'Ada', address: 'ada@example.com' }, to: [{ name: 'Grace', address: 'grace@example.com' }], subject: 'Huge', text: null, html: null, attachments: null, truncated: true })
     expect(gmail.calls.map(({ query }) => query.get('format'))).toEqual(['raw', 'metadata'])
   })
