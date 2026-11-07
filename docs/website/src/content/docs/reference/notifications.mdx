@@ -210,7 +210,7 @@ export const PushButton = () => {
 - Only someone signed in as themselves can turn push on: a visitor's click and staff signed in as the user do nothing.
 - On iPhone and iPad, push works in the app added to the Home Screen; a browser tab answers `unsupported`.
 - Signing out turns push off in this browser, and so does someone else signing in on it: what the browser showed is closed, the app's badge cleared, and the device removed. Signing in again as the same user keeps it on. Each push names the user its device is registered for, and the browser shows nothing of a push for another user than the one it holds push for.
-- A tap on a notification whose url is on your app's origin opens that page in the app, in an open window of it or a new one; any other url opens in a new tab.
+- A tap on a notification opens its `platform.web.payload` `notification.navigate`, or its `url` when it has none, and each of the payload's `notification.actions` shows as a button that opens its own `navigate`, or the notification's url when it has none. The browser checks each url again as the server does and opens nothing for one that fails; no other field, such as `data`, is ever opened. A url on your app's origin opens that page in the app, in an open window of it or a new one; any other url opens in a new tab.
 
 `protobase serve` and `protobase dev` both serve the service worker that shows notifications, `protobase dev` only when the app has `notifications`.
 
