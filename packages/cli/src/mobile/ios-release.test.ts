@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -52,10 +52,10 @@ describe('the xcodebuild arguments', () => {
 })
 
 describe('buildIosAutomatic', () => {
-  it('writes the export options before the export, and runs both steps in the native project', async () => {
+  it('writes the export options before the export, runs both steps in the native project and removes the archive', async () => {
     const ws = tempDir()
     const cwd = path.join(ws, 'ios', 'App')
-    mkdirSync(cwd, { recursive: true })
+    mkdirSync(path.join(cwd, 'App.xcarchive'), { recursive: true })
     const calls: { command: string; verb: string | undefined; cwd: string; options: string | undefined }[] = []
     const run = async (command: string, args: string[], options: { cwd: string }) => {
       const written = args.includes('-exportArchive') ? readFileSync(path.join(cwd, 'archive.plist'), 'utf8') : undefined
@@ -66,5 +66,6 @@ describe('buildIosAutomatic', () => {
       { command: 'xcodebuild', verb: 'archive', cwd, options: undefined },
       { command: 'xcodebuild', verb: '-exportArchive', cwd, options: iosExportOptions('ABCDE12345') },
     ])
+    expect(existsSync(path.join(cwd, 'App.xcarchive'))).toBe(false)
   })
 })

@@ -1,5 +1,5 @@
 import { statSync } from 'node:fs'
-import { writeFile } from 'node:fs/promises'
+import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { ChildOptions, RunChild } from './child-process'
 
@@ -75,4 +75,5 @@ export const buildIosAutomatic = async ({ ws, env, team, key }: { ws: string; en
   await run('xcodebuild', iosArchiveArgs(team, key), { cwd, env })
   await writeFile(path.join(cwd, exportOptions), iosExportOptions(team))
   await run('xcodebuild', iosExportArgs(key), { cwd, env })
+  await rm(path.join(cwd, archive), { recursive: true, force: true })
 }
