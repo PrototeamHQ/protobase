@@ -3,11 +3,11 @@ import { backTarget } from './back-target'
 
 describe('backTarget', () => {
   it('is the crumb just before the current page', () => {
-    expect(backTarget(['Leasing', { label: 'Tenants', href: '/admin/tenants' }, { label: 'Acme', href: '/admin/tenants/1' }])).toEqual({ label: 'Tenants', href: '/admin/tenants' })
+    expect(backTarget(['Leasing', { label: 'Tenants', href: '/admin/tenants' }, { label: 'Acme', href: '/admin/tenants/1' }])).toEqual({ label: 'Tenants', href: '/admin/tenants', shown: false })
   })
 
   it('is the last crumb when the current page sits under it', () => {
-    expect(backTarget(['Leasing', { label: 'Tenants', href: '/admin/tenants', above: true }])).toEqual({ label: 'Tenants', href: '/admin/tenants' })
+    expect(backTarget(['Leasing', { label: 'Tenants', href: '/admin/tenants', above: true }])).toEqual({ label: 'Tenants', href: '/admin/tenants', shown: true })
   })
 
   it('is none on a top-level page', () => {

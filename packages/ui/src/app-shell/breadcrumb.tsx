@@ -7,7 +7,7 @@ import { text } from './messages'
 /**
  * One step of the top bar's trail: plain text, or a link when it has a page of its own. A loading crumb shows a skeleton,
  * with its label for screen readers. A last crumb marked `above` is the page the shown one sits under, as a list is
- * above its record: it is not marked as the current page, and the phone's back button goes to it.
+ * above its record: it is not the current page, and on a phone the back button, which goes to it, shows its label.
  */
 export type Crumb = string | { label: string; href?: string; loading?: boolean; above?: boolean }
 
@@ -20,21 +20,22 @@ export type BreadcrumbProps = {
 /** A plain left click, which the app follows itself; others open a new tab. */
 export const inApp = (event: MouseEvent) => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
 
-/** The trail of where you are; the last crumb, the current page, shows on phones too. */
+/** The trail of where you are; the current page, the last crumb unless it is `above`, shows on phones too. */
 export const Breadcrumb = ({ parts, onNavigate }: BreadcrumbProps) => (
   <nav aria-label={text('breadcrumb')} className="flex min-w-0 items-center gap-1.5">
     {parts.map((part, index) => {
       const last = index === parts.length - 1
       const { label, href, loading, above } = typeof part === 'string' ? { label: part, href: undefined, loading: false, above: false } : part
       const content = loading ? <Skeleton className="w-24" /> : label
-      const text = cn('truncate', last ? 'font-semibold' : 'text-muted-foreground')
+      const current = last && !above
+      const text = cn('truncate', current ? 'font-semibold' : 'text-muted-foreground')
       return (
-        <span key={`${index}-${label}`} className={cn('min-w-0 items-center gap-1.5', last ? 'flex' : 'hidden md:flex')}>
+        <span key={`${index}-${label}`} className={cn('min-w-0 items-center gap-1.5', current ? 'flex' : 'hidden md:flex')}>
           {index > 0 && <ChevronRight className="hidden size-3.5 shrink-0 text-faint-foreground md:block" />}
           {href ? (
             <a
               href={href}
-              aria-current={last && !above ? 'page' : undefined}
+              aria-current={current ? 'page' : undefined}
               aria-label={loading ? label : undefined}
               aria-busy={loading || undefined}
               onClick={(event) => {

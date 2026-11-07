@@ -28,14 +28,15 @@ div | block
                 svg .lucide lucide-chevrons-up-down size-3.5 shrink-0 text-faint-foreground | block
       div .flex min-w-0 flex-1 flex-col pb-[var(--pb-safe-bottom)] | flex column nowrap normal normal
         header .sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)] flex h-[calc(3rem+var(--pb-safe-top))] shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 pt-[var(--pb-safe-top)] md:gap-4 md:px-5 | flex row nowrap center normal sticky
-          a .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden -ml-3 | none
-            svg .lucide lucide-chevron-left size-5 | block
+          a .inline-flex h-11 min-w-0 items-center gap-1 rounded-md pr-2 pl-3 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden -ml-3 | none
+            svg .lucide lucide-chevron-left size-5 shrink-0 | block
+            span .truncate | inline
           nav .flex min-w-0 items-center gap-1.5 | flex row nowrap center normal
             span .min-w-0 items-center gap-1.5 hidden md:flex | flex row nowrap center normal
               span .truncate text-muted-foreground | block
-            span .min-w-0 items-center gap-1.5 flex | flex row nowrap center normal
+            span .min-w-0 items-center gap-1.5 hidden md:flex | flex row nowrap center normal
               svg .lucide lucide-chevron-right hidden size-3.5 shrink-0 text-faint-foreground md:block | block
-              a .truncate font-semibold rounded-sm hover:text-foreground hover:underline | block
+              a .truncate text-muted-foreground rounded-sm hover:text-foreground hover:underline | block
           div .ml-auto flex items-center gap-1 md:gap-3 | flex row nowrap center normal
             div .hidden md:block | block
               div .relative w-96 | block relative

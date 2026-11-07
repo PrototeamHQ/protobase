@@ -46,7 +46,7 @@ export const RecordLinks: StoryObj = {
   },
 }
 
-/** On a phone the top bar shows the list a record sits under, after a back button to it, and the heading names the record. */
+/** On a phone the top bar's back button names the list a record sits under, as one link, and the heading names the record. */
 export const RecordOnPhone: StoryObj = {
   tags: ['play', 'phone'],
   parameters: { viewport: { options: { phone } } },
@@ -56,8 +56,11 @@ export const RecordOnPhone: StoryObj = {
     const canvas = within(canvasElement)
     await canvas.findByRole('heading', { name: 'Ada de Vries' })
     const trail = within(canvas.getByRole('navigation', { name: 'Breadcrumb' }))
-    expect(trail.getByRole('link', { name: 'Tenants' })).toBeVisible()
-    expect(canvas.getByRole('link', { name: 'Back to Tenants' })).toHaveAttribute('href', '/admin/tenants')
+    expect(trail.queryByRole('link')).toBeNull()
+    const back = canvas.getByRole('link', { name: 'Back to Tenants' })
+    expect(back).toHaveAttribute('href', '/admin/tenants')
+    expect(back).toHaveTextContent('Tenants')
+    expect(back.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
 
     await userEvent.click(canvas.getByRole('link', { name: 'Back to Tenants' }))
     await canvas.findByRole('link', { name: /New tenant/ })
