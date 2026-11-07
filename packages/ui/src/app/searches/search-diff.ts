@@ -25,6 +25,7 @@ const surely = (expr: FilterExpr): FilterExpr => {
     case 'search':
     case 'present':
     case 'isNull':
+    case 'related':
       return expr
     default:
       return guarded(expr, expr)
@@ -43,6 +44,7 @@ const surelyNot = (expr: FilterExpr): FilterExpr => {
     case 'search':
     case 'present':
     case 'isNull':
+    case 'related':
       return where.not(expr)
     default:
       return guarded(expr, where.not(expr))

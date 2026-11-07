@@ -95,3 +95,10 @@ describe('netChange', () => {
     expect(netChange(3, 3, 'home', 'homes')).toBe('As many homes')
   })
 })
+
+describe('a filter with related()', () => {
+  it('stays a term of its own, which needs no guard for a missing value', () => {
+    expect(addedFilter('rent > 1', 'rent > 1 AND related(id, leases.home_id)')).toBe('(rent > 1 AND related(id, leases.home_id)) AND NOT (rent > 1 AND rent:*)')
+    expect(addedFilter('related(id, leases.home_id)', 'rent > 1')).toBe('rent > 1 AND NOT related(id, leases.home_id)')
+  })
+})

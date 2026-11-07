@@ -1,6 +1,7 @@
 import type { CheckedFilter } from '@protobase/schema'
 import { QueryError } from './errors'
 import { filterFingerprint } from './filter-fingerprint'
+import type { Scope } from './scope'
 import { sortSignature, type SortKey } from './sort'
 
 type Cell = string | null
@@ -16,22 +17,22 @@ const isCellList = (value: unknown): value is Cell[] =>
 
 /**
  * Opaque cursor: the sort signature plus the row's sort values as text (so timestamps and bigints round-trip exactly,
- * null for NULL values), and a fingerprint of the filter when there is one, so a cursor only continues the list it
- * came from (AIP-158). The JSON is UTF-8 encoded before base64url, so any text value survives.
+ * null for NULL values), and a fingerprint of the filter and its `related()` terms when there are any, so a cursor only
+ * continues the list it came from (AIP-158). The JSON is UTF-8 encoded before base64url, so any text value survives.
  * `values` may be a prefix of the sort keys; such a boundary cursor is produced by scroll anchors.
  */
-export const encodeCursor = (keys: SortKey[], values: Cell[], filter?: CheckedFilter) => {
-  const fingerprint = filterFingerprint(filter)
+export const encodeCursor = (keys: SortKey[], values: Cell[], filter?: CheckedFilter, scope?: Scope) => {
+  const fingerprint = filterFingerprint(filter, scope)
   const payload: Payload = { s: sortSignature(keys).slice(0, values.length), v: values, ...(fingerprint && { f: fingerprint }) }
   return toBase64Url(JSON.stringify(payload))
 }
 
-export const decodeCursor = (cursor: string, keys: SortKey[], filter?: CheckedFilter) => {
+export const decodeCursor = (cursor: string, keys: SortKey[], filter?: CheckedFilter, scope?: Scope) => {
   const payload = parse(cursor)
   const signature = sortSignature(keys)
   const prefixOk = payload.s.length === payload.v.length && payload.s.every((part, i) => part === signature[i])
   const lengthOk = payload.v.length === keys.length || payload.v.length === 1
-  const filterOk = (payload.f ?? '') === filterFingerprint(filter)
+  const filterOk = (payload.f ?? '') === filterFingerprint(filter, scope)
   if (!prefixOk || !lengthOk || !filterOk) throw invalidCursor()
   return payload.v
 }

@@ -1,7 +1,7 @@
 import type { FieldModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { notFound } from '../problem'
 import { everyField, listFields } from './list-fields'
-import { invalidShowDeleted, keyOf, keyParameter, refused, resourceOf, resourceParameter, showDeletedOf, showDeletedParameter } from './record-tool-args'
+import { filterParameter, invalidShowDeleted, keyOf, keyParameter, refused, resourceOf, resourceParameter, showDeletedOf, showDeletedParameter } from './record-tool-args'
 import { countRecordsTool } from './count-records-tool'
 import { defineTool, type ReadableResources, type ToolContext } from './tools'
 
@@ -36,12 +36,20 @@ const resourceSummary = (model: ResourceModel, view: ViewModel | undefined) => (
   soft_delete: model.softDelete !== undefined,
 })
 
-const resourceDetail = (model: ResourceModel, view: ViewModel | undefined) => ({
-  ...resourceSummary(model, view),
-  ...(view?.help && { help: view.help }),
-  list_fields: listFields(model, view),
-  fields: Object.values(model.fields).map((field) => fieldEntry(field, view)),
-})
+// The relations of the caller's other resources that point at this one: what a related() filter can go through.
+const linkedFrom = (model: ResourceModel, models: readonly ResourceModel[]) =>
+  models.flatMap((other) => Object.values(other.fields).flatMap((field) => (field.relation?.resource === model.name && field.filterable ? [{ resource: other.name, field: field.name }] : [])))
+
+const resourceDetail = (model: ResourceModel, view: ViewModel | undefined, models: readonly ResourceModel[]) => {
+  const linked = linkedFrom(model, models)
+  return {
+    ...resourceSummary(model, view),
+    ...(view?.help && { help: view.help }),
+    list_fields: listFields(model, view),
+    fields: Object.values(model.fields).map((field) => fieldEntry(field, view)),
+    ...(linked.length > 0 && { linked_from: linked }),
+  }
+}
 
 const viewOf = ({ views }: ReadableResources, model: ResourceModel) => views.find((view) => view.resource === model.name)
 
@@ -62,7 +70,7 @@ export const listResourcesTool = () =>
 export const describeResourceTool = () =>
   defineTool({
     name: 'describe_resource',
-    description: 'Describes one resource you may read, as JSON: its name, label, help, key fields, whether it soft deletes (soft_delete) and fields (name, type, label, help, enum values, the resource a relation links to, and whether it is optional, read-only, filterable and sortable), and list_fields, the fields list_records returns when not told which. Filters and order_by in list_records take only fields marked filterable or sortable.',
+    description: 'Describes one resource you may read, as JSON: its name, label, help, key fields, whether it soft deletes (soft_delete) and fields (name, type, label, help, enum values, the resource a relation links to, and whether it is optional, read-only, filterable and sortable), linked_from, the relations of other resources that point at this one, and list_fields, the fields list_records returns when not told which. Filters and order_by in list_records take only fields marked filterable or sortable.',
     parameters: { type: 'object', properties: { resource: resourceParameter }, required: ['resource'] },
     annotations: readOnly,
     run: async (args, context) => {
@@ -71,7 +79,7 @@ export const describeResourceTool = () =>
       const resources = await context.resources()
       const model = resources.models.find((candidate) => candidate.name === name)
       if (!model) return refused(notFound(`No resource ${name} you may read; list_resources lists them.`))
-      return JSON.stringify(resourceDetail(model, viewOf(resources, model)))
+      return JSON.stringify(resourceDetail(model, viewOf(resources, model), resources.models))
     },
   })
 
@@ -101,13 +109,13 @@ const listedFields = async (resource: string, value: unknown, context: ToolConte
 export const listRecordsTool = () =>
   defineTool({
     name: 'list_records',
-    description: `Finds records of a resource and returns a page of them as JSON ({ items, next_page_token, total_size_estimate }). Name the fields you need in fields, such as ["id", "status"]; without it each record has its resource's list_fields, the columns of its table in the app, and the page names the others in omitted_fields: pass ["*"] for every field. filter uses AIP-160 syntax on filterable fields, such as status = "open" AND amount > 10, and order_by a comma-separated list of sortable fields, each optionally followed by desc. total_size_estimate is an estimate, not an exact count. Keep page_size small and pass next_page_token back as page_token for the next page; it is empty on the last. show_deleted: true also returns soft-deleted records.`,
+    description: `Finds records of a resource and returns a page of them as JSON ({ items, next_page_token, total_size_estimate }). Name the fields you need in fields, such as ["id", "status"]; without it each record has its resource's list_fields, the columns of its table in the app, and the page names the others in omitted_fields: pass ["*"] for every field. filter uses AIP-160 syntax on filterable fields, such as status = "open" AND amount > 10, and reaches through related records with related(field, resource.key, (subfilter)), ANDed with the rest, such as related(task_id, objective_tasks.task_id, (objective_id = 40)) for the claims of an objective's tasks: both fields point at one resource, as links_to and linked_from show. order_by takes a comma-separated list of sortable fields, each optionally followed by desc. total_size_estimate is an estimate, not an exact count. Keep page_size small and pass next_page_token back as page_token for the next page; it is empty on the last. show_deleted: true also returns soft-deleted records.`,
     parameters: {
       type: 'object',
       properties: {
         resource: resourceParameter,
         fields: fieldsParameter('without it, the list_fields describe_resource names'),
-        filter: { type: 'string', description: 'An AIP-160 filter on filterable fields, such as status = "open" AND amount > 10.' },
+        filter: filterParameter,
         order_by: { type: 'string', description: 'Sortable fields, comma-separated, each optionally followed by desc, such as created_at desc.' },
         page_size: { type: 'integer', minimum: 1, maximum: maxPageSize, description: `Records per page, ${defaultPageSize} by default.` },
         page_token: { type: 'string', description: 'The next_page_token of the previous page.' },

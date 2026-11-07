@@ -1044,7 +1044,6 @@
     "edit": "Edit",
     "delete": "Delete",
     "nothingYet": "Nothing here yet.",
-    "couldNotLoadRelated": "Could not load",
     "relatedRecords": "Related records",
     "lineNumber": "Line {place}",
     "lineField": "{label}, line {place}",

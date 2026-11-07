@@ -20,8 +20,10 @@ export type Scope = { tenantValue?: string | number; tenantValues?: readonly (st
 /**
  * A relation whose parent the caller must read for a row to be seen: `field` of the full model, and the parent's full
  * model, key and the caller's scope on it; without `parent` the caller reads no parent, so only a null `field` is seen.
+ * With `related` it is a `related()` term of the caller's filter instead: a null `field` is not seen, and `filter`,
+ * checked against `model`, the resource as the caller sees it, narrows what is read.
  */
-export type ParentRead = { field: FieldModel; parent?: { model: ResourceModel; key: FieldModel; scope: Scope } }
+export type ParentRead = { field: FieldModel; parent?: { model: ResourceModel; key: FieldModel; scope: Scope }; related?: { model: ResourceModel; filter?: CheckedFilter } }
 
 export const fullModelOf = (model: ResourceModel, scope?: Scope) => scope?.fullModel ?? model
 
