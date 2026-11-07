@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from 'react'
+import type { PageWidth } from '@protobase/schema'
 import { Field, Section } from '../../record-view'
 import { Form } from './form'
 import { text } from './messages'
@@ -11,6 +12,8 @@ export type CreateRecordFormProps = {
   noun: string
   collection: string
   sections: CreateFormSection[]
+  /** As wide as the view's record page: a centred column when omitted, or the content pane's `full` width. */
+  width?: PageWidth
   saving: boolean
   /** A failure that belongs to no field. */
   message?: string
@@ -20,11 +23,12 @@ export type CreateRecordFormProps = {
 }
 
 /** The presentation of "New <thing>": the view's sections, each field with its editor, and Create or Cancel. */
-export const CreateRecordForm = ({ noun, collection, sections, saving, message, onSubmit, onCancel, ref }: CreateRecordFormProps) => (
+export const CreateRecordForm = ({ noun, collection, sections, width, saving, message, onSubmit, onCancel, ref }: CreateRecordFormProps) => (
   <Form
     ref={ref}
     title={text('title', { noun })}
     eyebrow={collection}
+    width={width}
     submit={text('submit', { noun })}
     saving={saving}
     error={message ? new Error(message) : undefined}

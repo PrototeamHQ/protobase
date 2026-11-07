@@ -5,6 +5,8 @@ describe('fillAddress', () => {
   it('fills a record key and a list filter and order from the record', () => {
     expect(fillAddress({ kind: 'record', resource: 'orders', key: '{orderId}' }, { orderId: 42 })).toEqual({ kind: 'record', resource: 'orders', key: '42' })
     expect(fillAddress({ kind: 'record', resource: 'lines', key: ['{orderId}', 3] }, { orderId: 42 })).toEqual({ kind: 'record', resource: 'lines', key: ['42', 3] })
+    expect(fillAddress({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' }, { workflow_id: 'w-1', id: 'r-2' })).toEqual({ kind: 'record', resource: 'workflows', key: 'w-1', run: 'r-2' })
+    expect(addressPlaceholders({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })).toEqual(['workflow_id', 'id'])
     expect(fillAddress({ kind: 'list', resource: 'repairs', filter: 'customerId = {customerId} AND bike = "{bike}"', display: 'cards' }, { customerId: 7, bike: 'Gazelle' })).toEqual({
       kind: 'list',
       resource: 'repairs',

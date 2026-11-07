@@ -36,6 +36,10 @@ export const addressWords = {
   standard: 'standard',
   /** A record page that joins the record's call, `call=join`, as a ring's Accept and a call mark's Join open it. */
   call: 'call',
+  /** A record's earlier saved version shown read-only, by number, as a field type that keeps versions draws it. */
+  version: 'version',
+  /** The run a workflow's page shows on its graph, by its key. */
+  run: 'run',
 } as const
 
 const listWords = ['list', 'display', 'filter', 'orderBy', 'filterLayout', 'savedSearch'] as const
@@ -93,6 +97,8 @@ const recordQuery = (address: Extract<AppAddress, { kind: 'record' }>) => {
   if (address.tab) query.set(addressWords.tab, address.tab)
   if (address.standard) query.set(addressWords.standard, 'true')
   if (address.call) query.set(addressWords.call, address.call)
+  if (address.version !== undefined) query.set(addressWords.version, String(address.version))
+  if (address.run) query.set(addressWords.run, address.run)
   const text = query.toString()
   return text ? `?${text}` : ''
 }
@@ -126,6 +132,9 @@ const valuesQuery = (values: Readonly<Record<string, string>> = {}) => {
   return text ? `?${text}` : ''
 }
 
+// A version's number: a whole number from 1, or none for anything else
+const readVersion = (text: string | null) => (text !== null && /^[1-9]\d{0,8}$/.test(text) ? Number(text) : undefined)
+
 const filterLayout = (value: string | null): FilterLayout | undefined => (value === 'bar' || value === 'panel' ? value : undefined)
 
 /**
@@ -149,7 +158,20 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
     const tab = url.searchParams.get(addressWords.tab) || undefined
     const standard = url.searchParams.get(addressWords.standard) === 'true'
     const call = url.searchParams.get(addressWords.call) === 'join'
-    return { kind: 'record', resource: first, key: second, ...(url.searchParams.get(addressWords.edit) === 'true' && { edit: true }), ...(open.length > 0 && { open }), ...(tab && { tab }), ...(standard && { standard }), ...(call && { call: 'join' as const }) }
+    const version = readVersion(url.searchParams.get(addressWords.version))
+    const run = url.searchParams.get(addressWords.run) || undefined
+    return {
+      kind: 'record',
+      resource: first,
+      key: second,
+      ...(url.searchParams.get(addressWords.edit) === 'true' && { edit: true }),
+      ...(open.length > 0 && { open }),
+      ...(tab && { tab }),
+      ...(standard && { standard }),
+      ...(call && { call: 'join' as const }),
+      ...(version !== undefined && { version }),
+      ...(run && { run }),
+    }
   }
   const params = url.searchParams
   const list = params.get(addressWords.list) || undefined

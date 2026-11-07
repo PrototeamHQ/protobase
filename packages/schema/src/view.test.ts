@@ -244,6 +244,12 @@ describe('view builder', () => {
     expect(() => view<typeof article>('article').record({ component: Built })).toThrow('record component takes a component declared with component(...), not the built-in block Card')
   })
 
+  it("opens another address in place of a record's page, naming only the record's fields", () => {
+    const to = { kind: 'record' as const, resource: 'issues', key: '{title}', run: '{id}' }
+    expect(view<typeof article>('article').recordOpens(to).toModel(article.toModel()).recordOpens).toEqual(to)
+    expect(() => view<typeof article>('article').recordOpens({ kind: 'record', resource: 'issues', key: '{issue_id}' }).toModel(article.toModel())).toThrow('recordOpens names field "issue_id", which the resource does not have')
+  })
+
   it("names where a card's further photos come from, as data the caller's photos cannot change", () => {
     const photos = { resource: 'article_photos', field: 'article_id', image: 'photo', sort: 'position' }
     const model = view<typeof article>('article')
@@ -501,6 +507,10 @@ describe('view builder', () => {
     expect(() => l.gallery('Photos', {})).toThrow('l.gallery "Photos" needs an image field, photos or both')
     const titled = view<typeof home>('home').layout((r) => [l.gallery('Photos', { image: r.title })])
     expect(() => titled.toModel(home.toModel())).toThrow('View "home": gallery "Photos" shows "title" as its image, which is not a file field')
+  })
+
+  it('spans a section over the page', () => {
+    expect(view<typeof article>('article').layout((r) => [l.section('Body', [r.title], { width: 'page' })]).toModel().layout).toEqual([{ kind: 'section', title: 'Body', fields: ['title'], width: 'page' }])
   })
 
   it('shows a section as key facts, each under its icon', () => {

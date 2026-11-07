@@ -536,11 +536,31 @@ A record opened from a list, by its row or its card, shows the fields the list l
 
 ### Page width
 
-The record page sits in a centred column about 1100px wide. `.recordWidth('full')` makes it fill the content pane beside the sidebar instead, with the sidebar cards still on the right, for a record with wide sections or related tables; `'column'` is the default. On a phone both look the same.
+The record page sits in a centred column about 1100px wide. `.recordWidth('full')` makes it fill the content pane beside the sidebar instead, with the sidebar cards still on the right, for a record with wide sections or related tables, and makes its create form as wide; `'column'` is the default. On a phone both look the same.
 
 ```ts
 view<typeof objectives>('objectives').recordWidth('full')
 ```
+
+### Page-wide sections
+
+`l.section(title, fields, { width: 'page' })` spans the page above the main column and the sidebar cards, for a field that needs the room, such as a workflow's graph; Save then stays in a bar at the foot of the window, on a wide screen as on a phone. It applies to a section outside tabs and groups. On the create form it is a section like the others.
+
+```ts
+view<typeof workflows>('workflows')
+  .recordWidth('full')
+  .layout((r) => [l.section('Workflow', [r.name, r.description]), l.section('Graph', [r.definition], { width: 'page' })])
+```
+
+### A record page that opens another
+
+`.recordOpens(to)` sends a record's page to another address in its place, its `{field}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names, gets the record's own page. The record's own page stays at its address with `?standard=true`.
+
+```ts
+view<typeof workflowRuns>('workflow_runs').recordOpens({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })
+```
+
+A record address can also carry `version`, an earlier saved version of the record shown by a field type that keeps versions, such as the `workflow` field type: the record page then shows its read view, without Save or Edit.
 
 ### Full-area record pages
 

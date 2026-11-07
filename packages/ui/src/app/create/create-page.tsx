@@ -139,6 +139,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
       noun={noun}
       collection={view?.names?.plural ?? humanize(resource)}
       sections={formSections}
+      width={view?.recordWidth}
       saving={feedback.phase === 'saving'}
       message={feedback.message}
       onSubmit={() => void submit()}
