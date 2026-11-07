@@ -23,7 +23,7 @@ const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly
 const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'notes'>({
   builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'notes.*'],
   // Reads the runs but not their traces, which a replay copies.
-  runner: ['workflows.read', 'workflow_runs.create', { 'workflow_runs.read': ['id', 'workflow_id', 'status', 'rerun_of', 'created_at'] }],
+  runner: ['workflows.read', 'workflow_runs.create', { 'workflow_runs.read': ['id', 'workflow_id', 'status', 'rerun_of', 'replay', 'created_at'] }],
   reader: ['workflows.read', 'workflow_runs.read'],
 })
 const people: Record<string, { tenant: string; roles: string[] }> = {
