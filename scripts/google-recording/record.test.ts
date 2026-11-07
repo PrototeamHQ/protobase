@@ -101,6 +101,14 @@ describe('recordGoogle', () => {
     }
   })
 
+  it('fails when Google answers a recorded error call with another status, so no success is kept as an error', async () => {
+    const { fetch } = google()
+    const unknown = (async (input, init) => (String(input).includes('messages/0000000000000000') ? json({ id: '0000000000000000' }) : fetch(input, init))) as typeof globalThis.fetch
+    expect((await failure(recordGoogle(unknown, credentials)))?.message).toBe('messages.get of an unknown message answered 200, not 404')
+    const accepted = (async (input, init) => (new Headers(init?.headers).get('authorization') === `Bearer ${invalidToken}` ? json({ emailAddress: 'mailbox@example.com' }) : fetch(input, init))) as typeof globalThis.fetch
+    expect((await failure(recordGoogle(accepted, credentials)))?.message).toBe('getProfile with the invalid token answered 200, not 401')
+  })
+
   it('writes nothing when one recording would leak, naming the kind of leak and not the value', () => {
     const dirs = tmp()
     const recorded = { gmail: { profile: { recorded_at: 'now', request: { method: 'GET', path: 'profile', query: [] }, response: { status: 200, headers: {}, body: { note: 'made-up-secret-value' } } } }, google: {}, secrets: ['made-up-secret-value'] }

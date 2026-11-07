@@ -170,6 +170,7 @@ create index if not exists "workflows_name" on ${s}."workflows" ("name");
 create index if not exists "workflows_updated_at" on ${s}."workflows" ("updated_at");
 create index if not exists "workflows_name_search" on ${s}."workflows" using gin ("name" gin_trgm_ops);
 create index if not exists "versions_tenant" on ${s}."versions" ("tenant_id");
+create index if not exists "versions_version" on ${s}."versions" ("version");
 alter table ${s}."runs" add column if not exists "key" text;
 create unique index if not exists "runs_key" on ${s}."runs" ("workflow_id", "key");
 alter table ${s}."runs" add column if not exists "rerun_of" uuid references ${s}."runs" ("id") on delete set null;
