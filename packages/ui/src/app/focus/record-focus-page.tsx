@@ -97,7 +97,7 @@ const RecordFocus = ({ model, recordKey, stored, page }: Omit<RecordFocusPagePro
   // An earlier version of the record, as a field type that keeps versions draws it, is only read
   const pastVersion = address?.kind === 'record' && address.version !== undefined && address.version !== Number(stored.record.version)
   // The surface's own field counts: one this reader may only read is not theirs to change here
-  const surfaceReadable = 'surface' in page && fieldAccess(stored.permissions, page.surface) === 'read'
+  const surfaceReadable = 'surface' in page && (fieldAccess(stored.permissions, page.surface) === 'read' || model.fields[page.surface]?.readOnly === true)
   const mayUpdate = can(permissions, 'update') && stored.permissions?.update !== false && !surfaceReadable
   const readOnly = !mayUpdate || pastVersion
   const canDelete = can(permissions, 'delete') && stored.permissions?.delete !== false
@@ -157,7 +157,7 @@ const RecordFocus = ({ model, recordKey, stored, page }: Omit<RecordFocusPagePro
   return (
     <FocusRecordContext.Provider value={record}>
       {!readOnly && <SaveButton record={record} label={text('save')} />}
-      <SaveState record={record} saved={editor.phase === 'saved'} readOnly={!mayUpdate} />
+      <SaveState record={record} saved={editor.phase === 'saved'} readOnly={readOnly} />
       <FocusActions actions={barActions} />
       {editor.message && !askDiscard && (
         <FocusNotice level="refused" actions={<AppLink to={details} className="text-body font-medium text-primary-text hover:underline">{text('detailsOf', { noun })}</AppLink>}>

@@ -27,7 +27,8 @@ export const SearchPicker = ({ groups, label = text('search'), autoFocus = false
   const shown = useMemo(() => matchingGroups(groups, query), [groups, query])
   const items = shown.flatMap((group) => group.items)
   const current = items[Math.min(active, items.length - 1)]
-  const optionId = (item: PickerItem) => `${list}-${item.id}`
+  // By where it stands, so two groups may hold the same item
+  const optionId = (item: PickerItem) => `${list}-${items.indexOf(item)}`
   useEffect(() => {
     if (autoFocus) search.current?.focus()
   }, [autoFocus])
