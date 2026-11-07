@@ -20,7 +20,8 @@ const visitAt = (rows: readonly Row[], state: string, seq: number) => {
 
 /**
  * A scope named by each Map's visit rather than its step's number, so states added or removed before a Map do not
- * change the names of its items' scopes; undefined when a Map's scope has no steps to count its visit by.
+ * change the names of its items' scopes; a scope with no steps yet, such as the run's own while the Map that starts it
+ * runs, has no earlier visits.
  */
 const logicalScope = (rows: ScopeRows, scope: string) => {
   if (scope === '') return ''
@@ -28,9 +29,8 @@ const logicalScope = (rows: ScopeRows, scope: string) => {
   const names: string[] = []
   for (const segment of scope.split('/')) {
     const [, name, seq, index] = segmentPattern.exec(segment) ?? []
-    const parentRows = rows.get(parent)
-    if (name === undefined || !parentRows) return
-    names.push(`${name}#${visitAt(parentRows, decodeURIComponent(name), Number(seq))}[${index}]`)
+    if (name === undefined) return
+    names.push(`${name}#${visitAt(rows.get(parent) ?? [], decodeURIComponent(name), Number(seq))}[${index}]`)
     parent = parent ? `${parent}/${segment}` : segment
   }
   return names.join('/')

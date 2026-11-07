@@ -97,6 +97,28 @@ describe('a replay', () => {
     expect(port.run('r2')).toMatchObject({ status: 'succeeded' })
   })
 
+  it('gives each held-back step in a Map that starts the run what the replayed item step gave', async () => {
+    const sent: unknown[] = []
+    const port = memoryRunner({ send: async (args) => (sent.push(args), { message_id: `m-${sent.length}` }) })
+    const flow = definition({
+      Each: {
+        Type: 'Map',
+        Items: '{% [1, 2] %}',
+        ItemProcessor: { StartAt: 'Send', States: { Send: { Type: 'Task', Resource: 'send', Arguments: { n: '{% $states.input %}' }, End: true } } },
+        End: true,
+      },
+    })
+    await port.start('r1', flow, {})
+    await port.drain()
+    const original = port.steps.filter((step) => step.runId === 'r1' && step.state === 'Send').map((step) => step.output)
+    await port.replay('r2', 'r1', flow)
+    await port.drain()
+    expect(sent).toHaveLength(2)
+    const replayed = port.steps.filter((step) => step.runId === 'r2' && step.state === 'Send').map((step) => step.output)
+    expect(replayed).toEqual(original)
+    expect(port.run('r2')).toMatchObject({ status: 'succeeded', output: port.run('r1')!.output })
+  })
+
   it('runs no state when the steps it replays cannot be read', async () => {
     const calls: unknown[] = []
     const flow = definition({ Send: { Type: 'Task', Resource: 'send', End: true } })
