@@ -6,7 +6,7 @@ import type { SavedStep, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import { secretNamer } from './cache/secret-names'
-import { replayOf, type Replayed } from './replay'
+import { replayOf, type Replayed } from './replay-of'
 import { runScope } from './scope'
 
 export type SegmentInput = {

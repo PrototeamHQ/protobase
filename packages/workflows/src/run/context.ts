@@ -2,7 +2,7 @@ import type { SavedStep, StepLog, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import type { SecretNamer } from './cache/secret-names'
-import type { Replay } from './replay'
+import type { Replay } from './replay-of'
 
 /** What every scope of one segment shares. */
 export type SegmentContext = {

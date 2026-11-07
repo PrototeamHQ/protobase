@@ -1,33 +1,11 @@
-import type { Definition, Machine, State, TaskState } from '../definition/types'
+import type { Machine, State, TaskState } from '../definition/types'
 import type { SegmentContext, StateResult } from './context'
-import type { SavedStep, StepLog, StepRecord, TaskHandler } from './port'
-import { mapNames, matchKey, rowsByScope, visitOutcomes } from './replay-match'
+import type { StepLog, TaskHandler } from './port'
+import { mapNames, matchKey } from './replay-match'
+import type { Replay } from './replay-of'
 
 /** The log line of a step a replay held back, which the run's page marks it by. */
 export const heldBackLog = 'Not sent: replay'
-
-/** The run a replay replays: the definition it ran and its steps. */
-export type Replayed = { definition: Definition; steps: readonly SavedStep[] }
-
-/**
- * What a replay matches its held-back steps by: the replayed run's last try of each visit, the definition it ran,
- * and the replay's own steps so far, by scope, which `seen` adds to as the replay saves them.
- */
-export const replayOf = (replayed: Replayed, saved: readonly SavedStep[]) => {
-  const seen = rowsByScope(saved)
-  return {
-    outcomes: visitOutcomes(replayed.steps),
-    machine: replayed.definition.stateMachine as Machine,
-    seen: seen as ReadonlyMap<string, readonly SavedStep[]>,
-    add: (step: StepRecord) => {
-      const rows = seen.get(step.scope)
-      if (rows) rows.push(step)
-      else seen.set(step.scope, [step])
-    },
-  }
-}
-
-export type Replay = ReturnType<typeof replayOf>
 
 /** Whether a replay holds back this call: anything but its type saying `false`, it writes. */
 export const heldBack = (context: SegmentContext, handler: TaskHandler | undefined, args: unknown) => Boolean(context.replay) && handler?.writes?.(args) !== false
