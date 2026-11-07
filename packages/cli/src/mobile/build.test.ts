@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { androidSigningVariables } from './android-signing'
 import { mobileBuild } from './build'
 import type { ChildOptions } from './child-process'
+import { iosArchiveArgs, iosExportArgs } from './ios-release'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
 import { protobaseIosPluginClasses, protobasePluginClasses } from './protobase-plugin'
@@ -17,7 +18,7 @@ const signing = { PROTOBASE_ANDROID_KEYSTORE: 'keys/upload.jks', PROTOBASE_ANDRO
 let root = ''
 afterEach(() => {
   rmSync(root, { recursive: true, force: true })
-  for (const key of [...androidSigningVariables, 'Protobase_Android_Key_Password', 'PROTOBASE_ANDROID_UNKNOWN', 'OWN_SECRET', 'SIGNING_SEEN_BY_CONFIG', 'SIGNING_SEEN_BY_CHILD']) delete process.env[key]
+  for (const key of [...androidSigningVariables, 'Protobase_Android_Key_Password', 'PROTOBASE_ANDROID_UNKNOWN', 'OWN_SECRET', 'SIGNING_SEEN_BY_CONFIG', 'SIGNING_SEEN_BY_CHILD', 'PROTOBASE_IOS_API_KEY_PATH', 'PROTOBASE_IOS_API_KEY_ID', 'PROTOBASE_IOS_API_KEY_ISSUER']) delete process.env[key]
   seenByBuild = undefined
 })
 
@@ -86,6 +87,7 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
     }
   }
   if (command === 'node' && args[1] === 'build') write(path.join(ws, 'ios/App/output/App.ipa'), 'ipa')
+  if (command === 'xcodebuild' && args[0] === '-exportArchive') write(path.join(ws, 'output/App.ipa'), 'ipa')
   if (command.endsWith('gradlew')) {
     if (gradleOutcome === 'fail') throw new Error('gradlew exited with status 1')
     if (gradleOutcome === 'bundle') write(path.join(ws, 'app/build/outputs/bundle/release/app-release.aab'), 'aab')
@@ -207,7 +209,7 @@ describe('mobileBuild android', () => {
 })
 
 describe('mobileBuild ios', () => {
-  it('builds with Capacitor and the team, giving no child the Android upload key, and copies the ipa out', async () => {
+  it('archives and exports with xcodebuild and the team, giving no child the Android upload key, and copies the ipa out', async () => {
     const dir = project()
     process.env.Protobase_Android_Key_Password = keyPassword
     const calls: Call[] = []
@@ -216,7 +218,8 @@ describe('mobileBuild ios', () => {
     expect(calls.map(short)).toEqual([
       ['npm', 'install', '--install-links', '--no-audit', '--no-fund'],
       ['node', 'add', 'ios'],
-      ['node', 'build', 'ios', '--xcode-team-id', 'ABCDE12345'],
+      ['xcodebuild', ...iosArchiveArgs('ABCDE12345', undefined)],
+      ['xcodebuild', ...iosExportArgs(undefined)],
     ])
     for (const { env } of calls) for (const key of Object.keys(env)) expect(key.toUpperCase()).not.toMatch(/^PROTOBASE_ANDROID_/)
     expect(readFileSync(path.join(dir, 'mobile-release', 'com.example.shop-1.2.3-7.ipa'), 'utf8')).toBe('ipa')
@@ -235,6 +238,27 @@ describe('mobileBuild ios', () => {
     const calls: Call[] = []
     await mobileBuild(input(dir, 'ios', { ios: { team: 'ABCDE12345', manual: { certificate: 'Apple Distribution', profile: 'Shop App Store' } } }), () => {}, { run: fakeRun(calls), build: webBuild, fetch })
     expect(short(calls[2] as Call)).toEqual(['node', 'build', 'ios', '--xcode-team-id', 'ABCDE12345', '--xcode-signing-style', 'manual', '--xcode-signing-certificate', 'Apple Distribution', '--xcode-provisioning-profile', 'Shop App Store'])
+  })
+
+  it('signs with the API key in the environment, read before npm runs', async () => {
+    const dir = project()
+    writeFileSync(path.join(dir, 'AuthKey.p8'), 'key')
+    process.env.PROTOBASE_IOS_API_KEY_PATH = 'AuthKey.p8'
+    process.env.PROTOBASE_IOS_API_KEY_ID = 'ABC'
+    process.env.PROTOBASE_IOS_API_KEY_ISSUER = 'issuer-id'
+    const calls: Call[] = []
+    const deps = { run: fakeRun(calls), build: webBuild, fetch }
+    await mobileBuild(input(dir, 'ios', { ios: { team: 'ABCDE12345' } }), () => {}, deps)
+    const key = { path: path.join(dir, 'AuthKey.p8'), id: 'ABC', issuer: 'issuer-id' }
+    expect(calls.slice(-2).map(short)).toEqual([
+      ['xcodebuild', ...iosArchiveArgs('ABCDE12345', key)],
+      ['xcodebuild', ...iosExportArgs(key)],
+    ])
+
+    calls.length = 0
+    delete process.env.PROTOBASE_IOS_API_KEY_ID
+    await expect(mobileBuild(input(dir, 'ios', { ios: { team: 'ABCDE12345' } }), () => {}, deps)).rejects.toThrow('set PROTOBASE_IOS_API_KEY_ID')
+    expect(calls).toEqual([])
   })
 
   it("refuses a stale workspace without Protobase's Swift package before Xcode builds", async () => {
