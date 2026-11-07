@@ -19,6 +19,9 @@ import type { Aggregate, AggregateParams, BatchOp, BatchResult, CommentPage, Fac
 
 type Json = Record<string, any>
 
+// A proxy in front of an API refuses a long URL with a 431, and the headers count too, so a longer list goes by `:search`.
+const longestListQuery = 4_000
+
 const nameOf = (resource: ResourceRef) => (typeof resource === 'string' ? resource : resource.toModel().name)
 
 // `/api/channels` beside the API, as a WebSocket URL on the API's origin, the page's for a relative one.
@@ -101,11 +104,6 @@ export const createClient = (options: ClientOptions = {}) => {
   const send = createTransport(options)
   const origin = originOf(options.baseUrl)
 
-  const list = async <R extends ResourceRef>(resource: R, params?: ListParams) => {
-    const response = await send({ method: 'GET', path: `/${nameOf(resource)}`, query: queryString(listWire(params)) })
-    return toPage<RecordOf<R>>(await response.json(), response, origin)
-  }
-
   /** Same as `list`, with the parameters in a JSON body, for long filters. */
   const search = async <R extends ResourceRef>(resource: R, params?: ListParams) => {
     const wire = listWire(params)
@@ -114,6 +112,13 @@ export const createClient = (options: ClientOptions = {}) => {
       path: `/${nameOf(resource)}:search`,
       body: { ...wire, fields: params?.fields, labels: labelEntries(params?.labels) },
     })
+    return toPage<RecordOf<R>>(await response.json(), response, origin)
+  }
+
+  const list = async <R extends ResourceRef>(resource: R, params?: ListParams) => {
+    const query = queryString(listWire(params))
+    if (query.length > longestListQuery) return search(resource, params)
+    const response = await send({ method: 'GET', path: `/${nameOf(resource)}`, query })
     return toPage<RecordOf<R>>(await response.json(), response, origin)
   }
 

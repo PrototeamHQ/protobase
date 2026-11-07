@@ -142,7 +142,7 @@ The queue is an `AuditQueue`, `{ publish(event): Promise<void> }`, the default e
 
 ## Filters
 
-`filter` and `order_by` are AIP-160 and AIP-132 text, checked against the model (filterable and sortable fields only). Functions: `in(field, v, ...)`, `search("text")` and bare words (every word, ignoring case, anywhere inside one of the resource's search fields, so `port` finds "Portfolio"; `%`, `_` and `\` are literal; a [`digitsEnd`](/reference/data-config/#resource) field matches only the end of its digits), `similar(field, "text")`, `regex(field, "pattern")`, `isNull(field)`, `now()` with offsets such as `now() - 7d`. A filter is capped at 10,000 characters in a query string and 200,000 in a `:search` body.
+`filter` and `order_by` are AIP-160 and AIP-132 text, checked against the model (filterable and sortable fields only). Functions: `in(field, v, ...)`, `search("text")` and bare words (every word, ignoring case, anywhere inside one of the resource's search fields, so `port` finds "Portfolio"; `%`, `_` and `\` are literal; a [`digitsEnd`](/reference/data-config/#resource) field matches only the end of its digits), `similar(field, "text")`, `regex(field, "pattern")`, `isNull(field)`, `now()` with offsets such as `now() - 7d`. A filter is capped at 10,000 characters in a query string and 200,000 in a `:search` body. A proxy in front of the API can refuse a long URL sooner with a `431`, counting the headers too: Protobase Cloud refused about 8,000 characters. So send a long filter to `:search`, as `client.list` does when its query string passes 4,000 characters.
 
 ## Writes
 
