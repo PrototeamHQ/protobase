@@ -68,6 +68,7 @@ export const mailSteps: Record<string, StepType> = {
     label: 'Send mail',
     description: "Sends a mail from the app's own sender.",
     errorPrefix: 'Mail',
+    writes: true,
     input: {
       type: 'object',
       required: ['to', 'subject', 'text'],

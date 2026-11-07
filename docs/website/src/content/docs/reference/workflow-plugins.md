@@ -64,6 +64,7 @@ Two plugins of one name stop startup, naming both. A plugin is server code that 
 | `errorPrefix`, `errors` | The prefix of its error names, `Step` by default, and the errors it fails with by name, each with what it means. |
 | `connection` | The connection it signs in with, by the name the plugin declares it under. |
 | `cache` | Reuses the result of an identical earlier call: see [Caching results](#caching-results). Without it the engine looks up and keeps nothing for the type, unless a workflow forces it on. |
+| `writes` | Whether a call changes the outside world, such as sending mail, writing a record or a request other than a read, so that [replaying a run](/reference/workflows/#replaying-a-run) does not call it: `true`, `false`, or a function of the input that returns one. It must be accurate: a type that declares `false` and writes anyway writes in a replay too. Left out, or a function that throws or returns anything but `false`, it writes. |
 | `run(context)` | Returns the step's result. It throws a `StepError` to fail with an error name of its own; any other error is `States.TaskFailed`. |
 
 What `run` gets, and nothing more:
@@ -115,7 +116,7 @@ Two calls share a result only when their keys match and they act as the same peo
 
 A workflow forces the cache on with `Cache: true` on its Task, even for a type without `cache` or with a hidden one: such a type keys on its whole input and on every person a step can act as, and keeps a result for an hour. A Task with `Cache: false` never uses it.
 
-Secrets are never kept. A step always gets a secret's current value, and a key holds the secret's name where the input held its value, so changing a secret and running again calls the step with the new value whenever the old result no longer matches. A hit whose input named a secret that has changed since says so in the step's logs, and in `secrets_changed`, by a fingerprint of the value under the app's secret, `PROTOBASE_SECRET`. Without one, the app cannot tell. A cached step that decides on access, such as whether someone may do something, keeps its answer until its result expires. The results are kept in the workflows schema's `step_cache`. <gap>A run cannot be replayed with its outside writes not sent and its reads served from the cache because replaying a run is not implemented.</gap>
+Secrets are never kept. A step always gets a secret's current value, and a key holds the secret's name where the input held its value, so changing a secret and running again calls the step with the new value whenever the old result no longer matches. A hit whose input named a secret that has changed since says so in the step's logs, and in `secrets_changed`, by a fingerprint of the value under the app's secret, `PROTOBASE_SECRET`. Without one, the app cannot tell. A cached step that decides on access, such as whether someone may do something, keeps its answer until its result expires. The results are kept in the workflows schema's `step_cache`. A [replay](/reference/workflows/#replaying-a-run) serves its reads from the cache the same way. <gap>A replay cannot hold back a plugin's step that writes while declaring `writes: false` because a check at run time of what a step does is not implemented.</gap>
 
 ## Trigger types
 
@@ -232,4 +233,4 @@ An account connected through a provider of a connection's own never signs anyone
 
 ## The type list
 
-[`list_workflow_types`](/reference/mcp/#workflows) over MCP lists every step and trigger type the app has, built-in and plugin ones alike, as their plugins declare them: id, label, description, input and output schemas, errors, connection and a step type's cache advice (`choice`, `default` and `disclaimer`), with `available: false` and a reason for a type the app cannot run. A save, and `validate_workflow`, check a definition against the same list.
+[`list_workflow_types`](/reference/mcp/#workflows) over MCP lists every step and trigger type the app has, built-in and plugin ones alike, as their plugins declare them: id, label, description, input and output schemas, errors, connection, a step type's cache advice (`choice`, `default` and `disclaimer`) and whether it writes (`writes`: `true`, `false`, or `by_input` when that depends on its input), with `available: false` and a reason for a type the app cannot run. A save, and `validate_workflow`, check a definition against the same list.

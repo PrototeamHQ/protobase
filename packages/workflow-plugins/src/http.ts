@@ -110,6 +110,8 @@ export const httpSteps: Record<string, StepType> = {
       AddressRefused: 'the host is not a public address',
       ResponseTooLarge: 'a body over 10 MiB',
     },
+    // Only a GET reads, as the omitted method is: any other text, even `get`, counts as a write a replay does not send.
+    writes: (input) => input.method !== undefined && input.method !== 'GET',
     run: send,
   },
 }
