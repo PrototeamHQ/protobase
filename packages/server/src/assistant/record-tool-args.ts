@@ -48,7 +48,7 @@ export const keyParameter = {
 
 export const belongsToParameter = {
   type: 'object',
-  properties: { resource: resourceParameter, key: keyParameter },
+  properties: { resource: resourceParameter, key: { type: ['string', 'number'], description: 'The record\'s key.' } },
   required: ['resource', 'key'],
   description: 'Keeps to the records that belong to this record, by a relation or a declared link, such as { "resource": "objectives", "key": 40 } for an objective\'s tasks; filter then narrows them.',
 }

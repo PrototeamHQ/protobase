@@ -128,6 +128,8 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('a list under a record'
     const search = await app.request('/api/v1/objectives/40/tasks:search', { method: 'POST', headers: { ...member, 'content-type': 'application/json' }, body: JSON.stringify({ filter: 'title = "first"' }) })
     expect((await search.json()).items.map((item: { id: number }) => item.id)).toEqual([1])
     expect((await (await get('/objectives/40/task_claims:facets?field=who')).json()).facets).toEqual(expect.arrayContaining([{ value: 'ann', count: 1 }, { value: 'bob', count: 1 }]))
+    expect((await (await get('/tasks/1/task_claims:facets?field=task_id')).json()).facets).toEqual([{ value: 1, count: 1 }])
+    expect((await (await get('/objectives/40/task_claims:facets?field=task_id')).json()).facets).toHaveLength(2)
     expect((await get('/objectives/40/tasks:nothing')).status).toBe(404)
     for (const body of ['null', '[]', '{"filter":5}']) {
       const refused = await app.request('/api/v1/objectives/40/tasks:search', { method: 'POST', headers: { ...member, 'content-type': 'application/json' }, body })

@@ -168,7 +168,7 @@ It works in the `filter` of a list, `:search`, `:seek`, `:facets`, `:aggregate`,
 
 `GET /{parent}/{key}/{resource}` is the list of `resource` that belongs to one record, with the same parameters as its own list: `/objectives/40/tasks?filter=state != "done"`. The other list methods work too: `/objectives/40/tasks:facets`, `POST /objectives/40/tasks:search` and the rest. It is a filter the path spells out, and a record keeps its one address, `/tasks/7`.
 
-- A relation of `resource` to `parent` leads there without a declaration: `/tasks/7/task_claims` is `task_id = 7`.
+- A relation of `resource` to `parent` leads there without a declaration: `/tasks/7/task_claims` keeps to `task_id = 7`, also in a `:facets` on `task_id`.
 - A link resource that declares its two relations with [`.links()`](/reference/data-config/#resource) joins them: `/objectives/40/tasks` is `related(id, objective_tasks.task_id, (objective_id = 40))`, the other side `/tasks/7/objectives`, and a resource a further step away, `/objectives/40/task_claims`, is `related(task_id, objective_tasks.task_id, (objective_id = 40))`.
 - Where nothing leads there the answer is a `404`. Where several ways do, such as `task_dependencies` with its two relations to `tasks`, it is a `400` `ambiguous-parent` that names them, and a [`related()`](#filtering-through-related-records) filter says which. Links count only when the caller can list them.
 - The parent is read as the caller would read it first: one in another tenant, soft-deleted, outside their row filter or refused by a rule that reads the record answers the same `404` as one that does not exist. A resource they do nothing with answers as one that does not exist. A list of a resource they may not list answers as that list does.

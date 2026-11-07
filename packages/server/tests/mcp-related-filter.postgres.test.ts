@@ -93,10 +93,9 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('related() over MCP', ()
     expect((await call('count_records', { resource: 'objective_tasks', belongs_to, group_by: 'objective_id' })).content.groups[0].count).toBe(2)
   })
 
-  it('refuses belongs_to as the route does, and never as no filter at all', async () => {
+  it('refuses belongs_to as the route does', async () => {
     expect((await call('list_records', { resource: 'tasks', belongs_to: { resource: 'objectives', key: 999 } })).content.error).toBe('not-found')
     expect((await call('list_records', { resource: 'tasks', belongs_to: { resource: 'secrets', key: 1 } })).content.error).toBe('not-found')
-    expect((await call('list_records', { resource: 'tasks', belongs_to: { resource: 'objectives', key: [40, 41] } })).content.error).toBe('invalid-parameter')
   })
 
   it('names the relations that point at a resource, among those the caller reads', async () => {

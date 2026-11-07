@@ -44,7 +44,9 @@ const linkPaths = async (access: RequestAccess, parent: Entry, key: KeyValue) =>
 
 /** The ways a record of the child belongs to the parent record `key`: a relation to the parent, or through a declared link. */
 export const belongingPaths = async (access: RequestAccess, parent: Entry, key: KeyValue) => [
-  ...relationsTo(access.model, parent.name).map((field) => where.eq(field.name, key)),
+  // A term, not `field = key`: it stands in the read's scope, where a facet on the field cannot drop it as it drops a
+  // filter's own terms, and it reads only the list the caller is asking for.
+  ...relationsTo(access.model, parent.name).map((field) => where.related(field.name, access.entry.name, field.name, where.eq(field.name, key))),
   ...(await linkPaths(access, parent, key)),
 ]
 
