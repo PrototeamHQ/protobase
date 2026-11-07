@@ -243,7 +243,7 @@ Every app has these plugins besides `app`. A type that signs in is offered once 
 ### Incoming Gmail mail
 
 :::caution[Beta]
-The Gmail plugin is tested against a stand-in of Gmail's API written to Google's published reference, but has not yet been checked against a real Google account. Mail starts its run within about a minute of arriving, not at once.
+Mail starts its run within about a minute of arriving, not at once.
 :::
 
 `gmail:new_mail` starts one run for each new mail on a label of a connected Gmail mailbox. It reads the mailbox with read-only access, so a workflow it starts cannot send, change or delete mail through it.
