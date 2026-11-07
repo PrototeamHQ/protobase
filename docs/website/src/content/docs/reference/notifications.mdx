@@ -235,7 +235,7 @@ A message's title and body are the notification. Its `data` and `url` reach the 
 | `android` | `collapse_key`, `priority`, `ttl`, `direct_boot_ok`, and its `notification`: `title`, `body`, `icon`, `color`, `sound`, `tag`, `channel_id`, `image`, `ticker`, `sticky`, `notification_priority`, `default_sound`, `default_vibrate_timings`, `visibility`, `notification_count` and `local_only` |
 | `fcm_options` | `analytics_label` |
 
-Any other field is refused, such as `token`, `topic`, `webpush` or `click_action`, so a message cannot reach another device or act on tap beyond its `url`. After the merge, the data's `url` and every `image` are checked as the message's `url` is, and a data key FCM keeps for itself, such as `from` or one starting with `google`, is refused.
+Any other field is refused, such as `token`, `topic`, `webpush` or `click_action`, so a message cannot reach another device or act on tap beyond its `url`. After the merge, the data's `url` and every `image` are checked as the message's `url` is, and a data key FCM keeps for itself, such as `from` or one starting with `google`, is refused. <gap>A message over FCM's 4096-byte limit cannot be refused before it is sent because checking its size for FCM is not implemented, so FCM refuses it and the device is retried.</gap>
 
 `fcmSender(readFcmSettings(process.env)!)` from `@protobase/server` is the built-in sender, to list beside [your own senders](#senders).
 
