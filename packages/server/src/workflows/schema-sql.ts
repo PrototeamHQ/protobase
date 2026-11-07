@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 13
+export const workflowsVersion = 14
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -192,7 +192,8 @@ export const workflowsTriggers = ['workflow_version', 'run_version']
  * A workflow numbers its next version as a save changes its definition, in the row the write returns, so its ETag is
  * the saved row's; the save hook keeps that version's definition and who saved it. A run takes its workflow's current
  * version as it is created, and refuses a workflow of another tenant as one that is not there, and one that has no
- * saved version. A re-run takes the input of the run it re-runs, which the start hook checks; a replay takes its version too.
+ * saved version. A re-run takes the input of the run it re-runs, which the start hook checks; a replay too, and runs the current version
+ * like any run started now.
  */
 export const functionsSql = (schema: string) => {
   const s = quoteIdent(schema)
@@ -229,14 +230,13 @@ begin
   if found.version is null then
     raise exception 'Workflow % has no saved version', new.workflow_id using errcode = '23503';
   end if;
-  -- A replay runs the version of the run it replays, of this workflow and tenant, or nothing: never another version.
+  -- A replay replays a run of this workflow and tenant, on the version a run started now gets.
   if new.replay then
-    new.version := null;
-    select r.version into new.version from ${s}."runs" r
-      where r.id = new.rerun_of and r.workflow_id = new.workflow_id and r.tenant_id is not distinct from new.tenant_id;
-    if new.version is null then
+    if not exists (select from ${s}."runs" r
+      where r.id = new.rerun_of and r.workflow_id = new.workflow_id and r.tenant_id is not distinct from new.tenant_id) then
       raise exception 'There is no run % of workflow % here to replay', new.rerun_of, new.workflow_id using errcode = '23503';
     end if;
+    new.version := found.version;
   end if;
   -- A trigger starts a run of the version that is enabled, which it gives; any other start runs the current one.
   if new.version is null then

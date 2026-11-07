@@ -104,6 +104,7 @@ lookup: {
   label: 'Company lookup',
   description: 'Finds a company by its registration number.',
   input: { type: 'object', required: ['number'], properties: { number: { type: 'string' } } },
+  writes: false,
   cache: { choice: 'force', ttl: '1 day', when: (input) => input.number !== '' },
   run: async ({ input, fetch }) => (await fetch(`https://registry.example/companies/${input.number}`)).json(),
 }
