@@ -35,7 +35,8 @@ The link goes to the heading that explains the feature; a feature no page explai
 - A feature ships with its docs: the change that adds or changes it updates its page and, for a new feature, adds its entry.
 - Nothing is documented that is not built, unless marked coming soon, and only while a task builds it.
 - Stable: built, released and complete as documented. Beta: released, with the limits its page lists, and may still change. In development: partly released, not usable on its own. Coming soon: documented, not built. The section a non-stable entry links starts with an aside, such as `:::caution[Beta]`, naming what is missing. Stability changes only in a change whose plan says so.
-- Public text names no other company or product, unless compatibility with it is the subject; that sits under the area for compatibility with and moving from other systems.
+- Public text names no other company or product unless compatibility with it or its own API is the subject. Compatibility and migration text sits under the area for compatibility with and moving from other systems; a plugin built on a service's own API sits in the area of what it does.
+- A known limitation of a shipped feature is wrapped in `<gap>…</gap>`: one sentence on one line, "X cannot do Y because Z is not implemented". The tags disappear when rendered.
 
 `bun run features:check` (in CI) checks this grammar, that headings exist, that area pages are in the sidebar and features page, and that every reference page has an entry. With `--release-rule`, in CI and the release workflow, it fails a release with a `feat` commit when no docs page changed since the last release.
 
