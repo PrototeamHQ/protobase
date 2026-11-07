@@ -67,7 +67,7 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   const fingerprint = nativeFingerprint(pinnedNative, mobile.plugins)
   const liveUpdate = liveUpdateSettings({ ...(mobile.publicKey && { publicKey: mobile.publicKey }), ...(builtInOrder && { builtInOrder }), apiOrigin: url.origin, live: live !== undefined })
   if (liveUpdate.note) process.stderr.write(`note: ${liveUpdate.note}\n`)
-  const config = { appId: mobile.appId, appName, fingerprint, shellVersion: protobaseVersion, plugins, allowances, apiOrigin: url.origin, platform }
+  const config = { appId: mobile.appId, appName, fingerprint, shellVersion: protobaseVersion, plugins, allowances, apiOrigin: url.origin, platform, ...(release && { release }) }
   await writeCapacitorConfig(ws, capacitorConfig({ ...config, ...(liveUpdate.settings && { liveUpdate: liveUpdate.settings }) }))
   const cap = capacitorRunner(ws, env, run)
   await generatePlatform(ws, platform, allowances, cap)

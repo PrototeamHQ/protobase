@@ -20,6 +20,8 @@ export type CapacitorConfigInput = {
   /** The origin of the API the app calls, the only one ProtobaseAuth signs in with. */
   apiOrigin: string
   platform: Platform
+  /** A store release, which page inspection is off for. */
+  release?: boolean
 }
 
 // The npm package of Protobase's native plugin: ProtobaseAuth, and the stand-ins that refuse page script Capacitor's
@@ -38,7 +40,8 @@ const readyTimeout = 30_000
 
 /**
  * The app's `capacitor.config.json`, every key it sets named here. It never sets `server.url`, the hostname or the
- * schemes (the API's CORS list names Capacitor's default origins), or WebView debugging (on in debug builds only).
+ * schemes (the API's CORS list names Capacitor's default origins). WebView debugging is off in an iOS release by name:
+ * Capacitor's prebuilt simulator framework is a Debug build, so its default lists a Release app in Safari's Develop menu.
  * `plugins` configures ProtobaseAuth, the keyboard plugin and, with the live updater, what its guard needs: the key
  * releases are signed with, where they come from, the binary's fingerprint, shell version and the order of its own
  * files, background updates off, a rolled-back bundle blocked and `readyTimeout`, within which the shell must call
@@ -49,7 +52,7 @@ const readyTimeout = 30_000
  * guards it. The file ships outside the app's web part, so the fingerprint in the user agent and ProtobaseAuth's
  * origins are beyond page script and a live update.
  */
-export const capacitorConfig = ({ appId, appName, fingerprint, shellVersion, plugins, liveUpdate, allowances, apiOrigin, platform }: CapacitorConfigInput) => ({
+export const capacitorConfig = ({ appId, appName, fingerprint, shellVersion, plugins, liveUpdate, allowances, apiOrigin, platform, release }: CapacitorConfigInput) => ({
   appId,
   appName,
   webDir: webPartDir,
@@ -64,6 +67,7 @@ export const capacitorConfig = ({ appId, appName, fingerprint, shellVersion, plu
   },
   ...(allowances.cleartext && { server: { cleartext: true } }),
   android: { resolveServiceWorkerRequests: false, ...(allowances.mixedContent && { allowMixedContent: true }) },
+  ...(release && platform === 'ios' && { ios: { webContentsDebuggingEnabled: false } }),
 })
 
 /** Writes the config into the workspace `dir`, removing the `.ts` and `.js` configs Capacitor would read instead. */

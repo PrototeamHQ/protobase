@@ -2,6 +2,7 @@ import path from 'node:path'
 import { androidSigning } from './android-signing'
 import type { AppVersion } from './app-version'
 import { runChild } from './child-process'
+import { buildIosAutomatic, iosApiKey } from './ios-release'
 import { copyRelease, releaseFile } from './release-output'
 import { prepareReleaseProject } from './release-project'
 import { type MobileDeps, type MobileInput, prepare, summary } from './run'
@@ -21,12 +22,17 @@ export type MobileBuildInput = Omit<MobileInput, 'target' | 'live' | 'team' | 'r
 // whatever the developer's gradle.properties say, and no configuration cache keeping what the build script read.
 const gradleArgs = [':app:bundleRelease', '--no-daemon', '--no-configuration-cache', '-Pkotlin.compiler.execution.strategy=in-process']
 
-const capBuildIos = ({ team, manual }: IosSigning) => [
+const capBuildManual = (team: string, { certificate, profile }: NonNullable<IosSigning['manual']>) => [
   'build',
   'ios',
   '--xcode-team-id',
   team,
-  ...(manual ? ['--xcode-signing-style', 'manual', '--xcode-signing-certificate', manual.certificate, '--xcode-provisioning-profile', manual.profile] : []),
+  '--xcode-signing-style',
+  'manual',
+  '--xcode-signing-certificate',
+  certificate,
+  '--xcode-provisioning-profile',
+  profile,
 ]
 
 /** `protobase mobile build`: generates the native project as a release, builds it signed and copies the binary out. */
@@ -35,6 +41,7 @@ export const mobileBuild = async (input: MobileBuildInput, out: (text: string) =
   if (mobile.platform === 'ios' && !ios) throw new Error('An iOS release is signed by your Apple Developer team: pass --team')
   // Checked before anything is installed.
   const signing = mobile.platform === 'android' ? androidSigning(process.env, mobile.projectDir) : undefined
+  const apiKey = ios && !ios.manual ? iosApiKey(process.env, mobile.projectDir) : undefined
   const prepared = await prepare({ ...mobile, release: true }, deps)
   out(summary(mobile.projectDir, prepared))
   await prepareReleaseProject(prepared.ws, mobile.platform, version)
@@ -42,7 +49,11 @@ export const mobileBuild = async (input: MobileBuildInput, out: (text: string) =
   if (signing) {
     const android = path.join(prepared.ws, 'android')
     await (deps.run ?? runChild)(path.join(android, 'gradlew'), gradleArgs, { cwd: android, env: { ...prepared.env, ...signing.env } })
-  } else await prepared.cap(capBuildIos(ios as IosSigning))
+  } else {
+    const { team, manual } = ios as IosSigning
+    if (manual) await prepared.cap(capBuildManual(team, manual))
+    else await buildIosAutomatic({ ws: prepared.ws, env: prepared.env, team, key: apiKey }, deps.run ?? runChild)
+  }
 
   const file = await copyRelease(releaseFile(prepared.ws, mobile.platform), outDir, `${prepared.appId}-${version.version}-${version.build}`)
   out(`release ${path.relative(mobile.projectDir, file)}\n`)
