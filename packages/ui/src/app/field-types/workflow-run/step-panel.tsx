@@ -1,3 +1,4 @@
+import type { WorkflowTypeList } from '@protobase/client'
 import type { Definition } from '@protobase/workflows'
 import { useList } from '../../../data/use-list'
 import { Button } from '../../../primitives/button'
@@ -42,18 +43,18 @@ const StateSteps = ({ run, name }: { run: Run; name: string }) => {
  * What the chosen node did in the run, under the graph: the trigger's input, or each step of the state with its input,
  * output, logs, timing, try and error.
  */
-export const StepPanel = ({ definition, run, selected }: { definition: Definition; run: Run; selected: string }) => {
+export const StepPanel = ({ definition, run, selected, types }: { definition: Definition; run: Run; selected: string; types?: WorkflowTypeList }) => {
   const state = selected === triggerId ? undefined : stateAt(definition, selected)
   return (
     <section aria-label={text('chosenStep')} className="grid gap-3 rounded-lg border bg-surface p-4">
       {state ? (
         <>
-          <Heading kind={stateLabel(state)} name={splitPath(selected).name} />
+          <Heading kind={stateLabel(state, types)} name={splitPath(selected).name} />
           <StateSteps run={run} name={splitPath(selected).name} />
         </>
       ) : (
         <>
-          <Heading kind={text('trigger')} name={triggerLabel(definition.trigger)} />
+          <Heading kind={text('trigger')} name={triggerLabel(definition.trigger, types)} />
           <Part title={text('runInput')}>
             <JsonBlock value={run.input ?? null} />
           </Part>

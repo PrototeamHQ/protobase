@@ -58,7 +58,7 @@ export const WorkflowGraphEditor = ({ value, types, onChange }: WorkflowGraphEdi
       )}
       <ProblemList problems={checked.whole} />
       <div className="h-[28rem] overflow-hidden rounded-lg border max-sm:h-[22rem]">
-        <WorkflowCanvas definition={definition} problems={checked.byNode} selected={selected} onSelect={setChosen} onChange={onChange} />
+        <WorkflowCanvas definition={definition} problems={checked.byNode} selected={selected} onSelect={setChosen} onChange={onChange} types={types} />
       </div>
       {selected !== undefined && <NodePanel definition={definition} types={types} selected={selected} problems={checked.byNode.get(selected) ?? []} onChange={onChange} onSelect={setChosen} />}
     </div>

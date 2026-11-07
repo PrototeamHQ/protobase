@@ -702,7 +702,14 @@
     "traceRetrying": "Retrying",
     "traceFailed": "Failed",
     "traceCurrent": "Running",
-    "traceSteps": "{count, plural, one {# step} other {# steps}}"
+    "traceSteps": "{count, plural, one {# step} other {# steps}}",
+    "cacheResults": "Cache results",
+    "cacheHelp": "Reuses the result of an identical earlier call of this step, from any run, instead of running it again.",
+    "cacheForcedAgainst": "Caching forced on against this step's advice",
+    "cacheConfirmTitle": "Force the cache on?",
+    "cacheConfirm": "Turn on anyway",
+    "cacheCancel": "Cancel",
+    "cacheForceHelp": "The step type decides when to reuse an earlier result; turn this on to reuse one for every identical call of this step, from any run."
   },
   "app/field-types/workflow-run": {
     "chosenStep": "Chosen step",

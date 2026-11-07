@@ -2,6 +2,7 @@ import { Background, Controls, ReactFlow, ReactFlowProvider, useReactFlow, useUp
 import '@xyflow/react/dist/style.css'
 import './workflow-canvas.css'
 import { useEffect, useMemo, useState } from 'react'
+import type { WorkflowTypeList } from '@protobase/client'
 import type { Definition } from '@protobase/workflows'
 import { triggerId } from './definition'
 import { connect, disconnect, removeState } from './definition-edits'
@@ -25,6 +26,8 @@ export type WorkflowCanvasProps = {
   onChange?: (definition: Definition) => void
   /** How each state did in a run, by its path, marked on its node. */
   traces?: ReadonlyMap<string, NodeTrace>
+  /** The app's types, whose labels name the nodes and whose cache advice marks them. */
+  types?: WorkflowTypeList
 }
 
 // The machine a node's states lead within: the Maps it is inside, or the trigger's, the whole workflow's.
@@ -49,10 +52,10 @@ const MeasureOnLayout = ({ laidOut, ids }: { laidOut: unknown; ids: string[] }) 
   return null
 }
 
-const Canvas = ({ definition, problems, selected, onSelect, onChange, traces }: WorkflowCanvasProps) => {
+const Canvas = ({ definition, problems, selected, onSelect, onChange, traces, types }: WorkflowCanvasProps) => {
   const graph = useMemo(() => definitionGraph(definition), [definition])
   const boxes = useLayout(graph)
-  const nodes = useMemo(() => flowNodes(graph, boxes, problems, selected, traces), [graph, boxes, problems, selected, traces])
+  const nodes = useMemo(() => flowNodes(graph, boxes, problems, selected, traces, types), [graph, boxes, problems, selected, traces, types])
   // The edge chosen, which Delete removes
   const [chosenEdge, setChosenEdge] = useState<string>()
   const edges = useMemo(() => flowEdges(graph).map((edge) => ({ ...edge, selected: edge.id === chosenEdge })), [graph, chosenEdge])

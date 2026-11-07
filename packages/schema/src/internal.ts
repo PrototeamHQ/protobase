@@ -3,7 +3,7 @@
 export { checkEventFilter } from './events/event-models'
 export { webhookResources } from './webhooks/webhook-resources'
 export { workflowResources } from './workflows/workflow-resources'
-export { workflowTypesPath, type WorkflowTypeEntry, type WorkflowTypeList } from './workflows/workflow-types-path'
+export { workflowTypesPath, type WorkflowCacheAdvice, type WorkflowTypeEntry, type WorkflowTypeList } from './workflows/workflow-types-path'
 export { boardErrors, datesErrors, cardPhotoLimit, displayFields, tableDisplay } from './view-displays'
 export { fieldRefsIn, isFieldRef, markFieldRefs, unmarkFieldRefs } from './field-ref'
 export { pruneByShape, shapes, type PropShapes, type RefShape } from './ref-shape'

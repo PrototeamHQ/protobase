@@ -5,7 +5,7 @@ import { cn } from '../../../lib/cn'
 import { Badge } from '../../../primitives/badge'
 import type { EdgeKind } from './definition-graph'
 import type { FlowNode } from './flow-elements'
-import { nodeStatusLabel, stateLabel, triggerLabel } from './labels'
+import { nodeStatusLabel } from './labels'
 import { nodeTones, type NodeTrace } from './node-trace'
 import { text } from './messages'
 
@@ -41,6 +41,14 @@ const ProblemCount = ({ count }: { count: number }) =>
     </span>
   )
 
+// A step whose workflow forced its cache on against its type's advice, plain to see on a screenshot
+const CacheWarning = () => (
+  <span className="inline-flex shrink-0 items-center text-warning-text" title={text('cacheForcedAgainst')}>
+    <CircleAlert className="size-3.5" aria-hidden="true" />
+    <span className="sr-only">{text('cacheForcedAgainst')}</span>
+  </span>
+)
+
 // How the state did in a run, and how many steps it took when more than one
 const TraceMark = ({ trace }: { trace: NodeTrace }) => (
   <span className="flex shrink-0 flex-col items-end gap-0.5">
@@ -53,7 +61,7 @@ const boxClass = (selected: boolean, problems: number, trace?: NodeTrace) =>
   cn('rounded-lg border bg-background text-body shadow-sm', problems > 0 || trace?.status === 'failed' ? 'border-danger' : 'border-border-strong', selected && 'ring-2 ring-primary/40')
 
 // The name and what the state is, over each other, with the count of its problems or its mark in a run
-const Title = ({ name, kind, problems, first, trace }: { name: string; kind: string; problems: number; first?: boolean; trace?: NodeTrace }) => (
+const Title = ({ name, kind, problems, first, trace, cacheWarning }: { name: string; kind: string; problems: number; first?: boolean; trace?: NodeTrace; cacheWarning?: boolean }) => (
   <div className="flex min-w-0 items-start justify-between gap-2">
     <div className="min-w-0">
       <div className="truncate text-xs text-muted-foreground">
@@ -62,6 +70,7 @@ const Title = ({ name, kind, problems, first, trace }: { name: string; kind: str
       </div>
       <div className="truncate font-medium text-foreground">{name}</div>
     </div>
+    {cacheWarning && <CacheWarning />}
     <ProblemCount count={problems} />
     {trace && <TraceMark trace={trace} />}
   </div>
@@ -69,12 +78,12 @@ const Title = ({ name, kind, problems, first, trace }: { name: string; kind: str
 
 /** A state: a box with its name, what it is and the handles its edges leave from; a Map's holds the states inside it. */
 export const StateNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>) => {
-  const { node, problems, trace } = data
+  const { node, kind, problems, trace, cacheWarning } = data
   if (node.kind !== 'state') return null
   return (
     <div className={cn(boxClass(selected, problems.length, trace), 'h-full px-3 py-2', node.state.Type === 'Map' && 'bg-muted/40')}>
       <Handle id="in" type="target" position={Position.Top} isConnectable={isConnectable} />
-      <Title name={node.name} kind={stateLabel(node.state)} problems={problems.length} first={node.first && node.parent !== undefined} trace={trace} />
+      <Title name={node.name} kind={kind} problems={problems.length} first={node.first && node.parent !== undefined} trace={trace} cacheWarning={cacheWarning} />
       <Sources state={node.state} editable={isConnectable} />
     </div>
   )
@@ -82,11 +91,11 @@ export const StateNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>
 
 /** The trigger: what starts a run, leading to the first state. */
 export const TriggerNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>) => {
-  const { node, problems } = data
+  const { node, kind, problems } = data
   if (node.kind !== 'trigger') return null
   return (
     <div className={cn(boxClass(selected, problems.length), 'h-full border-dashed px-3 py-2')}>
-      <Title name={triggerLabel(node.trigger)} kind={text('trigger')} problems={problems.length} />
+      <Title name={kind} kind={text('trigger')} problems={problems.length} />
       <Handle id="start" type="source" position={Position.Bottom} isConnectable={isConnectable} />
     </div>
   )
