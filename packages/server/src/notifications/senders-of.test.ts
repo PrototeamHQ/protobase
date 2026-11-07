@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { checkNotificationsOptions } from './options'
 import type { PushSender } from './sender'
 import { notificationSenders, webPushKey } from './senders-of'
+import { testServiceAccount } from './fcm/testing/service-account'
 import { generateVapidKeys } from './web-push/keys'
 
 const keys = generateVapidKeys()
@@ -14,6 +15,17 @@ describe('notificationSenders', () => {
     expect(webPushKey(senders)).toBe(keys.publicKey)
     expect(notificationSenders({}, {})).toEqual([])
     expect(webPushKey(notificationSenders({}, {}))).toBeUndefined()
+  })
+
+  it('has the built-in FCM sender, guarded, when its service account is set', async () => {
+    const fcmEnv = { PROTOBASE_FCM_SERVICE_ACCOUNT: JSON.stringify(testServiceAccount().json) }
+    expect(notificationSenders({}, { ...vapidEnv, ...fcmEnv }).map((sender) => sender.kinds)).toEqual([['web'], ['fcm']])
+    const [fcm] = notificationSenders({}, fcmEnv)
+    await expect(fcm!.send({ title: 'x', url: 'javascript:x' }, [])).rejects.toThrow('url')
+  })
+
+  it('stops on an FCM service account that is not one', () => {
+    expect(() => notificationSenders({}, { PROTOBASE_FCM_SERVICE_ACCOUNT: '{"private_key": "abc' })).toThrow('PROTOBASE_FCM_SERVICE_ACCOUNT is not JSON')
   })
 
   it('stops on a VAPID mistake', () => {

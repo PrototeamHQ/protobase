@@ -25,7 +25,7 @@ export const pushResult = (response: Response): PushResult => {
 
 // The errors fetch rejects with when the request does not get an answer: a refused or reset connection or a
 // certificate that does not verify (a TypeError on Bun and on Node), and the timeout.
-const isTransient = (error: unknown) => error instanceof TypeError || (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError'))
+export const isTransient = (error: unknown) => error instanceof TypeError || (error instanceof DOMException && (error.name === 'TimeoutError' || error.name === 'AbortError'))
 
 /**
  * Posts one Web Push request and answers what it means for the device. Redirects are never followed, so the request
