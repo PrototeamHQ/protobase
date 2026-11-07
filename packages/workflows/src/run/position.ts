@@ -19,7 +19,14 @@ export type Position =
       /** The state may not run before this time: after a Wait, or a retry's delay. */
       resumeAt?: Date
     }
-  | { kind: 'ended'; seq: number; output: unknown; variables: Record<string, unknown> }
+  | {
+      kind: 'ended'
+      seq: number
+      output: unknown
+      variables: Record<string, unknown>
+      /** The scope may not end before this time: its last state was a Wait. */
+      resumeAt?: Date
+    }
   | { kind: 'failed'; seq: number; error: string; cause: string }
 
 export const startPosition = (machine: Machine, input: unknown): Position => ({ kind: 'at', seq: 0, state: machine.StartAt, input, variables: {}, attempt: 1, failures: [] })
@@ -35,7 +42,7 @@ export const advance = (position: Position, step: SavedStep): Position => {
   }
   // A step that gave nothing is saved as null and read back so, which is what the scope goes on with in every segment.
   const output = step.output === undefined ? null : step.output
-  if (step.next === null) return { kind: 'ended', seq, output, variables }
+  if (step.next === null) return { kind: 'ended', seq, output, variables, ...(step.resumeAt && { resumeAt: step.resumeAt }) }
   return { kind: 'at', seq, state: step.next, input: output, variables, attempt: 1, failures: [], ...(step.resumeAt && { resumeAt: step.resumeAt }) }
 }
 
