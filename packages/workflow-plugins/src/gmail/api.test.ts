@@ -1,4 +1,4 @@
-import { ConnectionError, type PluginFetch } from '@protobase/workflows/plugin'
+import { ConnectionError, type PluginConnection, type PluginFetch } from '@protobase/workflows/plugin'
 import { describe, expect, it } from 'vitest'
 import { fakeGmail } from '../../../../test-support/fake-gmail/fake-gmail'
 import { fakeConnection } from '../../../../test-support/fake-gmail/trigger-context'
@@ -7,7 +7,7 @@ import { profile } from './calls'
 
 const signal = new AbortController().signal
 
-const setup = (connection = fakeConnection('token-1'), fetch?: PluginFetch) => {
+const setup = (connection: PluginConnection = fakeConnection('token-1'), fetch?: PluginFetch) => {
   const gmail = fakeGmail()
   return { gmail, connection, api: gmailApi({ origin: gmail.origin, fetch: fetch ?? gmail.fetch, connection, signal }) }
 }
@@ -21,7 +21,8 @@ const failure = async (read: Promise<unknown>) => {
 
 describe('gmailApi', () => {
   it('asks for the token once for several calls, and sends it only in the Authorization header', async () => {
-    const { gmail, connection, api } = setup()
+    const connection = fakeConnection('token-1')
+    const { gmail, api } = setup(connection)
     await profile(api)
     await profile(api)
     expect(connection.asked()).toBe(1)
@@ -30,10 +31,19 @@ describe('gmailApi', () => {
   })
 
   it('asks for the token again after a 401 and tries once more', async () => {
-    const { gmail, connection, api } = setup(fakeConnection('stale-token', 'token-1'))
+    const connection = fakeConnection('stale-token', 'token-1')
+    const { gmail, api } = setup(connection)
     expect(await profile(api)).toBe(gmail.historyId)
-    expect(connection.asked()).toBe(2)
+    expect(connection.refreshes).toEqual([false, true])
     expect(gmail.calls.map(({ token }) => token)).toEqual(['stale-token', 'token-1'])
+  })
+
+  it('asks for a refreshed token after a 401, so a token refused before its expiry is not sent again', async () => {
+    // As the server's connection does: a plain ask gives the stored token until it expires, only a refresh a new one.
+    const connection = { accessToken: async (options?: { refresh?: boolean }) => (options?.refresh ? 'token-1' : 'refused-early') }
+    const { gmail, api } = setup(connection)
+    expect(await profile(api)).toBe(gmail.historyId)
+    expect(gmail.calls.map(({ token }) => token)).toEqual(['refused-early', 'token-1'])
   })
 
   it('gives up on a second 401 as an expired sign-in, after exactly two calls, naming no token', async () => {

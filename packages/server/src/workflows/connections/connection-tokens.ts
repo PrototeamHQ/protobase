@@ -20,19 +20,22 @@ export type ConnectionTokensInput = { deps: () => Deps; schema: string; roles: S
 type Consent = { account: string | null; enabled_by: string | null; tenant_id: string | null }
 
 /**
- * An account's valid access token, refreshed when it expired, with overlapping refreshes of one account joined into
- * one. Another worker may rotate the refresh token between this one's read (`before`, the stored refresh token) and its
- * refresh, which the provider then refuses: reading the account once more tells that apart, and the stored token is
- * then the fresh one. Undefined when the provider refused it.
+ * An account's valid access token, refreshed when it expired, or always with `refresh`, with overlapping refreshes of
+ * one account joined into one. A forced refresh joins only other forced ones, so it never takes the token a plain read
+ * is giving back. Another worker may rotate the refresh token between this one's read (`before`, the stored refresh
+ * token) and its refresh, which the provider then refuses: reading the account once more tells that apart, and the
+ * stored token is then the fresh one. Undefined when the provider refused it.
  */
 export const sharedRefresh = (accounts: ConnectionAccounts) => {
-  const refresh = singleFlight<string | undefined>()
-  return async (userId: string, accountId: string, before: string | null) => {
-    const token = await refresh(accountId, () => accounts.accessToken(userId, accountId))
+  const flight = singleFlight<string | undefined>()
+  return async (userId: string, accountId: string, before: string | null, { refresh = false }: { refresh?: boolean } = {}) => {
+    const key = refresh ? `${accountId}:refresh` : accountId
+    const fetch = () => flight(key, () => accounts.accessToken(userId, accountId, refresh ? { refresh } : undefined))
+    const token = await fetch()
     if (token) return token
     const after = await accounts.find(userId, accountId)
     if (!after || after.refreshToken === before) return
-    return refresh(accountId, () => accounts.accessToken(userId, accountId))
+    return fetch()
   }
 }
 
@@ -49,7 +52,7 @@ export const connectionTokens = ({ deps, schema, roles, accounts, refresh, text 
     const key = `${use.plugin}:${use.name}`
     const notConnected = () => new ConnectionError('not_connected', text('notConnected', { key }))
     return {
-      accessToken: async () => {
+      accessToken: async (options) => {
         const ref = await use.version()
         if (!ref) throw notConnected()
         const db = deps().db
@@ -58,7 +61,7 @@ export const connectionTokens = ({ deps, schema, roles, accounts, refresh, text 
         const consent = rows[0]
         if (!consent?.account || !consent.enabled_by) throw notConnected()
         if (!(await enablerMayUpdate(db, deps(), roles, consent.enabled_by, consent.tenant_id ?? undefined, ref.workflowId))) throw notConnected()
-        const token = await tokenOf({ ...use, userId: consent.enabled_by, accountId: consent.account }, notConnected)
+        const token = await tokenOf({ ...use, userId: consent.enabled_by, accountId: consent.account }, notConnected, options)
         if (!token) throw new ConnectionError('link_expired', text('linkExpired', { key }))
         return token
       },
