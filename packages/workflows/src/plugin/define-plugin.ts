@@ -40,6 +40,9 @@ export const checkPlugin = (plugin: Plugin, where = `Workflow plugin "${plugin.n
   for (const [key, type] of [...Object.entries(plugin.triggers ?? {}), ...Object.entries(plugin.steps ?? {})]) {
     if (type.connection !== undefined && !connections.includes(type.connection)) throw new Error(`${where}: ${key} uses the connection "${type.connection}", which the plugin does not declare`)
   }
+  for (const [key, type] of Object.entries(plugin.steps ?? {})) {
+    if (type.cache?.choice === 'discouraged' && !type.cache.disclaimer?.trim()) throw new Error(`${where}: ${key} advises against forcing its cache on; give the cache a \`disclaimer\` that says why`)
+  }
 }
 
 /** Declares a workflow plugin, checking its names: a type is `<name>:<key>`, such as `app:http` or `acme:new_order`. */
