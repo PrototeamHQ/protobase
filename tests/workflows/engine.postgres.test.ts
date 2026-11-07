@@ -134,6 +134,14 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(await workflowsMigration(db, workflows)).toBeUndefined()
   })
 
+  it('writes the run trigger again on a schema of the version whose replays ran their run\'s version', async () => {
+    await pg.exec(`comment on function workflows.run_version() is 'Protobase workflows 13'`)
+    const upgrade = await workflowsMigration(db, workflows)
+    expect(upgrade).toContain('create or replace function "workflows"."run_version"()')
+    await pg.exec(upgrade!)
+    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+  })
+
   it('writes the schema again when the triggers table is gone', async () => {
     await pg.exec('drop table workflows.triggers')
     const repair = await workflowsMigration(db, workflows)

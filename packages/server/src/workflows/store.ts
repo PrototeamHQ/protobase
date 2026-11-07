@@ -11,12 +11,15 @@ export const postgresRunStore = (schema: string): RunStore<Db> => {
   const steps = sql.id(schema, 'steps')
   return {
     load: async (db, id) => {
-      const { rows } = await sql<{ id: string; definition: Definition; input: unknown; status: 'queued'; startedAt: Date; replay: boolean | null; rerun_of: string | null }>`select r.id, v.definition, r.input, r.status, r.created_at as "startedAt", r.replay, r.rerun_of
-        from ${runs} r join ${versions} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${id}`.execute(db)
+      const { rows } = await sql<{ id: string; definition: Definition; input: unknown; status: 'queued'; startedAt: Date; replay: boolean | null; rerun_of: string | null; replayed: Definition | null }>`select r.id, v.definition, r.input, r.status, r.created_at as "startedAt", r.replay, r.rerun_of, rv.definition as replayed
+        from ${runs} r join ${versions} v on v.workflow_id = r.workflow_id and v.version = r.version
+        left join ${runs} o on r.replay and o.id = r.rerun_of left join ${versions} rv on rv.workflow_id = o.workflow_id and rv.version = o.version
+        where r.id = ${id}`.execute(db)
       if (!rows[0]) return
       // A replay stays one when the run it replays is gone (its key set to null): its writing steps then give nothing.
-      const { replay, rerun_of, ...run } = rows[0]
-      return { ...run, ...(replay === true && { replayOf: rerun_of }) }
+      const { replay, rerun_of, replayed, ...run } = rows[0]
+      if (replay !== true) return run
+      return { ...run, replayOf: rerun_of === null || replayed === null ? null : { id: rerun_of, definition: replayed } }
     },
     steps: async (db, id) => {
       const { rows } = await sql<SavedStep>`select scope, seq, state, status, attempt, output, assigned, next, resume_at as "resumeAt", error, cause

@@ -8,10 +8,13 @@ import { jsonBytes } from './json-bytes'
 import { redacted } from './redact'
 import { recover } from './recovery'
 import { innerScope, visibleVariables, type StateCall } from './step-input'
-import { heldBack, replayedTask } from './replay'
+import { emptyTask, heldBack, heldBackLog, replayedOutcome } from './replay'
 import { runTask } from './task'
 
-type Ran = { result: unknown; input: unknown } | { held: true; input: unknown } | { failure: { Error: string; Cause: string }; input: unknown } | Extract<StateResult, { kind: 'blocked' | 'yielded' }>
+type Failure = { Error: string; Cause: string }
+type Ran = { result: unknown; input: unknown } | { held: true; input: unknown } | { failure: Failure; input: unknown } | Extract<StateResult, { kind: 'blocked' | 'yielded' }>
+/** What a state goes on with: a held-back step's is what the replayed run's step gave. */
+type Outcome = ({ result: unknown } | { failure: Failure }) & { input: unknown; held?: true }
 
 const task = async (state: TaskState, call: StateCall): Promise<Ran> => {
   const args = await evaluateTemplate(state.Arguments ?? {}, call.bindings, 'Arguments')
@@ -63,16 +66,27 @@ const attempt = async (state: TaskState | MapState, call: StateCall): Promise<Ra
   }
 }
 
+// A held-back step goes on with what the replayed run's step gave, or ends with a null output when it gave nothing.
+const withReplayed = async (state: TaskState | MapState, call: StateCall): Promise<Outcome | StateResult> => {
+  const ran = await attempt(state, call)
+  if ('kind' in ran || !('held' in ran)) return ran
+  call.logs.push({ at: call.context.now().toISOString(), message: heldBackLog })
+  const outcome = replayedOutcome(call.context.replay!, { scope: call.scope, seq: call.position.seq, name: call.name })
+  if (!outcome) return emptyTask(state as TaskState, ran.input, call.logs)
+  return { held: true, input: ran.input, ...outcome }
+}
+
 /**
  * A Task or a Map: its result shaped by `Output` and `Assign`, which read it as `$states.result`; a failure,
  * its own or an item's, goes to its retriers and catchers.
  */
 export const runResultState = async (state: TaskState | MapState, call: StateCall): Promise<StateResult> => {
-  const ran = await attempt(state, call)
+  const ran = await withReplayed(state, call)
   if ('kind' in ran) return ran
-  if ('held' in ran) return replayedTask(call.context, state as TaskState, { scope: call.scope, seq: call.position.seq, name: call.name }, ran.input, call.logs)
   const now = call.context.now()
-  if ('failure' in ran) return { ...(await recover(state, call.position, ran.failure, call.bindings, now, call.logs)), ...(ran.input !== undefined && { input: ran.input }) } as StateResult
+  // A held-back step's error is the one its visit ended with after its retries, so only a catcher takes it.
+  const recoverable = 'held' in ran ? { ...(state.Catch && { Catch: state.Catch }) } : state
+  if ('failure' in ran) return { ...(await recover(recoverable, call.position, ran.failure, call.bindings, now, call.logs)), ...(ran.input !== undefined && { input: ran.input }) } as StateResult
   const after = { ...call.bindings, states: { ...(call.bindings.states as object), result: ran.result } }
   const shaped = async () => ({
     output: state.Output === undefined ? ran.result : await evaluateKept(state.Output, after, 'Output'),
@@ -82,6 +96,6 @@ export const runResultState = async (state: TaskState | MapState, call: StateCal
     if (!(error instanceof StepError)) throw error
     return { failure: errorOutput(error) }
   })
-  if ('failure' in done) return { ...(await recover(state, call.position, done.failure, call.bindings, now, call.logs)), input: ran.input } as StateResult
+  if ('failure' in done) return { ...(await recover(recoverable, call.position, done.failure, call.bindings, now, call.logs)), input: ran.input } as StateResult
   return { kind: 'step', status: 'succeeded', next: state.Next ?? null, input: ran.input, ...done, logs: call.logs }
 }
