@@ -39,7 +39,8 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
   if (!changed && !publishing) return
   const id = String(event.after.id)
   if (changed) {
-    refuseProblems(event.after.definition, types)
+    // A workflow starts with no steps; a version without any is kept, and refused as it is published or run.
+    if (Object.keys((event.after.definition as Definition).stateMachine?.States ?? { state: true }).length > 0) refuseProblems(event.after.definition, types)
     await sql`insert into ${sql.id(schema, 'versions')} (workflow_id, version, definition, saved_by, tenant_id)
       select w.id, w.version, w.definition, ${String(event.user.id)}, w.tenant_id from ${sql.id(schema, 'workflows')} w where w.id = ${id}`.execute(trx)
   }

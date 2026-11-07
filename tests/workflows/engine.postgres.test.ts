@@ -146,7 +146,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     await finished(tried)
     expect(await runRow(published)).toMatchObject({ output: 'one', version: 1 })
     expect(await runRow(tried)).toMatchObject({ output: 'two', version: 2 })
-    expect((await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {}, version: 9 } })).status).toBeGreaterThanOrEqual(400)
+    expect((await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {}, version: 9 } })).status).toBe(409)
     expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 9 } })).status).toBe(400)
     // A publish alone is a change of the record: an ETag read before it is stale
     const read = (await as('ada', `/workflows/${id}`)).headers.get('etag')!
@@ -170,6 +170,22 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     const off = await run(id, {})
     await finished(off)
     expect(await runRow(off)).toMatchObject({ output: 'two', version: 2 })
+  })
+
+  it('refuses a run of a version with no steps, on the version a replay takes too', async () => {
+    const id = await create('Echo', definition({ Echo: { Type: 'Pass', Output: 'one', End: true } }))
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 1 } })).status).toBe(200)
+    const first = await run(id, {})
+    await finished(first)
+    const emptied = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: '', States: {} } }
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: emptied } })).status).toBe(200)
+    // A start without a version runs the published one, which has steps; a replay takes the empty one saved last
+    const started = await run(id, {})
+    await finished(started)
+    const replay = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, rerun_of: first, replay: true } })
+    expect(replay.status).toBe(409)
+    const { items } = await (await as('ada', `/workflow_runs?filter=${encodeURIComponent(`workflow_id = "${id}"`)}`)).json()
+    expect(items).toHaveLength(2)
   })
 
   it('writes the run trigger again on a schema of the version whose replays ran their run\'s version', async () => {
