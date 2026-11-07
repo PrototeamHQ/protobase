@@ -27,10 +27,14 @@ export const SearchPicker = ({ groups, label = text('search'), autoFocus = false
   const shown = useMemo(() => matchingGroups(groups, query), [groups, query])
   const items = shown.flatMap((group) => group.items)
   const current = items[Math.min(active, items.length - 1)]
+  const optionId = (item: PickerItem) => `${list}-${item.id}`
   useEffect(() => {
     if (autoFocus) search.current?.focus()
   }, [autoFocus])
-  const optionId = (item: PickerItem) => `${list}-${item.id}`
+  const currentId = current && optionId(current)
+  useEffect(() => {
+    if (currentId) document.getElementById(currentId)?.scrollIntoView({ block: 'nearest' })
+  }, [currentId])
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
@@ -38,7 +42,7 @@ export const SearchPicker = ({ groups, label = text('search'), autoFocus = false
       const at = Math.min(active, items.length - 1)
       setActive((at + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length)
     }
-    if (event.key === 'Enter' && current) {
+    if (event.key === 'Enter' && current && !event.nativeEvent.isComposing) {
       event.preventDefault()
       onPick(current)
     }

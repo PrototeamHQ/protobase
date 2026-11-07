@@ -315,6 +315,7 @@ export type AppAddress =
       version?: number
       /** The run a workflow's page shows on its graph, by its key, on the version it ran on; `{field}` takes it from a record. */
       run?: string
+      /** The panel a focus page opens with, by a name its surface knows (`?panel=`). */
       panel?: string
     }
   | {
@@ -1560,6 +1561,7 @@ export type RecordPageModel =
   | {
       /** The component, by the name `protobase.ui.tsx` exports it under. */
       component: string
+      /** Draws the component on a focus page, with the bar's state, Save, the record's actions and panels. */
       focus?: boolean
     }
   | {

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isApiError, type ProblemError } from '@protobase/client'
 import type { AppAddress } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
@@ -31,7 +31,7 @@ export type CreateFormOptions = {
 /**
  * The state of a form that creates a record, from the view's layout: for the create page and for a form in place, such
  * as in a focus page's panel. `sections` draw its fields, `set` gives one a value from outside, and `submit` sends what
- * is filled in, with `extra` on top, resolving to whether it did.
+ * is filled in, with `extra` on top, resolving to whether it did; while one is under way another sends nothing.
  */
 export const useCreateForm = ({ resource, values, onCreated, feedback: mode }: CreateFormOptions) => {
   const meta = useAdminMeta()
@@ -49,6 +49,9 @@ export const useCreateForm = ({ resource, values, onCreated, feedback: mode }: C
   const [rejections, setRejections] = useState(0)
   const ref = useFocusFirstInvalid<HTMLFormElement>(rejections)
   const [touched, setTouched] = useState(false)
+  // A create under way, whatever the feedback shows: a second press sends nothing, so it never makes two records
+  const sending = useRef(false)
+  const [busy, setBusy] = useState(false)
 
   // A relation the address fills in shows the name of the record it points at once that has loaded.
   useEffect(() => {
@@ -57,7 +60,7 @@ export const useCreateForm = ({ resource, values, onCreated, feedback: mode }: C
       if (!target) continue
       void fetchLabels(queryClient, client, target, [key], meta.views[target.name]).then((labels) => {
         const label = labels.get(key)
-        if (label) setDraft((current) => (isChosen(current[name]) && current[name].key === key ? { ...current, [name]: { key, label } } : current))
+        if (label) setDraft((current) => (isChosen(current[name]) && current[name].key === key && current[name].label !== label ? { ...current, [name]: { key, label } } : current))
       })
     }
   }, [values, meta, model, client, queryClient])
@@ -68,7 +71,19 @@ export const useCreateForm = ({ resource, values, onCreated, feedback: mode }: C
     setDraft((current) => ({ ...current, [name]: value }))
   }
 
-  const submit = (extra: Record<string, unknown> = {}) =>
+  const submit = async (extra: Record<string, unknown> = {}) => {
+    if (sending.current) return false
+    sending.current = true
+    setBusy(true)
+    try {
+      return await send(extra)
+    } finally {
+      sending.current = false
+      setBusy(false)
+    }
+  }
+
+  const send = (extra: Record<string, unknown>) =>
     feedback.run(async () => {
       let created
       try {
@@ -123,7 +138,7 @@ export const useCreateForm = ({ resource, values, onCreated, feedback: mode }: C
     }),
   }))
 
-  return { ref, sections, set, submit, touched, saving: feedback.phase === 'saving', message: feedback.message }
+  return { ref, sections, set, submit, touched, saving: busy, message: feedback.message }
 }
 
 export type CreateForm = ReturnType<typeof useCreateForm>

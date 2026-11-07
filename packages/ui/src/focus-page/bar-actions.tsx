@@ -20,7 +20,7 @@ const Named = ({ action }: { action: FocusAction }) => {
       {action.name}
     </>
   )
-  if (action.render) return action.render({ className: buttonClass(), children: content })
+  if (action.render && !action.blocked) return action.render({ className: buttonClass(), children: content })
   return (
     <Button variant={action.tone === 'danger' ? 'danger' : 'secondary'} onClick={() => !action.blocked && action.onRun?.()} aria-disabled={Boolean(action.blocked)} loading={action.running} title={action.blocked}>
       {content}

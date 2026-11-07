@@ -49,7 +49,14 @@ const PinBoard = ({ value, onChange }: FieldWidgetEditorProps<Pins>) => {
     <div className="flex h-full flex-wrap content-start gap-3 p-6">
       <FocusSlot zone="mode"><span className="text-body font-medium">{focus?.size === 'compact' ? pins.length : `${pins.length} pins`}</span></FocusSlot>
       <FocusSlot zone="controls"><Button onClick={() => setPanel('add')}>Add pin</Button></FocusSlot>
-      <FocusActions actions={[{ name: 'Clear the board', icon: Trash2, onRun: () => onChange([]), tone: 'danger' }, { name: 'Pin all', icon: Pin, inBar: true, onRun: () => onChange(places.map((place) => place.id)) }]} />
+      <FocusActions
+        actions={[
+          { name: 'Clear the board', icon: Trash2, onRun: () => onChange([]), tone: 'danger' },
+          { name: 'Pin all', icon: Pin, inBar: true, onRun: () => onChange(places.map((place) => place.id)) },
+          // A link that cannot be followed yet stays a disabled item, with its reason under it
+          { name: 'Open the map', icon: Pin, blocked: 'No map for this board yet', render: ({ className, children, role }) => <a href="/maps" role={role} className={className}>{children}</a> },
+        ]}
+      />
       {record && !record.dirty && pins.length === 0 && <FocusNotice level="info">This board has no pins yet.</FocusNotice>}
       {pins.map((pin) => (
         <button key={pin} type="button" className="rounded-lg border px-4 py-3" onClick={() => setChosen(pin)}>
@@ -132,6 +139,10 @@ export const SecondSurfaceChecks: StoryObj = {
     await userEvent.click(bar.getByRole('button', { name: 'More' }))
     const menu = within(await within(document.body).findByRole('menu', { name: 'More' }))
     expect(menu.getByRole('menuitem', { name: 'Board details' })).toHaveAttribute('href', '/boards/1?standard=true')
+    const blocked = menu.getByRole('menuitem', { name: /^Open the map/ })
+    expect(blocked).toBeDisabled()
+    expect(blocked).not.toHaveAttribute('href')
+    expect(within(blocked).getByText('No map for this board yet')).toBeVisible()
     await userEvent.click(menu.getByRole('menuitem', { name: 'Clear the board' }))
     expect(await bar.findByText('0 pins')).toBeVisible()
   },

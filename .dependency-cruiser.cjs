@@ -120,8 +120,7 @@ module.exports = {
       name: 'no-circular',
       severity: 'error',
       from: {},
-      // A lazy import loads after everything it imports back, so it closes no cycle at load
-      to: { circular: true, viaOnly: { dependencyTypesNot: ['dynamic-import'] } },
+      to: { circular: true },
     },
   ],
   options: {

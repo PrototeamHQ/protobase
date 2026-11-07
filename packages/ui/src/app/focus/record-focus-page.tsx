@@ -19,7 +19,7 @@ import { CustomBoundary } from '../pages/custom-boundary'
 import { useProjectUi } from '../pages/project-ui'
 import { RecordScope } from '../pages/record-scope'
 import { useRecordActions } from '../pages/record-actions'
-import { can } from '../permissions'
+import { can, fieldAccess } from '../permissions'
 import { useNavigationGuard } from '../router'
 import { useRecordTitle } from '../titles/record-titles'
 import { AppLink, useAppAddress } from '../use-app-address'
@@ -96,7 +96,9 @@ const RecordFocus = ({ model, recordKey, stored, page }: Omit<RecordFocusPagePro
   const restore = useRestore(model)
   // An earlier version of the record, as a field type that keeps versions draws it, is only read
   const pastVersion = address?.kind === 'record' && address.version !== undefined && address.version !== Number(stored.record.version)
-  const mayUpdate = can(permissions, 'update') && stored.permissions?.update !== false
+  // The surface's own field counts: one this reader may only read is not theirs to change here
+  const surfaceReadable = 'surface' in page && fieldAccess(stored.permissions, page.surface) === 'read'
+  const mayUpdate = can(permissions, 'update') && stored.permissions?.update !== false && !surfaceReadable
   const readOnly = !mayUpdate || pastVersion
   const canDelete = can(permissions, 'delete') && stored.permissions?.delete !== false
   const remove = useDeleteFlow({
@@ -199,6 +201,8 @@ type Editor = ReturnType<typeof useRecordEditor>
 // One field fills the surface, drawn by its field type
 const FieldSurface = ({ model, name, stored, editor, readOnly }: { model: ResourceModel; name: string; stored: LiveRecord; editor: Editor; readOnly: boolean }) => {
   const hints = useAdminMeta().views[model.name]?.fields[name]
+  // Hidden from this reader, the field is not drawn: the page's boundary shows the form, which leaves it out too
+  if (fieldAccess(stored.permissions, name) === 'hidden') throw new Error(`The surface's field ${name} is hidden from this reader`)
   return (
     <div className="absolute inset-0">
       <FieldEditor field={model.fields[name]!} hints={hints} value={editor.value(name)} stored={stored.record[name]} locked={readOnly} invalid={Boolean(editor.errors[name])} resource={model.name} onChange={(next) => editor.change(name, next)} />
