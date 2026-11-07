@@ -1,0 +1,40 @@
+{
+  "nowSeconds": 1794074911,
+  "topic": "net.protobase.example",
+  "message": {
+    "title": "Recorded",
+    "body": "From the APNs sandbox",
+    "url": "https://example.com/recorded",
+    "tag": "recorded",
+    "ttl": 60,
+    "urgency": "normal"
+  },
+  "device": {
+    "token": "0000000000000000000000000000000000000000000000000000000000000000",
+    "environment": "sandbox",
+    "userId": "recorded-user"
+  },
+  "answers": [
+    {
+      "result": "retry"
+    }
+  ],
+  "request": {
+    "origin": "https://api.sandbox.push.apple.com",
+    "headers": {
+      ":method": "POST",
+      ":path": "/3/device/0000000000000000000000000000000000000000000000000000000000000000",
+      "content-type": "application/json",
+      "apns-topic": "net.protobase.example",
+      "apns-push-type": "alert",
+      "apns-priority": "10",
+      "apns-expiration": "1794074971",
+      "apns-collapse-id": "recorded"
+    },
+    "body": "{\"aps\":{\"alert\":{\"title\":\"Recorded\",\"body\":\"From the APNs sandbox\"}},\"url\":\"https://example.com/recorded\",\"user\":\"recorded-user\"}"
+  },
+  "response": {
+    "status": 403,
+    "body": "{\"reason\":\"InvalidProviderToken\"}"
+  }
+}
