@@ -31,6 +31,7 @@ const mocking = [
   'packages/cli/src/supabase/register.test.ts',
   'packages/cli/src/supabase/functions/samples.test.ts',
   'packages/client/src/sign-in-flows.test.ts',
+  'packages/server/src/bridges/tcp-bridge.test.ts',
   'packages/server/src/dropped-connections.test.ts',
   'packages/server/src/files/providers.test.ts',
   'packages/server/src/files/store-file.test.ts',

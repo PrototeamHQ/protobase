@@ -1,5 +1,5 @@
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
-import { createServer, type AddressInfo, type Socket } from 'node:net'
+import { connect, createServer, type AddressInfo, type Socket } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import WebSocket, { WebSocketServer } from 'ws'
 import type { Db } from '@protobase/query'
@@ -11,6 +11,30 @@ import { functionRoutes } from '../functions/routes'
 import { bridgeClosings } from './bridge-closings'
 import type { BridgeTarget } from './bridge-target'
 import { tcpBridge } from './tcp-bridge'
+import { connectTcp } from './tcp-connect'
+
+vi.mock('./tcp-connect', async (original) => {
+  const actual = await original<typeof import('./tcp-connect')>()
+  return { ...actual, connectTcp: vi.fn(actual.connectTcp) }
+})
+
+// The next bridge's connection to `port` waits until `connect` is called, as a slow target would; it then connects for real.
+const holdNextConnection = (port: number) => {
+  let release = () => {}
+  const connection = new Promise<Socket>((resolve) => {
+    release = () => {
+      const socket = connect({ host: '127.0.0.1', port })
+      socket.once('connect', () => resolve(socket))
+    }
+  })
+  const asked = new Promise<void>((resolve) => {
+    vi.mocked(connectTcp).mockImplementationOnce(() => {
+      resolve()
+      return connection
+    })
+  })
+  return { asked, connect: () => (release(), connection) }
+}
 
 const cleanups: (() => void)[] = []
 afterEach(() => cleanups.splice(0).forEach((cleanup) => cleanup()))
@@ -140,5 +164,33 @@ describe('tcpBridge', () => {
     const { askToken, openSocket } = await serveBridge(new Map([['db', { host: '127.0.0.1', port: 1 }]]))
     expect(await openSocket('ann', (await askToken('ann', 'db')).body.token).opened).toBe(502)
     expect(echo.connections).toHaveLength(0)
+  })
+
+  it('refuses a bridge whose grant expires while it connects, and closes the late connection', async () => {
+    const echo = await echoServer()
+    let at = Date.now()
+    const { askToken, openSocket } = await serveBridge(new Map([['db', { host: '127.0.0.1', port: echo.port, expiresInSeconds: 1 }]]), () => at)
+    const held = holdNextConnection(echo.port)
+    const { opened } = openSocket('ann', (await askToken('ann', 'db')).body.token)
+    await held.asked
+    at += 1_000
+    const late = await held.connect()
+    expect(await opened).toBe(404)
+    await vi.waitFor(() => expect(late.destroyed).toBe(true))
+  })
+
+  it('refuses a bridge whose target is withdrawn while it connects, and passes no bytes', async () => {
+    const echo = await echoServer()
+    const { bridge, askToken, openSocket } = await serveBridge(new Map([['db', { host: '127.0.0.1', port: echo.port }]]))
+    const held = holdNextConnection(echo.port)
+    const { client, opened } = openSocket('ann', (await askToken('ann', 'db')).body.token)
+    const received = vi.fn()
+    client.on('message', received)
+    await held.asked
+    bridge.withdraw('db')
+    const late = await held.connect()
+    expect(await opened).toBe(403)
+    await vi.waitFor(() => expect(late.destroyed).toBe(true))
+    expect(received).not.toHaveBeenCalled()
   })
 })
