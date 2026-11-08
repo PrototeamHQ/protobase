@@ -12,7 +12,7 @@ import type { Row, Session } from '../types'
 import { keyOf, type WriteResult } from '../write-shared'
 import { checkBeforeWrite, writeIn } from '../write-pipeline'
 import { resolveData, resolveKey, type Created } from './refs'
-import { moveIn } from './move'
+import { moveIn, moveList, type MoveList } from './move'
 import { reorderIn } from './reorder'
 import type { BatchOperation } from './schema'
 
@@ -54,12 +54,21 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
     return access
   }
 
-  // The checks that need the network run before the transaction opens, each failure named by its operation.
+  // The checks that need the network or a connection of their own run before the transaction opens, each failure named
+  // by its operation.
   for (const [index, operation] of operations.entries()) {
     if (operation.op !== 'create' && operation.op !== 'update') continue
     await checkBeforeWrite(deps, { resource: operation.resource, operation: operation.op, body: operation.data }).catch((error: unknown) => {
       throw atOperation(error, index, operation)
     })
+  }
+  const lists = new Map<number, MoveList>()
+  for (const [index, operation] of operations.entries()) {
+    if (operation.op !== 'move') continue
+    const list = async () => moveList(deps, await accessFor(entryOf(deps, operation.resource)), operation.field, operation.filter)
+    lists.set(index, await list().catch((error: unknown) => {
+      throw atOperation(error, index, operation)
+    }))
   }
 
   const removed: ScheduledDelete[] = []
@@ -82,8 +91,8 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
           results.push({ op: 'delete', resource: entry.name, deleted: true })
         } else if (operation.op === 'move') {
           const resolve = (key: typeof operation.key | null) => (key === null ? null : resolveKey(created, entry, key))
-          const input = { field: operation.field, key: resolve(operation.key)!, after: resolve(operation.after), before: operation.before === undefined ? undefined : resolve(operation.before), filter: operation.filter }
-          results.push({ op: 'move', resource: entry.name, records: await moveIn(trx, deps, access, input, removed) })
+          const input = { field: operation.field, key: resolve(operation.key)!, after: resolve(operation.after), before: operation.before === undefined ? undefined : resolve(operation.before) }
+          results.push({ op: 'move', resource: entry.name, records: await moveIn(trx, deps, access, input, lists.get(index)!, removed) })
         } else {
           const keys = operation.keys.map((key) => resolveKey(created, entry, key))
           const records = await reorderIn(trx, deps, access, { field: operation.field, keys, etags: operation.etags ?? {}, start: operation.start ?? 1 }, removed)
