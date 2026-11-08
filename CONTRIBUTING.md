@@ -15,6 +15,7 @@ docs: the record page runs named actions too
 
 - `feat` releases a feature, `fix` a fix; `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `style`, `chore` and `revert` release nothing on their own.
 - A breaking change takes a `!` after the type or scope, or a `BREAKING CHANGE:` footer saying what to do instead.
+- A merge commit keeps the message git writes, such as `Merge branch 'main' into <branch>`: commitlint lets it through, and a pull request lands as one squash commit whose header is linted.
 - The subject starts in lowercase and ends without a period. The header is at most 92 characters and every body line at most 100, so the squash merge's ` (#<number>)` suffix or `* ` list item still fits in 100.
 - A `feat` commit adds something a user of Protobase can see or call, and is documented (see [Features and docs](#features-and-docs)). A change no user can see is `fix`, `perf`, `refactor` or `chore`.
 
