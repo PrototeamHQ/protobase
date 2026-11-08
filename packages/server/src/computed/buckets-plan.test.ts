@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { bucketsPlan, type BucketsState, type FoundBuckets } from './buckets-plan'
-import { sumType } from './buckets-sql'
+import { bucketsTableSql, sumType, type BucketsTarget } from './buckets-sql'
 
 const readings = resource('readings')
   .table('readings')
@@ -62,6 +62,21 @@ on conflict ("bucket", "org_id", "device_id") do update set "events" = excluded.
   it('compares a plain timestamp column with the start in its own type, so its index serves', () => {
     const plain = bucketsPlan(models, { schema: 'public', rollups: { readings_hourly: { ...missing, from: { sql: 'public.readings', types: { ...types, taken_at: 'timestamp without time zone' } } } } })
     expect(plain.statements.find((statement) => statement.startsWith('create or replace function'))).toContain(`where c."taken_at" >= date_trunc('hour', $1)::timestamp and`)
+  })
+
+  it('ends an index name Postgres would cut with a hash, so groups sharing a prefix keep apart', () => {
+    const name = 'organization_device_readings_hourly_summary_table'
+    const target = {
+      model: { table: { name } },
+      table: `"public"."${name}"`,
+      by: [{ column: 'organization_id', from: 'organization_id', type: 'integer' }, { column: 'organization_unit', from: 'organization_unit', type: 'integer' }],
+      measures: [],
+    } as unknown as BucketsTarget
+    const names = bucketsTableSql(target).flatMap((statement) => /^create (?:unique )?index "([^"]+)"/.exec(statement)?.[1] ?? [])
+    expect(names).toHaveLength(3)
+    expect(new Set(names).size).toBe(3)
+    for (const index of names) expect(new TextEncoder().encode(index).length).toBeLessThanOrEqual(63)
+    expect(names[1]).toMatch(/^organization_device_readings_hourly_summary_table_orga_[0-9a-f]{8}$/)
   })
 
   it('keeps sums ten digits wider than their column', () => {
