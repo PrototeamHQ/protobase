@@ -16,6 +16,7 @@ docs: the record page runs named actions too
 - `feat` releases a feature, `fix` a fix; `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `style`, `chore` and `revert` release nothing on their own.
 - A breaking change takes a `!` after the type or scope, or a `BREAKING CHANGE:` footer saying what to do instead.
 - The subject starts in lowercase and ends without a period. The header is at most 92 characters and every body line at most 100, so the squash merge's ` (#<number>)` suffix or `* ` list item still fits in 100.
+- A merge of `main` into a branch keeps git's own `Merge ...` message: commitlint ignores it, and it never reaches `main`, where a pull request lands as one squash commit under its title.
 - A `feat` commit adds something a user of Protobase can see or call, and is documented (see [Features and docs](#features-and-docs)). A change no user can see is `fix`, `perf`, `refactor` or `chore`.
 
 commitlint (`commitlint.branch.config.mjs`) checks each message in the `commit-msg` hook `bun install` installs, in CI for a branch's commits, and in the release workflow for every commit pushed to `main`. The `pr-title` workflow checks a pull request's squash message: its title, or its only commit's subject, with the ` (#<number>)` suffix. By hand: `bun x commitlint --config commitlint.branch.config.mjs --from <commit>`.
