@@ -1,5 +1,5 @@
 import type { WorkflowRunTrace, WorkflowTraceStep } from '@protobase/client'
-import { createRunner, rerunCheckpoint, rerunProblem, type Checkpoint, type Definition, type RunStore, type TaskHandlers, type TraceSink } from '@protobase/workflows'
+import { createRunner, rerunCheckpoint, rerunFrom, rerunProblem, type Checkpoint, type Definition, type RunStore, type StepRecord, type TaskHandlers, type TraceSink } from '@protobase/workflows'
 
 type Row = Record<string, unknown>
 
@@ -69,9 +69,9 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
       const earlier = row.rerun_of == null ? undefined : runOf(String(row.rerun_of))
       // A form writes a boolean as text.
       const replay = row.replay === true || row.replay === 'true'
-      Object.assign(row, { id: `run-${++runs}`, status: 'queued', version: workflow.version, replay: replay || null, created_at: new Date().toISOString(), started_by: 'u-ada', ...(earlier && { input: earlier.input }) })
+      Object.assign(row, { id: `run-${++runs}`, status: 'queued', version: row.version ?? (earlier ? workflow.version : (workflow.enabled_version ?? workflow.version)), replay: replay || null, created_at: new Date().toISOString(), started_by: 'u-ada', ...(earlier && { input: earlier.input }) })
     },
-    /** After a write: a changed workflow's next version, and a new run started, a re-run from the earlier run's checkpoints. */
+    /** After a write: a changed workflow's next version, and a new run started, a re-run from the earlier run's checkpoints, or from a step of its trace. */
     afterWrite: (resource: string, row: Row) => {
       if (resource === 'workflows') {
         const versions = table('workflow_versions').filter((version) => same(version.workflow_id, row.id))
@@ -84,10 +84,20 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
       if (resource !== 'workflow_runs') return
       const id = String(row.id)
       if (row.rerun_of != null && row.replay !== true) {
-        const earlier = checkpoints.get(String(row.rerun_of)) ?? []
-        const problem = rerunProblem(definitionOf(row).stateMachine, earlier)
-        if (problem) throw new Error(problem)
-        checkpoints.set(id, earlier.map((checkpoint) => rerunCheckpoint(structuredClone(checkpoint), new Date(String(row.created_at)))))
+        const earlier = String(row.rerun_of)
+        if (row.rerun_from == null) {
+          const kept = checkpoints.get(earlier) ?? []
+          const problem = rerunProblem(definitionOf(row).stateMachine, kept)
+          if (problem) throw new Error(problem)
+          checkpoints.set(id, kept.map((checkpoint) => rerunCheckpoint(structuredClone(checkpoint), new Date(String(row.created_at)))))
+        } else {
+          // As the server does: the steps before the state stay, folded into the checkpoint the re-run goes on from
+          const steps = (traces.get(earlier) ?? []) as unknown as StepRecord[]
+          const from = rerunFrom(definitionOf(row).stateMachine, definitionOf(runOf(earlier)).stateMachine, steps, String(row.rerun_from), new Date(String(row.created_at)))
+          if ('problem' in from) throw new Error(from.problem)
+          if (from.checkpoint) checkpoints.set(id, [from.checkpoint])
+          traces.set(id, JSON.parse(JSON.stringify(from.kept)) as WorkflowTraceStep[])
+        }
       }
       void runner.start(null, id)
     },
