@@ -284,7 +284,7 @@ Each send is `POST <url>/send`, with the credential as a bearer token, never thr
 { "message": { "title": "Task assigned", "url": "https://app.example.com/tasks/42" }, "devices": [{ "handle": "…", "user": "user-1" }] }
 ```
 
-The relay answers a `2xx` with a result for each handle, `ok`, `gone`, `retry` or `refused`, as [senders](#senders) answer: `{ "results": [{ "handle": "…", "result": "ok" }] }`. A handle the relay answers `gone` removes its device. A handle it does not answer, and every handle of any other answer, such as a wrong credential, a `429` or `5xx` (after its `Retry-After`) or no answer within ten seconds, is retried, so a mistake in the configuration removes no device. A device stored with a token that is not a relay handle is `refused`.
+The relay answers a `2xx` with a result for each handle, `ok`, `gone`, `retry` or `refused`, as [senders](#senders) answer: `{ "results": [{ "handle": "…", "result": "ok" }] }`. A handle the relay answers `gone` removes its device. A handle it does not answer, and every handle of any other answer, such as a wrong credential, a `429` or `5xx` (after its `Retry-After`) or no answer within ten seconds, is retried, so a mistake in the configuration removes no device. A device stored with a token that is not a relay handle is `refused`. <gap>A send cannot keep the notification's text from the relay because content-free or encrypted relay payloads are not implemented.</gap>
 
 `relaySender(readRelaySettings(process.env)!)` from `@protobase/server` is the built-in sender, to list beside [your own senders](#senders). `relaySendRequest` and `relaySendAnswer` check the request and answer shapes.
 
