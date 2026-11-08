@@ -40,7 +40,8 @@ export type StateMachine = Machine & { QueryLanguage: 'JSONata' }
 export type Trigger = { manual?: Record<string, unknown>; [type: `${string}:${string}`]: Record<string, unknown> }
 
 /**
- * A workflow definition: its trigger, the state machine a run runs from `StartAt`, and the connected account each
- * connection `<plugin>:<connection>` of its types signs in with, by the account's id.
+ * A workflow definition: its trigger, the state machine a run runs from `StartAt`, the connected account each
+ * connection `<plugin>:<connection>` of its types signs in with, by the account's id, and which of its runs keep a
+ * trace (`all`, `failed` or `none`), when it says, over the app's default.
  */
-export type Definition = { trigger: Trigger; stateMachine: StateMachine; connections?: Record<string, string> }
+export type Definition = { trigger: Trigger; stateMachine: StateMachine; connections?: Record<string, string>; trace?: 'all' | 'failed' | 'none' }

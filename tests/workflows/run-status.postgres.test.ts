@@ -4,11 +4,15 @@ import { defineRoles } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, unauthorized, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { traceFiles } from './support/run-trace'
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 30_000 })
 
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps'>({
-  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read'],
+// Where runs keep their traces.
+const trace = await traceFiles()
+
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs'>({
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*'],
   reader: ['workflows.read', 'workflow_runs.read'],
   blind: ['workflows.read'],
   wide: ['*.read'],
@@ -54,11 +58,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("a workflow's status fro
       if (!people[id]) throw unauthorized('Sign in first')
       return { user: { id, roles: people[id] }, tenant: '1' }
     }
-    admin = createAdmin({ resources, views, db, authenticate, workflows, options: { roles } })
+    admin = createAdmin({ resources, views, db, files: trace.files, authenticate, workflows, options: { roles } })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error } })
   })
 
   afterAll(async () => {
+    await trace.folder.remove()
     await runtime?.stop()
     await pg?.close()
   })

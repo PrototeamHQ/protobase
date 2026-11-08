@@ -25,3 +25,17 @@ export const reachable = (machine: Machine) => {
   }
   return seen
 }
+
+/** The states reached from `start` along the edges, `start` itself included. */
+export const reachedFrom = (machine: Machine, start: string) => {
+  const seen = new Set<string>()
+  const stack = [start]
+  while (stack.length > 0) {
+    const name = stack.pop()!
+    const state = machine.States[name]
+    if (seen.has(name) || !state) continue
+    seen.add(name)
+    stack.push(...edges(state).map((edge) => edge.target))
+  }
+  return seen
+}

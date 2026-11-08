@@ -3,7 +3,8 @@ import type { AddressInfo } from 'node:net'
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
-import { workflowsModule } from '@protobase/server/internal'
+import { localFiles, workflowsModule } from '@protobase/server/internal'
+import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -17,13 +18,16 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the http step of a work
   let admin: ReturnType<typeof createAdmin>
   let runtime: JobsRuntime
   let receiver: Server
+  let folder: Awaited<ReturnType<typeof tempDir>>
 
   beforeAll(async () => {
     pg = await openPostgresDatabase('jobs')
     db = pg.db
     await pg.exec((await workflowsMigration(db, workflows))!)
     const { resources, views } = configExports(workflowsModule(workflows))
-    admin = createAdmin({ resources, views, db, authenticate: () => ({ user: { id: 'ada', roles: ['admin'] }, tenant: '1' }), workflows })
+    folder = await tempDir()
+    const files = { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-http-limit' }
+    admin = createAdmin({ resources, views, db, files, authenticate: () => ({ user: { id: 'ada', roles: ['admin'] }, tenant: '1' }), workflows })
     receiver = createServer((request, response) => {
       if (request.url !== '/big') return response.end('small')
       // Writes 11 MiB, more than the step reads.
@@ -39,6 +43,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the http step of a work
     await runtime?.stop()
     await new Promise((resolve) => receiver?.close(resolve))
     await pg?.close()
+    await folder?.remove()
   })
 
   const post = async (path: string, body: unknown) => {
@@ -57,7 +62,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the http step of a work
     const row = async () => (await sql<{ status: string; error: string | null; cause: string | null }>`select status, error, cause from workflows.runs where id = ${run}`.execute(db)).rows[0]!
     await vi.waitFor(async () => expect(['succeeded', 'failed']).toContain((await row()).status), { timeout: 20_000, interval: 50 })
     expect(await row()).toEqual({ status: 'failed', error: 'Http.ResponseTooLarge', cause: "The answer's body is larger than 10 MiB, the most the http step reads" })
-    const steps = (await sql<{ status: string; output: unknown }>`select status, output from workflows.steps where run_id = ${run}`.execute(db)).rows
-    expect(steps).toEqual([{ status: 'failed', output: null }])
+    // The failed read kept nothing in the database: the run's outcome is its own.
+    expect((await sql<{ count: number }>`select count(*)::int as count from workflows.checkpoints where run_id = ${run}`.execute(db)).rows[0]!.count).toBe(0)
   })
 })

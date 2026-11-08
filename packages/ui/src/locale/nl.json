@@ -736,10 +736,8 @@
     "notRun": "Deze stap liep niet in deze run.",
     "stepTry": "Poging {attempt}",
     "itemOf": "Item {index} van {map}",
-    "kept": "Uit de eerdere run",
     "notSent": "Niet verstuurd: replay",
     "duration": "{ms, number} ms",
-    "openStep": "Stap openen",
     "error": "Fout",
     "input": "Invoer",
     "output": "Uitvoer",
@@ -747,7 +745,7 @@
     "logs": "Logs",
     "showMore": "Meer tonen",
     "loadFailed": "De run kon niet worden gelezen",
-    "cut": "De graaf markeert de eerste {count, number} stappen van de run; de eigen pagina van de run toont ze allemaal.",
+    "noTrace": "Deze run heeft geen trace van zijn stappen bewaard, zoals zijn trace-instelling zegt.",
     "pickNode": "Kies een stap in de graaf om te zien wat hij in de run deed."
   },
   "app/field-types/workflow-page": {

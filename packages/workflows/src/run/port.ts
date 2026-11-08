@@ -7,17 +7,22 @@ import type { TaskCache } from './cache/cache-port'
  */
 export type StepStatus = 'succeeded' | 'retrying' | 'caught' | 'failed'
 
-/** What the runner reads of a saved step to know where its scope stands. */
-export type SavedStep = {
-  /** The scope the step ran in: `''` for the run itself, `Each.3[0]` for item 0 of the Map `Each` that was step 3. */
+export type StepLog = { at: string; message: string }
+
+/**
+ * One step as a run's trace keeps it: its scope (`''` for the run itself, `Each.3[0]` for item 0 of the Map `Each` that
+ * was step 3), its number within the scope, its state, type, try, status, input, output, assigned variables, the state it
+ * goes on to, logs and timing, with every secret redacted. `recorded` when the step made a checkpoint of its own.
+ */
+export type StepRecord = {
   scope: string
-  /** The step's number within its scope, from 0: with the scope, the step's key, saved once. */
   seq: number
   state: string
+  type: string
   status: StepStatus
   attempt: number
+  input?: unknown
   output?: unknown
-  /** The variables the step assigned. */
   assigned?: Record<string, unknown>
   /** The state its scope goes on to; `null` when the scope ended or failed, or for a try that is retried. */
   next: string | null
@@ -25,12 +30,48 @@ export type SavedStep = {
   resumeAt?: Date | null
   error?: string | null
   cause?: string | null
+  logs: StepLog[]
+  startedAt: Date
+  finishedAt: Date
+  recorded: boolean
 }
 
-export type StepLog = { at: string; message: string }
+/** What a replay takes of a step of the run it replays, as that run's trace keeps it. */
+export type ReplayedStep = Pick<StepRecord, 'scope' | 'seq' | 'state' | 'status' | 'attempt' | 'output' | 'error' | 'cause'>
 
-/** All a step records: what the runner reads, and its type, input, logs and timing, with every secret redacted. */
-export type StepRecord = SavedStep & { type: string; input?: unknown; logs: StepLog[]; startedAt: Date; finishedAt: Date }
+/**
+ * Where one scope stands, as a checkpoint saves it: all a later segment needs to take the scope up without running its
+ * earlier steps again. It names the step that made it, and holds the state the scope goes on to with that state's input
+ * (or the scope's output once it ended), its variables, the try and earlier errors of a state being retried, and the
+ * clock its next steps read as `$now`.
+ */
+export type Checkpoint = {
+  scope: string
+  /** The number of the step that made it, within its scope: with the scope, its key. */
+  seq: number
+  /** The step that made it: its state, type and status. */
+  state: string
+  type: string
+  status: StepStatus
+  /** When that step ended: for a Task, when its result was fetched. */
+  fetchedAt: Date
+  /** The state the scope goes on to, which may be the same one retried; `null` once the scope ended. */
+  next: string | null
+  /** The next state's input, or the scope's output once it ended. */
+  value?: unknown
+  variables: Record<string, unknown>
+  /** The try of the next state, from 1, and the errors of its earlier tries. */
+  attempt: number
+  failures: string[]
+  /** The visits of each state the scope began so far, which a replay matches its steps by. */
+  visits: Record<string, number>
+  /** The next state may not run before this time. */
+  resumeAt?: Date | null
+  /** What `$now` gives the scope's next steps: the time of its last recorded step, its last wait's end, or the run's start. */
+  clock: Date
+  /** The `seq` of the scope's checkpoint the segment took it up from, -1 for none: a save is refused when a newer one is there. */
+  after: number
+}
 
 /** What a step type's handler gets beside its arguments. */
 export type TaskContext = {
@@ -56,6 +97,10 @@ export type TaskContext = {
 /**
  * A step type, which a Task names as its `Resource`: it takes the Task's evaluated `Arguments` and returns its result.
  * It throws a `StepError` to fail with an error name of its own; any other error is `States.TaskFailed`.
+ *
+ * A call changes the world, such as a mail sent or a record written, unless `writes` says it does not with these
+ * arguments: a call that changes the world is recorded, so it never happens twice in a run, and a read is done again
+ * after a crash before the next checkpoint.
  */
 export type TaskHandler = ((args: unknown, context: TaskContext) => Promise<unknown>) & {
   /** Whether a call with these arguments changes the outside world, never throwing; a replay calls none that does. Absent or anything but `false`: it does. */
@@ -65,16 +110,17 @@ export type TaskHandler = ((args: unknown, context: TaskContext) => Promise<unkn
 /** The interpreter's back end: the step types by the name a Task's `Resource` gives. */
 export type TaskHandlers = Readonly<Record<string, TaskHandler>>
 
-/** A run as the runner loads it: its pinned definition, its input and when it started. */
+/** A run as the runner loads it: its pinned definition, its input, when it started, and its own trace setting, if any. */
 export type LoadedRun = {
   id: string
   definition: Definition
   input: unknown
   status: RunStatus
   startedAt: Date
+  trace?: TraceMode | null
   /**
    * The run this one replays, with the definition it ran: its steps that write are not called but give what that
-   * run's steps gave; null when that run is gone, so they give nothing. Absent: no replay.
+   * run's steps gave, as its trace keeps them; null when that run is gone, so they give nothing. Absent: no replay.
    */
   replayOf?: { id: string; definition: Definition } | null
 }
@@ -89,21 +135,37 @@ export type RunChange =
   | { status: 'failed'; error: string; cause: string }
 
 /**
- * Where runs and their steps are kept, in the database or transaction `Db` the caller gives: the first part of the
+ * Where runs and their checkpoints are kept, in the database or transaction `Db` the caller gives: the first part of the
  * runner's port.
  */
 export type RunStore<Db> = {
   load(db: Db, runId: string): Promise<LoadedRun | undefined>
-  /** Every step the run saved, in each scope's order; the record's input and logs are not needed. */
-  steps(db: Db, runId: string): Promise<SavedStep[]>
+  /** The latest checkpoint of each scope of the run. */
+  checkpoints(db: Db, runId: string): Promise<Checkpoint[]>
   /**
-   * Saves steps in one guarded statement: false when any of their scopes and seqs is taken already, and those are left
-   * as the other segment saved them.
+   * Saves checkpoints in one guarded statement, each replacing its scope's earlier ones: false when any scope has one
+   * newer than the one it follows (`after`), and those are left as the other segment saved them.
    */
-  save(db: Db, runId: string, steps: readonly StepRecord[]): Promise<boolean>
-  /** Changes the run unless it has ended already. */
+  save(db: Db, runId: string, checkpoints: readonly Checkpoint[]): Promise<boolean>
+  /** Changes the run unless it has ended already; a run that ends drops its checkpoints. */
   update(db: Db, runId: string, change: RunChange): Promise<void>
 }
 
 /** The jobs queue: the second part of the port, which runs a segment of the run at `at`, or as soon as it can. */
 export type SegmentQueue<Db> = { schedule(db: Db, runId: string, at?: Date): Promise<void> }
+
+/** Which runs keep a trace: every run, only those that fail, or none. */
+export type TraceMode = NonNullable<Definition['trace']>
+
+/**
+ * Where runs' traces go, outside the database: each segment hands over the steps it ran, with every input and output,
+ * once its checkpoints are saved. `write` resolves once they are kept, and on the segment that ended the run (`ended`)
+ * once the whole trace is, so the runner queues the next segment or ends the run only then and no part comes after the
+ * trace is joined; it never rejects, since a trace that cannot be written does not stop the run. With `failed`, a run
+ * that succeeded keeps no trace. `read` gives an ended run's steps, as a replay of it takes them: undefined when it kept
+ * no trace.
+ */
+export type TraceSink = {
+  write(runId: string, steps: readonly StepRecord[], segment: { mode: TraceMode; ended?: 'succeeded' | 'failed' }): Promise<void>
+  read(runId: string): Promise<readonly StepRecord[] | undefined>
+}

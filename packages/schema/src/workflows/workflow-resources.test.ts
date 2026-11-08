@@ -12,8 +12,8 @@ describe('workflowResources', () => {
 
   it('leaves only Workflows in the sidebar, its graph across the page, and opens a run on its workflow', () => {
     const parts = workflowResources('workflows')
-    const hidden = [parts.workflowsView, parts.workflowVersionsView, parts.workflowRunsView, parts.workflowStepsView, parts.workflowTriggersView, parts.workflowResolutionsView].map((view) => view.toModel().nav?.hidden === true)
-    expect(hidden).toEqual([false, true, true, true, true, true])
+    const hidden = [parts.workflowsView, parts.workflowVersionsView, parts.workflowRunsView, parts.workflowTriggersView, parts.workflowResolutionsView].map((view) => view.toModel().nav?.hidden === true)
+    expect(hidden).toEqual([false, true, true, true, true])
     const workflows = parts.workflowsView.toModel()
     expect(workflows.recordWidth).toBe('full')
     expect(workflows.layout.find((item) => item.kind === 'section' && item.fields.includes('definition'))).toMatchObject({ width: 'page' })

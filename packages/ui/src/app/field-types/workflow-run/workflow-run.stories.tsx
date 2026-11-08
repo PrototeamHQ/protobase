@@ -12,8 +12,8 @@ const meta = { title: 'Plugins/Field types/Workflow run', parameters: { layout: 
 export default meta
 
 const parts = workflowResources('workflows')
-const resources = [parts.workflows, parts.workflowVersions, parts.workflowRuns, parts.workflowSteps].map((part) => part.toModel())
-const views = [parts.workflowsView, parts.workflowVersionsView, parts.workflowRunsView, parts.workflowStepsView].map((part) => part.toModel())
+const resources = [parts.workflows, parts.workflowVersions, parts.workflowRuns].map((part) => part.toModel())
+const views = [parts.workflowsView, parts.workflowVersionsView, parts.workflowRunsView].map((part) => part.toModel())
 
 // The secret the fetch sends, which no page may show
 const token = 'tok-5ecret-4a7c91'
@@ -68,7 +68,11 @@ const version = (id: number, definition: Definition) => ({ workflow_id: id, vers
 const calls = { fetch: 0, store: 0, mail: 0 }
 let openGate = () => {}
 
-const Workspace = ({ start, runs = [] }: { start: string; runs?: Record<string, unknown>[] }) => {
+/**
+ * `traceOnceEnded` serves a run's trace only once the run has ended, as a trace whose last part is kept just before
+ * the run is marked ended: the page reads it when the run ends.
+ */
+const Workspace = ({ start, runs = [], traceOnceEnded = false }: { start: string; runs?: Record<string, unknown>[]; traceOnceEnded?: boolean }) => {
   const [api] = useState(() => {
     calls.fetch = 0
     calls.store = 0
@@ -106,12 +110,13 @@ const Workspace = ({ start, runs = [] }: { start: string; runs?: Record<string, 
       workflows: [workflow(1, 'Sync tickets', syncTickets('tikets')), workflow(2, 'Ask and wait', gated), workflow(3, 'Mail the summary', mailSummary)],
       workflow_versions: [version(1, syncTickets('tikets')), version(2, gated), version(3, mailSummary)],
       workflow_runs: [],
-      workflow_steps: [],
     }
-    // As the resources' access says: runs are created, never changed, and versions and steps only read
+    // As the resources' access says: runs are created, never changed, and versions only read
     const readOnly = { read: true, create: false, update: false, delete: false, conditional: [] }
-    const permissions = { workflow_runs: { ...readOnly, create: true }, workflow_versions: readOnly, workflow_steps: readOnly }
-    const api = fakeApi({ resources, views, rows, permissions, beforeWrite: engine.beforeWrite, afterWrite: engine.afterWrite })
+    const permissions = { workflow_runs: { ...readOnly, create: true }, workflow_versions: readOnly }
+    const ended = (id: string) => ['succeeded', 'failed'].includes(String(api.rows.workflow_runs!.find((run) => run.id === id)?.status))
+    const workflowRunTrace = async (id: string) => (!traceOnceEnded || ended(id) ? engine.trace(id) : { steps: [] })
+    const api = fakeApi({ resources, views, rows, permissions, beforeWrite: engine.beforeWrite, afterWrite: engine.afterWrite, workflowRunTrace })
     for (const run of runs) void api.client.create('workflow_runs', run)
     return api
   })
@@ -143,7 +148,8 @@ export const FailedRun: StoryObj = { name: 'A failed run', render: () => <Worksp
 
 /**
  * The failed run shows its failed step with its error and logs and the first step's output, the secret blanked out; the
- * step is fixed in the editor, and the re-run from the failed step succeeds without running the first step again.
+ * step is fixed in the editor, and the re-run from the failed step succeeds. The first step reads, so no checkpoint
+ * followed it and the re-run reads again.
  */
 export const FailsFixedAndRerunChecks: StoryObj = {
   ...FailedRun,
@@ -186,9 +192,9 @@ export const FailsFixedAndRerunChecks: StoryObj = {
     await userEvent.click(await canvas.findByRole('link', { name: 'Re-run from the failed step' }))
     await userEvent.click(await canvas.findByRole('button', { name: /^Create/ }))
     await markOf(canvasElement, 'Store', 'Succeeded')
-    expect(calls).toEqual({ fetch: 1, store: 2, mail: 0 })
-    await userEvent.click(await nodeOf(canvasElement, 'Fetch'))
-    await waitFor(() => expect(panel(canvasElement).getByText('From the earlier run')).toBeVisible())
+    expect(calls).toEqual({ fetch: 2, store: 2, mail: 0 })
+    // The re-run read again, which its trace holds
+    await markOf(canvasElement, 'Fetch', 'Succeeded')
 
     // Choosing the version before the fix closes the run and shows that version read-only, with the way back
     await userEvent.selectOptions(canvas.getByRole('combobox', { name: 'Version' }), '1')
@@ -223,6 +229,27 @@ export const TestRunChecks: StoryObj = {
     openGate()
     await markOf(canvasElement, 'Ask', 'Succeeded')
     expect(calls.fetch).toBe(1)
+  },
+}
+
+/** A test run whose trace is served only once it ended: the page reads it then and marks the step. */
+export const TraceAtEndChecks: StoryObj = {
+  name: 'A run seen ended shows its whole trace (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Workspace start="/workflows/2" traceOnceEnded />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('link', { name: 'Test run' }))
+    const input = await canvas.findByRole('textbox', { name: /^Input/ })
+    await userEvent.click(input)
+    await userEvent.paste('{"url": "https://gate.example.com/ask"}')
+    await userEvent.click(canvas.getByRole('button', { name: /^Create/ }))
+    // The page follows the run while it goes on, reading its trace empty, before the run is let go on
+    const runs = await canvas.findByRole('combobox', { name: 'Run' })
+    await waitFor(() => expect(within(runs).getByRole('option', { selected: true })).toHaveTextContent(/Running/), { timeout: 10_000 })
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    openGate()
+    await markOf(canvasElement, 'Ask', 'Succeeded')
   },
 }
 

@@ -42,7 +42,7 @@ export type McpToolsInput = {
 const writeTools = (input: WriteRecordToolsInput) => [...writeRecordTools(input), batchWriteTool(input)]
 
 // Every name a built-in tool may take, whatever the options: an own tool cannot take one that turning an option on would offer.
-const builtInNames = (db: Db) => new Set([...readRecordTools(), ...writeTools({}), ...commentTools({ commented: ['comments'] }, {}), readOnlyQueryTool(db), ...workflowReadTools({ types: [], checkWith: () => ({ resources: [], triggers: {} }) }), ...workflowWriteTools(), ...webhookTools({}, () => Promise.reject(new Error('Not called')))].map((tool) => tool.name))
+const builtInNames = (db: Db) => new Set([...readRecordTools(), ...writeTools({}), ...commentTools({ commented: ['comments'] }, {}), readOnlyQueryTool(db), ...workflowReadTools({ types: [], checkWith: () => ({ resources: [], triggers: {} }), readTrace: async () => [] }), ...workflowWriteTools(), ...webhookTools({}, () => Promise.reject(new Error('Not called')))].map((tool) => tool.name))
 
 /** The app's own tools; one whose name is taken twice, or by a built-in tool, stops the server at startup. */
 const checkedOwnTools = (db: Db, own: AssistantTool[]) => {

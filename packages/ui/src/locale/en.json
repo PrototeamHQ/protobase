@@ -736,10 +736,8 @@
     "notRun": "This step did not run in this run.",
     "stepTry": "Try {attempt}",
     "itemOf": "Item {index} of {map}",
-    "kept": "From the earlier run",
     "notSent": "Not sent: replay",
     "duration": "{ms, number} ms",
-    "openStep": "Open step",
     "error": "Error",
     "input": "Input",
     "output": "Output",
@@ -747,7 +745,7 @@
     "logs": "Logs",
     "showMore": "Show more",
     "loadFailed": "The run could not be read",
-    "cut": "The graph marks the run's first {count, number} steps; the run's own page lists them all.",
+    "noTrace": "This run kept no trace of its steps, as its trace setting says.",
     "pickNode": "Choose a step on the graph to see what it did in the run."
   },
   "app/field-types/workflow-page": {

@@ -12,7 +12,7 @@ const jsonBytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(va
 /** What is wrong with one item's data as a run's input, as the run's own limits say. */
 const inputProblem = (data: unknown) => {
   if (nestingDepth(data, limits.inputDepth) > limits.inputDepth) return `nests deeper than ${limits.inputDepth} levels`
-  if (jsonBytes(data) > limits.inputBytes) return `is over ${limits.inputBytes / 1024 / 1024} MiB as JSON`
+  if (jsonBytes(data) > limits.inputBytes) return `is ${jsonBytes(data)} bytes as JSON, over ${limits.inputBytes / 1024} KiB`
   return
 }
 

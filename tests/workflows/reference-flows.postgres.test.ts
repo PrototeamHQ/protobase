@@ -23,8 +23,8 @@ const app = [
   resource('orders').table('orders').fields({ id: f.integer().readOnly(), customer_email: f.text(), total: f.decimal({ precision: 10, scale: 2 }), status: f.text().optional() }).primaryKey((r) => r.id),
   resource('reports').table('reports').fields({ id: f.integer().readOnly(), title: f.text(), pdf: f.file() }).primaryKey((r) => r.id),
 ]
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps' | 'leads' | 'products' | 'orders' | 'reports'>({
-  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'leads.*', 'products.*', 'orders.*', 'reports.*'],
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'leads' | 'products' | 'orders' | 'reports'>({
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'leads.*', 'products.*', 'orders.*', 'reports.*'],
 })
 const workflows: WorkflowsOptions = { allowPrivateAddresses: true, savedByRoles: async () => ['builder'] }
 

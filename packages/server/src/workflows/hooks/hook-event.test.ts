@@ -26,9 +26,9 @@ describe('hookEvent', () => {
 
 describe('overInputLimit', () => {
   it('measures the call as its run input, escaped as JSON, rather than its body', () => {
-    // 600 000 quotes are under 1 MiB as a body, and twice that once JSON escapes each one.
-    const quotes = new TextEncoder().encode('"'.repeat(600_000))
+    // 150 000 quotes are under 256 KiB as a body, and twice that once JSON escapes each one.
+    const quotes = new TextEncoder().encode('"'.repeat(150_000))
     expect(overInputLimit(hookEvent(call({ 'content-type': 'text/plain' }), quotes, undefined))).toBe(true)
-    expect(overInputLimit(hookEvent(call({ 'content-type': 'text/plain' }), new TextEncoder().encode('a'.repeat(600_000)), undefined))).toBe(false)
+    expect(overInputLimit(hookEvent(call({ 'content-type': 'text/plain' }), new TextEncoder().encode('a'.repeat(150_000)), undefined))).toBe(false)
   })
 })

@@ -21,8 +21,8 @@ export const limits = {
   mapItems: 10_000,
   /** Steps one run may take, every attempt and every Map item's steps counted. */
   runSteps: 50_000,
-  /** The size of each value a step saves (its input, output and variables), as JSON. */
-  valueBytes: 1024 * 1024,
+  /** The size of each value a step keeps in place (its input, output and variables), as JSON. */
+  valueBytes: 256 * 1024,
   /** Log lines one step keeps, and the length of each. */
   logLines: 100,
   logLineLength: 1000,
@@ -32,7 +32,7 @@ export const limits = {
   /** How long one segment runs steps before it hands the rest of the run to the next segment. */
   segmentMs: 60_000,
   /** A run's input: its size as JSON and how deeply its arrays and objects nest. */
-  inputBytes: 1024 * 1024,
+  inputBytes: 256 * 1024,
   inputDepth: 64,
   /** A cached step result: the longest it serves, how long one a workflow forced on serves, its size as JSON, and the entries one step type keeps per tenant. */
   cacheMaxSeconds: 30 * 24 * 3600,

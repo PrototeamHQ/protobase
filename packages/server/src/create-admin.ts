@@ -4,7 +4,7 @@ import type { JWTPayload } from 'jose'
 import { accountPage, accountPageName, checkPages, settingsResources, withSettingsFields } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
-import { guestCallsPath, ringsPath, statusPath, workflowTypesPath } from '@protobase/schema/internal'
+import { guestCallsPath, ringsPath, statusPath, workflowRunsPath, workflowTypesPath } from '@protobase/schema/internal'
 import { aiModel } from './ai/ai-model'
 import { hasAiActions, hasAiFields } from './ai/ai-fields'
 import { fillHook } from './ai/fill-hook'
@@ -66,6 +66,7 @@ import { webhookTable } from './webhooks/table/webhook-table'
 import { subscriptionUrlCheck, subscriptionWriteCheck } from './webhooks/table/validate-hook'
 import type { WebhooksOptions } from './webhooks/table/options'
 import { workflowEngine } from './workflows/workflow-engine'
+import { workflowTraceRoute } from './workflows/workflow-trace-route'
 import { workflowTypesRoute } from './workflows/workflow-types-route'
 import { hooksBase } from './workflows/hooks/hook-paths'
 import { issueWebhook } from './workflows/hooks/issue-webhook'
@@ -422,7 +423,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
     const instructions = engine ? `${mcpInstructions}\n${workflowInstructions}` : mcpInstructions
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
@@ -466,6 +467,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     app.route(historyPath(systemPath), guarded((routes) => void routes.route('/', historyRoutes(history, auth?.origins ?? []))))
   }
   if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types))))
+  if (engine) app.route(workflowRunsPath(systemPath), guarded((routes) => void routes.route('/', workflowTraceRoute(deps, engine.readTrace))))
   if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))
   if (deps.calls) app.route(ringsPath(systemPath), guarded((routes) => void routes.route('/', ringRoutes(deps.calls!))))
   // The guests' lobby and call socket, which take only guests' tokens; with organizations, the admin's switch for them.
