@@ -1,7 +1,7 @@
-// Says whether the snapshot recordings (`*.sql.json`) differ from those at CHECK_BASE, after the record job recorded
-// them again or found it did not need to: what the commits since then changed in them and what recording rewrote or
-// added. It writes recordings=changed or recordings=unchanged to $GITHUB_OUTPUT for the Postgres job
-// (scripts/affected-postgres.mjs). Without CHECK_BASE there is nothing to compare with: changed.
+// Says whether the committed snapshot recordings (`*.sql.json`) differ from those at CHECK_BASE: what the commits since
+// then changed in them. A recording that recording again would change fails the record job, so the committed ones are
+// what the Postgres job needs to know. It writes recordings=changed or recordings=unchanged to $GITHUB_OUTPUT for that
+// job (scripts/affected-postgres.mjs). Without CHECK_BASE there is nothing to compare with: changed.
 import { appendFileSync } from 'node:fs'
 import { changedSince, checkBase, matches, printGroup } from './affected/changes.mjs'
 

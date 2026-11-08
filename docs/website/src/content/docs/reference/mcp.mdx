@@ -218,6 +218,19 @@ The person approves the batch once, in their language, seeing each write in it n
 
 A batch is checked before the person is asked: an operation other than a create, update or delete, a field an operation does not take, an update without an ETag or more than 500 operations come back as `{ "error": "invalid-argument", "message": ... }` naming the operation, and with writes limited to some resources an operation on any other refuses the whole batch. An update does not set the field a soft delete sets, as `update_record` does not: a delete goes through a delete operation. A refusal while it runs, such as an operation the person may not do or a stale ETag, comes back with the REST batch's `operation` (its index), `op` and `resource`. Either way nothing is written.
 
+## The app's instructions
+
+`mcpEndpoint.instructions` adds the app's own text to what the endpoint tells each client when it connects, its instructions, such as how the app's records fit together or what to ask the person before changing something:
+
+```ts
+export default defineConfig({
+  auth: { mcp: true },
+  mcpEndpoint: { instructions: 'A big ask becomes a research task first: ask the person its open questions, and build only once they approve its plan.' },
+})
+```
+
+The client reads the framework's text on [reading records](#reading-only-what-is-needed) first, then the app's, then, in an app with [workflows](#workflows), the workflow guide. Some MCP clients keep only the first 4,096 characters of a server's instructions, so the framework's text and the app's together stay within 4,096: the app has 2,691 characters, and a longer text stops startup with an error naming `mcpEndpoint.instructions`. The workflow guide that follows is longer than that alone, so such a client cuts it. <gap>A client that keeps only 4,096 characters cannot read the whole workflow guide because a shorter guide is not implemented.</gap> The text is the same for every client and every connection, which lets clients cache it: what changes, such as the records themselves, reaches the client through the tools.
+
 ## The app's own tools
 
 :::caution[Beta]

@@ -26,12 +26,13 @@ const problemStatuses = new Set([400, 404])
 const namesUnknown = (response: Response) => problemStatuses.has(response.status) && (response.headers.get('content-type')?.startsWith('application/problem+json') ?? false)
 
 // A request that a second admin can answer again: one without a body as it is, one with JSON read once; another body
-// is a stream, answered once.
+// is a stream, answered once. The copy names its method and headers, as Node's adapter hands over a request of its own
+// class, which the platform's Request reads as a bare URL, a GET.
 const replayable = async (request: Request) => {
   if (!request.body) return () => request
   if (!request.headers.get('content-type')?.includes('json')) return
   const body = await request.arrayBuffer()
-  return () => new Request(request, { body })
+  return () => new Request(request.url, { method: request.method, headers: request.headers, body, signal: request.signal })
 }
 
 // A write that may have changed a definition: to one of their resources, or a batch, which may hold one.

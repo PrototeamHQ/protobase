@@ -1,4 +1,4 @@
-import { workflowRunParam, workflowRunTraceRoute, workflowTraceAfterParam } from '@protobase/schema/internal'
+import { workflowRunParam, workflowRunTraceRoute, workflowTraceAfterParam, workflowTraceRevision, workflowTraceRevisionParam } from '@protobase/schema/internal'
 import { Hono } from 'hono'
 import type { Deps } from '../deps'
 import { fetchReadable } from '../fetch-readable'
@@ -12,8 +12,9 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * A run's trace, `GET /:run/trace` under the runs' trace path: the steps it ran so far with their input, output and
- * logs, for the run's page, which follows a run by asking only for the steps after those it has (`after`). Only for a
- * caller who may read the run and its trace; any other gets the 404 a run that is not there gets.
+ * logs, for the run's page, which follows a run by asking only for the steps after those it has (`after`), while their
+ * `revision` shows they are still the trace's first steps; else it answers the whole trace. Only for a caller who may
+ * read the run and its trace; any other gets the 404 a run that is not there gets.
  */
 export const workflowTraceRoute = (deps: Deps, readTrace: (runId: string) => Promise<Record<string, unknown>[]>) => {
   const app = new Hono<AdminEnv>()
@@ -28,8 +29,9 @@ export const workflowTraceRoute = (deps: Deps, readTrace: (runId: string) => Pro
     if (!uuid.test(run) || !readsTrace(access)) throw missing()
     if (!(await fetchReadable(deps.db, access, [run], deletedRows(access.full, false), { fields: [access.full.fields.id!] }))) throw missing()
     const steps = await readTrace(run)
-    const from = after <= steps.length ? after : 0
-    return c.json({ from, steps: steps.slice(from) })
+    const held = after > 0 && after <= steps.length && c.req.query(workflowTraceRevisionParam) === (await workflowTraceRevision(steps.slice(0, after)))
+    const from = held ? after : 0
+    return c.json({ from, steps: steps.slice(from), revision: await workflowTraceRevision(steps) })
   })
   return app
 }

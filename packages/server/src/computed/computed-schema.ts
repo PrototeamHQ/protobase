@@ -4,6 +4,7 @@ import type { ResourceModel } from '@protobase/schema'
 import { migrationCommand } from '../changes/capture-schema'
 import { tableSql } from '../changes/capture-sql'
 import { computedPlan, hasComputed, type ComputedState, type FoundColumn, type FoundFunction, type FoundTrigger } from './computed-plan'
+import { bucketsMigrationPlan, hasBuckets } from './buckets-schema'
 import { rollupsSchema } from './rollup-sql'
 
 const rowsOf = async <R>(db: Db, query: ReturnType<typeof sql<R>>) => (await query.execute(db)).rows
@@ -37,7 +38,7 @@ const readComputedState = async (db: Db, models: readonly ResourceModel[]): Prom
   )
   const functions = await rowsOf(
     db,
-    sql<FoundFunction>`select p.oid::text as oid, p.proname as name, p.prosrc as source, p.prosecdef as definer from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${rollupsSchema}`,
+    sql<FoundFunction>`select p.oid::text as oid, p.proname as name, p.prosrc as source, p.prosecdef as definer from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${rollupsSchema} and p.prorettype = 'trigger'::regtype`,
   )
   const oids = Object.values(tables).flatMap((found) => (found ? [found.oid] : []))
   const triggers = await rowsOf(
@@ -49,11 +50,17 @@ const readComputedState = async (db: Db, models: readonly ResourceModel[]): Prom
   return { tables, columns, functions, triggers }
 }
 
-const plan = async (db: Db, models: readonly ResourceModel[]) => computedPlan(models, await readComputedState(db, models))
+// Time rollups come after the fields, so a rollup may group by or measure a formula or a rollup field.
+const plan = async (db: Db, models: readonly ResourceModel[]) => {
+  const fields = computedPlan(models, await readComputedState(db, models))
+  const buckets = await bucketsMigrationPlan(db, models)
+  return { statements: [...fields.statements, ...buckets.statements], behind: [...fields.behind, ...buckets.behind] }
+}
 
 /**
  * The SQL that brings the database to the resources' rollup and formula fields: their columns, and for each rollup
- * the function and trigger that keep it, with its values set once; `undefined` when the database is current.
+ * the function and trigger that keep it, with its values set once; then their time rollups: each one's table, indexes
+ * and refresh function, filled once. `undefined` when the database is current.
  */
 export const computedMigration = async (db: Db, models: readonly ResourceModel[]) => {
   const { statements } = await plan(db, models)
@@ -61,15 +68,15 @@ export const computedMigration = async (db: Db, models: readonly ResourceModel[]
 }
 
 /**
- * Refuses to go on while a rollup or formula field's column, function or trigger is missing or out of date. The server
- * never changes the schema itself: the project's migrations do, before the new version serves. Reads nothing without
- * such fields.
+ * Refuses to go on while a rollup or formula field's column, function or trigger, or a time rollup's table or refresh
+ * function, is missing or out of date. The server never changes the schema itself: the project's migrations do, before
+ * the new version serves. Reads nothing without such fields or rollups.
  */
 export const checkComputed = async (db: Db, models: readonly ResourceModel[]) => {
-  if (!models.some(hasComputed)) return
+  if (!models.some((model) => hasComputed(model) || hasBuckets(model))) return
   const { behind } = await plan(db, models)
   if (behind.length === 0) return
   throw new Error(
-    `The rollup and formula fields ${behind.join(', ')} are not kept by the database as declared: their columns, functions or triggers are missing or out of date. Write the change as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`,
+    `The rollup and formula fields and time rollups ${behind.join(', ')} are not kept by the database as declared: their columns, tables, functions or triggers are missing or out of date. Write the change as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`,
   )
 }

@@ -62,7 +62,8 @@ type ModuleLoader = () => { exports: Record<string, unknown>; loader: 'object' }
 type BunRuntime = { plugin(plugin: { name: string; setup(build: { module(id: string, load: ModuleLoader): void }): void }): void }
 
 // Under Bun, a bundle's imports of the host modules resolve to the runtime's own copies, with no node_modules
-// anywhere (Bun's virtual modules). Under Node, as in `protobase serve`, they resolve from the project's node_modules.
+// anywhere (Bun's virtual modules), in the runtime image and in `protobase serve` alike. Under Node they resolve from the
+// project's node_modules.
 export const provideHostModules = () => {
   const bun = (globalThis as { Bun?: BunRuntime }).Bun
   if (!bun) return

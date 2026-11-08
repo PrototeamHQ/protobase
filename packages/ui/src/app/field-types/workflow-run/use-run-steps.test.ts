@@ -13,8 +13,8 @@ describe('followedSteps', () => {
   const have = [stepRow(step(0)), stepRow(step(1))]
 
   it('adds the steps a read after those the page has gave, and takes the whole trace when it starts again from 0', () => {
-    expect(followedSteps(have, { from: 2, steps: [step(2)] }).map((row) => row.id)).toEqual(['#0', '#1', '#2'])
-    expect(followedSteps(have, { from: 2, steps: [] })).toEqual(have)
-    expect(followedSteps(have, { from: 0, steps: [] })).toEqual([])
+    expect(followedSteps(have, { from: 2, steps: [step(2)], revision: 'r3' })).toEqual({ rows: [...have, stepRow(step(2))], revision: 'r3' })
+    expect(followedSteps(have, { from: 2, steps: [], revision: 'r2' })).toEqual({ rows: have, revision: 'r2' })
+    expect(followedSteps(have, { from: 0, steps: [], revision: 'r0' })).toEqual({ rows: [], revision: 'r0' })
   })
 })

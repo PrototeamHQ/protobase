@@ -40,7 +40,7 @@ import { mcpHandler } from './mcp/mcp-handler'
 import { closedMcpRoutes, mcpRoutes } from './mcp/mcp-routes'
 import { mcpServer } from './mcp/mcp-server'
 import { mcpTools } from './mcp/mcp-tools'
-import { mcpInstructions } from './mcp/mcp-instructions'
+import { mcpServerInstructions } from './mcp/mcp-server-instructions'
 import { workflowInstructions } from './workflows/mcp/workflow-instructions'
 import { checkMcpWrites, rolesWithoutApproval } from './mcp/mcp-writes'
 import { withoutSessionTokens } from './better-auth/without-session-tokens'
@@ -89,6 +89,11 @@ import { pushJob } from './notifications/push-job'
 import { onDoNotDisturb } from './status/do-not-disturb'
 import { checkStatusAuth, statusNames, type StatusOptions } from './status/options'
 import { statusRoutes } from './status/routes'
+import { checkPushRelayOptions, type PushRelayOptions } from './push-relay/options'
+import { pushRelayPath } from './push-relay/paths'
+import { postgresRelayStore } from './push-relay/postgres-store'
+import { pushRelayRoutes } from './push-relay/routes'
+import { relaySenders } from './push-relay/senders'
 import { storeSchema } from './better-auth/store/store-names'
 import { liveSessions } from './better-auth/live-sessions'
 import type { SubscriptionDefinition } from './webhooks/subscription'
@@ -96,6 +101,7 @@ import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
 import { checkOwnerFields } from './check-owners'
 import { checkRoleLimits } from './check-roles'
+import { checkBuckets } from './check-buckets'
 import { checkParents, parentWarnings } from './check-parents'
 import { checkPositionAfter } from './check-position-after'
 import { checkViews } from './check-views'
@@ -188,6 +194,8 @@ export type CreateAdminInput = {
   notifications?: NotificationsOptions
   /** People's own status, from `status: {}` (see `StatusOptions`): it needs `auth` with organizations. */
   status?: StatusOptions
+  /** The app as a push relay for a mobile app's workspaces, from `pushRelay: { appId }` (see `PushRelayOptions`). */
+  pushRelay?: PushRelayOptions
   /** The media server behind the calls functions admit members to with `calls.join` (see `CallsOptions`). */
   calls?: CallsOptions
   /**
@@ -236,7 +244,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, pushRelay, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -267,6 +275,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   checkBottomBars(registry, bottomBarModels, pageModels.map((entry) => entry.name), declaredRoles(auth, options.roles))
   checkViews(registry, viewModels, pageModels.map((entry) => entry.name), fieldTypes)
   checkRoleLimits(registry, options.roles?.limits ?? [])
+  checkBuckets(registry, options.roles?.definitions)
   checkOwnerFields(registry, authenticate.userIdType, auth)
   const mcpAuthenticate = mcpAuthenticator(authenticate, auth?.mcp, options.mcp)
   if (options.mcp) checkMcpWrites(registry, declaredRoles(auth, options.roles), options.mcp.writes)
@@ -289,6 +298,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const maps = mapSettings(options.maps, globalThis.process?.env ?? {})
   // At startup, so a wrong VAPID or APNs variable stops the server; the sending code calls them through these.
   const senders = notifications ? notificationSenders(notifications, globalThis.process?.env ?? {}, mobile) : []
+  // The relay's APNs and FCM senders, whose variables stop startup when neither is set or one is wrong.
+  const relay = pushRelay && { appId: checkPushRelayOptions(pushRelay).appId, senders: relaySenders(pushRelay, globalThis.process?.env ?? {}) }
   // Who sees a status follows organizations, so an app without them stops here.
   if (status) checkStatusAuth(auth)
   const statusTables = status && auth && { statuses: statusNames(status), members: { schema: storeSchema(auth), table: 'member' } }
@@ -403,7 +414,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
   if (auth) {
     app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }), ...(firstAdmin && { firstAdminUrl: firstAdmin }), appName, ...(appIcon && { appIcon }), runsOnNote }))
-    if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
+    if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db, mobile: Boolean(mobile) }))
     if (auth.mcp) mcpDiscovery(app, auth)
     const answer = mobile ? auth.handleMobile : auth.handler
     app.on(['GET', 'POST'], `${authBasePath}/*`, async (c) => withoutSessionTokens(c.req.raw, await answer(c.req.raw)))
@@ -424,7 +435,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
     const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
-    const instructions = engine ? `${mcpInstructions}\n${workflowInstructions}` : mcpInstructions
+    const instructions = mcpServerInstructions(options.mcp ? options.mcp.instructions : undefined, engine ? workflowInstructions : undefined)
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
     const info = { name: appName, version: '1.0.0', icons: mcpIcons(resource, icons) }
@@ -466,6 +477,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     if (auth) removeHistoryWithUsers(auth, history)
     app.route(historyPath(systemPath), guarded((routes) => void routes.route('/', historyRoutes(history, auth?.origins ?? []))))
   }
+  // With no sign-in: phones register their tokens, and workspaces send with their relay credential.
+  if (relay) app.route(pushRelayPath(systemPath), pushRelayRoutes({ store: postgresRelayStore(db), ...relay }))
   if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types))))
   if (engine) app.route(workflowRunsPath(systemPath), guarded((routes) => void routes.route('/', workflowTraceRoute(deps, engine.readTrace))))
   if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))

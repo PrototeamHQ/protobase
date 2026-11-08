@@ -1,6 +1,7 @@
 import { Check, ChevronDown } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { cn } from '../lib/cn'
+import { useMenuRight, useMenuTop } from './menu-edge'
 import { menuKeyTarget } from './menu-keys'
 import type { SegmentedOption } from './segmented'
 
@@ -8,13 +9,16 @@ export type MenuSelectProps<T extends string> = { value: T; options: Array<Segme
 
 /**
  * The choices of a Segmented switch in a menu, for a row without room for every option: a button with the chosen
- * option's icon and label, opening the options under its right edge.
+ * option's icon and label, opening the options under its right edge, or above it near the bottom of the screen.
  */
 export const MenuSelect = <T extends string>({ value, options, onChange, label }: MenuSelectProps<T>) => {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
   const items = useRef<Array<HTMLButtonElement | null>>([])
+  const menu = useRef<HTMLUListElement>(null)
+  const right = useMenuRight(open, root, menu)
+  const top = useMenuTop(open, root, menu, right?.right)
   const chosen = options.findIndex((option) => option.value === value)
   const current = options[chosen]
 
@@ -58,7 +62,7 @@ export const MenuSelect = <T extends string>({ value, options, onChange, label }
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </button>
       {open && (
-        <ul role="menu" aria-label={label} onKeyDown={onKeyDown} className="absolute right-0 top-full z-30 mt-1 min-w-40 rounded-md border bg-background py-1 text-body shadow-pop">
+        <ul ref={menu} role="menu" aria-label={label} onKeyDown={onKeyDown} style={{ ...right, ...top }} className="absolute right-0 top-full z-30 mt-1 w-max min-w-40 rounded-md border bg-background py-1 text-body shadow-pop">
           {options.map((option, index) => (
             <li key={option.value} role="none">
               <button
@@ -72,7 +76,7 @@ export const MenuSelect = <T extends string>({ value, options, onChange, label }
                   closeToTrigger()
                   if (option.value !== value) onChange(option.value)
                 }}
-                className={cn('flex min-h-9 w-full items-center gap-2 whitespace-nowrap px-3 py-1.5 text-left hover:bg-muted focus:bg-muted focus:outline-none pointer-coarse:min-h-11', option.value === value && 'font-medium')}
+                className={cn('flex min-h-9 w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-muted focus:bg-muted focus:outline-none pointer-coarse:min-h-11', option.value === value && 'font-medium')}
               >
                 {option.icon ? <option.icon className="size-3.5" /> : <span className="size-3.5" />}
                 <span className="flex-1">{option.label}</span>

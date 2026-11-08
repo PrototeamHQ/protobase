@@ -44,41 +44,34 @@ describe('placedRows', () => {
 })
 
 describe('placeOps', () => {
-  it('renumbers only the cards whose place changed, each with its ETag', () => {
-    const order = placedRows(todo, todo[2]!, 0)
-    expect(placeOps(model, 'status', 'rank', todo[2]!, { value: 'todo', label: 'todo' }, order, 0, 2)).toEqual([
-      { op: 'reorder', resource: 'tasks', field: 'rank', keys: [3, 1, 2], start: 1, etags: { '3': 'e3', '1': 'e1', '2': 'e2' } },
+  const todoColumn = { value: 'todo', label: 'todo' }
+
+  it('moves a card in its column, anchored to the cards around its place in that column', () => {
+    expect(placeOps(model, 'status', 'rank', '', todo[2]!, todoColumn, placedRows(todo, todo[2]!, 0), false)).toEqual([
+      { op: 'move', resource: 'tasks', field: 'rank', key: 3, after: null, before: 1, filter: 'status = "todo"' },
     ])
-    const down = placedRows(todo, todo[1]!, 2)
-    expect(placeOps(model, 'status', 'rank', todo[1]!, { value: 'todo', label: 'todo' }, down, 1, 2)).toEqual([
-      { op: 'reorder', resource: 'tasks', field: 'rank', keys: [3, 2], start: 2, etags: { '3': 'e3', '2': 'e2' } },
+    expect(placeOps(model, 'status', 'rank', 'project_id = 7', todo[1]!, todoColumn, placedRows(todo, todo[1]!, 2), false)).toEqual([
+      { op: 'move', resource: 'tasks', field: 'rank', key: 2, after: 3, before: 4, filter: '(project_id = 7) AND status = "todo"' },
     ])
   })
 
-  it("moves a card to another column with its ETag, then renumbers that column, the card's ETag already checked", () => {
-    const order = placedRows(doing, todo[0]!, 1)
-    expect(placeOps(model, 'status', 'rank', todo[0]!, { value: 'doing', label: 'doing' }, order, 1, 1)).toEqual([
-      { op: 'update', resource: 'tasks', key: 1, data: { status: 'doing' }, etag: 'e1' },
-      { op: 'reorder', resource: 'tasks', field: 'rank', keys: [1, 6], start: 2, etags: { '1': '*', '6': 'e6' } },
+  it('moves a card to another column first, writing any version, as the move decides the order', () => {
+    expect(placeOps(model, 'status', 'rank', '', todo[0]!, { value: 'doing', label: 'doing' }, placedRows(doing, todo[0]!, 1), false)).toEqual([
+      { op: 'update', resource: 'tasks', key: 1, data: { status: 'doing' }, etag: '*' },
+      { op: 'move', resource: 'tasks', field: 'rank', key: 1, after: 5, before: 6, filter: 'status = "doing"' },
     ])
   })
 
-  it('gives a card bumped above what it depends on its rank first, then numbers the others', () => {
-    const order = placedRows(todo, todo[0]!, 3)
-    expect(placeOps(model, 'status', 'rank', todo[0]!, { value: 'todo', label: 'todo' }, order, 0, 3, 9)).toEqual([
-      { op: 'reorder', resource: 'tasks', field: 'rank', keys: [1], start: 9, etags: { '1': 'e1' } },
-      { op: 'reorder', resource: 'tasks', field: 'rank', keys: [2, 3, 4], start: 1, etags: { '2': 'e2', '3': 'e3', '4': 'e4' } },
+  it('checks only the anchor of a card dropped after the last card shown when more follow', () => {
+    expect(placeOps(model, 'status', 'rank', '', todo[0]!, todoColumn, placedRows(todo, todo[0]!, 3), true)).toEqual([
+      { op: 'move', resource: 'tasks', field: 'rank', key: 1, after: 4, filter: 'status = "todo"' },
     ])
-    expect(placeOps(model, 'status', 'rank', todo[0]!, { value: 'doing', label: 'doing' }, placedRows(doing, todo[0]!, 2), 2, 2, 9)).toEqual([
-      { op: 'update', resource: 'tasks', key: 1, data: { status: 'doing' }, etag: 'e1' },
+  })
+
+  it('gives a card bumped above what it depends on its rank first, then checks its place', () => {
+    expect(placeOps(model, 'status', 'rank', '', todo[0]!, todoColumn, placedRows(todo, todo[0]!, 3), false, 9)).toEqual([
       { op: 'reorder', resource: 'tasks', field: 'rank', keys: [1], start: 9, etags: { '1': '*' } },
-    ])
-  })
-
-  it('sends a record listed without an ETag as any', () => {
-    const rows = [card(1, 'todo', 1), card(2, 'todo', 2)]
-    expect(placeOps(model, 'status', 'rank', rows[1]!, { value: 'todo', label: 'todo' }, placedRows(rows, rows[1]!, 0), 0, 1)).toEqual([
-      { op: 'reorder', resource: 'tasks', field: 'rank', keys: [2, 1], start: 1, etags: { '2': '*', '1': '*' } },
+      { op: 'move', resource: 'tasks', field: 'rank', key: 1, after: 4, before: null, filter: 'status = "todo"' },
     ])
   })
 })
@@ -89,7 +82,7 @@ describe('boardWrites', () => {
     const result = {
       results: [
         { op: 'update' as const, resource: 'tasks', record: { ...moved, rank: 1 }, etag: 'u1' },
-        { op: 'reorder' as const, resource: 'tasks', records: [{ record: { ...doing[0]!.record, rank: 1 }, etag: 'r5' }, { record: { ...moved, rank: 2 }, etag: 'r1' }] },
+        { op: 'move' as const, resource: 'tasks', records: [{ record: { ...doing[0]!.record, rank: 1 }, etag: 'r5' }, { record: { ...moved, rank: 2 }, etag: 'r1' }] },
       ],
     }
     expect(boardWrites(model, [doing[0]!, todo[0]!, doing[1]!], result)).toEqual([

@@ -12,6 +12,16 @@ const edited = (definition: Definition, change: (copy: Definition) => void) => {
   return copy
 }
 
+// The states that go on along their Next: a Choice goes on by its rules, Succeed and Fail end.
+const flowing = new Set<State['Type']>(['Task', 'Pass', 'Wait', 'Map'])
+
+const withNext = (state: State, target: string) => {
+  if (!flowing.has(state.Type)) return
+  const flow = state as { Next?: string; End?: boolean }
+  delete flow.End
+  flow.Next = target
+}
+
 const machineOf = (definition: Definition, scope: readonly string[]) => {
   const machine = machineAt(definition, scope)
   if (!machine) throw new Error(`No Map at ${scope.join('/')}`)
@@ -52,6 +62,59 @@ export const addState = (definition: Definition, scope: readonly string[], kind:
     state.ItemProcessor = { StartAt: first, States: { [first]: { Type: 'Pass', End: true } } }
   })
 
+// Whether a new state can go on to the state it takes the place of: a Succeed or a Fail ends the run instead.
+const goesOn = (state: State) => state.Type === 'Choice' || flowing.has(state.Type)
+
+// Connects a new state after `after`: it takes over where `after` went on to, and `after` goes on to it. A state that
+// ends the run stays unconnected there, so it never cuts off the states after it.
+const follow = (machine: Machine, after: string, name: string) => {
+  const before = machine.States[after]
+  const state = machine.States[name]!
+  if (!before || !flowing.has(before.Type)) return
+  const next = (before as { Next?: string }).Next
+  if (next !== undefined && !goesOn(state)) return
+  withNext(before, name)
+  if (next === undefined) return
+  if (state.Type === 'Choice') state.Default = next
+  else if (flowing.has(state.Type)) withNext(state, next)
+}
+
+/**
+ * Where a new state goes in the machine at `scope`: after the state chosen, or the last one with nothing after it; with
+ * the trigger chosen, first; `undefined` when it stays unconnected, after a state that goes on by its rules or ends.
+ */
+export const placeAfter = (definition: Definition, scope: readonly string[], chosen: string | undefined): string | undefined => {
+  const machine = machineOf(definition, scope)
+  if (chosen !== undefined) {
+    const { name } = splitPath(chosen)
+    return flowing.has(machine.States[name]?.Type as State['Type']) ? name : undefined
+  }
+  return Object.keys(machine.States).reverse().find((name) => (machine.States[name] as { End?: boolean }).End === true)
+}
+
+/** Adds a state as `addState` does, and connects it after the state named `after` in its machine. */
+export const addStateAfter = (definition: Definition, scope: readonly string[], kind: NewState, name: string, base: string, after: string | undefined) => {
+  const added = addState(definition, scope, kind, name, base)
+  if (after === undefined) return added
+  return edited(added, (copy) => follow(machineOf(copy, scope), after, name))
+}
+
+/**
+ * Adds a state as the first of the workflow, going on to the one that was first. A state that ends the run stays
+ * unconnected when the workflow has a first state, so it never cuts off the states after it.
+ */
+export const addStateFirst = (definition: Definition, kind: NewState, name: string, base: string) => {
+  const first = definition.stateMachine.StartAt
+  const added = addState(definition, [], kind, name, base)
+  return edited(added, (copy) => {
+    const state = copy.stateMachine.States[name]!
+    if (first !== '' && !goesOn(state)) return
+    copy.stateMachine.StartAt = name
+    if (first !== '' && flowing.has(state.Type)) withNext(state, first)
+    if (first !== '' && state.Type === 'Choice') state.Default = first
+  })
+}
+
 // A state that names `target` no longer does: its Next ends it, and its rule, Default or catcher goes.
 const forget = (state: State, target: string) => {
   if ('Next' in state && state.Next === target) {
@@ -77,16 +140,6 @@ export const removeState = (definition: Definition, path: StatePath) =>
     for (const state of Object.values(machine.States)) forget(state, name)
     if (machine.StartAt === name) machine.StartAt = Object.keys(machine.States)[0] ?? ''
   })
-
-// The states that go on along their Next: a Choice goes on by its rules, Succeed and Fail end.
-const flowing = new Set<State['Type']>(['Task', 'Pass', 'Wait', 'Map'])
-
-const withNext = (state: State, target: string) => {
-  if (!flowing.has(state.Type)) return
-  const flow = state as { Next?: string; End?: boolean }
-  delete flow.End
-  flow.Next = target
-}
 
 /**
  * Draws an edge from the handle `kind` of `source` to `target`, both of the same machine: `next` sets the source's

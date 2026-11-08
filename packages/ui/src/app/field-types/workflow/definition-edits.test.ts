@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ticketsWorkflow } from '../../testing/workflow-fixtures'
 import { emptyDefinition } from './definition'
-import { addState, connect, disconnect, freeName, removeState, renameState, startAt } from './definition-edits'
+import { addState, addStateAfter, addStateFirst, connect, disconnect, freeName, removeState, renameState, startAt } from './definition-edits'
 
 describe('workflow edits', () => {
   it('adds a first state, which the workflow starts at, and later ones not yet connected', () => {
@@ -13,6 +13,17 @@ describe('workflow edits', () => {
       States: { 'Step 1': { Type: 'Task', Resource: 'app:http', Arguments: {}, End: true }, 'Step 2': { Type: 'Choice', Choices: [] } },
     })
     expect(emptyDefinition().stateMachine.States).toEqual({})
+  })
+
+  it('leaves a state that ends the run unconnected where it would cut off the states after it', () => {
+    const two = addStateAfter(addState(emptyDefinition(), [], { type: 'Pass' }, 'A', 'Step'), [], { type: 'Pass' }, 'B', 'Step', 'A')
+    expect(two.stateMachine.States.A).toEqual({ Type: 'Pass', Next: 'B' })
+    const between = addStateAfter(two, [], { type: 'Succeed' }, 'Done', 'Step', 'A')
+    expect(between.stateMachine.States.A).toEqual({ Type: 'Pass', Next: 'B' })
+    const last = addStateAfter(two, [], { type: 'Fail' }, 'Stop', 'Step', 'B')
+    expect(last.stateMachine.States.B).toEqual({ Type: 'Pass', Next: 'Stop' })
+    expect(addStateFirst(two, { type: 'Succeed' }, 'Done', 'Step').stateMachine.StartAt).toBe('A')
+    expect(addStateFirst(emptyDefinition(), { type: 'Succeed' }, 'Done', 'Step').stateMachine.StartAt).toBe('Done')
   })
 
   it('adds a Map with a state of its own, and a state inside a Map', () => {

@@ -54,13 +54,21 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
   let superseded = false
   // Where each scope stands since its last save: the next segment runs again the steps of one that died first.
   let kept = new Map<string, Omit<Checkpoint, 'after'>>()
+  // A Map's items save at once, so their steps go to `keep` one hand-over at a time, in the order they were taken, and
+  // the trace numbers each part after the one before.
+  let keeping: Promise<unknown> = Promise.resolve()
   const write = async () => {
     const checkpoints = [...kept.values()].map((checkpoint) => ({ ...checkpoint, after: after.get(checkpoint.scope) ?? -1 }))
     kept = new Map()
     if (checkpoints.length === 0) return
     // Kept before the checkpoint after them, so a crash once it is saved, which no later segment runs again, loses none.
     const ran = steps.splice(0)
-    if (ran.length > 0) await keep(ran)
+    if (ran.length > 0) {
+      const handed = keeping.then(() => keep(ran))
+      // The next hand-over waits for this one whether it kept or failed: this write gets its outcome.
+      keeping = handed.catch(() => {})
+      await handed
+    }
     if (await save(checkpoints)) {
       for (const checkpoint of checkpoints) after.set(checkpoint.scope, checkpoint.seq)
       return

@@ -75,7 +75,7 @@ div | block
                                 div .relative | block relative
                                   span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong | flex row nowrap center normal
                                     input role=combobox .min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-faint-foreground | block
-                              a .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default text-muted-foreground hover:bg-muted hover:text-foreground h-8 px-3 text-body gap-2 w-8 px-0 | flex row nowrap center center
+                              a .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default text-muted-foreground hover:bg-muted hover:text-foreground h-8 px-3 text-body gap-2 w-8 px-0 | flex row nowrap center center
                                 svg .lucide lucide-arrow-up-right size-4 | block
                           div | block
                             div .mb-1.5 flex items-center gap-2 | flex row nowrap center normal
@@ -141,7 +141,7 @@ div | block
                             p .mt-1.5 text-xs text-muted-foreground | block
                   aside .space-y-4 md:sticky md:top-[var(--pb-sticky-top,0px)] md:max-h-[calc(100dvh-var(--pb-sticky-top,0px)-var(--pb-sticky-bottom,0px))] md:self-start md:overflow-y-auto md:pb-4 md:pt-8 | block sticky
                     div .hidden flex-col items-center gap-2 md:flex | flex column nowrap center normal
-                      button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 max-md:min-h-11 max-md:flex-1 md:w-full | flex row nowrap center center
+                      button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 max-md:min-h-11 max-md:flex-1 md:w-full | flex row nowrap center center
                     div .max-md:hidden | block
                       div .overflow-hidden rounded-lg border border-border bg-background | block
                         h3 .hidden border-b border-border px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:block | block
@@ -190,7 +190,7 @@ div | block
                           dd .truncate text-right tabular-nums text-foreground | block
                             span | inline
             div .sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden | none sticky
-              button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 max-md:min-h-11 max-md:flex-1 md:w-full | inline-flex row nowrap center center
+              button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 max-md:min-h-11 max-md:flex-1 md:w-full | inline-flex row nowrap center center
     div .pointer-events-none fixed inset-x-4 bottom-[calc(6rem+var(--pb-safe-bottom))] z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-[calc(1rem+var(--pb-safe-bottom))] md:right-[calc(1rem+var(--pb-safe-right))] | flex column nowrap flex-end normal fixed
 div | block
   div | none absolute

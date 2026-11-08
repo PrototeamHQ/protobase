@@ -7,7 +7,8 @@ export type PostOptions = { fetch?: typeof fetch; timeoutMs?: number }
 /** How long a push service has to answer before the device is answered `retry`. */
 export const defaultPushTimeoutMs = 10_000
 
-const retryAfter = (response: Response): PushResult => {
+/** `retry`, after the seconds of the answer's Retry-After header when it gives a plain number of them. */
+export const retryAfter = (response: Response): PushResult => {
   const seconds = response.headers.get('retry-after')?.trim()
   return seconds !== undefined && /^\d{1,7}$/.test(seconds) ? { result: 'retry', retryAfterSeconds: Number(seconds) } : { result: 'retry' }
 }

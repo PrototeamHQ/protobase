@@ -1,4 +1,5 @@
 import type { Rollup } from './computed/rollup'
+import type { BucketsModel } from './buckets/buckets-model'
 import type { ImageVariant } from './files/file-options'
 import type { BadgeTone } from './badge-tones'
 
@@ -169,6 +170,8 @@ export type ResourceModel = {
    * who may read it (`.openExisting()`).
    */
   openExisting?: string[]
+  /** The resource it is a time rollup of, and how (`.bucketsOf()`): the database writes its rows, the API only reads them. */
+  buckets?: BucketsModel
 }
 
 /** What happened to a record: `delete` and `undelete` include setting and clearing a soft delete field. */
@@ -315,6 +318,8 @@ export type AppAddress =
       version?: number
       /** The run a workflow's page shows on its graph, by its key, on the version it ran on; `{field}` takes it from a record. */
       run?: string
+      /** The panel a focus page opens with, by a name its surface knows (`?panel=`). */
+      panel?: string
     }
   | {
       /** The form for a new record. */
@@ -447,6 +452,8 @@ export type ListDisplayModel =
       amount?: string[]
       /** A field drawn as a badge with its value labels. */
       badge?: string
+      /** A field shown in full as a block of monospaced text that wraps, such as a shell command, when it has a value. */
+      code?: string
       /** A few small fields, such as dates, each shown when it has a value. */
       meta?: string[]
       /** Fields joined by bullets on a line at the card's bottom. */
@@ -1008,8 +1015,6 @@ export type SectionModel = {
    * label/value rows; the form edits them as any section's.
    */
   presentation?: SectionPresentation
-  /** `page` spans the page above the main column and the sidebar; in the main column when omitted. */
-  width?: 'page'
   /** Whether it shows on the form, the read view or both, or a condition on the saved record that it shows while it holds. */
   when?: RecordWhen
 }
@@ -1492,6 +1497,8 @@ export type ViewModel = {
   record?: RecordPageModel
   /** The address a record's page opens in its place, `{field}` replaced by the record's values. */
   recordOpens?: AppAddress
+  /** Its create address opens this in place of the form (`.createOpens(...)`). */
+  createOpens?: AppAddress
   /** Public forms that create its records for people without an account, each at `/-/forms/<name>`. */
   forms?: FormModel[]
   /** Other lists of the resource, each with its own sidebar entry and address. */
@@ -1548,11 +1555,22 @@ export type CreateModel = {
   page: string
 }
 
-/** The record page as a component of the app's own (`.record(...)`), filling the content area. */
-export type RecordPageModel = {
-  /** The component, by the name `protobase.ui.tsx` exports it under. */
-  component: string
-}
+/**
+ * The record page as something else than the form (`.record(...)`): a component of the app's own, filling the content
+ * area, on a focus page with its bar and Save when `focus`; or a focus page whose surface is one field, drawn by its
+ * field type and saved by the framework.
+ */
+export type RecordPageModel =
+  | {
+      /** The component, by the name `protobase.ui.tsx` exports it under. */
+      component: string
+      /** Draws the component on a focus page, with the bar's state, Save, the record's actions and panels. */
+      focus?: boolean
+    }
+  | {
+      /** The field the page's surface draws. */
+      surface: string
+    }
 
 /** The list page's Export (`.export(...)`): how many rows a file may hold. */
 export type ExportModel = {

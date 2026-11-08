@@ -486,6 +486,16 @@
                   "$ref": "#/definitions/EnvValue"
                 }
               ]
+            },
+            "instructions": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -1121,6 +1131,17 @@
       "anyOf": [
         {
           "$ref": "#/definitions/StatusOptions"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "pushRelay": {
+      "description": "The app as a push relay that holds a mobile app's APNs and FCM keys for many workspaces (see `PushRelayOptions`); `{ appId }` turns it on.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PushRelayOptions"
         },
         {
           "$ref": "#/definitions/EnvValue"
@@ -3784,6 +3805,25 @@
           ]
         }
       },
+      "additionalProperties": false
+    },
+    "PushRelayOptions": {
+      "type": "object",
+      "properties": {
+        "appId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "appId"
+      ],
       "additionalProperties": false
     },
     "CallsOptions": {

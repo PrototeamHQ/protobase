@@ -6,6 +6,12 @@ import { schemaInputs, type TypeInput } from './type-inputs'
 /** A problem as its node shows it: the field it is about, if any, and what is wrong. */
 export type NodeProblem = { field?: string; message: string }
 
+/** A field that is still to fill in, rather than one that is wrong. */
+export const isMissing = (problem: NodeProblem) => problem.message.startsWith('is missing')
+
+/** The problems without fields still to fill in, as a step shows them until someone tries to save it. */
+export const withoutMissing = (byNode: ReadonlyMap<string, NodeProblem[]>) => new Map([...byNode].map(([id, problems]) => [id, problems.filter((problem) => !isMissing(problem))]))
+
 /**
  * The problems the server's save would refuse the definition for, by the node each is about: a state's own, and the
  * trigger's and the first state's on the trigger; any other is about the whole definition, in `whole`.

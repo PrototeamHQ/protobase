@@ -68,7 +68,7 @@ const serve = async (options: Partial<CreateAuthOptions> = {}, { people = false 
   const audit = { publish: async (event: AuditEvent) => void audited.push(event) }
   const app = createAdmin({ resources: allResources, db: fixture.db, authenticate: betterAuthAuthenticator({ auth }), auth, options: { audit } })
   const address = `198.51.100.${++client}`
-  const request = (path: string, init: { body?: unknown; cookie?: string; token?: string } = {}) =>
+  const request = (path: string, init: { body?: unknown; cookie?: string; token?: string; headers?: Record<string, string> } = {}) =>
     app.request(`${origin}${path}`, {
       method: init.body === undefined ? 'GET' : 'POST',
       headers: {
@@ -77,6 +77,7 @@ const serve = async (options: Partial<CreateAuthOptions> = {}, { people = false 
         'x-forwarded-for': address,
         ...(init.cookie && { cookie: init.cookie }),
         ...(init.token && { authorization: `Bearer ${init.token}` }),
+        ...init.headers,
       },
       ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
     })
@@ -392,6 +393,21 @@ describe('working in another organization', () => {
     expect((await app.request('/api/auth/organization/search', { cookie: sanne })).status).toBe(403)
     expect((await app.request('/api/auth/organization/set-active', { cookie: sanne, body: { organizationId: '1' } })).status).toBe(404)
     expect(app.audited).toEqual([])
+  })
+
+  // Another page on the same site sends the session cookie along: a switch it sends as `text/plain`, which needs no
+  // preflight, or from its own origin is refused before it reads the session.
+  it('refuses a switch sent as text/plain or from another origin, and leaves the organization as it was', async () => {
+    const app = await serve({}, { people: true })
+    // Better Auth skips its origin check under a test runner, so it is turned back on here.
+    ;(await app.auth.$context).skipOriginCheck = false
+    const ana = await app.signIn('ana@example.com')
+    const switchTo = (headers: Record<string, string>) => app.request('/api/auth/organization/switch', { cookie: ana, body: { organizationId: '2' }, headers })
+    expect((await switchTo({ 'content-type': 'text/plain' })).status).toBe(415)
+    expect(await (await switchTo({ origin: 'http://shop.localhost:5173' })).json()).toMatchObject({ code: 'INVALID_ORIGIN' })
+    expect(app.audited).toEqual([])
+    expect(await claimsOf(app, ana)).not.toHaveProperty('org')
+    expect((await switchTo({})).status).toBe(200)
   })
 })
 

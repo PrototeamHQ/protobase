@@ -8,7 +8,7 @@ const runId = randomBytes(4).toString('hex')
 const testDatabase = 'scripts/test-db/global-setup.ts'
 // Unit tests sit next to the code; tests that start a database, a subprocess or the network live in each package's
 // tests/, and the examples' in tests/examples.
-const unit = ['packages/*/src/**/*.test.ts', 'commitlint.branch.config.test.ts', 'scripts/release-speed/**/*.test.ts', 'scripts/auto-merge-approvals/**/*.test.ts', 'scripts/release-commits.test.ts', 'scripts/release-lint/**/*.test.ts', 'scripts/config-schema/**/*.test.ts', 'scripts/publish/**/*.test.ts', 'scripts/bump-repos/**/*.test.ts', 'scripts/play-tests/**/*.test.ts', 'scripts/docs-agent-files/**/*.test.ts', 'scripts/ui-exports/**/*.test.ts', 'scripts/plugin-network/**/*.test.ts', 'scripts/google-recording/**/*.test.ts', 'scripts/apns-recording/**/*.test.ts', 'scripts/fcm-recording/**/*.test.ts', 'docs-examples/**/*.test.ts', 'tests/apps/*/{config,jobs,hooks,emails,seed,map}/**/*.test.ts']
+const unit = ['packages/*/src/**/*.test.{ts,tsx}', 'commitlint.branch.config.test.ts', 'scripts/release-speed/**/*.test.ts', 'scripts/auto-merge-approvals/**/*.test.ts', 'scripts/release-commits.test.ts', 'scripts/affected/install-free.test.ts', 'scripts/release-lint/**/*.test.ts', 'scripts/config-schema/**/*.test.ts', 'scripts/publish/**/*.test.ts', 'scripts/bump-repos/**/*.test.ts', 'scripts/play-tests/**/*.test.ts', 'scripts/docs-agent-files/**/*.test.ts', 'scripts/ui-exports/**/*.test.ts', 'scripts/plugin-network/**/*.test.ts', 'scripts/google-recording/**/*.test.ts', 'scripts/apns-recording/**/*.test.ts', 'scripts/fcm-recording/**/*.test.ts', 'docs-examples/**/*.test.ts', 'tests/apps/*/{config,jobs,hooks,emails,seed,map}/**/*.test.ts']
 // Unit tests share one module registry per worker (`isolate: false`), which saves most of their time. These replace a
 // module with `vi.mock`, change a global, the environment or the console without always putting it back, or send the
 // process signals that a handler another file loaded would act on, so each runs in a registry of its own (project
@@ -31,6 +31,7 @@ const mocking = [
   'packages/cli/src/supabase/register.test.ts',
   'packages/cli/src/supabase/functions/samples.test.ts',
   'packages/client/src/sign-in-flows.test.ts',
+  'packages/server/src/bridges/tcp-bridge.test.ts',
   'packages/server/src/dropped-connections.test.ts',
   'packages/server/src/files/providers.test.ts',
   'packages/server/src/files/store-file.test.ts',
@@ -41,8 +42,10 @@ const mocking = [
   'packages/server/src/notifications/senders-of-connect.test.ts',
   'packages/server/src/workflows/workflow-trace-route.test.ts',
   'packages/ui/src/app/error-reporting.test.ts',
+  'packages/ui/src/app/field-types/workflow-status/status-reason.test.ts',
   'packages/ui/src/app/field-types/workflow/use-layout.test.ts',
   'packages/ui/src/app/pages/action-href.test.ts',
+  'packages/workflows/src/run/runner.test.ts',
 ]
 // Database, subprocess and build tests, and the release and docs scripts': `bun run test:integration`.
 const integration = ['packages/cli/tests/**/*.integration.test.ts', 'packages/cli/tests/build/deploy-bundle.test.ts', 'tests/release/**/*.test.ts', 'tests/docs/**/*.test.ts']
@@ -58,7 +61,7 @@ const realPostgres = ['packages/*/tests/**/*.postgres.test.ts', 'tests/{changes,
 const smoke = ['tests/smoke/**/*.test.ts']
 // Real Postgres beyond what every push needs: the ERP's medium seed and the planner's statistics on its million rows,
 // and the job queue and event delivery through PgBouncer. `bun run test:postgres`, after `bun run test:db postgres`; CI
-// runs it when SQL or the Postgres setup changes, and weekly.
+// runs it when SQL or the Postgres setup changes, and nightly.
 const postgresSuite = ['tests/postgres/**/*.test.ts']
 // The presets written out and installed with bun from npm, migrated on a tenant-style role: `bun run test:presets`.
 const presets = ['packages/presets/tests/**/*.test.ts']
@@ -75,6 +78,7 @@ const snapshotIsolated = [
   'packages/server/src/better-auth/connections/disconnect.test.ts',
   'packages/server/src/better-auth/connections/release-user-connections.test.ts',
   'packages/server/src/better-auth/connections/unlink-guard.test.ts',
+  'packages/server/src/better-auth/host-cookies.test.ts',
   'packages/server/tests/account-change-confirmation.test.ts',
   'packages/server/tests/admin-users.test.ts',
   'packages/server/tests/app-tokens.test.ts',
@@ -89,6 +93,7 @@ const snapshotIsolated = [
   'packages/server/tests/gotrue-clients.test.ts',
   'packages/server/tests/gotrue-provider-sign-in.test.ts',
   'packages/server/tests/meta.test.ts',
+  'packages/server/tests/mcp-app-instructions.test.ts',
   'packages/server/tests/mcp-comments.test.ts',
   'packages/server/tests/mcp-endpoint.test.ts',
   'packages/server/tests/mcp-oauth.test.ts',

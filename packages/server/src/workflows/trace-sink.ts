@@ -6,6 +6,8 @@ import { privateRunStore, runFolder } from './run-files'
 /** Where a run's trace is kept: each segment's part under `trace/` while it runs, then the whole in `trace.jsonl`. */
 export const traceParts = (runId: string) => `${runFolder(runId)}trace/`
 export const traceFile = (runId: string) => `${runFolder(runId)}trace.jsonl`
+/** The number the run's next part takes, kept outside `trace/` so a join never reads it as a part. */
+const traceNext = (runId: string) => `${runFolder(runId)}trace-next`
 
 const lines = (steps: readonly StepRecord[]) => steps.map((step) => `${JSON.stringify(step)}\n`).join('')
 
@@ -27,12 +29,25 @@ export type TraceSinkInput = {
  * the run it replays through `read`.
  */
 export const traceSink = ({ files, joining, report }: TraceSinkInput): TraceSink => {
-  // Parts join in name order: the count keeps two parts this sink writes within one millisecond in the order written.
-  let written = 0
+  // A part is named by the run's next number, whichever worker keeps it, so the parts read in the order they were
+  // written. One run writes one part at a time, since a segment hands its steps over one at a time, a Map's items too,
+  // and awaits `write` before it saves the checkpoint after them, so reading the number and putting the next one needs
+  // no lock. The number goes up before the part is put: a
+  // write that fails leaves a gap, never a number taken twice. The join keeps the number with the run's other files, so
+  // a part a retry writes after a join still sorts after every part before it. Parts named by their time, as before,
+  // are not ordered among these: before 1.0 a run that spans the upgrade may read its trace out of order.
+  const nextPart = async (store: NonNullable<ReturnType<typeof privateRunStore>>, runId: string) => {
+    const kept = await store.read(traceNext(runId))
+    const next = kept ? Number(await new Response(kept).text()) : 0
+    await store.put(traceNext(runId), new Blob([String(next + 1)]).stream())
+    return `${String(next).padStart(12, '0')}-${crypto.randomUUID()}.jsonl`
+  }
   const keep = async (runId: string, steps: readonly StepRecord[], dropped: boolean, ended: boolean) => {
     const store = privateRunStore(files())
     if (!store) throw new Error('Workflows keep run traces in the "private" file provider, which the app does not have or serves to anyone; set workflows.trace to "none" to keep none')
-    if (!dropped && steps.length > 0) await store.put(`${traceParts(runId)}${new Date().toISOString()}-${String(written++).padStart(12, '0')}-${crypto.randomUUID()}.jsonl`, new Blob([lines(steps)]).stream())
+    if (!dropped && steps.length > 0) {
+      await store.put(`${traceParts(runId)}${await nextPart(store, runId)}`, new Blob([lines(steps)]).stream())
+    }
     if (!ended) return
     await joining(runId, async (kept) => {
       const parts = await store.list(traceParts(runId))
@@ -46,6 +61,9 @@ export const traceSink = ({ files, joining, report }: TraceSinkInput): TraceSink
         await kept(formatUri({ provider: 'private', path: traceFile(runId), name: 'trace.jsonl', size }))
       }
       await Promise.all(parts.map((part) => store.delete(part.path)))
+      // A dropped trace leaves no number behind: a retry of the segment that ended the run drops its steps too, and
+      // one that ends it failed instead keeps only parts written since, which the number orders from 0 again.
+      if (dropped) await store.delete(traceNext(runId))
     })
   }
   return {

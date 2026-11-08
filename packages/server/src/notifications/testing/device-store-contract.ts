@@ -15,6 +15,7 @@ export const webDevice = (n = 1): NewDevice => ({
 })
 export const apnsDevice = (n = 1): NewDevice => ({ kind: 'apns', token: `${n}`.padStart(64, 'a'), p256dh: null, auth: null, environment: 'production', appId: 'net.example.app', userAgent: null, sessionId: null })
 export const fcmDevice = (n = 1): NewDevice => ({ kind: 'fcm', token: `fcm-token:${n}`, p256dh: null, auth: null, environment: null, appId: null, userAgent: null, sessionId: null })
+export const relayDevice = (n = 1): NewDevice => ({ kind: 'relay', token: `relay-handle-${n}`.padEnd(24, '0'), p256dh: null, auth: null, environment: null, appId: null, userAgent: null, sessionId: null })
 
 // The device a register stored, which these devices always are.
 const registered = async (store: DeviceStore, userId: string, device: NewDevice) => {
@@ -33,14 +34,14 @@ export const deviceStoreContract = (name: string, open: () => Promise<DeviceStor
   describe(`${name}: the device store contract`, () => {
     it('keeps each kind as given, with null for what does not apply', async () => {
       const store = await open()
-      for (const device of [webDevice(), apnsDevice(), fcmDevice()]) {
+      for (const device of [webDevice(), apnsDevice(), fcmDevice(), relayDevice()]) {
         const stored = await registered(store, a, device)
         expect(stored).toMatchObject({ ...device, userId: a })
         expect(stored.createdAt).toBeInstanceOf(Date)
         expect(stored.lastSeenAt).toBeInstanceOf(Date)
         expect(await store.listByIds([stored.id])).toEqual([stored])
       }
-      expect(tokens(await store.listForUser(a))).toEqual(tokens([webDevice(), apnsDevice(), fcmDevice()]))
+      expect(tokens(await store.listForUser(a))).toEqual(tokens([webDevice(), apnsDevice(), fcmDevice(), relayDevice()]))
     })
 
     it('refreshes a device its user registers again, keeping its id and taking its new session', async () => {
