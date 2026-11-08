@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 16
+export const workflowsVersion = 17
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -186,6 +186,9 @@ create index if not exists "steps_status" on ${s}."steps" ("status");
 create index if not exists "steps_state" on ${s}."steps" ("state")`
 }
 
+// The columns the status triggers write, which leave a workflow's updated_at as it is.
+const statusColumns = `array['run_status', 'status_run_id', 'status_run_at', 'unresolved_failures', 'resolved_at', 'resolved_by', 'updated_at']`
+
 /** The triggers `functionsSql` makes, which the startup check finds on their tables. */
 export const workflowsTriggers = ['workflow_version', 'run_version']
 
@@ -213,8 +216,11 @@ begin
   end if;
   -- The write holds the row, so a save in another transaction numbers its version after this one.
   new.version := case when new.definition is distinct from old.definition then coalesce(old.version, 0) + 1 else old.version end;
-  -- Never the same twice, nor now(): two writes in one transaction, as a batch that saves and publishes, are two ETags.
-  new.updated_at := greatest(clock_timestamp(), old.updated_at + interval '1 microsecond');
+  -- Its status, which runs ending and marks as resolved write, is no change to the workflow itself.
+  -- Otherwise never the same twice, nor now(): two writes in one transaction, as a batch that saves and publishes, are two ETags.
+  if to_jsonb(new) - ${statusColumns} is distinct from to_jsonb(old) - ${statusColumns} then
+    new.updated_at := greatest(clock_timestamp(), old.updated_at + interval '1 microsecond');
+  end if;
   return new;
 end
 $$;

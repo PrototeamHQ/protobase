@@ -28,6 +28,13 @@ describe('SidebarGroup', () => {
     expect(html).toContain('data-pulse="true"')
   })
 
+  it('draws each tone in a shape of its own, so a status does not rest on its colour alone', () => {
+    const tones = ['neutral', 'info', 'success', 'warning', 'danger'] as const
+    const html = render(tones.map((tone) => ({ id: tone, label: tone, href: `/channels/${tone}`, status: { label: tone, tone, pulse: false }, active: false })))
+    const shapes = tones.map((tone) => rowOf(html, tone).match(/<svg[^>]*>(.*?)<\/svg>/)![1])
+    expect(new Set(shapes).size).toBe(tones.length)
+  })
+
   it('draws a record marked strong in bold, in the foreground colour, with its count at the end and its label in its name', () => {
     const html = render(
       [

@@ -7,9 +7,12 @@ import { revocationsSql } from './connections/revocations-sql'
 import { stepCacheSql } from './cache/step-cache-sql'
 import { workflowsSchema, type WorkflowsOptions } from './options'
 import { commentVersion, functionsSql, indexesSql, tablesSql, triggersSql, effectsSql, workflowsTriggers, workflowsVersion } from './schema-sql'
+import { statusSql, statusTriggers } from './status-sql'
 
 // Only reads the catalogue: whether the steps and triggers tables are there, the version of the run trigger's function,
 // and whether both database triggers are on their tables, since a trigger can be dropped while its function stays.
+const triggerNames = [...workflowsTriggers, ...statusTriggers]
+
 const readWorkflowsSchema = async (db: Db, schema: string) => {
   const steps = `${quoteIdent(schema)}."steps"`
   const triggerRows = `${quoteIdent(schema)}."triggers"`
@@ -17,9 +20,9 @@ const readWorkflowsSchema = async (db: Db, schema: string) => {
     to_regclass(${triggerRows}) is not null as trigger_rows,
     (select obj_description(p.oid, 'pg_proc') from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${schema} and p.proname = 'run_version') as comment,
     (select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = ${schema} and not t.tgisinternal and t.tgname = any(${workflowsTriggers})) as triggers`.execute(db)
+      where n.nspname = ${schema} and not t.tgisinternal and t.tgname = any(${triggerNames})) as triggers`.execute(db)
   const row = rows[0]!
-  return { tables: row.found, current: row.found && row.trigger_rows && commentVersion(row.comment) === workflowsVersion && row.triggers === workflowsTriggers.length }
+  return { tables: row.found, current: row.found && row.trigger_rows && commentVersion(row.comment) === workflowsVersion && row.triggers === triggerNames.length }
 }
 
 /**
@@ -30,7 +33,7 @@ export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions,
   const schema = workflowsSchema(options)
   const found = await readWorkflowsSchema(db, schema)
   if (found.current) return undefined
-  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(found.tables ? [] : [tablesSql(schema)]), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), functionsSql(schema)]
+  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(found.tables ? [] : [tablesSql(schema)]), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), functionsSql(schema), statusSql(schema)]
   return `${statements.join(';\n\n')};`
 }
 

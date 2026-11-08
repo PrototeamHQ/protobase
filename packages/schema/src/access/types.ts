@@ -27,6 +27,12 @@ export type AccessContext = {
     /** The caller's organization role there, read from the auth store for this request; absent for someone who is no member. */
     role?: 'owner' | 'admin' | 'member'
   }
+  /**
+   * Set by the resolver for field rules: whether the caller holds a capability on every row and field, such as
+   * `workflow_runs.read`, for a field that shows what another resource holds. A wildcard over resources such as `*.read`
+   * does not count; without roles, it is what an operation without a rule gets.
+   */
+  holds?: (capability: string) => boolean
   /** Set by the resolver; scoped capabilities (`.own`) need `model.owner`. */
   model?: ResourceModel
   [key: string]: unknown
