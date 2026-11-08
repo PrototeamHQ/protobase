@@ -1,4 +1,5 @@
 import type { Rollup } from './computed/rollup'
+import type { BucketsModel } from './buckets/buckets-model'
 import type { ImageVariant } from './files/file-options'
 import type { BadgeTone } from './badge-tones'
 
@@ -169,6 +170,8 @@ export type ResourceModel = {
    * who may read it (`.openExisting()`).
    */
   openExisting?: string[]
+  /** The resource it is a time rollup of, and how (`.bucketsOf()`): the database writes its rows, the API only reads them. */
+  buckets?: BucketsModel
 }
 
 /** What happened to a record: `delete` and `undelete` include setting and clearing a soft delete field. */
