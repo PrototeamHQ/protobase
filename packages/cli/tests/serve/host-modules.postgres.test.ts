@@ -6,11 +6,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { manifestFile } from '../../src/bundle/manifest'
 import { protobaseVersion } from '../../src/version/version'
 import { bin } from '../support/auth-project'
-import { databaseReachable, testDatabaseUrl } from '../support/database'
 import { serveOnFreePort, stopProcess } from '../support/serve-process'
+import { openPostgresDatabase, postgresTemplateReady } from '../../../../test-support/postgres-database'
 
-const url = testDatabaseUrl()
-const reachable = await databaseReachable(url)
 const timeout = 60_000
 
 // A config module as `protobase build` writes it, importing two host modules, with two public functions: `teapot`
@@ -70,8 +68,10 @@ afterEach(async () => {
   await Promise.all(folders.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
 })
 
-// `protobase serve` under Bun, from the project folder, as a self-hosted server runs it.
+// `protobase serve` under Bun, from the project folder, as a self-hosted server runs it, on a clone of its own: the
+// serving process opens its own pool, which a recording cannot replay.
 const serve = async (bundle: string) => {
+  const { url } = await openPostgresDatabase('empty')
   const served = await serveOnFreePort((port) => {
     child = spawn('bun', [bin, 'serve', path.join(bundle, 'protobase.config.js')], {
       cwd: path.dirname(bundle),
@@ -87,7 +87,7 @@ const statuses = async (base: string) => ({
   missing: (await fetch(`${base}/api/functions/missing`)).status,
 })
 
-describe.skipIf(!reachable)("protobase serve under Bun gives a bundle the CLI's own host modules", () => {
+describe.skipIf(!(await postgresTemplateReady('empty')))("protobase serve under Bun gives a bundle the CLI's own host modules", () => {
   it('serves a bundle whose project installed none of them', async () => {
     expect(await statuses(await serve(await createProject(false)))).toEqual({ teapot: 418, missing: 404 })
   }, timeout)
