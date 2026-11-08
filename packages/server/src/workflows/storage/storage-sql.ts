@@ -21,6 +21,9 @@ export const storageSql = (schema: string) => {
   "updated_at" timestamptz not null default now()
 );
 create unique index if not exists "storage_configurations_name" on ${s}."storage_configurations" (coalesce("tenant_id", ''), "name");
+create index if not exists "storage_configurations_tenant" on ${s}."storage_configurations" ("tenant_id");
+create index if not exists "storage_configurations_name_order" on ${s}."storage_configurations" ("name");
+create index if not exists "storage_configurations_name_search" on ${s}."storage_configurations" using gin ("name" gin_trgm_ops);
 create index if not exists "storage_configurations_updated_at" on ${s}."storage_configurations" ("updated_at");
 
 create or replace function ${s}."storage_configuration_updated"() returns trigger

@@ -35,7 +35,7 @@ export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions,
   const schema = workflowsSchema(options)
   const found = await readWorkflowsSchema(db, schema)
   if (found.current) return undefined
-  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(found.tables ? [] : [tablesSql(schema)]), checkpointsSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), storageSql(schema), indexesSql(schema), functionsSql(schema), statusSql(schema)]
+  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(found.tables ? [] : [tablesSql(schema)]), checkpointsSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), storageSql(schema), functionsSql(schema), statusSql(schema)]
   return `${statements.join(';\n\n')};`
 }
 
