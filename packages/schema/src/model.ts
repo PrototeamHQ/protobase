@@ -449,6 +449,8 @@ export type ListDisplayModel =
       amount?: string[]
       /** A field drawn as a badge with its value labels. */
       badge?: string
+      /** A field shown in full as a block of monospaced text that wraps, such as a shell command, when it has a value. */
+      code?: string
       /** A few small fields, such as dates, each shown when it has a value. */
       meta?: string[]
       /** Fields joined by bullets on a line at the card's bottom. */

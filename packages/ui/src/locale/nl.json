@@ -1219,8 +1219,6 @@
     "noneMatch": "Geen {plural} gevonden.",
     "viewAll": "Alles bekijken",
     "new": "Nieuw",
-    "previous": "Terug in {label}",
-    "next": "Verder in {label}",
     "couldNotLoadYour": "Kon je {plural} niet laden",
     "noneYet": "Nog geen {plural}."
   },
@@ -1797,7 +1795,9 @@
   "primitives": {
     "close": "Sluiten",
     "loading": "Laden",
-    "remove": "{label} verwijderen"
+    "remove": "{label} verwijderen",
+    "previous": "Terug in {label}",
+    "next": "Verder in {label}"
   },
   "record-view": {
     "savedDifferent": "{name} bewaarde een andere waarde",

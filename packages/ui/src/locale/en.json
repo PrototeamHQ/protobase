@@ -1219,8 +1219,6 @@
     "noneMatch": "No {plural} match.",
     "viewAll": "View all",
     "new": "New",
-    "previous": "Previous {label}",
-    "next": "Next {label}",
     "couldNotLoadYour": "Could not load your {plural}",
     "noneYet": "No {plural} yet."
   },
@@ -1797,7 +1795,9 @@
   "primitives": {
     "close": "Close",
     "loading": "Loading",
-    "remove": "Remove {label}"
+    "remove": "Remove {label}",
+    "previous": "Previous {label}",
+    "next": "Next {label}"
   },
   "record-view": {
     "savedDifferent": "{name} saved a different value",
