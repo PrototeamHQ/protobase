@@ -19,11 +19,15 @@ export const traceFiles = async () => {
     const text = await readFile(`${folder.dir}/workflows/${id}/trace.jsonl`, 'utf8')
     return text.split('\n').filter(Boolean).map((line) => JSON.parse(line) as TraceStep)
   }
-  // Every file the runs wrote, their traces included, as one text: for a check that no secret was kept.
+  // Every file the runs wrote, their traces included, as one text: for a check that no secret was kept. A run that
+  // ended still joins its trace in the background, through `.tmp/` and its `trace/` parts, so this waits until none is left.
   const everything = async () => {
     const { readdir } = await import('node:fs/promises')
-    const names = await readdir(folder.dir, { recursive: true, withFileTypes: true })
-    const texts = await Promise.all(names.filter((entry) => entry.isFile()).map((entry) => readFile(`${entry.parentPath}/${entry.name}`, 'utf8')))
+    const listed = async () => (await readdir(folder.dir, { recursive: true, withFileTypes: true })).filter((entry) => entry.isFile())
+    const writing = (entry: { parentPath: string }) => /\/(\.tmp|trace)$/.test(entry.parentPath)
+    await vi.waitFor(async () => expect((await listed()).filter(writing)).toEqual([]), { timeout: 10_000, interval: 50 })
+    const names = await listed()
+    const texts = await Promise.all(names.map((entry) => readFile(`${entry.parentPath}/${entry.name}`, 'utf8')))
     return texts.join('\n')
   }
   return { folder, files, steps, everything }
