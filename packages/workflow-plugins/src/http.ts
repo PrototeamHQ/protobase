@@ -1,4 +1,4 @@
-import { AddressRefusedError, fetchMaxBytes, isFileValue, ResponseTooLargeError, StepError, type StepContext, type StepType } from '@protobase/workflows/plugin'
+import { AddressRefusedError, fetchMaxBytes, isFileValue, ResponseTooLargeError, StepError, type StepContext, type StepType, type StorageTarget } from '@protobase/workflows/plugin'
 import { stepPath } from './storage'
 
 /** How much of a failing answer's body its error keeps, after secrets are blanked out of it. */
@@ -75,8 +75,8 @@ const excerptOf = async (answer: Response, redact: (text: string) => string) => 
 }
 
 // An answer streamed straight into storage: its body is never held here, whatever its size.
-const storedAnswer = async (answer: Response, store: { configuration: string; path?: string }, url: URL, context: StepContext, started: number) => {
-  const { input, log, redact, storage } = context
+const storedAnswer = async (answer: Response, target: StorageTarget, url: URL, context: StepContext, started: number) => {
+  const { input, log, redact } = context
   log(`${String(input.method ?? 'GET').toUpperCase()} ${loggedUrl(input.url as string)}: ${answer.status} in ${Date.now() - started} ms`)
   if (answer.status < 200 || answer.status > 299) {
     const excerpt = await excerptOf(answer, redact)
@@ -84,7 +84,7 @@ const storedAnswer = async (answer: Response, store: { configuration: string; pa
   }
   const type = answer.headers.get('content-type')?.split(';')[0]?.trim() || 'application/octet-stream'
   const body = answer.body ?? new Blob([]).stream()
-  const stored = await storage.put(store.configuration, store.path ?? (await stepPath(context)), body, { name: fileName(url), type })
+  const stored = await target.put(body, { name: fileName(url), type })
   const kept = Object.fromEntries([...answer.headers].filter(([name]) => name !== 'set-cookie'))
   return { status: answer.status, headers: kept, body: stored }
 }
@@ -94,6 +94,8 @@ const loggedUrl = (given: string) => given.replace(/^([^:/?#]+:\/\/)[^/?#]*@/, '
 const send = async (context: StepContext) => {
   const { input, signal, log, redact } = context
   const { url, method, headers, reading, store } = checked(input)
+  // A configuration or path that cannot take the answer fails before any request leaves.
+  const target = store && (await context.storage.open(store.configuration, store.path ?? (await stepPath(context))))
   const body = await requestBody(input.body, method, headers, context)
   const started = Date.now()
   const answer = await context.fetch(url.href, { method, headers, ...(body !== undefined && { body }), signal, ...(store && { stream: true }) }).catch((error: unknown) => {
@@ -102,7 +104,7 @@ const send = async (context: StepContext) => {
     if (signal.aborted) throw error
     throw new StepError('Http.Network', `No answer from ${url.host}: ${error instanceof Error ? error.message : String(error)}`)
   })
-  if (store) return storedAnswer(answer, store, url, context, started)
+  if (target) return storedAnswer(answer, target, url, context, started)
   const bytes = new Uint8Array(await answer.arrayBuffer())
   // The URL as it was given, without its user name and password or its query: the runner blanks secrets out of logs as
   // they were written, which the parsed URL's encoding of them would hide.

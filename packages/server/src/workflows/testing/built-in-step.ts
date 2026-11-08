@@ -9,6 +9,7 @@ export type BuiltInStepOptions = PluginFetchOptions & { files?: () => FilesRunti
 
 const noStorage: PluginStorage = {
   put: () => Promise.reject(new StepError('Storage.NotFound', 'No storage configuration this workflow may use')),
+  open: () => Promise.reject(new StepError('Storage.NotFound', 'No storage configuration this workflow may use')),
   read: () => Promise.reject(new StepError('Storage.NotFound', 'No storage configuration this workflow may use')),
 }
 

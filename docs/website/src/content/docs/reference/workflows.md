@@ -376,7 +376,7 @@ A stored file is `{ configuration, node, path, name, type, size }`: the configur
 }
 ```
 
-A step reads the configuration it names afresh each time, as the user who saved the run's version, with the roles they hold now. It fails with:
+A step reads the configuration it names afresh each time, as the user who saved the run's version, with the roles they hold now. `app:http` with `store` checks the configuration and path before it sends the request, so one it cannot store to fails without a request. It fails with:
 
 | Error | |
 | --- | --- |

@@ -1,7 +1,7 @@
 import { hostname } from 'node:os'
 import { storageNamePattern } from '@protobase/schema/internal'
 import { StepError } from '@protobase/workflows'
-import { isStoredFile, type PluginStorage } from '@protobase/workflows/plugin'
+import { isStoredFile, type PluginStorage, type StorageTarget } from '@protobase/workflows/plugin'
 import { assistantRecords } from '../../assistant/records'
 import type { Deps } from '../../deps'
 import { fieldDecrypter } from '../../encryption/decrypt-field'
@@ -40,6 +40,13 @@ const failingAsStore = (body: ReadableStream<Uint8Array>) => {
   })
 }
 
+// A body the store never started reading is cancelled, so its source, such as an answer's connection, is let go; one the
+// store did start reading is cancelled by the store as it fails.
+const cancelling = (body: ReadableStream<Uint8Array>) => async (error: unknown): Promise<never> => {
+  if (!body.locked) await body.cancel()
+  throw error
+}
+
 /** The session of the run's last editor; a version no one saved, or whose editor holds no role now, may use no configuration at all. */
 export const editorSession = async (session: () => Promise<Session>): Promise<Session> => {
   try {
@@ -58,13 +65,19 @@ export const editorSession = async (session: () => Promise<Session>): Promise<Se
 export const storageService = (session: () => Promise<Session>, runId: string, sources: ConfigurationSources): PluginStorage => {
   const resolve = resolveConfiguration(sources)
   const open = async (configuration: string) => resolve(await editorSession(session), runId, configuration)
+  const target = async (configuration: string, path: string): Promise<StorageTarget> => {
+    if (!isStoredPath(path)) throw invalid('path is relative: letters, digits, ".", "_" and "-" in segments split by "/", none starting with "."')
+    const { store, node } = await open(configuration)
+    return {
+      put: async (body, file) => {
+        const { size } = await store.put(path, body).catch(cancelling(body)).catch(storeFailed)
+        return { configuration, ...(node !== undefined && { node }), path, name: cleanName(file.name), type: file.type, size }
+      },
+    }
+  }
   return {
-    put: async (configuration, path, body, file) => {
-      if (!isStoredPath(path)) throw invalid('path is relative: letters, digits, ".", "_" and "-" in segments split by "/", none starting with "."')
-      const { store, node } = await open(configuration)
-      const { size } = await store.put(path, body).catch(storeFailed)
-      return { configuration, ...(node !== undefined && { node }), path, name: cleanName(file.name), type: file.type, size }
-    },
+    open: target,
+    put: async (configuration, path, body, file) => (await target(configuration, path).catch(cancelling(body))).put(body, file),
     read: async (value, field) => {
       if (!isStoredFile(value) || !storageNamePattern.test(value.configuration) || !isStoredPath(value.path)) throw invalid(`${field} is not a stored file ({ configuration, path, name, type, size })`)
       const { store } = await open(value.configuration)

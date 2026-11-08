@@ -45,6 +45,13 @@ const sources = (overrides: Partial<ConfigurationSources> = {}): ConfigurationSo
 })
 
 const endpoint = 'https://storage.example.com'
+// A stream that records whether it was cancelled, as an answer's body lets its connection go.
+const watchedStream = (text: string) => {
+  const state = { cancelled: false }
+  const stream = new ReadableStream<Uint8Array>({ start: (controller) => controller.enqueue(new TextEncoder().encode(text)), cancel: () => void (state.cancelled = true) })
+  return { stream, state }
+}
+
 const storage = (overrides: Partial<ConfigurationSources> = {}) => storageService(async () => session, 'run-1', sources(overrides))
 
 beforeEach(async () => {
@@ -141,6 +148,27 @@ describe('the storage service', () => {
     // A local configuration is not the S3 client's, so it still works.
     rows = [{ id: 'c1', name: 'archive', kind: 'local', dir: 'archive' }]
     expect(await storage({ environment: { AWS_SESSION_TOKEN: 'operator-value' } }).put('archive', 'a', streamOf('x'), { name: 'a', type: 'text/plain' })).toMatchObject({ path: 'a' })
+  })
+
+  it('opens a configuration and checks a path before there is a body, and cancels a body whose put fails', async () => {
+    let listed = 0
+    const counted = storage({ list: async (_session, name) => (listed++, rows.filter((row) => row.name === name)) })
+    expect((await failure(counted.open('archive', '../outside')) as string[])[0]).toBe('Storage.InvalidArguments')
+    expect(listed).toBe(0)
+    expect(await failure(counted.open('other', 'a'))).toEqual(['Storage.NotFound', 'No storage configuration "other" this workflow may use'])
+    const target = await counted.open('archive', 'in/a.txt')
+    expect(await target.put(streamOf('opened'), { name: 'a.txt', type: 'text/plain' })).toMatchObject({ configuration: 'archive', path: 'in/a.txt', size: 6 })
+
+    const refused = watchedStream('x')
+    expect((await failure(counted.put('other', 'a', refused.stream, { name: 'a', type: 'text/plain' })) as string[])[0]).toBe('Storage.NotFound')
+    expect(refused.state.cancelled).toBe(true)
+    const unstored = watchedStream('x')
+    const failing = storage({ provider: (name, settings) => {
+      const { store } = fileProviderOf(name, settings)
+      return { store: { ...store, put: () => Promise.reject(Object.assign(new Error('no'), { code: 'EACCES' })) }, public: false }
+    } })
+    expect(await failure((await failing.open('archive', 'a')).put(unstored.stream, { name: 'a', type: 'text/plain' }))).toEqual(['Storage.Failed', 'The store failed with EACCES'])
+    expect(unstored.state.cancelled).toBe(true)
   })
 
   it('fails as Storage.Failed when the local folder cannot be made', async () => {
