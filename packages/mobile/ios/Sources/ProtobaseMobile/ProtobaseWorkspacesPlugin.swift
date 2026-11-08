@@ -16,6 +16,7 @@ public class ProtobaseWorkspacesPlugin: CAPPlugin, CAPBridgedPlugin {
     private let workspaces = WorkspaceList()
     private var views: WorkspaceViews?
 
+    /** Answers `{ workspaces }` in the order added, after deleting the data stores of removed workspaces that can go. */
     @objc func list(_ call: CAPPluginCall) {
         run(call) { _, list in
             try await WorkspaceStores.removePending(list)
@@ -23,6 +24,7 @@ public class ProtobaseWorkspacesPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /** Lists the workspace at `origin` and answers `{ workspace }`; rejects an origin that does not parse or is already listed. */
     @objc func add(_ call: CAPPluginCall) {
         run(call) { _, list in
             guard let origin = WorkspaceOrigin.parse(call.getString("origin") ?? "") else {
@@ -32,6 +34,7 @@ public class ProtobaseWorkspacesPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /** Shows the workspace with `id`, making its view the first time; rejects an unknown id or a view that cannot be made. */
     @objc func open(_ call: CAPPluginCall) {
         run(call) { views, list in
             guard views.show(try list.find(call.getString("id") ?? "")) else { return call.reject("The workspace view cannot open") }
@@ -39,6 +42,7 @@ public class ProtobaseWorkspacesPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /** Hides the open workspace view, so the home view shows. */
     @objc func showHome(_ call: CAPPluginCall) {
         run(call) { views, _ in
             views.showHome()
@@ -46,6 +50,7 @@ public class ProtobaseWorkspacesPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /** Closes the workspace's view, drops it from the list and deletes its data store when WebKit lets it. */
     @objc func remove(_ call: CAPPluginCall) {
         run(call) { views, list in
             let id = call.getString("id") ?? ""
@@ -56,6 +61,7 @@ public class ProtobaseWorkspacesPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /** Runs a method's body on the main actor once the mode is on, answering a known failure with its own rejection. */
     private func run(_ call: CAPPluginCall, _ body: @escaping @MainActor (WorkspaceViews, WorkspaceList) async throws -> Void) {
         if let refusal = refusal() { return call.reject(refusal) }
         Task { @MainActor in
@@ -70,6 +76,7 @@ public class ProtobaseWorkspacesPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /** Why the mode cannot run here, or nil when it can. */
     private func refusal() -> String? {
         guard let enabled = WorkspacesSetting.enabled(getConfig().getConfigJSON()["enabled"]) else {
             return "plugins.ProtobaseWorkspaces.enabled takes true or false"
@@ -80,6 +87,7 @@ public class ProtobaseWorkspacesPlugin: CAPPlugin, CAPBridgedPlugin {
         return nil
     }
 
+    /** The workspace views, made on first use over the bridge's view controller. */
     @MainActor
     private func workspaceViews() -> WorkspaceViews {
         if let views { return views }
@@ -91,6 +99,7 @@ public class ProtobaseWorkspacesPlugin: CAPPlugin, CAPBridgedPlugin {
         return made
     }
 
+    /** The workspace as the plugin answers it, leaving out a missing name or icon. */
     private static func json(_ workspace: Workspace) -> JSObject {
         var object: JSObject = ["id": workspace.id, "origin": workspace.origin]
         if let name = workspace.name { object["name"] = name }

@@ -30,6 +30,7 @@ final class WorkspaceWebView {
         webView.allowsBackForwardNavigationGestures = true
     }
 
+    /** Loads the workspace's origin. */
     func load() {
         webView.load(URLRequest(url: origin))
     }

@@ -21,6 +21,7 @@ final class WorkspaceWebView {
 
     private WorkspaceWebView() {}
 
+    /** Whether this WebView has the profiles and message listeners a workspace view needs. */
     static boolean supported() {
         return WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE) && WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER);
     }

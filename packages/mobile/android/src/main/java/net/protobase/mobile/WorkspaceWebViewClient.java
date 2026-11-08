@@ -26,6 +26,7 @@ final class WorkspaceWebViewClient extends WebViewClient {
         this.openExternally = openExternally;
     }
 
+    /** Loads what WorkspaceNavigation allows, hands a URL for the system browser to `openExternally` and stops the rest. */
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
         String url = request.getUrl().toString();
@@ -34,12 +35,14 @@ final class WorkspaceWebViewClient extends WebViewClient {
         return decision != WorkspaceNavigation.Decision.LOAD;
     }
 
+    /** Answers a main-frame request for another origin with an empty 204; lets every other request through (null). */
     @Override
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
         if (!request.isForMainFrame() || ownOrigin(request.getUrl().toString())) return null;
         return new WebResourceResponse("text/plain", "utf-8", 204, "No Content", Collections.emptyMap(), new ByteArrayInputStream(new byte[0]));
     }
 
+    /** Whether `url` is of the workspace's origin; false when it does not parse. */
     private boolean ownOrigin(String url) {
         try {
             return SameOrigin.matches(new URI(url), URI.create(workspace));

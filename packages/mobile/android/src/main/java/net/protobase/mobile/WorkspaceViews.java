@@ -27,10 +27,12 @@ final class WorkspaceViews {
         this.onMessage = onMessage;
     }
 
+    /** The view made for the workspace with `id`, or null when none is. */
     WebView view(String id) {
         return views.get(id);
     }
 
+    /** Shows the workspace's view in front, making it the first time; false when there is no screen or the view cannot be made. */
     boolean show(Workspace workspace) {
         ViewGroup parent = container.get();
         if (parent == null) return false;
@@ -42,10 +44,12 @@ final class WorkspaceViews {
         return true;
     }
 
+    /** Hides every workspace view. */
     void showHome() {
         for (WebView view : views.values()) view.setVisibility(View.GONE);
     }
 
+    /** Takes the workspace's view off the screen and destroys it, if one was made. */
     void close(String id) {
         WebView view = views.remove(id);
         if (view == null) return;
@@ -53,6 +57,7 @@ final class WorkspaceViews {
         view.destroy();
     }
 
+    /** Makes and loads the workspace's view, or null when WorkspaceWebView cannot make it. */
     private WebView make(ViewGroup parent, Workspace workspace) {
         WebView view = WorkspaceWebView.make(parent.getContext(), workspace, openExternally, message -> onMessage.accept(workspace, message));
         if (view == null) return null;

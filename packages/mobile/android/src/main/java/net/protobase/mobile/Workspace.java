@@ -21,6 +21,7 @@ final class Workspace {
         this.icon = icon;
     }
 
+    /** The workspace as the plugin answers and the list stores it, leaving out a null name or icon. */
     JSONObject toJson() throws JSONException {
         JSONObject json = new JSONObject().put("id", id).put("origin", origin);
         if (name != null) json.put("name", name);
@@ -28,6 +29,7 @@ final class Workspace {
         return json;
     }
 
+    /** The workspace toJson wrote, with a missing name or icon as null. */
     static Workspace fromJson(JSONObject json) throws JSONException {
         return new Workspace(json.getString("id"), json.getString("origin"), json.has("name") ? json.getString("name") : null, json.has("icon") ? json.getString("icon") : null);
     }

@@ -29,15 +29,18 @@ final class TestSite {
         self.port = port
     }
 
+    /** Stops listening. */
     func close() {
         listener.cancel()
     }
 
+    /** Starts reading a new connection. */
     private func serve(_ connection: NWConnection) {
         connection.start(queue: queue)
         read(connection, Data())
     }
 
+    /** Reads until the request's head is in, then answers it and closes the connection. */
     private func read(_ connection: NWConnection, _ received: Data) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, done, _ in
             guard let self else { return connection.cancel() }
@@ -49,6 +52,7 @@ final class TestSite {
         }
     }
 
+    /** The response for the request's path: its page, or a 404. */
     private func answer(_ request: String) -> Data {
         let lines = request.components(separatedBy: "\r\n")
         let target = lines[0].split(separator: " ").dropFirst().first.map(String.init) ?? "/"

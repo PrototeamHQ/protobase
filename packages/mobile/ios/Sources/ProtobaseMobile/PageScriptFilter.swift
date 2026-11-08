@@ -19,12 +19,14 @@ final class PageScriptFilter: NSObject, WKScriptMessageHandler {
         self.bridge = bridge
     }
 
+    /** Puts the filter in front of the bridge's message handler. */
     static func install(on bridge: CapacitorBridge) {
         let contentController = bridge.webViewDelegationHandler.contentController
         contentController.removeScriptMessageHandler(forName: handlerName)
         contentController.add(PageScriptFilter(bridge: bridge), name: handlerName)
     }
 
+    /** Hands the bridge a message from its own origin's main frame for a plugin page script may reach; refuses a call to any other plugin and drops the rest. */
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let bridge, message.frameInfo.isMainFrame, SameOrigin.matches(message.frameInfo.securityOrigin, bridge.config.serverURL) else { return }
         guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
@@ -41,7 +43,7 @@ final class PageScriptFilter: NSObject, WKScriptMessageHandler {
         refuse(body, pluginId: pluginId, in: message.webView)
     }
 
-    // Rejects the call's promise, as Capacitor answers a failed call (CapacitorBridge.swift, toJs).
+    /** Rejects the refused call's promise, as Capacitor answers a failed call (CapacitorBridge.swift, toJs). */
     private func refuse(_ body: [String: Any], pluginId: String, in webView: WKWebView?) {
         guard let callbackId = body["callbackId"] as? String else { return }
         let answer: [String: Any] = [

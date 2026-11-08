@@ -17,6 +17,7 @@ enum WorkspaceNavigation {
     private static let webSchemes: Set<String> = ["http", "https"]
     private static let frameSchemes: Set<String> = ["http", "https", "about", "blob", "data"]
 
+    /** What the view at `workspace` does with a navigation to `url` by `method`, in its main frame or a frame. */
     static func decide(_ url: URL, mainFrame: Bool, method: String, workspace: URL) -> Decision {
         let scheme = (url.scheme ?? "").lowercased()
         if !mainFrame { return frameSchemes.contains(scheme) ? .load : .refuse }

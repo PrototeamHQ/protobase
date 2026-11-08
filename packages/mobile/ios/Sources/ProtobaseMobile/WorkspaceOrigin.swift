@@ -9,6 +9,7 @@ import Foundation
 enum WorkspaceOrigin {
     private static let loopbackHosts: Set<String> = ["localhost", "127.0.0.1"]
 
+    /** The origin `text` names, written as the shell keeps it, or nil when it is refused. */
     static func parse(_ text: String) -> URL? {
         guard let parts = URLComponents(string: text), let scheme = parts.scheme?.lowercased(), let host = parts.host?.lowercased(), !host.isEmpty else { return nil }
         guard scheme == "https" || (scheme == "http" && loopbackHosts.contains(host)) else { return nil }

@@ -129,10 +129,12 @@ public class WorkspaceWebViewTest {
         until("the view stays on its page", () -> js(a, "location.href + '|' + document.readyState").equals(origin() + "/links|complete"));
     }
 
+    /** The test site's origin. */
     private String origin() {
         return "http://127.0.0.1:" + site.port();
     }
 
+    /** A workspace view on the profile `store`, for the test site's origin, on the test screen. */
     private WebView make(String store) throws Exception {
         Workspace workspace = new Workspace(store, origin(), null, null);
         AtomicReference<WebView> made = new AtomicReference<>();
@@ -145,12 +147,13 @@ public class WorkspaceWebViewTest {
         return made.get();
     }
 
+    /** Loads `path` of the test site in `view` and waits until it has loaded. */
     private void go(WebView view, String path) throws Exception {
         onMain(() -> view.loadUrl(origin() + path));
         until(path + " loaded", () -> js(view, "location.pathname + '|' + document.readyState").equals(path + "|complete"));
     }
 
-    // The script's result as a string: evaluateJavascript hands it over as JSON.
+    /** The script's result as a string: evaluateJavascript hands it over as JSON. */
     private String js(WebView view, String script) {
         CountDownLatch done = new CountDownLatch(1);
         AtomicReference<String> result = new AtomicReference<>();
@@ -173,6 +176,7 @@ public class WorkspaceWebViewTest {
         }
     }
 
+    /** Waits until `condition` holds, failing with `what` when it does not in time. */
     private static void until(String what, BooleanSupplier condition) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 15_000;
         while (!condition.getAsBoolean()) {
@@ -181,6 +185,7 @@ public class WorkspaceWebViewTest {
         }
     }
 
+    /** Runs `runnable` on the main thread and waits for it. */
     private static void onMain(Runnable runnable) {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(runnable);
     }

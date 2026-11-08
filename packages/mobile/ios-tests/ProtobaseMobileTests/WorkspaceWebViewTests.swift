@@ -110,6 +110,7 @@ final class WorkspaceWebViewTests: XCTestCase {
         XCTAssertEqual(location, "\(origin)/links")
     }
 
+    /** A workspace view on the data store `store`, for the test site's origin, on screen. */
     private func make(_ store: UUID) -> WorkspaceWebView {
         let workspace = Workspace(id: store.uuidString, origin: origin, name: nil, icon: nil)
         let view = WorkspaceWebView(workspace, openExternally: { [weak self] in self?.opened.append($0.absoluteString) }, onMessage: { [weak self] in self?.messages.append($0) })!
@@ -119,16 +120,18 @@ final class WorkspaceWebViewTests: XCTestCase {
         return view
     }
 
+    /** Loads `path` of the test site in `view` and waits until it has loaded. */
     private func go(_ view: WorkspaceWebView, _ path: String) async throws {
         view.webView.load(URLRequest(url: URL(string: origin + path)!))
         try await until("\(path) loaded") { try await self.js(view, "location.pathname + '|' + document.readyState") == "\(path)|complete" }
     }
 
-    // Every script ends in a string: WebKit cannot hand an undefined result to Swift.
+    /** The script's string result; every script ends in a string, since WebKit cannot hand an undefined result to Swift. */
     private func js(_ view: WorkspaceWebView, _ script: String) async throws -> String {
         try await view.webView.evaluateJavaScript(script) as? String ?? ""
     }
 
+    /** Waits until `condition` holds, failing with `what` when it does not in time. */
     private func until(_ what: String, _ condition: @MainActor () async throws -> Bool) async throws {
         let deadline = Date().addingTimeInterval(15)
         while try await !condition() {

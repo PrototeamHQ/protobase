@@ -5,6 +5,7 @@ import Foundation
  * absent or `false` leaves them off, and any other value is refused (nil).
  */
 enum WorkspacesSetting {
+    /** The setting's meaning: true, false, or nil for a value it refuses. */
     static func enabled(_ value: Any?) -> Bool? {
         guard let value else { return false }
         guard let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else { return nil }

@@ -20,6 +20,7 @@ enum WorkspaceMessage {
         this.name = name;
     }
 
+    /** The message `body` names, when it comes from the main frame of the workspace's origin; otherwise null. */
     static WorkspaceMessage accept(String body, boolean mainFrame, String sourceOrigin, String workspace) {
         if (!mainFrame || body == null || sourceOrigin == null) return null;
         URI source;

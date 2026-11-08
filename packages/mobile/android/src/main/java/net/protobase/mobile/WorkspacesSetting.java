@@ -8,6 +8,7 @@ final class WorkspacesSetting {
 
     private WorkspacesSetting() {}
 
+    /** The setting's meaning: true, false, or null for a value it refuses. */
     static Boolean enabled(Object value) {
         if (value == null) return false;
         if (value instanceof Boolean) return (Boolean) value;

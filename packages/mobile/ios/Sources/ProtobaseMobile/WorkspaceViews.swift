@@ -17,11 +17,13 @@ final class WorkspaceViews {
         self.onMessage = onMessage
     }
 
+    /** The view made for the workspace with `id`, or nil when none is. */
     func view(_ id: String) -> WorkspaceWebView? {
         views[id]
     }
 
     @discardableResult
+    /** Shows the workspace's view in front, making it the first time; false when there is no screen or the view cannot be made. */
     func show(_ workspace: Workspace) -> Bool {
         guard let container = container(), let view = views[workspace.id] ?? make(workspace) else { return false }
         views.values.forEach { $0.webView.isHidden = $0 !== view }
@@ -34,14 +36,17 @@ final class WorkspaceViews {
         return true
     }
 
+    /** Hides every workspace view. */
     func showHome() {
         views.values.forEach { $0.webView.isHidden = true }
     }
 
+    /** Takes the workspace's view off the screen and closes it, if one was made. */
     func close(_ id: String) {
         views.removeValue(forKey: id)?.close()
     }
 
+    /** Makes and loads the workspace's view, or nil when WorkspaceWebView cannot make it. */
     private func make(_ workspace: Workspace) -> WorkspaceWebView? {
         let onMessage = self.onMessage
         guard let view = WorkspaceWebView(workspace, openExternally: openExternally, onMessage: { onMessage(workspace, $0) }) else { return nil }

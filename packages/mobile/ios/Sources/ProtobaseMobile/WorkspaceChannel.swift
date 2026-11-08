@@ -10,6 +10,7 @@ final class WorkspaceChannel: NSObject, WKScriptMessageHandler {
         self.onMessage = onMessage
     }
 
+    /** Hands on a message WorkspaceMessage accepts from the frame that posted it. */
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         let origin = message.frameInfo.securityOrigin
         guard let accepted = WorkspaceMessage.accept(message.body, mainFrame: message.frameInfo.isMainFrame, scheme: origin.protocol, host: origin.host, port: origin.port, workspace: workspace) else { return }

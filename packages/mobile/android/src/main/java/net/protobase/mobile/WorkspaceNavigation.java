@@ -25,6 +25,7 @@ final class WorkspaceNavigation {
 
     private WorkspaceNavigation() {}
 
+    /** What the view at `workspace` does with a navigation to `url` by `method`, in its main frame or a frame. */
     static Decision decide(String url, boolean mainFrame, String method, String workspace) {
         URI uri;
         try {

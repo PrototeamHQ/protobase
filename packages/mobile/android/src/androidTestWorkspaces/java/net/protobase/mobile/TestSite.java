@@ -42,15 +42,18 @@ final class TestSite implements AutoCloseable {
         thread.start();
     }
 
+    /** The local port the site listens on. */
     int port() {
         return socket.getLocalPort();
     }
 
+    /** Stops listening. */
     @Override
     public void close() throws IOException {
         socket.close();
     }
 
+    /** Answers each connection in turn until the site closes. */
     private void serve() {
         while (true) {
             try (Socket connection = socket.accept()) {
@@ -63,6 +66,7 @@ final class TestSite implements AutoCloseable {
         }
     }
 
+    /** Reads one request and answers it with its path's page, or a 404. */
     private void answer(Socket connection) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8));
         String[] requestLine = String.valueOf(reader.readLine()).split(" ");

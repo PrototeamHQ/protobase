@@ -25,6 +25,7 @@ final class WorkspaceList {
         this.storage = storage;
     }
 
+    /** Every listed workspace, in the order added. */
     List<Workspace> all() throws JSONException {
         JSONArray array = new JSONArray(orEmpty(storage.read(LIST_KEY)));
         List<Workspace> workspaces = new ArrayList<>();
@@ -32,6 +33,7 @@ final class WorkspaceList {
         return workspaces;
     }
 
+    /** The workspace with `id`; Unknown when none has it. */
     Workspace find(String id) throws JSONException, Unknown {
         for (Workspace workspace : all()) {
             if (workspace.id.equals(id)) return workspace;
@@ -39,6 +41,7 @@ final class WorkspaceList {
         throw new Unknown();
     }
 
+    /** Lists a workspace under a new id; Listed when one already has the origin. */
     Workspace add(String origin, String name, String icon) throws JSONException, Listed {
         List<Workspace> workspaces = all();
         for (Workspace workspace : workspaces) {
@@ -50,6 +53,7 @@ final class WorkspaceList {
         return added;
     }
 
+    /** Drops the workspace and keeps its id in `removedStores`; Unknown when none has it. */
     void remove(String id) throws JSONException, Unknown {
         List<Workspace> workspaces = all();
         if (!workspaces.removeIf(workspace -> workspace.id.equals(id))) throw new Unknown();
@@ -59,6 +63,7 @@ final class WorkspaceList {
         save(workspaces);
     }
 
+    /** The ids of removed workspaces whose profiles are not deleted yet. */
     List<String> removedStores() throws JSONException {
         JSONArray array = new JSONArray(orEmpty(storage.read(REMOVED_KEY)));
         List<String> ids = new ArrayList<>();
@@ -66,18 +71,21 @@ final class WorkspaceList {
         return ids;
     }
 
+    /** Forgets a removed workspace's id once its profile is deleted. */
     void storeRemoved(String id) throws JSONException {
         List<String> removed = removedStores();
         removed.remove(id);
         storage.write(REMOVED_KEY, new JSONArray(removed).toString());
     }
 
+    /** Writes the whole list. */
     private void save(List<Workspace> workspaces) throws JSONException {
         JSONArray array = new JSONArray();
         for (Workspace workspace : workspaces) array.put(workspace.toJson());
         storage.write(LIST_KEY, array.toString());
     }
 
+    /** The stored JSON, or an empty array when nothing was written. */
     private static String orEmpty(String json) {
         return json == null ? "[]" : json;
     }

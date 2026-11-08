@@ -27,6 +27,7 @@ public class ProtobaseWorkspaces extends Plugin {
     private WorkspaceList list;
     private WorkspaceViews views;
 
+    /** Reads the list from the app's SharedPreferences and wires the views to the bridge's screen, the system browser and the plugin's events. */
     @Override
     public void load() {
         list = new WorkspaceList(new PreferencesStorage(getContext().getSharedPreferences("ProtobaseWorkspaces", Activity.MODE_PRIVATE)));
@@ -36,6 +37,7 @@ public class ProtobaseWorkspaces extends Plugin {
             (workspace, message) -> notifyListeners(message.name, new JSObject().put("id", workspace.id)));
     }
 
+    /** Answers `{ workspaces }` in the order added, after deleting the profiles of removed workspaces that can go. */
     @PluginMethod
     public void list(PluginCall call) {
         run(call, (views, list) -> {
@@ -46,6 +48,7 @@ public class ProtobaseWorkspaces extends Plugin {
         });
     }
 
+    /** Lists the workspace at `origin` and answers `{ workspace }`; rejects an origin that does not parse or is already listed. */
     @PluginMethod
     public void add(PluginCall call) {
         run(call, (views, list) -> {
@@ -59,6 +62,7 @@ public class ProtobaseWorkspaces extends Plugin {
         });
     }
 
+    /** Shows the workspace with `id`, making its view the first time; rejects an unknown id or a view that cannot be made. */
     @PluginMethod
     public void open(PluginCall call) {
         run(call, (views, list) -> {
@@ -70,6 +74,7 @@ public class ProtobaseWorkspaces extends Plugin {
         });
     }
 
+    /** Hides every workspace view, so the home view shows. */
     @PluginMethod
     public void showHome(PluginCall call) {
         run(call, (views, list) -> {
@@ -78,6 +83,7 @@ public class ProtobaseWorkspaces extends Plugin {
         });
     }
 
+    /** Closes the workspace's view, drops it from the list and deletes its profile when Android lets it. */
     @PluginMethod
     public void remove(PluginCall call) {
         run(call, (views, list) -> {
@@ -89,6 +95,7 @@ public class ProtobaseWorkspaces extends Plugin {
         });
     }
 
+    /** Runs a method's body on the main thread once the mode is on, answering a known failure with its own rejection. */
     private void run(PluginCall call, Body body) {
         String refusal = refusal();
         if (refusal != null) {
@@ -108,6 +115,7 @@ public class ProtobaseWorkspaces extends Plugin {
         });
     }
 
+    /** Why the mode cannot run here, or null when it can. */
     private String refusal() {
         Boolean enabled = WorkspacesSetting.enabled(getConfig().getConfigJSON().opt("enabled"));
         if (enabled == null) return "plugins.ProtobaseWorkspaces.enabled takes true or false";

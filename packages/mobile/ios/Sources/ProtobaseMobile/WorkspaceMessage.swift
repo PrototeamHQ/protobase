@@ -10,6 +10,7 @@ enum WorkspaceMessage: String {
 
     static let handlerName = "protobaseApp"
 
+    /** The message `body` names, when it comes from the main frame of the workspace's origin; otherwise nil. */
     static func accept(_ body: Any, mainFrame: Bool, scheme: String, host: String, port: Int, workspace: URL) -> WorkspaceMessage? {
         guard mainFrame, SameOrigin.matches(scheme: scheme, host: host, port: port, workspace), let text = body as? String else { return nil }
         return WorkspaceMessage(rawValue: text)

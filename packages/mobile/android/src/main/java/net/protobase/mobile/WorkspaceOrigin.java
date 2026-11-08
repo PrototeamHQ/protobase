@@ -17,6 +17,7 @@ final class WorkspaceOrigin {
 
     private WorkspaceOrigin() {}
 
+    /** The origin `text` names, written as the shell keeps it, or null when it is refused. */
     static String parse(String text) {
         if (text == null) return null;
         URI uri;
