@@ -1,6 +1,10 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import type { Checkpoint, Definition, RunStore, TraceMode } from '@protobase/workflows'
+import { allOrNothing } from './all-or-nothing'
+
+/** A save one of whose scopes has a newer checkpoint than the one it follows: thrown so the others roll back. */
+class SaveRefused extends Error {}
 
 const json = (value: unknown) => (value === undefined ? null : JSON.stringify(value))
 
@@ -27,23 +31,33 @@ export const postgresRunStore = (schema: string): RunStore<Db> => {
         from ${checkpoints} where run_id = ${id}`.execute(db)
       return rows.map((row) => ({ ...row, after: row.seq }))
     },
-    // One statement: each checkpoint replaces its scope's, unless that one is not the one it follows, which the row's
-    // lock on conflict keeps true against a save of another segment at the same time.
+    // Each checkpoint replaces its scope's, unless that one is not the one it follows, which the row's lock on conflict
+    // keeps true against a save of another segment at the same time. A save refused for one scope keeps none of them,
+    // so of two segments saving the same scopes one goes on.
     save: async (db, id, saved) => {
       const row = (checkpoint: Checkpoint) =>
         sql`(${checkpoint.scope}, ${checkpoint.seq}::integer, ${checkpoint.after}::integer, ${checkpoint.state}, ${checkpoint.type}, ${checkpoint.status},
           ${checkpoint.fetchedAt}::timestamptz, ${checkpoint.next}, ${json(checkpoint.value)}::jsonb, ${JSON.stringify(checkpoint.variables)}::jsonb,
           ${checkpoint.attempt}::integer, ${JSON.stringify(checkpoint.failures)}::jsonb, ${JSON.stringify(checkpoint.visits)}::jsonb, ${checkpoint.resumeAt ?? null}::timestamptz, ${checkpoint.clock}::timestamptz)`
-      const { rows } = await sql<{ scope: string }>`insert into ${checkpoints} as c
-        (run_id, scope, seq, follows, state, type, status, fetched_at, next, value, variables, attempt, failures, visits, resume_at, clock)
-        select ${id}::uuid, s.* from (values ${sql.join(saved.map(row))})
-          as s (scope, seq, follows, state, type, status, fetched_at, next, value, variables, attempt, failures, visits, resume_at, clock)
-        on conflict (run_id, scope) do update set seq = excluded.seq, follows = excluded.follows, state = excluded.state, type = excluded.type,
-          status = excluded.status, fetched_at = excluded.fetched_at, next = excluded.next, value = excluded.value, variables = excluded.variables,
-          attempt = excluded.attempt, failures = excluded.failures, visits = excluded.visits, resume_at = excluded.resume_at, clock = excluded.clock
-        where c.seq = excluded.follows
-        returning scope`.execute(db)
-      return rows.length === saved.length
+      const upsert = async (trx: Db) => {
+        const { rows } = await sql<{ scope: string }>`insert into ${checkpoints} as c
+          (run_id, scope, seq, follows, state, type, status, fetched_at, next, value, variables, attempt, failures, visits, resume_at, clock)
+          select ${id}::uuid, s.* from (values ${sql.join(saved.map(row))})
+            as s (scope, seq, follows, state, type, status, fetched_at, next, value, variables, attempt, failures, visits, resume_at, clock)
+          on conflict (run_id, scope) do update set seq = excluded.seq, follows = excluded.follows, state = excluded.state, type = excluded.type,
+            status = excluded.status, fetched_at = excluded.fetched_at, next = excluded.next, value = excluded.value, variables = excluded.variables,
+            attempt = excluded.attempt, failures = excluded.failures, visits = excluded.visits, resume_at = excluded.resume_at, clock = excluded.clock
+          where c.seq = excluded.follows
+          returning scope`.execute(trx)
+        if (rows.length < saved.length) throw new SaveRefused()
+      }
+      try {
+        await allOrNothing(db, upsert)
+      } catch (error) {
+        if (error instanceof SaveRefused) return false
+        throw error
+      }
+      return true
     },
     // A run that succeeds drops its checkpoints in the same statement, its outcome being the run's own; one that fails
     // keeps them for a re-run to go on from.
