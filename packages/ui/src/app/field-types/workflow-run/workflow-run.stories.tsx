@@ -320,6 +320,10 @@ export const RunningRunChecks: StoryObj = {
     await markOf(canvasElement, 'Ask', 'Succeeded')
     await userEvent.click(await nodeOf(canvasElement, 'Ask'))
     await waitFor(() => expect(panel(canvasElement).getByText(/GET https:\/\/gate\.example\.com\/ask as nobody/)).toBeVisible())
+    // The step's try, when it started and how long it took
+    const card = panel(canvasElement).getByRole('article', { name: 'Try 1' })
+    expect(within(card).getByText(/^\d[\d,.]* ms$/)).toBeVisible()
+    expect(card.querySelector('header time')).toHaveAttribute('datetime', expect.stringMatching(/^\d{4}-\d\d-\d\dT/))
   },
 }
 
