@@ -55,7 +55,8 @@ describe('the batch move', () => {
 
   it('saves while records were added or removed elsewhere in the list', async () => {
     await pg.exec("delete from lines where id = 3; insert into lines (folder_id, position, body) values (1, 9, 'e')")
-    const response = await move(1, 4, 5)
+    // e is id 6, after x
+    const response = await move(1, 4, 6)
     expect(response.status, await response.clone().text()).toBe(200)
     expect(await order()).toBe('bdae')
   })
