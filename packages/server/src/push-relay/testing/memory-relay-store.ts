@@ -23,10 +23,10 @@ export const memoryRelayStore = (now: () => number = Date.now) => {
     charge: async (id, devices, perHour, start) => {
       const found = credentials.get(id)
       if (!found) return false
-      const hour = start.getTime()
-      const sent = (found.hour === hour ? found.sent! : 0) + devices
+      const current = found.hour !== undefined && found.hour >= start.getTime()
+      const sent = (current ? found.sent! : 0) + devices
       if (sent > perHour) return false
-      Object.assign(found, { hour, sent })
+      Object.assign(found, { hour: current ? found.hour : start.getTime(), sent })
       return true
     },
     addCredential: async (credential) => void credentials.set(credential.id, { ...credential, createdAt: new Date(now()) }),

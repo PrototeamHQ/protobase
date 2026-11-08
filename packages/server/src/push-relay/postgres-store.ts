@@ -39,11 +39,12 @@ export const postgresRelayStore = (db: Db): RelayStore => ({
   },
 
   charge: async (id, devices, perHour, hour) => {
-    // One statement: a new clock hour starts the count again, and a count it would take over the limit changes nothing.
+    // One statement: a new clock hour starts the count again, a charge for an hour already past counts in the newer
+    // hour, and a count it would take over the limit changes nothing.
     const start = hour.toISOString()
     const { rows } = await sql<{ id: string }>`update push_relay.credentials
-      set sent = case when hour = ${start}::timestamptz then sent + ${devices} else ${devices} end, hour = ${start}::timestamptz
-      where id = ${id}::uuid and (case when hour = ${start}::timestamptz then sent + ${devices} else ${devices} end) <= ${perHour}
+      set sent = case when hour >= ${start}::timestamptz then sent + ${devices} else ${devices} end, hour = greatest(hour, ${start}::timestamptz)
+      where id = ${id}::uuid and (case when hour >= ${start}::timestamptz then sent + ${devices} else ${devices} end) <= ${perHour}
       returning id`.execute(db)
     return rows.length === 1
   },
