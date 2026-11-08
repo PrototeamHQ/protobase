@@ -6,6 +6,7 @@ const auth = Buffer.alloc(16, 1).toString('base64url')
 const web = { kind: 'web', endpoint: 'https://fcm.googleapis.com/fcm/send/abc:def', keys: { p256dh, auth } }
 const apns = { kind: 'apns', token: 'ab'.repeat(32), environment: 'production', appId: 'net.example.app' }
 const fcm = { kind: 'fcm', token: 'dXyz-_:APA91bHu' }
+const relay = { kind: 'relay', handle: 'rh_0123456789abcdef-XYZ' }
 
 const refused = (body: unknown) => {
   try {
@@ -21,6 +22,7 @@ describe('deviceInput', () => {
     expect(deviceInput(web).device).toEqual({ kind: 'web', token: web.endpoint, p256dh, auth, environment: null, appId: null, userAgent: null })
     expect(deviceInput({ ...apns, userAgent: 'App/1' }).device).toEqual({ kind: 'apns', token: apns.token, p256dh: null, auth: null, environment: 'production', appId: 'net.example.app', userAgent: 'App/1' })
     expect(deviceInput(fcm).device).toEqual({ kind: 'fcm', token: fcm.token, p256dh: null, auth: null, environment: null, appId: null, userAgent: null })
+    expect(deviceInput(relay).device).toEqual({ kind: 'relay', token: relay.handle, p256dh: null, auth: null, environment: null, appId: null, userAgent: null })
   })
 
   it('reads the user the client registers for, apart from the device', () => {
@@ -62,6 +64,10 @@ describe('deviceInput', () => {
     ['an APNs token that is not lowercase hex', { ...apns, token: 'AB'.repeat(32) }],
     ['a short APNs token', { ...apns, token: 'ab' }],
     ['an FCM token with other characters', { ...fcm, token: 'abc/def' }],
+    ['a short relay handle', { ...relay, handle: 'abc' }],
+    ['a relay handle with other characters', { ...relay, handle: 'rh_0123456789abcdef:XYZ' }],
+    ['a relay device given a token in place of its handle', { kind: 'relay', token: relay.handle }],
+    ['a relay device with an app id', { ...relay, appId: 'net.example.app' }],
     ['a p256dh key of the wrong size', { ...web, keys: { p256dh: Buffer.alloc(64).toString('base64url'), auth } }],
     ['an auth key of the wrong size', { ...web, keys: { p256dh, auth: Buffer.alloc(17).toString('base64url') } }],
     ['a padded key', { ...web, keys: { p256dh: `${p256dh}=`, auth } }],

@@ -13,8 +13,11 @@ export type WebDeviceRegistration = { kind: 'web'; endpoint: string; keys: { p25
  */
 export type FcmDeviceRegistration = { kind: 'fcm'; token: string; userAgent?: string; userId?: string }
 
+/** A mobile app's handle from a push relay as it registers it, never its own push token; the user as for a browser. */
+export type RelayDeviceRegistration = { kind: 'relay'; handle: string; userAgent?: string; userId?: string }
+
 /** A device as the server answers it: never its token or keys. */
-export type RegisteredDevice = { id: string; kind: 'web' | 'apns' | 'fcm'; createdAt: string; lastSeenAt: string }
+export type RegisteredDevice = { id: string; kind: 'web' | 'apns' | 'fcm' | 'relay'; createdAt: string; lastSeenAt: string }
 
 /**
  * The signed-in user's own devices (`/api/notifications/devices`): `register` adds or refreshes the device the request
@@ -23,7 +26,7 @@ export type RegisteredDevice = { id: string; kind: 'web' | 'apns' | 'fcm'; creat
  * `other-user` when the user it names is not the one signed in; `remove` removes one by its id.
  */
 export const devicesClient = (send: Transport) => ({
-  register: async (device: WebDeviceRegistration | FcmDeviceRegistration): Promise<RegisteredDevice> => (await send({ method: 'POST', path: devicesPath(''), system: true, body: device })).json() as Promise<RegisteredDevice>,
+  register: async (device: WebDeviceRegistration | FcmDeviceRegistration | RelayDeviceRegistration): Promise<RegisteredDevice> => (await send({ method: 'POST', path: devicesPath(''), system: true, body: device })).json() as Promise<RegisteredDevice>,
   remove: async (id: string) => {
     await send({ method: 'DELETE', path: devicesPath('', id), system: true })
   },
