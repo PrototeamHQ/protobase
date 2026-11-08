@@ -86,4 +86,23 @@ describe('traceSink', () => {
     await expect(traceSink({ files: () => undefined, joining, report }).write('r4', [step('A')], { mode: 'all' })).resolves.toBeUndefined()
     expect(report).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('"private" file provider') }))
   })
+
+  it('reads the parts of a run that goes on in the order they were kept, and gives a replay no steps of a run without a trace', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const sink = traceSink({ files: () => files, joining, report: (error) => { throw error } })
+    // A part is named by when it was kept, so the parts read in that order and not in the order they were written: here
+    // each segment's part is kept a minute before the one before it.
+    for (const [index, state] of ['A', 'B', 'C'].entries()) {
+      vi.setSystemTime(new Date(Date.UTC(2026, 10, 8, 9, 3 - index)))
+      await sink.write('r7', [{ ...step(state), seq: index }], { mode: 'all' })
+    }
+    vi.useRealTimers()
+    expect((await readTrace(files, 'r7')).map((line) => line.state)).toEqual(['C', 'B', 'A'])
+    expect((await sink.read('r7'))?.map((line) => line.state)).toEqual(['C', 'B', 'A'])
+    expect(await sink.read('r8')).toBeUndefined()
+  })
+
+  it('reads no steps where the app keeps no private files', async () => {
+    expect(await readTrace(undefined, 'r1')).toEqual([])
+  })
 })
