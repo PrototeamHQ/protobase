@@ -58,6 +58,8 @@
     "@protobase/layout": "workspace:*",
     "@protobase/query": "workspace:*",
     "@protobase/schema": "workspace:*",
+    "@protobase/workflow-plugins": "workspace:*",
+    "@protobase/workflows": "workspace:*",
     "@react-email/render": "^2.1.0",
     "@react-pdf/primitives": "^4.4.0",
     "@react-pdf/renderer": "^4.9.0",

@@ -19,7 +19,16 @@ export const fieldShapes = (model: ResourceModel): ReadShape[] => {
     ...(model.search?.length ? [{ resource: model.name, request: `${at}?filter=search("…")`, from: `the search over ${model.search.join(', ')}`, query: { filter: searchFor } }] : []),
     ...ownerShapes(model),
     ...parentShapes(model),
+    ...linkShapes(model),
   ]
+}
+
+// A list under a record reads a link by one side for the keys on the other.
+const linkShapes = (model: ResourceModel): ReadShape[] => {
+  if (!model.links) return []
+  const [first, second] = model.links.map((name) => model.fields[name]!) as [FieldModel, FieldModel]
+  const side = (near: FieldModel, far: FieldModel): ReadShape => ({ resource: model.name, request: `GET /${model.name}?filter=${near.name} = …`, from: `it links ${near.name} to ${far.name}`, query: { filter: compare(near), selects: far } })
+  return [side(first, second), side(second, first)]
 }
 
 // Every read keeps to the records whose parent the caller reads, by the relation `.parent(fk, 'read')` names.

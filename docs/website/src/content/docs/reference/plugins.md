@@ -148,6 +148,10 @@ Each part gets:
 
 [Adding a field type](/guides/field-type/) builds one step by step.
 
+### JSON
+
+`json` is a field type Protobase brings for any JSON field a form should edit, such as a workflow run's `input`: `r.input.widget('json')`. The form edits the value as JSON text, the record page shows it written out on several lines, and a list's table on one. Text that does not parse yet says so under the box and leaves the value as it last parsed; an emptied box is null. It takes the form's whole width. A plugin that registers a field type named `json` replaces it.
+
 ### Members
 
 `members` is a field type Protobase brings, for a JSON field that holds an array of user ids, such as who may read a private channel. No plugin registers it; a view picks it as it picks any other:
@@ -161,6 +165,12 @@ view<typeof channels>('channels').fields((r) => ({ member_ids: r.member_ids.widg
 ```
 
 The create form and the record's form pick the members of the organization the session works in by name: typing narrows them, each choice is a token whose button takes it off again, and choosing a chosen member takes them off too. It stores their user ids, the ids `.author()` stores and [`useMembers()`](/reference/custom-components/#members-names) gives, never membership ids. The record page, cards and the list's table show each member by avatar and name; an id that is no longer a member shows as an unknown member. A JSON field is on a form only through a field type that edits it, so without the hint `member_ids` stays read-only. The field needs [organizations](/reference/auth/#organizations); in an app without them it says so in place of the members. <gap>The members picker cannot search on the server because a server-side people resource is not implemented, so it loads the whole list in the browser, as `useMembers()` does.</gap> A plugin that registers a field type named `members` replaces it, and the server refuses to start when a view picks it for a field that is no JSON.
+
+### Workflow
+
+`workflow` is the field type the `workflows` resource draws its `definition` with: the [workflow editor](/reference/workflows/#the-editor). Another JSON field holding a workflow's definition picks it as `r.definition.widget('workflow')`. It takes the form's whole width, and a list's table shows how many steps the workflow has. A plugin that registers a field type named `workflow` replaces it.
+
+`workflow_run` is the field type the `workflow_runs` resource draws its own `id` with: the run's [trace](/reference/workflows/#following-and-debugging-a-run) on its workflow's graph, with the chosen step's records under it. Another uuid field holding a run's id picks it as `r.run_id.widget('workflow_run')`. It takes the whole width, and a list's table shows the id. A plugin that registers a field type named `workflow_run` replaces it.
 
 ## Building
 
@@ -332,6 +342,9 @@ From `@protobase/ui`:
 | `usePlugin()` | The plugin the calling component belongs to (see [above](#writing-a-plugin)). |
 | `useResourceClient(resource)` | The client of the API that serves a resource: the app's own, or a source's for a [remote resource](/reference/remote-resources/). |
 | `FieldWidget`, `FieldWidgetProps`, `FieldWidgetEditorProps` | The types of a [field type](#field-types) and of its parts' props. |
+| `FocusPage`, `FocusSlot`, `FocusActions`, `FocusNotice`, `FocusPanel`, `useFocusPage`, `useFocusZoneFilled`, `useFocusRecord` | The parts of a [focus page](/reference/custom-components/#focus-pages). |
+| `SearchPicker` | A searchable list to pick from, for a panel or a dialog (see [focus pages](/reference/custom-components/#focus-pages)). |
+| `useCreateForm`, `InPlaceForm` | A create form that stays where it is (see [focus pages](/reference/custom-components/#focus-pages)). |
 | `RecordCardProps` | The props of a [record card](/reference/custom-components/#record-cards), `{ row }`. |
 | `AuthLayout`, `CodeForm`, `ResendCodeButton`, `Button`, `buttonClass`, `Input`, `Spinner`, `LogoMark` | The pieces of the app's sign-in pages, for a page of a plugin or a host's own that looks like them. Outside the app, `@protobase/ui/styles.css` is the stylesheet that draws them, for a Vite build with Tailwind. |
 | `isFramed`, `useArmedAfterFocus`, `useGuardedPress`, `allowDelayMs` | The connect page's guard against clickjacking and click-through, for a host's own consent screen: it refuses to render when `isFramed()`, and its Allow button spreads `useGuardedPress(armed, onAllow)`, so a press counts only once the page has been in front for `allowDelayMs`, and a press anywhere on the page before then starts that wait again. |

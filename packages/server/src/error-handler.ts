@@ -22,7 +22,7 @@ export const queryProblem = (error: QueryError) => {
   return new HttpProblem(status, error.code.replaceAll('_', '-'), titles[status] ?? 'Not Implemented', error.message)
 }
 
-/** An error from the database driver, pg's or PGlite's: its SQLSTATE, and the table it names, when it names one. */
+/** An error from the database driver, pg's: its SQLSTATE, and the table it names, when it names one. */
 type DatabaseError = { code: string; table?: string; schema?: string }
 
 export const isDatabaseError = (error: unknown): error is DatabaseError =>

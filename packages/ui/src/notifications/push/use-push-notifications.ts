@@ -4,8 +4,9 @@ import type { PushState } from './web-push'
 import { watchNotificationPermission } from './watch-permission'
 
 /**
- * Push in this browser for the signed-in user, for a bell or an app's own button: `state` is `loading` until known,
- * then `unsupported` (hide the button: no Web Push here, such as a tab on iPhone and iPad, or the app has no VAPID key),
+ * Push in this browser, or the Android app, for the signed-in user, for a bell or an app's own button: `state` is
+ * `loading` until known, then `unsupported` (hide the button: no Web Push here, such as a tab on iPhone and iPad, the
+ * app has no VAPID key, or the Android app was built without google-services.json),
  * `off`, `on` or `blocked` (the user refused notifications in the browser's settings). Call `turnOn` straight from a
  * click: the browser asks for permission only then, and without a click by someone signed in as themselves nothing
  * happens. `turnOff` unsubscribes this browser and removes its device. `state` is read again on a return to the page

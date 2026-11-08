@@ -13,7 +13,7 @@ const systemServer = '.'
 export const apiTitle = (appName: string) => `${appName} API`
 
 /** The OpenAPI 3.1 document for one caller, generated from the resource models they may see and their zod record schemas. */
-export const openApiDocument = (accesses: RequestAccess[], basePath: string, appName: string) => ({
+export const openApiDocument = (accesses: RequestAccess[], basePath: string, appName: string, nested: object = {}) => ({
   openapi: '3.1.0',
   info: {
     title: apiTitle(appName),
@@ -48,6 +48,7 @@ export const openApiDocument = (accesses: RequestAccess[], basePath: string, app
       },
     },
     ...Object.assign({}, ...accesses.map(resourcePaths)),
+    ...nested,
   },
   components: {
     securitySchemes: { bearer: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } },

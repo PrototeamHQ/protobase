@@ -1,0 +1,69 @@
+{
+  "stand_in": false,
+  "recorded_at": "2026-11-07T17:51:25.146Z",
+  "request": {
+    "method": "POST",
+    "url": "https://fcm.googleapis.com/v1/projects/example-project/messages:send",
+    "headers": {
+      "authorization": "Bearer snapshot-access_token-1"
+    },
+    "body": {
+      "message": {
+        "notification": {
+          "title": "Task assigned",
+          "body": "Review the plan"
+        },
+        "data": {
+          "task": "1",
+          "kind": "assigned",
+          "url": "https://app.example.com/tasks/1",
+          "user": "user-1"
+        },
+        "android": {
+          "ttl": "600s",
+          "priority": "HIGH",
+          "collapse_key": "task-1",
+          "notification": {
+            "tag": "task-1",
+            "sound": "default",
+            "notification_count": 3,
+            "channel_id": "tasks",
+            "color": "#3366ff"
+          }
+        },
+        "fcm_options": {
+          "analytics_label": "tasks"
+        },
+        "token": "not-a-registration-token"
+      }
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": {
+      "content-type": "application/json; charset=UTF-8"
+    },
+    "body": {
+      "error": {
+        "code": 400,
+        "message": "The registration token is not a valid FCM registration token",
+        "status": "INVALID_ARGUMENT",
+        "details": [
+          {
+            "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError",
+            "errorCode": "INVALID_ARGUMENT"
+          },
+          {
+            "@type": "type.googleapis.com/google.rpc.BadRequest",
+            "fieldViolations": [
+              {
+                "field": "message.token",
+                "description": "The registration token is not a valid FCM registration token"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { authSchemaMigration, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, sqlSends, statusMigration, userTablesMigration, webhooksMigration } from '@protobase/server'
+import { authSchemaMigration, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, sqlSends, statusMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
 import { authMigrationTitle } from '../auth/migration-file'
 import type { MigrationProject } from './load-project'
 
@@ -19,8 +19,8 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   return [
     ...(project.auth ? [{ name: 'auth', title: authMigrationTitle, sql: () => authSchemaMigration(project.auth!) }] : []),
     // Events and history are captured with a dispatch job, events delivered, mentions mailed, AI fields filled and
-    // notifications sent by jobs, whose waiting and failed ones webhooks lists.
-    ...(project.jobs.length > 0 || project.models.some(isCaptured) || comments || aiFields || project.webhooks || project.notifications ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
+    // notifications sent by jobs, whose waiting and failed ones webhooks lists, and workflows run by them.
+    ...(project.jobs.length > 0 || project.models.some(isCaptured) || comments || aiFields || project.webhooks || project.workflows || project.notifications ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
     { name: 'changes', title: "The change capture the resources' events and history need", sql: () => changesMigration(project.db, project.models, project.events) },
     // Always compared, so that the function and trigger of a rollup the config no longer has are dropped.
     { name: 'computed', title: "The columns of the resources' rollup and formula fields, and the triggers that keep the rollups", sql: () => computedMigration(project.db, project.models) },
@@ -29,6 +29,7 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
       : []),
     ...(comments ? [{ name: 'comments', title: 'The comments table of the resources with comments', sql: () => commentsMigration(project.db) }] : []),
     ...(project.webhooks ? [{ name: 'webhooks', title: 'The webhook subscriptions of webhooks', sql: () => webhooksMigration(project.db, project.webhooks, project.events) }] : []),
+    ...(project.workflows ? [{ name: 'workflows', title: 'The workflows, their versions, runs and steps', sql: () => workflowsMigration(project.db, project.workflows) }] : []),
     // A store of the app's own keeps the devices elsewhere: nothing to write.
     ...(project.notifications && !(project.notifications.store && project.notifications.historyStore)
       ? [{ name: 'notifications', title: 'The tables of notifications', sql: () => notificationsMigration(project.db, project.notifications, project.auth) }]

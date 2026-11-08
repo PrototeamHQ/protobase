@@ -156,6 +156,7 @@ describe('the MCP endpoint', () => {
         { name: 'id', type: 'integer', optional: false, read_only: true, filterable: true, sortable: true },
         { name: 'name', type: 'text', optional: false, read_only: false, filterable: false, sortable: false },
       ],
+      linked_from: [{ resource: 'companies', field: 'organizationId' }, { resource: 'labels', field: 'organizationId' }, { resource: 'lineItems', field: 'organizationId' }],
     })
   })
 

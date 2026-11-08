@@ -1,3 +1,4 @@
+import { NativePushTap } from '../notifications/push/native-push-tap'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
 import { accountMenuItems, accountPath, readAccountPath, signInPolicyPath } from '../account/account-pages'
@@ -194,7 +195,9 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
   const accountPage = !user ? undefined : accountAddress ? (account?.title ?? appText('account')) : path === signInPolicyPath ? appText('signInPolicy') : organizationPage
   const resourceLabel = view?.names?.plural ?? (resource && humanize(resource))
-  const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel, recordTitle: title, recordLoading: titleLoading })
+  // A full-area record page draws no heading, so the breadcrumb names its record
+  const headingless = address?.kind === 'record' && !address.standard && Boolean(meta.views[address.resource]?.record)
+  const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel, headingless, recordTitle: title, recordLoading: titleLoading })
   const singular = view?.names?.singular ?? (resource && humanize(resource))
   // A page with tabs names the tab shown before itself
   const pageTab = page && address?.kind === 'page' ? shownPageTab(pageTabs(page.tree), address.tab) : undefined
@@ -336,6 +339,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
       <LiveUpdateGate nativeBridge={nativeBridge} apiOrigin={apiOrigin}>
         <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })}>
           <Router basePath={basePath} initialUrl={initialUrl}>
+            {nativeBridge && apiOrigin && <NativePushTap nativeBridge={nativeBridge} apiOrigin={apiOrigin} />}
             <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
               <AuthLocale>
                 <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>

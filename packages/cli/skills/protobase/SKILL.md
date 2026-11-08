@@ -88,6 +88,8 @@ Reference:
 - When filling fields with a model → read [AI fields and actions](references/reference/ai.md)
 - When letting people without an account create records → read [Public forms](references/reference/forms.md)
 - When running background jobs → read [Jobs](references/reference/jobs.md)
+- When writing or running workflows, their steps and their runs → read [Workflows](references/reference/workflows.md)
+- When adding trigger or step types to workflows → read [Workflow plugins](references/reference/workflow-plugins.md)
 - When sending email → read [Email](references/reference/email.md)
 - When making a PDF file, such as an invoice, a quote or a report → read [PDF documents](references/reference/pdf.md)
 - When registering users' devices for push notifications → read [Notifications](references/reference/notifications.md)

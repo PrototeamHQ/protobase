@@ -4,7 +4,7 @@ import { withDefaults } from './config-defaults'
 import { mergeConfig } from './merge-config'
 import type { ProjectFiles } from './project-files'
 
-const files: ProjectFiles = { functions: {}, module: () => undefined, package: () => Promise.reject(new Error('none')) }
+const files: ProjectFiles = { functions: {}, module: () => undefined, folder: () => [], package: () => Promise.reject(new Error('none')) }
 const merged = (config: ProtobaseConfig) => mergeConfig({ config, files, label: 'protobase.config.ts' })
 
 describe('withDefaults', () => {

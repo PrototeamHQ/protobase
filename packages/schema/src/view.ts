@@ -1,5 +1,6 @@
 import type {
   ActionModel,
+  AppAddress,
   CreateModel,
   ExportModel,
   FilterWidgetModel,
@@ -21,6 +22,7 @@ import type {
   SignInPromptModel,
   ViewModel,
 } from './model'
+import { addressPlaceholders } from './address-template'
 import { formNamePattern } from './form-address'
 import { layoutItems } from './layout-items'
 import { isMenuHref } from './menu-href'
@@ -291,11 +293,12 @@ export class ViewBuilder<R extends {
   }
 
   /**
-   * Whether the list page offers Import, which creates or updates records from an .xlsx or CSV file the user picks
-   * (`true`, the default, to users who may create records); `.import(false)` turns it off. See
+   * Whether the list page offers Import, which creates or updates records from an .xlsx, CSV or JSON file the user
+   * picks (`true`, the default, to users who may create records); `.import(false)` turns it off. `.import('table')`
+   * makes it a new table users add from the file instead, as the Tables list of user tables does. See
    * [Importing records](docs/website/src/content/docs/reference/ui-config.mdx#importing-records).
    */
-  import(enabled: boolean) {
+  import(enabled: boolean | 'table') {
     return this.next({ import: enabled })
   }
 
@@ -370,10 +373,34 @@ export class ViewBuilder<R extends {
    * address with `standard: true`, which the component links to; it shows instead while the component is missing or
    * when it throws. Throws when `component` is a built-in block. See
    * [Full-area record pages](docs/website/src/content/docs/reference/ui-config.mdx#full-area-record-pages).
+   *
+   * `focus: true` draws it on a focus page, with the bar's state, Save, the record's actions and panels; the form
+   * `(r) => ({ surface: r.body })` needs no component: the surface is one field, drawn by its field type. See
+   * [Focus pages](docs/website/src/content/docs/reference/ui-config.mdx#focus-pages).
    */
-  record(options: { component: ComponentRef<never> }) {
-    const record: RecordPageModel = { component: customComponent(options.component, 'record component') }
+  record(options: { component: ComponentRef<never>; focus?: boolean } | ((r: FieldRefs<FieldsOf<R>>) => { surface: Ref })) {
+    const record: RecordPageModel =
+      typeof options === 'function' ? { surface: options(this.refs()).surface.name } : { component: customComponent(options.component, 'record component'), ...(options.focus && { focus: true }) }
     return this.next({ record })
+  }
+
+  /**
+   * A record's page opens `to` in its place, replacing the address in the history, `{field}` in its resource, key and
+   * run replaced by the record's values: a workflow run's opens its workflow's page with the run on the graph. A caller
+   * who cannot see where it leads gets the record's own page. See
+   * [The record page](docs/website/src/content/docs/reference/ui-config.mdx#a-record-page-that-opens-another).
+   */
+  recordOpens(to: AppAddress) {
+    return this.next({ recordOpens: structuredClone(to) })
+  }
+
+  /**
+   * The resource's create address opens `to` in place of the form, replacing the address in the history, `{field}`
+   * filled from the address's values, for a record that is made where it is used: a workflow's test run opens in the
+   * workflow's page. An address that does not give every such field shows the form.
+   */
+  createOpens(to: AppAddress) {
+    return this.next({ createOpens: structuredClone(to) })
   }
 
   /**
@@ -467,6 +494,8 @@ export class ViewBuilder<R extends {
     if (typeof nav?.create === 'object' && nav.create.label.trim() === '') throw new Error(`View "${this.state.resource}": nav.create needs a label, or true for "New <singular>"`)
     const recentErrors = resource && nav?.recent ? navRecentErrors(nav.recent, resource) : []
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)
+    const opensUnknown = resource && this.state.recordOpens ? addressPlaceholders(this.state.recordOpens).find((name) => !Object.hasOwn(resource.fields, name)) : undefined
+    if (opensUnknown !== undefined) throw new Error(`View "${this.state.resource}": recordOpens names field "${opensUnknown}", which the resource does not have`)
     if (this.state.lists?.length && (listOf !== undefined || this.state.searchesOf)) {
       throw new Error(`View "${this.state.resource}": named lists cannot go with listOf or searchesOf, which replace the list page`)
     }

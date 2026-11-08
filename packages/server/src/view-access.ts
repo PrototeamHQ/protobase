@@ -1,11 +1,11 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
-import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ViewModel } from '@protobase/schema'
+import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { recordChartErrors } from './view-record-chart'
-import { openErrors, relatedErrors } from './view-related'
+import { openErrors, relatedSectionErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { searchesOfFor } from './view-saved-search'
 import { actionWhenFields } from './view-action-when'
@@ -20,7 +20,7 @@ const pruneRelated = (item: RelatedModel, resource: string, models: Record<strin
   const visible = models[item.resource] ? columns?.filter((column) => resolveFieldPath(models, item.resource, column).ok) : undefined
   const narrowed: RelatedModel = visible && visible.length > 0 ? { ...rest, columns: visible } : rest
   const opened = open !== undefined && openErrors({ ...narrowed, open }, models).length === 0 ? { ...narrowed, open } : narrowed
-  return relatedErrors(opened, resource, models).length === 0 ? opened : undefined
+  return relatedSectionErrors(opened, resource, models).length === 0 ? opened : undefined
 }
 
 // A chart keeps the series the caller can read, and goes with none left or when they cannot use the rest.
@@ -94,6 +94,7 @@ const listShape = (resource: string, model: ResourceModel, models: Record<string
             subtitle: s.field,
             amount: s.list(s.field),
             badge: s.field,
+            code: s.field,
             meta: s.list(s.field),
             footer: s.list(s.field),
             flags: s.list(s.field),
@@ -224,14 +225,23 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
         ai: aiShape(model),
       }),
       inputs: inputsShape(models),
+      mailbox: s.data,
     },
     { requires: ['run', 'inputs', 'when'] },
   )
 
+// A sidebar group whose status field the caller cannot read lists its records without dots; one whose filter or order
+// reads a hidden field goes.
+const recentFor = (recent: NavRecentModel, model: ResourceModel) => {
+  const { status, tones, pulse, ...rest } = recent
+  const shown = status === undefined || Object.hasOwn(model.fields, status) ? recent : rest
+  return navRecentErrors(shown, model).length === 0 ? shown : undefined
+}
+
 // Every part of a view, and what a field the caller cannot read does to it. The compiler wants a shape for each part,
 // so a part added to ViewModel is named here before it reaches anyone.
 const viewShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>, createPages: ReadonlySet<string>, writeOnly: ReadonlySet<string>) => {
-  const nav = s.object<NavModel>({ hidden: s.data, group: s.data, order: s.data, tenant: s.data, create: s.data, recent: s.map<NavRecentModel>((recent) => (navRecentErrors(recent, model).length === 0 ? recent : undefined)) })
+  const nav = s.object<NavModel>({ hidden: s.data, creatorsOnly: s.data, group: s.data, order: s.data, tenant: s.data, create: s.data, recent: s.map<NavRecentModel>((recent) => recentFor(recent, model)) })
   // A chart goes when the caller cannot read a field it groups, counts over or adds up
   const chart = s.map<ChartModel>((chart) => (chartFields(chart).every((name) => Object.hasOwn(model.fields, name)) ? chart : undefined))
   return s.object<ViewModel>({
@@ -263,7 +273,11 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     import: s.data,
     export: s.data,
     create: s.data,
-    record: s.data,
+    // A caller who cannot read the field a focus page draws gets the form
+    record: s.map<RecordPageModel>((page) => ('surface' in page && !Object.hasOwn(model.fields, page.surface) ? undefined : page)),
+    // A caller who cannot follow where a record's page leads gets the record's own page
+    recordOpens: s.map<AppAddress>((to) => (addressErrors(to, { models, source: model, createPages }).length === 0 ? to : undefined)),
+    createOpens: s.map<AppAddress>((to) => (addressErrors(to, { models, source: model, createPages }).length === 0 ? to : undefined)),
     // Public forms have a route of their own, which serves each to anyone; `/meta` never carries them
     forms: s.map<FormModel[]>(() => undefined),
     lists: s.list(s.object<NamedListModel>({ name: s.data, names: s.data, nav, help: s.data, list: listShape(resource, model, models, prompted), filters: s.list(widgetShape), chart })),
@@ -290,4 +304,18 @@ export const pruneView = (
   const pruned = pruneByShape(view, viewShape(view.resource, model, models, prompted, createPages, writeOnly), (name) => Object.hasOwn(model.fields, name))
   if (!pruned) throw new Error(`The view of ${view.resource} is not an object`)
   return pruned
+}
+
+// A page's own elements decide whether the caller gets it, and those elements read the pruned views' actions, so the
+// pages a view's record and create pages may lead to are only known once the views are pruned.
+const leadsOutside = (to: AppAddress | undefined, pages: ReadonlySet<string>) => to?.kind === 'page' && !pages.has(to.page)
+
+/** The pruned view without a record or create destination that leads to a page outside `pages`, those the caller may open. */
+export const prunePageDestinations = (view: ViewModel, pages: ReadonlySet<string>): ViewModel => {
+  const { recordOpens, createOpens, ...rest } = view
+  return {
+    ...rest,
+    ...(recordOpens && !leadsOutside(recordOpens, pages) && { recordOpens }),
+    ...(createOpens && !leadsOutside(createOpens, pages) && { createOpens }),
+  }
 }

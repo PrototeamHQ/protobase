@@ -3,6 +3,7 @@
 export { configExports } from './resource-source'
 export { builtInResources } from './built-in-resources'
 export { webhooksModule } from './webhooks/table/webhooks-module'
+export { workflowsModule } from './workflows/workflows-module'
 // The tables users add, which doctor checks, scaffold leaves out and eject writes into code, read without loading the server.
 export { userTableResources } from './user-tables/user-table-resources'
 export type { CheckedDefinition } from './user-tables/check-definition'

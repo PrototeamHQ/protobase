@@ -69,6 +69,20 @@ describe('list', () => {
     expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ filter: 'a = 1', fields: ['id'] })
   })
 
+  it('sends a list too long for a URL as a search, and one that fits by GET', async () => {
+    const { calls, fetch } = fakeFetch(() => json({ items: [{ id: 'a' }], next_page_token: '', total_size_estimate: 1 }))
+    const client = createClient({ fetch })
+    const filter = (length: number) => `id = "${'a'.repeat(length)}"`
+    const long = await client.list('orders', { filter: filter(4_000), fields: ['id'], labels: { place_id: 'name' } })
+    await client.list('orders', { filter: filter(3_900) })
+    expect(calls[0]!.url).toBe('/api/v1/orders:search')
+    expect(calls[0]!.init.method).toBe('POST')
+    expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ filter: filter(4_000), fields: ['id'], labels: ['place_id.name'] })
+    expect(long.items).toEqual([{ id: 'a' }])
+    expect(calls[1]!.init.method ?? 'GET').toBe('GET')
+    expect(new URL(calls[1]!.url, 'http://x').pathname).toBe('/api/v1/orders')
+  })
+
   it('asks for the names of related records and reads them with the page', async () => {
     const labels = { place_id: { '12': 'Amsterdam' }, agency_id: {} }
     const { calls, fetch } = fakeFetch(() => json({ items: [{ id: 'a', place_id: '12' }], next_page_token: '', total_size_estimate: 1, labels }))

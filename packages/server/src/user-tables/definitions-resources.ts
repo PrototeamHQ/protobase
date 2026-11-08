@@ -1,4 +1,5 @@
 import { f, resource, type AccessContext, type Ref } from '@protobase/schema'
+import { maxLabelLength } from '@protobase/schema/internal'
 import { definitionFieldTypes, definitionsSchema, maxOrganizationNameBytes, nameProblem, organizationColumn } from './names'
 import { organizationAdmins } from './organization-access'
 
@@ -46,9 +47,11 @@ export const definitionsResources = ({ roles, taken, organizations = false }: { 
     .table(`${definitionsSchema}.tables`)
     .fields({
       id: f.bigint().readOnly().dbDefault().filterable().sortable(),
-      name: f.text().access(createOnly).filterable().sortable(),
-      singular_label: f.text().max(200),
-      plural_label: f.text().max(200),
+      // Only partial indexes serve the name, one per organization or none, which the scan guard does not count, so it is
+      // neither filtered nor sorted on.
+      name: f.text().access(createOnly),
+      singular_label: f.text().max(maxLabelLength),
+      plural_label: f.text().max(maxLabelLength),
       title_field: f.text().optional(),
       version: f.bigint().readOnly().dbDefault(),
       // The table's name in the database and its resource's: the name, or `t<id>_<name>` with organizations.
@@ -66,9 +69,11 @@ export const definitionsResources = ({ roles, taken, organizations = false }: { 
   const fields = resource(fieldsResourceName)
     .table(`${definitionsSchema}.fields`)
     .fields({
-      table_id: f.relation(tablesResourceName).access(createOnly).filterable(),
+      // The primary key (table_id, name) serves table_id, and the index (table_id, position) position with table_id
+      // pinned; a list of every table's fields sorts by table_id first.
+      table_id: f.relation(tablesResourceName).access(createOnly).filterable().sortable(),
       name: f.text().access(createOnly),
-      label: f.text().max(200),
+      label: f.text().max(maxLabelLength),
       type: f.enum(definitionFieldTypes).access(createOnly),
       // A column users add takes no value for the records already there, so no field is required.
       required: f.boolean().default(false).access(createOnly),

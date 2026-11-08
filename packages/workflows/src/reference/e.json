@@ -1,0 +1,59 @@
+{
+  "trigger": {"inbox:new_mail": {"mailbox": "support"}},
+  "stateMachine": {
+    "QueryLanguage": "JSONata",
+    "StartAt": "SaveMail",
+    "States": {
+      "SaveMail": {
+        "Type": "Task",
+        "Resource": "app:records.create",
+        "Arguments": {
+          "resource": "mails",
+          "data": {
+            "sender": "{% $states.context.Execution.Input.from %}",
+            "subject": "{% $states.context.Execution.Input.subject %}",
+            "received_at": "{% $states.context.Execution.Input.received_at %}"
+          }
+        },
+        "Next": "IsInvoice"
+      },
+      "IsInvoice": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Condition": "{% $contains($lowercase($states.context.Execution.Input.subject), 'invoice') %}",
+            "Next": "ForwardToAccounting"
+          }
+        ],
+        "Default": "CreateTicket"
+      },
+      "ForwardToAccounting": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "accounting@example.com",
+          "subject": "{% 'Invoice from ' & $states.context.Execution.Input.from %}",
+          "text": "{% $states.context.Execution.Input.text %}"
+        },
+        "Next": "CreateTicket"
+      },
+      "CreateTicket": {
+        "Type": "Task",
+        "Resource": "app:http",
+        "Arguments": {
+          "method": "POST",
+          "url": "https://tickets.example.com/api/tickets",
+          "headers": {
+            "Authorization": "{% 'Bearer ' & $states.context.Secrets.TICKETS_TOKEN %}"
+          },
+          "body": {
+            "title": "{% $states.context.Execution.Input.subject %}",
+            "body": "{% $states.context.Execution.Input.text %}",
+            "reporter": "{% $states.context.Execution.Input.from %}"
+          }
+        },
+        "End": true
+      }
+    }
+  }
+}

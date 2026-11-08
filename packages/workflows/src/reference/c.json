@@ -1,0 +1,62 @@
+{
+  "trigger": {"manual": {}},
+  "stateMachine": {
+    "QueryLanguage": "JSONata",
+    "StartAt": "FetchProducts",
+    "States": {
+      "FetchProducts": {
+        "Type": "Task",
+        "Resource": "app:http",
+        "Arguments": {
+          "method": "GET",
+          "url": "https://api.example.com/v1/products",
+          "query": {
+            "updated_since": "{% $fromMillis($toMillis($substring($states.context.Execution.Input.scheduled_at, 0, 10)) - 86400000, '[Y0001]-[M01]-[D01]') %}"
+          }
+        },
+        "Assign": {
+          "products": "{% $states.result.body.items %}"
+        },
+        "Next": "PriceEach"
+      },
+      "PriceEach": {
+        "Type": "Map",
+        "Items": "{% $products %}",
+        "MaxConcurrency": 5,
+        "ItemProcessor": {
+          "StartAt": "FetchPrice",
+          "States": {
+            "FetchPrice": {
+              "Type": "Task",
+              "Resource": "app:http",
+              "Arguments": {
+                "method": "GET",
+                "url": "{% 'https://api.example.com/v1/products/' & $states.input.sku & '/price' %}"
+              },
+              "Output": {
+                "sku": "{% $states.input.sku %}",
+                "name": "{% $states.input.name %}",
+                "price": "{% $states.result.body.amount %}",
+                "currency": "{% $states.result.body.currency %}"
+              },
+              "End": true
+            }
+          }
+        },
+        "Assign": {
+          "merged": "{% $states.result %}"
+        },
+        "Next": "SaveProducts"
+      },
+      "SaveProducts": {
+        "Type": "Task",
+        "Resource": "app:records.create",
+        "Arguments": {
+          "resource": "products",
+          "data": "{% $merged %}"
+        },
+        "End": true
+      }
+    }
+  }
+}

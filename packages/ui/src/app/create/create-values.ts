@@ -13,9 +13,12 @@ export type Chosen = { key: string; label: string }
 
 export const isChosen = (value: unknown): value is Chosen => typeof value === 'object' && value !== null && 'key' in value
 
-/** Fields the user can set on a new record: not read-only, not the tenant, and no JSON but through a field type (`isEditable`). */
+/**
+ * Fields the user can set on a new record: not read-only, not the tenant, no JSON but through a field type
+ * (`isEditable`), and none the view leaves off the create form (`notOnCreate`).
+ */
 export const isCreatable = (model: ResourceModel, field: FieldModel, hints?: FieldViewModel) =>
-  field.name !== model.tenant && !field.readOnly && (field.type === 'relation' || isEditable(field, hints))
+  field.name !== model.tenant && !field.readOnly && !hints?.notOnCreate && (field.type === 'relation' || isEditable(field, hints))
 
 /**
  * The view's sections limited to creatable fields, plus a section for any creatable field the layout leaves out. The

@@ -11,16 +11,18 @@ const softDeleteColumn = (model: ResourceModel, name: string) => {
 
 /**
  * `fk in (select key from parent where <the caller's scope on it>)`, or `false` when the caller reads no parent; a
- * nullable `fk` also keeps the rows that name no parent. The subquery aliases the parent `t` too, so its conditions read
- * the parent's columns and only `fk` reads the outer row.
+ * nullable `fk` also keeps the rows that name no parent, unless this is a `related()` term, which also holds its
+ * subfilter. The subquery aliases the parent `t` too, so its conditions read the parent's columns and only `fk` reads the
+ * outer row.
  */
 export const parentCondition = (read: ParentRead): Expression<SqlBool> => {
   const column = columnRef(read.field)
-  const { parent } = read
+  const { parent, related } = read
+  const subfilter = related?.filter ? [compileFilter(related.model, related.filter)] : []
   const within = parent
-    ? sql<SqlBool>`${column} in (select ${columnRef(parent.key)} from ${tableSource(parent.model)}${whereAll(readConditions(parent.model, parent.scope))})`
+    ? sql<SqlBool>`${column} in (select ${columnRef(parent.key)} from ${tableSource(parent.model)}${whereAll([...readConditions(parent.model, parent.scope), ...subfilter])})`
     : sql<SqlBool>`false`
-  return read.field.nullable ? sql<SqlBool>`(${column} is null or ${within})` : within
+  return read.field.nullable && !related ? sql<SqlBool>`(${column} is null or ${within})` : within
 }
 
 const whereAll = (conditions: Expression<SqlBool>[]) => (conditions.length === 0 ? sql`` : sql` where ${sql.join(conditions, sql` and `)}`)
@@ -35,5 +37,6 @@ export const readConditions = (model: ResourceModel, scope?: Scope): Expression<
     ...(tenant ? [tenant] : []),
     ...(scope?.rowFilter ? [compileFilter(full, scope.rowFilter)] : []),
     ...(scope?.parents ?? []).map(parentCondition),
+    ...(scope?.within ? [compileFilter(full, scope.within)] : []),
   ]
 }

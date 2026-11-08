@@ -1,6 +1,7 @@
 import { actorSettings, wakeDispatch } from '../changes/actor'
 import type { Deps } from '../deps'
 import { problemOf } from '../error-handler'
+import { once, type Idempotency } from '../idempotency'
 import { HttpProblem, badRequest, notFound } from '../problem'
 import type { Entry } from '../registry'
 import { requestAccess, type RequestAccess } from '../request-access'
@@ -36,9 +37,10 @@ const atOperation = (error: unknown, index: number, operation: BatchOperation) =
 /**
  * Runs the operations in order inside ONE transaction, each through the normal write pipeline (validation, access with row
  * filters and record-level rules, tenant, ETags, hooks), after the checks that come before it. Any failure rolls the
- * whole batch back and names the failing operation.
+ * whole batch back and names the failing operation. With `idempotency`, a batch repeated with its key writes nothing and
+ * returns the results of the one that committed.
  */
-export const runBatch = async (deps: Deps, session: Session, operations: BatchOperation[]): Promise<BatchResult[]> => {
+export const runBatch = async (deps: Deps, session: Session, operations: BatchOperation[], idempotency?: Idempotency): Promise<BatchResult[]> => {
   const refs = operations.flatMap((operation) => (operation.op === 'create' && operation.ref ? [operation.ref] : []))
   if (new Set(refs).size !== refs.length) throw badRequest('invalid-parameter', 'Each create may use a ref name once')
   const accesses = new Map<string, RequestAccess>()
@@ -59,7 +61,7 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
   }
 
   const removed: ScheduledDelete[] = []
-  const written = await writeTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
+  const written = await writeTransaction(deps.db, deps.statementTimeoutMs, (trx) => once(trx, idempotency, async () => {
     const created = new Map<string, Created>()
     const results: BatchResult[] = []
     for (const [index, operation] of operations.entries()) {
@@ -86,7 +88,7 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
       }
     }
     return results
-  }, actorSettings(deps, session))
+  }), actorSettings(deps, session))
   await scheduleRemovedFiles(deps, removed)
   wakeDispatch(deps)
   return written

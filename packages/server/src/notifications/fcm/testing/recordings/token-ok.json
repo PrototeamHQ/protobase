@@ -1,0 +1,24 @@
+{
+  "stand_in": false,
+  "recorded_at": "2026-11-07T17:51:25.146Z",
+  "request": {
+    "method": "POST",
+    "url": "https://oauth2.googleapis.com/token",
+    "headers": {},
+    "body": {
+      "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      "assertion": "snapshot-assertion-1"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=UTF-8"
+    },
+    "body": {
+      "access_token": "snapshot-access_token-1",
+      "expires_in": 3599,
+      "token_type": "Bearer"
+    }
+  }
+}

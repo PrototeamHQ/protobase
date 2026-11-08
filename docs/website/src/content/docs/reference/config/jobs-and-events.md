@@ -1,6 +1,6 @@
 ---
 title: Jobs and events options
-description: The config keys of what the app does in the background and records as it changes, jobs, events, history, webhooks, notifications and status, with their types and defaults, and the files where a job's run and the stores of its own go.
+description: The config keys of what the app does in the background and records as it changes, jobs, events, history, webhooks, workflows, notifications and status, with their types and defaults, and the files where a job's run and the stores of its own go.
 ---
 
 The keys of the app's background work and of what it keeps as records change, at the top level of [`protobase.config.ts`](/reference/config/).
@@ -202,10 +202,65 @@ export default defineConfig({ webhooks: { deliveryLog: true } })
 - **Type:** `boolean`
 - **Default:** `false`
 
-Lets subscriptions send to private, loopback and link-local addresses, for development and tests. Off, a URL whose host resolves to one is refused, so a subscription cannot reach the app's own network.
+Lets subscriptions send to private, loopback and link-local addresses, for development and tests. Off, a URL whose host resolves to one is refused when the subscription is saved and again at each delivery, which connects only to the address it checked, so a subscription cannot reach the app's own network.
 
 ```ts
 export default defineConfig(({ command }) => ({ webhooks: { allowPrivateAddresses: command === 'dev' } }))
+```
+
+## workflows
+
+- **Type:** `{ schema?: string; secrets?: string[]; allowPrivateAddresses?: boolean; plugins?: string[] }`
+- **Default:** off; `{}` turns them on
+
+Workflows that people and models make in the app, kept with their versions, runs and steps in a schema of the app's database that `protobase migration` writes, and run by the `workflows.segment` job. Records steps act as each workflow's last editor, with the roles they hold now, read from the app's sign-in; a project that signs people in otherwise exports its own, `async ({ id, tenant }) => [...]`, as the default of `workflows/saved-by-roles.ts`. See [Workflows](/reference/workflows/).
+
+```ts
+export default defineConfig({ workflows: {} })
+```
+
+## workflows.schema
+
+- **Type:** `string`
+- **Default:** `workflows`
+
+The schema of the workflows, their versions, runs and steps.
+
+```ts
+export default defineConfig({ workflows: { schema: 'flows' } })
+```
+
+## workflows.secrets
+
+- **Type:** `string[]`
+- **Default:** none
+
+The environment variables workflows may read, each as `$states.context.Secrets.<NAME>`; no other variable is reachable from a workflow. Their values are blanked out of everything a run records but its input, which is kept as its caller gave it. Startup stops when one is unset or shorter than 8 characters.
+
+```ts
+export default defineConfig({ workflows: { secrets: ['TICKETS_TOKEN'] } })
+```
+
+## workflows.allowPrivateAddresses
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Lets the `app:http` step, and every plugin's `fetch`, reach private, loopback and link-local addresses, for development and tests. Off, a URL whose host resolves to one fails the request, which connects only to the address it checked, so a workflow cannot reach the app's own network.
+
+```ts
+export default defineConfig(({ command }) => ({ workflows: { allowPrivateAddresses: command === 'dev' } }))
+```
+
+## workflows.plugins
+
+- **Type:** `string[]`
+- **Default:** none
+
+Packages of [workflow plugins](/reference/workflow-plugins/) the app runs, by package name, beside the built-in types and the app's own plugins in `workflows/plugins/<name>.ts`. Two plugins of one name stop startup, naming both.
+
+```ts
+export default defineConfig({ workflows: { plugins: ['@acme/workflow-plugin'] } })
 ```
 
 ## notifications

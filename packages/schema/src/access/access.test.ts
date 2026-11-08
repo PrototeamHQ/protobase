@@ -171,6 +171,19 @@ describe('resolveAccess', () => {
     await expect(resolveAccess(source, user(1, 'sales'))).rejects.toThrow('must be role-based')
   })
 
+  it("gives field rules the caller's unscoped hold of another resource's capability, as an explicit-grants resource takes it", async () => {
+    const held = defineRoles({ reader: ['runs.read'], own: ['runs.read.own'], wide: ['*.read'], admin: ['*'] })
+    const source = resource('jobs').table('jobs').fields({ id: f.integer(), last_run: f.text().access({ read: (ctx) => ctx.holds?.('runs.read') ?? false }) }).primaryKey((r) => r.id)
+    const readable = async (roles: string[], options: Parameters<typeof resolveAccess>[2]) => (await resolveAccess(source.access({ read: () => true }), { user: { id: 1, roles } }, options)).readableFields
+    expect(await readable(['reader'], { roles: held })).toEqual(['id', 'last_run'])
+    expect(await readable(['admin'], { roles: held })).toEqual(['id', 'last_run'])
+    for (const roles of [['own'], ['wide'], []]) expect(await readable(roles, { roles: held })).toEqual(['id'])
+    expect(await readable([], {})).toEqual(['id', 'last_run'])
+    expect(await readable([], { defaultAccess: 'deny' })).toEqual(['id'])
+    expect(await readable([], { roles: held, defaultAccess: 'allow' })).toEqual(['id'])
+    expect(await readable(['reader'], { roles: held, defaultAccess: 'deny' })).toEqual(['id', 'last_run'])
+  })
+
   it('no readable columns when reading is denied; defaultAccess controls resources without rules', async () => {
     const denied = await resolveAccess(orders(rules), user(1, 'nobody'))
     expect(denied.readableFields).toEqual([])
@@ -352,6 +365,12 @@ describe('restrictModel', () => {
       .position((r) => r.rank)
     expect(restrictModel(ranked.toModel(), await resolveAccess(ranked, user(1, 'lead'))).position).toEqual({ field: 'rank' })
     expect(restrictModel(ranked.toModel(), await resolveAccess(ranked, user(7, 'sales')))).not.toHaveProperty('position')
+  })
+
+  it('keeps a link declaration, which names fields, off the model a caller gets', async () => {
+    const links = resource('links').table('links').fields({ a_id: f.relation('as').filterable(), b_id: f.relation('bs').filterable() }).primaryKey((r) => [r.a_id, r.b_id]).links((r) => [r.a_id, r.b_id])
+    expect(links.toModel().links).toEqual(['a_id', 'b_id'])
+    expect(restrictModel(links.toModel(), await resolveAccess(links, user(1, 'lead')))).not.toHaveProperty('links')
   })
 
   it('keeps a parent check only for a caller who can read its field', async () => {

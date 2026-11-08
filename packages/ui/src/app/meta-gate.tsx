@@ -8,6 +8,7 @@ import { useSourceMetas } from '../data/use-source-metas'
 import { withSources } from '../data/with-sources'
 import { AppLocale } from '../locale/app-locale'
 import { Spinner } from '../primitives/spinner'
+import { withTranslatedViews } from './built-in-views/translated-views'
 import { text } from './meta-gate-messages'
 
 export const useAdminMeta = () => {
@@ -27,7 +28,7 @@ const Notice = ({ title, children }: { title: string; children: ReactNode }) => 
 
 /**
  * Draws the resources of the app's sources as its own: reads each source's `/meta`, merges what is ready into the app's,
- * and gives what is below a client that sends each resource's calls to the API that serves it. The app does not wait
+ * translates the texts of the built-in views into the app's language (see `withTranslatedViews`), and gives what is below a client that sends each resource's calls to the API that serves it. The app does not wait
  * for a source; its resources join when it has loaded.
  */
 const WithSources = ({ meta, children }: { meta: MetaData; children: ReactNode }) => {
@@ -46,11 +47,19 @@ const WithSources = ({ meta, children }: { meta: MetaData; children: ReactNode }
   }, [declared, own, clientOf])
   return (
     <ClientProvider client={routing.client} resourceClient={routing.resourceClient}>
-      <MetaContext.Provider value={merged}>
-        <AppLocale locale={meta.locale}>{children}</AppLocale>
-      </MetaContext.Provider>
+      <AppLocale locale={meta.locale}>
+        <TranslatedMeta meta={merged}>{children}</TranslatedMeta>
+      </AppLocale>
     </ClientProvider>
   )
+}
+
+// Below `AppLocale`, which draws it anew when the language changes, so the built-in views read the language it sets.
+const TranslatedMeta = ({ meta, children }: { meta: MetaData; children: ReactNode }) => {
+  // `[meta]` is enough: `AppLocale` renders its children under `key={active}`, so a language switch remounts this
+  // component and the memo runs again in the new language.
+  const translated = useMemo(() => withTranslatedViews(meta), [meta])
+  return <MetaContext.Provider value={translated}>{children}</MetaContext.Provider>
 }
 
 /**

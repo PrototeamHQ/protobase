@@ -10,6 +10,8 @@ import { channelsClient } from './channels'
 import type { SocketLike } from './channel-connection'
 import { devicesClient } from './devices'
 import { statusClient } from './status'
+import { workflowRunTraceClient } from './workflow-trace'
+import { workflowTypesClient } from './workflow-types'
 import { notificationHistoryClient } from './notification-history'
 import { recordCallsClient } from './record-calls'
 import { ringsClient } from './rings'
@@ -17,6 +19,9 @@ import { callGuestsClient } from './call-guests'
 import type { Aggregate, AggregateParams, BatchOp, BatchResult, CommentPage, Facet, FormChallenge, FormProof, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, MentionableUser, Meta, MetaResult, PublicForm, RecordComment, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
 
 type Json = Record<string, any>
+
+// A proxy in front of an API refuses a long URL with a 431, and the headers count too, so a longer list goes by `:search`.
+const longestListQuery = 4_000
 
 const nameOf = (resource: ResourceRef) => (typeof resource === 'string' ? resource : resource.toModel().name)
 
@@ -100,11 +105,6 @@ export const createClient = (options: ClientOptions = {}) => {
   const send = createTransport(options)
   const origin = originOf(options.baseUrl)
 
-  const list = async <R extends ResourceRef>(resource: R, params?: ListParams) => {
-    const response = await send({ method: 'GET', path: `/${nameOf(resource)}`, query: queryString(listWire(params)) })
-    return toPage<RecordOf<R>>(await response.json(), response, origin)
-  }
-
   /** Same as `list`, with the parameters in a JSON body, for long filters. */
   const search = async <R extends ResourceRef>(resource: R, params?: ListParams) => {
     const wire = listWire(params)
@@ -113,6 +113,13 @@ export const createClient = (options: ClientOptions = {}) => {
       path: `/${nameOf(resource)}:search`,
       body: { ...wire, fields: params?.fields, labels: labelEntries(params?.labels) },
     })
+    return toPage<RecordOf<R>>(await response.json(), response, origin)
+  }
+
+  const list = async <R extends ResourceRef>(resource: R, params?: ListParams) => {
+    const query = queryString(listWire(params))
+    if (query.length > longestListQuery) return search(resource, params)
+    const response = await send({ method: 'GET', path: `/${nameOf(resource)}`, query })
     return toPage<RecordOf<R>>(await response.json(), response, origin)
   }
 
@@ -396,13 +403,19 @@ export const createClient = (options: ClientOptions = {}) => {
   /** People's own status, and that of those who share an organization with the signed-in person (see `statusClient`). */
   const status = statusClient(send)
 
+  /** The app's workflow trigger and step types, each with its input's JSON Schema (see `workflowTypesClient`). */
+  const workflowTypes = workflowTypesClient(send)
+
+  /** A workflow run's trace, the steps it ran with their input, output and logs (see `workflowRunTraceClient`). */
+  const workflowRunTrace = workflowRunTraceClient(send)
+
   /** The calls that ring the signed-in user, and declining one (see `ringsClient`). */
   const rings = ringsClient(send)
 
   /** Whether the calls of the organization the signed-in user works in take guests (see `callGuestsClient`). */
   const callGuests = callGuestsClient(send)
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, devices, notifications, status, calls, watchCalls, rings, callGuests }
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace }
 }
 
 export type Client = ReturnType<typeof createClient>

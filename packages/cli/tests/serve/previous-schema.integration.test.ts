@@ -179,9 +179,10 @@ describe.skipIf(!reachable || !hasApp)('a database migrated by the previous rele
     })
   }, timeout)
 
-  it('passes protobase doctor, which recommends the indexes added since', async () => {
+  it('fails protobase doctor on the indexes added since, which the next migration writes', async () => {
     const doctor = await run([bin, 'doctor'], projectDir, { DATABASE_URL: ownerUrl })
-    expect(doctor.stdout).toContain(' 0 errors')
-    expect(doctor.status).toBe(0)
+    expect(doctor.stdout).toContain('error   webhook_subscriptions: no index serves the column "created_at"')
+    expect(doctor.stdout).toContain('protobase migration')
+    expect(doctor.status).toBe(1)
   }, timeout)
 })

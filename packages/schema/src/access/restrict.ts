@@ -22,7 +22,7 @@ export const restrictModel = (
   const keep = (name: string | undefined) => (name !== undefined && visible.has(name) ? name : undefined)
   const search = model.search?.filter((name) => visible.has(name))
   const searchMatch = model.searchMatch && Object.entries(model.searchMatch).filter(([name]) => visible.has(name))
-  const { search: _search, searchMatch: _searchMatch, tenant: _tenant, tenantAcross: _tenantAcross, softDelete: _softDelete, owner: _owner, author: _author, position: _position, parents: _parents, events: _events, ...rest } = model
+  const { search: _search, searchMatch: _searchMatch, tenant: _tenant, tenantAcross: _tenantAcross, softDelete: _softDelete, owner: _owner, author: _author, position: _position, parents: _parents, links: _links, events: _events, ...rest } = model
   const tenant = keep(model.tenant)
   const softDelete = keep(model.softDelete)
   const owner = keep(model.owner)

@@ -1,5 +1,5 @@
 import type { ActionModel } from '@protobase/schema'
-import { hrefField } from '@protobase/schema/internal'
+import { fillAddress, hrefField, resourceField } from '@protobase/schema/internal'
 import { actionApplies } from './action-when'
 
 /** `href` with every `{field}` replaced by the record's value, percent-encoded; a missing value becomes empty. */
@@ -38,13 +38,18 @@ const holdsAll = (record: Record<string, unknown>, values: Record<string, unknow
 
 /**
  * `action` as it shows for `record`: one whose `when` does not hold there is left out, or shown as it is when it
- * disables instead; an update that would change nothing there, and a link whose `href` has no target there, are left
- * out, and `{host}` in a link's label becomes the host its target opens, without `www.`.
+ * disables instead; an update that would change nothing there, a link whose `href` has no target there, and a link
+ * whose resource the record names but `resources` (the caller's, from `/meta`) lacks, are left out, and `{host}` in a
+ * link's label becomes the host its target opens, without `www.`.
  */
-export const actionFor = (action: ActionModel, record: Record<string, unknown> | undefined): ActionModel | undefined => {
+export const actionFor = (action: ActionModel, record: Record<string, unknown> | undefined, resources: Readonly<Record<string, unknown>> = {}): ActionModel | undefined => {
   if (!actionApplies(action, record)) return action.otherwise === 'disable' ? action : undefined
   const run = action.run
   if (run?.kind === 'update') return record && !action.inputs?.length && holdsAll(record, run.values as Record<string, unknown>) ? undefined : action
+  if (run?.kind === 'link' && 'to' in run && resourceField(run.to) !== undefined) {
+    const to = fillAddress(run.to, record)
+    return to.kind !== 'page' && Object.hasOwn(resources, to.resource) ? action : undefined
+  }
   if (run?.kind !== 'link' || !('href' in run)) return action
   const target = linkTarget(run.href, record)
   if (target === undefined) return undefined

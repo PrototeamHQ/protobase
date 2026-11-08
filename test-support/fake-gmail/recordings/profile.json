@@ -1,0 +1,20 @@
+{
+  "recorded_at": "2026-11-07T08:44:24.867Z",
+  "request": {
+    "method": "GET",
+    "path": "profile",
+    "query": []
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=UTF-8"
+    },
+    "body": {
+      "emailAddress": "mailbox@example.com",
+      "messagesTotal": 1,
+      "threadsTotal": 1,
+      "historyId": "5339"
+    }
+  }
+}

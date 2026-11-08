@@ -8,6 +8,7 @@ export {
   Chart,
   ConnectedAccounts,
   PersonalMail,
+  Connections,
   ConnectedApps,
   DeleteAccount,
   Devices,

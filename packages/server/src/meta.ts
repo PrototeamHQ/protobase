@@ -15,7 +15,7 @@ import { requestAccess, writeOnlyFields } from './request-access'
 import { seesRuntime } from './runtime/runtime-settings'
 import { sourcesFor, type SourceRef } from './sources/source-settings'
 import type { Session } from './types'
-import { pruneView } from './view-access'
+import { prunePageDestinations, pruneView } from './view-access'
 
 export type ResourcePermissions = {
   read: boolean
@@ -115,6 +115,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       actions: (resource: string) => new Set(views.find((view) => view.resource === resource)?.actions.map((action) => action.name) ?? []),
     }
     const pages = deps.pages.flatMap((page) => prunePage(page, session.user.roles, callerAccess) ?? [])
+    const pageNames = new Set(pages.map((page) => page.name))
     // Only someone signed in has an account to show
     const account = deps.account && !session.anonymous ? prunePage(deps.account, session.user.roles, callerAccess) : undefined
     const shown = (item: UserMenuItemModel | BottomBarItemModel) =>
@@ -128,7 +129,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       protobaseVersion,
       ...(appIcon && { appIcon }),
       resources: visible.map(metaModel),
-      views,
+      views: views.map((view) => prunePageDestinations(view, pageNames)),
       pages,
       ...(account && { account }),
       permissions: Object.fromEntries(visible.map(({ entry, resolved, full }) => [entry.name, {

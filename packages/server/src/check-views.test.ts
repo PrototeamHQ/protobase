@@ -49,6 +49,17 @@ describe('checkViews', () => {
     expect(() => checkViews(prices, [wrong.toModel()])).toThrow(`format('signed') of "note" needs an integer field, not text`)
   })
 
+  it('leaves an optional field off the create form, and refuses that for a field a create needs', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer(), title: f.text(), pinned: f.boolean(), starred: f.boolean().default(false), topic: f.text().optional() }).primaryKey((r) => r.id)
+    const noteRegistry = { entries: [{ name: 'notes', model: notes.toModel() }] } as unknown as Registry
+    const leaving = view<typeof notes>('notes').fields((r) => ({ topic: r.topic.notOnCreate(), starred: r.starred.notOnCreate() }))
+    expect(() => checkViews(noteRegistry, [leaving.toModel()])).not.toThrow()
+    const needed = view<typeof notes>('notes').fields((r) => ({ title: r.title.notOnCreate() }))
+    expect(() => checkViews(noteRegistry, [needed.toModel()])).toThrow('View "notes": notOnCreate "title" is a field a create needs: make it optional or give it a default')
+    const flag = view<typeof notes>('notes').fields((r) => ({ pinned: r.pinned.notOnCreate() }))
+    expect(() => checkViews(noteRegistry, [flag.toModel()])).toThrow('View "notes": notOnCreate "pinned" is a field a create needs: make it optional or give it a default')
+  })
+
   it('takes multiline on a text field only', () => {
     const multiline = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.multiline() }))
     expect(() => checkViews(registry, [multiline.toModel()])).not.toThrow()
@@ -100,6 +111,12 @@ describe('checkViews', () => {
     const written = view<typeof payments>('payments').toModel()
     written.actions = [{ name: 'old', label: 'Old', bulk: false, run: { kind: 'link', href: '/payments/{id}' } }]
     expect(() => checkViews(registry, [written])).toThrow('action "old": href "/payments/{id}" points inside the app; give the link `to` instead')
+  })
+
+  it("wants a record's page to open an address the app has", () => {
+    const opens = (to: AppAddress) => view<typeof payments>('payments').recordOpens(to).toModel()
+    expect(() => checkViews(registry, [opens({ kind: 'record', resource: 'payments', key: '{reference}', run: '{id}' })])).not.toThrow()
+    expect(() => checkViews(registry, [opens({ kind: 'record', resource: 'refunds', key: '{id}' })])).toThrow('View "payments": recordOpens: unknown resource "refunds"')
   })
 
   it('wants action inputs to fit: a handler to get them, and a choice of records to pick from a resource the app has', () => {

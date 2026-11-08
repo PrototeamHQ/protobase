@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../primitives/button'
-import { AccountSection } from './account-section'
+import { AccountSection, SectionNotice } from './account-section'
 import { PasswordChangeDialog } from './password-change-dialog'
 import { text } from './messages'
 
@@ -29,11 +29,7 @@ export const PasswordSection = ({ rule, hasPassword, staff, onChange, onSet }: P
 
   return (
     <AccountSection title={text('password')} description={descriptionOf({ rule, hasPassword, staff })}>
-      {saved && (
-        <p role="status" className="mb-3 font-medium">
-          {text('passwordSaved')}
-        </p>
-      )}
+      <SectionNotice message={saved ? text('passwordSaved') : undefined} />
       {canEdit && (
         <Button
           onClick={() => {

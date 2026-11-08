@@ -28,6 +28,27 @@ describe('capacitorConfig', () => {
     })
   })
 
+  it('compiles in the push plugin with push alone, showing a push while the app is open', () => {
+    const config = capacitorConfig({ ...base, push: true })
+    expect(config.includePlugins).toEqual(['@capacitor/push-notifications', '@capacitor/keyboard', '@protobase/mobile'])
+    expect(config.plugins).toMatchObject({ PushNotifications: { presentationOptions: ['badge', 'sound', 'alert'] } })
+    expect(capacitorConfig(base).includePlugins).not.toContain('@capacitor/push-notifications')
+    expect(capacitorConfig(base).plugins).not.toHaveProperty('PushNotifications')
+  })
+
+  // Capacitor loads any URL of an allowed host inside the WebView, where the native sign-in runs.
+  it('never allows navigation to another host', () => {
+    for (const config of [capacitorConfig(base), capacitorConfig({ ...base, push: true, allowances: { cleartext: true, mixedContent: true } })]) {
+      expect(JSON.stringify(config)).not.toContain('allowNavigation')
+    }
+  })
+
+  it('turns page inspection off by name in an iOS release only', () => {
+    expect(capacitorConfig({ ...base, platform: 'ios', release: true }).ios).toEqual({ webContentsDebuggingEnabled: false })
+    expect(capacitorConfig({ ...base, platform: 'ios' })).not.toHaveProperty('ios')
+    expect(capacitorConfig({ ...base, release: true })).not.toHaveProperty('ios')
+  })
+
   it('compiles in the configured plugins, and Protobase\'s after them', () => {
     expect(capacitorConfig({ ...base, plugins: ['@capacitor/camera', 'x'] }).includePlugins).toEqual(['@capacitor/camera', 'x', '@capacitor/keyboard', '@protobase/mobile'])
   })

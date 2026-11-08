@@ -1,0 +1,46 @@
+{
+  "trigger": {"inbox:new_mail": {"mailbox": "support"}},
+  "stateMachine": {
+    "QueryLanguage": "JSONata",
+    "StartAt": "IsInvoice",
+    "States": {
+      "IsInvoice": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Condition": "{% $contains($lowercase($states.context.Execution.Input.subject), 'invoice') %}",
+            "Next": "ForwardToAccounting"
+          }
+        ],
+        "Default": "CreateTicket"
+      },
+      "ForwardToAccounting": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "accounting@example.com",
+          "subject": "{% 'Invoice from ' & $states.context.Execution.Input.from %}",
+          "text": "{% $states.context.Execution.Input.text %}"
+        },
+        "End": true
+      },
+      "CreateTicket": {
+        "Type": "Task",
+        "Resource": "app:http",
+        "Arguments": {
+          "method": "POST",
+          "url": "https://tickets.example.com/api/tickets",
+          "headers": {
+            "Authorization": "{% 'Bearer ' & $states.context.Secrets.TICKETS_TOKEN %}"
+          },
+          "body": {
+            "title": "{% $states.context.Execution.Input.subject %}",
+            "body": "{% $states.context.Execution.Input.text %}",
+            "reporter": "{% $states.context.Execution.Input.from %}"
+          }
+        },
+        "End": true
+      }
+    }
+  }
+}

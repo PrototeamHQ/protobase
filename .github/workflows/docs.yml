@@ -3,11 +3,8 @@ name: docs
 on:
   push:
     branches: [main]
-  # A merge the AI review makes with the workflow's own token pushes without starting a workflow, so the review sends
-  # this event once it merged (protobase-community/.github's .github/ai-review/announce.ts). It always runs on main, and
-  # its payload names the branch the merge went into.
-  repository_dispatch:
-    types: [pull_request_merged]
+  # A merge with the workflow's own token pushes without starting a workflow, so what merged it starts this one
+  # (dispatch-after-merge in ai-review.yml and scripts/auto-merge-approvals/after-merge.ts).
   workflow_dispatch:
 
 concurrency:
@@ -16,7 +13,8 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ github.event_name != 'repository_dispatch' || github.event.client_payload.base == 'main' }}
+    # A merge into another branch dispatches there too, and only main deploys.
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

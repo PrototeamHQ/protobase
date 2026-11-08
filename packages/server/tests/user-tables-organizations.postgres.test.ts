@@ -1,5 +1,4 @@
 import { Kysely, PostgresDialect, sql } from 'kysely'
-import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
@@ -31,7 +30,7 @@ beforeAll(async () => {
   database = await openPostgresDatabase('empty')
   await database.exec((await userTablesMigration(database.db))!)
   await database.exec('create table orders (id integer generated always as identity primary key, amount integer not null)')
-  db = new Kysely<any>({ dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: database.url, max: 3 }) }) })
+  db = new Kysely<any>({ dialect: new PostgresDialect({ pool: database.pool({ max: 3 }) }) })
   const build = (tables: Awaited<ReturnType<typeof userTableResources>>) => createAdmin({ resources: [orders], userTables: { ...tables, organizations: true }, db, authenticate: withOrganizationRole })
   app = reloadingAdmin({ first: build(await userTableResources(db)), version: await readDefinitionsVersion(db), readVersion: () => readDefinitionsVersion(db), readTables: () => userTableResources(db), build })
 })
@@ -199,6 +198,7 @@ describe.skipIf(!ready)('the migration of a definitions schema made before organ
     await old.exec(beforeOrganizations)
     const migration = (await userTablesMigration(old.db))!
     expect(migration).toContain('drop constraint tables_name_key')
+    expect(migration).toContain('create index if not exists fields_position_idx on table_definitions.fields (table_id, position)')
     await old.exec(migration)
     expect(await userTablesMigration(old.db)).toBeUndefined()
     const served = await userTableResources(old.db)

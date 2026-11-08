@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, l, resource, restrictModel, view, type ResourceModel } from '@protobase/schema'
-import { pruneView } from './view-access'
+import { prunePageDestinations, pruneView } from './view-access'
 
 const customers = resource('customers').table('customers').fields({ id: f.integer(), name: f.text().filterable() }).primaryKey((r) => r.id)
 const repairs = resource('repairs')
@@ -69,6 +69,14 @@ describe('pruneView', () => {
     expect(names(without({ repairs: ['estimate'] }))).toEqual(['customer', 'sameCustomer'])
     expect(names(without({}, ['customers']))).toEqual(['sameCustomer', 'quote'])
     expect(names(without({ repairs: ['customerId'] }))).toEqual(['quote'])
+  })
+
+  it("keeps the address a record's page opens only while the caller can follow it", () => {
+    const repairsView = view<typeof repairs>('repairs').recordOpens({ kind: 'record', resource: 'customers', key: '{customerId}' }).toModel()
+    const opens = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).recordOpens
+    expect(opens(all)).toEqual({ kind: 'record', resource: 'customers', key: '{customerId}' })
+    expect(opens(without({}, ['customers']))).toBeUndefined()
+    expect(opens(without({ repairs: ['customerId'] }))).toBeUndefined()
   })
 
   it('keeps a create link with values beyond the fields only when the resource opens a create page', () => {
@@ -177,6 +185,13 @@ describe('pruneView', () => {
     const hidden = without({ repairs: ['costPrice'] })
     expect(pruneView(titles, hidden.repairs!, hidden).nav).toEqual({ recent: { orderBy: 'number asc' } })
     expect(pruneView(byCost, hidden.repairs!, hidden).nav).toEqual({})
+  })
+
+  it('keeps a sidebar group whose status field is hidden, its records without dots', () => {
+    const dotted = view<typeof repairs>('repairs').nav({ recent: { status: 'costPrice', tones: { 0: 'danger' }, pulse: ['0'], orderBy: 'number asc', limit: 5 } }).toModel()
+    const hidden = without({ repairs: ['costPrice'] })
+    expect(pruneView(dotted, hidden.repairs!, hidden).nav).toEqual({ recent: { orderBy: 'number asc', limit: 5 } })
+    expect(pruneView(dotted, all.repairs, all).nav).toEqual(dotted.nav)
   })
 
   it("keeps the sidebar entry's create link, for the admin to offer to whoever may create", () => {
@@ -370,5 +385,23 @@ describe('pruneView', () => {
     const list = (models: Record<string, ResourceModel>) => pruneView(timeline, models.repairs!, models).list
     expect(list(without({ repairs: ['status'] }))).toEqual({ columns: ['number'], displays: [{ kind: 'timeline', name: 'timeline', start: 'bookedOn' }] })
     expect(list(without({ repairs: ['bookedOn'] }))).toEqual({ columns: ['number'] })
+  })
+})
+
+describe('prunePageDestinations', () => {
+  it('keeps a record or create destination on a page the caller may open, and leaves out one on a page they may not', () => {
+    const opensPage = (page: string) => view<typeof repairs>('repairs').recordOpens({ kind: 'page', page }).createOpens({ kind: 'page', page }).toModel()
+    const pages = new Set(['workshop'])
+    const kept = prunePageDestinations(opensPage('workshop'), pages)
+    expect(kept.recordOpens).toEqual({ kind: 'page', page: 'workshop' })
+    expect(kept.createOpens).toEqual({ kind: 'page', page: 'workshop' })
+    const refused = prunePageDestinations(opensPage('payroll'), pages)
+    expect(refused.recordOpens).toBeUndefined()
+    expect(refused.createOpens).toBeUndefined()
+  })
+
+  it('keeps a destination that is not a page', () => {
+    const repairsView = view<typeof repairs>('repairs').createOpens({ kind: 'list', resource: 'repairs' }).toModel()
+    expect(prunePageDestinations(repairsView, new Set()).createOpens).toEqual({ kind: 'list', resource: 'repairs' })
   })
 })

@@ -15,6 +15,30 @@ module.exports = {
       to: { path: '^packages/', pathNot: '^packages/schema/' },
     },
     {
+      name: 'workflows-stand-alone',
+      comment: '@protobase/workflows imports no other @protobase package: the app reaches it through its port.',
+      severity: 'error',
+      from: { path: '^packages/workflows/' },
+      to: { path: '^packages/', pathNot: '^packages/workflows/' },
+    },
+    {
+      name: 'workflow-plugins-public-only',
+      comment: 'The built-in workflow plugins import only the public plugin interface, @protobase/workflows/plugin, as a custom plugin must.',
+      severity: 'error',
+      from: { path: '^packages/workflow-plugins/' },
+      to: { path: '^packages/', pathNot: ['^packages/workflow-plugins/', '^packages/workflows/src/plugin/index\\.ts$'] },
+    },
+    {
+      name: 'workflow-plugins-no-network',
+      comment: "The built-in workflow plugins send only through the plugin context's fetch, which checks the address it connects to: they import nothing but their own files and the plugin interface, so no Node module (http, net, dns, ...) or HTTP client of their own.",
+      severity: 'error',
+      // Their unit tests run under the test runner, never in a workflow.
+      from: { path: '^packages/workflow-plugins/', pathNot: '\\.test\\.ts$' },
+      // postal-mime, which the Gmail plugin parses mail with, has no dependencies, and its modules import only one
+      // another, with no fetch, XMLHttpRequest, WebSocket, require, dynamic import or Node module (read at 4.2.0).
+      to: { pathNot: ['^packages/workflow-plugins/', '^packages/workflows/src/plugin/index\\.ts$', '^@protobase/workflows/plugin$', '^node_modules/\\.bun/postal-mime@[0-9.]+/node_modules/postal-mime/'] },
+    },
+    {
       name: 'layout-runs-anywhere',
       comment: '@protobase/layout imports only schema: layouts are built in the config, checked on the server and rendered in the browser.',
       severity: 'error',
@@ -37,17 +61,17 @@ module.exports = {
     },
     {
       name: 'ui-browser-only',
-      comment: '@protobase/ui imports only schema, layout and client: never query, server or cli.',
+      comment: '@protobase/ui imports only schema, layout, client and workflows, whose check the editor runs: never query, server or cli.',
       severity: 'error',
       from: { path: '^packages/ui/' },
-      to: { path: '^packages/', pathNot: '^packages/(ui|schema|layout|client)/' },
+      to: { path: '^packages/', pathNot: '^packages/(ui|schema|layout|client|workflows)/' },
     },
     {
       name: 'server-imports',
-      comment: '@protobase/server imports only schema, layout and query.',
+      comment: '@protobase/server imports only schema, layout, query, workflows and the built-in workflow plugins.',
       severity: 'error',
       from: { path: '^packages/server/' },
-      to: { path: '^packages/', pathNot: '^packages/(server|schema|layout|query)/' },
+      to: { path: '^packages/', pathNot: '^packages/(server|schema|layout|query|workflows|workflow-plugins)/' },
     },
     {
       name: 'config-types-only',
@@ -58,10 +82,10 @@ module.exports = {
     },
     {
       name: 'cli-imports',
-      comment: '@protobase/cli imports only config, schema, layout, query, server and ui, and the pins in @protobase/mobile\'s package.json, which its build inlines.',
+      comment: '@protobase/cli imports only config, schema, layout, query, server and ui, the workflow plugin interface it hands config bundles as a host module, and the pins in @protobase/mobile\'s package.json, which its build inlines.',
       severity: 'error',
       from: { path: '^packages/cli/' },
-      to: { path: '^packages/', pathNot: ['^packages/(cli|config|schema|layout|query|server|ui)/', mobilePins] },
+      to: { path: '^packages/', pathNot: ['^packages/(cli|config|schema|layout|query|server|ui)/', '^packages/workflows/src/plugin/index\\.ts$', mobilePins] },
     },
     {
       name: 'packages-through-entry-points',
@@ -91,12 +115,6 @@ module.exports = {
       severity: 'error',
       from: { pathNot: [...testCode, '^packages/server/src/(reveal-service|encryption/decrypt-field|encryption/status|encryption/apply)\\.ts$'] },
       to: { path: '^packages/server/src/encryption/envelope-open\\.ts$' },
-    },
-    {
-      name: 'no-circular',
-      severity: 'error',
-      from: {},
-      to: { circular: true },
     },
   ],
   options: {

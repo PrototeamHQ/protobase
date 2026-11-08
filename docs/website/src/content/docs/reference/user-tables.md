@@ -8,12 +8,10 @@ An app's resources usually come from its code: a resource in `config/` over a ta
 ## Tables defined in the database
 
 :::caution[Beta]
-Tables are added through the API; the admin app has no screens for them yet.
+Tables are added through the API or the admin app.
 :::
 
 An app can keep tables its users add in its own database, beside the resources in its code. Each one is served like any other resource, at its own address with its list, record page, search and API. Every server process serves a new table within a second of it being added.
-
-<gap>Users cannot add a table from the admin app yet because its screens for tables and fields are not implemented.</gap>
 
 ### The switch
 
@@ -31,7 +29,7 @@ The tables users add and their definitions live in two schemas of the app's data
 
 | Schema | What it holds |
 | --- | --- |
-| `table_definitions` | `tables`, one row per table users add, with its singular and plural label, its title field, a version, 1 when it is added, its organization with organizations, and its table's name, and `fields`, each table's fields in order with their label, type and whether they are required |
+| `table_definitions` | `tables`, one row per table users add, with its singular and plural label, its title field, a version, 1 when it is added, its organization with organizations, and its table's name, and `fields`, each table's fields in order with their label, type and whether they are required, indexed by table and position so a table's fields list in their order |
 | `user_tables` | the tables themselves, each with an `id bigint generated always as identity` primary key and a column per field, and with organizations an `organization_id` column |
 
 With `userTables: true`, [`protobase migration`](/reference/cli/#migration) writes a migration that adds both schemas, the two definition tables and the `pg_trgm` extension when it is missing, and grants the app's database role CREATE on `user_tables` alone, and writes nothing once the database has them. Apply it with the project's other migrations; the server never creates them itself. At start, `dev` and `serve` stop while one is missing; `PROTOBASE_STARTUP_CHECKS=false` skips that check in `serve`, as it skips the others.
@@ -82,7 +80,7 @@ Measured with six fields per table on one machine running Postgres and the proce
 ## Adding tables and fields
 
 :::caution[Beta]
-Tables and fields are added through the API alone, and are never renamed, retyped or removed.
+Tables and fields are added through the API or the admin app, and are never renamed, retyped or removed.
 :::
 
 Someone with the right capability creates a table with its fields, or adds a field to it, through the app's API. It is created in the database at once, with an index for every field but JSON so its list can be filtered by it, and sorted by it unless it is long text, and only admins can see it until access is widened.
@@ -117,6 +115,72 @@ The answer has the table's record, so a client links to the new table at its `ta
 - **The rest of the app.** The process that made the change serves it before it answers, and every other process [within a second](#how-a-change-reaches-every-process). While a deploy freezes writes, a create answers as any write does then.
 
 Building an index holds the table's write lock, and every statement runs within the request's statement timeout (1 s by default). <gap>Adding a field to a table with very many records cannot finish when building its index takes longer than the statement timeout, because building it outside the request is not implemented; the field is then not added.</gap>
+
+## In the admin app
+
+:::caution[Beta]
+A table is made first and given its fields one by one, or [made from a file](#a-table-from-a-file) with all of them.
+:::
+
+People who may add tables find **Tables** in the admin app, make a table with its fields and add fields later, on a computer or a phone. The new table appears in the sidebar at once.
+
+The screens are the admin app's standard list, record page and create forms over the [two resources](#adding-tables-and-fields), so they work the same in a browser, the installed web app and the native app, and come in [English and Dutch](/reference/languages/).
+
+- **Tables.** The sidebar's **Tables** group leads with a **Tables** entry, shown only to those who may create tables (`user_tables.create`, or admins without roles), and holds every table users added. The list shows each table's name and address.
+- **A new table.** **New table** asks for the plural label, the singular label and the name; the title field is set later, as no field exists yet. Saving opens the table's page.
+- **A table's page.** It shows the table's labels and name, and its fields in their order. **Add field** opens the form for a new field of the table, and **Open table** the table's own list, at its address. On a phone both sit in the top bar's **Record actions** menu.
+- **A new field.** The form asks for the label, the name, the type, chosen by its name in words, such as **Long text** or **Yes or no**, and the position, and for a decimal number its digits and decimals. Every field users add is optional, so the form does not ask.
+- **What changes later.** On a table's page, its labels and its title field, the name of one of its text fields; on a field's page, its label and position. The name, the type and a decimal's digits and decimals stay as made.
+
+<gap>A table cannot be made together with its fields in one form because a create form that adds related records is not implemented; each field is added from the table's page, or all of them at once from a file.</gap>
+
+## A table from a file
+
+:::caution[Beta]
+A file becomes one new table, without relations between its columns or choices read from repeated values. A JSON file is read whole, so a phone reads a smaller one than a computer.
+:::
+
+An Excel, CSV or JSON file becomes a new table: each column a field typed from what its cells hold, each row a record. Values are never guessed: `007`, `1,5` and `03/04/2026` stay text, and an empty cell stays empty.
+
+On the **Tables** list, **From a file** opens the [Import](/reference/ui-config/#importing-records) dialog for a new table, to anyone who may create tables and their fields. It reads the same files as Import: an Excel workbook (`.xlsx`, a sheet of your choice), a CSV file in UTF-8, or a JSON file holding a list of objects, with the first row or the objects' keys naming the columns. It works the same on a phone, in the installed web app and on a computer, in [English and Dutch](/reference/languages/).
+
+1. **Read.** The whole file is read once, in a Web Worker, before anything is made. A CSV and a sheet stream in 500 rows at a time and only what each column's type needs is kept, so their length never adds to the memory it takes; a workbook's shared texts and a JSON file are held whole, so their size is bounded by the memory the browser gives the page, which on a phone is less. A file too large to read stops here with an error, and nothing is made.
+2. **Review.** The table is named after the file, its plural label the file's name; give it a singular label. Each column proposes a field, its label the header and its name the header in snake_case, such as `customer_email` for **Customer email**. A header with no letters or digits is named by its column, `column_c`; two headers that give one name, or a name a table's field always has (`id`, `etag`, `organization_id`) or SQL reserves (`order`), get `_2`, `_3` and so on, so no two columns ever become one field. The first text field is the title. Rename and relabel any field, leave a column out, or change its type to a less specific one, such as a whole number to a decimal number or to text. Names follow the [rules of every table](#the-schemas-and-the-migration), and the dialog says which break them before anything is sent.
+3. **Make.** **Make table** creates the table and all its fields, then its title, in one [batch write](#adding-tables-and-fields), so a refused name leaves no table behind. The rows are then written as Import writes them, in batches of 100 that each pass the server's validation and access checks. When every row is written you land on the new table's list; otherwise the summary counts what was written and downloads the rows not imported with the reasons. The table and the rows already written stay.
+
+<gap>A file cannot become several tables, relations between its columns or a choice field read from repeated values because splitting a file, finding relations and user tables with choice fields are not implemented.</gap>
+
+What a column's cells say decides its type, and nothing else does. Every non-empty cell must be written the same way, or the column is text:
+
+| Every value is | The field |
+| --- | --- |
+| a whole number without leading zeros or a plus sign, such as `12` or `-3` | **Whole number** (`integer`), or a **Decimal number** of scale 0 once one is past its range |
+| a number with a point, such as `1.5`, among whole numbers or not | **Decimal number**, with as many decimals as the longest and room for at least 15 digits before the point |
+| `true` or `false`, in any case, or a workbook's TRUE and FALSE | **Yes or no** |
+| an ISO date, such as `2026-03-01`, or a workbook date | **Date** |
+| an ISO date and time, such as `2026-03-01T14:30:00Z`, or a workbook date and time | **Date and time**; a time without a zone is read in your browser's time zone, as Import reads one |
+| a JSON file's nested object or array, beside any other value | **JSON**, holding each value as the file states it |
+| anything else, such as `007`, `+31`, `1,5`, `1.234,5` or `03/04/2026`, or a mix | **Text**, or **Long text** once a value is over 500 characters |
+
+A number written with a comma, a thousands separator or a date with slashes could be read more than one way, so it stays text rather than being parsed by a guess. An empty cell, or one of spaces, is empty in the record, and a column of only empty cells is text.
+
+The same reading is in `@protobase/schema` for your own code, such as an import of your own or a tool that proposes tables:
+
+```ts
+import { columnTypeReader, fieldNamesOf, inferColumnType, tableNameOf, widerFieldTypes } from '@protobase/schema'
+
+inferColumnType(['12', '-3', null]) // { type: 'integer' }
+inferColumnType(['1.5', '20']) // { type: 'decimal', precision: 16, scale: 1 }
+inferColumnType(['007', '1,5']) // { type: 'text' }
+fieldNamesOf(['Name', 'name', 'ID', 'Order']) // ['name', 'name_2', 'id_2', 'order_2']
+tableNameOf('Trade fair 2026.xlsx', ['trade_fair_2026']) // 'trade_fair_2026_2'
+widerFieldTypes('integer') // ['integer', 'decimal', 'text', 'long_text']
+```
+
+- **`inferColumnType(cells)`** gives a column's type from all its cells; **`columnTypeReader()`** reads them one at a time with `add(cell)` and gives it with `type()`, keeping no cell, and with `decimal()` the decimal number that would hold them. A cell is text, a number, a boolean, `{ date }` for a workbook's date or time (`2026-03-01` or `2026-03-01T14:30:00`), `{ json }` for a JSON file's nested value, or `null`.
+- **`fieldNamesOf(headers)`** and **`tableNameOf(fileName, taken, maxBytes)`** give the names as above; with organizations a table's name is at most 42 bytes.
+- **`widerFieldTypes(type)`** lists the types a column may change to, its own first.
+- **`userTableNameIssue(name, kind, maxBytes)`** says why a table or field may not have a name: `form`, `reserved_word` or `reserved_field`, or nothing when it may.
 
 ## Taking a table over as code
 

@@ -26,4 +26,6 @@ export type FieldWidget = {
   display: ComponentType<FieldWidgetProps<any, any>>
   editor?: ComponentType<FieldWidgetEditorProps<any, any>>
   cell?: ComponentType<FieldWidgetProps<any, any>>
+  /** Takes the whole row of a form and a record's fields, as a text of several lines does. */
+  wide?: boolean
 }

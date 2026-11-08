@@ -32,7 +32,7 @@ jobs:
       group: check-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     # Pushes to main and to fm/** branches run on the runner the CHECK_RUNNER variable names, when it is set; pull
-    # requests, which forks can open, always run on GitHub's runners. See CONTRIBUTING.md.
+    # requests, which forks can open, always run on GitHub's runners. See docs/ci.md.
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
@@ -44,9 +44,9 @@ jobs:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       # A branch's commits reach main as they are, where the release workflow refuses any that commitlint does, so they
-      # are linted here first: a pull request's from its base, a task branch's from where it forked from development or
-      # main, whichever is later, so main's own squash merges are not linted again. A branch whose head development already
-      # holds has no commits of its own, and commitlint refuses a range from a commit to itself.
+      # are linted here first: a pull request's from its base, a task branch's from where it forked from main, so main's
+      # own squash merges are not linted again. A branch whose head main already holds has no commits of its own, and
+      # commitlint refuses a range from a commit to itself.
       - name: Lint the branch's commits
         if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/'))
         env:
@@ -54,11 +54,7 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           from="$BASE"
-          if [ -z "$from" ]; then
-            from="$(git merge-base origin/development "$HEAD")"
-            main="$(git merge-base origin/main "$HEAD")"
-            if git merge-base --is-ancestor "$from" "$main"; then from="$main"; fi
-          fi
+          if [ -z "$from" ]; then from="$(git merge-base origin/main "$HEAD")"; fi
           if [ "$(git rev-parse "$from")" = "$(git rev-parse "$HEAD")" ]; then exit 0; fi
           bun x --bun commitlint --config commitlint.branch.config.mjs --from "$from" --to "$HEAD" --verbose
       # bunfig.toml has `bun run` put a node that is Bun first on PATH, so the checks run on Bun. Bun skips that without a
@@ -73,9 +69,9 @@ jobs:
       # last release tag, which the checkout's full history and tags hold.
       - run: bun run features:check --release-rule
       # A push to main, which the release workflow checks, or to an fm/** branch runs only the tests and steps its
-      # changes affect (scripts/affected-tests.mjs, see CONTRIBUTING.md): on main the changes since the last release, on
-      # a branch those since it forked from development or main, whichever is later, as the commits are linted. Without
-      # CHECK_BASE, as on a pull request, a run by hand or the nightly run, everything runs.
+      # changes affect (scripts/affected-tests.mjs, see docs/ci.md): on main the changes since the last release, on
+      # a branch those since it left main. Without CHECK_BASE, as on a pull request, a run by hand or the nightly run,
+      # everything runs.
       - &check-base
         name: Find the commit the push's changes count from
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
@@ -86,9 +82,7 @@ jobs:
             base=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD 2>/dev/null || true)
             if [ -z "$base" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then base=$BEFORE; fi
           else
-            base=$(git merge-base origin/development HEAD)
-            main=$(git merge-base origin/main HEAD)
-            if git merge-base --is-ancestor "$base" "$main"; then base=$main; fi
+            base=$(git merge-base origin/main HEAD)
           fi
           echo "CHECK_BASE=$base" >> "$GITHUB_ENV"
       - run: bun run check:unit
@@ -172,10 +166,12 @@ jobs:
   # Storybook built, its play tests and layout snapshots, and the documentation site built and checked, as two jobs
   # beside check: a push runs them when its changes reach them (scripts/affected-site.mjs); a pull request and a run by
   # hand always do. The play tests set the check phase's length, so storybook runs as 2 legs that each build Storybook
-  # and play every other story; the first also takes the layout snapshots.
+  # and play every other story; the first also takes the layout snapshots. A leg takes about 3 minutes, at most 7 so
+  # far; a story that hangs fails on its own deadline (scripts/play-tests.mjs), and the job's timeout ends anything else.
   storybook:
     if: *not-branch-pull-request
     name: storybook ${{ matrix.shard }}/2
+    timeout-minutes: 10
     strategy:
       matrix:
         shard: [1, 2]
@@ -183,13 +179,24 @@ jobs:
       group: storybook-${{ matrix.shard }}-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    # On a hosted runner the job runs in the Playwright image of the lockfile's Playwright version, which carries
+    # Chromium's system packages: installing them from the apt mirror can take the whole timeout. A self-hosted runner's
+    # server provides them. Raise the tag with Playwright in bun.lock.
+    container: ${{ !(github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER) && 'mcr.microsoft.com/playwright:v1.63.0-noble' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
+      # In the image git runs as root on a checkout the runner's user owns, and refuses it unless it is marked safe.
+      - if: runner.environment == 'github-hosted'
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - if: runner.environment != 'github-hosted'
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
+      # The Playwright image has no unzip, which setup-bun needs; the npm package brings Bun's binary without it.
+      - if: runner.environment == 'github-hosted'
+        run: npm install --global bun@1.4.4
       # Before the site's gate, which reads the module graph through Vitest.
       - run: bun install --frozen-lockfile
       - *check-base
@@ -197,8 +204,9 @@ jobs:
         name: Find whether the changes reach the site or Storybook
         id: site
         run: bun scripts/affected-site.mjs
+      # In the image, Chromium is already installed when its Playwright version matches the lockfile's.
       - if: steps.site.outputs.run == 'true'
-        run: bun x --bun playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
+        run: bun x --bun playwright install chromium
       - if: steps.site.outputs.run == 'true'
         run: bun run build-storybook
       - if: steps.site.outputs.run == 'true'
@@ -406,6 +414,8 @@ jobs:
       # instance is: without Supabase's own init, which an empty /docker-entrypoint-initdb.d leaves out, and with
       # test-support/supabase-postgres/ run on it once it is up, as docker-compose.yml mounts it. The empty directory is a
       # bind mount, not a --tmpfs: podman copies the image's init scripts into a tmpfs.
+      # It comes from ghcr.io, where Supabase publishes the same image (same digest) as on docker.io, whose registry now
+      # and then fails a pull of its large layers.
       - if: steps.snapshots.outputs.run == 'true'
         name: Start Supabase's Postgres and point the recording at it
         env:
@@ -414,7 +424,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb"
           docker run --detach --rm --name "$SUPABASE_POSTGRES" --publish 5432 \
             --volume "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb:/docker-entrypoint-initdb.d:ro" \
-            -e POSTGRES_PASSWORD=protobase supabase/postgres:17.11.0.006
+            -e POSTGRES_PASSWORD=protobase ghcr.io/supabase/postgres:17.11.0.006
           until docker exec "$SUPABASE_POSTGRES" pg_isready -U supabase_admin -d postgres -h 127.0.0.1 -q; do sleep 2; done
           for file in test-support/supabase-postgres/*.sql; do
             docker exec -i "$SUPABASE_POSTGRES" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q < "$file"
@@ -450,7 +460,8 @@ jobs:
   # A Supabase project moved by the real `protobase import supabase` and served to supabase-js
   # (tests/supabase-move/client/): from Supabase's Postgres image, started as in record, into the service's Postgres.
   # pg_dump and psql come from Docker's postgres:18 (tests/supabase-move/client/pg-tools/). A push runs it when its
-  # changes reach the test (scripts/affected-tests.mjs); a pull request and a run by hand always do.
+  # changes reach the test (scripts/affected-tests.mjs); a pull request and a run by hand always do. Its postgres:18
+  # comes from mirror.gcr.io, the same image (same digest) as docker.io's, so no pull of this job depends on docker.io.
   supabase-move:
     if: *not-branch-pull-request
     concurrency:
@@ -459,7 +470,7 @@ jobs:
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     services:
       postgres:
-        image: postgres:18
+        image: mirror.gcr.io/library/postgres:18
         env:
           POSTGRES_USER: protobase
           POSTGRES_PASSWORD: protobase
@@ -492,7 +503,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb"
           docker run --detach --rm --name "$SUPABASE_POSTGRES" --publish 5432 \
             --volume "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb:/docker-entrypoint-initdb.d:ro" \
-            -e POSTGRES_PASSWORD=protobase supabase/postgres:17.11.0.006
+            -e POSTGRES_PASSWORD=protobase ghcr.io/supabase/postgres:17.11.0.006
           until docker exec "$SUPABASE_POSTGRES" pg_isready -U supabase_admin -d postgres -h 127.0.0.1 -q; do sleep 2; done
           for file in test-support/supabase-postgres/*.sql; do
             docker exec -i "$SUPABASE_POSTGRES" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q < "$file"
@@ -531,3 +542,41 @@ jobs:
       - if: always()
         name: Remove Supabase's Postgres and Supabase Auth
         run: tests/supabase-auth/stack.sh stop "supabase-auth-${{ github.run_id }}-${{ github.run_attempt }}"
+
+  # The files the AI review bots read as instructions stay within what each bot reads, so none is cut off. cubic keeps
+  # the first 10,000 characters of a custom agent's text and linked files: AGENTS.md and CONTRIBUTING.md share the
+  # org's Project rules agent with about 260 characters of its text, and each docs file has an agent in cubic.yaml.
+  # CodeRabbit allows 20,000 characters per path instruction.
+  prompt-length:
+    if: github.event_name == 'pull_request'
+    uses: protobase-community/.github/.github/workflows/prompt-length.yml@main # zizmor: ignore[unpinned-uses] main is the reviewed version
+    with:
+      files: |
+        AGENTS.md 500
+        CONTRIBUTING.md 9000
+        docs/ci.md 9000
+        docs/snapshot-tests.md 9000
+        cubic.yaml 10000
+        .coderabbit.yaml 20000
+
+  # cubic.yaml's auto-approval prompt is a key inside the file, so the file check above cannot measure it alone. It is
+  # kept under 2,000 characters, short enough for the approval agent to weigh each criterion.
+  approval-prompt-length:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - env:
+          LC_ALL: C.UTF-8
+        run: |
+          # -e fails when the key is gone, rather than measuring the word null.
+          prompt=$(yq -e '.reviews.auto_approve_custom_prompt' cubic.yaml)
+          length=$(printf '%s' "$prompt" | wc -m)
+          if [ "$length" -gt 2000 ]; then
+            echo "::error file=cubic.yaml::auto_approve_custom_prompt is $length characters, over its limit of 2000"
+            exit 1
+          fi
+          echo "auto_approve_custom_prompt is $length characters, within its limit of 2000"

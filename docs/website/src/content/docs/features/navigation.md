@@ -7,11 +7,12 @@ description: The sidebar, the user menu, the bottom bar on phones and the global
 - [Sidebar icons](/reference/sidebar/#sidebar-icons): Each resource shows the icon its view names in the sidebar, bottom bar and profile menu.
 - [Recent records](/reference/sidebar/#recent-records) (beta): A sidebar entry lists a few records under it, with status dots or as titles alone, and marked per reader, such as unread ones in bold with a count.
 - [Create link](/reference/sidebar/#create-link): A sidebar entry links to its create form, such as "New message" under Direct messages, for whoever may create.
+- [Entries for creators](/reference/sidebar/#entries-for-creators): A sidebar entry shows only to those who may create its records, such as the tables list to those who may add tables.
 - [The current organization](/reference/sidebar/#the-current-organization): A sidebar entry opens its list on the organization you work in, which you can clear to see every organization you are a member of.
 - [User menu](/reference/user-menu/): Account pages, help links, security settings, setting a status, the theme switch and Sign out.
 - [Bottom bar](/reference/bottom-bar/): On phones, tabs along the bottom for each role's main screens.
 - [Global search](/reference/client/#global-search): A search box, also on Cmd+K or Ctrl+K, finds records in every resource and jumps to pages and New forms.
-- [Breadcrumbs](/reference/ui-config/#breadcrumbs): The top bar shows the group, list and record you are on, each a link back, and on a phone a back button to the one before.
+- [Breadcrumbs](/reference/ui-config/#breadcrumbs): The top bar shows the group and list you are on, each a link back, and on a phone a back button to the one before; a record page's heading names the record.
 - [Tab titles](/reference/ui-config/#names-and-columns): Browser tabs name the record, list or page they show, then the app.
 - [Update notice](/reference/versioning/#a-new-version-under-an-open-page): When the server runs a newer Protobase version, open pages offer a reload so the user can save their work first.
 - Config refresh: When the config or the user's roles change, open pages load the new menus, columns and permissions without a reload.

@@ -3,6 +3,7 @@ import { memoryAdapter } from 'better-auth/adapters/memory'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { betterAuthOptions } from '../better-auth/create-auth'
 import { roleDefinitions } from '../better-auth/organizations/role-definitions'
+import { refreshRefusalsPlugin } from '../better-auth/refresh-refusals'
 import { gmailSendScope, gmailSendUrl } from './gmail'
 import { json, sentMessage } from './gmail-responses'
 import { betterAuthLinkedAccounts, type TokenAuth } from './linked-accounts'
@@ -16,7 +17,7 @@ const tokenEndpoint = 'https://oauth2.googleapis.com/token'
 const linkedUser = async () => {
   const options = { database: undefined, baseURL: 'https://admin.example.com', secret: 'test-secret-test-secret-test-secret-1234', socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } } }
   const authOptions = betterAuthOptions(options, { roles: ['admin', 'user'], definitions: roleDefinitions(), defaultRole: 'user' })
-  const auth = betterAuth({ ...authOptions, plugins: [], database: memoryAdapter({ user: [], account: [], session: [], verification: [] }) })
+  const auth = betterAuth({ ...authOptions, plugins: [refreshRefusalsPlugin()], database: memoryAdapter({ user: [], account: [], session: [], verification: [] }) })
   const context = await auth.$context
   const user = await context.internalAdapter.createUser({ email: 'ada@example.com', name: 'Ada', emailVerified: true, role: 'user' }, { method: 'admin' })
   const account = await context.internalAdapter.createAccount({
@@ -69,6 +70,15 @@ describe('mail from a linked Gmail, with Better Auth keeping the tokens', () => 
     const calls = google(() => json({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }, 400))
     const { mailer } = await linkedUser()
     await expect(mailer.send(message)).rejects.toMatchObject({ code: 'link_expired', provider: 'gmail' })
+    expect(calls.map(({ url }) => url)).toEqual([tokenEndpoint])
+  })
+
+  it('fails without link_expired, sending nothing, when Google is down, so the link stays', async () => {
+    const calls = google(() => json({ error: 'backend_error' }, 503))
+    const { mailer } = await linkedUser()
+    const failure = await mailer.send(message).catch((error: unknown) => error)
+    expect(failure).toMatchObject({ body: { code: 'FAILED_TO_GET_ACCESS_TOKEN' } })
+    expect(failure).not.toMatchObject({ code: 'link_expired' })
     expect(calls.map(({ url }) => url)).toEqual([tokenEndpoint])
   })
 })

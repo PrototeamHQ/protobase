@@ -22,6 +22,16 @@ describe('the branch commit lint', () => {
     const result = await branchLint(subject(92))
     expect(result.valid).toBe(true)
   })
+
+  it("lets git's own merge commits through, which a squash merge keeps only as body lines", async () => {
+    for (const message of [
+      "Merge branch 'main' into fm/pb-wf-execution-storage",
+      "Merge remote-tracking branch 'origin/main' into fm/pb-wf-execution-storage",
+    ]) {
+      const result = await branchLint(message)
+      expect(result.valid).toBe(true)
+    }
+  })
 })
 
 describe('the squash message of a 92-character subject', () => {

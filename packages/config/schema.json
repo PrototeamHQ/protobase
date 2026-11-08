@@ -658,6 +658,99 @@
         }
       ]
     },
+    "workflows": {
+      "description": "Workflows made in the admin app and run on the app's jobs (see `WorkflowsOptions`); `{}` turns them on. Its saver\nroles are `workflows/saved-by-roles.ts`; its own plugins are `workflows/plugins/<name>.ts`.",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema": {
+              "description": "The schema of the workflows, their versions, runs and steps; default `workflows`.",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "allowPrivateAddresses": {
+              "description": "Lets the `app:http` step reach private, loopback and link-local addresses, for development and tests. Default\nfalse: a URL whose host resolves to one fails the step, so a workflow cannot reach the app's own network.",
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "secrets": {
+              "description": "The environment variables workflows may read, each as `$states.context.Secrets.<NAME>`; no other is reachable.\nTheir values are blanked out of all a run records. Startup stops when one is unset or shorter than 8 characters.",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "$ref": "#/definitions/EnvValue"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "trace": {
+              "description": "Which runs keep a trace, every step's input, output and logs as JSON lines in the private file provider: `all`\n(default), `failed` for only the runs that fail, or `none`. A workflow's definition (`trace`) and a run's own\n`trace` set it for theirs.",
+              "anyOf": [
+                {
+                  "enum": [
+                    "all",
+                    "failed",
+                    "none"
+                  ]
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "plugins": {
+              "description": "Packages of workflow plugins the app runs beside the built-in types and its own plugins, by package name.",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "$ref": "#/definitions/EnvValue"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
     "realtime": {
       "description": "How the record channels and supabase-js's Realtime are served: `{ processes: 'many' }` when several processes serve the app, `{ sqlSends: true }` to broadcast to channels from SQL (see `RealtimeOptions`).",
       "anyOf": [
@@ -1903,10 +1996,31 @@
           ]
         },
         "encryptOAuthTokens": {
-          "description": "Encrypt the OAuth access and refresh tokens Better Auth stores for social sign-ins, with `secret`; `personalMail` needs it. Default off.",
+          "description": "Encrypt the OAuth access and refresh tokens Better Auth stores for social sign-ins, with `secret`; `personalMail` and workflow connections need it. Default off.",
           "anyOf": [
             {
               "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "connections": {
+          "description": "The OAuth client of each workflow plugin's connection that signs in through a provider of its own, by\n`<plugin>:<connection>`, such as `{ 'acme:account': { clientId, clientSecret } }`; its redirect URI is\n`{baseURL}/api/auth/callback/workflow-<plugin>-<connection>`. A connection through one of `socialProviders` needs none.",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ConnectionClient"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
             },
             {
               "$ref": "#/definitions/EnvValue"
@@ -2018,6 +2132,36 @@
           ]
         }
       },
+      "additionalProperties": false
+    },
+    "ConnectionClient": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "clientSecret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "clientId",
+        "clientSecret"
+      ],
       "additionalProperties": false
     },
     "UserTableOptions": {

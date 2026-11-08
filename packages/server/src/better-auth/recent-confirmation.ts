@@ -16,24 +16,27 @@ export const confirmationRequired = {
 }
 
 const passkeyPaths = ['/passkey/generate-register-options', '/passkey/verify-registration']
-const twoFactorPath = '/two-factor/enable'
+// Turning on a second step, and reading its authenticator secret or new backup codes, which Better Auth guards with the
+// password alone and so not at all on an account without one.
+const twoFactorPaths = ['/two-factor/enable', '/two-factor/get-totp-uri', '/two-factor/generate-backup-codes']
 
 // The Better Auth endpoints its fresh-session check guarded, and its check of a deletion without a password, apart
-// from `/list-sessions`, which only lists the person's own devices; and turning on a second step without a password.
-const guardedPaths = [...passkeyPaths, twoFactorPath, '/unlink-account', '/delete-user']
+// from `/list-sessions`, which only lists the person's own devices; and the second step's endpoints without a password.
+const guardedPaths = [...passkeyPaths, ...twoFactorPaths, '/unlink-account', '/delete-user']
 
 type GuardedSession = { session: { id: string; createdAt: Date }; user: { id: string; twoFactorEnabled?: boolean | null } }
 type Context = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0]['context']
 
-// What a change asks of a session that is not recently confirmed: nothing, or to confirm it's them. A first passkey, on
-// an account with neither a passkey nor a second step, may confirm with the password instead (`passwordConfirmationPlugin`).
-const confirmationAsked = async (context: Context, path: string, body: unknown, { user }: GuardedSession) => {
+/**
+ * What a change asks of a session that is not recently confirmed: nothing, or to confirm it's them. A first passkey, on
+ * an account with neither a passkey nor a second step, may confirm with the password instead (`passwordConfirmationPlugin`).
+ */
+export const confirmationAsked = async (context: Context, path: string, body: unknown, { user }: GuardedSession) => {
   if (path === '/delete-user') return (body as { password?: unknown } | undefined)?.password ? 'nothing' : 'confirm'
   if (path === '/unlink-account') return 'confirm'
-  const first = !(await hasPasskeyOrSecondStep(context.adapter, user))
-  // Better Auth asks an account with a password for it to turn on a second step; one without confirms it's them.
-  if (path === twoFactorPath) return first && !(await context.internalAdapter.findCredentialAccount(user.id))?.password ? 'confirm' : 'nothing'
-  return first ? 'confirm-or-password' : 'confirm'
+  // Better Auth asks an account with a password for it on the second step's endpoints; one without confirms it's them.
+  if (twoFactorPaths.includes(path)) return (await context.internalAdapter.findCredentialAccount(user.id))?.password ? 'nothing' : 'confirm'
+  return (await hasPasskeyOrSecondStep(context.adapter, user)) ? 'confirm' : 'confirm-or-password'
 }
 
 /** Whether the session signed in within a day, or confirmed it's them within `confirmationMinutes`. */
@@ -45,9 +48,10 @@ export const isRecentlyConfirmed = async (context: Pick<Context, 'internalAdapte
 
 /**
  * Replaces Better Auth's fresh-session check, which `createAuth` turns off (`freshAge: 0`), and which could only be met
- * by signing out and in again. A session of any age lists its devices. Adding a passkey, turning on a second step
- * without a password, unlinking a sign-in provider and deleting the account without a password ask a session older
- * than a day to confirm it's them in place first (`strongSignInsPlugin` notes it), else `403 STRONG_SIGN_IN_REQUIRED`.
+ * by signing out and in again. A session of any age lists its devices. Adding a passkey; turning on a second step,
+ * reading its authenticator secret or making new backup codes without a password; unlinking a sign-in provider; and
+ * deleting the account without a password ask a session older than a day to confirm it's them in place first
+ * (`strongSignInsPlugin` notes it), else `403 STRONG_SIGN_IN_REQUIRED`.
  * An account with neither a passkey nor a second step confirms its first passkey with its password too, which counts
  * for that change only, never as a strong sign-in. Staff sessions are left to the staff plugin, which refuses these
  * changes.

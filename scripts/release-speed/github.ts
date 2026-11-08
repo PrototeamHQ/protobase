@@ -34,7 +34,8 @@ export interface RunFilter {
 
 /**
  * The event and branch filters a workflow's window takes its runs from: its own and, for push runs, a merge's dispatch.
- * Only a push window on main takes the `workflow_dispatch` runs: the AI review dispatches the release workflow alone.
+ * Only a push window on main takes the `workflow_dispatch` runs: of the workflows with a window, the AI review
+ * dispatches the release workflow alone.
  */
 export const runFilters = (workflow: WorkflowConfig): RunFilter[] => {
   const own = { event: workflow.event, branch: workflow.branch }

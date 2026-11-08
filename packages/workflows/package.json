@@ -1,0 +1,41 @@
+{
+  "name": "@protobase/workflows",
+  "version": "0.14.2",
+  "description": "Workflows as state machines with JSONata expressions: their check, a runner that saves only what a run needs to go on and traces every step, and the plugin interface for trigger and step types.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrototeamHQ/protobase.git",
+    "directory": "packages/workflows"
+  },
+  "homepage": "https://docs.protobase.net",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin": "./src/plugin/index.ts"
+  },
+  "types": "./src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "tsdown"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": "./dist/index.js",
+      "./plugin": "./dist/plugin/index.js"
+    },
+    "types": "./dist/index.d.ts"
+  },
+  "dependencies": {
+    "jsonata": "^2.2.2",
+    "ajv": "^8.20.0"
+  }
+}

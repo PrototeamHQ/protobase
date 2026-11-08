@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { createAuthSession, createClient, type AuthSession, type AuthUser, type PersonalMailLink, type PlatformSignIn, type PluginRef, type SamlSignIn, type RequiredSetup, type SetupStatus, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
+import { createAuthSession, createClient, type AuthSession, type AuthUser, type PersonalMailLink, type PlatformSignIn, type PluginRef, type SamlSignIn, type RequiredSetup, type SetupStatus, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod, type WorkflowConnection } from '@protobase/client'
 import type { Locale } from '@protobase/schema/internal'
 import { nativeAuthFetch, type NativeBridge } from '../app/native-auth-fetch'
 import { pushNotifications, type PushNotifications } from '../notifications/push/push-notifications'
@@ -67,6 +67,8 @@ export type AuthApi = {
   personalMail: PersonalMailLink[]
   /** Leaves for the mail provider to link the signed-in person's mailbox, which comes back to this page; rejects with `AuthError`. */
   linkPersonalMail: (link: PersonalMailLink) => Promise<void>
+  /** Leaves for the provider to connect an account for a workflow connection, which comes back to this page; rejects with `AuthError`. */
+  connectAccount: (connection: WorkflowConnection) => Promise<void>
   /** The operator provider's name when its staff can sign in as people here. */
   staffSignIn?: string
   /** When the app has organizations: who may create them, and the roles with their labels. */
@@ -269,6 +271,9 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       personalMail,
       linkPersonalMail: async (link) => {
         window.location.assign(await session.account.linkPersonalMail(link, new URL(withoutSignInLink(window.location.href), window.location.href).href))
+      },
+      connectAccount: async (connection) => {
+        window.location.assign(await session.account.connectAccount(connection, new URL(withoutSignInLink(window.location.href), window.location.href).href))
       },
       stopStaffSession: async () => {
         await push.forget()

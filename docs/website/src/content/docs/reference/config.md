@@ -29,7 +29,7 @@ Each key is described with its type and default in the option pages:
 | [Sign-in options](/reference/config/sign-in/) | `auth`, `authenticate`, `signingKeyDays`, `signingKeyGraceDays` |
 | [API options](/reference/config/api/) | `apiPath`, `apiKeys`, `cors`, `defaultAccess`, `rowPermissions`, `statementTimeoutMs`, `scanGuard`, `errorReporting`, `writeHooks`, `mcpEndpoint`, `remoteResources`, `runtimeUpdates`, `realtime`, `calls`, `userTables` |
 | [Admin app options](/reference/config/admin-app/) | `assistant`, `maps`, `plugins` |
-| [Jobs and events options](/reference/config/jobs-and-events/) | `jobs`, `events`, `history`, `webhooks`, `notifications`, `status` |
+| [Jobs and events options](/reference/config/jobs-and-events/) | `jobs`, `events`, `history`, `webhooks`, `workflows`, `notifications`, `status` |
 | [Files options](/reference/config/files/) | `files` |
 
 ## Config types
@@ -139,6 +139,8 @@ The other files belong to an option, and are described with it:
 | `mcp/tools.ts` | [`mcpEndpoint`](/reference/config/api/#mcpendpoint) |
 | `jobs/<name>.ts` | [`jobs`](/reference/config/jobs-and-events/#jobs) |
 | `webhooks/owner-roles.ts` | [`webhooks`](/reference/config/jobs-and-events/#webhooks) |
+| `workflows/saved-by-roles.ts` | [`workflows`](/reference/config/jobs-and-events/#workflows) |
+| `workflows/plugins/<name>.ts` | [`workflows.plugins`](/reference/config/jobs-and-events/#workflowsplugins) |
 | `notifications/store.ts`, `notifications/history-store.ts`, `notifications/senders.ts` | [`notifications`](/reference/config/jobs-and-events/#notifications) |
 | `files/<name>.ts` | [`files.providers`](/reference/config/files/#filesproviders) |
 
@@ -161,10 +163,11 @@ export default defineUi({ extends: [tasksUi] })
 | assistant tools of `assistant/tools.ts` | the extensions' first, in order, then the app's | an error naming the tool and both folders |
 | MCP tools of `mcp/tools.ts` | the extensions' first, in order, then the app's | an error naming the tool and both folders |
 | `jobs`, functions, file providers (`files.providers`) | all kept, by name | an error naming the name and both folders |
+| workflow plugins of `workflows/plugins/` | all kept | an error naming the plugin and both sources |
 | `files.trustedHosts` | all kept | |
 | the other keys of `files` | each the app's own; otherwise the last config that sets it | |
 | `writeHooks` | all run, in the same order | |
-| `config/roles.ts`, `auth/authenticate.ts`, `audit/queue.ts`, `hooks/error.ts`, `webhooks/owner-roles.ts`, `notifications/*.ts` | the app's own; otherwise the last extension's | |
+| `config/roles.ts`, `auth/authenticate.ts`, `audit/queue.ts`, `hooks/error.ts`, `webhooks/owner-roles.ts`, `workflows/saved-by-roles.ts`, `notifications/*.ts` | the app's own; otherwise the last extension's | |
 | `auth/hooks.ts`, `auth/mailer.ts` | those of the last folder whose config sets `auth`; otherwise the app's | |
 | every other key (`auth`, `authenticate`, `assistant`, ...) | the app's own; otherwise the last config that sets it | |
 | UI components (exported by name or in `components`), `actions` | all kept | an error naming the name and both configs |

@@ -96,6 +96,12 @@ export const createWhere = <R extends Source = Anything>() => {
     /** The text field matches the regular expression, ignoring case: `regex(field, "pattern")`. */
     regex: <K extends Fields<R>>(name: K, pattern: string) =>
       ({ kind: 'regex', field: field(name), pattern, span }) as FilterExpr,
+    /**
+     * The field holds the `key` of a record of `resource` the caller may list that meets `filter`, in a list-style read
+     * of the API: `related(task_id, objective_tasks.task_id, (objective_id = 40))`.
+     */
+    related: <K extends Fields<R>>(name: K, resource: string, key: string, filter?: FilterExpr): FilterExpr =>
+      ({ kind: 'related', field: field(name), resource, key, ...(filter && { filter }), span }),
     /** Every filter holds; one filter is returned as it is, none throws. */
     and: (...args: FilterExpr[]) => group('and', args),
     /** At least one filter holds; one filter is returned as it is, none throws. */

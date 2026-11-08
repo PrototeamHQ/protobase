@@ -15,6 +15,8 @@ const reading = (column: UncoveredColumn) => {
       return `The filter your role is limited by, on "${column.field}",`
     case 'parent':
       return `Keeping to the records whose "${column.field}" you may read`
+    case 'related':
+      return `Reading "${column.field}" for related()`
     case 'sort':
       return `Sorting by "${column.field}"`
     case 'facet':
@@ -44,13 +46,18 @@ export const createScanGuard = (db: Db, options: { mode?: ScanGuardMode } = {}) 
   }
   const indexesOf = (entry: Entry) => indexesOfModel(entry.model)
 
-  // The parents a read keeps to are read by their own scope, their columns judged against their own table's indexes.
+  // The parents a read keeps to are read by their own scope, their columns judged against their own table's indexes; a
+  // `related()` term's resource is read as the caller sees it, with its subfilter, for the key it selects.
   const parentColumns = async (scope: Scope): Promise<UncoveredColumn[]> => {
-    const parents = (scope.parents ?? []).flatMap((read) => (read.parent ? [read.parent] : []))
-    const columns = await Promise.all(parents.map(async ({ model, scope: own }) => [
-      ...uncoveredColumns(model, await indexesOfModel(model), {}, own).map((column) => ({ ...column, field: `${model.name}.${column.field}` })),
-      ...(await parentColumns(own)),
-    ]))
+    const columns = await Promise.all((scope.parents ?? []).map(async ({ parent, related }) => {
+      if (!parent) return []
+      const { model, key, scope: own } = parent
+      const query = related ? { ...(related.filter && { filter: related.filter }), selects: key } : {}
+      return [
+        ...uncoveredColumns(related?.model ?? model, await indexesOfModel(model), query, own).map((column) => ({ ...column, field: `${model.name}.${column.field}` })),
+        ...(await parentColumns(own)),
+      ]
+    }))
     return columns.flat()
   }
 

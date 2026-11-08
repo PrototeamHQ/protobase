@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { logger } from 'hono/logger'
-import { jobsDrainApp, webauthnPath, type Admin, type JobsRuntime } from '@protobase/server'
+import { jobsDrainApp, redactHookKeys, webauthnPath, type Admin, type JobsRuntime } from '@protobase/server'
 import { mobileReleaseApp, type MobileReleaseAppInput } from '@protobase/server/mobile-release'
 import { isApiPath } from '../bundle/manifest'
 import { serveStaticSite, type StaticSite } from './static-site'
@@ -26,7 +26,8 @@ export type ServeAppInput = {
 // with a drain token, the mobile app's live updates with a mobile section, and with a site its UI around them.
 export const createServeApp = ({ admin, requestLog, site, jobs, drainToken, mobile }: ServeAppInput) => {
   const app = new Hono()
-  if (requestLog) app.use(logger())
+  // A webhook's address holds the key that opens it, which the log leaves out.
+  if (requestLog) app.use(logger((line) => console.log(redactHookKeys(line))))
   // Liveness only: it needs no token and does not touch the database.
   app.get('/health', (c) => c.json({ status: 'ok' }))
   // `/.well-known/webauthn` is the server's too, for passkeys on an app with several origins, whatever the bundle says.

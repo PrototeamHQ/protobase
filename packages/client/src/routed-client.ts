@@ -51,5 +51,8 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
     callGuests: own.callGuests,
     calls: (resource, key) => to(resource).calls(resource, key),
     watchCalls: (resource, key, handlers) => to(resource).watchCalls(resource, key, handlers),
+    // The types are those of the API that serves the workflows
+    workflowTypes: () => to('workflows').workflowTypes(),
+    workflowRunTrace: (runId, held) => to('workflow_runs').workflowRunTrace(runId, held),
   }
 }

@@ -5,7 +5,7 @@ import { betterAuthAuthenticator, type BetterAuthAuthenticator } from '../../src
 import { buildAuth, type CreateAuthOptions } from '../../src/better-auth/create-auth'
 import { createUser, setUserRole } from '../../src/better-auth/users'
 import { createAdmin, type CreateAdminInput } from '../../src/create-admin'
-import type { Authenticator } from '../../src/types'
+import type { Authenticator, TenantValue } from '../../src/types'
 import { allResources, createFixtureDb } from '../../../../test-support/server'
 import { openSnapshotDb, settled, type SnapshotDb } from '../../../../test-support/sql-snapshot'
 
@@ -22,7 +22,7 @@ export const fetchClientMetadata = async (url: string | URL) =>
   String(url) === cimdClientId ? new Response(JSON.stringify(cimdDocument), { headers: { 'content-type': 'application/json' } }) : new Response('not found', { status: 404 })
 
 // Made, then given the time to check its schema in the background, so its queries come before the test's.
-export const authOn = async (store: SnapshotDb, options: Partial<CreateAuthOptions> = {}) => {
+export const authOn = async (store: McpStore, options: Partial<CreateAuthOptions> = {}) => {
   const auth = await buildAuth({
     database: { dialect: store.dialect, type: 'postgres' },
     baseURL: origin,
@@ -63,10 +63,21 @@ export const pkce = async () => {
 
 export type Tokens = { access_token: string; refresh_token?: string; token_type: string; scope: string; expires_in: number }
 
-export type ServeMcpOptions = {
+/** An auth store: a snapshot database, or a real one with a query of its own. */
+export type McpStore = Pick<SnapshotDb, 'dialect'> & { query: <T = any>(sql: string, params?: readonly unknown[]) => Promise<{ rows: T[] }> }
+
+export type ServeMcpOptions<Store extends McpStore = SnapshotDb> = {
   auth?: Partial<CreateAuthOptions>
   /** A store served before, with its users as they are, instead of a copy of the migrated one. */
-  existing?: SnapshotDb
+  existing?: Store
+  /** The app's database instead of the fixture's, such as a real one its jobs run on. */
+  db?: CreateAdminInput['db']
+  /** `createAdmin`'s workflows. */
+  workflows?: CreateAdminInput['workflows']
+  /** `createAdmin`'s files, such as where workflows keep runs' traces. */
+  files?: CreateAdminInput['files']
+  /** The one tenant everyone works in, for resources scoped to tenants. */
+  tenant?: TenantValue
   /** `createAdmin`'s options. */
   admin?: AdminOptions
   /** The resources the app serves, the fixture's by default. */
@@ -77,10 +88,11 @@ export type ServeMcpOptions = {
 
 /**
  * An app with MCP on, on a copy of the migrated store, with Ana (sales and accountant) and Root (admin); on `existing`,
- * a store served before, with its users as they are.
+ * a store served before, with its users as they are. Without the stores, it serves on `existing` and `db`.
  */
-export const serveMcp = async ({ fixture, migrated }: McpStores, { auth: options = {}, existing, admin, resources = allResources, authenticate: wrap = (own) => own }: ServeMcpOptions = {}) => {
-  const store = existing ?? (await migrated.clone())
+export const serveMcp = async <Store extends McpStore = SnapshotDb>(stores: McpStores | undefined, { auth: options = {}, existing, db = stores?.fixture.db, workflows, files, tenant, admin, resources = allResources, authenticate: wrap = (own) => own }: ServeMcpOptions<Store> = {}) => {
+  if (!db || !(existing ?? stores)) throw new Error('serveMcp serves on the stores, or on a store and a database of its own')
+  const store: Store | SnapshotDb = existing ?? (await stores!.migrated.clone())
   const auth = await authOn(store, options)
   if (!existing) {
     await createUser(auth, { email: 'root@example.com', password })
@@ -88,8 +100,8 @@ export const serveMcp = async ({ fixture, migrated }: McpStores, { auth: options
     await setUserRole(auth, { email: 'ana@example.com', role: 'sales,accountant' })
     await createUser(auth, { email: 'bo@example.com', password, role: 'sales' })
   }
-  const authenticate = betterAuthAuthenticator({ auth })
-  const app = createAdmin({ resources, db: fixture.db, authenticate: wrap(authenticate), auth, ...(admin && { options: admin }) })
+  const authenticate = betterAuthAuthenticator({ auth, ...(tenant !== undefined && { tenant }) })
+  const app = createAdmin({ resources, db, authenticate: wrap(authenticate), auth, ...(workflows && { workflows }), ...(files && { files }), ...(admin && { options: admin }) })
   const address = `198.51.100.${++client}`
 
   type Init = { body?: unknown; form?: Record<string, string>; cookie?: string; headers?: Record<string, string>; method?: string; from?: string | null }

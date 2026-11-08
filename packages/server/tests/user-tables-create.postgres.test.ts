@@ -1,12 +1,11 @@
 import { Kysely, PostgresDialect, sql } from 'kysely'
-import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
+import { reservedWords } from '@protobase/schema/internal'
 import { createAdmin } from '../src/create-admin'
 import type { ResourceSource } from '../src/resource-source'
 import { readDefinitionsVersion } from '../src/user-tables/definitions-version'
 import { reloadingAdmin } from '../src/user-tables/reloading-admin'
-import { reservedWords } from '../src/user-tables/reserved-words'
 import { userTablesMigration } from '../src/user-tables/schema'
 import { userTableResources } from '../src/user-tables/user-table-resources'
 import { as, json, testAuthenticator } from '../../../test-support/server'
@@ -24,7 +23,7 @@ const roles = defineRoles({
 })
 
 // A serving process: its own pool, and the admin it builds from the definitions, rebuilt as they change.
-const serving = async (url: string, pool = new pg.Pool({ connectionString: url, max: 3 }), resources: ResourceSource[] = [orders]) => {
+const serving = async (pool = database.pool({ max: 3 }), resources: ResourceSource[] = [orders]) => {
   const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
   const build = (tables: Awaited<ReturnType<typeof userTableResources>>) => createAdmin({ resources, userTables: tables, db, authenticate: testAuthenticator, options: { roles } })
   const admin = reloadingAdmin({ first: build(await userTableResources(db)), version: await readDefinitionsVersion(db), readVersion: () => readDefinitionsVersion(db), readTables: () => userTableResources(db), build })
@@ -40,8 +39,8 @@ beforeAll(async () => {
   database = await openPostgresDatabase('empty')
   await database.exec((await userTablesMigration(database.db))!)
   await database.exec('create table orders (id integer generated always as identity primary key, amount integer not null)')
-  app = await serving(database.url)
-  other = await serving(database.url)
+  app = await serving()
+  other = await serving()
 })
 afterAll(async () => {
   if (!ready) return
@@ -192,7 +191,7 @@ describe.skipIf(!ready)('creating a table users add through the API', () => {
   })
 
   it('answers a field whose column waits past the statement timeout with a 504, and adds nothing', async () => {
-    const holding = new pg.Pool({ connectionString: database.url, max: 1 })
+    const holding = database.pool({ max: 1 })
     const holder = await holding.connect()
     await holder.query('begin; lock table user_tables.notes in access share mode')
     const before = await version()
@@ -210,7 +209,7 @@ describe.skipIf(!ready)('creating a table users add through the API', () => {
 describe.skipIf(!ready)('a table taken over as code', () => {
   it('takes no new field', async () => {
     const notes = resource('notes').table('user_tables.notes').fields({ id: f.bigint().readOnly().dbDefault(), title: f.text().optional() }).primaryKey((r) => r.id)
-    const owned = await serving(database.url, undefined, [orders, notes])
+    const owned = await serving(undefined, [orders, notes])
     const before = await version()
     const refused = await addField('notes', field('owned'), 'admin', owned)
     await owned.close()
@@ -283,7 +282,7 @@ describe.skipIf(!ready)('the definitions in the database', () => {
 
 describe.skipIf(!ready)('a write freeze', () => {
   it('answers a new table and a new field as any write then, and creates nothing', async () => {
-    const frozen = await serving(database.url, new pg.Pool({ connectionString: database.url, max: 2, options: '-c default_transaction_read_only=on' }))
+    const frozen = await serving(database.pool({ max: 2, options: '-c default_transaction_read_only=on' }))
     const before = await version()
     const table = await createTable('frozen', [field('title')], undefined, 'admin', frozen)
     const added = await addField('notes', field('frozen'), 'admin', frozen)

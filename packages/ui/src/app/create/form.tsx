@@ -1,4 +1,6 @@
 import type { FormEvent, ReactNode, Ref } from 'react'
+import type { PageWidth } from '@protobase/schema'
+import { cn } from '../../lib/cn'
 import { Button } from '../../primitives/button'
 import { ErrorBanner } from '../error-banner'
 import { text } from './messages'
@@ -12,6 +14,8 @@ export type FormProps = {
   title?: string
   /** The line above the heading, such as the records' name. */
   eyebrow?: string
+  /** How wide the whole-page form is: a centred column, the default, or the `full` width of the content pane. */
+  width?: PageWidth
   /** The submit button's label, such as "Create repair". */
   submit: string
   /** The submit button spins and cannot be pressed again. */
@@ -31,7 +35,7 @@ export type FormProps = {
 }
 
 /** The frame of the app's forms: Cancel and the submit button, a failure that belongs to no field, and the sections. */
-export const Form = ({ title, eyebrow, submit, saving, disabled, error, errorTitle = text('notSaved'), onSubmit, onCancel, children, ref }: FormProps) => {
+export const Form = ({ title, eyebrow, width, submit, saving, disabled, error, errorTitle = text('notSaved'), onSubmit, onCancel, children, ref }: FormProps) => {
   const buttons = (
     <div className="flex items-center gap-2">
       {onCancel && <Button className="max-sm:min-h-11" onClick={onCancel}>{text('cancel')}</Button>}
@@ -61,7 +65,7 @@ export const Form = ({ title, eyebrow, submit, saving, disabled, error, errorTit
   }
   return (
     <form ref={ref} className="flex-1" onSubmit={send}>
-      <div className="mx-auto max-w-[760px] px-4 py-6 md:px-10 md:py-8">
+      <div className={cn(width !== 'full' && 'mx-auto max-w-[760px]', 'px-4 py-6 md:px-10 md:py-8')}>
         <header className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
           <div>
             {eyebrow && <p className="text-xs text-muted-foreground">{eyebrow}</p>}

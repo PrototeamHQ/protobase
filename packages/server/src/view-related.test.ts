@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, view, type RelatedModel, type ResourceModel } from '@protobase/schema'
-import { openErrors, relatedActionErrors, relatedErrors } from './view-related'
+import { openErrors, relatedActionErrors, relatedErrors, relatedSectionErrors } from './view-related'
 
 const tasks = resource('tasks').table('tasks').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
 const versions = resource('versions').table('versions').fields({ taskId: f.relation('tasks'), number: f.integer() }).primaryKey((r) => [r.taskId, r.number])
@@ -95,5 +95,26 @@ describe('lines', () => {
   it('refuses records not ordered within the record, and the options that pick or page them', () => {
     expect(relatedErrors(lines({ resource: 'task_dependencies' }), 'tasks', withSteps)).toEqual(['lines need task_dependencies ordered within "taskId", with .position(..., { within })'])
     expect(relatedErrors(lines({ filter: 'taskId = 1', limit: 5 }), 'tasks', withSteps)).toEqual(['lines cannot be combined with "filter"', 'lines cannot be combined with "limit"'])
+  })
+})
+
+describe('a section through a join resource', () => {
+  const objectives = resource('objectives').table('objectives').fields({ id: f.integer() }).primaryKey((r) => r.id)
+  const links = resource('objective_tasks')
+    .table('objective_tasks')
+    .fields({ objective_id: f.relation('objectives').filterable(), task_id: f.relation('tasks').filterable(), note: f.text().filterable(), hidden_id: f.relation('tasks') })
+    .primaryKey((r) => [r.objective_id, r.task_id])
+  const tasksWithKey = resource('tasks').table('tasks').fields({ id: f.integer().filterable(), title: f.text().filterable() }).primaryKey((r) => r.id)
+  const all: Record<string, ResourceModel> = { objectives: objectives.toModel(), objective_tasks: links.toModel(), tasks: tasksWithKey.toModel() }
+  const tasksOf = (key: string, field = 'id'): RelatedModel => ({ kind: 'related', title: 'Tasks', resource: 'tasks', field, through: { resource: 'objective_tasks', field: 'objective_id', key } })
+
+  it('takes a key that meets the listed field', () => {
+    expect(relatedSectionErrors(tasksOf('task_id'), 'objectives', all)).toEqual([])
+  })
+
+  it('refuses a key that does not, or one no filter may read, which related() cannot go through', () => {
+    expect(relatedSectionErrors(tasksOf('note'), 'objectives', all)).toEqual(['through: "note" on objective_tasks and "id" on tasks do not point at one resource'])
+    expect(relatedSectionErrors(tasksOf('task_id', 'title'), 'objectives', all)).toEqual(['through: "task_id" on objective_tasks and "title" on tasks do not point at one resource'])
+    expect(relatedSectionErrors(tasksOf('hidden_id'), 'objectives', all)).toEqual(['through: "hidden_id" on objective_tasks is not filterable'])
   })
 })

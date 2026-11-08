@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { addressPlaceholders, appHrefError, fillAddress, hrefField, hrefPlaceholders, leavesApp, linkActionError } from './address-template'
+import { addressPlaceholders, appHrefError, fillAddress, hrefField, hrefPlaceholders, leavesApp, linkActionError, resourceField } from './address-template'
 
 describe('fillAddress', () => {
   it('fills a record key and a list filter and order from the record', () => {
     expect(fillAddress({ kind: 'record', resource: 'orders', key: '{orderId}' }, { orderId: 42 })).toEqual({ kind: 'record', resource: 'orders', key: '42' })
     expect(fillAddress({ kind: 'record', resource: 'lines', key: ['{orderId}', 3] }, { orderId: 42 })).toEqual({ kind: 'record', resource: 'lines', key: ['42', 3] })
+    expect(fillAddress({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' }, { workflow_id: 'w-1', id: 'r-2' })).toEqual({ kind: 'record', resource: 'workflows', key: 'w-1', run: 'r-2' })
+    expect(addressPlaceholders({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })).toEqual(['workflow_id', 'id'])
     expect(fillAddress({ kind: 'list', resource: 'repairs', filter: 'customerId = {customerId} AND bike = "{bike}"', display: 'cards' }, { customerId: 7, bike: 'Gazelle' })).toEqual({
       kind: 'list',
       resource: 'repairs',
@@ -20,6 +22,15 @@ describe('fillAddress', () => {
       values: { listing_id: '42', body: 'About Keizersgracht 12' },
     })
     expect(addressPlaceholders({ kind: 'create', resource: 'notes', values: { listing_id: '{id}' } })).toEqual(['id'])
+  })
+
+  it('takes the resource from the record when it is only a placeholder', () => {
+    const to = { kind: 'list', resource: '{name}' } as const
+    expect(resourceField(to)).toBe('name')
+    expect(resourceField({ kind: 'list', resource: 'notes' })).toBeUndefined()
+    expect(addressPlaceholders(to)).toEqual(['name'])
+    expect(fillAddress(to, { name: 'notes' })).toEqual({ kind: 'list', resource: 'notes' })
+    expect(fillAddress({ kind: 'record', resource: '{name}', key: '{id}' }, { name: 'notes', id: 3 })).toEqual({ kind: 'record', resource: 'notes', key: '3' })
   })
 
   it('leaves a missing value empty and other addresses alone', () => {
@@ -57,5 +68,11 @@ describe('linkActionError', () => {
     expect(linkActionError('Open on {host}', { href: 'https://pay.example/{plan}' })).toBeUndefined()
     expect(linkActionError('Go to {host}', { to: { kind: 'page', page: 'overview' } })).toBe('the label names {host}, which only a link with an href has')
     expect(linkActionError('Overview', { to: { kind: 'page', page: 'overview' } })).toBeUndefined()
+  })
+
+  it('fills a panel from the values, and names its field among the placeholders', () => {
+    const to = { kind: 'record' as const, resource: 'workflows', key: '{workflow_id}', panel: '{panel_name}' }
+    expect(addressPlaceholders(to)).toEqual(['workflow_id', 'panel_name'])
+    expect(fillAddress(to, { workflow_id: 'w1', panel_name: 'test_run' })).toEqual({ kind: 'record', resource: 'workflows', key: 'w1', panel: 'test_run' })
   })
 })

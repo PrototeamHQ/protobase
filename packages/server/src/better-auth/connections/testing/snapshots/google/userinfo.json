@@ -1,0 +1,10 @@
+{
+  "stand_in": true,
+  "recorded_at": null,
+  "request": { "method": "GET", "url": "https://openidconnect.googleapis.com/v1/userinfo", "form": [] },
+  "response": {
+    "status": 200,
+    "headers": { "content-type": "application/json; charset=utf-8" },
+    "body": { "sub": "100000000000000000001", "email": "ada@example.com", "email_verified": true, "name": "Ada" }
+  }
+}

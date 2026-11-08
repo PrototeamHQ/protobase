@@ -1,9 +1,9 @@
 import type { PostgresPool } from 'kysely'
 import type { Db } from '@protobase/query'
-import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, StatusOptions, WebhooksOptions } from '@protobase/server'
-import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions } from '@protobase/server/internal'
+import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, StatusOptions, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
+import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions, workflowPlugins } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
-import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks } from './project-parts'
+import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
 import { userTablesOn } from './user-tables-config'
 
 /**
@@ -22,7 +22,7 @@ export const projectMailer = async (config: MergedConfig) => (await config.authF
  * The app's sign-in, built from `auth` with the app's URL, secrets, signing key rotation and name, the hooks of its
  * auth/hooks.ts and the app's mailer when it has them; none without `auth`.
  */
-export const projectAuth = async (config: MergedConfig, { db, pool }: AppDatabase): Promise<AdminAuth | undefined> => {
+export const projectAuth = async (config: MergedConfig, { db, pool }: AppDatabase, workflows?: WorkflowsOptions): Promise<AdminAuth | undefined> => {
   if (!config.auth) return undefined
   if (!pool) throw new Error("auth needs the app's pool, which its store shares")
   const { url, secret, previousSecrets, signingKeyDays, signingKeyGraceDays, name } = config
@@ -31,9 +31,15 @@ export const projectAuth = async (config: MergedConfig, { db, pool }: AppDatabas
   const [hooks, mailer] = await Promise.all([config.authFiles?.module('auth/hooks.ts')?.(), projectMailer(config)])
   return buildAppAuth(
     { ...(config.auth || {}), baseURL: url, secret, ...(previousSecrets && { previousSecrets }), ...(signingKeyDays !== undefined && { signingKeyDays }), ...(signingKeyGraceDays !== undefined && { signingKeyGraceDays }), ...(name && { appName: name }) },
-    { pool, db, ...(hooks && { hooks: hooks as AuthHooks }), ...(mailer && { mailer }) },
+    { pool, db, ...(hooks && { hooks: hooks as AuthHooks }), ...(mailer && { mailer }), ...(workflows && { workflowConnections: workflowConnectionsOf(workflows) }) },
   )
 }
+
+/** The connections the workflows' plugins declare, the defaults' among them, which people connect accounts through at sign-in. */
+const workflowConnectionsOf = (workflows: WorkflowsOptions) => ({
+  declared: workflowPlugins(workflows.plugins).flatMap(({ plugin }) => Object.entries(plugin.connections ?? {}).map(([name, declaration]) => ({ plugin: plugin.name, name, declaration }))),
+  allowPrivateAddresses: workflows.allowPrivateAddresses === true,
+})
 
 /**
  * How the API verifies tokens: the default export of the app's auth/authenticate.ts when it has one, such as a
@@ -58,6 +64,7 @@ export type BuiltProject = {
   events?: EventsOptions
   history?: HistoryOptions
   webhooks?: WebhooksOptions
+  workflows?: WorkflowsOptions
   realtime?: RealtimeOptions
   notifications?: NotificationsOptions
   status?: StatusOptions
@@ -74,12 +81,14 @@ export type BuiltProject = {
 
 /** The app, built from its merged config over its database: every reference loaded, auth and the authenticator made. */
 export const buildProject = async (config: MergedConfig, database: AppDatabase): Promise<BuiltProject> => {
+  // The workflows' plugins come first: sign-in connects the accounts their connections declare.
+  const workflows = await projectWorkflows(config)
   const [resources, functions, files, options, auth, webhooks, notifications, mailer] = await Promise.all([
     projectResources(config),
     projectFunctions(config),
     projectFiles(config),
     projectOptions(config),
-    projectAuth(config, database),
+    projectAuth(config, database, workflows),
     projectWebhooks(config),
     projectNotifications(config),
     projectMailer(config),
@@ -97,6 +106,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     ...(config.events && { events: config.events }),
     ...(config.history && { history: config.history }),
     ...(webhooks && { webhooks }),
+    ...(workflows && { workflows }),
     ...(config.realtime && { realtime: config.realtime }),
     ...(notifications && { notifications }),
     ...(config.status && { status: checkStatusOptions(config.status) }),

@@ -22,6 +22,9 @@ export type PushBrowser = {
   userAgent: string
 }
 
+/** The user agent a device registers with, as the server takes it: no control characters, at most 512 characters. */
+export const deviceUserAgent = (userAgent: string) => userAgent.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 512)
+
 /** The page's own browser. */
 export const windowPushBrowser = (win: Window & typeof globalThis = window): PushBrowser => {
   const { navigator } = win
@@ -39,7 +42,6 @@ export const windowPushBrowser = (win: Window & typeof globalThis = window): Pus
     clearBadge: async () => {
       if ('clearAppBadge' in navigator) await navigator.clearAppBadge()
     },
-    // As the server takes it: no control characters, at most 512 characters.
-    userAgent: navigator.userAgent.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 512),
+    userAgent: deviceUserAgent(navigator.userAgent),
   }
 }

@@ -18,3 +18,11 @@ export const SectionError = ({ message }: { message?: string }) =>
       {message}
     </p>
   ) : null
+
+/** What a section's last change did, as the person reads it. */
+export const SectionNotice = ({ message }: { message?: string }) =>
+  message ? (
+    <p role="status" className="mb-3 font-medium">
+      {message}
+    </p>
+  ) : null

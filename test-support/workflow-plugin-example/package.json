@@ -1,0 +1,9 @@
+{
+  "name": "workflow-plugin-example",
+  "private": true,
+  "type": "module",
+  "description": "A workflow plugin in a package of its own, which the tests load as an app loads a custom plugin; it imports @protobase/workflows/plugin by name.",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

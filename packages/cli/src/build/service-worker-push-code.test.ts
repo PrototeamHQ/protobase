@@ -101,8 +101,13 @@ const startWorker = ({ record, windows = [], subscribed = true, code = pushHandl
     await done
   }
   const push = (data?: unknown) => dispatch('push', { data: data === undefined ? null : { json: () => (typeof data === 'string' ? JSON.parse(data) : data) } })
-  const click = (data: unknown) => dispatch('notificationclick', { notification: { data, close: () => {} } })
-  return { push, click, dispatch, shown, opened, badge, subscription, record: () => stored.get(pushRecord.key) as PushRecord | undefined }
+  const click = (data: unknown, action = '') => dispatch('notificationclick', { notification: { data, close: () => {} }, action })
+  // A push shown to the browser's user and then tapped, on the action named or on the notification itself.
+  const tap = async (payload: Record<string, unknown>, action = '') => {
+    await push({ title: 'Hi', user: 'alice', ...payload })
+    await click(shown.at(-1)!.options.data, action)
+  }
+  return { push, click, tap, dispatch, shown, opened, badge, subscription, record: () => stored.get(pushRecord.key) as PushRecord | undefined }
 }
 
 const alice = { userId: 'alice', endpoint, appName: 'Tasks' }
@@ -236,6 +241,156 @@ describe('the service worker on a tap', () => {
     await worker.click({ url: `${origin}/tasks/1` })
     expect(worker.opened).toEqual([])
     expect(window.navigated).toEqual([`${origin}/tasks/1`])
+  })
+})
+
+describe('the service worker on a tap of a hand-made push', () => {
+  const start = () => {
+    const window = appWindow()
+    return { window, worker: startWorker({ record: alice, windows: [window] }) }
+  }
+  const opensNothing = ({ window, worker }: ReturnType<typeof start>) => {
+    expect(worker.opened).toEqual([])
+    expect(window).toMatchObject({ focused: false, navigated: [] })
+  }
+  // Each field a tap navigates from, carrying a value, with the action to tap for it.
+  const fields: [string, (value: unknown) => Record<string, unknown>, string][] = [
+    ['url', (value) => ({ url: value }), ''],
+    ['notification.navigate', (value) => ({ notification: { navigate: value } }), ''],
+    ['an action navigate', (value) => ({ notification: { actions: [{ action: 'ok', title: 'OK', navigate: value }] } }), 'ok'],
+  ]
+  const refused = [
+    'javascript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    '/inbox',
+    'inbox',
+    ' javascript:alert(1)',
+    'java\tscript:alert(1)',
+    'java\nscript:alert(1)',
+    'JaVaScRiPt:alert(1)',
+    '//evil.test/x',
+    '\\\\evil.test',
+    `blob:${origin}/0b6e1c62-4c64-4c4c-9a3c-6c2b1e1f9a10`,
+    'file:///etc/passwd',
+    'vbscript:msgbox(1)',
+    'about:blank',
+    42,
+    null,
+    [`${origin}/x`],
+    { toString: () => 'javascript:alert(1)' },
+  ]
+
+  describe.each(fields)('in %s', (_, payload, action) => {
+    it.each(refused)('opens and navigates nothing for %s', async (value) => {
+      const tapped = start()
+      await tapped.worker.tap(payload(value), action)
+      opensNothing(tapped)
+    })
+
+    it("navigates an open window of the app to a url on the app's own origin", async () => {
+      const tapped = start()
+      await tapped.worker.tap(payload(`${origin}/tasks/1`), action)
+      expect(tapped.window).toMatchObject({ focused: true, navigated: [`${origin}/tasks/1`] })
+      expect(tapped.worker.opened).toEqual([])
+    })
+
+    it.each([
+      'https://other.test/x',
+      'https://app.example.com.evil.test/',
+      'https://evil.test/app.example.com',
+      'http://app.example.com/',
+      'https://app.example.com:1234/',
+      'https://app.example.com@evil.test/',
+      'https://аpp.example.com/',
+    ])('opens %s outside the app and leaves the app alone', async (url) => {
+      const tapped = start()
+      await tapped.worker.tap(payload(url), action)
+      expect(tapped.worker.opened).toEqual([new URL(url).href])
+      expect(tapped.window).toMatchObject({ focused: false, navigated: [] })
+    })
+
+    it('navigates to the parsed url of one on its own origin with user info', async () => {
+      const tapped = start()
+      await tapped.worker.tap(payload(`https://evil@app.example.com/path`), action)
+      expect(tapped.window.navigated).toEqual(['https://evil@app.example.com/path'])
+      expect(tapped.worker.opened).toEqual([])
+    })
+  })
+
+  it.each([
+    ['data.url', { data: { url: `${origin}/x` } }],
+    ['data.navigate', { data: { navigate: `${origin}/x` } }],
+    ['another field', { link: `${origin}/x`, href: 'https://other.test/' }],
+    ['notification.url', { notification: { url: `${origin}/x`, data: { url: `${origin}/x` } } }],
+    ['a notification that is no object', { notification: [{ navigate: `${origin}/x` }] }],
+  ])('opens nothing for a url under %s alone', async (_, payload) => {
+    const tapped = start()
+    await tapped.worker.tap(payload)
+    opensNothing(tapped)
+  })
+
+  it('opens nothing when notification.navigate fails, even with a url that passes', async () => {
+    const tapped = start()
+    await tapped.worker.tap({ url: `${origin}/x`, notification: { navigate: 'javascript:alert(1)' } })
+    opensNothing(tapped)
+  })
+
+  it("prefers notification.navigate over url", async () => {
+    const tapped = start()
+    await tapped.worker.tap({ url: 'https://other.test/', notification: { navigate: `${origin}/tasks/1` } })
+    expect(tapped.window.navigated).toEqual([`${origin}/tasks/1`])
+    expect(tapped.worker.opened).toEqual([])
+  })
+
+  it("shows the actions as buttons and keeps only their checked urls", async () => {
+    const tapped = start()
+    await tapped.worker.tap({
+      data: { secret: 1 },
+      notification: { actions: [{ action: 'ok', title: 'OK', navigate: 'data:text/html,x', extra: 1 }, { action: 'no title' }, 'x'] },
+    })
+    expect(tapped.worker.shown[0]!.options).toEqual({ actions: [{ action: 'ok', title: 'OK' }], data: { actions: [['ok', null]] } })
+  })
+
+  it('opens nothing for a tapped action whose navigate fails, and never falls back to the tap url', async () => {
+    const tapped = start()
+    await tapped.worker.tap({ url: `${origin}/x`, notification: { actions: [{ action: 'ok', title: 'OK', navigate: 'javascript:alert(1)' }] } }, 'ok')
+    opensNothing(tapped)
+  })
+
+  it("opens the tap's url for an action without navigate", async () => {
+    const tapped = start()
+    await tapped.worker.tap({ url: 'https://other.test/', notification: { actions: [{ action: 'ok', title: 'OK' }] } }, 'ok')
+    expect(tapped.worker.opened).toEqual(['https://other.test/'])
+  })
+
+  it.each(['', 'unknown'])("opens only the tap's url for a tap on action %j, whatever another action holds", async (action) => {
+    const payload = { notification: { actions: [{ action: 'ok', title: 'OK', navigate: 'javascript:alert(1)' }, { action: 'go', title: 'Go', navigate: 'https://other.test/' }] } }
+    const without = start()
+    await without.worker.tap(payload, action)
+    opensNothing(without)
+    const withUrl = start()
+    await withUrl.worker.tap({ ...payload, url: `${origin}/tasks/1` }, action)
+    expect(withUrl.window.navigated).toEqual([`${origin}/tasks/1`])
+    expect(withUrl.worker.opened).toEqual([])
+  })
+
+  it('opens the url of the action tapped, matched by its name alone', async () => {
+    const tapped = start()
+    const actions = [
+      { action: '__proto__', title: 'A', navigate: 'https://a.test/' },
+      { action: 'constructor', title: 'B', navigate: 'https://b.test/' },
+    ]
+    await tapped.worker.tap({ notification: { actions } }, '__proto__')
+    await tapped.worker.click(tapped.worker.shown[0]!.options.data, 'constructor')
+    await tapped.worker.click(tapped.worker.shown[0]!.options.data, 'toString')
+    expect(tapped.worker.opened).toEqual(['https://a.test/', 'https://b.test/'])
+  })
+
+  it('opens nothing for a notification page code showed with an action url that fails', async () => {
+    const tapped = start()
+    await tapped.worker.click({ url: `${origin}/x`, actions: [['ok', 'javascript:alert(1)'], 'ok'] }, 'ok')
+    await tapped.worker.click({ actions: { ok: `${origin}/x` } }, 'ok')
+    opensNothing(tapped)
   })
 })
 

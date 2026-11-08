@@ -1,8 +1,9 @@
-import { ApiError, type Client, type HistoryChange, type MentionableUser, type RecordComment, type MapLayerModel, type PluginRef, type PublicForm, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult } from '@protobase/client'
+import { ApiError, type Client, type HistoryChange, type MentionableUser, type RecordComment, type MapLayerModel, type PluginRef, type PublicForm, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult, type WorkflowRunTrace, type WorkflowTraceHeld, type WorkflowTypeList } from '@protobase/client'
 import { evaluateCondition, parseCondition, type PageModel } from '@protobase/layout'
-import { checkFilter, evaluateFilter, parseFilter, type BottomBarModel, type CardPhotosModel, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
-import { cardPhotoLimit, encodeKey, matchesSearch } from '@protobase/schema/internal'
+import { checkFilter, evaluateFilter, parseFilter, printFilter, type BottomBarModel, type CardPhotosModel, type RelatedFilter, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
+import { cardPhotoLimit, encodeKey, matchesSearch, splitRelated, workflowTraceRevision } from '@protobase/schema/internal'
 import { fakeForms } from './fake-forms'
+import { exampleWorkflowTypes } from '../../../../../test-support/workflow-types'
 
 type Row = Record<string, unknown>
 
@@ -26,6 +27,8 @@ export type FakeApiInput = {
   bottomBar?: Omit<BottomBarModel, 'roles'>
   /** The sign-in prompts `/meta` names, as it does for a visitor. */
   signIn?: SignInViewModel[]
+  /** Runs before every create and update with the row as it would be saved; throws an `ApiError` to refuse it, as a write hook would. */
+  beforeWrite?: (resource: string, row: Row) => void
   /** Runs after every write, for what a database trigger or write hook would do (one default card, say). */
   afterWrite?: (resource: string, row: Row, rows: Record<string, Row[]>) => void
   /** Answers `reveal` instead of the stored value, to count reveals or refuse them. */
@@ -49,6 +52,10 @@ export type FakeApiInput = {
   submitForm?: (name: string, values: Row) => Promise<void>
   /** What the model writes when an AI action (`a.ai`) runs, as the fields it sets; rejects to answer a failure. */
   generate?: (resource: string, key: string, action: string) => Promise<Row>
+  /** The workflow trigger and step types the editor reads; the built-in ones and `examplePlugin`'s without. */
+  workflowTypes?: WorkflowTypeList
+  /** A workflow run's whole trace, which the run's page reads after the steps it has; no steps without it. */
+  workflowRunTrace?: (runId: string) => Promise<Pick<WorkflowRunTrace, 'steps'>>
 }
 
 const keyOf = (model: ResourceModel, row: Row) => encodeKey(model.primaryKey.map((name) => row[name] as string | number))
@@ -75,8 +82,24 @@ const sorter = (orderBy: string | undefined) => {
   }
 }
 
-const matches = (filter: string | undefined, model: ResourceModel | undefined) => {
+type Tables = { rows: (resource: string) => Row[]; model: (resource: string) => ResourceModel | undefined }
+
+// `related()` as the server answers it: the row's field holds the key of a row of the resource that meets the subfilter.
+const relatedTest = (term: RelatedFilter, tables: Tables) => {
+  const keys = new Set(tables.rows(term.resource).filter(matches(term.filter && printFilter(term.filter), tables.model(term.resource), tables)).map((row) => String(row[term.key])))
+  const field = term.field.path[0]!
+  return (row: Row) => row[field] !== null && row[field] !== undefined && keys.has(String(row[field]))
+}
+
+const matches = (filter: string | undefined, model: ResourceModel | undefined, tables: Tables): ((row: Row) => unknown) => {
   if (!filter) return () => true
+  const whole = parseFilter(filter)
+  const { terms, rest } = whole.ast ? splitRelated(whole.ast) : { terms: [], rest: undefined }
+  if (terms.length > 0) {
+    const others = matches(rest && printFilter(rest), model, tables)
+    const tests = terms.map((term) => relatedTest(term, tables))
+    return (row) => Boolean(others(row)) && tests.every((test) => test(row))
+  }
   const search = /^search\("((?:[^"\\]|\\.)*)"\)$/.exec(filter)
   if (search) {
     const text = JSON.parse(`"${search[1]}"`) as string
@@ -113,7 +136,7 @@ const filled = <G extends { value: unknown; count: number }>(groups: G[], stride
   })
 }
 
-export const fakeApi = ({ resources, views = [], pages = [], account, rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate }: FakeApiInput) => {
+export const fakeApi = ({ resources, views = [], pages = [], account, rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, beforeWrite, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate, workflowTypes = exampleWorkflowTypes, workflowRunTrace = async () => ({ steps: [] }) }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
   const models = Object.fromEntries(resources.map((model) => [model.name, model]))
   let version = 0
@@ -150,7 +173,8 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
   }
 
   type ListParams = { filter?: string; orderBy?: string; pageSize?: number; pageToken?: string; labels?: Record<string, string>; photos?: CardPhotosModel }
-  const select = (resource: string, params: ListParams) => table(resource).filter(matches(params.filter, models[resource])).sort(sorter(params.orderBy))
+  const tables: Tables = { rows: (resource) => table(resource), model: (resource) => models[resource] }
+  const select = (resource: string, params: ListParams) => table(resource).filter(matches(params.filter, models[resource], tables)).sort(sorter(params.orderBy))
   // The names `labels` asks for: each relation's records among the fake's rows, by key, those with a name
   const namesOf = (resource: string, items: Row[], labels: Record<string, string>) =>
     Object.fromEntries(Object.entries(labels).map(([relation, field]) => {
@@ -180,17 +204,32 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
     }
   }
 
-  // A batch write's `update`, as a ranked board's drop sends it, or `reorder`, as sorting by hand does: the records
+  // A batch write's `create`, with a `ref` later operations name the record by (`{ $ref }`), as a table made with its
+  // fields is; `update`, as a ranked board's drop sends it; or `reorder`, as sorting by hand does: the records
   // numbered `start`, `start` + 1, ... (1, 2, 3, ... by default) in the order of their keys. A record is refused when its ETag is stale; unlike the server, the
   // fake keeps the operations before a refused one
-  type BatchOp = { op: string; resource: string; key?: string | number; data?: Row; etag?: string; field?: string; keys?: Array<string | number>; start?: number; etags?: Record<string, string> }
-  const batchOp = async (op: BatchOp) => {
+  type BatchOp = { op: string; resource: string; key?: unknown; data?: Row; ref?: string; etag?: string; field?: string; keys?: Array<string | number>; start?: number; etags?: Record<string, string> }
+  const batchOp = async (op: BatchOp, made: Map<string, { resource: string; record: Row }>) => {
+    const resolved = (value: unknown) => {
+      if (typeof value !== 'object' || value === null || !('$ref' in value)) return value
+      const { $ref, field } = value as { $ref: string; field?: string }
+      const earlier = made.get($ref)
+      if (!earlier) throw new Error(`Not implemented: the fake API's batch has no record made as ${$ref}`)
+      return earlier.record[field ?? models[earlier.resource]!.primaryKey[0]!]
+    }
+    if (op.op === 'create') {
+      const data = Object.fromEntries(Object.entries(op.data ?? {}).map(([name, value]) => [name, resolved(value)]))
+      const created = await client.create(op.resource, data)
+      if (op.ref) made.set(op.ref, { resource: op.resource, record: created.record as Row })
+      return { op: 'create', resource: op.resource, ...(op.ref && { ref: op.ref }), record: created.record, etag: created.etag }
+    }
     if (op.op === 'update') {
+      op = { ...op, key: resolved(op.key) }
       const key = String(op.key)
       if (![undefined, '*', find(op.resource, key).etag].includes(op.etag)) throw stale()
       return { op: 'update', resource: op.resource, ...(await client.update(op.resource, key, op.data!)) }
     }
-    if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only update and reorder, not ${op.op}`)
+    if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only create, update and reorder, not ${op.op}`)
     const { resource, field } = op as { resource: string; field: string }
     const keys = op.keys!.map(String)
     const start = op.start ?? 1
@@ -206,6 +245,13 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
   }
 
   const client = {
+    workflowTypes: async () => structuredClone(workflowTypes),
+    workflowRunTrace: async (runId: string, held?: WorkflowTraceHeld): Promise<WorkflowRunTrace> => {
+      const { steps } = await workflowRunTrace(runId)
+      const kept = held !== undefined && held.after <= steps.length && held.revision === (await workflowTraceRevision(steps.slice(0, held.after)))
+      const from = kept ? held.after : 0
+      return { from, steps: steps.slice(from), revision: await workflowTraceRevision(steps) }
+    },
     meta: async () => ({ status: 'modified' as const, etag: '"fake-meta"', meta: { appName: 'Protobase', resources, views, pages, ...(account && { account }), permissions, ...(plugins && { plugins }), ...(sources && { sources }), ...(maps && { maps }), ...(files && { files }), ...(bottomBar && { bottomBar }), ...(signIn && { signIn }) } }),
     list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
     search: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
@@ -262,6 +308,7 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
       const model = models[resource]!
       const [keyField] = model.primaryKey
       const row = { ...body, [keyField!]: body[keyField!] ?? table(resource).length + 1 + version }
+      beforeWrite?.(resource, row)
       table(resource).push(row)
       keep(resource, 'create', undefined, row)
       write(resource, row)
@@ -270,6 +317,7 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
     update: async (resource: string, key: string, patch: Row) => {
       const row = find(resource, key)
       const before = { ...row }
+      beforeWrite?.(resource, { ...row, ...attached(patch) })
       Object.assign(row, attached(patch))
       keep(resource, 'update', before, row)
       write(resource, row)
@@ -281,7 +329,8 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
     },
     batchWrite: async (ops: BatchOp[]) => {
       const results = []
-      for (const op of ops) results.push(await batchOp(op))
+      const made = new Map<string, { resource: string; record: Row }>()
+      for (const op of ops) results.push(await batchOp(op, made))
       return { results }
     },
     remove: async (resource: string, key: string) => {

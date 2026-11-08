@@ -21,7 +21,7 @@ export const runEverything = [
 ]
 
 // Files that are no module and that no test reads.
-export const readByNoTest = ['**/*.md', '**/*.mdx', '**/LICENSE', '**/.gitignore', '**/.env.example', '.githooks/**', 'docker/**', 'docs/website/**', 'scripts/dom-snapshots/layouts/**', 'scripts/release-speed/config.json']
+export const readByNoTest = ['**/*.md', '**/*.mdx', '**/LICENSE', '**/.gitignore', '**/.env.example', '.githooks/**', 'docker/**', 'docs/website/**', 'scripts/dom-snapshots/layouts/**', 'scripts/release-speed/config.json', 'cubic.yaml', '.coderabbit.yaml']
 
 // Tests that run on every push, whatever it changed: the ERP built and served by the CLI, as on Node after the tests.
 export const alwaysRun = ['tests/smoke/**']
@@ -71,7 +71,18 @@ export const edges = [
   { from: ['packages/cli/src/build/packages/copy-packages.ts'], reads: ['packages/**'] },
   // The UI's tests of its stylesheet and page.
   { from: ['packages/ui/src/tokens.test.ts'], reads: ['packages/ui/src/tokens.css'] },
+  { from: ['scripts/plugin-network/find-network.test.ts'], reads: ['scripts/plugin-network/fixtures/**'] },
   { from: ['packages/ui/src/app/index-html.test.ts', 'packages/ui/src/theme/theme-preference.test.ts'], reads: ['packages/ui/src/app/index.html'] },
+  // The fake OAuth provider of the connection tests answers from a provider's recorded answers, read by path.
+  { from: ['packages/server/src/better-auth/connections/testing/snapshots.ts'], reads: ['packages/server/src/better-auth/connections/testing/snapshots/**'] },
+  // The leak scan of the committed Google recordings reads them by path; the Gmail fake's are under test-support/.
+  { from: ['scripts/google-recording/snapshot-files.test.ts'], reads: ['packages/server/src/better-auth/connections/testing/snapshots/google/**'] },
+  // The APNs sender's replay test and the leak scan read APNs's recorded answers by path.
+  { from: ['packages/server/src/notifications/apns/apns-recording.test.ts', 'scripts/apns-recording/snapshot-files.test.ts'], reads: ['packages/server/src/notifications/apns/snapshots/**'] },
+  // The APNs stand-in of the sender's tests serves TLS with a certificate read by path.
+  { from: ['packages/server/src/notifications/testing/apns-service.ts'], reads: ['packages/server/src/notifications/testing/self-signed.*'] },
+  // The FCM sender's tests answer from the recorded token endpoint and FCM answers, read by path.
+  { from: ['packages/server/src/notifications/fcm/testing/recordings.ts'], reads: ['packages/server/src/notifications/fcm/testing/recordings/**'] },
   // The check that @protobase/ui's stable entry exports its building blocks reads every module of its source.
   { from: ['scripts/ui-exports/building-blocks.test.ts'], reads: ['packages/ui/src/**'] },
   // The examples' tests run on a clone of a template database, migrated and seeded from the example.

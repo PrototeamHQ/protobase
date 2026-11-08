@@ -6,13 +6,14 @@ import { tableSubscriptions } from './table-subscriptions'
 
 /**
  * What `createAdmin` needs for the subscriptions of `webhooks`: the table, the owners' current roles (from Better Auth
- * unless the options say otherwise) and, unless allowed, the check that keeps URLs off private addresses.
+ * unless the options say otherwise) and, unless allowed, the save-time check that keeps URLs off private addresses.
  */
 export const webhookTable = (options: WebhooksOptions, auth?: AdminAuth) => {
   const ownerRoles = options.ownerRoles ?? (auth && betterAuthOwnerRoles(auth))
   if (!ownerRoles) throw new Error('webhooks deliver as each subscription\'s owner, with their current roles: give the config `auth` (Better Auth), or `webhooks.ownerRoles`')
   return {
     subscriptions: tableSubscriptions({ schema: webhooksSchema(options), ownerRoles, deliveryLog: Boolean(options.deliveryLog) }),
+    allowPrivateAddresses: Boolean(options.allowPrivateAddresses),
     ...(!options.allowPrivateAddresses && { checkUrl: checkWebhookUrl }),
   }
 }

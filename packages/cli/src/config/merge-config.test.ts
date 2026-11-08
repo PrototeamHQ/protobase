@@ -5,7 +5,7 @@ import { f, resource, userMenu, view } from '@protobase/schema'
 import { configExports, defineFunction, defineTool } from '@protobase/server'
 import { mergeConfig, type ConfigSource } from './merge-config'
 import type { ProjectFiles } from './project-files'
-import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks } from './project-parts'
+import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
 
 const things = resource('things').table('things').fields({ id: f.integer().readOnly() }).primaryKey((r) => r.id)
 const tasks = resource('tasks').table('tasks').fields({ id: f.integer().readOnly() }).primaryKey((r) => r.id)
@@ -15,6 +15,8 @@ const folder = ({ resources, functions = {}, modules = {} }: { resources?: Recor
   ...(resources && { resources: async () => resources }),
   functions: Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, async () => ({ default: source })])),
   module: (file) => (file in modules ? async () => ({ default: modules[file] }) : undefined),
+  // As the project's folders list them: the folder's own .ts files, tests and declarations left out.
+  folder: (dir) => Object.keys(modules).filter((file) => file.startsWith(`${dir}/`) && /^[^/]+\.ts$/.test(file.slice(dir.length + 1)) && !/\.(test|d)\.ts$/.test(file)).sort(),
   package: () => Promise.reject(new Error('no packages')),
 })
 
@@ -97,15 +99,16 @@ describe('mergeConfig', () => {
     await expect(projectOptions(mergeConfig(extension, app({ 'mcp/tools.ts': [tool('usage')] })))).rejects.toThrow('The MCP tool "usage" is defined twice, by cloud and by app; rename one of them')
   })
 
-  it("finds the audit queue, the error hook, custom file providers, webhook owner roles and notification stores in the folders, the app's own last", async () => {
-    const [audit, appAudit, onError, archive, ownerRoles, store, senders] = [{ publish: async () => {} }, { publish: async () => {} }, () => {}, { store: {} }, async () => [], Object.fromEntries(['register', 'remove', 'listForUser', 'listByIds', 'removeGone', 'removeAllForUser'].map((method) => [method, async () => {}])), []]
+  it("finds the audit queue, the error hook, custom file providers, webhook owner and workflow saver roles and notification stores in the folders, the app's own last", async () => {
+    const [audit, appAudit, onError, archive, ownerRoles, savedByRoles, store, senders] = [{ publish: async () => {} }, { publish: async () => {} }, () => {}, { store: {} }, async () => [], async () => [], Object.fromEntries(['register', 'remove', 'listForUser', 'listByIds', 'removeGone', 'removeAllForUser'].map((method) => [method, async () => {}])), []]
     const config = mergeConfig(
       source('cloud', {}, folder({ modules: { 'audit/queue.ts': audit, 'files/archive.ts': archive } })),
-      source('app', { webhooks: {}, notifications: {}, files: { providers: { archive: { kind: 'custom' } } } }, folder({ modules: { 'audit/queue.ts': appAudit, 'hooks/error.ts': onError, 'webhooks/owner-roles.ts': ownerRoles, 'notifications/store.ts': store, 'notifications/senders.ts': senders } })),
+      source('app', { webhooks: {}, workflows: { secrets: [] }, notifications: {}, files: { providers: { archive: { kind: 'custom' } } } }, folder({ modules: { 'audit/queue.ts': appAudit, 'hooks/error.ts': onError, 'webhooks/owner-roles.ts': ownerRoles, 'workflows/saved-by-roles.ts': savedByRoles, 'notifications/store.ts': store, 'notifications/senders.ts': senders } })),
     )
     expect(await projectOptions(config)).toEqual({ audit: appAudit, onUnhandledError: onError })
     expect((await projectFiles(config))?.providers).toEqual({ archive })
     expect(await projectWebhooks(config)).toEqual({ ownerRoles })
+    expect(await projectWorkflows(config)).toEqual({ secrets: [], savedByRoles })
     expect(await projectNotifications(config)).toEqual({ store, senders })
     await expect(projectFiles(mergeConfig(source('app', { files: { providers: { vault: { kind: 'custom' } } } })))).rejects.toThrow('The file provider "vault" is custom but no config\'s folder has files/vault.ts')
   })

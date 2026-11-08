@@ -33,11 +33,11 @@ div | block
                     button .inline-flex h-8 items-center gap-1.5 rounded-md border border-border-strong bg-background px-2.5 text-body font-medium shadow-sm transition-colors hover:bg-muted pointer-coarse:h-11 | inline-flex row nowrap center normal
                       svg .lucide lucide-list size-3.5 | block
                       svg .lucide lucide-chevron-down size-3.5 text-muted-foreground | block
-                  button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-body gap-2 | flex row nowrap center center
+                  button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-body gap-2 | flex row nowrap center center
                     svg .lucide lucide-upload size-3.5 | block
-                  button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-body gap-2 | flex row nowrap center center
+                  button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-body gap-2 | flex row nowrap center center
                     svg .lucide lucide-download size-3.5 | block
-                  a .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 | flex row nowrap center center
+                  a .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 | flex row nowrap center center
                     svg .lucide lucide-plus size-3.5 | block
             section .rounded-lg border bg-background px-4 pb-2 pt-3 | block
               header .flex flex-wrap items-center justify-between gap-2 | flex row wrap center space-between
@@ -57,7 +57,7 @@ div | block
                       svg role=application .recharts-surface | block
             div .flex flex-col gap-2 | flex column nowrap normal normal
               div .flex items-center gap-2 | flex row nowrap center normal
-                button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-body gap-2 min-h-11 | flex row nowrap center center
+                button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-body gap-2 min-h-11 | flex row nowrap center center
                   svg .lucide lucide-sliders-horizontal size-3.5 | block
                 span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong min-w-0 flex-1 sm:w-72 sm:flex-initial min-h-11 | flex row nowrap center normal
                   svg .lucide lucide-search size-4 | block

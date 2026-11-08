@@ -19,6 +19,8 @@ import { Field, GroupSection, KeyFacts, MetadataCard, RecordHeader, RecordTabs, 
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
 import { FullAreaRecord } from './full-area-record'
+import { RecordFocusPage } from './focus/record-focus-page'
+import { RecordOpens } from './record-opens'
 import { MapSection } from './map/map-section'
 import { RecordChartSection } from './record-chart/record-chart-section'
 import { RecordActions } from './pages/record-actions'
@@ -26,7 +28,7 @@ import type { LayoutRecord } from './pages/record-scope'
 import { FieldEditor } from './field-editor'
 import { groupOpen, toggledOpen } from './group-open'
 import { attentionTab, shownTab, splitTabs } from './record-tabs'
-import { shownWidget } from './field-types/shown-widget'
+import { isWideField, shownWidget } from './field-types/shown-widget'
 import { WidgetPart } from './field-types/widget-part'
 import { useProjectUi } from './pages/project-ui'
 import { Notice, useAdminMeta, usePermissions } from './meta-gate'
@@ -93,12 +95,16 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
   // A record opened from a list shows that row's fields until it has loaded; the loaded record draws the page anew, so
   // its form starts from the whole record
   const standard = <LoadedRecord key={record.isPlaceholderData ? 'preview' : 'loaded'} model={model} recordKey={recordKey} stored={record.data} preview={record.isPlaceholderData} />
-  const fullArea = views[resource]?.record
-  if (!fullArea || (address?.kind === 'record' && address.standard)) return standard
+  const standardAsked = address?.kind === 'record' && address.standard === true
+  const opens = views[resource]?.recordOpens
+  if (opens && !standardAsked) return record.isPlaceholderData ? <Notice title={text('loading')}>{text('fetching')}</Notice> : <RecordOpens to={opens} record={record.data.record} />
+  const page = views[resource]?.record
+  if (!page || standardAsked) return standard
   // The app's component reads fields a list row may not have, so it waits for the whole record
   if (record.isPlaceholderData) return <Notice title={text('loading')}>{text('fetching')}</Notice>
+  if ('surface' in page || page.focus) return <RecordFocusPage model={model} recordKey={recordKey} stored={record.data} page={page} standard={standard} />
   const { record: fields, etag, permissions } = record.data
-  return <FullAreaRecord component={fullArea.component} scope={{ model, record: fields, key: recordKey, etag, permissions }} standard={standard} />
+  return <FullAreaRecord component={page.component} scope={{ model, record: fields, key: recordKey, etag, permissions }} standard={standard} />
 }
 
 // A record the session's organization does not have may be in another of the person's organizations, which opens it
@@ -140,7 +146,9 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   const fieldsRef = useFocusFirstInvalid<HTMLDivElement>(editor.rejections)
   const permissions = usePermissions(model.name)
   const restore = useRestore(model)
-  const canUpdate = can(permissions, 'update') && stored.permissions?.update !== false
+  // An earlier version of the record, as a field type that keeps versions draws it, is only read
+  const pastVersion = address?.kind === 'record' && address.version !== undefined
+  const canUpdate = can(permissions, 'update') && stored.permissions?.update !== false && !pastVersion
   const { shown, offersEdit, editing } = recordShown(view?.recordMode, canUpdate, address?.kind === 'record' && address.edit === true)
   // Only the form leaves changes behind; on the read view a draft kept from before waits for Edit. A save under way
   // counts too, so leaving never cuts off a write and then restores the draft of a record that was saved.
@@ -227,7 +235,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         required={shown === 'form' && access !== 'read' && isRequiredOnEdit(field)}
         help={fieldHelp(hint(name), view, editing)}
         error={problem && fieldMessage(field, label, problem)}
-        wide={Boolean(hint(name)?.multiline || hint(name)?.markdown)}
+        wide={isWideField(fieldTypes, field, hint(name))}
         conflict={
           conflict === undefined
             ? undefined
@@ -266,7 +274,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     ) : (
       <FieldValue model={model} field={field} value={stored.record[name]} relationLabel={related.labels[name]} />
     )
-    return { label: hint(name)?.label ?? humanize(name), help: fieldHelp(hint(name), view, editing), wide: Boolean(hint(name)?.multiline || hint(name)?.markdown), value }
+    return { label: hint(name)?.label ?? humanize(name), help: fieldHelp(hint(name), view, editing), wide: isWideField(fieldTypes, field, hint(name)), value }
   }
 
   // The sidebar's fields are one Summary card, where the first sidebar stands among the sidebar's custom components and maps
@@ -429,7 +437,9 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         </div>
       </div>
       {/* On a mobile screen the form's controls stay in view below the record, above the shell's bottom bar */}
-      {formControls && <div className="sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden">{formControls}</div>}
+      {formControls && (
+        <div className="sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden">{formControls}</div>
+      )}
     </div>
   )
 }

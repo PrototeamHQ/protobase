@@ -34,7 +34,9 @@ export type WebhooksInput = {
   /** Where each delivery's outcome is written: the server log. */
   log: (line: string) => void
   /** The subscriptions people made in the admin app (`webhooks()`), and the check of their URLs' addresses. */
-  table?: { subscriptions: TableSubscriptions; checkUrl?: (url: string) => Promise<string | undefined> }
+  table?: { subscriptions: TableSubscriptions; allowPrivateAddresses: boolean }
+  /** Also gets each dispatched batch of changes, in the dispatch's transaction: the workflows' ready triggers. */
+  onChanges?: (trx: Db, changes: readonly ResourceChange[]) => Promise<void>
 }
 
 /** A delivery waiting in the job queue: the event as its subscriber sees it, never a sensitive value. */
@@ -105,7 +107,7 @@ const deliveryGroup = ({ subscription, change }: Delivery) => `${subscription.na
  *
  * No jobs without a resource with events or history; the subscriptions must name declared events.
  */
-export const createWebhooks = ({ deps, subscriptions, functions, channels, schema, log, table }: WebhooksInput) => {
+export const createWebhooks = ({ deps, subscriptions, functions, channels, schema, log, table, onChanges }: WebhooksInput) => {
   const entries = deps.registry.entries
   const models = entries.map((entry) => entry.model)
   const problems = subscriptionProblems(subscriptions, models, Object.keys(functions))
@@ -121,12 +123,12 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
   const records = (session: Parameters<typeof callerRecords>[1]) => callerRecords(deps, session)
   const tableId = (subscription: SubscriptionDefinition) => (subscription.name.startsWith('ui:') ? subscription.name.slice('ui:'.length) : undefined)
 
-  // A try, kept on its row for a table subscription, whose URL's address is checked first.
+  // A try, kept on its row for a table subscription, whose URL reaches a private address only when the options allow it.
   const attempt = async (subscription: SubscriptionDefinition, event: SubscriptionEvent, db: Db, tried: number, signal: AbortSignal) => {
     const id = tableId(subscription)
     const started = performance.now()
-    const checkUrl = id === undefined ? undefined : table?.checkUrl
-    const result = await attemptDelivery(subscription, event, { db, functions, records, channels, attempt: tried, signal, ...(checkUrl && { checkUrl }) })
+    const allowPrivateAddresses = id === undefined || Boolean(table?.allowPrivateAddresses)
+    const result = await attemptDelivery(subscription, event, { db, functions, records, channels, attempt: tried, signal, allowPrivateAddresses })
     if (id !== undefined) await table!.subscriptions.record(db, id, event, tried, result, performance.now() - started)
     return result
   }
@@ -317,6 +319,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
       for (const { change, subscription } of failures) await dispatchChange.enqueue(trx, { change, ...(subscription !== undefined && { subscription }) })
       await writeHistory(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.history))
       await writeNotices(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.live))
+      await onChanges?.(trx, changes)
       await deleteOutbox(trx, schema, rows.map((row) => row.id))
     })
     for (const [index, { subscription, event }] of now.entries()) report(subscription.name, event, 1, results[index]!)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, view, type FieldModel, type ListDisplayModel } from '@protobase/schema'
-import { amountParts, defaultDisplay, displayChoices, displayRow, filledAmount, filledMeta, listDefaultDisplay, listDisplayChoices, loadedFields, mapCards, phoneRows, shownDisplay, shownFields, shownListDisplay, sortFields } from './list-displays'
+import { amountParts, defaultDisplay, displayChoices, displayRow, filledAmount, filledCode, filledMeta, listDefaultDisplay, listDisplayChoices, loadedFields, mapCards, phoneRows, shownDisplay, shownFields, shownListDisplay, sortFields } from './list-displays'
 
 const repairs = resource('repairs')
   .table('repairs')
@@ -129,6 +129,12 @@ describe('loadedFields and sortFields', () => {
     expect(loadedFields(pictured.toModel(), cards, ['number'])).toEqual(['number', 'photo'])
   })
 
+  it("loads a card's code field with the rest of the card", () => {
+    const runners = resource('runners').table('runners').fields({ id: f.integer(), name: f.text(), command: f.text() }).primaryKey((r) => r.id)
+    const cards = view<typeof runners>('runners').list((r, d) => ({ columns: [r.name], displays: [d.cards({ title: r.name, code: r.command })] })).toModel(runners.toModel())
+    expect(loadedFields(runners.toModel(), cards, ['name'])).toEqual(['name', 'command'])
+  })
+
   it('sorts a display by the sortable fields it shows', () => {
     expect(sortFields(model, boardView, shownDisplay(boardView, 'cards')!)).toEqual(['number', 'bookedOn'])
   })
@@ -156,6 +162,15 @@ describe('filledAmount', () => {
     expect(filledAmount({ key: '1', record: { purchase_price: null, rent_price: '1450.00' }, labels: {} }, ['purchase_price', 'rent_price'])).toBe('rent_price')
     expect(filledAmount({ key: '1', record: { purchase_price: '425000.00', rent_price: '1450.00' }, labels: {} }, ['purchase_price', 'rent_price'])).toBe('purchase_price')
     expect(filledAmount({ key: '1', record: { purchase_price: null }, labels: {} }, ['purchase_price'])).toBeUndefined()
+  })
+})
+
+describe('filledCode', () => {
+  it('takes the code field when it has a value, so an empty one shows no block', () => {
+    expect(filledCode({ key: '1', record: { command: 'bun test --changed=main' }, labels: {} }, 'command')).toBe('command')
+    expect(filledCode({ key: '1', record: { command: '' }, labels: {} }, 'command')).toBeUndefined()
+    expect(filledCode({ key: '1', record: { command: null }, labels: {} }, 'command')).toBeUndefined()
+    expect(filledCode({ key: '1', record: { command: 'ls' }, labels: {} }, undefined)).toBeUndefined()
   })
 })
 

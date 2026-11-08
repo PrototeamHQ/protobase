@@ -8,6 +8,8 @@ export const functions: Record<string, FunctionSpec> = {
   similar: { params: [{ name: 'field', type: 'field', of: ['string'] }, { name: 'text', type: 'string' }] },
   regex: { params: [{ name: 'field', type: 'field', of: ['string'] }, { name: 'pattern', type: 'string' }] },
   isNull: { params: [{ name: 'field', type: 'field' }] },
+  // Named here for the list of functions an unknown one's hint gives: only a list-style read of the API resolves it.
+  related: { params: [{ name: 'field', type: 'field' }, { name: 'key', type: 'field' }], rest: { name: 'filter', type: 'any' } },
   now: { params: [], returns: 'timestamp' },
 }
 

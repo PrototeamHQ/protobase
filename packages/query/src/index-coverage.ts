@@ -11,13 +11,13 @@ import type { TableIndex, TableIndexes } from './table-indexes'
 export type IndexNeed = 'btree' | 'trigram' | 'digits' | 'gin'
 /**
  * Where a column is read: the caller's filter, the access rule's row filter, the relation to a parent the caller must
- * read (`.parent(fk, 'read')`), the sort, or a facet's grouping.
+ * read (`.parent(fk, 'read')`), a `related()` term, the sort, or a facet's grouping.
  */
-export type ColumnUse = 'filter' | 'access' | 'parent' | 'sort' | 'facet'
+export type ColumnUse = 'filter' | 'access' | 'parent' | 'related' | 'sort' | 'facet'
 /** A column read without an index that serves it, and a statement that adds one. */
 export type UncoveredColumn = { field: string; column: string; use: ColumnUse; need: IndexNeed; suggestion: string }
-/** What a read does with the table: the filter it keeps rows by, the order it walks them in, a field it groups by. */
-export type CoverageQuery = { filter?: CheckedFilter; sort?: SortSpec; groupBy?: string }
+/** What a read does with the table: the filter it keeps rows by, the order it walks them in, a field it groups by, the field a `related()` term selects. */
+export type CoverageQuery = { filter?: CheckedFilter; sort?: SortSpec; groupBy?: string; selects?: FieldModel }
 
 type Context = { model: ResourceModel; indexes: TableIndex[]; use: ColumnUse }
 
@@ -128,7 +128,9 @@ const unique = (columns: UncoveredColumn[]) =>
  * filter's and the access row filter's columns each need an index of the kind their operator uses, the sort's first
  * field, a grouped field and each relation to a parent the caller must read a btree index; the parent's own reads are
  * judged against its table by a call of their own. Tenant, soft delete and `=` terms pin columns, so a later key of a
- * btree index serves under them. A plain view or a foreign table has no indexes of its own and is not judged.
+ * btree index serves under them. A `related()` term is judged as a parent is and pins its relation as `in()` does, and
+ * the read of its resource also needs a btree index on the key it selects. A plain view or a foreign table has no
+ * indexes of its own and is not judged.
  */
 export const uncoveredColumns = (model: ResourceModel, table: TableIndexes, query: CoverageQuery, scope?: Scope): UncoveredColumn[] => {
   if (table.kind !== 'table') return []
@@ -139,14 +141,18 @@ export const uncoveredColumns = (model: ResourceModel, table: TableIndexes, quer
     ...columnOf(full.softDelete ?? model.softDelete),
     ...pinnedColumns(scope?.rowFilter),
     ...pinnedColumns(query.filter),
+    ...pinnedColumns(scope?.within),
+    ...(scope?.parents ?? []).flatMap((read) => (read.related ? [read.field.column] : [])),
   ])
   const ctx = (use: ColumnUse, of = model): Context => ({ model: of, indexes: table.indexes, use })
   const sortField = query.sort?.[0] && model.fields[query.sort[0][0]]
   const groupField = query.groupBy !== undefined ? model.fields[query.groupBy] : undefined
   return unique([
     ...(scope?.rowFilter ? walk(ctx('access', full), scope.rowFilter, pinned, false) : []),
-    ...(scope?.parents ?? []).flatMap((read) => need(ctx('parent', full), read.field, 'btree', pinned)),
+    ...(scope?.parents ?? []).flatMap((read) => need(ctx(read.related ? 'related' : 'parent', full), read.field, 'btree', pinned)),
     ...(query.filter ? walk(ctx('filter'), query.filter, pinned, false) : []),
+    ...(scope?.within ? walk(ctx('filter', full), scope.within, pinned, false) : []),
+    ...(query.selects ? need(ctx('related', full), query.selects, 'btree', pinned) : []),
     ...(sortField ? need(ctx('sort'), sortField, 'btree', pinned) : []),
     ...(groupField ? need(ctx('facet'), groupField, 'btree', pinned) : []),
   ])
