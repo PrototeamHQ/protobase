@@ -4,7 +4,7 @@ Setup and commands are in the [README](README.md) and [Getting started](https://
 
 ## Commit messages
 
-Every commit message follows [Conventional Commits](https://www.conventionalcommits.org), as releases come from them:
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org), as releases come from them:
 
 ```
 feat(ui): a working global search in the top bar
@@ -17,7 +17,7 @@ feat(cli)!: refuse bundles without a Protobase version
 - The subject starts in lowercase and ends without a period. The header is at most 92 characters and every body line at most 100, so the squash merge's ` (#<number>)` suffix or `* ` list item still fits.
 - A `feat` commit adds something a user of Protobase can see or call, and is documented (see [Features and docs](#features-and-docs)). A change no user can see is `fix`, `perf`, `refactor` or `chore`.
 
-commitlint (`commitlint.branch.config.mjs`) checks each message in the `commit-msg` hook from `bun install`, in CI for a branch's commits, and on `main` in the release workflow. The `pr-title` workflow checks a pull request's squash message: its title, or its only commit's subject, with the ` (#<number>)` suffix. By hand: `bun x commitlint --config commitlint.branch.config.mjs --from <commit>`.
+The `commit-msg` hook from `bun install` and CI check branch commits with `commitlint.branch.config.mjs`; the release workflow checks `main`, and `pr-title` a pull request's squash message (title, or only commit's subject, with ` (#<number>)`), with `commitlint.config.mjs`. By hand: `bun x commitlint --config commitlint.branch.config.mjs --from <commit>`, no `--config` for `main`.
 
 `bun install` writes the protobase skill's references (`packages/cli/skills/protobase/references`) from the docs, uncommitted; the CLI's build writes them again. `bun run docs:skill` shows a docs change in them.
 
