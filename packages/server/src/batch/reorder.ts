@@ -3,7 +3,7 @@ import type { Db } from '@protobase/query'
 import { encodeKey } from '@protobase/schema/internal'
 import type { Deps } from '../deps'
 import type { ScheduledDelete } from '../files/cleanup-schedule'
-import { badRequest } from '../problem'
+import { badRequest, preconditionFailed } from '../problem'
 import { fetchRecord } from '../records'
 import { requireOperation, targetFilter, writableFields, type RequestAccess } from '../request-access'
 import { columnId, keyConditions, scopeConditions, tableId, whereClause } from '../sql-parts'
@@ -65,8 +65,10 @@ export const checkOrderField = (access: RequestAccess, name: string) => {
  * are written, each as an ordinary update (validation, access, ETag, hooks); they are first moved aside (see `moveAside`)
  * so that a unique index such as (invoice_id, position) is never violated half way. Everything checks out before any row moves,
  * and with the position's `after` the new order must keep each record below the records it depends on (see `checkRankAfter`).
+ * With `ranks`, the values of `field` the caller read for `keys`, a locked record holding another value is refused with 412.
+ * The batch holds the field's order lock (see `lockOrders`).
  */
-export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string>; start: number }, removed: ScheduledDelete[]): Promise<WriteResult[]> => {
+export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string>; start: number; ranks?: unknown[] }, removed: ScheduledDelete[]): Promise<WriteResult[]> => {
   const { entry } = access
   checkOrderField(access, input.field)
   const names = input.keys.map((key) => encodeKey(key))
@@ -79,6 +81,8 @@ export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, inpu
     if (!found) throw missing(entry)
     return found
   }))
+
+  if (input.ranks?.some((rank, i) => String(current[i]!.record[input.field]) !== String(rank))) throw preconditionFailed('The list changed where the record was dropped')
 
   const changing = input.keys.flatMap((key, i) => (Number(current[i]!.record[input.field]) === input.start + i ? [] : [i]))
   const plans = new Map<number, UpdatePlan>()

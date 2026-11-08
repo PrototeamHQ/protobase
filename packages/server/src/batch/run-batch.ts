@@ -13,6 +13,7 @@ import { keyOf, type WriteResult } from '../write-shared'
 import { checkBeforeWrite, writeIn } from '../write-pipeline'
 import { resolveData, resolveKey, type Created } from './refs'
 import { moveIn, moveList, type MoveList } from './move'
+import { lockOrders, orderLockName } from './order-lock'
 import { reorderIn } from './reorder'
 import type { BatchOperation } from './schema'
 
@@ -63,16 +64,23 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
     })
   }
   const lists = new Map<number, MoveList>()
+  // The order locks the moves and reorders take, all before the first write
+  const locks: string[] = []
   for (const [index, operation] of operations.entries()) {
-    if (operation.op !== 'move') continue
-    const list = async () => moveList(deps, await accessFor(entryOf(deps, operation.resource)), operation.field, operation.filter)
-    lists.set(index, await list().catch((error: unknown) => {
+    if (operation.op !== 'move' && operation.op !== 'reorder') continue
+    const order = async () => {
+      const access = await accessFor(entryOf(deps, operation.resource))
+      locks.push(orderLockName(access, operation.field))
+      if (operation.op === 'move') lists.set(index, await moveList(deps, access, operation.field, operation.filter))
+    }
+    await order().catch((error: unknown) => {
       throw atOperation(error, index, operation)
-    }))
+    })
   }
 
   const removed: ScheduledDelete[] = []
   const written = await writeTransaction(deps.db, deps.statementTimeoutMs, (trx) => once(trx, idempotency, async () => {
+    await lockOrders(trx, locks)
     const created = new Map<string, Created>()
     const results: BatchResult[] = []
     for (const [index, operation] of operations.entries()) {
