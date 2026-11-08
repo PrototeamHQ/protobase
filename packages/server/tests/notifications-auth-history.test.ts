@@ -15,15 +15,15 @@ describe('the history with auth', () => {
   const upTo = { upTo: '2030-01-01T00:00:00.000Z' }
   const historyOf = async (pg: Awaited<ReturnType<typeof serve>>['pg'], userId: string) =>
     (await pg.query('select title, read_at from notifications.history where user_id = $1 order by title', [userId])).rows
-  // Every endpoint of the history, as `headers` call it.
-  const callAll = (app: Awaited<ReturnType<typeof serve>>['app'], headers: Record<string, string>, id: string) => {
+  // Every endpoint of the history, as `headers` call it, one after another so the recording is stable.
+  const callAll = async (app: Awaited<ReturnType<typeof serve>>['app'], headers: Record<string, string>, id: string) => {
     const json = { 'content-type': 'application/json', ...headers }
-    return Promise.all([
-      app.request(`${origin}${historyPath('/api')}`, { headers }),
-      app.request(`${origin}${historyPath('/api', 'unread')}`, { headers }),
-      app.request(`${origin}${historyPath('/api', { read: id })}`, { method: 'POST', headers: json, body: '{}' }),
-      app.request(`${origin}${historyPath('/api', 'read')}`, { method: 'POST', headers: json, body: JSON.stringify(upTo) }),
-    ])
+    return [
+      await app.request(`${origin}${historyPath('/api')}`, { headers }),
+      await app.request(`${origin}${historyPath('/api', 'unread')}`, { headers }),
+      await app.request(`${origin}${historyPath('/api', { read: id })}`, { method: 'POST', headers: json, body: '{}' }),
+      await app.request(`${origin}${historyPath('/api', 'read')}`, { method: 'POST', headers: json, body: JSON.stringify(upTo) }),
+    ]
   }
 
   it("goes with its user, keeping everyone else's, and stops startup without that foreign key", async () => {
