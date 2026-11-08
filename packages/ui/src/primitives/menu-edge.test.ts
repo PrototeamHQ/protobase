@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { menuRightEdge } from './menu-edge'
+import { menuOpensAbove, menuRightEdge } from './menu-edge'
 
 describe('menuRightEdge', () => {
   it('lines a menu up with a trigger at the right edge of the viewport', () => {
@@ -21,5 +21,39 @@ describe('menuRightEdge', () => {
 
   it('keeps the right edge on screen for a menu wider than the viewport', () => {
     expect(menuRightEdge(48, 500, 390)).toBe(386)
+  })
+})
+
+describe('menuOpensAbove', () => {
+  const phone = { top: 0, height: 740 }
+
+  it('opens below a trigger with room for the menu under it', () => {
+    expect(menuOpensAbove({ top: 100, bottom: 132 }, 200, 4, phone)).toBe(false)
+  })
+
+  it('opens above a trigger near the bottom of the screen', () => {
+    expect(menuOpensAbove({ top: 680, bottom: 712 }, 200, 4, phone)).toBe(true)
+  })
+
+  it('stays below when the menu fits under the trigger with nothing to spare', () => {
+    expect(menuOpensAbove({ top: 500, bottom: 532 }, 200, 4, phone)).toBe(false)
+  })
+
+  it('stays below when the menu fits on neither side but more of it shows below', () => {
+    expect(menuOpensAbove({ top: 300, bottom: 332 }, 600, 4, phone)).toBe(false)
+  })
+
+  it('opens above when the menu fits on neither side but more of it shows above', () => {
+    expect(menuOpensAbove({ top: 420, bottom: 452 }, 600, 4, phone)).toBe(true)
+  })
+
+  it('counts an on-screen keyboard that shrinks the visible viewport', () => {
+    const trigger = { top: 380, bottom: 412 }
+    expect(menuOpensAbove(trigger, 200, 4, phone)).toBe(false)
+    expect(menuOpensAbove(trigger, 200, 4, { top: 0, height: 440 })).toBe(true)
+  })
+
+  it('measures from the visible viewport scrolled within the page', () => {
+    expect(menuOpensAbove({ top: 500, bottom: 532 }, 200, 4, { top: 200, height: 440 })).toBe(true)
   })
 })

@@ -1,7 +1,7 @@
 import { MoreHorizontal } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '../lib/cn'
-import { useMenuRight } from '../primitives/menu-edge'
+import { useMenuRight, useMenuTop } from '../primitives/menu-edge'
 
 export type LineMenuItem = { label: string; disabled?: boolean; destructive?: boolean; onSelect: () => void }
 
@@ -11,6 +11,7 @@ export const LineMenu = ({ items, label }: { items: LineMenuItem[]; label: strin
   const root = useRef<HTMLDivElement>(null)
   const menu = useRef<HTMLUListElement>(null)
   const right = useMenuRight(open, root, menu)
+  const top = useMenuTop(open, root, menu, right?.right)
 
   useEffect(() => {
     if (!open) return
@@ -38,7 +39,7 @@ export const LineMenu = ({ items, label }: { items: LineMenuItem[]; label: strin
         <MoreHorizontal className="size-4" />
       </button>
       {open && (
-        <ul ref={menu} role="menu" style={right} className="absolute right-0 top-full z-30 mt-1 min-w-36 rounded-md border bg-background py-1 shadow-pop">
+        <ul ref={menu} role="menu" style={{ ...right, ...top }} className="absolute right-0 top-full z-30 mt-1 min-w-36 rounded-md border bg-background py-1 shadow-pop">
           {items.map((item) => (
             <li key={item.label} role="none">
               <button
