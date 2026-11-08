@@ -4,6 +4,7 @@ import { storeSchema } from '../better-auth/store/store-names'
 import type { AdminAuth } from '../better-auth/create-auth'
 import { migrationCommand } from '../changes/capture-schema'
 import { historyTableSql } from './history-sql'
+import { legacyKindChecks, type KindCheck } from './legacy-kind-checks'
 import { historyNames, notificationsNames, type NotificationsNames, type NotificationsOptions } from './options'
 import { deviceKindChecksSql, deviceSessionColumnSql, devicesTableSql, qualified } from './schema-sql'
 
@@ -40,16 +41,15 @@ const lacksSessionColumn = async (db: Db, names: NotificationsNames) => {
   return oid !== null && !(await columnsOf(db, oid)).some((row) => row.name === names.columns.session_id)
 }
 
-// The kind checks of a devices table written before devices could be relay devices, by name: its checks on the kind
-// column that list the kinds, when none lists relay. None for a table without them, such as one of the app's own.
+// The kind checks of a devices table written before devices could be relay devices, by name, as `legacyKindChecks`
+// picks them from its checks on the kind column. None for a table without them, such as one of the app's own.
 const kindChecksWithoutRelay = async (db: Db, names: NotificationsNames) => {
   const oid = await regclass(db, qualified(names))
   if (oid === null) return []
-  const { rows } = await sql<{ name: string; def: string }>`select c.conname as name, pg_get_constraintdef(c.oid) as def from pg_constraint c
+  const { rows } = await sql<KindCheck>`select c.conname as name, pg_get_constraintdef(c.oid) as def from pg_constraint c
     join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any(c.conkey)
     where c.conrelid = ${oid} and c.contype = 'c' and a.attname = ${names.columns.kind} order by c.conname`.execute(db)
-  const listing = rows.filter((row) => row.def.includes("'fcm'"))
-  return listing.some((row) => row.def.includes("'relay'")) ? [] : listing.map((row) => row.name)
+  return legacyKindChecks(rows)
 }
 
 /**
