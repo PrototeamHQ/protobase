@@ -11,6 +11,9 @@ const translated = (name: string) => translatedView(views[name]!, resources[name
 // The workflow views as the server builds them for `/meta`, in their default schema.
 const parts = workflowResources('workflows')
 const workflowViews = { workflows: [parts.workflowsView.toModel(), parts.workflows.toModel()], workflow_resolutions: [parts.workflowResolutionsView.toModel(), parts.workflowResolutions.toModel()] } as const
+// With storage on, the workflows' view links to the storage configurations.
+const storage = workflowResources('workflows', { storage: true })
+const storageViews = { workflows: [storage.workflowsView.toModel(), storage.workflows.toModel()], storage_configurations: [storage.storageConfigurationsView!.toModel(), storage.storageConfigurations!.toModel()] } as const
 
 afterEach(() => setAppLocale(undefined))
 
@@ -41,6 +44,18 @@ describe('translatedView', () => {
     const resolutions = translatedView(...workflowViews.workflow_resolutions)
     expect(resolutions.names).toEqual({ singular: 'Markering als opgelost', plural: 'Markeringen als opgelost' })
     expect(Object.values(resolutions.fields).map((hints) => hints.label)).toEqual(['Workflow', 'Opgelost door', 'Opgelost'])
+  })
+
+  it("gives the storage configurations' view and the workflows' link to it in English as the server sends them, and in Dutch", () => {
+    for (const [view, model] of Object.values(storageViews)) expect(translatedView(view, model)).toEqual(view)
+    setAppLocale('nl')
+    expect(translatedView(...storageViews.workflows).actions.map((action) => action.label)).toEqual(['Opslagconfiguraties'])
+    const configurations = translatedView(...storageViews.storage_configurations)
+    expect(configurations.names).toEqual({ singular: 'Opslagconfiguratie', plural: 'Opslagconfiguraties' })
+    expect(configurations.fields.kind?.valueLabels).toEqual({ local: 'Lokale map', s3: 'S3-compatibele bucket' })
+    expect(Object.values(configurations.fields).map((hints) => hints.label)).toEqual(['Naam', 'Soort', 'Map', 'Bucket', 'Regio', 'Endpoint', 'Aangemaakt', 'Bijgewerkt'])
+    expect(configurations.fields.bucket?.help).toBe('Voor een bucket: de naam')
+    expect((configurations.layout[0] as { title: string }).title).toBe('Opslagconfiguratie')
   })
 
   it("leaves the views of an app's own resources, and the tables users add, as they are", () => {

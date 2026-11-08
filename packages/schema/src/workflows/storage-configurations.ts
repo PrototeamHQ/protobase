@@ -52,12 +52,13 @@ const storageConfigurationsView = view<ReturnType<typeof storageConfigurationsRe
   .title((r) => r.name)
   .help('Where workflows store files, by name: a folder under the storage root the app sets, or an S3-compatible bucket. Changing where it points leaves the workflows that name it unchanged; the files already stored stay where they are.')
   .fields((r) => ({
-    name: r.name.help('The name a workflow\'s storage steps give, such as "archive"'),
-    kind: r.kind.valueLabels({ local: 'Local folder', s3: 'S3-compatible bucket' }),
+    name: r.name.label('Name').help('The name a workflow\'s storage steps give, such as "archive"'),
+    kind: r.kind.label('Kind').valueLabels({ local: 'Local folder', s3: 'S3-compatible bucket' }),
     dir: r.dir.label('Folder').help('For a local folder: a path inside the storage root, such as "invoices/2026"'),
-    bucket: r.bucket.help('For a bucket: its name'),
-    region: r.region.help('For a bucket: its region, such as "eu-west-1"'),
-    endpoint: r.endpoint.help('For a bucket outside the default host: its https address, one of those the app allows'),
+    bucket: r.bucket.label('Bucket').help('For a bucket: its name'),
+    region: r.region.label('Region').help('For a bucket: its region, such as "eu-west-1"'),
+    endpoint: r.endpoint.label('Endpoint').help('For a bucket outside the default host: its https address, one of those the app allows'),
+    created_at: r.created_at.label('Created'),
     updated_at: r.updated_at.label('Updated'),
   }))
   .list((r) => ({ columns: [r.name, r.kind, r.dir, r.bucket, r.updated_at], sort: [[r.name, 'asc']] }))
