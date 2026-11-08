@@ -596,7 +596,7 @@ The bar gets the record's state, Save, its [actions](#actions-and-views-per-role
 
 <StoryFrame id="record-page-focus-page--pin-board-page" title="A field type of the app's own on a focus page" height={560} />
 
-A create address can open a page in place of the form too, for a record made where it is used, as a workflow's test run is made in the workflow's page. `.createOpens(to)` replaces the address, its `{field}`s filled from the address's `values`; an address without them, or a page the caller may not open, shows what the view shows without it: its [`.create(...)`](#create-pages) page when it has one, else the form. A record address's `panel` (`?panel=<name>`) names a panel its surface opens with.
+A create address can open a page in place of the form too, for a record made where it is used, as a workflow's test run is made in the workflow's page. `.createOpens(to)` replaces the address, its `{field}`s filled from the address's `values`; when the address's `values` lack any of those `{field}`s, or the caller may not open the page, the create address shows what the view shows without it: its [`.create(...)`](#create-pages) page when it has one, else the form. A record address's `panel` (`?panel=<name>`) names a panel its surface opens with.
 
 ### Read view and edit
 
