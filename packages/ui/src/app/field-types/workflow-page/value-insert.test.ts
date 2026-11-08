@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Definition } from '@protobase/workflows'
-import { earlierSteps, readOf, sampleValues, variableFor, withRead } from './value-insert'
+import { earlierSteps, readOf, sampleValues, shapesItsOutput, variableFor, withRead } from './value-insert'
 
 const definition = {
   trigger: { manual: {} },
@@ -76,5 +76,13 @@ describe('variableFor', () => {
     const named = structuredClone(once.definition)
     ;(named.stateMachine.States.Mail as { Assign?: unknown }).Assign = { each: 1 }
     expect(variableFor(named, 'Each').variable).toBe('each_2')
+  })
+})
+
+describe('shapesItsOutput', () => {
+  it('names a step whose Output shapes its result, in a Map too', () => {
+    const shaped = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Task', Resource: 'app:http', Output: '{% $states.result.id %}', Next: 'M' }, M: { Type: 'Map', Items: '{% [] %}', End: true, ItemProcessor: { StartAt: 'B', States: { B: { Type: 'Task', Resource: 'app:http', End: true } } } } } } } as unknown as Definition
+    expect(shapesItsOutput(shaped, 'A')).toBe(true)
+    expect(shapesItsOutput(shaped, 'M/B')).toBe(false)
   })
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Definition } from '@protobase/workflows'
-import { reachedStates, stepsThatAct } from './run-effects'
+import { changedSinceRun, reachedStates, stepsThatAct } from './run-effects'
 
 const definition = {
   trigger: { manual: {} },
@@ -33,5 +33,21 @@ describe('stepsThatAct', () => {
 
   it('starts where it is told', () => {
     expect(stepsThatAct(definition, types, 'Each').map((step) => step.name)).toEqual(['Store'])
+  })
+})
+
+describe('changedSinceRun', () => {
+  const ran = (Fetch: Record<string, unknown>) => ({ ...definition, stateMachine: { ...definition.stateMachine, States: { ...definition.stateMachine.States, Fetch } } }) as unknown as Definition
+  const fetch = { Type: 'Task', Resource: 'app:records.get', Next: 'Urgent' }
+  const keeping = { ...fetch, Assign: { fetch: '{% $states.result %}' } }
+
+  it('takes a variable keeping the whole result for no change, which a re-run gives from the kept step', () => {
+    expect(changedSinceRun(ran(fetch), ran(keeping), 'Fetch')).toBe(false)
+    expect(changedSinceRun(ran(fetch), ran({ ...fetch, Next: 'Mail' }), 'Fetch')).toBe(true)
+  })
+
+  it('takes it for a change when the step shaped its result with Output, which the re-run cannot give it from', () => {
+    const shaped = { ...fetch, Output: '{% $states.result.id %}' }
+    expect(changedSinceRun(ran(shaped), ran({ ...shaped, Assign: keeping.Assign }), 'Fetch')).toBe(true)
   })
 })

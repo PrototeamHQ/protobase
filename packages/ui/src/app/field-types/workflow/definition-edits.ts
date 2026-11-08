@@ -62,12 +62,17 @@ export const addState = (definition: Definition, scope: readonly string[], kind:
     state.ItemProcessor = { StartAt: first, States: { [first]: { Type: 'Pass', End: true } } }
   })
 
-// Connects a new state after `after`: it takes over where `after` went on to, and `after` goes on to it.
+// Whether a new state can go on to the state it takes the place of: a Succeed or a Fail ends the run instead.
+const goesOn = (state: State) => state.Type === 'Choice' || flowing.has(state.Type)
+
+// Connects a new state after `after`: it takes over where `after` went on to, and `after` goes on to it. A state that
+// ends the run stays unconnected there, so it never cuts off the states after it.
 const follow = (machine: Machine, after: string, name: string) => {
   const before = machine.States[after]
   const state = machine.States[name]!
   if (!before || !flowing.has(before.Type)) return
   const next = (before as { Next?: string }).Next
+  if (next !== undefined && !goesOn(state)) return
   withNext(before, name)
   if (next === undefined) return
   if (state.Type === 'Choice') state.Default = next
@@ -94,12 +99,16 @@ export const addStateAfter = (definition: Definition, scope: readonly string[], 
   return edited(added, (copy) => follow(machineOf(copy, scope), after, name))
 }
 
-/** Adds a state as the first of the workflow, going on to the one that was first. */
+/**
+ * Adds a state as the first of the workflow, going on to the one that was first. A state that ends the run stays
+ * unconnected when the workflow has a first state, so it never cuts off the states after it.
+ */
 export const addStateFirst = (definition: Definition, kind: NewState, name: string, base: string) => {
   const first = definition.stateMachine.StartAt
   const added = addState(definition, [], kind, name, base)
   return edited(added, (copy) => {
     const state = copy.stateMachine.States[name]!
+    if (first !== '' && !goesOn(state)) return
     copy.stateMachine.StartAt = name
     if (first !== '' && flowing.has(state.Type)) withNext(state, first)
     if (first !== '' && state.Type === 'Choice') state.Default = first

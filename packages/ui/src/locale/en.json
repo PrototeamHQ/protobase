@@ -888,6 +888,7 @@
     "noRunYet": "No run yet, so there are no values to choose.",
     "typeByHand": "You can still type a value by hand.",
     "noSample": "No output yet. This step has not run.",
+    "outputShaped": "Its Output shapes its result, so its value cannot be inserted here.",
     "addedVariable": "Added variable {variable} to {step}.",
     "undo": "Undo",
     "allRuns": "All runs",

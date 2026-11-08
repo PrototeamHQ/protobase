@@ -7,7 +7,7 @@ import { SearchPicker, type PickerGroup, type PickerItem } from '../../../search
 import { splitPath, stateAt } from '../workflow/definition'
 import { statePath } from '../workflow-run/run-trace'
 import { useRunSteps } from '../workflow-run/use-run-steps'
-import { earlierSteps, readOf, sampleValues, variableFor, withRead } from './value-insert'
+import { earlierSteps, readOf, sampleValues, shapesItsOutput, variableFor, withRead } from './value-insert'
 import { text } from './messages'
 
 const inputRead = '$states.context.Execution.Input'
@@ -40,7 +40,9 @@ export const InsertValueView = ({ definition, path, target, run, onAssign, onBac
   // The run's trace, which the graph read already
   const steps = useRunSteps(run === undefined ? undefined : String(run.id), false)
   const rows = useMemo(() => steps.data ?? [], [steps.data])
-  const earlier = useMemo(() => earlierSteps(definition, path), [definition, path])
+  const before = useMemo(() => earlierSteps(definition, path), [definition, path])
+  const earlier = useMemo(() => before.filter((step) => !shapesItsOutput(definition, step)), [before, definition])
+  const shaped = before.filter((step) => shapesItsOutput(definition, step))
   const output = (step: string) => rows.filter((row) => statePath(row.scope, row.state) === step).at(-1)?.output
   const groups = useMemo((): PickerGroup[] => {
     if (!run) return []
@@ -78,6 +80,7 @@ export const InsertValueView = ({ definition, path, target, run, onAssign, onBac
           <p className="text-xs text-muted-foreground">{text('valuesFrom', { when: formatDateTime(Date.parse(String(run.created_at))) })}</p>
           <SearchPicker autoFocus groups={groups} onPick={(item) => pick(item.id, sampleOf(item))} />
           {noOutput.length > 0 && <p className="text-xs text-muted-foreground">{noOutput.map((step) => splitPath(step).name).join(', ')}: {text('noSample')}</p>}
+          {shaped.length > 0 && <p className="text-xs text-muted-foreground">{shaped.map((step) => splitPath(step).name).join(', ')}: {text('outputShaped')}</p>}
         </>
       ) : (
         <div className="grid justify-items-start gap-2 text-body">

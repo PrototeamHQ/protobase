@@ -72,6 +72,16 @@ export const earlierSteps = (definition: Definition, path: StatePath): StatePath
 
 const resultRead = '{% $states.result %}'
 
+/**
+ * Whether the state at `path` shapes its result with `Output`: its output, which a run shows, is then not the result a
+ * variable of it keeps, and no variable can keep the output without working it out again, so it offers no value.
+ */
+export const shapesItsOutput = (definition: Definition, path: StatePath) => {
+  const { scope, name } = splitPath(path)
+  const state = machineAt(definition, scope)?.States[name]
+  return state !== undefined && 'Output' in state
+}
+
 const assignOf = (state: State) => ('Assign' in state && state.Assign ? state.Assign : {}) as Record<string, unknown>
 
 const assignedNames = (machine: Machine): string[] =>

@@ -888,6 +888,7 @@
     "noRunYet": "Nog geen run, dus er zijn geen waarden om te kiezen.",
     "typeByHand": "Je kunt nog steeds zelf een waarde typen.",
     "noSample": "Nog geen uitvoer. Deze stap heeft niet gelopen.",
+    "outputShaped": "Zijn Output vormt zijn resultaat, dus zijn waarde kan hier niet worden ingevoegd.",
     "addedVariable": "Variabele {variable} toegevoegd aan {step}.",
     "undo": "Ongedaan maken",
     "allRuns": "Alle runs",

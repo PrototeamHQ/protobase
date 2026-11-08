@@ -1,6 +1,9 @@
-import type { Definition, Machine } from '@protobase/workflows'
+import type { Definition, Machine, State } from '@protobase/workflows'
 
-const statesOf = (machine: Machine): [string, unknown][] => Object.entries(machine.States).flatMap(([name, state]) => [[name, state] as [string, unknown], ...(state.Type === 'Map' ? statesOf(state.ItemProcessor) : [])])
+// Each state by its own fields: a Map without the states inside it, which count as steps of their own
+const own = (state: State): unknown => (state.Type === 'Map' ? { ...state, ItemProcessor: { ...state.ItemProcessor, States: Object.keys(state.ItemProcessor.States) } } : state)
+
+const statesOf = (machine: Machine): [string, unknown][] => Object.entries(machine.States).flatMap(([name, state]) => [[name, own(state)] as [string, unknown], ...(state.Type === 'Map' ? statesOf(state.ItemProcessor) : [])])
 
 /** How many steps differ between two definitions, by name: changed, added and removed. */
 export const versionDiff = (from: Definition, to: Definition) => {
