@@ -232,7 +232,8 @@ describe('deliver', () => {
     const job = harness({ devices: failing, senders: [recordingSender({ 'b-phone': 'gone' }).sender] })
     const failure = (await job.run({ userIds: ['a', 'b'], inbox: false }).catch((error: Error) => error)) as Error
     expect(failure.message).toBe('notifications.send: 0 deliveries are retried; store failures: 1 in listForUser, 1 in removeGone')
-    expect(JSON.stringify({ ...failure, message: failure.message, stack: failure.stack, cause: failure.cause })).not.toContain('secret')
+    const reported = JSON.stringify({ ...failure, message: failure.message, stack: failure.stack, cause: failure.cause })
+    for (const part of ['fcm.googleapis.com', 'secret-endpoint', 'secret-auth', 'secret-token']) expect(reported).not.toContain(part)
     expect(push.batches).toEqual([])
   })
 
