@@ -73,7 +73,7 @@ Every push to `main` with a fix, feature or breaking change is released by `.git
 
 ## CI
 
-A pull request runs every check; a push to `main` or an `fm/**` branch runs only what its changes affect.
+A pull request runs every check, except that before 1.0 one marked breaking skips the upgrade check ([CI](docs/ci.md#the-upgrade-check)); a push to `main` or an `fm/**` branch runs only what its changes affect.
 
 - A test that reads a file or starts a process by path needs a rule in `scripts/affected/rules.mjs`, or a change to that file skips it.
 - `CHECK_BASE=main bun run check` runs what a push of the current branch, with its uncommitted changes, would.
