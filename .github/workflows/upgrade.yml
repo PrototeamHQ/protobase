@@ -1,0 +1,78 @@
+name: upgrade
+
+# A pull request cannot break an app's upgrade unnoticed: tests/upgrade/app, with every feature that keeps a schema on,
+# is seeded on Postgres with the base branch's Protobase, then upgraded to the pull request's as an app upgrades, and the
+# job fails when a migration fails or `protobase doctor` then reports an error (tests/upgrade/upgrade.sh). It runs again
+# when the title or description is edited, which can mark the change breaking or take the mark away.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upgrade-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: protobase
+          POSTGRES_PASSWORD: protobase
+          POSTGRES_DB: protobase
+        ports:
+          - 5432
+        options: >-
+          --health-cmd "pg_isready -U protobase -d protobase"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The base commit, to seed the app with, and the branch's commits, whose messages can mark it breaking.
+          fetch-depth: 0
+          persist-credentials: false
+      # Before 1.0 a breaking change may ask apps to change, as its changelog note says, so a change marked breaking in
+      # the title, the description or one of its commits skips the upgrade. From 1.0 every change upgrades cleanly:
+      # remove this step and the condition on its output in the steps below.
+      - name: Find whether the change is marked breaking
+        id: breaking
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if printf '%s\n' "$TITLE" | grep -Eq '^[a-z]+(\([^)]*\))?!:' \
+            || printf '%s\n' "$BODY" | grep -q '^BREAKING CHANGE:' \
+            || git log --format=%B "$BASE..$HEAD" | grep -Eq '^[a-z]+(\([^)]*\))?!:|^BREAKING CHANGE:'; then
+            echo "Marked breaking, so its upgrade may ask apps to change: skipped"
+            echo breaking=true >> "$GITHUB_OUTPUT"
+          else
+            echo breaking=false >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.breaking.outputs.breaking == 'false'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - if: steps.breaking.outputs.breaking == 'false'
+        run: bun install --frozen-lockfile
+      - if: steps.breaking.outputs.breaking == 'false'
+        name: Check out the base commit beside it
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/base" "$BASE"
+          cd "$RUNNER_TEMP/base" && bun install --frozen-lockfile
+      - if: steps.breaking.outputs.breaking == 'false'
+        name: Upgrade the app from the base's Protobase to the pull request's
+        env:
+          DATABASE_URL: postgres://protobase:protobase@localhost:${{ job.services.postgres.ports['5432'] }}/protobase
+        run: tests/upgrade/upgrade.sh "$RUNNER_TEMP/base"
