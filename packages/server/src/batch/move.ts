@@ -4,9 +4,9 @@ import type { ScheduledDelete } from '../files/cleanup-schedule'
 import { preconditionFailed } from '../problem'
 import { readFilter } from '../related-filter'
 import type { RequestAccess } from '../request-access'
-import { missing, type WriteResult } from '../write-shared'
+import { missing } from '../write-shared'
 import { encodeKey, movePlan, type Ranked } from '@protobase/schema/internal'
-import { checkOrderField, reorderIn } from './reorder'
+import { checkOrderField, reorderIn, type NumberedResult } from './reorder'
 
 type Key = (string | number)[]
 
@@ -52,7 +52,7 @@ const storedOrder = async (trx: Db, access: RequestAccess, field: string, { filt
  * refused with 412 too when a record of it was renumbered between the read and its row lock. The batch holds the
  * field's order lock (see `lockOrders`), so each move and reorder reads the order the one before it left.
  */
-export const moveIn = async (trx: Db, deps: Deps, access: RequestAccess, input: MoveInput, list: MoveList, removed: ScheduledDelete[]): Promise<WriteResult[]> => {
+export const moveIn = async (trx: Db, deps: Deps, access: RequestAccess, input: MoveInput, list: MoveList, removed: ScheduledDelete[]): Promise<NumberedResult[]> => {
   const rows = await storedOrder(trx, access, input.field, list)
   const plan = movePlan(rows, encodeKey(input.key), input.after && encodeKey(input.after), input.before === undefined ? undefined : input.before && encodeKey(input.before))
   if (!plan) throw missing(access.entry)

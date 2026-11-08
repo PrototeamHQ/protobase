@@ -15,6 +15,9 @@ import { checkRankAfter } from '../rank-after'
 
 type Key = (string | number)[]
 
+/** A record a `reorder` or `move` numbered: as stored now, with its value of the order field before. */
+export type NumberedResult = WriteResult & { previous: unknown }
+
 const checkViolation = '23514'
 
 const isDatabaseCode = (error: unknown, code: string) => error instanceof Error && (error as { code?: unknown }).code === code
@@ -68,7 +71,7 @@ export const checkOrderField = (access: RequestAccess, name: string) => {
  * With `ranks`, the values of `field` the caller read for `keys`, a locked record holding another value is refused with 412.
  * The batch holds the field's order lock (see `lockOrders`).
  */
-export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string>; start: number; ranks?: unknown[] }, removed: ScheduledDelete[]): Promise<WriteResult[]> => {
+export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string>; start: number; ranks?: unknown[] }, removed: ScheduledDelete[]): Promise<NumberedResult[]> => {
   const { entry } = access
   checkOrderField(access, input.field)
   const names = input.keys.map((key) => encodeKey(key))
@@ -91,10 +94,10 @@ export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, inpu
   }
   if (changing.length > 0) await moveAside(trx, access, input.field, changing.map((i) => input.keys[i]!))
 
-  const results: WriteResult[] = []
+  const results: NumberedResult[] = []
   for (const [i, key] of input.keys.entries()) {
     const plan = plans.get(i)
-    results.push(await shown(access, plan ? await applyUpdate(trx, deps, access, key, plan, removed) : current[i]!))
+    results.push({ ...(await shown(access, plan ? await applyUpdate(trx, deps, access, key, plan, removed) : current[i]!)), previous: current[i]!.record[input.field] })
   }
   await checkRankAfter(trx, deps, access, input.field, changing.map((i) => ({ key: input.keys[i]!, before: current[i]!.record[input.field] })))
   return results

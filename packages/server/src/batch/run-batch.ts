@@ -9,20 +9,20 @@ import { scheduleRemovedFiles } from '../files/attach'
 import type { ScheduledDelete } from '../files/cleanup-schedule'
 import { writeTransaction } from '../transactions'
 import type { Row, Session } from '../types'
-import { keyOf, type WriteResult } from '../write-shared'
+import { keyOf } from '../write-shared'
 import { checkBeforeWrite, writeIn } from '../write-pipeline'
 import { resolveData, resolveKey, type Created } from './refs'
 import { moveIn, moveList, type MoveList } from './move'
 import { lockOrders, orderLockName } from './order-lock'
-import { reorderIn } from './reorder'
+import { reorderIn, type NumberedResult } from './reorder'
 import type { BatchOperation } from './schema'
 
 export type BatchResult =
   | { op: 'create'; resource: string; ref?: string; record: Row; etag: string }
   | { op: 'update'; resource: string; record: Row; etag: string }
   | { op: 'delete'; resource: string; deleted: true }
-  | { op: 'reorder'; resource: string; records: WriteResult[] }
-  | { op: 'move'; resource: string; records: WriteResult[] }
+  | { op: 'reorder'; resource: string; records: NumberedResult[] }
+  | { op: 'move'; resource: string; records: NumberedResult[] }
 
 const entryOf = (deps: Deps, name: string): Entry => {
   const entry = deps.registry.find(name)
