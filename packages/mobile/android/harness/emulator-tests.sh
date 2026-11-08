@@ -23,7 +23,7 @@ fail() {
 }
 timeout 120 adb wait-for-device || fail "No emulator came up in 2 minutes"
 deadline=$(($(date +%s) + 600))
-until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do
+until [ "$(timeout 10 adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do
   [ "$(date +%s)" -lt "$deadline" ] || fail "The emulator did not finish booting in 10 minutes"
   sleep 3
 done
