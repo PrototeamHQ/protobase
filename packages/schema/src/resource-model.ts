@@ -8,6 +8,7 @@ import { computedProblems } from './computed/computed-problems'
 import { openExistingProblems } from './open-existing-problems'
 import { snakeCase } from './naming'
 import type { FieldsInput } from './refs'
+import type { BucketsModel } from './buckets/buckets-model'
 
 export type ResourceState = {
   name: string
@@ -31,6 +32,7 @@ export type ResourceState = {
   explicitGrants?: boolean
   etagFrom?: string
   openExisting?: string[]
+  buckets?: BucketsModel
 }
 
 export const parseTable = (table: string) => {
@@ -113,6 +115,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.parents && { parents: state.parents.map((parent) => ({ ...parent })) }),
     ...(state.links && { links: state.links }),
     ...(state.openExisting && { openExisting: [...state.openExisting] }),
+    ...(state.buckets && { buckets: structuredClone(state.buckets) }),
   }
 }
 
@@ -233,10 +236,17 @@ const aiProblems = (model: ResourceModel) =>
       }),
     ].map((problem) => `AI field "${field.name}" ${problem}`))
 
+// A time rollup's rows are the database's to write: nothing that writes a record through the API fits it.
+const bucketsProblems = (model: ResourceModel) => {
+  if (!model.buckets) return []
+  const writes = { softDelete: model.softDelete, position: model.position, author: model.author, openExisting: model.openExisting, parents: model.parents }
+  return Object.entries(writes).flatMap(([option, value]) => (value === undefined ? [] : [`a time rollup cannot have .${option}(), as only the database writes its rows`]))
+}
+
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

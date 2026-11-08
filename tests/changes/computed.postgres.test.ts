@@ -51,7 +51,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('rollup and formula fiel
   })
 
   it('refuses to start until the migration wrote the columns, and sets the values from what is there', async () => {
-    await expect(checkComputed(db, models())).rejects.toThrow('The rollup and formula fields lines.amount, orders.total, orders.line_count are not kept by the database as declared')
+    await expect(checkComputed(db, models())).rejects.toThrow('The rollup and formula fields and time rollups lines.amount, orders.total, orders.line_count are not kept by the database as declared')
     await migrate()
     expect(await totals()).toEqual(['1:15.00:2', '2:0.00:0'])
   })

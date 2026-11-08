@@ -101,6 +101,7 @@ import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
 import { checkOwnerFields } from './check-owners'
 import { checkRoleLimits } from './check-roles'
+import { checkBuckets } from './check-buckets'
 import { checkParents, parentWarnings } from './check-parents'
 import { checkPositionAfter } from './check-position-after'
 import { checkViews } from './check-views'
@@ -274,6 +275,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   checkBottomBars(registry, bottomBarModels, pageModels.map((entry) => entry.name), declaredRoles(auth, options.roles))
   checkViews(registry, viewModels, pageModels.map((entry) => entry.name), fieldTypes)
   checkRoleLimits(registry, options.roles?.limits ?? [])
+  checkBuckets(registry, options.roles?.definitions)
   checkOwnerFields(registry, authenticate.userIdType, auth)
   const mcpAuthenticate = mcpAuthenticator(authenticate, auth?.mcp, options.mcp)
   if (options.mcp) checkMcpWrites(registry, declaredRoles(auth, options.roles), options.mcp.writes)

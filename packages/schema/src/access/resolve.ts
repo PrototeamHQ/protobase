@@ -153,6 +153,11 @@ export const resolveAccess = async (
   const anonymous = anonymousCaller(options, ctx.user)
 
   for (const operation of operations) {
+    // Only the database writes a time rollup's rows, whatever its rules say.
+    if (model.buckets && operation !== 'read' && operation !== 'list') {
+      allowed[operation] = false
+      continue
+    }
     if (operation === 'list' && !source.accessRules.list) {
       allowed.list = allowed.read
       continue
