@@ -12,7 +12,7 @@ final class WorkspaceStores {
 
     private WorkspaceStores() {}
 
-    static void removePending(WorkspaceList list) throws JSONException {
+    static void removePending(WorkspaceList list) throws JSONException, WorkspaceStorage.Failed {
         ProfileStore profiles = ProfileStore.getInstance();
         for (String id : list.removedStores()) {
             try {

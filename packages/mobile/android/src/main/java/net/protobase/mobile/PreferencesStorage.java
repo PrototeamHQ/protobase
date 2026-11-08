@@ -16,9 +16,9 @@ final class PreferencesStorage implements WorkspaceStorage {
         return preferences.getString(key, null);
     }
 
-    /** Saves at once, with commit rather than apply, so the value is on disk before the call returns. */
+    /** Saves at once, with commit rather than apply, so the value is on disk before the call returns; Failed when not. */
     @Override
-    public void write(String key, String value) {
-        preferences.edit().putString(key, value).commit();
+    public void write(String key, String value) throws Failed {
+        if (!preferences.edit().putString(key, value).commit()) throw new Failed();
     }
 }

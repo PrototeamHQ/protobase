@@ -21,7 +21,7 @@ import org.json.JSONException;
 public class ProtobaseWorkspaces extends Plugin {
 
     private interface Body {
-        void run(WorkspaceViews views, WorkspaceList list) throws JSONException, WorkspaceList.Listed, WorkspaceList.Unknown;
+        void run(WorkspaceViews views, WorkspaceList list) throws JSONException, WorkspaceList.Listed, WorkspaceList.Unknown, WorkspaceStorage.Failed;
     }
 
     private WorkspaceList list;
@@ -111,6 +111,8 @@ public class ProtobaseWorkspaces extends Plugin {
                 call.reject("No workspace has that id");
             } catch (JSONException unreadable) {
                 call.reject("ProtobaseWorkspaces could not read or save its workspaces");
+            } catch (WorkspaceStorage.Failed unsaved) {
+                call.reject("ProtobaseWorkspaces could not save its workspaces");
             }
         });
     }

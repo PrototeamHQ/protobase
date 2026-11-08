@@ -42,7 +42,7 @@ final class WorkspaceList {
     }
 
     /** Lists a workspace under a new id; Listed when one already has the origin. */
-    Workspace add(String origin, String name, String icon) throws JSONException, Listed {
+    Workspace add(String origin, String name, String icon) throws JSONException, Listed, WorkspaceStorage.Failed {
         List<Workspace> workspaces = all();
         for (Workspace workspace : workspaces) {
             if (workspace.origin.equals(origin)) throw new Listed();
@@ -54,7 +54,7 @@ final class WorkspaceList {
     }
 
     /** Drops the workspace and keeps its id in `removedStores`; Unknown when none has it. */
-    void remove(String id) throws JSONException, Unknown {
+    void remove(String id) throws JSONException, Unknown, WorkspaceStorage.Failed {
         List<Workspace> workspaces = all();
         if (!workspaces.removeIf(workspace -> workspace.id.equals(id))) throw new Unknown();
         List<String> removed = removedStores();
@@ -72,14 +72,14 @@ final class WorkspaceList {
     }
 
     /** Forgets a removed workspace's id once its profile is deleted. */
-    void storeRemoved(String id) throws JSONException {
+    void storeRemoved(String id) throws JSONException, WorkspaceStorage.Failed {
         List<String> removed = removedStores();
         removed.remove(id);
         storage.write(REMOVED_KEY, new JSONArray(removed).toString());
     }
 
     /** Writes the whole list. */
-    private void save(List<Workspace> workspaces) throws JSONException {
+    private void save(List<Workspace> workspaces) throws JSONException, WorkspaceStorage.Failed {
         JSONArray array = new JSONArray();
         for (Workspace workspace : workspaces) array.put(workspace.toJson());
         storage.write(LIST_KEY, array.toString());
