@@ -122,3 +122,38 @@ export const AtTheRightEdgeChecks: StoryObj = {
     }
   },
 }
+
+const longLabel = 'Move this line to the top of the list and keep it there while new lines are added below'
+
+/** Menus whose option label is longer than the screen is wide, at its left edge. */
+const LongLabels = () => {
+  const [value, setValue] = useState('table')
+  return (
+    <div className="flex flex-col items-start gap-24 p-1">
+      <MenuSelect value={value} options={[...presentations, { value: 'long', label: longLabel, icon: List }]} onChange={setValue} label="Presentation" />
+      <LineMenu label="Line actions" items={[{ label: longLabel, onSelect: () => {} }]} />
+    </div>
+  )
+}
+
+export const LongLabelsChecks: StoryObj = {
+  name: 'Menus with a label longer than the screen (checks)',
+  tags: ['play', 'phone', '!dev'],
+  globals: { viewport: { value: 'phone360' } },
+  render: () => <LongLabels />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    for (const [name, trigger, item] of [
+      ['presentation', /Presentation/, 'menuitemradio'],
+      ['line', 'Line actions', 'menuitem'],
+    ] as const) {
+      await userEvent.click(canvas.getByRole('button', { name: trigger }))
+      const option = await waitFor(() => canvas.getByRole(item, { name: new RegExp(longLabel) }))
+      const menu = option.closest<HTMLElement>('[role="menu"]')!.getBoundingClientRect()
+      expect({ name, left: menu.left >= 4, right: menu.right <= viewportWidth() - 4 }).toEqual({ name, left: true, right: true })
+      // Wrapped onto more lines rather than running past the menu's edge
+      expect({ name, wraps: option.scrollWidth <= option.clientWidth && option.getBoundingClientRect().height > 48 }).toEqual({ name, wraps: true })
+      await userEvent.click(document.body)
+    }
+  },
+}

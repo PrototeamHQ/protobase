@@ -62,7 +62,7 @@ export const MenuSelect = <T extends string>({ value, options, onChange, label }
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </button>
       {open && (
-        <ul ref={menu} role="menu" aria-label={label} onKeyDown={onKeyDown} style={{ ...right, ...top }} className="absolute right-0 top-full z-30 mt-1 min-w-40 rounded-md border bg-background py-1 text-body shadow-pop">
+        <ul ref={menu} role="menu" aria-label={label} onKeyDown={onKeyDown} style={{ ...right, ...top }} className="absolute right-0 top-full z-30 mt-1 w-max min-w-40 rounded-md border bg-background py-1 text-body shadow-pop">
           {options.map((option, index) => (
             <li key={option.value} role="none">
               <button
@@ -76,7 +76,7 @@ export const MenuSelect = <T extends string>({ value, options, onChange, label }
                   closeToTrigger()
                   if (option.value !== value) onChange(option.value)
                 }}
-                className={cn('flex min-h-9 w-full items-center gap-2 whitespace-nowrap px-3 py-1.5 text-left hover:bg-muted focus:bg-muted focus:outline-none pointer-coarse:min-h-11', option.value === value && 'font-medium')}
+                className={cn('flex min-h-9 w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-muted focus:bg-muted focus:outline-none pointer-coarse:min-h-11', option.value === value && 'font-medium')}
               >
                 {option.icon ? <option.icon className="size-3.5" /> : <span className="size-3.5" />}
                 <span className="flex-1">{option.label}</span>

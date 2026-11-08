@@ -1,7 +1,7 @@
 import { ChevronDown } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
-import { menuRightEdge, useMenuTop, viewportGap } from '../primitives/menu-edge'
+import { menuMaxWidth, menuRightEdge, useMenuTop } from '../primitives/menu-edge'
 
 export type FilterMenuProps = { label: string; activeCount: number; width?: number; defaultOpen?: boolean; children: ReactNode | ((close: () => void) => ReactNode) }
 
@@ -18,7 +18,7 @@ export const FilterMenu = ({ label, activeCount, width = 240, defaultOpen = fals
     if (!open || !root.current) return
     const button = root.current.getBoundingClientRect()
     const viewport = document.documentElement.clientWidth
-    const fitted = Math.min(width, viewport - 2 * viewportGap)
+    const fitted = Math.min(width, menuMaxWidth(viewport))
     setPlace({ width: fitted, right: button.left + fitted > viewport ? button.right - menuRightEdge(button.right, fitted, viewport) : undefined })
   }, [open, width])
   const top = useMenuTop(open, root, menu, place)
