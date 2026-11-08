@@ -39,7 +39,7 @@ const tolerant = async <T>(task: TaskContext, what: string, call: () => Promise<
 }
 
 // The services as a cached call sees them: one that acts as someone the key does not hold, or any use of the run's own
-// files, which no key can hold, marks the call as not to keep. Forcing the cache on does not lift this.
+// files or of storage, which no key can hold, marks the call as not to keep. Forcing the cache on does not lift this.
 const watched = (services: PluginServices, mailbox: PluginMail | undefined, actsAs: readonly string[], used: Set<string>) => {
   const mark = <T extends object>(name: string, target: T): T => {
     if (actsAs.includes(name)) return target
@@ -47,7 +47,7 @@ const watched = (services: PluginServices, mailbox: PluginMail | undefined, acts
   }
   // What a step hands a request is part of what it read, whether or not anything reads it before it leaves.
   const fetch: PluginServices['fetch'] = (url, init) => (JSON.stringify([url, init ?? null]), services.fetch(url, init))
-  return { services: { ...services, fetch, records: mark('records', services.records), files: mark('files', services.files) }, mailbox: mailbox && mark('mailbox', mailbox) }
+  return { services: { ...services, fetch, records: mark('records', services.records), files: mark('files', services.files), storage: mark('storage', services.storage) }, mailbox: mailbox && mark('mailbox', mailbox) }
 }
 
 const shapesOf = async (plan: CachePlan, type: string, task: TaskContext): Promise<KeyShape[]> => {

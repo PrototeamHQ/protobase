@@ -32,4 +32,6 @@ export type FileProvider = {
   retention?: number
   /** The most bytes its store takes (see `limitedFileStore`); unset for no limit. */
   maxBytes?: number
+  /** The folder of a provider on local disk, which workflow storage keeps out of. */
+  localDir?: string
 }

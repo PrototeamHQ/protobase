@@ -11,12 +11,17 @@ export type PluginFetchInit = {
   signal?: AbortSignal
   /** The most bytes of the answer's body read off the wire; a longer body fails. Default and maximum 10 MiB. */
   maxBytes?: number
+  /**
+   * Gives the answer with its body unread and no limit on its size, for a step that streams it on, such as into
+   * storage; the step reads it as a stream, never as a whole.
+   */
+  stream?: boolean
 }
 
 /**
  * The only way a plugin sends a request: it resolves the host once, refuses a private, loopback or link-local address
  * (unless the app allows them), connects to the address it checked, follows no redirect and reads at most `maxBytes`
- * of the body as sent, never decoding a `Content-Encoding`. The answer's body is already read.
+ * of the body as sent, never decoding a `Content-Encoding`. The answer's body is already read, unless `stream`.
  */
 export type PluginFetch = (url: string, init?: PluginFetchInit) => Promise<Response>
 
@@ -28,6 +33,23 @@ export type PluginFiles = {
   keep(bytes: Uint8Array, name: string, type: string): Promise<FileValue>
   /** The bytes of a file of this run; `field` names the argument in the error when it is not one. */
   read(value: unknown, field: string): Promise<{ name: string; type?: string; bytes: Uint8Array }>
+}
+
+/**
+ * A file kept in a storage configuration: the configuration's name, the server that holds it for a local one, and its
+ * path there. It says where the file is, never how to reach it: no folder, bucket or key.
+ */
+export type StoredFile = { configuration: string; node?: string; path: string; name: string; type: string; size: number }
+
+/**
+ * Files in the app's storage configurations, by name, as the workflow's last editor may read them now: naming one they
+ * may not read fails as one that does not exist (`Storage.NotFound`).
+ */
+export type PluginStorage = {
+  /** Streams `body` to `path` in the configuration, replacing what is there; it is whole or not there at all. */
+  put(configuration: string, path: string, body: ReadableStream<Uint8Array>, file: { name: string; type: string }): Promise<StoredFile>
+  /** The bytes of a stored file, as a stream; `field` names the argument in the error. Fails as `Storage.NotFound` when it is gone. */
+  read(file: unknown, field: string): Promise<{ file: StoredFile; body: ReadableStream<Uint8Array> }>
 }
 
 type Key = string | number | (string | number)[]
@@ -68,11 +90,12 @@ export type PluginConnection = {
   accessToken(options?: { refresh?: boolean }): Promise<string>
 }
 
-/** What the app gives every hook of a plugin: its guarded requests, records, files and mail. */
+/** What the app gives every hook of a plugin: its guarded requests, records, files, storage and mail. */
 export type PluginServices = {
   fetch: PluginFetch
   records: PluginRecords
   files: PluginFiles
+  storage: PluginStorage
   /** Undefined when the app sends no mail. */
   mail: PluginMail | undefined
 }
