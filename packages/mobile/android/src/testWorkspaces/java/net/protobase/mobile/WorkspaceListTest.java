@@ -90,4 +90,16 @@ public class WorkspaceListTest {
         assertThrows(WorkspaceStorage.Failed.class, () -> unsaved.remove(acme.id));
         assertEquals(List.of(acme.id), unsaved.all().stream().map(workspace -> workspace.id).toList());
     }
+
+    @Test
+    public void keepsTheStoreOfAWorkspaceWhoseRemovalWasNotSaved() throws Exception {
+        FailingStorage failing = new FailingStorage();
+        WorkspaceList list = new WorkspaceList(failing);
+        Workspace acme = list.add("https://acme.example.com", null, null);
+        failing.saved.write("removed", "[\"" + acme.id + "\"]");
+        assertEquals(List.of(acme.id), list.all().stream().map(workspace -> workspace.id).toList());
+        assertEquals(List.of(), list.removedStores());
+        list.remove(acme.id);
+        assertEquals(List.of(acme.id), list.removedStores());
+    }
 }

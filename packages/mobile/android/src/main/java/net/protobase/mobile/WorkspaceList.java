@@ -63,11 +63,18 @@ final class WorkspaceList {
         save(workspaces);
     }
 
-    /** The ids of removed workspaces whose profiles are not deleted yet. */
+    /**
+     * The ids of removed workspaces whose profiles are not deleted yet. An id that is still listed, after a remove that
+     * could not save the shorter list, is left out, so its workspace keeps its profile.
+     */
     List<String> removedStores() throws JSONException {
+        List<String> listed = new ArrayList<>();
+        for (Workspace workspace : all()) listed.add(workspace.id);
         JSONArray array = new JSONArray(orEmpty(storage.read(REMOVED_KEY)));
         List<String> ids = new ArrayList<>();
-        for (int i = 0; i < array.length(); i++) ids.add(array.getString(i));
+        for (int i = 0; i < array.length(); i++) {
+            if (!listed.contains(array.getString(i))) ids.add(array.getString(i));
+        }
         return ids;
     }
 
