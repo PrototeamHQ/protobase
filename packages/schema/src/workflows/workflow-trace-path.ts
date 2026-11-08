@@ -7,8 +7,12 @@ export const workflowRunParam = 'run'
 /** The route of a run's trace under {@link workflowRunsPath}, as the server serves it. */
 export const workflowRunTraceRoute = `/:${workflowRunParam}/trace` as const
 
-/** The path of a run's trace, as the run's page reads it. */
-export const workflowRunTracePath = (systemPath: string, runId: string) => `${workflowRunsPath(systemPath)}/${encodeURIComponent(runId)}/trace`
+/** The query parameter of a trace path that skips the steps its reader has already: how many those are. */
+export const workflowTraceAfterParam = 'after'
+
+/** The path of a run's trace, as the run's page reads it: with `after`, only the steps after the first `after`. */
+export const workflowRunTracePath = (systemPath: string, runId: string, after = 0) =>
+  `${workflowRunsPath(systemPath)}/${encodeURIComponent(runId)}/trace${after > 0 ? `?${workflowTraceAfterParam}=${after}` : ''}`
 
 /** One step of a run's trace, as the runner wrote it, with every secret blanked out. */
 export type WorkflowTraceStep = {
@@ -31,5 +35,9 @@ export type WorkflowTraceStep = {
   recorded: boolean
 }
 
-/** A run's trace: its steps in the order they ran, none when the run keeps no trace. */
-export type WorkflowRunTrace = { steps: WorkflowTraceStep[] }
+/**
+ * A run's trace: its steps in the order they ran from the step numbered `from` on, none when the run keeps no trace.
+ * `from` is the `after` asked, or 0 when the trace holds fewer steps than that, as when a run that keeps its trace only
+ * when it fails succeeds.
+ */
+export type WorkflowRunTrace = { from: number; steps: WorkflowTraceStep[] }
