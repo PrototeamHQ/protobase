@@ -366,7 +366,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
 
   it('keeps none of a save refused for one of its scopes, also inside a transaction, so another segment goes on', async () => {
     const id = await create('Saves', definition({ Done: { Type: 'Succeed' } }))
-    const runId = (await sql<{ id: string }>`insert into workflows.runs (workflow_id, version, status) values (${id}, 1, 'waiting') returning id`.execute(db)).rows[0]!.id
+    const runId = (await sql<{ id: string }>`insert into workflows.runs (workflow_id, tenant_id, version, status) values (${id}, '1', 1, 'waiting') returning id`.execute(db)).rows[0]!.id
     const store = postgresRunStore('workflows')
     const at = (scope: string, seq: number, after: number) => ({ scope, seq, after, state: 'Done', type: 'Pass', status: 'succeeded' as const, fetchedAt: new Date(), next: 'Done', variables: {}, attempt: 1, failures: [], visits: {}, clock: new Date() })
     const scopes = async () => (await sql<{ scope: string; seq: number }>`select scope, seq from workflows.checkpoints where run_id = ${runId} order by scope`.execute(db)).rows
