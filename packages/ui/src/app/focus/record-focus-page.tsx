@@ -129,11 +129,12 @@ const RecordFocus = ({ model, recordKey, stored, page }: Omit<RecordFocusPagePro
     readOnly,
     mayUpdate,
     value: editor.value,
-    change: editor.change,
+    // A read-only page changes and saves nothing, whatever its surface asks
+    change: (name, next) => (readOnly ? undefined : editor.change(name, next)),
     dirty: editor.dirty,
     saving: editor.saving,
     refused: editor.message !== undefined,
-    save: async () => Boolean(await editor.save()),
+    save: async () => !readOnly && Boolean(await editor.save()),
     discard: editor.discard,
     details,
   }
