@@ -1,3 +1,5 @@
+import { EventEmitter } from 'node:events'
+import type { ClientHttp2Session } from 'node:http2'
 import { afterEach, describe, expect, it } from 'vitest'
 import { apnsService, selfSignedService } from '../testing/apns-service'
 import { postApns } from './post'
@@ -60,5 +62,15 @@ describe('postApns', () => {
     const service = await apnsService(() => ({ status: 200, delayMs: 500 }))
     closers.push(service.close)
     expect(await postApns(apnsSessions(service.connect)('https://api.push.apple.com'), '/3/device/aa', {}, '{}', 50)).toBeUndefined()
+  })
+  it('answers no answer when the server resets the stream without answering', async () => {
+    const service = await apnsService(() => 'cancel')
+    closers.push(service.close)
+    expect(await postApns(apnsSessions(service.connect)('https://api.push.apple.com'), '/3/device/aa', {}, '{}', 5000)).toBeUndefined()
+  })
+  it('answers no answer when the stream closes with neither an end nor an error', async () => {
+    const stream = Object.assign(new EventEmitter(), { setTimeout: () => {}, end: () => stream.emit('close') })
+    const session = { request: () => stream } as unknown as ClientHttp2Session
+    expect(await postApns(session, '/3/device/aa', {}, '{}')).toBeUndefined()
   })
 })

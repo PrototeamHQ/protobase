@@ -116,7 +116,7 @@ describe('the runner', () => {
       Slow: { Type: 'Task', Resource: 'slow', End: true },
     }), {})
     await expect(port.step(worker.signal)).rejects.toThrow('the worker stopped')
-    expect(port.steps.map((step) => step.state)).toEqual(['Before'])
+    expect(port.checkpoints.map((checkpoint) => checkpoint.state)).toEqual(['Before'])
     // The queue runs the failed job again, as pg-boss retries it.
     await port.runner.segment(null, 'r4', new AbortController().signal)
     expect(calls).toEqual(['before', 'slow', 'slow'])
@@ -187,16 +187,16 @@ describe('the runner', () => {
 
     const raced = memoryRunner({ tick: async () => 1 })
     await raced.start('r9', definition({ A: { Type: 'Task', Resource: 'tick', End: true } }), {})
-    raced.steps.push({ runId: 'r9', scope: '', seq: 0, state: 'A', type: 'Task', status: 'succeeded', attempt: 1, next: null, output: 2, logs: [], startedAt: raced.now(), finishedAt: raced.now() })
+    raced.checkpoints.push({ runId: 'r9', scope: '', seq: 0, state: 'A', type: 'Task', status: 'succeeded', fetchedAt: raced.now(), next: null, value: 2, variables: {}, attempt: 1, failures: [], visits: {}, clock: raced.now(), after: -1 })
     await raced.runner.segment(null, 'r9', new AbortController().signal)
     expect(raced.run('r9').status).toBe('succeeded')
   })
 
-  it('fails a step whose output is larger than a step may save, which no catcher catches', async () => {
-    const port = memoryRunner({ big: async () => 'x'.repeat(1024 * 1024 + 1) })
+  it('fails a step whose output is over the 256 KiB a value is kept up to, with its size, which no catcher catches', async () => {
+    const port = memoryRunner({ big: async () => 'x'.repeat(256 * 1024 - 1) })
     await port.start('r10', definition({ Big: { Type: 'Task', Resource: 'big', Catch: [{ ErrorEquals: ['States.ALL'], Next: 'Fine' }], End: true }, Fine: { Type: 'Succeed' } }), {})
     await port.drain()
-    expect(port.run('r10')).toMatchObject({ status: 'failed', error: 'States.DataLimitExceeded', cause: "The step's output is larger than 1 MiB" })
+    expect(port.run('r10')).toMatchObject({ status: 'failed', error: 'States.DataLimitExceeded', cause: "The step's output is 262145 bytes as JSON, over the 256 KiB a value is kept up to; keep it in a store and pass a reference" })
   })
 
   it("keeps a matched choice's Output of null, rather than the Choice state's own", async () => {
@@ -248,6 +248,6 @@ describe('the runner', () => {
     await port.start('r15', quiet, {})
     await port.drain()
     expect(port.run('r15')).toMatchObject({ status: 'succeeded', output: true })
-    expect(port.steps.filter((step) => step.runId === 'r15')).toHaveLength(2)
+    expect(port.traces.get('r15')!.flat()).toHaveLength(2)
   })
 })

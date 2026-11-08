@@ -1,7 +1,7 @@
 import type { Machine, State, TaskState } from '../definition/types'
 import type { SegmentContext, StateResult } from './context'
 import type { StepLog, TaskHandler } from './port'
-import { mapNames, matchKey } from './replay-match'
+import { mapNames, visitKey } from './replay-match'
 import type { Replay } from './replay-of'
 
 /** The log line of a step a replay held back, which the run's page marks it by. */
@@ -21,13 +21,13 @@ const stateIn = (machine: Machine, maps: readonly string[], name: string): State
 }
 
 /**
- * What a held-back step takes from the replayed run's step of the same state and visit of it in the same scope: its
+ * What a held-back step takes from the replayed run's step of the same state and visit of it in the same scope, as
+ * `logical` names it by visits: its
  * error, or its result, which only a Task that did not shape it with `Output` saved as it was. Undefined when that
  * run has no such step, its step was still retrying, or saved its result shaped.
  */
-export const replayedOutcome = (replay: Replay, at: { scope: string; seq: number; name: string }) => {
-  const key = matchKey(replay.seen, at.scope, at.name, at.seq)
-  const step = key === undefined ? undefined : replay.outcomes.get(key)
+export const replayedOutcome = (replay: Replay, at: { scope: string; logical: string; visit: number; name: string }) => {
+  const step = replay.outcomes.get(visitKey(at.logical, at.name, at.visit))
   if (!step || step.status === 'retrying') return
   if (step.status !== 'succeeded') return { failure: { Error: step.error ?? 'States.Runtime', Cause: step.cause ?? '' } }
   const state = stateIn(replay.machine, mapNames(at.scope), at.name)

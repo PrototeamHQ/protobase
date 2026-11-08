@@ -32,7 +32,7 @@ export type ResolveOptions = {
     /** The roles by name, to tell whether the project has an `anonymous` role. */
     definitions?: Record<string, unknown>
     /** Whether the user's roles grant all of a capability, as `defineRoles` makes it; the gate of API functions. */
-    holds?: (user: AccessUser, capability: any) => boolean
+    holds?: (user: AccessUser, capability: any, model?: Pick<ResourceModel, 'explicitGrants'>) => boolean
   }
   /**
    * Overrides what an operation without a rule does. Without `roles` the default is `allow`,
@@ -120,6 +120,14 @@ const decide = async (rule: AccessFn, ctx: AccessContext) => {
   }
 }
 
+// Whether the caller holds a capability on every row and field, as a resource with `.explicitGrants()` takes it, for a
+// field rule about another resource. With roles only the caller's grant counts, whatever `defaultAccess` says, since
+// the capability is about records an explicit-grants resource opens only to a grant.
+const holdsFor = (options: ResolveOptions, user: AccessUser) => (capability: string) => {
+  if (options.roles) return options.roles.holds?.(user, capability, { explicitGrants: true }) ?? false
+  return options.defaultAccess !== 'deny'
+}
+
 const verdict = async (rule: ((ctx: AccessContext) => unknown) | undefined, ctx: AccessContext, fallback: boolean, what: string) => {
   if (!rule) return fallback
   const result = normalize((await rule(ctx)) as never)
@@ -175,7 +183,8 @@ export const resolveAccess = async (
   }
 
   const fieldRules = source.fieldAccess()
-  const fieldContext = (operation: AccessAction) => ({ ...ctx, model, operation })
+  const holds = holdsFor(options, ctx.user)
+  const fieldContext = (operation: AccessAction) => ({ ...ctx, model, operation, holds })
   // The fields the roles list for each capability; `undefined` leaves every field to its rule.
   const listed = (operation: 'read' | 'create' | 'update') => options.roles?.fields?.(ctx.user, capabilityOf(model, operation), model)
   const lists = { read: listed('read'), create: listed('create'), update: listed('update') }

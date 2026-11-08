@@ -9,7 +9,7 @@ import type { WriteCheck } from '../types'
 export const checkRunInput = (input: unknown) => {
   if (nestingDepth(input, limits.inputDepth) > limits.inputDepth) throw badRequest('input-too-deep', `A run's input nests at most ${limits.inputDepth} levels of arrays and objects`)
   const bytes = new TextEncoder().encode(JSON.stringify(input ?? null)).length
-  if (bytes > limits.inputBytes) throw badRequest('input-too-large', `A run's input is at most ${limits.inputBytes / 1024 / 1024} MiB as JSON; this one is ${bytes} bytes`)
+  if (bytes > limits.inputBytes) throw badRequest('input-too-large', `A run's input is at most ${limits.inputBytes / 1024} KiB as JSON; this one is ${bytes} bytes`)
 }
 
 /**

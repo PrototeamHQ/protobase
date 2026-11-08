@@ -707,6 +707,21 @@
                 }
               ]
             },
+            "trace": {
+              "description": "Which runs keep a trace, every step's input, output and logs as JSON lines in the private file provider: `all`\n(default), `failed` for only the runs that fail, or `none`. A workflow's definition (`trace`) and a run's own\n`trace` set it for theirs.",
+              "anyOf": [
+                {
+                  "enum": [
+                    "all",
+                    "failed",
+                    "none"
+                  ]
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
             "plugins": {
               "description": "Packages of workflow plugins the app runs beside the built-in types and its own plugins, by package name.",
               "anyOf": [

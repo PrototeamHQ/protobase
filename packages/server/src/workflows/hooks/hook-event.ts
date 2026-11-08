@@ -43,7 +43,7 @@ const parsedBody = (bytes: Uint8Array, type: string) => {
 
 /**
  * The call as its run sees it: method, query, headers without credentials, the body, or `file` when the caller kept the
- * body as a file of the run, as for a call over the run input's 1 MiB, and when it came. The address is left out: it holds the key.
+ * body as a file of the run, as for a call over the run input's 256 KiB, and when it came. The address is left out: it holds the key.
  */
 export const hookEvent = (request: Request, bytes: Uint8Array, signatureHeader: string | undefined, file?: FileValue): WebhookEvent => ({
   method: request.method,

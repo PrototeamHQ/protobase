@@ -22,7 +22,7 @@ export type RoleLimit = HeldCapability & {
 const rolesOf = (user: AccessUser) => user.roles ?? []
 
 // A resource with `.explicitGrants()` takes `*` and capabilities naming it, never a wildcard over resources such as `*.read`.
-const reaches = (held: HeldCapability, model: ResourceModel | undefined) =>
+const reaches = (held: HeldCapability, model: Pick<ResourceModel, 'explicitGrants'> | undefined) =>
   !model?.explicitGrants || held.capability === '*' || parseCapability(held.capability).name !== '*'
 
 /**
@@ -95,10 +95,10 @@ export const defineRoles = <Name extends string = string>(
     /**
      * Whether one of the user's roles grants all of the capability, wildcards included, in every row and field: `*`
      * and `vms.*` hold `vms.*`, while `vms.read`, `vms.update.own` or a limited `vms.update` do not. For gates such as
-     * API functions.
+     * API functions. With a resource's model, a wildcard over resources counts only where the resource takes it.
      */
-    holds: (user: AccessUser, capability: Capability<Name>) =>
-      heldBy(user).some((held) => !held.fields && !held.filter && holdsAll(held.capability, capability)),
+    holds: (user: AccessUser, capability: Capability<Name>, model?: Pick<ResourceModel, 'explicitGrants'>) =>
+      heldBy(user).some((held) => !held.fields && !held.filter && reaches(held, model) && holdsAll(held.capability, capability)),
 
     /**
      * The fields the user's roles allow for a capability: the union of their lists, or `undefined` when a role grants

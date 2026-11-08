@@ -2,9 +2,10 @@ import { f } from '../fields'
 import { layout as l } from '../layout'
 import { resource } from '../resource'
 import { view } from '../view'
+import { resolutionsResource, resolutionsView, workflowStatusFields, workflowStatusLabels, workflowStatusTones } from './workflow-status'
 
 const runStatuses = ['queued', 'running', 'waiting', 'succeeded', 'failed'] as const
-const stepStatuses = ['succeeded', 'retrying', 'caught', 'failed'] as const
+const traceModes = ['all', 'failed', 'none'] as const
 
 /**
  * Workflows: a trigger and a state machine in the States Language with JSONata, checked on every save, each changed definition a new version. A
@@ -24,6 +25,7 @@ const workflowsResource = (schema: string) =>
       tenant_id: f.text().optional().readOnly(),
       created_at: f.timestamp().readOnly().dbDefault(),
       updated_at: f.timestamp().readOnly().dbDefault().sortable(),
+      ...workflowStatusFields,
     })
     .primaryKey((r) => r.id)
     .tenant((r) => r.tenant_id)
@@ -36,6 +38,8 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .names({ singular: 'Workflow', plural: 'Workflows' })
   .icon('workflow')
   .title((r) => r.name)
+  // Every workflow under its entry, with the status of its last runs
+  .nav({ recent: { status: 'run_status', tones: workflowStatusTones, orderBy: 'name asc', limit: 20 } })
   .help('Steps that run one after another along their edges, written in the States Language with JSONata expressions. Each save that changes its definition is a new version, which goes live only once it is published; a run keeps the version it started on.')
   .fields((r) => ({
     enabled_version: r.enabled_version.label('Published version').help('The saved version that is live: its trigger starts runs, and so does a start that names no version. Set it to any saved version to publish that version, and clear it to turn the workflow off. A save never changes it.'),
@@ -43,11 +47,17 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
       .help('Its trigger and its steps, drawn as a graph that lays itself out. Every value is read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned')
       .widget('workflow'),
     updated_at: r.updated_at.label('Updated'),
+    run_status: r.run_status.label('Status').valueLabels(workflowStatusLabels).valueColors({ failing: 'red', unresolved: 'amber', healthy: 'green' }).widget('workflow_status'),
+    status_run_id: r.status_run_id.label('Status run'),
+    status_run_at: r.status_run_at.label('Status run ended'),
+    unresolved_failures: r.unresolved_failures.label('Unresolved failures'),
+    resolved_at: r.resolved_at.label('Resolved'),
+    resolved_by: r.resolved_by.label('Resolved by'),
   }))
-  .list((r) => ({ columns: [r.name, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
+  .list((r) => ({ columns: [r.name, r.run_status, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
   .recordWidth('full')
   .layout((r) => [
-    l.section('Workflow', [r.name, r.description, r.enabled_version]),
+    l.section('Workflow', [r.run_status, r.name, r.description, r.enabled_version]),
     // Its versions, runs and Test run are chosen above the graph, which spans the page
     l.section('Graph', [r.definition], { width: 'page' }),
     l.sidebar([r.version, r.created_at, r.updated_at]),
@@ -96,6 +106,8 @@ const runsResource = (schema: string) =>
       error: f.text().optional().readOnly(),
       cause: f.text().optional().readOnly(),
       resume_at: f.timestamp().optional().readOnly(),
+      trace: f.enum(traceModes).optional(),
+      trace_file: f.file().optional().readOnly(),
       started_by: f.text().optional().readOnly(),
       rerun_of: f.relation('workflow_runs').optional().filterable(),
       rerun_from: f.text().optional().max(200),
@@ -118,18 +130,22 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   .title((r) => r.created_at)
   // A run is shown on its workflow's graph, on the version it ran on
   .recordOpens({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })
-  .help('A run of a workflow with its input. It takes up where it stands after a restart; each of its steps is listed with what it read, gave and logged.')
+  .help('A run of a workflow with its input. It takes up where it stands after a restart; its trace lists each step with what it read, gave and logged.')
   .fields((r) => ({
     id: r.id.label('Steps').widget('workflow_run'),
     workflow_id: r.workflow_id.label('Workflow'),
     input: r.input.widget('json').help('Read by every state as $states.context.Execution.Input; a re-run takes the input of the run it re-runs'),
-    rerun_of: r.rerun_of.label('Re-run of').help('A failed run of the workflow: the re-run keeps its steps before the one that failed, and goes on from there on the workflow as it is now; with Replay, a run that ended, run again from the start'),
-    rerun_from: r.rerun_from.label('Re-run from').help("With Re-run of, a run that ended: the state of the workflow itself to go on from. The steps before it stay as they ran; it and all after it run again, and what they send goes out again").notOnCreate(),
-    replay: r.replay.label('Replay').help("With Re-run of, runs that run again from the start on its version and input: its steps that write, such as mail, record writes and requests other than GET, are not sent and give what they gave then, and its reads are served from the step cache"),
+    rerun_of: r.rerun_of.label('Re-run of').help("A failed run of the workflow: the re-run goes on from that run's last checkpoint on the workflow as it is now, so no write whose checkpoint was saved happens again; with Replay, a run that ended, run again from the start"),
+    rerun_from: r.rerun_from.label('Re-run from').help("The step to re-run from, not one inside For each. Set Re-run of to a run that ended and kept its trace. Earlier steps keep their results. The chosen step and every step after it run again, and anything they send goes out again").notOnCreate(),
+    replay: r.replay.label('Replay').help("With Re-run of, runs that run again from the start on its version and input: its steps that write, such as mail, record writes and requests other than GET, are not sent and give what its trace says they gave then, nothing when it kept none, and its reads are served from the step cache"),
     key: r.key.help('A workflow runs once per key, such as the record a trigger found ready'),
     status: r.status.valueLabels({ queued: 'Queued', running: 'Running', waiting: 'Waiting', succeeded: 'Succeeded', failed: 'Failed' }).valueColors({ succeeded: 'green', failed: 'red' }),
     output: r.output.widget('json'),
     resume_at: r.resume_at.label('Goes on at'),
+    trace: r.trace
+      .valueLabels({ all: 'Keep a trace', failed: 'Keep a trace if it fails', none: 'Keep no trace' })
+      .help("Whether the run keeps a trace of its steps; by default as its workflow, else the app, says"),
+    trace_file: r.trace_file.label('Trace').help('Every step with its input, output, logs and timing, one JSON object a line, once the run ended'),
     started_by: r.started_by.label('Started by'),
     created_at: r.created_at.label('Started'),
     finished_at: r.finished_at.label('Finished'),
@@ -142,64 +158,9 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   ])
   .layout((r) => [
     l.section('Trace', [r.id]),
-    l.section('Run', [r.workflow_id, r.input, r.output, r.error, r.cause]),
-    l.sidebar([r.status, r.version, r.started_by, r.rerun_of, r.rerun_from, r.replay, r.created_at, r.resume_at, r.finished_at, r.duration_ms]),
-    l.related('Steps', { resource: 'workflow_steps', field: 'run_id', columns: ['scope', 'seq', 'state', 'status', 'attempt', 'duration_ms', 'error'] }),
+    l.section('Run', [r.workflow_id, r.input, r.output, r.error, r.cause, r.trace_file]),
+    l.sidebar([r.status, r.version, r.trace, r.started_by, r.rerun_of, r.rerun_from, r.replay, r.created_at, r.resume_at, r.finished_at, r.duration_ms]),
     l.related('Re-runs', { resource: 'workflow_runs', field: 'rerun_of', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'error'] }),
-  ])
-
-/** Every step of every run: its input with secrets redacted, output, variables, logs, timing, try and error. */
-const stepsResource = (schema: string) =>
-  resource('workflow_steps')
-    .table(`${schema}.steps`)
-    .fields({
-      id: f.bigint().readOnly().sortable(),
-      run_id: f.relation('workflow_runs').readOnly().filterable(),
-      tenant_id: f.text().optional().readOnly(),
-      scope: f.text().readOnly(),
-      seq: f.integer().readOnly(),
-      state: f.text().readOnly().filterable(),
-      type: f.text().readOnly(),
-      status: f.enum(stepStatuses).readOnly().filterable(),
-      attempt: f.integer().readOnly(),
-      input: f.json().optional().readOnly(),
-      output: f.json().optional().readOnly(),
-      assigned: f.json().optional().readOnly(),
-      next: f.text().optional().readOnly(),
-      resume_at: f.timestamp().optional().readOnly(),
-      error: f.text().optional().readOnly(),
-      cause: f.text().optional().readOnly(),
-      logs: f.json().readOnly(),
-      started_at: f.timestamp().readOnly(),
-      finished_at: f.timestamp().readOnly(),
-      duration_ms: f.bigint().optional().readOnly(),
-    })
-    .primaryKey((r) => r.id)
-    .tenant((r) => r.tenant_id)
-    .explicitGrants()
-    .access({ create: () => false, update: () => false, delete: () => false })
-
-const stepsView = view<ReturnType<typeof stepsResource>>('workflow_steps')
-  .names({ singular: 'Workflow step', plural: 'Workflow steps' })
-  .icon('list-checks')
-  .nav({ hidden: true })
-  .title((r) => r.state)
-  .fields((r) => ({
-    run_id: r.run_id.label('Run'),
-    scope: r.scope.help('Where the step ran: empty for the run itself, or the Map item, such as Each.3[0]').format('code'),
-    seq: r.seq.label('Step'),
-    attempt: r.attempt.label('Try'),
-    status: r.status.valueLabels({ succeeded: 'Succeeded', retrying: 'Retried', caught: 'Caught', failed: 'Failed' }).valueColors({ succeeded: 'green', failed: 'red' }),
-    input: r.input.help("The app's secrets, and fields whose name says they hold one such as Authorization, are blanked out"),
-    assigned: r.assigned.label('Variables assigned'),
-    next: r.next.label('Goes on to'),
-    resume_at: r.resume_at.label('Next state not before'),
-    duration_ms: r.duration_ms.label('Duration (ms)'),
-  }))
-  .list((r) => ({ columns: [r.run_id, r.scope, r.seq, r.state, r.status, r.attempt, r.duration_ms, r.error], sort: [[r.id, 'asc']] }))
-  .layout((r) => [
-    l.section('Step', [r.run_id, r.state, r.type, r.scope, r.seq, r.input, r.output, r.assigned, r.logs, r.error, r.cause]),
-    l.sidebar([r.status, r.attempt, r.next, r.resume_at, r.started_at, r.finished_at, r.duration_ms]),
   ])
 
 const triggerStatuses = ['active', 'failing', 'needs_sign_in', 'stopping'] as const
@@ -239,8 +200,8 @@ const triggersView = view<ReturnType<typeof triggersResource>>('workflow_trigger
   .list((r) => ({ columns: [r.workflow_id, r.type, r.status, r.updated_at], sort: [[r.updated_at, 'desc']] }))
 
 /**
- * The resources and views `workflows` adds to an app, over the tables of `schema`: Workflows with their versions, runs
- * and steps. Config only; the server checks and runs them.
+ * The resources and views `workflows` adds to an app, over the tables of `schema`: Workflows with their versions and
+ * runs. Config only; the server checks and runs them.
  */
 export const workflowResources = (schema: string) => ({
   workflows: workflowsResource(schema),
@@ -249,8 +210,8 @@ export const workflowResources = (schema: string) => ({
   workflowVersionsView: versionsView,
   workflowRuns: runsResource(schema),
   workflowRunsView: runsView,
-  workflowSteps: stepsResource(schema),
-  workflowStepsView: stepsView,
   workflowTriggers: triggersResource(schema),
   workflowTriggersView: triggersView,
+  workflowResolutions: resolutionsResource(schema),
+  workflowResolutionsView: resolutionsView,
 })

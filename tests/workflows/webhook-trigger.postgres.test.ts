@@ -1,13 +1,17 @@
 import { createHmac } from 'node:crypto'
 import { readdir } from 'node:fs/promises'
 import { sql, type Kysely } from 'kysely'
+// Where runs keep their traces.
+const trace = await traceFiles()
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
-import { localFiles, workflowsModule } from '@protobase/server/internal'
+import { workflowsModule } from '@protobase/server/internal'
 import { definePlugin, webhookInputProperties } from '@protobase/workflows/plugin'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { traceFiles } from './support/run-trace'
 
 // Workers poll on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -50,9 +54,9 @@ const fixtures = definePlugin({
   },
 })
 
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps' | 'workflow_triggers'>({
-  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'workflow_triggers.read'],
-  reader: ['workflows.read', 'workflow_versions.read', 'workflow_runs.read', 'workflow_steps.read'],
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_triggers'>({
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_triggers.read'],
+  reader: ['workflows.read', 'workflow_versions.read', 'workflow_runs.read'],
 })
 const people: Record<string, { tenant: number; role: string }> = { ada: { tenant: 1, role: 'builder' }, bob: { tenant: 2, role: 'builder' }, rita: { tenant: 1, role: 'reader' } }
 const workflows: WorkflowsOptions = { savedByRoles: async ({ id }) => [people[id]!.role], plugins: [{ plugin: fixtures, source: 'fixture' }] }
@@ -82,7 +86,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
   beforeAll(async () => {
     pg = await openPostgresDatabase('jobs')
     db = pg.db
-    folder = await tempDir()
+    folder = trace.folder
     await pg.exec((await workflowsMigration(db, workflows))!)
     vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => void logged.push(args.map(String).join(' ')))
     vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => void logged.push(args.map(String).join(' ')))
@@ -91,7 +95,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
       resources,
       views,
       db,
-      files: { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-webhook-tests' },
+      files: trace.files,
       authenticate: (request) => {
         const id = request.headers.get('x-user')
         if (!id) throw Object.assign(new Error('no user'), { status: 401 })
@@ -229,7 +233,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     const response = await call(hook.url, { body, headers: { 'X-SIGNATURE': signature, Authorization: 'Bearer a-token-of-the-caller', COOKIE: 'session=a-session-of-the-caller', 'Webhook-Signature': 'v1,a-signature', 'X-Forwarded-Host': 'proxy.test' } })
     expect(response.status).toBe(202)
     const { run_id } = (await response.json()) as { run_id: string }
-    const steps = await until(async () => (await sql`select input, output, logs from workflows.steps where run_id = ${run_id}`.execute(db)).rows, (rows) => rows.length > 0)
+    const steps = await trace.steps(db, run_id)
     const kept = JSON.stringify([await runsOf(hook.id), steps, logged])
     for (const secret of [signature, 'a-token-of-the-caller', 'a-session-of-the-caller', 'a-signature', 'proxy.test', hook.url.split('/').at(-1)!, hook.secret]) expect(kept).not.toContain(secret)
   })
@@ -254,7 +258,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     expect(run!.input.body).toMatchObject({ name: 'body', type: 'application/json', size: body.length, uri: expect.stringContaining(`workflows/${run!.id}/`) })
   })
 
-  it('keeps a body under 1 MiB as a file when escaping makes the run input over 1 MiB as JSON', async () => {
+  it('keeps a body under 1 MiB as a file when escaping makes the run input over 256 KiB as JSON', async () => {
     const hook = await hooked()
     const quotes = '"'.repeat(600_000)
     expect((await signed(hook.url, hook.secret, quotes)).status).toBe(202)
@@ -341,7 +345,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     const hook = await hooked()
     const module = workflowsModule(workflows)
     const { resources, views } = configExports({ ...module, workflows: module.workflows.live() })
-    const live = createAdmin({ resources, views, db, authenticate: () => { throw Object.assign(new Error('no user'), { status: 401 }) }, workflows, options: { roles } })
+    const live = createAdmin({ resources, views, db, files: trace.files, authenticate: () => { throw Object.assign(new Error('no user'), { status: 401 }) }, workflows, options: { roles } })
     const body = '{"event":"paid"}'
     const id = 'msg_live'
     const at = now()

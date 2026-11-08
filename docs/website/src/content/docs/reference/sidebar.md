@@ -83,7 +83,7 @@ export const channelsView = view<typeof channels>('channels').nav({ recent: { or
 | Key | Meaning |
 | --- | --- |
 | `status` | The field whose value picks each record's dot. Typed against the resource's fields. Optional: without it, records have no dot, as a chat's channels. |
-| `tones` | Dot colour per status value: `neutral`, `info`, `success`, `warning` or `danger`. Values not listed are `neutral`. Optional. |
+| `tones` | Dot per status value, each with a colour and a shape of its own, so a status does not rest on colour alone: `neutral` a gray ring, `info` a diamond in the primary colour, `success` a green dot, `warning` an orange triangle, `danger` a red square. Values not listed are `neutral`. Optional. |
 | `pulse` | Status values whose dot pulses, for states in progress (a deploy running, an order being picked). Needs `status`. |
 | `filter` | Which records qualify, as AIP-160 text, exactly as `?filter=` on the list API. Use it to leave out finished or inactive records, or to keep them while they are recent: `status != "stopped" OR updated_at > now() - 7d`. |
 | `orderBy` | AIP-132 order, as `?order_by=`; the list's `sort` when omitted. |
@@ -144,6 +144,6 @@ A row shows one person's presence; a row for a group names no one and shows none
 
 `createAdmin` refuses to start when a group does not fit its resource: an unknown `status` field, `pulse` without a `status`, a tone outside the palette, a `limit` outside 1 to 20, `marks` without a name, or a `filter` or `orderBy` the list API would reject (unknown, non-filterable or non-sortable fields, bad syntax). `view.toModel(resourceModel)` runs the same checks.
 
-`/meta` drops the group, and keeps the rest of `nav`, for a caller who cannot read a field it uses (its status when it has one, or a field in its filter or order), so it never names a hidden field.
+`/meta` drops the group, and keeps the rest of `nav`, for a caller who cannot read a field in its filter or order, and lists the records without dots for one who cannot read its status field, so it never names a hidden field.
 
 `EMAIL=... PASSWORD=... bun scripts/e2e-shell.mjs` checks the groups and the user menu in a browser against a running `bun run --cwd tests/apps/erp dev` (`BASE` for another address), comparing them with what the API gives that user.
