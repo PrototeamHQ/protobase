@@ -26,7 +26,7 @@ const checkedFiles = (value: number) => {
 
 /**
  * `store` refusing a file with `507` once it would hold more than `maxBytes` or `maxFiles`. Only files count, not the
- * store's own `.cleanup/` entries. What the store holds is counted with `list` on the first upload and again when the
+ * store's own `.cleanup/` entries, and a file that replaces one at its path takes no more room than it adds. What the store holds is counted with `list` on the first upload and again when the
  * count is older than `recountMs`, and in between follows this instance's own writes: several instances, or a delete
  * made elsewhere, can be off by what happened since the last count.
  */
@@ -46,8 +46,11 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
 
   const put = async (path: string, body: ReadableStream<Uint8Array>) => {
     if (!isFilePath(path)) return store.put(path, body)
+    const replaced = await store.head(path)
+    const added = replaced ? 0 : 1
+    const freed = replaced?.size ?? 0
     const stored = await usage()
-    if (stored.files + pending.files + 1 > maxFiles) {
+    if (stored.files + pending.files + added > maxFiles) {
       await body.cancel()
       throw limitReached()
     }
@@ -56,23 +59,23 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
       transform: (chunk, controller) => {
         size += chunk.length
         pending.bytes += chunk.length
-        if (stored.bytes + pending.bytes > maxBytes) throw new LimitReached()
+        if (stored.bytes - freed + pending.bytes > maxBytes) throw new LimitReached()
         controller.enqueue(chunk)
       },
     })
-    pending.files += 1
+    pending.files += added
     try {
       const written = await store.put(path, body.pipeThrough(counting))
       if (counted) {
-        counted.bytes += written.size
-        counted.files += 1
+        counted.bytes += written.size - freed
+        counted.files += added
       }
       return written
     } catch (error) {
       if (error instanceof LimitReached) throw limitReached()
       throw error
     } finally {
-      pending.files -= 1
+      pending.files -= added
       pending.bytes -= size
     }
   }

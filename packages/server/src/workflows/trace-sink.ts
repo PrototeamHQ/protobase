@@ -33,7 +33,8 @@ export const traceSink = ({ files, joining, report }: TraceSinkInput): TraceSink
   // written. One run writes one part at a time, since the runner awaits `write` before it saves the checkpoint after
   // it, so reading the number and putting the next one needs no lock. The number goes up before the part is put: a
   // write that fails leaves a gap, never a number taken twice. The join drops the number after the parts, so a join
-  // that stops halfway leaves it, and a later part still sorts after the parts that join left.
+  // that stops halfway leaves it, and a later part still sorts after the parts that join left. Parts named by their time,
+  // as before, are not ordered among these: before 1.0 a run that spans the upgrade may read its trace out of order.
   const nextPart = async (store: NonNullable<ReturnType<typeof privateRunStore>>, runId: string) => {
     const kept = await store.read(traceNext(runId))
     const next = kept ? Number(await new Response(kept).text()) : 0
