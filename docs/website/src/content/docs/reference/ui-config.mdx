@@ -554,7 +554,7 @@ view<typeof workflows>('workflows')
 
 ### A record page that opens another
 
-`.recordOpens(to)` sends a record's page to another address in its place, its `{field}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names, gets the record's own page. The record's own page stays at its address with `?standard=true`.
+`.recordOpens(to)` sends a record's page to another address in its place, its `{field}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names or open the page it names, gets the record's own page. The record's own page stays at its address with `?standard=true`.
 
 ```ts
 view<typeof workflowRuns>('workflow_runs').recordOpens({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })
@@ -596,7 +596,7 @@ The bar gets the record's state, Save, its [actions](#actions-and-views-per-role
 
 <StoryFrame id="record-page-focus-page--pin-board-page" title="A field type of the app's own on a focus page" height={560} />
 
-A create address can open a page in place of the form too, for a record made where it is used, as a workflow's test run is made in the workflow's page. `.createOpens(to)` replaces the address, its `{field}`s filled from the address's `values`; an address without them shows the form. A record address's `panel` (`?panel=<name>`) names a panel its surface opens with.
+A create address can open a page in place of the form too, for a record made where it is used, as a workflow's test run is made in the workflow's page. `.createOpens(to)` replaces the address, its `{field}`s filled from the address's `values`; an address without them, or a page the caller may not open, shows the form. A record address's `panel` (`?panel=<name>`) names a panel its surface opens with.
 
 ### Read view and edit
 
