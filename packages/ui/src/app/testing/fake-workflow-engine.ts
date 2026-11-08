@@ -91,7 +91,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
       }
       void runner.start(null, id)
     },
-    /** A run's trace, as the API serves it. */
-    trace: async (id: string): Promise<WorkflowRunTrace> => ({ steps: structuredClone(traces.get(id) ?? []) }),
+    /** A run's whole trace, which `fakeApi` serves after the steps the page has. */
+    trace: async (id: string): Promise<Pick<WorkflowRunTrace, 'steps'>> => ({ steps: structuredClone(traces.get(id) ?? []) }),
   }
 }

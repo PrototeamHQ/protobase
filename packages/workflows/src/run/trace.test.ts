@@ -11,12 +11,13 @@ const definition = (fails: boolean, trace?: Definition['trace']): Definition => 
 const tasks = { call: async () => 'ok', fail: async () => Promise.reject(new StepError('Remote.Down', 'down')) }
 
 describe("a run's trace", () => {
-  it('keeps every step of every segment, with its input and output, by default', async () => {
+  it('keeps every step of every segment, with its input and output, by default, a write in a part before its checkpoint', async () => {
     const port = memoryRunner(tasks)
     await port.start('r1', definition(false), {})
     await port.drain()
     expect(port.traces.get('r1')!.map((part) => part.map(({ state, input, output }) => ({ state, input, output })))).toEqual([
-      [{ state: 'Call', input: { n: 1 }, output: 'ok' }, { state: 'Hold', input: 'ok', output: 'ok' }],
+      [{ state: 'Call', input: { n: 1 }, output: 'ok' }],
+      [{ state: 'Hold', input: 'ok', output: 'ok' }],
     ])
   })
 
@@ -35,6 +36,6 @@ describe("a run's trace", () => {
     await port.start('own', definition(false, 'none'), {}, 'all')
     await port.drain()
     expect(port.traces.has('none')).toBe(false)
-    expect(port.traces.get('own')).toHaveLength(1)
+    expect(port.traces.get('own')!.flat()).toHaveLength(2)
   })
 })

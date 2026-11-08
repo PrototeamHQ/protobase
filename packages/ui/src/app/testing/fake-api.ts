@@ -54,8 +54,8 @@ export type FakeApiInput = {
   generate?: (resource: string, key: string, action: string) => Promise<Row>
   /** The workflow trigger and step types the editor reads; the built-in ones and `examplePlugin`'s without. */
   workflowTypes?: WorkflowTypeList
-  /** A workflow run's trace, as the run's page reads it; no steps without it. */
-  workflowRunTrace?: (runId: string) => Promise<WorkflowRunTrace>
+  /** A workflow run's whole trace, which the run's page reads after the steps it has; no steps without it. */
+  workflowRunTrace?: (runId: string) => Promise<Pick<WorkflowRunTrace, 'steps'>>
 }
 
 const keyOf = (model: ResourceModel, row: Row) => encodeKey(model.primaryKey.map((name) => row[name] as string | number))
@@ -246,7 +246,11 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
 
   const client = {
     workflowTypes: async () => structuredClone(workflowTypes),
-    workflowRunTrace,
+    workflowRunTrace: async (runId: string, after = 0): Promise<WorkflowRunTrace> => {
+      const { steps } = await workflowRunTrace(runId)
+      const from = after <= steps.length ? after : 0
+      return { from, steps: steps.slice(from) }
+    },
     meta: async () => ({ status: 'modified' as const, etag: '"fake-meta"', meta: { appName: 'Protobase', resources, views, pages, ...(account && { account }), permissions, ...(plugins && { plugins }), ...(sources && { sources }), ...(maps && { maps }), ...(files && { files }), ...(bottomBar && { bottomBar }), ...(signIn && { signIn }) } }),
     list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
     search: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),

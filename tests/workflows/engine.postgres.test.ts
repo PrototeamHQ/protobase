@@ -7,6 +7,7 @@ import { defineRoles } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, startWorkflow, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
+import { postgresRunStore } from '../../packages/server/src/workflows/store'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 
 // Workers poll and retry on real timers, which a busy machine stretches.
@@ -361,6 +362,23 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     await finished(runId)
     expect(await runRow(runId)).toMatchObject({ status: 'succeeded', output: 'kept', started_by: 'job:import' })
     expect((await sql<{ count: number }>`select count(*)::int as count from workflows.runs where input = '"dropped"'`.execute(db)).rows[0]!.count).toBe(0)
+  })
+
+  it('keeps none of a save refused for one of its scopes, also inside a transaction, so another segment goes on', async () => {
+    const id = await create('Saves', definition({ Done: { Type: 'Succeed' } }))
+    const runId = (await sql<{ id: string }>`insert into workflows.runs (workflow_id, tenant_id, version, status) values (${id}, '1', 1, 'waiting') returning id`.execute(db)).rows[0]!.id
+    const store = postgresRunStore('workflows')
+    const at = (scope: string, seq: number, after: number) => ({ scope, seq, after, state: 'Done', type: 'Pass', status: 'succeeded' as const, fetchedAt: new Date(), next: 'Done', variables: {}, attempt: 1, failures: [], visits: {}, clock: new Date() })
+    const scopes = async () => (await sql<{ scope: string; seq: number }>`select scope, seq from workflows.checkpoints where run_id = ${runId} order by scope`.execute(db)).rows
+    expect(await store.save(db, runId, [at('x', 0, -1)])).toBe(true)
+    // x has a newer checkpoint than the one this save follows, so y is not kept either.
+    expect(await store.save(db, runId, [at('x', 0, -1), at('y', 0, -1)])).toBe(false)
+    expect(await scopes()).toEqual([{ scope: 'x', seq: 0 }])
+    await db.transaction().execute(async (trx) => {
+      expect(await store.save(trx, runId, [at('y', 0, -1), at('x', 1, -1)])).toBe(false)
+      expect(await store.save(trx, runId, [at('x', 1, 0)])).toBe(true)
+    })
+    expect(await scopes()).toEqual([{ scope: 'x', seq: 1 }])
   })
 
   it('starts a run once per key, however many starts race for it', async () => {

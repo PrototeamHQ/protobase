@@ -23,6 +23,8 @@ export type SegmentInput = {
   saved: readonly Checkpoint[]
   /** Saves checkpoints in one guarded statement: false when a scope has one newer than the one it follows. */
   save: (checkpoints: readonly Checkpoint[]) => Promise<boolean>
+  /** Hands the steps run since the last time to the trace, before a checkpoint after them is saved. */
+  keep: (steps: readonly StepRecord[]) => Promise<void>
   tasks: TaskHandlers
   /** Where step types that cache keep their results; none keeps nothing. */
   cache?: StepCacheStore
@@ -36,7 +38,7 @@ export type SegmentInput = {
   maxSteps?: number
 }
 
-/** How a segment ended, with the steps it ran for the run's trace. */
+/** How a segment ended, with the steps it ran since it last handed them to `keep`, for the run's trace. */
 export type SegmentOutcome = (ScopeOutcome | { kind: 'superseded' }) & { steps: StepRecord[] }
 
 /**
@@ -44,7 +46,7 @@ export type SegmentOutcome = (ScopeOutcome | { kind: 'superseded' }) & { steps: 
  * (a Wait, a retry's delay), or yields once its time is up, saving its checkpoints on the way and as it pauses.
  * `superseded` when another segment saved a newer checkpoint first.
  */
-export const runSegment = async ({ runId, definition, input, startedAt, secrets, redactor, saved, save, tasks, cache, replayed, signal, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: SegmentInput): Promise<SegmentOutcome> => {
+export const runSegment = async ({ runId, definition, input, startedAt, secrets, redactor, saved, save, keep, tasks, cache, replayed, signal, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: SegmentInput): Promise<SegmentOutcome> => {
   const latest = new Map(saved.map((checkpoint) => [checkpoint.scope, checkpoint]))
   // The seq of each scope's last saved checkpoint, which the next one follows.
   const after = new Map(saved.map((checkpoint) => [checkpoint.scope, checkpoint.seq]))
@@ -56,6 +58,9 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     const checkpoints = [...kept.values()].map((checkpoint) => ({ ...checkpoint, after: after.get(checkpoint.scope) ?? -1 }))
     kept = new Map()
     if (checkpoints.length === 0) return
+    // Kept before the checkpoint after them, so a crash once it is saved, which no later segment runs again, loses none.
+    const ran = steps.splice(0)
+    if (ran.length > 0) await keep(ran)
     if (await save(checkpoints)) {
       for (const checkpoint of checkpoints) after.set(checkpoint.scope, checkpoint.seq)
       return

@@ -25,6 +25,7 @@ import { connectionRelease } from './connections/connection-release'
 import type { TokenAuth } from '../personal-mail/linked-accounts'
 import type { Locale } from '@protobase/schema/internal'
 import { connectionTexts } from './connections/connection-texts'
+import { traceJoining } from './trace-joining'
 
 /**
  * What `createAdmin` needs for `workflows`: the hooks that check saves and start runs, the check of a run's input before
@@ -45,8 +46,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const input = { deps, schema, roles, allowPrivateAddresses: Boolean(options.allowPrivateAddresses), connect: connections.trigger }
   const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET))
   const files = () => deps().files
-  const kept = async (runId: string, file: string) => void (await sql`update ${sql.id(schema, 'runs')} set trace_file = ${file} where id = ${runId}`.execute(deps().db))
-  const trace = traceSink({ files, kept, report: (error) => deps().report(error) })
+  const trace = traceSink({ files, joining: traceJoining(() => deps().db, schema), report: (error) => deps().report(error) })
   const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets, cache, trace, traceMode: workflowsTraceMode(options) })
   const redactor = secretRedactor(Object.values(secrets))
   // Only the types a save takes: a trigger of a type no longer available, as after an app update, does nothing.

@@ -15,7 +15,7 @@ vi.mock('../fetch-readable', () => ({ fetchReadable: vi.fn(async (_db: unknown, 
 const roles = defineRoles<'workflow_runs'>({ reader: ['workflow_runs.read'], other: [] })
 const deps = { registry: buildRegistry([workflowResources('workflows').workflowRuns]), accessOptions: { roles }, settingsResources: new Set() } as unknown as Deps
 const run = '6f1c2a54-0d3e-4b6a-9a51-2f6c8e7d9b10'
-const steps = [{ scope: '', seq: 0, state: 'Fetch', status: 'succeeded', output: { n: 1 } }]
+const steps = [{ scope: '', seq: 0, state: 'Fetch', status: 'succeeded', output: { n: 1 } }, { scope: '', seq: 1, state: 'Done', status: 'succeeded' }]
 
 // The route as the app mounts it, under the runs' path the run's page reads from, behind a guard that signs the caller in with `role`
 const serve = (role: string, readTrace = vi.fn(async () => steps)) => {
@@ -34,8 +34,16 @@ describe("a run's trace, as its page reads it", () => {
     const { app, readTrace } = serve('reader')
     const answer = await app.request(workflowRunTracePath('/api', run))
     expect(answer.status).toBe(200)
-    expect(await answer.json()).toEqual({ steps })
+    expect(await answer.json()).toEqual({ from: 0, steps })
     expect(readTrace).toHaveBeenCalledWith(run)
+  })
+
+  it('serves only the steps after those the caller has, or all of them when the trace holds fewer, and refuses a count that is none', async () => {
+    const { app } = serve('reader')
+    expect(await (await app.request(workflowRunTracePath('/api', run, 1))).json()).toEqual({ from: 1, steps: [steps[1]] })
+    expect(await (await app.request(workflowRunTracePath('/api', run, 2))).json()).toEqual({ from: 2, steps: [] })
+    expect(await (await app.request(workflowRunTracePath('/api', run, 3))).json()).toEqual({ from: 0, steps })
+    expect((await app.request(`${workflowRunTracePath('/api', run)}?after=-1`)).status).toBe(400)
   })
 
   it('answers 404, reading no trace, to a caller who may not read runs or this run, and for a key that is no run id', async () => {

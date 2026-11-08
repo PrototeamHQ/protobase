@@ -79,6 +79,20 @@ describe('when the runner saves checkpoints', () => {
     expect({ mails, gets }).toEqual({ mails: 1, gets: 2 })
   })
 
+  it('keeps in the trace a write whose checkpoint was saved before the worker stopped, which the run does not call again', async () => {
+    const worker = new AbortController()
+    const port = memoryRunner({ mail: async () => ({ message_id: '<1@x>' }), slow: crashingOnce(worker, 'done') })
+    await port.start('r8', definition({
+      Mail: { Type: 'Task', Resource: 'mail', Next: 'Slow' },
+      Slow: { Type: 'Task', Resource: 'slow', End: true },
+    }), {})
+    await expect(port.step(worker.signal)).rejects.toThrow('the worker stopped')
+    await port.runner.segment(null, 'r8', new AbortController().signal)
+
+    expect(port.run('r8')).toMatchObject({ status: 'succeeded', output: 'done' })
+    expect(port.steps.map(({ state, output }) => ({ state, output }))).toEqual([{ state: 'Mail', output: { message_id: '<1@x>' } }, { state: 'Slow', output: 'done' }])
+  })
+
   it('gives a write the same idempotency key when a crash between its commit and its checkpoint makes the run call it again', async () => {
     const worker = new AbortController()
     // A records store that keeps one record per key, as the records step's effects do
@@ -209,7 +223,7 @@ describe('when the runner saves checkpoints', () => {
     expect(port.checkpoints.map(({ state, seq, after }) => ({ state, seq, after }))).toEqual([{ state: 'Hold', seq: 1, after: 0 }])
     expect(port.writes).toEqual([1, 1])
 
-    const stale = await runSegment({ runId: 'r9', definition: machine, input: {}, startedAt: port.now(), secrets: {}, redactor: secretRedactor([]), saved: [], save: (checkpoints) => port.store.save(null, 'r9', checkpoints), tasks: { write }, signal: new AbortController().signal, now: port.now })
+    const stale = await runSegment({ runId: 'r9', definition: machine, input: {}, startedAt: port.now(), secrets: {}, redactor: secretRedactor([]), saved: [], save: (checkpoints) => port.store.save(null, 'r9', checkpoints), keep: async () => {}, tasks: { write }, signal: new AbortController().signal, now: port.now })
     expect(stale.kind).toBe('superseded')
     expect(port.checkpoints.map(({ state }) => state)).toEqual(['Hold'])
   })
