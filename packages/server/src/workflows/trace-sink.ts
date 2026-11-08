@@ -30,8 +30,9 @@ export type TraceSinkInput = {
  */
 export const traceSink = ({ files, joining, report }: TraceSinkInput): TraceSink => {
   // A part is named by the run's next number, whichever worker keeps it, so the parts read in the order they were
-  // written. One run writes one part at a time, since the runner awaits `write` before it saves the checkpoint after
-  // it, so reading the number and putting the next one needs no lock. The number goes up before the part is put: a
+  // written. One run writes one part at a time, since a segment hands its steps over one at a time, a Map's items too,
+  // and awaits `write` before it saves the checkpoint after them, so reading the number and putting the next one needs
+  // no lock. The number goes up before the part is put: a
   // write that fails leaves a gap, never a number taken twice. The join keeps the number with the run's other files, so
   // a part a retry writes after a join still sorts after every part before it. Parts named by their time, as before,
   // are not ordered among these: before 1.0 a run that spans the upgrade may read its trace out of order.
