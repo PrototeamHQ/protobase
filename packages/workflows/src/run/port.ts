@@ -159,11 +159,13 @@ export type TraceMode = NonNullable<Definition['trace']>
 
 /**
  * Where runs' traces go, outside the database: each segment hands over the steps it ran, with every input and output,
- * once its checkpoints are saved, and returns at once, so writing them never holds up the run. `ended` on the segment
- * that ended the run; with `failed`, a run that succeeded keeps no trace. `read` gives an ended run's steps, as a replay
- * of it takes them: undefined when it kept no trace.
+ * once its checkpoints are saved. `write` resolves once they are kept, and on the segment that ended the run (`ended`)
+ * once the whole trace is, so the runner queues the next segment or ends the run only then and no part comes after the
+ * trace is joined; it never rejects, since a trace that cannot be written does not stop the run. With `failed`, a run
+ * that succeeded keeps no trace. `read` gives an ended run's steps, as a replay of it takes them: undefined when it kept
+ * no trace.
  */
 export type TraceSink = {
-  write(runId: string, steps: readonly StepRecord[], segment: { mode: TraceMode; ended?: 'succeeded' | 'failed' }): void
+  write(runId: string, steps: readonly StepRecord[], segment: { mode: TraceMode; ended?: 'succeeded' | 'failed' }): Promise<void>
   read(runId: string): Promise<readonly StepRecord[] | undefined>
 }

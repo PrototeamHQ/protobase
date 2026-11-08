@@ -58,21 +58,23 @@ export const createRunner = <Db>({ store, queue, tasks, cache, secrets = {}, tra
       const outcome = await runSegment({ ...segment, ...(replayed && { replayed }), saved: await store.checkpoints(db, runId), save: (checkpoints) => store.save(db, runId, checkpoints) })
       const mode = run.trace ?? run.definition.trace ?? traceMode
       const traced = (end?: 'succeeded' | 'failed') => trace?.write(runId, outcome.steps, { mode, ...(end && { ended: end }) })
+      // The trace is kept before the run goes on or ends, so the next segment's part, or the join, comes after it, and
+      // a run seen ended has its whole trace.
       if (outcome.kind === 'superseded') return traced()
       if (outcome.kind === 'ended') {
+        await traced('succeeded')
         await store.update(db, runId, { status: 'succeeded', output: redactor.value(outcome.output) })
-        return traced('succeeded')
+        return
       }
       if (outcome.kind === 'failed') {
+        await traced('failed')
         await store.update(db, runId, { status: 'failed', error: redactor.text(outcome.error), cause: redactor.text(outcome.cause) })
-        return traced('failed')
+        return
       }
-      if (outcome.kind === 'yielded') await queue.schedule(db, runId)
-      else {
-        await store.update(db, runId, { status: 'waiting', resumeAt: outcome.until })
-        await queue.schedule(db, runId, outcome.until)
-      }
-      traced()
+      await traced()
+      if (outcome.kind === 'yielded') return queue.schedule(db, runId)
+      await store.update(db, runId, { status: 'waiting', resumeAt: outcome.until })
+      await queue.schedule(db, runId, outcome.until)
     },
   }
 }

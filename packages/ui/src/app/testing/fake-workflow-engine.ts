@@ -51,7 +51,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
   }
   // Each run's steps as JSON gives them, the way the API serves its trace.
   const trace: TraceSink = {
-    write: (id, steps, { mode, ended: end }) => {
+    write: async (id, steps, { mode, ended: end }) => {
       if (mode === 'none') return
       if (mode === 'failed' && end === 'succeeded') return void traces.delete(id)
       traces.set(id, [...(traces.get(id) ?? []), ...(JSON.parse(JSON.stringify(steps)) as WorkflowTraceStep[])])

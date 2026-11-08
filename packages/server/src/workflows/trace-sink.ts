@@ -18,8 +18,8 @@ export type TraceSinkInput = {
 
 /**
  * The trace of runs as JSON lines in the private file provider, one step a line with its input, output, logs and
- * timing. Each segment's steps are a part of their own, written in the background; the segment that ends the run joins
- * the parts into `trace.jsonl`, which the run's `trace_file` then names, or drops them when only a failing run keeps
+ * timing. Each segment's steps are a part of their own, written before the run goes on; the segment that ends the run
+ * joins the parts into `trace.jsonl`, which the run's `trace_file` then names, or drops them when only a failing run keeps
  * one. A trace that cannot be written goes to the app's error report, and the run goes on. A replay reads the trace of
  * the run it replays through `read`.
  */
@@ -31,17 +31,20 @@ export const traceSink = ({ files, kept, report }: TraceSinkInput): TraceSink =>
     if (!ended) return
     const parts = await store.list(traceParts(runId))
     if (!dropped) {
+      // A segment that ended the run once already, before a crash stopped it from marking the run ended, joined the
+      // parts before it: its join is kept ahead of the parts since.
+      const earlier = await store.read(traceFile(runId))
       const texts = await Promise.all(parts.map(async (part) => new Response(await store.read(part.path)).text()))
-      const whole = new Blob(texts)
+      const whole = new Blob([...(earlier ? [await new Response(earlier).text()] : []), ...texts])
       const { size } = await store.put(traceFile(runId), whole.stream())
       await kept(runId, formatUri({ provider: 'private', path: traceFile(runId), name: 'trace.jsonl', size }))
     }
     await Promise.all(parts.map((part) => store.delete(part.path)))
   }
   return {
-    write: (runId, steps, { mode, ended }) => {
+    write: async (runId, steps, { mode, ended }) => {
       if (mode === 'none') return
-      void keep(runId, steps, mode === 'failed' && ended === 'succeeded', ended !== undefined).catch(report)
+      await keep(runId, steps, mode === 'failed' && ended === 'succeeded', ended !== undefined).catch(report)
     },
     read: async (runId) => {
       const steps = await readTrace(files(), runId)

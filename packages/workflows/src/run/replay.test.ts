@@ -152,7 +152,7 @@ describe('a replay', () => {
       },
       queue: { schedule: async () => {} },
       tasks: { send: async (args) => void calls.push(args) },
-      trace: { write: () => {}, read: () => Promise.reject(new Error('connection lost')) },
+      trace: { write: async () => {}, read: () => Promise.reject(new Error('connection lost')) },
     })
     await expect(runner.segment(null, 'r2', new AbortController().signal)).rejects.toThrow('connection lost')
     expect(calls).toEqual([])

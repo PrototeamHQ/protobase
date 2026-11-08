@@ -44,7 +44,7 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
   }
   // Each segment's steps as a part of its run's trace; a run kept only when it fails drops its parts when it succeeds.
   const trace: TraceSink = {
-    write: (runId, steps, { mode, ended }) => {
+    write: async (runId, steps, { mode, ended }) => {
       if (mode === 'none') return
       if (mode === 'failed' && ended === 'succeeded') return void traces.delete(runId)
       if (steps.length > 0) traces.set(runId, [...(traces.get(runId) ?? []), structuredClone([...steps])])

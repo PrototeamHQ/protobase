@@ -54,5 +54,5 @@ export const keepEarlierCheckpoints = async (trx: Db, deps: Deps, runner: Runner
   const kept = rerunFrom(definition.stateMachine, (await version(earlier)).stateMachine, steps, from, new Date())
   if ('problem' in kept) throw refused(kept.problem)
   if (kept.checkpoint) await postgresRunStore(schema).save(trx, run, [kept.checkpoint])
-  runner.keepSteps({ id: run, definition, trace: (event.after.trace as TraceMode | null | undefined) ?? null }, kept.kept)
+  await runner.keepSteps({ id: run, definition, trace: (event.after.trace as TraceMode | null | undefined) ?? null }, kept.kept)
 }
