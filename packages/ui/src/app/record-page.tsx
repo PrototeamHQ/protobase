@@ -19,6 +19,7 @@ import { Field, GroupSection, KeyFacts, MetadataCard, RecordHeader, RecordTabs, 
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
 import { FullAreaRecord } from './full-area-record'
+import { RecordFocusPage } from './focus/record-focus-page'
 import { RecordOpens } from './record-opens'
 import { MapSection } from './map/map-section'
 import { RecordChartSection } from './record-chart/record-chart-section'
@@ -97,12 +98,13 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
   const standardAsked = address?.kind === 'record' && address.standard === true
   const opens = views[resource]?.recordOpens
   if (opens && !standardAsked) return record.isPlaceholderData ? <Notice title={text('loading')}>{text('fetching')}</Notice> : <RecordOpens to={opens} record={record.data.record} />
-  const fullArea = views[resource]?.record
-  if (!fullArea || standardAsked) return standard
+  const page = views[resource]?.record
+  if (!page || standardAsked) return standard
   // The app's component reads fields a list row may not have, so it waits for the whole record
   if (record.isPlaceholderData) return <Notice title={text('loading')}>{text('fetching')}</Notice>
+  if ('surface' in page || page.focus) return <RecordFocusPage model={model} recordKey={recordKey} stored={record.data} page={page} standard={standard} />
   const { record: fields, etag, permissions } = record.data
-  return <FullAreaRecord component={fullArea.component} scope={{ model, record: fields, key: recordKey, etag, permissions }} standard={standard} />
+  return <FullAreaRecord component={page.component} scope={{ model, record: fields, key: recordKey, etag, permissions }} standard={standard} />
 }
 
 // A record the session's organization does not have may be in another of the person's organizations, which opens it

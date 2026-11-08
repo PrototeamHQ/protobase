@@ -129,6 +129,51 @@ export const ChannelChat = () => {
 }
 ```
 
+## Focus pages
+
+:::caution[Beta]
+These parts serve a record's focus page, or a page of your own that draws `FocusPage`; the page never scrolls, each side holds one panel at a time, and the bar's widths for moving actions into "..." are estimates.
+:::
+
+A [focus page](/reference/ui-config/#focus-pages) knows nothing of what it shows: whatever draws the surface fills the page's parts from anywhere inside it, and the framework adds the record's Save and actions. All of it comes from `@protobase/ui`, for a field type's `editor`, a `.record({ component, focus: true })` component, or a page of your own that draws `FocusPage` itself:
+
+| Part | |
+| --- | --- |
+| `<FocusPage label>` | The page: bar, notice, surface and panels. It takes the content area and stops the page scrolling. `.record(...)` draws it for you. |
+| `<FocusSlot zone>` | Draws its children in the bar: `mode` says what shows and picks it, `controls` holds tools for the surface, `state` says how the work stands, `secondary` and `primary` hold the page's own buttons. A `primary` of yours moves Save to `secondary`; a `state` of yours replaces the framework's. `fallback` shows it only while nothing else fills the zone. |
+| `<FocusActions actions>` | Adds actions, an action rail's `{ name, icon, onRun, blocked, tone, render }`: `inBar` shows at most two by name while there is room, and the rest go behind "...". |
+| `<FocusNotice level actions>` | One strip under the bar, which pushes the surface down. One shows at a time, in the order `refused`, `conflict`, `draft`, `info`, and the next returns as one clears. |
+| `<FocusPanel side title onClose footer takesFocus>` | A panel beside the surface, `end` by default, which the surface makes room for; with too little room it lies over the surface's edge, and below `md` it covers the screen. Its content scrolls on its own. `takesFocus` is for a panel a button opens: it takes the keyboard and hands it back. |
+| `useFocusPage()` | `{ size }`, how much room the bar has, by its own width: `wide`, `medium`, `narrow` or `compact`. |
+| `useFocusZoneFilled(zone)` | Whether something fills a zone. |
+| `useFocusRecord()` | On a record's focus page: the record, its draft (`value`, `change`, `dirty`, `saving`, `refused`), `save()`, which resolves to whether it saved, `discard()`, `readOnly` and `mayUpdate`. |
+| `<SearchPicker groups onPick>` | A searchable list to pick from, for a panel or a dialog: `{ title, items }` groups of `{ id, title, description, keywords, icon }`, with the arrow keys and Enter. |
+| `useCreateForm({ resource, onCreated })`, `<InPlaceForm form fields submit>` | A create form that stays where it is, so an action is done beside what it acts on: the view's fields you name, its failure and its submit button. `onCreated` says what comes next. |
+
+```tsx
+// A field type's editor that fills the surface: it owns its state, and hands the framework the parts
+import { Button, FocusActions, FocusPanel, FocusSlot, SearchPicker, type FieldWidgetEditorProps } from '@protobase/ui'
+import { Eraser } from 'lucide-react'
+import { useState } from 'react'
+
+export const PinBoard = ({ value, onChange }: FieldWidgetEditorProps<string[]>) => {
+  const pins = value ?? []
+  const [adding, setAdding] = useState(false)
+  return (
+    <div className="h-full p-6">
+      <FocusSlot zone="controls"><Button onClick={() => setAdding(true)}>Add pin</Button></FocusSlot>
+      <FocusActions actions={[{ name: 'Clear the board', icon: Eraser, onRun: () => onChange([]) }]} />
+      {pins.map((pin) => <p key={pin}>{pin}</p>)}
+      {adding && (
+        <FocusPanel title="Add a pin" onClose={() => setAdding(false)} takesFocus>
+          <SearchPicker autoFocus groups={[{ title: 'Places', items: [{ id: 'lisbon', title: 'Lisbon' }] }]} onPick={(item) => onChange([...pins, item.id])} />
+        </FocusPanel>
+      )}
+    </div>
+  )
+}
+```
+
 ## Record cards
 
 A cards display can draw each card's content with a component, declared in the view with `d.cards(fields, { card })`. The card stays a link to the record, with the display's frame; the component draws what is inside it from `row`, the record with the fields the display names, so name every field the card shows:

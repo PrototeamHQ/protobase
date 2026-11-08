@@ -7,11 +7,11 @@ const names = (text: string) => [...text.matchAll(placeholder)].map((match) => m
 /** The field a link's address takes its resource from, when its `resource` is only `{field}`, as `'{name}'`. */
 export const resourceField = (to: AppAddress) => (to.kind === 'page' ? undefined : /^\{([A-Za-z_][A-Za-z0-9_]*)\}$/.exec(to.resource)?.[1])
 
-// The parts of an address a `{field}` may stand in: the resource, the record key and run, the list's filter and order, a create form's values.
+// The parts of an address a `{field}` may stand in: the resource, the record key, run and panel, the list's filter and order, a create form's values.
 const templated = (to: AppAddress): string[] => {
   if (to.kind === 'page') return []
   const resource = resourceField(to) === undefined ? [] : [to.resource]
-  if (to.kind === 'record') return [...resource, ...(Array.isArray(to.key) ? to.key : [to.key]).filter((part): part is string => typeof part === 'string'), ...(to.run === undefined ? [] : [to.run])]
+  if (to.kind === 'record') return [...resource, ...(Array.isArray(to.key) ? to.key : [to.key]).filter((part): part is string => typeof part === 'string'), ...(to.run === undefined ? [] : [to.run]), ...(to.panel === undefined ? [] : [to.panel])]
   if (to.kind === 'list') return [...resource, ...[to.filter, to.orderBy].filter((part): part is string => part !== undefined)]
   return [...resource, ...Object.values(to.values ?? {})]
 }
@@ -25,13 +25,13 @@ export const hrefPlaceholders = (href: string) => [...new Set(names(href))]
 const fill = (text: string, record: Record<string, unknown>) =>
   text.replace(placeholder, (_, name: string) => (record[name] === null || record[name] === undefined ? '' : String(record[name])))
 
-/** `to` with every `{field}` in its resource, key, run, filter, order or values replaced by the record's value; a missing value becomes empty. */
+/** `to` with every `{field}` in its resource, key, run, panel, filter, order or values replaced by the record's value; a missing value becomes empty. */
 export const fillAddress = (to: AppAddress, record: Record<string, unknown> = {}): AppAddress => {
   if (to.kind === 'page') return to
   const resource = resourceField(to) === undefined ? to.resource : fill(to.resource, record)
   if (to.kind === 'record') {
     const part = (value: string | number) => (typeof value === 'string' ? fill(value, record) : value)
-    return { ...to, resource, key: Array.isArray(to.key) ? to.key.map(part) : part(to.key as string | number), ...(to.run !== undefined && { run: fill(to.run, record) }) }
+    return { ...to, resource, key: Array.isArray(to.key) ? to.key.map(part) : part(to.key as string | number), ...(to.run !== undefined && { run: fill(to.run, record) }), ...(to.panel !== undefined && { panel: fill(to.panel, record) }) }
   }
   if (to.kind === 'create') return { ...to, resource, ...(to.values && { values: Object.fromEntries(Object.entries(to.values).map(([name, value]) => [name, fill(value, record)])) }) }
   return { ...to, resource, ...(to.filter !== undefined && { filter: fill(to.filter, record) }), ...(to.orderBy !== undefined && { orderBy: fill(to.orderBy, record) }) }

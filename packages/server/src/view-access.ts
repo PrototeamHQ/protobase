@@ -1,6 +1,6 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
-import type { ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ViewModel } from '@protobase/schema'
+import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -272,9 +272,11 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     import: s.data,
     export: s.data,
     create: s.data,
-    record: s.data,
+    // A caller who cannot read the field a focus page draws gets the form
+    record: s.map<RecordPageModel>((page) => ('surface' in page && !Object.hasOwn(model.fields, page.surface) ? undefined : page)),
     // A caller who cannot follow where a record's page leads gets the record's own page
     recordOpens: s.map<AppAddress>((to) => (addressErrors(to, { models, source: model, createPages }).length === 0 ? to : undefined)),
+    createOpens: s.map<AppAddress>((to) => (addressErrors(to, { models, source: model, createPages }).length === 0 ? to : undefined)),
     // Public forms have a route of their own, which serves each to anyone; `/meta` never carries them
     forms: s.map<FormModel[]>(() => undefined),
     lists: s.list(s.object<NamedListModel>({ name: s.data, names: s.data, nav, help: s.data, list: listShape(resource, model, models, prompted), filters: s.list(widgetShape), chart })),
