@@ -40,6 +40,8 @@ export const addressWords = {
   version: 'version',
   /** The run a workflow's page shows on its graph, by its key. */
   run: 'run',
+  /** The panel a focus page opens with, by a name its surface knows. */
+  panel: 'panel',
 } as const
 
 const listWords = ['list', 'display', 'filter', 'orderBy', 'filterLayout', 'savedSearch'] as const
@@ -99,6 +101,7 @@ const recordQuery = (address: Extract<AppAddress, { kind: 'record' }>) => {
   if (address.call) query.set(addressWords.call, address.call)
   if (address.version !== undefined) query.set(addressWords.version, String(address.version))
   if (address.run) query.set(addressWords.run, address.run)
+  if (address.panel) query.set(addressWords.panel, address.panel)
   const text = query.toString()
   return text ? `?${text}` : ''
 }
@@ -160,6 +163,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
     const call = url.searchParams.get(addressWords.call) === 'join'
     const version = readVersion(url.searchParams.get(addressWords.version))
     const run = url.searchParams.get(addressWords.run) || undefined
+    const panel = url.searchParams.get(addressWords.panel) || undefined
     return {
       kind: 'record',
       resource: first,
@@ -171,6 +175,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
       ...(call && { call: 'join' as const }),
       ...(version !== undefined && { version }),
       ...(run && { run }),
+      ...(panel && { panel }),
     }
   }
   const params = url.searchParams

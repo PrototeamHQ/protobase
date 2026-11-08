@@ -8,6 +8,7 @@ import { computedProblems } from './computed/computed-problems'
 import { openExistingProblems } from './open-existing-problems'
 import { snakeCase } from './naming'
 import type { FieldsInput } from './refs'
+import type { BucketsModel } from './buckets/buckets-model'
 
 export type ResourceState = {
   name: string
@@ -23,12 +24,15 @@ export type ResourceState = {
   author?: string
   position?: { field: string; within?: string; after?: PositionAfterModel }
   parents?: ParentModel[]
+  links?: readonly [string, string]
   events?: EventSpec[]
   history?: boolean
   comments?: boolean
   live?: boolean
   explicitGrants?: boolean
+  etagFrom?: string
   openExisting?: string[]
+  buckets?: BucketsModel
 }
 
 export const parseTable = (table: string) => {
@@ -106,9 +110,12 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.comments && { comments: true as const }),
     ...(state.live && { live: true as const }),
     ...(state.explicitGrants && { explicitGrants: true as const }),
+    ...(state.etagFrom && { etagFrom: state.etagFrom }),
     ...(state.position && { position: { ...state.position } }),
     ...(state.parents && { parents: state.parents.map((parent) => ({ ...parent })) }),
+    ...(state.links && { links: state.links }),
     ...(state.openExisting && { openExisting: [...state.openExisting] }),
+    ...(state.buckets && { buckets: structuredClone(state.buckets) }),
   }
 }
 
@@ -196,6 +203,20 @@ const parentProblems = (model: ResourceModel) =>
     ].map((problem) => `parent "${name}" ${problem}`)
   })
 
+// A link joins two relations, each read by a `related()` term, so each must be one the filter can go through.
+const linkProblems = (model: ResourceModel) => {
+  if (!model.links) return []
+  const [first, second] = model.links
+  const problems = model.links.flatMap((name) => {
+    const field = Object.hasOwn(model.fields, name) ? model.fields[name]! : undefined
+    if (!field) return ['is not a field']
+    if (!field.relation) return [`is ${field.type}, not a relation`]
+    if (field.relation.columns.length !== 1) return ['is a relation of several columns (not implemented)']
+    return field.filterable ? [] : ['is not filterable']
+  }).map((problem) => `link ${problem}`)
+  return first === second ? [...problems, 'link names one relation twice'] : problems
+}
+
 // A job writes an AI field through the API, after the write, from fields the model may see: text or an enum, empty until
 // it is filled, and read from plain fields only, so that no fill feeds another or itself.
 const aiProblems = (model: ResourceModel) =>
@@ -215,10 +236,17 @@ const aiProblems = (model: ResourceModel) =>
       }),
     ].map((problem) => `AI field "${field.name}" ${problem}`))
 
+// A time rollup's rows are the database's to write: nothing that writes a record through the API fits it.
+const bucketsProblems = (model: ResourceModel) => {
+  if (!model.buckets) return []
+  const writes = { softDelete: model.softDelete, position: model.position, author: model.author, openExisting: model.openExisting, parents: model.parents }
+  return Object.entries(writes).flatMap(([option, value]) => (value === undefined ? [] : [`a time rollup cannot have .${option}(), as only the database writes its rows`]))
+}
+
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

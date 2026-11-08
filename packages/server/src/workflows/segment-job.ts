@@ -1,5 +1,5 @@
 import type { Db } from '@protobase/query'
-import { createRunner, type SegmentQueue, type StepCacheStore, type TaskHandlers } from '@protobase/workflows'
+import { createRunner, type SegmentQueue, type StepCacheStore, type TaskHandlers, type TraceMode, type TraceSink } from '@protobase/workflows'
 import { defineJob } from '../jobs/define-job'
 import type { JobContext, JobDefinition } from '../jobs/job-types'
 import { postgresRunStore } from './store'
@@ -14,6 +14,9 @@ export type WorkflowsRunnerInput = {
   secrets: Readonly<Record<string, string>>
   /** Where step types that cache keep their results. */
   cache?: StepCacheStore
+  trace: TraceSink
+  /** The trace a run keeps when neither it nor its workflow says. */
+  traceMode: TraceMode
 }
 
 /**
@@ -21,17 +24,17 @@ export type WorkflowsRunnerInput = {
  * timeout is above a segment's time plus the longest step's, so a job that times out is a worker that died, and its
  * next try takes the run up from its last saved step.
  */
-export const workflowsRunner = ({ schema, tasks, secrets, cache }: WorkflowsRunnerInput) => {
+export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMode }: WorkflowsRunnerInput) => {
   let job: JobDefinition<{ run: string }> | undefined
   const store = postgresRunStore(schema)
   const queue: SegmentQueue<Db> = {
     schedule: async (db, run, at) => void (await job!.enqueue(db, { run }, { key: run, ...(at && { runAt: at }) })),
   }
-  const runner = createRunner({ store, queue, tasks: {}, secrets })
+  const runner = createRunner({ store, queue, tasks: {}, secrets, trace, traceMode })
   job = defineJob<{ run: string }>({
     name: segmentJobName,
     run: ({ run }, context) =>
-      createRunner({ store, queue, tasks: tasks(context), secrets, ...(cache && { cache }) })
+      createRunner({ store, queue, tasks: tasks(context), secrets, trace, traceMode, ...(cache && { cache }) })
         .segment(context.db, run, context.signal)
         .catch(async (error: unknown) => {
           // No segment comes after the job's last try, so that try ends the run rather than leaving it running.

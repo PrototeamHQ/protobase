@@ -12,7 +12,7 @@ const machine = (states: Record<string, unknown>) => ({ QueryLanguage: 'JSONata'
 const fetchUrl = (url: string) => ({ trigger: { manual: {} }, stateMachine: machine({ Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url }, End: true } }) })
 const saved = { record: { id: 'w1', name: 'Fetch', version: 1, definition: fetchUrl('https://a.example') }, etag: '"v1"' }
 const readable = { models: [], views: [] } as unknown as ReadableResources
-const validateWorkflowTool = workflowReadTools(workflowTypes()).find((tool) => tool.name === 'validate_workflow')!
+const validateWorkflowTool = workflowReadTools({ ...workflowTypes(), readTrace: async () => [] }).find((tool) => tool.name === 'validate_workflow')!
 
 const contextWith = (records: Partial<ToolRecords>, answer: ApprovalAnswer = 'approved') => {
   const approve = vi.fn(async () => answer)
@@ -23,6 +23,13 @@ const contextWith = (records: Partial<ToolRecords>, answer: ApprovalAnswer = 'ap
 const refusedSave = badRequest('invalid-workflow', 'The workflow cannot be saved: State "Fetch", field "Next": ...', { problems: [{ state: 'Fetch', field: 'Next', message: 'names "Gone", which is not a state here' }] })
 
 describe('validate_workflow', () => {
+  it('checks a definition with no steps as a save does, but for its want of steps', async () => {
+    const { context } = contextWith({})
+    const empty = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: '', States: {} } }
+    expect(JSON.parse(await validateWorkflowTool.run({ definition: empty }, context))).toEqual({ valid: true })
+    expect(JSON.parse(await validateWorkflowTool.run({ definition: { ...empty, trigger: { manual: {}, other: {} } } }, context))).toMatchObject({ valid: false })
+  })
+
   it('names the state, the field and what was expected, and reads nothing for a whole definition', async () => {
     const get = vi.fn()
     const { context } = contextWith({ get })
@@ -49,7 +56,7 @@ describe('validate_workflow', () => {
   it("checks a record trigger against the resources and fields the caller may read, so it names none hidden from them", async () => {
     const captured = (name: string) => resource(name).table(name).fields({ id: f.integer(), status: f.text().filterable(), salary: f.integer() }).primaryKey((r) => r.id).events((e) => e.crud()).toModel()
     const app = { orders: captured('orders'), payroll: captured('payroll') }
-    const tool = workflowReadTools(workflowTypes([], (name) => app[name as keyof typeof app])).find((candidate) => candidate.name === 'validate_workflow')!
+    const tool = workflowReadTools({ ...workflowTypes([], (name) => app[name as keyof typeof app]), readTrace: async () => [] }).find((candidate) => candidate.name === 'validate_workflow')!
     const { salary: _salary, ...visible } = app.orders.fields
     const { context } = contextWith({})
     const caller = { ...context, resources: async () => ({ models: [{ ...app.orders, fields: visible }], views: [] }) as unknown as ReadableResources }
@@ -130,11 +137,13 @@ describe('update_workflow', () => {
 })
 
 describe('run_workflow and get_workflow_run', () => {
-  it('starts a run with its input once approved', async () => {
+  it('starts a run of the version saved last with its input once approved, unless it names a version', async () => {
     const create = vi.fn(async () => ({ record: { id: 'r1', status: 'queued' }, etag: '"v1"' }))
     const { context } = contextWith({ create })
     expect(JSON.parse(await runWorkflowTool().run({ id: 'w1', input: { order: 42 } }, context))).toEqual({ run_id: 'r1', status: 'queued' })
-    expect(create).toHaveBeenCalledWith('workflow_runs', { workflow_id: 'w1', input: { order: 42 } })
+    expect(create).toHaveBeenCalledWith('workflow_runs', { workflow_id: 'w1', input: { order: 42 }, version: saved.record.version })
+    await runWorkflowTool().run({ id: 'w1', version: 1 }, context)
+    expect(create).toHaveBeenLastCalledWith('workflow_runs', { workflow_id: 'w1', input: {}, version: 1 })
   })
 
   it('re-runs a failed run without an input of its own', async () => {
@@ -153,11 +162,36 @@ describe('run_workflow and get_workflow_run', () => {
     expect(await runWorkflowTool().run({ id: 'w1', replay: true }, context)).toMatch(/pass the run as rerun_of/)
   })
 
-  it("reads the run, then its steps in the order they ran, one state's when asked", async () => {
-    const list = vi.fn(async () => ({ items: [{ state: 'Fetch', status: 'failed', error: 'Http.Status', etag: '"s"' }], next_page_token: '', total_size_estimate: 1 }))
-    const { context } = contextWith({ get: async () => ({ record: { id: 'r1', status: 'failed' }, etag: '"r"' }), list })
-    const result = JSON.parse(await getWorkflowRunTool.run({ run_id: 'r1', state: 'Fetch' }, context))
-    expect(result).toEqual({ run: { id: 'r1', status: 'failed' }, steps: [{ state: 'Fetch', status: 'failed', error: 'Http.Status' }], next_page_token: '' })
-    expect(list).toHaveBeenCalledWith('workflow_steps', expect.objectContaining({ filter: 'run_id = "r1" AND state = "Fetch"', order_by: 'id', page_size: 20 }))
+  it("reads the run, then the steps of its trace in the order they ran, one state's when asked, a page at a time", async () => {
+    const trace = [
+      { state: 'Fetch', status: 'retrying', error: 'Http.Status', scope: '', seq: 0 },
+      { state: 'Fetch', status: 'failed', error: 'Http.Status', scope: '', seq: 1 },
+      { state: 'Other', status: 'succeeded', scope: '', seq: 2 },
+    ]
+    const readTrace = vi.fn(async () => trace)
+    const { context } = contextWith({ get: async () => ({ record: { id: 'r1', status: 'failed' }, etag: '"r"' }) })
+    const first = JSON.parse(await getWorkflowRunTool(readTrace).run({ run_id: 'r1', state: 'Fetch', page_size: 1 }, context))
+    expect(first).toEqual({ run: { id: 'r1', status: 'failed' }, steps: [trace[0]], next_page_token: '1' })
+    const second = JSON.parse(await getWorkflowRunTool(readTrace).run({ run_id: 'r1', state: 'Fetch', page_size: 1, page_token: '1' }, context))
+    expect(second).toEqual({ run: { id: 'r1', status: 'failed' }, steps: [trace[1]], next_page_token: '' })
+    expect(readTrace).toHaveBeenCalledWith('r1')
+  })
+
+  it('reads no trace of a run the caller may not read', async () => {
+    const readTrace = vi.fn(async () => [])
+    const { context } = contextWith({ get: () => Promise.reject(forbidden('forbidden', 'No')) })
+    expect(JSON.parse(await getWorkflowRunTool(readTrace).run({ run_id: 'r1' }, context)).error).toBeDefined()
+    expect(readTrace).not.toHaveBeenCalled()
+  })
+
+  it("reads no trace when a field rule hides the run's trace file, and never returns the file", async () => {
+    const readTrace = vi.fn(async () => [])
+    const hidden = contextWith({ get: () => Promise.reject(badRequest('invalid-parameter', 'Unknown fields: trace_file')) })
+    expect(JSON.parse(await getWorkflowRunTool(readTrace).run({ run_id: 'r1' }, hidden.context)).error).toBeDefined()
+    expect(readTrace).not.toHaveBeenCalled()
+    const get = vi.fn(async () => ({ record: { id: 'r1', status: 'failed', trace_file: { id: 'f1' } }, etag: '"r"' }))
+    const shown = contextWith({ get })
+    expect(JSON.parse(await getWorkflowRunTool(readTrace).run({ run_id: 'r1' }, shown.context)).run).toEqual({ id: 'r1', status: 'failed' })
+    expect(get).toHaveBeenCalledWith('workflow_runs', 'r1', { fields: expect.arrayContaining(['trace_file']) })
   })
 })

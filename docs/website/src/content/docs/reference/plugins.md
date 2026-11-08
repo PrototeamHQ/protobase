@@ -342,6 +342,9 @@ From `@protobase/ui`:
 | `usePlugin()` | The plugin the calling component belongs to (see [above](#writing-a-plugin)). |
 | `useResourceClient(resource)` | The client of the API that serves a resource: the app's own, or a source's for a [remote resource](/reference/remote-resources/). |
 | `FieldWidget`, `FieldWidgetProps`, `FieldWidgetEditorProps` | The types of a [field type](#field-types) and of its parts' props. |
+| `FocusPage`, `FocusSlot`, `FocusActions`, `FocusNotice`, `FocusPanel`, `useFocusPage`, `useFocusZoneFilled`, `useFocusRecord` | The parts of a [focus page](/reference/custom-components/#focus-pages). |
+| `SearchPicker` | A searchable list to pick from, for a panel or a dialog (see [focus pages](/reference/custom-components/#focus-pages)). |
+| `useCreateForm`, `InPlaceForm` | A create form that stays where it is (see [focus pages](/reference/custom-components/#focus-pages)). |
 | `RecordCardProps` | The props of a [record card](/reference/custom-components/#record-cards), `{ row }`. |
 | `AuthLayout`, `CodeForm`, `ResendCodeButton`, `Button`, `buttonClass`, `Input`, `Spinner`, `LogoMark` | The pieces of the app's sign-in pages, for a page of a plugin or a host's own that looks like them. Outside the app, `@protobase/ui/styles.css` is the stylesheet that draws them, for a Vite build with Tailwind. |
 | `isFramed`, `useArmedAfterFocus`, `useGuardedPress`, `allowDelayMs` | The connect page's guard against clickjacking and click-through, for a host's own consent screen: it refuses to render when `isFramed()`, and its Allow button spreads `useGuardedPress(armed, onAllow)`, so a press counts only once the page has been in front for `allowDelayMs`, and a press anywhere on the page before then starts that wait again. |

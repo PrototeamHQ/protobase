@@ -4,6 +4,7 @@ import { auditOrigin } from '../../audit/origin'
 import type { Registry } from '../../registry'
 import type { AuditQueue } from '../../types'
 import type { AdminAuth } from '../create-auth'
+import { ownRouteGuard } from '../own-route-guard'
 import { globalRoles } from './app-roles'
 import { findMember, findOrganization, type AuthContext } from './store'
 
@@ -25,18 +26,20 @@ const refusal = (status: Refusal['status'], code: string, message: string): Refu
 /**
  * The organization routes that need the admin's own parts, mounted before Better Auth's handler: switching the
  * organization one works in, which writes an audit event when someone enters one they are not a member of, and, while
- * `deleteRecords` is `'refuse'`, deleting only an organization without records.
+ * `deleteRecords` is `'refuse'`, deleting only an organization without records. Both take what Better Auth's own routes
+ * take, a JSON body from an origin it trusts (`ownRouteGuard`), with the app's Capacitor origins too for `mobile`.
  */
-export const organizationRoutes = ({ auth, audit, registry, db }: { auth: AdminAuth; audit: AuditQueue; registry: Registry; db: Db }) => {
+export const organizationRoutes = ({ auth, audit, registry, db, mobile }: { auth: AdminAuth; audit: AuditQueue; registry: Registry; db: Db; mobile: boolean }) => {
   const app = new Hono()
   const contextOf = async () => (await auth.$context) as unknown as AuthContext
+  const guard = ownRouteGuard({ context: () => auth.$context, mobile })
   const fail = (c: { json: (body: unknown, status: number) => Response }, problem: Refusal) => c.json({ code: problem.code, message: problem.message }, problem.status)
 
   /**
    * `POST /organization/switch` with `{ organizationId }`: the session works in that organization from its next token
    * on, for a member, or for someone with a global role, who may enter any; `null` leaves it.
    */
-  app.post('/organization/switch', async (c) => {
+  app.post('/organization/switch', guard, async (c) => {
     const session = await auth.api.getSession({ headers: c.req.raw.headers })
     if (!session) return fail(c, refusal(401, 'UNAUTHORIZED', 'Sign in first.'))
     const body = (await c.req.json().catch(() => undefined)) as { organizationId?: unknown } | undefined
@@ -58,7 +61,7 @@ export const organizationRoutes = ({ auth, audit, registry, db }: { auth: AdminA
   })
 
   if (auth.organizations?.deleteRecords !== 'cascade') {
-    app.post('/organization/delete', async (c, next) => {
+    app.post('/organization/delete', guard, async (c, next) => {
       const body = (await c.req.raw.clone().json().catch(() => undefined)) as { organizationId?: unknown } | undefined
       const session = await auth.api.getSession({ headers: c.req.raw.headers })
       // Better Auth answers anyone else itself; only an owner learns which records keep the organization.

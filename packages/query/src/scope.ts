@@ -12,10 +12,12 @@ import { QueryError } from './errors'
  *   so it may use hidden or non-filterable columns the user's own (restricted) model does not expose.
  * - `parents`: the relations whose record each row belongs to (`.parent(fk, 'read')`), keeping the rows whose parent the
  *   caller reads; ANDed in with `rowFilter`.
+ * - `within`: a filter on the read itself that no method drops, as a facet drops the caller's terms on its field: a list
+ *   under a record keeps to that record.
  * - `fullModel`: that full model. Soft delete, tenant and `rowFilter` resolve against it; everything the user
  *   supplies (filter, sort, columns, fields) resolves against the model argument. Defaults to the model argument.
  */
-export type Scope = { tenantValue?: string | number; tenantValues?: readonly (string | number)[]; rowFilter?: CheckedFilter; parents?: readonly ParentRead[]; fullModel?: ResourceModel }
+export type Scope = { tenantValue?: string | number; tenantValues?: readonly (string | number)[]; rowFilter?: CheckedFilter; parents?: readonly ParentRead[]; within?: CheckedFilter; fullModel?: ResourceModel }
 
 /**
  * A relation whose parent the caller must read for a row to be seen: `field` of the full model, and the parent's full

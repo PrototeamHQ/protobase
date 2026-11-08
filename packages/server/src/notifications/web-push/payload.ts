@@ -1,6 +1,6 @@
 import { isJsonObject, mergeJson, type JsonObject, type JsonValue } from '../json-value'
 import { PushMessageError, type PushMessage } from '../message'
-import { tapUrl } from '../tap-url'
+import { tapUrl } from '@protobase/schema/internal'
 
 const checkedUrl = (value: JsonValue, field: string) => {
   const url = tapUrl(value)

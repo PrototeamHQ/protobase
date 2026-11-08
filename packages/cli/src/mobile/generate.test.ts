@@ -40,6 +40,19 @@ describe('generatePlatform', () => {
     expect(infoPlist()).not.toContain('NSAllowsArbitraryLoads')
   })
 
+  it('copies the project\'s google-services.json into the Android app it is given for, on every run', async () => {
+    ws = mkdtempSync(path.join(tmpdir(), 'protobase-generate-'))
+    const projectDir = path.join(ws, 'project')
+    mkdirSync(projectDir)
+    writeFileSync(path.join(projectDir, 'google-services.json'), '{"project_info":{}}')
+    for (let run = 0; run < 2; run++) {
+      await generatePlatform(ws, 'android', { cleartext: false, googleServicesFrom: projectDir }, cap([]))
+      expect(readFileSync(path.join(ws, 'android', 'app', 'google-services.json'), 'utf8')).toBe('{"project_info":{}}')
+    }
+    await generatePlatform(ws, 'android', { cleartext: false }, cap([]))
+    expect(existsSync(path.join(ws, 'android', 'app', 'google-services.json'))).toBe(false)
+  })
+
   it('changes no plist for Android', async () => {
     ws = mkdtempSync(path.join(tmpdir(), 'protobase-generate-'))
     const calls: string[][] = []

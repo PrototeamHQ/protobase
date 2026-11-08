@@ -1,6 +1,8 @@
+import { addressPlaceholders } from '@protobase/schema/internal'
 import { humanize } from '../../live/naming'
 import { Notice, useAdminMeta } from '../meta-gate'
 import { ComposedPage } from '../pages/composed-page'
+import { RecordOpens } from '../record-opens'
 import { CreatePage } from './create-page'
 import { text } from './messages'
 
@@ -13,6 +15,7 @@ type CreateRouteProps = { resource: string; values?: Readonly<Record<string, str
 export const CreateRoute = ({ resource, values }: CreateRouteProps) => {
   const meta = useAdminMeta()
   const view = meta.views[resource]
+  if (view?.createOpens && addressPlaceholders(view.createOpens).every((name) => values?.[name])) return <RecordOpens to={view.createOpens} record={values!} />
   if (!view?.create) return <CreatePage key={new URLSearchParams(values).toString()} resource={resource} values={values} />
   if (!meta.pages[view.create.page]) return <Notice title={text('notAllowed')}>{text('cannotCreate', { plural: view.names?.plural.toLowerCase() ?? humanize(resource) })}</Notice>
   return <ComposedPage name={view.create.page} />

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { checkNotificationsOptions } from './options'
 import type { PushSender } from './sender'
 import { notificationSenders, webPushKey } from './senders-of'
+import { apnsTestEnv } from './testing/apns-service'
 import { testServiceAccount } from './fcm/testing/service-account'
 import { generateVapidKeys } from './web-push/keys'
 
@@ -17,6 +18,17 @@ describe('notificationSenders', () => {
     expect(webPushKey(notificationSenders({}, {}))).toBeUndefined()
   })
 
+  it('has the built-in APNs sender when its environment and mobile.appId are set', () => {
+    const senders = notificationSenders({}, { ...vapidEnv, ...apnsTestEnv() }, { appId: 'net.example.app' })
+    expect(senders.map((sender) => sender.kinds)).toEqual([['web'], ['apns']])
+    expect(notificationSenders({}, {}, { appId: 'net.example.app' })).toEqual([])
+  })
+
+  it('stops on APNs without mobile.appId, and on an APNs mistake', () => {
+    expect(() => notificationSenders({}, apnsTestEnv())).toThrow('the config has no mobile.appId')
+    expect(() => notificationSenders({}, { PROTOBASE_APNS_KEY_ID: 'ABC123DEFG' }, { appId: 'net.example.app' })).toThrow('PROTOBASE_APNS_KEY and PROTOBASE_APNS_TEAM_ID must be set')
+  })
+
   it('has the built-in FCM sender, guarded, when its service account is set', async () => {
     const fcmEnv = { PROTOBASE_FCM_SERVICE_ACCOUNT: JSON.stringify(testServiceAccount().json) }
     expect(notificationSenders({}, { ...vapidEnv, ...fcmEnv }).map((sender) => sender.kinds)).toEqual([['web'], ['fcm']])
@@ -26,6 +38,14 @@ describe('notificationSenders', () => {
 
   it('stops on an FCM service account that is not one', () => {
     expect(() => notificationSenders({}, { PROTOBASE_FCM_SERVICE_ACCOUNT: '{"private_key": "abc' })).toThrow('PROTOBASE_FCM_SERVICE_ACCOUNT is not JSON')
+  })
+
+  it('has the built-in relay sender, guarded, when its URL and credential are set, and stops on only one of them', async () => {
+    const relayEnv = { PROTOBASE_PUSH_RELAY_URL: 'https://relay.example.com', PROTOBASE_PUSH_RELAY_CREDENTIAL: 'relay-credential-0123456789' }
+    expect(notificationSenders({}, { ...vapidEnv, ...relayEnv }).map((sender) => sender.kinds)).toEqual([['web'], ['relay']])
+    const [relay] = notificationSenders({}, relayEnv)
+    await expect(relay!.send({ title: 'x', url: 'javascript:x' }, [])).rejects.toThrow('url')
+    expect(() => notificationSenders({}, { PROTOBASE_PUSH_RELAY_URL: relayEnv.PROTOBASE_PUSH_RELAY_URL })).toThrow('must be set together')
   })
 
   it('stops on a VAPID mistake', () => {

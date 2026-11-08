@@ -7,6 +7,7 @@ import { Code } from '@astrojs/starlight/components'
 import bikeShop from '../../../../../../docs-examples/bike-shop/data.ts?raw'
 import keys from '../../../../../../docs-examples/reference/keys.ts?raw'
 import rollups from '../../../../../../docs-examples/reference/rollups.ts?raw'
+import timeRollups from '../../../../../../docs-examples/reference/time-rollups.ts?raw'
 import access from '../../../../../../docs-examples/reference/access.ts?raw'
 import products from '../../../../../../tests/apps/erp/config/products/data.ts?raw'
 import orders from '../../../../../../tests/apps/erp/config/orders/data.ts?raw'
@@ -30,6 +31,7 @@ A **resource** describes one table of a database you already have: its columns a
 | `.search((r) => [r.number, r.name])` | The fields that `search("...")` and bare words in a filter match, and what the admin's [global search](/reference/client/#global-search) looks in. Every word of the text must appear in one of them, ignoring case, and part of a word is enough: `port` finds "Portfolio". `r.phone.digitsEnd()` matches only the end of a field's digits instead, ignoring spaces, `+` and dashes, and only words written like phone numbers: `9623`, `47069623` and `+31 6 47069623` find "+31 6 47069623", `4706` and `+316` do not. Each field needs a pg_trgm index (`using gin (name gin_trgm_ops)`), a `digitsEnd` one on `regexp_replace(phone, '[^0-9]', '', 'g')`, or the API refuses the search. |
 | `.position((r) => r.position, { within?, after? })` | The integer field holding the records' order by hand, 1 the first, which a list's **Reorder** button changes by dragging; with `within: (r) => r.invoice_id`, a filterable relation, each parent's records have an order of their own, sorted in its related section; with `after`, a record never ranks above the records it depends on. The field must be sortable. See [Reordering by hand](/reference/ui-config/#reordering-by-hand) and [Ranked after what they depend on](/reference/ui-config/#ranked-after-what-they-depend-on). |
 | `.parent((r) => r.vm_id, 'update')` | The relation whose record each record belongs to, and the access on it (`'read'` or `'update'`) that creating, changing, deleting and undeleting a record needs, checked with the caller's own rules on that resource. With `'read'`, every read of its records also keeps to those whose parent the caller reads. The relation is one column, to a resource with a key of one field. See [Records that belong to another](/reference/access/#records-that-belong-to-another). |
+| `.links((r) => [r.objective_id, r.task_id])` | Its records link records of two resources, so each side lists the other, and what points at it, at [`/{parent}/{key}/{resource}`](/reference/api/#lists-under-a-record). Two different filterable relations of one column. [`protobase doctor`](/reference/cli/#doctor) asks for the indexes reading either side needs. |
 | `.openExisting((r) => [r.organization_id, r.member_key])` | A unique key of the table whose conflict on create opens the record already holding those values, such as a direct message with the same members. See [Opening an existing record](#opening-an-existing-record). |
 | `.validate((record) => issues)` | A rule over the whole record, run after the field checks on every create and update. It returns `[{ field, message }]` or `undefined`; issues answer `400` with the field named. |
 | `.access({ ... })` | Rules per operation. See [Access](#access). |
@@ -115,6 +117,46 @@ Empty values of `field` are left out, as in SQL. The migration adds the column, 
 `.formula(expression)` is a Postgres generated column. The expression reads the record's number fields, and takes numbers, `+ - * /`, parentheses, `coalesce(a, b, ...)` and `round(x)` or `round(x, digits)`. It is computed exactly as decimals, so `7 / 2` is 3.5, and is stored as the field's type, so an integer field rounds the result. A formula that reads an optional field is `.optional()` too, unless `coalesce()` gives that field a value. A formula cannot read another formula. When the expression changes, the migration drops the column and adds it again, so an index on it must be created again in the same migration.
 
 Neither field can be written through the API, have a default, or be sensitive, an AI field, a file, or the key, tenant, owner or soft delete field, and a formula cannot read a sensitive field. The server does not start while a declared column, function or trigger is missing or out of date, with a message that names the fields; the migration fixes that. It stops with an error, without writing anything, when the column already exists as the project's own: a plain column where a formula is declared, a generated column it did not write, or a rollup column of another type.
+
+## Time rollups
+
+:::caution[In development]
+Coming soon:
+
+- <gap>A time rollup cannot keep itself up to date because the recurring job that refreshes its latest buckets is not implemented.</gap> Until then the migration fills it once, and calling its refresh function brings it up to date.
+- <gap>Charts and `:aggregate` and `:series` cannot read a time rollup's counts, sums and averages correctly because mapping them onto its stored columns is not implemented.</gap>
+:::
+
+A large events table, such as millions of meter readings, gets a **time rollup**: a table with one row per hour or day and per group, holding how many records fell in it and the sums and greatest values of their numbers. A chart over months then reads a few thousand rows instead of millions. You declare the rollup as a resource over the events resource, and [`protobase migration`](/reference/cli/#migration) writes its table, indexes and refresh function into the project's next migration (`NNN_computed.sql`), with the rollup filled once. It is plain Postgres: no extension.
+
+<Code code={timeRollups} lang="ts" title="docs-examples/reference/time-rollups.ts" />
+
+`.bucketsOf(source, { ... })` takes the source's resource and sets the rollup's fields, key and tenant from it:
+
+| Option | What it is |
+| --- | --- |
+| `time` | The source's timestamp field. A record's bucket is its hour or day, in UTC. |
+| `every` | `'hour'` or `'day'`. |
+| `by` | The source's fields to group by besides the bucket. They must be required fields, and include the source's tenant field. |
+| `measures` | Per integer, bigint or decimal field of the source, `['sum']`, `['max']` or both. Optional. |
+| `late` | How late a record may arrive and still be counted by a refresh: a number of minutes, hours or days, such as `'2 hours'`. |
+
+The rollup's records have these fields, all read-only:
+
+| Field | Value |
+| --- | --- |
+| `id` | The record's key, a bigint. |
+| `bucket` | The start of the hour or day. Filterable and sortable. |
+| the `by` fields | The group's values, under the source's field names. Filterable and sortable. |
+| `events` | How many records of the source fell in the bucket, as a bigint. |
+| `<field>_sum` | The sum of the field: a bigint for an integer, a decimal of ten more digits for a bigint or a decimal. Empty when every value was. |
+| `<field>_max` | The greatest value of the field, of its type. Empty when every value was. |
+
+Records the source soft deleted are left out. The migration creates the table in the rollup's schema, with a unique index on `(bucket, by...)` and an index on `(group, bucket)` per group, so a list filtered on the bucket, on a group or on both passes the [scan guard](/reference/api/#safety). It writes `rollups.<table>_refresh(from timestamptz)`, which recomputes every bucket from the one `from` falls in, in one statement: it upserts their counts and sums and deletes those left without records. `select rollups.readings_hourly_refresh(now() - interval '2 hours')` brings the example up to date. When the rollup's declaration changes, the migration drops its table and creates and fills it again. The table and function of a rollup the config no longer has stay; a migration of your own drops them, in a deploy after the one that stops reading them.
+
+Only the database writes a rollup's rows: creates, updates and deletes are refused whatever its rules say, and it cannot have soft delete, a manual order, an author, a parent or `.openExisting()`. Its access is its own `.access()`: the source's rules do not reach it, so give it rules that let read only those who may see every record of a group. Its tenant is the source's, which is why `by` includes it. The server does not start while the source has its own `read` or `list` rule in `.access()`, whatever the rule returns, or while a role reads only some of the source's records that a bucket mixes with others: `.own` or `.team` while `by` does not include the source's owner field, or a role's filter on fields outside `by`. <gap>A time rollup cannot group by an optional field because a bucket key with empty parts is not implemented.</gap> <gap>A time rollup cannot roll up a resource whose reads follow a parent because applying the parent's access to buckets is not implemented.</gap> <gap>A time rollup cannot roll up a resource with its own `read` or `list` access rule because declaring the fields such a rule filters on is not implemented.</gap>
+
+The server does not start while a rollup's table or function is missing or out of date, with a message that names the rollup; the migration fixes that. It stops with an error, without writing anything, when the table already exists as the project's own.
 
 ## Sensitive fields
 

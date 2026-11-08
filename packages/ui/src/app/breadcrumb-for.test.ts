@@ -5,12 +5,8 @@ import type { ListAddress } from './current-address'
 const list = (resource: string): ListAddress => ({ kind: 'list', resource, display: 'table', filter: '', orderBy: 'id asc', filterLayout: 'bar' })
 
 describe('breadcrumbFor', () => {
-  it('links the list and the record, and leaves the group as text', () => {
-    expect(breadcrumbFor({ basePath: '/admin', address: { kind: 'record', resource: 'tenants', key: '7' }, group: 'Leasing', resourceLabel: 'Tenants', recordTitle: 'Ada Visser' })).toEqual([
-      'Leasing',
-      { label: 'Tenants', href: '/admin/tenants' },
-      { label: 'Ada Visser', href: '/admin/tenants/7' },
-    ])
+  it('ends a record page at its list, which the record sits under, and leaves the group as text', () => {
+    expect(breadcrumbFor({ basePath: '/admin', address: { kind: 'record', resource: 'tenants', key: '7' }, group: 'Leasing', resourceLabel: 'Tenants', recordTitle: 'Ada Visser' })).toEqual(['Leasing', { label: 'Tenants', href: '/admin/tenants', above: true }])
   })
 
   it('ends with the list on a list page, without its filter or order', () => {
@@ -25,16 +21,19 @@ describe('breadcrumbFor', () => {
     expect(breadcrumbFor({ basePath: '', address: { kind: 'create', resource: 'tenants' }, resourceLabel: 'Tenants' })).toEqual([{ label: 'Tenants', href: '/tenants' }, { label: 'New', href: '/tenants/new' }])
   })
 
-  it('falls back to the key and encodes composite keys', () => {
-    expect(breadcrumbFor({ basePath: '', address: { kind: 'record', resource: 'leaseTenants', key: '3,7' }, resourceLabel: 'Lease tenants' }).at(-1)).toEqual({ label: '3,7', href: '/leaseTenants/3%2C7' })
+  it('ends a full-area record page, which has no heading, with the record', () => {
+    expect(breadcrumbFor({ basePath: '', address: { kind: 'record', resource: 'channels', key: '7' }, resourceLabel: 'Channels', headingless: true, recordTitle: 'general' })).toEqual([
+      { label: 'Channels', href: '/channels' },
+      { label: 'general', href: '/channels/7' },
+    ])
   })
 
-  it('shows a loading crumb, still linked, while the record has no title yet', () => {
-    expect(breadcrumbFor({ basePath: '', address: { kind: 'record', resource: 'tenants', key: '7' }, resourceLabel: 'Tenants', recordLoading: true }).at(-1)).toEqual({ label: 'Loading record', href: '/tenants/7', loading: true })
+  it('falls back to the key and encodes composite keys on a page without a heading', () => {
+    expect(breadcrumbFor({ basePath: '', address: { kind: 'record', resource: 'leaseTenants', key: '3,7' }, resourceLabel: 'Lease tenants', headingless: true }).at(-1)).toEqual({ label: '3,7', href: '/leaseTenants/3%2C7' })
   })
 
-  it('shows the title once the record has loaded', () => {
-    expect(breadcrumbFor({ basePath: '', address: { kind: 'record', resource: 'tenants', key: '7' }, resourceLabel: 'Tenants', recordTitle: 'Ada Visser', recordLoading: false }).at(-1)).toEqual({ label: 'Ada Visser', href: '/tenants/7' })
+  it('shows a loading crumb, still linked, while a record without a heading has no title yet', () => {
+    expect(breadcrumbFor({ basePath: '', address: { kind: 'record', resource: 'tenants', key: '7' }, resourceLabel: 'Tenants', headingless: true, recordLoading: true }).at(-1)).toEqual({ label: 'Loading record', href: '/tenants/7', loading: true })
   })
 
   it('links a composed page', () => {

@@ -77,13 +77,15 @@ export const updateWorkflowTool = (input: WriteRecordToolsInput = {}) =>
 export const runWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'run_workflow',
-    description: `Starts a run of a workflow's current version with an input, which its states read as $states.context.Execution.Input, and returns JSON { run_id, status }. With rerun_of, the id of a failed run of the workflow, it re-runs that run instead: on its input, keeping the steps before the one that failed, and going on from that step on the current version, so fix the workflow first. With rerun_of and replay: true, it replays a run that ended instead: from the start on the current version and that run's input, sending none of its outside writes (mail, record writes, requests other than GET), which give what they gave in that run, and serving its reads from the step cache, so you can fix what a run composed, save, and replay it again without sending anything. The run goes on in the background, doing what its steps do (requests, mail, record writes) as the workflow's last editor: read it with get_workflow_run until its status is succeeded or failed. The user approves each run in their client first.${onlyNote(input)}`,
+    description: `Starts a run of a workflow's version saved last, or of version, with an input, which its states read as $states.context.Execution.Input, and returns JSON { run_id, status }. A save never goes live, so this is how a change is tried before enable_workflow publishes it. With rerun_of, the id of a failed run of the workflow, it re-runs that run instead: on its input, going on from where that run last saved its place (after its last write) on the current version, so no write it finished happens again; fix the workflow first. With rerun_of and replay: true, it replays a run that ended instead: from the start on the current version and that run's input, sending none of its outside writes (mail, record writes, requests other than GET), which give what that run's trace says they gave (nothing when it kept no trace), and serving its reads from the step cache, so you can fix what a run composed, save, and replay it again without sending anything. The run goes on in the background, doing what its steps do (requests, mail, record writes) as the workflow's last editor: read it with get_workflow_run until its status is succeeded or failed. The user approves each run in their client first.${onlyNote(input)}`,
     parameters: {
       type: 'object',
       properties: {
         id: idParameter,
-        input: { description: "The run's input, any JSON value, at most 1 MiB; an empty object by default. Not with rerun_of." },
+        input: { description: "The run's input, any JSON value, at most 256 KiB; an empty object by default. Not with rerun_of." },
+        version: { type: 'integer', description: 'A saved version to run; the one saved last by default. Not with rerun_of.' },
         rerun_of: { type: 'string', description: 'The id of a failed run of this workflow to re-run from its failed step, or of a run that ended to replay.' },
+        rerun_from: { type: 'string', description: 'With rerun_of, a run that ended: the state of the workflow itself to go on from, keeping the steps before it. It and all after it run again, and what they send goes out again.' },
         replay: { type: 'boolean', description: 'With rerun_of: replay that run, sending none of its outside writes.' },
       },
       required: ['id'],
@@ -97,7 +99,11 @@ export const runWorkflowTool = (input: WriteRecordToolsInput = {}) =>
       const rerun = textOf(args.rerun_of)
       if (rerun && args.input !== undefined) return 'A re-run runs on the input of the run it re-runs: pass rerun_of without input.'
       if (args.replay === true && !rerun) return 'A replay replays a run: pass the run as rerun_of.'
-      const data = rerun ? { workflow_id: id, rerun_of: rerun, ...(args.replay === true && { replay: true }) } : { workflow_id: id, input: args.input ?? {} }
+      if (rerun && args.version !== undefined) return 'A re-run runs the version saved last: pass rerun_of without version.'
+      const before = await recordBefore(context, 'workflows', id, undefined)
+      if (typeof before === 'string') return before
+      if (!before) return refused(notFound('No workflows with this key that you may read'))
+      const data = rerun ? { workflow_id: id, rerun_of: rerun, ...(args.replay === true && { replay: true }), ...(textOf(args.rerun_from) && { rerun_from: textOf(args.rerun_from) }) } : { workflow_id: id, input: args.input ?? {}, version: args.version ?? before.record.version }
       const { text, described } = await approvalTexts(context, 'workflow_runs')
       const answer = await context.approve(createApproval(text, described, data))
       if (answer !== 'approved') return notApproved(answer)

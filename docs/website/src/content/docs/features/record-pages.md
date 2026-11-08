@@ -5,13 +5,14 @@ description: The page of one record, with its sections, related records, galleri
 
 - [Record page layout](/reference/ui-config/#the-record-page): Sections, a summary sidebar, related tables, maps, charts, galleries, history, comments and your own components.
 - [Full-width record pages](/reference/ui-config/#page-width): A view's record pages and create form fill the whole area beside the sidebar instead of a centred column, with the sidebar cards still beside the sections.
-- [Page-wide sections](/reference/ui-config/#page-wide-sections): A section spans the page above the main column and the sidebar cards, such as a workflow's graph, with Save in a bar at the foot of the window.
+- [Focus pages](/reference/ui-config/#focus-pages) (beta): A record whose page is one big surface, such as a graph or a board, fills the page under a thin bar with its Save, actions and panels, its form a link away.
+- [A create address that opens a page](/reference/ui-config/#focus-pages) (beta): `.createOpens(to)` sends a resource's create address to a page in place of its form, such as a record's focus page with a panel open, filled from the address's values.
 - [Record pages that open another](/reference/ui-config/#a-record-page-that-opens-another): A record's page opens another address built from its fields in its place, such as a workflow run opening its workflow's page with the run shown.
 - [Full-area record pages](/reference/ui-config/#full-area-record-pages) (beta): A view draws its record pages with a component of its own that fills the area beside the sidebar and under the top bar, such as a chat channel, and links to the standard page.
 - [Read view and edit](/reference/ui-config/#read-view-and-edit): A record opens as a read-only fact sheet or a form, and Edit opens the form at its own address.
 - [Unsaved edits](/reference/ui-config/#editing-a-record): Unsaved changes to a record stay in the browser and can be resumed, and leaving a form, a dialog or a comment with changes asks first.
 - [Record forms](/reference/ui-config/#editing-a-record): Relations are picked from a list that narrows as you type, numbers are read as the browser's language writes them, and a refused save says under each field what is wrong.
-- [Titles per reader](/reference/ui-config/#titles-per-reader): A record without a name of its own, such as a direct message, is titled for each reader from its fields, such as after the other members, in the sidebar, breadcrumbs, heading, browser tab, relation links, list columns, relation pickers, filters and search.
+- [Titles per reader](/reference/ui-config/#titles-per-reader): A record without a name of its own, such as a direct message, is titled for each reader from its fields, such as after the other members, in the sidebar, heading, browser tab, relation links, list columns, relation pickers, filters and search.
 - [JSON fields on forms](/reference/plugins/#json) (beta): A JSON field, such as a workflow run's input, is edited on forms as JSON text and shown written out on several lines.
 - [Member fields](/reference/plugins/#members): A field that holds a list of people, such as a private channel's members, picks the organization's members by name on forms and shows them by avatar and name.
 - [Save feedback](/reference/ui-config/#the-record-page): A view shows saving on the Save button instead of in a toast.

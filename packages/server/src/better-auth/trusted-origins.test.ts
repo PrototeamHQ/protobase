@@ -55,7 +55,7 @@ describe('the connect page calls, with MCP on', () => {
     const response = await auth.handler(
       new Request(`https://admin.example.com/api/auth${path}`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', origin, cookie: '__Secure-better-auth.session_token=stolen.signature' },
+        headers: { 'content-type': 'application/json', origin, cookie: '__Host-better-auth.session_token=stolen.signature' },
         body: JSON.stringify({ accept: true, postLogin: true, oauth_query: 'client_id=x&sig=y' }),
       }),
     )

@@ -1,4 +1,6 @@
+import { createAdaptorServer } from '@hono/node-server'
 import { Hono } from 'hono'
+import type { AddressInfo } from 'node:net'
 import { describe, expect, it, vi } from 'vitest'
 import { notFound } from '../problem'
 import { createErrorHandler } from '../error-handler'
@@ -50,6 +52,17 @@ describe('reloadingAdmin', () => {
     expect(answer.status).toBe(200)
     expect(await answer.json()).toEqual({ name: 'built true', body: { title: 'First' } })
     expect(readVersion).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the method of a JSON request on Node, as dev and serve hand it over', async () => {
+    const { admin } = setup([])
+    // The adapter without its global Request: the request it hands the app is its own class, not the platform's.
+    const server = createAdaptorServer({ fetch: admin.fetch, overrideGlobalObjects: false }).listen(0)
+    await new Promise((resolve) => server.once('listening', resolve))
+    const { port } = server.address() as AddressInfo
+    const answer = await fetch(`http://localhost:${port}/api/v1/orders`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'First' }) })
+    await new Promise((resolve) => server.close(resolve))
+    expect(await answer.json()).toEqual({ name: 'first', body: { title: 'First' } })
   })
 
   it('answers not found when the version did not move', async () => {

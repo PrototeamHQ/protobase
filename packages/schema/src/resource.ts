@@ -3,6 +3,9 @@ import type { FieldAccess } from './access/types'
 import { eventHelpers, type EventHelpers, type EventSpec } from './events/event-helpers'
 import { eventMatches } from './events/event-models'
 import type { ComputedReveal } from './computed/computed-reveal'
+import type { BucketFields, BucketMeasuresInput, BucketsSpec } from './buckets/buckets'
+import type { BucketMeasure } from './buckets/buckets-model'
+import { bucketsState } from './buckets/buckets-of'
 import type { ParentAccess, PositionAfterModel, ResourceModel, SearchMatch } from './model'
 import { buildResourceModel, ignoredColumns, type ResourceState } from './resource-model'
 import type { Access, Issue, KeyRefs, RecordOf } from './resource-types'
@@ -67,6 +70,37 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    */
   fields<const N extends FieldsInput>(fields: N) {
     return new ResourceBuilder<N>({ ...this.state, fields })
+  }
+
+  /**
+   * Makes it a time rollup of `source`: one row per hour or day, in UTC, of `time`, and per value of the `by` fields,
+   * with the count of records as `events` and each measure as `<field>_sum` or `<field>_max`. Sets the fields, the key
+   * `id` and the source's tenant; `protobase migration` writes its table, indexes and refresh
+   * function. Only the database writes its rows. See
+   * [Time rollups](docs/website/src/content/docs/reference/data-config.mdx#time-rollups).
+   *
+   * @example
+   * ```ts
+   * resource('readings_hourly').table('readings_hourly').bucketsOf(readings, {
+   *   time: (r) => r.taken_at, every: 'hour', by: (r) => [r.device_id], measures: { watts: ['sum', 'max'] }, late: '2 hours',
+   * })
+   * ```
+   */
+  bucketsOf<S extends FieldsInput, const B extends readonly Ref[], const M extends BucketMeasuresInput<S> = {}>(
+    source: ResourceBuilder<S, unknown>,
+    spec: BucketsSpec<S, B, M>,
+  ) {
+    const refs = createRefs<FieldRefs<S>>((name) => ({ name }), source.knownFields())
+    const measures = Object.fromEntries(Object.entries(spec.measures ?? {}).map(([field, fns]) => [field, [...(fns as readonly string[])]]))
+    const state = bucketsState(this.state.name, { model: source.toModel(), fields: source.state.fields ?? {} }, {
+      from: source.state.name,
+      time: spec.time(refs).name,
+      every: spec.every,
+      by: spec.by(refs).map((ref) => ref.name),
+      measures: measures as Record<string, BucketMeasure[]>,
+      late: spec.late,
+    })
+    return new ResourceBuilder<BucketFields<S, B, M>, Ref<'id', string>>({ ...this.state, ...state })
   }
 
   /** The key: one field, or a list for a key of several columns (`(r) => [r.order_id, r.line_no]`). Required. */
@@ -180,6 +214,22 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   }
 
   /**
+   * Declares the resource's records links between two others, such as tasks and the objectives they serve, so a record
+   * of either side lists the other's records, and those that point at them, at
+   * [`/{parent}/{key}/{resource}`](docs/website/src/content/docs/reference/api.md#lists-under-a-record). Both are
+   * filterable relations of one column. A list still reads as itself: a task's address stays `/tasks/{key}`.
+   *
+   * @example
+   * ```ts
+   * .links((r) => [r.objective_id, r.task_id])
+   * ```
+   */
+  links(pick: (r: FieldRefs<F>) => readonly [Ref, Ref]) {
+    const [first, second] = pick(this.refs())
+    return this.next({ links: [first.name, second.name] })
+  }
+
+  /**
    * The events changes to its records raise, captured in the database for every write, from the API or elsewhere. See
    * [Declaring events](docs/website/src/content/docs/reference/events.mdx#declaring-events).
    *
@@ -231,6 +281,15 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    */
   explicitGrants() {
     return this.next({ explicitGrants: true })
+  }
+
+  /**
+   * The read-only field whose change makes a record's new ETag, for a table whose `version` column does not change on
+   * every write: one every record has, and not a sensitive one. Without it a `version` column is used, then
+   * `updated_at`, then a hash of the row.
+   */
+  etagFrom(pick: (r: FieldRefs<F>) => Ref) {
+    return this.next({ etagFrom: pick(this.refs()).name })
   }
 
   /** The code predicates (`match`) of its events, by event name. */
@@ -321,7 +380,8 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
     return createRefs<FieldRefs<F>>((name) => ({ name }), this.knownFields())
   }
 
-  private knownFields() {
+  /** @internal */
+  knownFields() {
     return Object.entries(this.state.fields ?? {})
       .filter(([, field]) => field !== null)
       .map(([key]) => key)

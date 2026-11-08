@@ -7,9 +7,11 @@ import { fetchWithProgress, type UploadProgress } from './upload-request'
 import { followLive, type LiveHandlers } from './live'
 import { sharedLive } from './shared-live'
 import { channelsClient } from './channels'
+import { bridgesClient } from './bridges'
 import type { SocketLike } from './channel-connection'
 import { devicesClient } from './devices'
 import { statusClient } from './status'
+import { workflowRunTraceClient } from './workflow-trace'
 import { workflowTypesClient } from './workflow-types'
 import { notificationHistoryClient } from './notification-history'
 import { recordCallsClient } from './record-calls'
@@ -25,8 +27,9 @@ const longestListQuery = 4_000
 const nameOf = (resource: ResourceRef) => (typeof resource === 'string' ? resource : resource.toModel().name)
 
 // `/api/channels` beside the API, as a WebSocket URL on the API's origin, the page's for a relative one.
-const channelsUrl = (baseUrl = '/api/v1') => {
-  const url = new URL(`${baseUrl.replace(/\/[^/]*$/, '')}/channels`, globalThis.location?.href)
+// The socket URL of a path below the API's system path, which is the base URL without its last segment (`/api`).
+const systemSocketUrl = (baseUrl = '/api/v1', path: string) => {
+  const url = new URL(`${baseUrl.replace(/\/[^/]*$/, '')}${path}`, globalThis.location?.href)
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
   return url.toString()
 }
@@ -91,7 +94,7 @@ const storedOf = async <T>(response: Response, origin: string | undefined): Prom
 const batchResultOf = (body: Partial<BatchResult>, origin: string | undefined): BatchResult => ({
   results: (body.results ?? []).map((result) => {
     if (result.op === 'create' || result.op === 'update') return { ...result, record: withFileOrigin(result.record, origin) }
-    if (result.op === 'reorder') return { ...result, records: result.records.map((entry) => ({ ...entry, record: withFileOrigin(entry.record, origin) })) }
+    if (result.op === 'reorder' || result.op === 'move') return { ...result, records: result.records.map((entry) => ({ ...entry, record: withFileOrigin(entry.record, origin) })) }
     return result
   }),
 })
@@ -197,6 +200,7 @@ export const createClient = (options: ClientOptions = {}) => {
       resource: nameOf(operation.resource),
       ...('key' in operation && { key: keyText(operation.key) }),
       ...(operation.op === 'reorder' && { keys: operation.keys.map(keyText) }),
+      ...(operation.op === 'move' && { after: operation.after && keyText(operation.after), ...(operation.before !== undefined && { before: operation.before && keyText(operation.before) }) }),
     }))
     const response = await send({ method: 'POST', path: ':batchWrite', body: { ops: wireOps } })
     return batchResultOf((await response.json()) as Partial<BatchResult>, origin)
@@ -383,12 +387,16 @@ export const createClient = (options: ClientOptions = {}) => {
    * The channel of a record (`/api/channels`): who else is on it and what they track (presence), and the events they
    * send (broadcasts), for whoever may read the record. Every channel of the client shares one socket.
    */
+  const openSocket = options.webSocket ?? ((url: string, protocols: string[]) => new WebSocket(url, protocols) as unknown as SocketLike)
   const { channel } = channelsClient({
-    url: () => channelsUrl(options.baseUrl),
+    url: () => systemSocketUrl(options.baseUrl, '/channels'),
     ...(options.token && { token: () => options.token!({ refresh: false }) }),
-    socket: options.webSocket ?? ((url, protocols) => new WebSocket(url, protocols) as unknown as SocketLike),
+    socket: openSocket,
     retryDelay: (attempt) => Math.min(30_000, 1000 * 2 ** attempt),
   })
+
+  /** The app's TCP bridges, to services only its server reaches, over a WebSocket each (see `bridgesClient`). */
+  const bridges = bridgesClient({ send, socketUrl: (path) => systemSocketUrl(options.baseUrl, path), socket: openSocket })
 
   /** The signed-in user's own devices, where they receive push (see `devicesClient`). */
   const devices = devicesClient(send)
@@ -405,13 +413,16 @@ export const createClient = (options: ClientOptions = {}) => {
   /** The app's workflow trigger and step types, each with its input's JSON Schema (see `workflowTypesClient`). */
   const workflowTypes = workflowTypesClient(send)
 
+  /** A workflow run's trace, the steps it ran with their input, output and logs (see `workflowRunTraceClient`). */
+  const workflowRunTrace = workflowRunTraceClient(send)
+
   /** The calls that ring the signed-in user, and declining one (see `ringsClient`). */
   const rings = ringsClient(send)
 
   /** Whether the calls of the organization the signed-in user works in take guests (see `callGuestsClient`). */
   const callGuests = callGuestsClient(send)
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes }
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace }
 }
 
 export type Client = ReturnType<typeof createClient>

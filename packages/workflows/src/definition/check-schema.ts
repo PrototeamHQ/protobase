@@ -29,6 +29,7 @@ const located = (pointer: string): Pick<Problem, 'state' | 'field'> => {
 const message = (error: ErrorObject) => {
   if (error.keyword === 'additionalProperties') return `${error.params.additionalProperty} is not a field here`
   if (error.keyword === 'required') return `${error.params.missingProperty} is missing`
+  if (error.keyword === 'minItems') return `is missing; it needs at least ${String(error.params.limit)}`
   if (error.keyword === 'const') return `must be ${JSON.stringify(error.params.allowedValue)}`
   if (error.keyword === 'discriminator') return 'must be one of Task, Choice, Pass, Map, Wait, Succeed and Fail'
   if (error.keyword === 'pattern' && error.instancePath === '/trigger') return 'names a trigger type <plugin>:<key>, such as app:record, or manual'

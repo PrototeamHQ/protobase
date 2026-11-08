@@ -3,33 +3,32 @@ import { useQuery } from '@tanstack/react-query'
 import type { BatchOp } from '@protobase/client'
 import { useRef, useState } from 'react'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
-import { encodeKey } from '@protobase/schema/internal'
 import { useClient } from '../../data/api-provider'
 import { keys } from '../../data/query-keys'
 import type { GridRow } from '../../data-grid'
-import { recordId, recordKey, recordTitle } from '../../live/model-helpers'
+import { recordId, recordTitle } from '../../live/model-helpers'
 import { listLabels, withLabels } from '../../live/relation-labels'
 import { useToast } from '../../toasts'
-import { refusalReason } from '../displays/board-columns'
 import { displayRow } from '../displays/list-displays'
 import { useAdminMeta } from '../meta-gate'
 import { useRefreshResource } from '../pages/use-layout-data'
 import { dependencyRule } from '../rank-after/dependency-rule'
 import { rankBounds } from '../rank-after/rank-bounds'
+import { anchoredMove } from './anchored-move'
 import { allowedDrop, type DropRule } from './drop-rule'
 import { handOrderPage } from './hand-order'
 import { text } from './messages'
-import { reorderSpan } from './reorder-span'
+import { moveRefusal } from './move-refusal'
 import { undoOps } from './undo-ops'
 
 type Request = { model: ResourceModel; view: ViewModel | undefined; field: string; filter: string; fields: string[]; rule?: DropRule }
 
 /**
  * The records of `filter` in the order of `field`, all of them, a page of `handOrderPage` at a time, and `move` to put
- * one elsewhere. A move shows at once and saves only the records whose place changed (see `reorderSpan`) in one batch
- * `reorder` with their ETags; moves made while one saves are saved after it, with the values and ETags it gave back.
+ * one elsewhere. A move shows at once and saves as a batch `move` anchored to where it was dropped (see `anchoredMove`),
+ * so it saves whatever else changed meanwhile; moves made while one saves are saved after it, together.
  * Each save says so with **Undo**, which puts back the values it changed. A refusal puts them back as the server has
- * them and says why; either way every list of the resource reloads. A drop `rule` refuses moves to the first place below
+ * them and says why, or that the list changed where it was dropped; either way every list of the resource reloads. A drop `rule` refuses moves to the first place below
  * that it allows, with a warning giving its reason; with the position's `after`, so do the records the moved one
  * depends on, read first (see `rankBounds`).
  */
@@ -56,8 +55,10 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
   // The order on screen while moves save, then the server's again
   const [moved, setMoved] = useState<GridRow[]>()
   const latest = useRef<GridRow[]>(undefined)
-  // The places changed by the moves not saved yet, from the first to the last
-  const pending = useRef<{ first: number; last: number }>(undefined)
+  // The moves not saved yet, in the order they were made
+  const pending = useRef<BatchOp[]>([])
+  // The title of the record moved last, which a refused save names
+  const movedTitle = useRef<string>(undefined)
   const saving = useRef(Promise.resolve())
   const waiting = useRef(0)
   // Only the latest save can be undone, so its toast replaces the one before
@@ -65,22 +66,19 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
 
   const save = async () => {
     const rows = latest.current
-    const changed = pending.current
-    pending.current = undefined
+    const ops = pending.current
+    pending.current = []
     // An earlier move was refused, which put the records back, or an earlier save took this move along
-    if (!rows || !changed) return
-    const span = reorderSpan(rows.map((row) => row[field]), changed.first, changed.last)
-    const sent = rows.slice(span.first, span.last + 1)
-    const etags = Object.fromEntries(sent.flatMap((row) => (typeof row.etag === 'string' ? [[encodeKey(recordKey(model, row)), row.etag]] : [])))
-    const result = await client.batchWrite([{ op: 'reorder', resource: model.name, field, keys: sent.map((row) => recordKey(model, row)), start: span.start, etags }])
-    const written = result.results[0]
-    if (written?.op !== 'reorder') return
-    const before = new Map(sent.map((row) => [row.id, { [field]: row[field] }]))
-    const undo = undoOps(model, written.records.map((entry) => ({ ...entry, before: before.get(recordId(model, entry.record)) ?? {} })), [field])
+    if (!rows || ops.length === 0) return
+    const result = await client.batchWrite(ops)
+    // Each record as the last move that numbered it left it
+    const stored = new Map(result.results.flatMap((written) => (written.op === 'move' ? written.records : [])).map((entry) => [recordId(model, entry.record), entry]))
+    // Moves change only the order on screen, so the rows still have the values this save replaces
+    const before = new Map(rows.map((row) => [row.id, { [field]: row[field] }]))
+    const undo = undoOps(model, [...stored].map(([id, entry]) => ({ ...entry, before: before.get(id) ?? {} })), [field])
     if (undoToast.current !== undefined) toast.dismiss(undoToast.current)
     undoToast.current = toast.show({ state: 'success', title: text('orderChanged'), action: { label: text('undo'), onClick: () => undoSave(undo) } })
     if (!latest.current) return
-    const stored = new Map(written.records.map((entry) => [recordId(model, entry.record), entry]))
     // Moves made since keep their order, each record with the ETag and position the server gave it
     latest.current = latest.current.map((row) => {
       const entry = stored.get(row.id)
@@ -88,11 +86,12 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
     })
   }
 
-  const refused = (title: string) => (error: unknown) => {
+  // `moved`: a move was refused, rather than an undo
+  const refused = (fallback: string, moved: boolean) => (error: unknown) => {
     latest.current = undefined
-    pending.current = undefined
+    pending.current = []
     setMoved(undefined)
-    toast.show({ state: 'error', title, description: refusalReason(error) })
+    toast.show(moveRefusal(error, fallback, { place: 'list', title: moved ? movedTitle.current : undefined }))
   }
 
   // The server's order again once no move waits to be saved
@@ -116,7 +115,7 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
       const now = latest.current ?? loaded.data!
       const dependencies = dependencyRule(model, bounds, recordTitle(model, view, record, id))
       place(now, now.findIndex((row) => row.id === id), dropped, (drop) => dependencies(drop) ?? rule?.(drop))
-    }, refused(text('couldNotChange')))
+    }, refused(text('couldNotChange'), false))
   }
 
   const place = (rows: GridRow[], from: number, dropped: number, rule: DropRule | undefined) => {
@@ -124,12 +123,11 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
     const to = rule ? placeAllowed(rows, from, dropped, rule) : dropped
     if (from === to) return
     latest.current = arrayMove(rows, from, to)
-    const first = Math.min(from, to)
-    const last = Math.max(from, to)
-    pending.current = pending.current ? { first: Math.min(pending.current.first, first), last: Math.max(pending.current.last, last) } : { first, last }
+    pending.current = [...pending.current, anchoredMove(model, field, filter, latest.current, to)]
     setMoved(latest.current)
     waiting.current += 1
-    saving.current = saving.current.then(save).catch(refused(text('couldNotChange'))).then(settle)
+    movedTitle.current = recordTitle(model, view, displayRow(model, rows[from]!).record, rows[from]!.id)
+    saving.current = saving.current.then(save).catch(refused(text('couldNotChange'), true)).then(settle)
   }
 
   // Where the rule lets the row land, warning when that is not where it was dropped
@@ -149,10 +147,10 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
         await client.batchWrite(ops)
         // The order is the server's again, which the lists show once they reload
         latest.current = undefined
-        pending.current = undefined
+        pending.current = []
         setMoved(undefined)
       })
-      .catch(refused(text('couldNotUndo')))
+      .catch(refused(text('couldNotUndo'), false))
       .then(settle)
   }
 

@@ -1,4 +1,4 @@
-import type { SavedStep, StepLog, StepRecord, TaskHandlers } from './port'
+import type { Checkpoint, StepLog, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import type { SecretNamer } from './cache/secret-names'
@@ -23,13 +23,15 @@ export type SegmentContext = {
   now: () => Date
   /** When the segment stops taking new steps and hands the rest to the next one, as `Date.now()` counts. */
   deadline: number
-  /** The steps saved before this segment, by scope, in order. */
-  saved: ReadonlyMap<string, readonly SavedStep[]>
+  /** The latest checkpoint of each scope, saved before this segment. */
+  saved: ReadonlyMap<string, Checkpoint>
   /**
-   * Keeps a step to save with the next checkpoint; a checkpoint saves it with every step kept before it, in one write,
-   * throwing `SupersededError` when another segment saved one of them first.
+   * Keeps where a scope stands, replacing what it kept before; with `now`, saves it and every other scope's kept one in
+   * one write, throwing `SupersededError` when another segment saved a newer checkpoint of one of them first.
    */
-  save: (step: StepRecord, checkpoint: boolean) => Promise<void>
+  checkpoint: (checkpoint: Omit<Checkpoint, 'after'>, now: boolean) => Promise<void>
+  /** Adds a step to the segment's trace. */
+  trace: (step: StepRecord) => void
   /** Whether a save found another segment ahead, so no scope of this one takes another step. */
   superseded: () => boolean
   /** Steps of the run so far, the saved ones and this segment's, and the most it may take. */
@@ -50,6 +52,10 @@ export type StateResult =
       error?: string
       cause?: string
       logs: StepLog[]
+      /** A Task whose call is recorded: it changes the world. */
+      recorded?: boolean
+      /** When a recorded Task's result was fetched. */
+      fetchedAt?: Date
     }
   | Paused
 

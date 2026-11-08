@@ -7,7 +7,7 @@ import { WorkflowCanvas } from '../workflow/workflow-canvas'
 import { useWorkflowTypes } from '../workflow/use-workflow-types'
 import { nodeTraces } from './run-trace'
 import { StepPanel } from './step-panel'
-import { traceStepLimit, useRunTrace, type RunTraceData } from './use-run-trace'
+import { useRunTrace, type RunTraceData } from './use-run-trace'
 import { text } from './messages'
 
 const noProblems = new Map()
@@ -39,7 +39,7 @@ export const RunTraceView = ({ trace, types, notice, idle }: RunTraceViewProps) 
   const run = { ...trace.run, id: trace.id, created_at: String(trace.run.created_at) }
   return (
     <div className="flex flex-col gap-3">
-      {trace.cut && <p className="text-xs text-muted-foreground">{text('cut', { count: traceStepLimit })}</p>}
+      {!going && steps.length === 0 && <p className="text-xs text-muted-foreground">{text('noTrace')}</p>}
       <GraphFrame
         canvas={<WorkflowCanvas definition={definition} problems={noProblems} selected={selected} onSelect={(id) => setChosen(id ?? null)} traces={traces} {...(types && { types })} />}
         panel={

@@ -14,7 +14,8 @@ export const defaultPushTimeoutMs = 10_000
 // Only ever to the address its host resolved to, checked to be public, as a webhook is sent.
 const pinned: PushRequest = (url, init) => pinnedRequest(url.href, init)
 
-const retryAfter = (response: Response): PushResult => {
+/** `retry`, after the seconds of the answer's Retry-After header when it gives a plain number of them. */
+export const retryAfter = (response: Response): PushResult => {
   const seconds = response.headers.get('retry-after')?.trim()
   return seconds !== undefined && /^\d{1,7}$/.test(seconds) ? { result: 'retry', retryAfterSeconds: Number(seconds) } : { result: 'retry' }
 }

@@ -1,7 +1,8 @@
 {
   "unstable": {
     "mailbox/use-action-mailbox#useActionMailbox": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true",
-    "mailbox/use-mailbox-toast-action#useMailboxToastAction": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true"
+    "mailbox/use-mailbox-toast-action#useMailboxToastAction": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true",
+    "notifications/push/native-push-tap#NativePushTap": "the shell mounts it in the Android app; an app gets push taps opened by turning notifications() on"
   },
   "pending": [
     "account/account-page#AccountPage",
@@ -10,12 +11,12 @@
     "account/account-section#SectionError",
     "account/blocks/connected-accounts-block#ConnectedAccountsBlock",
     "account/blocks/connected-apps-block#ConnectedAppsBlock",
+    "account/blocks/connections-block#ConnectionsBlock",
     "account/blocks/delete-account-block#DeleteAccountBlock",
     "account/blocks/devices-block#DevicesBlock",
     "account/blocks/passkeys-block#PasskeysBlock",
     "account/blocks/password-block#PasswordBlock",
     "account/blocks/personal-mail-block#PersonalMailBlock",
-    "account/blocks/connections-block#ConnectionsBlock",
     "account/blocks/profile-block#ProfileBlock",
     "account/blocks/two-factor-block#TwoFactorBlock",
     "account/sign-in-policy-page#SignInPolicyPage",
@@ -98,8 +99,11 @@
     "primitives/avatar#AvatarStack",
     "primitives/badge#Badge",
     "primitives/checkbox#Checkbox",
+    "primitives/code-block#CodeBlock",
     "primitives/count-badge#CountBadge",
     "primitives/kbd#Kbd",
+    "primitives/menu-edge#useMenuRight",
+    "primitives/menu-edge#useMenuTop",
     "primitives/popover-menu#usePopoverMenu",
     "primitives/route-link#RouteLink",
     "primitives/sheet#Sheet",
@@ -108,6 +112,8 @@
     "primitives/switch#Switch",
     "primitives/token#Token",
     "primitives/tooltip#Tooltip",
+    "primitives/use-snap-scroll#useSnapScroll",
+    "record-view/action-menu#ActionMenu",
     "record-view/action-rail#ActionRail",
     "record-view/autosave-status#AutosaveStatus",
     "record-view/record-header#RecordHeader",

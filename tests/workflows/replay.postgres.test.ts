@@ -1,12 +1,16 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { sql, type Kysely } from 'kysely'
+// Where runs keep their traces.
+const trace = await traceFiles()
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, unauthorized, workflowsMigration, type JobsRuntime, type MailMessage, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import type { Plugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { traceFiles } from './support/run-trace'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -16,10 +20,11 @@ process.env.REPLAY_TOKEN = secret
 process.env.PROTOBASE_SECRET = 'app-secret-for-the-replay-test'
 
 const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly(), text: f.text() }).primaryKey((r) => r.id)
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps' | 'notes'>({
-  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'notes.*'],
-  runner: ['workflows.read', 'workflow_runs.create', 'workflow_runs.read'],
-  reader: ['workflows.read', 'workflow_runs.read', 'workflow_steps.read'],
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'notes'>({
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'notes.*'],
+  // Reads the runs but not their traces, which a replay copies.
+  runner: ['workflows.read', 'workflow_runs.create', { 'workflow_runs.read': ['id', 'workflow_id', 'status', 'rerun_of', 'rerun_from', 'replay', 'created_at'] }],
+  reader: ['workflows.read', 'workflow_runs.read'],
 })
 const people: Record<string, { tenant: string; roles: string[] }> = {
   ada: { tenant: '1', roles: ['builder'] },
@@ -82,7 +87,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
       if (!person) throw unauthorized('Sign in first')
       return { user: { id: request.headers.get('x-user')!, roles: person.roles }, tenant: person.tenant }
     }
-    admin = createAdmin({ resources, views, db, authenticate, workflows, options: { roles } })
+    admin = createAdmin({ resources, views, db, files: trace.files, authenticate, workflows, options: { roles } })
     receiver = createServer((request, response) => {
       received.push(`${request.method} ${request.url}`)
       response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ stock: 3 }))
@@ -93,6 +98,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
   })
 
   afterAll(async () => {
+    await trace.folder.remove()
     await runtime?.stop()
     await new Promise((resolve) => receiver?.close(resolve))
     await pg?.close()
@@ -109,7 +115,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
   const runRow = async (id: string) => (await sql<{ status: string; output: unknown; version: number; error: string | null }>`select status, output, version, error from workflows.runs where id = ${id}`.execute(db)).rows[0]!
   const finished = (id: string) => vi.waitFor(async () => expect(['succeeded', 'failed']).toContain((await runRow(id)).status), { timeout: 20_000, interval: 50 })
   const stepsOf = async (id: string) =>
-    (await sql<{ state: string; input: unknown; output: unknown; logs: { message: string }[]; resume_at: Date | null }>`select state, input, output, logs, resume_at from workflows.steps where run_id = ${id} order by id`.execute(db)).rows
+    (await trace.steps(db, id)).map(({ state, input, output, logs, resumeAt }) => ({ state, input, output, logs, resume_at: (resumeAt as string | null | undefined) ?? null }))
   const byState = async (id: string) => Object.fromEntries((await stepsOf(id)).map((step) => [step.state, step]))
 
   // Reads a price and stock, composes a mail from them, then writes: mail, a record, a record update, a POST, a DELETE,
@@ -166,7 +172,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
     expect(steps.Price!.output).toEqual(original.Price!.output)
     expect(steps.Price!.logs.map((log) => log.message).join('\n')).toContain('An earlier result from')
     expect(steps.Price!.logs.map((log) => log.message)).toContain('The secret REPLAY_TOKEN changed since that result was kept')
-        expect(steps.Pause!.resume_at).toBeNull()
+    expect(steps.Pause!.resume_at).toBeNull()
     for (const state of ['Mail', 'Note', 'Edit', 'Post', 'Delete', 'Notify']) {
       expect(steps[state]!.output).toEqual(original[state]!.output)
       expect(steps[state]!.logs.map((log) => log.message)).toEqual(['Not sent: replay'])
@@ -176,12 +182,14 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
     expect(kept).not.toContain(secret)
   })
 
-  it('refuses a caller who may not read the steps or start runs, another tenant, and a run that is not one of the workflow', async () => {
+  it('refuses a caller who may not read the trace or start runs, another tenant, and a run that is not one of the workflow', async () => {
     const { workflow, run } = await ranOrder()
     const other = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Other', definition: order('Hi') } }))
     const runs = await count()
     const replay = (user: string, body: Record<string, unknown>) => as(user, '/workflow_runs', { method: 'POST', body: { replay: true, ...body } })
     expect((await replay('rita', { workflow_id: workflow, rerun_of: run })).status).toBe(404)
+    // A re-run copies the steps it keeps, so it asks the same: rita may start runs but not read their steps
+    expect((await as('rita', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, rerun_of: run, rerun_from: 'Mail' } })).status).toBe(404)
     expect([403, 404]).toContain((await replay('reed', { workflow_id: workflow, rerun_of: run })).status)
     expect((await replay('bob', { workflow_id: workflow, rerun_of: run })).status).toBe(409)
     expect((await replay('ada', { workflow_id: other, rerun_of: run })).status).toBe(409)

@@ -16,17 +16,10 @@ const contextAt = (version: number) => {
 }
 
 describe('enable_workflow', () => {
-  it('turns on the version it names, with the etag that version was read with', async () => {
-    const { context, update } = contextAt(2)
+  it('publishes the version it names, whichever saved version it is', async () => {
+    const { context, update } = contextAt(3)
     expect(JSON.parse(await enableWorkflowTool().run({ id: 'w1', enabled: true, version: 2 }, context))).toEqual({ id: 'w1', enabled_version: 2 })
-    expect(update).toHaveBeenCalledWith('workflows', 'w1', { enabled_version: 2 }, { etag: '"v2"' })
-  })
-
-  it('refuses a version the workflow was saved past, before asking, so an approval never turns on another', async () => {
-    const { context, approve, update } = contextAt(3)
-    expect(JSON.parse(await enableWorkflowTool().run({ id: 'w1', enabled: true, version: 2 }, context))).toMatchObject({ error: 'precondition-failed' })
-    expect(approve).not.toHaveBeenCalled()
-    expect(update).not.toHaveBeenCalled()
+    expect(update).toHaveBeenCalledWith('workflows', 'w1', { enabled_version: 2 }, {})
   })
 
   it("answers a version that signs in through someone's account with where its owner turns it on, turning nothing on", async () => {

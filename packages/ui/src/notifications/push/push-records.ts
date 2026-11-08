@@ -3,9 +3,10 @@ import { pushRecord } from '@protobase/schema/internal'
 /**
  * Which user this browser's push subscription is registered for, kept where the service worker reads it before it
  * shows a push: the user, the subscription's endpoint, the app's name for a push without a title, the device's id once
- * the server has it, and `renew` once the worker saw the subscription change.
+ * the server has it, and `renew` once the worker saw the subscription change. In the Android app, the endpoint is the
+ * app's FCM token and there is no app name: the phone shows the push.
  */
-export type PushRecord = { userId: string; endpoint: string; appName: string; deviceId?: string; renew?: boolean }
+export type PushRecord = { userId: string; endpoint: string; appName?: string; deviceId?: string; renew?: boolean }
 
 /** The one push record of this browser. */
 export type PushRecords = {

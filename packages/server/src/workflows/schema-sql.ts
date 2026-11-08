@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 14
+export const workflowsVersion = 18
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -14,9 +14,8 @@ export const commentVersion = (comment: string | null) => {
 const ms = (from: string, to: string) => `(floor(extract(epoch from ("${to}" - "${from}")) * 1000)::bigint)`
 
 /**
- * The workflows, each version of their definitions as it was saved, their runs and every step of a run. A run pins
- * the version it started on, and a run with a key is started once per workflow and key; a step is saved once per scope and number, which is what keeps a repeated segment from
- * saving it twice.
+ * The workflows, each version of their definitions as it was saved, and their runs. A run pins the version it started
+ * on, and a run with a key is started once per workflow and key.
  */
 export const tablesSql = (schema: string) => {
   const s = quoteIdent(schema)
@@ -55,36 +54,44 @@ create table if not exists ${s}."runs" (
   "started_by" text,
   "rerun_of" uuid references ${s}."runs" ("id") on delete set null,
   "replay" boolean,
+  "rerun_from" text,
   "tenant_id" text,
   "created_at" timestamptz not null default now(),
   "finished_at" timestamptz,
   "duration_ms" bigint generated always as (${ms('created_at', 'finished_at')}) stored,
   foreign key ("workflow_id", "version") references ${s}."versions" ("workflow_id", "version")
-);
+)`
+}
 
-create table if not exists ${s}."steps" (
-  "id" bigint generated always as identity primary key,
+/**
+ * Where each scope of a run stands, its latest checkpoint only, all a later segment needs to go on; a run that succeeds
+ * drops its rows, and one that fails keeps them for a re-run. A checkpoint replaces its scope's only when that is the
+ * one it `follows`, which keeps a segment that fell behind from saving. Added to a schema made before, as are the run's
+ * trace setting and its trace's file.
+ */
+export const checkpointsSql = (schema: string) => {
+  const s = quoteIdent(schema)
+  return `create table if not exists ${s}."checkpoints" (
   "run_id" uuid not null references ${s}."runs" ("id") on delete cascade,
-  "tenant_id" text,
   "scope" text not null,
   "seq" integer not null,
+  "follows" integer not null,
   "state" text not null,
   "type" text not null,
-  "status" text not null check ("status" in ('succeeded', 'retrying', 'caught', 'failed')),
-  "attempt" integer not null,
-  "input" jsonb,
-  "output" jsonb,
-  "assigned" jsonb,
+  "status" text not null check ("status" in ('succeeded', 'retrying', 'caught')),
+  "fetched_at" timestamptz not null,
   "next" text,
+  "value" jsonb,
+  "variables" jsonb not null,
+  "attempt" integer not null,
+  "failures" jsonb not null,
+  "visits" jsonb not null,
   "resume_at" timestamptz,
-  "error" text,
-  "cause" text,
-  "logs" jsonb not null,
-  "started_at" timestamptz not null,
-  "finished_at" timestamptz not null,
-  "duration_ms" bigint generated always as (${ms('started_at', 'finished_at')}) stored,
-  unique ("run_id", "scope", "seq")
-)`
+  "clock" timestamptz not null,
+  primary key ("run_id", "scope")
+);
+alter table ${s}."runs" add column if not exists "trace" text check ("trace" in ('all', 'failed', 'none'));
+alter table ${s}."runs" add column if not exists "trace_file" text`
 }
 
 /** The most bytes a trigger's cursor or store holds as JSON, so a plugin cannot grow them without limit. */
@@ -179,25 +186,31 @@ alter table ${s}."runs" add column if not exists "replay" boolean;
 create index if not exists "runs_workflow" on ${s}."runs" ("workflow_id", "created_at");
 create index if not exists "runs_tenant" on ${s}."runs" ("tenant_id");
 create index if not exists "runs_status" on ${s}."runs" ("status");
-create index if not exists "runs_created_at" on ${s}."runs" ("created_at");
-create index if not exists "steps_tenant" on ${s}."steps" ("tenant_id");
-create index if not exists "steps_status" on ${s}."steps" ("status");
-create index if not exists "steps_state" on ${s}."steps" ("state")`
+create index if not exists "runs_created_at" on ${s}."runs" ("created_at")`
 }
+
+// The columns the status triggers write, which leave a workflow's updated_at as it is.
+const statusColumns = `array['run_status', 'status_run_id', 'status_run_at', 'unresolved_failures', 'resolved_at', 'resolved_by', 'updated_at']`
 
 /** The triggers `functionsSql` makes, which the startup check finds on their tables. */
 export const workflowsTriggers = ['workflow_version', 'run_version']
 
 /**
  * A workflow numbers its next version as a save changes its definition, in the row the write returns, so its ETag is
- * the saved row's; the save hook keeps that version's definition and who saved it. A run takes its workflow's current
- * version as it is created, and refuses a workflow of another tenant as one that is not there, and one that has no
- * saved version. A re-run takes the input of the run it re-runs, which the start hook checks; a replay too, and runs the current version
- * like any run started now.
+ * the saved row's; the save hook keeps that version's definition and who saved it, and publishes only as `enabled_version`
+ * is written. A run takes the version it names as it is created, else the published one, or the one saved last on a workflow
+ * that is off, and refuses a workflow of another tenant as one that is not there, one that has no saved version, and a
+ * version the workflow does not have. A re-run takes the input of the run it re-runs, which the start hook checks; a replay
+ * too; both run the version saved last unless they name one. A workflow is created with no steps unless it says otherwise;
+ * such a version is kept but runs nothing.
  */
 export const functionsSql = (schema: string) => {
   const s = quoteIdent(schema)
-  return `create or replace function ${s}."workflow_version"() returns trigger
+  return `alter table ${s}."runs" add column if not exists "rerun_from" text;
+
+alter table ${s}."workflows" alter column "definition" set default '{"trigger":{"manual":{}},"stateMachine":{"QueryLanguage":"JSONata","StartAt":"","States":{}}}'::jsonb;
+
+create or replace function ${s}."workflow_version"() returns trigger
 language plpgsql as $$
 begin
   if tg_op = 'INSERT' then
@@ -206,11 +219,11 @@ begin
   end if;
   -- The write holds the row, so a save in another transaction numbers its version after this one.
   new.version := case when new.definition is distinct from old.definition then coalesce(old.version, 0) + 1 else old.version end;
-  -- An enabled workflow stays enabled on its new version; the save hook moves its trigger along.
-  if new.version is distinct from old.version and old.enabled_version is not null and new.enabled_version is not distinct from old.enabled_version then
-    new.enabled_version := new.version;
+  -- Its status, which runs ending and marks as resolved write, is no change to the workflow itself.
+  -- Otherwise never the same twice, nor now(): two writes in one transaction, as a batch that saves and publishes, are two ETags.
+  if to_jsonb(new) - ${statusColumns} is distinct from to_jsonb(old) - ${statusColumns} then
+    new.updated_at := greatest(clock_timestamp(), old.updated_at + interval '1 microsecond');
   end if;
-  new.updated_at := now();
   return new;
 end
 $$;
@@ -222,7 +235,7 @@ language plpgsql as $$
 declare
   found record;
 begin
-  select w.id, w.version, w.tenant_id into found from ${s}."workflows" w where w.id = new.workflow_id;
+  select w.id, w.version, w.enabled_version, w.tenant_id into found from ${s}."workflows" w where w.id = new.workflow_id;
   -- Another tenant's workflow is refused as one that is not there, so a start tells nothing of other tenants.
   if found.id is null or new.tenant_id is distinct from found.tenant_id then
     raise exception 'There is no workflow % here', new.workflow_id using errcode = '23503';
@@ -230,17 +243,24 @@ begin
   if found.version is null then
     raise exception 'Workflow % has no saved version', new.workflow_id using errcode = '23503';
   end if;
-  -- A replay replays a run of this workflow and tenant, on the version a run started now gets.
+  if new.version is not null and not exists (select from ${s}."versions" v where v.workflow_id = new.workflow_id and v.version = new.version) then
+    raise exception 'Workflow % has no version %', new.workflow_id, new.version using errcode = '23503';
+  end if;
+  -- A replay replays a run of this workflow and tenant.
   if new.replay then
     if not exists (select from ${s}."runs" r
       where r.id = new.rerun_of and r.workflow_id = new.workflow_id and r.tenant_id is not distinct from new.tenant_id) then
       raise exception 'There is no run % of workflow % here to replay', new.rerun_of, new.workflow_id using errcode = '23503';
     end if;
-    new.version := found.version;
   end if;
-  -- A trigger starts a run of the version that is enabled, which it gives; any other start runs the current one.
+  -- A re-run or a replay tries a fix, so it runs the version saved last. Any other start not naming its version runs
+  -- what is published, so a saved change stays out of production until it is, or the version saved last on a workflow that is off.
   if new.version is null then
-    new.version := found.version;
+    new.version := case when new.rerun_of is null then coalesce(found.enabled_version, found.version) else found.version end;
+  end if;
+  -- Checked on the version the run takes, which a re-run or a replay takes otherwise than a start
+  if exists (select from ${s}."versions" v where v.workflow_id = new.workflow_id and v.version = new.version and v.definition -> 'stateMachine' -> 'States' = '{}'::jsonb) then
+    raise exception 'Workflow % has no steps to run', new.workflow_id using errcode = '23503';
   end if;
   if new.rerun_of is not null then
     select r.input into new.input from ${s}."runs" r where r.id = new.rerun_of and r.workflow_id = new.workflow_id;

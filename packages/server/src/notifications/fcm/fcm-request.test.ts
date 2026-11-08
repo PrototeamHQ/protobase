@@ -48,9 +48,15 @@ describe('fcmRequest', () => {
   it('checks every url and image after the merge as the message\'s url is', () => {
     expect(refusal({ title: 'Hi', platform: { fcm: { data: { url: 'javascript:alert(1)' } } } })).toBe('data.url')
     expect(refusal({ title: 'Hi', data: { url: 'intent://x' } })).toBe('data.url')
+    expect(build({ title: 'Hi', url: 'https://app.example.com/a' }).message.data.url).toBe('https://app.example.com/a')
     expect(refusal({ title: 'Hi', platform: { fcm: { notification: { image: 'file:///etc/passwd' } } } })).toBe('platform.fcm.notification.image')
     expect(refusal({ title: 'Hi', platform: { fcm: { android: { notification: { image: 'content://x' } } } } })).toBe('platform.fcm.android.notification.image')
     expect(build({ title: 'Hi', platform: { fcm: { notification: { image: 'https://cdn.example.com/a.png' } } } }).message.notification).toEqual({ title: 'Hi', image: 'https://cdn.example.com/a.png' })
+  })
+
+  it('refuses a url in the message\'s data, which the app would open on tap like the message\'s own url', () => {
+    expect(refusal({ title: 'Hi', data: { url: 'https://app.example.com/a' } })).toBe('data.url')
+    expect(refusal({ title: 'Hi', url: 'https://app.example.com/a', data: { url: 'https://evil.example/x' } })).toBe('data.url')
   })
 
   it('writes data as strings and refuses the keys FCM keeps for itself', () => {

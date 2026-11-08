@@ -1,5 +1,8 @@
 import { refreshAccessToken } from 'better-auth/oauth2'
 import { sql, type Kysely } from 'kysely'
+// Where runs keep their traces.
+const trace = await traceFiles()
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
 import { authSchemaMigration, configExports, createAdmin, createUser, startJobs, workflowsMigration, type AdminAuth, type JobsRuntime, type Session, type WorkflowsOptions } from '@protobase/server'
@@ -9,6 +12,7 @@ import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } fr
 import { fakeGmail } from '../../test-support/fake-gmail/fake-gmail'
 import { mail } from '../../test-support/fake-gmail/mail'
 import { fakeOAuthServer } from '../../packages/server/src/better-auth/connections/testing/fake-oauth-server'
+import { traceFiles } from './support/run-trace'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -16,8 +20,8 @@ const secret = 'gmail-trigger-secret-gmail-trigger-secret-1234'
 const google = { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'google-client-secret-value' }
 const readonly = 'https://www.googleapis.com/auth/gmail.readonly'
 
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps' | 'workflow_triggers'>({
-  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'workflow_triggers.read'],
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_triggers'>({
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_triggers.read'],
 })
 
 const until = async <T>(read: () => Promise<T>, done: (value: T) => boolean, ms = 15_000) => {
@@ -70,11 +74,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('gmail:new_mail on the s
     const authenticate = (): Session => ({ user: { id: ada, roles: ['builder'] }, tenant: 1, organization: { id: 1 }, signIn: { staff: false } })
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const { resources, views } = configExports({ ...workflowsModule(workflows) })
-    app = createAdmin({ resources, views, db, auth, authenticate, workflows, options: { roles } })
+    app = createAdmin({ resources, views, db, files: trace.files, auth, authenticate, workflows, options: { roles } })
     runtime = await startJobs({ db, jobs: app.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error } })
   })
 
   afterAll(async () => {
+    await trace.folder.remove()
     await runtime?.stop()
     await pg?.close()
     await oauth?.close()
@@ -103,7 +108,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('gmail:new_mail on the s
   const runsOf = async (workflow: string) => (await sql<{ key: string; input: Record<string, unknown> }>`select key, input from workflows.runs where workflow_id = ${workflow} order by created_at`.execute(db)).rows
   const triggerOf = async (workflow: string) => (await sql<{ status: string; cursor: { history_id?: string } | null; last_error: { code: string } | null }>`select status, cursor, last_error from workflows.triggers where workflow_id = ${workflow}`.execute(db)).rows[0]
   const historyCalls = () => gmail.callsTo('history').length
-  const everything = async () => JSON.stringify([(await sql`select * from workflows.runs`.execute(db)).rows, (await sql`select * from workflows.steps`.execute(db)).rows, (await sql`select * from workflows.triggers`.execute(db)).rows])
+  const everything = async () => JSON.stringify([(await sql`select * from workflows.runs`.execute(db)).rows, await trace.everything(), (await sql`select * from workflows.triggers`.execute(db)).rows])
 
   it('refreshes the expired token, starts one run per new mail that passes its filter, none again, and stops once turned off', async () => {
     const workflow = await turnedOn(await linked())

@@ -26,6 +26,12 @@ export type WorkflowsOptions = {
    * from `workflows.plugins` and `workflows/plugins/<name>.ts`. Two of one name stop startup, naming both sources.
    */
   plugins?: LoadedPlugin[]
+  /**
+   * Which runs keep a trace, every step's input, output and logs as JSON lines in the private file provider: `all`
+   * (default), `failed` for only the runs that fail, or `none`. A workflow's definition (`trace`) and a run's own
+   * `trace` set it for theirs.
+   */
+  trace?: 'all' | 'failed' | 'none'
 }
 
 const schemaPattern = /^[a-z_][a-z0-9_]*$/
@@ -50,3 +56,12 @@ export const workflowSecrets = (options: WorkflowsOptions, env: Record<string, s
       return [name, value]
     }),
   )
+
+const traceModes = ['all', 'failed', 'none']
+
+/** The trace runs keep when neither they nor their workflow says; startup stops on any other value than the three. */
+export const workflowsTraceMode = (options: WorkflowsOptions) => {
+  const mode = options.trace ?? 'all'
+  if (!traceModes.includes(mode)) throw new Error(`workflows.trace is "${String(mode)}": use all, failed or none`)
+  return mode
+}

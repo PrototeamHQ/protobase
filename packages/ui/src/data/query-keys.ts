@@ -57,6 +57,8 @@ export const keys = {
   recordCalls: (resource: string, key: string) => ['record-calls', resource, key] as const,
   /** The app's workflow trigger and step types, as the workflow editor reads them (`useWorkflowTypes`). */
   workflowTypes: ['workflow-types'] as const,
+  /** A workflow run's trace, as its page reads it (`useRunSteps`). */
+  workflowRunTrace: (runId: string) => ['workflow-run-trace', runId] as const,
   /** A public form, as `/-/forms/<name>` draws it. */
   publicForm: (name: string) => ['public-form', name] as const,
 }

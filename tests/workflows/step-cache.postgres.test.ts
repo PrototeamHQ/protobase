@@ -1,14 +1,18 @@
 import { sql, type Kysely } from 'kysely'
+// Where runs keep their traces.
+const trace = await traceFiles()
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import type { Plugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { traceFiles } from './support/run-trace'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps'>({ builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read'] })
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs'>({ builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*'] })
 const secretValue = 'lookup-secret-value-1234'
 
 // A lookup that counts its calls, cached for an hour on what it reads.
@@ -47,11 +51,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the step cache on the a
     db = pg.db
     await pg.exec((await workflowsMigration(db, workflows))!)
     const { resources, views } = configExports(workflowsModule(workflows))
-    admin = createAdmin({ resources, views, db, authenticate: (request) => ({ user: { id: 'ada', roles: ['builder'] }, tenant: request.headers.get('x-tenant')! }), workflows, options: { roles } })
+    admin = createAdmin({ resources, views, db, files: trace.files, authenticate: (request) => ({ user: { id: 'ada', roles: ['builder'] }, tenant: request.headers.get('x-tenant')! }), workflows, options: { roles } })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
   })
 
   afterAll(async () => {
+    await trace.folder.remove()
     await runtime?.stop()
     await pg?.close()
     vi.unstubAllEnvs()
@@ -67,7 +72,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the step cache on the a
     const workflow = await as(tenant, '/workflows', { name: 'Lookup', definition: definition(args) })
     const id = await as(tenant, '/workflow_runs', { workflow_id: workflow })
     await vi.waitFor(async () => expect((await sql<{ status: string }>`select status from workflows.runs where id = ${id}`.execute(db)).rows[0]!.status).toBe('succeeded'), { timeout: 20_000, interval: 50 })
-    return (await sql<{ output: { n: number }; logs: { message: string }[] }>`select output, logs from workflows.steps where run_id = ${id}`.execute(db)).rows[0]!
+    return (await trace.steps(db, id))[0] as unknown as { output: { n: number }; logs: { message: string }[] }
   }
 
   it('serves a second workflow with the same input from the cache, and runs again for another header or tenant', async () => {

@@ -1,0 +1,27 @@
+{
+  "method": "POST",
+  "url": "https://relay.example.com/v1/send",
+  "headers": {
+    "authorization": "Bearer relay-credential-0123456789",
+    "content-type": "application/json"
+  },
+  "redirect": "manual",
+  "body": {
+    "message": {
+      "title": "Task assigned",
+      "body": "Review the launch plan",
+      "url": "https://app.example.com/tasks/42",
+      "tag": "task-42"
+    },
+    "devices": [
+      {
+        "handle": "relay-handle-10000000000",
+        "user": "user-1"
+      },
+      {
+        "handle": "relay-handle-20000000000",
+        "user": "user-2"
+      }
+    ]
+  }
+}

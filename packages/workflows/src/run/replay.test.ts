@@ -119,21 +119,40 @@ describe('a replay', () => {
     expect(port.run('r2')).toMatchObject({ status: 'succeeded', output: port.run('r1')!.output })
   })
 
-  it('runs no state when the steps it replays cannot be read', async () => {
+  it('matches each visit of a loop across segments, from the visits its checkpoints keep', async () => {
+    const sent: unknown[] = []
+    const slow = reads(async () => new Promise((resolve) => setTimeout(() => resolve(true), 5)))
+    const port = memoryRunner({ read: slow, send: async (args) => (sent.push(args), { message_id: `m-${sent.length}` }) }, { budgetMs: 1 })
+    const flow = definition({
+      Count: { Type: 'Pass', Assign: { n: '{% $exists($n) ? $n + 1 : 1 %}' }, Next: 'Read' },
+      Read: { Type: 'Task', Resource: 'read', Next: 'Send' },
+      Send: { Type: 'Task', Resource: 'send', Arguments: { n: '{% $n %}' }, Next: 'Again' },
+      Again: { Type: 'Choice', Choices: [{ Condition: '{% $n < 3 %}', Next: 'Count' }], Default: 'Done' },
+      Done: { Type: 'Succeed' },
+    })
+    await port.start('r1', flow, {})
+    await port.drain()
+    await port.replay('r2', 'r1', flow)
+    await port.drain()
+    expect(sent).toHaveLength(3)
+    const outputs = (runId: string) => port.steps.filter((step) => step.runId === runId && step.state === 'Send').map((step) => step.output)
+    expect(outputs('r2')).toEqual([{ message_id: 'm-1' }, { message_id: 'm-2' }, { message_id: 'm-3' }])
+    expect(port.traces.get('r2')!.length).toBeGreaterThan(1)
+  })
+
+  it('runs no state when the trace it replays cannot be read', async () => {
     const calls: unknown[] = []
     const flow = definition({ Send: { Type: 'Task', Resource: 'send', End: true } })
     const runner = createRunner<null>({
       store: {
         load: async () => ({ id: 'r2', definition: flow, input: {}, status: 'queued', startedAt: new Date(), replayOf: { id: 'r1', definition: flow } }),
-        steps: async (_, runId) => {
-          if (runId === 'r1') throw new Error('connection lost')
-          return []
-        },
+        checkpoints: async () => [],
         save: async () => true,
         update: async () => {},
       },
       queue: { schedule: async () => {} },
       tasks: { send: async (args) => void calls.push(args) },
+      trace: { write: async () => {}, read: () => Promise.reject(new Error('connection lost')) },
     })
     await expect(runner.segment(null, 'r2', new AbortController().signal)).rejects.toThrow('connection lost')
     expect(calls).toEqual([])

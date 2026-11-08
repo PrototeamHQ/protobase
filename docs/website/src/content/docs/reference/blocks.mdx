@@ -171,7 +171,7 @@ Up to `limit` records side by side, each a small card made from the children, wh
 
 ### RecordRow
 
-What a filter finds, the way a home page shows it: the filter's chips, as the list's filter panel names them, how many records match, the records as the cards of the resource's [cards display](/reference/ui-config/#list-displays) in one row, and **View all**, which opens the list with the same filter and order. The row scrolls sideways by touch, trackpad or its arrow buttons; only the cards near the view are drawn, and the records load through the list API in pages as it scrolls. Each card opens its record. A resource without a cards display gets cards of the title alone.
+What a filter finds, the way a home page shows it: the filter's chips, as the list's filter panel names them, how many records match, the records as the cards of the resource's [cards display](/reference/ui-config/#list-displays) in one row, and **View all**, which opens the list with the same filter and order. The row scrolls sideways by touch, trackpad or its arrow buttons and snaps each card, 256px wide but never wider than the row, to its left edge; only the cards near the view are drawn, and the records load through the list API in pages as it scrolls. Each card opens its record. A resource without a cards display gets cards of the title alone.
 
 It follows the resource's view as its list page does. Of a resource whose view has [`listOf`](/reference/ui-config/#favorites), such as favorites, it shows the records the user's saved ones point at, as their own resource's cards, and **View all** opens the favorites. Of one whose view has [`searchesOf`](/reference/ui-config/#saved-searches), it shows a row for each of the user's saved searches, under its name or its filters, with the records new to them marked **New** and **View all results**, as their list page shows them. `filter` and `sort` do not apply to those two.
 
@@ -192,7 +192,7 @@ It follows the resource's view as its list page does. Of a resource whose view h
 
 What a filter finds as the cards of a record page's [related records as cards](/reference/ui-config/#related-records-as-cards), stacked full width under a heading that has no card around it, so the page shows no card inside another: each record's title linking to its page, its `fields` under their labels, a value taller than a few lines cut short with **Show more**, and a button for each of `cardActions`, run as on the record page. Below the cards, **View all** opens the list with the same filter and order, beside a note such as "The first 10 of 37." when there are more.
 
-With `layout="carousel"` the cards sit side by side in one row that scrolls sideways, by touch, trackpad, mouse wheel or its scrollbar, and snaps each card to its left edge. Each card is `cardWidth` of the block's width, so the next one peeks in, but never narrower than 12rem, so narrow cards stay readable on a phone. The cards are top aligned and keep their fields and buttons.
+With `layout="carousel"` the cards sit side by side in one row that scrolls sideways, by touch, trackpad, mouse wheel, its scrollbar or, with a mouse, its arrow buttons, as a [`RecordRow`](#recordrow) does, and snaps each card to its left edge. Each card is `cardWidth` of the block's width, so the next one peeks in, but never narrower than 12rem, so narrow cards stay readable on a phone. The cards in a row are as tall as its tallest and keep their fields and buttons.
 
 | Prop | |
 | --- | --- |

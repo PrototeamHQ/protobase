@@ -1,4 +1,4 @@
-import { authSchemaMigration, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, sqlSends, statusMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
+import { authSchemaMigration, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, ownedDefinitionsMigration, notificationsMigration, pushRelayMigration, queryRunnerMigration, realtimeRelayMigration, relayed, sqlSends, statusMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
 import { authMigrationTitle } from '../auth/migration-file'
 import type { MigrationProject } from './load-project'
 
@@ -23,7 +23,7 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
     ...(project.jobs.length > 0 || project.models.some(isCaptured) || comments || aiFields || project.webhooks || project.workflows || project.notifications ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
     { name: 'changes', title: "The change capture the resources' events and history need", sql: () => changesMigration(project.db, project.models, project.events) },
     // Always compared, so that the function and trigger of a rollup the config no longer has are dropped.
-    { name: 'computed', title: "The columns of the resources' rollup and formula fields, and the triggers that keep the rollups", sql: () => computedMigration(project.db, project.models) },
+    { name: 'computed', title: "The columns of the resources' rollup and formula fields, the triggers that keep the rollups, and the tables and refresh functions of their time rollups", sql: () => computedMigration(project.db, project.models) },
     ...(project.readOnlyQueries
       ? [{ name: 'query', title: "The role the assistant's read-only queries run as, which reads only the resources' tables", sql: () => queryRunnerMigration(project.db, project.models, project.authTables) }]
       : []),
@@ -35,6 +35,7 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
       ? [{ name: 'notifications', title: 'The tables of notifications', sql: () => notificationsMigration(project.db, project.notifications, project.auth) }]
       : []),
     ...(project.status ? [{ name: 'status', title: "The statuses table of people's own status", sql: () => statusMigration(project.db, project.status!, project.auth) }] : []),
+    ...(project.pushRelay ? [{ name: 'push_relay', title: "The push relay's device handles and workspace credentials", sql: () => pushRelayMigration(project.db) }] : []),
     ...(project.calls ? [{ name: 'calls', title: 'The calls on records, who is in them, whom they ring, their guests, and the signals between the processes serving the app', sql: () => callsMigration(project.db, project.events) }] : []),
     ...(relayed(project.realtime) ? [{ name: 'realtime_relay', title: 'The relay of Realtime broadcasts and presence between the processes serving the app', sql: () => realtimeRelayMigration(project.db) }] : []),
     ...(project.userTables ? [{ name: 'user_tables', title: 'The schemas of the tables users add and of their definitions, and pg_trgm', sql: () => userTablesMigration(project.db) }] : []),

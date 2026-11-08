@@ -4,11 +4,10 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import type { AuthContext } from '../better-auth/organizations/store'
 import { hashOf } from '../better-auth/sign-up/sign-up-code'
 import type { CodeChallenge } from './auth-codes'
-import { goTruePath } from './keys'
 
 // A sign-in with a provider that `/authorize` started: where it goes back to, its PKCE challenge, the browser's session
 // before it, if any, and the hash of its hand-off secret. Kept in Better Auth's verification table under the hash of a
-// random id that only the browser that started it holds, in a cookie sent to `/callback` alone; for ten minutes and
+// random id that only the browser that started it holds, in a cookie of its own; for ten minutes and
 // once. The hand-off secret travels only in the `callbackURL` of Better Auth's success redirect, which Better Auth keeps
 // in its own state row and follows only once the provider signed the user in for that state; so a secret that matches
 // proves the request is the end of the flow's own provider sign-in, and not a password, passkey or emailed-code sign-in
@@ -18,8 +17,9 @@ export type ProviderFlow = { redirectTo: string; challenge?: CodeChallenge; sess
 
 const flowSeconds = 10 * 60
 
-// Better Auth's cookie name and attributes, so its prefix and `Secure` follow the app's settings, not the request.
-const flowCookie = (context: AuthContext) => context.createAuthCookie('gotrue_flow', { maxAge: flowSeconds, path: `${goTruePath}/callback` })
+// Better Auth's cookie name and attributes, so its prefix and `Secure` follow the app's settings, not the request; on
+// `Path=/`, as its `__Host-` prefix on https requires.
+const flowCookie = (context: AuthContext) => context.createAuthCookie('gotrue_flow', { maxAge: flowSeconds })
 
 const identifierOf = async (id: string) => `gotrue-provider-flow-${await hashOf(id)}`
 
