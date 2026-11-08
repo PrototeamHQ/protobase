@@ -7,14 +7,14 @@ import { Code } from '@astrojs/starlight/components'
 import workshopConsole from '../../../../../../docs-examples/bridges/workshop-console.ts?raw'
 import openTruingStand from '../../../../../../docs-examples/bridges/open-truing-stand.ts?raw'
 
-A TCP bridge lets a page of the app talk to a TCP service that only the app's server can reach, such as a server's VNC or SSH port, or a database, on the workspace's private network. The browser opens an ordinary WebSocket to the app, and the server connects to the service and passes the bytes through both ways. The user's device joins no network and installs no VPN client.
-
-A bridge only carries bytes. A console, a terminal or a database tool that speaks the service's protocol is a page or plugin of your own built on it.
-
 :::caution[Beta]
 <gap>A bridge token opens a bridge only on the server process that issued it because a token store shared between processes is not implemented.</gap>
 <gap>A page that signs in with a bearer token instead of the session cookie cannot open a bridge from a browser because function sockets do not take a token without a header.</gap>
 :::
+
+A TCP bridge lets a page of the app talk to a TCP service that only the app's server can reach, such as a server's VNC or SSH port, or a database, on the workspace's private network. The browser opens an ordinary WebSocket to the app, and the server connects to the service and passes the bytes through both ways. The user's device joins no network and installs no VPN client.
+
+A bridge only carries bytes. A console, a terminal or a database tool that speaks the service's protocol is a page or plugin of your own built on it.
 
 ## The access rule
 
@@ -27,10 +27,10 @@ A bridge is an [API function](/guides/api-functions/) whose handler is `tcpBridg
 ## Opening a bridge
 
 1. `POST /api/functions/<name>` with `{ "target": "<name>" }` runs the rule. It answers `201` with `{ token, open_by, expires_at }`, or a `404` problem for a target the caller may not reach, without connecting anywhere. A user has at most 20 tokens waiting to be used; asking for another drops their oldest.
-2. A WebSocket to `/api/functions/<name>?token=<token>`, before `open_by`, 30 seconds after the token was issued, opens the bridge. The token opens one bridge, for the same caller only; a token used before, too late, or by someone else is a `404`. The rule runs again, then the server connects to the target, and a target that does not answer within 10 seconds is a `502` that names no address.
+2. A WebSocket to `/api/functions/<name>?token=<token>`, before `open_by`, 30 seconds after the token was issued, opens the bridge. The token opens one bridge, for the same caller only; a token used before, too late, or by someone else is a `404`. The rule runs again, then the server connects to the target, and a target that does not answer within 10 seconds is a `502` that names no address. A bridge whose `expires_at` passes, or whose target is withdrawn, while the rule runs or the server connects does not open either.
 3. Each binary message is written to the service as it is, and what the service sends comes back as binary messages, in order. A text message closes the bridge with `1003`.
 
-`client.bridges.open(name, target)` of [`@protobase/client`](/reference/client/) does both steps and resolves to `{ socket, expiresAt }`, with the socket's binary as `ArrayBuffer`s:
+`client.bridges.open(name, target)` of [`@protobase/client`](/reference/client/) does both steps and resolves to `{ socket, expiresAt }`, with the socket's binary as `ArrayBuffer`s, as soon as the socket exists; wait for its `open` event before sending:
 
 <Code code={openTruingStand} lang="ts" title="docs-examples/bridges/open-truing-stand.ts" />
 
@@ -45,6 +45,6 @@ A bridge is an [API function](/guides/api-functions/) whose handler is `tcpBridg
 
 - **Expiry.** The server closes a bridge at its `expires_at`, whatever the rule answers since.
 - **The user leaves.** Closing the page closes the socket and the TCP connection with it. A client that vanishes without closing, such as a laptop gone to sleep, is closed once it misses a ping, within a minute. The caller is [checked again every minute](/guides/api-functions/#who-may-open-one), as on every function socket.
-- **The app withdraws the target.** The rule runs again every minute while a bridge is open, and an `undefined` or a different `host` and `port` closes it. To close the open bridges to a target at once, call `withdraw(name)` on the bridge, such as `workshopConsole.withdraw('stock-db')`, from code in the same process.
+- **The app withdraws the target.** The rule runs again every minute while a bridge is open, and an `undefined` or a different `host` and `port` closes it. To close the bridges to a target at once, open or still opening, call `withdraw(name)` on the bridge, such as `workshopConsole.withdraw('stock-db')`, from code in the same process.
 
-Data flows at the pace of the slower side: the server reads the next message only once the service took the last one, and reads from the service only once the page's socket took the last chunk.
+Data flows at the pace of the slower side, one chunk in flight each way. The server writes the next message to the service once the service's connection has room again; until then later messages wait as on any function socket, which [stops reading from the page](/guides/api-functions/#slow-readers-and-large-messages) above 1 MiB of them. It reads from the service again only once the page's socket took the last chunk.
