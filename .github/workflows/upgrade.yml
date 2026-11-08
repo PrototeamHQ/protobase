@@ -42,13 +42,13 @@ jobs:
           # The commit to upgrade from, and the commits since, whose messages can mark the change breaking.
           fetch-depth: 0
           persist-credentials: false
-      # A push's changes count from that commit too, so it sets CHECK_BASE for the gate below.
+      # A pull request checks out its merge into the base branch, whose first parent is the base it upgrades from; the
+      # event's base sha stays where the branch left main, so main's later commits would count as the change's. A push's
+      # changes count from that commit too, so it sets CHECK_BASE for the gate below.
       - name: Find the commit to upgrade from
-        env:
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            base=$PR_BASE
+            base=$(git rev-parse HEAD^1)
           elif [ "$GITHUB_REF" = refs/heads/main ]; then
             base=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD)
           else
