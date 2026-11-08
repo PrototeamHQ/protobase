@@ -37,6 +37,8 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
   let counted: { bytes: number; files: number; at: number } | undefined
   // Uploads still streaming, so two at once cannot both take the last free bytes.
   const pending = { bytes: 0, files: 0 }
+  // The last put to each path still going, so a put to the same path waits for it and replaces what it left.
+  const writing = new Map<string, Promise<unknown>>()
 
   const usage = async () => {
     if (counted && now() - counted.at < recountMs) return counted
@@ -44,11 +46,10 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
     return counted
   }
 
-  const put = async (path: string, body: ReadableStream<Uint8Array>) => {
-    if (!isFilePath(path)) return store.put(path, body)
-    // The limits hold per writer, with no atomicity across writers, as for a new file before: the store has no
-    // compare-and-put, and two writers putting the same path at once are off by at most that one file. A run's trace
-    // writes one part at a time, since the runner awaits each write.
+  const countedPut = async (path: string, body: ReadableStream<Uint8Array>) => {
+    // Puts to one path run one at a time here, so each credits the file it replaces once. The limits hold per writer,
+    // with no atomicity across writers: the store has no compare-and-put, and two writers putting the same path at
+    // once are off by at most that one file.
     const replaced = await store.head(path)
     const added = replaced ? 0 : 1
     const freed = replaced?.size ?? 0
@@ -84,6 +85,20 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
     } finally {
       pending.files -= added
       pending.bytes -= reserved
+    }
+  }
+
+  const put = async (path: string, body: ReadableStream<Uint8Array>) => {
+    if (!isFilePath(path)) return store.put(path, body)
+    const before = writing.get(path) ?? Promise.resolve()
+    const run = () => countedPut(path, body)
+    // Run after the previous put to the path whether it stored or failed: its own caller gets its outcome.
+    const queued = before.then(run, run)
+    writing.set(path, queued)
+    try {
+      return await queued
+    } finally {
+      if (writing.get(path) === queued) writing.delete(path)
     }
   }
 

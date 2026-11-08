@@ -56,6 +56,15 @@ describe('file limits', () => {
     expect(await refusal(Promise.all([store.put('a/1.bin', bytes(501)), store.put('a/2.bin', bytes(500))]))).toEqual({ status: 507, slug: 'storage-full' })
   })
 
+  it('credit a file replaced by puts to its path at once only once', async () => {
+    const { bucket } = fakeBucket()
+    const store = limitedFileStore(s3FileStore(bucket), { maxBytes: 1000 })
+    await store.put('a/1.bin', bytes(500))
+    await Promise.all([store.put('a/1.bin', bytes(0)), store.put('a/1.bin', bytes(0))])
+    expect(await refusal(store.put('a/2.bin', bytes(1001)))).toEqual({ status: 507, slug: 'storage-full' })
+    expect(await store.put('a/2.bin', bytes(1000))).toEqual({ size: 1000 })
+  })
+
   it('count what the store holds again once the count is old', async () => {
     const { bucket } = fakeBucket()
     let now = 0
