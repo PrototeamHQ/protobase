@@ -19,11 +19,11 @@ const refusal = (input: unknown) => {
 }
 
 describe("a run's input limits", () => {
-  it('takes 64 levels and 1 MiB, and refuses one level or one byte more with a 400', () => {
+  it('takes 64 levels and 256 KiB, and refuses one level or one byte more with a 400', () => {
     expect(refusal(nested(64))).toBeUndefined()
     expect(refusal(nested(65))).toEqual([400, 'input-too-deep'])
-    expect(refusal({ text: 'x'.repeat(1024 * 1024 - 11) })).toBeUndefined()
-    expect(refusal({ text: 'x'.repeat(1024 * 1024 - 10) })).toEqual([400, 'input-too-large'])
+    expect(refusal({ text: 'x'.repeat(256 * 1024 - 11) })).toBeUndefined()
+    expect(refusal({ text: 'x'.repeat(256 * 1024 - 10) })).toEqual([400, 'input-too-large'])
   })
 
   it('refuses an input nested 100,000 deep without overflowing the stack', () => {

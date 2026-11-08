@@ -1,12 +1,13 @@
 import type { WorkflowTypeList } from '@protobase/client'
 import type { Definition } from '@protobase/workflows'
-import { useList } from '../../../data/use-list'
+import { useState } from 'react'
 import { Button } from '../../../primitives/button'
 import { splitPath, stateAt, triggerId } from '../workflow/definition'
 import { stateLabel, triggerLabel } from '../workflow/labels'
 import { JsonBlock } from '../json/json-block'
-import { Part, StepCard, type StepRow, type ValueActions } from './step-card'
+import { Part, StepCard, type ValueActions } from './step-card'
 import { text } from './messages'
+import { useRunSteps } from './use-run-steps'
 
 /** How many of a state's steps show at first, and with each Show more. */
 export const stepPageSize = 20
@@ -21,18 +22,23 @@ const Heading = ({ kind, name }: { kind: string; name: string }) => (
   </div>
 )
 
-/** The steps a state took in the run, every try and item, in the order they ran. */
+/**
+ * The steps a state took in the run, every try and item, in the order they ran: the trace the graph read, so no second
+ * read.
+ */
 export const StateSteps = ({ run, name, valueActions }: { run: StepsRun; name: string; valueActions?: ValueActions }) => {
-  const steps = useList('workflow_steps', { filter: `run_id = ${JSON.stringify(run.id)} AND state = ${JSON.stringify(name)}`, orderBy: 'id', pageSize: stepPageSize })
-  if (steps.isPending) return null
-  if (steps.items.length === 0) return <p className="text-body text-muted-foreground">{text('notRun')}</p>
+  const trace = useRunSteps(run.id, false)
+  const [shown, setShown] = useState(stepPageSize)
+  if (trace.isPending) return null
+  const steps = (trace.data ?? []).filter((step) => step.state === name)
+  if (steps.length === 0) return <p className="text-body text-muted-foreground">{text('notRun')}</p>
   return (
     <div className="grid gap-3">
-      {steps.items.map((step) => (
-        <StepCard key={String(step.id)} step={step as StepRow} runStartedAt={run.created_at} {...(valueActions && { valueActions })} />
+      {steps.slice(0, shown).map((step) => (
+        <StepCard key={String(step.id)} step={step} {...(valueActions && { valueActions })} />
       ))}
-      {steps.hasNextPage && (
-        <Button size="sm" className="justify-self-start" disabled={steps.isFetchingNextPage} onClick={() => void steps.fetchNextPage()}>
+      {steps.length > shown && (
+        <Button size="sm" className="justify-self-start" onClick={() => setShown(shown + stepPageSize)}>
           {text('showMore')}
         </Button>
       )}

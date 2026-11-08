@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 16
+export const workflowsVersion = 18
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -14,9 +14,8 @@ export const commentVersion = (comment: string | null) => {
 const ms = (from: string, to: string) => `(floor(extract(epoch from ("${to}" - "${from}")) * 1000)::bigint)`
 
 /**
- * The workflows, each version of their definitions as it was saved, their runs and every step of a run. A run pins
- * the version it started on, and a run with a key is started once per workflow and key; a step is saved once per scope and number, which is what keeps a repeated segment from
- * saving it twice.
+ * The workflows, each version of their definitions as it was saved, and their runs. A run pins the version it started
+ * on, and a run with a key is started once per workflow and key.
  */
 export const tablesSql = (schema: string) => {
   const s = quoteIdent(schema)
@@ -61,31 +60,38 @@ create table if not exists ${s}."runs" (
   "finished_at" timestamptz,
   "duration_ms" bigint generated always as (${ms('created_at', 'finished_at')}) stored,
   foreign key ("workflow_id", "version") references ${s}."versions" ("workflow_id", "version")
-);
+)`
+}
 
-create table if not exists ${s}."steps" (
-  "id" bigint generated always as identity primary key,
+/**
+ * Where each scope of a run stands, its latest checkpoint only, all a later segment needs to go on; a run that succeeds
+ * drops its rows, and one that fails keeps them for a re-run. A checkpoint replaces its scope's only when that is the
+ * one it `follows`, which keeps a segment that fell behind from saving. Added to a schema made before, as are the run's
+ * trace setting and its trace's file.
+ */
+export const checkpointsSql = (schema: string) => {
+  const s = quoteIdent(schema)
+  return `create table if not exists ${s}."checkpoints" (
   "run_id" uuid not null references ${s}."runs" ("id") on delete cascade,
-  "tenant_id" text,
   "scope" text not null,
   "seq" integer not null,
+  "follows" integer not null,
   "state" text not null,
   "type" text not null,
-  "status" text not null check ("status" in ('succeeded', 'retrying', 'caught', 'failed')),
-  "attempt" integer not null,
-  "input" jsonb,
-  "output" jsonb,
-  "assigned" jsonb,
+  "status" text not null check ("status" in ('succeeded', 'retrying', 'caught')),
+  "fetched_at" timestamptz not null,
   "next" text,
+  "value" jsonb,
+  "variables" jsonb not null,
+  "attempt" integer not null,
+  "failures" jsonb not null,
+  "visits" jsonb not null,
   "resume_at" timestamptz,
-  "error" text,
-  "cause" text,
-  "logs" jsonb not null,
-  "started_at" timestamptz not null,
-  "finished_at" timestamptz not null,
-  "duration_ms" bigint generated always as (${ms('started_at', 'finished_at')}) stored,
-  unique ("run_id", "scope", "seq")
-)`
+  "clock" timestamptz not null,
+  primary key ("run_id", "scope")
+);
+alter table ${s}."runs" add column if not exists "trace" text check ("trace" in ('all', 'failed', 'none'));
+alter table ${s}."runs" add column if not exists "trace_file" text`
 }
 
 /** The most bytes a trigger's cursor or store holds as JSON, so a plugin cannot grow them without limit. */
@@ -180,11 +186,11 @@ alter table ${s}."runs" add column if not exists "replay" boolean;
 create index if not exists "runs_workflow" on ${s}."runs" ("workflow_id", "created_at");
 create index if not exists "runs_tenant" on ${s}."runs" ("tenant_id");
 create index if not exists "runs_status" on ${s}."runs" ("status");
-create index if not exists "runs_created_at" on ${s}."runs" ("created_at");
-create index if not exists "steps_tenant" on ${s}."steps" ("tenant_id");
-create index if not exists "steps_status" on ${s}."steps" ("status");
-create index if not exists "steps_state" on ${s}."steps" ("state")`
+create index if not exists "runs_created_at" on ${s}."runs" ("created_at")`
 }
+
+// The columns the status triggers write, which leave a workflow's updated_at as it is.
+const statusColumns = `array['run_status', 'status_run_id', 'status_run_at', 'unresolved_failures', 'resolved_at', 'resolved_by', 'updated_at']`
 
 /** The triggers `functionsSql` makes, which the startup check finds on their tables. */
 export const workflowsTriggers = ['workflow_version', 'run_version']
@@ -213,8 +219,11 @@ begin
   end if;
   -- The write holds the row, so a save in another transaction numbers its version after this one.
   new.version := case when new.definition is distinct from old.definition then coalesce(old.version, 0) + 1 else old.version end;
-  -- Never the same twice, nor now(): two writes in one transaction, as a batch that saves and publishes, are two ETags.
-  new.updated_at := greatest(clock_timestamp(), old.updated_at + interval '1 microsecond');
+  -- Its status, which runs ending and marks as resolved write, is no change to the workflow itself.
+  -- Otherwise never the same twice, nor now(): two writes in one transaction, as a batch that saves and publishes, are two ETags.
+  if to_jsonb(new) - ${statusColumns} is distinct from to_jsonb(old) - ${statusColumns} then
+    new.updated_at := greatest(clock_timestamp(), old.updated_at + interval '1 microsecond');
+  end if;
   return new;
 end
 $$;

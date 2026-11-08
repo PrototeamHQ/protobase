@@ -1,10 +1,14 @@
 import { sql, type Kysely } from 'kysely'
+// Where runs keep their traces.
+const trace = await traceFiles()
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import { ConnectionError, definePlugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { traceFiles } from './support/run-trace'
 
 // Workers poll on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -46,8 +50,8 @@ const feed = definePlugin({
   },
 })
 
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps' | 'workflow_triggers'>({
-  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'workflow_triggers.read'],
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_triggers'>({
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_triggers.read'],
 })
 const workflows: WorkflowsOptions = { savedByRoles: async () => ['builder'], plugins: [{ plugin: feed, source: 'feed' }] }
 
@@ -75,7 +79,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('polling triggers, turne
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const instance = () => {
       const { resources, views } = configExports({ ...workflowsModule(workflows) })
-      return createAdmin({ resources, views, db, authenticate: () => ({ user: { id: 'ada', roles: ['builder'] }, tenant: 1, organization: { id: 1 } }), workflows, options: { roles } })
+      return createAdmin({ resources, views, db, files: trace.files, authenticate: () => ({ user: { id: 'ada', roles: ['builder'] }, tenant: 1, organization: { id: 1 } }), workflows, options: { roles } })
     }
     api = instance()
     const worker = instance()
@@ -83,6 +87,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('polling triggers, turne
   })
 
   afterAll(async () => {
+    await trace.folder.remove()
     await runtime?.stop()
     await pg?.close()
   })

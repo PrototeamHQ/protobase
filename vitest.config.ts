@@ -39,6 +39,7 @@ const mocking = [
   'packages/server/src/mail/smtp-mailer.test.ts',
   'packages/server/src/mcp/mcp-server.test.ts',
   'packages/server/src/notifications/senders-of-connect.test.ts',
+  'packages/server/src/workflows/workflow-trace-route.test.ts',
   'packages/ui/src/app/error-reporting.test.ts',
   'packages/ui/src/app/field-types/workflow/use-layout.test.ts',
   'packages/ui/src/app/pages/action-href.test.ts',

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { SavedStep } from './port'
-import { matchKey, rowsByScope, visitOutcomes } from './replay-match'
+import type { ReplayedStep } from './port'
+import { visitOutcomes } from './replay-match'
 
-const step = (scope: string, seq: number, state: string, status: SavedStep['status'] = 'succeeded', attempt = 1): SavedStep => ({ scope, seq, state, status, attempt, next: null })
+const step = (scope: string, seq: number, state: string, status: ReplayedStep['status'] = 'succeeded', attempt = 1): ReplayedStep => ({ scope, seq, state, status, attempt })
 
 describe('visitOutcomes', () => {
-  it('keys each last try as matchKey does, through loops, retries and Map items', () => {
+  it('keys each last try by its scope, state and visit, through loops, retries and Map items', () => {
     const steps = [
       step('', 0, 'Fetch'),
       step('', 1, 'Fetch', 'retrying'),
@@ -17,10 +17,9 @@ describe('visitOutcomes', () => {
       step('', 4, 'Each'),
       step('Each.4[0]', 0, 'Send'),
     ]
-    const rows = rowsByScope(steps)
-    const expected = new Map(steps.map((s) => [matchKey(rows, s.scope, s.state, s.seq)!, s]))
-    expect(visitOutcomes([...steps].reverse())).toEqual(expected)
-    expect([...expected.keys()]).toEqual(['|Fetch|0', '|Fetch|1', '|Each|0', 'Each#0[0]|Send|0', 'Each#0[1]|Send|0', '|Each|1', 'Each#1[0]|Send|0'])
+    const keys = ['|Fetch|0', '|Fetch|1', '|Each|0', 'Each#0[0]|Send|0', 'Each#0[1]|Send|0', '|Each|1', 'Each#1[0]|Send|0']
+    const lastTries = [steps[0], steps[2], steps[3], steps[5], steps[6], steps[7], steps[8]]
+    expect(visitOutcomes([...steps].reverse())).toEqual(new Map(keys.map((key, index) => [key, lastTries[index]])))
   })
 
   it('indexes a run at the step limit in one pass', () => {

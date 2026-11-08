@@ -1,13 +1,12 @@
 import { ArrowLeft } from 'lucide-react'
 import { useMemo } from 'react'
 import type { Definition } from '@protobase/workflows'
-import { useList } from '../../../data/use-list'
 import { formatDateTime } from '../../../format/date'
 import { Button } from '../../../primitives/button'
 import { SearchPicker, type PickerGroup, type PickerItem } from '../../../search-picker'
 import { splitPath, stateAt } from '../workflow/definition'
-import { traceStepLimit } from '../workflow-run/use-run-trace'
 import { statePath } from '../workflow-run/run-trace'
+import { useRunSteps } from '../workflow-run/use-run-steps'
 import { earlierSteps, readOf, sampleValues, variableFor, withRead } from './value-insert'
 import { text } from './messages'
 
@@ -32,16 +31,15 @@ export type InsertValueViewProps = {
 // The sample a row shows, before what it says it adds
 const sampleOf = (item: PickerItem) => (item.description ?? '').split(' · ')[0]!
 
-type Row = { id: string; state: string; scope: string; output: unknown }
-
 /**
  * Inserting a value in a step's field, in place of its form in the same panel: the run's input and each earlier step's
  * output, read from a real run with sample values. A step's output is read through a variable, as every value of a
  * workflow is read by name, so choosing one gives the step that variable when it has none.
  */
 export const InsertValueView = ({ definition, path, target, run, onAssign, onBack, onTestRun }: InsertValueViewProps) => {
-  const steps = useList('workflow_steps', { filter: `run_id = ${JSON.stringify(String(run?.id ?? ''))}`, orderBy: 'id', pageSize: traceStepLimit, fields: ['id', 'state', 'scope', 'output'], enabled: run !== undefined })
-  const rows = steps.items as Row[]
+  // The run's trace, which the graph read already
+  const steps = useRunSteps(run === undefined ? undefined : String(run.id), false)
+  const rows = useMemo(() => steps.data ?? [], [steps.data])
   const earlier = useMemo(() => earlierSteps(definition, path), [definition, path])
   const output = (step: string) => rows.filter((row) => statePath(row.scope, row.state) === step).at(-1)?.output
   const groups = useMemo((): PickerGroup[] => {

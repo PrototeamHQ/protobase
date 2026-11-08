@@ -20,7 +20,10 @@ export type RunSidePanelProps = {
   onClose: () => void
 }
 
-/** The run shown in the end panel while no step is chosen: how it did, its error, input and output, Replay, and a link to its own page. */
+/**
+ * The run shown in the end panel while no step is chosen: how it did, that it kept no trace when it kept none, its error,
+ * input and output, Replay, and a link to its own page.
+ */
 export const RunSidePanel = ({ trace, valueActions, onReplay, onClose }: RunSidePanelProps) => {
   const status = useRunStatus()
   const { run, id } = trace
@@ -37,6 +40,7 @@ export const RunSidePanel = ({ trace, valueActions, onReplay, onClose }: RunSide
     <FocusPanel title={text('runDetails')} onClose={onClose} {...(onReplay && { footer: <Button className="w-full max-md:min-h-11" onClick={onReplay}>{text('replay')}</Button> })}>
       <div className="grid gap-4">
         <MetadataCard title={text('runDetails')} rows={rows} />
+        {!trace.going && trace.steps.length === 0 && <p className="text-xs text-muted-foreground">{text('runNoTrace')}</p>}
         {run.error != null && (
           <Part title={text('error')}>
             <p className="text-body text-danger-text">

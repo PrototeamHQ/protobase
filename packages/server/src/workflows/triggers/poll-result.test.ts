@@ -10,7 +10,7 @@ describe('pollProblem', () => {
     expect(pollProblem({ items: [{ key: 'a' }, { key: 'b' }], cursor: null }, 1)).toBe('gave 2 items, more than its limit of 1')
     expect(pollProblem({ items: [{ data: 1 }], cursor: null }, 10)).toBe('item 0 has no key of 1 to 200 characters')
     expect(pollProblem({ items: [{ key: 'k'.repeat(201) }], cursor: null }, 10)).toBe('item 0 has no key of 1 to 200 characters')
-    expect(pollProblem({ items: [{ key: 'a', data: 'x'.repeat(1024 * 1024 + 1) }], cursor: null }, 10)).toBe("item 0's data is over 1 MiB as JSON")
+    expect(pollProblem({ items: [{ key: 'a', data: 'x'.repeat(256 * 1024 + 1) }], cursor: null }, 10)).toBe("item 0's data is 262147 bytes as JSON, over 256 KiB")
     expect(pollProblem({ cursor: null }, 10)).toBe('gave no items array')
   })
 

@@ -22,6 +22,8 @@ export type WorkflowCatalog = {
   issueWebhook?: IssueWebhook
   /** The caller's own connected accounts, for `list_connections`; none without it. */
   listConnections?: ListConnections
+  /** The steps of a run's trace, for `get_workflow_run`. */
+  readTrace: TraceReader
 }
 
 /** The step types and triggers a definition may name, with their arguments, results, errors and run inputs. */
@@ -89,35 +91,49 @@ const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
   },
 })
 
-const runFields = ['id', 'workflow_id', 'version', 'rerun_of', 'started_by', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'created_at', 'finished_at', 'duration_ms']
-const stepFields = ['state', 'scope', 'seq', 'type', 'attempt', 'status', 'input', 'output', 'assigned', 'logs', 'error', 'cause', 'next', 'resume_at', 'duration_ms']
+const runFields = ['id', 'workflow_id', 'version', 'rerun_of', 'started_by', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'trace', 'trace_file', 'created_at', 'finished_at', 'duration_ms']
+const stepFields = ['state', 'scope', 'seq', 'type', 'attempt', 'status', 'input', 'output', 'assigned', 'logs', 'error', 'cause', 'next', 'resumeAt', 'startedAt', 'finishedAt', 'recorded']
 
-/** A run with its steps in the order they ran, a page at a time. */
-export const getWorkflowRunTool = defineTool({
-  name: 'get_workflow_run',
-  description: 'Reads a run by its id, as JSON ({ run, steps, next_page_token }): its status (queued, running, waiting, succeeded or failed), input, output, error and cause, and its steps in the order they ran, each with its state, scope (empty, or the Map item it ran in), try, status (succeeded, retrying, caught or failed), input, output, assigned variables, logs, error and cause. A run goes on in the background: read it again while it is queued, running or waiting. Pass state to read only that state\'s steps; pass next_page_token back as page_token for more steps.',
-  parameters: {
-    type: 'object',
-    properties: {
-      run_id: { type: 'string', description: "The run's id, as run_workflow gives it." },
-      state: { type: 'string', description: "Only this state's steps." },
-      page_size: { type: 'integer', minimum: 1, maximum: 100, description: 'Steps per page, 20 by default.' },
-      page_token: { type: 'string', description: 'The next_page_token of the page before.' },
+/** The steps of a run's trace, in the order they ran. */
+export type TraceReader = (runId: string) => Promise<Record<string, unknown>[]>
+
+const offsetOf = (token: unknown) => {
+  const offset = Number(textOf(token) ?? 0)
+  return Number.isSafeInteger(offset) && offset >= 0 ? offset : 0
+}
+
+/** A run with the steps of its trace in the order they ran, a page at a time. */
+export const getWorkflowRunTool = (readTrace: TraceReader) =>
+  defineTool({
+    name: 'get_workflow_run',
+    description: "Reads a run by its id, as JSON ({ run, steps, next_page_token }): its status (queued, running, waiting, succeeded or failed), input, output, error and cause, and the steps of its trace in the order they ran, each with its state, scope (empty, or the Map item it ran in), try, status (succeeded, retrying, caught or failed), input, output, assigned variables, logs, error and cause. A run goes on in the background: read it again while it is queued, running or waiting; its trace grows as it goes. A run that keeps no trace (its trace setting none, or failed while it succeeds) lists no steps. Pass state to read only that state's steps; pass next_page_token back as page_token for more steps.",
+    parameters: {
+      type: 'object',
+      properties: {
+        run_id: { type: 'string', description: "The run's id, as run_workflow gives it." },
+        state: { type: 'string', description: "Only this state's steps." },
+        page_size: { type: 'integer', minimum: 1, maximum: 100, description: 'Steps per page, 20 by default.' },
+        page_token: { type: 'string', description: 'The next_page_token of the page before.' },
+      },
+      required: ['run_id'],
     },
-    required: ['run_id'],
-  },
-  annotations: reads,
-  run: async (args, context) => {
-    const id = textOf(args.run_id)
-    if (!id) return 'Pass the run\'s id as { "run_id": "<id>" }.'
-    const run = await context.records.get('workflow_runs', id, { fields: runFields }).then(({ record }) => record, refused)
-    if (typeof run === 'string') return run
-    const state = textOf(args.state)
-    const filter = `run_id = ${JSON.stringify(id)}${state ? ` AND state = ${JSON.stringify(state)}` : ''}`
-    const params = { filter, fields: stepFields, order_by: 'id', page_size: pageSizeOf(args.page_size, 20, 100), ...(textOf(args.page_token) && { page_token: textOf(args.page_token) }) }
-    return context.records.list('workflow_steps', params).then((page) => JSON.stringify({ run, steps: page.items.map(({ etag: _etag, permissions: _permissions, ...step }) => step), next_page_token: page.next_page_token }), refused)
-  },
-})
+    annotations: reads,
+    run: async (args, context) => {
+      const id = textOf(args.run_id)
+      if (!id) return 'Pass the run\'s id as { "run_id": "<id>" }.'
+      // Read through the run's own access first, `trace_file` included, so the trace of a run the caller may not read,
+      // or whose trace a field rule hides, is never read.
+      const found = await context.records.get('workflow_runs', id, { fields: runFields }).then(({ record }) => record, refused)
+      if (typeof found === 'string') return found
+      const { trace_file: _traceFile, ...run } = found
+      const state = textOf(args.state)
+      const steps = (await readTrace(String(run.id))).filter((step) => !state || step.state === state)
+      const offset = offsetOf(args.page_token)
+      const end = offset + pageSizeOf(args.page_size, 20, 100)
+      const page = steps.slice(offset, end).map((step) => Object.fromEntries(stepFields.flatMap((field) => (field in step ? [[field, step[field]]] : []))))
+      return JSON.stringify({ run, steps: page, next_page_token: end < steps.length ? String(end) : '' })
+    },
+  })
 
 /** The tools that read workflows, their types and runs and the caller's connections, and check definitions. */
-export const workflowReadTools = (catalog: WorkflowCatalog) => [listWorkflowTypesTool(catalog), listWorkflowsTool, getWorkflowTool, validateWorkflowTool(catalog), getWorkflowRunTool, listConnectionsTool(catalog.listConnections)]
+export const workflowReadTools = (catalog: WorkflowCatalog) => [listWorkflowTypesTool(catalog), listWorkflowsTool, getWorkflowTool, validateWorkflowTool(catalog), getWorkflowRunTool(catalog.readTrace), listConnectionsTool(catalog.listConnections)]

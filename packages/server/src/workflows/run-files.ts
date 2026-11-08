@@ -13,8 +13,15 @@ export type FileValue = { uri: string; name: string; type: string; size: number 
 /** The provider a run's files are kept in. */
 const provider = 'private'
 
-// Every file a run stores is kept under its id, so a step can tell the run's own files from any other.
-const prefix = (runId: string) => `workflows/${runId}/`
+/** The folder of a run's files: every file a run stores is kept under its id, so a step can tell the run's own from any other. */
+export const runFolder = (runId: string) => `workflows/${runId}/`
+const prefix = runFolder
+
+/** The store of runs' files, the private provider's, or `undefined` when the app has none or serves it to anyone. */
+export const privateRunStore = (files: FilesRuntime | undefined) => {
+  const kept = files?.providers[provider]
+  return kept && !kept.public ? kept.store : undefined
+}
 
 // The store of the run's files, refused when the provider serves its files to anyone: a run's files are its own.
 const runStore = (files: FilesRuntime | undefined) => {

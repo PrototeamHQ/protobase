@@ -1,4 +1,7 @@
 import { sql, type Kysely } from 'kysely'
+// Where runs keep their traces.
+const trace = await traceFiles()
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
 import { authSchemaMigration, configExports, createAdmin, createUser, startJobs, workflowsMigration, type AdminAuth, type JobsRuntime, type Session, type WorkflowsOptions } from '@protobase/server'
@@ -6,6 +9,7 @@ import { createAuth, workflowsModule } from '@protobase/server/internal'
 import { definePlugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 import { fakeOAuthServer } from '../../packages/server/src/better-auth/connections/testing/fake-oauth-server'
+import { traceFiles } from './support/run-trace'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -28,9 +32,9 @@ const acmePlugin = (origin: string) =>
     },
   })
 
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps' | 'workflow_triggers'>({
-  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'workflow_triggers.read'],
-  reader: ['workflows.read', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'workflow_triggers.read'],
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_triggers'>({
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_triggers.read'],
+  reader: ['workflows.read', 'workflow_versions.read', 'workflow_runs.*', 'workflow_triggers.read'],
 })
 
 describe.skipIf(!(await postgresTemplateReady('jobs')))("the step cache of a step that signs in through a connected account", () => {
@@ -73,7 +77,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("the step cache of a ste
     }
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const { resources, views } = configExports({ ...workflowsModule(workflows) })
-    app = createAdmin({ resources, views, db, auth, authenticate, workflows, options: { roles } })
+    app = createAdmin({ resources, views, db, files: trace.files, auth, authenticate, workflows, options: { roles } })
     runtime = await startJobs({ db, jobs: app.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error } })
     adas = (await connect('ada@example.com', ada))!
     // The fake provider answers as Grace while she links her own account.
@@ -83,6 +87,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("the step cache of a ste
   })
 
   afterAll(async () => {
+    await trace.folder.remove()
     await runtime?.stop()
     await pg?.close()
     await fake?.close()
@@ -131,7 +136,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("the step cache of a ste
   }
   // Who each kept result of `type` was made as.
   const kept = async (type: string) => (await sql<{ who: Record<string, string | null> }>`select who from workflows.step_cache where type = ${type} order by cached_at`.execute(db)).rows.map((row) => row.who)
-  const tokensKept = async () => JSON.stringify([(await sql`select * from workflows.steps`.execute(db)).rows, (await sql`select * from workflows.step_cache`.execute(db)).rows])
+  const tokensKept = async () => JSON.stringify([await trace.everything(), (await sql`select * from workflows.step_cache`.execute(db)).rows])
 
   it("runs again for another person's account with the same input, and serves each their own result", async () => {
     const onAda = await workflow(ada, adas, 'acme:lookup', 'cat')

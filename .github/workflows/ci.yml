@@ -400,6 +400,8 @@ jobs:
       # instance is: without Supabase's own init, which an empty /docker-entrypoint-initdb.d leaves out, and with
       # test-support/supabase-postgres/ run on it once it is up, as docker-compose.yml mounts it. The empty directory is a
       # bind mount, not a --tmpfs: podman copies the image's init scripts into a tmpfs.
+      # It comes from ghcr.io, where Supabase publishes the same image (same digest) as on docker.io, whose registry now
+      # and then fails a pull of its large layers.
       - if: steps.snapshots.outputs.run == 'true'
         name: Start Supabase's Postgres and point the recording at it
         env:
@@ -408,7 +410,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb"
           docker run --detach --rm --name "$SUPABASE_POSTGRES" --publish 5432 \
             --volume "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb:/docker-entrypoint-initdb.d:ro" \
-            -e POSTGRES_PASSWORD=protobase supabase/postgres:17.11.0.006
+            -e POSTGRES_PASSWORD=protobase ghcr.io/supabase/postgres:17.11.0.006
           until docker exec "$SUPABASE_POSTGRES" pg_isready -U supabase_admin -d postgres -h 127.0.0.1 -q; do sleep 2; done
           for file in test-support/supabase-postgres/*.sql; do
             docker exec -i "$SUPABASE_POSTGRES" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q < "$file"
@@ -448,7 +450,8 @@ jobs:
   # A Supabase project moved by the real `protobase import supabase` and served to supabase-js
   # (tests/supabase-move/client/): from Supabase's Postgres image, started as in record, into the service's Postgres.
   # pg_dump and psql come from Docker's postgres:18 (tests/supabase-move/client/pg-tools/). A push runs it when its
-  # changes reach the test (scripts/affected-tests.mjs); a pull request and a run by hand always do.
+  # changes reach the test (scripts/affected-tests.mjs); a pull request and a run by hand always do. Its postgres:18
+  # comes from mirror.gcr.io, the same image (same digest) as docker.io's, so no pull of this job depends on docker.io.
   supabase-move:
     if: github.event_name != 'schedule'
     concurrency:
@@ -457,7 +460,7 @@ jobs:
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     services:
       postgres:
-        image: postgres:18
+        image: mirror.gcr.io/library/postgres:18
         env:
           POSTGRES_USER: protobase
           POSTGRES_PASSWORD: protobase
@@ -490,7 +493,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb"
           docker run --detach --rm --name "$SUPABASE_POSTGRES" --publish 5432 \
             --volume "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb:/docker-entrypoint-initdb.d:ro" \
-            -e POSTGRES_PASSWORD=protobase supabase/postgres:17.11.0.006
+            -e POSTGRES_PASSWORD=protobase ghcr.io/supabase/postgres:17.11.0.006
           until docker exec "$SUPABASE_POSTGRES" pg_isready -U supabase_admin -d postgres -h 127.0.0.1 -q; do sleep 2; done
           for file in test-support/supabase-postgres/*.sql; do
             docker exec -i "$SUPABASE_POSTGRES" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q < "$file"

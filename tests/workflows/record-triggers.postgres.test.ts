@@ -1,10 +1,14 @@
 import { sql, type Kysely } from 'kysely'
+// Where runs keep their traces.
+const trace = await traceFiles()
+
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
 import { changesMigration, configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import example from '../../test-support/workflow-plugin-example'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { traceFiles } from './support/run-trace'
 
 // Workers poll on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -22,8 +26,8 @@ const invoices = resource('invoices')
   .tenant((r) => r.organization_id)
   .events((e) => e.crud())
 
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_steps' | 'workflow_triggers' | 'invoices'>({
-  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_steps.read', 'workflow_triggers.read', 'invoices.*'],
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_triggers' | 'invoices'>({
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_triggers.read', 'invoices.*'],
 })
 const people: Record<string, number> = { ada: 1, bob: 2 }
 // Users whose roles a test takes away for a while.
@@ -63,6 +67,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
       resources,
       views,
       db,
+      files: trace.files,
       authenticate: (request) => {
         const id = request.headers.get('x-user')!
         return { user: { id, roles: ['builder'] }, tenant: people[id]!, organization: { id: people[id]! } }
@@ -74,6 +79,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
   })
 
   afterAll(async () => {
+    await trace.folder.remove()
     await runtime?.stop()
     await pg?.close()
   })
