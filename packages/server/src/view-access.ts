@@ -94,6 +94,7 @@ const listShape = (resource: string, model: ResourceModel, models: Record<string
             subtitle: s.field,
             amount: s.list(s.field),
             badge: s.field,
+            code: s.field,
             meta: s.list(s.field),
             footer: s.list(s.field),
             flags: s.list(s.field),
