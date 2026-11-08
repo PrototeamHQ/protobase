@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { PushMessage } from '../message'
-import { storeIdPattern } from '../send-input'
+import { maxStoreIdLength } from '../send-input'
 
 /** The path of the relay's send endpoint, under the relay's URL. */
 export const relaySendPath = 'send'
@@ -27,8 +27,8 @@ export type RelayResult = (typeof relayResults)[number]
 /** The relay's 2xx answer to a send: one result for each handle it took. */
 export type RelaySendAnswer = { results: { handle: string; result: RelayResult }[] }
 
-/** One device's shape in a send request: a relay handle, and a user id as a store takes it. */
-export const relaySendDevice = z.strictObject({ handle: z.string().regex(relayHandle), user: z.string().regex(storeIdPattern) })
+/** One device's shape in a send request: a relay handle, and a user id as long as a store takes one. */
+export const relaySendDevice = z.strictObject({ handle: z.string().regex(relayHandle), user: z.string().min(1).max(maxStoreIdLength) })
 
 /**
  * The send request's shape. The message is only an object here: the relay checks it with `pushMessage`, as every
