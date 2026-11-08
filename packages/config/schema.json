@@ -486,6 +486,16 @@
                   "$ref": "#/definitions/EnvValue"
                 }
               ]
+            },
+            "instructions": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
             }
           },
           "additionalProperties": false

@@ -6,6 +6,7 @@ import { setUserRole } from '../src/better-auth/users'
 import { defineTool } from '../src/assistant/tools'
 import { createAdmin } from '../src/create-admin'
 import { mcpHandler } from '../src/mcp/mcp-handler'
+import { mcpInstructions } from '../src/mcp/mcp-instructions'
 import { mcpServer } from '../src/mcp/mcp-server'
 import { mcpTools } from '../src/mcp/mcp-tools'
 import { authOn, mcpStores, origin, password, redirectUri, resource, serveMcp, type McpStores } from './support/mcp-app'
@@ -86,6 +87,16 @@ describe('the MCP endpoint', () => {
     expect(missing.headers.get('www-authenticate')).toContain(`resource_metadata="${metadataUrl}"`)
     expect((await app.request(metadataUrl)).status).toBe(200)
     expect((await rpc(app, own, 'tools/list')).status).toBe(401)
+  })
+
+  it('tells a client the app\'s own instructions after the framework\'s when it connects', async () => {
+    const { app, mcp } = await served({ mcp: { instructions: 'Plan a big ask before building it.' } })
+    const result = await resultOf(await rpc(app, mcp, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'client', version: '1.0.0' } }))
+    expect(result.instructions).toBe(`${mcpInstructions}\nPlan a big ask before building it.`)
+  })
+
+  it('stops startup on app instructions that take the server\'s past 4,096 characters', async () => {
+    await expect(serveMcp(stores, { admin: { mcp: { instructions: 'a'.repeat(2692) } } })).rejects.toThrow('mcpEndpoint.instructions is 2692 characters')
   })
 
   it('refuses a request addressed to another host', async () => {

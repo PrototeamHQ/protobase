@@ -40,7 +40,7 @@ import { mcpHandler } from './mcp/mcp-handler'
 import { closedMcpRoutes, mcpRoutes } from './mcp/mcp-routes'
 import { mcpServer } from './mcp/mcp-server'
 import { mcpTools } from './mcp/mcp-tools'
-import { mcpInstructions } from './mcp/mcp-instructions'
+import { mcpServerInstructions } from './mcp/mcp-server-instructions'
 import { workflowInstructions } from './workflows/mcp/workflow-instructions'
 import { checkMcpWrites, rolesWithoutApproval } from './mcp/mcp-writes'
 import { withoutSessionTokens } from './better-auth/without-session-tokens'
@@ -424,7 +424,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
     const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
-    const instructions = engine ? `${mcpInstructions}\n${workflowInstructions}` : mcpInstructions
+    const instructions = mcpServerInstructions(options.mcp ? options.mcp.instructions : undefined, engine ? workflowInstructions : undefined)
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
     const info = { name: appName, version: '1.0.0', icons: mcpIcons(resource, icons) }
