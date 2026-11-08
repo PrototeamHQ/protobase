@@ -5,6 +5,7 @@ import type { Deps } from '../deps'
 import { buildRegistry } from '../registry'
 import { requestAccess } from '../request-access'
 import { reorderIn } from './reorder'
+import { runBatch } from './run-batch'
 
 // A rank the caller may read and write, and one whose stored values no response carries.
 const steps = resource('steps')
@@ -27,5 +28,10 @@ describe('ordering by a field', () => {
     const access = await requestAccess(deps, registry.find('steps')!, session)
     const reorder = reorderIn(undefined as unknown as Db, deps, access, { field: 'secret_rank', keys: [[1], [2]], etags: {}, start: 1 }, [])
     await expect(reorder).rejects.toMatchObject(unknownField('secret_rank'))
+  })
+
+  it('refuses a batch reorder by a field it may not order by before the batch takes any lock', async () => {
+    const batch = runBatch(deps, session, [{ op: 'reorder', resource: 'steps', field: 'missing_rank', keys: [[1], [2]] }])
+    await expect(batch).rejects.toMatchObject({ extras: { ...unknownField('missing_rank').extras, operation: 0, op: 'reorder' } })
   })
 })
