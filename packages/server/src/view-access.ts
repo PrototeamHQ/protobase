@@ -304,3 +304,17 @@ export const pruneView = (
   if (!pruned) throw new Error(`The view of ${view.resource} is not an object`)
   return pruned
 }
+
+// A page's own elements decide whether the caller gets it, and those elements read the pruned views' actions, so the
+// pages a view's record and create pages may lead to are only known once the views are pruned.
+const leadsOutside = (to: AppAddress | undefined, pages: ReadonlySet<string>) => to?.kind === 'page' && !pages.has(to.page)
+
+/** The pruned view without a record or create destination that leads to a page outside `pages`, those the caller may open. */
+export const prunePageDestinations = (view: ViewModel, pages: ReadonlySet<string>): ViewModel => {
+  const { recordOpens, createOpens, ...rest } = view
+  return {
+    ...rest,
+    ...(recordOpens && !leadsOutside(recordOpens, pages) && { recordOpens }),
+    ...(createOpens && !leadsOutside(createOpens, pages) && { createOpens }),
+  }
+}
