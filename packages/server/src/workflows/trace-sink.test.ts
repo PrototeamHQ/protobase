@@ -40,6 +40,16 @@ describe('traceSink', () => {
     expect(named).toEqual([['r1', expect.stringMatching(/^private:workflows\/r1\/trace\.jsonl\?name=trace\.jsonl&size=\d+$/)]])
   })
 
+  it('joins the parts written within one millisecond in the order they were written', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-01-01T00:00:00.000Z') })
+    const sink = traceSink({ files: () => files, joining, report: (error) => { throw error } })
+    const states = Array.from({ length: 12 }, (_, index) => `S${index}`)
+    for (const state of states) await sink.write('r6', [step(state)], { mode: 'all' })
+    await sink.write('r6', [], { mode: 'all', ended: 'succeeded' })
+    vi.useRealTimers()
+    expect((await readTrace(files, 'r6')).map((line) => line.state)).toEqual(states)
+  })
+
   it('keeps the steps an ending segment joined when a crash makes that segment run and end again', async () => {
     const sink = traceSink({ files: () => files, joining, report: (error) => { throw error } })
     await sink.write('r5', [step('A')], { mode: 'all' })
