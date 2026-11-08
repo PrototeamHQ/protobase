@@ -1,7 +1,7 @@
 import { checkFilter, fieldsUsedBy, type CheckedFilter, type ResourceModel, type RoleEntry } from '@protobase/schema'
 import { grantsOf, heldCapabilities } from '@protobase/schema/internal'
 import { trusted } from './request-access'
-import type { Registry } from './registry'
+import type { Entry, Registry } from './registry'
 
 // A search reads the resource's search fields, which `fieldsUsedBy` leaves out.
 const searches = (filter: CheckedFilter): boolean => {
@@ -29,18 +29,27 @@ const roleProblems = (source: ResourceModel, by: readonly string[], roles: RoleD
     }),
   )
 
+// The source's own read and list rules: functions whose rows the check cannot see, so any of them refuses the rollup.
+const ruleProblems = (source: Entry) => {
+  const rules = (['read', 'list'] as const).filter((action) => source.source.accessRules[action])
+  if (rules.length === 0) return []
+  return [`its own ${rules.map((action) => `"${action}"`).join(' and ')} access ${rules.length === 1 ? 'rule' : 'rules'}, as a rollup cannot prove its counts respect a custom row rule`]
+}
+
 /**
- * Stops startup on a time rollup whose source is not a resource, or whose source's readers some role limits to rows a
- * bucket mixes with others: with `.own` or `.team` while the rollup does not group by the owner, or with a filter on
- * fields it does not group by. A bucket counts every record of its groups, so such a role would read the others'
- * records in the rollup. The rollup's own access rules decide who reads it.
+ * Stops startup on a time rollup whose source is not a resource, has its own `read` or `list` rule in `.access()`, or
+ * whose readers some role limits to rows a bucket mixes with others: with `.own` or `.team` while the rollup does not
+ * group by the owner, or with a filter on fields it does not group by. A bucket counts every record of its groups, so
+ * such a rule or role would read the others' records in the rollup. The rollup's own access rules decide who reads it.
  */
 export const checkBuckets = (registry: Registry, roles: RoleDefinitions | undefined) => {
   for (const { model } of registry.entries) {
     if (!model.buckets) continue
-    const source = registry.find(model.buckets.from)?.model
-    if (!source) throw new Error(`Resource "${model.name}" is a time rollup of "${model.buckets.from}", which is not a resource`)
-    const problems = roles ? roleProblems(source, model.buckets.by, roles) : []
-    if (problems.length > 0) throw new Error(`Resource "${model.name}" is a time rollup of "${source.name}", whose reads it cannot keep to: ${problems.join('; ')}. Group by those fields, or roll up another resource`)
+    const entry = registry.find(model.buckets.from)
+    if (!entry) throw new Error(`Resource "${model.name}" is a time rollup of "${model.buckets.from}", which is not a resource`)
+    const rules = ruleProblems(entry)
+    if (rules.length > 0) throw new Error(`Resource "${model.name}" is a time rollup of "${entry.name}", whose reads it cannot check: ${rules.join('; ')}. Leave the source's read and list to the roles, or roll up another resource`)
+    const problems = roles ? roleProblems(entry.model, model.buckets.by, roles) : []
+    if (problems.length > 0) throw new Error(`Resource "${model.name}" is a time rollup of "${entry.name}", whose reads it cannot keep to: ${problems.join('; ')}. Group by those fields, or roll up another resource`)
   }
 }
