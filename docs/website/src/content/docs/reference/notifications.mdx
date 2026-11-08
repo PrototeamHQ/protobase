@@ -264,7 +264,7 @@ Any other field is refused, such as `token`, `topic`, `webpush` or `click_action
 ## Push relay
 
 :::caution[Beta]
-The relay service, and the mobile app that registers relay handles, are coming soon.
+The mobile app that registers relay handles is coming soon.
 :::
 
 An app can deliver mobile push through a relay instead of holding APNs or FCM keys itself. The relay holds the mobile app's push keys, and your app sends to it with a relay credential of its own. You set the relay's URL and your app's credential in two environment variables:
@@ -287,6 +287,41 @@ Each send is `POST <url>/send`, with the credential as a bearer token, never thr
 The relay answers a `2xx` with a result for each handle, `ok`, `gone`, `retry` or `refused`, as [senders](#senders) answer: `{ "results": [{ "handle": "…", "result": "ok" }] }`. A handle the relay answers `gone` removes its device. A handle it does not answer, and every handle of any other answer, such as a wrong credential, a `429` or `5xx` (after its `Retry-After`) or no answer within ten seconds, is retried, so a mistake in the configuration removes no device. A device stored with a token that is not a relay handle is `refused`. <gap>A send cannot keep the notification's text from the relay because content-free or encrypted relay payloads are not implemented.</gap>
 
 `relaySender(readRelaySettings(process.env)!)` from `@protobase/server` is the built-in sender, to list beside [your own senders](#senders). `relaySendRequest` and `relaySendAnswer` check the request and answer shapes.
+
+### Push relay service
+
+:::caution[Beta]
+Issuing credentials on Protobase Cloud, and the official app's native push, are coming soon.
+:::
+
+A Protobase app can be the relay itself: it holds a mobile app's APNs key and FCM service account, and delivers the notifications of many workspaces, each only to the phones that turned push on in that workspace. Turn it on with the mobile app's id, the bundle id or package its pushes go to:
+
+```ts
+// protobase.config.ts
+export default defineConfig({ pushRelay: { appId: 'com.example.app' } })
+```
+
+It reads the app's push keys from the same variables as the [iOS](#ios) and [Android](#android) senders, `PROTOBASE_APNS_KEY`, `PROTOBASE_APNS_KEY_ID` and `PROTOBASE_APNS_TEAM_ID`, and `PROTOBASE_FCM_SERVICE_ACCOUNT`; with neither set, it does not start. [`protobase migration`](/reference/cli/#migration) writes its tables, in the `push_relay` schema, and the server checks them at start. Its endpoints take no sign-in, under `/api/push-relay`, which is the URL workspaces set as `PROTOBASE_PUSH_RELAY_URL`, such as `https://relay.example.com/api/push-relay`.
+
+A phone registers for one workspace with `POST /api/push-relay/register`, sending its own push token, never through page script:
+
+```json
+{ "kind": "apns", "token": "…", "environment": "production", "origin": "https://app.example.com" }
+```
+
+`kind` is `apns`, with the token in lowercase hex and its `environment`, `sandbox` or `production`, or `fcm`, with the FCM token and no environment. `origin` is the workspace's `https` origin, with no path. The answer is `{ "handle": "…" }`, the handle the workspace registers as the phone's [relay device](#push-relay). The same token and origin always get the same handle, and a phone that uses several workspaces gets a handle for each. One client address registers at most 30 times a minute, then gets a `429` with `Retry-After`.
+
+Each workspace sends with a credential of its own, bound to its origin. You add one on the relay with [`protobase push-relay add-credential`](/reference/cli/#push-relay), which prints it once; the relay keeps only its hash, and compares it in constant time.
+
+A send, as [above](#push-relay), with a credential that is not one of the relay's is a `401`. Each handle is answered:
+
+- `refused` when the relay does not know it, or it was registered for another workspace, so that a workspace's credential reaches only the phones registered for its own origin. A handle of a kind the relay has no key for is `refused` too.
+- `gone`, once APNs or FCM reports its token gone: the relay forgets the handle, and the workspace removes its device. The same phone's handles for other workspaces stay until their own sends find the token gone.
+- Otherwise what APNs or FCM answered, `ok`, `retry` or `refused`.
+
+The relay writes the credential's origin into every notification, over anything the send held: `origin` in the APNs payload, beside `url` and `user`, and in FCM's data. The mobile app opens a notification in the workspace of that origin, so one workspace cannot make a notification open another.
+
+A credential sends to at most 20,000 devices in each clock hour, counting every handle of each send. A send that would go over is a `429` with a `Retry-After` until the next hour, and the workspace retries its devices.
 
 ## Your own parts
 
