@@ -27,8 +27,11 @@ export class NotificationSendError extends Error {
   }
 }
 
-// An id as a store takes it: text without control characters, at most 256 characters.
-const idPattern = /^[^\u0000-\u001f\u007f]{1,256}$/
+/** The longest id a store takes. */
+export const maxStoreIdLength = 256
+
+// An id as a store takes it: text without control characters, at most `maxStoreIdLength` characters.
+const idPattern = new RegExp(`^[^\\u0000-\\u001f\\u007f]{1,${maxStoreIdLength}}$`)
 
 /** Whether `value` is an object literal, so its keys are all it holds. */
 export const isPlainRecord = (value: unknown): value is Record<string, unknown> =>

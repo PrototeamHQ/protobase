@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
-import { ApiError, createStaticSession } from '@protobase/client'
+import { createStaticSession } from '@protobase/client'
 import { f, resource, view, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { tasks, tasksView } from '../../../../../docs-examples/reference/ranked-board'
 import { App } from '../app'
@@ -26,18 +26,23 @@ const rows = () => ({
   ],
 })
 
-// With `refuse`, the server refuses every drop, as it does when someone else changed a task since it loaded.
-type TeamProps = { refuse?: boolean; start?: string; teamView?: { toModel(): ViewModel }; ui?: ProjectUi; models?: ResourceModel[]; data?: Record<string, Record<string, unknown>[]> }
-const Team = ({ refuse, start = '/tasks', teamView = tasksView, ui, models = [tasks.toModel()], data = rows() }: TeamProps) => {
+type Api = ReturnType<typeof fakeApi>
+
+// With `meanwhile`, someone else changes the tasks once, after the board loaded and before the first drop saves.
+type TeamProps = { meanwhile?: (api: Api) => Promise<unknown>; start?: string; teamView?: { toModel(): ViewModel }; ui?: ProjectUi; models?: ResourceModel[]; data?: Record<string, Record<string, unknown>[]> }
+const Team = ({ meanwhile, start = '/tasks', teamView = tasksView, ui, models = [tasks.toModel()], data = rows() }: TeamProps) => {
   const [api] = useState(() => fakeApi({ resources: models, views: [teamView.toModel()], rows: data }))
-  const client = refuse
-    ? {
-        ...api.client,
-        batchWrite: async () => {
-          throw new ApiError({ type: 'urn:protobase:problem:precondition-failed', title: 'Precondition Failed', status: 412, detail: 'The record changed since it was read; fetch it again' })
-        },
+  const [changed] = useState(() => ({ done: !meanwhile }))
+  const client = {
+    ...api.client,
+    batchWrite: async (ops: Parameters<typeof api.client.batchWrite>[0]) => {
+      if (!changed.done) {
+        changed.done = true
+        await meanwhile!(api)
       }
-    : api.client
+      return api.client.batchWrite(ops)
+    },
+  }
   return (
     <div className="h-screen">
       <App client={client} auth={session} initialUrl={start} {...(ui && { ui })} workspace="Pip's bike shop" />
@@ -92,19 +97,31 @@ export const TasksPlaceChecks: StoryObj = {
   },
 }
 
+// Someone else moves Restock inner tubes to todo, just after Order brake pads
+const restockToTodo = async (api: Api) => {
+  await api.client.update('tasks', '3', { rank: 4 }, '*')
+  await api.client.update('tasks', '5', { status: 'todo', rank: 3 }, '*')
+}
+
+export const TasksChangedMeanwhile: StoryObj = { name: 'A board someone else changes while you move a card', render: () => <Team meanwhile={restockToTodo} /> }
+
 export const TasksRefusedChecks: StoryObj = {
-  name: 'A board in rank order, a drop the server refuses (checks)',
+  ...TasksChangedMeanwhile,
+  name: 'A board in rank order, a drop refused because the column changed where it was dropped (checks)',
   tags: ['play', '!dev'],
-  render: () => <Team refuse />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const todo = await column(canvas, 'todo')
     await waitFor(() => expect(titles(todo)).toEqual(['Call Emma back', 'Order brake pads', 'Price the winter service']))
     await moveByKeyboard(within(todo).getAllByRole('link')[0]!, [['{ArrowDown}', 'todo, place 2 of 3']])
-    // Put back, with the reason
-    expect(await within(document.body).findByText('Could not change the order')).toBeInTheDocument()
-    expect(within(document.body).getByText('The record changed since it was read; fetch it again')).toBeInTheDocument()
-    await waitFor(() => expect(titles(todo)).toEqual(['Call Emma back', 'Order brake pads', 'Price the winter service']))
+    // Refused, and the column shows the current order by itself, with no word of reloading
+    const refusal = (await within(document.body).findByText('Call Emma back was not moved')).closest('[role="status"]')
+    expect(refusal).not.toHaveTextContent(/reload|fetch it again/i)
+    await waitFor(() => expect(titles(todo)).toEqual(['Call Emma back', 'Order brake pads', 'Restock inner tubes', 'Price the winter service']))
+    // The same move again saves
+    await moveByKeyboard(within(todo).getAllByRole('link')[0]!, [['{ArrowDown}', 'todo, place 2 of 4']])
+    expect(await within(document.body).findByText('Order changed')).toBeInTheDocument()
+    await waitFor(() => expect(titles(todo)).toEqual(['Order brake pads', 'Call Emma back', 'Restock inner tubes', 'Price the winter service']))
   },
 }
 

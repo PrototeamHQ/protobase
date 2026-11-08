@@ -64,7 +64,7 @@ const fakeClient = (batchWrite: Args['batchWrite']) =>
       return { items: (stored[resource] ?? []).filter((record) => values.includes(String(record[ast.field.path[0]!]))), nextPageToken: '' }
     },
     batchWrite: async (ops: BatchOp[]) => {
-      const taken = ops.findIndex((op) => op.op !== 'delete' && op.op !== 'reorder' && op.data.number === 'SO-TAKEN')
+      const taken = ops.findIndex((op) => 'data' in op && op.data.number === 'SO-TAKEN')
       if (taken >= 0) throw new ApiError({ type: 'urn:protobase:problem:conflict', title: 'Conflict', status: 409, operation: taken, errors: [{ field: 'number', message: 'is already used by another order', operation: taken }] } as never)
       return batchWrite(ops)
     },

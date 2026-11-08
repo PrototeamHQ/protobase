@@ -264,12 +264,18 @@ export type BatchOp =
   | { op: 'delete'; resource: ResourceRef; key: Key; etag?: string }
   /** Renumbers `field` of the records so they sort in the order of `keys`; `etags` maps each key (as URL text) to its ETag. */
   | { op: 'reorder'; resource: ResourceRef; field: string; keys: Key[]; start?: number; etags?: Record<string, string> }
+  /**
+   * Puts `key` just after `after` (first when null) in the list `filter` reads, ordered by `field`, while the record
+   * after `after` there is still `before` (null: none; omitted: not checked); otherwise the batch is refused with 412.
+   */
+  | { op: 'move'; resource: ResourceRef; field: string; key: Key; after: Key | null; before?: Key | null; filter?: string }
 
-/** One entry per operation, in order. A `reorder` lists every key in its final order with its new ETag. */
+/** One entry per operation, in order. A `reorder` or `move` lists every record it numbered, in order, with its new ETag. */
 export type BatchOpResult =
   | { op: 'create'; resource: string; ref?: string; record: Record<string, unknown>; etag: string }
   | { op: 'update'; resource: string; record: Record<string, unknown>; etag: string }
   | { op: 'delete'; resource: string; deleted: true }
   | { op: 'reorder'; resource: string; records: Array<{ record: Record<string, unknown>; etag: string }> }
+  | { op: 'move'; resource: string; records: Array<{ record: Record<string, unknown>; etag: string }> }
 
 export type BatchResult = { results: BatchOpResult[] }

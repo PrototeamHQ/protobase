@@ -7,9 +7,12 @@ describe('cookiePrefixOf', () => {
     expect(cookiePrefixOf('http://localhost:5174/')).toBe('better-auth-5174')
   })
 
-  it("keeps Better Auth's names on https and on an http address without a port", () => {
-    expect(cookiePrefixOf('https://admin.example.com')).toBe('better-auth')
-    expect(cookiePrefixOf('https://localhost:8443')).toBe('better-auth')
+  it("keeps Better Auth's names on an http address without a port", () => {
     expect(cookiePrefixOf('http://localhost')).toBe('better-auth')
+  })
+
+  it('takes the __Host- prefix on https, so no sibling host can set the cookies', () => {
+    expect(cookiePrefixOf('https://admin.example.com')).toBe('__Host-better-auth')
+    expect(cookiePrefixOf('https://localhost:8443')).toBe('__Host-better-auth')
   })
 })

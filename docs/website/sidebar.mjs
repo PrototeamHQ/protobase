@@ -78,7 +78,7 @@ export const referenceGroups = [
     items: ['reference/data-config', 'reference/user-tables', 'reference/files', 'reference/history', 'reference/comments', 'reference/live', 'reference/channels', 'reference/ai'],
   },
   { label: 'Access and sign-in', items: ['reference/access', 'reference/auth'] },
-  { label: 'API', items: ['reference/api', 'reference/client', 'reference/mcp', 'reference/calls'] },
+  { label: 'API', items: ['reference/api', 'reference/client', 'reference/mcp', 'reference/calls', 'reference/tcp-bridges'] },
   { label: 'Events and jobs', items: ['reference/events', 'reference/webhooks', 'reference/jobs', 'reference/workflows', 'reference/workflow-plugins'] },
   { label: 'Email, PDFs, notifications and forms', items: ['reference/email', 'reference/pdf', 'reference/notifications', 'reference/status', 'reference/forms'] },
   {

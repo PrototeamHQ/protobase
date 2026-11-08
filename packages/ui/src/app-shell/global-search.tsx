@@ -3,6 +3,7 @@ import { useId, useRef, useState, type KeyboardEvent, type MouseEvent, type Ref 
 import { cn } from '../lib/cn'
 import { Input } from '../primitives/input'
 import { Kbd } from '../primitives/kbd'
+import { useMenuRight, useMenuTop } from '../primitives/menu-edge'
 import { Spinner } from '../primitives/spinner'
 import { text } from './messages'
 
@@ -51,6 +52,11 @@ export const GlobalSearch = ({ search, className = 'w-96', autoFocus, showShortc
   const hits = search.groups.flatMap((group) => group.hits)
   const open = focused && (search.query !== '' || search.loading)
   const optionId = (index: number) => `${listId}-${index}`
+  const root = useRef<HTMLDivElement>(null)
+  const list = useRef<HTMLDivElement>(null)
+  const right = useMenuRight(open, root, list)
+  // Results arriving change the list's height, so they place it again
+  const top = useMenuTop(open, root, list, `${right?.right} ${search.loading} ${hits.length} ${search.groups.length}`)
 
   const setInput = (node: HTMLInputElement | null) => {
     input.current = node
@@ -88,7 +94,7 @@ export const GlobalSearch = ({ search, className = 'w-96', autoFocus, showShortc
 
   let position = -1
   return (
-    <div className={cn('relative', className)}>
+    <div ref={root} className={cn('relative', className)}>
       <Input
         ref={setInput}
         wrapperClassName="w-full bg-surface shadow-none"
@@ -122,7 +128,7 @@ export const GlobalSearch = ({ search, className = 'w-96', autoFocus, showShortc
         onKeyDown={onKeyDown}
       />
       {open && (
-        <div id={listId} role="listbox" aria-label={text('searchResults')} className="absolute right-0 top-full z-40 mt-1 max-h-96 w-full min-w-72 overflow-y-auto rounded-lg border bg-background py-1 shadow-pop">
+        <div ref={list} id={listId} role="listbox" aria-label={text('searchResults')} style={{ ...right, ...top }} className="absolute right-0 top-full z-40 mt-1 max-h-96 w-full min-w-72 overflow-y-auto rounded-lg border bg-background py-1 shadow-pop">
           {search.groups.length === 0 && <p className="px-3 py-2 text-muted-foreground">{search.loading ? text('searching') : text('noMatches', { query: search.query })}</p>}
           {search.groups.map((group) => (
             <div key={group.id} role="group" aria-label={group.label}>

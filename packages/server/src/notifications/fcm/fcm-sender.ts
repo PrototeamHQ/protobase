@@ -1,10 +1,9 @@
 import type { Device } from '../device'
 import { pushMessage, type PushMessage } from '../message'
 import type { PushAnswer, PushSender } from '../sender'
-import type { PostOptions } from '../web-push/post'
 import { fcmAccessToken, FcmTokenError } from './access-token'
 import { fcmRequest, type FcmRequest } from './fcm-request'
-import { postFcm } from './fcm-post'
+import { postFcm, type FcmPostOptions } from './fcm-post'
 import type { FcmSettings } from './fcm-settings'
 
 /** How many requests one batch has open at once. */
@@ -16,7 +15,7 @@ export const fcmOrigin = 'https://fcm.googleapis.com'
 // An FCM registration token: letters, digits, `-`, `_` and `:`, of a bounded length.
 const fcmToken = /^[A-Za-z0-9_:-]{1,4096}$/
 
-export type FcmOptions = PostOptions & { now?: () => number }
+export type FcmOptions = FcmPostOptions & { now?: () => number }
 
 /**
  * The built-in FCM sender (HTTP v1 API): delivers to `fcm` devices of the service account's Firebase project, with an

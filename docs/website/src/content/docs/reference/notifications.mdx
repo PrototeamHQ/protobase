@@ -38,7 +38,7 @@ A device is where a user receives push: a browser's push subscription, or an And
 | `POST /api/notifications/devices` | registers the device the request comes from, or refreshes it; answers `{ id, kind, createdAt, lastSeenAt }` |
 | `DELETE /api/notifications/devices/<id>` | removes the caller's device with that id; answers `204` whether or not the caller had it |
 
-The body of a register is JSON (`Content-Type: application/json`, at most 8 KB), in one of three shapes:
+The body of a register is JSON (`Content-Type: application/json`, at most 8 KB), in one of four shapes:
 
 ```jsonc
 // A browser: its PushSubscription as JSON
@@ -47,6 +47,8 @@ The body of a register is JSON (`Content-Type: application/json`, at most 8 KB),
 { "kind": "apns", "token": "…", "environment": "production", "appId": "net.example.app" }
 // An Android app: its token, and optionally its package name
 { "kind": "fcm", "token": "…", "appId": "net.example.app" }
+// A mobile app's handle from a push relay
+{ "kind": "relay", "handle": "…" }
 ```
 
 A field that does not belong to the kind, a missing one, an unknown one such as an owner, or a value out of its format is a `400` that names the field and stores nothing. A browser's `endpoint` must be an https URL on one of the browsers' push services. `environment` is `sandbox` or `production`, and `userAgent`, optional for every kind, is at most 512 characters. The stored device keeps `null` in the fields its kind does not have.
@@ -59,9 +61,9 @@ Who may call them:
 - An app with its own authenticator ([`auth/authenticate.ts`](/reference/config/sign-in/#authenticate)) marks a user's own sign-in on the session it returns, `signIn: { staff: false }`; without that mark, its sessions are refused.
 - With Protobase's auth, every token the endpoints take names its sign-in session; one that names none is refused with a `403`.
 
-A device is one token, or one endpoint for a browser. An Android or iOS token someone else had moves to the caller, as a new device with a new id that keeps nothing of the previous user's, so a shared phone notifies whoever signed in on it last. A browser's endpoint never moves: registering one another user holds is a `409` of type `device-held` that stores nothing, and the browser subscribes again for a new endpoint, as [the browser helper](#in-the-browser) does. A user keeps up to 20 devices: registering one more removes their least recently seen. Deleting a user removes their devices.
+A device is one token, or one endpoint for a browser. An Android or iOS token, or a relay handle, someone else had moves to the caller, as a new device with a new id that keeps nothing of the previous user's, so a shared phone notifies whoever signed in on it last. A browser's endpoint never moves: registering one another user holds is a `409` of type `device-held` that stores nothing, and the browser subscribes again for a new endpoint, as [the browser helper](#in-the-browser) does. A user keeps up to 20 devices: registering one more removes their least recently seen. Deleting a user removes their devices.
 
-With Protobase's auth, a device belongs to the sign-in session it was registered in. Once that session ends, the device gets no more push and is removed at the next send: when the user signs out, someone signs in on the same browser, the user signs out everywhere, a password change signs out their other devices, an admin ends their sessions or bans them, or the session expires. Registering the device again ties it to the session of that request, which the browser helper does on its own for the same user. With an app's own authenticator, a device stays its user's until it is removed with `DELETE`.
+With Protobase's auth, a device belongs to the sign-in session it was registered in. Once that session ends, the device gets no more push and is removed at the next send: when the user signs out, someone signs in on the same browser, the user signs out everywhere, a password change signs out their other devices, an admin ends their sessions or bans them, or the session expires. A device with no session recorded, such as one registered before devices kept their session, counts as ended too. Registering the device again ties it to the session of that request, which the browser helper does on its own for the same user, so such a device gets push again once its browser registers it. With an app's own authenticator, a device stays its user's until it is removed with `DELETE`. <gap>Devices cannot end with a session of an app's own authenticator because a way for `authenticate` to report that a session ended is not implemented.</gap>
 
 The path comes from `devicesPath('/api', id)`, and the name of its id parameter from `deviceIdParam`, both exported by `@protobase/server`.
 
@@ -188,7 +190,7 @@ Without them Web Push is off and the app has no sender for browsers. One or two 
 
 The private key is a secret: keep it out of client code, `VITE_` variables and the repository. Anyone holding it and the stored subscriptions can push to every subscribed browser. Browsers subscribe with the public key, which `/meta` gives every caller as `notifications.webPushKey`, so a new key pair breaks every subscription until its browser registers again.
 
-Each message is encrypted for its browser and signed with the key. It goes only to an endpoint on one of the browsers' push services, never through a redirect; a device stored with any other endpoint, or with keys that are not a subscription's, is `refused`. <gap>Web Push cannot deliver to a push service outside the browsers' own because adding one to the list is not implemented.</gap> A message's `platform.web` sets the request's `ttl`, `urgency` and `topic` and fields merged into the JSON the browser receives (`payload`), in place of those built from the message; every URL in that JSON is checked as the message's `url` is. The JSON also carries `user`, the id of the user the device is registered for, over any `user` in `payload`, and at most 3993 bytes.
+Each message is encrypted for its browser and signed with the key. It goes only to an endpoint on one of the browsers' push services, never through a redirect, and only to the address the endpoint's host resolves to when it is sent, which must be public: an endpoint whose host resolves to a private, loopback or link-local address gets no request and is `refused`; a device stored with any other endpoint, or with keys that are not a subscription's, is `refused`. <gap>Web Push cannot deliver to a push service outside the browsers' own because adding one to the list is not implemented.</gap> A message's `platform.web` sets the request's `ttl`, `urgency` and `topic` and fields merged into the JSON the browser receives (`payload`), in place of those built from the message; every URL in that JSON is checked as the message's `url` is. The JSON also carries `user`, the id of the user the device is registered for, over any `user` in `payload`, and at most 3993 bytes.
 
 ### In the browser
 
@@ -259,6 +261,68 @@ Any other field is refused, such as `token`, `topic`, `webpush` or `click_action
 
 `fcmSender(readFcmSettings(process.env)!)` from `@protobase/server` is the built-in sender, to list beside [your own senders](#senders).
 
+## Push relay
+
+:::caution[Beta]
+The mobile app that registers relay handles is coming soon.
+:::
+
+An app can deliver mobile push through a relay instead of holding APNs or FCM keys itself. The relay holds the mobile app's push keys, and your app sends to it with a relay credential of its own. You set the relay's URL and your app's credential in two environment variables:
+
+```sh
+PROTOBASE_PUSH_RELAY_URL=https://relay.example.com
+PROTOBASE_PUSH_RELAY_CREDENTIAL=...
+```
+
+Without them the relay is off and relay devices are skipped. Only one of them set, a URL that is not `https` or that has a user, query or fragment, or a credential that is not 16 to 1024 letters, digits and `-._~+/` stops startup, naming the variable without its value. The credential is a secret: keep it out of client code, `VITE_` variables and the repository.
+
+A device registered with a relay handle, `{ "kind": "relay", "handle": "…" }` (see [Devices](#devices)), receives your app's notifications with the usual [inbox](#history), [do not disturb](/reference/status/#do-not-disturb) and sign-in session rules. The handle is what the relay gave the device for your app, never its own push token: 16 to 512 letters, digits, `-` and `_`.
+
+Each send is `POST <url>/send`, with the credential as a bearer token, never through a redirect, and JSON with the [message](#senders) as senders get it and up to 100 devices, each with its handle and `user`, the id of the user it is registered for:
+
+```json
+{ "message": { "title": "Task assigned", "url": "https://app.example.com/tasks/42" }, "devices": [{ "handle": "…", "user": "user-1" }] }
+```
+
+The relay answers a `2xx` with a result for each handle, `ok`, `gone`, `retry` or `refused`, as [senders](#senders) answer: `{ "results": [{ "handle": "…", "result": "ok" }] }`. A handle the relay answers `gone` removes its device. A handle it does not answer, and every handle of any other answer, such as a wrong credential, a `429` or `5xx` (after its `Retry-After`) or no answer within ten seconds, is retried, so a mistake in the configuration removes no device. A device stored with a token that is not a relay handle, or whose user id is longer than the 256 characters a store takes, is `refused` with no request, and the other devices are sent as usual. <gap>A send cannot keep the notification's text from the relay because content-free or encrypted relay payloads are not implemented.</gap>
+
+`relaySender(readRelaySettings(process.env)!)` from `@protobase/server` is the built-in sender, to list beside [your own senders](#senders). `relaySendRequest` and `relaySendAnswer` check the request and answer shapes.
+
+### Push relay service
+
+:::caution[Beta]
+Issuing credentials on Protobase Cloud, and the official app's native push, are coming soon.
+:::
+
+A Protobase app can be the relay itself: it holds a mobile app's APNs key and FCM service account, and delivers the notifications of many workspaces, each only to the phones that turned push on in that workspace. Turn it on with the mobile app's id, the bundle id or package its pushes go to:
+
+```ts
+// protobase.config.ts
+export default defineConfig({ pushRelay: { appId: 'com.example.app' } })
+```
+
+It reads the app's push keys from the same variables as the [iOS](#ios) and [Android](#android) senders, `PROTOBASE_APNS_KEY`, `PROTOBASE_APNS_KEY_ID` and `PROTOBASE_APNS_TEAM_ID`, and `PROTOBASE_FCM_SERVICE_ACCOUNT`; with neither set, it does not start. [`protobase migration`](/reference/cli/#migration) writes its tables, in the `push_relay` schema, and the server checks them at start. Its endpoints take no sign-in, under `/api/push-relay`, which is the URL workspaces set as `PROTOBASE_PUSH_RELAY_URL`, such as `https://relay.example.com/api/push-relay`.
+
+A phone registers for one workspace with `POST /api/push-relay/register`, sending its own push token, never through page script:
+
+```json
+{ "kind": "apns", "token": "…", "environment": "production", "origin": "https://app.example.com" }
+```
+
+`kind` is `apns`, with the token in lowercase hex and its `environment`, `sandbox` or `production`, or `fcm`, with the FCM token and no environment. `origin` is the workspace's `https` origin, with no path. The answer is `{ "handle": "…" }`, the handle the workspace registers as the phone's [relay device](#push-relay). The same token and origin always get the same handle, and a phone that uses several workspaces gets a handle for each. One client address registers at most 30 times a minute, then gets a `429` with `Retry-After`. <gap>A handle no workspace sends to cannot be removed because expiring unused handles is not implemented.</gap>
+
+Each workspace sends with a credential of its own, bound to its origin. You add one on the relay with [`protobase push-relay add-credential`](/reference/cli/#push-relay), which prints it once; the relay keeps only its hash, and compares it in constant time.
+
+A send, as [above](#push-relay), with a credential that is not one of the relay's is a `401`. Each handle is answered:
+
+- `refused` when the relay does not know it, or it was registered for another workspace, so that a workspace's credential reaches only the phones registered for its own origin. A handle of a kind the relay has no key for is `refused` too.
+- `gone`, once APNs or FCM reports its token gone: the relay forgets the handle, and the workspace removes its device. The same phone's handles for other workspaces stay until their own sends find the token gone.
+- Otherwise what APNs or FCM answered, `ok`, `retry` or `refused`.
+
+The relay writes the credential's origin into every notification, over anything the send held: `origin` in the APNs payload, beside `url` and `user`, and in FCM's data. The mobile app opens a notification in the workspace of that origin, so one workspace cannot make a notification open another.
+
+A credential sends to at most 20,000 devices in each UTC clock hour, counting every handle of each send. A send that would go over is a `429` with a `Retry-After` until the next UTC hour, when the count starts again, and the workspace retries its devices.
+
 ## Your own parts
 
 :::caution[Beta]
@@ -283,7 +347,7 @@ const store: DeviceStore = {
 export default store
 ```
 
-Every method takes and returns plain data: the user id as text, and devices as `{ id, userId, kind, token, p256dh, auth, environment, appId, userAgent, sessionId, createdAt, lastSeenAt }`, with `token` the endpoint for a browser and `sessionId` the sign-in session it was registered in. A method given an empty user id, id or token throws. `listByIds` and `removeGone` act on any user's devices, for the code that sends; the endpoints never call them. A store missing a method stops startup, naming it.
+Every method takes and returns plain data: the user id as text, and devices as `{ id, userId, kind, token, p256dh, auth, environment, appId, userAgent, sessionId, createdAt, lastSeenAt }`, with `token` the endpoint for a browser and `sessionId` the sign-in session it was registered in. A store keeps `sessionId` as `register` gives it and returns it: with Protobase's auth, a device whose store returns no `sessionId` gets no push and is removed at the next send. A method given an empty user id, id or token throws. `listByIds` and `removeGone` act on any user's devices, for the code that sends; the endpoints never call them. A store missing a method stops startup, naming it.
 
 When Protobase's auth deletes a user, by an admin or with `protobase users delete`, it calls the store's `removeAllForUser` before anything is deleted, so a store that throws stops the deletion, and once more afterwards. An app that deletes users otherwise calls `deviceStore(db, notifications).removeAllForUser(userId)` as it deletes one, with the config's `notifications` (the devices table's names), or the `removeAllForUser` of its own `notifications/store.ts`.
 
@@ -311,7 +375,7 @@ A notification is `{ id, userId, title, body, url, data, createdAt, readAt }`, a
 
 ### Senders
 
-A sender delivers notifications to the devices of the kinds it names, through their push service. Web Push, APNs and FCM are built in; your own senders, such as from a package, are the default export of `notifications/senders.ts`, an array, and they replace the built-in ones, at most one for each kind. To keep a built-in one beside them, list it too: `webPushSender(readVapidSettings(process.env)!)` from `@protobase/server` is the built-in Web Push sender, and `readVapidSettings` reads the [VAPID variables](#web-push), `undefined` when none is set; `apnsSender(readApnsSettings(process.env)!, { appId })` is the built-in APNs sender, with the mobile app's `appId`, and `readApnsSettings` reads the [APNs variables](#ios) the same way:
+A sender delivers notifications to the devices of the kinds it names, through their push service. Web Push, APNs, FCM and the [push relay](#push-relay) are built in; your own senders, such as from a package, are the default export of `notifications/senders.ts`, an array, and they replace the built-in ones, at most one for each kind. To keep a built-in one beside them, list it too: `webPushSender(readVapidSettings(process.env)!)` from `@protobase/server` is the built-in Web Push sender, and `readVapidSettings` reads the [VAPID variables](#web-push), `undefined` when none is set; `apnsSender(readApnsSettings(process.env)!, { appId })` is the built-in APNs sender, with the mobile app's `appId`, and `readApnsSettings` reads the [APNs variables](#ios) the same way:
 
 ```ts
 // notifications/senders.ts
@@ -325,7 +389,7 @@ const sender: PushSender = {
 export default [sender]
 ```
 
-`send` takes a message and a batch of devices of those kinds, and answers each device by its id with a result:
+`send` takes a message and a batch of devices of those kinds, and answers each device by its id with a result. The send job is what calls it, and only with devices that may get push now: with Protobase's auth, ones whose session stands. Send through [`sendNotification`](#sending), never by calling a sender yourself, which would skip that check. The results:
 
 | Result | |
 | --- | --- |

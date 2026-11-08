@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { checkNotificationsSchema, notificationsMigration } from '../src/notifications/schema'
 import { DeviceStoreError, postgresDeviceStore } from '../src/notifications/postgres-store'
 import type { NotificationsOptions } from '../src/notifications/options'
-import { apnsDevice, deviceStoreContract, fcmDevice, webDevice } from '../src/notifications/testing/device-store-contract'
+import { apnsDevice, deviceStoreContract, fcmDevice, relayDevice, webDevice } from '../src/notifications/testing/device-store-contract'
 import { memoryHistoryStore } from '../src/notifications/testing/memory-history-store'
 import { memoryDeviceStore } from '../src/notifications/testing/memory-store'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
@@ -56,6 +56,23 @@ describe('the devices table', () => {
     expect(await notificationsMigration(pg.db, renamed)).toBeUndefined()
   })
 
+  it('gets checks that allow relay devices from the migration when it was written before them', async () => {
+    const pg = await migrated(renamed)
+    await pg.exec(`alter table push.targets drop constraint targets_kind_check, drop constraint targets_check,
+      add constraint targets_kind_check check (kind in ('web', 'apns', 'fcm')),
+      add constraint targets_check check ((kind = 'web' and p256dh is not null and auth is not null and environment is null and app_id is null)
+        or (kind = 'apns' and p256dh is null and auth is null and environment is not null and app_id is not null)
+        or (kind = 'fcm' and p256dh is null and auth is null and environment is null))`)
+    const store = postgresDeviceStore(pg.db, renamed)
+    await expect(store.register('a', relayDevice())).rejects.toMatchObject({ sqlState: '23514' })
+    const migration = await notificationsMigration(pg.db, renamed)
+    expect(migration).toMatch(/^alter table "push"\."targets" drop constraint "targets_check", drop constraint "targets_kind_check", add check \("kind" in \('web', 'apns', 'fcm', 'relay'\)\), add check/)
+    await pg.exec(migration!)
+    await store.register('a', relayDevice())
+    await expect(store.register('a', { ...relayDevice(2), appId: 'net.example.app' })).rejects.toMatchObject({ sqlState: '23514' })
+    expect(await notificationsMigration(pg.db, renamed)).toBeUndefined()
+  })
+
   it('stops startup naming a missing column and a missing unique index on the token', async () => {
     const pg = await migrated()
     await expect(checkNotificationsSchema(pg.db, { devices: { columns: { user_agent: 'agent' } } })).rejects.toThrow('has no column "agent"')
@@ -66,11 +83,12 @@ describe('the devices table', () => {
   it('keeps NULL in the fields that do not apply, and refuses a record that breaks its kind with no value in the error', async () => {
     const pg = await migrated()
     const store = postgresDeviceStore(pg.db)
-    for (const device of [webDevice(), apnsDevice(), fcmDevice()]) await store.register('a', device)
+    for (const device of [webDevice(), apnsDevice(), fcmDevice(), relayDevice()]) await store.register('a', device)
     const { rows } = await pg.query('select kind, p256dh, auth, environment, app_id, user_agent from notifications.devices order by kind')
     expect(rows).toEqual([
       { kind: 'apns', p256dh: null, auth: null, environment: 'production', app_id: 'net.example.app', user_agent: null },
       { kind: 'fcm', p256dh: null, auth: null, environment: null, app_id: null, user_agent: null },
+      { kind: 'relay', p256dh: null, auth: null, environment: null, app_id: null, user_agent: null },
       { kind: 'web', p256dh: webDevice().p256dh, auth: webDevice().auth, environment: null, app_id: null, user_agent: 'Mozilla/5.0' },
     ])
     const broken = { ...webDevice(9), p256dh: null }

@@ -5,11 +5,12 @@ import { useClient } from '../../data/api-provider'
 import { recordKey } from '../../live/model-helpers'
 import { useToast } from '../../toasts'
 import { text as orderText } from '../hand-order/messages'
+import { moveRefusal } from '../hand-order/move-refusal'
 import { undoOps, type DragWrite } from '../hand-order/undo-ops'
 import { useRefreshResource } from '../pages/use-layout-data'
 import { rankBounds } from '../rank-after/rank-bounds'
 import { rankedPlace, type RankedPlace } from '../rank-after/ranked-place'
-import { refusalReason, type BoardColumn } from './board-columns'
+import type { BoardColumn } from './board-columns'
 import { dropWrite, type BoardDrop } from './board-drop'
 import { boardWrites, placeOps, placing, type BoardPlace } from './board-place'
 import type { ListDisplayRow } from './list-displays'
@@ -31,6 +32,8 @@ type Options = {
   view: ViewModel | undefined
   by: string
   rank?: string | undefined
+  /** The list's filter, its search included, which a column narrows to its records. */
+  filter: string
   /** The board's own writes for a card dropped on another column, in place of saving `by`. */
   drop?: BoardDrop | undefined
   /** The heading of the column of a value. */
@@ -42,15 +45,17 @@ type Options = {
 /**
  * Moving a board's card to another column: one update of the record with the column's value and the ETag it was listed
  * with, as a named update action sends, so the resource's access rules and `validate` decide. On a ranked board a drop
- * at a place is one batch instead, that update when the column changes and a `reorder` by `rank` of the column's cards.
+ * at a place is one batch instead, that update when the column changes and a `move` by `rank` among the column's cards,
+ * anchored to the card above where it was dropped (see `placeOps`).
  * With the board's `drop`, a card dropped on another column runs that column's write instead, and then reads the record
  * again to say which column it is in now. The card shows in its new place at once; a saved move says so with **Undo**,
- * which puts back the values it changed or runs the undo the drop's write gave, and a refusal puts it back and says why.
+ * which puts back the values it changed or runs the undo the drop's write gave, and a refusal puts it back and says why,
+ * or that the board changed where it was dropped.
  * With the position's `after`, a card dropped above a record it depends on lands at the first place below that keeps
  * the order, or stays where it was, with a warning saying why (see `rankedPlace`).
  * Either way every list of the resource reloads, which puts the card where its record now is.
  */
-export const useBoardMove = ({ model, view, by, rank, drop, labelOf, titleOf }: Options) => {
+export const useBoardMove = ({ model, view, by, rank, filter, drop, labelOf, titleOf }: Options) => {
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()
@@ -62,7 +67,7 @@ export const useBoardMove = ({ model, view, by, rank, drop, labelOf, titleOf }: 
 
   const undo = useMutation({
     mutationFn: (undoing: () => Promise<unknown>) => undoing(),
-    onError: (error) => toast.show({ state: 'error', title: text('couldNotUndo'), description: refusalReason(error) }),
+    onError: (error) => toast.show(moveRefusal(error, text('couldNotUndo'), { place: 'board' })),
     onSettled: () => refresh(model.name),
   })
 
@@ -100,12 +105,12 @@ export const useBoardMove = ({ model, view, by, rank, drop, labelOf, titleOf }: 
     return ranked.place
   }
 
-  // A drop at a place: the column's cards renumbered, with the card's update first when it changes column
+  // A drop at a place: the card's move among the column's cards, with its update first when it changes column
   const placed = async (row: ListDisplayRow, to: BoardColumn, place: NonNullable<Move['place']>): Promise<Saved> => {
     const landing = await allowed(row, to, place)
     if (!landing) return undefined
-    const { order, first, last } = placing(place.rows, row, landing.index)
-    return saved(boardWrites(model, order, await client.batchWrite(placeOps(model, by, rank!, row, to, order, first, last, landing.bump))), to)
+    const { order } = placing(place.rows, row, landing.index)
+    return saved(boardWrites(model, order, await client.batchWrite(placeOps(model, by, rank!, filter, row, to, order, place.more, landing.bump))), to)
   }
 
   const mutation = useMutation({
@@ -147,7 +152,7 @@ export const useBoardMove = ({ model, view, by, rank, drop, labelOf, titleOf }: 
     onError: (error, { row, to }) => {
       settle(row.key)
       const title = (row.record[by] ?? null) === to.value ? text('couldNotReorder') : text('couldNotMoveTo', { to: to.label })
-      toast.show({ state: 'error', title, description: refusalReason(error) })
+      toast.show(moveRefusal(error, title, { place: 'board', title: titleOf(row) }))
     },
     onSettled: async (_result, _error, { row }) => {
       await refresh(model.name)

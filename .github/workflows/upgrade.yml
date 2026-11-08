@@ -1,0 +1,104 @@
+name: upgrade
+
+# A change cannot break an app's upgrade unnoticed: tests/upgrade/app, with every feature that keeps a schema on, is
+# seeded on Postgres with an earlier Protobase, then upgraded to the change's as an app upgrades, and the job fails when
+# a migration fails or `protobase doctor` then reports an error (tests/upgrade/upgrade.sh). A pull request upgrades from
+# its base and runs it again when the title or description is edited, which can mark the change breaking or take the
+# mark away. The ci workflow calls it for a push, the nightly run and a run by hand: main upgrades from the last
+# release, a branch from where it left main, and a push runs it only when its changes reach it
+# (scripts/affected-upgrade.mjs).
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  upgrade:
+    # A pull request from an fm/** branch of this repository runs nothing, as in ci.yml: the push of its head runs it.
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'fm/')) }}
+    concurrency:
+      group: upgrade-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      cancel-in-progress: true
+    # Pushes run on the runner the CHECK_RUNNER variable names, as the ci workflow's jobs do (docs/ci.md).
+    runs-on: ${{ github.event_name == 'push' && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: protobase
+          POSTGRES_PASSWORD: protobase
+          POSTGRES_DB: protobase
+        ports:
+          - 5432
+        options: >-
+          --health-cmd "pg_isready -U protobase -d protobase"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The commit to upgrade from, and the commits since, whose messages can mark the change breaking.
+          fetch-depth: 0
+          persist-credentials: false
+      # A pull request checks out its merge into the base branch, whose first parent is the base it upgrades from; the
+      # event's base sha stays where the branch left main, so main's later commits would count as the change's. A push's
+      # changes count from that commit too, so it sets CHECK_BASE for the gate below.
+      - name: Find the commit to upgrade from
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            base=$(git rev-parse HEAD^1)
+          elif [ "$GITHUB_REF" = refs/heads/main ]; then
+            base=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD)
+          else
+            base=$(git merge-base origin/main HEAD)
+          fi
+          echo "UPGRADE_FROM=$base" >> "$GITHUB_ENV"
+          if [ "$GITHUB_EVENT_NAME" = push ]; then echo "CHECK_BASE=$base" >> "$GITHUB_ENV"; fi
+      # Before 1.0 a breaking pull request may ask apps to change, as its changelog note says, so one marked breaking in
+      # the title, the description or one of its commits skips the upgrade. A push skips only as it carries a breaking
+      # pull request's commits: an fm/** branch is that pull request, the only run its upgrade gets, and main holds the
+      # pull requests merged since the last release, which the release workflow checks before it cuts one. The nightly
+      # run and a run by hand check every change. From 1.0 every change upgrades cleanly: remove this step and the
+      # condition on its output in the steps below.
+      - name: Find whether the change is marked breaking
+        id: breaking
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != pull_request ] && [ "$GITHUB_EVENT_NAME" != push ]; then
+            echo breaking=false >> "$GITHUB_OUTPUT"
+          elif printf '%s\n' "$TITLE" | grep -Eq '^[a-z]+(\([^)]*\))?!:' \
+            || printf '%s\n' "$BODY" | grep -q '^BREAKING CHANGE:' \
+            || git log --format=%s "$UPGRADE_FROM..HEAD" | grep -Eq '^[a-z]+(\([^)]*\))?!:' \
+            || git log --format=%b "$UPGRADE_FROM..HEAD" | grep -q '^BREAKING CHANGE:'; then
+            echo "Marked breaking, so its upgrade may ask apps to change: skipped"
+            echo breaking=true >> "$GITHUB_OUTPUT"
+          else
+            echo breaking=false >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.breaking.outputs.breaking == 'false'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - if: steps.breaking.outputs.breaking == 'false'
+        run: bun install --frozen-lockfile
+      - if: steps.breaking.outputs.breaking == 'false'
+        name: Find whether the changes reach the upgrade
+        id: gate
+        run: bun scripts/affected-upgrade.mjs
+      - if: steps.gate.outputs.run == 'true'
+        name: Check out the commit to upgrade from beside it
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/base" "$UPGRADE_FROM"
+          cd "$RUNNER_TEMP/base" && bun install --frozen-lockfile
+      - if: steps.gate.outputs.run == 'true'
+        name: Upgrade the app from that commit's Protobase to this one's
+        env:
+          DATABASE_URL: postgres://protobase:protobase@localhost:${{ job.services.postgres.ports['5432'] }}/protobase
+        run: tests/upgrade/upgrade.sh "$RUNNER_TEMP/base"
