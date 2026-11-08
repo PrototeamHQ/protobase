@@ -268,7 +268,7 @@ export default defineConfig({ workflows: { plugins: ['@acme/workflow-plugin'] } 
 - **Type:** `{ root?: string; endpoints?: string[] }`
 - **Default:** off
 
-Turns on [storage configurations](/reference/workflows/#storing-files), the named places workflows store files in. `root` is the one folder local configurations live inside, such as a mounted file share; it must not overlap a file provider's folder. Without it, only S3-compatible configurations are taken. `endpoints` are the `https://` origins an S3-compatible configuration may name; without them, it uses the S3 API's default host. The configurations' keys are encrypted, so the app needs `PROTOBASE_ENCRYPTION_KEY`.
+Turns on [storage configurations](/reference/workflows/#storing-files), the named places workflows store files in. `root` is the one folder local configurations live inside, such as a mounted file share; it must not overlap a file provider's folder. Without it, only S3-compatible configurations are taken. `endpoints` are the `https://` origins an S3-compatible configuration may name; without them, none are taken. S3-compatible configurations cannot be used while the server's environment sets `S3_ENDPOINT`, `AWS_ENDPOINT`, `S3_REGION`, `AWS_REGION`, `S3_SESSION_TOKEN` or `AWS_SESSION_TOKEN`, since the S3 client would sign their requests with them. The configurations' keys are encrypted, so the app needs `PROTOBASE_ENCRYPTION_KEY`.
 
 ```ts
 export default defineConfig({ workflows: { storage: { root: './data/workflow-storage', endpoints: ['https://storage.example.com'] } } })

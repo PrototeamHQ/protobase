@@ -66,6 +66,7 @@ describe('the storage steps and app:http with store, run through the plugin inte
     providerDirs: () => [join(folder.dir, 'files', 'private')],
     allowPrivateAddresses: true,
     node: 'node-1',
+    environment: {},
   })
   const step = (id: string) => builtInStep(id, { allowPrivateAddresses: true, files: () => files, storage: (runId) => storageService(async () => session, runId, sources()) })
 

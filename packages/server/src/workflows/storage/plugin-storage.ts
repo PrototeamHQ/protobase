@@ -22,6 +22,7 @@ export const appSources = ({ deps, storage, allowPrivateAddresses }: StorageInpu
   providerDirs: () => Object.values(deps().files?.providers ?? {}).flatMap((provider) => (provider.localDir === undefined ? [] : [provider.localDir])),
   allowPrivateAddresses,
   node: hostname(),
+  environment: globalThis.process?.env ?? {},
 })
 
 const invalid = (reason: string) => new StepError('Storage.InvalidArguments', reason)

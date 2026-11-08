@@ -35,6 +35,7 @@ const sources = (overrides: Partial<ConfigurationSources> = {}): ConfigurationSo
   providerDirs: () => [join(base, 'files', 'private')],
   allowPrivateAddresses: false,
   node: 'node-1',
+  environment: { PATH: '/usr/bin', AWS_ACCESS_KEY_ID: 'AKIDOPERATOR' },
   resolve: async () => ['93.184.216.34'],
   provider: (name, settings) => {
     built.push(settings)
@@ -43,6 +44,7 @@ const sources = (overrides: Partial<ConfigurationSources> = {}): ConfigurationSo
   ...overrides,
 })
 
+const endpoint = 'https://storage.example.com'
 const storage = (overrides: Partial<ConfigurationSources> = {}) => storageService(async () => session, 'run-1', sources(overrides))
 
 beforeEach(async () => {
@@ -65,10 +67,10 @@ describe('the storage service', () => {
   })
 
   it('keeps the same calls working when the configuration is switched from S3 to a local folder', async () => {
-    rows = [{ id: 'c1', name: 'archive', kind: 's3', bucket: 'acme-files', region: 'eu-west-1' }]
+    rows = [{ id: 'c1', name: 'archive', kind: 's3', bucket: 'acme-files', region: 'eu-west-1', endpoint }]
     const inBucket = await storage().put('archive', 'a.txt', streamOf('from s3'), { name: 'a.txt', type: 'text/plain' })
     expect(inBucket).toEqual({ configuration: 'archive', path: 'a.txt', name: 'a.txt', type: 'text/plain', size: 7 })
-    expect(built.at(-1)).toEqual({ kind: 's3', bucket: 'acme-files', region: 'eu-west-1', accessKeyId: accessKey, secretAccessKey: secretKey })
+    expect(built.at(-1)).toEqual({ kind: 's3', bucket: 'acme-files', region: 'eu-west-1', endpoint, accessKeyId: accessKey, secretAccessKey: secretKey })
     rows = [{ id: 'c1', name: 'archive', kind: 'local', dir: 'archive' }]
     const onDisk = await storage().put('archive', 'a.txt', streamOf('from disk'), { name: 'a.txt', type: 'text/plain' })
     expect(onDisk).toMatchObject({ configuration: 'archive', node: 'node-1', path: 'a.txt' })
@@ -114,7 +116,7 @@ describe('the storage service', () => {
   })
 
   it('makes no request for an S3 configuration without keys, with keys that do not open, or whose endpoint now resolves to a private address', async () => {
-    rows = [{ id: 'c1', name: 'archive', kind: 's3', bucket: 'acme-files', endpoint: 'https://storage.example.com' }]
+    rows = [{ id: 'c1', name: 'archive', kind: 's3', bucket: 'acme-files', region: 'eu-west-1', endpoint }]
     keys = { access_key_id: null, secret_access_key: null }
     expect(await failure(storage().put('archive', 'a', streamOf('x'), { name: 'a', type: 'text/plain' }))).toEqual(['Storage.Unavailable', 'The storage configuration "archive" cannot be used: it has no access keys; set access_key_id and secret_access_key'])
     const unreadable = new UnreadableValue('failed-authentication', { resource: 'storage_configurations', field: 'secret_access_key' }, { key: ['c1'] } as never)
@@ -126,6 +128,19 @@ describe('the storage service', () => {
       expect((await failure(storage({ resolve: async () => [address] }).put('archive', 'a', streamOf('x'), { name: 'a', type: 'text/plain' })) as string[])[0]).toBe('Storage.Unavailable')
     }
     expect(built).toEqual([])
+  })
+
+  it('refuses an S3 configuration while the server sets an endpoint, region or session token the S3 client would use, before opening its keys', async () => {
+    rows = [{ id: 'c1', name: 'archive', kind: 's3', bucket: 'acme-files', region: 'eu-west-1', endpoint }]
+    for (const variable of ['S3_ENDPOINT', 'AWS_ENDPOINT', 'S3_REGION', 'AWS_REGION', 'S3_SESSION_TOKEN', 'AWS_SESSION_TOKEN']) {
+      const leaking = storage({ environment: { [variable]: 'operator-value' } })
+      expect(await failure(leaking.put('archive', 'a', streamOf('x'), { name: 'a', type: 'text/plain' }))).toEqual(['Storage.Unavailable', `The storage configuration "archive" cannot be used: the server sets ${variable}, which the S3 client would use for this configuration`])
+    }
+    expect(opened).toEqual([])
+    expect(built).toEqual([])
+    // A local configuration is not the S3 client's, so it still works.
+    rows = [{ id: 'c1', name: 'archive', kind: 'local', dir: 'archive' }]
+    expect(await storage({ environment: { AWS_SESSION_TOKEN: 'operator-value' } }).put('archive', 'a', streamOf('x'), { name: 'a', type: 'text/plain' })).toMatchObject({ path: 'a' })
   })
 
   it('fails as Storage.Failed when the local folder cannot be made', async () => {
@@ -145,7 +160,7 @@ describe('the storage service', () => {
   })
 
   it('names only the code of a store that fails, never its message, and keeps the keys out of every result', async () => {
-    rows = [{ id: 'c1', name: 'archive', kind: 's3', bucket: 'acme-files' }]
+    rows = [{ id: 'c1', name: 'archive', kind: 's3', bucket: 'acme-files', region: 'eu-west-1', endpoint }]
     const leaking = Object.assign(new Error(`denied for ${accessKey} with ${secretKey} at /srv/private`), { code: 'AccessDenied' })
     const failing = storage({ provider: () => ({ store: { ...s3FileStore(bucket.bucket), put: () => Promise.reject(leaking) }, public: false }) })
     const result = await failure(failing.put('archive', 'a', streamOf('x'), { name: 'a', type: 'text/plain' }))

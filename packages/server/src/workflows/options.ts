@@ -36,7 +36,8 @@ export type WorkflowsOptions = {
    * Turns on storage configurations, the named places workflows store files in, which authors with the grant create.
    * `root` is the one folder local configurations live inside, such as a mounted file share; without it, authors create
    * only S3-compatible ones. `endpoints` are the `https://` origins an S3-compatible configuration may name; without
-   * them, it uses the S3 API's default host. Encrypted keys need `PROTOBASE_ENCRYPTION_KEY`.
+   * them, authors create none. S3-compatible ones cannot be used while the server's environment sets an S3 endpoint,
+   * region or session token (`S3_*` or `AWS_*`). Encrypted keys need `PROTOBASE_ENCRYPTION_KEY`.
    */
   storage?: { root?: string; endpoints?: string[] }
 }

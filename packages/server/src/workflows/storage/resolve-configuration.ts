@@ -11,6 +11,7 @@ import type { WorkflowsStorage } from '../options'
 import { configurationProblem } from './configuration-rules'
 import { endpointProblem } from './endpoint-check'
 import { localFolder } from './local-folder'
+import { s3EnvironmentProblem } from './s3-environment'
 
 export const storageResource = 'storage_configurations'
 
@@ -26,6 +27,8 @@ export type ConfigurationSources = {
   allowPrivateAddresses: boolean
   /** The server that holds a local configuration's files. */
   node: string
+  /** The server's environment, which the S3 client reads settings from. */
+  environment: Record<string, string | undefined>
   resolve?: Resolve
   provider?: typeof fileProviderOf
 }
@@ -72,23 +75,23 @@ const opened = async (open: DecryptField, name: string, id: string, field: strin
   }
 }
 
+// Bun's S3 client signs with the server's session token, and its endpoint and region, whatever the client is given.
 const s3Provider = async (sources: ConfigurationSources, session: Session, runId: string, name: string, row: Row): Promise<FileProvider> => {
-  const endpoint = row.endpoint ?? undefined
-  if (typeof endpoint === 'string') {
-    const problem = await endpointProblem(endpoint, { endpoints: sources.storage!.endpoints, allowPrivateAddresses: sources.allowPrivateAddresses, ...(sources.resolve && { resolve: sources.resolve }) })
-    if (problem) throw unavailable(name, problem)
-  }
+  const variable = s3EnvironmentProblem(sources.environment)
+  if (variable) throw unavailable(name, `the server sets ${variable}, which the S3 client would use for this configuration`)
+  const endpoint = String(row.endpoint)
+  const problem = await endpointProblem(endpoint, { endpoints: sources.storage!.endpoints, allowPrivateAddresses: sources.allowPrivateAddresses, ...(sources.resolve && { resolve: sources.resolve }) })
+  if (problem) throw unavailable(name, problem)
   const open = sources.decrypt(session, runId)
   const accessKeyId = await opened(open, name, String(row.id), 'access_key_id')
   const secretAccessKey = await opened(open, name, String(row.id), 'secret_access_key')
   // Without keys of its own the S3 client would sign with the operator's from the environment.
   if (!accessKeyId || !secretAccessKey) throw unavailable(name, 'it has no access keys; set access_key_id and secret_access_key')
-  const region = row.region ?? undefined
   return (sources.provider ?? fileProviderOf)(name, {
     kind: 's3',
     bucket: String(row.bucket),
-    ...(typeof region === 'string' && { region }),
-    ...(typeof endpoint === 'string' && { endpoint }),
+    region: String(row.region),
+    endpoint,
     accessKeyId,
     secretAccessKey,
   })
@@ -96,8 +99,9 @@ const s3Provider = async (sources: ConfigurationSources, session: Session, runId
 
 /**
  * The store of the configuration named `name`, as the session of the run's last editor may read it now, read anew on
- * every call so a change takes effect at the next step. A local one is a folder under the storage root; an S3 one has
- * its endpoint checked again and its keys opened only after the read was allowed. With storage off, or a name the
+ * every call so a change takes effect at the next step. A local one is a folder under the storage root; an S3 one is
+ * refused while the server's environment sets an S3 endpoint, region or session token, and has its endpoint checked
+ * again and its keys opened only after the read was allowed. With storage off, or a name the
  * session cannot read, it fails as `Storage.NotFound`; it never falls back to another store. A folder that cannot be
  * made, such as one the server may not write, fails as `Storage.Failed`.
  */
