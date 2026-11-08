@@ -12,6 +12,7 @@ describe('tapUrl', () => {
     'file:///etc/passwd',
     'blob:https://app.example/x',
     'intent://x#Intent;end',
+    'content://app.example.provider/x',
     '//evil.example/x',
     '/records/1',
     'records/1',

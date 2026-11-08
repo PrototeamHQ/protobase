@@ -21,7 +21,7 @@ describe('nativeTapTarget', () => {
   })
 
   it('opens nothing for a url that is no absolute http or https URL', () => {
-    for (const url of ['javascript:alert(document.cookie)', 'data:text/html,<script>alert(1)</script>', '/some-page', '//evil.com/x', 'intent://x#Intent;end', `${api}/a\tb`, `${api}/a\n`, ` ${api}/a`, `${api}/\u0000`, '', 42, null]) {
+    for (const url of ['javascript:alert(document.cookie)', 'data:text/html,<script>alert(1)</script>', '/some-page', '//evil.com/x', 'intent://x#Intent;end', 'content://app.example.provider/x', 'file:///data/x', `${api}/a\tb`, `${api}/a\n`, ` ${api}/a`, `${api}/\u0000`, '', 42, null]) {
       expect(tap(push(url))).toBeUndefined()
     }
     expect(tap({ user: 'alice' })).toBeUndefined()
