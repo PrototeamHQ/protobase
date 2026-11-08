@@ -309,7 +309,7 @@ A phone registers for one workspace with `POST /api/push-relay/register`, sendin
 { "kind": "apns", "token": "…", "environment": "production", "origin": "https://app.example.com" }
 ```
 
-`kind` is `apns`, with the token in lowercase hex and its `environment`, `sandbox` or `production`, or `fcm`, with the FCM token and no environment. `origin` is the workspace's `https` origin, with no path. The answer is `{ "handle": "…" }`, the handle the workspace registers as the phone's [relay device](#push-relay). The same token and origin always get the same handle, and a phone that uses several workspaces gets a handle for each. One client address registers at most 30 times a minute, then gets a `429` with `Retry-After`.
+`kind` is `apns`, with the token in lowercase hex and its `environment`, `sandbox` or `production`, or `fcm`, with the FCM token and no environment. `origin` is the workspace's `https` origin, with no path. The answer is `{ "handle": "…" }`, the handle the workspace registers as the phone's [relay device](#push-relay). The same token and origin always get the same handle, and a phone that uses several workspaces gets a handle for each. One client address registers at most 30 times a minute, then gets a `429` with `Retry-After`. <gap>A handle no workspace sends to cannot be removed because expiring unused handles is not implemented.</gap>
 
 Each workspace sends with a credential of its own, bound to its origin. You add one on the relay with [`protobase push-relay add-credential`](/reference/cli/#push-relay), which prints it once; the relay keeps only its hash, and compares it in constant time.
 
