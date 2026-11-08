@@ -574,9 +574,13 @@ jobs:
           fi
       - if: steps.mobile.outputs.run == 'true'
         run: sudo xcode-select --switch /Applications/Xcode_16.4.app
+      # A Simulator of its own, booted before the build: xcodebuild finds none of the image's by name.
       - if: steps.mobile.outputs.run == 'true'
         working-directory: packages/mobile/ios-tests
-        run: xcodebuild test -scheme ProtobaseMobileTests-Package -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
+        run: |
+          udid=$(xcrun simctl create protobase-test com.apple.CoreSimulator.SimDeviceType.iPhone-16 com.apple.CoreSimulator.SimRuntime.iOS-18-5)
+          xcrun simctl bootstatus "$udid" -b
+          xcodebuild test -scheme ProtobaseMobileTests-Package -destination "id=$udid"
 
   mobile-android:
     if: *not-branch-pull-request
