@@ -10,7 +10,6 @@ Every commit message follows [Conventional Commits](https://www.conventionalcomm
 feat(ui): a working global search in the top bar
 fix(query): report the failing statement from withStatementTimeout
 feat(cli)!: refuse bundles without a Protobase version
-docs: the record page runs named actions too
 ```
 
 - `feat` releases a feature, `fix` a fix; `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `style`, `chore` and `revert` release nothing on their own.
@@ -20,7 +19,7 @@ docs: the record page runs named actions too
 
 commitlint (`commitlint.branch.config.mjs`) checks each message in the `commit-msg` hook `bun install` installs, in CI for a branch's commits, and in the release workflow for every commit pushed to `main`. The `pr-title` workflow checks a pull request's squash message: its title, or its only commit's subject, with the ` (#<number>)` suffix. By hand: `bun x commitlint --config commitlint.branch.config.mjs --from <commit>`.
 
-`bun install` also writes the protobase skill's references (`packages/cli/skills/protobase/references`) from the docs. They are not committed; the CLI's build writes them again. `bun run docs:skill` shows a docs change in them.
+`bun install` writes the protobase skill's references (`packages/cli/skills/protobase/references`) from the docs, uncommitted; the CLI's build writes them again. `bun run docs:skill` shows a docs change in them.
 
 ## Features and docs
 
@@ -38,7 +37,7 @@ The link goes to the heading that explains the feature; a feature no page explai
 - Public text names no other company or product unless compatibility with it or its own API is the subject: compatibility goes in the compatibility area, a plugin on a service's API in its feature's area.
 - `<gap>…</gap>` marks a known limitation, one sentence: "X cannot do Y because Z is not implemented".
 
-`bun run features:check` (in CI) checks this grammar, that headings exist, that area pages are in the sidebar and features page, and that every reference page has an entry. With `--release-rule`, in CI and the release workflow, it fails a release with a `feat` commit when no docs page changed since the last release.
+`bun run features:check` (in CI) checks this grammar, the headings, that area pages are in the sidebar and features page, and that every reference page has an entry. With `--release-rule`, in CI and the release workflow, it fails a release with a `feat` commit when no docs page changed since the last release.
 
 ## Doc comments and the API reference
 
@@ -48,7 +47,7 @@ A doc comment links a docs page by its file from the repository root: `[Access](
 
 ## Built-in texts
 
-The admin app's and server's own texts live in one JSON file per language and package: `packages/ui/src/locale/` and `packages/server/src/locale/`, `en.json` and `nl.json`, keyed by area (the code's folder, such as `app/delete`) and id. Each is an [ICU MessageFormat](https://unicode-org.github.io/icu/userguide/format_parse/messages/) message formatted by `intl-messageformat`: named values (`Delete {title}?`), plurals (`{count, plural, one {# row} other {# rows}}`) and choices (`{dayFirst, select, true {…} other {…}}`). Numbers are written for the language. `<lower>{label}</lower>` lower-cases a value; a language that keeps capitals leaves the tag out. Code calls `messages('app/delete')`, then `text('confirmTitle', { title })`, or `text.rich(…)` for a React node value. Every language has each text English has and names only values English names; each package's `locale/messages.test.ts` checks both. The views Protobase adds, such as those tables are made in, come from the server in English; the admin app translates them in `app/built-in-views/translated-views.ts`, keyed by resource table and text place, and its test checks the English matches the server's.
+The admin app's and server's own texts live in one JSON file per language and package: `packages/ui/src/locale/` and `packages/server/src/locale/`, `en.json` and `nl.json`, keyed by area (the code's folder, such as `app/delete`) and id. Each is an [ICU MessageFormat](https://unicode-org.github.io/icu/userguide/format_parse/messages/) message (`intl-messageformat`): named values (`Delete {title}?`), plurals (`{count, plural, one {# row} other {# rows}}`) and choices (`{dayFirst, select, true {…} other {…}}`). Numbers are written for the language. `<lower>{label}</lower>` lower-cases a value; a language that keeps capitals leaves the tag out. Code calls `messages('app/delete')`, then `text('confirmTitle', { title })`, or `text.rich(…)` for a React node value. Every language has each text English has and names only values English names; each package's `locale/messages.test.ts` checks both. Protobase's own views, such as those tables are made in, come from the server in English; the admin app translates them in `app/built-in-views/translated-views.ts`, keyed by resource table and text place, and its test checks the English matches the server's.
 
 ## Layout snapshots
 
@@ -61,19 +60,19 @@ The database tests in `packages/*/tests/` and `tests/` replay SQL recorded from 
 - A test opens its databases with `openSnapshotDb(template)` (`test-support/sql-snapshot.ts`) or a helper on it, such as `createTestDb` or `createFixtureDb`.
 - Commit the recordings with the change that made them, taken from CI's record job (the `sql-snapshots` artifact), not from a local run: `version()` names the CPU, so a Mac's differ.
 - A stale recording fails with `stale snapshot: run bun run test:record`.
-- Templates hold nothing Postgres makes up itself: its clock's times, random UUIDs, OIDs of created objects or the clone's name.
+- Templates hold nothing Postgres makes up itself: clock times, random UUIDs, created objects' OIDs or the clone's name.
 - Files that replace a module, change a global or create a Better Auth instance run in the `snapshot-isolated` project.
 - A test that depends on timing or several connections at once (polling, real backoff, advisory locks, a statement timeout firing, `LISTEN`), or sends to SQL randomness not drawn from `crypto` (an ECDSA signature, the server's transaction ids), cannot be replayed. It is a `*.postgres.test.ts` file that opens a clone with `openPostgresDatabase(template)` (`test-support/postgres-database.ts`). Jobs a test drains with `runtime.drain` do replay.
-- Keep a recording under about 200 KB: read only the columns a test checks and seed only the rows it needs. Send requests one after another so the recording stays the same between runs.
+- Keep a recording under about 200 KB: read only the columns a test checks and seed only the rows it needs. Send requests one at a time for a stable recording.
 - A table above 30k rows needs a higher statistics target (`alter table ... alter column ... set statistics 1000`) and `autovacuum_enabled = off`.
 
 ## Releases
 
-Every push to `main` with a fix, feature or breaking change is released by `.github/workflows/release.yml`: a `v<version>` tag and a GitHub release, without a commit to `main`. Below 1.0 a breaking change bumps the minor and a feature or fix the patch. `bun run release --dry-run` shows the next release. The rules are on the [Versioning](https://docs.protobase.net/reference/versioning/) page.
+Every push to `main` with a fix, feature or breaking change is released by `.github/workflows/release.yml`: a `v<version>` tag and a GitHub release, without a commit to `main`. Below 1.0 a breaking change bumps the minor and a feature or fix the patch. `bun run release --dry-run` shows the next release. Its rules: [Versioning](https://docs.protobase.net/reference/versioning/).
 
 ## CI
 
-Pushes to `main` and `fm/**` run what they affect, on `CHECK_RUNNER`; our `fm/**` pull requests leave it to them. Others and the nightly run check all on GitHub's. Before 1.0 a breaking pull request skips the upgrade check, as do pushes of it.
+Pushes to `main` and `fm/**` run what they affect, on `CHECK_RUNNER`. Our `fm/**` pull requests run nothing, as pushes check them. Others and the nightly run check all on GitHub's. Before 1.0 a breaking change skips the upgrade check on its pull request and on each push whose commits since the upgrade's base hold it: its `fm/**` branch, and `main` until the next release.
 
 - A test that reads a file or starts a process by path needs a rule in `scripts/affected/rules.mjs`, or a change to that file skips it.
 - `CHECK_BASE=main bun run check` runs what pushing the branch, uncommitted changes too, would.
