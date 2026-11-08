@@ -54,9 +54,9 @@ const moveAside = async (trx: Db, access: RequestAccess, field: string, keys: Ke
 export const checkOrderField = (access: RequestAccess, name: string) => {
   requireOperation(access, 'update')
   const field = access.full.fields[name]
-  // Refused exactly like any other field the caller cannot write (hidden, read-only or unknown). A write-only field is
-  // refused as unknown too: ordering by it would decide from the stored values the caller cannot read.
-  if (!Object.hasOwn(access.readable.fields, name)) refuseUnknownField(name)
+  // Refused exactly like any other field the caller cannot write (hidden, read-only or unknown). A write-only or sensitive
+  // field is refused as unknown too: ordering by it would decide from, and report, stored values no response carries.
+  if (!Object.hasOwn(access.model.fields, name)) refuseUnknownField(name)
   validateBody(access, 'update', { [name]: 1 })
   if (field?.type !== 'integer' && field?.type !== 'bigint') throw badRequest('invalid-parameter', `"${name}" must be an integer field to order by`)
   if (!writableFields(access, 'update').includes(name)) throw badRequest('invalid-parameter', `"${name}" is read-only`)
