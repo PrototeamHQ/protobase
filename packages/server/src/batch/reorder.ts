@@ -47,6 +47,18 @@ const moveAside = async (trx: Db, access: RequestAccess, field: string, keys: Ke
   }
 }
 
+/** Refuses ordering by `name` unless the caller may update records and write it, and it is an integer field. */
+export const checkOrderField = (access: RequestAccess, name: string) => {
+  requireOperation(access, 'update')
+  const field = access.full.fields[name]
+  // Refused exactly like any other field the caller cannot write (hidden, read-only or unknown). A write-only field is
+  // refused as unknown too: ordering by it would decide from the stored values the caller cannot read.
+  if (!Object.hasOwn(access.readable.fields, name)) refuseUnknownField(name)
+  validateBody(access, 'update', { [name]: 1 })
+  if (field?.type !== 'integer' && field?.type !== 'bigint') throw badRequest('invalid-parameter', `"${name}" must be an integer field to order by`)
+  if (!writableFields(access, 'update').includes(name)) throw badRequest('invalid-parameter', `"${name}" is read-only`)
+}
+
 /**
  * `reorder`: the listed records end up with `field` = `start`, `start` + 1, ... in the given order, `start` 1 unless
  * given, so a client sends only the stretch of a long list that moved. Only records whose value changes
@@ -55,15 +67,8 @@ const moveAside = async (trx: Db, access: RequestAccess, field: string, keys: Ke
  * and with the position's `after` the new order must keep each record below the records it depends on (see `checkRankAfter`).
  */
 export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string>; start: number }, removed: ScheduledDelete[]): Promise<WriteResult[]> => {
-  const { entry, full } = access
-  requireOperation(access, 'update')
-  const field = full.fields[input.field]
-  // Refused exactly like any other field the caller cannot write (hidden, read-only or unknown). A write-only field is
-  // refused as unknown too: ordering by it would decide from the stored values the caller cannot read.
-  if (!Object.hasOwn(access.readable.fields, input.field)) refuseUnknownField(input.field)
-  validateBody(access, 'update', { [input.field]: 1 })
-  if (field?.type !== 'integer' && field?.type !== 'bigint') throw badRequest('invalid-parameter', `"${input.field}" must be an integer field to order by`)
-  if (!writableFields(access, 'update').includes(input.field)) throw badRequest('invalid-parameter', `"${input.field}" is read-only`)
+  const { entry } = access
+  checkOrderField(access, input.field)
   const names = input.keys.map((key) => encodeKey(key))
   if (new Set(names).size !== names.length) throw badRequest('invalid-parameter', 'A record appears twice in keys')
 
