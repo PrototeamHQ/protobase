@@ -6,11 +6,12 @@ import { bridgeClosings, type BridgeClosing } from './bridge-closings'
 export const pipeOpenWithinMs = 10_000
 
 /**
- * The socket events that pass bytes both ways between a function's WebSocket and an open TCP connection: each binary
- * message is written to the connection, and the next is read only once the connection took it; each chunk the
- * connection reads is sent, and the next is read only once the socket wrote it, so neither side buffers more than one
- * chunk. Either side closing closes the other; a text message closes the bridge with 1003. A connection whose socket
- * does not open within `pipeOpenWithinMs` is closed.
+ * The socket events that pass bytes both ways between a function's WebSocket and an open TCP connection, one chunk in
+ * flight each way: each binary message is written to the connection, and the next goes once the connection's buffer
+ * has room again, while later messages wait in the function socket, which stops reading above its own limit; each chunk
+ * the connection reads is sent, and the connection is read again only once the socket wrote it. Either side closing
+ * closes the other; a text message closes the bridge with 1003. A connection whose socket does not open within
+ * `pipeOpenWithinMs` is closed.
  */
 export const tcpPipe = (tcp: Socket, { onOpen, onClose }: Pick<SocketEvents, 'onOpen' | 'onClose'> = {}): SocketEvents => {
   let socket: FunctionSocket | undefined
