@@ -10,25 +10,32 @@ export const viewportGap = 4
 export const menuRightEdge = (triggerRight: number, menuWidth: number, viewportWidth: number) =>
   Math.min(viewportWidth - viewportGap, Math.max(triggerRight, viewportGap + menuWidth))
 
+/** The widest a menu may be, so one wider than the viewport, such as one with a long label, narrows to keep the gap on both sides. */
+export const menuMaxWidth = (viewportWidth: number) => viewportWidth - 2 * viewportGap
+
 /**
  * The `right` of a menu drawn `absolute right-0` in its trigger's positioned wrapper `anchor`, placed by `menuRightEdge`
- * once the open menu is measured; undefined before, which leaves it at `right-0`.
+ * once the open menu is measured, with its `maxWidth` by `menuMaxWidth`; undefined before, which leaves it at `right-0`.
  */
 export const useMenuRight = (open: boolean, anchor: RefObject<HTMLElement | null>, menu: RefObject<HTMLElement | null>) => {
-  const [right, setRight] = useState<number>()
+  const [place, setPlace] = useState<{ right: number; maxWidth: number }>()
 
   useLayoutEffect(() => {
     if (!open || !anchor.current || !menu.current) {
-      setRight(undefined)
+      setPlace(undefined)
       return
     }
+    const viewportWidth = document.documentElement.clientWidth
+    const maxWidth = menuMaxWidth(viewportWidth)
+    // Measured at the width it is drawn with
+    menu.current.style.maxWidth = `${maxWidth}px`
     const triggerRight = anchor.current.getBoundingClientRect().right
     // The box's exact width: offsetWidth rounds, which can put a fractional-width menu's left edge inside the gap
     const menuWidth = menu.current.getBoundingClientRect().width
-    setRight(triggerRight - menuRightEdge(triggerRight, menuWidth, document.documentElement.clientWidth))
+    setPlace({ right: triggerRight - menuRightEdge(triggerRight, menuWidth, viewportWidth), maxWidth })
   }, [open])
 
-  return right === undefined ? undefined : { right }
+  return place
 }
 
 /** The part of the layout viewport the user sees: the visual viewport, which an on-screen keyboard shrinks. */

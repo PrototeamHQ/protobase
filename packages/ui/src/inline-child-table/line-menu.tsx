@@ -39,14 +39,14 @@ export const LineMenu = ({ items, label }: { items: LineMenuItem[]; label: strin
         <MoreHorizontal className="size-4" />
       </button>
       {open && (
-        <ul ref={menu} role="menu" style={{ ...right, ...top }} className="absolute right-0 top-full z-30 mt-1 min-w-36 rounded-md border bg-background py-1 shadow-pop">
+        <ul ref={menu} role="menu" style={{ ...right, ...top }} className="absolute right-0 top-full z-30 mt-1 w-max min-w-36 rounded-md border bg-background py-1 shadow-pop">
           {items.map((item) => (
             <li key={item.label} role="none">
               <button
                 type="button"
                 role="menuitem"
                 disabled={item.disabled}
-                className={cn('block min-h-9 w-full whitespace-nowrap px-3 py-1.5 text-left hover:bg-muted disabled:text-faint-foreground disabled:hover:bg-transparent', item.destructive && 'text-danger-text')}
+                className={cn('block min-h-9 w-full px-3 py-1.5 text-left hover:bg-muted disabled:text-faint-foreground disabled:hover:bg-transparent', item.destructive && 'text-danger-text')}
                 onClick={() => {
                   setOpen(false)
                   item.onSelect()

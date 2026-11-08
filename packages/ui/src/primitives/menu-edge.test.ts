@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { menuOpensAbove, menuRightEdge } from './menu-edge'
+import { menuMaxWidth, menuOpensAbove, menuRightEdge } from './menu-edge'
 
 describe('menuRightEdge', () => {
   it('lines a menu up with a trigger at the right edge of the viewport', () => {
@@ -21,6 +21,19 @@ describe('menuRightEdge', () => {
 
   it('keeps the right edge on screen for a menu wider than the viewport', () => {
     expect(menuRightEdge(48, 500, 390)).toBe(386)
+  })
+})
+
+describe('menuMaxWidth', () => {
+  it('narrows a menu wider than the viewport to sit between the gaps', () => {
+    const width = Math.min(500, menuMaxWidth(390))
+    expect(width).toBe(382)
+    expect(menuRightEdge(48, width, 390) - width).toBe(4)
+  })
+
+  it('leaves a menu that fits at its width and its right edge', () => {
+    expect(Math.min(160, menuMaxWidth(390))).toBe(160)
+    expect(menuRightEdge(370, 160, 390)).toBe(370)
   })
 })
 
