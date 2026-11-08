@@ -1,5 +1,7 @@
+import { snapCardWidth } from '../../primitives/snap-row-width'
+
 /** How wide a card of a record row is, and the gap after it, in pixels: the step from one card to the next. */
-export const rowCardWidth = 256
+export const rowCardWidth = snapCardWidth
 export const rowCardGap = 12
 const step = rowCardWidth + rowCardGap
 

@@ -66,6 +66,10 @@ export const RowsChecks: StoryObj = {
     expect(gardens.getByRole('list', { name: 'Filters' })).toHaveTextContent('Garden')
     expect(await gardens.findByText('20 homes')).toBeVisible()
     expect(await gardens.findByRole('link', { name: /Tuinstraat 1\b/ })).toHaveAttribute('href', '/homes/1')
+    // The row snaps each card of 256px to its left edge
+    const card = gardens.getByRole('link', { name: /Tuinstraat 1\b/ }).closest('li')!
+    expect(card.getBoundingClientRect().width).toBe(256)
+    expect(getComputedStyle(card.closest('ul')!).scrollSnapType).toBe('x mandatory')
     expect(gardens.getByRole('link', { name: /^View all/ })).toHaveAttribute('href', `/homes?${new URLSearchParams({ display: 'cards', filter: 'garden = true' })}`)
     await userEvent.click(gardens.getByRole('button', { name: 'Next homes' }))
     await waitFor(() => expect(gardens.getByRole('button', { name: 'Previous homes' })).toBeVisible())
@@ -90,6 +94,8 @@ export const RowsPhone: StoryObj = {
     const row = await gardens.findByRole('list', { name: 'Homes' })
     await waitFor(() => expect(row.scrollWidth).toBeGreaterThan(row.clientWidth))
     expect(row.getBoundingClientRect().right).toBeLessThanOrEqual(360)
+    // A phone keeps cards of 256px, so a long line stays readable
+    expect(within(row).getAllByRole('listitem')[0]!.getBoundingClientRect().width).toBe(256)
     // A swipe scrolls the row; the arrows are for a pointer
     expect(gardens.queryByRole('button', { name: 'Next homes' })).toBeNull()
   },
