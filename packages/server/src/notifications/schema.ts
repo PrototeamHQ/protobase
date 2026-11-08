@@ -49,7 +49,7 @@ const kindChecksWithoutRelay = async (db: Db, names: NotificationsNames) => {
   const { rows } = await sql<KindCheck>`select c.conname as name, pg_get_constraintdef(c.oid) as def from pg_constraint c
     join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any(c.conkey)
     where c.conrelid = ${oid} and c.contype = 'c' and a.attname = ${names.columns.kind} order by c.conname`.execute(db)
-  return legacyKindChecks(rows)
+  return legacyKindChecks(rows, names.columns)
 }
 
 /**
