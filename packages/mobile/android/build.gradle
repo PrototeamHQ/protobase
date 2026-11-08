@@ -48,6 +48,12 @@ android {
         sourceSets.androidTest.assets.srcDirs += 'src/androidTestLiveupdate/assets'
         sourceSets.androidTest.manifest.srcFile 'src/androidTestLiveupdate/AndroidManifest.xml'
     }
+    // The workspace views' tests, in the repository only: their checks on the JVM, and their WebViews on a device, in
+    // the same test app as the guard's (its manifest declares their activity).
+    if (file('src/testWorkspaces').exists()) {
+        sourceSets.test.java.srcDirs += 'src/testWorkspaces/java'
+        sourceSets.androidTest.java.srcDirs += 'src/androidTestWorkspaces/java'
+    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
@@ -61,6 +67,10 @@ repositories {
 
 dependencies {
     implementation project(':capacitor-android')
+    // Workspace views: a WebView profile each (MULTI_PROFILE, 1.9.0 and later) and their message listener, at the
+    // version Capacitor builds with; and Custom Tabs, the system browser a workspace's other origins open in.
+    implementation "androidx.webkit:webkit:${project.hasProperty('androidxWebkitVersion') ? rootProject.ext.androidxWebkitVersion : '1.14.0'}"
+    implementation 'androidx.browser:browser:1.9.0'
     if (liveUpdate != null) {
         implementation liveUpdate
     }

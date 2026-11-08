@@ -165,3 +165,28 @@ Put your Firebase project's `google-services.json` in the project folder, next t
 The user turns push on from the bell, or from your own button with [`usePushNotifications`](/reference/notifications/#in-the-browser). Android 13 and later ask for the permission then. Signing out removes the phone's registration.
 
 A tap on a notification whose `url` is on your app's server opens that page inside the app. Any other `http` or `https` url opens in the phone's browser, never inside the app, and any other url opens nothing. Turning push on or off changes the app's native code, so it ships in a store release, not a [live update](#7-live-updates). <gap>An app with `notifications()` on cannot get live updates on Protobase Cloud because fingerprinting its release with the manifest's `push` is not implemented there.</gap> <gap>A self-hosted server cannot offer live updates to an app whose config function turns `notifications()` on for `build` and not for `serve`, or the other way round, because fingerprinting a served release from its bundle's manifest is not implemented.</gap>
+
+## 10. Workspaces
+
+:::caution[In development]
+The shell's own screens for listing, adding and switching workspaces come later; for now its home page drives the views through the API below. <gap>`protobase mobile` cannot build a shell with workspaces on because writing `plugins.ProtobaseWorkspaces` into its config is not implemented.</gap> <gap>A workspace page's `mailto:` and `tel:` links cannot open the phone's apps because handing other schemes to the phone is not implemented.</gap> <gap>Android's back gesture cannot go back in a workspace because routing it to the open workspace view is not implemented.</gap> <gap>A workspace at `http://localhost` cannot load on Android because a cleartext allowance for loopback hosts is not implemented in the shell.</gap>
+:::
+
+In workspaces mode one shell holds several Protobase apps, each a workspace at its own address. The shell's home page runs from its own files with Capacitor, as above; each workspace opens in a native web view of its own that loads the workspace's real address and has no Capacitor at all. It is off unless the shell's `capacitor.config.json` has `plugins.ProtobaseWorkspaces.enabled` set to `true`; any value but `true` or `false` is refused. It does not run beside the [live updater](#7-live-updates), since each workspace view loads its app's current files from its server, and it needs iOS 17 or later, or an Android WebView with profiles.
+
+- **Addresses.** A workspace is an `https` origin, or `http` on `localhost` or `127.0.0.1`, with no path. One workspace per origin.
+- **Sealed storage.** Each workspace view has its own data store on iOS and its own WebView profile on Android, named by the workspace's id: its cookies, local storage, IndexedDB and cache are its own, so one workspace's page never sees another's session. Removing a workspace deletes its store, at the latest when the app next starts.
+- **Navigation.** Only the workspace's own origin loads in its view. A link or redirect to any other `http` or `https` address opens in the system browser, with no exceptions; a form posted to another origin and any other scheme go nowhere. Frames load as in a browser, except `file:`, `content:` and schemes another app handles.
+- **What the page can tell.** Its user agent ends in `ProtobaseApp/1`. The page's main frame, on the workspace's own origin, can post `openDrawer` to show the shell's workspace list: `window.webkit.messageHandlers.protobaseApp.postMessage('openDrawer')` on iOS, `protobaseApp.postMessage('openDrawer')` on Android. Frames and other origins are not heard, and any other message is refused.
+
+The home page reaches the views through the `ProtobaseWorkspaces` plugin, which keeps the list in native storage:
+
+| Method | What it does |
+| --- | --- |
+| `list()` | `{ workspaces }`, each `{ id, origin, name?, icon? }`, in the order added |
+| `add({ origin, name?, icon? })` | Lists a workspace and answers `{ workspace }`; refuses an origin already listed |
+| `open({ id })` | Shows that workspace's view, made the first time it opens |
+| `showHome()` | Hides the open workspace, showing the home page |
+| `remove({ id })` | Closes the view, drops the workspace and deletes its store |
+
+A workspace page's `openDrawer` reaches the home page as the plugin's `openDrawer` event, with the workspace's `id`.

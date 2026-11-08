@@ -26,7 +26,7 @@ final class PageScriptFilter: NSObject, WKScriptMessageHandler {
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard let bridge, message.frameInfo.isMainFrame, isAppOrigin(message.frameInfo.securityOrigin, bridge.config.serverURL) else { return }
+        guard let bridge, message.frameInfo.isMainFrame, SameOrigin.matches(message.frameInfo.securityOrigin, bridge.config.serverURL) else { return }
         guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
         if type == "js.error" || type == "cordova" {
             bridge.webViewDelegationHandler.userContentController(userContentController, didReceive: message)
@@ -53,20 +53,5 @@ final class PageScriptFilter: NSObject, WKScriptMessageHandler {
         ]
         guard let json = try? JSONSerialization.data(withJSONObject: answer), let text = String(data: json, encoding: .utf8) else { return }
         webView?.evaluateJavaScript("window.Capacitor.fromNative(\(text))")
-    }
-
-    private func isAppOrigin(_ origin: WKSecurityOrigin, _ serverURL: URL) -> Bool {
-        let scheme = (serverURL.scheme ?? "").lowercased()
-        let serverPort = serverURL.port ?? defaultPort(scheme)
-        let originPort = origin.port == 0 ? defaultPort(origin.protocol.lowercased()) : origin.port
-        return origin.protocol.lowercased() == scheme && origin.host.lowercased() == (serverURL.host ?? "").lowercased() && originPort == serverPort
-    }
-
-    private func defaultPort(_ scheme: String) -> Int {
-        switch scheme {
-        case "http": return 80
-        case "https": return 443
-        default: return 0
-        }
     }
 }

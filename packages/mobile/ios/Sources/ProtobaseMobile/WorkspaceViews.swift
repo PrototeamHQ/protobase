@@ -1,0 +1,52 @@
+import UIKit
+
+/**
+ * The workspace views in front of the home view, each made the first time its workspace opens and kept until it is
+ * removed, so at most one per listed workspace. One shows at a time; the home view shows when none does.
+ */
+@MainActor
+final class WorkspaceViews {
+    private let container: () -> UIView?
+    private let openExternally: (URL) -> Void
+    private let onMessage: (Workspace, WorkspaceMessage) -> Void
+    private var views: [String: WorkspaceWebView] = [:]
+
+    init(container: @escaping () -> UIView?, openExternally: @escaping (URL) -> Void, onMessage: @escaping (Workspace, WorkspaceMessage) -> Void) {
+        self.container = container
+        self.openExternally = openExternally
+        self.onMessage = onMessage
+    }
+
+    func view(_ id: String) -> WorkspaceWebView? {
+        views[id]
+    }
+
+    @discardableResult
+    func show(_ workspace: Workspace) -> Bool {
+        guard let container = container(), let view = views[workspace.id] ?? make(workspace) else { return false }
+        views.values.forEach { $0.webView.isHidden = $0 !== view }
+        if view.webView.superview == nil {
+            view.webView.frame = container.bounds
+            view.webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            container.addSubview(view.webView)
+        }
+        container.bringSubviewToFront(view.webView)
+        return true
+    }
+
+    func showHome() {
+        views.values.forEach { $0.webView.isHidden = true }
+    }
+
+    func close(_ id: String) {
+        views.removeValue(forKey: id)?.close()
+    }
+
+    private func make(_ workspace: Workspace) -> WorkspaceWebView? {
+        let onMessage = self.onMessage
+        guard let view = WorkspaceWebView(workspace, openExternally: openExternally, onMessage: { onMessage(workspace, $0) }) else { return nil }
+        views[workspace.id] = view
+        view.load()
+        return view
+    }
+}

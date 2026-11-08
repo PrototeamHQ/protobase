@@ -26,5 +26,6 @@ description: Develop, build and run an app, on servers, in containers and on pho
 - [Self-hosted image](/guides/deploy/#a-self-hosted-image): One image with the app inside that serves, migrates and creates the first admin.
 - [Protobase Cloud deploys](/guides/deploy/#protobase-cloud): A push to the app's GitHub branch builds it, migrates and checks its database in one transaction, and switches to the new version once it answers its health check.
 - [Mobile apps](/guides/mobile-app/) (beta): Runs an app on iOS and Android, also on your own iPhone, with sign-in, and builds signed store releases from a section in its config.
+- [Workspaces in one mobile app](/guides/mobile-app/#10-workspaces) (in development): One mobile shell opens several Protobase apps, each in a web view of its own at its own address, with its own sign-in and storage.
 - [Mobile releases](/reference/cli/#mobile-releases) (in development): The server offers the mobile app a newer copy of its files, signed, and any host that serves bundles can offer the same from the bundle's files without running its config.
 - [Live updates](/reference/cli/#the-live-updater) (in development): The Android and iOS app update themselves in the background to the server's release, downloading only the files that changed, and go back to the files they were built with when a release fails to start.

@@ -3,11 +3,14 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Cleartext only for the test's own release server on loopback. -->
+    <!-- Cleartext only for the tests' own servers on loopback. The workspace views' tests share this test app. -->
     <application android:usesCleartextTraffic="true">
         <activity
             android:name="net.protobase.mobile.LiveUpdateTestActivity"
             android:exported="false"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+        <activity
+            android:name="net.protobase.mobile.WorkspaceTestActivity"
+            android:exported="false" />
     </application>
 </manifest>
