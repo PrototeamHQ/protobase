@@ -403,7 +403,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
   if (auth) {
     app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }), ...(firstAdmin && { firstAdminUrl: firstAdmin }), appName, ...(appIcon && { appIcon }), runsOnNote }))
-    if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
+    if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db, mobile: Boolean(mobile) }))
     if (auth.mcp) mcpDiscovery(app, auth)
     const answer = mobile ? auth.handleMobile : auth.handler
     app.on(['GET', 'POST'], `${authBasePath}/*`, async (c) => withoutSessionTokens(c.req.raw, await answer(c.req.raw)))
