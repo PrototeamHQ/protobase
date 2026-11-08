@@ -24,7 +24,7 @@ const timeout = 120_000
 // the same bundle is also served with a shell of its own, beside a worker and by the production runtime, and a --bun
 // bundle is built and served; those do not depend on the runtime the CLI runs on, so Node serves the plain bundle alone.
 describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`, () => {
-  // Inside the ERP, so `protobase serve` resolves the modules the bundle imports from its node_modules.
+  // Inside the ERP, so `protobase serve` on Node resolves the modules the bundle imports from its node_modules.
   const outDir = path.join(erpDir, `.smoke-${randomBytes(4).toString('hex')}`)
   const email = 'smoke@example.com'
   const password = 'a-long-test-password'

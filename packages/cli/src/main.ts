@@ -223,6 +223,10 @@ program
   .action(async (bundle: string) => {
     loadNearestEnvFile(process.cwd())
     warn(placeholderSecretWarning(process.env))
+    // Under Bun the bundle gets the CLI's own host modules, as the runtime image gives them; under Node they resolve
+    // from the node_modules next to the bundle.
+    const { provideHostModules } = await import('./serve/host-modules')
+    provideHostModules()
     if (statSync(bundle).isDirectory()) await (await import('./serve/serve-dir')).serveBundleDir(bundle, process.env, out)
     else await (await import('./serve/serve-bundle')).serveBundle(bundle, process.env, out)
   })
