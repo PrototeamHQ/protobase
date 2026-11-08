@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useMemo, useState, useSyncExternalStore, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { usePageScroll } from '../app-shell'
 import { cn } from '../lib/cn'
 import { BarMenu, BarNamed } from './bar-actions'
@@ -39,7 +39,8 @@ export const FocusPage = ({ label, children }: FocusPageProps) => {
   const [bar, barWidth] = useElementWidth()
   const [row, rowWidth] = useElementWidth()
   const size = barSize(barWidth)
-  const overlays = panelOverlays(rowWidth)
+  const open = useSyncExternalStore(store.subscribe, store.openPanels)
+  const overlays = panelOverlays(rowWidth, open)
   const value = useMemo(() => ({ store, hosts, size }), [store, hosts, size])
   return (
     <FocusContext.Provider value={value}>

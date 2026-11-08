@@ -18,5 +18,5 @@ export const surfaceFloor = 480
 /** The width of a side panel. */
 export const panelWidth = 380
 
-/** Whether a panel lies over the surface's edge in a row `width` wide, rather than narrowing it. */
-export const panelOverlays = (width: number) => width > 0 && width - panelWidth < surfaceFloor
+/** Whether the panels open, `count` of them, lie over the surface's edges in a row `width` wide, rather than narrowing it. */
+export const panelOverlays = (width: number, count = 1) => width > 0 && count > 0 && width - count * panelWidth < surfaceFloor

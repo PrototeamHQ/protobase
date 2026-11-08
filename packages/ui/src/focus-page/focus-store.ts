@@ -15,6 +15,7 @@ export const createFocusStore = () => {
   const actions = new Map<string, FocusAction[]>()
   const notices = new Map<string, NoticeLevel>()
   const filled = new Map<FocusZone, number>()
+  const panels = new Map<string, 'start' | 'end'>()
   const listeners = new Set<() => void>()
   let shownActions: FocusAction[] = []
   let shownNotice: string | undefined
@@ -33,6 +34,16 @@ export const createFocusStore = () => {
     actions: () => shownActions,
     notice: () => shownNotice,
     filled: (zone: FocusZone) => (filled.get(zone) ?? 0) > 0,
+    /** How many sides have a panel open. */
+    openPanels: () => new Set(panels.values()).size,
+    openPanel: (id: string, side: 'start' | 'end') => {
+      panels.set(id, side)
+      changed()
+      return () => {
+        panels.delete(id)
+        changed()
+      }
+    },
     setActions: (id: string, next: FocusAction[] | undefined) => {
       if (next) actions.set(id, next)
       else actions.delete(id)

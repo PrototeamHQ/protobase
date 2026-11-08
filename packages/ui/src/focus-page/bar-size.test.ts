@@ -9,6 +9,10 @@ describe('barSize', () => {
 
 describe('panelOverlays', () => {
   it('lies over the surface once beside it would leave less than the least width, and not before anything is measured', () => {
-    expect([1072, 860, 859, 692, 0].map(panelOverlays)).toEqual([false, false, true, true, false])
+    expect([1072, 860, 859, 692, 0].map((width) => panelOverlays(width))).toEqual([false, false, true, true, false])
+  })
+
+  it('counts both panels when both are open, and none when none is', () => {
+    expect([panelOverlays(1240, 2), panelOverlays(1239, 2), panelOverlays(900, 2), panelOverlays(900, 0)]).toEqual([false, true, true, false])
   })
 })

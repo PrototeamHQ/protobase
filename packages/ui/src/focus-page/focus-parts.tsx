@@ -103,8 +103,11 @@ export type FocusPanelProps = {
  * `md` it covers the screen. Its content scrolls in a box of its own, since the page does not scroll.
  */
 export const FocusPanel = ({ side = 'end', title, icon, status, onClose, footer, takesFocus = false, children }: FocusPanelProps) => {
-  const { hosts } = useFocusParts()
+  const { hosts, store } = useFocusParts()
   const host = hosts[side]
+  const id = useId()
+  // The page counts the panels open, so two narrow the surface no more than it can take
+  useLayoutEffect(() => store.openPanel(id, side), [store, id, side])
   const body = useRef<HTMLDivElement>(null)
   // What had the keyboard as the panel opened, before anything inside takes it
   const [opener] = useState(() => document.activeElement)
