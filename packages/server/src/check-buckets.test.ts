@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { defineRoles, f, resource, where, type AccessContext } from '@protobase/schema'
+import { defineRoles, f, resource, where, type AccessContext, type AnyField } from '@protobase/schema'
 import { checkBuckets } from './check-buckets'
 import { buildRegistry } from './registry'
 
@@ -33,6 +33,21 @@ describe('checkBuckets', () => {
 
   it('refuses a rollup of a resource the app does not have', () => {
     expect(() => checkBuckets(buildRegistry([byKind]), undefined)).toThrow('Resource "readings_hourly" is a time rollup of "readings", which is not a resource')
+  })
+
+  it('refuses a time, group or measure field the registered source gives its own read rule', () => {
+    const hidden = { read: () => false }
+    const registered = (fields: Partial<Record<'kind' | 'taken_at' | 'watts', AnyField>>) =>
+      resource('readings')
+        .table('readings')
+        .fields({ id: f.bigint().readOnly(), user_id: f.text(), kind: f.text(), taken_at: f.timestamp(), watts: f.integer(), ...fields })
+        .primaryKey((r) => r.id)
+        .owner((r) => r.user_id)
+    const refusal = (field: string) => `Resource "readings_hourly" is a time rollup of "readings", whose fields it would show: "${field}" has its own read rule. Leave that field out of the rollup, or drop its own read rule`
+    expect(() => checkBuckets(buildRegistry([registered({ taken_at: f.timestamp().access(hidden) }), byKind]), undefined)).toThrow(refusal('taken_at'))
+    expect(() => checkBuckets(buildRegistry([registered({ kind: f.text().access(hidden) }), byKind]), undefined)).toThrow(refusal('kind'))
+    expect(() => checkBuckets(buildRegistry([registered({ watts: f.integer().access(hidden) }), byKind]), undefined)).toThrow(refusal('watts'))
+    expect(() => checkBuckets(buildRegistry([registered({ watts: f.integer().access({ update: () => false }) }), byKind]), undefined)).not.toThrow()
   })
 
   describe("a source's own read or list rule", () => {

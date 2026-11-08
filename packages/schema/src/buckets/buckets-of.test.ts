@@ -17,6 +17,10 @@ const readings = resource('readings')
     cost: f.decimal({ precision: 10, scale: 2 }),
     note: f.text().optional(),
     secret: f.text().sensitive(),
+    margin: f.integer().access({ read: () => false }),
+    seen_at: f.timestamp().access({ read: () => false }),
+    region: f.text().access({ read: () => false }),
+    tag: f.text().access({ update: () => false }),
     user_id: f.text(),
   })
   .primaryKey((r) => r.id)
@@ -63,11 +67,15 @@ describe('.bucketsOf()', () => {
       bucketsState('readings_hourly', { model: readings.toModel(), fields: readings.state.fields! }, { from: 'readings', time: 'taken_at', every: 'hour', by: [], measures: {}, late: '2 hours', ...spec })
     expect(() => rollup({ every: 'week' as BucketsModel['every'] })).toThrow('every "week" is not hour or day')
     expect(() => rollup({ time: 'org_id' })).toThrow('time "org_id" is integer, not a timestamp')
+    expect(() => rollup({ time: 'seen_at' })).toThrow('uses time "seen_at", which has its own read rule')
     expect(() => rollup({ by: ['note'] })).toThrow('groups by "note", which is optional')
     expect(() => rollup({ by: ['secret'] })).toThrow('groups by "secret", which is sensitive')
+    expect(() => rollup({ by: ['region'] })).toThrow('groups by "region", which has its own read rule')
+    expect(() => rollup({ by: ['tag'] })).not.toThrow()
     expect(() => rollup({ by: ['id'] })).toThrow('groups by "id", a name the rollup keeps for its own field')
     expect(() => rollup({ by: ['kind', 'kind'] })).toThrow('groups by "kind" twice')
     expect(() => rollup({ measures: { note: ['sum'] } })).toThrow('measures "note", which is text, not an integer, bigint or decimal')
+    expect(() => rollup({ measures: { margin: ['max'] } })).toThrow('measures "margin", which has its own read rule')
     expect(() => rollup({ measures: { watts: [] } })).toThrow('measures "watts" with nothing')
     expect(() => rollup({ measures: { watts: ['avg' as 'sum'] } })).toThrow('measures "watts" with "avg", not sum or max')
     expect(() => rollup({ measures: { watts: ['sum', 'sum'] } })).toThrow('measures "watts" with sum twice')
