@@ -91,7 +91,7 @@ const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
   },
 })
 
-const runFields = ['id', 'workflow_id', 'version', 'rerun_of', 'started_by', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'trace', 'created_at', 'finished_at', 'duration_ms']
+const runFields = ['id', 'workflow_id', 'version', 'rerun_of', 'started_by', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'trace', 'trace_file', 'created_at', 'finished_at', 'duration_ms']
 const stepFields = ['state', 'scope', 'seq', 'type', 'attempt', 'status', 'input', 'output', 'assigned', 'logs', 'error', 'cause', 'next', 'resumeAt', 'startedAt', 'finishedAt', 'recorded']
 
 /** The steps of a run's trace, in the order they ran. */
@@ -121,9 +121,11 @@ export const getWorkflowRunTool = (readTrace: TraceReader) =>
     run: async (args, context) => {
       const id = textOf(args.run_id)
       if (!id) return 'Pass the run\'s id as { "run_id": "<id>" }.'
-      // Read through the run's own access first, so the trace of a run the caller may not read is never read.
-      const run = await context.records.get('workflow_runs', id, { fields: runFields }).then(({ record }) => record, refused)
-      if (typeof run === 'string') return run
+      // Read through the run's own access first, `trace_file` included, so the trace of a run the caller may not read,
+      // or whose trace a field rule hides, is never read.
+      const found = await context.records.get('workflow_runs', id, { fields: runFields }).then(({ record }) => record, refused)
+      if (typeof found === 'string') return found
+      const { trace_file: _traceFile, ...run } = found
       const state = textOf(args.state)
       const steps = (await readTrace(String(run.id))).filter((step) => !state || step.state === state)
       const offset = offsetOf(args.page_token)

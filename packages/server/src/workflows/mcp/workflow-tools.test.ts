@@ -183,4 +183,15 @@ describe('run_workflow and get_workflow_run', () => {
     expect(JSON.parse(await getWorkflowRunTool(readTrace).run({ run_id: 'r1' }, context)).error).toBeDefined()
     expect(readTrace).not.toHaveBeenCalled()
   })
+
+  it("reads no trace when a field rule hides the run's trace file, and never returns the file", async () => {
+    const readTrace = vi.fn(async () => [])
+    const hidden = contextWith({ get: () => Promise.reject(badRequest('invalid-parameter', 'Unknown fields: trace_file')) })
+    expect(JSON.parse(await getWorkflowRunTool(readTrace).run({ run_id: 'r1' }, hidden.context)).error).toBeDefined()
+    expect(readTrace).not.toHaveBeenCalled()
+    const get = vi.fn(async () => ({ record: { id: 'r1', status: 'failed', trace_file: { id: 'f1' } }, etag: '"r"' }))
+    const shown = contextWith({ get })
+    expect(JSON.parse(await getWorkflowRunTool(readTrace).run({ run_id: 'r1' }, shown.context)).run).toEqual({ id: 'r1', status: 'failed' })
+    expect(get).toHaveBeenCalledWith('workflow_runs', 'r1', { fields: expect.arrayContaining(['trace_file']) })
+  })
 })
