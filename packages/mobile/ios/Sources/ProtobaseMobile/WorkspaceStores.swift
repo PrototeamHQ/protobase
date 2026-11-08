@@ -6,6 +6,7 @@ import WebKit
  * later `list()` or `remove()`.
  */
 enum WorkspaceStores {
+    /** Deletes each removed workspace's store WebKit lets go of and drops its id from the list; a store still in use stays listed, and before iOS 17 nothing is deleted. */
     @MainActor
     static func removePending(_ list: WorkspaceList) async throws {
         guard #available(iOS 17.0, *) else { return }

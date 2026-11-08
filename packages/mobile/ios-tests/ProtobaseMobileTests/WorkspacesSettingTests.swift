@@ -2,6 +2,7 @@ import XCTest
 @testable import ProtobaseMobile
 
 final class WorkspacesSettingTests: XCTestCase {
+    /** The value of a JSON text, as the plugin config hands it over. */
     private func parsed(_ json: String) -> Any? {
         let object = try! JSONSerialization.jsonObject(with: Data("{\"enabled\":\(json)}".utf8)) as! [String: Any]
         return object["enabled"]

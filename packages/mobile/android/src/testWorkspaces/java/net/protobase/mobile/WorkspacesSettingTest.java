@@ -8,6 +8,7 @@ import org.junit.Test;
 
 public class WorkspacesSettingTest {
 
+    /** The value of a JSON text, as the plugin config hands it over. */
     private static Object parsed(String json) throws Exception {
         return new JSONObject("{\"enabled\":" + json + "}").opt("enabled");
     }

@@ -51,6 +51,7 @@ final class WorkspaceWebViewTests: XCTestCase {
     private var origin: String { "http://127.0.0.1:\(site.port)" }
     private var other: String { "http://localhost:\(site.port)" }
 
+    /** Starts the test site and a window for the views. */
     override func setUp() async throws {
         site = try TestSite(Self.pages)
         window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
@@ -58,12 +59,14 @@ final class WorkspaceWebViewTests: XCTestCase {
         window.isHidden = false
     }
 
+    /** Closes every view the test made, then the test site. */
     override func tearDown() async throws {
         views.forEach { $0.close() }
         views = []
         site.close()
     }
 
+    /** A cookie and a localStorage value set in workspace A show again in A's store and are absent in workspace B. */
     func testCookiesAndStorageStayInTheirWorkspace() async throws {
         let store = UUID()
         let a = make(store)
@@ -86,6 +89,7 @@ final class WorkspaceWebViewTests: XCTestCase {
         XCTAssertEqual(bStorage, "null")
     }
 
+    /** Only the main frame of the workspace's own origin is heard, and only openDrawer reaches native code. */
     func testTheChannelTakesOnlyItsOwnMainFrame() async throws {
         let a = make(UUID())
         try await go(a, "/frames")
@@ -96,6 +100,7 @@ final class WorkspaceWebViewTests: XCTestCase {
         XCTAssertEqual(messages, [.openDrawer])
     }
 
+    /** Links to another origin open in the system browser and the view stays on its page; a POST there goes nowhere. */
     func testAnotherOriginLeavesForTheSystemBrowser() async throws {
         let a = make(UUID())
         try await go(a, "/links")

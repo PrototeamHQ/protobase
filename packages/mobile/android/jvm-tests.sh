@@ -6,6 +6,7 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 jars=$1
 mkdir -p "$jars"
+# Downloads a jar from Maven Central into the jars folder unless it is there already: fetch <group path> <jar>.
 fetch() {
   [ -f "$jars/$2" ] || curl -fsSL -o "$jars/$2" "https://repo1.maven.org/maven2/$1/$2"
 }

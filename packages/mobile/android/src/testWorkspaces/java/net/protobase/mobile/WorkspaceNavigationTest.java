@@ -9,10 +9,12 @@ public class WorkspaceNavigationTest {
 
     private static final String WORKSPACE = "https://acme.example.com";
 
+    /** The policy's decision for a request from the workspace at the test origin. */
     private static Decision decide(String url, boolean mainFrame, String method) {
         return WorkspaceNavigation.decide(url, mainFrame, method, WORKSPACE);
     }
 
+    /** The policy's decision for a main-frame GET from the workspace at the test origin. */
     private static Decision decide(String url) {
         return decide(url, true, "GET");
     }

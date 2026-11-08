@@ -15,6 +15,7 @@ final class SystemBrowser {
 
     private SystemBrowser() {}
 
+    /** Opens the URL in a Custom Tab, as a new task when the context is no activity; with no browser on the phone, nothing opens. */
     static void open(Context context, String url) {
         CustomTabsIntent tab = new CustomTabsIntent.Builder().build();
         if (!(context instanceof Activity)) tab.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

@@ -9,6 +9,7 @@ public class WorkspaceTestActivity extends Activity {
 
     FrameLayout container;
 
+    /** Shows an empty container for the tests' WebViews. */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

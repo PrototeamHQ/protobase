@@ -11,6 +11,7 @@ final class PreferencesStorage implements WorkspaceStorage {
         this.preferences = preferences;
     }
 
+    /** The value saved under the key, or null when there is none. */
     @Override
     public String read(String key) {
         return preferences.getString(key, null);

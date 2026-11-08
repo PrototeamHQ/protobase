@@ -5,6 +5,7 @@ final class WorkspaceListTests: XCTestCase {
     private var defaults: UserDefaults!
     private var list: WorkspaceList!
 
+    /** Starts each test from an empty list. */
     override func setUp() {
         defaults = UserDefaults(suiteName: "WorkspaceListTests")!
         defaults.removePersistentDomain(forName: "WorkspaceListTests")

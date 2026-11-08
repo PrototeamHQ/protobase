@@ -12,6 +12,7 @@ final class WorkspaceStores {
 
     private WorkspaceStores() {}
 
+    /** Deletes each removed workspace's profile Android lets go of and drops its id from the list; a loaded one stays listed. */
     static void removePending(WorkspaceList list) throws JSONException, WorkspaceStorage.Failed {
         ProfileStore profiles = ProfileStore.getInstance();
         for (String id : list.removedStores()) {

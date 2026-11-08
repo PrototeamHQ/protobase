@@ -63,6 +63,7 @@ public class WorkspaceWebViewTest {
     private final List<String> opened = new CopyOnWriteArrayList<>();
     private final List<WorkspaceMessage> messages = new CopyOnWriteArrayList<>();
 
+    /** Checks the WebView supports profiles and message listeners, then starts the test site and the screen. */
     @Before
     public void start() throws Exception {
         assertTrue("This WebView has no profiles or message listeners", WorkspaceWebView.supported());
@@ -70,6 +71,7 @@ public class WorkspaceWebViewTest {
         scenario = ActivityScenario.launch(WorkspaceTestActivity.class);
     }
 
+    /** Destroys every view the test made, then closes the screen and the test site. */
     @After
     public void stop() throws Exception {
         onMain(() -> views.forEach(WebView::destroy));
@@ -77,6 +79,7 @@ public class WorkspaceWebViewTest {
         site.close();
     }
 
+    /** A cookie and a localStorage value set in workspace A show again in A's profile and are absent in workspace B. */
     @Test
     public void cookiesAndStorageStayInTheirWorkspace() throws Exception {
         String store = UUID.randomUUID().toString();
@@ -98,6 +101,7 @@ public class WorkspaceWebViewTest {
         assertEquals("null", js(b, "String(localStorage.getItem('k'))"));
     }
 
+    /** Only the main frame of the workspace's own origin gets the channel, and only openDrawer reaches native code. */
     @Test
     public void theChannelTakesOnlyItsOwnMainFrame() throws Exception {
         WebView a = make(UUID.randomUUID().toString());
@@ -114,6 +118,7 @@ public class WorkspaceWebViewTest {
         assertEquals(List.of(WorkspaceMessage.OPEN_DRAWER), messages);
     }
 
+    /** Links to another origin open in the system browser and the view stays on its page; a POST there goes nowhere. */
     @Test
     public void anotherOriginLeavesForTheSystemBrowser() throws Exception {
         WebView a = make(UUID.randomUUID().toString());
