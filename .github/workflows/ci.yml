@@ -533,6 +533,12 @@ jobs:
         name: Remove Supabase's Postgres and Supabase Auth
         run: tests/supabase-auth/stack.sh stop "supabase-auth-${{ github.run_id }}-${{ github.run_attempt }}"
 
+  # The upgrade check (upgrade.yml) for a push to main or an fm/** branch, when its changes reach it, and a run by hand.
+  # A pull request runs it as a workflow of its own, which an edit of its title or description runs again.
+  upgrade:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
+    uses: ./.github/workflows/upgrade.yml
+
   # The files the AI review bots read as instructions stay within what each bot reads, so none is cut off. cubic keeps
   # the first 10,000 characters of a custom agent's text and linked files: AGENTS.md and CONTRIBUTING.md share the
   # org's Project rules agent with about 260 characters of its text, and each docs file has an agent in cubic.yaml.

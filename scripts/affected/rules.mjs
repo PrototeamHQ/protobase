@@ -20,7 +20,7 @@ export const runEverything = [
   'scripts/affected-*.mjs',
 ]
 
-// Files that are no module and that no test reads; tests/upgrade/ is the upgrade workflow's.
+// Files that are no module and that no test reads; tests/upgrade/ is the upgrade check's (`upgradeCheck` below).
 export const readByNoTest = ['**/*.md', '**/*.mdx', '**/LICENSE', '**/.gitignore', '**/.env.example', '.githooks/**', 'docker/**', 'docs/website/**', 'scripts/dom-snapshots/layouts/**', 'scripts/release-speed/config.json', 'cubic.yaml', '.coderabbit.yaml', 'tests/upgrade/**']
 
 // Tests that run on every push, whatever it changed: the ERP built and served by the CLI, as on Node after the tests.
@@ -106,6 +106,13 @@ export const edges = [
 export const site = {
   loads: ['packages/*/src/**/*.stories.tsx', '.storybook/*', 'packages/schema/src/index.ts'],
   reads: ['packages/**/*.css', 'docs/website/**', 'docs-examples/**', 'tests/apps/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,check-docs,static-server}.mjs', 'scripts/docs-agent-files.ts', 'scripts/docs-agent-files/**', 'scripts/{protobase-skill,skill-links}.ts', 'packages/cli/skills/protobase/**'],
+}
+
+// The upgrade check (tests/upgrade/upgrade.sh, scripts/affected-upgrade.mjs): the CLI it runs from source, through what
+// it imports, and the app it upgrades, whose config the CLI loads.
+export const upgradeCheck = {
+  starts: ['packages/cli/bin/protobase-source.mjs', 'tests/upgrade/app/protobase.config.ts', 'tests/upgrade/app/config/index.ts'],
+  reads: ['tests/upgrade/**'],
 }
 
 // What the Postgres suite (`bun run test:postgres`, tests/postgres) checks that the snapshot recordings cannot show, so

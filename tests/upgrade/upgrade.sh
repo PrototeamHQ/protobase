@@ -7,7 +7,7 @@
 #   DATABASE_URL=postgres://... tests/upgrade/upgrade.sh <checkout of the version to upgrade from>
 set -euo pipefail
 
-from=$(cd "$1" && pwd)
+from=$(cd "${1:?usage: DATABASE_URL=<url> tests/upgrade/upgrade.sh <checkout of the version to upgrade from>}" && pwd)
 to=$(cd "$(dirname "$0")/../.." && pwd)
 : "${DATABASE_URL:?set DATABASE_URL to an empty database}"
 # A throwaway secret: sign-in needs one to load, and nothing signs in.
