@@ -23,7 +23,9 @@ export const useMenuRight = (open: boolean, anchor: RefObject<HTMLElement | null
       return
     }
     const triggerRight = anchor.current.getBoundingClientRect().right
-    setRight(triggerRight - menuRightEdge(triggerRight, menu.current.offsetWidth, document.documentElement.clientWidth))
+    // The box's exact width: offsetWidth rounds, which can put a fractional-width menu's left edge inside the gap
+    const menuWidth = menu.current.getBoundingClientRect().width
+    setRight(triggerRight - menuRightEdge(triggerRight, menuWidth, document.documentElement.clientWidth))
   }, [open])
 
   return right === undefined ? undefined : { right }

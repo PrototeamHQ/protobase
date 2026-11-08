@@ -11,6 +11,10 @@ describe('menuRightEdge', () => {
     expect(right - 160).toBe(4)
   })
 
+  it('keeps the gap for a menu of fractional width', () => {
+    expect(menuRightEdge(32, 195.4, 360) - 195.4).toBeCloseTo(4)
+  })
+
   it('keeps a menu off the right edge of the viewport', () => {
     expect(menuRightEdge(389, 160, 390)).toBe(386)
   })

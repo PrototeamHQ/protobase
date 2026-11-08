@@ -31,8 +31,9 @@ export const usePopoverMenu = <T extends HTMLElement = HTMLUListElement>() => {
     // Where `right: 0` puts the hidden menu: the viewport's right edge without the scrollbar's room, which a stable
     // scrollbar gutter keeps even while the page has no scrollbar, and which the root's clientWidth then leaves out
     menu.current.style.right = '0px'
-    const width = menu.current.getBoundingClientRect().right
-    setPlace(placeMenu(button.current.getBoundingClientRect(), { width: menu.current.offsetWidth, height: menu.current.offsetHeight }, width))
+    // The box's exact size: offsetWidth rounds, which can put a fractional-width menu's left edge inside the gap
+    const box = menu.current.getBoundingClientRect()
+    setPlace(placeMenu(button.current.getBoundingClientRect(), box, box.right))
   }, [open])
 
   useEffect(() => {
