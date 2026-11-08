@@ -73,6 +73,9 @@ export const workflowsTraceMode = (options: WorkflowsOptions) => {
   return mode
 }
 
+/** Whether storage is on: a `storage` object turns it on, and leaving it out, `false` or `null` leaves it off. */
+export const workflowsStorageOn = (options: Pick<WorkflowsOptions, 'storage'>) => Boolean(options.storage)
+
 /** The storage options, checked: each endpoint an `https://` origin with no path, user or query, kept as its origin. */
 export const workflowsStorage = (options: Pick<WorkflowsOptions, 'storage'>) => {
   if (!options.storage) return undefined

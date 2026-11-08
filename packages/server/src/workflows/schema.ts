@@ -6,7 +6,7 @@ import { hooksSql } from './hooks/hooks-sql'
 import { revocationsSql } from './connections/revocations-sql'
 import { stepCacheSql } from './cache/step-cache-sql'
 import { storageSql } from './storage/storage-sql'
-import { workflowsSchema, type WorkflowsOptions } from './options'
+import { workflowsSchema, workflowsStorageOn, type WorkflowsOptions } from './options'
 import { checkpointsSql, commentVersion, functionsSql, indexesSql, tablesSql, triggersSql, effectsSql, workflowsTriggers, workflowsVersion } from './schema-sql'
 import { statusSql, statusTriggers } from './status-sql'
 
@@ -37,7 +37,7 @@ const readWorkflowsSchema = async (db: Db, schema: string, storage: boolean) => 
  */
 export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions, 'schema' | 'storage'> = {}) => {
   const schema = workflowsSchema(options)
-  const storage = options.storage !== undefined
+  const storage = workflowsStorageOn(options)
   const found = await readWorkflowsSchema(db, schema, storage)
   if (found.current) return
   return workflowsSql(schema, { tables: found.tables, storage })
@@ -52,7 +52,7 @@ export const workflowsSql = (schema: string, { tables, storage }: { tables: bool
 /** Refuses to go on while the `workflows` schema lacks what `workflows` needs; the project's migrations add it. */
 export const checkWorkflowsSchema = async (db: Db, options: Pick<WorkflowsOptions, 'schema' | 'storage'> = {}) => {
   const schema = workflowsSchema(options)
-  const found = await readWorkflowsSchema(db, schema, options.storage !== undefined)
+  const found = await readWorkflowsSchema(db, schema, workflowsStorageOn(options))
   if (found.current) return
   throw new Error(`The ${schema} schema is missing or behind this version of Protobase. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
 }
