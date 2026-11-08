@@ -95,7 +95,7 @@ export const RowsPhone: StoryObj = {
     await waitFor(() => expect(row.scrollWidth).toBeGreaterThan(row.clientWidth))
     expect(row.getBoundingClientRect().right).toBeLessThanOrEqual(360)
     // A phone keeps cards of 256px, so a long line stays readable
-    expect(within(row).getAllByRole('listitem')[0]!.getBoundingClientRect().width).toBe(256)
+    expect((await within(row).findAllByRole('listitem'))[0]!.getBoundingClientRect().width).toBe(256)
     // A swipe scrolls the row; the arrows are for a pointer
     expect(gardens.queryByRole('button', { name: 'Next homes' })).toBeNull()
   },

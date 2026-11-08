@@ -6,7 +6,7 @@ import { SnapRow } from '../../primitives/snap-row'
 import { useSnapScroll } from '../../primitives/use-snap-scroll'
 import { displayRow, type ListDisplayRow } from '../displays/list-displays'
 import { RecordCard } from '../displays/record-card'
-import { rowCardGap, rowOffset, rowWindow } from './row-window'
+import { rowWindow } from './row-window'
 import { text } from './messages'
 
 type CardsDisplayModel = Extract<ListDisplayModel, { kind: 'cards' }>
@@ -22,12 +22,10 @@ type RecordRowProps = {
   isNew?: (row: ListDisplayRow) => boolean
 }
 
-/** Stands in for the cards before or after the ones drawn, as wide as they would be, and no place to snap to. */
-const Spacer = ({ cards }: { cards: number }) => (cards > 0 ? <li aria-hidden style={{ width: rowOffset(cards) - rowCardGap, minWidth: 0, scrollSnapAlign: 'none' }} /> : null)
-
 /**
  * Records as the cards of their list, in a `SnapRow`: only the cards near the view are drawn, and the records are loaded
- * through the list API in pages as the row scrolls to them. Each card links to its record.
+ * through the list API in pages as the row scrolls to them. Each card links to its record. Every record has its place,
+ * an empty one until it is drawn, so the row snaps to any card, also one a fast swipe reaches before it is drawn.
  */
 export const RecordRow = ({ model, view, display, source, label, isNew }: RecordRowProps) => {
   const { total } = source
@@ -38,12 +36,10 @@ export const RecordRow = ({ model, view, display, source, label, isNew }: Record
   })
   const { start, end } = shown(scroll.view)
   const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, revision: source.revision, latencyMs: 0 }, start, Math.max(start, end - 1))
-  const indexes = Array.from({ length: end - start }, (_, offset) => start + offset)
-
   return (
     <SnapRow scroll={scroll} label={label}>
-      <Spacer cards={start} />
-      {indexes.map((index) => {
+      {Array.from({ length: total }, (_, index) => {
+        if (index < start || index >= end) return <li key={`place-${index}`} aria-hidden />
         const loaded = getRow(index)
         if (!loaded) {
           return (
@@ -59,7 +55,6 @@ export const RecordRow = ({ model, view, display, source, label, isNew }: Record
           </li>
         )
       })}
-      <Spacer cards={total - end} />
     </SnapRow>
   )
 }

@@ -179,6 +179,8 @@ export const CarouselChecks: StoryObj = {
     // A pointer steps through the row with its arrows, as a record row's
     await userEvent.click(section.getByRole('button', { name: /^Next / }))
     await waitFor(() => expect(section.getByRole('button', { name: /^Previous / })).toBeVisible())
+    await userEvent.click(section.getByRole('button', { name: /^Previous / }))
+    await waitFor(() => expect(section.queryByRole('button', { name: /^Previous / })).toBeNull())
 
     const narrow = await within(await canvas.findByRole('region', { name: 'Every plan' })).findByRole('link', { name: 'Landing' })
     // A quarter of the row, but no narrower than 12rem, so it stays readable on a phone
