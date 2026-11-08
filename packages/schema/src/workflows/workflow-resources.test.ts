@@ -41,6 +41,12 @@ describe('workflowResources', () => {
       const field = model.fields[name]!
       expect(field).toMatchObject({ encrypted: true, sensitive: true })
       expect(access[name]?.read?.({ user: { id: 1, roles: ['admin'] } } as never)).toBe(false)
+      // Written blind, only by the grant to create or change a configuration.
+      for (const mode of ['create', 'update'] as const) {
+        expect(access[name]?.[mode]?.({ holds: (capability: string) => capability === `storage_configurations.${mode}` })).toBe(true)
+        expect(access[name]?.[mode]?.({ holds: (capability: string) => capability === 'storage_configurations.read' })).toBe(false)
+        expect(access[name]?.[mode]?.({})).toBe(false)
+      }
     }
     expect(parts.workflowsView.toModel().actions).toEqual([expect.objectContaining({ name: 'storage_configurations', run: { kind: 'link', to: { kind: 'list', resource: 'storage_configurations' } } })])
   })
