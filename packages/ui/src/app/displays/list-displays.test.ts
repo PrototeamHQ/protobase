@@ -1,6 +1,9 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { f, resource, view, type FieldModel, type ListDisplayModel } from '@protobase/schema'
-import { amountParts, defaultDisplay, displayChoices, displayRow, filledAmount, filledCode, filledMeta, listDefaultDisplay, listDisplayChoices, loadedFields, mapCards, phoneRows, shownDisplay, shownFields, shownListDisplay, sortFields } from './list-displays'
+import { amountParts, defaultDisplay, displayChoices, displayRow, filledAmount, filledCode, filledMeta, listDefaultDisplay, listDisplayChoices, loadedFields, mapCards, phoneRows, rawCode, shownDisplay, shownFields, shownListDisplay, sortFields } from './list-displays'
+import { CodeBlock } from '../../primitives/code-block'
 
 const repairs = resource('repairs')
   .table('repairs')
@@ -175,6 +178,20 @@ describe('filledCode', () => {
 })
 
 const field = (type: FieldModel['type']) => ({ name: 'x', column: 'x', type, nullable: false, readOnly: false, filterable: false, sortable: false, aliases: [] }) as FieldModel
+
+describe('rawCode', () => {
+  it('keeps a text value as stored, so its block shows its line breaks, leading spaces and markdown marks unchanged', () => {
+    const script = 'set -e\n  bun install\n  **bun test**  --changed=main'
+    expect(rawCode(field('text'), script)).toBe(script)
+    expect(renderToStaticMarkup(createElement(CodeBlock, null, rawCode(field('text'), script)))).toContain(`>${script}</pre>`)
+  })
+
+  it('leaves another type to its display value', () => {
+    expect(rawCode(field('integer'), 3)).toBeUndefined()
+    expect(rawCode(field('enum'), 'ready')).toBeUndefined()
+    expect(rawCode(undefined, 'ls')).toBeUndefined()
+  })
+})
 
 describe('amountParts', () => {
   it('splits a number with its prefix from its suffix, and leaves anything else whole', () => {
