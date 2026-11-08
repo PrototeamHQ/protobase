@@ -28,11 +28,16 @@ export class FcmTokenError extends Error {}
 
 const failed = (status: number) => new FcmTokenError(`The FCM token exchange failed with status ${status}`)
 
-// The token endpoint's answer, status and body; a request that gets none, such as a timeout or a body cut off while
-// it is read, is a failed mint like a refusal.
+// The token endpoint's answer, status and body, with the body read only from a 200, since any other status fails
+// the mint as it is; a request that gets none, such as a timeout or a body cut off while it is read, is a failed mint
+// like a refusal.
 const exchange = async (send: typeof fetch, request: Request, timeoutMs: number) => {
   try {
     const response = await send(request, { signal: AbortSignal.timeout(timeoutMs) })
+    if (response.status !== 200) {
+      await response.body?.cancel()
+      return { status: response.status, text: '' }
+    }
     return { status: response.status, text: await response.text() }
   } catch (error) {
     if (isTransient(error)) throw new FcmTokenError('The FCM token exchange did not answer')
