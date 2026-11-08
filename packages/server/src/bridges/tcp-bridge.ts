@@ -1,9 +1,9 @@
 import { bridgeTokenParam } from '@protobase/schema/internal'
 import type { FunctionContext, FunctionHandler } from '../functions/define-function'
-import type { FunctionSocket } from '../functions/function-socket'
 import { readJson } from '../functions/read-json'
 import { sameCaller } from '../functions/same-caller'
 import { badRequest, forbidden, HttpProblem, notFound } from '../problem'
+import { bridgeAttempts, type BridgeAttempt } from './bridge-attempts'
 import { bridgeClosings } from './bridge-closings'
 import { checkedTarget, type BridgeTarget } from './bridge-target'
 import { bridgeTokens, type BridgeGrant } from './bridge-tokens'
@@ -39,11 +39,11 @@ const withdrawn = () => forbidden('target-withdrawn', bridgeClosings.withdrawn.r
  * - `POST` with `{ "target": "…" }` asks the access rule and answers `{ token, open_by, expires_at }`, or a 404 problem.
  * - A WebSocket upgrade with `?token=` before `open_by`, by the same caller, connects to the target and passes binary
  *   messages through as bytes. A token opens one bridge only, which closes at `expires_at`, when the rule refuses
- *   again or answers another address, on `withdraw`, or as any function socket does once the caller is refused.
+ *   again or answers another address, on `withdraw`, also while it is still being set up, or as any function socket does once the caller is refused.
  */
 export const tcpBridge = ({ target: rule, now = Date.now }: TcpBridgeOptions): TcpBridge => {
   const tokens = bridgeTokens({ now })
-  const open = new Map<string, Set<FunctionSocket>>()
+  const attempts = bridgeAttempts()
 
   const resolve = async (name: string, context: FunctionContext) => {
     const answer = await rule(name, context)
@@ -66,32 +66,41 @@ export const tcpBridge = ({ target: rule, now = Date.now }: TcpBridgeOptions): T
     return target !== undefined && target.host === grant.host && target.port === grant.port
   }
 
-  const track = (target: string, socket: FunctionSocket) => {
-    const sockets = open.get(target) ?? new Set()
-    open.set(target, sockets.add(socket))
-    return () => {
-      sockets.delete(socket)
-      if (sockets.size === 0 && open.get(target) === sockets) open.delete(target)
-    }
+  // Why a bridge still being set up may not go on, checked again after each wait, as its token's own check would refuse it.
+  const lateRefusal = (grant: BridgeGrant, attempt: BridgeAttempt) => {
+    if (attempt.withdrawn()) return withdrawn()
+    if (grant.expiresAt <= now()) return noSuchToken()
+  }
+
+  const connectGranted = async (grant: BridgeGrant, context: FunctionContext, attempt: BridgeAttempt) => {
+    if (!(await stillAllowed(grant, context))) throw withdrawn()
+    const refusedEarly = lateRefusal(grant, attempt)
+    if (refusedEarly) throw refusedEarly
+    const tcp = await connectTcp(grant.host, grant.port)
+    const refused = lateRefusal(grant, attempt)
+    if (!refused) return tcp
+    tcp.destroy()
+    throw refused
   }
 
   const bridge = async (request: Request, context: FunctionContext) => {
     const token = new URL(request.url).searchParams.get(bridgeTokenParam)
     const grant = token ? tokens.take(token) : undefined
     if (!grant || !sameCaller(grant.caller, context.session) || grant.expiresAt <= now()) throw noSuchToken()
-    if (!(await stillAllowed(grant, context))) throw withdrawn()
-    const tcp = await connectTcp(grant.host, grant.port)
-    let untrack = () => {}
+    const attempt = attempts.start(grant.target)
+    // Until the connection exists, a refusal or a failed connection ends the attempt; from then on the connection's close does.
+    const tcp = await connectGranted(grant, context, attempt).catch((error: unknown) => {
+      attempt.end()
+      throw error
+    })
+    tcp.once('close', attempt.end)
     let expiry: ReturnType<typeof setTimeout> | undefined
     const pipe = tcpPipe(tcp, {
       onOpen: (socket) => {
-        untrack = track(grant.target, socket)
         expiry = setTimeout(() => socket.close(bridgeClosings.expired.code, bridgeClosings.expired.reason), grant.expiresAt - now())
+        attempt.opened(socket)
       },
-      onClose: () => {
-        clearTimeout(expiry)
-        untrack()
-      },
+      onClose: () => clearTimeout(expiry),
     })
     return context.acceptWebSocket({
       ...pipe,
@@ -107,9 +116,5 @@ export const tcpBridge = ({ target: rule, now = Date.now }: TcpBridgeOptions): T
     throw new HttpProblem(405, 'method-not-allowed', 'Method Not Allowed', 'Ask for a token with POST, then open the bridge with a WebSocket', {}, { allow: 'GET, POST' })
   }
 
-  const withdraw = (target: string) => {
-    for (const socket of open.get(target) ?? []) socket.close(bridgeClosings.withdrawn.code, bridgeClosings.withdrawn.reason)
-  }
-
-  return Object.assign(handler, { withdraw })
+  return Object.assign(handler, { withdraw: attempts.withdraw })
 }
