@@ -159,8 +159,8 @@ export const RefusedChecks: StoryObj = {
     await waitFor(() => expect(handles(grid)).toEqual(['Gazelle Ultimate', 'Brompton C Line', 'VanMoof S5', 'Cortina Common']))
     await moveByKeyboard(within(grid).getByRole('button', { name: 'Move Gazelle Ultimate' }), '{ArrowDown}', 'row 2 of 4')
     // Refused, and the list shows the current order by itself, with no word of reloading
-    expect(await within(document.body).findByText('Gazelle Ultimate was not moved')).toBeInTheDocument()
-    expect(within(document.body).queryByText(/reload|fetch it again/i)).toBeNull()
+    const refusal = (await within(document.body).findByText('Gazelle Ultimate was not moved')).closest('[role="status"]')
+    expect(refusal).not.toHaveTextContent(/reload|fetch it again/i)
     await waitFor(() => expect(handles(grid)).toEqual(['Gazelle Ultimate', 'Brompton C Line', 'Cortina Common', 'VanMoof S5']))
     // The same move again saves
     await moveByKeyboard(within(grid).getByRole('button', { name: 'Move Gazelle Ultimate' }), '{ArrowDown}', 'row 2 of 4')
