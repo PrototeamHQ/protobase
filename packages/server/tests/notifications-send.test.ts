@@ -12,6 +12,7 @@ import { pushPayload, type PushPayload } from '../src/notifications/push-payload
 import { notificationsMigration } from '../src/notifications/schema'
 import { checkedSend, type NotificationRecipients } from '../src/notifications/send-input'
 import { generateVapidKeys } from '../src/notifications/web-push/keys'
+import type { PushRequest } from '../src/notifications/web-push/post'
 import { readVapidSettings } from '../src/notifications/web-push/vapid-settings'
 import { webPushSender } from '../src/notifications/web-push/web-push-sender'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
@@ -29,12 +30,12 @@ const endpoint = (name: string) => `https://fcm.googleapis.com/fcm/send/${name}`
 
 const pushService = (statuses: Record<string, number>) => {
   const sent: string[] = []
-  const fetch = async (request: Request) => {
-    const name = request.url.slice(request.url.lastIndexOf('/') + 1)
+  const request: PushRequest = async (url) => {
+    const name = url.href.slice(url.href.lastIndexOf('/') + 1)
     sent.push(name)
     return new Response(null, { status: statuses[name] ?? 201 })
   }
-  return { sent, fetch: fetch as typeof globalThis.fetch }
+  return { sent, request }
 }
 
 const open = async () => {
@@ -59,9 +60,9 @@ const take = async (db: Kysely<any>, id: string, attempt: number): Promise<{ pay
   return { payload: checked.value, job: { id, name: pushJobName, attempt, maxAttempts: 5, startedOn: rows[0]!.started_on } }
 }
 
-const tryOnce = async (db: Kysely<any>, id: string, attempt: number, fetch: typeof globalThis.fetch) => {
+const tryOnce = async (db: Kysely<any>, id: string, attempt: number, request: PushRequest) => {
   const { payload, job } = await take(db, id, attempt)
-  const run = pushJob({}, [guardedSender(webPushSender(settings, { fetch }), 0)]).options.run
+  const run = pushJob({}, [guardedSender(webPushSender(settings, { request }), 0)]).options.run
   return run(payload, { db, job, signal: new AbortController().signal, decryptField: vi.fn() })
 }
 
@@ -77,13 +78,13 @@ describe('the send job on Postgres', () => {
     const id = await queued(db, { userIds: ['a', 'b', 'deleted'], inbox: true })
 
     const first = pushService({ 'a-gone': 410, 'b-busy': 503 })
-    await expect(tryOnce(db, id, 1, first.fetch)).rejects.toThrow('notifications.send: 1 deliveries are retried')
+    await expect(tryOnce(db, id, 1, first.request)).rejects.toThrow('notifications.send: 1 deliveries are retried')
     expect(first.sent.sort()).toEqual(['a-gone', 'a-ok', 'b-busy'])
     expect((await devices.listForUser('a')).map((device) => device.token)).toEqual([endpoint('a-ok')])
     expect((await dataOf(db, id)).progress).toMatchObject({ recorded: ['a', 'b', 'deleted'], retried: [expect.any(String)] })
 
     const second = pushService({})
-    await tryOnce(db, id, 2, second.fetch)
+    await tryOnce(db, id, 2, second.request)
     expect(second.sent).toEqual(['b-busy'])
     expect((await history.list('a', { limit: 10 })).map((entry) => [entry.title, entry.url])).toEqual([['Update', 'https://app.example/x']])
     expect(await history.list('b', { limit: 10 })).toHaveLength(1)

@@ -943,6 +943,9 @@
     "couldNotUndo": "Kon niet ongedaan maken",
     "movedToPlace": "Verplaatst naar plaats {place}",
     "notMoved": "Op zijn plaats gelaten",
+    "notSaved": "{title} is niet verplaatst",
+    "orderChangedThere": "De volgorde is veranderd waar je hem neerzette. {place, select, board {Het bord} other {De lijst}} toont nu de huidige volgorde: verplaats hem opnieuw als je hem daar nog wilt hebben.",
+    "orderChangedSince": "De volgorde is intussen veranderd. {place, select, board {Het bord} other {De lijst}} toont nu de huidige volgorde.",
     "noRule": "Er is geen sleepregel geregistreerd als {rule}. Geef die in dropRules in protobase.ui.tsx, of laad de plug-in die haar levert."
   },
   "app/history": {

@@ -116,11 +116,20 @@ describe('fcmAccessToken', () => {
     }
   })
 
-  it('fails as a failed mint when the token endpoint does not answer, and passes on any other error', async () => {
+  it('fails as a failed mint when the token endpoint does not answer or its answer is cut off, and passes on any other error', async () => {
     const timeout = (async () => {
       throw new DOMException('The operation timed out.', 'TimeoutError')
     }) as typeof fetch
     await expect(fcmAccessToken(settings, { fetch: timeout }).token()).rejects.toBeInstanceOf(FcmTokenError)
+    const cutOff = (async () =>
+      new Response(
+        new ReadableStream({
+          pull: () => {
+            throw new DOMException('The operation timed out.', 'TimeoutError')
+          },
+        }),
+      )) as typeof fetch
+    await expect(fcmAccessToken(settings, { fetch: cutOff }).token()).rejects.toBeInstanceOf(FcmTokenError)
     const broken = (async () => {
       throw new RangeError('unexpected')
     }) as typeof fetch

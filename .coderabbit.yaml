@@ -12,5 +12,8 @@ knowledge_base:
       - files: "docs/snapshot-tests.md"
         applyTo: "**/*.test.ts,**/*.sql.json,test-support/**,scripts/test-db/**"
 reviews:
+  # Generated SQL recordings: the check job's replay proves them, and one large recording made the review skip a whole PR.
+  path_filters:
+    - "!**/*.sql.json"
   auto_review:
     auto_pause_after_reviewed_commits: 0

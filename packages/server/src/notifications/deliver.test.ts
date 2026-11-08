@@ -275,6 +275,33 @@ describe('deliver', () => {
       expect(job.completed()).toBe(true)
     })
 
+    it('hands every sender, built in or the app own, only the devices whose session stands', async () => {
+      const web = recordingSender({}, ['web'])
+      const apns = recordingSender({}, ['apns'])
+      const fcm = recordingSender({}, ['fcm'])
+      const job = harness({ senders: [web.sender, apns.sender, fcm.sender], liveSessions: sessions })
+      for (const kind of ['web', 'apns', 'fcm'] as const) {
+        await job.register('a', newDevice(`${kind}-live`, kind, 's-a'))
+        await job.register('a', newDevice(`${kind}-ended`, kind, 's-old'))
+        await job.register('a', newDevice(`${kind}-none`, kind, null))
+      }
+      await job.run({ userIds: ['a'], inbox: false })
+      expect([web.tokens(), apns.tokens(), fcm.tokens()]).toEqual([['web-live'], ['apns-live'], ['fcm-live']])
+      expect(job.stored().map((device) => device.token).sort()).toEqual(['apns-live', 'fcm-live', 'web-live'])
+    })
+
+    it('pushes nothing to a device whose session ended when removing it fails, and retries the try', async () => {
+      const push = recordingSender()
+      const memory = memoryDeviceStore()
+      const failing: DeviceStore = { ...memory, remove: () => Promise.reject(new Error('store down')) }
+      const job = harness({ devices: failing, senders: [push.sender], liveSessions: sessions })
+      await job.register('a', newDevice('a-ended', 'fcm', 's-old'))
+      await job.register('a', newDevice('a-live', 'fcm', 's-a'))
+      await expect(job.run({ userIds: ['a'], inbox: false })).rejects.toThrow('store failures: 1 in remove')
+      expect(push.tokens()).toEqual([])
+      expect(job.completed()).toBe(false)
+    })
+
     it('pushes to nothing and removes nothing when the sessions cannot be read, so the try is retried', async () => {
       const push = recordingSender()
       const job = harness({ senders: [push.sender], liveSessions: () => Promise.reject(new Error('auth store down')) })
