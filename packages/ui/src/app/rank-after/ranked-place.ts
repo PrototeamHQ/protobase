@@ -3,7 +3,7 @@ import { encodeKey } from '@protobase/schema/internal'
 import { recordKey } from '../../live/model-helpers'
 import { placing } from '../displays/board-place'
 import type { ListDisplayRow } from '../displays/list-displays'
-import { reorderSpan } from '../hand-order/reorder-span'
+import { reorderSpan } from '@protobase/schema/internal'
 import { text } from './messages'
 import type { RankBound, RankBounds } from './rank-bounds'
 
