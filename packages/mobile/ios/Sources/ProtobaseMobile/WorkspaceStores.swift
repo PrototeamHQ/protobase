@@ -2,8 +2,8 @@ import WebKit
 
 /**
  * Deletes the data stores of removed workspaces, whose ids WorkspaceList keeps until then. WebKit refuses to delete a
- * store a WebView still uses, such as one that has not finished closing; that store stays listed and is deleted on a
- * later call, at the latest when the app starts again.
+ * store a WebView still uses, such as one that has not finished closing; that store stays listed and is deleted by a
+ * later `list()` or `remove()`.
  */
 enum WorkspaceStores {
     @MainActor
