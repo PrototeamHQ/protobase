@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -126,6 +126,12 @@ describe('the storage service', () => {
       expect((await failure(storage({ resolve: async () => [address] }).put('archive', 'a', streamOf('x'), { name: 'a', type: 'text/plain' })) as string[])[0]).toBe('Storage.Unavailable')
     }
     expect(built).toEqual([])
+  })
+
+  it('fails as Storage.Failed when the local folder cannot be made', async () => {
+    await writeFile(join(base, 'file'), '')
+    const result = await failure(storage({ storage: { root: join(base, 'file', 'root'), endpoints: [] } }).put('archive', 'a', streamOf('x'), { name: 'a', type: 'text/plain' }))
+    expect(result).toEqual(['Storage.Failed', 'The store failed with ENOTDIR'])
   })
 
   it('names only the code of a store that fails, never its message, and keeps the keys out of every result', async () => {

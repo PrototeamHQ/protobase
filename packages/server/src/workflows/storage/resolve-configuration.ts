@@ -98,7 +98,8 @@ const s3Provider = async (sources: ConfigurationSources, session: Session, runId
  * The store of the configuration named `name`, as the session of the run's last editor may read it now, read anew on
  * every call so a change takes effect at the next step. A local one is a folder under the storage root; an S3 one has
  * its endpoint checked again and its keys opened only after the read was allowed. With storage off, or a name the
- * session cannot read, it fails as `Storage.NotFound`; it never falls back to another store.
+ * session cannot read, it fails as `Storage.NotFound`; it never falls back to another store. A folder that cannot be
+ * made, such as one the server may not write, fails as `Storage.Failed`.
  */
 export const resolveConfiguration = (sources: ConfigurationSources) => async (session: Session, runId: string, name: unknown): Promise<ResolvedStore> => {
   if (!sources.storage || typeof name !== 'string' || !storageNamePattern.test(name)) throw notFound(name)
@@ -107,7 +108,7 @@ export const resolveConfiguration = (sources: ConfigurationSources) => async (se
   const problem = configurationProblem(row, sources.storage)
   if (problem) throw unavailable(name, problem.message)
   if (row.kind === 'local') {
-    const dir = await localFolder(sources.storage.root!, row.dir, sources.providerDirs())
+    const dir = await localFolder(sources.storage.root!, row.dir, sources.providerDirs()).catch(storeFailed)
     return { store: (sources.provider ?? fileProviderOf)(name, { kind: 'local', dir }).store, node: sources.node }
   }
   return { store: (await s3Provider(sources, session, runId, name, row)).store }
