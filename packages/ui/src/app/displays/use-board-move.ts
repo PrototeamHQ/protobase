@@ -67,7 +67,7 @@ export const useBoardMove = ({ model, view, by, rank, filter, drop, labelOf, tit
 
   const undo = useMutation({
     mutationFn: (undoing: () => Promise<unknown>) => undoing(),
-    onError: (error) => toast.show({ state: 'error', ...moveRefusal(error, text('couldNotUndo')) }),
+    onError: (error) => toast.show(moveRefusal(error, text('couldNotUndo'), { place: 'board' })),
     onSettled: () => refresh(model.name),
   })
 
@@ -152,7 +152,7 @@ export const useBoardMove = ({ model, view, by, rank, filter, drop, labelOf, tit
     onError: (error, { row, to }) => {
       settle(row.key)
       const title = (row.record[by] ?? null) === to.value ? text('couldNotReorder') : text('couldNotMoveTo', { to: to.label })
-      toast.show({ state: 'error', ...moveRefusal(error, title) })
+      toast.show(moveRefusal(error, title, { place: 'board', title: titleOf(row) }))
     },
     onSettled: async (_result, _error, { row }) => {
       await refresh(model.name)

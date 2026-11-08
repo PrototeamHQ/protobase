@@ -115,7 +115,7 @@ export const TasksRefusedChecks: StoryObj = {
     await waitFor(() => expect(titles(todo)).toEqual(['Call Emma back', 'Order brake pads', 'Price the winter service']))
     await moveByKeyboard(within(todo).getAllByRole('link')[0]!, [['{ArrowDown}', 'todo, place 2 of 3']])
     // Refused, and the column shows the current order by itself, with no word of reloading
-    expect(await within(document.body).findByText('The list changed where you dropped it')).toBeInTheDocument()
+    expect(await within(document.body).findByText('Call Emma back was not moved')).toBeInTheDocument()
     expect(within(document.body).queryByText(/reload|fetch it again/i)).toBeNull()
     await waitFor(() => expect(titles(todo)).toEqual(['Call Emma back', 'Order brake pads', 'Restock inner tubes', 'Price the winter service']))
     // The same move again saves

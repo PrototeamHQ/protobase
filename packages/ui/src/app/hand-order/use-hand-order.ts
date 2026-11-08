@@ -57,6 +57,8 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
   const latest = useRef<GridRow[]>(undefined)
   // The moves not saved yet, in the order they were made
   const pending = useRef<BatchOp[]>([])
+  // The title of the record moved last, which a refused save names
+  const movedTitle = useRef<string>(undefined)
   const saving = useRef(Promise.resolve())
   const waiting = useRef(0)
   // Only the latest save can be undone, so its toast replaces the one before
@@ -84,11 +86,12 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
     })
   }
 
-  const refused = (title: string) => (error: unknown) => {
+  // `moved`: a move was refused, rather than an undo
+  const refused = (fallback: string, moved: boolean) => (error: unknown) => {
     latest.current = undefined
     pending.current = []
     setMoved(undefined)
-    toast.show({ state: 'error', ...moveRefusal(error, title) })
+    toast.show(moveRefusal(error, fallback, { place: 'list', title: moved ? movedTitle.current : undefined }))
   }
 
   // The server's order again once no move waits to be saved
@@ -112,7 +115,7 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
       const now = latest.current ?? loaded.data!
       const dependencies = dependencyRule(model, bounds, recordTitle(model, view, record, id))
       place(now, now.findIndex((row) => row.id === id), dropped, (drop) => dependencies(drop) ?? rule?.(drop))
-    }, refused(text('couldNotChange')))
+    }, refused(text('couldNotChange'), false))
   }
 
   const place = (rows: GridRow[], from: number, dropped: number, rule: DropRule | undefined) => {
@@ -123,7 +126,8 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
     pending.current = [...pending.current, anchoredMove(model, field, filter, latest.current, to)]
     setMoved(latest.current)
     waiting.current += 1
-    saving.current = saving.current.then(save).catch(refused(text('couldNotChange'))).then(settle)
+    movedTitle.current = recordTitle(model, view, displayRow(model, rows[from]!).record, rows[from]!.id)
+    saving.current = saving.current.then(save).catch(refused(text('couldNotChange'), true)).then(settle)
   }
 
   // Where the rule lets the row land, warning when that is not where it was dropped
@@ -146,7 +150,7 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
         pending.current = []
         setMoved(undefined)
       })
-      .catch(refused(text('couldNotUndo')))
+      .catch(refused(text('couldNotUndo'), false))
       .then(settle)
   }
 
