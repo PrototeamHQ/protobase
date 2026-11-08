@@ -54,8 +54,11 @@ export const BoardColumnView = ({ model, view, display, column, fields, filter, 
   const arriving = moves.filter((entry) => entry.to === column.value && !loaded.has(entry.row.key)).map((entry) => entry.row)
   const staying = list.rows.filter((row) => !leaving.includes(row)).map((row) => (moving.has(row.key) ? moving.get(row.key)!.row : row))
   const placing = moves.findLast((entry) => entry.to === column.value && entry.order)
-  const rows = inOrder([...arriving, ...staying], placing?.order).slice(0, limit)
-  const { setNodeRef, isOver } = useDroppable({ id: columnId(column.value), data: { column, rows } })
+  const all = inOrder([...arriving, ...staying], placing?.order)
+  const rows = all.slice(0, limit)
+  // Cards below the last one shown, not loaded or cut off, so a drop after it does not know the card after it
+  const more = list.more || all.length > rows.length
+  const { setNodeRef, isOver } = useDroppable({ id: columnId(column.value), data: { column, rows, more } })
   const count = list.total - leaving.length + arriving.length
   // The column of records without a value shows only while some are in it
   if (column.value === null && !list.loading && count === 0 && !isOver) return null
@@ -99,6 +102,7 @@ export const BoardColumnView = ({ model, view, display, column, fields, filter, 
                 row={row}
                 column={column}
                 rows={rows}
+                more={more}
                 draggable={(movable || placeable) && rowAllows(row.record, 'update')}
                 placeable={placeable}
                 dragged={dragged}
@@ -123,6 +127,7 @@ type CardProps = {
   row: ListDisplayRow
   column: BoardColumn
   rows: ListDisplayRow[]
+  more: boolean
   draggable: boolean
   placeable: boolean
   dragged: () => boolean
@@ -133,10 +138,10 @@ type CardProps = {
  * user may change the order of a ranked board, a card is dropped on too: in its own column the cards make room as it
  * moves, in another a bar marks its place.
  */
-const BoardCard = ({ model, view, card, row, column, rows, draggable, placeable, dragged }: CardProps) => {
+const BoardCard = ({ model, view, card, row, column, rows, more, draggable, placeable, dragged }: CardProps) => {
   const { setNodeRef, setActivatorNodeRef, listeners, isDragging, isOver, active, transform, transition } = useSortable({
     id: row.key,
-    data: { row, column, rows },
+    data: { row, column, rows, more },
     disabled: { draggable: !draggable, droppable: !placeable },
   })
   const arriving = isOver && (active?.data.current?.column as BoardColumn | undefined)?.value !== column.value

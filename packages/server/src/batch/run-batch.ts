@@ -12,6 +12,7 @@ import type { Row, Session } from '../types'
 import { keyOf, type WriteResult } from '../write-shared'
 import { checkBeforeWrite, writeIn } from '../write-pipeline'
 import { resolveData, resolveKey, type Created } from './refs'
+import { moveIn } from './move'
 import { reorderIn } from './reorder'
 import type { BatchOperation } from './schema'
 
@@ -20,6 +21,7 @@ export type BatchResult =
   | { op: 'update'; resource: string; record: Row; etag: string }
   | { op: 'delete'; resource: string; deleted: true }
   | { op: 'reorder'; resource: string; records: WriteResult[] }
+  | { op: 'move'; resource: string; records: WriteResult[] }
 
 const entryOf = (deps: Deps, name: string): Entry => {
   const entry = deps.registry.find(name)
@@ -78,6 +80,10 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
         } else if (operation.op === 'delete') {
           await writeIn(trx, deps, access, { operation: 'delete', key: resolveKey(created, entry, operation.key), ifMatch: operation.etag ?? null }, removed)
           results.push({ op: 'delete', resource: entry.name, deleted: true })
+        } else if (operation.op === 'move') {
+          const resolve = (key: typeof operation.key | null) => (key === null ? null : resolveKey(created, entry, key))
+          const input = { field: operation.field, key: resolve(operation.key)!, after: resolve(operation.after), before: operation.before === undefined ? undefined : resolve(operation.before), filter: operation.filter }
+          results.push({ op: 'move', resource: entry.name, records: await moveIn(trx, deps, access, input, removed) })
         } else {
           const keys = operation.keys.map((key) => resolveKey(created, entry, key))
           const records = await reorderIn(trx, deps, access, { field: operation.field, keys, etags: operation.etags ?? {}, start: operation.start ?? 1 }, removed)

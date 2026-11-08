@@ -53,3 +53,5 @@ export type { CallCandidate, CallClientMessage, CallDescription, CallGuestLink, 
 export { guestCallsPath } from './calls/call-guests'
 export { callsChannelEvent, declineWord, ringNotice, ringsPath, type CallRing } from './calls/call-rings'
 export { isUserTableName, maxLabelLength, maxNameBytes, maxOrganizationNameBytes, organizationColumn, reservedFieldNames, reservedWords, userTableName } from './user-tables/names'
+export { reorderSpan, type ReorderSpan } from './reorder-span'
+export { movePlan, type MovePlan, type Ranked } from './move-plan'

@@ -943,6 +943,8 @@
     "couldNotUndo": "Could not undo",
     "movedToPlace": "Moved to place {place}",
     "notMoved": "Left in its place",
+    "listChanged": "The list changed where you dropped it",
+    "listChangedHint": "It now shows the current order, so you can move it again.",
     "noRule": "No drop rule is registered as {rule}. Give it in dropRules in protobase.ui.tsx, or load the plugin that provides it."
   },
   "app/history": {

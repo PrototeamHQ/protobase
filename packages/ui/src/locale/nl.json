@@ -943,6 +943,8 @@
     "couldNotUndo": "Kon niet ongedaan maken",
     "movedToPlace": "Verplaatst naar plaats {place}",
     "notMoved": "Op zijn plaats gelaten",
+    "listChanged": "De lijst is veranderd waar je hem neerzette",
+    "listChangedHint": "Hij toont nu de huidige volgorde, dus je kunt hem opnieuw verplaatsen.",
     "noRule": "Er is geen sleepregel geregistreerd als {rule}. Geef die in dropRules in protobase.ui.tsx, of laad de plug-in die haar levert."
   },
   "app/history": {

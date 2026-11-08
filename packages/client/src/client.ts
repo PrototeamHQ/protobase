@@ -92,7 +92,7 @@ const storedOf = async <T>(response: Response, origin: string | undefined): Prom
 const batchResultOf = (body: Partial<BatchResult>, origin: string | undefined): BatchResult => ({
   results: (body.results ?? []).map((result) => {
     if (result.op === 'create' || result.op === 'update') return { ...result, record: withFileOrigin(result.record, origin) }
-    if (result.op === 'reorder') return { ...result, records: result.records.map((entry) => ({ ...entry, record: withFileOrigin(entry.record, origin) })) }
+    if (result.op === 'reorder' || result.op === 'move') return { ...result, records: result.records.map((entry) => ({ ...entry, record: withFileOrigin(entry.record, origin) })) }
     return result
   }),
 })
@@ -198,6 +198,7 @@ export const createClient = (options: ClientOptions = {}) => {
       resource: nameOf(operation.resource),
       ...('key' in operation && { key: keyText(operation.key) }),
       ...(operation.op === 'reorder' && { keys: operation.keys.map(keyText) }),
+      ...(operation.op === 'move' && { after: operation.after && keyText(operation.after), ...(operation.before !== undefined && { before: operation.before && keyText(operation.before) }) }),
     }))
     const response = await send({ method: 'POST', path: ':batchWrite', body: { ops: wireOps } })
     return batchResultOf((await response.json()) as Partial<BatchResult>, origin)

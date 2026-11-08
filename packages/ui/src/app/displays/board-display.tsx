@@ -32,11 +32,12 @@ type BoardProps = {
 
 // Where a card over `over` would be dropped: before the card it is over, or after the last card of the column
 const placeOver = (over: Over, row: ListDisplayRow): BoardPlace | undefined => {
-  const data = over.data.current as { column?: BoardPlace['column']; rows?: ListDisplayRow[]; sortable?: { index: number } } | undefined
+  const data = over.data.current as { column?: BoardPlace['column']; rows?: ListDisplayRow[]; more?: boolean; sortable?: { index: number } } | undefined
   if (!data?.column || !data.rows) return undefined
-  if (data.sortable) return { column: data.column, rows: data.rows, index: data.sortable.index }
+  const more = data.more === true
+  if (data.sortable) return { column: data.column, rows: data.rows, more, index: data.sortable.index }
   const own = data.rows.some((entry) => entry.key === row.key)
-  return { column: data.column, rows: data.rows, index: own ? data.rows.length - 1 : data.rows.length }
+  return { column: data.column, rows: data.rows, more, index: own ? data.rows.length - 1 : data.rows.length }
 }
 
 /**
@@ -66,7 +67,7 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
   const columnOrder = rank ? `${rank} asc` : orderBy
   const labelOf = (value: string | null) => every.find((column) => column.value === value)?.label ?? String(value)
   const title = (row: ListDisplayRow) => String(row.labels[card.title!] ?? row.record[card.title!] ?? row.key)
-  const { moves, move } = useBoardMove({ model, view, by: display.by, rank, drop, labelOf, titleOf: title })
+  const { moves, move } = useBoardMove({ model, view, by: display.by, rank, filter, drop, labelOf, titleOf: title })
   const [active, setActive] = useState<ListDisplayRow | undefined>()
   // The click that ends a drag with a mouse lands on the card's link, which must not open the record
   const dragged = useRef(false)
@@ -126,7 +127,7 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
     // A board drop's write decides where the card lands in another column, so it has no place there
     if (from === -1 && drop) return move(row, place.column)
     if (from === place.index) return
-    move(row, place.column, { rows: place.rows, index: place.index })
+    move(row, place.column, { rows: place.rows, more: place.more, index: place.index })
   }
 
   return (

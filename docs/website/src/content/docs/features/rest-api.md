@@ -13,7 +13,7 @@ description: The API every resource gets, with filters, writes, errors and the t
 - [Related names and photos](/reference/api/#related-names): A list response can carry the names of related records and each record's first photos.
 - [ETags](/reference/api/#writes): Every record has a version, and a write based on an old version is refused.
 - [Minimal responses](/reference/api/#writes): A create or update can answer without the record, to save the transfer.
-- [Batch writes](/reference/api/#batch-writes): Up to 500 creates, updates, deletes and reorders across resources in one transaction.
+- [Batch writes](/reference/api/#batch-writes): Up to 500 creates, updates, deletes, reorders and moves across resources in one transaction.
 - [Record permissions](/reference/api/#record-permissions): Responses say which records and fields the caller may change.
 - [Scan guard](/reference/api/#safety): Lists, searches and facets on a column no index serves are refused, at any table size, with the index to create.
 - [Statement timeouts](/reference/api/#safety): Every request's queries stop after 1 second by default, with an error that names the request, and reads run read-only.
