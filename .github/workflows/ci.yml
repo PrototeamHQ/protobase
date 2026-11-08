@@ -546,9 +546,10 @@ jobs:
   # The files the AI review bots read as instructions stay within what each bot reads, so none is cut off. cubic keeps
   # the first 10,000 characters of a custom agent's text and linked files: AGENTS.md and CONTRIBUTING.md share the
   # org's Project rules agent with about 260 characters of its text, and each docs file has an agent in cubic.yaml.
-  # CodeRabbit allows 20,000 characters per path instruction.
+  # CodeRabbit allows 20,000 characters per path instruction. Like the other checks, they run on a fork's pull request
+  # and, for an fm/** branch of this repository, on its push rather than its pull request.
   prompt-length:
-    if: github.event_name == 'pull_request'
+    if: &branch-push-or-fork-pull-request ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/')) || (github.event_name == 'pull_request' && !(github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'fm/'))) }}
     uses: protobase-community/.github/.github/workflows/prompt-length.yml@main # zizmor: ignore[unpinned-uses] main is the reviewed version
     with:
       files: |
@@ -562,7 +563,7 @@ jobs:
   # cubic.yaml's auto-approval prompt is a key inside the file, so the file check above cannot measure it alone. It is
   # kept under 2,000 characters, short enough for the approval agent to weigh each criterion.
   approval-prompt-length:
-    if: github.event_name == 'pull_request'
+    if: *branch-push-or-fork-pull-request
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
