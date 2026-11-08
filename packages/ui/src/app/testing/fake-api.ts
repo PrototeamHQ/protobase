@@ -1,7 +1,7 @@
-import { ApiError, type Client, type HistoryChange, type MentionableUser, type RecordComment, type MapLayerModel, type PluginRef, type PublicForm, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult, type WorkflowRunTrace, type WorkflowTypeList } from '@protobase/client'
+import { ApiError, type Client, type HistoryChange, type MentionableUser, type RecordComment, type MapLayerModel, type PluginRef, type PublicForm, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult, type WorkflowRunTrace, type WorkflowTraceHeld, type WorkflowTypeList } from '@protobase/client'
 import { evaluateCondition, parseCondition, type PageModel } from '@protobase/layout'
 import { checkFilter, evaluateFilter, parseFilter, printFilter, type BottomBarModel, type CardPhotosModel, type RelatedFilter, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
-import { cardPhotoLimit, encodeKey, matchesSearch, splitRelated } from '@protobase/schema/internal'
+import { cardPhotoLimit, encodeKey, matchesSearch, splitRelated, workflowTraceRevision } from '@protobase/schema/internal'
 import { fakeForms } from './fake-forms'
 import { exampleWorkflowTypes } from '../../../../../test-support/workflow-types'
 
@@ -246,10 +246,11 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
 
   const client = {
     workflowTypes: async () => structuredClone(workflowTypes),
-    workflowRunTrace: async (runId: string, after = 0): Promise<WorkflowRunTrace> => {
+    workflowRunTrace: async (runId: string, held?: WorkflowTraceHeld): Promise<WorkflowRunTrace> => {
       const { steps } = await workflowRunTrace(runId)
-      const from = after <= steps.length ? after : 0
-      return { from, steps: steps.slice(from) }
+      const kept = held !== undefined && held.after <= steps.length && held.revision === (await workflowTraceRevision(steps.slice(0, held.after)))
+      const from = kept ? held.after : 0
+      return { from, steps: steps.slice(from), revision: await workflowTraceRevision(steps) }
     },
     meta: async () => ({ status: 'modified' as const, etag: '"fake-meta"', meta: { appName: 'Protobase', resources, views, pages, ...(account && { account }), permissions, ...(plugins && { plugins }), ...(sources && { sources }), ...(maps && { maps }), ...(files && { files }), ...(bottomBar && { bottomBar }), ...(signIn && { signIn }) } }),
     list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
