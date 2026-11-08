@@ -41,8 +41,10 @@ const mocking = [
   'packages/server/src/notifications/senders-of-connect.test.ts',
   'packages/server/src/workflows/workflow-trace-route.test.ts',
   'packages/ui/src/app/error-reporting.test.ts',
+  'packages/ui/src/app/field-types/workflow-status/status-reason.test.ts',
   'packages/ui/src/app/field-types/workflow/use-layout.test.ts',
   'packages/ui/src/app/pages/action-href.test.ts',
+  'packages/workflows/src/run/runner.test.ts',
 ]
 // Database, subprocess and build tests, and the release and docs scripts': `bun run test:integration`.
 const integration = ['packages/cli/tests/**/*.integration.test.ts', 'packages/cli/tests/build/deploy-bundle.test.ts', 'tests/release/**/*.test.ts', 'tests/docs/**/*.test.ts']

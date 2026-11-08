@@ -1,10 +1,11 @@
 name: protobase
 
 services:
+  # The databases publish on 127.0.0.1 only: their superuser's password is the committed one in .env.example.
   postgres:
     image: postgres:18
     ports:
-      - '${POSTGRES_PORT}:5432'
+      - '127.0.0.1:${POSTGRES_PORT}:5432'
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -30,7 +31,7 @@ services:
   supabase-postgres:
     image: ghcr.io/supabase/postgres:17.11.0.006
     ports:
-      - '${SUPABASE_POSTGRES_PORT:-55433}:5432'
+      - '127.0.0.1:${SUPABASE_POSTGRES_PORT:-55433}:5432'
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
@@ -53,7 +54,7 @@ services:
       - -c
       - sed -i '/^track_extra_parameters/d; /^\[pgbouncer\]/a track_extra_parameters = statement_timeout' /etc/pgbouncer/pgbouncer.ini && exec pgbouncer /etc/pgbouncer/pgbouncer.ini
     ports:
-      - '${PGBOUNCER_PORT:-55442}:5432'
+      - '127.0.0.1:${PGBOUNCER_PORT:-55442}:5432'
     environment:
       DB_HOST: postgres
       DB_USER: ${POSTGRES_USER}
