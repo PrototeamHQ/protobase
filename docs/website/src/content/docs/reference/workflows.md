@@ -321,6 +321,10 @@ A file value is `{ uri, name, type, size }`, the handle to bytes in the app's st
 
 ### Storing files
 
+:::caution[Beta]
+Changing a configuration does not move the files already in it, a run is not kept on the server that holds its local files, and an S3 configuration's keys are set through the API or MCP, not yet in the admin app's form.
+:::
+
 A value a run keeps is at most 256 KiB, so larger files, such as a 150 MB download, go to storage. A workflow names a **storage configuration**, such as `archive`, rather than where the file lives: a folder on the server, a file share mounted on it, or an S3-compatible bucket. Changing where a configuration points, from a bucket to a local folder say, changes the configuration alone; the workflows that name it stay as they are.
 
 Turn them on with `storage` in `workflows`:
