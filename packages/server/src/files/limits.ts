@@ -57,12 +57,16 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
       await body.cancel()
       throw limitReached()
     }
+    // A replacement holds back only what it grows past the file it replaces, so replacements at once each count once.
     let size = 0
+    let reserved = 0
     const counting = new TransformStream<Uint8Array, Uint8Array>({
       transform: (chunk, controller) => {
         size += chunk.length
-        pending.bytes += chunk.length
-        if (stored.bytes - freed + pending.bytes > maxBytes) throw new LimitReached()
+        const growth = Math.max(0, size - freed)
+        pending.bytes += growth - reserved
+        reserved = growth
+        if (stored.bytes + pending.bytes > maxBytes) throw new LimitReached()
         controller.enqueue(chunk)
       },
     })
@@ -79,7 +83,7 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
       throw error
     } finally {
       pending.files -= added
-      pending.bytes -= size
+      pending.bytes -= reserved
     }
   }
 
