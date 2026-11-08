@@ -65,7 +65,7 @@ const serve = async (withMobile?: MobileConfig) => {
 const cookiesOf = (response: Response) =>
   response.headers.getSetCookie().map((line) => line.split(';')[0]!).filter((pair) => !pair.endsWith('=')).join('; ')
 
-const sessionCookieLine = (response: Response) => response.headers.getSetCookie().find((line) => /^(__Secure-)?better-auth\.session_token=[^;]/.test(line))
+const sessionCookieLine = (response: Response) => response.headers.getSetCookie().find((line) => /^__Host-better-auth\.session_token=[^;]/.test(line))
 
 const base32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 const decodeBase32 = (text: string) => {

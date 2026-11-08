@@ -59,7 +59,7 @@ An image with variants also has `variants`, each `{ url, type, width, height }` 
 
 ### Limits
 
-`maxBytes` (`'1 GB'`, as for `.maxSize()`) and `maxFiles` cap what one provider holds, for either kind; in a URL they are `max_bytes=1GB&max_files=20000`. An upload that would pass either is refused with `507`, and one that passes `maxBytes` while it streams stops there and leaves nothing. Scheduled deletes (`.cleanup/`) do not count, so a full provider can still be emptied.
+`maxBytes` (`'1 GB'`, as for `.maxSize()`) and `maxFiles` cap what one provider holds, for either kind; in a URL they are `max_bytes=1GB&max_files=20000`. An upload that would pass either is refused with `507`, and one that passes `maxBytes` while it streams stops there and leaves nothing. A file put again at its path takes no second file and counts only what it grows past the one it replaces; puts to one path wait for each other, so each replaces what the one before left. Scheduled deletes (`.cleanup/`) do not count, so a full provider can still be emptied.
 
 A bucket has no quota of its own, so the provider counts what it holds with `list` on the first upload, and again once that count is five minutes old; in between it adds its own uploads. Several instances, or files added by hand, can therefore pass a limit by what they wrote since the last count.
 

@@ -41,4 +41,28 @@ describe("the runner's trace", () => {
     await runnerLogging(events, ends).segment(null, 'r1', new AbortController().signal)
     expect(events).toEqual(['status running', 'trace joined succeeded', 'status succeeded'])
   })
+
+  it("hands a Map's parallel items' steps to the trace one part at a time, so no two parts take the same number", async () => {
+    const flow = definition({
+      Each: { Type: 'Map', Items: '{% [1, 2] %}', MaxConcurrency: 2, ItemProcessor: { StartAt: 'Get', States: { Get: { Type: 'Task', Resource: 'get', Arguments: '{% $states.input %}', End: true } } }, End: true },
+    })
+    let writing = 0
+    let overlapped = false
+    const runner = createRunner<null>({
+      store: { load: async () => ({ id: 'r1', definition: flow, input: {}, status: 'queued', startedAt: new Date('2026-11-04T12:00:00Z') }), checkpoints: async () => [], save: async () => true, update: async () => {} },
+      queue: { schedule: async () => {} },
+      tasks: { get: async (item: unknown) => item },
+      trace: {
+        write: async () => {
+          overlapped ||= writing > 0
+          writing++
+          await new Promise((resolve) => setTimeout(resolve, 5))
+          writing--
+        },
+        read: async () => undefined,
+      },
+    })
+    await runner.segment(null, 'r1', new AbortController().signal)
+    expect(overlapped).toBe(false)
+  })
 })

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { badRequest } from '../problem'
 import { apnsEnvironments, type NewDevice } from './device'
 import { canonicalEndpoint, isPushEndpoint } from './push-hosts'
+import { relayHandle } from './relay/relay-protocol'
 
 // Every text: a length cap, and no control characters, which a URL parser would also drop silently.
 const text = (max: number) => z.string().min(1).max(max).regex(/^[^\u0000-\u001f\u007f]*$/)
@@ -40,7 +41,15 @@ const fcm = z.strictObject({
   userId,
 })
 
-const registration = z.discriminatedUnion('kind', [web, apns, fcm])
+// A handle from a push relay, never the device's own APNs or FCM token.
+const relay = z.strictObject({
+  kind: z.literal('relay'),
+  handle: z.string().regex(relayHandle),
+  userAgent,
+  userId,
+})
+
+const registration = z.discriminatedUnion('kind', [web, apns, fcm, relay])
 
 /** The largest register body, in bytes. */
 export const maxDeviceBodyBytes = 8 * 1024
@@ -67,5 +76,6 @@ const deviceOf = (device: z.infer<typeof registration>): DeviceInput => {
   const base = { userAgent: device.userAgent ?? null }
   if (device.kind === 'web') return { ...base, kind: 'web', token: canonicalEndpoint(device.endpoint), p256dh: device.keys.p256dh, auth: device.keys.auth, environment: null, appId: null }
   if (device.kind === 'apns') return { ...base, kind: 'apns', token: device.token, p256dh: null, auth: null, environment: device.environment, appId: device.appId }
+  if (device.kind === 'relay') return { ...base, kind: 'relay', token: device.handle, p256dh: null, auth: null, environment: null, appId: null }
   return { ...base, kind: 'fcm', token: device.token, p256dh: null, auth: null, environment: null, appId: device.appId ?? null }
 }

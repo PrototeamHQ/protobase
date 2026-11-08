@@ -13,6 +13,7 @@ import { registerEncryption } from './encryption/register'
 import { registerMigration } from './migration/register'
 import { registerMobile } from './mobile/register'
 import { registerNotifications } from './notifications/register'
+import { registerPushRelay } from './push-relay/register'
 import { registerSkill } from './skill/register'
 import { registerImport } from './supabase/register'
 import { registerToken, registerUsers } from './users/register'
@@ -266,6 +267,7 @@ registerSkill(program)
 registerImport(program)
 registerMobile(program)
 registerNotifications(program)
+registerPushRelay(program)
 
 // Central error handler: commands throw, the user sees one line.
 export const run = (argv: string[]) =>
