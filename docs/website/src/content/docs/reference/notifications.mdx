@@ -321,7 +321,7 @@ A send, as [above](#push-relay), with a credential that is not one of the relay'
 
 The relay writes the credential's origin into every notification, over anything the send held: `origin` in the APNs payload, beside `url` and `user`, and in FCM's data. The mobile app opens a notification in the workspace of that origin, so one workspace cannot make a notification open another.
 
-A credential sends to at most 20,000 devices in each clock hour, counting every handle of each send. A send that would go over is a `429` with a `Retry-After` until the next hour, and the workspace retries its devices.
+A credential sends to at most 20,000 devices in each UTC clock hour, counting every handle of each send. A send that would go over is a `429` with a `Retry-After` until the next UTC hour, when the count starts again, and the workspace retries its devices.
 
 ## Your own parts
 
