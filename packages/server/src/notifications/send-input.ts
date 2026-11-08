@@ -27,8 +27,11 @@ export class NotificationSendError extends Error {
   }
 }
 
-/** An id as a store takes it: text without control characters, at most 256 characters. */
-export const storeIdPattern = /^[^\u0000-\u001f\u007f]{1,256}$/
+/** The longest id a store takes. */
+export const maxStoreIdLength = 256
+
+// An id as a store takes it: text without control characters, at most `maxStoreIdLength` characters.
+const idPattern = new RegExp(`^[^\\u0000-\\u001f\\u007f]{1,${maxStoreIdLength}}$`)
 
 /** Whether `value` is an object literal, so its keys are all it holds. */
 export const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
@@ -36,7 +39,7 @@ export const isPlainRecord = (value: unknown): value is Record<string, unknown> 
 
 const checkedIds = (value: unknown, field: string) => {
   if (!Array.isArray(value) || value.length === 0 || value.length > maxRecipients) throw new NotificationSendError(field)
-  if (!value.every((id) => typeof id === 'string' && storeIdPattern.test(id))) throw new NotificationSendError(field)
+  if (!value.every((id) => typeof id === 'string' && idPattern.test(id))) throw new NotificationSendError(field)
   return [...new Set(value as string[])]
 }
 

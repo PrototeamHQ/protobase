@@ -10,8 +10,8 @@ import type { RelaySettings } from './relay-settings'
  * The built-in relay sender: delivers to `relay` devices through a push relay that holds the mobile app's push keys,
  * with `POST <relay>/send`, the workspace's credential as its bearer, and up to `maxRelayDevices` handles per request,
  * one request after another. Each device carries its user's id as `user`. It checks the message as `pushMessage` does
- * and throws before any request when it is not one. A device whose token is not a relay handle, or whose user id is not
- * one a store takes, is answered `refused` with no request, and the rest are sent as usual. It logs nothing, and its
+ * and throws before any request when it is not one. A device whose token is not a relay handle, or whose user id is longer
+ * than a store takes, is answered `refused` with no request, and the rest are sent as usual. It logs nothing, and its
  * errors and answers carry no credential or handle.
  */
 export const relaySender = (settings: RelaySettings, options: PostOptions = {}): PushSender => {

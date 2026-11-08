@@ -122,15 +122,15 @@ describe('relaySender', () => {
     expect(relaySendRequest.safeParse(service.sent[0]!.body).success).toBe(true)
   })
 
-  it('refuses only a device whose user id no store takes, and sends the others', async () => {
+  it('refuses only a device whose user id is longer than a store takes, and sends the others', async () => {
     const service = relay()
     const devices = [relayDevice(1), relayDevice(2, { userId: 'u'.repeat(257) }), relayDevice(3, { userId: 'line\nbreak' })]
     expect(await relaySender(settings, { fetch: service.fetch }).send(message, devices)).toEqual([
       { id: 'device-1', result: 'ok' },
       { id: 'device-2', result: 'refused' },
-      { id: 'device-3', result: 'refused' },
+      { id: 'device-3', result: 'ok' },
     ])
-    expect(service.sent.map((sent) => sent.body)).toMatchObject([{ devices: [{ handle: relayDevice(1).token, user: 'user-1' }] }])
+    expect(service.sent.map((sent) => sent.body)).toMatchObject([{ devices: [{ handle: relayDevice(1).token, user: 'user-1' }, { handle: relayDevice(3).token, user: 'line\nbreak' }] }])
   })
 
   it('throws before any request for a message that is not one, or a device of another kind', async () => {
