@@ -157,10 +157,14 @@ describe("Protobase's iOS plugin", () => {
     expect(manifest).toContain(`.library(name: "${protobaseIosProduct}", targets: ["ProtobaseMobile"])`)
   })
 
-  it('declares exactly the classes the check requires, and the guard the CLI lists for the live updater', () => {
+  // The workspaces mode's plugin, which every shell compiles and which stays off unless the app turns it on, so the
+  // check does not require it.
+  const workspaces = 'ProtobaseWorkspacesPlugin'
+
+  it('declares exactly the classes the check requires, the guard the CLI lists for the live updater, and the workspaces plugin', () => {
     const declared = readdirSync(sources)
       .filter((name) => name.endsWith('.swift'))
       .flatMap((name) => readFileSync(path.join(sources, name), 'utf8').match(/@objc\(([A-Za-z0-9_-]+)\)/)?.[1] ?? [])
-    expect(declared.sort()).toEqual([...protobaseIosPluginClasses, guardedIosLiveUpdate].sort())
+    expect(declared.sort()).toEqual([...protobaseIosPluginClasses, guardedIosLiveUpdate, workspaces].sort())
   })
 })
