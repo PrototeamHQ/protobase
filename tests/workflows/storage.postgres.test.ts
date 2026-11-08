@@ -51,7 +51,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('storage configurations 
     await pg.exec((await workflowsMigration(db, workflows))!)
     const { resources, views } = configExports(workflowsModule(workflows))
     const files = { providers: { private: localFiles({ dir: join(folder.dir, 'private') }) }, secret: 'files-secret-for-the-storage-tests' }
-    vi.stubEnv('PROTOBASE_ENCRYPTION_KEY', Buffer.alloc(32, 7).toString('base64'))
+    vi.stubEnv('PROTOBASE_ENCRYPTION_KEY', Buffer.from(Array.from({ length: 32 }, (_, i) => i)).toString('base64'))
     admin = createAdmin({
       resources, views, db, files, workflows,
       authenticate: (request) => {
@@ -71,7 +71,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('storage configurations 
 
   afterAll(async () => {
     await runtime?.stop()
-    await new Promise((resolve) => receiver?.close(resolve))
+    if (receiver) await new Promise((resolve) => receiver.close(resolve))
     await pg?.close()
     await folder?.remove()
     expect(errors).toEqual([])
