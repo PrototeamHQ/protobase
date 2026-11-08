@@ -99,6 +99,7 @@ export const bucketsState = (name: string, source: BucketsSource, buckets: Bucke
     ...((model.parents ?? []).some((parent) => parent.access === 'read') ? [`rolls up "${model.name}", whose reads keep to records whose parent the caller reads (not implemented)`] : []),
     ...(everies.includes(buckets.every) ? [] : [`every "${String(buckets.every)}" is not hour or day`]),
     ...timeProblems(model, buckets.time),
+    ...(readRuled(source, buckets.time) ? [`uses time "${buckets.time}", which has its own read rule`] : []),
     ...byProblems(source, buckets.by),
     ...(model.tenant && !buckets.by.includes(model.tenant) ? [`does not group by "${model.tenant}", the tenant field of "${model.name}"`] : []),
     ...measureProblems(source, buckets.measures, buckets.by),
