@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { Definition } from '../definition/types'
 import { StepError } from './errors'
 import { memoryRunner } from './memory-port'
@@ -177,7 +177,11 @@ describe('the runner', () => {
   })
 
   it('hands the rest of a run to the next segment once its time is up, and stops when another segment saved first', async () => {
-    const port = memoryRunner({ tick: async () => new Promise((resolve) => setTimeout(() => resolve(1), 5)) }, { budgetMs: 1 })
+    // The segment's deadline reads Date.now(): each tick moves it on 5 ms, so the 1 ms budget is up after A and not before.
+    let elapsed = 0
+    const time = vi.spyOn(Date, 'now').mockImplementation(() => elapsed)
+    onTestFinished(() => void time.mockRestore())
+    const port = memoryRunner({ tick: async () => { elapsed += 5; return 1 } }, { budgetMs: 1 })
     await port.start('r8', definition({ A: { Type: 'Task', Resource: 'tick', Next: 'B' }, B: { Type: 'Task', Resource: 'tick', End: true } }), {})
     await port.step()
     expect(port.steps.map((step) => step.state)).toEqual(['A'])

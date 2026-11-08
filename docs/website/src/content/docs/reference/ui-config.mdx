@@ -323,7 +323,7 @@ Besides its table, a list can show as cards, on a map, as a board in columns of 
 
 | Display | |
 | --- | --- |
-| `d.cards({ image?, title?, subtitle?, amount?, badge?, meta?, footer?, flags?, dots? }, { name?, label?, icon?, card?, photos?, favorite? })` | A card per record, opening it: `image`, a [file field](/reference/files/), as a picture across the card's top (a raster image; anything else leaves the frame empty), then `title` (default: the view's `.title`) over `subtitle`, `badge` drawn as a badge with its value labels, `amount` the first of its fields with a value in bold (its suffix, such as ` /month`, not), such as a purchase price or else a rent, and a few small `meta` fields such as dates, each only when it has a value, after its field's `.icon` and as a badge when its field's format is `badge`. `footer` is a line at the card's bottom of its fields with a value, joined by bullets, such as a place and an agent. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking. `dots` are [related columns](#related-records-in-a-list) of the list, each a line of its dots at the card's bottom. A relation shows the name of the record it points at. With `card`, a component declared with `component('RepairCard')` draws each card's content from the row of those fields instead (see [Record cards](/reference/custom-components/#record-cards)). With `photos`, the picture steps through more photos, by swipe or arrows (see [Card photos](#card-photos)). With `favorite`, a heart in the card's top right corner saves the record (see [Favorites](#favorites)). Named `cards` unless `name` says otherwise. |
+| `d.cards({ image?, title?, subtitle?, amount?, badge?, code?, meta?, footer?, flags?, dots? }, { name?, label?, icon?, card?, photos?, favorite? })` | A card per record, opening it: `image`, a [file field](/reference/files/), as a picture across the card's top (a raster image; anything else leaves the frame empty), then `title` (default: the view's `.title`) over `subtitle`, `badge` drawn as a badge with its value labels, `amount` the first of its fields with a value in bold (its suffix, such as ` /month`, not), such as a purchase price or else a rent, `code` its value in full as a block of monospaced text that wraps its long lines, never cut off, such as a shell command, left out when empty, and a few small `meta` fields such as dates, each only when it has a value, after its field's `.icon` and as a badge when its field's format is `badge`. `footer` is a line at the card's bottom of its fields with a value, joined by bullets, such as a place and an agent. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking. `dots` are [related columns](#related-records-in-a-list) of the list, each a line of its dots at the card's bottom. A relation shows the name of the record it points at. With `card`, a component declared with `component('RepairCard')` draws each card's content from the row of those fields instead (see [Record cards](/reference/custom-components/#record-cards)). With `photos`, the picture steps through more photos, by swipe or arrows (see [Card photos](#card-photos)). With `favorite`, a heart in the card's top right corner saves the record (see [Favorites](#favorites)). Named `cards` unless `name` says otherwise. |
 | `d.map({ latitude, longitude, approximate?, exact?, radius?, area? }, { name?, label?, icon?, cards?, defaultRadius? })` | The matching records in the map's view, with how many there are below it; it asks again as it pans and zooms, through the list API's [`:map`](/reference/api/#maps). From far out it shows a count for each part of the map, which zooms in when chosen; close in, or with few records in view, the records themselves. Nearby records share a marker with their count; choosing one shows the record's card at the map's bottom, with arrows through the marker's records, and choosing the map elsewhere or closing the card clears it. The card is the one of the cards display `cards` names, else the list's first cards display, else the record's title. A record at an approximate position has a hollow marker and the area around it; see [Approximate positions](#approximate-positions). Named `map` unless `name` says otherwise. See [Maps](#maps). |
 | `d.board({ by, title?, subtitle?, badge?, meta? }, { name?, label?, icon? })` | A column per value of the enum field `by`, each with how many records have it, and a card per record that opens it: `title` (default: the view's `.title`) over `subtitle`, with `badge` and a few small `meta` fields, as the built-in card of `d.cards` draws them. With the list's `drag: { board: true }`, dragging a card to another column, or moving it with the keyboard, saves the record with that column's value, or with `drag: { board: 'name' }` runs that [board drop](#board-drops)'s write; with `drag: { rank: true }`, cards are reordered within a column when the resource has a `.position()`. Named `board` unless `name` says otherwise. See [Boards](#boards). |
 | `d.calendar({ start, end?, title? }, { name?, label?, icon? })` | The records on the days from their date or timestamp field `start` to `end`, or on their start day alone, in a month grid or a week grid, each event a link to its record showing `title` (default: the view's `.title`). Dragging an event to another day, or moving it with the keyboard, saves the record with `start` and `end` moved by the same days. Named `calendar` unless `name` says otherwise. See [Calendars](#calendars). |
@@ -542,19 +542,9 @@ The record page sits in a centred column about 1100px wide. `.recordWidth('full'
 view<typeof objectives>('objectives').recordWidth('full')
 ```
 
-### Page-wide sections
-
-`l.section(title, fields, { width: 'page' })` spans the page above the main column and the sidebar cards, for a field that needs the room, such as a workflow's graph; Save then stays in a bar at the foot of the window, on a wide screen as on a phone. It applies to a section outside tabs and groups: `l.tab` and `l.group` throw on one. On the create form it is a section like the others.
-
-```ts
-view<typeof workflows>('workflows')
-  .recordWidth('full')
-  .layout((r) => [l.section('Workflow', [r.name, r.description]), l.section('Graph', [r.definition], { width: 'page' })])
-```
-
 ### A record page that opens another
 
-`.recordOpens(to)` sends a record's page to another address in its place, its `{field}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names, gets the record's own page. The record's own page stays at its address with `?standard=true`.
+`.recordOpens(to)` sends a record's page to another address in its place, its `{field}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names or open the page it names, gets the record's own page. The record's own page stays at its address with `?standard=true`.
 
 ```ts
 view<typeof workflowRuns>('workflow_runs').recordOpens({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })
@@ -575,6 +565,28 @@ view<typeof channels>('channels').record({ component: ChannelChat })
 The standard record page, with the layout's sections, the related records, Edit and Delete, stays at the record's address with `?standard=true` (`{ kind: 'record', resource, key, standard: true }`), which the component links to. Links to the record, from relations, search and notifications, open the component's page. Without the component, from a plugin that is off for instance, and when it throws, the standard page shows instead. <gap>A full-area record component cannot take props from the view because props for `.record` are not implemented.</gap>
 
 <StoryFrame id="record-page-full-area-record-page--repair-notes-page" title="A repair's notes filling the page, with a link to its details" height={560} />
+
+### Focus pages
+
+:::caution[Beta]
+A focus page is for a record's page only, not a list or a page of the app's own; its page never scrolls, so a surface that needs to, such as a long document, does not fit it yet; it has one panel on each side at a time; and its bar moves actions into "..." at widths set by estimate.
+:::
+
+A focus page is for work on one big thing, such as a graph, a map or a canvas: a thin bar under the top bar, one notice at a time, a surface that takes the rest, and at most a panel on each side. The page does not scroll, so the surface is the window, and it is a sibling of the form rather than a change to it. Any record can have one:
+
+```ts
+// One field fills the page, drawn by its field type, and the framework saves it
+view<typeof boards>('boards').record((r) => ({ surface: r.pins }))
+
+// A component of the app's own, in the same frame
+view<typeof reports>('reports').record({ component: component('ReportStudio'), focus: true })
+```
+
+The bar gets the record's state, Save, its [actions](#actions-and-views-per-role) behind "...", *Discard changes* while there are any, and a link to the form at `?standard=true`, named after the record, such as *Workflow details*, where the layout's sections and related records stay. A refused save, a conflict and a restored draft show in the notice, a reader who may not change the record gets no Save, and the form shows instead when the surface throws. A caller who may not read the surface's field gets the form. The record's name is in the breadcrumb, with a hidden heading for screen readers. What fills the bar and panels, and how a surface reaches them, is under [Focus pages](/reference/custom-components/#focus-pages). `.record(...)` with `surface` needs a [field type](/reference/plugins/#field-types) that draws the whole area; the built-in `workflow` field is one.
+
+<StoryFrame id="record-page-focus-page--pin-board-page" title="A field type of the app's own on a focus page" height={560} />
+
+A create address can open a page in place of the form too, for a record made where it is used, as a workflow's test run is made in the workflow's page. `.createOpens(to)` replaces the address, its `{field}`s filled from the address's `values`; when the address's `values` lack any of those `{field}`s, or the caller may not open the page, the create address shows what the view shows without it: its [`.create(...)`](#create-pages) page when it has one, else the form. A record address's `panel` (`?panel=<name>`) names a panel its surface opens with.
 
 ### Read view and edit
 

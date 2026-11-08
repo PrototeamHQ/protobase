@@ -40,7 +40,7 @@ const { exitCode, stdout, stderr } = await runCommand(['doctor', '--env', 'DATAB
 
 The serve runtime is bundled by `protobase build-serve` into one JavaScript file for Bun, so production needs neither `node_modules` nor the CLI (see [serve](#serve)).
 
-`scaffold` and `doctor` read the database with `default_transaction_read_only = on`, so they can never write, and so does `dev`'s check of the connection. The commands that manage the app's data do write: `users`, `organizations`, `encryption apply`, `files cleanup` and `import supabase`.
+`scaffold` and `doctor` read the database with `default_transaction_read_only = on`, so they can never write, and so does `dev`'s check of the connection. The commands that manage the app's data do write: `users`, `organizations`, `push-relay`, `encryption apply`, `files cleanup` and `import supabase`.
 
 ## `scaffold`
 
@@ -465,7 +465,7 @@ The app's address and secret are `PROTOBASE_URL` and `PROTOBASE_SECRET` unless i
 - **Startup:** a config module that `protobase build` did not write, a config with an `apiPath` other than `/api/v1`, or one with sign-in on and no secret or URL, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL`, an auth store that has not applied every migration of this version, or has a newer one (see [`auth migration`](#auth-migration)), a resource over a table of the auth store, a resource whose [events](/reference/events/) or [history](/reference/history/) lack their triggers or have out-of-date ones, or a missing history or [comments](/reference/comments/#the-table) table, a [rollup or formula field](/reference/data-config/#rollups-and-formulas) whose column or trigger is missing or out of date, a jobs schema that is missing or behind for a config with [jobs](/reference/jobs/#the-jobs-schema) (see [`migration`](#migration)), an [AI field or action](/reference/ai/#the-model) without a model key, [encrypted fields](/reference/data-config/#encrypted-fields) without a key, or another resource over their column, or a taken port; `PROTOBASE_STARTUP_CHECKS=false` skips the checks of those schemas and the key. `protobase serve listening on port <port>` means it is ready.
 - **Jobs:** with [jobs](/reference/jobs/) in the config it runs them beside the API, unless `PROTOBASE_JOBS=false`, and with `PROTOBASE_JOBS_DRAIN_TOKEN` it answers `POST /api/jobs/drain` for the operator.
 - **Shutdown:** the first SIGTERM or SIGINT stops accepting connections, closes open WebSockets with 1001 (dropping any still open after 5 seconds), waits for open requests, gives running jobs 30 seconds to finish, drains the pool `serve` created and exits with 0.
-- **Host modules:** under Bun, the runtime registers [the modules it supplies](#the-config-module) as virtual modules, so the bundle needs no `node_modules` for them. `protobase serve`, on Node or Bun, resolves them from the `node_modules` next to the bundle, so keep the bundle inside the project. Native packages load from the bundle's own `node_modules/` under both.
+- **Host modules:** under Bun, the runtime registers [the modules it supplies](#the-config-module) as virtual modules, so the bundle needs no `node_modules` for them. `protobase serve` and `protobase worker` under Bun do the same with the CLI's own copies, whatever the project installed, so a bundle runs on the copies of the CLI that runs it. <gap>`protobase serve` and `protobase worker` on Node cannot give a bundle the CLI's own host modules because a module hook for Node is not implemented.</gap> On Node both resolve them from the `node_modules` next to the bundle, so there keep the bundle inside the project, whose installed versions it then runs on. Native packages load from the bundle's own `node_modules/` under both.
 - **Read-only hosts:** nothing is written: no install (`--no-install`), and for a bundle built with `--bun` no transpiling and so no transpiler cache. A bundle with `node_modules/` needs its folder mounted without `noexec`, since its add-ons are mapped as executable code.
 
 ### Mobile releases
@@ -546,6 +546,16 @@ protobase notifications vapid-keys
 ```
 
 Prints a fresh key pair for [Web Push](/reference/notifications/#web-push) as `PROTOBASE_VAPID_PUBLIC_KEY` and `PROTOBASE_VAPID_PRIVATE_KEY` lines to paste into the environment or `.env`, and says to set `PROTOBASE_VAPID_SUBJECT` too. It reads no project, writes no file and makes no request.
+
+## `push-relay`
+
+```sh
+protobase push-relay add-credential <origin>
+protobase push-relay list-credentials
+protobase push-relay remove-credential <id>
+```
+
+Manages the workspace credentials of a [push relay](/reference/notifications/#push-relay-service), over the project's `DATABASE_URL`; a project without `pushRelay` in its config is refused. `add-credential` takes the workspace's `https` origin, such as `https://app.example.com`, and prints a new credential bound to it, once, for the workspace's `PROTOBASE_PUSH_RELAY_CREDENTIAL`; the relay keeps only its hash, and its id goes to stderr. `list-credentials` prints each credential's id, origin and when it was added. `remove-credential` removes one by its id, after which its sends are refused.
 
 ## `users`
 

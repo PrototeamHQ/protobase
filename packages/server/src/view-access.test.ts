@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, l, resource, restrictModel, view, type ResourceModel } from '@protobase/schema'
-import { pruneView } from './view-access'
+import { prunePageDestinations, pruneView } from './view-access'
 
 const customers = resource('customers').table('customers').fields({ id: f.integer(), name: f.text().filterable() }).primaryKey((r) => r.id)
 const repairs = resource('repairs')
@@ -264,7 +264,7 @@ describe('pruneView', () => {
 
   it("keeps a gallery's image and photos as far as the caller can load them, and leaves out one with neither", () => {
     const photos = { resource: 'repair_photos', field: 'repairId', image: 'photo', sort: 'position' }
-    const written = view<typeof repairs>('repairs').recordMode('read').helpWhen('editing').layout((r) => [l.section('Repair', [r.status], { help: 'As booked', helpWhen: 'always', presentation: 'facts', width: 'page' })]).toModel()
+    const written = view<typeof repairs>('repairs').recordMode('read').helpWhen('editing').layout((r) => [l.section('Repair', [r.status], { help: 'As booked', helpWhen: 'always', presentation: 'facts' })]).toModel()
     // The repair's own picture stands in for a file field: pruning reads only whether the caller may see it
     written.layout = [...written.layout, { kind: 'gallery', title: 'Photos', image: 'costPrice', photos }]
     const galleries = (models: Record<string, ResourceModel>) => pruneView(written, models.repairs!, models).layout.filter((item) => item.kind === 'gallery')
@@ -385,5 +385,23 @@ describe('pruneView', () => {
     const list = (models: Record<string, ResourceModel>) => pruneView(timeline, models.repairs!, models).list
     expect(list(without({ repairs: ['status'] }))).toEqual({ columns: ['number'], displays: [{ kind: 'timeline', name: 'timeline', start: 'bookedOn' }] })
     expect(list(without({ repairs: ['bookedOn'] }))).toEqual({ columns: ['number'] })
+  })
+})
+
+describe('prunePageDestinations', () => {
+  it('keeps a record or create destination on a page the caller may open, and leaves out one on a page they may not', () => {
+    const opensPage = (page: string) => view<typeof repairs>('repairs').recordOpens({ kind: 'page', page }).createOpens({ kind: 'page', page }).toModel()
+    const pages = new Set(['workshop'])
+    const kept = prunePageDestinations(opensPage('workshop'), pages)
+    expect(kept.recordOpens).toEqual({ kind: 'page', page: 'workshop' })
+    expect(kept.createOpens).toEqual({ kind: 'page', page: 'workshop' })
+    const refused = prunePageDestinations(opensPage('payroll'), pages)
+    expect(refused.recordOpens).toBeUndefined()
+    expect(refused.createOpens).toBeUndefined()
+  })
+
+  it('keeps a destination that is not a page', () => {
+    const repairsView = view<typeof repairs>('repairs').createOpens({ kind: 'list', resource: 'repairs' }).toModel()
+    expect(prunePageDestinations(repairsView, new Set()).createOpens).toEqual({ kind: 'list', resource: 'repairs' })
   })
 })

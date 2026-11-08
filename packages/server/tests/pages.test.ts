@@ -62,6 +62,16 @@ describe('pages in /meta', () => {
     expect(card.children.map((node: { props: { name: string } }) => node.props.name)).toEqual(['title', 'lock'])
     expect(body.views[0].actions.map((action: { name: string }) => action.name)).toEqual(['lock'])
   })
+
+  it("keeps a view's record and create destinations on a page only for a caller who may open it", async () => {
+    const opensAudit = view<typeof ledger>('ledger').recordOpens({ kind: 'page', page: 'audit' }).createOpens({ kind: 'page', page: 'audit' })
+    const audited = createAdmin({ resources: [ledger], views: [opensAudit], pages: [adminOnly], db: db(), authenticate: testAuthenticator })
+    const viewFor = async (roles: string) => (await (await audited.request('/api/meta', { headers: as(1, roles) })).json()).views[0]
+    expect(await viewFor('admin')).toMatchObject({ recordOpens: { kind: 'page', page: 'audit' }, createOpens: { kind: 'page', page: 'audit' } })
+    const refused = await viewFor('viewer')
+    expect(refused).not.toHaveProperty('recordOpens')
+    expect(refused).not.toHaveProperty('createOpens')
+  })
 })
 
 describe('createAdmin with pages', () => {

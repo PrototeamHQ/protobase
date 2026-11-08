@@ -5,14 +5,15 @@ import { Button } from '../../../primitives/button'
 import { splitPath, stateAt, triggerId } from '../workflow/definition'
 import { stateLabel, triggerLabel } from '../workflow/labels'
 import { JsonBlock } from '../json/json-block'
-import { Part, StepCard } from './step-card'
+import { Part, StepCard, type ValueActions } from './step-card'
 import { text } from './messages'
 import { useRunSteps } from './use-run-steps'
 
 /** How many of a state's steps show at first, and with each Show more. */
 export const stepPageSize = 20
 
-type Run = Record<string, unknown> & { id: string; created_at: string }
+/** The run whose steps a panel shows. */
+export type StepsRun = Record<string, unknown> & { id: string; created_at: string }
 
 const Heading = ({ kind, name }: { kind: string; name: string }) => (
   <div>
@@ -21,9 +22,11 @@ const Heading = ({ kind, name }: { kind: string; name: string }) => (
   </div>
 )
 
-// The steps a state took in the run, every try and item, in the order they ran: the trace the graph read, so no
-// second read
-const StateSteps = ({ run, name }: { run: Run; name: string }) => {
+/**
+ * The steps a state took in the run, every try and item, in the order they ran: the trace the graph read, so no second
+ * read.
+ */
+export const StateSteps = ({ run, name, valueActions }: { run: StepsRun; name: string; valueActions?: ValueActions }) => {
   const trace = useRunSteps(run.id, false)
   const [shown, setShown] = useState(stepPageSize)
   if (trace.isPending) return null
@@ -32,7 +35,7 @@ const StateSteps = ({ run, name }: { run: Run; name: string }) => {
   return (
     <div className="grid gap-3">
       {steps.slice(0, shown).map((step) => (
-        <StepCard key={String(step.id)} step={step} />
+        <StepCard key={String(step.id)} step={step} {...(valueActions && { valueActions })} />
       ))}
       {steps.length > shown && (
         <Button size="sm" className="justify-self-start" onClick={() => setShown(shown + stepPageSize)}>
@@ -47,7 +50,7 @@ const StateSteps = ({ run, name }: { run: Run; name: string }) => {
  * What the chosen node did in the run, in the side panel: the trigger's input, or each step of the state with its input,
  * output, logs, timing, try and error.
  */
-export const StepPanel = ({ definition, run, selected, types }: { definition: Definition; run: Run; selected: string; types?: WorkflowTypeList }) => {
+export const StepPanel = ({ definition, run, selected, types }: { definition: Definition; run: StepsRun; selected: string; types?: WorkflowTypeList }) => {
   const state = selected === triggerId ? undefined : stateAt(definition, selected)
   return (
     <section aria-label={text('chosenStep')} className="grid gap-3 rounded-lg border bg-surface p-4">

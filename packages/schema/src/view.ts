@@ -373,9 +373,14 @@ export class ViewBuilder<R extends {
    * address with `standard: true`, which the component links to; it shows instead while the component is missing or
    * when it throws. Throws when `component` is a built-in block. See
    * [Full-area record pages](docs/website/src/content/docs/reference/ui-config.mdx#full-area-record-pages).
+   *
+   * `focus: true` draws it on a focus page, with the bar's state, Save, the record's actions and panels; the form
+   * `(r) => ({ surface: r.body })` needs no component: the surface is one field, drawn by its field type. See
+   * [Focus pages](docs/website/src/content/docs/reference/ui-config.mdx#focus-pages).
    */
-  record(options: { component: ComponentRef<never> }) {
-    const record: RecordPageModel = { component: customComponent(options.component, 'record component') }
+  record(options: { component: ComponentRef<never>; focus?: boolean } | ((r: FieldRefs<FieldsOf<R>>) => { surface: Ref })) {
+    const record: RecordPageModel =
+      typeof options === 'function' ? { surface: options(this.refs()).surface.name } : { component: customComponent(options.component, 'record component'), ...(options.focus && { focus: true }) }
     return this.next({ record })
   }
 
@@ -387,6 +392,15 @@ export class ViewBuilder<R extends {
    */
   recordOpens(to: AppAddress) {
     return this.next({ recordOpens: structuredClone(to) })
+  }
+
+  /**
+   * The resource's create address opens `to` in place of the form, replacing the address in the history, `{field}`
+   * filled from the address's values, for a record that is made where it is used: a workflow's test run opens in the
+   * workflow's page. An address that does not give every such field shows the form.
+   */
+  createOpens(to: AppAddress) {
+    return this.next({ createOpens: structuredClone(to) })
   }
 
   /**

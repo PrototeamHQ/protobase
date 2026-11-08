@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ApiError, type FcmDeviceRegistration, type WebDeviceRegistration } from '@protobase/client'
+import { ApiError, type FcmDeviceRegistration, type RelayDeviceRegistration, type WebDeviceRegistration } from '@protobase/client'
 import type { NativeBridge } from '../../app/native-auth-fetch'
 import { nativePush } from './native-push'
 import type { PushRecord } from './push-records'
@@ -64,7 +64,7 @@ const setup = (options: Options = {}) => {
       clear: async () => void ((record = undefined), log.push('forget')),
     },
     devices: {
-      register: async (registration: WebDeviceRegistration | FcmDeviceRegistration) => {
+      register: async (registration: WebDeviceRegistration | FcmDeviceRegistration | RelayDeviceRegistration) => {
         if (registration.kind !== 'fcm') throw new Error('The app registers an fcm device')
         sent.push(registration)
         log.push(`device ${registration.userId} ${registration.token}`)

@@ -1,6 +1,7 @@
 import { FileSpreadsheet } from 'lucide-react'
 import { useId } from 'react'
 import { Spinner } from '../../primitives/spinner'
+import { importAccept } from './import-accept'
 import { ImportSelect } from './import-select'
 import { text } from './messages'
 
@@ -25,7 +26,7 @@ export const ImportFileStep = ({ file, sheets, sheet, reading, onChoose, onSheet
         <input
           id={id}
           type="file"
-          accept=".xlsx,.csv,.json,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          accept={importAccept(globalThis.navigator?.userAgent ?? '')}
           disabled={reading}
           onChange={(event) => {
             const chosen = event.target.files?.[0]

@@ -74,6 +74,14 @@ protobase mobile run ios --team ABCDE12345
 
 Every run signs the app for development with that team, letting Xcode create the profile and register the phone, and installs it on the connected iPhone, or on `--target` when several are connected. The first time, trust your developer certificate on the phone in Settings, General, VPN & Device Management. A free team signs only an `appId` no one else has taken.
 
+### Files from the phone
+
+:::caution[Beta]
+<gap>In the iOS app, Import cannot read a workbook of 150,000 rows or more because reading one without crashing the app's page is not implemented.</gap>
+:::
+
+In the iOS and Android app, [Import](/guides/import-records/) and file fields open the phone's file picker, offering Excel, CSV and JSON files from the device and its cloud drives, with nothing to set up. On Android, a CSV that a drive labels as another type, or as a file of no known type, can be picked too; Import reads a file by its name. On the iOS Simulator a workbook of 100,000 rows reads in about 8 seconds.
+
 ## 4. Live reload
 
 ```sh
@@ -164,4 +172,4 @@ Put your Firebase project's `google-services.json` in the project folder, next t
 
 The user turns push on from the bell, or from your own button with [`usePushNotifications`](/reference/notifications/#in-the-browser). Android 13 and later ask for the permission then. Signing out removes the phone's registration.
 
-A tap on a notification whose `url` is on your app's server opens that page inside the app. Any other `http` or `https` url opens in the phone's browser, never inside the app, and any other url opens nothing. Turning push on or off changes the app's native code, so it ships in a store release, not a [live update](#7-live-updates).
+A tap on a notification whose `url` is on your app's server opens that page inside the app. Any other `http` or `https` url opens in the phone's browser, never inside the app, and any other url opens nothing. Turning push on or off changes the app's native code, so it ships in a store release, not a [live update](#7-live-updates). <gap>An app with `notifications()` on cannot get live updates on Protobase Cloud because fingerprinting its release with the manifest's `push` is not implemented there.</gap> <gap>A self-hosted server cannot offer live updates to an app whose config function turns `notifications()` on for `build` and not for `serve`, or the other way round, because fingerprinting a served release from its bundle's manifest is not implemented.</gap>

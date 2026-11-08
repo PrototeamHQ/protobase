@@ -178,6 +178,17 @@ describe('mobileRun', () => {
     expect(calls).toEqual([])
   })
 
+  it('stops on a config function that throws for build, before anything is installed or fingerprinted', async () => {
+    const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
+    const out: string[] = []
+    const dir = project("{ appId: 'com.example.shop' }")
+    writeFileSync(path.join(dir, 'protobase.config.ts'), "export default ({ command }: { command: string }) => { if (command !== 'tool') throw new Error('only tool'); return { mobile: { appId: 'com.example.shop' } } }\n")
+    await expect(mobileRun({ projectDir: dir, platform: 'android', api: 'https://api.example.com', extensions: [] }, (text) => void out.push(text), { run: fakeRun(calls), build, fetch })).rejects.toThrow('only tool')
+    expect(calls).toEqual([])
+    expect(out).toEqual([])
+    expect(existsSync(path.join(dir, '.protobase', 'mobile'))).toBe(false)
+  })
+
   it('signs every generated iOS project with --team, and builds once for the connected iPhone allowed to create its profile', async () => {
     const dir = project("{ appId: 'com.example.shop' }")
     const ws = path.join(dir, '.protobase', 'mobile')

@@ -1,12 +1,12 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
 import type { RowSource } from '../../data-grid'
 import { usePagedRows } from '../../data-grid/use-paged-rows'
 import { Skeleton } from '../../primitives/skeleton'
+import { SnapRow } from '../../primitives/snap-row'
+import { useSnapScroll } from '../../primitives/use-snap-scroll'
 import { displayRow, type ListDisplayRow } from '../displays/list-displays'
 import { RecordCard } from '../displays/record-card'
-import { rowCardGap, rowCardWidth, rowOffset } from './row-window'
-import { useRowScroll } from './use-row-scroll'
+import { rowWindow } from './row-window'
 import { text } from './messages'
 
 type CardsDisplayModel = Extract<ListDisplayModel, { kind: 'cards' }>
@@ -22,54 +22,39 @@ type RecordRowProps = {
   isNew?: (row: ListDisplayRow) => boolean
 }
 
-const arrowClass = 'absolute top-1/2 z-10 hidden size-8 -translate-y-1/2 items-center justify-center rounded-full border border-border-strong bg-background shadow-pop hover:bg-muted sm:flex'
-
-/** Stands in for the cards before or after the ones drawn, as wide as they would be. */
-const Spacer = ({ cards }: { cards: number }) => (cards > 0 ? <li aria-hidden className="shrink-0" style={{ width: rowOffset(cards) - rowCardGap }} /> : null)
-
 /**
- * Records as the cards of their list, in one row that scrolls sideways by touch, trackpad or its arrow buttons: only the
- * cards near the view are drawn, and the records are loaded through the list API in pages as the row scrolls to them.
- * Each card links to its record.
+ * Records as the cards of their list, in a `SnapRow`: only the cards near the view are drawn, and the records are loaded
+ * through the list API in pages as the row scrolls to them. Each card links to its record. Every record has its place,
+ * an empty one until it is drawn, so the row snaps to any card, also one a fast swipe reaches before it is drawn.
  */
 export const RecordRow = ({ model, view, display, source, label, isNew }: RecordRowProps) => {
   const { total } = source
-  const scroll = useRowScroll(total)
-  const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, revision: source.revision, latencyMs: 0 }, scroll.start, Math.max(scroll.start, scroll.end - 1))
-  const indexes = Array.from({ length: scroll.end - scroll.start }, (_, offset) => scroll.start + offset)
-
+  const shown = (scrolled: { left: number; width: number }) => rowWindow(scrolled.left, scrolled.width, total)
+  const scroll = useSnapScroll((scrolled) => {
+    const { start, end } = shown(scrolled)
+    return `${start}-${end}`
+  })
+  const { start, end } = shown(scroll.view)
+  const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, revision: source.revision, latencyMs: 0 }, start, Math.max(start, end - 1))
   return (
-    <div className="relative min-w-0">
-      <ul ref={scroll.ref} aria-label={label} className="relative flex snap-x gap-3 overflow-x-auto overflow-y-hidden pb-1" style={{ scrollbarWidth: 'thin' }}>
-        <Spacer cards={scroll.start} />
-        {indexes.map((index) => {
-          const loaded = getRow(index)
-          if (!loaded) {
-            return (
-              <li key={`skeleton-${index}`} aria-hidden className="shrink-0" style={{ width: rowCardWidth }}>
-                <Skeleton className="h-full min-h-24 rounded-lg" />
-              </li>
-            )
-          }
-          const row = displayRow(model, loaded)
+    <SnapRow scroll={scroll} label={label}>
+      {Array.from({ length: total }, (_, index) => {
+        if (index < start || index >= end) return <li key={`place-${index}`} aria-hidden />
+        const loaded = getRow(index)
+        if (!loaded) {
           return (
-            <li key={row.key} aria-posinset={index + 1} aria-setsize={total} className="grid shrink-0 snap-start grid-cols-[minmax(0,1fr)]" style={{ width: rowCardWidth }}>
-              <RecordCard model={model} view={view} display={display} row={row} swipe={false} mark={isNew?.(row) ? text('new') : undefined} />
+            <li key={`skeleton-${index}`} aria-hidden>
+              <Skeleton className="h-full min-h-24 rounded-lg" />
             </li>
           )
-        })}
-        <Spacer cards={total - scroll.end} />
-      </ul>
-      {scroll.back && (
-        <button type="button" aria-label={text('previous', { label: label.toLowerCase() })} onClick={() => scroll.page(-1)} className={`${arrowClass} -left-3`}>
-          <ChevronLeft className="size-4" aria-hidden />
-        </button>
-      )}
-      {scroll.on && (
-        <button type="button" aria-label={text('next', { label: label.toLowerCase() })} onClick={() => scroll.page(1)} className={`${arrowClass} -right-3`}>
-          <ChevronRight className="size-4" aria-hidden />
-        </button>
-      )}
-    </div>
+        }
+        const row = displayRow(model, loaded)
+        return (
+          <li key={row.key} aria-posinset={index + 1} aria-setsize={total} className="grid grid-cols-[minmax(0,1fr)]">
+            <RecordCard model={model} view={view} display={display} row={row} swipe={false} mark={isNew?.(row) ? text('new') : undefined} />
+          </li>
+        )
+      })}
+    </SnapRow>
   )
 }

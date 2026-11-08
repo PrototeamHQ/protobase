@@ -4,6 +4,7 @@ import { displayValue } from '../../live/display-value'
 import { recordKey } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
 import { Badge } from '../../primitives/badge'
+import { CodeBlock } from '../../primitives/code-block'
 import { AppLink } from '../use-app-address'
 import { useSeedRecord } from '../record-preview'
 import { shownWidget } from '../field-types/shown-widget'
@@ -22,7 +23,7 @@ import { CardImage } from './card-image'
 import { Markdown } from '../../markdown/markdown'
 import { markdownExcerpt } from '../../markdown/markdown-excerpt'
 import { isMarkdown } from '../../markdown/markdown-hint'
-import { amountParts, cardFields, filledAmount, filledMeta, type ListDisplayRow } from './list-displays'
+import { amountParts, cardFields, filledAmount, filledCode, filledMeta, rawCode, type ListDisplayRow } from './list-displays'
 import { text as message } from './messages'
 
 type RecordCardProps = {
@@ -55,7 +56,7 @@ const MetaValue = ({ icon, children }: { icon: string | undefined; children: Rea
  * component, what it draws of the row, the built-in content again when it is missing or throws. With a favorite button, a heart in the top right corner saves the record.
  */
 export const RecordCard = ({ model, view, display, row, swipe = true, mark }: RecordCardProps) => {
-  const { image, title, subtitle, amount, badge, meta, footer, flags } = cardFields(model, view, display)
+  const { image, title, subtitle, amount, badge, code, meta, footer, flags } = cardFields(model, view, display)
   const label = (name: string) => view?.fields[name]?.label ?? humanize(name)
   const { resources, views } = useAdminMeta()
   const text = (name: string): ReactNode => {
@@ -116,6 +117,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
   const raised = flags.filter((name) => row.record[name] === true)
   const cover = image === undefined ? undefined : row.record[image]
   const shownAmount = filledAmount(row, amount)
+  const shownCode = filledCode(row, code)
   const footing = filledMeta(row, footer)
   const pictured = image !== undefined || photos !== undefined
   // The heart sits over the picture, or beside the title, which leaves it room
@@ -138,6 +140,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
         <span className={view?.fields[subtitle]?.markdown ? 'line-clamp-3 break-words text-muted-foreground' : view?.fields[subtitle]?.multiline ? 'line-clamp-3 whitespace-pre-line break-words text-muted-foreground' : 'truncate text-muted-foreground'}>{subtitleValue(subtitle)}</span>
       )}
       {shownAmount !== undefined && <span className="truncate tabular-nums text-muted-foreground">{amountValue(shownAmount)}</span>}
+      {shownCode !== undefined && <CodeBlock>{rawCode(model.fields[shownCode], row.record[shownCode]) ?? text(shownCode)}</CodeBlock>}
       {meta.length > 0 && (
         <dl className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground">
           {filledMeta(row, meta).map((name) => (

@@ -543,9 +543,10 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       },
     },
     advanced: {
-      useSecureCookies: secure,
+      // The prefix brings `__Host-` on https (`cookiePrefixOf`), which takes the place of Better Auth's `__Secure-`.
+      useSecureCookies: false,
       cookiePrefix: cookiePrefixOf(options.baseURL),
-      defaultCookieAttributes: { sameSite: 'lax', secure },
+      defaultCookieAttributes: { sameSite: 'lax', secure, path: '/' },
       // Mail goes out after the response, so asking a reset for a known address takes as long as for an unknown one.
       // Better Auth logs a failed send.
       backgroundTasks: { handler: () => {} },

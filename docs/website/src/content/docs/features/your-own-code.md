@@ -24,3 +24,6 @@ description: React components, field types, pages and handlers of your own, load
 - [Plugin fallbacks](/reference/plugins/#when-a-plugin-is-off): A plugin that fails or does not fit the version is turned off alone, and admins see why.
 - [Before sign-in](/reference/plugins/#before-sign-in): A plugin can run around the sign-in page, for example to sign someone in from a link.
 - [Unstable modules](/reference/plugins/#the-unstable-entry): UI with its own build imports any module of the app's UI, without a promise that it stays the same, instead of copying it.
+- [Focus page parts](/reference/custom-components/#focus-pages) (beta): Fill a focus page's bar, notice and side panels from your own surface or component, with the record's draft and Save from the framework.
+- [Search picker](/reference/custom-components/#focus-pages) (beta): A searchable list with icons, descriptions and keywords, to pick one thing in a panel or a dialog.
+- [Forms in place](/reference/custom-components/#focus-pages) (beta): Create a record from a form in a panel or a dialog, with the view's fields, its failure and one create at a time.

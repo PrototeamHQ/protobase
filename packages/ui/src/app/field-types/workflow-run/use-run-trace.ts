@@ -15,16 +15,16 @@ const goingOn = new Set(['queued', 'running', 'waiting'])
  */
 const useFollow = (following: boolean) => {
   const queryClient = useQueryClient()
-  const focusRefresh = useContext(FocusRefreshContext)
   useEffect(() => {
     if (!following) return
-    const refresh = liveRefresh(queryClient, () => focusRefresh?.paused() ?? false)
+    // No form edits a run, so a draft of its workflow on the same page holds nothing back
+    const refresh = liveRefresh(queryClient, () => false)
     const timer = setInterval(() => refresh.changed(['workflow_runs']), followMs)
     return () => {
       clearInterval(timer)
       refresh.stop()
     }
-  }, [following, queryClient, focusRefresh])
+  }, [following, queryClient])
 }
 
 /**

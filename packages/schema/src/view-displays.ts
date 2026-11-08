@@ -35,7 +35,8 @@ export const displays = {
   /**
    * A card per record: `image`, a file field shown as a picture across the card's top, then `title` (default: the
    * view's title) over `subtitle`, `badge` drawn as a badge with its value labels, `amount` the first of its fields with a
-   * value in bold, such as a purchase price or a rent, and a few small `meta` fields such as dates. `footer` is a line at
+   * value in bold, such as a purchase price or a rent, `code` its value in full as a block of monospaced text that wraps,
+   * such as a shell command, and a few small `meta` fields such as dates. `footer` is a line at
    * the card's bottom of its fields with a value, joined by bullets. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking.
    * `dots` are related columns of the list (`c.related`), each a line of its dots under the rest of the card, with the
    * colours, order and hover cards they have in the table; a column with no records for the row shows no line.
@@ -48,7 +49,7 @@ export const displays = {
    * visitor who is not signed in is told why to sign in. Named `cards` unless `name` says otherwise.
    */
   cards: (
-    fields: { image?: Ref; title?: Ref; subtitle?: Ref; amount?: Ref[]; badge?: Ref; meta?: Ref[]; footer?: Ref[]; flags?: Ref[]; dots?: ListColumn[] },
+    fields: { image?: Ref; title?: Ref; subtitle?: Ref; amount?: Ref[]; badge?: Ref; code?: Ref; meta?: Ref[]; footer?: Ref[]; flags?: Ref[]; dots?: ListColumn[] },
     o: Naming & { card?: ComponentRef<never>; photos?: CardPhotosModel; favorite?: CardFavoriteModel } = {},
   ): ListDisplayModel => ({
     kind: 'cards',
@@ -59,6 +60,7 @@ export const displays = {
     ...(fields.subtitle && { subtitle: fields.subtitle.name }),
     ...(fields.amount && { amount: fields.amount.map((ref) => ref.name) }),
     ...(fields.badge && { badge: fields.badge.name }),
+    ...(fields.code && { code: fields.code.name }),
     ...(fields.meta && { meta: fields.meta.map((ref) => ref.name) }),
     ...(fields.footer && { footer: fields.footer.map((ref) => ref.name) }),
     ...(fields.flags && { flags: fields.flags.map((ref) => ref.name) }),
@@ -236,5 +238,5 @@ export const displayFields = (display: ListDisplayModel): string[] => {
   if (display.kind === 'board') return [display.by, display.title, display.subtitle, display.badge, ...(display.meta ?? [])].filter((name): name is string => name !== undefined)
   if (display.kind === 'calendar') return [display.start, display.end, display.title].filter((name): name is string => name !== undefined)
   if (display.kind === 'timeline') return [display.start, display.end, display.group, display.title].filter((name): name is string => name !== undefined)
-  return [display.image, display.title, display.subtitle, ...(display.amount ?? []), display.badge, ...(display.meta ?? []), ...(display.footer ?? []), ...(display.flags ?? [])].filter((name): name is string => name !== undefined)
+  return [display.image, display.title, display.subtitle, ...(display.amount ?? []), display.badge, display.code, ...(display.meta ?? []), ...(display.footer ?? []), ...(display.flags ?? [])].filter((name): name is string => name !== undefined)
 }
