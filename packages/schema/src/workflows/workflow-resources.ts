@@ -2,6 +2,7 @@ import { f } from '../fields'
 import { layout as l } from '../layout'
 import { resource } from '../resource'
 import { view } from '../view'
+import { storageConfigurationResources } from './storage-configurations'
 import { resolutionsResource, resolutionsView, workflowStatusFields, workflowStatusLabels, workflowStatusTones } from './workflow-status'
 
 const runStatuses = ['queued', 'running', 'waiting', 'succeeded', 'failed'] as const
@@ -203,13 +204,19 @@ const triggersView = view<ReturnType<typeof triggersResource>>('workflow_trigger
   }))
   .list((r) => ({ columns: [r.workflow_id, r.type, r.status, r.updated_at], sort: [[r.updated_at, 'desc']] }))
 
+// Storage configurations have no sidebar entry: each workflow's page links to them.
+const workflowsViewWithStorage = workflowsView.actions((a) => [
+  a.link('storage_configurations', { label: 'Storage configurations', icon: 'archive', to: { kind: 'list', resource: 'storage_configurations' } }),
+])
+
 /**
  * The resources and views `workflows` adds to an app, over the tables of `schema`: Workflows with their versions and
- * runs. Config only; the server checks and runs them.
+ * runs, and with `storage` the storage configurations their steps store files in. Config only; the server checks and
+ * runs them.
  */
-export const workflowResources = (schema: string) => ({
+export const workflowResources = (schema: string, { storage = false }: { storage?: boolean } = {}) => ({
   workflows: workflowsResource(schema),
-  workflowsView,
+  workflowsView: storage ? workflowsViewWithStorage : workflowsView,
   workflowVersions: versionsResource(schema),
   workflowVersionsView: versionsView,
   workflowRuns: runsResource(schema),
@@ -218,4 +225,5 @@ export const workflowResources = (schema: string) => ({
   workflowTriggersView: triggersView,
   workflowResolutions: resolutionsResource(schema),
   workflowResolutionsView: resolutionsView,
+  ...(storage && storageConfigurationResources(schema)),
 })

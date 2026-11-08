@@ -66,4 +66,12 @@ describe("the plugin context's fetch", () => {
     expect(bytes.subarray(0, 2)).toEqual(new Uint8Array([0x1f, 0x8b]))
     await expect(fetch(`http://127.0.0.1:${port}/bomb`, { maxBytes: 1024 })).rejects.toEqual(new ResponseTooLargeError(1024))
   })
+
+  it('with stream, leaves the body unread and uncapped, behind the same address guard', async () => {
+    const fetch = pluginFetch({ allowPrivateAddresses: true })
+    const answer = await fetch(`http://127.0.0.1:${port}/bomb`, { stream: true, maxBytes: 1024 })
+    expect(answer.bodyUsed).toBe(false)
+    expect((await new Response(answer.body).arrayBuffer()).byteLength).toBe(bomb.length)
+    await expect(pluginFetch({ resolve: async () => ['169.254.169.254'] })(`http://plugin.test:${port}/`, { stream: true })).rejects.toBeInstanceOf(AddressRefusedError)
+  })
 })
