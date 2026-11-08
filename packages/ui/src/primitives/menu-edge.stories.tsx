@@ -33,9 +33,14 @@ const Edges = () => (
         <Presentation />
         <LineMenu label="Line actions" items={[{ label: 'Move to the top of the list', onSelect: () => {} }]} />
         <GlobalSearch search={search} className="w-40" showShortcut={false} />
-        <FilterMenu label="Status" activeCount={0} width={340}>
-          Filters
-        </FilterMenu>
+        <div className="flex gap-2">
+          <FilterMenu label="Type" activeCount={0}>
+            Types
+          </FilterMenu>
+          <FilterMenu label="Status" activeCount={0} width={340}>
+            Filters
+          </FilterMenu>
+        </div>
       </div>
     ))}
   </div>
