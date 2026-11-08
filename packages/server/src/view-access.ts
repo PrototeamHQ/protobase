@@ -162,7 +162,7 @@ const fieldHints = (model: ResourceModel, writeOnly: ReadonlySet<string>) =>
 
 const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, writeOnly: ReadonlySet<string>) => {
   const when = recordWhenShape(resource, models)
-  const section = s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, width: s.data, when, fields: sectionFields(model, writeOnly) }, { requires: ['fields', 'when'] })
+  const section = s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, when, fields: sectionFields(model, writeOnly) }, { requires: ['fields', 'when'] })
   const related = s.map<RelatedModel>((item) => pruneRelated(item, resource, models))
   const group = s.object<GroupModel>({ kind: s.data, title: s.data, collapsed: s.data, when, items: s.list(s.oneOf({ section, related }), { nonEmpty: true }) }, { requires: ['items', 'when'] })
   const main = {
