@@ -13,7 +13,7 @@ feat(cli)!: refuse bundles without a Protobase version
 ```
 
 - `feat` releases a feature, `fix` a fix; `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `style`, `chore` and `revert` release nothing on their own.
-- A breaking change takes a `!` after the type or scope, or a `BREAKING CHANGE:` footer saying what to do instead. A pushed commit is never rewritten: a later one takes the `!` and footer, the pull request's title the `!`.
+- A breaking change takes `!` after the type or scope, or a `BREAKING CHANGE:` footer on what to do, in a new commit; the pull request's title takes the `!`.
 - The subject starts in lowercase and ends without a period. The header is at most 92 characters and every body line at most 100, so the squash merge's ` (#<number>)` suffix or `* ` list item still fits.
 - A `feat` commit adds something a user of Protobase can see or call, and is documented (see [Features and docs](#features-and-docs)). A change no user can see is `fix`, `perf`, `refactor` or `chore`.
 
