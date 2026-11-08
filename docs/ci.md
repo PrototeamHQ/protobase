@@ -13,6 +13,8 @@ A pull request, a run of the `ci` workflow by hand (`gh workflow run ci.yml --re
 - The Postgres suite (`bun run test:postgres`, its own job, beside the recording) runs when a committed recording differs from the committed ones at the base (`scripts/affected-recordings.mjs`), or when a change reaches what recordings cannot show: migrations and seeds, the jobs runner, change delivery, the suite itself, or the Postgres setup (`postgresSuite` in `scripts/affected/rules.mjs`, applied by `scripts/affected-postgres.mjs`). The release workflow runs it in full on every push to `main`, as its own job (`postgres-full`), and the release waits for it and the recording; it also runs nightly.
 - The Supabase move (`bun run test:supabase-move`, its own job, `tests/supabase-move/client/`) runs when a change reaches it: a Supabase project made on Supabase's Postgres image, moved by the real `protobase import supabase` into a new app, served by `protobase dev` and called by supabase-js. It needs Docker, for Supabase's Postgres and for `pg_dump` and `psql` of `postgres:18` unless `PG_BIN` names a folder with those of version 17 or newer.
 
+- The mobile shell's native tests (the `mobile-ios` and `mobile-android` jobs, on GitHub's runners) run when a change reaches `packages/mobile` or the workflow: the iOS plugin's tests on an iPhone Simulator of a pinned Xcode, and the Android library's on the JVM and on a headless emulator of a pinned system image (`packages/mobile/android/harness/emulator-tests.sh`).
+
 A test that reads a file or starts a process by path needs a rule, or a change to that file skips it. `CHECK_BASE=main bun run check` runs what a push of the current branch, with its uncommitted changes, would.
 
 ## The check job's runner
