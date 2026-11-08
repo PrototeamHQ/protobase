@@ -134,6 +134,16 @@ describe('the storage service', () => {
     expect(result).toEqual(['Storage.Failed', 'The store failed with ENOTDIR'])
   })
 
+  it('fails as Storage.Failed when the store fails partway through a read', async () => {
+    const broken = new ReadableStream<Uint8Array>({ pull: (controller) => controller.error(Object.assign(new Error('read /srv/private/a failed'), { code: 'EIO' })) })
+    const failing = storage({ provider: (name, settings) => {
+      const { store } = fileProviderOf(name, settings)
+      return { store: { ...store, read: async () => broken }, public: false }
+    } })
+    const { body } = await failing.read({ configuration: 'archive', path: 'a', name: 'a', type: 'text/plain', size: 1 }, 'file')
+    expect(await failure(textOf(body))).toEqual(['Storage.Failed', 'The store failed with EIO'])
+  })
+
   it('names only the code of a store that fails, never its message, and keeps the keys out of every result', async () => {
     rows = [{ id: 'c1', name: 'archive', kind: 's3', bucket: 'acme-files' }]
     const leaking = Object.assign(new Error(`denied for ${accessKey} with ${secretKey} at /srv/private`), { code: 'AccessDenied' })

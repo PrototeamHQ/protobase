@@ -26,6 +26,19 @@ export const appSources = ({ deps, storage, allowPrivateAddresses }: StorageInpu
 
 const invalid = (reason: string) => new StepError('Storage.InvalidArguments', reason)
 
+// A file's bytes, failing through `storeFailed` when the store fails partway, such as with EIO, as when it fails before.
+const failingAsStore = (body: ReadableStream<Uint8Array>) => {
+  const reader = body.getReader()
+  return new ReadableStream<Uint8Array>({
+    pull: async (controller) => {
+      const read = await reader.read().catch(storeFailed)
+      if (read.done) controller.close()
+      else controller.enqueue(read.value)
+    },
+    cancel: (reason) => reader.cancel(reason),
+  })
+}
+
 /** The session of the run's last editor; a version no one saved, or whose editor holds no role now, may use no configuration at all. */
 export const editorSession = async (session: () => Promise<Session>): Promise<Session> => {
   try {
@@ -56,7 +69,7 @@ export const storageService = (session: () => Promise<Session>, runId: string, s
       const { store } = await open(value.configuration)
       const body = await store.read(value.path).catch(storeFailed)
       if (!body) throw new StepError('Storage.NotFound', `${field} names a file that is gone from "${value.configuration}"`)
-      return { file: value, body }
+      return { file: value, body: failingAsStore(body) }
     },
   }
 }
