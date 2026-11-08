@@ -4,8 +4,9 @@ name: upgrade
 # seeded on Postgres with an earlier Protobase, then upgraded to the change's as an app upgrades, and the job fails when
 # a migration fails or `protobase doctor` then reports an error (tests/upgrade/upgrade.sh). A pull request upgrades from
 # its base and runs it again when the title or description is edited, which can mark the change breaking or take the
-# mark away. The ci workflow calls it for a push or a run by hand: main upgrades from the last release, a branch from
-# where it left main, and a push runs it only when its changes reach it (scripts/affected-upgrade.mjs).
+# mark away. The ci workflow calls it for a push, the nightly run and a run by hand: main upgrades from the last
+# release, a branch from where it left main, and a push runs it only when its changes reach it
+# (scripts/affected-upgrade.mjs).
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
@@ -16,6 +17,8 @@ permissions:
 
 jobs:
   upgrade:
+    # A pull request from an fm/** branch of this repository runs nothing, as in ci.yml: the push of its head runs it.
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'fm/')) }}
     concurrency:
       group: upgrade-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
@@ -56,16 +59,20 @@ jobs:
           fi
           echo "UPGRADE_FROM=$base" >> "$GITHUB_ENV"
           if [ "$GITHUB_EVENT_NAME" = push ]; then echo "CHECK_BASE=$base" >> "$GITHUB_ENV"; fi
-      # Before 1.0 a breaking change may ask apps to change, as its changelog note says, so a change marked breaking in
-      # the title, the description or one of its commits skips the upgrade. From 1.0 every change upgrades cleanly:
-      # remove this step and the condition on its output in the steps below.
+      # Before 1.0 a breaking pull request may ask apps to change, as its changelog note says, so one marked breaking in
+      # the title, the description or one of its commits skips the upgrade. A push carries a pull request's commits: an
+      # fm/** branch's are its pull request's, and main's since the last release are merged pull requests'. The nightly
+      # run and a run by hand check every change. From 1.0 every change upgrades cleanly: remove this step and the
+      # condition on its output in the steps below.
       - name: Find whether the change is marked breaking
         id: breaking
         env:
           TITLE: ${{ github.event.pull_request.title }}
           BODY: ${{ github.event.pull_request.body }}
         run: |
-          if printf '%s\n' "$TITLE" | grep -Eq '^[a-z]+(\([^)]*\))?!:' \
+          if [ "$GITHUB_EVENT_NAME" != pull_request ] && [ "$GITHUB_EVENT_NAME" != push ]; then
+            echo breaking=false >> "$GITHUB_OUTPUT"
+          elif printf '%s\n' "$TITLE" | grep -Eq '^[a-z]+(\([^)]*\))?!:' \
             || printf '%s\n' "$BODY" | grep -q '^BREAKING CHANGE:' \
             || git log --format=%s "$UPGRADE_FROM..HEAD" | grep -Eq '^[a-z]+(\([^)]*\))?!:' \
             || git log --format=%b "$UPGRADE_FROM..HEAD" | grep -q '^BREAKING CHANGE:'; then

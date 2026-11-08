@@ -542,10 +542,10 @@ jobs:
         name: Remove Supabase's Postgres and Supabase Auth
         run: tests/supabase-auth/stack.sh stop "supabase-auth-${{ github.run_id }}-${{ github.run_attempt }}"
 
-  # The upgrade check (upgrade.yml) for a push to main or an fm/** branch, when its changes reach it, and a run by hand.
-  # A pull request runs it as a workflow of its own, which an edit of its title or description runs again.
+  # The upgrade check (upgrade.yml) for a push to main or an fm/** branch, when its changes reach it, the nightly run and
+  # a run by hand. A pull request runs it as a workflow of its own, which an edit of its title or description runs again.
   upgrade:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
     uses: ./.github/workflows/upgrade.yml
 
   # The files the AI review bots read as instructions stay within what each bot reads, so none is cut off. cubic keeps
