@@ -7,7 +7,10 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 gradle -q --no-daemon -p "$here" -PcapacitorAndroid="$1" -PliveUpdate="$2" :protobase-mobile:testDebugUnitTest :protobase-mobile:assembleDebugAndroidTest
 export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
-[ -d "${ANDROID_AVD_HOME:-$HOME/.android/avd}/protobase-test.avd" ] || echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n protobase-test -k "system-images;android-36;google_apis;x86_64" -d pixel_6 >/dev/null
+# avdmanager may keep AVDs under $XDG_CONFIG_HOME while the emulator looks in $HOME/.android: one folder for both.
+export ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$HOME/.android/avd}"
+mkdir -p "$ANDROID_AVD_HOME"
+[ -d "$ANDROID_AVD_HOME/protobase-test.avd" ] || echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n protobase-test -k "system-images;android-36;google_apis;x86_64" -d pixel_6 >/dev/null
 log=$(mktemp)
 emulator -avd protobase-test -wipe-data -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -memory 2048 -cores 2 >"$log" 2>&1 &
 trap 'adb emu kill >/dev/null 2>&1 || true' EXIT
