@@ -29,7 +29,7 @@ Each key is described with its type and default in the option pages:
 | [Sign-in options](/reference/config/sign-in/) | `auth`, `authenticate`, `signingKeyDays`, `signingKeyGraceDays` |
 | [API options](/reference/config/api/) | `apiPath`, `apiKeys`, `cors`, `defaultAccess`, `rowPermissions`, `statementTimeoutMs`, `scanGuard`, `errorReporting`, `writeHooks`, `mcpEndpoint`, `remoteResources`, `runtimeUpdates`, `realtime`, `calls`, `userTables` |
 | [Admin app options](/reference/config/admin-app/) | `assistant`, `maps`, `plugins` |
-| [Jobs and events options](/reference/config/jobs-and-events/) | `jobs`, `events`, `history`, `webhooks`, `workflows`, `notifications`, `status` |
+| [Jobs and events options](/reference/config/jobs-and-events/) | `jobs`, `events`, `history`, `webhooks`, `workflows`, `notifications`, `status`, `pushRelay` |
 | [Files options](/reference/config/files/) | `files` |
 
 ## Config types
