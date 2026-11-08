@@ -373,7 +373,24 @@
     "comments.comments.fields.body.label": "Opmerking",
     "comments.comments.fields.mentions.label": "Vermeldingen",
     "comments.comments.fields.created_at.label": "Wanneer",
-    "comments.comments.layout.0.title": "Opmerking"
+    "comments.comments.layout.0.title": "Opmerking",
+    "workflows.workflows.fields.run_status.label": "Status",
+    "workflows.workflows.fields.run_status.values.failing": "Laatste run mislukt",
+    "workflows.workflows.fields.run_status.values.unresolved": "Eerdere fout onopgelost",
+    "workflows.workflows.fields.run_status.values.healthy": "Geen onopgeloste fouten",
+    "workflows.workflows.fields.run_status.values.no_runs": "Nog geen runs",
+    "workflows.workflows.fields.run_status.values.resolved": "Geen runs sinds opgelost",
+    "workflows.workflows.fields.run_status.values.new_version": "Geen runs sinds deze versie",
+    "workflows.workflows.fields.status_run_id.label": "Run van de status",
+    "workflows.workflows.fields.status_run_at.label": "Einde van de run van de status",
+    "workflows.workflows.fields.unresolved_failures.label": "Onopgeloste fouten",
+    "workflows.workflows.fields.resolved_at.label": "Opgelost",
+    "workflows.workflows.fields.resolved_by.label": "Opgelost door",
+    "workflows.resolutions.names.singular": "Markering als opgelost",
+    "workflows.resolutions.names.plural": "Markeringen als opgelost",
+    "workflows.resolutions.fields.workflow_id.label": "Workflow",
+    "workflows.resolutions.fields.resolved_by.label": "Opgelost door",
+    "workflows.resolutions.fields.resolved_at.label": "Opgelost"
   },
   "app/change-confirm": {
     "title": "{label} wijzigen?",
@@ -763,6 +780,20 @@
     "runsFailed": "De runs van de workflow konden niet worden gelezen",
     "versionFailed": "De versie kon niet worden gelezen",
     "versionMarked": "{option} ({marks})"
+  },
+  "app/field-types/workflow-status": {
+    "label": "{status, select, failing {Laatste run mislukt} unresolved {Eerdere fout onopgelost} healthy {Geen onopgeloste fouten} no_runs {Nog geen runs} resolved {Geen runs sinds opgelost} other {Geen runs sinds deze versie}}",
+    "failing": "Laatste run mislukt, {when}",
+    "unresolved": "{count, plural, one {# onopgeloste fout} other {# onopgeloste fouten}} in de laatste {runs, number} runs, laatste {when}",
+    "healthy": "Geen onopgeloste fouten in de laatste {runs, number} runs, laatste run {when}",
+    "no_runs": "Nog geen runs",
+    "resolved": "Geen runs sinds opgelost",
+    "new_version": "Geen runs sinds deze versie",
+    "resolvedBy": "Als opgelost gemarkeerd door {who}, {when}",
+    "you": "jou",
+    "resolve": "Markeren als opgelost",
+    "resolveDone": "Gemarkeerd als opgelost",
+    "resolveFailed": "Markeren als opgelost is mislukt"
   },
   "app/gallery": {
     "couldNotLoad": "Kon de foto’s niet laden",

@@ -373,7 +373,24 @@
     "comments.comments.fields.body.label": "Comment",
     "comments.comments.fields.mentions.label": "Mentions",
     "comments.comments.fields.created_at.label": "When",
-    "comments.comments.layout.0.title": "Comment"
+    "comments.comments.layout.0.title": "Comment",
+    "workflows.workflows.fields.run_status.label": "Status",
+    "workflows.workflows.fields.run_status.values.failing": "Last run failed",
+    "workflows.workflows.fields.run_status.values.unresolved": "Earlier failure unresolved",
+    "workflows.workflows.fields.run_status.values.healthy": "No unresolved failures",
+    "workflows.workflows.fields.run_status.values.no_runs": "No runs yet",
+    "workflows.workflows.fields.run_status.values.resolved": "No runs since resolved",
+    "workflows.workflows.fields.run_status.values.new_version": "No runs since this version",
+    "workflows.workflows.fields.status_run_id.label": "Status run",
+    "workflows.workflows.fields.status_run_at.label": "Status run ended",
+    "workflows.workflows.fields.unresolved_failures.label": "Unresolved failures",
+    "workflows.workflows.fields.resolved_at.label": "Resolved",
+    "workflows.workflows.fields.resolved_by.label": "Resolved by",
+    "workflows.resolutions.names.singular": "Workflow resolution",
+    "workflows.resolutions.names.plural": "Workflow resolutions",
+    "workflows.resolutions.fields.workflow_id.label": "Workflow",
+    "workflows.resolutions.fields.resolved_by.label": "Resolved by",
+    "workflows.resolutions.fields.resolved_at.label": "Resolved"
   },
   "app/change-confirm": {
     "title": "Change {label}?",
@@ -763,6 +780,20 @@
     "runsFailed": "The workflow's runs could not be read",
     "versionFailed": "The version could not be read",
     "versionMarked": "{option} ({marks})"
+  },
+  "app/field-types/workflow-status": {
+    "label": "{status, select, failing {Last run failed} unresolved {Earlier failure unresolved} healthy {No unresolved failures} no_runs {No runs yet} resolved {No runs since resolved} other {No runs since this version}}",
+    "failing": "Last run failed, {when}",
+    "unresolved": "{count, plural, one {# unresolved failure} other {# unresolved failures}} in the last {runs, number} runs, latest {when}",
+    "healthy": "No unresolved failures in the last {runs, number} runs, last run {when}",
+    "no_runs": "No runs yet",
+    "resolved": "No runs since resolved",
+    "new_version": "No runs since this version",
+    "resolvedBy": "Marked as resolved by {who}, {when}",
+    "you": "you",
+    "resolve": "Mark as resolved",
+    "resolveDone": "Marked as resolved",
+    "resolveFailed": "Could not mark as resolved"
   },
   "app/gallery": {
     "couldNotLoad": "Could not load the photos",

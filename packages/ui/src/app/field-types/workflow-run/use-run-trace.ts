@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useContext, useEffect } from 'react'
+import { useContext, useEffect, useRef } from 'react'
 import { FocusRefreshContext } from '../../../data/focus-refresh'
 import { liveRefresh } from '../../../data/live-refresh'
 import { useRecord } from '../../../data/use-record'
@@ -28,6 +28,21 @@ const useFollow = (following: boolean) => {
 }
 
 /**
+ * Once a run followed here ends, reads its workflow again, whose status the run changed, as a live update would: the
+ * workflow's page and the sidebar's list of workflows follow without a reload.
+ */
+const useEndRefresh = (going: boolean) => {
+  const queryClient = useQueryClient()
+  const focusRefresh = useContext(FocusRefreshContext)
+  const was = useRef(going)
+  useEffect(() => {
+    const ended = was.current && !going
+    was.current = going
+    if (ended) liveRefresh(queryClient, () => focusRefresh?.paused() ?? false).changed(['workflows'])
+  }, [going, queryClient, focusRefresh])
+}
+
+/**
  * A run with what its trace draws: the run as stored, the definition of the version it runs, and the steps of its trace
  * in the order they ran, followed while the run goes on. Without a run nothing is read.
  */
@@ -39,6 +54,7 @@ export const useRunTrace = (runId: string | undefined) => {
   const going = goingOn.has(String(record?.status))
   const steps = useRunSteps(runId, going)
   useFollow(going)
+  useEndRefresh(going)
   return {
     id: runId,
     run: record,

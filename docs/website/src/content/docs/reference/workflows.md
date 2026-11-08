@@ -17,7 +17,7 @@ import { defineConfig } from '@protobase/config'
 export default defineConfig({ workflows: { secrets: ['TICKETS_TOKEN'] } })
 ```
 
-It adds four resources, over a `workflows` schema that [`protobase migration`](/reference/cli/#migration) writes (`NNN_workflows.sql`), and the `workflows.segment` [job](/reference/jobs/) that runs them:
+It adds five resources, over a `workflows` schema that [`protobase migration`](/reference/cli/#migration) writes (`NNN_workflows.sql`), and the `workflows.segment` [job](/reference/jobs/) that runs them:
 
 | Resource | |
 | --- | --- |
@@ -25,6 +25,7 @@ It adds four resources, over a `workflows` schema that [`protobase migration`](/
 | `workflow_versions` | Every version of every definition as it was saved, with who saved it and when. Read-only. |
 | `workflow_runs` | A run, started by creating it with `workflow_id`, an `input` and, if it says, its own `trace`, and a saved `version` to run another than the published one, or on a workflow that is off the one saved last, or with `rerun_of` to [re-run a failed run](#re-running-a-failed-run), and `replay: true` too to [replay a run](#replaying-a-run); it runs the version its workflow had then, and a re-run or a replay the input of the run it names. Its status, output, error, timing and trace file are written by the runner. |
 | `workflow_triggers` | The trigger of each enabled workflow that has one besides `manual`: its type, status and last error. Read-only. |
+| `workflow_resolutions` | Each time someone [marked a workflow resolved](#run-status), by whom and when. Created only. |
 
 | `workflows` | |
 | --- | --- |
@@ -213,7 +214,7 @@ A failing Task or Map fails with an error name: a step type's own, such as `Http
 
 ## The editor
 
-A workflow's record page in the admin app, `/workflows/<id>`, and its create form draw the definition as a graph to edit, and save the same document the API saves. In the admin app's sidebar, Workflows is the only entry: a workflow's versions, runs, steps and trigger are on its page, and their resources and API stay as they are.
+A workflow's record page in the admin app, `/workflows/<id>`, and its create form draw the definition as a graph to edit, and save the same document the API saves. In the admin app's sidebar, Workflows is the only entry, with the workflows listed under it by their [run status](#run-status): a workflow's versions, runs, steps and trigger are on its page, and their resources and API stay as they are.
 
 ### The workflow's page
 
@@ -348,6 +349,26 @@ A state that took more than one step, by its tries, its visits or a Map's items,
 
 The page reads the steps from the run's [trace](#traces), at `/api/workflows/runs/<id>/trace`, for a person who may read the run and its `trace_file`. While a run is queued, running or waiting, the page reads the run and its trace again every second, so the marks, the step lists and the run's fields change as it goes, without a reload; it stops once the run has ended. A run that kept no trace says so. Everything the page shows is what the run recorded, so a [secret](#secrets) shows as `[redacted]` wherever it would have been.
 
+### Run status
+
+:::caution[Beta]
+Who marked a workflow resolved shows by name only in an app with organizations.
+:::
+
+Each workflow has a status from its last 10 ended runs, so you see which ones need attention without opening them. Runs that are queued, running or waiting do not count. A failed run counts until someone marks the workflow as resolved after it ended, until a new version is saved, as a failure on an older version than the workflow's latest no longer counts, or until it is no longer among the last 10 ended runs, such as after ten later successful runs.
+
+| Status | Mark | When |
+| --- | --- | --- |
+| Last run failed | red square | The latest ended run failed and still counts. |
+| Earlier failure unresolved | orange triangle | The latest ended run succeeded, and an earlier one of the 10 failed and still counts. |
+| No unresolved failures | green dot | The latest ended run succeeded, and no failure among the 10 still counts. |
+| No runs yet, No runs since resolved, No runs since this version | gray ring | There is no ended run, or the latest is a failure that no longer counts. |
+
+- **In the sidebar.** Workflows lists up to 20 workflows by name under it, each with its mark, and the status in its name for screen readers and in its tooltip, then *View all*. It refreshes as the sidebar's [recent records](/reference/sidebar/#recent-records) do, and when a run you follow on a workflow's page ends. *View all* opens the list of every workflow, which shows each one's mark and status in a column of its own.
+- **On the workflow's page.** *Status* says the reason in words with a link that opens the run on the graph, such as *Last run failed, 7 Nov 2026, 14:32* or *1 unresolved failure in the last 10 runs, latest 3 Nov 2026, 09:10*; a gray status says it without a link.
+- **Mark as resolved.** While the status is red or orange, *Mark as resolved* beside it clears every failure so far, and the page then says who marked it and when. Anyone who may change the workflow may use it; through the API it is `POST /api/v1/workflow_resolutions` with `{ "workflow_id": "..." }`, each mark kept as a `workflow_resolutions` record, which `workflow_resolutions.read` reads. <gap>A mark as resolved cannot be undone because removing a resolution is not implemented.</gap>
+- **Who sees it.** The status fields of a workflow, `run_status`, `status_run_id`, `status_run_at` and `unresolved_failures`, are real columns that the database keeps as runs end, so they cost nothing to read; only a caller whose roles hold `workflow_runs.read` on every run reads them. Anyone else sees the workflows listed without marks and no status. <gap>Who marked a workflow resolved shows as a user id in an app without organizations because naming users to every reader is not implemented.</gap>
+
 ### Re-running a failed run
 
 :::caution[Beta]
@@ -397,6 +418,7 @@ The workflow resources take only [named grants](/reference/access/#resources-tha
 | `workflows.create`, `workflows.update`, `workflows.delete` | Make, change and delete workflows, and turn them on and off. Each save that changes the definition makes the saver the workflow's last editor, whom its records steps and its trigger act as. |
 | `workflow_runs.create` | Run a workflow, with any input. The API writes only the fields a caller reads, so it goes with `workflow_runs.read`, and the caller must read the workflow too. |
 | `workflows.read`, `workflow_versions.read`, `workflow_runs.read`, `workflow_triggers.read` | Read workflows, their versions, runs and triggers, the runs' traces with every step's input and output included. |
+| `workflow_resolutions.read` | Read who marked which workflow resolved and when. Marking one needs no grant of its own: whoever may change the workflow may. |
 
 ```ts
 defineRoles({
@@ -405,7 +427,7 @@ defineRoles({
 })
 ```
 
-All four are scoped to the tenant like any resource with `.tenant()`. A run takes its workflow's tenant; a start of another tenant's workflow is refused as one of a workflow that is not there.
+All five are scoped to the tenant like any resource with `.tenant()`. A run takes its workflow's tenant; a start of another tenant's workflow is refused as one of a workflow that is not there.
 
 ## How a run is run
 

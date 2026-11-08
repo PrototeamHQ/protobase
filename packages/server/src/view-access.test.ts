@@ -187,6 +187,13 @@ describe('pruneView', () => {
     expect(pruneView(byCost, hidden.repairs!, hidden).nav).toEqual({})
   })
 
+  it('keeps a sidebar group whose status field is hidden, its records without dots', () => {
+    const dotted = view<typeof repairs>('repairs').nav({ recent: { status: 'costPrice', tones: { 0: 'danger' }, pulse: ['0'], orderBy: 'number asc', limit: 5 } }).toModel()
+    const hidden = without({ repairs: ['costPrice'] })
+    expect(pruneView(dotted, hidden.repairs!, hidden).nav).toEqual({ recent: { orderBy: 'number asc', limit: 5 } })
+    expect(pruneView(dotted, all.repairs, all).nav).toEqual(dotted.nav)
+  })
+
   it("keeps the sidebar entry's create link, for the admin to offer to whoever may create", () => {
     const labelled = view<typeof repairs>('repairs').nav({ create: { label: 'Book a repair' } }).toModel()
     expect(pruneView(labelled, all.repairs, all).nav).toEqual({ create: { label: 'Book a repair' } })
