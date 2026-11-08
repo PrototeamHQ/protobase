@@ -1,7 +1,7 @@
 import { storageNamePattern } from '@protobase/schema/internal'
 import { StepError } from '@protobase/workflows'
 import type { DecryptField } from '../../encryption/decrypt-field-types'
-import { UnreadableValue } from '../../encryption/envelope-open'
+import { UnreadableValue } from '../../encryption/unreadable-value'
 import { fileProviderOf } from '../../files/provider-settings'
 import type { FileProvider, FileStore } from '../../files/store'
 import { HttpProblem } from '../../problem'

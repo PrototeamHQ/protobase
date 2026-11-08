@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Binding } from './binding'
-import { openText, UnreadableValue, type UnreadableKind } from './envelope-open'
+import { openText } from './envelope-open'
+import { UnreadableValue, type UnreadableKind } from './unreadable-value'
 import { Sealed, sealText } from './envelope-seal'
 import { encryptionKeyring } from './keyring'
 
