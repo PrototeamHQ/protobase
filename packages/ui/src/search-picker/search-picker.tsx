@@ -37,6 +37,8 @@ export const SearchPicker = ({ groups, label = text('search'), autoFocus = false
     if (currentId) document.getElementById(currentId)?.scrollIntoView({ block: 'nearest' })
   }, [currentId])
   const onKeyDown = (event: KeyboardEvent) => {
+    // Keys that pick among an IME's candidates are the IME's
+    if (event.nativeEvent.isComposing) return
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
       if (items.length === 0) return
