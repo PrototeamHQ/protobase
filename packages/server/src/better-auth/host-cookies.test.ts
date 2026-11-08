@@ -12,8 +12,7 @@ const options = (baseURL: string): CreateAuthOptions => ({
 })
 const resolved = { roles: ['admin', 'user'], definitions: roleDefinitions(), defaultRole: 'user' }
 
-// Without the rate limit, which the unit tests of one process share.
-const authOn = (baseURL: string) => betterAuth({ ...betterAuthOptions(options(baseURL), resolved), rateLimit: { enabled: false }, database: memoryAdapter({ verification: [], sign_in_policy: [], session: [], user: [], passkey: [] }) })
+const authOn = (baseURL: string) => betterAuth({ ...betterAuthOptions(options(baseURL), resolved), database: memoryAdapter({ verification: [], sign_in_policy: [], session: [], user: [], passkey: [] }) })
 
 // The Set-Cookie lines a sign-in with a provider (its `state`) and a passkey sign-in (its challenge) start with.
 const signInCookies = async (baseURL: string) => {

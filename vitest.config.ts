@@ -75,6 +75,7 @@ const snapshotIsolated = [
   'packages/server/src/better-auth/connections/disconnect.test.ts',
   'packages/server/src/better-auth/connections/release-user-connections.test.ts',
   'packages/server/src/better-auth/connections/unlink-guard.test.ts',
+  'packages/server/src/better-auth/host-cookies.test.ts',
   'packages/server/tests/account-change-confirmation.test.ts',
   'packages/server/tests/admin-users.test.ts',
   'packages/server/tests/app-tokens.test.ts',
