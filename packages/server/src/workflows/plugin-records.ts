@@ -32,7 +32,7 @@ export const saverSession = async (roles: SaverRoles, savedBy: string | null, te
 }
 
 /** The session a run's records steps act in: that of the user who saved the version the run pinned, in the run's tenant. */
-const runSession = async ({ deps, schema, roles }: RecordsInput, runId: string) => {
+export const runSession = async ({ deps, schema, roles }: RecordsInput, runId: string) => {
   const { rows } = await sql<{ saved_by: string | null; tenant_id: string | null }>`select v.saved_by, r.tenant_id from ${sql.id(schema, 'runs')} r
     join ${sql.id(schema, 'versions')} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${runId}`.execute(deps().db)
   return saverSession(roles, rows[0]?.saved_by ?? null, rows[0]?.tenant_id ?? undefined)

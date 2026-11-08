@@ -10,7 +10,7 @@ import type { PluginServices, StepContext } from './context'
 import { stepHandlers } from './step-handlers'
 import type { StepType } from './types'
 
-const services = { records: { get: async () => ({}) }, files: { keep: async () => ({}), read: async () => ({ name: 'a.txt', bytes: new Uint8Array() }) }, fetch: async () => new Response() } as unknown as PluginServices
+const services = { records: { get: async () => ({}) }, files: { keep: async () => ({}), read: async () => ({ name: 'a.txt', bytes: new Uint8Array() }) }, storage: { read: async () => { throw new Error('gone') } }, fetch: async () => new Response() } as unknown as PluginServices
 
 // A step type `t:get` whose calls are counted, and a handler for it over a cache whose runs belong to tenants by run id.
 const setup = (cache: StepCache | undefined, run: (context: StepContext) => unknown = ({ input }) => ({ url: input.url, n: Math.random() }), options: { secrets?: Record<string, string>; clock?: { at: Date } } = {}) => {
@@ -116,6 +116,12 @@ describe('a step type that returns hits', () => {
     await files.call({ url: 'a' }, { setting: true })
     expect(memory.calls.write + files.memory.calls.write).toBe(0)
     expect(forced.memory.calls.write).toBe(1)
+  })
+
+  it('keeps no result of a call that used storage, even forced on', async () => {
+    const stored = setup(undefined, async ({ storage }) => storage.read({ configuration: 'archive', path: 'a', name: 'a', type: 'text/plain', size: 1 }, 'file').catch(() => 'gone'))
+    expect((await stored.call({ url: 'a' }, { setting: true })).logs).toContain('The result was not cached: the step used storage')
+    expect(stored.memory.calls.write).toBe(0)
   })
 
   it('keys on all of the headers a step hands on without reading them itself', async () => {

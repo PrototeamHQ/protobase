@@ -32,6 +32,13 @@ export type WorkflowsOptions = {
    * `trace` set it for theirs.
    */
   trace?: 'all' | 'failed' | 'none'
+  /**
+   * Turns on storage configurations, the named places workflows store files in, which authors with the grant create.
+   * `root` is the one folder local configurations live inside, such as a mounted file share; without it, authors create
+   * only S3-compatible ones. `endpoints` are the `https://` origins an S3-compatible configuration may name; without
+   * them, it uses the S3 API's default host. Encrypted keys need `PROTOBASE_ENCRYPTION_KEY`.
+   */
+  storage?: { root?: string; endpoints?: string[] }
 }
 
 const schemaPattern = /^[a-z_][a-z0-9_]*$/
@@ -65,3 +72,23 @@ export const workflowsTraceMode = (options: WorkflowsOptions) => {
   if (!traceModes.includes(mode)) throw new Error(`workflows.trace is "${String(mode)}": use all, failed or none`)
   return mode
 }
+
+/** Whether storage is on: a `storage` object turns it on, and leaving it out, `false` or `null` leaves it off. */
+export const workflowsStorageOn = (options: Pick<WorkflowsOptions, 'storage'>) => Boolean(options.storage)
+
+/** The storage options, checked: each endpoint an `https://` origin with no path, user or query, kept as its origin. */
+export const workflowsStorage = (options: Pick<WorkflowsOptions, 'storage'>) => {
+  if (!options.storage) return undefined
+  const { root, endpoints = [] } = options.storage
+  if (root !== undefined && (typeof root !== 'string' || root.trim() === '')) throw new Error('workflows.storage.root is a folder path; leave it out for no local storage')
+  const origins = endpoints.map((given) => {
+    const url = URL.canParse(given) ? new URL(given) : undefined
+    if (!url || url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || (url.pathname !== '/' && url.pathname !== '')) {
+      throw new Error(`workflows.storage.endpoints: "${given}" is not an https:// origin such as https://storage.example.com`)
+    }
+    return url.origin
+  })
+  return { ...(root !== undefined && { root }), endpoints: origins }
+}
+
+export type WorkflowsStorage = NonNullable<ReturnType<typeof workflowsStorage>>

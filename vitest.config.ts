@@ -8,7 +8,7 @@ const runId = randomBytes(4).toString('hex')
 const testDatabase = 'scripts/test-db/global-setup.ts'
 // Unit tests sit next to the code; tests that start a database, a subprocess or the network live in each package's
 // tests/, and the examples' in tests/examples.
-const unit = ['packages/*/src/**/*.test.{ts,tsx}', 'commitlint.branch.config.test.ts', 'scripts/release-speed/**/*.test.ts', 'scripts/auto-merge-approvals/**/*.test.ts', 'scripts/release-commits.test.ts', 'scripts/affected/install-free.test.ts', 'scripts/release-lint/**/*.test.ts', 'scripts/config-schema/**/*.test.ts', 'scripts/publish/**/*.test.ts', 'scripts/bump-repos/**/*.test.ts', 'scripts/play-tests/**/*.test.ts', 'scripts/docs-agent-files/**/*.test.ts', 'scripts/ui-exports/**/*.test.ts', 'scripts/plugin-network/**/*.test.ts', 'scripts/google-recording/**/*.test.ts', 'scripts/apns-recording/**/*.test.ts', 'scripts/fcm-recording/**/*.test.ts', 'docs-examples/**/*.test.ts', 'tests/apps/*/{config,jobs,hooks,emails,seed,map}/**/*.test.ts']
+const unit = ['packages/*/src/**/*.test.{ts,tsx}', 'commitlint.branch.config.test.ts', 'scripts/release-speed/**/*.test.ts', 'scripts/auto-merge-approvals/**/*.test.ts', 'scripts/release-commits.test.ts', 'scripts/release-lint/**/*.test.ts', 'scripts/config-schema/**/*.test.ts', 'scripts/publish/**/*.test.ts', 'scripts/bump-repos/**/*.test.ts', 'scripts/play-tests/**/*.test.ts', 'scripts/docs-agent-files/**/*.test.ts', 'scripts/ui-exports/**/*.test.ts', 'scripts/plugin-network/**/*.test.ts', 'scripts/google-recording/**/*.test.ts', 'scripts/apns-recording/**/*.test.ts', 'scripts/fcm-recording/**/*.test.ts', 'docs-examples/**/*.test.ts', 'tests/apps/*/{config,jobs,hooks,emails,seed,map}/**/*.test.ts']
 // Unit tests share one module registry per worker (`isolate: false`), which saves most of their time. These replace a
 // module with `vi.mock`, change a global, the environment or the console without always putting it back, or send the
 // process signals that a handler another file loaded would act on, so each runs in a registry of its own (project
@@ -61,7 +61,7 @@ const realPostgres = ['packages/*/tests/**/*.postgres.test.ts', 'tests/{changes,
 const smoke = ['tests/smoke/**/*.test.ts']
 // Real Postgres beyond what every push needs: the ERP's medium seed and the planner's statistics on its million rows,
 // and the job queue and event delivery through PgBouncer. `bun run test:postgres`, after `bun run test:db postgres`; CI
-// runs it when SQL or the Postgres setup changes, and nightly.
+// runs it when SQL or the Postgres setup changes, and weekly.
 const postgresSuite = ['tests/postgres/**/*.test.ts']
 // The presets written out and installed with bun from npm, migrated on a tenant-style role: `bun run test:presets`.
 const presets = ['packages/presets/tests/**/*.test.ts']

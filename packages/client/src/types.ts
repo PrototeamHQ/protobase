@@ -270,12 +270,15 @@ export type BatchOp =
    */
   | { op: 'move'; resource: ResourceRef; field: string; key: Key; after: Key | null; before?: Key | null; filter?: string }
 
-/** One entry per operation, in order. A `reorder` or `move` lists every record it numbered, in order, with its new ETag. */
+/**
+ * One entry per operation, in order. A `reorder` or `move` lists every record it numbered, in order, with its new ETag
+ * and `previous`, its value of the field before.
+ */
 export type BatchOpResult =
   | { op: 'create'; resource: string; ref?: string; record: Record<string, unknown>; etag: string }
   | { op: 'update'; resource: string; record: Record<string, unknown>; etag: string }
   | { op: 'delete'; resource: string; deleted: true }
-  | { op: 'reorder'; resource: string; records: Array<{ record: Record<string, unknown>; etag: string }> }
-  | { op: 'move'; resource: string; records: Array<{ record: Record<string, unknown>; etag: string }> }
+  | { op: 'reorder'; resource: string; records: Array<{ record: Record<string, unknown>; etag: string; previous: unknown }> }
+  | { op: 'move'; resource: string; records: Array<{ record: Record<string, unknown>; etag: string; previous: unknown }> }
 
 export type BatchResult = { results: BatchOpResult[] }

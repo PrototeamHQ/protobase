@@ -10,7 +10,7 @@ import { readShapes } from '../../src/doctor/read-shapes'
 import { sortIssues } from '../../src/doctor/sort-issues'
 import { openSnapshotDb } from '../../../../test-support/sql-snapshot'
 
-// An app with webhooks and its delivery log, workflows, and a resource that keeps history and takes comments, so the API
+// An app with webhooks and its delivery log, workflows with storage, and a resource that keeps history and takes comments, so the API
 // adds every built-in resource with a table of its own.
 const notes = resource('notes')
   .table('notes')
@@ -19,7 +19,7 @@ const notes = resource('notes')
   .history()
   .comments()
   .toModel()
-const config = { webhooks: { deliveryLog: true }, workflows: {}, jobs: {} } as unknown as MergedConfig
+const config = { webhooks: { deliveryLog: true }, workflows: { storage: {} }, jobs: {} } as unknown as MergedConfig
 const builtIn = builtInModels(config, [notes])
 const shapes = readShapes({ models: [...builtIn.models, notes], views: builtIn.views, pages: [] })
 
@@ -33,7 +33,7 @@ const earlierWebhooks = `
 
 describe('doctor on the resources Protobase adds', () => {
   it('checks the webhook, workflow, activity and comments resources the config enables', () => {
-    expect(builtIn.models.map((model) => model.name)).toEqual(['webhook_subscriptions', 'webhook_deliveries', 'webhook_delivery_log', 'workflows', 'workflow_versions', 'workflow_runs', 'workflow_triggers', 'workflow_resolutions', 'failed_jobs', 'record_history', 'record_comments'])
+    expect(builtIn.models.map((model) => model.name)).toEqual(['webhook_subscriptions', 'webhook_deliveries', 'webhook_delivery_log', 'workflows', 'workflow_versions', 'workflow_runs', 'workflow_triggers', 'workflow_resolutions', 'storage_configurations', 'failed_jobs', 'record_history', 'record_comments'])
     expect(builtInModels({ jobs: {} } as unknown as MergedConfig, []).models).toEqual([])
   })
 
@@ -44,7 +44,7 @@ describe('doctor on the resources Protobase adds', () => {
     await pg.exec((await changesMigration(db, [notes]))!)
     await pg.exec((await commentsMigration(db))!)
     await pg.exec((await webhooksMigration(db, { deliveryLog: true }))!)
-    await pg.exec((await workflowsMigration(db))!)
+    await pg.exec((await workflowsMigration(db, { storage: {} }))!)
     const issues = async () => (await Promise.all(builtIn.models.map(async (model) => [...sortIssues(model, shapes), ...builtInIndexIssues(indexIssues(model, await tableIndexes(db, model), shapes))]))).flat()
     expect(await issues()).toEqual([])
 

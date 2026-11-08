@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { BucketMeasure, ResourceModel } from '@protobase/schema'
 import { identifier, quoteIdent } from '../changes/capture-sql'
 import { rollupsSchema } from './rollup-sql'
@@ -42,7 +43,13 @@ export const bucketsFunctionName = ({ model }: Pick<BucketsTarget, 'model'>) => 
 
 const functionSql = (target: BucketsTarget) => `${quoteIdent(rollupsSchema)}.${quoteIdent(bucketsFunctionName(target))}`
 
-const indexName = (target: BucketsTarget, suffix: string) => quoteIdent(identifier(`${target.model.table.name}_${suffix}`))
+// A name longer than Postgres keeps ends in a hash of the whole name, so two that share their first 63 bytes still differ.
+const indexName = (target: BucketsTarget, suffix: string) => {
+  const name = `${target.model.table.name}_${suffix}`
+  if (identifier(name) === name) return quoteIdent(name)
+  const hash = createHash('sha256').update(name).digest('hex').slice(0, 8)
+  return quoteIdent(`${identifier(name, 54)}_${hash}`)
+}
 
 const groupColumns = (target: BucketsTarget) => ['bucket', ...target.by.map((column) => column.column)].map(quoteIdent)
 

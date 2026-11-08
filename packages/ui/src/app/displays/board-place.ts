@@ -4,6 +4,7 @@ import type { ResourceModel } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
 import { recordKey } from '../../live/model-helpers'
 import { anchoredMove } from '../hand-order/anchored-move'
+import { numberedBefore } from '../hand-order/numbered-before'
 import type { DragWrite } from '../hand-order/undo-ops'
 import { columnFilter, type BoardColumn } from './board-columns'
 import type { ListDisplayRow } from './list-displays'
@@ -46,14 +47,19 @@ export const placeOps = (model: ResourceModel, by: string, rank: string, filter:
 
 /**
  * What the batch of a drop saved: each record it wrote, as it stored it last, with its values in `rows`, the column's
- * cards as listed before the drop, so the drop can be undone.
+ * cards as listed before the drop, and its `rank` as the server had it before the batch, so the drop can be undone.
  */
-export const boardWrites = (model: ResourceModel, rows: ListDisplayRow[], result: BatchResult): DragWrite[] => {
-  const before = new Map(rows.map((row) => [encodeKey(recordKey(model, row.record)), row.record]))
+export const boardWrites = (model: ResourceModel, rank: string, rows: ListDisplayRow[], result: BatchResult): DragWrite[] => {
+  const keyOf = (record: Record<string, unknown>) => encodeKey(recordKey(model, record))
+  const ranks = numberedBefore(result.results, keyOf)
+  const before = new Map(rows.map((row) => {
+    const key = keyOf(row.record)
+    return [key, ranks.has(key) ? { ...row.record, [rank]: ranks.get(key) } : row.record]
+  }))
   const stored = new Map<string, { record: Record<string, unknown>; etag: string }>()
   for (const entry of result.results) {
     const written = entry.op === 'reorder' || entry.op === 'move' ? entry.records : entry.op === 'update' ? [entry] : []
-    for (const { record, etag } of written) stored.set(encodeKey(recordKey(model, record)), { record, etag })
+    for (const { record, etag } of written) stored.set(keyOf(record), { record, etag })
   }
   return [...stored].flatMap(([key, written]) => {
     const was = before.get(key)

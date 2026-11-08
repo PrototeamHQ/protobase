@@ -4,7 +4,8 @@ import type { Deps } from '../deps'
 import { betterAuthOwnerRoles } from '../webhooks/table/owner-roles'
 import { runInputCheck } from './input-limits'
 import { secretRedactor } from '@protobase/workflows'
-import { workflowSecrets, workflowsSchema, workflowsTraceMode, type WorkflowsOptions } from './options'
+import { workflowSecrets, workflowsSchema, workflowsStorage, workflowsTraceMode, type WorkflowsOptions } from './options'
+import { storageConfigurationHook, storageEndpointCheck } from './storage/configuration-hook'
 import { readTrace, traceSink } from './trace-sink'
 import { workflowSaveHook } from './save-hook'
 import { workflowsRunner } from './segment-job'
@@ -43,7 +44,9 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const accounts = auth && betterAuthConnectionAccounts(auth as unknown as TokenAuth)
   const text = connectionTexts(locale)
   const connections = connectionWiring({ deps, schema, roles, accounts, plugins: types.plugins, connectionOf: types.connections, text, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }) })
-  const input = { deps, schema, roles, allowPrivateAddresses: Boolean(options.allowPrivateAddresses), connect: connections.trigger }
+  const storage = workflowsStorage(options)
+  const allowPrivateAddresses = Boolean(options.allowPrivateAddresses)
+  const input = { deps, schema, roles, allowPrivateAddresses, storage, connect: connections.trigger }
   const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET))
   const files = () => deps().files
   const trace = traceSink({ files, joining: traceJoining(() => deps().db, schema), report: (error) => deps().report(error) })
@@ -76,5 +79,5 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     hooks: () => hookRoute({ db: deps().db, schema, webhooks, webhookTypes: () => [...types.webhooks.keys()].filter((id) => webhooks(id)), files: () => deps().files, report: (error) => deps().report(error), redact: redactor.text }),
     issue: () => issueRoute(issue),
   }
-  return { routes, issue, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema)], writeChecks: [runInputCheck], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId) }
+  return { routes, issue, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId) }
 }

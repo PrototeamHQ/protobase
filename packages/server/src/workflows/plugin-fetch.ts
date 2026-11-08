@@ -14,7 +14,8 @@ const nullBodyStatuses = new Set([204, 205, 304])
 /**
  * The plugin context's `fetch`: the pinned request, which resolves the host once, refuses a non-public address and
  * connects to the address it checked, following no redirect; then at most `maxBytes` of the body as it came off the
- * wire, since the client decodes no `Content-Encoding`. Past that it throws `ResponseTooLargeError`.
+ * wire, since the client decodes no `Content-Encoding`. Past that it throws `ResponseTooLargeError`. With `stream`, the
+ * body is left unread, of any size.
  */
 export const pluginFetch = ({ allowPrivateAddresses = false, resolve, ca }: PluginFetchOptions = {}): PluginFetch => async (url, init = {}) => {
   // A limit that is no number of bytes, such as NaN, would read nothing and pass an empty body off as the answer.
@@ -25,6 +26,8 @@ export const pluginFetch = ({ allowPrivateAddresses = false, resolve, ca }: Plug
     if (error instanceof PinnedRefused) throw new AddressRefusedError(error.message)
     throw error
   })
+  // A streamed answer is read by the step as it goes on, such as into storage, so no part of it is held here.
+  if (init.stream) return new Response(nullBodyStatuses.has(answer.status) ? null : answer.body, { status: answer.status, headers: answer.headers })
   const bytes = await readLimited(answer, maxBytes + 1)
   if (bytes.length > maxBytes) throw new ResponseTooLargeError(maxBytes)
   return new Response(nullBodyStatuses.has(answer.status) ? null : bytes, { status: answer.status, headers: answer.headers })

@@ -110,7 +110,7 @@ export const useBoardMove = ({ model, view, by, rank, filter, drop, labelOf, tit
     const landing = await allowed(row, to, place)
     if (!landing) return undefined
     const { order } = placing(place.rows, row, landing.index)
-    return saved(boardWrites(model, order, await client.batchWrite(placeOps(model, by, rank!, filter, row, to, order, place.more, landing.bump))), to)
+    return saved(boardWrites(model, rank!, order, await client.batchWrite(placeOps(model, by, rank!, filter, row, to, order, place.more, landing.bump))), to)
   }
 
   const mutation = useMutation({

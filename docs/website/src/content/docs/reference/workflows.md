@@ -27,6 +27,8 @@ It adds five resources, over a `workflows` schema that [`protobase migration`](/
 | `workflow_triggers` | The trigger of each enabled workflow that has one besides `manual`: its type, status and last error. Read-only. |
 | `workflow_resolutions` | Each time someone [marked a workflow resolved](#run-status), by whom and when. Created only. |
 
+With `storage` it adds a sixth, `storage_configurations`, the places workflows [store files](#storing-files) in.
+
 | `workflows` | |
 | --- | --- |
 | `schema` | The schema of its tables, for a database that has a `workflows` schema already. Default `workflows`. |
@@ -34,6 +36,7 @@ It adds five resources, over a `workflows` schema that [`protobase migration`](/
 | `allowPrivateAddresses` | Lets the `app:http` step, and every plugin's `fetch`, reach private, loopback and link-local addresses, for development and tests. Default false. |
 | `plugins` | Packages of [workflow plugins](/reference/workflow-plugins/) to run, by name, beside the app's own in `workflows/plugins/<name>.ts`. |
 | `trace` | Which runs keep a [trace](#traces): `all` (default), `failed` or `none`. Any other value stops startup. |
+| `storage` | Turns on [storage configurations](#storing-files): `root`, the one folder local configurations live inside, and `endpoints`, the `https://` origins an S3-compatible configuration may name. Needs `PROTOBASE_ENCRYPTION_KEY`. |
 
 Runs keep their traces and the files steps store in the app's `private` [file provider](/reference/files/), local disk under `data/files/private` unless `PROTOBASE_FILES_PRIVATE` names an S3 bucket, so an app with workflows needs a files secret: `secret`, `files.secret`, `PROTOBASE_FILES_SECRET` or `PROTOBASE_SECRET`.
 
@@ -274,7 +277,7 @@ The built-in step types are the `app` plugin's, written on the same [plugin inte
 
 A step's call either changes the world, such as mail sent, a record written or a `POST`, or only reads, such as a `GET`, a record read or a list, as its type declares. A call that changes the world is **recorded**: its checkpoint is saved before the run goes on, with its result and the time it was fetched, so a run taken up again does not make it again. A call a crash cut off before its checkpoint was saved can happen again, as [How a run is run](#how-a-run-is-run) says. A read is done again when a crash comes before the next checkpoint.
 
-<gap>An author cannot wrap steps in a block that runs once, cached by what it reads, with a run and trace of its own, because blocks are not implemented.</gap> <gap>A workflow cannot store a file in a named storage configuration, or stream an answer into one, because the storage step and storage configurations are not implemented.</gap>
+<gap>An author cannot wrap steps in a block that runs once, cached by what it reads, with a run and trace of its own, because blocks are not implemented.</gap>
 
 ### app:http
 
@@ -287,8 +290,9 @@ One request to a URL built at run time:
 | `headers`, `query` | Objects of text values; `query` is added to the URL's query. |
 | `body` | Text is sent as it is, a file value as its bytes with its type, any other value as JSON; a `GET` sends none. |
 | `response` | How the answer's body is read: `json` (default, parsed; empty is `null`), `text`, or `file`, kept as a file of the run. |
+| `store` | `{ configuration, path? }`: streams the answer's body, of any size, into a [storage configuration](#storing-files), and gives the stored file as `body`. Takes no `response`. |
 
-A `GET` only reads; every other method is recorded. The result is `{ status, headers, body }`, without the cookies the answer sets. A status outside 2xx fails the step with `Http.Status`, whose cause names the status and holds at most the first 200 characters of the body, secrets blanked out first; a redirect is never followed. `Http.Network` is a request that got no answer. The step resolves the URL's host when it runs and refuses it with `Http.AddressRefused` unless every address is public, then connects to the very address it checked, so a URL built from a webhook's payload cannot reach the app's own network. It reads at most 10 MiB of the answer's body: a larger one fails the step with `Http.ResponseTooLarge`, rather than being cut short.
+A `GET` only reads; every other method is recorded. The result is `{ status, headers, body }`, without the cookies the answer sets. A status outside 2xx fails the step with `Http.Status`, whose cause names the status and holds at most the first 200 characters of the body, secrets blanked out first; a redirect is never followed. `Http.Network` is a request that got no answer. The step resolves the URL's host when it runs and refuses it with `Http.AddressRefused` unless every address is public, then connects to the very address it checked, so a URL built from a webhook's payload cannot reach the app's own network. It reads at most 10 MiB of the answer's body: a larger one fails the step with `Http.ResponseTooLarge`, rather than being cut short. With `store`, the body streams straight into the store, so its size is limited only by what the store takes, and the step is recorded, a `GET` too: a run taken up again keeps the stored file and does not fetch it again, from a link that may have expired by then.
 
 ### app:records
 
@@ -319,6 +323,70 @@ The mail goes from the app's own sender with the app's mailer; a workflow cannot
 ### File values
 
 A file value is `{ uri, name, type, size }`, the handle to bytes in the app's storage that the API returns for a file field. `app:http` with `response: "file"` keeps the answer as a file of the run, in the `private` file provider under the run's id; steps take only the files of their own run, so a workflow cannot attach, send or store another file of the app's by naming its URI. <gap>A workflow cannot send or attach a file it read from a record because steps reading the app's other files is not implemented.</gap>
+
+### Storing files
+
+:::caution[Beta]
+Changing a configuration does not move the files already in it, a run is not kept on the server that holds its local files, and an S3 configuration's keys are set through the API or MCP, not yet in the admin app's form.
+:::
+
+A value a run keeps is at most 256 KiB, so larger files, such as a 150 MB download, go to storage. A workflow names a **storage configuration**, such as `archive`, rather than where the file lives: a folder on the server, a file share mounted on it, or an S3-compatible bucket. Changing where a configuration points, from a bucket to a local folder say, changes the configuration alone; the workflows that name it stay as they are.
+
+Turn them on with `storage` in `workflows`:
+
+```ts
+export default defineConfig({
+  workflows: { storage: { root: './data/workflow-storage', endpoints: ['https://storage.example.com'] } },
+})
+```
+
+Their table, `workflows.storage_configurations`, comes with the next [`protobase migration`](/reference/cli/#migration) after you turn them on, so an app that turns storage on later writes a migration then.
+
+A configuration is a record of `storage_configurations`, which you create and change on its standard pages, linked from each workflow's page, through the API or over MCP:
+
+| Field | |
+| --- | --- |
+| `name` | What workflows name it by: a lowercase letter, then lowercase letters, digits and `_`. Unique in the tenant. |
+| `kind` | `local`, a folder under `root`, or `s3`, a bucket. |
+| `dir` | For `local`: a folder inside `root`, such as `invoices/2026`. A path that would leave it, through `..` or a symlink, is refused. Without `root`, only `s3` configurations are taken. |
+| `bucket`, `region` | For `s3`: the bucket and its region. |
+| `endpoint` | For `s3` off the S3 API's default host: one of the `endpoints` the app lists. Its host must resolve to public addresses, which every step checks again. |
+| `access_key_id`, `secret_access_key` | For `s3`: the bucket's keys, both required before a step can use it. They are stored encrypted, and nobody can read them again once saved, not even you; set new ones to change them. |
+
+You set the keys with the API or the MCP `update_record` tool: `PATCH /api/v1/storage_configurations/<id>` with its `If-Match` and `{ "access_key_id": "...", "secret_access_key": "..." }`. <gap>An S3 configuration's keys cannot be set in the admin app's form because its editor for write-only fields is not implemented.</gap>
+
+Steps store and read files with:
+
+| Step type | Arguments | Result |
+| --- | --- | --- |
+| `app:storage.put` | `configuration`, `file`: a file of the run or a stored file, optional `path` | the stored file |
+| `app:storage.get` | `file`: a stored file | a file of the run, up to 10 MiB, for steps that take one, such as mail attachments |
+| `app:http` with `store` | `store: { configuration, path? }` | `{ status, headers, body }`, `body` the stored file |
+
+A stored file is `{ configuration, node, path, name, type, size }`: the configuration, the server that holds it for a local one, and its path there, never a folder, bucket or key. A `path` is relative: letters, digits, `.`, `_` and `-` in segments split by `/`, none starting with `.`; any other fails the step with `Storage.InvalidArguments` before anything is stored. Without a `path`, a step stores under a path of its own in its run, the same each time the step is tried, so a step a crash made run again replaces its file rather than leaving a second one. A put is recorded; a get only reads.
+
+```json
+{
+  "Fetch": { "Type": "Task", "Resource": "app:http", "Arguments": { "url": "{% $states.context.Execution.Input.link %}", "store": { "configuration": "archive" } }, "Assign": { "report": "{% $states.result.body %}" }, "Next": "Read" },
+  "Read": {
+    "Type": "Task", "Resource": "app:storage.get", "Arguments": { "file": "{% $report %}" },
+    "Catch": [{ "ErrorEquals": ["Storage.NotFound"], "Next": "Gone" }],
+    "Next": "Mail"
+  }
+}
+```
+
+A step reads the configuration it names afresh each time, as the user who saved the run's version, with the roles they hold now. It fails with:
+
+| Error | |
+| --- | --- |
+| `Storage.NotFound` | No configuration of that name the workflow's last editor may read, which says nothing of one in another tenant or one they may not read; or the file is gone, which a `Catch` can take. |
+| `Storage.Unavailable` | The configuration cannot be used as it is, such as an S3 one without keys or keys that no longer decrypt. |
+| `Storage.Failed` | The store failed; the cause names its error code only. |
+| `Storage.Full` | The store has no room left. |
+| `Storage.TooLarge` | `app:storage.get` of a file over 10 MiB. |
+
+A stored file is read from where its configuration points now. <gap>Changing a configuration cannot move the files already in it because moving stored files is not implemented.</gap> A local configuration's files are on one server. <gap>A run cannot be kept on the server that holds its local files because routing runs to a server is not implemented.</gap>
 
 ## Runs and their steps
 
@@ -424,6 +492,8 @@ The workflow resources take only [named grants](/reference/access/#resources-tha
 | `workflow_runs.create` | Run a workflow, with any input. The API writes only the fields a caller reads, so it goes with `workflow_runs.read`, and the caller must read the workflow too. |
 | `workflows.read`, `workflow_versions.read`, `workflow_runs.read`, `workflow_triggers.read` | Read workflows, their versions, runs and triggers, the runs' traces with every step's input and output included. |
 | `workflow_resolutions.read` | Read who marked which workflow resolved and when. Marking one needs no grant of its own: whoever may change the workflow may. |
+| `storage_configurations.read` | Let workflows you save use the [storage configurations](#storing-files), and see them. Their keys are never shown. |
+| `storage_configurations.create`, `storage_configurations.update`, `storage_configurations.delete` | Make, change and delete storage configurations. |
 
 ```ts
 defineRoles({
@@ -432,7 +502,7 @@ defineRoles({
 })
 ```
 
-All five are scoped to the tenant like any resource with `.tenant()`. A run takes its workflow's tenant; a start of another tenant's workflow is refused as one of a workflow that is not there.
+All of them are scoped to the tenant like any resource with `.tenant()`. A run takes its workflow's tenant; a start of another tenant's workflow is refused as one of a workflow that is not there.
 
 ## How a run is run
 

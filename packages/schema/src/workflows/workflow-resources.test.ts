@@ -29,4 +29,26 @@ describe('workflowResources', () => {
     expect(workflows.layout.find((item) => item.kind === 'section' && item.fields.includes('run_status'))).toBeDefined()
     expect(workflows.list?.columns).toContain('run_status')
   })
+
+  it('adds storage configurations only with storage, out of the sidebar, linked from each workflow, their keys read by no one', () => {
+    expect(workflowResources('workflows')).not.toHaveProperty('storageConfigurations')
+    expect(workflowResources('workflows').workflowsView.toModel().actions ?? []).toEqual([])
+    const parts = workflowResources('workflows', { storage: true })
+    const model = parts.storageConfigurations!.toModel()
+    const access = parts.storageConfigurations!.fieldAccess()
+    expect(model.explicitGrants).toBe(true)
+    expect(parts.storageConfigurationsView!.toModel().nav?.hidden).toBe(true)
+    for (const name of ['access_key_id', 'secret_access_key']) {
+      const field = model.fields[name]!
+      expect(field).toMatchObject({ encrypted: true, sensitive: true })
+      expect(access[name]?.read?.({ user: { id: 1, roles: ['admin'] } } as never)).toBe(false)
+      // Written blind, only by the grant to create or change a configuration.
+      for (const mode of ['create', 'update'] as const) {
+        expect(access[name]?.[mode]?.({ holds: (capability: string) => capability === `storage_configurations.${mode}` })).toBe(true)
+        expect(access[name]?.[mode]?.({ holds: (capability: string) => capability === 'storage_configurations.read' })).toBe(false)
+        expect(access[name]?.[mode]?.({})).toBe(false)
+      }
+    }
+    expect(parts.workflowsView.toModel().actions).toEqual([expect.objectContaining({ name: 'storage_configurations', run: { kind: 'link', to: { kind: 'list', resource: 'storage_configurations' } } })])
+  })
 })

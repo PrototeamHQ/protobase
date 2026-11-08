@@ -108,6 +108,7 @@ export const localFileStore = (dir: string): FileStore => {
 export const localFiles = ({ dir, public: isPublic = false, publicUrl, retention, maxBytes, maxFiles }: LocalFilesOptions): FileProvider => ({
   store: limitedFileStore(localFileStore(dir), { maxBytes, maxFiles }),
   public: isPublic || publicUrl !== undefined,
+  localDir: dir,
   ...(publicUrl !== undefined && { publicUrl: publicUrl.replace(/\/$/, '') }),
   ...(retention !== undefined && { retention: parseDuration(retention, 'retention') }),
   ...(maxBytes !== undefined && { maxBytes: parseSize(maxBytes) }),

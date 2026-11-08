@@ -9,7 +9,7 @@ import type { PluginServices } from './context'
 import { stepHandlers } from './step-handlers'
 import type { StepType } from './types'
 
-const services = { records: {}, files: {}, fetch: async () => new Response() } as unknown as PluginServices
+const services = { records: {}, files: {}, storage: {}, fetch: async () => new Response() } as unknown as PluginServices
 const type = (connection: string): StepType => ({ label: 'Get', description: 'Gets.', input: { type: 'object' }, connection, cache: { choice: 'hidden', ttl: '1 hour' }, run: async ({ input }) => ({ url: input.url, n: Math.random() }) })
 
 // A handler for `t:get` over one cache, whose connection answers as `signedIn` says at each call.

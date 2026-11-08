@@ -10,12 +10,12 @@ const qualified = ({ schema, name }: { schema?: string; name: string }) => (sche
 /** A Postgres array literal of text, every element quoted, so the same columns always give the same text. */
 const textArray = (items: string[]) => `{${items.map((item) => `"${item.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`).join(',')}}`
 
-/** A name as Postgres keeps it: the whole characters within its first 63 bytes. */
-export const identifier = (name: string) => {
+/** A name as Postgres keeps it: the whole characters within its first 63 bytes, or within `bytes`. */
+export const identifier = (name: string, bytes = 63) => {
   const encoder = new TextEncoder()
   let kept = ''
   for (const char of name) {
-    if (encoder.encode(kept + char).length > 63) break
+    if (encoder.encode(kept + char).length > bytes) break
     kept += char
   }
   return kept

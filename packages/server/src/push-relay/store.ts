@@ -10,7 +10,8 @@ export type RelayBinding = RelayRegistration & { handle: string }
 /**
  * Where the relay keeps its handles and credentials. `register` answers the handle the token already has for the
  * origin, or a new one. `charge` counts `devices` sends against the credential's clock hour that starts at `hour`,
- * and answers `false`, counting nothing, when that would take the hour over `perHour`.
+ * or against the later hour it already counts in, and answers `false`, counting nothing, when that would take the hour
+ * over `perHour`.
  */
 export type RelayStore = {
   register: (registration: RelayRegistration) => Promise<string>

@@ -82,12 +82,18 @@ describe('boardWrites', () => {
     const result = {
       results: [
         { op: 'update' as const, resource: 'tasks', record: { ...moved, rank: 1 }, etag: 'u1' },
-        { op: 'move' as const, resource: 'tasks', records: [{ record: { ...doing[0]!.record, rank: 1 }, etag: 'r5' }, { record: { ...moved, rank: 2 }, etag: 'r1' }] },
+        { op: 'move' as const, resource: 'tasks', records: [{ record: { ...doing[0]!.record, rank: 1 }, etag: 'r5', previous: 1 }, { record: { ...moved, rank: 2 }, etag: 'r1', previous: 1 }] },
       ],
     }
-    expect(boardWrites(model, [doing[0]!, todo[0]!, doing[1]!], result)).toEqual([
+    expect(boardWrites(model, 'rank', [doing[0]!, todo[0]!, doing[1]!], result)).toEqual([
       { before: todo[0]!.record, record: { ...moved, rank: 2 }, etag: 'r1' },
       { before: doing[0]!.record, record: { ...doing[0]!.record, rank: 1 }, etag: 'r5' },
     ])
+  })
+
+  it('puts back the ranks the server had, not those the board loaded with', () => {
+    // Listed as 5, 6; meanwhile someone else gave 5 rank 3 and 6 rank 4
+    const result = { results: [{ op: 'move' as const, resource: 'tasks', records: [{ record: { ...doing[1]!.record, rank: 3 }, etag: 'r6', previous: 4 }, { record: { ...doing[0]!.record, rank: 4 }, etag: 'r5', previous: 3 }] }] }
+    expect(boardWrites(model, 'rank', [doing[1]!, doing[0]!], result).map((write) => write.before.rank)).toEqual([4, 3])
   })
 })
