@@ -5,9 +5,10 @@
 import { readFileSync } from 'node:fs'
 import { afterMerge } from './after-merge'
 import { checksState, reviewBotFinished } from './checks'
-import { approvedLogins, pullRefusal, refusal } from './decision'
+import { approvedLogins, pullRefusal, refusal, workflowRefusal } from './decision'
 import { gitHub } from './github'
 import { eventTarget, pullsOfCommit } from './target'
+import { noticed, workflowNotice } from './workflow-notice'
 
 function required(name: string) {
   const value = process.env[name]
@@ -40,10 +41,15 @@ async function whyNot(pull: Awaited<ReturnType<typeof github.pullRequest>>) {
   const refused = pullRefusal(pull, repository)
   if (refused) return refused
 
-  const [timeline, reviews, head] = await Promise.all([github.timeline(pull.number), github.reviews(pull.number), checksOf(pull.head.sha)])
+  const [timeline, reviews, files, head] = await Promise.all([
+    github.timeline(pull.number),
+    github.reviews(pull.number),
+    github.files(pull.number),
+    checksOf(pull.head.sha),
+  ])
   const logins = approvedLogins(reviews, pull.head.sha)
   const roles = Object.fromEntries(await Promise.all(logins.map(async (login) => [login, await github.role(login)])))
-  return refusal({ repository, pull, timeline, reviews, roles, ...head })
+  return refusal({ repository, pull, timeline, reviews, files, roles, ...head })
 }
 
 // The merge commit, or null when there is nothing to do. Another run may have merged it first, and a head that moved
@@ -62,6 +68,7 @@ for (const number of await pullNumbers()) {
   const reason = await whyNot(pull)
   if (reason) {
     console.log(`Not merging #${number}: ${reason}.`)
+    if (reason === workflowRefusal && !noticed(await github.comments(number))) await github.comment(number, workflowNotice)
     continue
   }
 
