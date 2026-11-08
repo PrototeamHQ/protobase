@@ -71,14 +71,43 @@ const openAll = async (canvasElement: HTMLElement, side: string) => {
   return boxes
 }
 
+/** The same menus with their triggers near the bottom of the screen, so each opens above its trigger. */
+const Bottom = () => (
+  <div data-side="bottom" className="flex min-h-svh flex-col justify-end gap-2 p-1">
+    <GlobalSearch search={search} className="w-40" showShortcut={false} />
+    <div className="flex items-center justify-between">
+      <Presentation />
+      <LineMenu label="Line actions" items={[{ label: 'Move to the top of the list', onSelect: () => {} }]} />
+      <FilterMenu label="Status" activeCount={0}>
+        Filters
+      </FilterMenu>
+    </div>
+  </div>
+)
+
+export const AtTheBottom: StoryObj = { name: 'Menus at the bottom of the screen', globals: { viewport: { value: 'phone360' } }, render: () => <Bottom /> }
+
+export const AtTheBottomChecks: StoryObj = {
+  ...AtTheBottom,
+  name: 'Menus at the bottom of the screen (checks)',
+  tags: ['play', 'phone', '!dev'],
+  play: async ({ canvasElement }) => {
+    for (const { name, menu, trigger } of await openAll(canvasElement, 'bottom')) {
+      expect({ name, inside: menu.bottom <= window.innerHeight - 4 }).toEqual({ name, inside: true })
+      expect({ name, above: menu.bottom <= trigger.top }).toEqual({ name, above: true })
+    }
+  },
+}
+
 export const AtTheLeftEdgeChecks: StoryObj = {
   ...AtTheEdges,
   name: 'Menus at the left screen edge (checks)',
   tags: ['play', 'phone', '!dev'],
   play: async ({ canvasElement }) => {
-    for (const { name, menu } of await openAll(canvasElement, 'justify-start')) {
+    for (const { name, menu, trigger } of await openAll(canvasElement, 'justify-start')) {
       expect({ name, left: menu.left >= 4 }).toEqual({ name, left: true })
       expect({ name, right: menu.right <= viewportWidth() - 4 }).toEqual({ name, right: true })
+      expect({ name, below: menu.top >= trigger.bottom }).toEqual({ name, below: true })
     }
   },
 }
