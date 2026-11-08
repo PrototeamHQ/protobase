@@ -97,7 +97,7 @@ bun install
 
 ## Run the ERP example
 
-`tests/apps/erp` is a sample ERP on a real Postgres database, seeded with three years of history. It needs Docker for the database: `bun run db:up` starts the Postgres container and gives each example its database and a `.env` from its `.env.example`.
+`tests/apps/erp` is a sample ERP on a real Postgres database, seeded with three years of history. It needs Docker for the database: `bun run db:up` starts the Postgres container and gives each example its database and a `.env` from its `.env.example`. The databases listen on `127.0.0.1` only, so other machines on the network cannot reach them; a checkout or worktree from before that change publishes them on every interface, so update it before its `db:up`.
 
 ```sh
 bun run db:up && bun run --cwd tests/apps/erp db:migrate && bun run --cwd tests/apps/erp db:seed --scale small   # the ERP's tables and Better Auth's
