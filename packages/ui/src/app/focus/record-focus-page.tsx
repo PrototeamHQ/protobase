@@ -24,6 +24,7 @@ import { useNavigationGuard } from '../router'
 import { useRecordTitle } from '../titles/record-titles'
 import { AppLink, useAppAddress } from '../use-app-address'
 import { useRecordEditor } from '../use-record-editor'
+import { ConflictChoices } from './conflict-choices'
 import { FocusRecordContext, type FocusRecord } from './focus-record'
 import { text } from './messages'
 
@@ -169,10 +170,13 @@ const RecordFocus = ({ model, recordKey, stored, page }: Omit<RecordFocusPagePro
       {conflict && (
         <FocusNotice
           level="conflict"
-          actions={Object.keys(editor.conflicts).flatMap((name) => [
-            <Button key={`mine:${name}`} size="sm" onClick={() => editor.keepMine(name)}>{text('keepMine')}</Button>,
-            <Button key={`theirs:${name}`} size="sm" onClick={() => editor.useTheirs(name)}>{text('useTheirs')}</Button>,
-          ])}
+          actions={
+            <ConflictChoices
+              fields={Object.keys(editor.conflicts).map((name) => ({ name, label: view?.fields[name]?.label ?? humanize(name) }))}
+              onKeepMine={editor.keepMine}
+              onUseTheirs={editor.useTheirs}
+            />
+          }
         >
           {text('conflict')}
         </FocusNotice>
