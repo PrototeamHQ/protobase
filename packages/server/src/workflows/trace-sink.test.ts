@@ -87,10 +87,11 @@ describe('traceSink', () => {
     expect(report).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('"private" file provider') }))
   })
 
-  it('reads parts kept in the same millisecond in the order they were written', async () => {
+  it('reads parts kept in the same millisecond in the order they were written, by whichever worker wrote them', async () => {
     vi.useFakeTimers({ toFake: ['Date'], now: new Date(Date.UTC(2026, 10, 8, 9)) })
-    const sink = traceSink({ files: () => files, joining, report: (error) => { throw error } })
-    for (const state of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']) await sink.write('r9', [step(state)], { mode: 'all' })
+    // Two workers take the run's segments in turn, each with a sink of its own.
+    const sinks = [0, 1].map(() => traceSink({ files: () => files, joining, report: (error) => { throw error } }))
+    for (const [i, state] of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].entries()) await sinks[i % 2]!.write('r9', [step(state)], { mode: 'all' })
     vi.useRealTimers()
     expect((await readTrace(files, 'r9')).map((line) => line.state)).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'])
   })
