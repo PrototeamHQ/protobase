@@ -1,6 +1,7 @@
 import { Check, ChevronDown } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { cn } from '../lib/cn'
+import { useMenuRight } from './menu-edge'
 import { menuKeyTarget } from './menu-keys'
 import type { SegmentedOption } from './segmented'
 
@@ -15,6 +16,8 @@ export const MenuSelect = <T extends string>({ value, options, onChange, label }
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
   const items = useRef<Array<HTMLButtonElement | null>>([])
+  const menu = useRef<HTMLUListElement>(null)
+  const right = useMenuRight(open, root, menu)
   const chosen = options.findIndex((option) => option.value === value)
   const current = options[chosen]
 
@@ -58,7 +61,7 @@ export const MenuSelect = <T extends string>({ value, options, onChange, label }
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </button>
       {open && (
-        <ul role="menu" aria-label={label} onKeyDown={onKeyDown} className="absolute right-0 top-full z-30 mt-1 min-w-40 rounded-md border bg-background py-1 text-body shadow-pop">
+        <ul ref={menu} role="menu" aria-label={label} onKeyDown={onKeyDown} style={right} className="absolute right-0 top-full z-30 mt-1 min-w-40 rounded-md border bg-background py-1 text-body shadow-pop">
           {options.map((option, index) => (
             <li key={option.value} role="none">
               <button

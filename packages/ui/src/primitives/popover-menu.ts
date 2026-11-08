@@ -1,17 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-
-const gap = 4
+import { menuRightEdge, viewportGap as gap } from './menu-edge'
 
 /**
- * Below the button, or above it when the viewport has no room underneath; its right edge at the button's, or further
- * right when that would push its left edge off the viewport, as for a button near the left edge. `width` is where a
- * fixed element's `right` counts from.
+ * Below the button, or above it when the viewport has no room underneath; across, by `menuRightEdge`. `width` is where
+ * a fixed element's `right` counts from.
  */
 const placeMenu = (button: DOMRect, menu: { width: number; height: number }, width: number) => {
   const below = button.bottom + gap
   const top = below + menu.height > window.innerHeight - gap ? Math.max(gap, button.top - gap - menu.height) : below
-  const right = Math.max(gap, Math.min(width - button.right, width - gap - menu.width))
-  return { top, right }
+  return { top, right: width - menuRightEdge(button.right, menu.width, width) }
 }
 
 /**
