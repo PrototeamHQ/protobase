@@ -42,6 +42,25 @@ describe('nativeTapTarget', () => {
     expect(tap(push(`${api}/%2F%2Fevil.com`))).toEqual({ kind: 'in-app', path: '/%2F%2Fevil.com' })
   })
 
+  it('keeps every in-app path on the API origin once the router puts the base path before it', () => {
+    const hostile = [`${api}//evil.example/`, `${api}/\\evil.example`, `${api}/.//evil.example`, `${api}/a/..//evil.example`, `${api}/@evil.example`, `${api}/%0d%0aLocation:%20http://evil.example`]
+    for (const basePath of ['', '/admin']) {
+      for (const url of [...hostile, `${api}/admin//evil.example`, `${api}/admin/..//evil.example`, `${api}/admin/.//evil.example`]) {
+        const target = tap(push(url), { basePath })
+        if (target === undefined) continue
+        expect(target.kind).toBe('in-app')
+        if (target.kind === 'in-app') expect(new URL(`${basePath}${target.path}`, api).origin).toBe(api)
+      }
+    }
+  })
+
+  it('opens a look-alike of an http API origin outside the app', () => {
+    const local = 'http://10.0.2.2:3000'
+    for (const url of ['http://10.0.2.2.evil.example/', 'https://evil.example/10.0.2.2', `https://evil.example/?u=${local}/`, 'http://10.0.2.2:3001/', 'http://10.0.2.2/']) {
+      expect(tap(push(url), { apiOrigin: local })).toEqual({ kind: 'browser', url: new URL(url).href })
+    }
+  })
+
   it('opens a page below the base path alone, by its path below it', () => {
     expect(tap(push(`${api}/admin/tasks/1?x=1`), { basePath: '/admin' })).toEqual({ kind: 'in-app', path: '/tasks/1?x=1' })
     expect(tap(push(`${api}/admin`), { basePath: '/admin' })).toEqual({ kind: 'in-app', path: '/' })
