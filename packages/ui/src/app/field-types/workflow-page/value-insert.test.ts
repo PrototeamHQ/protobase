@@ -43,6 +43,10 @@ describe('withRead', () => {
     expect(withRead("It's for ", '$a.b')).toBe("{% 'It''s for ' & $a.b %}")
     expect(withRead('{% $x %}', '$a.b')).toBe('{% $x & $a.b %}')
   })
+
+  it('refuses a field holding anything but text, which it would replace', () => {
+    expect(() => withRead({ Accept: 'application/json' }, '$a.b')).toThrow('holds text')
+  })
 })
 
 describe('earlierSteps', () => {

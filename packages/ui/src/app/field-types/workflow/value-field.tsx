@@ -44,7 +44,9 @@ export const ValueField = ({ label, kind, options = [], required, help, value, e
     setTyped(next)
     onChange(read(next))
   }
-  const offersInsert = insert !== undefined && !disabled && (kind === 'text' || kind === 'json' || kind === 'value')
+  // A value is inserted into text, so a field holding an object, a number or a boolean is not offered it
+  const holdsText = value === undefined || value === null || typeof value === 'string'
+  const offersInsert = insert !== undefined && !disabled && holdsText && (kind === 'text' || kind === 'json' || kind === 'value')
   return (
     <Field label={label} required={required} help={help} error={error} wide={kind === 'json'}>
       {kind === 'choice' ? (

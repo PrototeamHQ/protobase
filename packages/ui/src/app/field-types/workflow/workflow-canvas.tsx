@@ -50,11 +50,12 @@ const KeepCentre = () => {
   const width = useStore((state) => state.width)
   const before = useRef(width)
   useEffect(() => {
-    const change = width - before.current
+    const previous = before.current
     before.current = width
-    if (change === 0 || width === 0) return
+    // Only between two measured widths: the first measurement, and one back from a hidden pane, move nothing
+    if (previous === 0 || width === 0 || width === previous) return
     const { x, y, zoom } = flow.getViewport()
-    void flow.setViewport({ x: x + change / 2, y, zoom })
+    void flow.setViewport({ x: x + (width - previous) / 2, y, zoom })
   }, [width, flow])
   return null
 }

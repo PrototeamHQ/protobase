@@ -43,10 +43,13 @@ export const sampleValues = (value: unknown): SampleValue[] => {
 /** A read of the value at `path` below `base`, such as `$customer.email`. */
 export const readOf = (base: string, path: string) => (path === '' ? base : `${base}${path.startsWith('[') ? '' : '.'}${path}`)
 
-/** The field's value with `read` added: the read alone when it holds nothing, else joined after what it holds, as an expression of one string. */
+/**
+ * The field's value with `read` added: the read alone when it holds nothing, else joined after the text it holds, as an
+ * expression of one string. A field holding anything but text is not offered an insert, which would replace it.
+ */
 export const withRead = (current: unknown, read: string) => {
   if (current === undefined || current === null || current === '') return `{% ${read} %}`
-  if (typeof current !== 'string') return `{% ${read} %}`
+  if (typeof current !== 'string') throw new Error('A value is inserted only into a field that holds text')
   const whole = /^\{%([\s\S]*)%\}$/.exec(current.trim())
   if (whole) return `{% ${whole[1]!.trim()} & ${read} %}`
   return `{% '${current.replaceAll("'", "''")}' & ${read} %}`

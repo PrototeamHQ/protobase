@@ -280,6 +280,39 @@ export const FailsFixedAndRerunChecks: StoryObj = {
   },
 }
 
+/**
+ * A value of the run is inserted into the failed step's field: the earlier step gets a variable for it, which Undo takes
+ * back with the insert. A later edit ends the offer, so Undo never takes that edit back with it.
+ */
+export const InsertValueChecks: StoryObj = {
+  ...FailedRun,
+  name: 'A value of the run is inserted into a field, and taken back (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await markOf(canvasElement, 'Store', 'Failed')
+    const insert = async () => {
+      await userEvent.click(await sidePanel(canvasElement).findByRole('button', { name: /^Insert value into Resource/ }))
+      const fetch = await sidePanel(canvasElement).findByRole('group', { name: 'Fetch' })
+      await userEvent.click(within(fetch).getByRole('option', { name: /^status/ }))
+    }
+    await userEvent.click(await sidePanel(canvasElement).findByRole('button', { name: 'Settings' }))
+    await insert()
+    const resource = await sidePanel(canvasElement).findByRole('textbox', { name: /^Resource/ })
+    await waitFor(() => expect(resource).toHaveValue("{% 'tikets' & $fetch.status %}"))
+    expect(sidePanel(canvasElement).getByText(/Added variable fetch to Fetch\. In this run: 200/)).toBeVisible()
+    await userEvent.click(sidePanel(canvasElement).getByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(sidePanel(canvasElement).getByRole('textbox', { name: /^Resource/ })).toHaveValue('tikets'))
+    expect(sidePanel(canvasElement).queryByText(/Added variable/)).toBeNull()
+
+    await insert()
+    expect(await sidePanel(canvasElement).findByText(/Added variable fetch to Fetch/)).toBeVisible()
+    await userEvent.type(sidePanel(canvasElement).getByRole('textbox', { name: /^Resource/ }), ' ')
+    await waitFor(() => expect(sidePanel(canvasElement).queryByRole('button', { name: 'Undo' })).toBeNull())
+    expect(canvas.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+  },
+}
+
 /** A run that mailed the team, then failed to store the tickets. */
 export const MailedThenFailedRun: StoryObj = { name: 'A run that sent a mail, then failed', render: () => <Workspace start={runPage} runs={[{ workflow_id: 4, input: {} }]} /> }
 

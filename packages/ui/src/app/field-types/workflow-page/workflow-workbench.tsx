@@ -82,6 +82,8 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
       : (next: Definition) => {
           const assign = pendingAssign.current
           pendingAssign.current = undefined
+          // Undo goes back to before the insert, so a later change ends the offer rather than be undone with it
+          if (!assign) setAdded(undefined)
           onChange(assign ? assign(next) : next)
         }
   const checked = useMemo(() => problemsByNode(definition ? definitionProblems(definition, types) : []), [definition, types])
@@ -120,6 +122,8 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
   }, [trace.definition, trace.steps, trace.going, definition])
   const failed = traces && [...traces].filter(([, mark]) => mark.status === 'failed').map(([path]) => path).sort((a, b) => b.split('/').length - a.split('/').length)[0]
   const selected = definition && (chosen === triggerId || (typeof chosen === 'string' && stateAt(definition, chosen))) ? (chosen as string) : chosen === undefined && failed !== undefined && definition && stateAt(definition, failed) ? failed : undefined
+  // The field asking for a value is the chosen step's: another step, or none, ends the insert
+  useEffect(() => setInserting(undefined), [selected])
   if (page.pastError) return <ErrorBanner title={text('versionFailed')} error={page.pastError} />
   if (page.versionsError) return <ErrorBanner title={text('versionsFailed')} error={page.versionsError} />
   if (page.runsError) return <ErrorBanner title={text('runsFailed')} error={page.runsError} />
