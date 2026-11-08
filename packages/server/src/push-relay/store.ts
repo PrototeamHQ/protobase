@@ -9,15 +9,15 @@ export type RelayBinding = RelayRegistration & { handle: string }
 
 /**
  * Where the relay keeps its handles and credentials. `register` answers the handle the token already has for the
- * origin, or a new one. `charge` counts `devices` sends against the credential's current clock hour, and answers
- * `false`, counting nothing, when that would take the hour over `perHour`.
+ * origin, or a new one. `charge` counts `devices` sends against the credential's clock hour that starts at `hour`,
+ * and answers `false`, counting nothing, when that would take the hour over `perHour`.
  */
 export type RelayStore = {
   register: (registration: RelayRegistration) => Promise<string>
   bindings: (handles: readonly string[]) => Promise<RelayBinding[]>
   removeHandles: (handles: readonly string[]) => Promise<void>
   credential: (id: string) => Promise<StoredCredential | undefined>
-  charge: (id: string, devices: number, perHour: number) => Promise<boolean>
+  charge: (id: string, devices: number, perHour: number, hour: Date) => Promise<boolean>
   addCredential: (credential: StoredCredential) => Promise<void>
   removeCredential: (id: string) => Promise<boolean>
   listCredentials: () => Promise<{ id: string; origin: string; createdAt: Date }[]>

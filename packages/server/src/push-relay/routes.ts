@@ -6,7 +6,7 @@ import { relaySendRequest, type RelaySendAnswer } from '../notifications/relay/r
 import { badRequest, HttpProblem } from '../problem'
 import { authenticatedCredential } from './authenticate'
 import { deliver } from './deliver'
-import { maxRelaySendBytes, relayRegistrationsPerMinute, relaySendsPerHour, secondsToNextHour } from './limits'
+import { hourStart, maxRelaySendBytes, relayRegistrationsPerMinute, relaySendsPerHour, secondsToNextHour } from './limits'
 import { relayRegisterPath, relaySendPath } from './paths'
 import { maxRegistrationBytes, relayRegistration } from './registration'
 import type { RelaySenders } from './senders'
@@ -70,7 +70,8 @@ export const pushRelayRoutes = ({ store, senders, appId, now = Date.now }: PushR
     if (!parsed.success) throw badRequest('invalid-send', `The send is invalid: ${parsed.error.issues[0]!.path.join('.') || 'body'}`)
     const message = checkedMessage(parsed.data.message)
     const { devices } = parsed.data
-    if (!(await store.charge(credential.id, devices.length, relaySendsPerHour))) throw tooMany(secondsToNextHour(now()), `This credential sends to at most ${relaySendsPerHour} devices an hour`)
+    const at = now()
+    if (!(await store.charge(credential.id, devices.length, relaySendsPerHour, hourStart(at)))) throw tooMany(secondsToNextHour(at), `This credential sends to at most ${relaySendsPerHour} devices an hour`)
     const bindings = await store.bindings([...new Set(devices.map((device) => device.handle))])
     const results = await deliver(senders, appId, { message, origin: credential.origin, devices, bindings }).catch(messageProblem)
     await store.removeHandles([...results].filter(([, result]) => result === 'gone').map(([handle]) => handle))
