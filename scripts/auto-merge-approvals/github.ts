@@ -64,11 +64,11 @@ export function gitHub(token: string, repository: string) {
     deletesHeadOnMerge: async () => (await read<{ delete_branch_on_merge: boolean }>(repo)).delete_branch_on_merge,
     openPullsOnto: async (base: string) => (await read<unknown[]>(`${repo}/pulls?state=open&base=${encodeURIComponent(base)}&per_page=100`)).length,
 
-    // GitHub answers 422 for a branch that is gone already.
+    // GitHub answers 404 or 422 for a branch that is gone already, such as one another cleanup deleted first.
     async deleteBranch(branch: string) {
       const path = `${repo}/git/refs/heads/${branch.split('/').map(encodeURIComponent).join('/')}`
       const response = await send(path, { method: 'DELETE' })
-      if (!response.ok && response.status !== 422) throw new Error(`GitHub answered ${response.status} for DELETE ${path}`)
+      if (!response.ok && response.status !== 404 && response.status !== 422) throw new Error(`GitHub answered ${response.status} for DELETE ${path}`)
     },
   }
 }
