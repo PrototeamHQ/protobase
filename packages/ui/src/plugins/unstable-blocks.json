@@ -102,6 +102,7 @@
     "primitives/code-block#CodeBlock",
     "primitives/count-badge#CountBadge",
     "primitives/kbd#Kbd",
+    "primitives/menu-edge#useMenuRight",
     "primitives/popover-menu#usePopoverMenu",
     "primitives/route-link#RouteLink",
     "primitives/sheet#Sheet",
