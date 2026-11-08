@@ -350,13 +350,21 @@ The page reads the steps from the run's [trace](#traces), at `/api/workflows/run
 
 ### Re-running a failed run
 
+:::caution[Beta]
+A re-run from a step needs the earlier run's trace, and a re-run from the failed step keeps in its trace only the steps it ran, so it cannot itself be re-run from a state before them.
+:::
+
 A failed run, shown on its workflow's page, offers *Re-run from the failed step*. A failed run keeps its [checkpoints](#how-a-run-is-run). It opens the form for a new run with `workflow_id` and `rerun_of` filled in; creating it, through the form or `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "rerun_of": "..." }`, starts a run that:
 
 - runs on the workflow's version now, so fix the step first, and on the earlier run's input: a re-run given an `input` of its own is refused with `rerun-input`;
 - goes on from the earlier run's checkpoints, as a run goes on after a crash: each scope from its last checkpoint, the state it stood at from its first try, at the re-run's own time. No recorded call before it, such as a mail sent or a record written, happens again; the reads and computing steps since run again. A Map that runs again keeps its finished items and runs again only those that had not finished, each from where it stood;
-- is refused, and nothing starts, when the earlier run is not one of the workflow's runs the person may read (404), did not fail (`run-not-failed`), or would go on at a state or in a Map the version no longer has (`rerun-refused`, naming it).
+- is refused, and nothing starts, when the earlier run is not one of the workflow's runs the person may read with its trace (404), did not fail (`run-not-failed`), or would go on at a state or in a Map the version no longer has (`rerun-refused`, naming it).
 
-The re-run's trace holds only the steps it ran itself; the earlier run's own page lists its re-runs.
+With `rerun_from`, the name of a state of the workflow itself, it re-runs any run that ended, succeeded or failed, from that state: the steps before its first visit stay as they ran, and it and all after it run again, so what they send goes out again. It takes the steps before that state from the earlier run's [trace](#traces), so it needs a run that kept one: a run whose trace is `all`, or `failed` for a run that failed. The re-run goes on from a checkpoint at that state with the variables those steps assigned and the output of the last one, at the re-run's own time, and its own trace starts with those steps, so a re-run of it can start from any earlier state too. A kept step that succeeded, whose state now has a variable that keeps its whole result, `"Assign": { "customer": "{% $states.result %}" }`, gets that variable from what it gave, unless that state shaped its result with `Output` in the version the earlier run ran. A kept step that failed into a catcher keeps what it assigned then. `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "rerun_of": "...", "rerun_from": "Store" }` does it. It is refused when the run has not ended (`run-not-ended`), kept no trace (`rerun-no-trace`), never reached that state, or the version no longer has it or no longer starts there, or its trace lacks a step before it, as the trace of a re-run from the failed step does (`rerun-refused`), and without `rerun_of` (`rerun-from-without-run`).
+
+A workflow may be created with no steps: its `definition` then defaults to one with `manual` as its trigger and no states. A save of a definition with no states checks the rest of it as any save does; such a version is kept, and refused as it is published or run.
+
+A re-run from the failed step's trace holds only the steps it ran itself; the earlier run's own page lists its re-runs.
 
 ### Replaying a run
 

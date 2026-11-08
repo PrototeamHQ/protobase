@@ -3,6 +3,7 @@ import type { StepCacheStore } from './cache/cache-port'
 import { createRunner } from './runner'
 import type { Checkpoint, LoadedRun, RunStore, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
 import { rerunCheckpoint, rerunProblem } from './rerun'
+import { rerunFrom } from './rerun-from'
 
 type MemoryOptions = { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number; traceMode?: TraceMode; cache?: StepCacheStore }
 
@@ -67,12 +68,24 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
       runs.set(id, { id, definition, input, status: 'queued', startedAt: clock, ...(trace && { trace }) })
       await runner.start(null, id)
     },
-    /** Re-runs the failed run `earlier` as `id` on `definition`, with its input, from its checkpoints. */
-    rerun: async (id: string, earlier: string, definition: Definition) => {
-      const kept = checkpoints.filter((saved) => saved.runId === earlier)
-      const problem = rerunProblem(definition.stateMachine, kept)
-      if (problem) throw new Error(problem)
-      checkpoints.push(...kept.map((saved) => ({ ...rerunCheckpoint(structuredClone(saved), clock), runId: id })))
+    /**
+     * Re-runs the failed run `earlier` as `id` on `definition`, with its input, from its checkpoints; or, with `from`, the
+     * ended run from that state, from its trace, whose steps before it the re-run's trace keeps.
+     */
+    rerun: async (id: string, earlier: string, definition: Definition, from?: string) => {
+      if (from === undefined) {
+        const kept = checkpoints.filter((saved) => saved.runId === earlier)
+        const problem = rerunProblem(definition.stateMachine, kept)
+        if (problem) throw new Error(problem)
+        checkpoints.push(...kept.map((saved) => ({ ...rerunCheckpoint(structuredClone(saved), clock), runId: id })))
+      } else {
+        const ran = await trace.read(earlier)
+        if (!ran) throw new Error('The run kept no trace')
+        const found = rerunFrom(definition.stateMachine, runs.get(earlier)!.definition.stateMachine, structuredClone(ran), from, clock)
+        if ('problem' in found) throw new Error(found.problem)
+        if (found.checkpoint) checkpoints.push({ ...found.checkpoint, runId: id })
+        trace.write(id, found.kept, { mode: traceMode ?? 'all' })
+      }
       runs.set(id, { id, definition, input: runs.get(earlier)!.input, status: 'queued', startedAt: clock })
       await runner.start(null, id)
     },

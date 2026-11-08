@@ -23,6 +23,13 @@ const contextWith = (records: Partial<ToolRecords>, answer: ApprovalAnswer = 'ap
 const refusedSave = badRequest('invalid-workflow', 'The workflow cannot be saved: State "Fetch", field "Next": ...', { problems: [{ state: 'Fetch', field: 'Next', message: 'names "Gone", which is not a state here' }] })
 
 describe('validate_workflow', () => {
+  it('checks a definition with no steps as a save does, but for its want of steps', async () => {
+    const { context } = contextWith({})
+    const empty = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: '', States: {} } }
+    expect(JSON.parse(await validateWorkflowTool.run({ definition: empty }, context))).toEqual({ valid: true })
+    expect(JSON.parse(await validateWorkflowTool.run({ definition: { ...empty, trigger: { manual: {}, other: {} } } }, context))).toMatchObject({ valid: false })
+  })
+
   it('names the state, the field and what was expected, and reads nothing for a whole definition', async () => {
     const get = vi.fn()
     const { context } = contextWith({ get })

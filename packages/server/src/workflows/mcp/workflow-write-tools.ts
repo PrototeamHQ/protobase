@@ -85,6 +85,7 @@ export const runWorkflowTool = (input: WriteRecordToolsInput = {}) =>
         input: { description: "The run's input, any JSON value, at most 256 KiB; an empty object by default. Not with rerun_of." },
         version: { type: 'integer', description: 'A saved version to run; the one saved last by default. Not with rerun_of.' },
         rerun_of: { type: 'string', description: 'The id of a failed run of this workflow to re-run from its failed step, or of a run that ended to replay.' },
+        rerun_from: { type: 'string', description: 'With rerun_of, a run that ended: the state of the workflow itself to go on from, keeping the steps before it. It and all after it run again, and what they send goes out again.' },
         replay: { type: 'boolean', description: 'With rerun_of: replay that run, sending none of its outside writes.' },
       },
       required: ['id'],
@@ -102,7 +103,7 @@ export const runWorkflowTool = (input: WriteRecordToolsInput = {}) =>
       const before = await recordBefore(context, 'workflows', id, undefined)
       if (typeof before === 'string') return before
       if (!before) return refused(notFound('No workflows with this key that you may read'))
-      const data = rerun ? { workflow_id: id, rerun_of: rerun, ...(args.replay === true && { replay: true }) } : { workflow_id: id, input: args.input ?? {}, version: args.version ?? before.record.version }
+      const data = rerun ? { workflow_id: id, rerun_of: rerun, ...(args.replay === true && { replay: true }), ...(textOf(args.rerun_from) && { rerun_from: textOf(args.rerun_from) }) } : { workflow_id: id, input: args.input ?? {}, version: args.version ?? before.record.version }
       const { text, described } = await approvalTexts(context, 'workflow_runs')
       const answer = await context.approve(createApproval(text, described, data))
       if (answer !== 'approved') return notApproved(answer)

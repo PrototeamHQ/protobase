@@ -18,7 +18,7 @@ const workflowsResource = (schema: string) =>
       id: f.uuid().readOnly().dbDefault(),
       name: f.text().min(1).max(100).filterable().sortable(),
       description: f.text().optional().max(2000),
-      definition: f.json(),
+      definition: f.json().dbDefault(),
       version: f.integer().optional().readOnly(),
       enabled_version: f.integer().optional(),
       tenant_id: f.text().optional().readOnly(),
@@ -100,6 +100,7 @@ const runsResource = (schema: string) =>
       trace_file: f.file().optional().readOnly(),
       started_by: f.text().optional().readOnly(),
       rerun_of: f.relation('workflow_runs').optional().filterable(),
+      rerun_from: f.text().optional().max(200),
       replay: f.boolean().optional(),
       tenant_id: f.text().optional().readOnly(),
       created_at: f.timestamp().readOnly().dbDefault().sortable(),
@@ -124,7 +125,8 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
     id: r.id.label('Steps').widget('workflow_run'),
     workflow_id: r.workflow_id.label('Workflow'),
     input: r.input.widget('json').help('Read by every state as $states.context.Execution.Input; a re-run takes the input of the run it re-runs'),
-    rerun_of: r.rerun_of.label('Re-run of').help("A failed run of the workflow: the re-run goes on from that run's last checkpoint on the workflow as it is now, so no write it finished happens again; with Replay, a run that ended, run again from the start"),
+    rerun_of: r.rerun_of.label('Re-run of').help("A failed run of the workflow: the re-run goes on from that run's last checkpoint on the workflow as it is now, so no write whose checkpoint was saved happens again; with Replay, a run that ended, run again from the start"),
+    rerun_from: r.rerun_from.label('Re-run from').help("The step to re-run from, not one inside For each. Set Re-run of to a run that ended and kept its trace. Earlier steps keep their results. The chosen step and every step after it run again, and anything they send goes out again").notOnCreate(),
     replay: r.replay.label('Replay').help("With Re-run of, runs that run again from the start on its version and input: its steps that write, such as mail, record writes and requests other than GET, are not sent and give what its trace says they gave then, nothing when it kept none, and its reads are served from the step cache"),
     key: r.key.help('A workflow runs once per key, such as the record a trigger found ready'),
     status: r.status.valueLabels({ queued: 'Queued', running: 'Running', waiting: 'Waiting', succeeded: 'Succeeded', failed: 'Failed' }).valueColors({ succeeded: 'green', failed: 'red' }),
@@ -147,7 +149,7 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   .layout((r) => [
     l.section('Trace', [r.id]),
     l.section('Run', [r.workflow_id, r.input, r.output, r.error, r.cause, r.trace_file]),
-    l.sidebar([r.status, r.version, r.trace, r.started_by, r.rerun_of, r.replay, r.created_at, r.resume_at, r.finished_at, r.duration_ms]),
+    l.sidebar([r.status, r.version, r.trace, r.started_by, r.rerun_of, r.rerun_from, r.replay, r.created_at, r.resume_at, r.finished_at, r.duration_ms]),
     l.related('Re-runs', { resource: 'workflow_runs', field: 'rerun_of', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'error'] }),
   ])
 

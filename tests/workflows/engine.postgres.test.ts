@@ -157,7 +157,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     await finished(tried)
     expect(await runRow(published)).toMatchObject({ output: 'one', version: 1 })
     expect(await runRow(tried)).toMatchObject({ output: 'two', version: 2 })
-    expect((await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {}, version: 9 } })).status).toBeGreaterThanOrEqual(400)
+    expect((await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {}, version: 9 } })).status).toBe(409)
     expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 9 } })).status).toBe(400)
     // A publish alone is a change of the record: an ETag read before it is stale
     const read = (await as('ada', `/workflows/${id}`)).headers.get('etag')!
@@ -181,6 +181,22 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     const off = await run(id, {})
     await finished(off)
     expect(await runRow(off)).toMatchObject({ output: 'two', version: 2 })
+  })
+
+  it('refuses a run of a version with no steps, on the version a replay takes too', async () => {
+    const id = await create('Echo', definition({ Echo: { Type: 'Pass', Output: 'one', End: true } }))
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 1 } })).status).toBe(200)
+    const first = await run(id, {})
+    await finished(first)
+    const emptied = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: '', States: {} } }
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: emptied } })).status).toBe(200)
+    // A start without a version runs the published one, which has steps; a replay takes the empty one saved last
+    const started = await run(id, {})
+    await finished(started)
+    const replay = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, rerun_of: first, replay: true } })
+    expect(replay.status).toBe(409)
+    const { items } = await (await as('ada', `/workflow_runs?filter=${encodeURIComponent(`workflow_id = "${id}"`)}`)).json()
+    expect(items).toHaveLength(2)
   })
 
   it('writes the run trigger again on a schema of the version whose replays ran their run\'s version', async () => {
@@ -310,6 +326,29 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     const again = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, rerun_of: rerun } })
     expect(again.status).toBe(400)
     expect((await again.json()).type).toContain('run-not-failed')
+  })
+
+  it('re-runs an ended run from a state, from the steps its trace kept, and refuses a run that kept no trace', async () => {
+    const states = (total: string) => ({ Count: { Type: 'Pass', Assign: { size: '{% $count($states.context.Execution.Input.items) %}' }, Next: 'Total' }, Total: { Type: 'Pass', Output: total, End: true } })
+    const id = await create('Recount', definition(states('{% 0 %}')))
+    const done = await run(id, { items: [1, 2, 3] })
+    await finished(done)
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: definition(states('{% $size %}')) } })).status).toBe(200)
+    const response = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, rerun_of: done, rerun_from: 'Total' } })
+    expect(response.status).toBe(201)
+    const rerun = (await response.json()).id as string
+    await finished(rerun)
+    expect(await runRow(rerun)).toMatchObject({ status: 'succeeded', output: 3, version: 2 })
+    const [before, after] = [await steps(done), await steps(rerun)]
+    expect(after.map((step) => step.state)).toEqual(['Count', 'Total'])
+    expect(after[0]!.startedAt).toEqual(before[0]!.startedAt)
+
+    const untraced = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: { items: [] }, trace: 'none' } })
+    const quiet = (await untraced.json()).id as string
+    await finished(quiet)
+    const refused = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, rerun_of: quiet, rerun_from: 'Total' } })
+    expect(refused.status).toBe(400)
+    expect((await refused.json()).type).toContain('rerun-no-trace')
   })
 
   it('starts a run from the app\'s own code inside the caller\'s transaction, or not at all when it rolls back', async () => {

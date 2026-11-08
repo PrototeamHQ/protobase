@@ -1,3 +1,4 @@
+import { expressionSource } from '../definition/expressions'
 import type { Machine } from '../definition/types'
 import type { Checkpoint } from './port'
 
@@ -39,3 +40,24 @@ export const rerunProblem = (machine: Machine, checkpoints: readonly EarlierChec
 
 /** A failed run's checkpoint as its re-run, started at `clock`, takes it up: the state it goes on at from its first try, now. */
 export const rerunCheckpoint = <C extends Checkpoint>({ resumeAt: _, ...checkpoint }: C, clock: Date) => ({ ...checkpoint, attempt: 1, failures: [], clock })
+
+/** How a state keeps its whole result in a variable. */
+export const resultRead = '{% $states.result %}'
+
+/**
+ * What a kept step assigned, with each variable its state has on the version a re-run runs that keeps its whole result
+ * holding that result, whatever it held then: a step kept as it ran still gives what a later step now reads from it, and
+ * nothing runs again for it. Its other variables stay as they ran, and so does all a step that did not succeed assigned.
+ * The step's output is its whole result only where its state in `ran`, the version the earlier run ran, had no `Output`:
+ * a step whose result was shaped then keeps what it assigned, as nothing knows its whole result any more.
+ */
+export const keptAssigned = (machine: Machine, ran: Machine, step: { scope: string; state: string; status: string; output?: unknown; assigned?: unknown }) => {
+  // A step that failed into a catcher gave an error, not its result, and assigned what the catcher says
+  const state = step.scope === '' && step.status === 'succeeded' ? machine.States[step.state] : undefined
+  const before = ran.States[step.state]
+  const assign = state && 'Assign' in state ? (state.Assign as Record<string, unknown> | undefined) : undefined
+  if (!state || !assign || !before || ('Output' in before && before.Output !== undefined)) return undefined
+  const assigned = (step.assigned ?? {}) as Record<string, unknown>
+  const whole = Object.keys(assign).filter((name) => expressionSource(assign[name])?.trim() === '$states.result' && JSON.stringify(assigned[name]) !== JSON.stringify(step.output))
+  return whole.length === 0 ? undefined : { ...assigned, ...Object.fromEntries(whole.map((name) => [name, step.output])) }
+}

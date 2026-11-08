@@ -1,6 +1,6 @@
 import { limits } from '../limits'
 import type { StepCacheStore } from './cache/cache-port'
-import type { RunStore, SegmentQueue, TaskHandlers, TraceMode, TraceSink } from './port'
+import type { LoadedRun, RunStore, SegmentQueue, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
 import { secretRedactor } from './redact'
 import { runSegment } from './segment'
 
@@ -34,6 +34,12 @@ export const createRunner = <Db>({ store, queue, tasks, cache, secrets = {}, tra
   secretRedactor(Object.values(secrets))
   return {
     start: (db: Db, runId: string) => queue.schedule(db, runId),
+
+    /** The steps an ended run's trace holds, which a re-run from one of them starts from: undefined when it kept none. */
+    readTrace: async (runId: string) => (await trace?.read(runId)) ?? undefined,
+
+    /** Puts the steps a re-run from a step keeps of an earlier run at the start of `run`'s trace, as the run keeps one. */
+    keepSteps: (run: Pick<LoadedRun, 'id' | 'definition' | 'trace'>, steps: readonly StepRecord[]) => trace?.write(run.id, steps, { mode: run.trace ?? run.definition.trace ?? traceMode }),
 
     /**
      * Runs the run from where it stands to its next wait, then queues the next segment or ends the run, and hands the

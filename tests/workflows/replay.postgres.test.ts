@@ -23,7 +23,7 @@ const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly
 const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'notes'>({
   builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'notes.*'],
   // Reads the runs but not their traces, which a replay copies.
-  runner: ['workflows.read', 'workflow_runs.create', { 'workflow_runs.read': ['id', 'workflow_id', 'status', 'rerun_of', 'replay', 'created_at'] }],
+  runner: ['workflows.read', 'workflow_runs.create', { 'workflow_runs.read': ['id', 'workflow_id', 'status', 'rerun_of', 'rerun_from', 'replay', 'created_at'] }],
   reader: ['workflows.read', 'workflow_runs.read'],
 })
 const people: Record<string, { tenant: string; roles: string[] }> = {
@@ -188,6 +188,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
     const runs = await count()
     const replay = (user: string, body: Record<string, unknown>) => as(user, '/workflow_runs', { method: 'POST', body: { replay: true, ...body } })
     expect((await replay('rita', { workflow_id: workflow, rerun_of: run })).status).toBe(404)
+    // A re-run copies the steps it keeps, so it asks the same: rita may start runs but not read their steps
+    expect((await as('rita', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, rerun_of: run, rerun_from: 'Mail' } })).status).toBe(404)
     expect([403, 404]).toContain((await replay('reed', { workflow_id: workflow, rerun_of: run })).status)
     expect((await replay('bob', { workflow_id: workflow, rerun_of: run })).status).toBe(409)
     expect((await replay('ada', { workflow_id: other, rerun_of: run })).status).toBe(409)

@@ -3,7 +3,7 @@ import type { Runner } from '@protobase/workflows'
 import type { Deps } from '../deps'
 import { fetchReadable } from '../fetch-readable'
 import { deletedRows } from '../params'
-import { notFound } from '../problem'
+import { badRequest, notFound } from '../problem'
 import { requestAccess, requireOperation } from '../request-access'
 import type { PipelineHook } from '../types'
 import { checkRunInput } from './input-limits'
@@ -25,7 +25,8 @@ export const runStartHook = (runner: Runner<Db>, deps: () => Deps, schema: strin
   // Read in the write's own transaction: another would wait for a connection while this one holds its own.
   const key = access.full.fields[access.full.primaryKey[0]!]!
   if (!(await fetchReadable(trx, access, [String(event.after.workflow_id)], deletedRows(access.full, false), { fields: [key] }))) throw notFound(`No ${entry.name} with this key`)
+  if (event.after.rerun_from && !event.after.rerun_of) throw badRequest('rerun-from-without-run', 'A re-run from a step names the run it re-runs as rerun_of')
   if (event.after.replay === true) await startReplay(trx, deps(), { ...event, after: event.after })
-  else if (event.after.rerun_of) await keepEarlierCheckpoints(trx, deps(), schema, { ...event, after: event.after })
+  else if (event.after.rerun_of) await keepEarlierCheckpoints(trx, deps(), runner, schema, { ...event, after: event.after })
   await runner.start(trx, String(event.after.id))
 }
