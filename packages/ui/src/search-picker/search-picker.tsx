@@ -38,7 +38,8 @@ export const SearchPicker = ({ groups, label = text('search'), autoFocus = false
   }, [currentId])
   const onKeyDown = (event: KeyboardEvent) => {
     // Keys that pick among an IME's candidates are the IME's
-    if (event.nativeEvent.isComposing) return
+    // Some browsers mark the Enter that ends a composition only by its key code
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
       if (items.length === 0) return

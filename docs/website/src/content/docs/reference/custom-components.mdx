@@ -131,6 +131,10 @@ export const ChannelChat = () => {
 
 ## Focus pages
 
+:::caution[Beta]
+These parts serve a record's focus page, or a page of your own that draws `FocusPage`; the page never scrolls, each side holds one panel at a time, and the bar's widths for moving actions into "..." are estimates.
+:::
+
 A [focus page](/reference/ui-config/#focus-pages) knows nothing of what it shows: whatever draws the surface fills the page's parts from anywhere inside it, and the framework adds the record's Save and actions. All of it comes from `@protobase/ui`, for a field type's `editor`, a `.record({ component, focus: true })` component, or a page of your own that draws `FocusPage` itself:
 
 | Part | |
