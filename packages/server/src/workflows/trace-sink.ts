@@ -6,6 +6,8 @@ import { privateRunStore, runFolder } from './run-files'
 /** Where a run's trace is kept: each segment's part under `trace/` while it runs, then the whole in `trace.jsonl`. */
 export const traceParts = (runId: string) => `${runFolder(runId)}trace/`
 export const traceFile = (runId: string) => `${runFolder(runId)}trace.jsonl`
+/** The number the run's next part takes, kept outside `trace/` so a join never reads it as a part. */
+const traceNext = (runId: string) => `${runFolder(runId)}trace-next`
 
 const lines = (steps: readonly StepRecord[]) => steps.map((step) => `${JSON.stringify(step)}\n`).join('')
 
@@ -27,15 +29,22 @@ export type TraceSinkInput = {
  * the run it replays through `read`.
  */
 export const traceSink = ({ files, joining, report }: TraceSinkInput): TraceSink => {
-  // A part is named by when it was kept, then by how many parts of the run were there before it, whichever worker kept
-  // them, so two parts kept in the same millisecond still read in the order they were written.
-  const partName = (before: number) => `${new Date().toISOString()}-${String(before).padStart(12, '0')}-${crypto.randomUUID()}.jsonl`
+  // A part is named by the run's next number, whichever worker keeps it, so the parts read in the order they were
+  // written. One run writes one part at a time, since the runner awaits `write` before it saves the checkpoint after
+  // it, so reading the number and putting the next one needs no lock. The number goes up before the part is put: a
+  // write that fails leaves a gap, never a number taken twice. The join drops the number after the parts, so a join
+  // that stops halfway leaves it, and a later part still sorts after the parts that join left.
+  const nextPart = async (store: NonNullable<ReturnType<typeof privateRunStore>>, runId: string) => {
+    const kept = await store.read(traceNext(runId))
+    const next = kept ? Number(await new Response(kept).text()) : 0
+    await store.put(traceNext(runId), new Blob([String(next + 1)]).stream())
+    return `${String(next).padStart(12, '0')}-${crypto.randomUUID()}.jsonl`
+  }
   const keep = async (runId: string, steps: readonly StepRecord[], dropped: boolean, ended: boolean) => {
     const store = privateRunStore(files())
     if (!store) throw new Error('Workflows keep run traces in the "private" file provider, which the app does not have or serves to anyone; set workflows.trace to "none" to keep none')
     if (!dropped && steps.length > 0) {
-      const before = await store.list(traceParts(runId))
-      await store.put(`${traceParts(runId)}${partName(before.length)}`, new Blob([lines(steps)]).stream())
+      await store.put(`${traceParts(runId)}${await nextPart(store, runId)}`, new Blob([lines(steps)]).stream())
     }
     if (!ended) return
     await joining(runId, async (kept) => {
@@ -50,6 +59,7 @@ export const traceSink = ({ files, joining, report }: TraceSinkInput): TraceSink
         await kept(formatUri({ provider: 'private', path: traceFile(runId), name: 'trace.jsonl', size }))
       }
       await Promise.all(parts.map((part) => store.delete(part.path)))
+      await store.delete(traceNext(runId))
     })
   }
   return {

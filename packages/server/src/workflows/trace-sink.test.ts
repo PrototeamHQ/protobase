@@ -91,23 +91,35 @@ describe('traceSink', () => {
     vi.useFakeTimers({ toFake: ['Date'], now: new Date(Date.UTC(2026, 10, 8, 9)) })
     // Two workers take the run's segments in turn, each with a sink of its own.
     const sinks = [0, 1].map(() => traceSink({ files: () => files, joining, report: (error) => { throw error } }))
+    const list = vi.spyOn(files.providers.private!.store, 'list')
     for (const [i, state] of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].entries()) await sinks[i % 2]!.write('r9', [step(state)], { mode: 'all' })
     vi.useRealTimers()
+    // A part takes the run's next number without listing the parts before it.
+    expect(list).not.toHaveBeenCalled()
     expect((await readTrace(files, 'r9')).map((line) => line.state)).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'])
   })
 
-  it('reads the parts of a run that goes on in the order they were kept, and gives a replay no steps of a run without a trace', async () => {
+  it('sorts a part after the parts a join that stopped halfway left', async () => {
+    const store = files.providers.private!.store
+    const sink = traceSink({ files: () => files, joining, report: (error) => { throw error } })
+    for (const state of ['A', 'B', 'C']) await sink.write('r10', [step(state)], { mode: 'all' })
+    // The join dropped the first part, then its worker stopped before it dropped the rest and the run's next number.
+    await store.delete((await store.list('workflows/r10/trace/'))[0]!.path)
+    await sink.write('r10', [step('D')], { mode: 'all' })
+    expect((await readTrace(files, 'r10')).map((line) => line.state)).toEqual(['B', 'C', 'D'])
+  })
+
+  it('reads the parts of a run that goes on in the order they were written, and gives a replay no steps of a run without a trace', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     const sink = traceSink({ files: () => files, joining, report: (error) => { throw error } })
-    // A part is named by when it was kept, so the parts read in that order and not in the order they were written: here
-    // each segment's part is kept a minute before the one before it.
+    // A part is named by the run's next number, not by the clock: here each worker's clock is a minute behind the one before.
     for (const [index, state] of ['A', 'B', 'C'].entries()) {
       vi.setSystemTime(new Date(Date.UTC(2026, 10, 8, 9, 3 - index)))
       await sink.write('r7', [{ ...step(state), seq: index }], { mode: 'all' })
     }
     vi.useRealTimers()
-    expect((await readTrace(files, 'r7')).map((line) => line.state)).toEqual(['C', 'B', 'A'])
-    expect((await sink.read('r7'))?.map((line) => line.state)).toEqual(['C', 'B', 'A'])
+    expect((await readTrace(files, 'r7')).map((line) => line.state)).toEqual(['A', 'B', 'C'])
+    expect((await sink.read('r7'))?.map((line) => line.state)).toEqual(['A', 'B', 'C'])
     expect(await sink.read('r8')).toBeUndefined()
   })
 
