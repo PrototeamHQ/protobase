@@ -57,7 +57,7 @@ export const FocusPage = ({ label, children }: FocusPageProps) => {
         </div>
         <div ref={refs.notice} className="shrink-0 empty:hidden" />
         <div ref={row} className="relative flex min-h-0 flex-1">
-          <div ref={refs.start} className="h-full shrink-0 empty:hidden" />
+          <div ref={refs.start} className={cn('h-full shrink-0 empty:hidden', overlays && 'absolute inset-y-0 left-0 z-10 shadow-pop')} />
           <div className="relative min-h-0 min-w-0 flex-1">{children}</div>
           <div ref={refs.end} className={cn('h-full shrink-0 empty:hidden', overlays && 'absolute inset-y-0 right-0 z-10 shadow-pop')} />
         </div>
