@@ -46,6 +46,9 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
 
   const put = async (path: string, body: ReadableStream<Uint8Array>) => {
     if (!isFilePath(path)) return store.put(path, body)
+    // The limits hold per writer, with no atomicity across writers, as for a new file before: the store has no
+    // compare-and-put, and two writers putting the same path at once are off by at most that one file. A run's trace
+    // writes one part at a time, since the runner awaits each write.
     const replaced = await store.head(path)
     const added = replaced ? 0 : 1
     const freed = replaced?.size ?? 0
