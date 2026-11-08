@@ -5,7 +5,7 @@ import type { AdminAuth } from '../better-auth/create-auth'
 import { migrationCommand } from '../changes/capture-schema'
 import { historyTableSql } from './history-sql'
 import { historyNames, notificationsNames, type NotificationsNames, type NotificationsOptions } from './options'
-import { deviceSessionColumnSql, devicesTableSql, qualified } from './schema-sql'
+import { deviceKindChecksSql, deviceSessionColumnSql, devicesTableSql, qualified } from './schema-sql'
 
 /** Auth's users table, as the store names it: devices point at it. */
 export const authUsersTable = (auth: AdminAuth) => ({ schema: storeSchema(auth), table: auth.options.user?.modelName ?? 'user' })
@@ -40,11 +40,23 @@ const lacksSessionColumn = async (db: Db, names: NotificationsNames) => {
   return oid !== null && !(await columnsOf(db, oid)).some((row) => row.name === names.columns.session_id)
 }
 
+// The kind checks of a devices table written before devices could be relay devices, by name: its checks on the kind
+// column that list the kinds, when none lists relay. None for a table without them, such as one of the app's own.
+const kindChecksWithoutRelay = async (db: Db, names: NotificationsNames) => {
+  const oid = await regclass(db, qualified(names))
+  if (oid === null) return []
+  const { rows } = await sql<{ name: string; def: string }>`select c.conname as name, pg_get_constraintdef(c.oid) as def from pg_constraint c
+    join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any(c.conkey)
+    where c.conrelid = ${oid} and c.contype = 'c' and a.attname = ${names.columns.kind} order by c.conname`.execute(db)
+  const listing = rows.filter((row) => row.def.includes("'fcm'"))
+  return listing.some((row) => row.def.includes("'relay'")) ? [] : listing.map((row) => row.name)
+}
+
 /**
  * The SQL that adds the tables `notifications` keeps devices and each user's history in, under the names its options
  * give; with `auth`, their user columns point at auth's users table. Each table is left out when it exists or a store
- * of the app's own replaces it, and an existing devices table without its session column gets that column;
- * `undefined` when nothing is left.
+ * of the app's own replaces it; an existing devices table without its session column gets that column, and one whose
+ * checks allow no relay devices gets checks that do. `undefined` when nothing is left.
  */
 export const notificationsMigration = async (db: Db, options: NotificationsOptions = {}, auth?: AdminAuth) => {
   const devices = !options.store && notificationsNames(options)
@@ -52,12 +64,14 @@ export const notificationsMigration = async (db: Db, options: NotificationsOptio
   const missing = async (names: { schema: string; table: string } | false) => names && (await regclass(db, qualified(names))) === null
   const [needsDevices, needsHistory] = [await missing(devices), await missing(history)]
   const needsSession = devices && !needsDevices && (await lacksSessionColumn(db, devices))
-  if (!needsDevices && !needsHistory && !needsSession) return undefined
+  const oldChecks = devices && !needsDevices ? await kindChecksWithoutRelay(db, devices) : []
+  if (!needsDevices && !needsHistory && !needsSession && oldChecks.length === 0) return undefined
   const users = auth && authUsersTable(auth)
   const user = users && (needsDevices || needsHistory) ? { type: await userIdType(db, users), references: `${qualified(users)} (id)` } : { type: 'text' }
   const statements = [
     ...(needsDevices && devices ? devicesTableSql(devices, user) : []),
     ...(needsSession && devices ? [deviceSessionColumnSql(devices)] : []),
+    ...(oldChecks.length > 0 && devices ? [deviceKindChecksSql(devices, oldChecks)] : []),
     ...(needsHistory && history ? historyTableSql(history, user) : []),
   ]
   return `${[...new Set(statements)].join(';\n\n')};`

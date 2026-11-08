@@ -10,7 +10,7 @@ deviceStoreContract('in memory', async () => memoryDeviceStore())
 expectTypeOf<Parameters<DeviceStore['register']>>().toEqualTypeOf<[userId: string, device: NewDevice]>()
 expectTypeOf<ReturnType<DeviceStore['listByIds']>>().toEqualTypeOf<Promise<Device[]>>()
 expectTypeOf<{ [K in keyof Device]: Device[K] }>().toEqualTypeOf<{
-  kind: 'web' | 'apns' | 'fcm'
+  kind: 'web' | 'apns' | 'fcm' | 'relay'
   token: string
   p256dh: string | null
   auth: string | null

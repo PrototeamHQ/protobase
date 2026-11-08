@@ -6,7 +6,7 @@ const send: PushSender['send'] = async () => []
 
 describe('checkSenders', () => {
   it('accepts senders of different kinds, with a public key for web', () => {
-    const senders: PushSender[] = [{ kinds: ['web'], publicKey: generateVapidKeys().publicKey, send }, { kinds: ['apns', 'fcm'], send }]
+    const senders: PushSender[] = [{ kinds: ['web'], publicKey: generateVapidKeys().publicKey, send }, { kinds: ['apns', 'fcm'], send }, { kinds: ['relay'], send }]
     expect(checkSenders(senders)).toBe(senders)
   })
 
@@ -15,6 +15,7 @@ describe('checkSenders', () => {
     ['no kinds', [{ kinds: [], send }], 'sender 0 names no kinds'],
     ['an unknown kind', [{ kinds: ['sms'], send }], 'sender 0 names a kind that is none of'],
     ['a kind twice', [{ kinds: ['web'], send }, { kinds: ['fcm', 'web'], send }], 'sender 1 delivers to web devices, as an earlier sender does'],
+    ['relay twice', [{ kinds: ['relay'], send }, { kinds: ['relay'], send }], 'sender 1 delivers to relay devices, as an earlier sender does'],
     ['no list', { kinds: ['web'], send }, 'is a list of senders'],
   ])('refuses %s', (_name, senders, message) => {
     expect(() => checkSenders(senders as never)).toThrow(message)

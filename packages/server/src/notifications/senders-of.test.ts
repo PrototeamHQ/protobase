@@ -40,6 +40,14 @@ describe('notificationSenders', () => {
     expect(() => notificationSenders({}, { PROTOBASE_FCM_SERVICE_ACCOUNT: '{"private_key": "abc' })).toThrow('PROTOBASE_FCM_SERVICE_ACCOUNT is not JSON')
   })
 
+  it('has the built-in relay sender, guarded, when its URL and credential are set, and stops on only one of them', async () => {
+    const relayEnv = { PROTOBASE_PUSH_RELAY_URL: 'https://relay.example.com', PROTOBASE_PUSH_RELAY_CREDENTIAL: 'relay-credential-0123456789' }
+    expect(notificationSenders({}, { ...vapidEnv, ...relayEnv }).map((sender) => sender.kinds)).toEqual([['web'], ['relay']])
+    const [relay] = notificationSenders({}, relayEnv)
+    await expect(relay!.send({ title: 'x', url: 'javascript:x' }, [])).rejects.toThrow('url')
+    expect(() => notificationSenders({}, { PROTOBASE_PUSH_RELAY_URL: relayEnv.PROTOBASE_PUSH_RELAY_URL })).toThrow('must be set together')
+  })
+
   it('stops on a VAPID mistake', () => {
     expect(() => notificationSenders({}, { PROTOBASE_VAPID_PUBLIC_KEY: keys.publicKey })).toThrow('PROTOBASE_VAPID_PRIVATE_KEY and PROTOBASE_VAPID_SUBJECT must be set')
   })

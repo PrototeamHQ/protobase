@@ -1,5 +1,8 @@
-/** How a device receives push: a browser's Web Push subscription, an iOS app's APNs token or an Android app's FCM token. */
-export const deviceKinds = ['web', 'apns', 'fcm'] as const
+/**
+ * How a device receives push: a browser's Web Push subscription, an iOS app's APNs token, an Android app's FCM token,
+ * or a handle a push relay gave a mobile app's device, which the relay delivers to.
+ */
+export const deviceKinds = ['web', 'apns', 'fcm', 'relay'] as const
 export type DeviceKind = (typeof deviceKinds)[number]
 
 /** The APNs environment an iOS build's token belongs to. */
@@ -7,8 +10,8 @@ export const apnsEnvironments = ['sandbox', 'production'] as const
 export type ApnsEnvironment = (typeof apnsEnvironments)[number]
 
 /**
- * A device as a signed-in user registers it. `token` is unique among all devices: the APNs or FCM token, or for `web`
- * the subscription's endpoint URL. A field that does not apply to the kind is `null`: the Web Push keys (`p256dh`,
+ * A device as a signed-in user registers it. `token` is unique among all devices: the APNs or FCM token, the relay
+ * handle, or for `web` the subscription's endpoint URL. A field that does not apply to the kind is `null`: the Web Push keys (`p256dh`,
  * `auth`) for web only, the APNs `environment` for apns only, the `appId` (the iOS bundle id or Android package) for
  * apns and fcm. `sessionId` is the id of the sign-in session it was registered in, never its token, or `null` when the
  * app's authenticator names none: with Protobase's auth, the device gets push only while that session stands.
