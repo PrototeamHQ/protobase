@@ -11,35 +11,40 @@ const lines = (steps: readonly StepRecord[]) => steps.map((step) => `${JSON.stri
 
 export type TraceSinkInput = {
   files: () => FilesRuntime | undefined
-  /** Names the run's whole trace on the run, as its `trace_file`. */
-  kept: (runId: string, file: string) => Promise<void>
+  /**
+   * Runs `join` while no other worker joins the same run's trace, as a segment retried while its try before is still
+   * joining would: `join` gets `kept`, which names the run's whole trace on the run, as its `trace_file`.
+   */
+  joining: (runId: string, join: (kept: (file: string) => Promise<void>) => Promise<void>) => Promise<void>
   report: (error: unknown) => void
 }
 
 /**
  * The trace of runs as JSON lines in the private file provider, one step a line with its input, output, logs and
- * timing. Each segment's steps are a part of their own, written before the run goes on; the segment that ends the run
- * joins the parts into `trace.jsonl`, which the run's `trace_file` then names, or drops them when only a failing run keeps
- * one. A trace that cannot be written goes to the app's error report, and the run goes on. A replay reads the trace of
+ * timing. A segment's steps are parts of their own, each written before a checkpoint after them and before the run goes
+ * on; the segment that ends the run joins the parts into `trace.jsonl`, which the run's `trace_file` then names, or
+ * drops them when only a failing run keeps one. A trace that cannot be written goes to the app's error report, and the run goes on. A replay reads the trace of
  * the run it replays through `read`.
  */
-export const traceSink = ({ files, kept, report }: TraceSinkInput): TraceSink => {
+export const traceSink = ({ files, joining, report }: TraceSinkInput): TraceSink => {
   const keep = async (runId: string, steps: readonly StepRecord[], dropped: boolean, ended: boolean) => {
     const store = privateRunStore(files())
     if (!store) throw new Error('Workflows keep run traces in the "private" file provider, which the app does not have or serves to anyone; set workflows.trace to "none" to keep none')
     if (!dropped && steps.length > 0) await store.put(`${traceParts(runId)}${new Date().toISOString()}-${crypto.randomUUID()}.jsonl`, new Blob([lines(steps)]).stream())
     if (!ended) return
-    const parts = await store.list(traceParts(runId))
-    if (!dropped) {
-      // A segment that ended the run once already, before a crash stopped it from marking the run ended, joined the
-      // parts before it: its join is kept ahead of the parts since.
-      const earlier = await store.read(traceFile(runId))
-      const texts = await Promise.all(parts.map(async (part) => new Response(await store.read(part.path)).text()))
-      const whole = new Blob([...(earlier ? [await new Response(earlier).text()] : []), ...texts])
-      const { size } = await store.put(traceFile(runId), whole.stream())
-      await kept(runId, formatUri({ provider: 'private', path: traceFile(runId), name: 'trace.jsonl', size }))
-    }
-    await Promise.all(parts.map((part) => store.delete(part.path)))
+    await joining(runId, async (kept) => {
+      const parts = await store.list(traceParts(runId))
+      if (!dropped) {
+        // A segment that ended the run once already, before a crash stopped it from marking the run ended, joined the
+        // parts before it: its join is kept ahead of the parts since.
+        const earlier = await store.read(traceFile(runId))
+        const texts = await Promise.all(parts.map(async (part) => new Response(await store.read(part.path)).text()))
+        const whole = new Blob([...(earlier ? [await new Response(earlier).text()] : []), ...texts])
+        const { size } = await store.put(traceFile(runId), whole.stream())
+        await kept(formatUri({ provider: 'private', path: traceFile(runId), name: 'trace.jsonl', size }))
+      }
+      await Promise.all(parts.map((part) => store.delete(part.path)))
+    })
   }
   return {
     write: async (runId, steps, { mode, ended }) => {

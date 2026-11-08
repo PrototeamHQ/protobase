@@ -143,8 +143,8 @@ export type RunStore<Db> = {
   /** The latest checkpoint of each scope of the run. */
   checkpoints(db: Db, runId: string): Promise<Checkpoint[]>
   /**
-   * Saves checkpoints in one guarded statement, each replacing its scope's earlier ones: false when any scope has one
-   * newer than the one it follows (`after`), and those are left as the other segment saved them.
+   * Saves checkpoints all or none, each replacing its scope's earlier ones: false when any scope has one newer than
+   * the one it follows (`after`), and then none is saved.
    */
   save(db: Db, runId: string, checkpoints: readonly Checkpoint[]): Promise<boolean>
   /** Changes the run unless it has ended already; a run that ends drops its checkpoints. */
@@ -159,7 +159,7 @@ export type TraceMode = NonNullable<Definition['trace']>
 
 /**
  * Where runs' traces go, outside the database: each segment hands over the steps it ran, with every input and output,
- * once its checkpoints are saved. `write` resolves once they are kept, and on the segment that ended the run (`ended`)
+ * before each checkpoint after them is saved and once it stops. `write` resolves once they are kept, and on the segment that ended the run (`ended`)
  * once the whole trace is, so the runner queues the next segment or ends the run only then and no part comes after the
  * trace is joined; it never rejects, since a trace that cannot be written does not stop the run. With `failed`, a run
  * that succeeded keeps no trace. `read` gives an ended run's steps, as a replay of it takes them: undefined when it kept
