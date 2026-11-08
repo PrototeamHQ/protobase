@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession } from '@protobase/client'
+import { appPath } from '@protobase/schema'
 import { workflowResources } from '@protobase/schema/internal'
 import { StepError, type Definition } from '@protobase/workflows'
 import { App } from '../../app'
@@ -47,14 +48,20 @@ const gated: Definition = {
   },
 }
 
-/** Reads today's open tickets, then mails a summary composed from them. */
+/** Reads today's open tickets with the secret, then mails a summary composed from them. */
 const mailSummary: Definition = {
   trigger: { manual: {} },
   stateMachine: {
     QueryLanguage: 'JSONata',
     StartAt: 'Fetch',
     States: {
-      Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://tickets.example.com/open' }, Assign: { count: '{% $count($states.result.body.items) %}' }, Next: 'Compose' },
+      Fetch: {
+        Type: 'Task',
+        Resource: 'app:http',
+        Arguments: { url: 'https://tickets.example.com/open', headers: { Authorization: "{% 'Bearer ' & $states.context.Secrets.TICKETS_TOKEN %}" } },
+        Assign: { count: '{% $count($states.result.body.items) %}' },
+        Next: 'Compose',
+      },
       Compose: { Type: 'Pass', Assign: { text: '{% $string($count) & " open tickets" %}' }, Next: 'Mail' },
       Mail: { Type: 'Task', Resource: 'app:mail.send', Arguments: { to: 'team@example.com', subject: 'Open tickets', text: '{% $text %}' }, End: true },
     },
@@ -81,13 +88,17 @@ const greet = (trace: Definition['trace']): Definition => ({
   stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Greet', States: { Greet: { Type: 'Pass', Output: { greeting: 'Hello' }, End: true } } },
 })
 
+// The page of the stories' first run, which each run story opens
+const runPage = appPath({ kind: 'record', resource: 'workflow_runs', key: 'run-1' })
+
 const workflow = (id: number, name: string, definition: Definition) => ({ id, name, description: null, definition, version: 1 })
 const version = (id: number, definition: Definition) => ({ workflow_id: id, version: 1, definition, saved_by: 'u-ada', saved_at: '2026-11-04T09:00:00Z' })
 
 // What the stories' steps did, for the checks to read, and the gate the gated step waits on
 const calls = { fetch: 0, store: 0, mail: 0 }
 let openGate = () => {}
-// The secret a read's next call says changed since its result was kept, as the step cache logs on a hit
+// The secret whose change a read's next call logs in the step cache's words. The stories' engine has no step cache, so
+// this only lets the replay check see that the page shows that line; replay.postgres.test.ts proves the cache logs it.
 let secretChanged: string | undefined
 
 /**
@@ -196,7 +207,7 @@ const fixAndRerun = async (canvasElement: HTMLElement) => {
 }
 
 /** A run whose second step failed, as its page opens: the failed step chosen with its error, input and logs. */
-export const FailedRun: StoryObj = { name: 'A failed run', render: () => <Workspace start="/workflow_runs/run-1" runs={[{ workflow_id: 1, input: { team: 'support' } }]} /> }
+export const FailedRun: StoryObj = { name: 'A failed run', render: () => <Workspace start={runPage} runs={[{ workflow_id: 1, input: { team: 'support' } }]} /> }
 
 /**
  * The failed run shows its failed step with its error and logs and the first step's output, the secret blanked out; the
@@ -248,7 +259,7 @@ export const FailsFixedAndRerunChecks: StoryObj = {
 }
 
 /** A run that mailed the team, then failed to store the tickets. */
-export const MailedThenFailedRun: StoryObj = { name: 'A run that sent a mail, then failed', render: () => <Workspace start="/workflow_runs/run-1" runs={[{ workflow_id: 4, input: {} }]} /> }
+export const MailedThenFailedRun: StoryObj = { name: 'A run that sent a mail, then failed', render: () => <Workspace start={runPage} runs={[{ workflow_id: 4, input: {} }]} /> }
 
 /** The run is fixed and re-run from the failed step: the mail sent before the failure is not sent again. */
 export const RerunSendsNoMailAgainChecks: StoryObj = {
@@ -265,7 +276,7 @@ export const RerunSendsNoMailAgainChecks: StoryObj = {
 }
 
 /** A passed run of a workflow that keeps no trace. */
-export const UntracedRun: StoryObj = { name: 'A run that kept no trace', render: () => <Workspace start="/workflow_runs/run-1" runs={[{ workflow_id: 5, input: {} }]} /> }
+export const UntracedRun: StoryObj = { name: 'A run that kept no trace', render: () => <Workspace start={runPage} runs={[{ workflow_id: 5, input: {} }]} /> }
 
 // The run's status beside the graph, and the words that it kept no trace, with no step marked
 const checkNoTrace = async (canvasElement: HTMLElement) => {
@@ -283,12 +294,12 @@ export const UntracedRunChecks: StoryObj = { ...UntracedRun, name: 'A run that k
 export const PassedFailingOnlyRunChecks: StoryObj = {
   name: 'A passed run of a workflow keeping failing runs only says it kept no trace (checks)',
   tags: ['play', '!dev'],
-  render: () => <Workspace start="/workflow_runs/run-1" runs={[{ workflow_id: 6, input: {} }]} />,
+  render: () => <Workspace start={runPage} runs={[{ workflow_id: 6, input: {} }]} />,
   play: ({ canvasElement }) => checkNoTrace(canvasElement),
 }
 
 /** A workflow whose step waits until the story lets it go on. */
-export const GatedWorkflow: StoryObj = { name: 'A workflow to test-run', render: () => <Workspace start="/workflows/2" /> }
+export const GatedWorkflow: StoryObj = { name: 'A workflow to test-run', render: () => <Workspace start={appPath({ kind: 'record', resource: 'workflows', key: '2' })} /> }
 
 /** A test run started from the workflow's page with a sample input, its step followed live until it ends. */
 export const TestRunChecks: StoryObj = {
@@ -313,7 +324,7 @@ export const TestRunChecks: StoryObj = {
 export const RunningRunChecks: StoryObj = {
   name: 'A run opened by its address while it goes on is followed live (checks)',
   tags: ['play', '!dev'],
-  render: () => <Workspace start="/workflow_runs/run-1" runs={[{ workflow_id: 2, input: { url: 'https://gate.example.com/ask' } }]} />,
+  render: () => <Workspace start={runPage} runs={[{ workflow_id: 2, input: { url: 'https://gate.example.com/ask' } }]} />,
   play: async ({ canvasElement }) => {
     await markOf(canvasElement, 'Ask', 'Running')
     openGate()
@@ -331,7 +342,7 @@ export const RunningRunChecks: StoryObj = {
 export const TraceAtEndChecks: StoryObj = {
   name: 'A run seen ended shows its whole trace (checks)',
   tags: ['play', '!dev'],
-  render: () => <Workspace start="/workflows/2" traceOnceEnded />,
+  render: () => <Workspace start={appPath({ kind: 'record', resource: 'workflows', key: '2' })} traceOnceEnded />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(await canvas.findByRole('link', { name: 'Test run' }))
@@ -349,11 +360,12 @@ export const TraceAtEndChecks: StoryObj = {
 }
 
 /** A run that mailed a summary. */
-export const MailedRun: StoryObj = { name: 'A run that sent a mail', render: () => <Workspace start="/workflow_runs/run-1" runs={[{ workflow_id: 3, input: {} }]} /> }
+export const MailedRun: StoryObj = { name: 'A run that sent a mail', render: () => <Workspace start={runPage} runs={[{ workflow_id: 3, input: {} }]} /> }
 
 /**
- * The run is replayed from its page: the read runs again and the summary is composed, but the mail is not sent, and the
- * read says where a secret changed since its result was kept.
+ * The run is replayed from its page: the read runs again and the summary is composed, but the mail is not sent. The
+ * page also shows the read's line that a secret changed since its result was kept; the read logs that line itself, so
+ * this checks only that the page shows it.
  */
 export const ReplayChecks: StoryObj = {
   ...MailedRun,
@@ -363,7 +375,7 @@ export const ReplayChecks: StoryObj = {
     const canvas = within(canvasElement)
     await markOf(canvasElement, 'Mail', 'Succeeded')
     expect(calls).toEqual({ fetch: 1, store: 0, mail: 1 })
-    // The read's result was kept in the step cache before the secret it named changed
+    // The read logs the step cache's line that the secret it sends changed
     secretChanged = 'TICKETS_TOKEN'
     await userEvent.click(await canvas.findByRole('link', { name: 'Replay' }))
     await userEvent.click(await canvas.findByRole('button', { name: /^Create/ }))
