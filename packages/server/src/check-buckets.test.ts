@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { defineRoles, f, resource } from '@protobase/schema'
+import { describe, expect, it, vi } from 'vitest'
+import { defineRoles, f, resource, where, type AccessContext } from '@protobase/schema'
 import { checkBuckets } from './check-buckets'
 import { buildRegistry } from './registry'
 
@@ -33,5 +33,50 @@ describe('checkBuckets', () => {
 
   it('refuses a rollup of a resource the app does not have', () => {
     expect(() => checkBuckets(buildRegistry([byKind]), undefined)).toThrow('Resource "readings_hourly" is a time rollup of "readings", which is not a resource')
+  })
+
+  describe("a source's own read or list rule", () => {
+    type Rules = Parameters<typeof readings.access>[0]
+    const ruled = (rules: Rules, by: 'kind' | 'user_id' = 'kind') => {
+      const source = readings.access(rules)
+      const rollup = resource('readings_hourly').table('readings_hourly').bucketsOf(source, { time: (r) => r.taken_at, every: 'hour', by: (r) => [r[by]], late: '2 hours' })
+      return (roles?: Record<string, unknown>) => () => checkBuckets(buildRegistry([source, rollup]), roles)
+    }
+    const ownRows = (ctx: AccessContext) => where.eq('user_id', String(ctx.user?.id))
+    const refusal = (rule: string) => `Resource "readings_hourly" is a time rollup of "readings", whose reads it cannot check: its own ${rule}, as a rollup cannot prove its counts respect a custom row rule. Leave the source's read and list to the roles, or roll up another resource`
+
+    it('refuses a read rule that filters rows, whether or not the rollup groups by its field', () => {
+      expect(ruled({ read: ownRows })()).toThrow(refusal('"read" access rule'))
+      expect(ruled({ read: ownRows }, 'user_id')()).toThrow(refusal('"read" access rule'))
+    })
+
+    it('refuses a list rule alone, and names both when both are set', () => {
+      expect(ruled({ list: ownRows })()).toThrow(refusal('"list" access rule'))
+      expect(ruled({ read: ownRows, list: ownRows })()).toThrow(refusal('"read" and "list" access rules'))
+    })
+
+    it('refuses any rule, as it cannot see what one keeps', () => {
+      async function namedAsync() {
+        return true
+      }
+      const roles = defineRoles({ viewer: ['readings.read'] })
+      for (const read of [namedAsync, () => true, roles.can('readings.read')]) expect(ruled({ read })(roles.definitions)).toThrow(refusal('"read" access rule'))
+    })
+
+    it('refuses the rule even where the roles alone would pass', () => {
+      expect(ruled({ read: ownRows }, 'user_id')(defineRoles({ own: ['readings.read.own'] }).definitions)).toThrow(refusal('"read" access rule'))
+    })
+
+    it('never runs the rule, so the message holds nothing it would return', () => {
+      const read = vi.fn(() => where.eq('user_id', 'secret-user'))
+      expect(ruled({ read })()).toThrow(refusal('"read" access rule'))
+      expect(read).not.toHaveBeenCalled()
+    })
+
+    it('passes rules on writes only, and a ruled resource no rollup reads', () => {
+      const writes = { create: () => false, update: ownRows, delete: () => false }
+      expect(ruled(writes)(defineRoles({ viewer: ['readings.read'] }).definitions)).not.toThrow()
+      expect(() => checkBuckets(buildRegistry([readings.access({ read: ownRows })]), undefined)).not.toThrow()
+    })
   })
 })

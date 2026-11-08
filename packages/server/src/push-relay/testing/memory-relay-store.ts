@@ -2,8 +2,6 @@ import { newHandle } from '../postgres-store'
 import type { StoredCredential } from '../credential'
 import type { RelayBinding, RelayStore } from '../store'
 
-const hourOf = (at: number) => Math.floor(at / 3_600_000)
-
 /** The relay's store in memory, for unit tests, on the clock `now`. */
 export const memoryRelayStore = (now: () => number = Date.now) => {
   const handles = new Map<string, RelayBinding>()
@@ -22,10 +20,10 @@ export const memoryRelayStore = (now: () => number = Date.now) => {
       const found = credentials.get(id)
       return found && { id: found.id, origin: found.origin, secretHash: found.secretHash }
     },
-    charge: async (id, devices, perHour) => {
+    charge: async (id, devices, perHour, start) => {
       const found = credentials.get(id)
       if (!found) return false
-      const hour = hourOf(now())
+      const hour = start.getTime()
       const sent = (found.hour === hour ? found.sent! : 0) + devices
       if (sent > perHour) return false
       Object.assign(found, { hour, sent })
