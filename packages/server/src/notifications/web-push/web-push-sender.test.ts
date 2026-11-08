@@ -3,7 +3,9 @@ import type { Device } from '../device'
 import { PushMessageError, type PushMessage } from '../message'
 import { webPushReceiver } from '../testing/web-push-receiver'
 import { generateVapidKeys } from './keys'
+import type { PushRequest } from './post'
 import { readVapidSettings } from './vapid-settings'
+import { pinnedRequest, type Resolve } from '../../webhooks/table/pinned-request'
 import { webPushSender } from './web-push-sender'
 
 const keys = generateVapidKeys()
@@ -32,11 +34,11 @@ type Sent = { url: string; headers: Record<string, string>; body: Uint8Array }
 // A push service that answers each endpoint as `status` says, by default 201, and records what it was sent.
 const pushService = (status: (url: string) => number = () => 201) => {
   const sent: Sent[] = []
-  const fetch = async (request: Request) => {
-    sent.push({ url: request.url, headers: Object.fromEntries(request.headers), body: new Uint8Array(await request.arrayBuffer()) })
-    return new Response(null, { status: status(request.url) })
+  const request: PushRequest = async (url, init) => {
+    sent.push({ url: url.href, headers: Object.fromEntries(new Headers(init.headers)), body: new Uint8Array(init.body as Uint8Array) })
+    return new Response(null, { status: status(url.href) })
   }
-  return { sent, fetch: fetch as typeof globalThis.fetch }
+  return { sent, request }
 }
 
 const claimsOf = (authorization: string) => JSON.parse(Buffer.from(/t=([^.]+)\.([^.]+)\./.exec(authorization)![2]!, 'base64url').toString())
@@ -47,7 +49,7 @@ describe('webPushSender', () => {
   it('sends each device a VAPID-signed aes128gcm body whose headers match the message', async () => {
     const service = pushService()
     const devices = [deviceOf('https://fcm.googleapis.com/fcm/send/one'), deviceOf('https://updates.push.services.mozilla.com/wpush/v2/two', undefined, { userId: 'other' })]
-    const sender = webPushSender(settings, { fetch: service.fetch })
+    const sender = webPushSender(settings, { request: service.request })
     const message: PushMessage = { title: 'Task assigned', body: 'Private body', url: 'https://app.example/tasks/1', tag: 'task-1', ttl: 600, urgency: 'high' }
     expect(await sender.send(message, devices)).toEqual(devices.map((device) => ({ id: device.id, result: 'ok' })))
 
@@ -64,21 +66,21 @@ describe('webPushSender', () => {
   it("names each device's own user in its payload, over one the message gives", async () => {
     const service = pushService()
     const device = deviceOf('https://fcm.googleapis.com/fcm/send/one', undefined, { userId: 'alice' })
-    await webPushSender(settings, { fetch: service.fetch }).send({ title: 'x', platform: { web: { payload: { user: 'mallory' } } } }, [device])
+    await webPushSender(settings, { request: service.request }).send({ title: 'x', platform: { web: { payload: { user: 'mallory' } } } }, [device])
     expect(JSON.parse(device.receiver.decrypt(service.sent[0]!.body)).user).toBe('alice')
   })
 
   it('lets platform.web replace the headers built from the message', async () => {
     const service = pushService()
     const device = deviceOf('https://fcm.googleapis.com/fcm/send/one')
-    await webPushSender(settings, { fetch: service.fetch }).send({ title: 'x', tag: 'a', ttl: 60, urgency: 'low', platform: { web: { ttl: 5, urgency: 'very-low', topic: 'b', payload: { title: 'y' } } } }, [device])
+    await webPushSender(settings, { request: service.request }).send({ title: 'x', tag: 'a', ttl: 60, urgency: 'low', platform: { web: { ttl: 5, urgency: 'very-low', topic: 'b', payload: { title: 'y' } } } }, [device])
     expect(service.sent[0]!.headers).toMatchObject({ ttl: '5', urgency: 'very-low', topic: 'b' })
     expect(JSON.parse(device.receiver.decrypt(service.sent[0]!.body)).title).toBe('y')
   })
 
   it('sends only the defaults the protocol needs when the message sets none', async () => {
     const service = pushService()
-    await webPushSender(settings, { fetch: service.fetch }).send({ title: 'x' }, [deviceOf('https://fcm.googleapis.com/fcm/send/one')])
+    await webPushSender(settings, { request: service.request }).send({ title: 'x' }, [deviceOf('https://fcm.googleapis.com/fcm/send/one')])
     expect(service.sent[0]!.headers.ttl).toBe('2419200')
     expect(service.sent[0]!.headers).not.toHaveProperty('urgency')
     expect(service.sent[0]!.headers).not.toHaveProperty('topic')
@@ -88,7 +90,7 @@ describe('webPushSender', () => {
     const statuses: Record<string, number> = { a: 201, b: 410, c: 404, d: 429, e: 500 }
     const service = pushService((url) => statuses[url.slice(-1)]!)
     const devices = Object.keys(statuses).map((name) => deviceOf(`https://fcm.googleapis.com/fcm/send/${name}`))
-    const answers = await webPushSender(settings, { fetch: service.fetch }).send({ title: 'x' }, devices)
+    const answers = await webPushSender(settings, { request: service.request }).send({ title: 'x' }, devices)
     expect(answers.map((answer) => answer.result)).toEqual(['ok', 'gone', 'gone', 'retry', 'retry'])
   })
 
@@ -109,8 +111,18 @@ describe('webPushSender', () => {
     const service = pushService()
     const good = deviceOf('https://web.push.apple.com/x')
     const bad = deviceOf(endpoint)
-    expect(await webPushSender(settings, { fetch: service.fetch }).send({ title: 'x' }, [bad, good])).toEqual([{ id: bad.id, result: 'refused' }, { id: good.id, result: 'ok' }])
+    expect(await webPushSender(settings, { request: service.request }).send({ title: 'x' }, [bad, good])).toEqual([{ id: bad.id, result: 'refused' }, { id: good.id, result: 'ok' }])
     expect(service.sent.map((request) => request.url)).toEqual([good.token])
+  })
+
+  it('answers a device on a push service whose host resolves to a private address refused, sending the others', async () => {
+    const service = pushService()
+    const resolve: Resolve = async (host) => (host === 'fcm.googleapis.com' ? ['10.0.0.1'] : ['17.0.0.1'])
+    const request: PushRequest = async (url, init) => (url.hostname === 'fcm.googleapis.com' ? pinnedRequest(url.href, init, { resolve }) : service.request(url, init))
+    const bad = deviceOf('https://fcm.googleapis.com/fcm/send/one')
+    const good = deviceOf('https://web.push.apple.com/x')
+    expect(await webPushSender(settings, { request }).send({ title: 'x' }, [bad, good])).toEqual([{ id: bad.id, result: 'refused' }, { id: good.id, result: 'ok' }])
+    expect(service.sent.map((sent) => sent.url)).toEqual([good.token])
   })
 
   it.each([
@@ -125,7 +137,7 @@ describe('webPushSender', () => {
     const service = pushService((url) => statuses[Number(url.slice(-1))]!)
     const bad = deviceOf('https://fcm.googleapis.com/fcm/send/bad', undefined, change)
     const devices = [deviceOf('https://fcm.googleapis.com/fcm/send/0'), bad, deviceOf('https://fcm.googleapis.com/fcm/send/1')]
-    const answers = await webPushSender(settings, { fetch: service.fetch }).send({ title: 'x' }, devices)
+    const answers = await webPushSender(settings, { request: service.request }).send({ title: 'x' }, devices)
     expect(answers.map((answer) => answer.result)).toEqual(['ok', 'refused', 'gone'])
     expect(service.sent).toHaveLength(2)
   })
@@ -145,7 +157,7 @@ describe('webPushSender', () => {
     ['a payload too large', { title: 'x', body: 'x'.repeat(2048), platform: { web: { payload: { more: 'y'.repeat(3000) } } } }],
   ])('refuses %s, a plain message, before any request', async (_name, message) => {
     const service = pushService()
-    const send = webPushSender(settings, { fetch: service.fetch }).send(message as PushMessage, [deviceOf('https://fcm.googleapis.com/fcm/send/one')])
+    const send = webPushSender(settings, { request: service.request }).send(message as PushMessage, [deviceOf('https://fcm.googleapis.com/fcm/send/one')])
     await expect(send).rejects.toBeInstanceOf(PushMessageError)
     expect(service.sent).toHaveLength(0)
   })
@@ -153,20 +165,20 @@ describe('webPushSender', () => {
   it('refuses a device of another kind before any request', async () => {
     const service = pushService()
     const devices = [deviceOf('https://fcm.googleapis.com/fcm/send/one'), deviceOf('token', undefined, { kind: 'fcm' })]
-    await expect(webPushSender(settings, { fetch: service.fetch }).send({ title: 'x' }, devices)).rejects.toThrow('not a web device')
+    await expect(webPushSender(settings, { request: service.request }).send({ title: 'x' }, devices)).rejects.toThrow('not a web device')
     expect(service.sent).toHaveLength(0)
   })
 
   it('leaks no secret to its answers, errors or logs', async () => {
     const logs = (['log', 'info', 'warn', 'error', 'debug'] as const).map((method) => vi.spyOn(console, method).mockImplementation(() => {}))
     const statuses = [400, 500]
-    const fetch = async (request: Request) => {
-      if (request.url.endsWith('reset')) throw Object.assign(new TypeError('socket hang up'), { path: request.url })
-      if (request.url.endsWith('other')) throw Object.assign(new Error(`failed ${request.url}`), { path: request.url })
-      return new Response(`error body for ${request.url}`, { status: statuses[Number(request.url.slice(-1))]! })
+    const request: PushRequest = async ({ href }) => {
+      if (href.endsWith('reset')) throw Object.assign(new Error('socket hang up'), { code: 'ECONNRESET', path: href })
+      if (href.endsWith('other')) throw Object.assign(new Error(`failed ${href}`), { path: href })
+      return new Response(`error body for ${href}`, { status: statuses[Number(href.slice(-1))]! })
     }
     const devices = [deviceOf('https://fcm.googleapis.com/fcm/send/secret-path-0'), deviceOf('https://fcm.googleapis.com/fcm/send/secret-path-1'), deviceOf('https://fcm.googleapis.com/fcm/send/secret-path-reset'), deviceOf('https://fcm.googleapis.com/fcm/send/secret-path-junk', undefined, { p256dh: 'junk' })]
-    const sender = webPushSender(settings, { fetch: fetch as typeof globalThis.fetch })
+    const sender = webPushSender(settings, { request })
     const answers = await sender.send({ title: 'x' }, devices)
     const failure = await sender.send({ title: 'x' }, [deviceOf('https://fcm.googleapis.com/fcm/send/secret-path-other')]).catch((error: Error) => error)
     expect(failure).toBeInstanceOf(Error)

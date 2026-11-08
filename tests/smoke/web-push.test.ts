@@ -6,9 +6,10 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { webPushReceiver } from '../../packages/server/src/notifications/testing/web-push-receiver'
 import { encryptPayload } from '../../packages/server/src/notifications/web-push/encrypt'
 import { generateVapidKeys } from '../../packages/server/src/notifications/web-push/keys'
-import { postPush } from '../../packages/server/src/notifications/web-push/post'
+import { postPush, type PushRequest } from '../../packages/server/src/notifications/web-push/post'
 import { readVapidSettings } from '../../packages/server/src/notifications/web-push/vapid-settings'
 import { webPushSender } from '../../packages/server/src/notifications/web-push/web-push-sender'
+import { pinnedRequest } from '../../packages/server/src/webhooks/table/pinned-request'
 
 const runtime = process.versions.bun ? 'Bun' : 'Node'
 // A self-signed certificate for another host, as a push service an attacker stands in for would present.
@@ -36,10 +37,22 @@ const body = () => new Uint8Array(32)
 
 // What a caller could log of the answer or the error: neither may name the device's URL or the token.
 const exposed = (outcome: unknown) => JSON.stringify(outcome instanceof Error ? { ...outcome, message: outcome.message, cause: outcome.cause } : outcome)
-const settle = (url: string, timeoutMs?: number) => postPush(new URL(url), headers, body(), timeoutMs === undefined ? {} : { timeoutMs }).catch((error: unknown) => error)
+// The pinned request the sender sends with, let to reach these local servers.
+const local: PushRequest = (url, init) => pinnedRequest(url.href, init, { allowPrivateAddresses: true })
+const settle = (url: string, timeoutMs?: number) => postPush(new URL(url), headers, body(), { request: local, ...(timeoutMs !== undefined && { timeoutMs }) }).catch((error: unknown) => error)
 
-// The fetch of the runtime that runs this test (`bun run test:smoke` or `node --run test:smoke`), as the sender uses it.
-describe(`a Web Push request on ${runtime}'s fetch`, () => {
+// The http and https clients of the runtime that runs this test (`bun run test:smoke` or `node --run test:smoke`), as the sender uses them.
+describe(`a Web Push request on ${runtime}`, () => {
+  it('reaches no private address by default, connecting to none', async () => {
+    let connections = 0
+    const port = await listening(createTcpServer((socket) => {
+      connections++
+      socket.destroy()
+    }))
+    expect(await postPush(new URL(`https://127.0.0.1:${port}${devicePath}`), headers, body())).toEqual({ result: 'refused' })
+    expect(connections).toBe(0)
+  })
+
   it('answers what a push service answers', async () => {
     const port = await listening(createHttpServer((request, response) => {
       response.writeHead(request.url?.endsWith('gone') ? 410 : 201).end()
@@ -105,12 +118,12 @@ describe(`the Web Push sender's crypto on ${runtime}`, () => {
     const settings = readVapidSettings({ PROTOBASE_VAPID_PUBLIC_KEY: keys.publicKey, PROTOBASE_VAPID_PRIVATE_KEY: keys.privateKey, PROTOBASE_VAPID_SUBJECT: 'mailto:admin@example.com' })!
     const receiver = webPushReceiver()
     const sent: Request[] = []
-    const fetch = async (request: Request) => {
-      sent.push(request)
+    const request: PushRequest = async (url, init) => {
+      sent.push(new Request(url, { method: init.method, headers: init.headers, body: init.body as Uint8Array<ArrayBuffer> }))
       return new Response(null, { status: 201 })
     }
     const device = { id: 'd', userId: 'u', kind: 'web' as const, token: 'https://fcm.googleapis.com/fcm/send/x', p256dh: receiver.p256dh, auth: receiver.auth, environment: null, appId: null, userAgent: null, sessionId: null, createdAt: new Date(), lastSeenAt: new Date() }
-    expect(await webPushSender(settings, { fetch: fetch as typeof globalThis.fetch }).send({ title: 'Hello' }, [device])).toEqual([{ id: 'd', result: 'ok' }])
+    expect(await webPushSender(settings, { request }).send({ title: 'Hello' }, [device])).toEqual([{ id: 'd', result: 'ok' }])
 
     const [, token, key] = /^vapid t=([^,]+), k=(.+)$/.exec(sent[0]!.headers.get('authorization')!)!
     const [head, claims, signature] = token!.split('.')

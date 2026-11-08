@@ -9,6 +9,7 @@ description: Endpoints of your own beside the REST API.
 - [Roles for functions](/guides/api-functions/#roles): A function can be limited to roles or a capability; in an app with roles, one with neither is open only to roles that hold everything.
 - [Public functions and webhooks](/guides/api-functions/#public-functions-and-webhooks): A function can be open to anyone, with helpers that check webhook signatures.
 - [WebSockets](/guides/api-functions/#websockets): A function can accept a WebSocket, and the caller is checked again every minute.
+- [TCP bridges](/reference/tcp-bridges/) (beta): A signed-in user's page reaches a TCP service on the app's private network, such as a server's console or a database, over a WebSocket, as an access rule the app writes allows, without a VPN client.
 - [Calling a function](/guides/api-functions/#calling-a-function): The typed client's `invoke` calls a function with the signed-in user's token, from an action or any page.
 - [Work after the response](/guides/api-functions/#work-after-the-response): A function can answer at once and finish its work afterwards, which a graceful stop waits for.
 - [Hono apps](/guides/api-functions/#hono-apps): A function with several routes can be a Hono app.

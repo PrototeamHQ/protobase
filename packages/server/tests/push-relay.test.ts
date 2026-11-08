@@ -21,6 +21,10 @@ const fcmAnswer = (name: string) => loadRecording(name).response
 const a = 'https://a.example.com'
 const b = 'https://b.example.com'
 const apnsToken = '0'.repeat(64)
+// The relay's clock, fixed so the hour it counts sends in is the same in every recording.
+const at = Date.UTC(2026, 10, 8, 10, 15)
+const hour = new Date(Date.UTC(2026, 10, 8, 10))
+const next = new Date(Date.UTC(2026, 10, 8, 11))
 const fcmToken = 'cRecordingToken0:APA91b-relay'
 
 const closers: (() => Promise<void>)[] = []
@@ -51,7 +55,7 @@ const open = async (apnsReply: { status: number; reason?: string }, fcmSend: str
     apns: apnsSender(readApnsSettings(apnsTestEnv())!, { appId: 'net.example.app', connect: apns.connect }),
     fcm: fcmSender(testServiceAccount().settings(), { fetch: fcm.fetch }),
   }
-  const relay = relayApp(postgresRelayStore(db), senders)
+  const relay = relayApp(postgresRelayStore(db), senders, () => at)
   const handles = async () => (await pg.query<{ handle: string }>('select handle from push_relay.handles order by handle collate "C"')).rows.map((row) => row.handle)
   return { relay, apns, fcm, handles, pg }
 }
@@ -102,10 +106,12 @@ describe('the push relay on Postgres, against recorded APNs and FCM answers', ()
     const store = postgresRelayStore(new Kysely<any>({ dialect: pg.dialect }))
     const { stored } = newCredential(a)
     await store.addCredential(stored)
-    expect(await store.charge(stored.id, 3, 5)).toBe(true)
-    expect(await store.charge(stored.id, 3, 5)).toBe(false)
-    expect(await store.charge(stored.id, 2, 5)).toBe(true)
-    expect(await store.charge(stored.id, 1, 5)).toBe(false)
+    expect(await store.charge(stored.id, 3, 5, hour)).toBe(true)
+    expect(await store.charge(stored.id, 3, 5, hour)).toBe(false)
+    expect(await store.charge(stored.id, 2, 5, hour)).toBe(true)
+    expect(await store.charge(stored.id, 1, 5, hour)).toBe(false)
+    expect(await store.charge(stored.id, 5, 5, next)).toBe(true)
+    expect((await pg.query<{ hour: string; sent: number }>(`select to_char(hour at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI') as hour, sent from push_relay.credentials`)).rows).toEqual([{ hour: '2026-11-08T11:00', sent: 5 }])
     expect(await store.credential(stored.id)).toEqual(stored)
     expect(await pushRelayMigration(pg.db)).toBeUndefined()
   })

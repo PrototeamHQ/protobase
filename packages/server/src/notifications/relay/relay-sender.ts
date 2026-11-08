@@ -1,8 +1,7 @@
 import type { Device } from '../device'
 import { pushMessage, type PushMessage } from '../message'
 import type { PushAnswer, PushSender } from '../sender'
-import type { PostOptions } from '../web-push/post'
-import { postRelay } from './relay-post'
+import { postRelay, type RelayPostOptions } from './relay-post'
 import { maxRelayDevices, relaySendDevice, relaySendPath } from './relay-protocol'
 import type { RelaySettings } from './relay-settings'
 
@@ -14,7 +13,7 @@ import type { RelaySettings } from './relay-settings'
  * than a store takes, is answered `refused` with no request, and the rest are sent as usual. It logs nothing, and its
  * errors and answers carry no credential or handle.
  */
-export const relaySender = (settings: RelaySettings, options: PostOptions = {}): PushSender => {
+export const relaySender = (settings: RelaySettings, options: RelayPostOptions = {}): PushSender => {
   const url = new URL(relaySendPath, settings.url)
 
   const send = async (given: PushMessage, devices: readonly Device[]) => {
