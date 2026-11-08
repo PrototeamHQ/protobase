@@ -22,7 +22,7 @@ export type TcpBridgeOptions = {
   now?: () => number
 }
 
-/** A function handler that bridges WebSockets to TCP, and closes the open bridges to a target at once (`withdraw`). */
+/** A function handler that bridges WebSockets to TCP, and closes the bridges to a target at once, open or still being set up (`withdraw`). */
 export type TcpBridge = FunctionHandler & { withdraw: (target: string) => void }
 
 const isTokenRequest = (body: unknown): body is { target: string } =>
@@ -39,7 +39,8 @@ const withdrawn = () => forbidden('target-withdrawn', bridgeClosings.withdrawn.r
  * - `POST` with `{ "target": "…" }` asks the access rule and answers `{ token, open_by, expires_at }`, or a 404 problem.
  * - A WebSocket upgrade with `?token=` before `open_by`, by the same caller, connects to the target and passes binary
  *   messages through as bytes. A token opens one bridge only, which closes at `expires_at`, when the rule refuses
- *   again or answers another address, on `withdraw`, also while it is still being set up, or as any function socket does once the caller is refused.
+ *   again or answers another address, on `withdraw`, or as any function socket does once the caller is refused. One
+ *   that expires or is withdrawn while it is still being set up never opens.
  */
 export const tcpBridge = ({ target: rule, now = Date.now }: TcpBridgeOptions): TcpBridge => {
   const tokens = bridgeTokens({ now })
