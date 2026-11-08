@@ -78,7 +78,7 @@ describe('traceSink', () => {
     await sink.write('r2', [step('B')], { mode: 'failed', ended: 'succeeded' })
     expect(await readTrace(files, 'r2')).toEqual([])
     await sink.write('r3', [step('A')], { mode: 'none', ended: 'failed' })
-    expect(await files.providers.private!.store.list('workflows/')).toEqual([])
+    expect(await files.providers.private!.store.list('workflows/r3/')).toEqual([])
   })
 
   it('reports a trace it cannot write, and resolves so the run goes on', async () => {
@@ -107,6 +107,18 @@ describe('traceSink', () => {
     await store.delete((await store.list('workflows/r10/trace/'))[0]!.path)
     await sink.write('r10', [step('D')], { mode: 'all' })
     expect((await readTrace(files, 'r10')).map((line) => line.state)).toEqual(['B', 'C', 'D'])
+  })
+
+  it('numbers a part written after a join after every part that join left and every part it joined', async () => {
+    const store = files.providers.private!.store
+    const sink = traceSink({ files: () => files, joining, report: (error) => { throw error } })
+    for (const state of ['A', 'B']) await sink.write('r11', [step(state)], { mode: 'all' })
+    // A retry wrote its part while the join before it read the parts, so the join leaves it.
+    const join = vi.spyOn(store, 'list').mockImplementationOnce(async (prefix) => (await store.list(prefix)).slice(0, -1))
+    await sink.write('r11', [step('C')], { mode: 'all', ended: 'failed' })
+    join.mockRestore()
+    await sink.write('r11', [step('D')], { mode: 'all' })
+    expect((await store.list('workflows/r11/trace/')).map((part) => part.path.split('/').at(-1)!.slice(0, 12))).toEqual(['000000000002', '000000000003'])
   })
 
   it('reads the parts of a run that goes on in the order they were written, and gives a replay no steps of a run without a trace', async () => {
