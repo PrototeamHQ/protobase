@@ -60,8 +60,9 @@ jobs:
           echo "UPGRADE_FROM=$base" >> "$GITHUB_ENV"
           if [ "$GITHUB_EVENT_NAME" = push ]; then echo "CHECK_BASE=$base" >> "$GITHUB_ENV"; fi
       # Before 1.0 a breaking pull request may ask apps to change, as its changelog note says, so one marked breaking in
-      # the title, the description or one of its commits skips the upgrade. A push carries a pull request's commits: an
-      # fm/** branch's are its pull request's, and main's since the last release are merged pull requests'. The nightly
+      # the title, the description or one of its commits skips the upgrade. A push skips only as it carries a breaking
+      # pull request's commits: an fm/** branch is that pull request, the only run its upgrade gets, and main holds the
+      # pull requests merged since the last release, which the release workflow checks before it cuts one. The nightly
       # run and a run by hand check every change. From 1.0 every change upgrades cleanly: remove this step and the
       # condition on its output in the steps below.
       - name: Find whether the change is marked breaking

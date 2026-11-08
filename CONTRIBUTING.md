@@ -73,7 +73,7 @@ Every push to `main` with a fix, feature or breaking change is released by `.git
 
 ## CI
 
-Pushes to `main` and `fm/**` run what they affect, on `CHECK_RUNNER`. Our `fm/**` pull requests run nothing, as pushes check them. Others and the nightly run check all on GitHub's; before 1.0 a breaking pull request skips the upgrade check.
+Pushes to `main` and `fm/**` run what they affect, on `CHECK_RUNNER`; our `fm/**` pull requests leave it to them. Others and the nightly run check all on GitHub's. Before 1.0 a breaking pull request skips the upgrade check, as do pushes of it.
 
 - A test that reads a file or starts a process by path needs a rule in `scripts/affected/rules.mjs`, or a change to that file skips it.
 - `CHECK_BASE=main bun run check` runs what pushing the branch, uncommitted changes too, would.
