@@ -27,10 +27,14 @@ export type TraceSinkInput = {
  * the run it replays through `read`.
  */
 export const traceSink = ({ files, joining, report }: TraceSinkInput): TraceSink => {
+  // A part is named by when it was kept, then by how many parts this sink kept before it, so two parts kept in the same
+  // millisecond still read in the order they were written.
+  let written = 0
+  const partName = () => `${new Date().toISOString()}-${String(written++).padStart(12, '0')}-${crypto.randomUUID()}.jsonl`
   const keep = async (runId: string, steps: readonly StepRecord[], dropped: boolean, ended: boolean) => {
     const store = privateRunStore(files())
     if (!store) throw new Error('Workflows keep run traces in the "private" file provider, which the app does not have or serves to anyone; set workflows.trace to "none" to keep none')
-    if (!dropped && steps.length > 0) await store.put(`${traceParts(runId)}${new Date().toISOString()}-${crypto.randomUUID()}.jsonl`, new Blob([lines(steps)]).stream())
+    if (!dropped && steps.length > 0) await store.put(`${traceParts(runId)}${partName()}`, new Blob([lines(steps)]).stream())
     if (!ended) return
     await joining(runId, async (kept) => {
       const parts = await store.list(traceParts(runId))
