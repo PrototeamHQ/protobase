@@ -37,7 +37,7 @@ const Edges = () => (
           <FilterMenu label="Type" activeCount={0}>
             Types
           </FilterMenu>
-          <FilterMenu label="Status" activeCount={0} width={340}>
+          <FilterMenu label="Status" activeCount={0} width={380}>
             Filters
           </FilterMenu>
         </div>
