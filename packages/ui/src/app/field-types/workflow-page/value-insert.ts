@@ -51,8 +51,10 @@ export const withRead = (current: unknown, read: string) => {
   if (current === undefined || current === null || current === '') return `{% ${read} %}`
   if (typeof current !== 'string') throw new Error('A value is inserted only into a field that holds text')
   const whole = /^\{%([\s\S]*)%\}$/.exec(current.trim())
-  if (whole) return `{% ${whole[1]!.trim()} & ${read} %}`
-  return `{% '${current.replaceAll("'", "''")}' & ${read} %}`
+  // What it held stays one term, whatever its operators
+  if (whole) return `{% (${whole[1]!.trim()}) & ${read} %}`
+  // A JSON string is a JSONata string, its quotes and backslashes escaped
+  return `{% ${JSON.stringify(current)} & ${read} %}`
 }
 
 /** The states that can come before `path` and give a result: in its own machine, and around the Maps it is inside. */

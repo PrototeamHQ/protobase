@@ -275,6 +275,11 @@ export const FailsFixedAndRerunChecks: StoryObj = {
     await userEvent.click(canvas.getByRole('link', { name: 'Edit latest version' }))
     expect(await canvas.findByRole('button', { name: 'Add step' })).toBeInTheDocument()
     expect(canvas.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    // On the latest, as the run's own address opens it, the notice leads back to the version it ran on
+    await userEvent.click(await canvas.findByRole('link', { name: 'Show on version 1' }))
+    await waitFor(() => expect(canvas.getByRole('combobox', { name: 'Version' })).toHaveValue('1'))
+    await userEvent.click(canvas.getByRole('link', { name: 'Edit latest version' }))
+    expect(await canvas.findByRole('button', { name: 'Add step' })).toBeInTheDocument()
     await userEvent.click(canvas.getByRole('link', { name: 'Hide run' }))
     await waitFor(() => expect(canvas.queryByText(/Run of/)).toBeNull())
   },
@@ -299,7 +304,7 @@ export const InsertValueChecks: StoryObj = {
     await userEvent.click(await sidePanel(canvasElement).findByRole('button', { name: 'Settings' }))
     await insert()
     const resource = await sidePanel(canvasElement).findByRole('textbox', { name: /^Resource/ })
-    await waitFor(() => expect(resource).toHaveValue("{% 'tikets' & $fetch.status %}"))
+    await waitFor(() => expect(resource).toHaveValue('{% "tikets" & $fetch.status %}'))
     expect(sidePanel(canvasElement).getByText(/Added variable fetch to Fetch\. In this run: 200/)).toBeVisible()
     await userEvent.click(sidePanel(canvasElement).getByRole('button', { name: 'Undo' }))
     await waitFor(() => expect(sidePanel(canvasElement).getByRole('textbox', { name: /^Resource/ })).toHaveValue('tikets'))

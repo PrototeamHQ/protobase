@@ -830,6 +830,7 @@
     "untested": "Version {version, number} has no test run yet.",
     "editLatest": "Edit latest version",
     "hideRun": "Hide run",
+    "showRunVersion": "Show on version {version, number}",
     "openFailed": "Open failed step",
     "olderVersion": "Version {version, number} is read-only. The latest is version {latest, number}.",
     "runOlder": "Run of {when} on version {version, number}, read-only. The latest is version {latest, number}.",

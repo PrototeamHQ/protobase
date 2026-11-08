@@ -20,12 +20,11 @@ export const useRerun = (view: WorkflowView, onStarted: () => void) => {
     setBusy(true)
     setFailure(undefined)
     setRefused(false)
-    if (focus.dirty && !(await focus.save())) {
-      setRefused(true)
-      setBusy(false)
-      return
-    }
     try {
+      if (focus.dirty && !(await focus.save())) {
+        setRefused(true)
+        return
+      }
       const { record: run } = await client.create('workflow_runs', { workflow_id: view.workflow, rerun_of: view.run, ...body })
       const { record: workflow } = await client.get(workflowsResource, view.workflow)
       onStarted()
@@ -33,8 +32,10 @@ export const useRerun = (view: WorkflowView, onStarted: () => void) => {
     } catch (error) {
       if (!isApiError(error)) throw error
       setFailure(error)
+    } finally {
+      // Also after an error the page does not handle, so the button is not left waiting
+      setBusy(false)
     }
-    setBusy(false)
   }
   return { start, failure, refused, busy }
 }

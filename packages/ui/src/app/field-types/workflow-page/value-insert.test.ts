@@ -40,8 +40,13 @@ describe('readOf', () => {
 describe('withRead', () => {
   it('fills an empty field, and joins to what a field holds without replacing it', () => {
     expect(withRead(undefined, '$a.b')).toBe('{% $a.b %}')
-    expect(withRead("It's for ", '$a.b')).toBe("{% 'It''s for ' & $a.b %}")
-    expect(withRead('{% $x %}', '$a.b')).toBe('{% $x & $a.b %}')
+    expect(withRead("It's for ", '$a.b')).toBe(`{% "It's for " & $a.b %}`)
+    expect(withRead('{% $x %}', '$a.b')).toBe('{% ($x) & $a.b %}')
+  })
+
+  it('keeps quotes and backslashes of the text, and the grouping of an expression, it joins to', () => {
+    expect(withRead('say "hi" \\ ', '$a')).toBe('{% "say \\"hi\\" \\\\ " & $a %}')
+    expect(withRead("{% $n > 1 ? 'a' : 'b' %}", '$a')).toBe("{% ($n > 1 ? 'a' : 'b') & $a %}")
   })
 
   it('refuses a field holding anything but text, which it would replace', () => {

@@ -830,6 +830,7 @@
     "untested": "Versie {version, number} heeft nog geen testrun.",
     "editLatest": "Nieuwste versie bewerken",
     "hideRun": "Run verbergen",
+    "showRunVersion": "Op versie {version, number} tonen",
     "openFailed": "Mislukte stap openen",
     "olderVersion": "Versie {version, number} is alleen-lezen. De nieuwste is versie {latest, number}.",
     "runOlder": "Run van {when} op versie {version, number}, alleen-lezen. De nieuwste is versie {latest, number}.",

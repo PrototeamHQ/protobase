@@ -3,7 +3,7 @@ import { formatDateTime } from '../../../format/date'
 import { Button, buttonClass } from '../../../primitives/button'
 import { AppLink } from '../../use-app-address'
 import type { WorkflowPage } from './use-workflow-page'
-import { closedRunAddress, workflowViewAddress, type WorkflowView } from './workflow-view'
+import { closedRunAddress, runAddress, workflowViewAddress, type WorkflowView } from './workflow-view'
 import { text } from './messages'
 
 export type RunNoticeProps = {
@@ -36,6 +36,8 @@ export const RunNotice = ({ view, page, failed, changed, gone, onOpenFailed }: R
   if (!run) return null
   const when = formatDateTime(Date.parse(String(run.created_at)))
   const version = Number(run.version)
+  // A run of an older version shown on the latest, as its own address opens it: the way to the graph it ran on
+  const onItsVersion = !older && version !== latest && <AppLink to={runAddress(view.workflow, view.run, version, latest)} className={buttonClass({ size: 'sm' })}>{text('showRunVersion', { version })}</AppLink>
   const message = () => {
     if (older) return text('runOlder', { when, version: view.version ?? 0, latest: latest ?? 0 })
     if (changed) return text('runChanged', { when, version })
@@ -49,6 +51,7 @@ export const RunNotice = ({ view, page, failed, changed, gone, onOpenFailed }: R
         <>
           {failed && onOpenFailed && <Button size="sm" onClick={onOpenFailed}>{text('openFailed')}</Button>}
           {older && edit}
+          {onItsVersion}
           {hide}
         </>
       }
