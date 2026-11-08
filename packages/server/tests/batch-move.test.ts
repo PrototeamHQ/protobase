@@ -48,7 +48,7 @@ describe('the batch move', () => {
     const body = await response.json()
     expect(response.status, JSON.stringify(body)).toBe(200)
     expect(body.results[0].op).toBe('move')
-    expect(body.results[0].records.map((entry: { record: { id: number; position: number } }) => [entry.record.id, entry.record.position])).toEqual([[4, 2], [2, 3], [3, 4]])
+    expect(body.results[0].records.map((entry: { record: { id: number; position: number }; previous: number }) => [entry.record.id, entry.record.position, entry.previous])).toEqual([[4, 2, 4], [2, 3, 2], [3, 4, 3]])
     expect(await order()).toBe('aDBc')
     expect((await pg.query<{ position: number }>('select position from lines where folder_id = 2')).rows[0]!.position).toBe(1)
   })

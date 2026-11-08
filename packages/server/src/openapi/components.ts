@@ -165,7 +165,7 @@ export const batchSchemas = {
       results: {
         type: 'array',
         description: 'One result per operation, in order: records come with their new `etag`',
-        items: { type: 'object', required: ['op', 'resource'], properties: { op: { type: 'string', enum: ['create', 'update', 'delete', 'reorder', 'move'] }, resource: { type: 'string' }, ref: { type: 'string' }, record: { type: 'object', additionalProperties: true }, etag: { type: 'string' }, deleted: { type: 'boolean' }, records: { type: 'array', items: { type: 'object', properties: { record: { type: 'object', additionalProperties: true }, etag: { type: 'string' } } } } } },
+        items: { type: 'object', required: ['op', 'resource'], properties: { op: { type: 'string', enum: ['create', 'update', 'delete', 'reorder', 'move'] }, resource: { type: 'string' }, ref: { type: 'string' }, record: { type: 'object', additionalProperties: true }, etag: { type: 'string' }, deleted: { type: 'boolean' }, records: { type: 'array', items: { type: 'object', properties: { record: { type: 'object', additionalProperties: true }, etag: { type: 'string' }, previous: { description: 'Its value of `field` before the reorder or move' } } } } } },
       },
     },
   },

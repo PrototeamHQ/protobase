@@ -1,13 +1,12 @@
-import { sql } from 'kysely'
 import { listQuery, maxLimit, type Db } from '@protobase/query'
 import type { Deps } from '../deps'
 import type { ScheduledDelete } from '../files/cleanup-schedule'
 import { preconditionFailed } from '../problem'
 import { readFilter } from '../related-filter'
 import type { RequestAccess } from '../request-access'
-import { missing, type WriteResult } from '../write-shared'
+import { missing } from '../write-shared'
 import { encodeKey, movePlan, type Ranked } from '@protobase/schema/internal'
-import { checkOrderField, reorderIn } from './reorder'
+import { checkOrderField, reorderIn, type NumberedResult } from './reorder'
 
 type Key = (string | number)[]
 
@@ -49,16 +48,17 @@ const storedOrder = async (trx: Db, access: RequestAccess, field: string, { filt
  * `move`: the record `key` goes just after `after` (first when null) in `list` (from `moveList`), ordered by `field`, as
  * long as the record after `after` there is still `before` (null: none; undefined: not checked), and is refused with 412
  * otherwise. Any other change, to the list or to the records, does not refuse it: it is anchored to its place, not to
- * ETags. The stretch it renumbers comes from the stored order, written as a `reorder` is (see `reorderIn`).
+ * ETags. The stretch it renumbers comes from the stored order, written as a `reorder` is (see `reorderIn`), and is
+ * refused with 412 too when a record of it was renumbered between the read and its row lock. The batch holds the
+ * field's order lock (see `lockOrders`), so each move and reorder reads the order the one before it left.
  */
-export const moveIn = async (trx: Db, deps: Deps, access: RequestAccess, input: MoveInput, list: MoveList, removed: ScheduledDelete[]): Promise<WriteResult[]> => {
-  // One move of the resource's order at a time, so each reads the order the one before it left
-  await sql`select pg_advisory_xact_lock(hashtextextended(${`move:${access.full.table.schema ?? ''}.${access.full.table.name}.${input.field}`}, 0))`.execute(trx)
+export const moveIn = async (trx: Db, deps: Deps, access: RequestAccess, input: MoveInput, list: MoveList, removed: ScheduledDelete[]): Promise<NumberedResult[]> => {
   const rows = await storedOrder(trx, access, input.field, list)
   const plan = movePlan(rows, encodeKey(input.key), input.after && encodeKey(input.after), input.before === undefined ? undefined : input.before && encodeKey(input.before))
   if (!plan) throw missing(access.entry)
   if ('stale' in plan) throw preconditionFailed('The list changed where the record was dropped')
-  const parts = new Map(rows.map((row) => [row.key, row.parts]))
+  const read = new Map(rows.map((row) => [row.key, row]))
   const etags = Object.fromEntries(plan.keys.map((name) => [name, '*']))
-  return reorderIn(trx, deps, access, { field: input.field, keys: plan.keys.map((name) => parts.get(name)!), etags, start: plan.start }, removed)
+  const stretch = plan.keys.map((name) => read.get(name)!)
+  return reorderIn(trx, deps, access, { field: input.field, keys: stretch.map((row) => row.parts), etags, start: plan.start, ranks: stretch.map((row) => row.rank) }, removed)
 }

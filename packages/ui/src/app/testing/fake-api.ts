@@ -245,12 +245,13 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
     const start = op.start ?? 1
     const changing = keys.filter((key, index) => find(resource, key)[field] !== start + index)
     if (changing.some((key) => ![undefined, '*', find(resource, key).etag].includes(op.etags?.[key]))) throw stale()
+    const previous = new Map(keys.map((key) => [key, find(resource, key)[field]]))
     for (const key of changing) {
       const row = find(resource, key)
       row[field] = start + keys.indexOf(key)
       write(resource, row)
     }
-    const records = keys.map((key) => stored(resource, find(resource, key)))
+    const records = keys.map((key) => ({ ...stored(resource, find(resource, key)), previous: previous.get(key) }))
     return { op: 'reorder', resource, records }
   }
 

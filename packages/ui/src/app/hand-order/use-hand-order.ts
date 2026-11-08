@@ -19,6 +19,7 @@ import { allowedDrop, type DropRule } from './drop-rule'
 import { handOrderPage } from './hand-order'
 import { text } from './messages'
 import { moveRefusal } from './move-refusal'
+import { numberedBefore } from './numbered-before'
 import { undoOps } from './undo-ops'
 
 type Request = { model: ResourceModel; view: ViewModel | undefined; field: string; filter: string; fields: string[]; rule?: DropRule }
@@ -27,7 +28,7 @@ type Request = { model: ResourceModel; view: ViewModel | undefined; field: strin
  * The records of `filter` in the order of `field`, all of them, a page of `handOrderPage` at a time, and `move` to put
  * one elsewhere. A move shows at once and saves as a batch `move` anchored to where it was dropped (see `anchoredMove`),
  * so it saves whatever else changed meanwhile; moves made while one saves are saved after it, together.
- * Each save says so with **Undo**, which puts back the values it changed. A refusal puts them back as the server has
+ * Each save says so with **Undo**, which puts back the values the server had before it. A refusal puts them back as the server has
  * them and says why, or that the list changed where it was dropped; either way every list of the resource reloads. A drop `rule` refuses moves to the first place below
  * that it allows, with a warning giving its reason; with the position's `after`, so do the records the moved one
  * depends on, read first (see `rankBounds`).
@@ -73,9 +74,9 @@ export const useHandOrder = ({ model, view, field, filter, fields, rule }: Reque
     const result = await client.batchWrite(ops)
     // Each record as the last move that numbered it left it
     const stored = new Map(result.results.flatMap((written) => (written.op === 'move' ? written.records : [])).map((entry) => [recordId(model, entry.record), entry]))
-    // Moves change only the order on screen, so the rows still have the values this save replaces
-    const before = new Map(rows.map((row) => [row.id, { [field]: row[field] }]))
-    const undo = undoOps(model, [...stored].map(([id, entry]) => ({ ...entry, before: before.get(id) ?? {} })), [field])
+    // The values the server had before this save, which may not be those the list loaded with
+    const before = numberedBefore(result.results, (record) => recordId(model, record))
+    const undo = undoOps(model, [...stored].map(([id, entry]) => ({ ...entry, before: { [field]: before.get(id) } })), [field])
     if (undoToast.current !== undefined) toast.dismiss(undoToast.current)
     undoToast.current = toast.show({ state: 'success', title: text('orderChanged'), action: { label: text('undo'), onClick: () => undoSave(undo) } })
     if (!latest.current) return

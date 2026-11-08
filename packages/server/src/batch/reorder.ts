@@ -3,7 +3,7 @@ import type { Db } from '@protobase/query'
 import { encodeKey } from '@protobase/schema/internal'
 import type { Deps } from '../deps'
 import type { ScheduledDelete } from '../files/cleanup-schedule'
-import { badRequest } from '../problem'
+import { badRequest, preconditionFailed } from '../problem'
 import { fetchRecord } from '../records'
 import { requireOperation, targetFilter, writableFields, type RequestAccess } from '../request-access'
 import { columnId, keyConditions, scopeConditions, tableId, whereClause } from '../sql-parts'
@@ -14,6 +14,9 @@ import { applyUpdate, planUpdate, type UpdatePlan } from '../write-update'
 import { checkRankAfter } from '../rank-after'
 
 type Key = (string | number)[]
+
+/** A record a `reorder` or `move` numbered: as stored now, with its value of the order field before. */
+export type NumberedResult = WriteResult & { previous: unknown }
 
 const checkViolation = '23514'
 
@@ -51,9 +54,9 @@ const moveAside = async (trx: Db, access: RequestAccess, field: string, keys: Ke
 export const checkOrderField = (access: RequestAccess, name: string) => {
   requireOperation(access, 'update')
   const field = access.full.fields[name]
-  // Refused exactly like any other field the caller cannot write (hidden, read-only or unknown). A write-only field is
-  // refused as unknown too: ordering by it would decide from the stored values the caller cannot read.
-  if (!Object.hasOwn(access.readable.fields, name)) refuseUnknownField(name)
+  // Refused exactly like any other field the caller cannot write (hidden, read-only or unknown). A write-only or sensitive
+  // field is refused as unknown too: ordering by it would decide from, and report, stored values no response carries.
+  if (!Object.hasOwn(access.model.fields, name)) refuseUnknownField(name)
   validateBody(access, 'update', { [name]: 1 })
   if (field?.type !== 'integer' && field?.type !== 'bigint') throw badRequest('invalid-parameter', `"${name}" must be an integer field to order by`)
   if (!writableFields(access, 'update').includes(name)) throw badRequest('invalid-parameter', `"${name}" is read-only`)
@@ -65,8 +68,10 @@ export const checkOrderField = (access: RequestAccess, name: string) => {
  * are written, each as an ordinary update (validation, access, ETag, hooks); they are first moved aside (see `moveAside`)
  * so that a unique index such as (invoice_id, position) is never violated half way. Everything checks out before any row moves,
  * and with the position's `after` the new order must keep each record below the records it depends on (see `checkRankAfter`).
+ * With `ranks`, the values of `field` the caller read for `keys`, a locked record holding another value is refused with 412.
+ * The batch holds the field's order lock (see `lockOrders`).
  */
-export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string>; start: number }, removed: ScheduledDelete[]): Promise<WriteResult[]> => {
+export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string>; start: number; ranks?: unknown[] }, removed: ScheduledDelete[]): Promise<NumberedResult[]> => {
   const { entry } = access
   checkOrderField(access, input.field)
   const names = input.keys.map((key) => encodeKey(key))
@@ -80,6 +85,8 @@ export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, inpu
     return found
   }))
 
+  if (input.ranks?.some((rank, i) => String(current[i]!.record[input.field]) !== String(rank))) throw preconditionFailed('The list changed where the record was dropped')
+
   const changing = input.keys.flatMap((key, i) => (Number(current[i]!.record[input.field]) === input.start + i ? [] : [i]))
   const plans = new Map<number, UpdatePlan>()
   for (const i of changing) {
@@ -87,10 +94,10 @@ export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, inpu
   }
   if (changing.length > 0) await moveAside(trx, access, input.field, changing.map((i) => input.keys[i]!))
 
-  const results: WriteResult[] = []
+  const results: NumberedResult[] = []
   for (const [i, key] of input.keys.entries()) {
     const plan = plans.get(i)
-    results.push(await shown(access, plan ? await applyUpdate(trx, deps, access, key, plan, removed) : current[i]!))
+    results.push({ ...(await shown(access, plan ? await applyUpdate(trx, deps, access, key, plan, removed) : current[i]!)), previous: current[i]!.record[input.field] })
   }
   await checkRankAfter(trx, deps, access, input.field, changing.map((i) => ({ key: input.keys[i]!, before: current[i]!.record[input.field] })))
   return results
