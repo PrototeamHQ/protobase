@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { workflowResources, workflowRunsPath, workflowRunTracePath } from '@protobase/schema/internal'
+import { workflowResources, workflowRunsPath, workflowRunTracePath, workflowTraceRevision } from '@protobase/schema/internal'
 import type { Deps } from '../deps'
 import { createErrorHandler } from '../error-handler'
 import { buildRegistry } from '../registry'
@@ -34,16 +34,26 @@ describe("a run's trace, as its page reads it", () => {
     const { app, readTrace } = serve('reader')
     const answer = await app.request(workflowRunTracePath('/api', run))
     expect(answer.status).toBe(200)
-    expect(await answer.json()).toEqual({ from: 0, steps })
+    expect(await answer.json()).toEqual({ from: 0, steps, revision: await workflowTraceRevision(steps) })
     expect(readTrace).toHaveBeenCalledWith(run)
   })
 
   it('serves only the steps after those the caller has, or all of them when the trace holds fewer, and refuses a count that is none', async () => {
     const { app } = serve('reader')
-    expect(await (await app.request(workflowRunTracePath('/api', run, 1))).json()).toEqual({ from: 1, steps: [steps[1]] })
-    expect(await (await app.request(workflowRunTracePath('/api', run, 2))).json()).toEqual({ from: 2, steps: [] })
-    expect(await (await app.request(workflowRunTracePath('/api', run, 3))).json()).toEqual({ from: 0, steps })
+    const revision = await workflowTraceRevision(steps)
+    const after = async (count: number) => (await app.request(workflowRunTracePath('/api', run, { after: count, revision: await workflowTraceRevision(steps.slice(0, count)) }))).json()
+    expect(await after(1)).toEqual({ from: 1, steps: [steps[1]], revision })
+    expect(await after(2)).toEqual({ from: 2, steps: [], revision })
+    expect(await (await app.request(workflowRunTracePath('/api', run, { after: 3, revision }))).json()).toEqual({ from: 0, steps, revision })
     expect((await app.request(`${workflowRunTracePath('/api', run)}?after=-1`)).status).toBe(400)
+  })
+
+  it('serves the whole trace again when the steps the caller has are no longer its first, or it names none', async () => {
+    // The caller read the trace while it held Done alone; a part kept before Done's then sorted ahead of it.
+    const { app } = serve('reader')
+    const revision = await workflowTraceRevision(steps)
+    expect(await (await app.request(workflowRunTracePath('/api', run, { after: 1, revision: await workflowTraceRevision([steps[1]]) }))).json()).toEqual({ from: 0, steps, revision })
+    expect(await (await app.request(`${workflowRunTracePath('/api', run)}?after=1`)).json()).toEqual({ from: 0, steps, revision })
   })
 
   it('answers 404, reading no trace, to a caller who may not read runs or this run, and for a key that is no run id', async () => {

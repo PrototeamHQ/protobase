@@ -9,7 +9,7 @@ export type { DevicesClient, FcmDeviceRegistration, RegisteredDevice, WebDeviceR
 export type { InboxNotification, InboxPage, NotificationHistoryClient } from './notification-history'
 export type { Availability, PersonStatus, StatusClient, StatusInput } from './status'
 export type { WorkflowTypeEntry, WorkflowTypeList } from './workflow-types'
-export type { WorkflowRunTrace, WorkflowTraceStep } from './workflow-trace'
+export type { WorkflowRunTrace, WorkflowTraceHeld, WorkflowTraceStep } from './workflow-trace'
 export { availabilities, heldStatus, maxStatusText, statusTextProblem } from '@protobase/schema/internal'
 export type { RecordCall, RecordCallsHandlers } from './record-calls'
 export type { CallRing, RingsClient } from './rings'

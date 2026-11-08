@@ -18,12 +18,15 @@ export const stepRow = (step: WorkflowTraceStep): StepRow => ({
   duration_ms: Date.parse(step.finishedAt) - Date.parse(step.startedAt),
 })
 
+/** The steps the page has, as rows, and the trace's revision of them, which the next read after them sends back. */
+export type FollowedSteps = { rows: StepRow[]; revision: string }
+
 /** The steps the page has, with those a read after them gave from the step it starts at. */
-export const followedSteps = (have: readonly StepRow[], { from, steps }: WorkflowRunTrace) => [...have.slice(0, from), ...steps.map(stepRow)]
+export const followedSteps = (have: readonly StepRow[], { from, steps, revision }: WorkflowRunTrace): FollowedSteps => ({ rows: [...have.slice(0, from), ...steps.map(stepRow)], revision })
 
 /**
  * The steps of a run's trace in the order they ran, read again every second while `following`, each time only those
- * after the steps the page has, and once more when it stops, since the run is marked ended only once its whole trace
+ * after the steps the page has while they are still the trace's first, and once more when it stops, since the run is marked ended only once its whole trace
  * is kept. Without a run nothing is read.
  */
 export const useRunSteps = (runId: string | undefined, following: boolean) => {
@@ -33,9 +36,10 @@ export const useRunSteps = (runId: string | undefined, following: boolean) => {
   const steps = useQuery({
     queryKey,
     queryFn: async () => {
-      const have = queryClient.getQueryData<StepRow[]>(queryKey) ?? []
-      return followedSteps(have, await client.workflowRunTrace(runId!, have.length))
+      const have = queryClient.getQueryData<FollowedSteps>(queryKey)
+      return followedSteps(have?.rows ?? [], await client.workflowRunTrace(runId!, have && { after: have.rows.length, revision: have.revision }))
     },
+    select: (data) => data.rows,
     enabled: runId !== undefined,
     refetchInterval: following ? followMs : false,
   })
