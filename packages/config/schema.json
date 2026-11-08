@@ -686,7 +686,7 @@
               ]
             },
             "storage": {
-              "description": "Turns on storage configurations, the named places workflows store files in, which authors with the grant create.\n`root` is the one folder local configurations live inside, such as a mounted file share; without it, authors create\nonly S3-compatible ones. `endpoints` are the `https://` origins an S3-compatible configuration may name; without\nthem, it uses the S3 API's default host. Encrypted keys need `PROTOBASE_ENCRYPTION_KEY`.",
+              "description": "Turns on storage configurations, the named places workflows store files in, which authors with the grant create.\n`root` is the one folder local configurations live inside, such as a mounted file share; without it, authors create\nonly S3-compatible ones. `endpoints` are the `https://` origins an S3-compatible configuration may name; without\nthem, authors create none. S3-compatible ones cannot be used while the server's environment sets an S3 endpoint,\nregion or session token (`S3_*` or `AWS_*`). Encrypted keys need `PROTOBASE_ENCRYPTION_KEY`.",
               "anyOf": [
                 {
                   "type": "object",

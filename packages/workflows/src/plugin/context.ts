@@ -46,11 +46,22 @@ export type StoredFile = { configuration: string; node?: string; path: string; n
  * may not read fails as one that does not exist (`Storage.NotFound`).
  */
 export type PluginStorage = {
-  /** Streams `body` to `path` in the configuration, replacing what is there; it is whole or not there at all. */
+  /**
+   * Streams `body` to `path` in the configuration, replacing what is there; it is whole or not there at all. A put that
+   * fails cancels `body`.
+   */
   put(configuration: string, path: string, body: ReadableStream<Uint8Array>, file: { name: string; type: string }): Promise<StoredFile>
+  /**
+   * The configuration and `path` checked before there is a body, for a step that should not fetch one it cannot store:
+   * its `put` then streams a body there as `put` does.
+   */
+  open(configuration: string, path: string): Promise<StorageTarget>
   /** The bytes of a stored file, as a stream; `field` names the argument in the error. Fails as `Storage.NotFound` when it is gone. */
   read(file: unknown, field: string): Promise<{ file: StoredFile; body: ReadableStream<Uint8Array> }>
 }
+
+/** A place in a storage configuration, checked by `PluginStorage.open`. */
+export type StorageTarget = { put(body: ReadableStream<Uint8Array>, file: { name: string; type: string }): Promise<StoredFile> }
 
 type Key = string | number | (string | number)[]
 type Record_ = Record<string, unknown>

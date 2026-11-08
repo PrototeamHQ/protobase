@@ -61,11 +61,12 @@ describe('the storage steps and app:http with store, run through the plugin inte
 
   const sources = (): ConfigurationSources => ({
     storage: { root: join(folder.dir, 'storage'), endpoints: [] },
-    list: async (_session, name) => (name === 'archive' ? [{ id: 'c1', name: 'archive', kind: 'local', dir: 'archive' }] : []),
+    list: async (_session, name) => [{ id: 'c1', name: 'archive', kind: 'local', dir: 'archive' }, { id: 'c2', name: 'bucket', kind: 's3', bucket: 'acme-files', region: 'eu-west-1', endpoint: 'https://storage.example.com' }].filter((row) => row.name === name),
     decrypt: () => async () => null,
     providerDirs: () => [join(folder.dir, 'files', 'private')],
     allowPrivateAddresses: true,
     node: 'node-1',
+    environment: {},
   })
   const step = (id: string) => builtInStep(id, { allowPrivateAddresses: true, files: () => files, storage: (runId) => storageService(async () => session, runId, sources()) })
 
@@ -94,12 +95,14 @@ describe('the storage steps and app:http with store, run through the plugin inte
     expect(await readdir(join(folder.dir, 'storage', 'archive', 'runs', 'run-7'))).toHaveLength(1)
   })
 
-  it('fails on a status outside 2xx without storing, and on store arguments that make no request', async () => {
+  it('fails on a status outside 2xx without storing, and sends no request for store arguments, a configuration or a path it cannot store to', async () => {
     expect(await failure(step('app:http')({ url: `${base}/gone`, store: { configuration: 'archive', path: 'gone' } }, context()))).toEqual(['Http.Status', `${new URL(base).host} answered 404: no such file here`])
     const before = requests
     expect(await failure(step('app:http')({ url: base, store: { configuration: 'archive' }, response: 'text' }, context()))).toEqual(['Http.InvalidArguments', 'store keeps the body as a stored file: give no response with it'])
-    expect(await failure(step('app:http')({ url: base, store: { configuration: 'nowhere' } }, context()))).toEqual(['Storage.NotFound', 'No storage configuration "nowhere" this workflow may use'])
-    expect(requests).toBe(before + 1)
+    expect(await failure(step('app:http')({ url: base, method: 'POST', body: { a: 1 }, store: { configuration: 'nowhere' } }, context()))).toEqual(['Storage.NotFound', 'No storage configuration "nowhere" this workflow may use'])
+    expect((await failure(step('app:http')({ url: base, store: { configuration: 'bucket' } }, context())) as string[])[0]).toBe('Storage.Unavailable')
+    expect((await failure(step('app:http')({ url: base, store: { configuration: 'archive', path: '../outside' } }, context())) as string[])[0]).toBe('Storage.InvalidArguments')
+    expect(requests).toBe(before)
     expect(await failure(step('app:storage.get')({ file: { configuration: 'archive', path: 'missing.pdf', name: 'missing.pdf', type: 'application/pdf', size: 1 } }, context()))).toEqual(['Storage.NotFound', 'file names a file that is gone from "archive"'])
   })
 

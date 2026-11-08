@@ -4,12 +4,19 @@ import { configurationProblem } from './configuration-rules'
 
 const withRoot = { root: '/srv/storage', endpoints: ['https://storage.example.com'] }
 const noRoot = { endpoints: [] }
+const bucket = { kind: 's3', bucket: 'acme-files', region: 'eu-west-1', endpoint: 'https://storage.example.com' }
 
 describe('configurationProblem', () => {
-  it('takes a local folder under a root, and a bucket with or without an allowed endpoint and keys', () => {
+  it('takes a local folder under a root, and a bucket with its region, an allowed endpoint and keys or none yet', () => {
     expect(configurationProblem({ kind: 'local', dir: 'invoices' }, withRoot)).toBeUndefined()
-    expect(configurationProblem({ kind: 's3', bucket: 'acme-files', region: 'eu-west-1' }, noRoot)).toBeUndefined()
-    expect(configurationProblem({ kind: 's3', bucket: 'acme-files', endpoint: 'https://storage.example.com', access_key_id: encrypted, secret_access_key: encrypted }, withRoot)).toBeUndefined()
+    expect(configurationProblem({ ...bucket }, withRoot)).toBeUndefined()
+    expect(configurationProblem({ ...bucket, access_key_id: encrypted, secret_access_key: encrypted }, withRoot)).toBeUndefined()
+  })
+
+  it('refuses a bucket without a region or endpoint, which the S3 client would take from the environment', () => {
+    expect(configurationProblem({ ...bucket, region: null }, withRoot)?.field).toBe('region')
+    expect(configurationProblem({ ...bucket, endpoint: undefined }, withRoot)?.field).toBe('endpoint')
+    expect(configurationProblem({ ...bucket }, noRoot)).toEqual({ field: 'endpoint', message: 'This app allows no endpoint (workflows.storage.endpoints), so it takes no s3 configuration' })
   })
 
   it('refuses a local configuration while the app sets no storage root, naming the restriction', () => {
@@ -21,16 +28,15 @@ describe('configurationProblem', () => {
   })
 
   it('refuses an endpoint the app does not list, also with a path, and a region or bucket that could steer the host', () => {
-    expect(configurationProblem({ kind: 's3', bucket: 'acme-files', endpoint: 'https://127.0.0.1' }, withRoot)?.field).toBe('endpoint')
-    expect(configurationProblem({ kind: 's3', bucket: 'acme-files', endpoint: 'https://storage.example.com/x' }, withRoot)?.field).toBe('endpoint')
-    expect(configurationProblem({ kind: 's3', bucket: 'acme-files', endpoint: 'https://storage.example.com' }, noRoot)?.message).toBe('This app allows no endpoint: leave it out for the default host')
-    expect(configurationProblem({ kind: 's3', bucket: 'acme-files', region: 'x.attacker.example/' }, withRoot)?.field).toBe('region')
-    expect(configurationProblem({ kind: 's3', bucket: 'evil.example.com/x' }, withRoot)?.field).toBe('bucket')
+    expect(configurationProblem({ ...bucket, endpoint: 'https://127.0.0.1' }, withRoot)?.field).toBe('endpoint')
+    expect(configurationProblem({ ...bucket, endpoint: 'https://storage.example.com/x' }, withRoot)?.field).toBe('endpoint')
+    expect(configurationProblem({ ...bucket, region: 'x.attacker.example/' }, withRoot)?.field).toBe('region')
+    expect(configurationProblem({ ...bucket, bucket: 'evil.example.com/x' }, withRoot)?.field).toBe('bucket')
   })
 
   it('refuses one key without the other, and fields of the other kind', () => {
-    expect(configurationProblem({ kind: 's3', bucket: 'acme-files', access_key_id: encrypted }, noRoot)?.field).toBe('secret_access_key')
+    expect(configurationProblem({ ...bucket, access_key_id: encrypted }, withRoot)?.field).toBe('secret_access_key')
     expect(configurationProblem({ kind: 'local', dir: 'a', bucket: 'acme-files' }, withRoot)?.field).toBe('bucket')
-    expect(configurationProblem({ kind: 's3', bucket: 'acme-files', dir: 'a' }, withRoot)?.field).toBe('dir')
+    expect(configurationProblem({ ...bucket, dir: 'a' }, withRoot)?.field).toBe('dir')
   })
 })

@@ -407,7 +407,7 @@
     "workflows.storage_configurations.fields.region.label": "Region",
     "workflows.storage_configurations.fields.region.help": "For a bucket: its region, such as \"eu-west-1\"",
     "workflows.storage_configurations.fields.endpoint.label": "Endpoint",
-    "workflows.storage_configurations.fields.endpoint.help": "For a bucket outside the default host: its https address, one of those the app allows",
+    "workflows.storage_configurations.fields.endpoint.help": "For a bucket: its https address, one of those the app allows",
     "workflows.storage_configurations.fields.created_at.label": "Created",
     "workflows.storage_configurations.fields.updated_at.label": "Updated",
     "workflows.storage_configurations.layout.0.title": "Storage configuration"

@@ -90,7 +90,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('storage configurations 
 
   it('lets only the grant create, change and delete a configuration, and never shows its keys again', async () => {
     expect([403, 404]).toContain((await as('bob', '/storage_configurations', { method: 'POST', body: { name: 'mine', kind: 'local', dir: 'mine' } })).status)
-    const bucket = await as('ada', '/storage_configurations', { method: 'POST', body: { name: 'docs', kind: 's3', bucket: 'acme-docs', region: 'eu-west-1', access_key_id: accessKey, secret_access_key: secretKey } })
+    const bucket = await as('ada', '/storage_configurations', { method: 'POST', body: { name: 'docs', kind: 's3', bucket: 'acme-docs', region: 'eu-west-1', endpoint: 'https://storage.example.com', access_key_id: accessKey, secret_access_key: secretKey } })
     expect(bucket.status).toBe(201)
     const created = await bucket.text()
     const id = JSON.parse(created).id as string
@@ -112,15 +112,17 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('storage configurations 
     expect(await stored('docs')).toEqual([row])
   })
 
-  it('refuses a local folder that leaves the root, an endpoint the app does not list or that is private, and a name taken in the tenant', async () => {
+  it('refuses a local folder that leaves the root, a bucket without an endpoint and region, an endpoint the app does not list or that is private, and a name taken in the tenant', async () => {
     const refused = async (body: Record<string, unknown>) => {
       const response = await as('ada', '/storage_configurations', { method: 'POST', body })
       expect(response.status, JSON.stringify(body)).toBe(400)
     }
     await refused({ name: 'escape', kind: 'local', dir: '../private' })
     await refused({ name: 'hidden', kind: 'local', dir: '.tmp' })
-    await refused({ name: 'unlisted', kind: 's3', bucket: 'acme-docs', endpoint: 'https://other.example.com' })
-    for (const endpoint of ['https://127.0.0.1', 'https://169.254.169.254', 'https://[::1]', 'https://10.0.0.1']) await refused({ name: 'private', kind: 's3', bucket: 'acme-docs', endpoint })
+    await refused({ name: 'unlisted', kind: 's3', bucket: 'acme-docs', region: 'eu-west-1', endpoint: 'https://other.example.com' })
+    await refused({ name: 'unplaced', kind: 's3', bucket: 'acme-docs', region: 'eu-west-1' })
+    await refused({ name: 'unregioned', kind: 's3', bucket: 'acme-docs', endpoint: 'https://storage.example.com' })
+    for (const endpoint of ['https://127.0.0.1', 'https://169.254.169.254', 'https://[::1]', 'https://10.0.0.1']) await refused({ name: 'private', kind: 's3', bucket: 'acme-docs', region: 'eu-west-1', endpoint })
     expect(await stored('escape')).toEqual([])
     await created('ada', '/storage_configurations', { name: 'twice', kind: 'local', dir: 'twice' })
     expect((await as('ada', '/storage_configurations', { method: 'POST', body: { name: 'twice', kind: 'local', dir: 'other' } })).status).toBeGreaterThanOrEqual(400)
@@ -136,7 +138,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('storage configurations 
   })
 
   it('stores an answer through a configuration switched from S3 to a local folder, unchanged, resumes after a restart without fetching it again, and catches a file that is gone', async () => {
-    const config = await created('ada', '/storage_configurations', { name: 'reports', kind: 's3', bucket: 'acme-reports', access_key_id: accessKey, secret_access_key: secretKey })
+    const config = await created('ada', '/storage_configurations', { name: 'reports', kind: 's3', bucket: 'acme-reports', region: 'eu-west-1', endpoint: 'https://storage.example.com', access_key_id: accessKey, secret_access_key: secretKey })
     const base = `http://127.0.0.1:${(receiver.address() as AddressInfo).port}`
     const workflow = await created('bob', '/workflows', {
       name: 'Keep the report',
@@ -155,7 +157,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('storage configurations 
       }),
     })
     // Switched to a local folder after the workflow was saved: the workflow names the configuration, never where it points.
-    expect((await as('ada', `/storage_configurations/${config}`, { method: 'PATCH', body: { kind: 'local', dir: 'reports', bucket: null, access_key_id: null, secret_access_key: null } })).status).toBe(200)
+    expect((await as('ada', `/storage_configurations/${config}`, { method: 'PATCH', body: { kind: 'local', dir: 'reports', bucket: null, region: null, endpoint: null, access_key_id: null, secret_access_key: null } })).status).toBe(200)
 
     const before = fetched.length
     const runId = await created('bob', '/workflow_runs', { workflow_id: workflow, input: {} })

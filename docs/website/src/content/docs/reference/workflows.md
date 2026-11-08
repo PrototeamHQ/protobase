@@ -349,8 +349,8 @@ A configuration is a record of `storage_configurations`, which you create and ch
 | `name` | What workflows name it by: a lowercase letter, then lowercase letters, digits and `_`. Unique in the tenant. |
 | `kind` | `local`, a folder under `root`, or `s3`, a bucket. |
 | `dir` | For `local`: a folder inside `root`, such as `invoices/2026`. A path that would leave it, through `..` or a symlink, is refused. Without `root`, only `s3` configurations are taken. |
-| `bucket`, `region` | For `s3`: the bucket and its region. |
-| `endpoint` | For `s3` off the S3 API's default host: one of the `endpoints` the app lists. Its host must resolve to public addresses, which every step checks again. |
+| `bucket`, `region` | For `s3`: the bucket and its region, both required. |
+| `endpoint` | For `s3`, required: one of the `endpoints` the app lists. Its host must resolve to public addresses, which every step checks again. |
 | `access_key_id`, `secret_access_key` | For `s3`: the bucket's keys, both required before a step can use it. They are stored encrypted, and nobody can read them again once saved, not even you; set new ones to change them. |
 
 You set the keys with the API or the MCP `update_record` tool: `PATCH /api/v1/storage_configurations/<id>` with its `If-Match` and `{ "access_key_id": "...", "secret_access_key": "..." }`. <gap>An S3 configuration's keys cannot be set in the admin app's form because its editor for write-only fields is not implemented.</gap>
@@ -376,12 +376,12 @@ A stored file is `{ configuration, node, path, name, type, size }`: the configur
 }
 ```
 
-A step reads the configuration it names afresh each time, as the user who saved the run's version, with the roles they hold now. It fails with:
+A step reads the configuration it names afresh each time, as the user who saved the run's version, with the roles they hold now. `app:http` with `store` checks the configuration and path before it sends the request, so one it cannot store to fails without a request. It fails with:
 
 | Error | |
 | --- | --- |
 | `Storage.NotFound` | No configuration of that name the workflow's last editor may read, which says nothing of one in another tenant or one they may not read; or the file is gone, which a `Catch` can take. |
-| `Storage.Unavailable` | The configuration cannot be used as it is, such as an S3 one without keys or keys that no longer decrypt. |
+| `Storage.Unavailable` | The configuration cannot be used as it is, such as an S3 one without keys, with keys that no longer decrypt, or on a server whose environment sets an S3 endpoint, region or session token. |
 | `Storage.Failed` | The store failed; the cause names its error code only. |
 | `Storage.Full` | The store has no room left. |
 | `Storage.TooLarge` | `app:storage.get` of a file over 10 MiB. |

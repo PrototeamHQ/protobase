@@ -57,7 +57,7 @@ const storageConfigurationsView = view<ReturnType<typeof storageConfigurationsRe
     dir: r.dir.label('Folder').help('For a local folder: a path inside the storage root, such as "invoices/2026"'),
     bucket: r.bucket.label('Bucket').help('For a bucket: its name'),
     region: r.region.label('Region').help('For a bucket: its region, such as "eu-west-1"'),
-    endpoint: r.endpoint.label('Endpoint').help('For a bucket outside the default host: its https address, one of those the app allows'),
+    endpoint: r.endpoint.label('Endpoint').help('For a bucket: its https address, one of those the app allows'),
     created_at: r.created_at.label('Created'),
     updated_at: r.updated_at.label('Updated'),
   }))

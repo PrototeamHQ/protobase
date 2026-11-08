@@ -407,7 +407,7 @@
     "workflows.storage_configurations.fields.region.label": "Regio",
     "workflows.storage_configurations.fields.region.help": "Voor een bucket: de regio, zoals \"eu-west-1\"",
     "workflows.storage_configurations.fields.endpoint.label": "Endpoint",
-    "workflows.storage_configurations.fields.endpoint.help": "Voor een bucket buiten de standaardhost: het https-adres, een van de adressen die de app toestaat",
+    "workflows.storage_configurations.fields.endpoint.help": "Voor een bucket: het https-adres, een van de adressen die de app toestaat",
     "workflows.storage_configurations.fields.created_at.label": "Aangemaakt",
     "workflows.storage_configurations.fields.updated_at.label": "Bijgewerkt",
     "workflows.storage_configurations.layout.0.title": "Opslagconfiguratie"

@@ -1,4 +1,4 @@
-export type { FileValue, JsonSchema, PluginConnection, PluginFetch, PluginFetchInit, PluginFiles, PluginMail, PluginMailMessage, PluginRecords, PluginServices, PluginStorage, StepContext, StoredFile } from './context'
+export type { FileValue, JsonSchema, PluginConnection, PluginFetch, PluginFetchInit, PluginFiles, PluginMail, PluginMailMessage, PluginRecords, PluginServices, PluginStorage, StepContext, StorageTarget, StoredFile } from './context'
 export { ConnectionError } from './connection-error'
 export { definePlugin, pluginApi } from './define-plugin'
 export type { ConnectionDeclaration, OAuthEndpoints, Plugin, PollEvery, PollingTrigger, ReadyTrigger, StepType, TriggerContext, TriggerItem, TriggerType, WebhookEvent, WebhookItem, WebhookTrigger } from './types'
