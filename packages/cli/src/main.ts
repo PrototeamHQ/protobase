@@ -237,6 +237,9 @@ program
   .argument('<bundle>', 'the bundle folder, e.g. dist, or its dist/protobase.config.js')
   .action(async (bundle: string) => {
     loadNearestEnvFile(process.cwd())
+    // The bundle's jobs get the host modules as `serve` gives them.
+    const { provideHostModules } = await import('./serve/host-modules')
+    provideHostModules()
     const [{ loadWorkerBundle, startWorker }, { projectErrorReporter }, { reportCrashes }, { closeOnSignals }] = await Promise.all([
       import('./worker/start-worker'),
       import('./project/error-reporter'),
