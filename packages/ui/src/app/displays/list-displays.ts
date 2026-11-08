@@ -116,6 +116,9 @@ export const filledAmount = (row: ListDisplayRow, amount: string[]): string | un
 /** The code field a card shows for a row: the field when it has a value, so an empty one leaves no block behind. */
 export const filledCode = (row: ListDisplayRow, code: string | undefined): string | undefined => (code === undefined ? undefined : filledMeta(row, [code])[0])
 
+/** A card's code as stored when its field is text, line breaks, spaces and markdown marks all; undefined for another type, which shows its display value. */
+export const rawCode = (field: FieldModel | undefined, value: unknown) => (field?.type === 'text' && typeof value === 'string' ? value : undefined)
+
 /** A card's amount split for drawing: the number with its prefix, such as `€1,450`, apart from its suffix, such as ` /month`. */
 export const amountParts = (field: FieldModel, value: unknown, hints: FieldViewModel = {}): { amount: string; suffix?: string } => {
   const { suffix, ...unsuffixed } = hints

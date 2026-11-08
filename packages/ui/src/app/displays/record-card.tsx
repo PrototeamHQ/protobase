@@ -23,7 +23,7 @@ import { CardImage } from './card-image'
 import { Markdown } from '../../markdown/markdown'
 import { markdownExcerpt } from '../../markdown/markdown-excerpt'
 import { isMarkdown } from '../../markdown/markdown-hint'
-import { amountParts, cardFields, filledAmount, filledCode, filledMeta, type ListDisplayRow } from './list-displays'
+import { amountParts, cardFields, filledAmount, filledCode, filledMeta, rawCode, type ListDisplayRow } from './list-displays'
 import { text as message } from './messages'
 
 type RecordCardProps = {
@@ -140,7 +140,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
         <span className={view?.fields[subtitle]?.markdown ? 'line-clamp-3 break-words text-muted-foreground' : view?.fields[subtitle]?.multiline ? 'line-clamp-3 whitespace-pre-line break-words text-muted-foreground' : 'truncate text-muted-foreground'}>{subtitleValue(subtitle)}</span>
       )}
       {shownAmount !== undefined && <span className="truncate tabular-nums text-muted-foreground">{amountValue(shownAmount)}</span>}
-      {shownCode !== undefined && <CodeBlock>{text(shownCode)}</CodeBlock>}
+      {shownCode !== undefined && <CodeBlock>{rawCode(model.fields[shownCode], row.record[shownCode]) ?? text(shownCode)}</CodeBlock>}
       {meta.length > 0 && (
         <dl className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground">
           {filledMeta(row, meta).map((name) => (
