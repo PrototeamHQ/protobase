@@ -52,10 +52,13 @@ const timeProblems = (source: ResourceModel, time: string) => {
   return field.type === 'timestamp' ? [] : [`time "${time}" is ${field.type}, not a timestamp`]
 }
 
-const byProblems = (source: ResourceModel, by: readonly string[]) =>
+// A field whose own `.access()` hides it from some readers: the rollup cannot carry that rule onto a bucket.
+const readRuled = (source: BucketsSource, name: string) => source.fields[name]?.meta.access?.read !== undefined
+
+const byProblems = (source: BucketsSource, by: readonly string[]) =>
   by.flatMap((name, index) => {
-    const field = source.fields[name]
-    if (!field) return [`groups by "${name}", which is not a field of "${source.name}"`]
+    const field = source.model.fields[name]
+    if (!field) return [`groups by "${name}", which is not a field of "${source.model.name}"`]
     return [
       ...(by.indexOf(name) !== index ? [`groups by "${name}" twice`] : []),
       ...(ownNames.includes(name) ? [`groups by "${name}", a name the rollup keeps for its own field`] : []),
@@ -63,16 +66,18 @@ const byProblems = (source: ResourceModel, by: readonly string[]) =>
       ...(field.relation && field.relation.columns.length !== 1 ? [`groups by "${name}", a relation of several columns (not implemented)`] : []),
       ...(field.nullable ? [`groups by "${name}", which is optional; a bucket's key has no empty part`] : []),
       ...(field.sensitive ? [`groups by "${name}", which is sensitive`] : []),
+      ...(readRuled(source, name) ? [`groups by "${name}", which has its own read rule`] : []),
     ]
   })
 
-const measureProblems = (source: ResourceModel, kept: Record<string, readonly BucketMeasure[]>, by: readonly string[]) =>
+const measureProblems = (source: BucketsSource, kept: Record<string, readonly BucketMeasure[]>, by: readonly string[]) =>
   Object.entries(kept).flatMap(([name, fns]) => {
-    const field = source.fields[name]
-    if (!field) return [`measures "${name}", which is not a field of "${source.name}"`]
+    const field = source.model.fields[name]
+    if (!field) return [`measures "${name}", which is not a field of "${source.model.name}"`]
     return [
       ...(numberTypes.includes(field.type) ? [] : [`measures "${name}", which is ${field.type}, not an integer, bigint or decimal`]),
       ...(field.sensitive ? [`measures "${name}", which is sensitive`] : []),
+      ...(readRuled(source, name) ? [`measures "${name}", which has its own read rule`] : []),
       ...(fns.length === 0 ? [`measures "${name}" with nothing; give sum, max or both`] : []),
       ...fns.flatMap((fn, index) => [
         ...(measures.includes(fn) ? [] : [`measures "${name}" with "${String(fn)}", not sum or max`]),
@@ -94,9 +99,9 @@ export const bucketsState = (name: string, source: BucketsSource, buckets: Bucke
     ...((model.parents ?? []).some((parent) => parent.access === 'read') ? [`rolls up "${model.name}", whose reads keep to records whose parent the caller reads (not implemented)`] : []),
     ...(everies.includes(buckets.every) ? [] : [`every "${String(buckets.every)}" is not hour or day`]),
     ...timeProblems(model, buckets.time),
-    ...byProblems(model, buckets.by),
+    ...byProblems(source, buckets.by),
     ...(model.tenant && !buckets.by.includes(model.tenant) ? [`does not group by "${model.tenant}", the tenant field of "${model.name}"`] : []),
-    ...measureProblems(model, buckets.measures, buckets.by),
+    ...measureProblems(source, buckets.measures, buckets.by),
     ...(lateShape.test(buckets.late) ? [] : [`late "${buckets.late}" is not a number of minutes, hours or days, such as "2 hours"`]),
   ]
   if (problems.length > 0) throw new Error(`Resource "${name}": the time rollup ${problems.join('; ')}`)
