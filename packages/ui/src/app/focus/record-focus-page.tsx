@@ -85,7 +85,8 @@ const RecordFocus = ({ model, recordKey, stored, page }: Omit<RecordFocusPagePro
     recordKey,
     mode: 'button',
     subject: title,
-    draftKey: auth.kind === 'signed-in' ? draftStorageKey(auth.user.id, model.name, recordKey) : undefined,
+    // A draft of its own: the form keeps its fields and line order in another, which this page never touches
+    draftKey: auth.kind === 'signed-in' ? `${draftStorageKey(auth.user.id, model.name, recordKey)}:focus` : undefined,
   })
   useNavigationGuard(editor.dirty || editor.saving)
   usePauseFocusRefresh(editor.dirty)

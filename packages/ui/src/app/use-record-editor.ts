@@ -59,16 +59,13 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
     if (restored?.order) lines?.setOrder(restored.order)
   }, [])
 
-  // An editor that does not draw the lines, as a focus page's, keeps the order a form left in the draft
-  const order = lines ? lines.order : restored?.order
-
   // A sensitive value, and so a write-only one, is never kept in local storage
   useEffect(() => {
     if (!draftKey) return
     const kept = Object.fromEntries(Object.entries(draft).filter(([name]) => !model.fields[name]?.sensitive))
-    const keep = Object.keys(kept).length > 0 || Boolean(order)
-    writeDraft(localStorage, draftKey, keep ? { etag: stored.etag, fields: kept, ...(order && { order }) } : undefined)
-  }, [draftKey, model, draft, order, stored.etag])
+    const keep = Object.keys(kept).length > 0 || Boolean(lines?.order)
+    writeDraft(localStorage, draftKey, keep ? { etag: stored.etag, fields: kept, ...(lines?.order && { order: lines.order }) } : undefined)
+  }, [draftKey, model, draft, lines?.order, stored.etag])
 
   // Booleans and files are edited as they are stored; everything else as text
   const value = (name: string) => (name in draft ? draft[name] : ['boolean', 'file'].includes(model.fields[name]!.type) ? stored.record[name] : toDraft(stored.record[name]))
