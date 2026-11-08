@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checksState } from './checks'
-import { approvedLogins, refusal, type Decision, type PullRequest, type Review } from './decision'
+import { approvedLogins, refusal, workflowRefusal, type Decision, type PullRequest, type Review } from './decision'
 
 const repository = 'owner/repo'
 const head = 'a'.repeat(40)
@@ -16,6 +16,7 @@ const pull: PullRequest = {
   labels: [{ name: 'auto-merge-approvals' }],
   head: { sha: head, ref: 'topic', repo: { full_name: repository } },
   base: { ref: 'main' },
+  changed_files: 1,
 }
 const labelled = { event: 'labeled', created_at: labelAt, label: { name: 'auto-merge-approvals' } }
 const review = (over: Partial<Review> & { login?: string } = {}): Review => ({
@@ -26,7 +27,7 @@ const review = (over: Partial<Review> & { login?: string } = {}): Review => ({
   ...over,
 })
 const decide = (over: Partial<Decision> = {}) =>
-  refusal({ repository, pull, timeline: [labelled], reviews: [review()], roles: {}, checks: { state: 'green', names: [] }, reviewBotFinished: true, ...over })
+  refusal({ repository, pull, timeline: [labelled], reviews: [review()], files: [{ filename: 'src/index.ts' }], roles: {}, checks: { state: 'green', names: [] }, reviewBotFinished: true, ...over })
 
 describe('refusal', () => {
   it('merges on an approval from the review bot', () => {
@@ -96,6 +97,23 @@ describe('refusal', () => {
 
   it('refuses without the label, though its event is on the timeline', () => {
     expect(decide({ pull: { ...pull, labels: [] } })).toContain('no auto-merge-approvals label')
+  })
+
+  it('refuses a change to a workflow file', () => {
+    expect(decide({ files: [{ filename: 'src/index.ts' }, { filename: '.github/workflows/ci.yml' }], pull: { ...pull, changed_files: 2 } })).toBe(workflowRefusal)
+  })
+
+  it('merges a change to a file outside the workflow folder', () => {
+    expect(decide({ files: [{ filename: '.github/dependabot.yml' }, { filename: 'docs/.github/workflows/ci.yml' }], pull: { ...pull, changed_files: 2 } })).toBeNull()
+  })
+
+  it('refuses a workflow file that is only renamed or deleted', () => {
+    expect(decide({ files: [{ filename: 'old/ci.yml', previous_filename: '.github/workflows/ci.yml' }] })).toBe(workflowRefusal)
+    expect(decide({ files: [{ filename: '.github/workflows/ci.yml' }] })).toBe(workflowRefusal)
+  })
+
+  it('refuses when GitHub lists fewer files than the pull request changes', () => {
+    expect(decide({ pull: { ...pull, changed_files: 3001 } })).toContain('only 1 of its 3001')
   })
 
   it('refuses a draft and a closed pull request', () => {
