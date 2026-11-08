@@ -335,6 +335,8 @@ export default defineConfig({
 })
 ```
 
+Their table, `workflows.storage_configurations`, comes with the next [`protobase migration`](/reference/cli/#migration) after you turn them on, so an app that turns storage on later writes a migration then.
+
 A configuration is a record of `storage_configurations`, which you create and change on its standard pages, linked from each workflow's page, through the API or over MCP:
 
 | Field | |

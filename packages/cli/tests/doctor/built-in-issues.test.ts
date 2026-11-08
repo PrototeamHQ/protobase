@@ -44,7 +44,7 @@ describe('doctor on the resources Protobase adds', () => {
     await pg.exec((await changesMigration(db, [notes]))!)
     await pg.exec((await commentsMigration(db))!)
     await pg.exec((await webhooksMigration(db, { deliveryLog: true }))!)
-    await pg.exec((await workflowsMigration(db))!)
+    await pg.exec((await workflowsMigration(db, { storage: {} }))!)
     const issues = async () => (await Promise.all(builtIn.models.map(async (model) => [...sortIssues(model, shapes), ...builtInIndexIssues(indexIssues(model, await tableIndexes(db, model), shapes))]))).flat()
     expect(await issues()).toEqual([])
 

@@ -146,6 +146,16 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(await workflowsMigration(db, workflows)).toBeUndefined()
   })
 
+  it('adds the storage configurations table once storage is turned on, and not before', async () => {
+    const { rows } = await sql<{ found: boolean }>`select to_regclass('workflows.storage_configurations') is not null as found`.execute(db)
+    expect(rows[0]!.found).toBe(false)
+    const withStorage = { ...workflows, storage: {} }
+    const upgrade = await workflowsMigration(db, withStorage)
+    expect(upgrade).toContain('create table if not exists "workflows"."storage_configurations"')
+    await pg.exec(upgrade!)
+    expect(await workflowsMigration(db, withStorage)).toBeUndefined()
+  })
+
   it('keeps a save out of what is published: a start runs the published version unless it names one, and refuses a version never saved', async () => {
     const id = await create('Echo', definition({ Echo: { Type: 'Pass', Output: 'one', End: true } }))
     expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 1 } })).status).toBe(200)

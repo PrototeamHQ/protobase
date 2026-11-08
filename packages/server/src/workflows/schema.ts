@@ -14,35 +14,45 @@ import { statusSql, statusTriggers } from './status-sql'
 // and whether both database triggers are on their tables, since a trigger can be dropped while its function stays.
 const triggerNames = [...workflowsTriggers, ...statusTriggers]
 
-const readWorkflowsSchema = async (db: Db, schema: string) => {
+// With `storage` on, the storage configurations table must be there too, so turning storage on later writes a migration.
+const readWorkflowsSchema = async (db: Db, schema: string, storage: boolean) => {
   const runs = `${quoteIdent(schema)}."runs"`
   const triggerRows = `${quoteIdent(schema)}."triggers"`
-  const { rows } = await sql<{ found: boolean; trigger_rows: boolean; comment: string | null; triggers: number }>`select to_regclass(${runs}) is not null as found,
+  const configurations = `${quoteIdent(schema)}."storage_configurations"`
+  const { rows } = await sql<{ found: boolean; trigger_rows: boolean; configurations: boolean; comment: string | null; triggers: number }>`select to_regclass(${runs}) is not null as found,
     to_regclass(${triggerRows}) is not null as trigger_rows,
+    to_regclass(${configurations}) is not null as configurations,
     (select obj_description(p.oid, 'pg_proc') from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${schema} and p.proname = 'run_version') as comment,
     (select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = ${schema} and not t.tgisinternal and t.tgname = any(${triggerNames})) as triggers`.execute(db)
   const row = rows[0]!
-  return { tables: row.found, current: row.found && row.trigger_rows && commentVersion(row.comment) === workflowsVersion && row.triggers === triggerNames.length }
+  const current = row.found && row.trigger_rows && commentVersion(row.comment) === workflowsVersion && row.triggers === triggerNames.length && (!storage || row.configurations)
+  return { tables: row.found, current }
 }
 
 /**
  * The SQL that brings the `workflows` schema to what `workflows` needs: its tables, indexes and the triggers that number a
  * workflow's versions and pin a run's; `undefined` when current. Tables are never dropped: a schema made before keeps
- * its `steps` table, which nothing reads or writes any more.
+ * its `steps` table, which nothing reads or writes any more. The storage configurations table is added only with `storage`.
  */
-export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions, 'schema'> = {}) => {
+export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions, 'schema' | 'storage'> = {}) => {
   const schema = workflowsSchema(options)
-  const found = await readWorkflowsSchema(db, schema)
-  if (found.current) return undefined
-  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(found.tables ? [] : [tablesSql(schema)]), checkpointsSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), storageSql(schema), functionsSql(schema), statusSql(schema)]
+  const storage = options.storage !== undefined
+  const found = await readWorkflowsSchema(db, schema, storage)
+  if (found.current) return
+  return workflowsSql(schema, { tables: found.tables, storage })
+}
+
+/** The statements of a migration of the `workflows` schema: its tables only when missing, storage only when on. */
+export const workflowsSql = (schema: string, { tables, storage }: { tables: boolean; storage: boolean }) => {
+  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(tables ? [] : [tablesSql(schema)]), checkpointsSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), ...(storage ? [storageSql(schema)] : []), functionsSql(schema), statusSql(schema)]
   return `${statements.join(';\n\n')};`
 }
 
 /** Refuses to go on while the `workflows` schema lacks what `workflows` needs; the project's migrations add it. */
-export const checkWorkflowsSchema = async (db: Db, options: Pick<WorkflowsOptions, 'schema'> = {}) => {
+export const checkWorkflowsSchema = async (db: Db, options: Pick<WorkflowsOptions, 'schema' | 'storage'> = {}) => {
   const schema = workflowsSchema(options)
-  const found = await readWorkflowsSchema(db, schema)
+  const found = await readWorkflowsSchema(db, schema, options.storage !== undefined)
   if (found.current) return
   throw new Error(`The ${schema} schema is missing or behind this version of Protobase. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
 }
