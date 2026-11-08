@@ -77,6 +77,7 @@ describe('traceSink', () => {
     expect(await readTrace(files, 'r2')).toHaveLength(1)
     await sink.write('r2', [step('B')], { mode: 'failed', ended: 'succeeded' })
     expect(await readTrace(files, 'r2')).toEqual([])
+    expect(await files.providers.private!.store.list('workflows/r2/')).toEqual([])
     await sink.write('r3', [step('A')], { mode: 'none', ended: 'failed' })
     expect(await files.providers.private!.store.list('workflows/r3/')).toEqual([])
   })

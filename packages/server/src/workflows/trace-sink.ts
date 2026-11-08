@@ -60,6 +60,9 @@ export const traceSink = ({ files, joining, report }: TraceSinkInput): TraceSink
         await kept(formatUri({ provider: 'private', path: traceFile(runId), name: 'trace.jsonl', size }))
       }
       await Promise.all(parts.map((part) => store.delete(part.path)))
+      // A dropped trace leaves no number behind: a retry of the segment that ended the run drops its steps too, and
+      // one that ends it failed instead keeps only parts written since, which the number orders from 0 again.
+      if (dropped) await store.delete(traceNext(runId))
     })
   }
   return {
