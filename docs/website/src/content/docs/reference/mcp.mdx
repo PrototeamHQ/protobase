@@ -229,7 +229,7 @@ export default defineConfig({
 })
 ```
 
-The client reads the framework's text on [reading records](#reading-only-what-is-needed) first, then the app's, then, in an app with [workflows](#workflows), the workflow guide. Some MCP clients keep only the first 4,096 characters of a server's instructions, so the framework's text and the app's together stay within 4,096: the app has 2,691 characters, and a longer text stops startup with an error naming `mcpEndpoint.instructions`. The workflow guide that follows is longer than that alone, so such a client cuts it. The text is the same for every client and every connection, which lets clients cache it: what changes, such as the records themselves, reaches the client through the tools.
+The client reads the framework's text on [reading records](#reading-only-what-is-needed) first, then the app's, then, in an app with [workflows](#workflows), the workflow guide. Some MCP clients keep only the first 4,096 characters of a server's instructions, so the framework's text and the app's together stay within 4,096: the app has 2,691 characters, and a longer text stops startup with an error naming `mcpEndpoint.instructions`. The workflow guide that follows is longer than that alone, so such a client cuts it. <gap>A client that keeps only 4,096 characters cannot read the whole workflow guide because a shorter guide is not implemented.</gap> The text is the same for every client and every connection, which lets clients cache it: what changes, such as the records themselves, reaches the client through the tools.
 
 ## The app's own tools
 
