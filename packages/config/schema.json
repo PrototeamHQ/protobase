@@ -675,6 +675,50 @@
                 }
               ]
             },
+            "storage": {
+              "description": "Turns on storage configurations, the named places workflows store files in, which authors with the grant create.\n`root` is the one folder local configurations live inside, such as a mounted file share; without it, authors create\nonly S3-compatible ones. `endpoints` are the `https://` origins an S3-compatible configuration may name; without\nthem, it uses the S3 API's default host. Encrypted keys need `PROTOBASE_ENCRYPTION_KEY`.",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "root": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    },
+                    "endpoints": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "$ref": "#/definitions/EnvValue"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
             "allowPrivateAddresses": {
               "description": "Lets the `app:http` step reach private, loopback and link-local addresses, for development and tests. Default\nfalse: a URL whose host resolves to one fails the step, so a workflow cannot reach the app's own network.",
               "anyOf": [

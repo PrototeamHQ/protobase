@@ -28,4 +28,20 @@ describe('workflowResources', () => {
     expect(workflows.layout.find((item) => item.kind === 'section' && item.fields.includes('run_status'))).toBeDefined()
     expect(workflows.list?.columns).toContain('run_status')
   })
+
+  it('adds storage configurations only with storage, out of the sidebar, linked from each workflow, their keys read by no one', () => {
+    expect(workflowResources('workflows')).not.toHaveProperty('storageConfigurations')
+    expect(workflowResources('workflows').workflowsView.toModel().actions ?? []).toEqual([])
+    const parts = workflowResources('workflows', { storage: true })
+    const model = parts.storageConfigurations!.toModel()
+    const access = parts.storageConfigurations!.fieldAccess()
+    expect(model.explicitGrants).toBe(true)
+    expect(parts.storageConfigurationsView!.toModel().nav?.hidden).toBe(true)
+    for (const name of ['access_key_id', 'secret_access_key']) {
+      const field = model.fields[name]!
+      expect(field).toMatchObject({ encrypted: true, sensitive: true })
+      expect(access[name]?.read?.({ user: { id: 1, roles: ['admin'] } } as never)).toBe(false)
+    }
+    expect(parts.workflowsView.toModel().actions).toEqual([expect.objectContaining({ name: 'storage_configurations', run: { kind: 'link', to: { kind: 'list', resource: 'storage_configurations' } } })])
+  })
 })
