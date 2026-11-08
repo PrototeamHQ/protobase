@@ -1,4 +1,5 @@
 import type { WSEvents } from 'hono/ws'
+import { isPingable, keepAlive } from './socket-keepalive'
 import { recheckWhileOpen } from './socket-recheck'
 
 /** An open WebSocket as a function sees it. */
@@ -56,7 +57,8 @@ const sizeOf = (data: string | ArrayBuffer) => (typeof data === 'string' ? data.
 
 /**
  * A function's socket events as Hono's, over the host's raw socket. Messages reach `onMessage` one at a time, in order,
- * after `onOpen`, and `onClose` comes after the last of them. A handler that throws or rejects is reported and closes
+ * after `onOpen`, and `onClose` comes after the last of them. A socket that stops answering pings is ended (`keepAlive`),
+ * so a client gone without closing is closed too. A handler that throws or rejects is reported and closes
  * the socket with 1011.
  */
 export const socketEvents = (events: SocketEvents, { report, recheck }: SocketEventsOptions): WSEvents => {
@@ -69,10 +71,12 @@ export const socketEvents = (events: SocketEvents, { report, recheck }: SocketEv
   // The server's own close, which the browser may never answer, as when its connection is gone.
   let closedWith: { code: number; reason: string } | undefined
   let stopRecheck = () => {}
+  let stopKeepalive = () => {}
   const end = (code: number, reason: string) => {
     ended = true
     closedWith ??= { code, reason }
     stopRecheck()
+    stopKeepalive()
     raw.close(code, reason)
   }
   const fail = (error: unknown) => {
@@ -124,6 +128,7 @@ export const socketEvents = (events: SocketEvents, { report, recheck }: SocketEv
         await events.recheck?.()
       }
       if (recheck || events.recheck) stopRecheck = recheckWhileOpen({ check, close: end, report })
+      if (isPingable(ws.raw)) stopKeepalive = keepAlive(ws.raw)
       enqueue(() => events.onOpen?.(socket))
     },
     onMessage: (event) => {
@@ -131,6 +136,7 @@ export const socketEvents = (events: SocketEvents, { report, recheck }: SocketEv
     },
     onClose: (event) => {
       stopRecheck()
+      stopKeepalive()
       const { code, reason } = closedWith ?? event
       enqueue(() => events.onClose?.(code, reason), true)
     },

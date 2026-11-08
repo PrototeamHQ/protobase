@@ -35,7 +35,7 @@ describe('pushMessage', () => {
     expect(message.url).toBe('https://evil.example/@app.example/')
   })
 
-  it.each(['javascript:alert(1)', '/tasks/1', 'data:text/html,x'])('refuses the url %j', (url) => {
+  it.each(['javascript:alert(1)', '/tasks/1', 'data:text/html,x', 'file:///data/x', 'intent://x#Intent;end', 'content://app.example.provider/x'])('refuses the url %j', (url) => {
     expect(refused({ title: 'x', url })).toBe('url')
   })
 

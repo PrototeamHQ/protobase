@@ -486,6 +486,16 @@
                   "$ref": "#/definitions/EnvValue"
                 }
               ]
+            },
+            "instructions": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -701,6 +711,21 @@
                       }
                     ]
                   }
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "trace": {
+              "description": "Which runs keep a trace, every step's input, output and logs as JSON lines in the private file provider: `all`\n(default), `failed` for only the runs that fail, or `none`. A workflow's definition (`trace`) and a run's own\n`trace` set it for theirs.",
+              "anyOf": [
+                {
+                  "enum": [
+                    "all",
+                    "failed",
+                    "none"
+                  ]
                 },
                 {
                   "$ref": "#/definitions/EnvValue"
@@ -1062,6 +1087,17 @@
       "anyOf": [
         {
           "$ref": "#/definitions/StatusOptions"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "pushRelay": {
+      "description": "The app as a push relay that holds a mobile app's APNs and FCM keys for many workspaces (see `PushRelayOptions`); `{ appId }` turns it on.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PushRelayOptions"
         },
         {
           "$ref": "#/definitions/EnvValue"
@@ -3725,6 +3761,25 @@
           ]
         }
       },
+      "additionalProperties": false
+    },
+    "PushRelayOptions": {
+      "type": "object",
+      "properties": {
+        "appId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "appId"
+      ],
       "additionalProperties": false
     },
     "CallsOptions": {

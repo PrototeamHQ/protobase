@@ -114,7 +114,7 @@ In an app with [workflows](/reference/workflows/), the endpoint also offers tool
 | `list_connections` | The person's own [connected accounts](/reference/workflows/#connecting-an-account), by each connection the app's plugins declare: its key and label, and each account's `id`, scopes and `needs_sign_in`. A definition's `connections` binds an account by its `id`. It returns no token, and no one else's accounts. |
 | `create_workflow` | Creates a workflow from its `name`, `description` and `definition`, and returns its `id`, `version` and ETag. |
 | `update_workflow` | Changes a workflow's definition by an `edit` or whole, as `definition`, and its `name` or `description`, and returns its `id`, new `version` and ETag. With the `etag` that `get_workflow` gave, it fails when someone changed the workflow since; an edit without one is saved against the version it was applied to. |
-| `run_workflow` | Starts a run of a workflow's version saved last, or of the `version` it names, with an `input`, and returns its `run_id` and `status`. With `rerun_of`, a failed run's id, it [re-runs](/reference/workflows/#re-running-a-failed-run) that run from its failed step instead, on its input, and with `rerun_from` any ended run from that state; with `replay: true` too, it [replays](/reference/workflows/#replaying-a-run) any ended run of the workflow on its current version, with that run's input, sending none of its outside writes. |
+| `run_workflow` | Starts a run of a workflow's version saved last, or of the `version` it names, with an `input`, and returns its `run_id` and `status`. With `rerun_of`, a failed run's id, it [re-runs](/reference/workflows/#re-running-a-failed-run) that run from its last checkpoint instead, on its input, and with `rerun_from` any ended run that kept its trace from that state; with `replay: true` too, it [replays](/reference/workflows/#replaying-a-run) any ended run of the workflow on its current version, with that run's input, sending none of its outside writes. |
 | `enable_workflow` | Publishes the saved `version` it names (`enabled: true`), which puts the workflow's trigger on it, or turns the workflow off, and returns its `enabled_version`. A save never goes live by itself. One that uses a [connected account](/reference/workflows/#connecting-an-account) is turned on only by the account's owner in the admin app: the tool answers `own-sign-in-only` and says so. |
 | `new_webhook_url` | Issues a new URL and secret for a workflow that starts from a [webhook trigger](/reference/workflows/#appwebhook), keeping a `secret` the sender makes when given one, and returns `{ url, secret }`, shown this once; the old URL stops. |
 
@@ -217,6 +217,19 @@ An update needs the `etag` the record was read with, or `"*"` for any version; a
 The person approves the batch once, in their language, seeing each write in it named and listed as the approval of a single write names and lists it: `2. Update Task #42 "Fix the sign-in lockout"` with each field it changes, a create with the new record's fields, and a delete saying whether it can be restored. A key or value pointing at a create in the batch is named by that write's number, such as `the Task from write 1`. The first 50 writes are listed and the rest counted. The approval says plainly how many deletes in it cannot be undone, which is every delete on a resource that does not [soft delete](/reference/data-config/#resource), and an update or delete among the listed writes of a record changed since its `etag` is refused before asking.
 
 A batch is checked before the person is asked: an operation other than a create, update or delete, a field an operation does not take, an update without an ETag or more than 500 operations come back as `{ "error": "invalid-argument", "message": ... }` naming the operation, and with writes limited to some resources an operation on any other refuses the whole batch. An update does not set the field a soft delete sets, as `update_record` does not: a delete goes through a delete operation. A refusal while it runs, such as an operation the person may not do or a stale ETag, comes back with the REST batch's `operation` (its index), `op` and `resource`. Either way nothing is written.
+
+## The app's instructions
+
+`mcpEndpoint.instructions` adds the app's own text to what the endpoint tells each client when it connects, its instructions, such as how the app's records fit together or what to ask the person before changing something:
+
+```ts
+export default defineConfig({
+  auth: { mcp: true },
+  mcpEndpoint: { instructions: 'A big ask becomes a research task first: ask the person its open questions, and build only once they approve its plan.' },
+})
+```
+
+The client reads the framework's text on [reading records](#reading-only-what-is-needed) first, then the app's, then, in an app with [workflows](#workflows), the workflow guide. Some MCP clients keep only the first 4,096 characters of a server's instructions, so the framework's text and the app's together stay within 4,096: the app has 2,691 characters, and a longer text stops startup with an error naming `mcpEndpoint.instructions`. The workflow guide that follows is longer than that alone, so such a client cuts it. <gap>A client that keeps only 4,096 characters cannot read the whole workflow guide because a shorter guide is not implemented.</gap> The text is the same for every client and every connection, which lets clients cache it: what changes, such as the records themselves, reaches the client through the tools.
 
 ## The app's own tools
 

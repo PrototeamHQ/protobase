@@ -13,6 +13,7 @@ import { registerEncryption } from './encryption/register'
 import { registerMigration } from './migration/register'
 import { registerMobile } from './mobile/register'
 import { registerNotifications } from './notifications/register'
+import { registerPushRelay } from './push-relay/register'
 import { registerSkill } from './skill/register'
 import { registerImport } from './supabase/register'
 import { registerToken, registerUsers } from './users/register'
@@ -223,6 +224,10 @@ program
   .action(async (bundle: string) => {
     loadNearestEnvFile(process.cwd())
     warn(placeholderSecretWarning(process.env))
+    // Under Bun the bundle gets the CLI's own host modules, as the runtime image gives them; under Node they resolve
+    // from the node_modules next to the bundle.
+    const { provideHostModules } = await import('./serve/host-modules')
+    provideHostModules()
     if (statSync(bundle).isDirectory()) await (await import('./serve/serve-dir')).serveBundleDir(bundle, process.env, out)
     else await (await import('./serve/serve-bundle')).serveBundle(bundle, process.env, out)
   })
@@ -233,6 +238,9 @@ program
   .argument('<bundle>', 'the bundle folder, e.g. dist, or its dist/protobase.config.js')
   .action(async (bundle: string) => {
     loadNearestEnvFile(process.cwd())
+    // The bundle's jobs get the host modules as `serve` gives them.
+    const { provideHostModules } = await import('./serve/host-modules')
+    provideHostModules()
     const [{ loadWorkerBundle, startWorker }, { projectErrorReporter }, { reportCrashes }, { closeOnSignals }] = await Promise.all([
       import('./worker/start-worker'),
       import('./project/error-reporter'),
@@ -259,6 +267,7 @@ registerSkill(program)
 registerImport(program)
 registerMobile(program)
 registerNotifications(program)
+registerPushRelay(program)
 
 // Central error handler: commands throw, the user sees one line.
 export const run = (argv: string[]) =>

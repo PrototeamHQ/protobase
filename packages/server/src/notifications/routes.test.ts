@@ -118,10 +118,10 @@ describe('the device endpoints', () => {
     expect(calls).toEqual([])
   })
 
-  it('refuse a body that names a user, an id or times, storing nothing', async () => {
+  it('refuse a body that names a user, an id, a session or times, storing nothing', async () => {
     const memory = memoryDeviceStore()
     const { register, request } = serve(memory, users)
-    for (const extra of [{ user_id: 'b' }, { owner: 'b' }, { id: '00000000-0000-4000-8000-000000000000' }, { createdAt: '2020-01-01' }, { lastSeenAt: '2020-01-01' }]) {
+    for (const extra of [{ user_id: 'b' }, { owner: 'b' }, { id: '00000000-0000-4000-8000-000000000000' }, { createdAt: '2020-01-01' }, { lastSeenAt: '2020-01-01' }, { sessionId: 'session-b' }, { session_id: 'session-b' }, { signIn: { session: 'session-b' } }]) {
       expect((await register('a', { ...web(), ...extra })).status).toBe(400)
     }
     const proto = await request(devicesPath('/api'), { method: 'POST', headers: { 'content-type': 'application/json', 'x-as': 'a' }, body: `{"kind":"fcm","token":"abc","__proto__":{"userId":"b"}}` })

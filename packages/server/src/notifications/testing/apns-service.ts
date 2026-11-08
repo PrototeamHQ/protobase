@@ -1,6 +1,6 @@
 import { generateKeyPairSync } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { connect, createSecureServer, createServer, type IncomingHttpHeaders, type ServerHttp2Session, type ServerHttp2Stream } from 'node:http2'
+import { connect, constants, createSecureServer, createServer, type IncomingHttpHeaders, type ServerHttp2Session, type ServerHttp2Stream } from 'node:http2'
 import type { AddressInfo } from 'node:net'
 import type { Device } from '../device'
 
@@ -34,9 +34,10 @@ export type ApnsReply = { status: number; reason?: string; headers?: Record<stri
 
 /**
  * An APNs stand-in over plain HTTP/2 for tests: it records each request with the origin the sender opened it for and
- * the session it came on, and answers as `reply` says, 200 by default. `connect` opens sessions to it in place of APNs.
+ * the session it came on, and answers as `reply` says, 200 by default; `cancel` resets the stream without an answer.
+ * `connect` opens sessions to it in place of APNs.
  */
-export const apnsService = async (reply: (request: ApnsRequest) => ApnsReply | 'destroy' = () => ({ status: 200 })) => {
+export const apnsService = async (reply: (request: ApnsRequest) => ApnsReply | 'destroy' | 'cancel' = () => ({ status: 200 })) => {
   const requests: ApnsRequest[] = []
   const origins: string[] = []
   let sessions = 0
@@ -55,6 +56,7 @@ export const apnsService = async (reply: (request: ApnsRequest) => ApnsReply | '
       requests.push(request)
       const answer = reply(request)
       if (answer === 'destroy') return stream.session?.destroy()
+      if (answer === 'cancel') return stream.close(constants.NGHTTP2_CANCEL)
       // A late answer finds the stream closed when the sender stopped waiting for it.
       const respond = () => {
         if (stream.closed || stream.destroyed) return

@@ -1,7 +1,7 @@
-import { ApiError, type Client, type HistoryChange, type MentionableUser, type RecordComment, type MapLayerModel, type PluginRef, type PublicForm, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult, type WorkflowTypeList } from '@protobase/client'
+import { ApiError, type Client, type HistoryChange, type MentionableUser, type RecordComment, type MapLayerModel, type PluginRef, type PublicForm, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult, type WorkflowRunTrace, type WorkflowTraceHeld, type WorkflowTypeList } from '@protobase/client'
 import { evaluateCondition, parseCondition, type PageModel } from '@protobase/layout'
 import { checkFilter, evaluateFilter, parseFilter, printFilter, type BottomBarModel, type CardPhotosModel, type RelatedFilter, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
-import { cardPhotoLimit, encodeKey, matchesSearch, splitRelated } from '@protobase/schema/internal'
+import { cardPhotoLimit, encodeKey, matchesSearch, movePlan, splitRelated, workflowTraceRevision } from '@protobase/schema/internal'
 import { fakeForms } from './fake-forms'
 import { exampleWorkflowTypes } from '../../../../../test-support/workflow-types'
 
@@ -54,6 +54,8 @@ export type FakeApiInput = {
   generate?: (resource: string, key: string, action: string) => Promise<Row>
   /** The workflow trigger and step types the editor reads; the built-in ones and `examplePlugin`'s without. */
   workflowTypes?: WorkflowTypeList
+  /** A workflow run's whole trace, which the run's page reads after the steps it has; no steps without it. */
+  workflowRunTrace?: (runId: string) => Promise<Pick<WorkflowRunTrace, 'steps'>>
 }
 
 const keyOf = (model: ResourceModel, row: Row) => encodeKey(model.primaryKey.map((name) => row[name] as string | number))
@@ -134,7 +136,7 @@ const filled = <G extends { value: unknown; count: number }>(groups: G[], stride
   })
 }
 
-export const fakeApi = ({ resources, views = [], pages = [], account, rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, beforeWrite, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate, workflowTypes = exampleWorkflowTypes }: FakeApiInput) => {
+export const fakeApi = ({ resources, views = [], pages = [], account, rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, beforeWrite, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate, workflowTypes = exampleWorkflowTypes, workflowRunTrace = async () => ({ steps: [] }) }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
   const models = Object.fromEntries(resources.map((model) => [model.name, model]))
   let version = 0
@@ -205,8 +207,9 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
   // A batch write's `create`, with a `ref` later operations name the record by (`{ $ref }`), as a table made with its
   // fields is; `update`, as a ranked board's drop sends it; or `reorder`, as sorting by hand does: the records
   // numbered `start`, `start` + 1, ... (1, 2, 3, ... by default) in the order of their keys. A record is refused when its ETag is stale; unlike the server, the
-  // fake keeps the operations before a refused one
-  type BatchOp = { op: string; resource: string; key?: unknown; data?: Row; ref?: string; etag?: string; field?: string; keys?: Array<string | number>; start?: number; etags?: Record<string, string> }
+  // fake keeps the operations before a refused one. A `move`, as sorting by hand sends it, numbers the records its plan
+  // names (see `movePlan`), and is refused when the list changed where it was dropped
+  type BatchOp = { op: string; resource: string; key?: unknown; data?: Row; ref?: string; etag?: string; field?: string; keys?: Array<string | number>; start?: number; etags?: Record<string, string>; after?: unknown; before?: unknown; filter?: string }
   const batchOp = async (op: BatchOp, made: Map<string, { resource: string; record: Row }>) => {
     const resolved = (value: unknown) => {
       if (typeof value !== 'object' || value === null || !('$ref' in value)) return value
@@ -227,7 +230,16 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
       if (![undefined, '*', find(op.resource, key).etag].includes(op.etag)) throw stale()
       return { op: 'update', resource: op.resource, ...(await client.update(op.resource, key, op.data!)) }
     }
-    if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only create, update and reorder, not ${op.op}`)
+    if (op.op === 'move') {
+      const { resource, field } = op as { resource: string; field: string }
+      const listed = select(resource, { ...(op.filter && { filter: op.filter }), orderBy: `${field} asc` }).map((row) => ({ key: keyOf(models[resource]!, row), rank: row[field] }))
+      const plan = movePlan(listed, String(op.key), op.after === null ? null : String(op.after), op.before === undefined || op.before === null ? (op.before as null | undefined) : String(op.before))
+      if (!plan) throw notFound()
+      if ('stale' in plan) throw new ApiError({ type: 'urn:protobase:problem:precondition-failed', title: 'Precondition Failed', status: 412, detail: 'The list changed where the record was dropped' })
+      const reordered: { records?: unknown[] } = plan.keys.length === 0 ? { records: [] } : await batchOp({ op: 'reorder', resource, field, keys: plan.keys, start: plan.start, etags: Object.fromEntries(plan.keys.map((key) => [key, '*'])) }, made)
+      return { op: 'move', resource, records: reordered.records }
+    }
+    if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only create, update, reorder and move, not ${op.op}`)
     const { resource, field } = op as { resource: string; field: string }
     const keys = op.keys!.map(String)
     const start = op.start ?? 1
@@ -244,6 +256,12 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
 
   const client = {
     workflowTypes: async () => structuredClone(workflowTypes),
+    workflowRunTrace: async (runId: string, held?: WorkflowTraceHeld): Promise<WorkflowRunTrace> => {
+      const { steps } = await workflowRunTrace(runId)
+      const kept = held !== undefined && held.after <= steps.length && held.revision === (await workflowTraceRevision(steps.slice(0, held.after)))
+      const from = kept ? held.after : 0
+      return { from, steps: steps.slice(from), revision: await workflowTraceRevision(steps) }
+    },
     meta: async () => ({ status: 'modified' as const, etag: '"fake-meta"', meta: { appName: 'Protobase', resources, views, pages, ...(account && { account }), permissions, ...(plugins && { plugins }), ...(sources && { sources }), ...(maps && { maps }), ...(files && { files }), ...(bottomBar && { bottomBar }), ...(signIn && { signIn }) } }),
     list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
     search: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),

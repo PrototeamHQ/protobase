@@ -157,7 +157,7 @@ export const CarouselPhone: StoryObj = { ...Carousel, name: 'In a carousel, on a
 
 /**
  * Each row scrolls sideways and snaps a card to its left edge, its cards the share of its width they ask for with
- * their fields and buttons as stacked; Approve runs on its card's record, and an empty row says so.
+ * their fields and buttons as stacked, with arrows for a pointer; Approve runs on its card's record, and an empty row says so.
  */
 export const CarouselChecks: StoryObj = {
   ...Carousel,
@@ -176,6 +176,11 @@ export const CarouselChecks: StoryObj = {
     expect(row.scrollWidth).toBeGreaterThan(row.clientWidth)
     const share = (item: Element, list: Element) => (item.getBoundingClientRect().width + 12) / (list.getBoundingClientRect().width + 12)
     expect(share(card, row)).toBeCloseTo(2 / 3, 2)
+    // A pointer steps through the row with its arrows, as a record row's
+    await userEvent.click(section.getByRole('button', { name: /^Next / }))
+    await waitFor(() => expect(section.getByRole('button', { name: /^Previous / })).toBeVisible())
+    await userEvent.click(section.getByRole('button', { name: /^Previous / }))
+    await waitFor(() => expect(section.queryByRole('button', { name: /^Previous / })).toBeNull())
 
     const narrow = await within(await canvas.findByRole('region', { name: 'Every plan' })).findByRole('link', { name: 'Landing' })
     // A quarter of the row, but no narrower than 12rem, so it stays readable on a phone

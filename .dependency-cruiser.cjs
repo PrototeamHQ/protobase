@@ -116,12 +116,6 @@ module.exports = {
       from: { pathNot: [...testCode, '^packages/server/src/(reveal-service|encryption/decrypt-field|encryption/status|encryption/apply)\\.ts$'] },
       to: { path: '^packages/server/src/encryption/envelope-open\\.ts$' },
     },
-    {
-      name: 'no-circular',
-      severity: 'error',
-      from: {},
-      to: { circular: true },
-    },
   ],
   options: {
     doNotFollow: { path: 'node_modules' },

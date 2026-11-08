@@ -100,10 +100,11 @@ const cookieJar = () => {
 
 type Jar = ReturnType<typeof cookieJar>
 
-// Over http the cookie names carry the app's port; over https they keep Better Auth's own.
+// Over http the cookie names carry the app's port; over https they carry the __Host- prefix.
 const sessionCookie = 'better-auth-5173.session_token'
 const flowCookie = 'better-auth-5173.gotrue_flow'
 const httpsFlowCookie = 'better-auth.gotrue_flow'
+const hostFlowCookie = `__Host-${httpsFlowCookie}`
 
 const browse = async ({ app, address }: Served, jar: Jar, url: string) => jar.take(await app.request(url, { headers: { cookie: jar.header(), 'x-forwarded-for': address } }))
 
@@ -481,34 +482,35 @@ describe('GoTrue sign-in with a provider', () => {
     expect((await served.store.query(`select id from verification where identifier like 'gotrue-provider-flow-%'`)).rows).toEqual([])
   })
 
-  it('keeps the flow in a __Secure- cookie on https, for /callback alone, and takes no unprefixed one', async () => {
+  it('keeps the flow in a __Host- cookie on https, and takes no __Secure- or unprefixed one', async () => {
     mockGitHub()
     const served = await serve({ baseURL: 'https://admin.example.org' })
     const jar = cookieJar()
     const authorization = await authorize(served, jar, { challenge: await challengeOf(verifier) })
-    const secureFlow = `__Secure-${httpsFlowCookie}`
-    const line = authorization.headers.getSetCookie().find((cookie) => cookie.startsWith(`${secureFlow}=`))!
+    const line = authorization.headers.getSetCookie().find((cookie) => cookie.startsWith(`${hostFlowCookie}=`))!
     const attributes = line.split(';').slice(1).map((attribute) => attribute.trim().toLowerCase())
-    expect(attributes).toEqual(expect.arrayContaining(['secure', 'httponly', 'samesite=lax', 'path=/api/sb/auth/v1/callback']))
+    expect(attributes).toEqual(expect.arrayContaining(['secure', 'httponly', 'samesite=lax', 'path=/']))
     expect(attributes.some((attribute) => attribute.startsWith('domain='))).toBe(false)
     expect(Number(attributes.find((attribute) => attribute.startsWith('max-age='))?.slice('max-age='.length))).toBeLessThanOrEqual(600)
     expect(jar.names()).not.toContain(httpsFlowCookie)
 
     const toCallback = location(await approveAtGitHub(served, jar, location(authorization).href))
-    // The flow's id under the unprefixed name, as a sibling site over http could set it, is no flow.
-    const id = jar.get(secureFlow)!
-    jar.delete(secureFlow)
-    jar.set(httpsFlowCookie, id)
-    expectDenied(location(await browse(served, jar, toCallback.href)), 'hash')
-    jar.delete(httpsFlowCookie)
-    jar.set(secureFlow, id)
+    // The flow's id under a name a sibling host of a shared domain could set, unprefixed or __Secure-, is no flow.
+    const id = jar.get(hostFlowCookie)!
+    jar.delete(hostFlowCookie)
+    for (const planted of [httpsFlowCookie, `__Secure-${httpsFlowCookie}`]) {
+      jar.set(planted, id)
+      expectDenied(location(await browse(served, jar, toCallback.href)), 'hash')
+      jar.delete(planted)
+    }
+    jar.set(hostFlowCookie, id)
 
     const back = location(await browse(served, jar, toCallback.href))
     expect(withoutQuery(back)).toBe(app)
     expect((await trade(served, back.searchParams.get('code'))).status).toBe(200)
 
     // The same cookie and secret again hand out nothing.
-    jar.set(secureFlow, id)
+    jar.set(hostFlowCookie, id)
     const again = location(await browse(served, jar, toCallback.href))
     expect(again.searchParams.get('code')).toBeNull()
     expect(again.hash).not.toContain('access_token')

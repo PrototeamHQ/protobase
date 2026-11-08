@@ -22,7 +22,7 @@ const sizes = { sm: 'h-7 px-2.5 text-body gap-1.5', md: 'h-8 px-3 text-body gap-
 /** A button's classes, for a link that looks like one. */
 export const buttonClass = ({ variant = 'secondary', size = 'md' }: Pick<ButtonProps, 'variant' | 'size'> = {}) =>
   cn(
-    'inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default',
+    'inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default',
     variants[variant],
     sizes[size],
   )

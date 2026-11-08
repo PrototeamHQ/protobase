@@ -14,16 +14,18 @@ on:
         default: false
   # Run by hand, every test and step runs, as on a pull request.
   workflow_dispatch:
-  # Weekly, the Postgres suite and the snapshot recording alone, to catch a moved postgres:18 tag when nothing in the
-  # repository changed.
+  # Nightly, every test and step, to catch what a push's affected checks skip and a moved postgres:18 tag when nothing
+  # in the repository changed.
   schedule:
-    - cron: '17 4 * * 1'
+    - cron: '17 4 * * *'
 
 jobs:
   # The typecheck, the unit and snapshot tests, the dependency boundaries and the packing: the checks that need no
   # Postgres. `integration` runs the rest of `bun run check` beside it.
   check:
-    if: github.event_name != 'schedule'
+    # A pull request from an fm/** branch of this repository runs nothing: the push of its head runs the same checks, and
+    # a second run of them would only hold runners. A fork's pull request runs every check.
+    if: &not-branch-pull-request ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'fm/')) }}
     # A second push of an fm/** branch replaces the run still queued or running for it, so a stale run holds no runner.
     # Every other run gets a group of its own, so main, pull requests and the release workflow's call are never cancelled.
     concurrency:
@@ -68,7 +70,7 @@ jobs:
       - run: bun run features:check --release-rule
       # A push to main, which the release workflow checks, or to an fm/** branch runs only the tests and steps its
       # changes affect (scripts/affected-tests.mjs, see docs/ci.md): on main the changes since the last release, on
-      # a branch those since it left main. Without CHECK_BASE, as on a pull request or a run by hand, everything runs.
+      # a branch those since it left main. Without CHECK_BASE, as on a pull request, a run by hand or the nightly run, everything runs.
       - &check-base
         name: Find the commit the push's changes count from
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
@@ -96,11 +98,16 @@ jobs:
           tar tzf "$(grep -o '[^ ]*protobase-cli-[^ ]*\.tgz' "$RUNNER_TEMP/pack.log")" > "$RUNNER_TEMP/cli-files.txt"
           grep -qx 'package/skills/protobase/references/reference/access.md' "$RUNNER_TEMP/cli-files.txt"
 
-  # The integration, smoke and end-to-end tests, on Postgres, beside check.
+  # The integration, smoke and end-to-end tests, on Postgres, beside check, as 2 legs that each run about half of the
+  # selected test files (scripts/affected-tests.mjs --shard); the first also runs the smoke test on Node.
   integration:
-    if: github.event_name != 'schedule'
+    if: *not-branch-pull-request
+    name: integration ${{ matrix.shard }}/2
+    strategy:
+      matrix:
+        shard: [1, 2]
     concurrency:
-      group: integration-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      group: integration-${{ matrix.shard }}-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     # The integration tests' Postgres, as docker-compose.yml runs it locally: same image and user. Its host port is a free
@@ -147,10 +154,13 @@ jobs:
       # A self-hosted runner has no root to install Chromium's system packages, so its server provides them.
       - run: bun x --bun playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
       - *check-base
-      - run: bun run check:integration
-      # check:integration ran the smoke test on Bun; the CLI is supported on Node as well, so it runs there too.
+      # `bun run check:integration`, each command on this leg's shard.
+      - run: bun scripts/affected-tests.mjs --project 'integration*' --shard ${{ matrix.shard }}/2
+      - run: bun scripts/affected-tests.mjs --project e2e --shard ${{ matrix.shard }}/2
+      # A leg ran the smoke test on Bun; the CLI is supported on Node as well, so it runs there too.
       - *setup-node
-      - run: node --run test:smoke
+      - if: matrix.shard == 1
+        run: node --run test:smoke
 
   # Storybook built, its play tests and layout snapshots, and the documentation site built and checked, as two jobs
   # beside check: a push runs them when its changes reach them (scripts/affected-site.mjs); a pull request and a run by
@@ -158,7 +168,7 @@ jobs:
   # and play every other story; the first also takes the layout snapshots. A leg takes about 3 minutes, at most 7 so
   # far; a story that hangs fails on its own deadline (scripts/play-tests.mjs), and the job's timeout ends anything else.
   storybook:
-    if: github.event_name != 'schedule'
+    if: *not-branch-pull-request
     name: storybook ${{ matrix.shard }}/2
     timeout-minutes: 10
     strategy:
@@ -204,7 +214,7 @@ jobs:
         run: bun scripts/dom-snapshots.mjs --no-screenshots
 
   docs:
-    if: github.event_name != 'schedule'
+    if: *not-branch-pull-request
     concurrency:
       group: docs-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
@@ -228,13 +238,14 @@ jobs:
         run: bun run docs:check
 
   # The real-Postgres tests beyond what every push needs (`bun run test:postgres`): the ERP at medium scale and the
-  # planner's statistics on it, and the jobs and event delivery through PgBouncer. A push runs it when its snapshot
-  # recordings differ from those at CHECK_BASE, or when it changes what recordings cannot show (`postgresSuite`,
-  # scripts/affected-postgres.mjs); a pull request, a run by hand and the weekly run always do. It runs after `record`,
-  # whose answer it needs, whatever `record` found. A release runs it in full as `postgres-full` instead.
+  # planner's statistics on it, and the jobs and event delivery through PgBouncer. A push runs it when its committed
+  # snapshot recordings differ from those at CHECK_BASE (scripts/affected-recordings.mjs), or when it changes what
+  # recordings cannot show (`postgresSuite`, scripts/affected-postgres.mjs); a pull request, a run by hand and the
+  # nightly run always do. It starts beside `record`, which fails when recording again would change a recording. A
+  # release runs it in full as `postgres-full` instead.
   postgres:
-    needs: record
-    if: ${{ !cancelled() && !inputs.postgres }}
+    # Not in a release, and not on a pull request from an fm/** branch of this repository, as check says.
+    if: ${{ !inputs.postgres && !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'fm/')) }}
     concurrency:
       group: postgres-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
@@ -262,12 +273,16 @@ jobs:
         with:
           bun-version: 1.4.4
       - *check-base
+      - name: Find whether the recordings differ from those the push's changes count from
+        id: recordings
+        run: bun scripts/affected-recordings.mjs
       - name: Find whether the changes reach the Postgres suite
         id: postgres
         env:
           POSTGRES_FULL: 'false'
-          RECORDINGS: ${{ needs.record.outputs.recordings }}
+          RECORDINGS: ${{ steps.recordings.outputs.recordings }}
         run: bun scripts/affected-postgres.mjs
+      # The gates above load no package (scripts/affected/install-free.test.ts), so a push the suite skips installs nothing.
       - &postgres-install
         if: steps.postgres.outputs.run == 'true'
         run: bun install --frozen-lockfile
@@ -321,7 +336,7 @@ jobs:
         run: docker rm --force "$PGBOUNCER" || true
 
   # The Postgres suite in full, as the last fail-safe before a release (the release workflow's `postgres: true`), with
-  # the same steps as `postgres`. It needs no answer from `record`, so it starts beside the other checks.
+  # the same steps as `postgres`.
   postgres-full:
     if: ${{ inputs.postgres }}
     concurrency:
@@ -353,12 +368,10 @@ jobs:
   # answers written to its `*.sql.json`. A recording that differs from the committed one means Postgres now answers the
   # same queries differently (a schema, fixture or Postgres change), which replay alone cannot see, and fails the job;
   # the new recordings are uploaded to commit. A push runs it when it changes what the recordings are made from
-  # (scripts/affected-snapshots.mjs); a pull request, a run by hand and the weekly run, for a moved postgres:18, always do.
-  # It tells the Postgres job whether the recordings changed. It runs beside check, on a runner of its own, and in a
-  # release beside the full Postgres suite, which still waits for it before the release is cut.
+  # (scripts/affected-snapshots.mjs); a pull request, a run by hand and the nightly run, for a moved postgres:18, always
+  # do. It runs beside check, on a runner of its own, and the release waits for it before the release is cut.
   record:
-    outputs:
-      recordings: ${{ steps.recordings.outputs.recordings }}
+    if: *not-branch-pull-request
     concurrency:
       group: record-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
@@ -424,10 +437,6 @@ jobs:
         env:
           SUPABASE_POSTGRES: supabase-postgres-${{ github.run_id }}-${{ github.run_attempt }}
         run: docker rm --force "$SUPABASE_POSTGRES" || true
-      # For the Postgres job, which skips its suite when no recording differs from those at CHECK_BASE.
-      - name: Find whether the recordings differ from those the push's changes count from
-        id: recordings
-        run: bun scripts/affected-recordings.mjs
       # New recordings count as changes too.
       - if: always() && steps.snapshots.outputs.run == 'true'
         name: Find whether a recording differs from the committed one
@@ -453,7 +462,7 @@ jobs:
   # changes reach the test (scripts/affected-tests.mjs); a pull request and a run by hand always do. Its postgres:18
   # comes from mirror.gcr.io, the same image (same digest) as docker.io's, so no pull of this job depends on docker.io.
   supabase-move:
-    if: github.event_name != 'schedule'
+    if: *not-branch-pull-request
     concurrency:
       group: supabase-move-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
@@ -512,7 +521,7 @@ jobs:
   # (tests/supabase-auth/stack.sh). A push runs it when its changes reach the test (scripts/affected-tests.mjs); a pull
   # request and a run by hand always do.
   supabase-auth:
-    if: github.event_name != 'schedule'
+    if: *not-branch-pull-request
     concurrency:
       group: supabase-auth-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
@@ -533,12 +542,19 @@ jobs:
         name: Remove Supabase's Postgres and Supabase Auth
         run: tests/supabase-auth/stack.sh stop "supabase-auth-${{ github.run_id }}-${{ github.run_attempt }}"
 
+  # The upgrade check (upgrade.yml) for a push to main or an fm/** branch, when its changes reach it, the nightly run and
+  # a run by hand. A pull request runs it as a workflow of its own, which an edit of its title or description runs again.
+  upgrade:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
+    uses: ./.github/workflows/upgrade.yml
+
   # The files the AI review bots read as instructions stay within what each bot reads, so none is cut off. cubic keeps
   # the first 10,000 characters of a custom agent's text and linked files: AGENTS.md and CONTRIBUTING.md share the
   # org's Project rules agent with about 260 characters of its text, and each docs file has an agent in cubic.yaml.
-  # CodeRabbit allows 20,000 characters per path instruction.
+  # CodeRabbit allows 20,000 characters per path instruction. Like the other checks, they run on a fork's pull request
+  # and, for an fm/** branch of this repository, on its push rather than its pull request.
   prompt-length:
-    if: github.event_name == 'pull_request'
+    if: &branch-push-or-fork-pull-request ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/')) || (github.event_name == 'pull_request' && !(github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.head_ref, 'fm/'))) }}
     uses: protobase-community/.github/.github/workflows/prompt-length.yml@main # zizmor: ignore[unpinned-uses] main is the reviewed version
     with:
       files: |
@@ -552,7 +568,7 @@ jobs:
   # cubic.yaml's auto-approval prompt is a key inside the file, so the file check above cannot measure it alone. It is
   # kept under 2,000 characters, short enough for the approval agent to weigh each criterion.
   approval-prompt-length:
-    if: github.event_name == 'pull_request'
+    if: *branch-push-or-fork-pull-request
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

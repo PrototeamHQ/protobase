@@ -13,16 +13,17 @@ import { actionLink } from './action-link'
 import { ActionPrompt, asksFirst, isDanger } from './action-prompt'
 import { useActionRunner } from './use-run-action'
 
+type RecordActionsProps = { model: ResourceModel; stored: LiveRecord; recordKey: string; edit?: AppAddress; onDelete?: () => void }
+
 /**
- * The record page's actions in one rail: Edit, a link to the form at `edit`, when the page offers it; the view's named
- * actions, run like the Action block runs them, a delete among them returning to the list, a delete and a danger one in red; and the record's own Delete,
- * `onDelete`, unless a named action deletes already. On a mobile screen they sit in the top bar's menu instead, at hand
- * however long the record is, when the shell has a top bar.
+ * The record page's actions, for a rail or a focus page's bar: Edit, a link to the form at `edit`, when the page offers
+ * it; the view's named actions, run like the Action block runs them, a delete among them returning to the list, a
+ * delete and a danger one in red; and the record's own Delete, `onDelete`, unless a named action deletes already.
+ * `prompt` is what asks before an action runs, drawn wherever the actions are.
  */
-export const RecordActions = ({ model, stored, recordKey, edit, onDelete }: { model: ResourceModel; stored: LiveRecord; recordKey: string; edit?: AppAddress; onDelete?: () => void }) => {
+export const useRecordActions = ({ model, stored, recordKey, edit, onDelete }: RecordActionsProps) => {
   const app = useAppAddress()
   const { go } = app
-  const slot = useTopBarSlot()
   const scope = { model, record: stored.record, key: recordKey, etag: stored.etag, permissions: stored.permissions }
   const runner = useActionRunner(model.name, scope, (action) => action.run?.kind === 'delete' && go({ kind: 'list', resource: model.name }, { replace: true }))
   const [asking, setAsking] = useState<ActionModel>()
@@ -46,6 +47,32 @@ export const RecordActions = ({ model, stored, recordKey, edit, onDelete }: { mo
     ...named,
     ...(onDelete && !deletes ? [{ name: text('delete'), icon: Trash2, tone: 'danger' as const, onRun: onDelete }] : []),
   ]
+  const prompt = asking && (
+    <ActionPrompt
+      action={asking}
+      label={asking.label}
+      danger={isDanger(asking)}
+      onCancel={() => setAsking(undefined)}
+      onConfirm={() => {
+        setAsking(undefined)
+        void runner.run(asking)
+      }}
+      onSubmit={async (values) => {
+        await runner.submit(asking, values)
+        setAsking(undefined)
+      }}
+    />
+  )
+  return { actions, prompt }
+}
+
+/**
+ * The record page's actions in one rail. On a mobile screen they sit in the top bar's menu instead, at hand however
+ * long the record is, when the shell has a top bar.
+ */
+export const RecordActions = (props: RecordActionsProps) => {
+  const slot = useTopBarSlot()
+  const { actions, prompt } = useRecordActions(props)
   if (actions.length === 0) return null
   return (
     <>
@@ -53,22 +80,7 @@ export const RecordActions = ({ model, stored, recordKey, edit, onDelete }: { mo
         <ActionRail actions={actions} />
       </div>
       {slot && createPortal(<ActionMenu actions={actions} label={text('recordActions')} className={topBarButton} />, slot)}
-      {asking && (
-        <ActionPrompt
-          action={asking}
-          label={asking.label}
-          danger={isDanger(asking)}
-          onCancel={() => setAsking(undefined)}
-          onConfirm={() => {
-            setAsking(undefined)
-            void runner.run(asking)
-          }}
-          onSubmit={async (values) => {
-            await runner.submit(asking, values)
-            setAsking(undefined)
-          }}
-        />
-      )}
+      {prompt}
     </>
   )
 }

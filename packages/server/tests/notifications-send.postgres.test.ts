@@ -11,6 +11,7 @@ import { pushJobName } from '../src/notifications/push-job-name'
 import { notificationsMigration } from '../src/notifications/schema'
 import { sendNotification } from '../src/notifications/send-notification'
 import { generateVapidKeys } from '../src/notifications/web-push/keys'
+import type { PushRequest } from '../src/notifications/web-push/post'
 import { readVapidSettings } from '../src/notifications/web-push/vapid-settings'
 import { webPushSender } from '../src/notifications/web-push/web-push-sender'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
@@ -40,11 +41,11 @@ const app = async () => {
   const pg = await openPostgresDatabase('jobs')
   await pg.exec((await notificationsMigration(pg.db))!)
   const sent: string[] = []
-  const fetch = async (request: Request) => {
-    sent.push(request.url)
+  const request: PushRequest = async (url) => {
+    sent.push(url.href)
     return new Response(null, { status: 201 })
   }
-  const senders = [guardedSender(webPushSender(settings, { fetch: fetch as typeof globalThis.fetch }), 0)]
+  const senders = [guardedSender(webPushSender(settings, { request }), 0)]
   await postgresDeviceStore(pg.db).register('a', { kind: 'web', token: 'https://fcm.googleapis.com/fcm/send/a', p256dh, auth, environment: null, appId: null, userAgent: null, sessionId: null })
   return { db: pg.db, sent, push: pushJob({}, senders), history: postgresHistoryStore(pg.db) }
 }

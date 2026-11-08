@@ -1,7 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { WorkflowTypeList } from '@protobase/client'
 import type { Definition } from '@protobase/workflows'
-import { AddStep } from './add-step'
+import { Plus } from 'lucide-react'
+import { Button } from '../../../primitives/button'
+import { SearchPicker } from '../../../search-picker'
+import { pickedState, stepGroups } from '../workflow-page/step-catalog'
 import { definitionOf, pathOf, stateAt, triggerId } from './definition'
 import { addState, freeName, type NewState } from './definition-edits'
 import { GraphFrame, PanelHint } from './graph-frame'
@@ -30,7 +33,7 @@ const scopeFor = (definition: Definition, selected: string | undefined): string[
 }
 
 /**
- * A workflow's definition as a graph to see and edit: the menu that adds a state, the canvas, which ELK lays out on
+ * A workflow's definition as a graph to see and edit where it is one field of a form: the picker that adds a state, the canvas, which ELK lays out on
  * each change, and the chosen node's fields in the side panel beside it. Every problem the save's check would refuse it for shows on the
  * node it names as it is edited, and the rest above the canvas.
  */
@@ -40,6 +43,9 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice }: Workflow
   const definition = useMemo(() => definitionOf(JSON.parse(json)), [json])
   const checked = useMemo(() => problemsByNode(definitionProblems(definition, types)), [definition, types])
   const [chosen, setChosen] = useState<string>()
+  // The step picker has the side panel
+  const [adding, setAdding] = useState(false)
+  const groups = useMemo(() => stepGroups(types), [types])
   // A node the definition no longer has is no longer chosen
   const selected = chosen === triggerId || (chosen !== undefined && stateAt(definition, chosen)) ? chosen : undefined
   const scope = scopeFor(definition, selected)
@@ -49,13 +55,17 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice }: Workflow
     const name = freeName(definition, text('newStep'))
     onChange(addState(definition, scope, kind, name, text('newStep')))
     setChosen(pathOf(scope, name))
+    setAdding(false)
   }
 
   return (
     <div className="flex flex-col gap-3">
       {onChange && (
         <div className="flex flex-wrap items-center gap-2">
-          <AddStep types={types} inside={scope.length > 0 ? scope.join('/') : undefined} onAdd={add} />
+          <Button onClick={() => setAdding(!adding)} aria-expanded={adding}>
+            <Plus className="size-3.5" aria-hidden />
+            {scope.length > 0 ? text('addStepInside', { map: scope.join('/') }) : text('addStep')}
+          </Button>
           <p className="text-xs text-muted-foreground">{text('connectHelp')}</p>
         </div>
       )}
@@ -65,7 +75,9 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice }: Workflow
         panel={
           <>
             {notice}
-            {selected === undefined ? (
+            {adding ? (
+              <SearchPicker autoFocus groups={groups} onPick={(item) => add(pickedState(item.id))} />
+            ) : selected === undefined ? (
               <PanelHint>{text('pickNode')}</PanelHint>
             ) : (
               <NodePanel definition={definition} types={types} selected={selected} problems={checked.byNode.get(selected) ?? []} onChange={onChange} onSelect={setChosen} />

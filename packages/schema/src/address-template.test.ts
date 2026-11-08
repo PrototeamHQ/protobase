@@ -69,4 +69,10 @@ describe('linkActionError', () => {
     expect(linkActionError('Go to {host}', { to: { kind: 'page', page: 'overview' } })).toBe('the label names {host}, which only a link with an href has')
     expect(linkActionError('Overview', { to: { kind: 'page', page: 'overview' } })).toBeUndefined()
   })
+
+  it('fills a panel from the values, and names its field among the placeholders', () => {
+    const to = { kind: 'record' as const, resource: 'workflows', key: '{workflow_id}', panel: '{panel_name}' }
+    expect(addressPlaceholders(to)).toEqual(['workflow_id', 'panel_name'])
+    expect(fillAddress(to, { workflow_id: 'w1', panel_name: 'test_run' })).toEqual({ kind: 'record', resource: 'workflows', key: 'w1', panel: 'test_run' })
+  })
 })

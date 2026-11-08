@@ -19,6 +19,7 @@ import { Field, GroupSection, KeyFacts, MetadataCard, RecordHeader, RecordTabs, 
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
 import { FullAreaRecord } from './full-area-record'
+import { RecordFocusPage } from './focus/record-focus-page'
 import { RecordOpens } from './record-opens'
 import { MapSection } from './map/map-section'
 import { RecordChartSection } from './record-chart/record-chart-section'
@@ -97,12 +98,13 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
   const standardAsked = address?.kind === 'record' && address.standard === true
   const opens = views[resource]?.recordOpens
   if (opens && !standardAsked) return record.isPlaceholderData ? <Notice title={text('loading')}>{text('fetching')}</Notice> : <RecordOpens to={opens} record={record.data.record} />
-  const fullArea = views[resource]?.record
-  if (!fullArea || standardAsked) return standard
+  const page = views[resource]?.record
+  if (!page || standardAsked) return standard
   // The app's component reads fields a list row may not have, so it waits for the whole record
   if (record.isPlaceholderData) return <Notice title={text('loading')}>{text('fetching')}</Notice>
+  if ('surface' in page || page.focus) return <RecordFocusPage model={model} recordKey={recordKey} stored={record.data} page={page} standard={standard} />
   const { record: fields, etag, permissions } = record.data
-  return <FullAreaRecord component={fullArea.component} scope={{ model, record: fields, key: recordKey, etag, permissions }} standard={standard} />
+  return <FullAreaRecord component={page.component} scope={{ model, record: fields, key: recordKey, etag, permissions }} standard={standard} />
 }
 
 // A record the session's organization does not have may be in another of the person's organizations, which opens it
@@ -196,9 +198,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   // The items and fields meant only for the form, or only for reading the record, show only there
   const scope: LayoutRecord = { model, record: stored.record, key: recordKey, etag: stored.etag, permissions: stored.permissions }
   const layout = useShownLayout(layoutFor(model, view, shown === 'read'), scope, editing, preview)
-  // A page-wide section spans the page above the main column and the sidebar, and Save then stays at the foot of the window
-  const pageWide = layout.filter((item) => item.kind === 'section' && item.width === 'page')
-  const { before, tabs, after } = splitTabs(layout.filter((item) => !pageWide.includes(item)))
+  const { before, tabs, after } = splitTabs(layout)
   const tab = shownTab(tabs, addressedTab)
   const needsAttention = (name: string) => editing && (editor.errors[name] !== undefined || editor.conflicts[name] !== undefined)
   // A turned-down save moves to the first tab that holds a field to put right, where the form then focuses it
@@ -399,7 +399,6 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
               </span>
             </div>
           )}
-          {pageWide.length > 0 && <div className="divide-y divide-border">{pageWide.flatMap(mainItem)}</div>}
           <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12">
             <main className="divide-y divide-border">
               {before.flatMap(mainItem)}
@@ -415,7 +414,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
             </main>
             {/* Beside the main column the sidebar stays in view below the top bar, and scrolls on its own when taller than the window */}
             <aside className="space-y-4 md:sticky md:top-[var(--pb-sticky-top,0px)] md:max-h-[calc(100dvh-var(--pb-sticky-top,0px)-var(--pb-sticky-bottom,0px))] md:self-start md:overflow-y-auto md:pb-4 md:pt-8">
-              {formControls && pageWide.length === 0 && <div className="hidden flex-col items-center gap-2 md:flex">{formControls}</div>}
+              {formControls && <div className="hidden flex-col items-center gap-2 md:flex">{formControls}</div>}
               {!preview && <RecordActions model={model} stored={stored} recordKey={recordKey} edit={offersEdit ? editAddress : undefined} onDelete={startDelete} />}
               {firstSidebar === -1 && summary}
               {layout.map((item, index) => {
@@ -437,9 +436,9 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
           </div>
         </div>
       </div>
-      {/* On a mobile screen, and below a page-wide section on any, the form's controls stay in view below the record, above the shell's bottom bar */}
+      {/* On a mobile screen the form's controls stay in view below the record, above the shell's bottom bar */}
       {formControls && (
-        <div className={cn('sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3', pageWide.length > 0 ? 'md:justify-end md:px-10 md:[&>*]:w-auto md:[&>button]:min-w-32 md:[&>span]:order-first' : 'md:hidden')}>{formControls}</div>
+        <div className="sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden">{formControls}</div>
       )}
     </div>
   )

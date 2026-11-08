@@ -26,7 +26,7 @@ const checkedFiles = (value: number) => {
 
 /**
  * `store` refusing a file with `507` once it would hold more than `maxBytes` or `maxFiles`. Only files count, not the
- * store's own `.cleanup/` entries. What the store holds is counted with `list` on the first upload and again when the
+ * store's own `.cleanup/` entries, and a file that replaces one at its path takes no more room than it adds. What the store holds is counted with `list` on the first upload and again when the
  * count is older than `recountMs`, and in between follows this instance's own writes: several instances, or a delete
  * made elsewhere, can be off by what happened since the last count.
  */
@@ -37,6 +37,8 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
   let counted: { bytes: number; files: number; at: number } | undefined
   // Uploads still streaming, so two at once cannot both take the last free bytes.
   const pending = { bytes: 0, files: 0 }
+  // The last put to each path still going, so a put to the same path waits for it and replaces what it left.
+  const writing = new Map<string, Promise<unknown>>()
 
   const usage = async () => {
     if (counted && now() - counted.at < recountMs) return counted
@@ -44,36 +46,59 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
     return counted
   }
 
-  const put = async (path: string, body: ReadableStream<Uint8Array>) => {
-    if (!isFilePath(path)) return store.put(path, body)
+  const countedPut = async (path: string, body: ReadableStream<Uint8Array>) => {
+    // Puts to one path run one at a time here, so each credits the file it replaces once. The limits hold per writer,
+    // with no atomicity across writers: the store has no compare-and-put, and two writers putting the same path at
+    // once are off by at most that one file.
+    const replaced = await store.head(path)
+    const added = replaced ? 0 : 1
+    const freed = replaced?.size ?? 0
     const stored = await usage()
-    if (stored.files + pending.files + 1 > maxFiles) {
+    if (stored.files + pending.files + added > maxFiles) {
       await body.cancel()
       throw limitReached()
     }
+    // A replacement holds back only what it grows past the file it replaces, so replacements at once each count once.
     let size = 0
+    let reserved = 0
     const counting = new TransformStream<Uint8Array, Uint8Array>({
       transform: (chunk, controller) => {
         size += chunk.length
-        pending.bytes += chunk.length
+        const growth = Math.max(0, size - freed)
+        pending.bytes += growth - reserved
+        reserved = growth
         if (stored.bytes + pending.bytes > maxBytes) throw new LimitReached()
         controller.enqueue(chunk)
       },
     })
-    pending.files += 1
+    pending.files += added
     try {
       const written = await store.put(path, body.pipeThrough(counting))
       if (counted) {
-        counted.bytes += written.size
-        counted.files += 1
+        counted.bytes += written.size - freed
+        counted.files += added
       }
       return written
     } catch (error) {
       if (error instanceof LimitReached) throw limitReached()
       throw error
     } finally {
-      pending.files -= 1
-      pending.bytes -= size
+      pending.files -= added
+      pending.bytes -= reserved
+    }
+  }
+
+  const put = async (path: string, body: ReadableStream<Uint8Array>) => {
+    if (!isFilePath(path)) return store.put(path, body)
+    const before = writing.get(path) ?? Promise.resolve()
+    const run = () => countedPut(path, body)
+    // Run after the previous put to the path whether it stored or failed: its own caller gets its outcome.
+    const queued = before.then(run, run)
+    writing.set(path, queued)
+    try {
+      return await queued
+    } finally {
+      if (writing.get(path) === queued) writing.delete(path)
     }
   }
 

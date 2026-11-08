@@ -4,6 +4,7 @@ import { useIsXs } from '../../lib/use-media-query'
 import { humanize } from '../../live/naming'
 import { Skeleton } from '../../primitives/skeleton'
 import { SnapRow } from '../../primitives/snap-row'
+import { useSnapScroll } from '../../primitives/use-snap-scroll'
 import { cutOffNote } from '../embedded-list/cut-off-note'
 import { embeddedDisplay, viewAllAddress } from '../embedded-list/embedded-display'
 import { text as listText } from '../embedded-list/messages'
@@ -38,6 +39,8 @@ type RelatedCardsProps = {
  */
 export const RelatedCards = ({ model, view, filter, sort, fields, actions, limit, display, empty, carousel }: RelatedCardsProps) => {
   const xs = useIsXs()
+  const scroll = useSnapScroll()
+  const plural = view?.names?.plural ?? humanize(model.name)
   const orderBy = sort || defaultOrderBy(model, view)
   const page = useListPage(model, { filter, sort: orderBy, pageSize: limit })
   const count = useCount(model, filter)
@@ -52,11 +55,15 @@ export const RelatedCards = ({ model, view, filter, sort, fields, actions, limit
   const note = count.data === undefined ? undefined : cutOffNote(rows.length, count.data, false)
   return (
     <div className="flex flex-col gap-3">
-      {carousel === undefined ? <ul className="flex flex-col gap-3">{cards}</ul> : <SnapRow share={carousel}>{cards}</SnapRow>}
+      {carousel === undefined ? <ul className="flex flex-col gap-3">{cards}</ul> : (
+        <SnapRow scroll={scroll} label={plural} share={carousel}>
+          {cards}
+        </SnapRow>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">{note}</p>
         <AppLink to={viewAllAddress(model, view, xs, { filter, orderBy, display: embeddedDisplay(view, xs, { preferred: display }) })} className="flex items-center gap-1 font-medium text-primary-text hover:underline">
-          {listText('viewAll')} <span className="sr-only">{(view?.names?.plural ?? humanize(model.name)).toLowerCase()}</span>
+          {listText('viewAll')} <span className="sr-only">{plural.toLowerCase()}</span>
           <ArrowRight className="size-3.5" aria-hidden />
         </AppLink>
       </div>

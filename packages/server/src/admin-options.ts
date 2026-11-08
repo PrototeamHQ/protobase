@@ -73,10 +73,13 @@ export type AdminOptions = {
    * `tools`: the app's own tools, offered after the built-in ones whatever `writes` says, each run as the caller under
    * their access rules. One that changes data asks through `approve`, which `rolesWithoutApproval` skips too; one that
    * never calls it writes unasked. A name taken twice, or by a built-in tool, stops startup.
+   * `instructions`: the app's own text on using its endpoint, which clients read when they connect, after the
+   * framework's text on reading records and before the workflow guide. Keep it static: what changes reaches clients
+   * through the tools. An app text that takes it with the framework's past 4,096 characters stops startup.
    * `false`: the host serves its own MCP endpoint at `auth.mcp.path`, in front of this app. This app then answers 404
    * there and needs no `forAudience`, while the OAuth provider's discovery stays.
    */
-  mcp?: { sql?: boolean; writes?: McpWrites; tools?: AssistantTool[] } | false
+  mcp?: { sql?: boolean; writes?: McpWrites; tools?: AssistantTool[]; instructions?: string } | false
   /**
    * The websites whose browser code may call the API (`/api/*` but `/api/auth/*`) besides the app's own origins (see
    * `auth.origins`): a list of origins, or `*` for any. Defaults to the one the platform passes in

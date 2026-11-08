@@ -52,7 +52,7 @@ const CacheWarning = () => (
 // How the state did in a run, and how many steps it took when more than one
 const TraceMark = ({ trace }: { trace: NodeTrace }) => (
   <span className="flex shrink-0 flex-col items-end gap-0.5">
-    <Badge tone={nodeTones[trace.status]}>{nodeStatusLabel(trace.status)}</Badge>
+    {trace.changed ? <span title={text('changedSinceRun')} className="rounded-full border border-dashed px-1.5 text-xs text-muted-foreground">{text('changedShort')}</span> : <Badge tone={nodeTones[trace.status]}>{nodeStatusLabel(trace.status)}</Badge>}
     {trace.steps > 1 && <span className="text-xs tabular-nums text-muted-foreground">{text('traceSteps', { count: trace.steps })}</span>}
   </span>
 )
@@ -60,19 +60,19 @@ const TraceMark = ({ trace }: { trace: NodeTrace }) => (
 const boxClass = (selected: boolean, problems: number, trace?: NodeTrace) =>
   cn('rounded-lg border bg-background text-body shadow-sm', problems > 0 || trace?.status === 'failed' ? 'border-danger' : 'border-border-strong', selected && 'ring-2 ring-primary/40')
 
-// The name and what the state is, over each other, with the count of its problems or its mark in a run
+// What the state is, with the count of its problems or its mark in a run, over its name, which keeps the whole width
 const Title = ({ name, kind, problems, first, trace, cacheWarning }: { name: string; kind: string; problems: number; first?: boolean; trace?: NodeTrace; cacheWarning?: boolean }) => (
-  <div className="flex min-w-0 items-start justify-between gap-2">
-    <div className="min-w-0">
-      <div className="truncate text-xs text-muted-foreground">
+  <div className="min-w-0">
+    <div className="flex min-w-0 items-start justify-between gap-2">
+      <div className="min-w-0 truncate text-xs text-muted-foreground">
         {kind}
         {first && <span className="text-primary-text"> · {text('startsHere')}</span>}
       </div>
-      <div className="truncate font-medium text-foreground">{name}</div>
+      {cacheWarning && <CacheWarning />}
+      <ProblemCount count={problems} />
+      {trace && <TraceMark trace={trace} />}
     </div>
-    {cacheWarning && <CacheWarning />}
-    <ProblemCount count={problems} />
-    {trace && <TraceMark trace={trace} />}
+    <div className="truncate font-medium text-foreground">{name}</div>
   </div>
 )
 

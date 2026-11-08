@@ -21,7 +21,7 @@ describe('nativeTapTarget', () => {
   })
 
   it('opens nothing for a url that is no absolute http or https URL', () => {
-    for (const url of ['javascript:alert(document.cookie)', 'data:text/html,<script>alert(1)</script>', '/some-page', '//evil.com/x', 'intent://x#Intent;end', `${api}/a\tb`, `${api}/a\n`, ` ${api}/a`, `${api}/\u0000`, '', 42, null]) {
+    for (const url of ['javascript:alert(document.cookie)', 'data:text/html,<script>alert(1)</script>', '/some-page', '//evil.com/x', 'intent://x#Intent;end', 'content://app.example.provider/x', 'file:///data/x', `${api}/a\tb`, `${api}/a\n`, ` ${api}/a`, `${api}/\u0000`, '', 42, null]) {
       expect(tap(push(url))).toBeUndefined()
     }
     expect(tap({ user: 'alice' })).toBeUndefined()
@@ -40,6 +40,25 @@ describe('nativeTapTarget', () => {
     expect(tap(push(`${api}/\\evil.com/x`))).toBeUndefined()
     // An encoded slash stays encoded: a path of the app's own, whatever page it names.
     expect(tap(push(`${api}/%2F%2Fevil.com`))).toEqual({ kind: 'in-app', path: '/%2F%2Fevil.com' })
+  })
+
+  it('keeps every in-app path on the API origin once the router puts the base path before it', () => {
+    const hostile = [`${api}//evil.example/`, `${api}/\\evil.example`, `${api}/.//evil.example`, `${api}/a/..//evil.example`, `${api}/@evil.example`, `${api}/%0d%0aLocation:%20http://evil.example`]
+    for (const basePath of ['', '/admin']) {
+      for (const url of [...hostile, `${api}/admin//evil.example`, `${api}/admin/..//evil.example`, `${api}/admin/.//evil.example`]) {
+        const target = tap(push(url), { basePath })
+        if (target === undefined) continue
+        expect(target.kind).toBe('in-app')
+        if (target.kind === 'in-app') expect(new URL(`${basePath}${target.path}`, api).origin).toBe(api)
+      }
+    }
+  })
+
+  it('opens a look-alike of an http API origin outside the app', () => {
+    const local = 'http://10.0.2.2:3000'
+    for (const url of ['http://10.0.2.2.evil.example/', 'https://evil.example/10.0.2.2', `https://evil.example/?u=${local}/`, 'http://10.0.2.2:3001/', 'http://10.0.2.2/']) {
+      expect(tap(push(url), { apiOrigin: local })).toEqual({ kind: 'browser', url: new URL(url).href })
+    }
   })
 
   it('opens a page below the base path alone, by its path below it', () => {
