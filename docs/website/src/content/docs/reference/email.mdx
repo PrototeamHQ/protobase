@@ -218,6 +218,7 @@ export default defineFunction(async (request, { personalMail }) => {
 - **The account page's calls:** `GET /api/auth/account/mail-senders` lists the person's addresses with their mailbox's own `address`; `POST .../mail-senders/add { address, shared?, signature? }`, `POST .../mail-senders/update { id, shared?, signature?, isDefault? }` (`signature: null` drops its own) and `POST .../mail-senders/remove { id }` change them. Each acts on the signed-in person's own addresses only.
 - <gap>An entered address cannot be checked to work before mail goes out from it because the test mail through the mailbox is not implemented.</gap>
 - <gap>A send from a shared address whose owner's link is missing or expired cannot tell the sender who must connect it again because the `PersonalMailError` names no owner.</gap>
+- <gap>A From address cannot carry a display name, so its mail shows the bare address, because names per address are not implemented.</gap>
 
 ## In a bundle
 
