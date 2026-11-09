@@ -1,10 +1,14 @@
 import { APIError } from 'better-auth/api'
 import type { AuthContext } from 'better-auth'
+import { decodeJwt, errors } from 'jose'
 import { watchRefusals } from '../better-auth/refresh-refusals'
 import { PersonalMailError } from './personal-mail-error'
 
-/** A provider account linked to a user: its row id, its provider, the scopes it holds and when it was created. */
-export type LinkedAccount = { id: string; providerId: string; scopes: string[]; createdAt: Date }
+/**
+ * A provider account linked to a user: its row id, its provider, the scopes it holds, when it was created, and its own
+ * mail address, when the provider's ID token names it.
+ */
+export type LinkedAccount = { id: string; providerId: string; scopes: string[]; createdAt: Date; address?: string }
 
 /** The provider accounts linked to people and their access tokens, as `personalMailer` reads them. */
 export type LinkedAccounts = {
@@ -19,6 +23,27 @@ type TokenApi = { getAccessToken: (input: AccountSelection) => Promise<{ accessT
 /** What `betterAuthLinkedAccounts` reads: the instance's context and its access-token and refresh endpoints. */
 export type TokenAuth = { $context: Promise<AuthContext>; api: TokenApi }
 
+/**
+ * The verified address the account's ID token names, as Google's does with the `email` scope sign-in asks for. The
+ * token came from the provider's token endpoint to the server itself, which stores it, so it is read without checking
+ * its signature again; a token that is missing, not a JWT or names no verified address names none.
+ */
+export const idTokenAddress = (idToken: string | null | undefined) => {
+  if (!idToken) return
+  const claims = jwtClaims(idToken)
+  if (!claims || typeof claims.email !== 'string' || claims.email_verified === false) return
+  return claims.email
+}
+
+const jwtClaims = (token: string) => {
+  try {
+    return decodeJwt(token)
+  } catch (error) {
+    if (error instanceof errors.JWTInvalid) return
+    throw error
+  }
+}
+
 // Better Auth keeps the scopes comma-separated; a provider's token response may have given them space-separated.
 export const storedScopes = (scope: string | null | undefined) => (scope ?? '').split(/[\s,]+/).filter(Boolean)
 
@@ -30,7 +55,10 @@ export const storedScopes = (scope: string | null | undefined) => (scope ?? '').
 export const betterAuthLinkedAccounts = (auth: TokenAuth): LinkedAccounts => ({
   accounts: async (userId) => {
     const accounts = await (await auth.$context).internalAdapter.findAccounts(userId)
-    return accounts.map((account) => ({ id: account.id, providerId: account.providerId, scopes: storedScopes(account.scope), createdAt: account.createdAt }))
+    return accounts.map((account) => {
+      const address = idTokenAddress(account.idToken)
+      return { id: account.id, providerId: account.providerId, scopes: storedScopes(account.scope), createdAt: account.createdAt, ...(address && { address }) }
+    })
   },
   accessToken: async (userId, account, provider) => {
     const accessToken = await accountAccessToken(auth, userId, account.id)

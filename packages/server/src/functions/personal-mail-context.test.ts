@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Db } from '@protobase/query'
 import { createErrorHandler } from '../error-handler'
 import type { MailMessage } from '../mail/smtp-mailer'
+import { MailSenderRefusedError } from '../personal-mail/mail-sender-refused'
 import { PersonalMailError } from '../personal-mail/personal-mail-error'
+import type { PersonalMail } from '../personal-mail/personal-mailer'
 import { unauthorized } from '../problem'
 import type { Session } from '../types'
 import { defineFunction, type ApiFunction } from './define-function'
@@ -40,6 +42,10 @@ const serve = (functions: Record<string, ApiFunction>, personalMailer?: Function
     report: vi.fn(),
   })
 
+const unused = () => Promise.reject(new Error('Not read in this test'))
+// A personal mailer that sends with `send`.
+const mailbox = (send: PersonalMail['send']): PersonalMail => ({ send, sender: unused, senders: unused })
+
 const invoice: MailMessage = { to: 'client@example.com', subject: 'Invoice 7', text: 'Attached.', attachments: [{ filename: 'invoice-7.pdf', content: new Uint8Array([37, 80, 68, 70]) }] }
 const sendInvoice = defineFunction(async (_request, context) => {
   await context.personalMail.send(invoice)
@@ -49,21 +55,28 @@ const sendInvoice = defineFunction(async (_request, context) => {
 describe('a function’s personalMail', () => {
   it('sends from the caller’s own mailbox', async () => {
     const sent: [string, MailMessage][] = []
-    const app = serve({ send: sendInvoice }, (userId) => ({ send: async (message) => void sent.push([userId, message]) }))
+    const app = serve({ send: sendInvoice }, (userId) => mailbox(async (message) => void sent.push([userId, message])))
     expect((await app.request('/api/functions/send', { headers: { authorization: 'Bearer bob' } })).status).toBe(204)
     expect(sent).toEqual([['bob', invoice]])
   })
 
   it('answers a mailbox that is not linked as a 409 problem with its code, for the app to offer linking', async () => {
-    const app = serve({ send: sendInvoice }, () => ({ send: async () => Promise.reject(new PersonalMailError('not_linked')) }))
+    const app = serve({ send: sendInvoice }, () => mailbox(async () => Promise.reject(new PersonalMailError('not_linked'))))
     const response = await app.request('/api/functions/send', { headers: { authorization: 'Bearer ann' } })
     expect(response.status).toBe(409)
     expect(await response.json()).toMatchObject({ type: 'urn:protobase:problem:personal-mail-not-linked', code: 'not_linked' })
   })
 
+  it('answers a From address the caller may not use as a 403 problem naming it', async () => {
+    const app = serve({ send: sendInvoice }, () => mailbox(async () => Promise.reject(new MailSenderRefusedError('billing@example.com'))))
+    const response = await app.request('/api/functions/send', { headers: { authorization: 'Bearer ann' } })
+    expect(response.status).toBe(403)
+    expect(await response.json()).toMatchObject({ type: 'urn:protobase:problem:mail-sender-refused', address: 'billing@example.com', detail: expect.stringContaining('billing@example.com') })
+  })
+
   it('refuses staff signed in as someone, sending nothing from their mailbox', async () => {
     const send = vi.fn(async () => {})
-    const app = serve({ send: sendInvoice }, () => ({ send }))
+    const app = serve({ send: sendInvoice }, () => mailbox(send))
     const response = await app.request('/api/functions/send', { headers: { authorization: 'Bearer staff' } })
     expect(response.status).toBe(403)
     expect(await response.json()).toMatchObject({ type: 'urn:protobase:problem:own-sign-in-only' })
@@ -71,7 +84,7 @@ describe('a function’s personalMail', () => {
   })
 
   it('refuses an outside app acting for someone, sending nothing from their mailbox', async () => {
-    const personalMailer = vi.fn(() => ({ send: async () => {} }))
+    const personalMailer = vi.fn(() => mailbox(async () => {}))
     const app = serve({ send: sendInvoice }, personalMailer)
     const response = await app.request('/api/functions/send', { headers: { authorization: 'Bearer app' } })
     expect(response.status).toBe(403)
@@ -80,7 +93,7 @@ describe('a function’s personalMail', () => {
   })
 
   it('is not on a public function’s context, nor on its caller, even with the person signed in', async () => {
-    const personalMailer = vi.fn(() => ({ send: async () => {} }))
+    const personalMailer = vi.fn(() => mailbox(async () => {}))
     let seen: object[] = []
     const app = serve({ hook: defineFunction({ public: true }, async (_request, context) => {
       seen = [context, await context.caller()]

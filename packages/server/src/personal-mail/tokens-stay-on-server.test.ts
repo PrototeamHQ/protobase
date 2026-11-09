@@ -13,6 +13,9 @@ import { invalidCredentials, json, sentMessage } from './gmail-responses'
 import { betterAuthLinkedAccounts, type TokenAuth } from './linked-accounts'
 import { resolvePersonalMail } from './personal-mail-providers'
 import { personalMailer } from './personal-mailer'
+import { senderRows } from './sender-rows'
+
+const noSenders = senderRows()
 
 const base: CreateAuthOptions = {
   database: undefined,
@@ -106,7 +109,7 @@ describe('a linked Gmail’s tokens stay on the server', () => {
     for (const path of ['/get-access-token', '/refresh-token']) expect((await setup.request(path, { method: 'POST', body: { accountId: account!.id } })).response.status).toBe(404)
     for (const answer of setup.answers) for (const secret of secrets) expect(answer).not.toContain(secret)
 
-    await personalMailer(betterAuthLinkedAccounts(setup.auth as unknown as TokenAuth), resolvePersonalMail(['gmail'], ['google'], true), setup.ada.id).send(invoice)
+    await personalMailer(betterAuthLinkedAccounts(setup.auth as unknown as TokenAuth), resolvePersonalMail(['gmail'], ['google'], true), noSenders, setup.ada.id).send(invoice)
     expect(sent).toEqual([`Bearer ${google.access_token}`])
   })
 
@@ -125,7 +128,7 @@ describe('a linked Gmail’s tokens stay on the server', () => {
       records: () => ({}) as FunctionRecords,
       channels: { broadcast: async () => {} },
       decryptField: () => async () => null,
-      personalMailer: (userId) => personalMailer(betterAuthLinkedAccounts(setup.auth as unknown as TokenAuth), providers, userId),
+      personalMailer: (userId) => personalMailer(betterAuthLinkedAccounts(setup.auth as unknown as TokenAuth), providers, noSenders, userId),
       onError: createErrorHandler(vi.fn()),
       wake: vi.fn(),
       report: vi.fn(),

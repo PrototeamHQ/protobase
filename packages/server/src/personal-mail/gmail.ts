@@ -10,7 +10,9 @@ export const gmailSendUrl = 'https://gmail.googleapis.com/upload/gmail/v1/users/
 
 /**
  * Gmail, linked through Google sign-in: offline access, so Google gives a refresh token, asked with `prompt=consent`
- * so it gives one again on a second link. Gmail sets the From header to the linked address.
+ * so it gives one again on a second link. Without `from`, Gmail sets the From header to the linked address; with it,
+ * Gmail keeps it when it is one of the account's verified send-as addresses, and puts the account's own address in its
+ * place when it is not, still sending the message.
  */
 export const gmail = (fetcher: typeof fetch = (...args) => fetch(...args)): PersonalMailProvider => ({
   id: 'gmail',
@@ -18,8 +20,8 @@ export const gmail = (fetcher: typeof fetch = (...args) => fetch(...args)): Pers
   signInProvider: 'google',
   scopes: [gmailSendScope],
   linkParams: { access_type: 'offline', prompt: 'consent' },
-  send: async (message, accessToken) => {
-    const body = await rfc822Message(message)
+  send: async (message, accessToken, from) => {
+    const body = await rfc822Message(message, from)
     const response = await fetcher(gmailSendUrl, { method: 'POST', headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'message/rfc822' }, body: new Uint8Array(body) })
     if (response.ok) return
     // 401: the token is no longer good; 403 with insufficient scope: the grant to send was taken back.

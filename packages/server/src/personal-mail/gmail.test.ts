@@ -36,6 +36,14 @@ describe('gmail', () => {
     expect(raw).toContain(Buffer.from(pdf).toString('base64'))
   })
 
+  it('puts the chosen address in the From header', async () => {
+    const { fetcher, provider } = answering(() => json(sentMessage))
+    await provider.send(invoice, 'access-1', 'billing@acme.example')
+    const raw = new TextDecoder().decode(fetcher.mock.calls[0]![1]!.body as Uint8Array).replace(/\r\n/g, '\n')
+    expect(raw).toMatch(/^From: billing@acme\.example$/m)
+    expect(raw).toMatch(/^To: ada@example\.com$/m)
+  })
+
   it('is link_expired when Gmail refuses the token', async () => {
     const { provider } = answering(() => json(invalidCredentials, 401))
     await expect(provider.send(invoice, 'revoked')).rejects.toEqual(new PersonalMailError('link_expired', 'gmail'))

@@ -85,9 +85,11 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     return [...rows]
   }
   const versions = async (databaseUrl: string, table = 'auth_migrations') => (await query<{ version: number }>(databaseUrl, `select version from ${table} order by version`)).map((row) => row.version)
-  const every = [1, 2, 3, 4, 5, 6, 7, 8]
-  // Every feature that keeps something in the store: organizations and the OAuth provider for MCP.
-  const allOn = { organizations: { create: 'everyone' as const }, mcp: true as const, personalAccessTokens: { prefix: 'test_' } }
+  const every = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  // Every feature that keeps something in the store: organizations, the OAuth provider for MCP, personal access tokens
+  // and the From addresses of personal mail.
+  const personalMail = { personalMail: ['gmail' as const], encryptOAuthTokens: true, socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } } }
+  const allOn = { organizations: { create: 'everyone' as const }, mcp: true as const, personalAccessTokens: { prefix: 'test_' }, ...personalMail }
 
   it('writes every migration into a fresh database and records them, then nothing once that is applied', async () => {
     const databaseUrl = await createDatabase()
@@ -111,7 +113,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
   })
 
   it('writes the same migrations whatever features the app turns on, with every table each of them needs', async () => {
-    const featureSets = [{}, { organizations: allOn.organizations }, { mcp: allOn.mcp }, { personalAccessTokens: allOn.personalAccessTokens }, allOn]
+    const featureSets = [{}, { organizations: allOn.organizations }, { mcp: allOn.mcp }, { personalAccessTokens: allOn.personalAccessTokens }, personalMail, allOn]
     const written = new Set<string>()
     for (const features of featureSets) {
       const databaseUrl = await createDatabase()
@@ -253,9 +255,9 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const folder = await migrationsDir()
     await writeAuthMigration({ auth, dir: folder, name: 'auth' })
     await applyAll(databaseUrl, folder)
-    await query(databaseUrl, "insert into auth_migrations (version, name) values (9, 'later')")
-    await expect(checkAuthSchema(auth)).rejects.toThrow('The auth store is at migration 9, newer than the 8 this version of Protobase knows; upgrade Protobase')
-    await expect(writeAuthMigration({ auth, dir: folder, name: 'auth' })).rejects.toThrow(/newer than the 8/)
+    await query(databaseUrl, "insert into auth_migrations (version, name) values (10, 'later')")
+    await expect(checkAuthSchema(auth)).rejects.toThrow('The auth store is at migration 10, newer than the 9 this version of Protobase knows; upgrade Protobase')
+    await expect(writeAuthMigration({ auth, dir: folder, name: 'auth' })).rejects.toThrow(/newer than the 9/)
   })
 
   it('compares the tables only in the development check, which names what drifted', async () => {

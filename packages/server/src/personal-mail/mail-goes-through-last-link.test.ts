@@ -8,6 +8,9 @@ import { invalidCredentials, json, sentMessage } from './gmail-responses'
 import { betterAuthLinkedAccounts, type TokenAuth } from './linked-accounts'
 import { resolvePersonalMail } from './personal-mail-providers'
 import { personalMailer } from './personal-mailer'
+import { senderRows } from './sender-rows'
+
+const noSenders = senderRows()
 
 const base: CreateAuthOptions = {
   database: undefined,
@@ -79,7 +82,7 @@ const setUp = async () => {
   }
   // "Continue with Google" on the sign-in page.
   const signInWithGoogle = async (choice: Choice) => back(await request('/sign-in/social', { method: 'POST', body: { provider: 'google', callbackURL: '/account', disableRedirect: true } }), choice)
-  const send = () => personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), providers, ada.id).send({ to: 'client@example.com', subject: 'Invoice 7', text: 'Attached.' })
+  const send = () => personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), providers, noSenders, ada.id).send({ to: 'client@example.com', subject: 'Invoice 7', text: 'Attached.' })
   const googleRows = () => store.account!.filter((account) => account.provider_id === 'google')
   return { connectGmail, signInWithGoogle, send, googleRows }
 }

@@ -6,9 +6,12 @@ import { roleDefinitions } from '../better-auth/organizations/role-definitions'
 import { refreshRefusalsPlugin } from '../better-auth/refresh-refusals'
 import { gmailSendScope, gmailSendUrl } from './gmail'
 import { json, sentMessage } from './gmail-responses'
-import { betterAuthLinkedAccounts, type TokenAuth } from './linked-accounts'
+import { betterAuthLinkedAccounts, idTokenAddress, type TokenAuth } from './linked-accounts'
 import { resolvePersonalMail } from './personal-mail-providers'
 import { personalMailer } from './personal-mailer'
+import { senderRows } from './sender-rows'
+
+const noSenders = senderRows()
 
 const tokenEndpoint = 'https://oauth2.googleapis.com/token'
 
@@ -29,7 +32,7 @@ const linkedUser = async () => {
     accessTokenExpiresAt: new Date(Date.now() - 60_000),
     scope: `openid,email,profile,${gmailSendScope}`,
   })
-  const mailer = personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), resolvePersonalMail(['gmail'], ['google'], true), user.id)
+  const mailer = personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), resolvePersonalMail(['gmail'], ['google'], true), noSenders, user.id)
   return { context, account, mailer }
 }
 
@@ -80,5 +83,20 @@ describe('mail from a linked Gmail, with Better Auth keeping the tokens', () => 
     expect(failure).toMatchObject({ body: { code: 'FAILED_TO_GET_ACCESS_TOKEN' } })
     expect(failure).not.toMatchObject({ code: 'link_expired' })
     expect(calls.map(({ url }) => url)).toEqual([tokenEndpoint])
+  })
+})
+
+describe('idTokenAddress', () => {
+  const token = (claims: object) => ['{"alg":"RS256"}', JSON.stringify(claims), 'signature'].map((part, index) => (index < 2 ? Buffer.from(part).toString('base64url') : part)).join('.')
+
+  it("reads the account's verified address from its ID token", () => {
+    expect(idTokenAddress(token({ sub: '1', email: 'ada@gmail.example', email_verified: true }))).toBe('ada@gmail.example')
+  })
+
+  it('names none for a missing token, one that is not a JWT, or an address not verified', () => {
+    expect(idTokenAddress(undefined)).toBeUndefined()
+    expect(idTokenAddress('not-a-jwt')).toBeUndefined()
+    expect(idTokenAddress(token({ sub: '1', email: 'ada@gmail.example', email_verified: false }))).toBeUndefined()
+    expect(idTokenAddress(token({ sub: '1' }))).toBeUndefined()
   })
 })

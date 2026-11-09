@@ -3,6 +3,11 @@ import type { LinkedAccount, LinkedAccounts } from './linked-accounts'
 import { PersonalMailError } from './personal-mail-error'
 import type { PersonalMailProvider } from './personal-mail-provider'
 import { personalMailer } from './personal-mailer'
+import { MailSenderRefusedError } from './mail-sender-refused'
+import type { MailSenderRow } from './sender-store'
+import { senderRows } from './sender-rows'
+
+const noSenders = senderRows()
 
 const sendScope = 'https://www.googleapis.com/auth/gmail.send'
 const message = { to: 'ada@example.com', subject: 'Invoice 7', text: 'Attached.', attachments: [{ filename: 'invoice-7.pdf', content: new Uint8Array([37, 80, 68, 70]) }] }
@@ -18,21 +23,21 @@ describe('personalMailer', () => {
   it('sends through the linked provider with a valid access token', async () => {
     const gmail = provider()
     const accounts = accountsOf([{ id: 'acc-1', providerId: 'google', scopes: ['openid', sendScope], createdAt: created }])
-    await personalMailer(accounts, [gmail], 'u1').send(message)
+    await personalMailer(accounts, [gmail], noSenders, 'u1').send(message)
     expect(accounts.accessToken).toHaveBeenCalledWith('u1', { id: 'acc-1', providerId: 'google', scopes: ['openid', sendScope], createdAt: created }, 'gmail')
-    expect(gmail.send).toHaveBeenCalledWith(message, 'access-1')
+    expect(gmail.send).toHaveBeenCalledWith(message, 'access-1', undefined)
   })
 
   it('is not_linked, sending nothing, for a user with no linked provider', async () => {
     const gmail = provider()
-    await expect(personalMailer(accountsOf([{ id: 'cred', providerId: 'credential', scopes: [], createdAt: created }]), [gmail], 'u1').send(message)).rejects.toEqual(new PersonalMailError('not_linked'))
+    await expect(personalMailer(accountsOf([{ id: 'cred', providerId: 'credential', scopes: [], createdAt: created }]), [gmail], noSenders, 'u1').send(message)).rejects.toEqual(new PersonalMailError('not_linked'))
     expect(gmail.send).not.toHaveBeenCalled()
   })
 
   it('is not_linked for a Google sign-in that never allowed sending mail', async () => {
     const gmail = provider()
     const accounts = accountsOf([{ id: 'acc-1', providerId: 'google', scopes: ['openid', 'email', 'profile'], createdAt: created }])
-    await expect(personalMailer(accounts, [gmail], 'u1').send(message)).rejects.toMatchObject({ code: 'not_linked', status: 409, extras: { code: 'not_linked' } })
+    await expect(personalMailer(accounts, [gmail], noSenders, 'u1').send(message)).rejects.toMatchObject({ code: 'not_linked', status: 409, extras: { code: 'not_linked' } })
     expect(accounts.accessToken).not.toHaveBeenCalled()
   })
 
@@ -41,7 +46,7 @@ describe('personalMailer', () => {
     const accounts = accountsOf([{ id: 'acc-1', providerId: 'google', scopes: [sendScope], createdAt: created }], async () => {
       throw new PersonalMailError('link_expired', 'gmail')
     })
-    await expect(personalMailer(accounts, [gmail], 'u1').send(message)).rejects.toMatchObject({ code: 'link_expired', provider: 'gmail' })
+    await expect(personalMailer(accounts, [gmail], noSenders, 'u1').send(message)).rejects.toMatchObject({ code: 'link_expired', provider: 'gmail' })
     expect(gmail.send).not.toHaveBeenCalled()
   })
 
@@ -52,7 +57,7 @@ describe('personalMailer', () => {
       { id: 'acc-b', providerId: 'google', scopes: ['openid', sendScope], createdAt: created },
       { id: 'acc-c', providerId: 'google', scopes: ['openid'], createdAt: later },
     ])
-    await personalMailer(accounts, [gmail], 'u1').send(message)
+    await personalMailer(accounts, [gmail], noSenders, 'u1').send(message)
     expect(accounts.accessToken).toHaveBeenCalledWith('u1', expect.objectContaining({ id: 'acc-b' }), 'gmail')
   })
 
@@ -63,8 +68,8 @@ describe('personalMailer', () => {
       { id: 'acc-old', providerId: 'google', scopes: [sendScope], createdAt: created },
     ])
     const reversed = accountsOf([...(await accounts.accounts('u1'))].reverse())
-    await personalMailer(accounts, [gmail], 'u1').send(message)
-    await personalMailer(reversed, [gmail], 'u1').send(message)
+    await personalMailer(accounts, [gmail], noSenders, 'u1').send(message)
+    await personalMailer(reversed, [gmail], noSenders, 'u1').send(message)
     expect(accounts.accessToken).toHaveBeenCalledWith('u1', expect.objectContaining({ id: 'acc-new' }), 'gmail')
     expect(reversed.accessToken).toHaveBeenCalledWith('u1', expect.objectContaining({ id: 'acc-new' }), 'gmail')
   })
@@ -80,9 +85,58 @@ describe('personalMailer', () => {
         throw new PersonalMailError('link_expired', 'gmail')
       },
     )
-    await expect(personalMailer(accounts, [gmail], 'u1').send(message)).rejects.toMatchObject({ code: 'link_expired' })
+    await expect(personalMailer(accounts, [gmail], noSenders, 'u1').send(message)).rejects.toMatchObject({ code: 'link_expired' })
     expect(accounts.accessToken).toHaveBeenCalledTimes(1)
     expect(accounts.accessToken).toHaveBeenCalledWith('u1', expect.objectContaining({ id: 'acc-new' }), 'gmail')
     expect(gmail.send).not.toHaveBeenCalled()
+  })
+
+  describe('with From addresses', () => {
+    const row = (row: Partial<MailSenderRow> & Pick<MailSenderRow, 'id' | 'userId' | 'address'>): MailSenderRow => ({ shared: false, isDefault: false, signature: null, createdAt: created, ...row })
+    const senders = senderRows([
+      row({ id: 's1', userId: 'u1', address: 'billing@acme.example' }),
+      row({ id: 's2', userId: 'u2', address: 'sales@acme.example', shared: true }),
+      row({ id: 's3', userId: 'u2', address: 'u2@private.example' }),
+    ])
+    const linked = (id: string) => ({ id, providerId: 'google', scopes: [sendScope], createdAt: created })
+    // Each person linked their own Gmail.
+    const both = (): LinkedAccounts => ({ accounts: async (userId) => [linked(`acc-${userId}`)], accessToken: vi.fn(async (userId: string) => `access-${userId}`) })
+
+    it('sends from an address the person entered', async () => {
+      const gmail = provider()
+      await personalMailer(both(), [gmail], senders, 'u1').send({ ...message, from: 'billing@acme.example' })
+      expect(gmail.send).toHaveBeenCalledWith(message, 'access-u1', 'billing@acme.example')
+    })
+
+    it('sends as before, leaving the From header to the provider, with neither a From address nor a default', async () => {
+      const gmail = provider()
+      await personalMailer(both(), [gmail], senders, 'u1').send(message)
+      expect(gmail.send).toHaveBeenCalledWith(message, 'access-u1', undefined)
+    })
+
+    it('refuses an address the person never entered before any call to the provider', async () => {
+      const gmail = provider()
+      const accounts = both()
+      await expect(personalMailer(accounts, [gmail], senders, 'u1').send({ ...message, from: 'ceo@acme.example' })).rejects.toEqual(new MailSenderRefusedError('ceo@acme.example'))
+      expect(accounts.accessToken).not.toHaveBeenCalled()
+      expect(gmail.send).not.toHaveBeenCalled()
+    })
+
+    it("refuses another person's private address, and sends a shared one through its owner's mailbox", async () => {
+      const gmail = provider()
+      const accounts = both()
+      await expect(personalMailer(accounts, [gmail], senders, 'u1').send({ ...message, from: 'u2@private.example' })).rejects.toBeInstanceOf(MailSenderRefusedError)
+      await personalMailer(accounts, [gmail], senders, 'u1').send({ ...message, from: 'sales@acme.example' })
+      expect(accounts.accessToken).toHaveBeenCalledWith('u2', expect.objectContaining({ id: 'acc-u2' }), 'gmail')
+      expect(gmail.send).toHaveBeenCalledTimes(1)
+      expect(gmail.send).toHaveBeenCalledWith(message, 'access-u2', 'sales@acme.example')
+    })
+
+    it('is not_linked when the owner of a shared address linked no mailbox', async () => {
+      const gmail = provider()
+      const accounts: LinkedAccounts = { accounts: async (userId) => (userId === 'u1' ? [linked('acc-u1')] : []), accessToken: vi.fn(async () => 'access') }
+      await expect(personalMailer(accounts, [gmail], senders, 'u1').send({ ...message, from: 'sales@acme.example' })).rejects.toMatchObject({ code: 'not_linked' })
+      expect(gmail.send).not.toHaveBeenCalled()
+    })
   })
 })

@@ -17,8 +17,8 @@ export type PersonalMailProvider = {
   /** More authorization parameters of the link, such as those that ask for a refresh token. */
   linkParams: Record<string, string>
   /**
-   * Sends `message` from the mailbox. Rejects with a `PersonalMailError` of `link_expired` when the provider refuses the
+   * Sends `message` from the mailbox, with `from` as its From address when given, else the mailbox's own. Rejects with a `PersonalMailError` of `link_expired` when the provider refuses the
    * token, and with an error naming the status for anything else it refuses.
    */
-  send: (message: MailMessage, accessToken: string) => Promise<void>
+  send: (message: MailMessage, accessToken: string, from?: string) => Promise<void>
 }
