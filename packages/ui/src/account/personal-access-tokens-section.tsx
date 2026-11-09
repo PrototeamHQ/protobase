@@ -1,5 +1,5 @@
 import { KeySquare, Plus } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { AuthError, type NewPersonalAccessToken, type PersonalAccessToken } from '@protobase/client'
 import { confirmationMinutes } from '@protobase/schema/internal'
 import { ConfirmSignIn } from '../app/confirm-sign-in'
@@ -64,7 +64,12 @@ export const PersonalAccessTokensSection = ({ tokens, onCreate, onRevoke }: Pers
     setConfirming(undefined)
   }
 
+  // Set at once, unlike `busy`, so a second click before the next render makes no second token.
+  const inFlight = useRef(false)
+
   const attempt = async (action: () => Promise<Editing | undefined>) => {
+    if (inFlight.current) return
+    inFlight.current = true
     setBusy(true)
     setError(undefined)
     try {
@@ -74,8 +79,10 @@ export const PersonalAccessTokensSection = ({ tokens, onCreate, onRevoke }: Pers
       if (!(failure instanceof AuthError)) throw failure
       if (failure.code === 'STRONG_SIGN_IN_REQUIRED') setConfirming('asked')
       else setError(authMessage(failure))
+    } finally {
+      inFlight.current = false
+      setBusy(false)
     }
-    setBusy(false)
   }
 
   const create = () =>

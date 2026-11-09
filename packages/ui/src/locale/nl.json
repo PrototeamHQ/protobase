@@ -185,6 +185,7 @@
     "accessTokenCreated": "{name} is klaar",
     "accessTokenCreatedDescription": "Kopieer het token nu: je ziet het niet nog eens. Een script stuurt het in de Authorization-header, na Bearer.",
     "copyAccessToken": "Het token kopiëren",
+    "copyRefused": "De browser liet de pagina het niet kopiëren: selecteer de tekst en kopieer hem zelf.",
     "done": "Klaar",
     "createdOn": "Gemaakt {date}",
     "expiresOn": "Verloopt {date}",

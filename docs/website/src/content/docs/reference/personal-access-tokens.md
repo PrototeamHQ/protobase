@@ -35,7 +35,7 @@ A token acts with the role, and with [organizations](/reference/auth/#organizati
 Send it as `Authorization: Bearer <token>`, wherever the app's own tokens work: the [resources API](/reference/api/), [API functions](/guides/api-functions/), [live updates](/reference/live/) and the [MCP endpoint](/reference/mcp/).
 
 ```sh
-curl -H "Authorization: Bearer $INVOICES_TOKEN" https://erp.example.com/api/v1/invoices?status=draft
+curl -G -H "Authorization: Bearer $INVOICES_TOKEN" --data-urlencode 'filter=status = "draft"' https://erp.example.com/api/v1/invoices
 ```
 
 A request with it runs as the token's user, with its role, its organization and the app's [access rules](/reference/access/), as that person's own session would. It stands for no sign-in, so what only the person's own sign-in may do is refused, as with [`protobase token`](/reference/auth/#tokens-for-scripts-and-curl): registering a device for push notifications, or a value that needs a [recent strong sign-in](/reference/auth/#recent-strong-sign-in). At the MCP endpoint the token is the client, with the endpoint's scope.

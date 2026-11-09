@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { expect, fn, spyOn, userEvent, within } from 'storybook/test'
 import { AuthError } from '@protobase/client'
 import { PersonalAccessTokensSection, type PersonalAccessTokensSectionProps } from './personal-access-tokens-section'
 
@@ -32,6 +32,15 @@ export const AccessTokens: StoryObj<PersonalAccessTokensSectionProps> = {
     expect(args.onCreate).toHaveBeenCalledWith({ name: 'Reports', expiresInDays: 30 })
     const shown = within(await page.findByRole('dialog', { name: 'Reports is ready' }))
     expect(shown.getByText(created.token)).toBeVisible()
+    // The clipboard as a browser that allows it, then as one that refuses it, where the token stays to copy by hand.
+    const writeText = spyOn(navigator.clipboard, 'writeText').mockResolvedValue()
+    await userEvent.click(shown.getByRole('button', { name: 'Copy the token' }))
+    expect(writeText).toHaveBeenCalledWith(created.token)
+    expect(await shown.findByRole('button', { name: 'Copied' })).toBeVisible()
+    writeText.mockRejectedValue(new DOMException('Write permission denied.', 'NotAllowedError'))
+    await userEvent.click(shown.getByRole('button', { name: 'Copied' }))
+    expect(await shown.findByRole('alert')).toHaveTextContent('select the text and copy it yourself')
+    writeText.mockRestore()
     await userEvent.click(shown.getByRole('button', { name: 'Done' }))
 
     await userEvent.click(canvas.getAllByRole('button', { name: 'Revoke' })[1]!)

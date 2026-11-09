@@ -185,6 +185,7 @@
     "accessTokenCreated": "{name} is ready",
     "accessTokenCreatedDescription": "Copy the token now: you won't see it again. A script sends it in the Authorization header, after Bearer.",
     "copyAccessToken": "Copy the token",
+    "copyRefused": "The browser did not let the page copy it: select the text and copy it yourself.",
     "done": "Done",
     "createdOn": "Created {date}",
     "expiresOn": "Expires {date}",
