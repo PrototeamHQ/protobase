@@ -10,14 +10,26 @@ const Tokens = () => {
   const { account } = useAuth().session
   const { data: tokens, error, reload } = useAccountData(useCallback(() => account.personalAccessTokens(), [account]), text('couldNotReadAccessTokens'))
   if (!tokens) return <AccountLoading error={error} />
-  // The list is read again after every change, a failed one too, whose answer may have been lost after the server
-  // made it, and the dialog stays busy until it is in; a list that could not be read again says so above it.
+  // The list is read again after every change. A new token reaches its dialog at once, to be copied while the list
+  // loads; a failed change, whose answer may have been lost after the server made it, waits for the list before the
+  // dialog lets the person try again. A list that could not be read again says so above it.
   return (
     <>
       <SectionError message={error} />
       <PersonalAccessTokensSection
         tokens={tokens}
-        onCreate={(input) => account.createPersonalAccessToken(input).finally(reload)}
+        onCreate={(input) =>
+          account.createPersonalAccessToken(input).then(
+            (created) => {
+              void reload()
+              return created
+            },
+            async (failure: unknown) => {
+              await reload()
+              throw failure
+            },
+          )
+        }
         onRevoke={(id) => account.revokePersonalAccessToken(id).finally(reload)}
       />
     </>
