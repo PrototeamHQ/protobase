@@ -2185,6 +2185,17 @@
             }
           ]
         },
+        "personalAccessTokens": {
+          "description": "Turns on personal access tokens: a signed-in person makes long-lived tokens on their account page, for a script to\ncall the app's API as them with `Authorization: Bearer <token>`. `prefix` starts every token, lowercase letters,\ndigits and underscores ending in `_`, such as `invoices_`; it has no default. Off by default.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PersonalAccessTokensOptions"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
         "schema": {
           "description": "The schema of the auth store in the app's database; default `auth`.",
           "anyOf": [
@@ -2887,6 +2898,25 @@
         "id",
         "domains",
         "idp"
+      ],
+      "additionalProperties": false
+    },
+    "PersonalAccessTokensOptions": {
+      "type": "object",
+      "properties": {
+        "prefix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "prefix"
       ],
       "additionalProperties": false
     },

@@ -94,8 +94,10 @@ const accountChanges = [
   '/organization/leave',
   '/organization/transfer-ownership',
   '/organization/delete',
-  // Which outside apps act as the person is theirs to change; staff may see the list.
+  // Which outside apps and scripts act as the person is theirs to change; staff may see the lists.
   '/account/connected-apps/disconnect',
+  '/account/personal-access-tokens/create',
+  '/account/personal-access-tokens/revoke',
 ]
 
 export const staffCannotChange: StaffRefusal = { code: 'STAFF_CANNOT_CHANGE_SIGN_IN', message: "Staff cannot change a person's sign-in or the sign-in policy." }

@@ -20,9 +20,13 @@ const passkeyPaths = ['/passkey/generate-register-options', '/passkey/verify-reg
 // password alone and so not at all on an account without one.
 const twoFactorPaths = ['/two-factor/enable', '/two-factor/get-totp-uri', '/two-factor/generate-backup-codes']
 
+// A personal access token acts as the person long after the session that made it ends.
+const personalAccessTokenPath = '/account/personal-access-tokens/create'
+
 // The Better Auth endpoints its fresh-session check guarded, and its check of a deletion without a password, apart
-// from `/list-sessions`, which only lists the person's own devices; and the second step's endpoints without a password.
-const guardedPaths = [...passkeyPaths, ...twoFactorPaths, '/unlink-account', '/delete-user']
+// from `/list-sessions`, which only lists the person's own devices; the second step's endpoints without a password;
+// and making a personal access token.
+const guardedPaths = [...passkeyPaths, ...twoFactorPaths, '/unlink-account', '/delete-user', personalAccessTokenPath]
 
 type GuardedSession = { session: { id: string; createdAt: Date }; user: { id: string; twoFactorEnabled?: boolean | null } }
 type Context = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0]['context']
@@ -33,7 +37,7 @@ type Context = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0]['contex
  */
 export const confirmationAsked = async (context: Context, path: string, body: unknown, { user }: GuardedSession) => {
   if (path === '/delete-user') return (body as { password?: unknown } | undefined)?.password ? 'nothing' : 'confirm'
-  if (path === '/unlink-account') return 'confirm'
+  if (path === '/unlink-account' || path === personalAccessTokenPath) return 'confirm'
   // Better Auth asks an account with a password for it on the second step's endpoints; one without confirms it's them.
   if (twoFactorPaths.includes(path)) return (await context.internalAdapter.findCredentialAccount(user.id))?.password ? 'nothing' : 'confirm'
   return (await hasPasskeyOrSecondStep(context.adapter, user)) ? 'confirm' : 'confirm-or-password'
@@ -49,8 +53,8 @@ export const isRecentlyConfirmed = async (context: Pick<Context, 'internalAdapte
 /**
  * Replaces Better Auth's fresh-session check, which `createAuth` turns off (`freshAge: 0`), and which could only be met
  * by signing out and in again. A session of any age lists its devices. Adding a passkey; turning on a second step,
- * reading its authenticator secret or making new backup codes without a password; unlinking a sign-in provider; and
- * deleting the account without a password ask a session older than a day to confirm it's them in place first
+ * reading its authenticator secret or making new backup codes without a password; unlinking a sign-in provider;
+ * making a personal access token; and deleting the account without a password ask a session older than a day to confirm it's them in place first
  * (`strongSignInsPlugin` notes it), else `403 STRONG_SIGN_IN_REQUIRED`.
  * An account with neither a passkey nor a second step confirms its first passkey with its password too, which counts
  * for that change only, never as a strong sign-in. Staff sessions are left to the staff plugin, which refuses these

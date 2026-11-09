@@ -60,6 +60,8 @@ export type SetupStatus = {
   organizations?: { create: 'admins' | 'everyone'; roles: RoleLabel[] }
   anonymous?: boolean
   mcp?: { url: string }
+  /** People may make personal access tokens for their scripts, on the account page. */
+  personalAccessTokens?: true
   personalMail?: PersonalMailLink[]
   plugins?: PluginRef[]
   locale?: Locale

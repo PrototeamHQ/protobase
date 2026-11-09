@@ -111,6 +111,7 @@ const snapshotIsolated = [
   'packages/server/tests/organizations.test.ts',
   'packages/server/tests/origins.test.ts',
   'packages/server/tests/passkey-domains.test.ts',
+  'packages/server/tests/personal-access-tokens.test.ts',
   'packages/server/tests/password-reset.integration.test.ts',
   'packages/server/tests/password-reset.test.ts',
   'packages/server/tests/platform-sign-in.integration.test.ts',

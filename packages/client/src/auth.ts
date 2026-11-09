@@ -1,6 +1,7 @@
 import { authBasePath, isLocale } from '@protobase/schema/internal'
 import { accountProfile } from './account-profile'
 import { accountSecurity } from './account-security'
+import { accountTokens } from './account-tokens'
 import { connectClient } from './connect'
 import { AuthError, authError } from './auth-error'
 import type { AuthUser, PlatformSignIn, SetupStatus, SignInMethod } from './auth-types'
@@ -109,6 +110,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         ...(body.organizations && { organizations: body.organizations }),
         ...(body.anonymous && { anonymous: true }),
         ...(body.mcp && { mcp: { url: body.mcp.url } }),
+        ...(body.personalAccessTokens && { personalAccessTokens: true }),
         ...(body.personalMail && body.personalMail.length > 0 && { personalMail: body.personalMail }),
         ...(body.plugins && body.plugins.length > 0 && { plugins: body.plugins }),
         ...(isLocale(body.locale) && { locale: body.locale }),
@@ -176,7 +178,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
       if (error) throw authError(error, 'Could not set the password')
     },
 
-    account: { ...accountSecurity(client), ...accountProfile(client) },
+    account: { ...accountSecurity(client), ...accountProfile(client), ...accountTokens(client) },
     connect: connectClient(client),
     organizations: organizationsClient(client, () => token({ refresh: true })),
     roles: rolesClient(client, () => token({ refresh: true })),

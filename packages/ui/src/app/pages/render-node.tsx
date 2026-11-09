@@ -24,6 +24,7 @@ import { UsersBlock } from '../../users/users-block'
 import { ConnectedAccountsBlock } from '../../account/blocks/connected-accounts-block'
 import { PersonalMailBlock } from '../../account/blocks/personal-mail-block'
 import { ConnectedAppsBlock } from '../../account/blocks/connected-apps-block'
+import { PersonalAccessTokensBlock } from '../../account/blocks/personal-access-tokens-block'
 import { ConnectionsBlock } from '../../account/blocks/connections-block'
 import { DeleteAccountBlock } from '../../account/blocks/delete-account-block'
 import { DevicesBlock } from '../../account/blocks/devices-block'
@@ -66,6 +67,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Connections: ConnectionsBlock,
   Devices: DevicesBlock,
   ConnectedApps: ConnectedAppsBlock,
+  PersonalAccessTokens: PersonalAccessTokensBlock,
   DeleteAccount: DeleteAccountBlock,
 }
 

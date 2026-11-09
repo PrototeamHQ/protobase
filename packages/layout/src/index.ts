@@ -19,6 +19,7 @@ export {
   Page,
   Passkeys,
   Password,
+  PersonalAccessTokens,
   Profile,
   Progress,
   RecordCard,

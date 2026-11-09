@@ -38,7 +38,7 @@ export const mcpGate = ({ authenticate, resource, scope }: McpGateInput) => {
           throw error
         })
         if (!session.client) throw new OAuthError(OAuthErrorCode.InvalidToken, 'The token was not issued to an MCP client')
-        return { token, clientId: session.client.id, scopes: session.client.scopes, expiresAt: decodeJwt(token).exp, resource: resourceUrl, extra: { session } }
+        return { token, clientId: session.client.id, scopes: session.client.scopes, expiresAt: session.client.expiresAt ?? decodeJwt(token).exp, resource: resourceUrl, extra: { session } }
       },
     }
     const answer = await requireBearerAuth({ verifier, requiredScopes: [scope], resourceMetadataUrl, expectedResource: resourceUrl })(bearerOnly(request))
