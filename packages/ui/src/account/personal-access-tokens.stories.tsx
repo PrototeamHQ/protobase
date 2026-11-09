@@ -69,3 +69,18 @@ export const AccessTokenConfirmInPlace: StoryObj<PersonalAccessTokensSectionProp
     expect(await page.findByRole('region', { name: "Confirm it's you" })).toBeVisible()
   },
 }
+
+/** A request that never reaches the server, such as when offline: the dialog says so and stays open to try again. */
+export const AccessTokenServerUnreachable: StoryObj<PersonalAccessTokensSectionProps> = {
+  tags: ['play'],
+  args: { tokens, onCreate: fn(async () => created), onRevoke: fn(async () => Promise.reject(new TypeError('Failed to fetch'))) },
+  render: (args) => <PersonalAccessTokensSection {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Revoke' })[0]!)
+    const dialog = within(within(document.body).getByRole('dialog', { name: 'Revoke Weekly invoices?' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Revoke' }))
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Could not reach the server')
+    expect(dialog.getByRole('button', { name: 'Revoke' })).toBeEnabled()
+  },
+}

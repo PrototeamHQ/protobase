@@ -76,6 +76,8 @@ export const PersonalAccessTokensSection = ({ tokens, onCreate, onRevoke }: Pers
       setEditing(await action())
       setConfirming(undefined)
     } catch (failure) {
+      // The browser's fetch rejects with a TypeError when the request never reached the server.
+      if (failure instanceof TypeError) return setError(text('couldNotReachServer'))
       if (!(failure instanceof AuthError)) throw failure
       if (failure.code === 'STRONG_SIGN_IN_REQUIRED') setConfirming('asked')
       else setError(authMessage(failure))
