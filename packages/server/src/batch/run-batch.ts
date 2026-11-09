@@ -13,7 +13,7 @@ import { keyOf } from '../write-shared'
 import { checkBeforeWrite, writeIn } from '../write-pipeline'
 import { resolveData, resolveKey, type Created } from './refs'
 import { moveIn, moveList, type MoveList } from './move'
-import { lockOrders, orderLockName } from './order-lock'
+import { lockOrders, orderLockName, writeOrderLocks } from './order-lock'
 import { checkOrderField, reorderIn, type NumberedResult } from './reorder'
 import type { BatchOperation } from './schema'
 
@@ -64,12 +64,17 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
     })
   }
   const lists = new Map<number, MoveList>()
-  // The order locks the moves and reorders take, all before the first write, each only once its field may be ordered by
+  // The order locks the moves and reorders take, each only once its field may be ordered by, and those of the creates and
+  // updates that set a hand-order field (see `writeOrderLocks`), all before the first write
   const locks: string[] = []
   for (const [index, operation] of operations.entries()) {
-    if (operation.op !== 'move' && operation.op !== 'reorder') continue
+    if (operation.op === 'delete') continue
     const order = async () => {
       const access = await accessFor(entryOf(deps, operation.resource))
+      if (operation.op === 'create' || operation.op === 'update') {
+        locks.push(...writeOrderLocks(access, operation.data))
+        return
+      }
       checkOrderField(access, operation.field)
       locks.push(orderLockName(access, operation.field))
       if (operation.op === 'move') lists.set(index, await moveList(deps, access, operation.field, operation.filter))

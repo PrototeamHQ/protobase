@@ -21,6 +21,7 @@ import { assertWritten, checkParents, checkPrecondition, decide, denied, firstKe
 import { checkRankAfter } from './rank-after'
 import { withAuthor } from './author'
 import type { Entry } from './registry'
+import { lockOrders, writeOrderLocks } from './batch/order-lock'
 
 export type { WriteResult }
 
@@ -142,7 +143,7 @@ export const checkBeforeWrite = async (deps: Deps, write: Parameters<WriteCheck>
 
 /**
  * The path every single write takes: resolve access once, the checks that come before the transaction, then `writeIn`
- * in its own transaction with a statement timeout. The caller has already authenticated `session`; `form` is the
+ * in its own transaction with a statement timeout, under the order lock when it sets the hand-order field (see `writeOrderLocks`). The caller has already authenticated `session`; `form` is the
  * public form a visitor creates through.
  */
 export const runWrite = async (deps: Deps, entry: Entry, session: Session, request: WriteRequest, form?: FormModel): Promise<WriteResult> => {
@@ -150,7 +151,11 @@ export const runWrite = async (deps: Deps, entry: Entry, session: Session, reque
   requireOperation(access, request.operation === 'undelete' ? 'update' : request.operation)
   if (request.operation === 'create' || request.operation === 'update') await checkBeforeWrite(deps, { resource: entry.name, operation: request.operation, body: request.body })
   const removed: ScheduledDelete[] = []
-  const result = await writeTransaction(deps.db, deps.statementTimeoutMs, (trx) => writeIn(trx, deps, access, request, removed), actorSettings(deps, session))
+  const locks = request.operation === 'create' || request.operation === 'update' ? writeOrderLocks(access, request.body) : []
+  const result = await writeTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
+    await lockOrders(trx, locks)
+    return writeIn(trx, deps, access, request, removed)
+  }, actorSettings(deps, session))
   await scheduleRemovedFiles(deps, removed)
   wakeDispatch(deps)
   return result

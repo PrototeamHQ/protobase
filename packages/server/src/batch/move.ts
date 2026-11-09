@@ -50,7 +50,7 @@ const storedOrder = async (trx: Db, access: RequestAccess, field: string, { filt
  * otherwise. Any other change, to the list or to the records, does not refuse it: it is anchored to its place, not to
  * ETags. The stretch it renumbers comes from the stored order, written as a `reorder` is (see `reorderIn`), and is
  * refused with 412 too when a record of it was renumbered between the read and its row lock. The batch holds the
- * field's order lock (see `lockOrders`), so each move and reorder reads the order the one before it left.
+ * field's order lock (see `lockOrders`), so each move reads the order the move, reorder or position write before it left.
  */
 export const moveIn = async (trx: Db, deps: Deps, access: RequestAccess, input: MoveInput, list: MoveList, removed: ScheduledDelete[]): Promise<NumberedResult[]> => {
   const rows = await storedOrder(trx, access, input.field, list)
