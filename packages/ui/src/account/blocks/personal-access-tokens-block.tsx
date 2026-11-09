@@ -11,7 +11,7 @@ const Tokens = () => {
   const { data: tokens, error, reload } = useAccountData(useCallback(() => account.personalAccessTokens(), [account]), text('couldNotReadAccessTokens'))
   if (!tokens) return <AccountLoading error={error} />
   // The list is read again after every change, a failed one too, whose answer may have been lost after the server
-  // made it; a list that could not be read again says so, rather than showing what it had before.
+  // made it, and the dialog stays busy until it is in; a list that could not be read again says so above it.
   return (
     <>
       <SectionError message={error} />
