@@ -1,6 +1,7 @@
 import { Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler, type DatabaseConnection, type Driver } from 'kysely'
 import { describe, expect, it } from 'vitest'
-import { lockOrders } from './order-lock'
+import type { RequestAccess } from '../request-access'
+import { lockOrders, writeOrderLocks } from './order-lock'
 
 // A database on one connection that records the parameters of each statement.
 const recorder = () => {
@@ -34,5 +35,19 @@ describe('lockOrders', () => {
     const { db, locked } = recorder()
     await lockOrders(db, ['move:.tasks.rank', 'move:.lines.position', 'move:.tasks.rank'])
     expect(locked).toEqual(['move:.lines.position', 'move:.tasks.rank'])
+  })
+})
+
+describe('writeOrderLocks', () => {
+  const access = (position?: { field: string }) => ({ full: { table: { name: 'tasks' }, ...(position && { position }) } }) as unknown as RequestAccess
+
+  it("takes the move's lock of the hand-order field a write sets", () => {
+    expect(writeOrderLocks(access({ field: 'rank' }), { rank: 3, title: 'a' })).toEqual(['move:.tasks.rank'])
+  })
+
+  it('takes none for a write that leaves the hand-order field alone, or a resource without one', () => {
+    expect(writeOrderLocks(access({ field: 'rank' }), { title: 'a' })).toEqual([])
+    expect(writeOrderLocks(access(), { rank: 3 })).toEqual([])
+    expect(writeOrderLocks(access({ field: 'rank' }), null)).toEqual([])
   })
 })
