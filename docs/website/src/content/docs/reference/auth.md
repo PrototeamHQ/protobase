@@ -35,7 +35,7 @@ bun run db:migrate                  # applies them
 
 Each version's statements are followed by its row in `auth_migrations`. The file only adds tables, columns and indexes, never drops one, and is plain SQL to review, edit or leave out where the project handles the auth schema itself. `--dir` and `--name` choose the folder and the name after the number. [`protobase migration`](/reference/cli/#migration) writes the same file, along with what the config's other features need, such as [jobs](/reference/jobs/).
 
-Every store has the tables of every feature, whether the app turns the feature on or not: [passkeys](#passkeys), [two-factor authentication](#two-factor-authentication), [organizations](#organizations) and the [OAuth provider for MCP](#oauth-for-mcp-clients). Turning a feature on or off needs no migration and drops nothing; the columns a feature adds to the user and session tables are empty until it is on. SAML providers and open sign-up keep nothing in the store.
+Every store has the tables of every feature, whether the app turns the feature on or not: [passkeys](#passkeys), [two-factor authentication](#two-factor-authentication), [organizations](#organizations), the [OAuth provider for MCP](#oauth-for-mcp-clients) and [personal access tokens](/reference/personal-access-tokens/). Turning a feature on or off needs no migration and drops nothing; the columns a feature adds to the user and session tables are empty until it is on. SAML providers and open sign-up keep nothing in the store.
 
 The store's tables and columns are snake_case, like the app's (`sign_in_policy.platform_sign_in`, `session.user_id`); the code and the API keep Better Auth's camelCase names. The names the app configures, the store's schema ([`auth.schema`](/reference/config/sign-in/#authschema)), the [user table](#an-existing-users-table) and its columns, and uuid ids (`generateUserId: 'uuid'`), are the ones in effect when the file is written. Changing one later is a migration of the project's own, such as a rename.
 
@@ -90,7 +90,7 @@ The store's migrations then make nothing of the user table, which a migration of
 | `PROTOBASE_TRUSTED_ORIGINS` | extra comma separated origins, the default of `auth.trustedOrigins`; a dev tunnel needs its exact host here, such as `https://my-tunnel.trycloudflare.com`, since none is trusted by default; an entry with `*` trusts every host it matches |
 | `PROTOBASE_ORIGINS` | the other origins the app is served on, comma separated, passed by the platform; see [Several origins](#several-origins) |
 | `PROTOBASE_PASSKEY_DOMAIN` | the host new [passkeys](#passkeys) are made for, passed by the platform; default the host of the app's `url` |
-| `PROTOBASE_LOCKED_ACCOUNTS` | the addresses of accounts no one may take over, comma separated, passed by the platform, such as a demo's shared account: their address, password, passkeys, two-factor authentication and linked accounts stay as they are, from any endpoint or host call, which fails with `403 ACCOUNT_LOCKED`, and they cannot be deleted |
+| `PROTOBASE_LOCKED_ACCOUNTS` | the addresses of accounts no one may take over, comma separated, passed by the platform, such as a demo's shared account: their address, password, passkeys, two-factor authentication, linked accounts and [personal access tokens](/reference/personal-access-tokens/) stay as they are, from any endpoint or host call, which fails with `403 ACCOUNT_LOCKED`, and they cannot be deleted |
 | `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins, passed by the platform; see [CORS](/reference/api/#cors) |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes), emailed [two-factor](#two-factor-authentication) codes and [open sign-up](#open-sign-up), passed by the platform; all four are off without them |
 | `PROTOBASE_APP_NAME` | the app's name, passed by the platform: it overrides `name` |
@@ -184,7 +184,7 @@ An invitation to the app is a row of Better Auth's `verification` table, so it n
 
 ## Account page
 
-Everyone signed in has an account page at `/-/account`, which "Account" in the user menu opens. When the config exports no page named `account`, the server serves the standard one, `accountPage` from `@protobase/layout`: a [composed page](/reference/layouts/) titled "Account" with four [tabs](/reference/blocks/#tabs-and-tab) of [account blocks](/reference/blocks/#account-blocks), each tab at its own address.
+Everyone signed in has an account page at `/-/account`, which "Account" in the user menu opens. When the config exports no page named `account`, the server serves the standard one, `accountPage` from `@protobase/layout`: a [composed page](/reference/layouts/) titled "Account" with five [tabs](/reference/blocks/#tabs-and-tab) of [account blocks](/reference/blocks/#account-blocks), each tab at its own address.
 
 | Tab | Address | Blocks |
 | --- | --- | --- |
@@ -192,10 +192,11 @@ Everyone signed in has an account page at `/-/account`, which "Account" in the u
 | Sign-in & security | `/-/account/security` | `Password`, `Passkeys`, `TwoFactor`, `ConnectedAccounts` |
 | Devices | `/-/account/devices` | `Devices` |
 | Connected apps | `/-/account/apps` | `ConnectedApps` |
+| Access tokens | `/-/account/tokens` | `PersonalAccessTokens` |
 
-A tab whose blocks all leave themselves out is not offered, such as Connected apps in an app without [MCP](#oauth-for-mcp-clients). `DeleteAccount` leaves itself out when the app turns [account deletion](#deleting-the-account) off, `PersonalMail` in an app without [personal mail](/reference/email/#from-someones-own-mailbox), and `Connections` when no workflow plugin declares a [connection](/reference/workflows/#connecting-an-account).
+A tab whose blocks all leave themselves out is not offered, such as Connected apps in an app without [MCP](#oauth-for-mcp-clients) and Access tokens in an app without [personal access tokens](/reference/personal-access-tokens/). `DeleteAccount` leaves itself out when the app turns [account deletion](#deleting-the-account) off, `PersonalMail` in an app without [personal mail](/reference/email/#from-someones-own-mailbox), and `Connections` when no workflow plugin declares a [connection](/reference/workflows/#connecting-an-account).
 
-To change it, export a page named `account` of your own: it replaces the standard one at `/-/account`, and is neither at `/account` nor in the sidebar. `accountTabs` holds the standard tabs by name (`profile`, `security`, `devices`, `apps`), so the page lists the ones it keeps beside its own:
+To change it, export a page named `account` of your own: it replaces the standard one at `/-/account`, and is neither at `/account` nor in the sidebar. `accountTabs` holds the standard tabs by name (`profile`, `security`, `devices`, `apps`, `tokens`), so the page lists the ones it keeps beside its own:
 
 ```tsx
 // config/account.tsx
@@ -407,6 +408,7 @@ Better Auth's own check of a fresh session, which could only be met by signing o
 - adding a passkey;
 - turning on [two-factor authentication](#two-factor-authentication), reading its authenticator link or making new backup codes, on an account without a password (an account with a password gives it instead);
 - unlinking a sign-in provider (`/unlink-account`);
+- making a [personal access token](/reference/personal-access-tokens/#making-one);
 - [deleting the account](#deleting-the-account) without a password.
 
 An account with neither a passkey nor a second step has no strong sign-in to confirm with but an [emailed code](#emailed-confirmation-code), so for its first passkey it may give its password instead, where the account page asks: `POST /api/auth/account/confirm-password` with `{ password }`, `session.account.confirmWithPassword(password)` in the client. It counts for adding that passkey only, within 15 minutes, and is no strong sign-in: a [strong sign-in field](/reference/data-config/#recent-strong-sign-in) still asks for one. A wrong password is `INVALID_PASSWORD`, and every try counts toward the account's [password checks](#name-password-and-devices); an account with a passkey or a second step is refused (`403 PASSWORD_CONFIRMATION_NOT_OFFERED`), and so is a [staff session](#staff-sign-in).
@@ -462,7 +464,7 @@ The guardrails:
 - **A strong, recent sign-in:** the provider must report a passkey or a second step (`amr` with `mfa`, `hwk` or `swk`, or an `acr` from `acrValues`), at most 15 minutes old (`auth_time`; the app asks with `max_age`). The person's own two-factor and passkey requirements do not apply to staff.
 - **A reason**, kept in the log with who signed in as whom.
 - **Short and stoppable:** the session lasts 30 minutes (`sessionMinutes`, at most 240), is never extended, ends with the browser, and "Stop staff session" (`POST /api/auth/staff/stop`) ends it and signs the browser out. An API token it got before stops working on its next request, like that of any [ended session](#when-a-token-stops-working).
-- **No takeover:** a staff session cannot change the person's password, email, passkeys, two-factor authentication or sessions, nor save the sign-in policy (`403`, `STAFF_CANNOT_CHANGE_SIGN_IN`).
+- **No takeover:** a staff session cannot change the person's password, email, passkeys, two-factor authentication, sessions or personal access tokens, nor save the sign-in policy (`403`, `STAFF_CANNOT_CHANGE_SIGN_IN`).
 - **The app decides:** admins turn staff sign-in off, or have the person emailed each time, with the [sign-in policy](#sign-in-policy).
 - **One way in:** Better Auth's own `/admin/impersonate-user` and `/admin/stop-impersonating` are off (`404`), so app admins cannot sign in as their people.
 - The start is limited to 5 per minute and client; only the browser that started a sign-in can finish it, within 10 minutes and once; and the page it comes back to must be on a trusted origin.
@@ -684,7 +686,7 @@ With sign-in on, the app's authenticator checks on every request that the token 
 | Signing out, a revoked session, a stopped staff session | of that session is refused; the person's other sessions keep theirs. |
 | Removal from the organization | naming that organization is refused, unless a global role still enters it. |
 
-A refused token is a `401`, as an expired one is, and the client retries the request once with a new token from `/api/auth/token`. Tokens carry their session's id in `sid`; one from [`issueToken`](#tokens-for-scripts-and-curl) names none, and is checked against the user alone.
+A refused token is a `401`, as an expired one is, and the client retries the request once with a new token from `/api/auth/token`. [Personal access tokens](/reference/personal-access-tokens/#when-it-stops) stop the same way. Tokens carry their session's id in `sid`; one from [`issueToken`](#tokens-for-scripts-and-curl) names none, and is checked against the user alone.
 
 The cost is two or three lookups by key in the auth store per request: the session by `sid`, the user by `sub`, and with organizations the membership. Nothing is cached, so every server process sees a change at once. An open `/live` stream was admitted when it connected and keeps running until it closes. With `authenticate.jwksUrl` instead of sign-in of its own, the API cannot read the auth store and a token works until it expires, as do tokens of [other apps](#users-of-another-app).
 
@@ -752,7 +754,7 @@ An app moving from Supabase keeps its `supabase.auth` calls and its `@supabase/s
 
 ## Tokens for scripts and curl
 
-There is no development login. For scripts, mint a token for an existing user on the host (the CLI exposes it as `protobase token you@example.com`):
+There is no development login. A script that runs on its own, such as a weekly job, uses a [personal access token](/reference/personal-access-tokens/) its person makes on the account page, when the app turns them on. For scripts on the host, mint a token for an existing user (the CLI exposes it as `protobase token you@example.com`):
 
 ```ts
 import { loadProjectAuth } from '@protobase/cli/auth'

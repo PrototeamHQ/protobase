@@ -31,8 +31,12 @@ export type Session = {
    */
   memberships?: () => Promise<Membership[]>
   anonymous?: true
-  /** The outside app acting as the user, such as an MCP client: its OAuth client id and the scopes its token carries. */
-  client?: { id: string; scopes: string[] }
+  /**
+   * The outside app acting as the user, such as an MCP client: its OAuth client id and the scopes its token carries.
+   * `expiresAt`, in seconds since the epoch, is when its credential stops working, for one that is no JWT, such as a
+   * personal access token (`Infinity` for one that never expires); a JWT's own `exp` says it otherwise.
+   */
+  client?: { id: string; scopes: string[]; expiresAt?: number }
   /**
    * The user's own sign-in this request comes with: its session id, when it has one, and whether staff started it as
    * the user. An authenticator sets it only when it knows; without it, what only the user may do, such as registering

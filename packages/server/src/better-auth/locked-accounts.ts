@@ -16,17 +16,19 @@ const lockedFields: Record<string, (field: string) => boolean> = {
   account: (field) => ['userId', 'providerId', 'accountId', 'password'].includes(field),
   passkey: (field) => !['counter', 'updatedAt'].includes(field),
   twoFactor: (field) => !['failedVerificationCount', 'lockedUntil', 'updatedAt'].includes(field),
+  // A token would keep a shared account's access after whoever made it left; using one only notes when.
+  personalAccessToken: (field) => field !== 'lastUsedAt',
 }
 
 /** Refuses, with `403 ACCOUNT_LOCKED`, a change to or the deletion of a locked account. */
 export const refuseLockedAccount = (): never => {
-  throw new APIError('FORBIDDEN', { code: 'ACCOUNT_LOCKED', message: 'This account is locked: its address, password, passkeys, two-factor authentication and linked accounts stay as they are, and it cannot be deleted.' })
+  throw new APIError('FORBIDDEN', { code: 'ACCOUNT_LOCKED', message: 'This account is locked: its address, password, passkeys, two-factor authentication, linked accounts and access tokens stay as they are, and it cannot be deleted.' })
 }
 
 /**
  * The adapter with the accounts of `emails` locked: their user's address, password, passkeys, two-factor
- * authentication and linked accounts stay as they are, and the user is not deleted, whatever endpoint or host call
- * writes. A locked account's first account row, made with its user, is the one write of those it allows.
+ * authentication, linked accounts and personal access tokens stay as they are, and the user is not deleted, whatever
+ * endpoint or host call writes. A locked account's first account row, made with its user, is the one write of those it allows.
  */
 export const lockAccounts = <A extends Writes>(adapter: A, emails: string[]): A => {
   const lockedIds = async () =>

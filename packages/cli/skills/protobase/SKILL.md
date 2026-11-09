@@ -97,6 +97,7 @@ Reference:
 - When adding audio and video calls, through LiveKit or peer to peer → read [Calls](references/reference/calls.md)
 - When setting roles, capabilities and row filters → read [Access](references/reference/access.md)
 - When configuring sign-in, tokens and the auth schema → read [Login with Better Auth](references/reference/auth.md)
+- When a script or integration calls the app's API as a person with a long-lived token, or turning `auth.personalAccessTokens` on → read [Personal access tokens](references/reference/personal-access-tokens.md)
 - When using the typed client and hooks → read [Client and live UI](references/reference/client.md)
 - When writing composed pages in JSX → read [Layouts](references/reference/layouts.md)
 - When looking for a built-in layout block and its props → read [Blocks](references/reference/blocks.md)

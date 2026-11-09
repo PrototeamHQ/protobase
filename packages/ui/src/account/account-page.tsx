@@ -15,14 +15,14 @@ import { text } from './messages'
 export const useAccountPage = () => {
   const { account } = useAdminMeta()
   const auth = useAuth()
-  const { mcp, accountDeletion } = auth
+  const { mcp, personalAccessTokens, accountDeletion } = auth
   const linkable = linkableProviders(auth).length > 0
   const mailboxes = auth.personalMail.length > 0
   return useMemo(() => {
     if (!account) return undefined
-    const hidden = new Set([...(mcp ? [] : ['ConnectedApps']), ...(linkable ? [] : ['ConnectedAccounts']), ...(mailboxes ? [] : ['PersonalMail']), ...(accountDeletion ? [] : ['DeleteAccount'])])
+    const hidden = new Set([...(mcp ? [] : ['ConnectedApps']), ...(personalAccessTokens ? [] : ['PersonalAccessTokens']), ...(linkable ? [] : ['ConnectedAccounts']), ...(mailboxes ? [] : ['PersonalMail']), ...(accountDeletion ? [] : ['DeleteAccount'])])
     return { ...account, tree: shownAccountTree(account.tree, hidden) }
-  }, [account, mcp, linkable, mailboxes, accountDeletion])
+  }, [account, mcp, personalAccessTokens, linkable, mailboxes, accountDeletion])
 }
 
 /** `/-/account`, and `/-/account/<tab>` for one of its tabs: the signed-in person's account page. */

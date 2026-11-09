@@ -1,7 +1,9 @@
 import { authBasePath } from './auth-base-path'
+import { personalAccessTokenPaths } from './personal-access-tokens/token-plugin'
 
-// The JWT plugin's short-lived API token, the one `token` an answer may carry to the page.
-const apiTokenPath = `${authBasePath}/token`
+// The answers whose `token` the page asked for: the JWT plugin's short-lived API token, and a personal access token the
+// person makes to copy into a script, shown to them once.
+const tokenPaths = [`${authBasePath}/token`, `${authBasePath}${personalAccessTokenPaths.create}`]
 
 const withoutTokens = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(withoutTokens)
@@ -21,10 +23,11 @@ const parsed = (text: string) => {
 
 /**
  * Better Auth's answer to the page without the session tokens in its JSON, such as `get-session`'s `session.token` or a
- * sign-in's `token`: the session is the httpOnly cookie's alone, so script on the page never holds a long-lived credential.
+ * sign-in's `token`: the session is the httpOnly cookie's alone, so script on the page never holds a long-lived credential
+ * it did not ask for. A new personal access token is the one it asks for, to show the person once.
  */
 export const withoutSessionTokens = async (request: Request, response: Response) => {
-  if (new URL(request.url).pathname === apiTokenPath) return response
+  if (tokenPaths.includes(new URL(request.url).pathname)) return response
   if (response.body === null) return response
   if (!response.headers.get('content-type')?.toLowerCase().includes('application/json')) return response
   const text = await response.text()

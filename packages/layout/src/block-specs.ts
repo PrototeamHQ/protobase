@@ -83,6 +83,7 @@ export const blockSpecs: Record<string, BlockSpec> = {
   Connections: { children: false, props: {} },
   Devices: { children: false, props: {} },
   ConnectedApps: { children: false, props: {} },
+  PersonalAccessTokens: { children: false, props: {} },
   DeleteAccount: { children: false, props: {} },
 }
 

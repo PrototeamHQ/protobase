@@ -1,4 +1,4 @@
-import { ConnectedAccounts, ConnectedApps, Connections, DeleteAccount, Devices, Page, Passkeys, Password, PersonalMail, Profile, Tab, Tabs, TwoFactor } from '../blocks'
+import { ConnectedAccounts, ConnectedApps, Connections, DeleteAccount, Devices, Page, Passkeys, Password, PersonalAccessTokens, PersonalMail, Profile, Tab, Tabs, TwoFactor } from '../blocks'
 import { accountPageName } from '../check-account'
 import { page } from '../page'
 
@@ -11,6 +11,7 @@ export const accountTabs = {
   security: Tab({ name: 'security', label: 'Sign-in & security', children: [Password({}), Passkeys({}), TwoFactor({}), ConnectedAccounts({})] }),
   devices: Tab({ name: 'devices', label: 'Devices', children: [Devices({})] }),
   apps: Tab({ name: 'apps', label: 'Connected apps', children: [ConnectedApps({})] }),
+  tokens: Tab({ name: 'tokens', label: 'Access tokens', children: [PersonalAccessTokens({})] }),
 }
 
 /**

@@ -10,7 +10,7 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Versioned sign-in tables](/reference/auth/#migrations): The sign-in tables come from numbered migrations that ship with Protobase, written as the project's own and recorded in the database, so a deploy checks them without comparing tables. Every feature has its tables from the start, so turning one on or off needs no migration.
 - [Existing users table](/reference/auth/#an-existing-users-table): Sign-in can use the users table another system keeps in the same database.
 - [Users page](/reference/auth/#users-page): Admins find people, set roles, block them, add accounts and invite people by email.
-- [Account page](/reference/auth/#account-page): Everyone signed in has an account page for their profile, sign-in and security, devices and connected apps, and you add, hide or reorder its tabs.
+- [Account page](/reference/auth/#account-page): Everyone signed in has an account page for their profile, sign-in and security, devices, connected apps and access tokens, and you add, hide or reorder its tabs.
 - [Password reset](/reference/auth/#password-reset): People reset a forgotten password through an emailed link.
 - [Password changes](/reference/auth/#name-password-and-devices): Changing the password signs out every other device and MCP client, and emails the account that its password changed. Guesses at the current password are limited for each account.
 - [Leaked passwords](/reference/auth/#leaked-passwords): New passwords that appear in a known data breach are refused, when the app turns the check on.
@@ -21,7 +21,7 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Passkeys](/reference/auth/#passkeys): People sign in with their device's face or fingerprint unlock, or with a security key.
 - [Two-factor authentication](/reference/auth/#two-factor-authentication): A second step with an authenticator app, backup codes or emailed codes.
 - [Emailed confirmation code](/reference/auth/#emailed-confirmation-code): Someone without a passkey or a second step confirms it's them with a code emailed on request, where they are, such as before a secret is shown.
-- [Confirming an account change](/reference/auth/#confirming-an-account-change): Adding a passkey, turning on a second step without a password, unlinking a provider or deleting the account from an older session asks to confirm it's them in place, never to sign out and sign in again; a first passkey takes the password too.
+- [Confirming an account change](/reference/auth/#confirming-an-account-change): Adding a passkey, turning on a second step without a password, unlinking a provider, making a personal access token or deleting the account from an older session asks to confirm it's them in place, never to sign out and sign in again; a first passkey takes the password too.
 - [Sign-in policy](/reference/auth/#sign-in-policy): Admins choose which sign-in methods are on, off or required, and the server refuses a policy that would lock people out.
 - [GitHub and social sign-in](/reference/auth/#sign-in-with-github): People sign in with GitHub or another social provider.
 - [Sign-in links](/reference/auth/#sign-in-links-and-connected-accounts): A link signs someone in with a sign-in provider at once, without the sign-in page.
@@ -37,5 +37,6 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Signing key rotation](/reference/auth/#signing-keys): The keys that sign the tokens are replaced every 30 days on their own, and old ones keep verifying the tokens they signed for a week.
 - [Changing the secret](/reference/auth/#changing-the-secret): The app's secret can change while the signing keys keep signing, by listing the old secret beside the new one.
 - [Tokens for scripts](/reference/auth/#tokens-for-scripts-and-curl): A token for an existing user, for scripts and curl, in any organization they work in.
+- [Personal access tokens](/reference/personal-access-tokens/): People make long-lived tokens on their account page for a script to call the API as them, see when each was last used, and revoke any of them. The app keeps only each token's hash.
 - [Several origins](/reference/auth/#several-origins): One app works on several domains, such as its own address and a custom domain.
 - [Sign-in rate limits](/reference/auth/#client-addresses): Sign-in and code requests are limited per client address, also behind a proxy.

@@ -15,6 +15,7 @@
     "account/blocks/delete-account-block#DeleteAccountBlock",
     "account/blocks/devices-block#DevicesBlock",
     "account/blocks/passkeys-block#PasskeysBlock",
+    "account/blocks/personal-access-tokens-block#PersonalAccessTokensBlock",
     "account/blocks/password-block#PasswordBlock",
     "account/blocks/personal-mail-block#PersonalMailBlock",
     "account/blocks/profile-block#ProfileBlock",

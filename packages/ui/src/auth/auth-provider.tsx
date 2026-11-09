@@ -37,6 +37,8 @@ export type AuthApi = {
   accountDeletion: boolean
   /** When MCP clients can connect to the app: its endpoint's `url`, which the account page shows with the clients the person allowed. */
   mcp?: { url: string }
+  /** People may make personal access tokens for their scripts, which the account page lists. */
+  personalAccessTokens: boolean
   /** Anyone can make their own account, so the sign-in page and sign-in prompts offer "Create an account". */
   canSignUp: boolean
   /** The domains people's passkeys were made for, when more than one, the passkey domain first; otherwise empty. */
@@ -129,6 +131,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
   const [changeEmail, setChangeEmail] = useState(false)
   const [accountDeletion, setAccountDeletion] = useState(false)
   const [mcp, setMcp] = useState<{ url: string }>()
+  const [personalAccessTokens, setPersonalAccessTokens] = useState(false)
   const [canSignUp, setCanSignUp] = useState(false)
   const [passkeyDomains, setPasskeyDomains] = useState<string[]>([])
   const [socialProviders, setSocialProviders] = useState<string[]>([])
@@ -199,6 +202,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       setChangeEmail(Boolean(status.changeEmail))
       setAccountDeletion(Boolean(status.accountDeletion))
       setMcp(status.mcp)
+      setPersonalAccessTokens(Boolean(status.personalAccessTokens))
       setCanSignUp(Boolean(status.signUp))
       setPasskeyDomains(status.passkeyDomains ?? [])
       setSocialProviders(status.socialProviders)
@@ -229,6 +233,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       changeEmail,
       accountDeletion,
       mcp,
+      personalAccessTokens,
       canSignUp,
       passkeyDomains,
       socialProviders,
@@ -294,7 +299,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       },
       push,
     }),
-    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, canSignUp, passkeyDomains, socialProviders, platformSignIn, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, identity, signedOutState, markSignedOut, recheck, finish, enter],
+    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, personalAccessTokens, canSignUp, passkeyDomains, socialProviders, platformSignIn, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, identity, signedOutState, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

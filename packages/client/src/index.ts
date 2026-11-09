@@ -69,6 +69,7 @@ export type { AppUser, UserInvitation, UserInvitationSent, UsersClient, UsersFou
 export type { CurrentOrganization, InvitationPreview, InvitationSent, Organization, OrganizationInvitation, OrganizationMember, OrganizationPerson, OrganizationRole, OrganizationsClient, OrganizationsFound } from './organizations'
 export type { ActiveRole, RoleOption, RolesClient } from './roles'
 export type { DeviceSession } from './account-profile'
+export type { NewPersonalAccessToken, PersonalAccessToken } from './account-tokens'
 export type { AccountSecurity, AccountSignIn, AuthenticatorSetup, ConnectedApp, ConnectionRevocation, Passkey, RequiredSetup, WorkflowConnection } from './account-security'
 export type { ConnectClient, ConnectingClient } from './connect'
 export type { SignInPolicy, SignInPolicyClient, SignInPolicyState, SignInRule, StaffAccessRule } from './sign-in-policy'

@@ -6,10 +6,15 @@ import { withTrustedApps, type TrustedApp } from './app-tokens'
 import type { AdminAuth } from './create-auth'
 import { cachedKeys, type JwksCacheOptions } from './jwks-cache'
 import { checkMcpGrant } from './mcp/grant-standing'
+import { mcpScope } from './mcp/mcp-plugins'
 import { noGlobalRole } from './organizations/role-definitions'
 import { sessionMemberships } from './organizations/session-memberships'
 import type { AuthContext, OrganizationRole } from './organizations/store'
+import { personalAccessTokenOf, personalAccessTokenSessions } from './personal-access-tokens/token-sessions'
 import { checkTokenStanding, checkUserStanding, tokenClaims } from './token-standing'
+
+/** The client id of a personal access token at the MCP endpoint, where every request comes from a client. */
+export const personalAccessTokenClient = (id: string) => `personal-access-token:${id}`
 
 export type BetterAuthAuthenticatorOptions = {
   /** The Better Auth instance of this process: keys are read from it directly, no HTTP round trip. */
@@ -64,13 +69,19 @@ export const betterAuthTokens = (options: Pick<BetterAuthAuthenticatorOptions, '
  * (`checkTokenStanding`), so a ban, a lowered role, a deleted user or a sign-out ends it at once; with `jwksUrl` alone
  * a token works until it expires. With organizations and `auth`, the session's `memberships` reads the person's
  * organizations from the store when a list across them asks (`sessionMemberships`). With `apps`, the tokens of those apps are admitted too, with the roles each gives
- * its users here.
+ * its users here. With `auth.personalAccessTokens`, a bearer token with its prefix is a personal access token, looked up
+ * in the store (`personalAccessTokenSessions`), here and for every audience, where it is the client with that audience's scope.
  */
 export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions): BetterAuthAuthenticator => {
   const tokens = betterAuthTokens(options)
   const { issuer } = tokens
   const organizations = options.organizations ?? Boolean(options.auth?.organizations)
   const { auth } = options
+  // With personal access tokens on, a bearer token with the app's prefix is one of them, looked up in the store.
+  const personal = auth?.personalAccessTokens && {
+    prefix: auth.personalAccessTokens.prefix,
+    sessionOf: personalAccessTokenSessions({ prefix: auth.personalAccessTokens.prefix, context: () => auth.$context as unknown as Promise<AuthContext>, organizations, ...(options.tenant !== undefined && { tenant: options.tenant }) }),
+  }
 
   // The app's claims as a session, for its own tokens and those of another audience alike; with `auth`, also whether
   // the token still stands, as `standing` reads it from the store.
@@ -84,6 +95,12 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
       ...verifyOptions,
     })
     const verify: Authenticator = async (request) => {
+      const token = personal && personalAccessTokenOf(request, personal.prefix)
+      if (personal && token !== undefined) {
+        const { session, id, expiresAt } = await personal.sessionOf(token)
+        // At the MCP endpoint, the token is the client, with the endpoint's scope: it can do what its user can.
+        return verifyOptions.oauthClient ? { ...session, client: { id: personalAccessTokenClient(id), scopes: [mcpScope], expiresAt } } : session
+      }
       const { payload, session } = await sessions(request)
       if (!auth) return session
       const { signIn, organizationRole } = await standing((await auth.$context) as unknown as AuthContext, payload, session)

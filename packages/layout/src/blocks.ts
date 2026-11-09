@@ -204,4 +204,6 @@ export const PersonalMail = defineBlock<AccountBlockProps>('PersonalMail', false
 export const Connections = defineBlock<AccountBlockProps>('Connections', false)
 export const Devices = defineBlock<AccountBlockProps>('Devices', false)
 export const ConnectedApps = defineBlock<AccountBlockProps>('ConnectedApps', false)
+/** The signed-in person's personal access tokens, for their scripts (`auth.personalAccessTokens`); nothing when the app has none. */
+export const PersonalAccessTokens = defineBlock<AccountBlockProps>('PersonalAccessTokens', false)
 export const DeleteAccount = defineBlock<AccountBlockProps>('DeleteAccount', false)

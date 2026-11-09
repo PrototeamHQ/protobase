@@ -305,6 +305,17 @@ Turns on the OAuth provider for MCP clients, and with it the MCP endpoint: a cli
 export default defineConfig({ auth: { mcp: true } })
 ```
 
+## auth.personalAccessTokens
+
+- **Type:** `{ prefix: string }`
+- **Default:** off
+
+Turns on personal access tokens: a signed-in person makes long-lived tokens on their account page, for a script to call the app's API as them with `Authorization: Bearer <token>`. `prefix` starts every token, lowercase letters, digits and underscores ending in `_`; it has no default, and the server refuses to start without it or with another. See [Personal access tokens](/reference/personal-access-tokens/).
+
+```ts
+export default defineConfig({ auth: { personalAccessTokens: { prefix: 'invoices_' } } })
+```
+
 ## authenticate
 
 - **Type:** `AuthenticateSettings`

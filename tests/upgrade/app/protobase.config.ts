@@ -6,6 +6,7 @@ export default {
   auth: {
     roles: { admin: 'Admin', editor: 'Editor' },
     organizations: true,
+    personalAccessTokens: { prefix: 'upgrade_' },
   },
   webhooks: {},
   workflows: {},
