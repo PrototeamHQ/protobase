@@ -60,6 +60,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('a move and a write of 
   for (const [what, write] of [
     ['an update', () => send('PATCH', '/tasks/1', { rank: 6 })],
     ['a batch update, as the undo of a move sends', () => send('POST', ':batchWrite', { ops: [{ op: 'update', resource: 'tasks', key: 1, etag: '*', data: { rank: 6 } }] })],
+    ['a reorder', () => send('POST', ':batchWrite', { ops: [{ op: 'reorder', resource: 'tasks', field: 'rank', keys: [1], start: 6, etags: { 1: '*' } }] })],
   ] as const) {
     it(`refuses a move with 412 once ${what} that took the drop place away commits before it`, async () => {
       await other.query(`select pg_advisory_lock(${gateLock})`)
