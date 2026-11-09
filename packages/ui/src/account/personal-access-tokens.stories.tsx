@@ -70,7 +70,7 @@ export const AccessTokenConfirmInPlace: StoryObj<PersonalAccessTokensSectionProp
   },
 }
 
-/** A request that never reaches the server, such as when offline: the dialog says so and stays open to try again. */
+/** A request whose answer never comes, such as when offline: the dialog says the result is unknown and stays open. */
 export const AccessTokenServerUnreachable: StoryObj<PersonalAccessTokensSectionProps> = {
   tags: ['play'],
   args: { tokens, onCreate: fn(async () => created), onRevoke: fn(async () => Promise.reject(new TypeError('Failed to fetch'))) },
@@ -80,7 +80,7 @@ export const AccessTokenServerUnreachable: StoryObj<PersonalAccessTokensSectionP
     await userEvent.click(canvas.getAllByRole('button', { name: 'Revoke' })[0]!)
     const dialog = within(within(document.body).getByRole('dialog', { name: 'Revoke Weekly invoices?' }))
     await userEvent.click(dialog.getByRole('button', { name: 'Revoke' }))
-    expect(await dialog.findByRole('alert')).toHaveTextContent('Could not reach the server')
+    expect(await dialog.findByRole('alert')).toHaveTextContent('check the list before you try again')
     expect(dialog.getByRole('button', { name: 'Revoke' })).toBeEnabled()
   },
 }

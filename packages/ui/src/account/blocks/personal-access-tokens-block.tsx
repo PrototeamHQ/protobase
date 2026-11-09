@@ -10,18 +10,15 @@ const Tokens = () => {
   const { account } = useAuth().session
   const { data: tokens, error, reload } = useAccountData(useCallback(() => account.personalAccessTokens(), [account]), text('couldNotReadAccessTokens'))
   if (!tokens) return <AccountLoading error={error} />
-  // A list that could not be read again after a change says so, rather than showing what it had before.
+  // The list is read again after every change, a failed one too, whose answer may have been lost after the server
+  // made it; a list that could not be read again says so, rather than showing what it had before.
   return (
     <>
       <SectionError message={error} />
       <PersonalAccessTokensSection
-      tokens={tokens}
-      onCreate={async (input) => {
-        const created = await account.createPersonalAccessToken(input)
-        reload()
-        return created
-      }}
-      onRevoke={(id) => account.revokePersonalAccessToken(id).then(reload)}
+        tokens={tokens}
+        onCreate={(input) => account.createPersonalAccessToken(input).finally(reload)}
+        onRevoke={(id) => account.revokePersonalAccessToken(id).finally(reload)}
       />
     </>
   )

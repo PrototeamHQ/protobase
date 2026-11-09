@@ -185,7 +185,7 @@
     "accessTokenCreated": "{name} is klaar",
     "accessTokenCreatedDescription": "Kopieer het token nu: je ziet het niet nog eens. Een script stuurt het in de Authorization-header, na Bearer.",
     "copyAccessToken": "Het token kopiëren",
-    "couldNotReachServer": "Kon de server niet bereiken: controleer je verbinding en probeer het opnieuw.",
+    "noAnswerFromServer": "Er kwam geen antwoord van de server, dus misschien is het wel gebeurd: kijk in de lijst voordat je het opnieuw probeert.",
     "copyRefused": "De browser liet de pagina het niet kopiëren: selecteer de tekst en kopieer hem zelf.",
     "done": "Klaar",
     "createdOn": "Gemaakt {date}",
