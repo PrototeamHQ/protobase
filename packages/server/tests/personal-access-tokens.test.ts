@@ -54,9 +54,10 @@ describe('a personal access token', () => {
     const app = await served()
     const { token } = await create(app, await app.signIn('ana@example.com'))
     const { rows: tables } = await app.store.query<{ name: string }>(`select table_name as name from information_schema.tables where table_schema = current_schema() and table_type = 'BASE TABLE' order by 1`)
+    // Postgres searches each table, so only the counts are read, never a row's times.
     for (const { name } of tables) {
-      const { rows } = await app.store.query<{ row: string }>(`select row_to_json(t)::text as row from "${name}" t`)
-      expect(rows.filter(({ row }) => row.includes(token.slice(prefix.length, -6))), name).toEqual([])
+      const { rows } = await app.store.query<{ found: number }>(`select count(*)::int as found from "${name}" t where strpos(row_to_json(t)::text, $1) > 0`, [token.slice(prefix.length, -6)])
+      expect(rows, name).toEqual([{ found: 0 }])
     }
     const { rows } = await app.store.query<{ token_hash: string }>('select token_hash from personal_access_token')
     expect(rows).toEqual([{ token_hash: expect.stringMatching(/^[0-9a-f]{64}$/) }])
