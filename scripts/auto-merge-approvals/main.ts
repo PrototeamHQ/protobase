@@ -67,11 +67,12 @@ for (const number of await pullNumbers()) {
     continue
   }
 
-  const mergeCommit = await merge(github, number, pull.head.sha)
-  if (!mergeCommit) {
-    console.log(`Not merging #${number}: GitHub refused, as it merged already, its head moved or a block stands.`)
+  const merged = await merge(github, number, pull.head.sha)
+  if ('reason' in merged) {
+    console.log(`Not merging #${number}: GitHub refused, as ${merged.reason}.`)
     continue
   }
+  const { mergeCommit } = merged
   console.log(`Merged #${number} as ${mergeCommit.slice(0, 7)}.`)
   await afterMerge(github, { number, base: pull.base.ref, head: pull.head.ref })
 }

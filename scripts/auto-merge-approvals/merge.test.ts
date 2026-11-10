@@ -11,14 +11,14 @@ const client = (mergeCommit: string | null, ...reads: ReturnType<typeof pull>[])
 describe('merge', () => {
   it('answers the merge commit and reads nothing more when GitHub merges', async () => {
     const github = client('def')
-    expect(await merge(github, 1, 'abc')).toBe('def')
+    expect(await merge(github, 1, 'abc')).toEqual({ mergeCommit: 'def' })
     expect(github.merge).toHaveBeenCalledTimes(1)
     expect(github.pullRequest).not.toHaveBeenCalled()
   })
 
   it('has nothing to do when another run merged it and GitHub showed that only on a second read', async () => {
     const github = client(null, pull({ mergeable_state: 'unknown' }), pull({ merged: true, mergeable_state: 'unknown' }))
-    expect(await merge(github, 1, 'abc')).toBeNull()
+    expect(await merge(github, 1, 'abc')).toEqual({ reason: 'another run merged it first' })
     expect(github.pullRequest).toHaveBeenCalledTimes(2)
   })
 
@@ -29,9 +29,14 @@ describe('merge', () => {
   })
 
   it('has nothing to do after one read when the head moved or a block stands', async () => {
-    for (const read of [pull({ head: { sha: 'new' } }), pull({ mergeable_state: 'blocked' }), pull({ merged: true })]) {
+    const cases = [
+      [pull({ head: { sha: 'new' } }), 'its head moved'],
+      [pull({ mergeable_state: 'blocked' }), 'a block stands'],
+      [pull({ merged: true }), 'another run merged it first'],
+    ] as const
+    for (const [read, reason] of cases) {
       const github = client(null, read)
-      expect(await merge(github, 1, 'abc')).toBeNull()
+      expect(await merge(github, 1, 'abc')).toEqual({ reason })
       expect(github.pullRequest).toHaveBeenCalledTimes(1)
     }
   })
