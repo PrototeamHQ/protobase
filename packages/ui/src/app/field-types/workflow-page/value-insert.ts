@@ -1,4 +1,4 @@
-import type { Definition, Machine, State } from '@protobase/workflows'
+import { innerMachine, type Definition, type Machine, type State } from '@protobase/workflows'
 import { machineAt, splitPath, type StatePath } from '../workflow/definition'
 import { reachedStates } from './run-effects'
 
@@ -57,16 +57,20 @@ export const withRead = (current: unknown, read: string) => {
   return `{% ${JSON.stringify(current)} & ${read} %}`
 }
 
-/** The states that can come before `path` and give a result: in its own machine, and around the Maps it is inside. */
+/**
+ * The states that can come before `path` and give a result: in its own machine, and around the Maps it is inside up to
+ * the innermost Block, whose steps read only what it is given.
+ */
 export const earlierSteps = (definition: Definition, path: StatePath): StatePath[] => {
   const { scope, name } = splitPath(path)
   const before = (machine: Machine, target: string, prefix: readonly string[]) =>
     Object.keys(machine.States)
       .filter((other) => other !== target && reachedStates(machine, other).includes(target))
-      .filter((other) => ['Task', 'Map'].includes(machine.States[other]!.Type))
+      .filter((other) => ['Task', 'Map', 'Block'].includes(machine.States[other]!.Type))
       .map((other) => [...prefix, other].join('/'))
   const own = before(machineAt(definition, scope)!, name, scope)
-  const outer = scope.flatMap((map, index) => before(machineAt(definition, scope.slice(0, index))!, map, scope.slice(0, index)))
+  const blockAt = scope.findLastIndex((_, index) => machineAt(definition, scope.slice(0, index))?.States[scope[index]!]?.Type === 'Block')
+  const outer = scope.flatMap((map, index) => (index <= blockAt ? [] : before(machineAt(definition, scope.slice(0, index))!, map, scope.slice(0, index))))
   return [...outer, ...own]
 }
 
@@ -85,7 +89,7 @@ export const shapesItsOutput = (definition: Definition, path: StatePath) => {
 const assignOf = (state: State) => ('Assign' in state && state.Assign ? state.Assign : {}) as Record<string, unknown>
 
 const assignedNames = (machine: Machine): string[] =>
-  Object.values(machine.States).flatMap((state) => [...Object.keys(assignOf(state)), ...(state.Type === 'Map' ? assignedNames(state.ItemProcessor) : [])])
+  Object.values(machine.States).flatMap((state) => [...Object.keys(assignOf(state)), ...(innerMachine(state) ? assignedNames(innerMachine(state)!) : [])])
 
 // A name no state of the workflow assigns yet, from the step's own, so a later step cannot overwrite it
 const freeVariable = (definition: Definition, stepName: string) => {

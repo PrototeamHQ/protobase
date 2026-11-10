@@ -2,8 +2,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useContext, useEffect, useRef } from 'react'
 import { FocusRefreshContext } from '../../../data/focus-refresh'
 import { liveRefresh } from '../../../data/live-refresh'
+import type { Definition } from '@protobase/workflows'
 import { useRecord } from '../../../data/use-record'
-import { definitionOf } from '../workflow/definition'
+import { definitionOf, pathOfName, stateAt } from '../workflow/definition'
 import type { TraceStep } from './run-trace'
 import { followMs, useRunSteps } from './use-run-steps'
 
@@ -42,9 +43,18 @@ const useEndRefresh = (going: boolean) => {
   }, [going, queryClient, focusRefresh])
 }
 
+// Where a run's steps are on its version's graph: a block's run's inside its Block, from that Block's first state.
+const placeOf = (definition: Definition | undefined, block: unknown) => {
+  if (!definition) return
+  const within = typeof block === 'string' ? pathOfName(definition.stateMachine, block) : undefined
+  const state = within && stateAt(definition, within.join('/'))
+  if (within && state?.Type === 'Block') return { within, startAt: state.Processor.StartAt }
+  return { within: [], startAt: definition.stateMachine.StartAt }
+}
+
 /**
- * A run with what its trace draws: the run as stored, the definition of the version it runs, and the steps of its trace
- * in the order they ran, followed while the run goes on. Without a run nothing is read.
+ * A run with what its trace draws: the run as stored, the definition of the version it runs, where its steps are on that
+ * graph, and the steps of its trace in the order they ran, followed while the run goes on. Without a run nothing is read.
  */
 export const useRunTrace = (runId: string | undefined) => {
   const run = useRecord('workflow_runs', runId ?? '', runId !== undefined)
@@ -52,6 +62,7 @@ export const useRunTrace = (runId: string | undefined) => {
   const versioned = record?.workflow_id != null && record.version != null
   const version = useRecord('workflow_versions', [String(record?.workflow_id ?? ''), Number(record?.version ?? 0)], versioned)
   const going = goingOn.has(String(record?.status))
+  const definition = version.data ? definitionOf(version.data.record.definition) : undefined
   const steps = useRunSteps(runId, going)
   useFollow(going)
   useEndRefresh(going)
@@ -59,7 +70,8 @@ export const useRunTrace = (runId: string | undefined) => {
     id: runId,
     run: record,
     stored: run.data,
-    definition: version.data ? definitionOf(version.data.record.definition) : undefined,
+    definition,
+    place: placeOf(definition, record?.block_state),
     steps: (steps.data ?? []) satisfies TraceStep[],
     going,
     error: run.error ?? version.error ?? steps.error,

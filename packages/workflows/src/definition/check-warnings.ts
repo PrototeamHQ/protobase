@@ -22,7 +22,7 @@ const reachedAvoiding = (machine: Machine, start: string, avoid: string) => {
 // The variables a state reads: its own expressions', and those of the states of a Map inside it, which see its variables.
 const readVariables = (state: State): Set<string> => {
   const names = new Set(stateExpressions(state).flatMap(({ source }) => [...(expressionParsed(source)?.variables ?? [])]))
-  if (state.Type === 'Map') for (const inner of Object.values(state.ItemProcessor.States)) for (const name of readVariables(inner)) names.add(name)
+  if (state.Type === 'Map') for (const inner of Object.values(state.ItemProcessor?.States ?? {})) for (const name of readVariables(inner)) names.add(name)
   return names
 }
 
@@ -53,6 +53,7 @@ const machineWarnings = (machine: Machine, path: string[]): Problem[] => {
 
 /**
  * What a save goes through with but its author should know, each on the state it concerns: a state that reads, after a
- * Wait, a variable a Block assigned before it, whose value may have expired by then.
+ * Wait, a variable a Block assigned before it, whose value may have expired by then. It reads a draft as it stands, so an
+ * editor can show them before the definition can be saved.
  */
 export const definitionWarnings = (definition: Definition): Problem[] => machineWarnings(definition.stateMachine, [])

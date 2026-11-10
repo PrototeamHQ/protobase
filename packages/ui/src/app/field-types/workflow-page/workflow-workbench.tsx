@@ -10,11 +10,11 @@ import { ErrorBanner } from '../../error-banner'
 import { useFocusRecord } from '../../focus/focus-record'
 import { useAppAddress } from '../../use-app-address'
 import { nodeTraces } from '../workflow-run/run-trace'
-import { definitionOf, pathOf, splitPath, stateAt, triggerId, allNames } from '../workflow/definition'
+import { definitionOf, holdsSteps, pathOf, splitPath, stateAt, triggerId, allNames } from '../workflow/definition'
 import { addStateAfter, addStateFirst, freeName, placeAfter, type NewState } from '../workflow/definition-edits'
 import { NodePanel } from '../workflow/node-panel'
 import { ProblemList } from '../workflow/problem-list'
-import { definitionProblems, isMissing, problemsByNode, withoutMissing } from '../workflow/problems'
+import { definitionProblems, isMissing, problemsByNode, warningsByNode, withoutMissing } from '../workflow/problems'
 import { WorkflowCanvas } from '../workflow/workflow-canvas'
 import { text as graphText } from '../workflow/messages'
 import { usePermissions } from '../../meta-gate'
@@ -52,11 +52,11 @@ type Panel = { kind: 'add' } | { kind: 'test'; seed?: TestSeed } | { kind: 'runs
 
 const noProblems = new Map()
 
-// A new state goes into the Map chosen, or the Map the chosen state is in, else into the workflow itself.
+// A new state goes into the Map or Block chosen, or the one the chosen state is in, else into the workflow itself.
 const scopeFor = (definition: Definition, selected: string | undefined): string[] => {
   if (selected === undefined || selected === triggerId) return []
   const names = selected.split('/')
-  return stateAt(definition, selected)?.Type === 'Map' ? names : names.slice(0, -1)
+  return holdsSteps(stateAt(definition, selected)) ? names : names.slice(0, -1)
 }
 
 /**
@@ -87,6 +87,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
           onChange(assign ? assign(next) : next)
         }
   const checked = useMemo(() => problemsByNode(definition ? definitionProblems(definition, types) : []), [definition, types])
+  const warned = useMemo(() => (definition ? warningsByNode(definition) : noProblems), [definition])
   const { address } = useAppAddress()
   const opened = address?.kind === 'record' ? address.panel : undefined
   const noSteps = allNames(draft.stateMachine).length === 0
@@ -115,11 +116,11 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
   const { trace } = page
   const run = view.run === undefined || !trace.run || !trace.id ? undefined : { ...trace.run, id: trace.id, created_at: String(trace.run.created_at) }
   const traces = useMemo(() => {
-    if (!trace.definition) return undefined
-    const marks = nodeTraces(trace.steps, { inProgress: trace.going, startAt: trace.definition.stateMachine.StartAt })
+    if (!trace.definition || !trace.place) return undefined
+    const marks = nodeTraces(trace.steps, { inProgress: trace.going, ...trace.place })
     if (!definition) return marks
     return new Map([...marks].map(([path, mark]) => [path, { ...mark, changed: JSON.stringify(stateAt(trace.definition!, path)) !== JSON.stringify(stateAt(definition, path)) }]))
-  }, [trace.definition, trace.steps, trace.going, definition])
+  }, [trace.definition, trace.place, trace.steps, trace.going, definition])
   const failed = traces && [...traces].filter(([, mark]) => mark.status === 'failed').map(([path]) => path).sort((a, b) => b.split('/').length - a.split('/').length)[0]
   const selected = definition && (chosen === triggerId || (typeof chosen === 'string' && stateAt(definition, chosen))) ? (chosen as string) : chosen === undefined && failed !== undefined && definition && stateAt(definition, failed) ? failed : undefined
   // The field asking for a value is the chosen step's: another step, or none, ends the insert
@@ -176,8 +177,16 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
   const reason = (name: string | undefined, path: string) => {
     if (!ended) return text('runNotEnded')
     if (name === undefined) return
+    if (trace.place && trace.place.within.length > 0) return text('rerunInBlock')
     if (splitPath(path).scope.length > 0) return text('rerunInMap', { map: splitPath(path).scope[0]! })
     return stateAt(draft, path) ? undefined : text('stepNotInVersion', { version: page.latest ?? 0 })
+  }
+  // The outermost Block around a state that the run shown is not itself the run of: the state ran in that block's run
+  const blockAround = (path: string) => {
+    const scope = splitPath(path).scope
+    const within = trace.place?.within.length ?? 0
+    const index = scope.findIndex((_, at) => at >= within && stateAt(draft, scope.slice(0, at + 1).join('/'))?.Type === 'Block')
+    return index === -1 ? undefined : scope[index]
   }
   const rerunFooter = (name: string | undefined, path: string) => {
     if (!run || !mayRun || name === undefined) return undefined
@@ -191,7 +200,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
   const stepPanel = () => {
     if (selected === undefined) return null
     const name = selected === triggerId ? undefined : splitPath(selected).name
-    const form = <NodePanel definition={definition} types={types} selected={selected} problems={shownProblems.get(selected) ?? []} {...(change && !focus.readOnly && { onChange: change })} onSelect={(id) => setChosen(id ?? null)} />
+    const form = <NodePanel definition={definition} types={types} selected={selected} problems={shownProblems.get(selected) ?? []} warnings={warned.get(selected) ?? []} {...(change && !focus.readOnly && { onChange: change })} onSelect={(id) => setChosen(id ?? null)} />
     const latestRun = run ?? page.runs.find((each) => each.status === 'succeeded' || each.status === 'failed')
     const settings = inserting ? (
       <InsertValueView
@@ -227,6 +236,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
         onTab={setTab}
         run={run}
         state={name}
+        block={blockAround(selected)}
         valueActions={valueActions(name)}
         footer={rerunFooter(name, selected)}
         onClose={() => setChosen(null)}
@@ -268,7 +278,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
       />
       <RunNotice view={view} page={page} failed={failed && splitPath(failed).name} changed={focus.dirty} gone={gone} {...(failed !== undefined && failed !== selected && { onOpenFailed: () => setChosen(failed) })} />
       <div className="h-full">
-        <WorkflowCanvas fills definition={definition} problems={run || empty ? noProblems : shownProblems} selected={selected} onSelect={(id) => setChosen(id ?? null)} {...(change && !focus.readOnly && { onChange: change })} {...(traces && run && { traces })} types={types} />
+        <WorkflowCanvas fills definition={definition} problems={run || empty ? noProblems : shownProblems} warnings={run || empty ? noProblems : warned} selected={selected} onSelect={(id) => setChosen(id ?? null)} {...(change && !focus.readOnly && { onChange: change })} {...(traces && run && { traces })} types={types} />
       </div>
       {empty && panel === undefined && (
         <div className="pointer-events-none absolute inset-x-0 top-[60%] flex justify-center">

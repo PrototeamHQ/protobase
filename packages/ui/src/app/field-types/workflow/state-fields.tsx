@@ -21,12 +21,12 @@ export type StateFieldsProps = {
 }
 
 // A field of the state left out when emptied
-const withField = <S extends State>(state: S, name: string, value: unknown): S => {
+const withField = <S extends object>(state: S, name: string, value: unknown): S => {
   const { [name as keyof S]: _, ...rest } = state
   return (value === undefined ? rest : { ...rest, [name]: value }) as S
 }
 
-// Where a Task, Pass, Wait or Map goes on to: its Next, or the end of the run or of its Map item
+// Where a Task, Pass, Wait, Map or Block goes on to: its Next, or the end of the run or of its Map item or Block
 const NextField = ({ state, names, problems, disabled, onChange }: StateFieldsProps) => {
   const flow = state as { Next?: string; End?: boolean }
   const set = (name: string | undefined) => {
@@ -36,7 +36,7 @@ const NextField = ({ state, names, problems, disabled, onChange }: StateFieldsPr
   return <TargetField label={text('goesOnTo')} value={flow.Next} names={names} none={text('endsHere')} error={errorAt(problems, 'Next') ?? errorAt(problems, 'End')} disabled={disabled} onChange={set} />
 }
 
-/** The fields of a state by its type: what it does, where it goes on to, and a Task's or Map's error paths. */
+/** The fields of a state by its type: what it does, where it goes on to, and a Task's, Map's or Block's error paths. */
 export const StateFields = (props: StateFieldsProps) => {
   const { state, types, problems, disabled, onChange } = props
   const value = (field: string, label: string, kind: 'text' | 'json', help?: string) => (
@@ -57,6 +57,20 @@ export const StateFields = (props: StateFieldsProps) => {
       <>
         {value('Items', text('items'), 'json', text('itemsHelp'))}
         {value('MaxConcurrency', text('maxConcurrency'), 'json')}
+        <NextField {...props} />
+        <CatchFields {...props} state={state} />
+      </>
+    )
+  }
+  if (state.Type === 'Block') {
+    const cache = (field: 'Ttl' | 'Key', label: string, kind: 'text' | 'json', help: string) => (
+      <ValueField label={label} kind={kind} help={help} value={state.Cache?.[field]} error={errorAt(problems, `Cache.${field}`) ?? (field === 'Ttl' ? errorAt(problems, 'Cache') : undefined)} disabled={disabled} onChange={(next) => onChange({ ...state, Cache: withField(state.Cache ?? { Ttl: '' }, field, next) as typeof state.Cache })} />
+    )
+    return (
+      <>
+        {value('Arguments', text('blockArguments'), 'json', text('blockArgumentsHelp'))}
+        {cache('Ttl', text('blockTtl'), 'text', text('blockTtlHelp'))}
+        {cache('Key', text('blockKey'), 'json', text('blockKeyHelp'))}
         <NextField {...props} />
         <CatchFields {...props} state={state} />
       </>

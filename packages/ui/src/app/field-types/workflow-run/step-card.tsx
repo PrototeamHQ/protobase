@@ -2,7 +2,10 @@ import type { ReactNode } from 'react'
 import { heldBackLog } from '@protobase/workflows'
 import { formatDateTime } from '../../../format/date'
 import { formatTag } from '../../../locale/active-locale'
+import { cn } from '../../../lib/cn'
 import { Badge } from '../../../primitives/badge'
+import { buttonClass } from '../../../primitives/button'
+import { AppLink } from '../../use-app-address'
 import { JsonBlock } from '../json/json-block'
 import { nodeStatusLabel } from '../workflow/labels'
 import { nodeTones, type NodeStatus } from '../workflow/node-trace'
@@ -38,7 +41,8 @@ const Logs = ({ logs }: { logs: NonNullable<StepRow['logs']> }) => (
 
 /**
  * One step of a run: its try, item, status and timing, then its error, input, output, variables and logs, as the run's
- * trace keeps them, secrets blanked out. A step a replay did not send says so.
+ * trace keeps them, secrets blanked out. A step a replay did not send says so, and a Block's step links to the block's
+ * own run, which gave its result.
  */
 export const StepCard = ({ step, valueActions }: { step: StepRow; valueActions?: ValueActions }) => {
   const heldBack = step.logs?.some((line) => line.message === heldBackLog) ?? false
@@ -65,6 +69,11 @@ export const StepCard = ({ step, valueActions }: { step: StepRow; valueActions?:
             {step.cause != null && <span>: {String(step.cause)}</span>}
           </p>
         </Part>
+      )}
+      {typeof step.run === 'string' && (
+        <AppLink to={{ kind: 'record', resource: 'workflow_runs', key: step.run }} className={cn(buttonClass({ size: 'sm' }), 'justify-self-start')}>
+          {text('openBlockRun')}
+        </AppLink>
       )}
       {step.status !== 'failed' && output}
       {step.input !== undefined && step.input !== null && <Part title={text('input')}><JsonBlock value={step.input} />{valueActions?.(step.input, 'input')}</Part>}

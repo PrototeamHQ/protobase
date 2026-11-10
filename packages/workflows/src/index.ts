@@ -1,7 +1,7 @@
 export { checkDefinition, type CheckOptions } from './definition/check-definition'
 export { definitionSchema } from './definition/schema'
 export { definitionWarnings } from './definition/check-warnings'
-export { allStates, findBlock, innerMachine } from './definition/inner'
+export { allStates, blockDefinition, findBlock, innerMachine } from './definition/inner'
 export { problemText, type Problem } from './definition/problem'
 export { usedConnections } from './definition/used-connections'
 export type { BlockCache, BlockState, Catcher, ChoiceRule, ChoiceState, Definition, Machine, MapState, Retrier, State, StateMachine, TaskState, Trigger } from './definition/types'

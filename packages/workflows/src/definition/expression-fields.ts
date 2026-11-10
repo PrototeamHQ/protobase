@@ -24,7 +24,7 @@ export const stateExpressions = (state: State) => {
   if (state.Type === 'Map') add(state.Items, ['Items'], 'state')
   if (state.Type === 'Block') {
     add(state.Arguments, ['Arguments'], 'state')
-    add(state.Cache.Key, ['Cache', 'Key'], 'state')
+    add(state.Cache?.Key, ['Cache', 'Key'], 'state')
   }
   if (state.Type === 'Wait') {
     add(state.Seconds, ['Seconds'], 'state')

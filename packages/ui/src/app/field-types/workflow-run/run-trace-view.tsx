@@ -28,8 +28,8 @@ export type RunTraceViewProps = {
  * the innermost one when a Map's item failed.
  */
 export const RunTraceView = ({ trace, types, notice, idle }: RunTraceViewProps) => {
-  const { definition, steps, going } = trace
-  const traces = useMemo(() => definition && nodeTraces(steps, { inProgress: going, startAt: definition.stateMachine.StartAt }), [definition, steps, going])
+  const { definition, steps, going, place } = trace
+  const traces = useMemo(() => place && nodeTraces(steps, { inProgress: going, ...place }), [place, steps, going])
   // undefined until a node is chosen or the choice is cleared, which is null
   const [chosen, setChosen] = useState<string | null>()
   if (trace.error) return <ErrorBanner error={trace.error} title={text('loadFailed')} />

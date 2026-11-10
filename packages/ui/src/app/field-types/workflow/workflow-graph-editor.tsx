@@ -5,12 +5,12 @@ import { Plus } from 'lucide-react'
 import { Button } from '../../../primitives/button'
 import { SearchPicker } from '../../../search-picker'
 import { pickedState, stepGroups } from '../workflow-page/step-catalog'
-import { definitionOf, pathOf, stateAt, triggerId } from './definition'
+import { definitionOf, holdsSteps, pathOf, stateAt, triggerId } from './definition'
 import { addState, freeName, type NewState } from './definition-edits'
 import { GraphFrame, PanelHint } from './graph-frame'
 import { NodePanel } from './node-panel'
 import { ProblemList } from './problem-list'
-import { definitionProblems, problemsByNode } from './problems'
+import { definitionProblems, problemsByNode, warningsByNode } from './problems'
 import { WorkflowCanvas } from './workflow-canvas'
 import { text } from './messages'
 
@@ -25,11 +25,11 @@ export type WorkflowGraphEditorProps = {
   notice?: ReactNode
 }
 
-// A new state goes into the Map chosen, or the Map the chosen state is in, else into the workflow itself.
+// A new state goes into the Map or Block chosen, or the one the chosen state is in, else into the workflow itself.
 const scopeFor = (definition: Definition, selected: string | undefined): string[] => {
   if (selected === undefined || selected === triggerId) return []
   const names = selected.split('/')
-  return stateAt(definition, selected)?.Type === 'Map' ? names : names.slice(0, -1)
+  return holdsSteps(stateAt(definition, selected)) ? names : names.slice(0, -1)
 }
 
 /**
@@ -42,6 +42,7 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice }: Workflow
   const json = JSON.stringify(value ?? null)
   const definition = useMemo(() => definitionOf(JSON.parse(json)), [json])
   const checked = useMemo(() => problemsByNode(definitionProblems(definition, types)), [definition, types])
+  const warned = useMemo(() => warningsByNode(definition), [definition])
   const [chosen, setChosen] = useState<string>()
   // The step picker has the side panel
   const [adding, setAdding] = useState(false)
@@ -71,7 +72,7 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice }: Workflow
       )}
       <ProblemList problems={checked.whole} />
       <GraphFrame
-        canvas={<WorkflowCanvas definition={definition} problems={checked.byNode} selected={selected} onSelect={setChosen} onChange={onChange} types={types} />}
+        canvas={<WorkflowCanvas definition={definition} problems={checked.byNode} warnings={warned} selected={selected} onSelect={setChosen} onChange={onChange} types={types} />}
         panel={
           <>
             {notice}
@@ -80,7 +81,7 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice }: Workflow
             ) : selected === undefined ? (
               <PanelHint>{text('pickNode')}</PanelHint>
             ) : (
-              <NodePanel definition={definition} types={types} selected={selected} problems={checked.byNode.get(selected) ?? []} onChange={onChange} onSelect={setChosen} />
+              <NodePanel definition={definition} types={types} selected={selected} problems={checked.byNode.get(selected) ?? []} warnings={warned.get(selected) ?? []} onChange={onChange} onSelect={setChosen} />
             )}
           </>
         }

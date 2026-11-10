@@ -13,7 +13,7 @@ const edited = (definition: Definition, change: (copy: Definition) => void) => {
 }
 
 // The states that go on along their Next: a Choice goes on by its rules, Succeed and Fail end.
-const flowing = new Set<State['Type']>(['Task', 'Pass', 'Wait', 'Map'])
+const flowing = new Set<State['Type']>(['Task', 'Pass', 'Wait', 'Map', 'Block'])
 
 const withNext = (state: State, target: string) => {
   if (!flowing.has(state.Type)) return
@@ -24,7 +24,7 @@ const withNext = (state: State, target: string) => {
 
 const machineOf = (definition: Definition, scope: readonly string[]) => {
   const machine = machineAt(definition, scope)
-  if (!machine) throw new Error(`No Map at ${scope.join('/')}`)
+  if (!machine) throw new Error(`No Map or Block at ${scope.join('/')}`)
   return machine
 }
 
@@ -43,13 +43,14 @@ const freshState = (kind: NewState): State => {
   if (kind.type === 'Succeed') return { Type: 'Succeed' }
   if (kind.type === 'Fail') return { Type: 'Fail' }
   if (kind.type === 'Pass') return { Type: 'Pass', End: true }
+  if (kind.type === 'Block') return { Type: 'Block', Processor: { StartAt: '', States: {} }, Cache: { Ttl: '1 hour' }, End: true }
   return { Type: 'Map', Items: '{% [] %}', ItemProcessor: { StartAt: '', States: {} }, End: true }
 }
 
 /**
  * Adds a state named `name` to the machine at `scope`, not yet connected: it ends the run, or its Map item, and is
- * reached once a state leads to it. In a machine without states it is the first. A Map comes with one state of its
- * own, named after `base` as `freeName` names it, since a machine has at least one.
+ * reached once a state leads to it. In a machine without states it is the first. A Map or a Block comes with one state
+ * of its own, named after `base` as `freeName` names it, since a machine has at least one.
  */
 export const addState = (definition: Definition, scope: readonly string[], kind: NewState, name: string, base: string) =>
   edited(definition, (copy) => {
@@ -57,9 +58,11 @@ export const addState = (definition: Definition, scope: readonly string[], kind:
     const state = freshState(kind)
     machine.States[name] = state
     if (!Object.hasOwn(machine.States, machine.StartAt)) machine.StartAt = name
-    if (state.Type !== 'Map') return
+    if (state.Type !== 'Map' && state.Type !== 'Block') return
     const first = freeName(copy, base)
-    state.ItemProcessor = { StartAt: first, States: { [first]: { Type: 'Pass', End: true } } }
+    const inner: Machine = { StartAt: first, States: { [first]: { Type: 'Pass', End: true } } }
+    if (state.Type === 'Map') state.ItemProcessor = inner
+    else state.Processor = inner
   })
 
 // Whether a new state can go on to the state it takes the place of: a Succeed or a Fail ends the run instead.
@@ -160,7 +163,7 @@ export const connect = (definition: Definition, kind: EdgeKind, source: string, 
     if (kind === 'next') withNext(state, name)
     if (kind === 'rule' && state.Type === 'Choice') state.Choices = [...(state.Choices ?? []), { Condition: '', Next: name }]
     if (kind === 'default' && state.Type === 'Choice') state.Default = name
-    if (kind === 'catch' && (state.Type === 'Task' || state.Type === 'Map')) state.Catch = [...(state.Catch ?? []), { ErrorEquals: ['States.ALL'], Next: name }]
+    if (kind === 'catch' && (state.Type === 'Task' || state.Type === 'Map' || state.Type === 'Block')) state.Catch = [...(state.Catch ?? []), { ErrorEquals: ['States.ALL'], Next: name }]
   })
 
 /** Removes an edge: a Next ends its state instead, and a rule, Default or catcher goes. The trigger's edge stays. */

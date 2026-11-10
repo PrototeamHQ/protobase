@@ -1,4 +1,4 @@
-import type { Definition, Machine, State, Trigger } from '@protobase/workflows'
+import { innerMachine, type Definition, type Machine, type State, type Trigger } from '@protobase/workflows'
 import { pathOf, triggerId, type StatePath } from './definition'
 
 /**
@@ -9,7 +9,7 @@ export type EdgeKind = 'next' | 'rule' | 'default' | 'catch' | 'start'
 
 export type GraphNode =
   | { kind: 'trigger'; id: typeof triggerId; trigger: Trigger }
-  /** `parent` is the path of the Map whose items it runs in, `first` whether its machine starts at it. */
+  /** `parent` is the path of the Map or Block whose steps it is one of, `first` whether its machine starts at it. */
   | { kind: 'state'; id: StatePath; name: string; state: State; scope: string[]; parent?: StatePath; first: boolean }
 
 /** An edge, by the field of its source state that names its target (`Next`, `Choices[0].Next`, `Catch[1].Next`). */
@@ -38,15 +38,16 @@ const machineGraph = (machine: Machine, scope: string[]): Graph => {
   const parent = scope.length > 0 ? scope.join('/') : undefined
   const parts = Object.entries(machine.States).map(([name, state]): Graph => {
     const node: GraphNode = { kind: 'state', id: pathOf(scope, name), name, state, scope, ...(parent !== undefined && { parent }), first: machine.StartAt === name }
-    const inner = state.Type === 'Map' && state.ItemProcessor?.States ? machineGraph(state.ItemProcessor, [...scope, name]) : { nodes: [], edges: [] }
+    const steps = innerMachine(state)
+    const inner = steps?.States ? machineGraph(steps, [...scope, name]) : { nodes: [], edges: [] }
     return { nodes: [node, ...inner.nodes], edges: [...stateEdges(machine, scope, name, state), ...inner.edges] }
   })
   return { nodes: parts.flatMap((part) => part.nodes), edges: parts.flatMap((part) => part.edges) }
 }
 
 /**
- * The definition as a graph: the trigger, each state a node in the order the definition lists them, a Map's states
- * inside it, and an edge for each state a state names. A Map comes before the states inside it. The definition holds
+ * The definition as a graph: the trigger, each state a node in the order the definition lists them, a Map's or a
+ * Block's states inside it, and an edge for each state a state names. A Map or Block comes before the states inside it. The definition holds
  * no positions; the layout places the nodes.
  */
 export const definitionGraph = (definition: Definition): Graph => {
