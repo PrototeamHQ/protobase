@@ -305,6 +305,17 @@ Turns on the OAuth provider for MCP clients, and with it the MCP endpoint: a cli
 export default defineConfig({ auth: { mcp: true } })
 ```
 
+## auth.oauth
+
+- **Type:** `{ api?: boolean }`
+- **Default:** off
+
+What the OAuth provider of [`auth.mcp`](#authmcp) serves besides MCP. `api: true` lets clients get access tokens for the app's API, such as a phone or watch app that signs people in on the connect page, which the API takes as `Authorization: Bearer <token>`. Needs `auth.mcp`; the server refuses to start without it. See [OAuth tokens for the API](/reference/auth/#oauth-tokens-for-the-api).
+
+```ts
+export default defineConfig({ auth: { mcp: true, oauth: { api: true } } })
+```
+
 ## auth.personalAccessTokens
 
 - **Type:** `{ prefix: string }`

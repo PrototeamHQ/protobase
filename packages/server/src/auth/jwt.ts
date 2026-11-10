@@ -26,7 +26,8 @@ export type JwtOptions = {
   /**
    * Takes OAuth access tokens bound to a key (DPoP, RFC 9449) as well as bearer ones: the `DPoP` scheme with a proof in
    * the `DPoP` header, made for `url` with the request's method. A bound token works only with a fresh proof from its
-   * key, each proof once (`replayStore`); a bearer token is refused with the `DPoP` scheme. Default bearer tokens only.
+   * key, each proof once (`replayStore`); a bearer token is refused with the `DPoP` scheme. Default bearer tokens only:
+   * a token bound to a key (`cnf`) is refused, as only a proof of that key may use it (RFC 9449).
    */
   dpop?: { url: string; replayStore: () => Promise<DpopReplayStore> }
   /** Keeps the OAuth client the token was issued to, its `client_id` and `scope`, in the session's `client`. */
@@ -83,6 +84,7 @@ export const jwtSessions = (options: JwtOptions) => {
     if (header === null) throw new MissingCredentials('Send a bearer token in the Authorization header')
     const authorization = authorizationOf(header, Boolean(options.dpop))
     const payload = await verify(authorization.token)
+    if (!options.dpop && payload.cnf !== undefined) throw unauthorized('The token is bound to a key, and this endpoint takes bearer tokens only')
     if (options.dpop) {
       const { url, replayStore } = options.dpop
       const proofJwt = request.headers.get('dpop') ?? undefined

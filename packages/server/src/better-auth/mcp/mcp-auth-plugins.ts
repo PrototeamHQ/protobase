@@ -9,6 +9,7 @@ import { pluginNames } from '../snake-case-names'
 import { mcpConsentCheck } from './consent-check'
 import { mcpConnectedApps } from './connected-apps'
 import { consentReference } from './consent-reference'
+import type { OAuthApiResource } from '../oauth-api'
 import { mcpAccessTokenSeconds, mcpScope, type ResolvedMcp } from './mcp-plugins'
 import { mcpTokenClaims } from './mcp-token-claims'
 import { mcpRefreshReuse } from './refresh-reuse'
@@ -21,6 +22,8 @@ import { mcpSignedQueryGuard } from './signed-query-guard'
 
 export type McpAuthPluginsOptions = {
   mcp: ResolvedMcp
+  /** The app's API as a second resource, from `resolveOAuthApi`, when clients may get tokens for it. */
+  api?: OAuthApiResource
   /** Organizations are on. */
   organizations: boolean
   /** Mail can be sent, as the sign-in policy reads it. */
@@ -40,9 +43,11 @@ export type McpAuthPluginsOptions = {
  * (`mcpRefreshReuse`), and the person's list of connected
  * apps, where they disconnect one (`mcpConnectedApps`). A client registers itself, the person signs in on the app's own pages and allows it on the connect
  * page, and the client gets 15-minute access tokens for the MCP resource only, with refresh tokens, carrying the role
- * and organization the person worked in when they allowed it.
+ * and organization the person worked in when they allowed it. With `api`, the app's API is a second resource, which
+ * every client registered from then on may ask for tokens for (RFC 8707 `resource`); without a `resource`, a token is
+ * still for MCP.
  */
-export const mcpAuthPlugins = ({ mcp: resolved, organizations, mail, defaultPolicy, definitions, context }: McpAuthPluginsOptions) => [
+export const mcpAuthPlugins = ({ mcp: resolved, api, organizations, mail, defaultPolicy, definitions, context }: McpAuthPluginsOptions) => [
   mcpSignedQueryGuard(),
   mcpRequestDefaults(resolved.resource),
   mcpSetupGate({ mail, defaultPolicy, connectPage: resolved.connectPage }),
@@ -54,6 +59,7 @@ export const mcpAuthPlugins = ({ mcp: resolved, organizations, mail, defaultPoli
     clientRegistrationDefaultScopes: [mcpScope, 'offline_access'],
     grantTypes: ['authorization_code', 'refresh_token'],
     allowDynamicClientRegistration: true,
+    ...(api && { resources: [api.resource], clientRegistrationDefaultResources: [api.resource] }),
     allowUnauthenticatedClientRegistration: true,
     // Loopback and app-scheme callbacks (command-line tools, code editors) register without an application type; a sent one stands.
     clientRegistrationDefaultApplicationType: 'infer',

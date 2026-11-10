@@ -38,5 +38,6 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Changing the secret](/reference/auth/#changing-the-secret): The app's secret can change while the signing keys keep signing, by listing the old secret beside the new one.
 - [Tokens for scripts](/reference/auth/#tokens-for-scripts-and-curl): A token for an existing user, for scripts and curl, in any organization they work in.
 - [Personal access tokens](/reference/personal-access-tokens/): People make long-lived tokens on their account page for a script to call the API as them, see when each was last used, and revoke any of them. The app keeps only each token's hash.
+- [OAuth tokens for the API](/reference/auth/#oauth-tokens-for-the-api) (beta): A phone, watch or other app of your own signs people in through the app's own sign-in and calls the API as them with a bearer token, until they disconnect it.
 - [Several origins](/reference/auth/#several-origins): One app works on several domains, such as its own address and a custom domain.
 - [Sign-in rate limits](/reference/auth/#client-addresses): Sign-in and code requests are limited per client address, also behind a proxy.

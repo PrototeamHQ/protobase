@@ -37,6 +37,7 @@ import { selfDeletionCallbackPath, selfDeletionOptions, selfDeletionPath } from 
 import { userDeletion, type UserDeletion } from './user-deletion'
 import { revokeMcpGrants } from './mcp/revoke-grants'
 import type { mcpAuthPlugins } from './mcp/mcp-auth-plugins'
+import { resolveOAuthApi, type OAuthApiOptions, type OAuthApiResource } from './oauth-api'
 import { mcpScope, mcpUnusedPaths, resolveMcp, type McpAuthOptions, type ResolvedMcp } from './mcp/mcp-plugins'
 import { lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
 import { resolvePersonalAccessTokens, type PersonalAccessTokensOptions } from './personal-access-tokens/options'
@@ -249,6 +250,8 @@ export type CreateAuthOptions = {
    * https `baseURL`, or localhost, and the OAuth tables from `protobase auth migration`. Off by default.
    */
   mcp?: true | McpAuthOptions
+  /** What the OAuth provider of `mcp` serves besides MCP: `api` lets clients get tokens for the app's API (see `OAuthApiOptions`). Needs `mcp`. */
+  oauth?: OAuthApiOptions
   /**
    * Turns on personal access tokens: a signed-in person makes long-lived tokens on their account page, for a script to
    * call the app's API as them with `Authorization: Bearer <token>`. `prefix` starts every token, lowercase letters,
@@ -335,6 +338,8 @@ type Resolved = {
   organizations?: ResolvedOrganizations
   /** The MCP provider's options, resolved (`resolveMcp`), when it is on. */
   mcp?: ResolvedMcp
+  /** The app's API as an OAuth resource of the MCP provider, resolved (`resolveOAuthApi`), when `oauth.api` is on. */
+  api?: OAuthApiResource
   /** The personal access tokens' options, checked (`resolvePersonalAccessTokens`), when they are on. */
   personalAccessTokens?: PersonalAccessTokensOptions
   /** The auth context once the instance exists, for the organization hooks and claims and the MCP provider. */
@@ -380,7 +385,7 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, api, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
   const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
   const ownProviders = (connections?.resolved ?? []).filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId)
@@ -511,7 +516,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(personalAccessTokens ? [personalAccessTokensPlugin({ options: personalAccessTokens, definitions })] : []),
       ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders)] : []),
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
-      ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context }) : []),
+      ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, ...(api && { api }), organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context }) : []),
     ].map((plugin) => withUserColumns(plugin, users)),
     disabledPaths: [selfDeletionCallbackPath, ...(accountDeletion ? [] : [selfDeletionPath]), ...unusedEmailCodePaths, ...adminImpersonationPaths, ...providerTokenPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : [])],
     databaseHooks: {
@@ -618,6 +623,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const passkeyDomain = resolvePasskeyDomain(options.passkeyDomain ?? platformPasskeyDomain(), [options.baseURL, ...origins])
   const organizations = options.organizations && resolveOrganizations(options.organizations, definitions)
   const mcp = options.mcp && resolveMcp(options.baseURL, options.mcp)
+  const api = resolveOAuthApi(options.baseURL, options.oauth, mcp || undefined)
   const personalAccessTokens = options.personalAccessTokens === undefined ? undefined : resolvePersonalAccessTokens(options.personalAccessTokens)
   // The organization hooks and the MCP provider read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined
@@ -627,7 +633,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   // Deleting a user revokes their connected accounts and parks the triggers on them, as disconnecting each would.
   if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
-  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
+  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
@@ -701,6 +707,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     },
     /** The OAuth provider for MCP clients, when on: the endpoint's resource (its URL) and path, and the scope its tokens carry. */
     mcp: mcp && { resource: mcp.resource, path: mcp.path, scope: mcpScope },
+    /** The OAuth resource of the app's API, when clients may get tokens for it (`oauth.api`): the audience the API takes them with. */
+    oauthApi: api,
     /** Personal access tokens, when on: the prefix every token starts with. */
     personalAccessTokens,
   })
