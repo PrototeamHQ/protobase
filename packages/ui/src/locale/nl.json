@@ -89,6 +89,8 @@
     "addAddress": "Adres toevoegen",
     "fromAddress": "Adres",
     "fromAddressPlaceholder": "facturen@voorbeeld.nl",
+    "fromName": "Naam",
+    "fromNamePlaceholder": "Getoond naast het adres, zoals Acme Facturen",
     "defaultFromAddress": "Verstuur vanaf dit adres tenzij een ander is gekozen",
     "signature": "Handtekening",
     "signaturePlaceholder": "Laat leeg om de algemene handtekening te gebruiken",

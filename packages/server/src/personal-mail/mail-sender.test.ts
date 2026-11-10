@@ -16,6 +16,12 @@ const store = senderRows([
 const annsMailbox = async () => 'Ann@gmail.example'
 
 describe('chooseSender', () => {
+  it('sends as an address the person entered, with its display name', async () => {
+    const named = senderRows([row({ id: 'n1', userId: 'ann', address: 'ann@acme.example', name: 'Ann of Acme' })])
+    expect(await chooseSender(named, 'ann', annsMailbox, 'ann@acme.example')).toEqual({ address: 'ann@acme.example', name: 'Ann of Acme', ownerId: 'ann' })
+    expect(await usableSenders(named, 'ann', annsMailbox)).toContainEqual({ address: 'ann@acme.example', name: 'Ann of Acme', ownerId: 'ann' })
+  })
+
   it('sends as an address the person entered, with its own signature', async () => {
     expect(await chooseSender(store, 'ann', annsMailbox, 'billing@acme.example')).toEqual({ address: 'billing@acme.example', ownerId: 'ann', signature: 'Warm regards,\nAnn of Acme' })
   })

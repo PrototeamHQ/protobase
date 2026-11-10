@@ -9,7 +9,7 @@ let stores: McpStores
 beforeAll(async () => { stores = await mcpStores() })
 afterAll(async () => { await stores.fixture.db.destroy() })
 
-type Sender = { id: string; address: string; signature?: string; isDefault: boolean }
+type Sender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean }
 type Served = Awaited<ReturnType<typeof serveMcp>>
 
 const personalMail = { personalMail: ['gmail' as const], encryptOAuthTokens: true, socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } } }
@@ -49,12 +49,28 @@ describe('the From addresses on the account page', () => {
     expect(await listed(app, cookie)).toEqual([{ ...sales, isDefault: false }])
   })
 
+  it('carry the display name their owner enters, until they clear it', async () => {
+    const app = await served()
+    const cookie = await app.signIn('ana@example.com')
+    const billing = await add(app, cookie, { address: 'billing@acme.example', name: '  Ana of Acme ' })
+    expect(billing).toEqual({ id: billing.id, address: 'billing@acme.example', name: 'Ana of Acme', isDefault: false })
+    const anaMail = app.auth.personalMailer(await app.userId('ana@example.com'))
+    expect(await anaMail.sender('billing@acme.example')).toMatchObject({ address: 'billing@acme.example', name: 'Ana of Acme' })
+
+    const broken = await update(app, cookie, { id: billing.id, name: 'Ana\r\nBcc: eve@example.com' })
+    expect(broken.status).toBe(400)
+    expect((await update(app, cookie, { id: billing.id, name: 'Acme billing' })).status).toBe(200)
+    expect(await listed(app, cookie)).toEqual([{ ...billing, name: 'Acme billing' }])
+    expect((await update(app, cookie, { id: billing.id, name: null })).status).toBe(200)
+    expect(await listed(app, cookie)).toEqual([{ id: billing.id, address: 'billing@acme.example', isDefault: false }])
+  })
+
   it("leaves another person's addresses alone", async () => {
     const app = await served()
     const ana = await app.signIn('ana@example.com')
     const bo = await app.signIn('bo@example.com')
     const billing = await add(app, ana, { address: 'billing@acme.example' })
-    const changed = await update(app, bo, { id: billing.id, signature: 'Bo' })
+    const changed = await update(app, bo, { id: billing.id, name: 'Bo', signature: 'Bo' })
     expect(changed.status).toBe(404)
     expect((await app.request('/api/auth/account/mail-senders/remove', { cookie: bo, body: { id: billing.id } })).status).toBe(200)
     expect(await listed(app, bo)).toEqual([])

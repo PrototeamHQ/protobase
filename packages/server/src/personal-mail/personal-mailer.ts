@@ -53,7 +53,7 @@ export const personalMailer = (accounts: LinkedAccounts, providers: PersonalMail
       const linked = await linkedProvider(accounts, providers, chosen.ownerId)
       if (!linked) throw new PersonalMailError('not_linked')
       const accessToken = await accounts.accessToken(chosen.ownerId, linked.account, linked.provider.id)
-      await linked.provider.send(message, accessToken, chosen.address)
+      await linked.provider.send(message, accessToken, chosen.address ? { address: chosen.address, ...(chosen.name && { name: chosen.name }) } : undefined)
     },
     sender,
     senders: () => usableSenders(senders, userId, ownAddress),

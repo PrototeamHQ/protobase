@@ -3,11 +3,17 @@ import type { MailSenderRow, MailSenderStore } from './sender-store'
 
 /**
  * A From address someone may send mail from: `address`, unknown when it is the mailbox's own and the link does not name
- * it; `ownerId`, whose mailbox it goes out through; and its own `signature`, if it has one.
+ * it; the display `name` its owner entered, if any; `ownerId`, whose mailbox it goes out through; and its own
+ * `signature`, if it has one.
  */
-export type MailSender = { address?: string; ownerId: string; signature?: string }
+export type MailSender = { address?: string; name?: string; ownerId: string; signature?: string }
 
-const senderOf = (row: MailSenderRow): MailSender => ({ address: row.address, ownerId: row.userId, ...(row.signature && { signature: row.signature }) })
+const senderOf = (row: MailSenderRow): MailSender => ({
+  address: row.address,
+  ...(row.name && { name: row.name }),
+  ownerId: row.userId,
+  ...(row.signature && { signature: row.signature }),
+})
 
 /**
  * The sender `userId` sends as with `from`, matched without regard to case: an address they entered; else their

@@ -38,10 +38,25 @@ describe('gmail', () => {
 
   it('puts the chosen address in the From header', async () => {
     const { fetcher, provider } = answering(() => json(sentMessage))
-    await provider.send(invoice, 'access-1', 'billing@acme.example')
+    await provider.send(invoice, 'access-1', { address: 'billing@acme.example' })
     const raw = new TextDecoder().decode(fetcher.mock.calls[0]![1]!.body as Uint8Array).replace(/\r\n/g, '\n')
     expect(raw).toMatch(/^From: billing@acme\.example$/m)
     expect(raw).toMatch(/^To: ada@example\.com$/m)
+  })
+
+  it('names the chosen address with its display name, quoted where the name needs it', async () => {
+    const { fetcher, provider } = answering(() => json(sentMessage))
+    await provider.send(invoice, 'access-1', { address: 'billing@acme.example', name: 'Acme, Billing' })
+    const raw = new TextDecoder().decode(fetcher.mock.calls[0]![1]!.body as Uint8Array).replace(/\r\n/g, '\n')
+    expect(raw).toMatch(/^From: "Acme, Billing" <billing@acme\.example>$/m)
+  })
+
+  it('encodes a display name that is not ASCII', async () => {
+    const { fetcher, provider } = answering(() => json(sentMessage))
+    await provider.send(invoice, 'access-1', { address: 'billing@acme.example', name: 'Zoë Ærø' })
+    const raw = new TextDecoder().decode(fetcher.mock.calls[0]![1]!.body as Uint8Array).replace(/\r\n/g, '\n')
+    expect(raw).toMatch(/^From: =\?UTF-8\?B\?Wm\/DqyDDhnLDuA==\?= <billing@acme\.example>$/m)
+    expect(Buffer.from('Wm/DqyDDhnLDuA==', 'base64').toString()).toBe('Zoë Ærø')
   })
 
   it('is link_expired when Gmail refuses the token', async () => {

@@ -131,7 +131,7 @@
       {"sql":"select \"primary\".* from (select * from \"oauth_resource\" where \"oauth_resource\".\"identifier\" = $1) as \"primary\"","params":["http://localhost:5173/api/mcp"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["identifier",25],["name",25],["access_token_ttl",23],["refresh_token_ttl",23],["signing_algorithm",25],["signing_key_id",25],["allowed_scopes",3802],["custom_claims",3802],["dpop_bound_access_tokens_required",16],["disabled",16],["created_at",1184],["updated_at",1184],["policy_version",23],["metadata",3802]],"rows":[]}},
       {"sql":"insert into \"oauth_resource\" (\"identifier\", \"name\", \"access_token_ttl\", \"refresh_token_ttl\", \"signing_algorithm\", \"signing_key_id\", \"allowed_scopes\", \"custom_claims\", \"dpop_bound_access_tokens_required\", \"disabled\", \"created_at\", \"updated_at\", \"policy_version\", \"metadata\", \"id\") values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) returning *","params":["http://localhost:5173/api/mcp","http://localhost:5173/api/mcp",null,null,null,null,null,null,"false","false","2026-08-01T00:00:00.000+00:00","2026-08-01T00:00:00.000+00:00","1",null,"0DkgVixnfIq8aTuHLcxGg4JBQuNpOsUG"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",25],["identifier",25],["name",25],["access_token_ttl",23],["refresh_token_ttl",23],["signing_algorithm",25],["signing_key_id",25],["allowed_scopes",3802],["custom_claims",3802],["dpop_bound_access_tokens_required",16],["disabled",16],["created_at",1184],["updated_at",1184],["policy_version",23],["metadata",3802]],"rows":[["0DkgVixnfIq8aTuHLcxGg4JBQuNpOsUG","http://localhost:5173/api/mcp","http://localhost:5173/api/mcp",null,null,null,null,null,null,"f","f","2026-08-01 00:00:00+00","2026-08-01 00:00:00+00","1",null]]}},
       {"sql":"select to_regclass($1) is not null as found","params":["\"auth_migrations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
-      {"sql":"select version from \"auth_migrations\" order by version","result":{"command":"SELECT","rowCount":9,"columns":[["version",23]],"rows":[
+      {"sql":"select version from \"auth_migrations\" order by version","result":{"command":"SELECT","rowCount":10,"columns":[["version",23]],"rows":[
         ["1"],
         ["2"],
         ["3"],
@@ -140,7 +140,8 @@
         ["6"],
         ["7"],
         ["8"],
-        ["9"]
+        ["9"],
+        ["10"]
       ]}}
     ]
   },
@@ -7810,7 +7811,7 @@
       {"sql":"insert into \"oauth_refresh_token\" (\"token\", \"client_id\", \"session_id\", \"user_id\", \"reference_id\", \"authorization_code_id\", \"resources\", \"expires_at\", \"created_at\", \"auth_time\", \"scopes\", \"id\") values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) returning *","params":["dUS0seDVFY-go76bpvrqpPegmBTbK-vCqHROuQ4tkwA","MTqBghtTMHmDajdyqvyZAvarQvfIYOKt","03tBwo618gwOx1ksso5vfVTTW6Q05QIK","41rLl0VKCM2rPEFFJVrNTBQZmujdu80x","role=sales","WLZn8AHoEl-kMt_pOdBxWjVnvKgQnuBnAEcfY6TrAgo","[\"http://localhost:5173/api/mcp\"]","2026-08-31T00:00:00.000+00:00","2026-08-01T00:00:00.000+00:00","2026-08-01T00:00:00.000+00:00","[\"mcp\",\"offline_access\"]","uhfFgLE5vaGvePWv39cIzUTmR2r9e1Pg"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",25],["token",25],["client_id",25],["session_id",25],["user_id",25],["reference_id",25],["authorization_code_id",25],["resources",3802],["requested_user_info_claims",3802],["expires_at",1184],["created_at",1184],["revoked",1184],["rotated_at",1184],["rotation_replay_response",25],["rotation_replay_expires_at",1184],["auth_time",1184],["confirmation",3802],["scopes",3802]],"rows":[["uhfFgLE5vaGvePWv39cIzUTmR2r9e1Pg","dUS0seDVFY-go76bpvrqpPegmBTbK-vCqHROuQ4tkwA","MTqBghtTMHmDajdyqvyZAvarQvfIYOKt","03tBwo618gwOx1ksso5vfVTTW6Q05QIK","41rLl0VKCM2rPEFFJVrNTBQZmujdu80x","role=sales","WLZn8AHoEl-kMt_pOdBxWjVnvKgQnuBnAEcfY6TrAgo","[\"http://localhost:5173/api/mcp\"]",null,"2026-08-31 00:00:00+00","2026-08-01 00:00:00+00",null,null,null,null,"2026-08-01 00:00:00+00",null,"[\"mcp\", \"offline_access\"]"]]}},
       {"sql":"select (select count(*) from oauth_client)::int as clients, (select count(*) from oauth_consent)::int as consents","result":{"command":"SELECT","rowCount":1,"columns":[["clients",23],["consents",23]],"rows":[["1","1"]]}},
       {"sql":"select to_regclass($1) is not null as found","params":["\"auth_migrations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
-      {"sql":"select version from \"auth_migrations\" order by version","result":{"command":"SELECT","rowCount":9,"columns":[["version",23]],"rows":[
+      {"sql":"select version from \"auth_migrations\" order by version","result":{"command":"SELECT","rowCount":10,"columns":[["version",23]],"rows":[
         ["1"],
         ["2"],
         ["3"],
@@ -7819,10 +7820,11 @@
         ["6"],
         ["7"],
         ["8"],
-        ["9"]
+        ["9"],
+        ["10"]
       ]}},
       {"sql":"select to_regclass($1) is not null as found","params":["\"auth_migrations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
-      {"sql":"select version from \"auth_migrations\" order by version","result":{"command":"SELECT","rowCount":9,"columns":[["version",23]],"rows":[
+      {"sql":"select version from \"auth_migrations\" order by version","result":{"command":"SELECT","rowCount":10,"columns":[["version",23]],"rows":[
         ["1"],
         ["2"],
         ["3"],
@@ -7831,7 +7833,8 @@
         ["6"],
         ["7"],
         ["8"],
-        ["9"]
+        ["9"],
+        ["10"]
       ]}},
       {"sql":"select \"primary\".* from (select * from \"user\" order by \"created_at\" asc limit $1) as \"primary\" order by \"created_at\" asc","params":["100"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",25],["name",25],["email",25],["email_verified",16],["image",25],["created_at",1184],["updated_at",1184],["role",25],["banned",16],["ban_reason",25],["ban_expires",1184],["last_role",25],["email_confirmed_at",1184],["two_factor_enabled",16],["last_organization_id",25]],"rows":[
         ["9A5u5VRWqms0sl1Pz4ugorjZA3lSBUmv","root","root@example.com","t",null,"2026-08-01 00:00:00+00","2026-08-01 00:00:00+00","admin","f",null,null,null,"2026-08-01 00:00:00+00","f",null],
@@ -7850,7 +7853,7 @@
       {"sql":"select (select count(*) from oauth_client)::int as clients, (select count(*) from oauth_consent)::int as consents","result":{"command":"SELECT","rowCount":1,"columns":[["clients",23],["consents",23]],"rows":[["1","1"]]}},
       {"sql":"select \"primary\".* from (select * from \"oauth_resource\" where \"oauth_resource\".\"identifier\" = $1) as \"primary\"","params":["http://localhost:5173/api/mcp"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",25],["identifier",25],["name",25],["access_token_ttl",23],["refresh_token_ttl",23],["signing_algorithm",25],["signing_key_id",25],["allowed_scopes",3802],["custom_claims",3802],["dpop_bound_access_tokens_required",16],["disabled",16],["created_at",1184],["updated_at",1184],["policy_version",23],["metadata",3802]],"rows":[["5tbYr4ZUgVU9nRO4evGfEcXfYQXbbe8X","http://localhost:5173/api/mcp","http://localhost:5173/api/mcp",null,null,null,null,null,null,"f","f","2026-08-01 00:00:00+00","2026-08-01 00:00:00+00","1",null]]}},
       {"sql":"select to_regclass($1) is not null as found","params":["\"auth_migrations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
-      {"sql":"select version from \"auth_migrations\" order by version","result":{"command":"SELECT","rowCount":9,"columns":[["version",23]],"rows":[
+      {"sql":"select version from \"auth_migrations\" order by version","result":{"command":"SELECT","rowCount":10,"columns":[["version",23]],"rows":[
         ["1"],
         ["2"],
         ["3"],
@@ -7859,10 +7862,11 @@
         ["6"],
         ["7"],
         ["8"],
-        ["9"]
+        ["9"],
+        ["10"]
       ]}},
       {"sql":"select to_regclass($1) is not null as found","params":["\"auth_migrations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
-      {"sql":"select version from \"auth_migrations\" order by version","result":{"command":"SELECT","rowCount":9,"columns":[["version",23]],"rows":[
+      {"sql":"select version from \"auth_migrations\" order by version","result":{"command":"SELECT","rowCount":10,"columns":[["version",23]],"rows":[
         ["1"],
         ["2"],
         ["3"],
@@ -7871,7 +7875,8 @@
         ["6"],
         ["7"],
         ["8"],
-        ["9"]
+        ["9"],
+        ["10"]
       ]}},
       {"sql":"select (select count(*) from oauth_client)::int as clients, (select count(*) from oauth_consent)::int as consents","result":{"command":"SELECT","rowCount":1,"columns":[["clients",23],["consents",23]],"rows":[["1","1"]]}},
       {"sql":"select \"primary\".* from (select * from \"oauth_resource\" where \"oauth_resource\".\"identifier\" = $1) as \"primary\"","params":["http://localhost:5173/api/mcp"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",25],["identifier",25],["name",25],["access_token_ttl",23],["refresh_token_ttl",23],["signing_algorithm",25],["signing_key_id",25],["allowed_scopes",3802],["custom_claims",3802],["dpop_bound_access_tokens_required",16],["disabled",16],["created_at",1184],["updated_at",1184],["policy_version",23],["metadata",3802]],"rows":[["5tbYr4ZUgVU9nRO4evGfEcXfYQXbbe8X","http://localhost:5173/api/mcp","http://localhost:5173/api/mcp",null,null,null,null,null,null,"f","f","2026-08-01 00:00:00+00","2026-08-01 00:00:00+00","1",null]]}},

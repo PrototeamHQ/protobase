@@ -12,7 +12,7 @@ import { text } from './messages'
 export type MailSendersSectionProps = {
   senders: MailSenders
   /** Each rejects with `AuthError`, which the section shows. */
-  onAdd: (input: { address: string; signature?: string }) => Promise<MailSender>
+  onAdd: (input: { address: string; name?: string; signature?: string }) => Promise<MailSender>
   onUpdate: (id: string, change: MailSenderChange) => Promise<unknown>
   onRemove: (id: string) => Promise<void>
 }
@@ -57,12 +57,13 @@ export const MailSendersSection = ({ senders: { address, senders }, onAdd, onUpd
     }
   }
 
-  // An empty signature drops the address's own, so the generic one applies.
+  // An empty name drops the address's name, and an empty signature its own, so the generic one applies.
   const save = (input: MailSenderInput) =>
     attempt(async () => {
+      const name = input.name || null
       const signature = input.signature.trim() ? input.signature : null
-      if (editing?.kind === 'change') return onUpdate(editing.sender.id, { signature, isDefault: input.isDefault })
-      const added = await onAdd({ address: input.address, ...(signature && { signature }) })
+      if (editing?.kind === 'change') return onUpdate(editing.sender.id, { name, signature, isDefault: input.isDefault })
+      const added = await onAdd({ address: input.address, ...(name && { name }), ...(signature && { signature }) })
       if (input.isDefault) await onUpdate(added.id, { isDefault: true })
     })
 
@@ -94,6 +95,7 @@ export const MailSendersSection = ({ senders: { address, senders }, onAdd, onUpd
               <AtSign className="size-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1">
                 <bdi className="block truncate font-medium">{sender.address}</bdi>
+                {sender.name && <bdi className="block truncate">{sender.name}</bdi>}
                 <span className="block text-xs text-muted-foreground">{detailsOf(sender)}</span>
               </span>
               {sender.isDefault && <Badge tone="blue">{text('default')}</Badge>}

@@ -1,5 +1,8 @@
 import type { MailMessage } from '../mail/smtp-mailer'
 
+/** A From address with the display name the From header shows beside it, if it has one. */
+export type MailFrom = { address: string; name?: string }
+
 /**
  * A mail provider people link their own mailbox with, through the app's sign-in provider of the same company: linking
  * asks the sign-in provider for `scopes` with `linkParams`, the sign-in account Better Auth keeps holds the tokens, and
@@ -20,5 +23,5 @@ export type PersonalMailProvider = {
    * Sends `message` from the mailbox, with `from` as its From address when given, else the mailbox's own. Rejects with a `PersonalMailError` of `link_expired` when the provider refuses the
    * token, and with an error naming the status for anything else it refuses.
    */
-  send: (message: MailMessage, accessToken: string, from?: string) => Promise<void>
+  send: (message: MailMessage, accessToken: string, from?: MailFrom) => Promise<void>
 }

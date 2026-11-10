@@ -89,6 +89,8 @@
     "addAddress": "Add address",
     "fromAddress": "Address",
     "fromAddressPlaceholder": "billing@example.com",
+    "fromName": "Name",
+    "fromNamePlaceholder": "Shown beside the address, such as Acme Billing",
     "defaultFromAddress": "Send from this address unless another is chosen",
     "signature": "Signature",
     "signaturePlaceholder": "Leave empty to use the generic signature",

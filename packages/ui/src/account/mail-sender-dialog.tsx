@@ -8,8 +8,8 @@ import { Textarea } from '../primitives/textarea'
 import { SectionError } from './account-section'
 import { text } from './messages'
 
-/** What the dialog asks: the address, when it is a new one, its own signature, and if it is the default. */
-export type MailSenderInput = { address: string; signature: string; isDefault: boolean }
+/** What the dialog asks: the address, when it is a new one, its display name, its own signature, and if it is the default. */
+export type MailSenderInput = { address: string; name: string; signature: string; isDefault: boolean }
 
 type MailSenderDialogProps = {
   /** The address to change; without it, the dialog enters a new one. */
@@ -20,12 +20,13 @@ type MailSenderDialogProps = {
   onClose: () => void
 }
 
-/** Enters a From address, or changes one: whether it is the default, and its own signature. */
+/** Enters a From address, or changes one: its display name, whether it is the default, and its own signature. */
 export const MailSenderDialog = ({ sender, busy, error, onSave, onClose }: MailSenderDialogProps) => {
   const [address, setAddress] = useState(sender?.address ?? '')
+  const [name, setName] = useState(sender?.name ?? '')
   const [signature, setSignature] = useState(sender?.signature ?? '')
   const [isDefault, setDefault] = useState(sender?.isDefault ?? false)
-  const save = () => onSave({ address: address.trim(), signature, isDefault })
+  const save = () => onSave({ address: address.trim(), name: name.trim(), signature, isDefault })
   return (
     <Dialog
       title={sender ? sender.address : text('addFromAddress')}
@@ -46,6 +47,10 @@ export const MailSenderDialog = ({ sender, busy, error, onSave, onClose }: MailS
           <Input autoFocus type="email" value={address} maxLength={254} placeholder={text('fromAddressPlaceholder')} onChange={(event) => setAddress(event.target.value)} />
         </label>
       )}
+      <label className="mt-3 flex flex-col gap-1.5 font-medium">
+        {text('fromName')}
+        <Input value={name} maxLength={100} placeholder={text('fromNamePlaceholder')} onChange={(event) => setName(event.target.value)} />
+      </label>
       <label className="mt-3 flex cursor-pointer items-center justify-between gap-3">
         <span>{text('defaultFromAddress')}</span>
         <Switch checked={isDefault} onChange={setDefault} label={text('defaultFromAddress')} />
