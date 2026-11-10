@@ -31,7 +31,7 @@ Pull requests run the checks on GitHub's runners. Pushes to `main`, which the re
 
 ## Merging on approval
 
-A pull request with the `auto-merge-approvals` label squash-merges once every check on its head passed and CodeRabbit or an account with write access approved that head after the label was added (`.github/workflows/auto-merge-approvals.yml`, with the rules in `scripts/auto-merge-approvals/decision.ts`). CodeRabbit reviews a pull request once; after a change request, `.github/workflows/coderabbit-follow-up.yml` checks the fixes on later pushes, and its clean verdict of the head after the label counts as that approval when the pull request comes from a branch of this repository by an author with write access. One that changes, renames or deletes a file under `.github/workflows/` waits for a human merge, as one comment on it says.
+A pull request with the `auto-merge-approvals` label squash-merges once every check on its head passed and CodeRabbit, an account with write access or a clean `coderabbit-follow-up` verdict approved that head after the label was added (`.github/workflows/auto-merge-approvals.yml`, with the rules in `scripts/auto-merge-approvals/decision.ts`). One that changes, renames or deletes a file under `.github/workflows/` waits for a human merge, as one comment on it says.
 
 ## Release speed
 
