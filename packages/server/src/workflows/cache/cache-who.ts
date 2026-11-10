@@ -3,12 +3,13 @@ import type { CacheIdentity } from '@protobase/workflows'
 
 /**
  * Who a call of a run acts as, from the run's own rows, never from the step: the run's tenant always; the version's
- * saver and the person who turned it on where the type acts as them; and for a type's connection, the account the
- * version binds to it with the person who turned it on, or for a Block every account it binds.
+ * saver with the roles they hold now (`roles`, sorted) and the person who turned it on where the type acts as them; and
+ * for a type's connection, the account the version binds to it with the person who turned it on, or for a Block every
+ * account it binds. A change of the saver's roles so makes earlier entries ones that no longer match.
  */
-export const whoOf = (schema: string, runId: string, { saver, enabler, connection, bindings }: CacheIdentity) => {
+export const whoOf = (schema: string, runId: string, { saver, enabler, connection, bindings }: CacheIdentity, roles: readonly string[] = []) => {
   const parts = [sql`jsonb_build_object('tenant', r.tenant_id)`]
-  if (saver) parts.push(sql`jsonb_build_object('saver', v.saved_by)`)
+  if (saver) parts.push(sql`jsonb_build_object('saver', v.saved_by, 'roles', ${JSON.stringify(roles)}::jsonb)`)
   if (enabler || connection || bindings) parts.push(sql`jsonb_build_object('enabler', v.enabled_by)`)
   if (connection) parts.push(sql`jsonb_build_object('connection', v.definition -> 'connections' ->> ${connection})`)
   // Account ids only: a binding names the account, never its tokens.

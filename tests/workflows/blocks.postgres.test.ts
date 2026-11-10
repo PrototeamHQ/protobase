@@ -15,6 +15,8 @@ vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
 const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs'>({ builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*'] })
 const secretValue = 'block-secret-value-1234'
+// The roles the workflows' last editor holds now, which a test changes.
+let saverHolds = ['builder']
 
 // A fetch of a link that counts its calls, and a step that returns nothing.
 const fetched: unknown[] = []
@@ -56,7 +58,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
   beforeAll(async () => {
     vi.stubEnv('BLOCK_KEY', secretValue)
     vi.stubEnv('PROTOBASE_SECRET', 'app-secret-for-the-blocks-test')
-    const workflows: WorkflowsOptions = { savedByRoles: async () => ['builder'], plugins: [{ plugin, source: 'acme' }], secrets: ['BLOCK_KEY'] }
+    const workflows: WorkflowsOptions = { savedByRoles: async () => saverHolds, plugins: [{ plugin, source: 'acme' }], secrets: ['BLOCK_KEY'] }
     pg = await openPostgresDatabase('jobs')
     db = pg.db
     await pg.exec((await workflowsMigration(db, workflows))!)
@@ -118,6 +120,24 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
     const other = await create('2', '/workflows', { name: 'Nothing', definition: blockOf('acme:nothing') })
     await run('2', other, { url: 'u' })
     expect(fetched.length - before).toBe(2)
+  })
+
+  it("reuses no result once the saver's roles change, and none while the saver holds no role", async () => {
+    const workflow = await create('1', '/workflows', { name: 'Roles', definition: blockOf('acme:fetch') })
+    const before = fetched.length
+    await run('1', workflow, { url: 'https://files.test/roles' })
+    await run('1', workflow, { url: 'https://files.test/roles' })
+    expect(fetched.length - before).toBe(1)
+    saverHolds = ['builder', 'viewer']
+    await run('1', workflow, { url: 'https://files.test/roles' })
+    expect(fetched.length - before).toBe(2)
+    saverHolds = []
+    await run('1', workflow, { url: 'https://files.test/roles' })
+    await run('1', workflow, { url: 'https://files.test/roles' })
+    expect(fetched.length - before).toBe(4)
+    saverHolds = ['builder']
+    await run('1', workflow, { url: 'https://files.test/roles' })
+    expect(fetched.length - before).toBe(4)
   })
 
   it('keeps no secret in the cache, and none of its read values in the key', async () => {
