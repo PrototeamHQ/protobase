@@ -18,9 +18,11 @@ const writes = { readOnlyHint: false, destructiveHint: false, openWorldHint: fal
 const nameParameter = { type: 'string', description: 'A name, 1 to 100 characters.' }
 const descriptionParameter = { type: 'string', description: 'What it does, for people; at most 2000 characters.' }
 
-// With the checker's warnings on the saved definition, which a save goes through with.
+// With the checker's warnings on the saved definition, which a save goes through with; none where a field rule hides
+// the definition from the caller.
 const saved = (record: Row, etag: string) => {
-  const warnings = definitionWarnings(record.definition as Definition)
+  const definition = record.definition
+  const warnings = definition !== null && typeof definition === 'object' ? definitionWarnings(definition as Definition) : []
   return JSON.stringify({ id: record.id, version: record.version, etag, ...(warnings.length > 0 && { warnings }) })
 }
 
