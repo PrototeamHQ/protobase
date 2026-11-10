@@ -8,6 +8,7 @@ import { checksState, reviewBotFinished } from './checks'
 import { approvedLogins, pullRefusal, refusal, workflowRefusal } from './decision'
 import { cleanFollowUpAt } from './follow-up'
 import { gitHub } from './github'
+import { merge } from './merge'
 import { eventTarget, pullsOfCommit } from './target'
 import { noticed, workflowNotice } from './workflow-notice'
 
@@ -57,17 +58,6 @@ async function whyNot(pull: Awaited<ReturnType<typeof github.pullRequest>>) {
   return refusal({ repository, pull, timeline, reviews, files, roles, followUpCleanAt, ...head })
 }
 
-// The merge commit, or null when there is nothing to do. Another run may have merged it first, and a head that moved
-// needs a new approval. A change request GitHub still counts waits for what lifts it. Any other refusal fails the run.
-async function merge(number: number, sha: string) {
-  const mergeCommit = await github.merge(number, sha)
-  if (mergeCommit) return mergeCommit
-
-  const now = await github.pullRequest(number)
-  if (now.merged || now.head.sha !== sha || now.mergeable_state === 'blocked') return null
-  throw new Error(`GitHub refused to merge #${number}: its merge state is ${now.mergeable_state}`)
-}
-
 for (const number of await pullNumbers()) {
   const pull = await github.pullRequest(number)
   const reason = await whyNot(pull)
@@ -77,7 +67,7 @@ for (const number of await pullNumbers()) {
     continue
   }
 
-  const mergeCommit = await merge(number, pull.head.sha)
+  const mergeCommit = await merge(github, number, pull.head.sha)
   if (!mergeCommit) {
     console.log(`Not merging #${number}: GitHub refused, as it merged already, its head moved or a block stands.`)
     continue
