@@ -260,6 +260,46 @@ Counts, sums or averages of the records that match `filter`, per value of a fiel
 
 Each value takes its colour from the view's `valueColors`, else an enum value's place among its values, from the [chart tokens](/reference/theme/#tokens). A chart whose field the user cannot read is left out of their page, and a field it cannot group or add up stops the server at startup.
 
+## Conversation
+
+A chat declared in the layout like any other block: a `Thread` lists the messages of a resource and a `Composer` beneath it sends one, so [`/meta`](/reference/api/#meta-and-openapi-per-caller) describes the conversation and every client can draw it, with no component of the app's own.
+
+```tsx
+<Card title="General">
+  <Thread resource="messages" filter="room = 'general'" sender="author_id" time="sent_at" text="body" />
+  <Composer resource="messages" field="body" values={{ room: 'general' }} placeholder="Message General" />
+</Card>
+```
+
+A message resource marks its sender with [`.author()`](/reference/data-config/#resource), which every create sets to the signed-in user, so a message is never sent in someone else's name.
+
+### Thread
+
+The latest messages that match `filter`, oldest first, each under its sender's name and the time it was sent, with a line between days and a sender's next message that day drawn under the first. **Load earlier messages** at the top reads the ones before. The thread opens at the newest message and scrolls in a box of its own, so it follows what arrives while the reader is at the end and keeps their place when they scrolled back, until their own message arrives; new messages come in with the app's [live updates](/reference/live/), and screen readers announce them politely. It is left out of the page of a user who cannot read its sender, time or text.
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter` | Which messages. `resource` is required. |
+| `sender` | Who wrote each message: a relation, named as the record it points at, or a text field. Required. |
+| `time` | When each was sent: a date or timestamp field the API can sort by, which orders them. Required. |
+| `text` | The message. Required. |
+| `limit` | How many of the latest it shows at first, and how many each **Load earlier messages** adds; default 50. |
+| `title`, `description`, `actions` | The heading; no card is drawn around the thread, so it can sit in a `Card` with its composer. |
+| `empty` | Text while there are no messages. |
+| `span` | Width in a grid. |
+
+### Composer
+
+A text box that grows with its text: Enter or the send button creates a record of `resource` with the text in `field` and the `values`, and Shift+Enter starts a new line. The text stays in the box until the server took it, so a message it refuses is still there to send again, under the reason. It is not shown to a user who may not create a record of `resource` or write its fields.
+
+| Prop | |
+| --- | --- |
+| `resource` | Where a message is created. Required. |
+| `field` | The writable text field the message goes in. Required. |
+| `values` | Sent with every message, such as the room or the parent record's key. |
+| `placeholder` | The box's text while empty. |
+| `span` | Width in a grid. |
+
 ## Behaviour
 
 ### Action

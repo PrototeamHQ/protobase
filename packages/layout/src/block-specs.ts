@@ -67,6 +67,11 @@ export const blockSpecs: Record<string, BlockSpec> = {
     children: false,
     props: { mode: required('mode'), label: required('text'), fields: required('texts'), resource: optional('text'), recordKey: optional('text'), title: optional('text'), values: optional('values'), variant: optional('variant') },
   },
+  Thread: {
+    children: false,
+    props: { ...heading, resource: required('text'), filter: optional('text'), sender: required('text'), time: required('text'), text: required('text'), limit: optional('integer'), empty: optional('text'), span: optional('span') },
+  },
+  Composer: { children: false, props: { resource: required('text'), field: required('text'), values: optional('values'), placeholder: optional('text'), span: optional('span') } },
   Action: { children: false, props: { name: required('text'), resource: optional('text'), label: optional('text'), variant: optional('variant') } },
   Show: { children: true, props: { when: required('text') } },
   Link: { children: true, props: { href: optional('text'), to: optional('address') } },

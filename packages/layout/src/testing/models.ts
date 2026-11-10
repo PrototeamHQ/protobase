@@ -20,7 +20,7 @@ const model = (name: string, fields: FieldModel[], extra: Partial<ResourceModel>
   ...extra,
 })
 
-/** A small billing domain for layout tests: subscriptions point at plans, payment methods and invoices stand alone. */
+/** A small billing domain for layout tests: subscriptions point at plans, payment methods and invoices stand alone, and messages are a conversation between people. */
 export const models: Record<string, ResourceModel> = {
   plans: model('plans', [field('id', 'integer', { readOnly: true }), field('name', 'text'), field('seats', 'integer')]),
   subscriptions: model('subscriptions', [
@@ -31,6 +31,16 @@ export const models: Record<string, ResourceModel> = {
     field('organizationId', 'integer'),
   ], { tenant: 'organizationId' }),
   paymentMethods: model('paymentMethods', [field('id', 'integer', { readOnly: true }), field('brand', 'text'), field('last4', 'text'), field('isDefault', 'boolean')]),
+  people: model('people', [field('id', 'integer', { readOnly: true }), field('name', 'text')]),
+  messages: model('messages', [
+    field('id', 'integer', { readOnly: true }),
+    field('author', 'relation', { readOnly: true, relation: { resource: 'people', columns: ['author_id'] } }),
+    field('sentAt', 'timestamp', { readOnly: true }),
+    field('sentOn', 'date', { sortable: false }),
+    field('body', 'text'),
+    field('room', 'text'),
+    field('pinned', 'boolean'),
+  ], { author: 'author' }),
   invoices: model('invoices', [field('id', 'integer', { readOnly: true }), field('number', 'text'), field('status', 'enum', { enumValues: ['open', 'paid'] }), field('total', 'decimal', { readOnly: true }), field('issuedOn', 'date'), field('memo', 'text', { filterable: false })]),
 }
 

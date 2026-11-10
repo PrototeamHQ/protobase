@@ -1254,7 +1254,10 @@
     "wholeNumber": "Een geheel getal",
     "number": "Een getal",
     "dateFormat": "Een datum als JJJJ-MM-DD",
-    "atMost": "Hoogstens {max} tekens"
+    "atMost": "Hoogstens {max} tekens",
+    "notSent": "Niet verzonden",
+    "noMessages": "Nog geen berichten.",
+    "loadingMessages": "Berichten laden…"
   },
   "app/rank-after": {
     "dependsOn": "{record} hangt af van {other}."

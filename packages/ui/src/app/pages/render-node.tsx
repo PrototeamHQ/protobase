@@ -6,6 +6,7 @@ import type { BlockProps } from './blocks/block-props'
 import { CardBlock } from './blocks/card'
 import { CardRowBlock } from './blocks/card-row'
 import { ChartBlock } from './blocks/chart'
+import { ComposerBlock } from './blocks/composer'
 import { FieldBlock } from './blocks/field'
 import { GridBlock } from './blocks/grid'
 import { LinkBlock } from './blocks/link'
@@ -20,6 +21,7 @@ import { ShowBlock } from './blocks/show'
 import { StatBlock } from './blocks/stat'
 import { TableBlock } from './blocks/table'
 import { TabBlock, TabsBlock } from './blocks/tabs'
+import { ThreadBlock } from './blocks/thread'
 import { UsersBlock } from '../../users/users-block'
 import { ConnectedAccountsBlock } from '../../account/blocks/connected-accounts-block'
 import { PersonalMailBlock } from '../../account/blocks/personal-mail-block'
@@ -51,6 +53,8 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Chart: ChartBlock,
   Progress: ProgressBlock,
   ModalForm: ModalFormBlock,
+  Thread: ThreadBlock,
+  Composer: ComposerBlock,
   Action: ActionBlock,
   Show: ShowBlock,
   Link: LinkBlock,

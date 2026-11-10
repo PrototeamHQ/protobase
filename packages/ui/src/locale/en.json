@@ -1254,7 +1254,10 @@
     "wholeNumber": "A whole number",
     "number": "A number",
     "dateFormat": "A date as YYYY-MM-DD",
-    "atMost": "At most {max} characters"
+    "atMost": "At most {max} characters",
+    "notSent": "Not sent",
+    "noMessages": "No messages yet.",
+    "loadingMessages": "Loading messages…"
   },
   "app/rank-after": {
     "dependsOn": "{record} depends on {other}."

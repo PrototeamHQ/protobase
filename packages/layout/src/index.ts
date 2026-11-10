@@ -6,6 +6,7 @@ export {
   Card,
   CardRow,
   Chart,
+  Composer,
   ConnectedAccounts,
   PersonalMail,
   Connections,
@@ -31,6 +32,7 @@ export {
   Tab,
   Table,
   Tabs,
+  Thread,
   TwoFactor,
   Users,
 } from './blocks'
@@ -45,6 +47,7 @@ export type {
   ChartBucket,
   ChartProps,
   ChartType,
+  ComposerProps,
   DataProps,
   Elements,
   FieldProps,
@@ -63,6 +66,7 @@ export type {
   TabProps,
   TableProps,
   TabsProps,
+  ThreadProps,
   UsersProps,
 } from './blocks'
 export { component, type ComponentOptions } from './component'
@@ -72,6 +76,7 @@ export { accountPage, accountTabs } from './presets/account-page'
 export { usersPage } from './presets/users-page'
 export { page, isPageDefinition, type PageDefinition, type PageModel, type PageOptions } from './page'
 export { cardsLayoutOf } from './cards-layout'
+export { threadFields, threadSort } from './check-conversation'
 export { checkPages } from './check-page'
 export { conditionProblems, conditionReadable } from './check-condition'
 export { prunePage } from './prune-page'
