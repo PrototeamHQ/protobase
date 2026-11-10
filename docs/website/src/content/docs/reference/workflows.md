@@ -218,6 +218,10 @@ A failing Task or Map fails with an error name: a step type's own, such as `Http
 
 ### Blocks
 
+:::caution[Beta]
+<gap>Two runs that reach a block with the same key at the same moment cannot share one run of it, because joining a block's run already under way is not implemented.</gap> Each of them runs the block.
+:::
+
 A block wraps steps into one step that runs once while what it reads stays the same. Its steps run as a run of their own, and its result is kept for a time you set, so a workflow that reaches it again, in this run or another, gets that result without running them. Use it for work that must not be repeated, such as fetching a file from a link that expires and storing it: once stored, the stored file is what counts.
 
 ```json
@@ -242,8 +246,6 @@ A block wraps steps into one step that runs once while what it reads stays the s
 - **Its own run.** A block's run has its own trace and limits. Its output, like every value a run keeps, is at most 256 KiB; larger data goes through a [storage configuration](#storing-files). On the run's page, the Block step links to the run that gave its result, the earlier one when the result was reused, and that page marks the block's steps from its own trace. Open it to read each step, replay it by itself, or go back to the run that started it. A failed block fails the Block step with the block run's error, which `Retry` and `Catch` take; each try starts a new run of the block. A run waits for its block's run and goes on once that ends.
 - **Building one.** In the editor, *Add step* offers *Block*, which comes with one step inside; with the block or one of its steps chosen, *Add step* adds inside it, as for For each.
 - **A Wait after it.** When a state reads, after a Wait, a variable a Block set before that Wait, the check warns on that state that what the block fetched may have expired by then. The editor shows the warning on the step and in its form, and MCP clients get it in `warnings`; a save goes through with it.
-
-<gap>Two runs that reach a block with the same key at the same moment cannot share one run of it, because joining a block's run already under way is not implemented.</gap>
 
 ## The editor
 
