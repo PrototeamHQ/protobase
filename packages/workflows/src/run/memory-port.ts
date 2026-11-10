@@ -1,7 +1,8 @@
 import type { Definition } from '../definition/types'
 import type { StepCacheStore } from './cache/cache-port'
 import { createRunner } from './runner'
-import type { Checkpoint, LoadedRun, RunStore, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
+import { findBlock } from '../definition/inner'
+import type { BlockRun, BlockRunStore, Checkpoint, LoadedRun, RunStore, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
 import { rerunCheckpoint, rerunProblem } from './rerun'
 import { rerunFrom } from './rerun-from'
 
@@ -36,7 +37,7 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
     update: async (_, id, change) => {
       const run = runs.get(id)!
       if (run.status === 'succeeded' || run.status === 'failed') return
-      runs.set(id, { ...run, ...change })
+      runs.set(id, { ...run, ...change, ...((change.status === 'succeeded' || change.status === 'failed') && { finishedAt: clock }) })
       // A failed run keeps its checkpoints, for a re-run to go on from.
       if (change.status !== 'succeeded') return
       for (let index = checkpoints.length - 1; index >= 0; index--) if (checkpoints[index]!.runId === id) checkpoints.splice(index, 1)
@@ -52,10 +53,35 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
     read: async (runId) => traces.get(runId)?.flat(),
   }
   const schedule = async (_: null, runId: string, at?: Date) => void queued.push({ runId, ...(at && { at }) })
-  const runner = createRunner({ store, queue: { schedule }, tasks, trace, now: () => clock, ...(traceMode && { traceMode }), ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }), ...(cache && { cache }) })
+  // As the jobs' `replace`: the run's waiting segment, if any, runs now.
+  const wake = async (_: null, runId: string) => {
+    for (let index = queued.length - 1; index >= 0; index--) if (queued[index]!.runId === runId) queued.splice(index, 1)
+    queued.push({ runId })
+  }
+  // A block's run is a run of its parent's definition and trace setting, found again by the parent and its try's visit.
+  const blockRun = (run: LoadedRun & Record<string, unknown>): BlockRun => ({ id: run.id, status: run.status, output: run.output, error: run.error as string | undefined, cause: run.cause as string | undefined, finishedAt: run.finishedAt as Date | undefined, blanked: run.blanked as boolean | undefined })
+  const blocks: BlockRunStore<null> = {
+    find: async (_, parent, visit) => {
+      const found = [...runs.values()].find((run) => run.blockOf === parent && run.blockVisit === visit)
+      return found && blockRun(found)
+    },
+    start: async (db, { parent, visit, state, input }) => {
+      const found = await blocks.find(db, parent, visit)
+      if (found) return found
+      const of = runs.get(parent)!
+      if (!findBlock(of.definition.stateMachine, state)) return
+      const id = `${parent}~${visit}`
+      runs.set(id, { id, definition: of.definition, input: structuredClone(input), status: 'queued', startedAt: clock, blockOf: parent, blockState: state, blockVisit: visit, ...(of.trace && { trace: of.trace }) })
+      await schedule(null, id)
+      return blockRun(runs.get(id)!)
+    },
+    count: async (_, parent) => [...runs.values()].filter((run) => run.blockOf === parent).length,
+  }
+  const runner = createRunner({ store, queue: { schedule, wake }, blocks, tasks, trace, now: () => clock, ...(traceMode && { traceMode }), ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }), ...(cache && { cache }) })
   return {
     runner,
     store,
+    blocks,
     checkpoints,
     writes,
     traces,
@@ -91,7 +117,8 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
     },
     /** Replays the run `of` as `id` on `definition` from its start, with its input. */
     replay: async (id: string, of: string, definition: Definition) => {
-      runs.set(id, { id, definition, input: runs.get(of)!.input, status: 'queued', startedAt: clock, replayOf: { id: of, definition: runs.get(of)!.definition } })
+      const replayed = runs.get(of)!
+      runs.set(id, { id, definition, input: replayed.input, status: 'queued', startedAt: clock, replayOf: { id: of, definition: replayed.definition }, ...(replayed.blockState && { blockState: replayed.blockState }) })
       await runner.start(null, id)
     },
     /** Runs one queued segment, moving the clock to its time; false when none is queued. */

@@ -59,7 +59,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
     read: async (id) => traces.get(id) as never,
   }
   const segment = (id: string) => void runner.segment(null, id, new AbortController().signal)
-  const runner = createRunner({ store, queue: { schedule: async (_, id, at) => void setTimeout(() => segment(id), at ? Math.max(0, at.getTime() - Date.now()) : 50) }, tasks, trace, ...(secrets && { secrets }) })
+  const runner = createRunner({ store, queue: { schedule: async (_, id, at) => void setTimeout(() => segment(id), at ? Math.max(0, at.getTime() - Date.now()) : 50), wake: async (_, id) => void setTimeout(() => segment(id), 50) }, tasks, trace, ...(secrets && { secrets }) })
 
   return {
     /** Before a run is created: its id, status, version and start, and a re-run's or a replay's input, as the table's trigger sets them. */

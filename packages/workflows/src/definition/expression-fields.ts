@@ -2,7 +2,7 @@ import { templateExpressions } from './expressions'
 import { fieldPath } from './problem'
 import type { State } from './types'
 
-/** Which `$states` field an expression may read where it is: the Task's result, a caught error. */
+/** Which `$states` field an expression may read where it is: the Task's, Map's or Block's result, a caught error. */
 export type ExpressionPlace = 'state' | 'result' | 'error'
 
 /** Every expression of a state, with its field and the place it is evaluated in. */
@@ -12,7 +12,7 @@ export const stateExpressions = (state: State) => {
     for (const { path, source } of templateExpressions(value, base)) found.push({ field: fieldPath(path), source, place })
   }
   // A Task or Map shapes its result with Output and Assign; the other states have no result.
-  const after: ExpressionPlace = state.Type === 'Task' || state.Type === 'Map' ? 'result' : 'state'
+  const after: ExpressionPlace = state.Type === 'Task' || state.Type === 'Map' || state.Type === 'Block' ? 'result' : 'state'
   if (state.Type === 'Fail') {
     add(state.Error, ['Error'], 'state')
     add(state.Cause, ['Cause'], 'state')
@@ -22,6 +22,10 @@ export const stateExpressions = (state: State) => {
   if ('Assign' in state) add(state.Assign, ['Assign'], after)
   if (state.Type === 'Task') add(state.Arguments, ['Arguments'], 'state')
   if (state.Type === 'Map') add(state.Items, ['Items'], 'state')
+  if (state.Type === 'Block') {
+    add(state.Arguments, ['Arguments'], 'state')
+    add(state.Cache.Key, ['Cache', 'Key'], 'state')
+  }
   if (state.Type === 'Wait') {
     add(state.Seconds, ['Seconds'], 'state')
     add(state.Timestamp, ['Timestamp'], 'state')

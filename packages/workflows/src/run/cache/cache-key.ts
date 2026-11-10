@@ -6,7 +6,7 @@ import type { SecretNamer } from './secret-names'
 export type KeyShape = { reads: InputPath[] } | { input: true } | { custom: true }
 
 /** Whether a path is in the input, and its value there, through own properties only. */
-const at = (input: unknown, path: InputPath): [boolean, unknown] => {
+export const at = (input: unknown, path: InputPath): [boolean, unknown] => {
   let value = input
   for (const key of path) {
     if (typeof value !== 'object' || value === null || !Object.hasOwn(value, key)) return [false, null]

@@ -5,7 +5,7 @@ import { fieldPath, type Problem } from './problem'
 const ajv = new Ajv({ allErrors: true, discriminator: true, strict: false })
 const validate = ajv.compile(definitionSchema)
 
-// `/stateMachine/States/Each/ItemProcessor/States/Fetch/Retry/0` as the state `Each/Fetch` and its field `Retry[0]`;
+// `/stateMachine/States/Each/ItemProcessor/States/Fetch/Retry/0` (or a Block's `Processor`) as the state `Each/Fetch` and its field `Retry[0]`;
 // `/trigger/schedule` as the field `trigger.schedule`.
 const located = (pointer: string): Pick<Problem, 'state' | 'field'> => {
   const all = pointer.split('/').slice(1).map((part) => part.replaceAll('~1', '/').replaceAll('~0', '~'))
@@ -17,7 +17,7 @@ const located = (pointer: string): Pick<Problem, 'state' | 'field'> => {
     if (part === 'States' && index + 1 < parts.length) {
       state.push(parts[++index]!)
       field = []
-    } else if (part === 'ItemProcessor' && parts[index + 1] === 'States') {
+    } else if ((part === 'ItemProcessor' || part === 'Processor') && parts[index + 1] === 'States') {
       continue
     } else {
       field.push(part)
@@ -31,7 +31,7 @@ const message = (error: ErrorObject) => {
   if (error.keyword === 'required') return `${error.params.missingProperty} is missing`
   if (error.keyword === 'minItems') return `is missing; it needs at least ${String(error.params.limit)}`
   if (error.keyword === 'const') return `must be ${JSON.stringify(error.params.allowedValue)}`
-  if (error.keyword === 'discriminator') return 'must be one of Task, Choice, Pass, Map, Wait, Succeed and Fail'
+  if (error.keyword === 'discriminator') return 'must be one of Task, Choice, Pass, Map, Block, Wait, Succeed and Fail'
   if (error.keyword === 'pattern' && error.instancePath === '/trigger') return 'names a trigger type <plugin>:<key>, such as app:record, or manual'
   if (error.keyword === 'pattern' && error.instancePath.endsWith('/Assign')) return 'names a variable with letters, digits and _, starting with a letter'
   if (error.keyword === 'pattern') return 'must be an expression written as {% ... %}'

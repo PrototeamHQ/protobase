@@ -10,6 +10,8 @@ import { readProblems } from './check-reads'
 import { connectionProblems } from './used-connections'
 import type { Definition, Machine, TaskState } from './types'
 import { visibleVariables } from './visible'
+import { blockProblems } from './check-block'
+import { allStates } from './inner'
 import { limits } from '../limits'
 import { nestingDepth } from '../nesting'
 
@@ -27,7 +29,8 @@ export type CheckOptions = {
   connections?: Readonly<Record<string, string>>
 }
 
-type Scope = { path: string[]; outer: ReadonlySet<string>; item: boolean }
+// `blocks`: how many Blocks the machine is inside.
+type Scope = { path: string[]; outer: ReadonlySet<string>; item: boolean; blocks: number }
 
 // The arguments a Task's step type needs and its Arguments leave out; none when Arguments is one expression, whose
 // value is known only when it runs.
@@ -65,24 +68,25 @@ const machineProblems = (machine: Machine, scope: Scope, options: CheckOptions):
     if (state.Type === 'Task') for (const missing of missingArguments(state, options)) problems.push({ state: where(name), field: `Arguments.${missing}`, message: `is missing; ${state.Resource} needs it` })
     const firstOfItem = scope.item && name === machine.StartAt
     for (const { field, source, place } of stateExpressions(state)) {
-      for (const message of readProblems(source, { place, visible: visible.get(name)!, firstOfItem })) problems.push({ state: where(name), field, message })
+      for (const message of readProblems(source, { place, visible: visible.get(name)!, firstOfItem, inBlock: scope.blocks > 0 })) problems.push({ state: where(name), field, message })
     }
-    if (state.Type === 'Map') problems.push(...machineProblems(state.ItemProcessor, { path: [...scope.path, name], outer: visible.get(name)!, item: true }, options))
+    if (state.Type === 'Map') problems.push(...machineProblems(state.ItemProcessor, { ...scope, path: [...scope.path, name], outer: visible.get(name)!, item: true }, options))
+    // A Block's steps run as a run of their own: they read its input, never the variables around it.
+    if (state.Type === 'Block') {
+      problems.push(...blockProblems(state, where(name), scope.blocks + 1))
+      problems.push(...machineProblems(state.Processor, { path: [...scope.path, name], outer: new Set(), item: false, blocks: scope.blocks + 1 }, options))
+    }
   }
   return problems
 }
 
-// Every state name, the ones inside Maps too.
-const stateNames = (machine: Machine): string[] =>
-  Object.entries(machine.States).flatMap(([name, state]) => [name, ...(state.Type === 'Map' ? stateNames(state.ItemProcessor) : [])])
-
 const wholeProblems = (definition: Definition): Problem[] => {
-  const names = stateNames(definition.stateMachine)
+  const names = allStates(definition.stateMachine).map(([name]) => name)
   const problems: Problem[] = []
   if (names.length > limits.states) problems.push({ field: 'stateMachine.States', message: `holds ${names.length} states, more than the ${limits.states} a workflow may have` })
   const seen = new Set<string>()
   for (const name of names) {
-    if (seen.has(name)) problems.push({ state: name, message: 'is a state name used twice; names are unique across the whole state machine, Maps included' })
+    if (seen.has(name)) problems.push({ state: name, message: 'is a state name used twice; names are unique across the whole state machine, Maps and Blocks included' })
     seen.add(name)
   }
   return problems
@@ -100,5 +104,5 @@ export const checkDefinition = (definition: unknown, options: CheckOptions): Pro
   const shape = schemaProblems(definition)
   if (shape.length > 0) return shape
   const document = definition as Definition
-  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...(options.connections ? connectionProblems(document, options.connections) : []), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false }, options)]
+  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...(options.connections ? connectionProblems(document, options.connections) : []), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false, blocks: 0 }, options)]
 }

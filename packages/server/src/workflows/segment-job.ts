@@ -29,6 +29,8 @@ export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMod
   const store = postgresRunStore(schema)
   const queue: SegmentQueue<Db> = {
     schedule: async (db, run, at) => void (await job!.enqueue(db, { run }, { key: run, ...(at && { runAt: at }) })),
+    // A run waiting for a later time, such as for its block's run, goes on now.
+    wake: async (db, run) => void (await job!.enqueue(db, { run }, { key: run, mode: 'replace' })),
   }
   const runner = createRunner({ store, queue, tasks: {}, secrets, trace, traceMode })
   job = defineJob<{ run: string }>({

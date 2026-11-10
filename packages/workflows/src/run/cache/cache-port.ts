@@ -3,10 +3,11 @@ import type { SecretNamer } from './secret-names'
 
 /**
  * Who a cached result was made as, beside the run's tenant, which every entry is kept under: the account the run's
- * version binds to the type's `connection` (`<plugin>:<name>`), the person who saved it (`saver`, as records act), and
- * the person who turned it on (`enabler`, as the mailbox sends). The store reads them from the run, never from the step.
+ * version binds to the type's `connection` (`<plugin>:<name>`), or with `bindings` every account it binds, as a Block's
+ * steps may sign in with any; the person who saved it (`saver`, as records act), and the person who turned it on
+ * (`enabler`, as the mailbox sends). The store reads them from the run, never from the step.
  */
-export type CacheIdentity = { connection?: string; saver: boolean; enabler: boolean }
+export type CacheIdentity = { connection?: string; bindings?: boolean; saver: boolean; enabler: boolean }
 
 /** An earlier result a store found, with the secrets whose value changed since it was kept, by name. */
 export type CacheEntry = { output: unknown; cachedAt: Date; expiresAt: Date; secretsChanged: string[] }

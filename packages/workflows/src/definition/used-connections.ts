@@ -1,9 +1,9 @@
 import type { Problem } from './problem'
+import { allStates } from './inner'
 import type { Definition, Machine } from './types'
 
-// Every Task's step type, the ones inside Maps too.
-const resources = (machine: Machine): string[] =>
-  Object.values(machine.States).flatMap((state) => (state.Type === 'Task' ? [state.Resource] : state.Type === 'Map' ? resources(state.ItemProcessor) : []))
+/** Every Task's step type, the ones inside Maps and Blocks too. */
+export const resources = (machine: Machine): string[] => allStates(machine).flatMap(([, state]) => (state.Type === 'Task' ? [state.Resource] : []))
 
 /**
  * The connections `<plugin>:<connection>` a definition's trigger and steps sign in with, given the connection each

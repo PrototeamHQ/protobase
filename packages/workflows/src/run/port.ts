@@ -34,6 +34,8 @@ export type StepRecord = {
   startedAt: Date
   finishedAt: Date
   recorded: boolean
+  /** A Block's step: the block's run that gave its result, the one that made the cached entry on a hit. */
+  run?: string
 }
 
 /** What a replay takes of a step of the run it replays, as that run's trace keeps it. */
@@ -105,6 +107,8 @@ export type TaskContext = {
 export type TaskHandler = ((args: unknown, context: TaskContext) => Promise<unknown>) & {
   /** Whether a call with these arguments changes the outside world, never throwing; a replay calls none that does. Absent or anything but `false`: it does. */
   writes?: (args: unknown) => boolean
+  /** For a type that signs in through a connection: whether the run may still use its account, as a call would find. */
+  connected?: (context: TaskContext) => Promise<boolean>
 }
 
 /** The interpreter's back end: the step types by the name a Task's `Resource` gives. */
@@ -123,6 +127,10 @@ export type LoadedRun = {
    * run's steps gave, as its trace keeps them; null when that run is gone, so they give nothing. Absent: no replay.
    */
   replayOf?: { id: string; definition: Definition } | null
+  /** A block's run: the run that started it, which it wakes as it ends; null for a replay or re-run of one. */
+  blockOf?: string | null
+  /** A block's run, or a replay or re-run of one: the Block whose processor it runs, of `definition`. */
+  blockState?: string | null
 }
 
 export type RunStatus = 'queued' | 'running' | 'waiting' | 'succeeded' | 'failed'
@@ -131,7 +139,8 @@ export type RunStatus = 'queued' | 'running' | 'waiting' | 'succeeded' | 'failed
 export type RunChange =
   | { status: 'running' }
   | { status: 'waiting'; resumeAt: Date }
-  | { status: 'succeeded'; output: unknown }
+  /** `blanked`: the output held a secret, which it keeps blanked out. */
+  | { status: 'succeeded'; output: unknown; blanked: boolean }
   | { status: 'failed'; error: string; cause: string }
 
 /**
@@ -151,8 +160,26 @@ export type RunStore<Db> = {
   update(db: Db, runId: string, change: RunChange): Promise<void>
 }
 
-/** The jobs queue: the second part of the port, which runs a segment of the run at `at`, or as soon as it can. */
-export type SegmentQueue<Db> = { schedule(db: Db, runId: string, at?: Date): Promise<void> }
+/**
+ * The jobs queue: the second part of the port, which runs a segment of the run at `at`, or as soon as it can; `wake`
+ * runs one as soon as it can even when one waits for a later time.
+ */
+export type SegmentQueue<Db> = { schedule(db: Db, runId: string, at?: Date): Promise<void>; wake(db: Db, runId: string): Promise<void> }
+
+/** A block's run as the run that started it sees it. */
+export type BlockRun = { id: string; status: RunStatus; output?: unknown; error?: string | null; cause?: string | null; finishedAt?: Date | null; blanked?: boolean | null }
+
+/**
+ * Where blocks' runs are kept: each is a run of its own, started by a run (`parent`) on one try of one of its Blocks
+ * (`visit`), whose tenant, workflow, version and trace setting it takes from that run.
+ */
+export type BlockRunStore<Db> = {
+  find(db: Db, parent: string, visit: string): Promise<BlockRun | undefined>
+  /** Starts it and queues its first segment, or the one of this visit started already; undefined when `state` is no Block of the run's version. */
+  start(db: Db, run: { parent: string; visit: string; state: string; input: unknown }): Promise<BlockRun | undefined>
+  /** The block runs `parent` started. */
+  count(db: Db, parent: string): Promise<number>
+}
 
 /** Which runs keep a trace: every run, only those that fail, or none. */
 export type TraceMode = NonNullable<Definition['trace']>

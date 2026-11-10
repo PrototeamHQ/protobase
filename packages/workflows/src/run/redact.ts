@@ -7,6 +7,9 @@ export const redacted = (value: unknown): unknown => {
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, secretKey.test(key) ? '[redacted]' : redacted(item)]))
 }
 
+/** What a secret's value is replaced by, wherever it appears. */
+export const blankedMark = '[redacted]'
+
 /** Secret values shorter than this are refused, so blanking them never blanks ordinary text. */
 export const shortestSecret = 8
 
@@ -41,7 +44,7 @@ export const secretRedactor = (secrets: readonly string[]): Redactor => {
     for (const form of [secret, urlEncoded(secret)]) if (form !== undefined && !ordered.includes(form)) ordered.push(form)
     ordered.sort((a, b) => b.length - a.length)
   }
-  const text = (input: string) => ordered.reduce((result, secret) => result.replaceAll(secret, '[redacted]'), input)
+  const text = (input: string) => ordered.reduce((result, secret) => result.replaceAll(secret, blankedMark), input)
   const value = <T>(input: T): T => {
     if (ordered.length === 0) return input
     if (typeof input === 'string') return text(input) as T

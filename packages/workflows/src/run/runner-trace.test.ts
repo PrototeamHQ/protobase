@@ -18,7 +18,7 @@ const runnerLogging = (events: string[], flow: Definition) =>
       save: async () => true,
       update: async (_, __, change) => void events.push(`status ${change.status}`),
     },
-    queue: { schedule: async () => void events.push('scheduled') },
+    queue: { schedule: async () => void events.push('scheduled'), wake: async () => {} },
     tasks: {},
     trace: {
       write: async (_, __, { ended }) => {
@@ -50,7 +50,7 @@ describe("the runner's trace", () => {
     let overlapped = false
     const runner = createRunner<null>({
       store: { load: async () => ({ id: 'r1', definition: flow, input: {}, status: 'queued', startedAt: new Date('2026-11-04T12:00:00Z') }), checkpoints: async () => [], save: async () => true, update: async () => {} },
-      queue: { schedule: async () => {} },
+      queue: { schedule: async () => {}, wake: async () => {} },
       tasks: { get: async (item: unknown) => item },
       trace: {
         write: async () => {

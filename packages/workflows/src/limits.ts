@@ -17,6 +17,11 @@ export const limits = {
   retryDelaySeconds: 24 * 3600,
   /** Items a Map runs at once; 0 or none means this limit. */
   mapConcurrency: 20,
+  /** Blocks nested in one another, and the runs of blocks one run starts. */
+  blockDepth: 4,
+  blockRuns: 1000,
+  /** The longest a run waits for its block's run before it looks again; the block's run wakes it as it ends. */
+  blockWaitSeconds: 24 * 3600,
   /** Items one Map takes. */
   mapItems: 10_000,
   /** Steps one run may take, every attempt and every Map item's steps counted. */

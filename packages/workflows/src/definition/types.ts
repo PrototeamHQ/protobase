@@ -28,7 +28,18 @@ export type FailState = Omit<Common, 'Output' | 'Assign'> & { Type: 'Fail'; Erro
 export type MapState = Common &
   Flow & { Type: 'Map'; Items: Template; ItemProcessor: Machine; MaxConcurrency?: number; Retry?: Retrier[]; Catch?: Catcher[] }
 
-export type State = PassState | TaskState | ChoiceState | WaitState | SucceedState | FailState | MapState
+/**
+ * A block's cache: how long a result serves (a duration such as `1 hour`, or seconds; at most 30 days), and an optional
+ * key whose value, as JSON, replaces the default key: the values of its input its steps read.
+ */
+export type BlockCache = { Ttl: string | number; Key?: Template }
+/**
+ * Steps wrapped into one: its `Processor` runs as a run of its own on the evaluated `Arguments` as that run's input, once
+ * while its key stays the same, its result cached for `Cache.Ttl`.
+ */
+export type BlockState = Common & Flow & { Type: 'Block'; Arguments?: Template; Processor: Machine; Cache: BlockCache; Retry?: Retrier[]; Catch?: Catcher[] }
+
+export type State = PassState | TaskState | ChoiceState | WaitState | SucceedState | FailState | MapState | BlockState
 
 /** States and where they start: a whole state machine, or a Map's item processor. */
 export type Machine = { StartAt: string; States: Record<string, State>; Comment?: string }

@@ -1,4 +1,4 @@
-import type { Machine, State, TaskState } from '../definition/types'
+import type { Machine, State } from '../definition/types'
 import type { SegmentContext, StateResult } from './context'
 import type { StepLog, TaskHandler } from './port'
 import { mapNames, visitKey } from './replay-match'
@@ -23,7 +23,7 @@ const stateIn = (machine: Machine, maps: readonly string[], name: string): State
 /**
  * What a held-back step takes from the replayed run's step of the same state and visit of it in the same scope, as
  * `logical` names it by visits: its
- * error, or its result, which only a Task that did not shape it with `Output` saved as it was. Undefined when that
+ * error, or its result, which only a Task or Block that did not shape it with `Output` saved as it was. Undefined when that
  * run has no such step, its step was still retrying, or saved its result shaped.
  */
 export const replayedOutcome = (replay: Replay, at: { scope: string; logical: string; visit: number; name: string }) => {
@@ -31,9 +31,9 @@ export const replayedOutcome = (replay: Replay, at: { scope: string; logical: st
   if (!step || step.status === 'retrying') return
   if (step.status !== 'succeeded') return { failure: { Error: step.error ?? 'States.Runtime', Cause: step.cause ?? '' } }
   const state = stateIn(replay.machine, mapNames(at.scope), at.name)
-  if (state?.Type !== 'Task' || state.Output !== undefined) return
+  if ((state?.Type !== 'Task' && state?.Type !== 'Block') || state.Output !== undefined) return
   return { result: step.output ?? null }
 }
 
 /** A held-back step the replayed run gave nothing for: a null output, on to its next state. */
-export const emptyTask = (state: TaskState, input: unknown, logs: StepLog[]): StateResult => ({ kind: 'step', status: 'succeeded', next: state.Next ?? null, input, output: null, logs })
+export const emptyTask = (state: { Next?: string }, input: unknown, logs: StepLog[]): StateResult => ({ kind: 'step', status: 'succeeded', next: state.Next ?? null, input, output: null, logs })
