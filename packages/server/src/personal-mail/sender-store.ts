@@ -10,6 +10,7 @@ export const mailSenderSchema = {
     fields: {
       userId: { type: 'string', required: true, fieldName: 'user_id' },
       address: { type: 'string', required: true },
+      name: { type: 'string', required: false },
       shared: { type: 'boolean', required: true },
       signature: { type: 'string', required: false },
       isDefault: { type: 'boolean', required: true, fieldName: 'is_default' },
@@ -19,11 +20,11 @@ export const mailSenderSchema = {
 } as const
 
 /**
- * A From address its owner entered, in lowercase, usable by its owner alone, with its own signature or none, so the
- * generic one applies, and whether it is the owner's default. `shared` stays false: sharing an address with others
+ * A From address its owner entered, in lowercase, usable by its owner alone, with the display name the From header shows
+ * beside it or none, its own signature or none, so the generic one applies, and whether it is the owner's default. `shared` stays false: sharing an address with others
  * waits until the owner can prove the address is theirs.
  */
-export type MailSenderRow = { id: string; userId: string; address: string; shared: boolean; signature?: string | null; isDefault: boolean; createdAt: Date }
+export type MailSenderRow = { id: string; userId: string; address: string; name?: string | null; shared: boolean; signature?: string | null; isDefault: boolean; createdAt: Date }
 
 /** What sending reads of the entered addresses: a person's own. */
 export type MailSenderStore = {
@@ -47,7 +48,7 @@ export const storeSender = (adapter: Pick<Adapter, 'create'>, data: Omit<MailSen
   adapter.create<Omit<MailSenderRow, 'id'>, MailSenderRow>({ model: mailSenderModel, data })
 
 /** Changes the user's address `id`; one that is not theirs is left as it is, and answers null. */
-export const changeSender = (adapter: Pick<Adapter, 'update'>, userId: string, id: string, update: Partial<Pick<MailSenderRow, 'signature' | 'isDefault'>>) =>
+export const changeSender = (adapter: Pick<Adapter, 'update'>, userId: string, id: string, update: Partial<Pick<MailSenderRow, 'name' | 'signature' | 'isDefault'>>) =>
   adapter.update<MailSenderRow>({ model: mailSenderModel, where: [{ field: 'id', value: id }, { field: 'userId', value: userId }], update })
 
 /** Makes none of the user's addresses their default, so their mailbox's own address is. */

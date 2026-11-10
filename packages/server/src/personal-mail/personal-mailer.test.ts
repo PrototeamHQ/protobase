@@ -97,6 +97,7 @@ describe('personalMailer', () => {
       row({ id: 's1', userId: 'u1', address: 'billing@acme.example' }),
       row({ id: 's2', userId: 'u2', address: 'sales@acme.example', shared: true }),
       row({ id: 's3', userId: 'u2', address: 'u2@private.example' }),
+      row({ id: 's4', userId: 'u1', address: 'ann@acme.example', name: 'Ann of Acme' }),
     ])
     const linked = (id: string) => ({ id, providerId: 'google', scopes: [sendScope], createdAt: created })
     // Each person linked their own Gmail.
@@ -105,7 +106,13 @@ describe('personalMailer', () => {
     it('sends from an address the person entered', async () => {
       const gmail = provider()
       await personalMailer(both(), [gmail], senders, 'u1').send({ ...message, from: 'billing@acme.example' })
-      expect(gmail.send).toHaveBeenCalledWith(message, 'access-u1', 'billing@acme.example')
+      expect(gmail.send).toHaveBeenCalledWith(message, 'access-u1', { address: 'billing@acme.example' })
+    })
+
+    it('sends with the display name the person entered for the address', async () => {
+      const gmail = provider()
+      await personalMailer(both(), [gmail], senders, 'u1').send({ ...message, from: 'ANN@acme.example' })
+      expect(gmail.send).toHaveBeenCalledWith(message, 'access-u1', { address: 'ann@acme.example', name: 'Ann of Acme' })
     })
 
     it('sends as before, leaving the From header to the provider, with neither a From address nor a default', async () => {

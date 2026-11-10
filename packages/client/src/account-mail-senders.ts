@@ -3,15 +3,16 @@ import type { BetterAuthClient } from './better-auth-client'
 
 /**
  * A From address the person entered for the mailbox they linked, such as a send-as address of their Gmail, theirs
- * alone: its own signature, else the generic one applies; and whether mail goes out from it when the app names no address.
+ * alone: the display name the From header shows beside it, if any; its own signature, else the generic one applies; and
+ * whether mail goes out from it when the app names no address.
  */
-export type MailSender = { id: string; address: string; signature?: string; isDefault: boolean }
+export type MailSender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean }
 
 /** The person's From addresses, and their mailbox's own address when its link names it. */
 export type MailSenders = { address?: string; senders: MailSender[] }
 
-/** What changes of an address: `signature: null` drops its own, so the generic one applies. */
-export type MailSenderChange = { signature?: string | null; isDefault?: boolean }
+/** What changes of an address: `name: null` drops its name; `signature: null` drops its own, so the generic one applies. */
+export type MailSenderChange = { name?: string | null; signature?: string | null; isDefault?: boolean }
 
 /** The signed-in person's From addresses, on an app with personal mail (`personalMail` in its status). */
 export const accountMailSenders = (client: BetterAuthClient) => ({
@@ -23,7 +24,7 @@ export const accountMailSenders = (client: BetterAuthClient) => ({
   },
 
   /** Enters an address. */
-  addMailSender: async (input: { address: string; signature?: string }): Promise<MailSender> => {
+  addMailSender: async (input: { address: string; name?: string; signature?: string }): Promise<MailSender> => {
     const { data, error } = await client.$fetch<{ sender: MailSender }>('/account/mail-senders/add', { method: 'POST', body: input })
     if (error || !data) throw authError(error, 'Could not add the From address')
     return data.sender
