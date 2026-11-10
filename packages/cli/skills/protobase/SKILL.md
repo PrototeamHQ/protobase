@@ -88,6 +88,7 @@ Reference:
 - When filling fields with a model → read [AI fields and actions](references/reference/ai.md)
 - When letting people without an account create records → read [Public forms](references/reference/forms.md)
 - When running background jobs → read [Jobs](references/reference/jobs.md)
+- When a value worked out from other records should stay current by itself, recomputed when what it read changes or a time rule flips → read [Derived values](references/reference/derived.md)
 - When writing or running workflows, their steps and their runs → read [Workflows](references/reference/workflows.md)
 - When adding trigger or step types to workflows → read [Workflow plugins](references/reference/workflow-plugins.md)
 - When sending email → read [Email](references/reference/email.md)
