@@ -3,6 +3,7 @@ import { StepError } from '../run/errors'
 import type { TaskContext, TaskHandler, TaskHandlers } from '../run/port'
 import type { PluginConnection, PluginMail, PluginServices } from './context'
 import { cachePlan } from './cache-plan'
+import { ConnectionError } from './connection-error'
 import { cachedRun, reuse, type CallParts } from './cached-run'
 import type { Plugin, StepType } from './types'
 import { writesFor } from './writes'
@@ -38,8 +39,19 @@ const handler = (id: string, type: StepType, wiring: StepWiring): TaskHandler =>
     if (connection && plan.identity.connection) await connection.accessToken()
     return cachedRun(plan, id, parts, task, run)
   }
+  // A Block's cached result is served only while the accounts its steps sign in with can still be used, as a call finds.
+  const connected = async (task: TaskContext) => {
+    if (type.connection === undefined) return true
+    try {
+      await wiring.connection(id, type.connection, task).accessToken()
+      return true
+    } catch (error) {
+      if (error instanceof ConnectionError) return false
+      throw error
+    }
+  }
   // Arguments that are not an object are no input the type's `writes` can read: they count as writing.
-  return Object.assign(call, { writes: (input: unknown) => (input !== null && typeof input === 'object' && !Array.isArray(input) ? writesFor(type, input as Record<string, unknown>) : true) })
+  return Object.assign(call, { connected, writes: (input: unknown) => (input !== null && typeof input === 'object' && !Array.isArray(input) ? writesFor(type, input as Record<string, unknown>) : true) })
 }
 
 /** The runner's step types from the plugins' steps, each checking its input against its schema before it runs. */

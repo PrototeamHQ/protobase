@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react'
-import type { Catcher, MapState, TaskState } from '@protobase/workflows'
+import type { BlockState, Catcher, MapState, TaskState } from '@protobase/workflows'
 import { Button } from '../../../primitives/button'
 import { errorAt } from './field-errors'
 import type { NodeProblem } from './problems'
@@ -7,7 +7,7 @@ import { TargetField } from './target-field'
 import { ValueField } from './value-field'
 import { text } from './messages'
 
-type Catching = TaskState | MapState
+type Catching = TaskState | MapState | BlockState
 
 type CatchFieldsProps<S extends Catching> = { state: S; names: readonly string[]; problems: readonly NodeProblem[]; disabled?: boolean; onChange: (state: S) => void }
 

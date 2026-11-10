@@ -3,6 +3,8 @@ import { createRunner, type SegmentQueue, type StepCacheStore, type TaskHandlers
 import { defineJob } from '../jobs/define-job'
 import type { JobContext, JobDefinition } from '../jobs/job-types'
 import { postgresRunStore } from './store'
+import { postgresBlockRuns } from './block-runs'
+import { failAfterLastTry } from './last-try'
 
 /** The job that runs one segment of a workflow run. */
 export const segmentJobName = 'workflows.segment'
@@ -29,17 +31,20 @@ export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMod
   const store = postgresRunStore(schema)
   const queue: SegmentQueue<Db> = {
     schedule: async (db, run, at) => void (await job!.enqueue(db, { run }, { key: run, ...(at && { runAt: at }) })),
+    // A run waiting for a later time, such as for its block's run, goes on now.
+    wake: async (db, run) => void (await job!.enqueue(db, { run }, { key: run, mode: 'replace', runAt: new Date() })),
   }
+  const blocks = postgresBlockRuns(schema, () => job)
   const runner = createRunner({ store, queue, tasks: {}, secrets, trace, traceMode })
   job = defineJob<{ run: string }>({
     name: segmentJobName,
     run: ({ run }, context) =>
-      createRunner({ store, queue, tasks: tasks(context), secrets, trace, traceMode, ...(cache && { cache }) })
+      createRunner({ store, queue, blocks, tasks: tasks(context), secrets, trace, traceMode, ...(cache && { cache }) })
         .segment(context.db, run, context.signal)
         .catch(async (error: unknown) => {
           // No segment comes after the job's last try, so that try ends the run rather than leaving it running.
-          if (context.job.attempt >= context.job.maxAttempts) await store.update(context.db, run, { status: 'failed', error: 'States.Runtime', cause: `The run's segment failed ${context.job.attempt} times in a row` })
-          throw error
+          if (context.job.attempt < context.job.maxAttempts) throw error
+          return failAfterLastTry(store, queue, context.db, run, context.job.attempt, error)
         }),
     maxAttempts: 10,
     retryDelay: '5 seconds',

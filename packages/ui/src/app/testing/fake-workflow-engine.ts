@@ -1,5 +1,5 @@
 import type { WorkflowRunTrace, WorkflowTraceStep } from '@protobase/client'
-import { createRunner, rerunCheckpoint, rerunFrom, rerunProblem, type Checkpoint, type Definition, type RunStore, type StepRecord, type TaskHandlers, type TraceSink } from '@protobase/workflows'
+import { createRunner, findBlock, rerunCheckpoint, rerunFrom, rerunProblem, type BlockRun, type BlockRunStore, type Checkpoint, type Definition, type RunStore, type StepCacheStore, type StepRecord, type TaskHandlers, type TraceSink } from '@protobase/workflows'
 
 type Row = Record<string, unknown>
 
@@ -10,7 +10,8 @@ const ended = new Set(['succeeded', 'failed'])
  * API is given its workflow's version and, for a re-run or a replay, the earlier run's input, and for a re-run the
  * earlier run's checkpoints, as the server's trigger and start hook do; then its segments run on timers, keeping
  * checkpoints and traces in memory and changing the run as the server does. `trace` reads a run's trace as the API
- * serves it. A saved workflow whose definition changed gets its next version.
+ * serves it. A saved workflow whose definition changed gets its next version. A Block's run is a run of its own, as the
+ * server keeps it.
  */
 export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => Record<string, Row[]>; tasks: TaskHandlers; secrets?: Record<string, string> }) => {
   let runs = 0
@@ -24,7 +25,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
   const store: RunStore<null> = {
     load: async (_, id) => {
       const run = runOf(id)
-      return { id, definition: definitionOf(run), input: run.input, status: run.status as 'queued', startedAt: new Date(String(run.created_at)), ...(run.replay === true && { replayOf: { id: String(run.rerun_of), definition: definitionOf(runOf(String(run.rerun_of))) } }) }
+      return { id, definition: definitionOf(run), input: run.input, status: run.status as 'queued', startedAt: new Date(String(run.created_at)), blockOf: (run.block_of as string | null) ?? null, blockState: (run.block_state as string | null) ?? null, ...(run.replay === true && { replayOf: { id: String(run.rerun_of), definition: definitionOf(runOf(String(run.rerun_of))) } }) }
     },
     checkpoints: async (_, id) => structuredClone(checkpoints.get(id) ?? []),
     save: async (_, id, saved) => {
@@ -42,6 +43,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
         status: change.status,
         resume_at: change.status === 'waiting' ? change.resumeAt.toISOString() : null,
         output: change.status === 'succeeded' ? change.output : null,
+        output_blanked: change.status === 'succeeded' ? change.blanked : null,
         error: change.status === 'failed' ? change.error : null,
         cause: change.status === 'failed' ? change.cause : null,
         finished_at: finished?.toISOString() ?? null,
@@ -59,7 +61,35 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
     read: async (id) => traces.get(id) as never,
   }
   const segment = (id: string) => void runner.segment(null, id, new AbortController().signal)
-  const runner = createRunner({ store, queue: { schedule: async (_, id, at) => void setTimeout(() => segment(id), at ? Math.max(0, at.getTime() - Date.now()) : 50) }, tasks, trace, ...(secrets && { secrets }) })
+  const blockRun = (row: Row): BlockRun => ({ id: String(row.id), status: row.status as BlockRun['status'], output: row.output, error: row.error as string | null, cause: row.cause as string | null, finishedAt: row.finished_at ? new Date(String(row.finished_at)) : null, blanked: row.output_blanked as boolean | null })
+  const blocks: BlockRunStore<null> = {
+    find: async (_, parent, visit) => {
+      const found = table('workflow_runs').find((row) => same(row.block_of, parent) && row.block_visit === visit)
+      return found && blockRun(found)
+    },
+    start: async (db, { parent, visit, state, input }) => {
+      const found = await blocks.find(db, parent, visit)
+      if (found) return found
+      const of = runOf(parent)
+      if (!findBlock(definitionOf(of).stateMachine, state)) return
+      const row: Row = { id: `run-${++runs}`, workflow_id: of.workflow_id, version: of.version, input: structuredClone(input), status: 'queued', created_at: new Date().toISOString(), started_by: `run:${parent}`, block_of: parent, block_state: state, block_visit: visit, trace: of.trace ?? null }
+      table('workflow_runs').push(row)
+      setTimeout(() => segment(String(row.id)), 50)
+      return blockRun(row)
+    },
+    count: async (_, parent) => table('workflow_runs').filter((row) => same(row.block_of, parent)).length,
+  }
+  // One tenant and one person here, so an entry is kept by its type and key alone, until it expires.
+  const entries = new Map<string, { output: unknown; cachedAt: Date; expiresAt: Date }>()
+  const cache: StepCacheStore = {
+    shapes: async () => [],
+    lookup: async ({ type, keys }) => {
+      const entry = keys.map((key) => entries.get(`${type}\n${key}`)).find((found) => found && found.expiresAt > new Date())
+      return entry && { ...structuredClone(entry), secretsChanged: [] }
+    },
+    write: async ({ type, key, output, seconds }) => void entries.set(`${type}\n${key}`, { output: structuredClone(output), cachedAt: new Date(), expiresAt: new Date(Date.now() + seconds * 1000) }),
+  }
+  const runner = createRunner({ store, blocks, cache, queue: { schedule: async (_, id, at) => void setTimeout(() => segment(id), at ? Math.max(0, at.getTime() - Date.now()) : 50), wake: async (_, id) => void setTimeout(() => segment(id), 50) }, tasks, trace, ...(secrets && { secrets }) })
 
   return {
     /** Before a run is created: its id, status, version and start, and a re-run's or a replay's input, as the table's trigger sets them. */
@@ -69,7 +99,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
       const earlier = row.rerun_of == null ? undefined : runOf(String(row.rerun_of))
       // A form writes a boolean as text.
       const replay = row.replay === true || row.replay === 'true'
-      Object.assign(row, { id: `run-${++runs}`, status: 'queued', version: row.version ?? (earlier ? workflow.version : (workflow.enabled_version ?? workflow.version)), replay: replay || null, created_at: new Date().toISOString(), started_by: 'u-ada', ...(earlier && { input: earlier.input }) })
+      Object.assign(row, { id: `run-${++runs}`, status: 'queued', version: row.version ?? (earlier ? workflow.version : (workflow.enabled_version ?? workflow.version)), replay: replay || null, created_at: new Date().toISOString(), started_by: 'u-ada', ...(earlier && { input: earlier.input, block_state: earlier.block_state ?? null }) })
     },
     /** After a write: a changed workflow's next version, and a new run started, a re-run from the earlier run's checkpoints, or from a step of its trace. */
     afterWrite: (resource: string, row: Row) => {

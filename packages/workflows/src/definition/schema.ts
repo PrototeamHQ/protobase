@@ -109,6 +109,14 @@ export const definitionSchema = {
           ItemProcessor: { $ref: '#/definitions/processor' },
           MaxConcurrency: { type: 'integer', minimum: 0, maximum: limits.mapConcurrency },
         }, { required: ['ItemProcessor', 'Items'], ...nextOrEnd }),
+        state('Block', {
+          ...flow,
+          ...recovery,
+          Arguments: {},
+          Processor: { $ref: '#/definitions/machine' },
+          // Ttl's text is checked by checkDefinition, as a step type's cache time to live is.
+          Cache: { type: 'object', additionalProperties: false, required: ['Ttl'], properties: { Ttl: { type: ['integer', 'string'] }, Key: {} } },
+        }, { required: ['Processor', 'Cache'], ...nextOrEnd }),
       ],
     },
   },

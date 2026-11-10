@@ -20,7 +20,8 @@ export type RunNoticeProps = {
 
 /**
  * What the graph shows when it is not simply the latest version, one line in the page's notice: the run shown, whose
- * marks stay on the graph while the latest version is edited, or an older version, read-only, with the way back.
+ * marks stay on the graph while the latest version is edited, or an older version, read-only, with the way back. A
+ * block's run says so, with the way to the run that reached the block.
  */
 export const RunNotice = ({ view, page, failed, changed, gone, onOpenFailed }: RunNoticeProps) => {
   const { latest, trace } = page
@@ -38,7 +39,11 @@ export const RunNotice = ({ view, page, failed, changed, gone, onOpenFailed }: R
   const version = Number(run.version)
   // A run of an older version shown on the latest, as its own address opens it: the way to the graph it ran on
   const onItsVersion = !older && version !== latest && <AppLink to={runAddress(view.workflow, view.run, version, latest)} className={buttonClass({ size: 'sm' })}>{text('showRunVersion', { version })}</AppLink>
+  // A block's run runs that Block's steps alone: the way back to the run that reached the block
+  const block = typeof run.block_state === 'string' ? run.block_state : undefined
+  const reachedBy = typeof run.block_of === 'string' && <AppLink to={runAddress(view.workflow, run.block_of, version, latest)} className={buttonClass({ size: 'sm' })}>{text('openReachingRun')}</AppLink>
   const message = () => {
+    if (block !== undefined) return text('blockRun', { when, block, version })
     if (older) return text('runOlder', { when, version: view.version ?? 0, latest: latest ?? 0 })
     if (changed) return text('runChanged', { when, version })
     if (version !== latest) return text('runUsed', { when, version, latest: latest ?? 0 })
@@ -50,6 +55,7 @@ export const RunNotice = ({ view, page, failed, changed, gone, onOpenFailed }: R
       actions={
         <>
           {failed && onOpenFailed && <Button size="sm" onClick={onOpenFailed}>{text('openFailed')}</Button>}
+          {reachedBy}
           {older && edit}
           {onItsVersion}
           {hide}

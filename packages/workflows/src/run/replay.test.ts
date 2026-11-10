@@ -150,7 +150,7 @@ describe('a replay', () => {
         save: async () => true,
         update: async () => {},
       },
-      queue: { schedule: async () => {} },
+      queue: { schedule: async () => {}, wake: async () => {} },
       tasks: { send: async (args) => void calls.push(args) },
       trace: { write: async () => {}, read: () => Promise.reject(new Error('connection lost')) },
     })

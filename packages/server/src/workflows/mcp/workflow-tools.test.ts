@@ -85,6 +85,12 @@ describe('create_workflow', () => {
     expect(JSON.parse(result)).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
   })
 
+  it('returns the saved workflow when a field rule hides its definition from the caller', async () => {
+    const { definition: _hidden, ...withoutDefinition } = saved.record
+    const { context } = contextWith({ create: async () => ({ ...saved, record: withoutDefinition }) })
+    expect(JSON.parse(await createWorkflowTool().run({ name: 'Fetch', definition: fetchUrl('https://a.example') }, context))).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
+  })
+
   it("gives back the save check's problems, and saves nothing unapproved", async () => {
     const { context } = contextWith({ create: () => Promise.reject(refusedSave) })
     expect(JSON.parse(await createWorkflowTool().run({ name: 'Fetch', definition: fetchUrl('x') }, context))).toEqual({

@@ -206,6 +206,7 @@ A save refuses a Task that leaves out an argument its step type needs, as [the e
 | `Choice` | Goes to the `Next` of the first of its `Choices` whose `Condition` is true, else to its `Default`; with neither it fails with `States.NoChoiceMatched`. A rule may carry its own `Output` and `Assign`. |
 | `Wait` | Waits `Seconds`, or until a `Timestamp` (ISO 8601), as a number or an expression. |
 | `Map` | Runs its `ItemProcessor` once per item of `Items`, at most `MaxConcurrency` at once (0, the default, means the most, 20); its result is the items' outputs in order. |
+| `Block` | Runs its `Processor` once as a run of its own on its `Arguments`, and keeps the result for `Cache.Ttl`, as [Blocks](#blocks) says; `Retry` and `Catch` as a Task. |
 | `Succeed` | Ends the run, or the Map item, with its `Output`. |
 | `Fail` | Ends it as failed with its `Error` and `Cause`. |
 
@@ -214,6 +215,37 @@ A state's output is its `Output`, else its result (a Task or Map) or the input i
 ### Errors and retries
 
 A failing Task or Map fails with an error name: a step type's own, such as `Http.Status`, `States.Timeout` when it ran past its timeout, `States.TaskFailed` for any other error it threw, and `States.QueryEvaluationError` for an expression that did not evaluate or ran past its limits. The first retrier whose `ErrorEquals` names it tries the state again after `IntervalSeconds` (default 1), times `BackoffRate` (default 2) for each earlier retry, up to `MaxDelaySeconds`; `MaxAttempts` counts the retries after the first try (default 3, 0 for none). Without `Retry` a failure is not retried. Once no retry is left, the first catcher that names it goes on to its `Next`; without one the run fails. `States.ALL` names every error but `States.DataLimitExceeded` and `States.Runtime`, which end the run even where a retrier or catcher names them.
+
+### Blocks
+
+:::caution[Beta]
+<gap>Two runs that reach a block with the same key at the same moment cannot share one run of it, because joining a block's run already under way is not implemented.</gap> Each of them runs the block.
+:::
+
+A block wraps steps into one step that runs once while what it reads stays the same. Its steps run as a run of their own, and its result is kept for a time you set, so a workflow that reaches it again, in this run or another, gets that result without running them. Use it for work that must not be repeated, such as fetching a file from a link that expires and storing it: once stored, the stored file is what counts.
+
+```json
+"Keep file": {
+  "Type": "Block",
+  "Arguments": { "url": "{% $states.context.Execution.Input.url %}" },
+  "Processor": {
+    "StartAt": "Download",
+    "States": {
+      "Download": { "Type": "Task", "Resource": "app:http", "Arguments": { "url": "{% $states.context.Execution.Input.url %}", "store": { "configuration": "archive" } }, "End": true }
+    }
+  },
+  "Cache": { "Ttl": "1 day" },
+  "Assign": { "file": "{% $states.result %}" },
+  "Next": "Mail"
+}
+```
+
+- **What it reads.** `Arguments` is the block's input. Its steps read it as `$states.context.Execution.Input`, and secrets by name; they never read the variables around the block. A variable a step inside assigns stays inside. The block's result is its last step's output, which its `Output` and `Assign` read as `$states.result`.
+- **When it runs again.** The block is keyed by the values of its input that its steps read and by the secrets they read, together with its steps as they are written. So a changed value that only a later step reads runs it again, and a value none of them reads does not. `Cache.Key`, an expression, keys it on its value instead. `Cache.Ttl` is how long a result serves, as seconds or text such as `10 minutes`, `1 hour` or `2 days`, at most 30 days; a definition without a valid one is refused. A result is kept under the run's tenant, the version's last editor with the roles they hold now, the person who turned it on and the accounts it binds, so another run reuses it only when it acts as the same people, and none is reused once the last editor's roles change or while they hold none. A result that is empty is kept too.
+- **What is never kept.** A secret: a result that holds a secret's value is not kept, so the next visit runs the block again, and a block reached after a secret it reads changed runs again too. `Arguments` may not hold a secret, since the block's run keeps its input; read it inside the block by name. A result is reused only while the accounts its steps sign in with can still be used.
+- **Its own run.** A block's run has its own trace and limits. Its output, like every value a run keeps, is at most 256 KiB; larger data goes through a [storage configuration](#storing-files). On the run's page, the Block step links to the run that gave its result, the earlier one when the result was reused, and that page marks the block's steps from its own trace. Open it to read each step, replay it by itself, or go back to the run that started it. A failed block fails the Block step with the block run's error, which `Retry` and `Catch` take; each try starts a new run of the block. A run waits for its block's run and goes on once that ends.
+- **Building one.** In the editor, *Add step* offers *Block*, which comes with one step inside; with the block or one of its steps chosen, *Add step* adds inside it, as for For each.
+- **A Wait after it.** When a state reads, after a Wait, a variable a Block set before that Wait, the check warns on that state that what the block fetched may have expired by then. The editor shows the warning on the step and in its form, and MCP clients get it in `warnings`; a save goes through with it.
 
 ## The editor
 
@@ -243,7 +275,7 @@ A user who may read a workflow but not change it gets the same page, its fields 
 - **Connecting steps.** Drag from a step's handle to another step, or tap one handle and then the other: the bottom handle sets `Next`, a Choice's *When* handle adds a rule and its *Otherwise* handle sets `Default`, a Task's or Map's *On error* handle adds a catcher of `States.ALL`, and the trigger's handle sets `StartAt`. A step leads only to steps of its own machine, so an edge into or out of a Map is refused. The chosen step's form sets the same edges with menus: *Goes on to*, each rule's and catcher's *Then goes to*, and *Otherwise goes to*.
 - **Removing.** Delete or Backspace removes the chosen step or edge, as does the form's *Remove step*. Removing a step removes the edges to it: a `Next` to it becomes `End`, and a rule, `Default` or catcher naming it goes. Removing the first step of a workflow or Map makes the first step left in it the first.
 - **A step's form.** Choosing a step opens its form in the side panel beside the graph: its name, which renames every edge to it, then what its type takes. A Task's form has a field for each argument of its step type's input schema, the ones it needs marked, as listed under [Step types](#step-types) or by its plugin: one line of text for a string, one line for a number or `true` and `false`, a menu for an `enum`, names separated by commas for a list of strings, and JSON for anything else; a Choice's its rules and `Default`; a Map's `Items` and `MaxConcurrency`; a Wait's `Seconds`; a Pass's and a Succeed's `Output`; a Fail's `Error` and `Cause`. A field takes text, an expression (`{% ... %}`) or JSON; an emptied field is left out. *The step as JSON* edits every field of the step, such as `Retry`, `Assign` and `TimeoutSeconds`. The trigger's form picks among the app's triggers, its plugins' included, and draws a field for each input of its schema the same way, such as a record trigger's resource, `when` and `key`.
-- **Problems on their step.** The editor runs the same check as a save on every change, and shows each problem on the step it names, as a count on its box and a list and a marked field in its form; a problem with the trigger or the first step shows on the trigger, and the bar counts them all, with the list in the panel. A field left to fill in is not a fault yet: a new step shows no red, and the bar says how many fields are left. Save, Test run and Publish then go to the first of them, which says so. Until then the draft stays on this browser, through a reload. Saving writes the definition through the API, where the save hook checks it again: a definition with a problem is refused with the 400 above, whose `errors` hold each problem for the `definition` field, with its state and field in `params`.
+- **Problems on their step.** The editor runs the same check as a save on every change, and shows each problem on the step it names, as a count on its box and a list and a marked field in its form; a problem with the trigger or the first step shows on the trigger, and the bar counts them all, with the list in the panel. A field left to fill in is not a fault yet: a new step shows no red, and the bar says how many fields are left. Save, Test run and Publish then go to the first of them, which says so. A warning of the check, such as a [Wait after a Block](#blocks), shows on its step as a mark and in its form as something to check, and never stops a save. Until then the draft stays on this browser, through a reload. Saving writes the definition through the API, where the save hook checks it again: a definition with a problem is refused with the 400 above, whose `errors` hold each problem for the `definition` field, with its state and field in `params`.
 
 A save also refuses a Task that leaves out an argument its step type needs, such as `app:http` without `url`, unless its `Arguments` is one expression, whose value is known only when it runs. A user who may read a workflow but not change it sees the same graph and forms, locked. <gap>The editor cannot undo a single change because an undo history is not implemented.</gap> The editor reads the app's types from `GET /api/workflows/types`, `client.workflowTypes()` of `@protobase/client`: the same list `list_workflow_types` gives over MCP, `{ step_types, triggers }`, which only a user who may read workflows gets. A type the app cannot run, such as one that signs in through a connection whose OAuth client the app does not set, is not offered, and the check refuses it with the reason; a stored trigger of such a type, or of a type the app does not have, shows its type and input, read-only. The boxes, their accessible names and a run's step headings name each type by the label the list gives it, such as *Shout* for `acme:shout`.
 
@@ -276,8 +308,6 @@ A workflow uses one person's accounts: one whose connections name accounts of tw
 The built-in step types are the `app` plugin's, written on the same [plugin interface](/reference/workflow-plugins/) as any other; a plugin's step is a Task with `"Resource": "<plugin>:<key>"`. A step's `Arguments` are checked against its type's input schema before it runs: one that does not fit fails as `<Prefix>.InvalidArguments`, such as `Http.InvalidArguments`.
 
 A step's call either changes the world, such as mail sent, a record written or a `POST`, or only reads, such as a `GET`, a record read or a list, as its type declares. A call that changes the world is **recorded**: its checkpoint is saved before the run goes on, with its result and the time it was fetched, so a run taken up again does not make it again. A call a crash cut off before its checkpoint was saved can happen again, as [How a run is run](#how-a-run-is-run) says. A read is done again when a crash comes before the next checkpoint.
-
-<gap>An author cannot wrap steps in a block that runs once, cached by what it reads, with a run and trace of its own, because blocks are not implemented.</gap>
 
 ### app:http
 
@@ -533,6 +563,7 @@ Every limit fails closed: a run or step that passes one fails, rather than going
 | Steps of one run, every try and item counted | 50,000; beyond, the run fails with `States.Runtime`. |
 | The input, output and variables of a step, and a Map's items' outputs together | 256 KiB each, as JSON; beyond, the step fails with `States.DataLimitExceeded`, whose cause gives the size. Keep large data in a store and pass a reference. |
 | A step's logs | 100 lines of 1,000 characters; more lines are left out with a last line saying how many. |
+| Blocks | 4 nested in one another at most; 1,000 runs of blocks started by one run. |
 | A run's input | 256 KiB as JSON, 64 levels deep. |
 | An answer `app:http` reads, a file a run keeps | 10 MiB. |
 | A Wait | 366 days, by `Seconds` or `Timestamp`. |

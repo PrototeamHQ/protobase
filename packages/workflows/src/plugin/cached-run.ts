@@ -1,4 +1,5 @@
 import { limits } from '../limits'
+import { tolerant } from '../run/cache/tolerant'
 import type { CacheEntry, TaskCache } from '../run/cache/cache-port'
 import { cacheKey, type KeyShape } from '../run/cache/cache-key'
 import { trackReads } from '../run/cache/read-tracker'
@@ -17,26 +18,6 @@ export const reuse = (output: unknown) => new Reused(output)
 
 /** What the cached call hands the step's code in place of its own: its input, services and mailbox, and `earlier`. */
 export type CallParts = { input: Record<string, unknown>; services: PluginServices; mailbox: PluginMail | undefined; earlier?: EarlierResult }
-
-// The cache is a shortcut, never a reason to fail: a store that fails or is slow leaves the step to run without it.
-// The worker's own stop still ends the step.
-const late = Symbol('late')
-const tolerant = async <T>(task: TaskContext, what: string, call: () => Promise<T>): Promise<T | undefined> => {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<typeof late>((resolve) => (timer = setTimeout(resolve, limits.cacheLookupMs, late)))
-  try {
-    const result = await Promise.race([call(), timeout])
-    if (result !== late) return result
-    task.log(`The cache took too long to ${what}; the step ran without it`)
-    return
-  } catch (error) {
-    if (task.signal.aborted) throw error
-    task.log(`The cache could not ${what}; the step ran without it`)
-    return
-  } finally {
-    clearTimeout(timer)
-  }
-}
 
 // The services as a cached call sees them: one that acts as someone the key does not hold, or any use of the run's own
 // files or of storage, which no key can hold, marks the call as not to keep. Forcing the cache on does not lift this.

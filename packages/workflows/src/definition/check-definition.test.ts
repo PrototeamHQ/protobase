@@ -35,7 +35,7 @@ describe('checkDefinition', () => {
       'State "A", field "Retry[0].IntervalSeconds": must be integer',
     ])
     expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Pass', InputPath: '$.x', End: true } } })).toEqual(['State "A": InputPath is not a field here'])
-    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Sleep' } } })).toEqual(['State "A", field "Type": must be one of Task, Choice, Pass, Map, Wait, Succeed and Fail'])
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Sleep' } } })).toEqual(['State "A", field "Type": must be one of Task, Choice, Pass, Map, Block, Wait, Succeed and Fail'])
   })
 
   it('refuses a state that neither goes on nor ends, and the JSONPath language', () => {
@@ -195,11 +195,11 @@ describe('checkDefinition, the rules of the decided profile', () => {
   })
 
   it('refuses Parallel, more than 19 retries, more than 20 at once and a state name used twice', () => {
-    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Parallel', Branches: [], End: true } } })).toEqual(['State "A", field "Type": must be one of Task, Choice, Pass, Map, Wait, Succeed and Fail'])
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Parallel', Branches: [], End: true } } })).toEqual(['State "A", field "Type": must be one of Task, Choice, Pass, Map, Block, Wait, Succeed and Fail'])
     expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Task', Resource: 'http', Retry: [{ ErrorEquals: ['States.ALL'], MaxAttempts: 20 }], End: true } } })).toEqual(['State "A", field "Retry[0].MaxAttempts": must be <= 19'])
     const map = (concurrency: number, inner: string) => ({ Type: 'Map', Items: '{% [1] %}', MaxConcurrency: concurrency, ItemProcessor: { StartAt: inner, States: { [inner]: pass } }, End: true })
     expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: map(21, 'B') } })).toEqual(['State "A", field "MaxConcurrency": must be <= 20'])
-    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: map(0, 'A') } })).toEqual(['State "A": is a state name used twice; names are unique across the whole state machine, Maps included'])
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: map(0, 'A') } })).toEqual(['State "A": is a state name used twice; names are unique across the whole state machine, Maps and Blocks included'])
   })
 
   it('refuses more than 100 states, counting the ones inside Maps, and a definition or expression over its size', () => {

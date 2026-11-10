@@ -45,6 +45,10 @@ export type WorkflowTraceStep = {
   startedAt: string
   finishedAt: string
   recorded: boolean
+  /** A Block's step: the block's run that gave its result. */
+  run?: string
+  /** A Block's step whose result an earlier run of it gave, kept in the cache. */
+  reused?: true
 }
 
 /**

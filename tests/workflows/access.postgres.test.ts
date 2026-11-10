@@ -162,6 +162,19 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
     expect(await count('notes')).toBe(1)
   })
 
+  it("acts on records inside a block as the workflow's last editor too, and no more", async () => {
+    const write = { Type: 'Task', Resource: 'app:records.create', Arguments: { resource: 'notes', data: { text: '{% $states.context.Execution.Input.text %}' } }, End: true }
+    const block = { Type: 'Block', Arguments: { text: '{% $states.context.Execution.Input.text %}' }, Processor: { StartAt: 'Write', States: { Write: write } }, Cache: { Ttl: 60 }, End: true }
+    const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Block note', definition: definition({ Keep: block }) } }))
+    const before = await count('notes')
+    people.ada = { tenant: '1', roles: [] }
+    const run = await created(await as('rita', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: { text: 'in a block' } } }))
+    await finished(run)
+    people.ada = { tenant: '1', roles: ['builder'] }
+    expect(await runRow(run)).toEqual({ status: 'failed', error: 'Records.Refused', cause: "The workflow's last editor holds no role here any more, so its steps act on no records" })
+    expect(await count('notes')).toBe(before)
+  })
+
   it('creates a list of records all together or none, so a retry after one is refused creates none twice', async () => {
     const workflow = await created(await as('ada', '/workflows', {
       method: 'POST',

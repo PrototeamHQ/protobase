@@ -1,5 +1,5 @@
 import type { WorkflowTypeList } from '@protobase/client'
-import { resultRead, type Definition, type Machine, type State, type TaskState } from '@protobase/workflows'
+import { innerMachine, resultRead, type Definition, type Machine, type State, type TaskState } from '@protobase/workflows'
 import { stateLabel } from '../workflow/labels'
 
 const nextOf = (state: State): string[] => {
@@ -38,7 +38,8 @@ const actingSteps = (machine: Machine, names: readonly string[], types: Workflow
   names.flatMap((name) => {
     const state = machine.States[name]
     if (!state) return []
-    const inside = state.Type === 'Map' ? actingSteps(state.ItemProcessor, reachedStates(state.ItemProcessor, state.ItemProcessor.StartAt), types) : []
+    const steps = innerMachine(state)
+    const inside = steps ? actingSteps(steps, reachedStates(steps, steps.StartAt), types) : []
     if (state.Type !== 'Task') return inside
     // A step type the app no longer lists writes as far as anyone can tell
     const writes = types?.step_types.find((type) => type.id === state.Resource)?.writes ?? true
@@ -61,5 +62,5 @@ export const changedSinceRun = (ran: Definition | undefined, definition: Definit
   return JSON.stringify(withoutResultVariables(before, shaped)) !== JSON.stringify(withoutResultVariables(definition.stateMachine.States[state], shaped))
 }
 
-/** The steps that act on the world among those a run of `definition` reaches from `start`, its first state by default, Maps looked into. */
+/** The steps that act on the world among those a run of `definition` reaches from `start`, its first state by default, Maps and Blocks looked into. */
 export const stepsThatAct = (definition: Definition, types: WorkflowTypeList | undefined, start = definition.stateMachine.StartAt) => actingSteps(definition.stateMachine, reachedStates(definition.stateMachine, start), types)

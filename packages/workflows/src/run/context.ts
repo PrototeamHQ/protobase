@@ -1,4 +1,4 @@
-import type { Checkpoint, StepLog, StepRecord, TaskHandlers } from './port'
+import type { BlockRun, Checkpoint, StepLog, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import type { SecretNamer } from './cache/secret-names'
@@ -18,6 +18,8 @@ export type SegmentContext = {
    * step of the same state and visit gave instead of running, and a Wait does not wait.
    */
   replay?: Replay
+  /** This run's blocks' runs, by the try of a Block (`visit`) that started each. */
+  blocks?: SegmentBlocks
   /** The job's signal: aborted when the worker stops, which ends the segment without saving the step in progress. */
   signal: AbortSignal
   now: () => Date
@@ -56,6 +58,9 @@ export type StateResult =
       recorded?: boolean
       /** When a recorded Task's result was fetched. */
       fetchedAt?: Date
+      /** A Block's: the block's run that gave its result, and whether that result was an earlier one the cache kept. */
+      run?: string
+      reused?: true
     }
   | Paused
 
@@ -64,3 +69,10 @@ export type Paused = { kind: 'blocked'; until: Date } | { kind: 'yielded' }
 
 /** How a scope ended in this segment. */
 export type ScopeOutcome = { kind: 'ended'; output: unknown } | { kind: 'failed'; error: string; cause: string } | Paused
+
+/** A run's blocks' runs, as its segment reaches them. */
+export type SegmentBlocks = {
+  find: (visit: string) => Promise<BlockRun | undefined>
+  start: (run: { visit: string; state: string; input: unknown }) => Promise<BlockRun | undefined>
+  count: () => Promise<number>
+}

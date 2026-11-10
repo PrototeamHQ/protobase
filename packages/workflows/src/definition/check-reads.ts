@@ -17,12 +17,19 @@ const contextProblem = (path: readonly string[]) => {
   return `reads $states.${path.join('.')}; $states.context holds only Execution.Input, Execution.StartTime and Secrets.<NAME>`
 }
 
+/** The reads of an expression, or undefined when it does not parse. */
+export const expressionParsed = (source: string) => {
+  const parsed = parse(source)
+  return 'error' in parsed ? undefined : expressionReads(parsed.expression)
+}
+
 /**
  * Why an expression breaks the named-reads profile, if it does: it must parse, read no implicit input, read
  * `$states.input` only in the first state of a Map's item processor, read of `$states.context` only the run's input,
- * start time and secrets by name, and read only variables a state that can run before it assigns.
+ * start time and secrets by name (inside a Block, not the start time), and read only variables a state that can run
+ * before it assigns.
  */
-export const readProblems = (source: string, { place, visible, firstOfItem }: { place: ExpressionPlace; visible: ReadonlySet<string>; firstOfItem: boolean }) => {
+export const readProblems = (source: string, { place, visible, firstOfItem, inBlock = false }: { place: ExpressionPlace; visible: ReadonlySet<string>; firstOfItem: boolean; inBlock?: boolean }) => {
   if (source.length > limits.expressionLength) return [`is ${source.length} characters long, more than the ${limits.expressionLength} an expression may be`]
   const parsed = parse(source)
   if ('error' in parsed) return [`does not parse: ${parsed.error.message}${parsed.error.position === undefined ? '' : ` (at character ${parsed.error.position})`}`]
@@ -33,7 +40,8 @@ export const readProblems = (source: string, { place, visible, firstOfItem }: { 
     const [field = ''] = path
     if (field === 'input' && firstOfItem) continue
     if (field !== '' && field === statesFields[place]) continue
-    if (field === 'context') {
+    if (field === 'context' && inBlock && startsWith(path, ['context', 'Execution', 'StartTime'])) problems.push("reads $states.context.Execution.StartTime, which inside a Block is its own run's start, not part of what it is cached by")
+    else if (field === 'context') {
       const problem = contextProblem(path)
       if (problem) problems.push(problem)
     } else if (field === 'input') problems.push("reads $states.input, which only the first state of a Map's item processor may read (as the item)")

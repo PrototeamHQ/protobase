@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 19
+export const workflowsVersion = 20
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -200,8 +200,8 @@ export const workflowsTriggers = ['workflow_version', 'run_version']
  * the saved row's; the save hook keeps that version's definition and who saved it, and publishes only as `enabled_version`
  * is written. A run takes the version it names as it is created, else the published one, or the one saved last on a workflow
  * that is off, and refuses a workflow of another tenant as one that is not there, one that has no saved version, and a
- * version the workflow does not have. A re-run takes the input of the run it re-runs, which the start hook checks; a replay
- * too; both run the version saved last unless they name one. A workflow is created with no steps unless it says otherwise;
+ * version the workflow does not have. A re-run takes the input of the run it re-runs, which the start hook checks, and
+ * the Block it ran when it was a block's run; a replay too; both run the version saved last unless they name one. A workflow is created with no steps unless it says otherwise;
  * such a version is kept but runs nothing.
  */
 export const functionsSql = (schema: string) => {
@@ -262,8 +262,9 @@ begin
   if exists (select from ${s}."versions" v where v.workflow_id = new.workflow_id and v.version = new.version and v.definition -> 'stateMachine' -> 'States' = '{}'::jsonb) then
     raise exception 'Workflow % has no steps to run', new.workflow_id using errcode = '23503';
   end if;
+  -- A re-run or a replay of a block's run runs that Block's processor again, alone.
   if new.rerun_of is not null then
-    select r.input into new.input from ${s}."runs" r where r.id = new.rerun_of and r.workflow_id = new.workflow_id;
+    select r.input, r.block_state into new.input, new.block_state from ${s}."runs" r where r.id = new.rerun_of and r.workflow_id = new.workflow_id;
   end if;
   return new;
 end

@@ -2,7 +2,10 @@ import type { ReactNode } from 'react'
 import { heldBackLog } from '@protobase/workflows'
 import { formatDateTime } from '../../../format/date'
 import { formatTag } from '../../../locale/active-locale'
+import { cn } from '../../../lib/cn'
 import { Badge } from '../../../primitives/badge'
+import { buttonClass } from '../../../primitives/button'
+import { AppLink } from '../../use-app-address'
 import { JsonBlock } from '../json/json-block'
 import { nodeStatusLabel } from '../workflow/labels'
 import { nodeTones, type NodeStatus } from '../workflow/node-trace'
@@ -38,7 +41,8 @@ const Logs = ({ logs }: { logs: NonNullable<StepRow['logs']> }) => (
 
 /**
  * One step of a run: its try, item, status and timing, then its error, input, output, variables and logs, as the run's
- * trace keeps them, secrets blanked out. A step a replay did not send says so.
+ * trace keeps them, secrets blanked out. A step a replay did not send says so, and a Block's step links to the block's
+ * own run, which gave its result.
  */
 export const StepCard = ({ step, valueActions }: { step: StepRow; valueActions?: ValueActions }) => {
   const heldBack = step.logs?.some((line) => line.message === heldBackLog) ?? false
@@ -55,6 +59,7 @@ export const StepCard = ({ step, valueActions }: { step: StepRow; valueActions?:
         ))}
         <Badge tone={nodeTones[step.status]}>{nodeStatusLabel(step.status)}</Badge>
         {heldBack && <Badge tone="violet">{text('notSent')}</Badge>}
+        {step.reused === true && <Badge tone="blue">{text('reused')}</Badge>}
         <time dateTime={step.started_at} className="text-muted-foreground">{formatDateTime(Date.parse(step.started_at))}</time>
         <span className="tabular-nums text-muted-foreground">{text('duration', { ms: Number(step.duration_ms ?? 0) })}</span>
       </header>
@@ -65,6 +70,14 @@ export const StepCard = ({ step, valueActions }: { step: StepRow; valueActions?:
             {step.cause != null && <span>: {String(step.cause)}</span>}
           </p>
         </Part>
+      )}
+      {typeof step.run === 'string' && (
+        <div className="grid gap-1">
+          {step.reused === true && <p className="text-body text-muted-foreground">{text('reusedResult')}</p>}
+          <AppLink to={{ kind: 'record', resource: 'workflow_runs', key: step.run }} className={cn(buttonClass({ size: 'sm' }), 'justify-self-start')}>
+            {step.reused === true ? text('openEarlierBlockRun') : text('openBlockRun')}
+          </AppLink>
+        </div>
       )}
       {step.status !== 'failed' && output}
       {step.input !== undefined && step.input !== null && <Part title={text('input')}><JsonBlock value={step.input} />{valueActions?.(step.input, 'input')}</Part>}

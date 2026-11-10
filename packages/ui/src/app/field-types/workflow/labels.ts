@@ -25,6 +25,7 @@ const stateTypeLabels: Record<Exclude<State['Type'], 'Task'>, () => string> = {
   Choice: () => text('typeChoice'),
   Wait: () => text('typeWait'),
   Map: () => text('typeMap'),
+  Block: () => text('typeBlock'),
   Succeed: () => text('typeSucceed'),
   Fail: () => text('typeFail'),
 }

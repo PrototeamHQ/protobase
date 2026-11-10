@@ -1,6 +1,6 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
-import { rerunFrom, rerunProblem, type Definition, type EarlierCheckpoint, type Runner, type TraceMode } from '@protobase/workflows'
+import { blockDefinition, rerunFrom, rerunProblem, type Definition, type EarlierCheckpoint, type Runner, type TraceMode } from '@protobase/workflows'
 import type { Deps } from '../deps'
 import { fetchReadable } from '../fetch-readable'
 import { deletedRows } from '../params'
@@ -32,13 +32,18 @@ export const keepEarlierCheckpoints = async (trx: Db, deps: Deps, runner: Runner
   const from = event.after.rerun_from as string | null | undefined
   if (from && found.record.status !== 'failed' && found.record.status !== 'succeeded') throw badRequest('run-not-ended', `Only a run that ended is re-run from a step; this one is ${String(found.record.status)}`)
   if (!from && found.record.status !== 'failed') throw badRequest('run-not-failed', `Only a failed run is re-run from where it failed; this one is ${String(found.record.status)}`)
+  const refused = (problem: string) => badRequest('rerun-refused', `The run cannot be re-run on the workflow as it is now: ${problem}`)
+  // A block's run, and a re-run of one, runs its Block's steps: the definition its steps are of.
   const version = async (id: string) => {
-    const { rows } = await sql<{ definition: Definition }>`select v.definition from ${sql.id(schema, 'runs')} r
+    const { rows } = await sql<{ definition: Definition; block_state: string | null }>`select v.definition, r.block_state from ${sql.id(schema, 'runs')} r
       join ${sql.id(schema, 'versions')} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${id}`.execute(trx)
-    return rows[0]!.definition
+    const { definition, block_state } = rows[0]!
+    if (block_state === null) return definition
+    const block = blockDefinition(definition, block_state)
+    if (!block) throw refused(`the Block "${block_state}" is not in this version`)
+    return block
   }
   const definition = await version(run)
-  const refused = (problem: string) => badRequest('rerun-refused', `The run cannot be re-run on the workflow as it is now: ${problem}`)
   const checkpoints = sql.id(schema, 'checkpoints')
   if (!from) {
     const { rows } = await sql<EarlierCheckpoint>`select scope, next from ${checkpoints} where run_id = ${earlier}`.execute(trx)

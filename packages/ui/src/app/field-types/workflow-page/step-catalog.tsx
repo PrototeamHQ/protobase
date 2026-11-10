@@ -1,4 +1,4 @@
-import { Bell, CircleCheck, CircleX, Database, GitBranch, Globe, Mail, PenLine, Puzzle, Repeat, Timer, type LucideIcon } from 'lucide-react'
+import { Bell, CircleCheck, CircleX, Database, GitBranch, Globe, Mail, Package, PenLine, Puzzle, Repeat, Timer, type LucideIcon } from 'lucide-react'
 import type { WorkflowTypeEntry, WorkflowTypeList } from '@protobase/client'
 import type { State } from '@protobase/workflows'
 import type { PickerGroup, PickerItem } from '../../../search-picker'
@@ -20,6 +20,7 @@ const builtIn: Record<string, { icon: LucideIcon; keywords: string[] }> = {
 const flow: { type: FlowType; icon: LucideIcon; description: () => string; keywords: string[] }[] = [
   { type: 'Choice', icon: GitBranch, description: () => text('flowChoice'), keywords: ['if', 'branch', 'switch', 'condition'] },
   { type: 'Map', icon: Repeat, description: () => text('flowMap'), keywords: ['loop', 'each', 'list', 'repeat'] },
+  { type: 'Block', icon: Package, description: () => text('flowBlock'), keywords: ['cache', 'once', 'group', 'reuse', 'wrap'] },
   { type: 'Wait', icon: Timer, description: () => text('flowWait'), keywords: ['delay', 'sleep', 'pause', 'later'] },
   { type: 'Pass', icon: PenLine, description: () => text('flowPass'), keywords: ['variable', 'assign', 'transform'] },
   { type: 'Succeed', icon: CircleCheck, description: () => text('flowSucceed'), keywords: ['end', 'stop', 'done'] },

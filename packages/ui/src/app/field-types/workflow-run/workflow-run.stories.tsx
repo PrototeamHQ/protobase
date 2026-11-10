@@ -38,6 +38,42 @@ const syncTickets = (resource: string): Definition => ({
   },
 })
 
+/**
+ * Keeps a file from a signed link in a block, which runs once while the link stays the same, then waits and mails what it
+ * kept: the checker warns on the mail, which reads the block's result after the wait.
+ */
+const keepFile: Definition = {
+  trigger: { manual: {} },
+  stateMachine: {
+    QueryLanguage: 'JSONata',
+    StartAt: 'Keep file',
+    States: {
+      'Keep file': {
+        Type: 'Block',
+        Arguments: { url: '{% $states.context.Execution.Input.url %}' },
+        Processor: {
+          StartAt: 'Download',
+          States: {
+            Download: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $states.context.Execution.Input.url %}' }, Assign: { body: '{% $states.result.body %}' }, Next: 'Save' },
+            Save: { Type: 'Task', Resource: 'app:records.create', Arguments: { resource: 'tickets', data: '{% $body.items %}' }, End: true },
+          },
+        },
+        Cache: { Ttl: '1 hour' },
+        Assign: { saved: '{% $states.result %}' },
+        Next: 'Later',
+      },
+      Later: { Type: 'Wait', Seconds: 1, Next: 'Mail' },
+      Mail: { Type: 'Task', Resource: 'app:mail.send', Arguments: { to: 'ops@example.com', subject: 'Saved', text: '{% $string($saved) %}' }, End: true },
+    },
+  },
+}
+
+/** The signed-file workflow as a later, unpublished version left it, its block taken out. */
+const keepFileUnwrapped: Definition = {
+  ...keepFile,
+  stateMachine: { ...keepFile.stateMachine, StartAt: 'Later', States: { Later: keepFile.stateMachine.States.Later!, Mail: keepFile.stateMachine.States.Mail! } },
+}
+
 /** Waits for the gate the story opens, then echoes the run's input. */
 const gated: Definition = {
   trigger: { manual: {} },
@@ -97,8 +133,8 @@ const version = (id: number, definition: Definition) => ({ workflow_id: id, vers
 // What the stories' steps did, for the checks to read, and the gate the gated step waits on
 const calls = { fetch: 0, store: 0, mail: 0 }
 let openGate = () => {}
-// The secret whose change a read's next call logs in the step cache's words. The stories' engine has no step cache, so
-// this only lets the replay check see that the page shows that line; replay.postgres.test.ts proves the cache logs it.
+// The secret whose change a read's next call logs in the step cache's words. The stories' steps keep nothing in the step
+// cache, so this only lets the replay check see that the page shows that line; replay.postgres.test.ts proves the cache logs it.
 let secretChanged: string | undefined
 
 /**
@@ -149,8 +185,10 @@ const Workspace = ({ start, runs = [], traceOnceEnded = false }: { start: string
         workflow(4, 'Mail, then store', mailThenStore('tikets')),
         workflow(5, 'Greet, keeping no trace', greet('none')),
         workflow(6, 'Greet, keeping failing runs only', greet('failed')),
+        workflow(7, 'Keep a signed file', keepFile),
+        { ...workflow(8, 'Keep a signed file, since unwrapped', keepFileUnwrapped), version: 2, enabled_version: 1 },
       ],
-      workflow_versions: [version(1, syncTickets('tikets')), version(2, gated), version(3, mailSummary), version(4, mailThenStore('tikets')), version(5, greet('none')), version(6, greet('failed'))],
+      workflow_versions: [version(1, syncTickets('tikets')), version(2, gated), version(3, mailSummary), version(4, mailThenStore('tikets')), version(5, greet('none')), version(6, greet('failed')), version(7, keepFile), version(8, keepFile), { ...version(8, keepFileUnwrapped), version: 2 }],
       workflow_runs: [],
     }
     // As the resources' access says: runs are created, never changed, and versions only read
@@ -457,5 +495,60 @@ export const ReplayChecks: StoryObj = {
     await userEvent.click(await nodeOf(canvasElement, 'Fetch'))
     const read = within(await canvas.findByRole('complementary', { name: 'Fetch' }))
     await waitFor(() => expect(read.getByText(/The secret TICKETS_TOKEN changed since that result was kept/)).toBeVisible())
+  },
+}
+
+export const BlockRun: StoryObj = {
+  name: 'A run that reached a block',
+  render: () => <Workspace start={runPage} runs={[{ workflow_id: 7, input: { url: 'https://files.example.com/report?sig=1' } }]} />,
+}
+
+/** From a run that reached a block, the Block's step opens the block's own run, its steps marked from its own trace. */
+export const BlockRunChecks: StoryObj = {
+  ...BlockRun,
+  name: "A Block's step opens the block's own run (checks)",
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    await markOf(canvasElement, 'Mail', 'Succeeded')
+    // A step inside the block, from the run that reached it, re-runs from the Block's step
+    await userEvent.click(await nodeOf(canvasElement, 'Keep file/Download'))
+    const rerun = await sidePanel(canvasElement).findByRole('button', { name: 'Re-run from this step' })
+    await waitFor(() => expect(rerun).toHaveAttribute('title', 'Re-run from the Block step: Keep file.'), { timeout: 10_000 })
+    await userEvent.click(await nodeOf(canvasElement, 'Keep file'))
+    const open = await sidePanel(canvasElement).findByRole('link', { name: "Open the block's run" })
+    await expect(open).toHaveAttribute('href', appPath({ kind: 'record', resource: 'workflow_runs', key: 'run-2' }))
+    await userEvent.click(open)
+    await markOf(canvasElement, 'Keep file/Download', 'Succeeded')
+    await markOf(canvasElement, 'Keep file/Save', 'Succeeded')
+    await expect(calls.store).toBe(1)
+  },
+}
+
+/** A run on a version with a block still leads from a step inside it to the block's run once a later version took the block out. */
+export const BlockRunOfOlderVersionChecks: StoryObj = {
+  name: "A step inside a block a later version took out still opens the block's run (checks)",
+  tags: ['play', '!dev'],
+  render: () => <Workspace start={runPage} runs={[{ workflow_id: 8, input: { url: 'https://files.example.com/report?sig=1' } }]} />,
+  play: async ({ canvasElement }) => {
+    await markOf(canvasElement, 'Mail', 'Succeeded')
+    await userEvent.click(await within(canvasElement).findByRole('link', { name: 'Show on version 1' }))
+    await markOf(canvasElement, 'Keep file', 'Succeeded')
+    await userEvent.click(await nodeOf(canvasElement, 'Keep file/Download'))
+    const open = await sidePanel(canvasElement).findByRole('link', { name: "Open the block's run" })
+    await expect(open).toHaveAttribute('href', appPath({ kind: 'record', resource: 'workflow_runs', key: 'run-2' }))
+  },
+}
+
+/** The checker's warning shows on the step that reads a block's result after a Wait, and the workflow still saves. */
+export const BlockWarningChecks: StoryObj = {
+  name: "The checker warns on a step that reads a block's result after a Wait (checks)",
+  tags: ['play', '!dev'],
+  render: () => <Workspace start={appPath({ kind: 'record', resource: 'workflows', key: '7' })} />,
+  play: async ({ canvasElement }) => {
+    const mail = await nodeOf(canvasElement, 'Mail')
+    await waitFor(() => expect(mail.getAttribute('aria-label')).toMatch(/may have expired by then/))
+    await userEvent.click(mail)
+    await expect(await sidePanel(canvasElement).findByText('You can save, but check this:')).toBeInTheDocument()
+    await expect(sidePanel(canvasElement).queryByText(/Saving is refused/)).not.toBeInTheDocument()
   },
 }

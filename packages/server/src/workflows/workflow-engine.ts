@@ -47,7 +47,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const storage = workflowsStorage(options)
   const allowPrivateAddresses = Boolean(options.allowPrivateAddresses)
   const input = { deps, schema, roles, allowPrivateAddresses, storage, connect: connections.trigger }
-  const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET))
+  const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET), roles)
   const files = () => deps().files
   const trace = traceSink({ files, joining: traceJoining(() => deps().db, schema), report: (error) => deps().report(error) })
   const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets, cache, trace, traceMode: workflowsTraceMode(options) })

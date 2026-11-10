@@ -1,7 +1,8 @@
 import type { WorkflowTypeList } from '@protobase/client'
 import type { Definition } from '@protobase/workflows'
 import { useState } from 'react'
-import { Button } from '../../../primitives/button'
+import { Button, buttonClass } from '../../../primitives/button'
+import { AppLink } from '../../use-app-address'
 import { splitPath, stateAt, triggerId } from '../workflow/definition'
 import { stateLabel, triggerLabel } from '../workflow/labels'
 import { JsonBlock } from '../json/json-block'
@@ -24,13 +25,24 @@ const Heading = ({ kind, name }: { kind: string; name: string }) => (
 
 /**
  * The steps a state took in the run, every try and item, in the order they ran: the trace the graph read, so no second
- * read.
+ * read. A state inside a Block, which `block` names, ran in the block's own run: the way there instead.
  */
-export const StateSteps = ({ run, name, valueActions }: { run: StepsRun; name: string; valueActions?: ValueActions }) => {
+export const StateSteps = ({ run, name, block, valueActions }: { run: StepsRun; name: string; block?: string; valueActions?: ValueActions }) => {
   const trace = useRunSteps(run.id, false)
   const [shown, setShown] = useState(stepPageSize)
   if (trace.isPending) return null
   const steps = (trace.data ?? []).filter((step) => step.state === name)
+  const blockRun = block === undefined ? undefined : (trace.data ?? []).filter((step) => step.state === block && typeof step.run === 'string').at(-1)?.run
+  if (steps.length === 0 && typeof blockRun === 'string') {
+    return (
+      <div className="grid gap-2 text-body text-muted-foreground">
+        <p>{text('ranInBlockRun', { block: block! })}</p>
+        <AppLink to={{ kind: 'record', resource: 'workflow_runs', key: blockRun }} className={buttonClass({ size: 'sm' }) + ' justify-self-start'}>
+          {text('openBlockRun')}
+        </AppLink>
+      </div>
+    )
+  }
   if (steps.length === 0) return <p className="text-body text-muted-foreground">{text('notRun')}</p>
   return (
     <div className="grid gap-3">

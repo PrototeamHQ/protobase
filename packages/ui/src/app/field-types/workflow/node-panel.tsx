@@ -6,7 +6,7 @@ import { allNames, machineAt, pathOf, splitPath, stateAt, triggerId, type StateP
 import { removeState, renameState, replaceState, setTrigger, startAt } from './definition-edits'
 import { stateLabel, triggerLabel } from './labels'
 import type { NodeProblem } from './problems'
-import { ProblemList } from './problem-list'
+import { ProblemList, WarningList } from './problem-list'
 import { RenameField } from './rename-field'
 import { StateFields } from './state-fields'
 import { TriggerFields } from './trigger-fields'
@@ -20,6 +20,8 @@ export type NodePanelProps = {
   /** The trigger's id or a state's path. */
   selected: string
   problems: readonly NodeProblem[]
+  /** What the check warns of on the node, which a save goes through with. */
+  warnings?: readonly NodeProblem[]
   /** Without it, the node is only shown. */
   onChange?: (definition: Definition) => void
   onSelect: (id: string | undefined) => void
@@ -34,7 +36,7 @@ const Heading = ({ kind, name }: { kind: string; name: string }) => (
   </div>
 )
 
-const StatePanel = ({ definition, types, selected: path, problems, onChange, onSelect }: NodePanelProps) => {
+const StatePanel = ({ definition, types, selected: path, problems, warnings = [], onChange, onSelect }: NodePanelProps) => {
   const state = stateAt(definition, path)
   if (!state) return null
   const { scope, name } = splitPath(path)
@@ -45,6 +47,7 @@ const StatePanel = ({ definition, types, selected: path, problems, onChange, onS
     <>
       <Heading kind={stateLabel(state, types)} name={name} />
       <ProblemList problems={problems} />
+      <WarningList warnings={warnings} />
       <RenameField
         key={path}
         name={name}

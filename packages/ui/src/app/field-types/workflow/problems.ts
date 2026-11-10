@@ -1,5 +1,5 @@
 import type { WorkflowTypeList } from '@protobase/client'
-import { checkDefinition, type Definition, type Problem, type TriggerCheck } from '@protobase/workflows'
+import { checkDefinition, definitionWarnings, type Definition, type Problem, type TriggerCheck } from '@protobase/workflows'
 import { triggerId } from './definition'
 import { schemaInputs, type TypeInput } from './type-inputs'
 
@@ -56,4 +56,14 @@ export const definitionProblems = (definition: Definition, types: WorkflowTypeLi
     triggers: Object.fromEntries(triggers.map((type) => [type.id, inputProblems(schemaInputs(type.input))])),
     unavailable: Object.fromEntries(unavailable.map((type) => [type.id, type.reason ?? ''])),
   })
+}
+
+/** What the check warns of by the node each is about, which a save goes through with: those of no state are left out. */
+export const warningsByNode = (definition: Definition) => {
+  const byNode = new Map<string, NodeProblem[]>()
+  for (const { state, field, message } of definitionWarnings(definition)) {
+    if (state === undefined) continue
+    byNode.set(state, [...(byNode.get(state) ?? []), { ...(field !== undefined && { field }), message }])
+  }
+  return byNode
 }

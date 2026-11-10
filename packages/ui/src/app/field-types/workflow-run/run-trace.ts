@@ -25,14 +25,15 @@ const weight: Record<NodeStatus, number> = { succeeded: 0, caught: 1, retrying: 
 /**
  * Each state's mark from the run's steps in the order they ran: how its last step in each scope ended, the worst of them
  * for a Map's items, and while the run goes on, `current` on the state each scope goes on to, or on the first state when
- * nothing ran yet.
+ * nothing ran yet. A block's run marks the states inside its Block, whose path is `within`.
  */
-export const nodeTraces = (steps: readonly TraceStep[], { inProgress, startAt }: { inProgress: boolean; startAt: string }) => {
+export const nodeTraces = (steps: readonly TraceStep[], { inProgress, startAt, within = [] }: { inProgress: boolean; startAt: string; within?: readonly string[] }) => {
+  const placed = (scope: string, state: string) => [...within, statePath(scope, state)].join('/')
   const counts = new Map<string, number>()
   const lastOfState = new Map<string, TraceStep>()
   const lastOfScope = new Map<string, TraceStep>()
   for (const step of steps) {
-    const path = statePath(step.scope, step.state)
+    const path = placed(step.scope, step.state)
     counts.set(path, (counts.get(path) ?? 0) + 1)
     lastOfState.set(`${step.scope}\n${step.state}`, step)
     lastOfScope.set(step.scope, step)
@@ -42,10 +43,10 @@ export const nodeTraces = (steps: readonly TraceStep[], { inProgress, startAt }:
     const known = statuses.get(path)
     if (known === undefined || weight[status] > weight[known]) statuses.set(path, status)
   }
-  for (const step of lastOfState.values()) mark(statePath(step.scope, step.state), step.status)
+  for (const step of lastOfState.values()) mark(placed(step.scope, step.state), step.status)
   if (inProgress) {
-    if (!lastOfScope.has('') && startAt) mark(startAt, 'current')
-    for (const step of lastOfScope.values()) if (step.status !== 'retrying' && step.next !== null) mark(statePath(step.scope, step.next), 'current')
+    if (!lastOfScope.has('') && startAt) mark([...within, startAt].join('/'), 'current')
+    for (const step of lastOfScope.values()) if (step.status !== 'retrying' && step.next !== null) mark(placed(step.scope, step.next), 'current')
   }
   return new Map<string, NodeTrace>([...statuses].map(([path, status]) => [path, { status, steps: counts.get(path) ?? 0 }]))
 }

@@ -1,4 +1,6 @@
-import type { MapState, TaskState } from '../definition/types'
+import type { BlockState, MapState, TaskState } from '../definition/types'
+import { runBlock } from './block-state'
+import type { Failure, Ran } from './ran'
 import { limits } from '../limits'
 import type { ScopeOutcome, StateResult } from './context'
 import { errorOutput, StepError } from './errors'
@@ -12,14 +14,9 @@ import { visibleVariables, type StateCall } from './step-input'
 import { emptyTask, heldBack, heldBackLog, replayedOutcome } from './replay'
 import { runTask } from './task'
 
-type Failure = { Error: string; Cause: string }
-type Ran =
-  | { result: unknown; input: unknown; recorded?: boolean }
-  | { held: true; input: unknown }
-  | { failure: Failure; input: unknown; recorded?: boolean }
-  | Extract<StateResult, { kind: 'blocked' | 'yielded' }>
 /** What a state goes on with: a held-back step's is what the replayed run's step gave. */
-type Outcome = ({ result: unknown } | { failure: Failure }) & { input: unknown; held?: true; recorded?: boolean }
+type Outcome = ({ result: unknown } | { failure: Failure }) & { input: unknown; held?: true; recorded?: boolean; fetchedAt?: Date; run?: string; reused?: true }
+type ResultState = TaskState | MapState | BlockState
 
 const task = async (state: TaskState, call: StateCall): Promise<Ran> => {
   const args = await evaluateTemplate(state.Arguments ?? {}, call.bindings, 'Arguments')
@@ -63,9 +60,10 @@ const map = async (state: MapState, call: StateCall): Promise<Ran> => {
 }
 
 // Runs the state, a failure of its own as the error it names.
-const attempt = async (state: TaskState | MapState, call: StateCall): Promise<Ran> => {
+const attempt = async (state: ResultState, call: StateCall): Promise<Ran> => {
   try {
     if (state.Type === 'Task') return await task(state, call)
+    if (state.Type === 'Block') return await runBlock(state, call)
     return await map(state, call)
   } catch (error) {
     if (!(error instanceof StepError)) throw error
@@ -74,29 +72,31 @@ const attempt = async (state: TaskState | MapState, call: StateCall): Promise<Ra
 }
 
 // A held-back step goes on with what the replayed run's step gave, or ends with a null output when it gave nothing.
-const withReplayed = async (state: TaskState | MapState, call: StateCall): Promise<Outcome | StateResult> => {
+const withReplayed = async (state: ResultState, call: StateCall): Promise<Outcome | StateResult> => {
   const ran = await attempt(state, call)
   if ('kind' in ran || !('held' in ran)) return ran
   call.logs.push({ at: call.context.now().toISOString(), message: heldBackLog })
   const outcome = replayedOutcome(call.context.replay!, { scope: call.scope, logical: call.logical, visit: call.visit, name: call.name })
-  if (!outcome) return emptyTask(state as TaskState, ran.input, call.logs)
+  if (!outcome) return emptyTask(state, ran.input, call.logs)
   return { held: true, input: ran.input, ...outcome }
 }
 
 /**
- * A Task or a Map: its result shaped by `Output` and `Assign`, which read it as `$states.result`; a failure,
- * its own or an item's, goes to its retriers and catchers. In a recorded Task's `Output` and `Assign`, `$now` is when
- * its result was fetched, which the checkpoint keeps as the scope's clock.
+ * A Task, a Map or a Block: its result shaped by `Output` and `Assign`, which read it as `$states.result`; a failure,
+ * its own or an item's, goes to its retriers and catchers. In a recorded Task's or a Block's `Output` and `Assign`,
+ * `$now` is when its result was fetched; the checkpoint keeps when the step ended as the scope's clock.
  */
-export const runResultState = async (state: TaskState | MapState, call: StateCall): Promise<StateResult> => {
+export const runResultState = async (state: ResultState, call: StateCall): Promise<StateResult> => {
   const ran = await withReplayed(state, call)
   if ('kind' in ran) return ran
   const now = call.context.now()
-  const recorded = { ...(ran.recorded && { recorded: true, fetchedAt: now }) }
+  // A Block's result may be older than its step: its `$now` is when it was fetched, while the scope's clock goes on from now.
+  const fetchedAt = ('fetchedAt' in ran && ran.fetchedAt) || now
+  const recorded = { ...(ran.recorded && { recorded: true, fetchedAt: now }), ...('run' in ran && ran.run !== undefined && { run: ran.run }), ...('reused' in ran && ran.reused && { reused: true as const }) }
   // A held-back step's error is the one its visit ended with after its retries, so only a catcher takes it.
   const recoverable = 'held' in ran ? { ...(state.Catch && { Catch: state.Catch }) } : state
   if ('failure' in ran) return { ...(await recover(recoverable, call.position, ran.failure, call.bindings, now, call.logs)), ...(ran.input !== undefined && { input: ran.input }), ...recorded } as StateResult
-  const { now: fetched, millis } = stepFunctions(ran.recorded ? now : call.position.clock, '')
+  const { now: fetched, millis } = stepFunctions(ran.recorded ? fetchedAt : call.position.clock, '')
   const after = { ...call.bindings, now: fetched, millis, states: { ...(call.bindings.states as object), result: ran.result } }
   const shaped = async () => ({
     output: state.Output === undefined ? ran.result : await evaluateKept(state.Output, after, 'Output'),

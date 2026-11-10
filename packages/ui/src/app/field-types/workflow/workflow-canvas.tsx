@@ -26,6 +26,8 @@ export type WorkflowCanvasProps = {
   onChange?: (definition: Definition) => void
   /** How each state did in a run, by its path, marked on its node. */
   traces?: ReadonlyMap<string, NodeTrace>
+  /** What the check warns of, by node, which a save goes through with. */
+  warnings?: ReadonlyMap<string, NodeProblem[]>
   /** The app's types, whose labels name the nodes and whose cache advice marks them. */
   types?: WorkflowTypeList
   /** The canvas is the window, on a page that does not scroll, so the wheel pans it as on any canvas. */
@@ -70,10 +72,10 @@ const MeasureOnLayout = ({ laidOut, ids }: { laidOut: unknown; ids: string[] }) 
   return null
 }
 
-const Canvas = ({ definition, problems, selected, onSelect, onChange, traces, types, fills = false }: WorkflowCanvasProps) => {
+const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, traces, types, fills = false }: WorkflowCanvasProps) => {
   const graph = useMemo(() => definitionGraph(definition), [definition])
   const boxes = useLayout(graph)
-  const nodes = useMemo(() => flowNodes(graph, boxes, problems, selected, traces, types), [graph, boxes, problems, selected, traces, types])
+  const nodes = useMemo(() => flowNodes(graph, boxes, problems, selected, traces, types, warnings), [graph, boxes, problems, selected, traces, types, warnings])
   // The edge chosen, which Delete removes
   const [chosenEdge, setChosenEdge] = useState<string>()
   const edges = useMemo(() => flowEdges(graph).map((edge) => ({ ...edge, selected: edge.id === chosenEdge })), [graph, chosenEdge])
