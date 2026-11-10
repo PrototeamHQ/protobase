@@ -43,8 +43,8 @@ export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMod
         .segment(context.db, run, context.signal)
         .catch(async (error: unknown) => {
           // No segment comes after the job's last try, so that try ends the run rather than leaving it running.
-          if (context.job.attempt >= context.job.maxAttempts) await failAfterLastTry(store, queue, context.db, run, context.job.attempt)
-          throw error
+          if (context.job.attempt < context.job.maxAttempts) throw error
+          return failAfterLastTry(store, queue, context.db, run, context.job.attempt, error)
         }),
     maxAttempts: 10,
     retryDelay: '5 seconds',
