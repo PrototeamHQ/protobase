@@ -84,6 +84,7 @@ const Chat = () => {
       // Like the server, a create stamps its author and time; Ann answers each message straight away
       beforeWrite: (name, row) => {
         if (name !== 'messages' || row.author_id) return
+        if (row.body === 'Too late') throw new Error('The room is closed')
         Object.assign(row, { author_id: 'story', sent_at: new Date().toISOString() })
       },
       afterWrite: (name, row, all) => {
@@ -127,6 +128,10 @@ export const Checks: StoryObj = {
     expect(within(log).getAllByRole('separator').map((line) => line.getAttribute('aria-label'))).toEqual(['Yesterday', 'Today'])
     expect(within(log).queryByText('Not in this room.')).toBeNull()
 
+    // Sent while scrolled back to the top, the reader's own message takes them to the end
+    const scroller = log.parentElement!
+    scroller.scrollTop = 0
+    scroller.dispatchEvent(new Event('scroll'))
     await userEvent.click(canvas.getByRole('button', { name: 'Load earlier messages' }))
     await within(log).findByText('Good morning all.')
     expect(canvas.queryByRole('button', { name: 'Load earlier messages' })).toBeNull()
@@ -134,6 +139,14 @@ export const Checks: StoryObj = {
     await userEvent.type(canvas.getByRole('textbox', { name: 'Message' }), 'See you there{Enter}')
     await within(log).findByText('See you there')
     await within(log).findByText('Sounds good.')
+    await waitFor(() => expect(scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop).toBeLessThan(2))
     expect(stored.messages!.find((row) => row.body === 'See you there')).toMatchObject({ author_id: 'story', room: 'general' })
+    const box = canvas.getByRole('textbox', { name: 'Message' })
+    await waitFor(() => expect(box).toHaveValue(''))
+
+    // A refused message stays in the box to send again
+    await userEvent.type(box, 'Too late{Enter}')
+    expect(await canvas.findByRole('alert')).toHaveTextContent('Not sent')
+    expect(box).toHaveValue('Too late')
   },
 }

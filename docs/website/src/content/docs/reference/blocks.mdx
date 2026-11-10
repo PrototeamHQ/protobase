@@ -275,7 +275,7 @@ A message resource marks its sender with [`.author()`](/reference/data-config/#r
 
 ### Thread
 
-The latest messages that match `filter`, oldest first, each under its sender's name and the time it was sent, with a line between days and a sender's next message that day drawn under the first. **Load earlier messages** at the top reads the ones before. The thread opens at the newest message and scrolls in a box of its own, so it follows what arrives while the reader is at the end and keeps their place when they scrolled back; new messages come in with the app's [live updates](/reference/live/), and screen readers announce them politely. It is left out of the page of a user who cannot read its sender, time or text.
+The latest messages that match `filter`, oldest first, each under its sender's name and the time it was sent, with a line between days and a sender's next message that day drawn under the first. **Load earlier messages** at the top reads the ones before. The thread opens at the newest message and scrolls in a box of its own, so it follows what arrives while the reader is at the end and keeps their place when they scrolled back, until their own message arrives; new messages come in with the app's [live updates](/reference/live/), and screen readers announce them politely. It is left out of the page of a user who cannot read its sender, time or text.
 
 | Prop | |
 | --- | --- |
@@ -290,7 +290,7 @@ The latest messages that match `filter`, oldest first, each under its sender's n
 
 ### Composer
 
-A text box that grows with its text: Enter or the send button creates a record of `resource` with the text in `field` and the `values`, and Shift+Enter starts a new line. A message the server refuses stays on screen with the reason. It is not shown to a user who may not create a record of `resource` or write its fields.
+A text box that grows with its text: Enter or the send button creates a record of `resource` with the text in `field` and the `values`, and Shift+Enter starts a new line. The text stays in the box until the server took it, so a message it refuses is still there to send again, under the reason. It is not shown to a user who may not create a record of `resource` or write its fields.
 
 | Prop | |
 | --- | --- |

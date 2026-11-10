@@ -17,28 +17,29 @@ export const ComposerBlock = ({ node }: BlockProps) => {
   const refresh = useRefreshResource()
   const permissions = usePermissions(resource)
   const [sending, setSending] = useState(false)
-  const [failure, setFailure] = useState<{ error: unknown; message: string }>()
+  const [failure, setFailure] = useState<unknown>()
   if (!resources[resource] || !can(permissions, 'create')) return null
 
+  // The text stays in the box until the server took it, so a refused message can be sent again
   const send = async (message: string) => {
     setSending(true)
     setFailure(undefined)
-    await client.create(resource, { ...values, [field]: message }).then(
-      () => refresh(resource),
-      (error: unknown) => setFailure({ error, message }),
+    const sent = await client.create(resource, { ...values, [field]: message }).then(
+      () => true,
+      (error: unknown) => {
+        setFailure(error)
+        return false
+      },
     )
     setSending(false)
+    if (sent) void refresh(resource)
+    return sent
   }
 
   return (
     <div className="flex flex-col gap-2">
-      {failure && (
-        <div className="flex flex-col gap-1">
-          <ErrorBanner title={text('notSent')} error={failure.error} />
-          <p className="whitespace-pre-wrap break-words text-muted-foreground">{failure.message}</p>
-        </div>
-      )}
-      <Composer onSend={(message) => void send(message)} busy={sending} placeholder={placeholder} />
+      {failure !== undefined && <ErrorBanner title={text('notSent')} error={failure} />}
+      <Composer onSend={send} busy={sending} placeholder={placeholder} />
     </div>
   )
 }

@@ -7,8 +7,11 @@ import { canSend } from './composer-send'
 import { text } from './messages'
 
 export type ComposerProps = {
-  /** Gets the trimmed text and the ids of the people it mentions, each once. */
-  onSend?: (text: string, mentions: string[]) => void
+  /**
+   * Gets the trimmed text and the ids of the people it mentions, each once. A send that may fail returns a promise: the
+   * text stays in the box until it resolves `true`, so a refused message is still there to send again.
+   */
+  onSend?: (text: string, mentions: string[]) => void | Promise<boolean>
   /** The other side is still answering: the text can be written but not sent. */
   busy?: boolean
   placeholder?: string
@@ -26,7 +29,7 @@ export type ComposerProps = {
 }
 
 /**
- * The text box under a chat, which grows with its text. Enter or the button sends the trimmed text and clears the box,
+ * The text box under a chat, which grows with its text. Enter or the button sends the trimmed text and clears the box, once it is sent when `onSend` returns a promise;
  * Shift+Enter starts a new line; while the list of people to mention is open, Enter picks from it instead. With `canSendEmpty`,
  * such as while files are picked, it sends with no text too.
  */
@@ -36,8 +39,15 @@ export const Composer = ({ onSend, busy, placeholder, inputRef, searchPeople, at
   const sendable = canSend(message, { busy, canSendEmpty })
   const send = () => {
     if (!sendable) return
-    onSend?.(message, mentionedIds(message, draft.picked))
-    setDraft(emptyDraft)
+    const sent = onSend?.(message, mentionedIds(message, draft.picked))
+    if (!(sent instanceof Promise)) {
+      setDraft(emptyDraft)
+      return
+    }
+    // What was typed while it was on its way stays
+    void sent.then((done) => {
+      if (done) setDraft((current) => (current.text.trim() === message ? emptyDraft : current))
+    })
   }
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     // Enter while an input method composes a word confirms the word, and Shift+Enter is a line break

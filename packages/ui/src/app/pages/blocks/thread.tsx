@@ -1,9 +1,11 @@
 import { threadSort, type ThreadProps } from '@protobase/layout'
 import type { ResourceModel } from '@protobase/schema'
 import { ChatDivider, ChatMessage, ChatThread } from '../../../chat'
+import { useOptionalAuth } from '../../../auth/auth-provider'
 import { useList } from '../../../data/use-list'
 import { recordKey } from '../../../live/model-helpers'
 import { listLabels, withLabels } from '../../../live/relation-labels'
+import { Quiet } from './card-frame'
 import { SectionContent } from '../../../record-view/section'
 import { ErrorBanner } from '../../error-banner'
 import { useAdminMeta } from '../../meta-gate'
@@ -15,14 +17,20 @@ type LoadedProps = ThreadProps & { model: ResourceModel }
 
 const LoadedThread = ({ model, ...props }: LoadedProps) => {
   const { resources, views } = useAdminMeta()
+  const auth = useOptionalAuth()
+  const reader = auth?.state.kind === 'signed-in' ? auth.state.user.id : undefined
   const { filter, sender, time, text: body, limit = 50, empty } = props
   const labels = listLabels(resources, views, model, [sender])
   const list = useList(model.name, { filter, orderBy: threadSort(time), pageSize: limit, labels })
   if (list.error) return <ErrorBanner title={text('couldNotLoad')} error={list.error} />
+  // The live region mounts with the messages it opens on, so a screen reader announces only those that arrive later
+  if (list.isLoading) return <div className="p-4"><Quiet>{text('loadingMessages')}</Quiet></div>
   const rows = withLabels(resources, model, [sender], list.items, list.labels)
   const items = threadItems(rows, { key: (row) => String(recordKey(model, row)), sender, time, text: body })
+  // The reader's own newest message: when one arrives, the thread goes to the end wherever they were
+  const own = items.findLast((item) => item.kind === 'message' && item.author.id === reader)
   return (
-    <ChatThread length={rows.length} empty={list.isLoading ? undefined : (empty ?? text('noMessages'))} onLoadEarlier={list.hasNextPage ? () => void list.fetchNextPage() : undefined} loadingEarlier={list.isFetchingNextPage}>
+    <ChatThread length={rows.length} followKey={own?.key} empty={empty ?? text('noMessages')} onLoadEarlier={list.hasNextPage ? () => void list.fetchNextPage() : undefined} loadingEarlier={list.isFetchingNextPage}>
       {items.map((item) =>
         item.kind === 'day' ? (
           <ChatDivider key={item.key} label={item.label} />
