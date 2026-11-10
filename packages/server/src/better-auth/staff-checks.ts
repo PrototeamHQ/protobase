@@ -98,6 +98,10 @@ const accountChanges = [
   '/account/connected-apps/disconnect',
   '/account/personal-access-tokens/create',
   '/account/personal-access-tokens/revoke',
+  // Which addresses mail goes out from through the person's mailbox, and who else may send from them, are theirs too.
+  '/account/mail-senders/add',
+  '/account/mail-senders/update',
+  '/account/mail-senders/remove',
 ]
 
 export const staffCannotChange: StaffRefusal = { code: 'STAFF_CANNOT_CHANGE_SIGN_IN', message: "Staff cannot change a person's sign-in or the sign-in policy." }
