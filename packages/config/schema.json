@@ -2185,6 +2185,17 @@
             }
           ]
         },
+        "oauth": {
+          "description": "What the OAuth provider of `mcp` serves besides MCP: `api` lets clients get tokens for the app's API (see `OAuthApiOptions`). Needs `mcp`.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/OAuthApiOptions"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
         "personalAccessTokens": {
           "description": "Turns on personal access tokens: a signed-in person makes long-lived tokens on their account page, for a script to\ncall the app's API as them with `Authorization: Bearer <token>`. `prefix` starts every token, lowercase letters,\ndigits and underscores ending in `_`, such as `invoices_`; it has no default. Off by default.",
           "anyOf": [
@@ -2899,6 +2910,23 @@
         "domains",
         "idp"
       ],
+      "additionalProperties": false
+    },
+    "OAuthApiOptions": {
+      "type": "object",
+      "properties": {
+        "api": {
+          "description": "OAuth clients may ask for access tokens for the app's API (`resource=<origin>/api`), such as a native app that signs\nin through the connect page, and the API takes them as `Authorization: Bearer <token>`. Off by default.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
       "additionalProperties": false
     },
     "PersonalAccessTokensOptions": {

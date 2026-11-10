@@ -2,6 +2,7 @@ import { createDpopReplayStore, createInMemoryDpopReplayStore, type DpopReplaySt
 import type { JWTPayload } from 'jose'
 import { jwtSessions, type JwtOptions, type JwtVerifyOptions } from '../auth/jwt'
 import type { Authenticator, Membership, Session, TenantValue } from '../types'
+import { accessTokenType, withAccessTokens } from './api-access-tokens'
 import { withTrustedApps, type TrustedApp } from './app-tokens'
 import type { AdminAuth } from './create-auth'
 import { cachedKeys, type JwksCacheOptions } from './jwks-cache'
@@ -71,6 +72,8 @@ export const betterAuthTokens = (options: Pick<BetterAuthAuthenticatorOptions, '
  * organizations from the store when a list across them asks (`sessionMemberships`). With `apps`, the tokens of those apps are admitted too, with the roles each gives
  * its users here. With `auth.personalAccessTokens`, a bearer token with its prefix is a personal access token, looked up
  * in the store (`personalAccessTokenSessions`), here and for every audience, where it is the client with that audience's scope.
+ * With `auth.oauthApi`, an OAuth access token (`typ: at+jwt`) is verified for the API's resource as `forAudience` verifies
+ * one, as a bearer token only: the session keeps its `client`, and a token for another audience, such as MCP's, is refused.
  */
 export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions): BetterAuthAuthenticator => {
   const tokens = betterAuthTokens(options)
@@ -127,7 +130,6 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
 
   const ownStanding: Standing = (context, payload, session) =>
     checkTokenStanding(context, tokenClaims(payload, session.user.roles, organizations ? session.tenant : undefined), organizations)
-  const own = sessionOf({ audience: options.audience ?? issuer }, ownStanding)
   // An access token's `sid` names the browser session that allowed the client, which may end long before the grant
   // does; revoking the grant ends its tokens instead (`revokeMcpGrants`), which the grant check sees. Its user and the
   // roles it carries are checked as the app's own tokens' are, so a ban, a lowered role or a deletion ends it at once.
@@ -137,7 +139,11 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
     const organizationRole = await checkUserStanding(context, claims, organizations)
     return organizationRole ? { organizationRole } : {}
   }
-  return Object.assign(withTrustedApps(own, issuer, options.apps ?? []), {
-    forAudience: (audience: string) => sessionOf({ audience, typ: 'at+jwt', dpop: { url: audience, replayStore: dpopReplayStore }, oauthClient: true }, grantStanding),
+  const own = sessionOf({ audience: options.audience ?? issuer }, ownStanding)
+  // With `oauth.api`, the access tokens clients get for the API are taken as bearer tokens, with the grant checks MCP's
+  // tokens have; a token bound to a key is refused, as no proof is checked here.
+  const api = auth?.oauthApi && sessionOf({ audience: auth.oauthApi.resource, typ: accessTokenType, oauthClient: true }, grantStanding)
+  return Object.assign(withTrustedApps(api ? withAccessTokens(own, api) : own, issuer, options.apps ?? []), {
+    forAudience: (audience: string) => sessionOf({ audience, typ: accessTokenType, dpop: { url: audience, replayStore: dpopReplayStore }, oauthClient: true }, grantStanding),
   })
 }

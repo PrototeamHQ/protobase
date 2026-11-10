@@ -99,6 +99,7 @@ const snapshotIsolated = [
   'packages/server/tests/mcp-endpoint.test.ts',
   'packages/server/tests/mcp-oauth.test.ts',
   'packages/server/tests/mobile-sign-in.test.ts',
+  'packages/server/tests/oauth-api.test.ts',
   'packages/server/tests/notifications-auth-browser.test.ts',
   'packages/server/tests/notifications-auth-device-store.test.ts',
   'packages/server/tests/notifications-auth-history.test.ts',
