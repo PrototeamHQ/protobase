@@ -61,7 +61,7 @@ describe('definitionWarnings', () => {
 
   it('warns on a step that reads, after a Wait, what a Block assigned before it', () => {
     expect(definitionWarnings(definition({ Keep: block({ Next: 'Later' }), Later: wait, Use: { Type: 'Succeed', Output: '{% $file %}' } }))).toEqual([
-      { state: 'Use', message: 'reads $file, which the Block "Keep" assigned before the Wait "Later": what the block fetched, such as a link that expires, may have expired by then' },
+      { state: 'Use', message: 'reads $file after the Wait "Later", and the Block "Keep" set it before that Wait. If it holds something that expires, such as a signed link, it may have expired by then: set it after the Wait instead. If it holds what the block stored, you can leave it.' },
     ])
   })
 

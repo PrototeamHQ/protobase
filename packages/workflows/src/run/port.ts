@@ -36,6 +36,8 @@ export type StepRecord = {
   recorded: boolean
   /** A Block's step: the block's run that gave its result, the one that made the cached entry on a hit. */
   run?: string
+  /** A Block's step whose result was an earlier one the cache kept, so its steps did not run. */
+  reused?: true
 }
 
 /** What a replay takes of a step of the run it replays, as that run's trace keeps it. */

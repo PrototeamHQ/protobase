@@ -51,7 +51,7 @@ const blockInput = async (state: BlockState, call: StateCall) => {
 const hit = (entry: CacheEntry, input: unknown, call: StateCall): Ran => {
   const kept = entry.output as Kept
   call.logs.push({ at: call.context.now().toISOString(), message: `An earlier result from ${entry.cachedAt.toISOString()} was in the cache` })
-  return { result: kept.value ?? null, input, recorded: true, fetchedAt: entry.cachedAt, run: kept.run }
+  return { result: kept.value ?? null, input, recorded: true, fetchedAt: entry.cachedAt, run: kept.run, reused: true }
 }
 
 // A block's run that ended: its result, kept for later visits unless it held a secret, or its failure.

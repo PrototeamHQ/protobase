@@ -58,8 +58,9 @@ export type StateResult =
       recorded?: boolean
       /** When a recorded Task's result was fetched. */
       fetchedAt?: Date
-      /** A Block's: the block's run that gave its result. */
+      /** A Block's: the block's run that gave its result, and whether that result was an earlier one the cache kept. */
       run?: string
+      reused?: true
     }
   | Paused
 

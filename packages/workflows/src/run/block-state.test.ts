@@ -60,9 +60,9 @@ describe('a Block', () => {
     expect(port.run('a')).toMatchObject({ status: 'succeeded', output: { file: 'files/report.pdf' } })
     expect(port.run('b')).toMatchObject({ status: 'succeeded', output: { file: 'files/report.pdf' } })
     const blockSteps = port.steps.filter((step) => step.state === 'Keep')
-    expect(blockSteps.map((step) => [step.runId, step.run, step.recorded])).toEqual([
-      ['a', 'a~|0', true],
-      ['b', 'a~|0', true],
+    expect(blockSteps.map((step) => [step.runId, step.run, step.recorded, step.reused])).toEqual([
+      ['a', 'a~|0', true, undefined],
+      ['b', 'a~|0', true, true],
     ])
     // The block's run keeps its own trace, of its own steps.
     expect(port.steps.filter((step) => step.runId === 'a~|0').map((step) => step.state)).toEqual(['Fetch', 'Store'])

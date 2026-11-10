@@ -44,7 +44,7 @@ const machineWarnings = (machine: Machine, path: string[]): Problem[] => {
         if (read.length === 0 || warned.has(reader)) continue
         warned.add(reader)
         const names = read.map((variable) => `$${variable}`).join(', ')
-        warnings.push({ state: where(reader), message: `reads ${names}, which the Block "${name}" assigned before the Wait "${wait}": what the block fetched, such as a link that expires, may have expired by then` })
+        warnings.push({ state: where(reader), message: `reads ${names} after the Wait "${wait}", and the Block "${name}" set it before that Wait. If it holds something that expires, such as a signed link, it may have expired by then: set it after the Wait instead. If it holds what the block stored, you can leave it.` })
       }
     }
   }
