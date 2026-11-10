@@ -8,7 +8,7 @@ import objectives from '../../../../../../docs-examples/derived/config/objective
 import verdict from '../../../../../../docs-examples/derived/derived/objectives.verdict.ts?raw'
 
 :::caution[Experimental]
-Derived values may change in any release. What they cannot do yet is listed under [Limits](#limits).
+Derived values may change in any release. They cannot fill a list of rows in another resource yet, cannot see the reads inside a database function or view they call, show `recalculating` rather than `stale` after a failed run, and their status cannot be read through the REST API; [Limits](#limits) has the detail.
 :::
 
 A **derived value** is worked out from other records for each record of a resource, such as a verdict on an objective from its tasks. You write a small TypeScript function that reads records and the clock; Protobase records what it read, computes it again when a change touches that or when a time check flips, and stores the result. No timer is involved, and a value that did not change is not written. It works on any Postgres, with no extension.
