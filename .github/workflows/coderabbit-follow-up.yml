@@ -1,0 +1,21 @@
+# Checks the fixes to CodeRabbit's change request on later pushes; see PrototeamHQ/coderabbit's follow-up workflow.
+# pull_request_target runs this file from the base branch and never checks out the pull request. A review event runs
+# it from the pull request's merge commit, which only a branch of this repository reaches: the workflow skips forks.
+name: coderabbit-follow-up
+
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] nothing from the pull request runs
+    types: [synchronize, reopened, ready_for_review]
+  # A change request that lands after the push that fixes it.
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  follow-up:
+    uses: PrototeamHQ/coderabbit/.github/workflows/follow-up.yml@main # zizmor: ignore[unpinned-uses] main is the reviewed version
+    secrets:
+      SCW_PR_REVIEW_SECRET_KEY: ${{ secrets.SCW_PR_REVIEW_SECRET_KEY }}

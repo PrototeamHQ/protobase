@@ -10,6 +10,8 @@ export type PullRequest = {
   number: number
   state: string
   draft: boolean
+  // null for a deleted account.
+  user: { login: string } | null
   labels: { name: string }[]
   // repo is null for a fork that was deleted.
   head: { sha: string; ref: string; repo: { full_name: string } | null }
@@ -28,8 +30,10 @@ export type Decision = {
   timeline: TimelineEvent[]
   reviews: Review[]
   files: PullFile[]
-  // Each login of approvedLogins, with the role_name of GitHub's collaborator permission API.
+  // Each login of approvedLogins and the author's, with the role_name of GitHub's collaborator permission API.
   roles: Record<string, string>
+  // When the follow-up check last found the head clean (follow-up.ts), or null.
+  followUpCleanAt: number | null
   checks: ChecksState
   // Whether the review bot's own check on the head finished (reviewBotFinished).
   reviewBotFinished: boolean
@@ -89,9 +93,16 @@ function botApprovalCounts(reviews: Review[], head: string, finished: boolean) {
   return finished && !requested
 }
 
+// The follow-up check's clean verdict of the head stands in for an approval only on a pull request from a branch of
+// this repository by an author with write access, as the author writes everything the check reads. pullRefusal already
+// turns away forks; the check itself skips the others, and a comment that says it ran anyway does not count.
+function followUpCounts(pull: PullRequest, repository: string, roles: Record<string, string>) {
+  return pull.head.repo?.full_name === repository && writeRoles.has(roles[pull.user?.login ?? ''] ?? '')
+}
+
 // Why the pull request may not merge as it is now, or null when its head may. Timestamps have whole seconds, and an
 // approval in the same second as the label does not count, as it cannot be shown to have come after it.
-export function refusal({ repository, pull, timeline, reviews, files, roles, checks, reviewBotFinished }: Decision) {
+export function refusal({ repository, pull, timeline, reviews, files, roles, followUpCleanAt, checks, reviewBotFinished }: Decision) {
   const refused = pullRefusal(pull, repository) ?? workflowChangeRefusal(pull, files)
   if (refused) return refused
 
@@ -99,13 +110,17 @@ export function refusal({ repository, pull, timeline, reviews, files, roles, che
   const requesters = standingChangeRequests(reviews, head)
   if (requesters.length > 0) return `changes are requested by ${requesters.join(', ')}`
 
+  const unapproved = `no approval of ${head.slice(0, 7)} came after the ${approvalLabel} label`
   const labelled = labelledAt(timeline)
+  if (labelled === null) return unapproved
+
   const botCounts = botApprovalCounts(reviews, head, reviewBotFinished)
   const mayApprove = (login: string | undefined) => (login === reviewBot ? botCounts : writeRoles.has(roles[login ?? ''] ?? ''))
-  const approved =
-    labelled !== null &&
-    onHead(reviews, head).some((review) => review.state === 'APPROVED' && Date.parse(review.submitted_at) > labelled && mayApprove(review.user?.login))
-  if (!approved) return `no approval of ${head.slice(0, 7)} came after the ${approvalLabel} label`
+  const reviewed = onHead(reviews, head).some(
+    (review) => review.state === 'APPROVED' && Date.parse(review.submitted_at) > labelled && mayApprove(review.user?.login),
+  )
+  const followedUp = followUpCleanAt !== null && followUpCleanAt > labelled && followUpCounts(pull, repository, roles)
+  if (!reviewed && !followedUp) return unapproved
 
   if (checks.state === 'red') return `these did not pass: ${checks.names.join(', ')}`
   if (checks.state === 'pending') return `these still run: ${checks.names.join(', ')}`

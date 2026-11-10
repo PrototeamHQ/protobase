@@ -16,6 +16,4 @@ reviews:
   path_filters:
     - "!**/*.sql.json"
   auto_review:
-    # protobase merges on CodeRabbit's approval of each head and cannot call the private AI review.
-    auto_incremental_review: true
     auto_pause_after_reviewed_commits: 0
