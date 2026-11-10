@@ -962,6 +962,7 @@
     "rerunRefused": "Niet opgeslagen, dus de run is niet gestart. Los eerst de fout op.",
     "notRerun": "De run is niet gestart",
     "rerunInMap": "Voer opnieuw uit vanaf de Map-stap: {map}.",
+    "rerunInBlockStep": "Voer opnieuw uit vanaf de blokstap: {block}.",
     "rerunInBlock": "De run van een blok wordt niet vanaf een stap opnieuw gedraaid: speel hem opnieuw af, of draai de run die het blok startte opnieuw.",
     "stepNotInVersion": "Deze stap zit niet in versie {version, number}.",
     "runNotEnded": "Deze run is nog niet klaar.",

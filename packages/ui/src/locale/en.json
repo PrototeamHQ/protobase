@@ -962,6 +962,7 @@
     "rerunRefused": "Not saved, so the re-run did not start. Fix the error first.",
     "notRerun": "The re-run did not start",
     "rerunInMap": "Re-run from the Map step: {map}.",
+    "rerunInBlockStep": "Re-run from the Block step: {block}.",
     "rerunInBlock": "A block's run is not re-run from a step: replay it, or re-run the run that started the block.",
     "stepNotInVersion": "This step is not in version {version, number}.",
     "runNotEnded": "This run has not ended.",

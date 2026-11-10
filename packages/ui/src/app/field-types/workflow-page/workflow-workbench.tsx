@@ -178,7 +178,9 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
     if (!ended) return text('runNotEnded')
     if (name === undefined) return
     if (trace.place && trace.place.within.length > 0) return text('rerunInBlock')
-    if (splitPath(path).scope.length > 0) return text('rerunInMap', { map: splitPath(path).scope[0]! })
+    // A step in a Map or a Block re-runs from the step of the workflow itself that holds it
+    const outer = splitPath(path).scope[0]
+    if (outer !== undefined) return stateAt(draft, outer)?.Type === 'Block' ? text('rerunInBlockStep', { block: outer }) : text('rerunInMap', { map: outer })
     return stateAt(draft, path) ? undefined : text('stepNotInVersion', { version: page.latest ?? 0 })
   }
   // The outermost Block around a state that the run shown is not itself the run of: the state ran in that block's run

@@ -503,6 +503,10 @@ export const BlockRunChecks: StoryObj = {
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     await markOf(canvasElement, 'Mail', 'Succeeded')
+    // A step inside the block, from the run that reached it, re-runs from the Block's step
+    await userEvent.click(await nodeOf(canvasElement, 'Keep file/Download'))
+    const rerun = await sidePanel(canvasElement).findByRole('button', { name: 'Re-run from this step' })
+    await waitFor(() => expect(rerun).toHaveAttribute('title', 'Re-run from the Block step: Keep file.'), { timeout: 10_000 })
     await userEvent.click(await nodeOf(canvasElement, 'Keep file'))
     const open = await sidePanel(canvasElement).findByRole('link', { name: "Open the block's run" })
     await expect(open).toHaveAttribute('href', appPath({ kind: 'record', resource: 'workflow_runs', key: 'run-2' }))
