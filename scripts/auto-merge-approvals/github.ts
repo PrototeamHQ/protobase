@@ -1,6 +1,7 @@
 // The GitHub REST calls the auto-merge makes, with the workflow's token. Any answer not named here throws.
 import type { CheckRun, CommitStatus, WorkflowRun } from './checks'
 import type { PullFile, PullRequest, Review, TimelineEvent } from './decision'
+import type { IssueComment } from './follow-up'
 import type { CommitPull } from './target'
 
 const api = 'https://api.github.com'
@@ -35,7 +36,7 @@ export function gitHub(token: string, repository: string) {
     timeline: (number: number) => all<TimelineEvent>(`${repo}/issues/${number}/timeline`),
     reviews: (number: number) => all<Review>(`${repo}/pulls/${number}/reviews`),
     files: (number: number) => all<PullFile>(`${repo}/pulls/${number}/files`),
-    comments: (number: number) => all<{ body: string }>(`${repo}/issues/${number}/comments`),
+    comments: (number: number) => all<IssueComment>(`${repo}/issues/${number}/comments`),
     async comment(number: number, body: string) {
       await request(`${repo}/issues/${number}/comments`, { method: 'POST', body: JSON.stringify({ body }) })
     },

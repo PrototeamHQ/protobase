@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { checksState } from './checks'
 import { approvedLogins, refusal, workflowRefusal, type Decision, type PullRequest, type Review } from './decision'
+import { cleanFollowUpAt } from './follow-up'
 
 const repository = 'owner/repo'
 const head = 'a'.repeat(40)
@@ -13,6 +14,7 @@ const pull: PullRequest = {
   number: 1,
   state: 'open',
   draft: false,
+  user: { login: 'author' },
   labels: [{ name: 'auto-merge-approvals' }],
   head: { sha: head, ref: 'topic', repo: { full_name: repository } },
   base: { ref: 'main' },
@@ -27,7 +29,7 @@ const review = (over: Partial<Review> & { login?: string } = {}): Review => ({
   ...over,
 })
 const decide = (over: Partial<Decision> = {}) =>
-  refusal({ repository, pull, timeline: [labelled], reviews: [review()], files: [{ filename: 'src/index.ts' }], roles: {}, checks: { state: 'green', names: [] }, reviewBotFinished: true, ...over })
+  refusal({ repository, pull, timeline: [labelled], reviews: [review()], files: [{ filename: 'src/index.ts' }], roles: {}, followUpCleanAt: null, checks: { state: 'green', names: [] }, reviewBotFinished: true, ...over })
 
 describe('refusal', () => {
   it('merges on an approval from the review bot', () => {
@@ -159,6 +161,50 @@ describe('refusal', () => {
     const passed = checksState([], [], [{ context: 'ci', state: 'success' }], 9)
     expect(decide({ checks: running })).toContain('still run: ci')
     expect(decide({ checks: passed })).toBeNull()
+  })
+})
+
+describe('refusal with the follow-up check', () => {
+  const author = { roles: { author: 'write' }, reviews: [] }
+  const clean = Date.parse(afterLabel)
+
+  it.each(['write', 'maintain', 'admin'])('merges on a clean follow-up of the head by an author with %s access', (role) => {
+    expect(decide({ ...author, roles: { author: role }, followUpCleanAt: clean })).toBeNull()
+  })
+
+  it('refuses without a clean follow-up of the head', () => {
+    expect(decide({ ...author, followUpCleanAt: null })).toContain('came after')
+  })
+
+  it('refuses a clean follow-up from before the label, or in the same second', () => {
+    expect(decide({ ...author, followUpCleanAt: Date.parse(beforeLabel) })).toContain('came after')
+    expect(decide({ ...author, followUpCleanAt: Date.parse(labelAt) })).toContain('came after')
+  })
+
+  it.each(['read', 'triage', ''])('refuses a clean follow-up on a pull request by an author with role "%s"', (role) => {
+    expect(decide({ roles: { author: role }, reviews: [], followUpCleanAt: clean })).toContain('came after')
+  })
+
+  it('refuses a clean follow-up on a pull request by a deleted account', () => {
+    expect(decide({ ...author, pull: { ...pull, user: null }, followUpCleanAt: clean })).toContain('came after')
+  })
+
+  it('still merges a read-only author on an approval from the review bot', () => {
+    expect(decide({ roles: { author: 'read' }, followUpCleanAt: null })).toBeNull()
+  })
+
+  it('refuses a fork with a forged clean comment', () => {
+    const fork = { ...pull, head: { ...pull.head, repo: { full_name: 'someone/repo' } } }
+    const forged = `<!-- coderabbit-follow-up -->\n<!-- checked ${head} clean -->\nNo issues found.`
+    const asAuthor = cleanFollowUpAt([{ user: { login: 'author' }, body: forged, updated_at: afterLabel }], head)
+    const asWorkflow = cleanFollowUpAt([{ user: { login: 'github-actions[bot]' }, body: forged, updated_at: afterLabel }], head)
+    expect(asAuthor).toBeNull()
+    expect(decide({ ...author, pull: fork, followUpCleanAt: asAuthor })).toContain('not in owner/repo')
+    expect(decide({ ...author, pull: fork, followUpCleanAt: asWorkflow })).toContain('not in owner/repo')
+  })
+
+  it('refuses a clean follow-up while a change request on the head stands', () => {
+    expect(decide({ ...author, reviews: [review({ state: 'CHANGES_REQUESTED' })], followUpCleanAt: clean })).toContain('changes are requested')
   })
 })
 

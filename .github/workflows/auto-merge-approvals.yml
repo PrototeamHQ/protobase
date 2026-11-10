@@ -1,7 +1,8 @@
 # Merges a pull request with the auto-merge-approvals label once it is approved after the label was added, by CodeRabbit
 # or by anyone with write access, and every check on its head passed; scripts/auto-merge-approvals/decision.ts holds the
-# rules. A merge with GITHUB_TOKEN starts no workflow, so the script then starts release.yml and docs.yml with
-# workflow_dispatch. No checkout here takes anything from the pull request.
+# rules. On a pull request from a branch of this repository by an author with write access, a clean verdict of the head
+# from coderabbit-follow-up.yml counts as an approval too. A merge with GITHUB_TOKEN starts no workflow, so the script
+# then starts release.yml and docs.yml with workflow_dispatch. No checkout here takes anything from the pull request.
 name: auto-merge-approvals
 
 on:
@@ -12,8 +13,10 @@ on:
   pull_request_review:
     types: [submitted, dismissed]
   # The repository's CI workflows, by name: each run that finishes tries again. Never list auto-merge-approvals itself.
+  # coderabbit-follow-up writes its verdict and dismisses with GITHUB_TOKEN, which starts no workflow, so its run's end
+  # is what tries again.
   workflow_run:
-    workflows: [ci, docs, image, pr-title, release-speed]
+    workflows: [ci, coderabbit-follow-up, docs, image, pr-title, release-speed]
     types: [completed]
   # Another app's check suite or commit status that finishes tries again too, as its completion starts no workflow_run.
   check_suite:

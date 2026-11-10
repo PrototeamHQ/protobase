@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 import { afterMerge } from './after-merge'
 import { checksState, reviewBotFinished } from './checks'
 import { approvedLogins, pullRefusal, refusal, workflowRefusal } from './decision'
+import { cleanFollowUpAt } from './follow-up'
 import { gitHub } from './github'
 import { eventTarget, pullsOfCommit } from './target'
 import { noticed, workflowNotice } from './workflow-notice'
@@ -41,15 +42,19 @@ async function whyNot(pull: Awaited<ReturnType<typeof github.pullRequest>>) {
   const refused = pullRefusal(pull, repository)
   if (refused) return refused
 
-  const [timeline, reviews, files, head] = await Promise.all([
+  const [timeline, reviews, files, comments, head] = await Promise.all([
     github.timeline(pull.number),
     github.reviews(pull.number),
     github.files(pull.number),
+    github.comments(pull.number),
     checksOf(pull.head.sha),
   ])
-  const logins = approvedLogins(reviews, pull.head.sha)
-  const roles = Object.fromEntries(await Promise.all(logins.map(async (login) => [login, await github.role(login)])))
-  return refusal({ repository, pull, timeline, reviews, files, roles, ...head })
+  // The author's access decides whether the follow-up check's verdict counts.
+  const logins = new Set(approvedLogins(reviews, pull.head.sha))
+  if (pull.user) logins.add(pull.user.login)
+  const roles = Object.fromEntries(await Promise.all([...logins].map(async (login) => [login, await github.role(login)])))
+  const followUpCleanAt = cleanFollowUpAt(comments, pull.head.sha)
+  return refusal({ repository, pull, timeline, reviews, files, roles, followUpCleanAt, ...head })
 }
 
 // The merge commit, or null when there is nothing to do. Another run may have merged it first, and a head that moved
