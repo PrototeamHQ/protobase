@@ -51,7 +51,14 @@ const chat = page(
   }),
 )
 
-const at = (daysAgo: number, time: string) => `${new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10)}T${time}:00Z`
+/** A time on the browser's own day `daysAgo` days back, so the thread's day lines match whatever the UTC date is. */
+const at = (daysAgo: number, time: string) => {
+  const [hours, minutes] = time.split(':').map(Number)
+  const day = new Date()
+  day.setDate(day.getDate() - daysAgo)
+  day.setHours(hours!, minutes, 0, 0)
+  return day.toISOString()
+}
 
 const rows = () => ({
   people: [
