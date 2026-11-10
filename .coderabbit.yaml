@@ -16,4 +16,6 @@ reviews:
   path_filters:
     - "!**/*.sql.json"
   auto_review:
+    # PRs here merge on CodeRabbit's approval, so it must review again after each fix push.
+    auto_incremental_review: true
     auto_pause_after_reviewed_commits: 0
