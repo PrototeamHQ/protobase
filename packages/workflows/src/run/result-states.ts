@@ -1,5 +1,6 @@
 import type { BlockState, MapState, TaskState } from '../definition/types'
 import { runBlock } from './block-state'
+import type { Failure, Ran } from './ran'
 import { limits } from '../limits'
 import type { ScopeOutcome, StateResult } from './context'
 import { errorOutput, StepError } from './errors'
@@ -13,13 +14,6 @@ import { visibleVariables, type StateCall } from './step-input'
 import { emptyTask, heldBack, heldBackLog, replayedOutcome } from './replay'
 import { runTask } from './task'
 
-type Failure = { Error: string; Cause: string }
-/** How a Task, Map or Block ran: a Block's result says when it was fetched and which block's run gave it. */
-export type Ran =
-  | { result: unknown; input: unknown; recorded?: boolean; fetchedAt?: Date; run?: string; reused?: true }
-  | { held: true; input: unknown }
-  | { failure: Failure; input: unknown; recorded?: boolean; run?: string }
-  | Extract<StateResult, { kind: 'blocked' | 'yielded' }>
 /** What a state goes on with: a held-back step's is what the replayed run's step gave. */
 type Outcome = ({ result: unknown } | { failure: Failure }) & { input: unknown; held?: true; recorded?: boolean; fetchedAt?: Date; run?: string; reused?: true }
 type ResultState = TaskState | MapState | BlockState

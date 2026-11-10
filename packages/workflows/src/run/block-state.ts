@@ -11,7 +11,7 @@ import { evaluateKept, evaluateTemplate } from './evaluate'
 import { jsonBytes } from './json-bytes'
 import type { BlockRun, TaskContext } from './port'
 import { redacted } from './redact'
-import type { Ran } from './result-states'
+import type { Ran } from './ran'
 import type { StateCall } from './step-input'
 
 /** Who a block's entry is kept under: the run's tenant, its version's saver and enabler, and every account it binds. */
