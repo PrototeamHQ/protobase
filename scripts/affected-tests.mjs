@@ -2,15 +2,17 @@
 // affects. With CHECK_BASE set to a commit, a test runs when it, or a module it imports, changed since then, as
 // `vitest related` selects them, or when a rule in scripts/affected/rules.mjs ties it to a change the module graph does
 // not show; a change to what every test depends on runs them all, and so does an unset CHECK_BASE. It prints the
-// changes, why each test runs and which tests it skips.
+// changes, why each test runs and which tests it skips. With --shard <index>/<count>, as `vitest run --shard` takes it,
+// it runs only that part of the selected tests, for one of several CI legs.
 import { parseArgs } from 'node:util'
 import { createVitest } from 'vitest/node'
 import { absolute, changedSince, checkBase, everythingReason, printGroup, trackedFiles } from './affected/changes.mjs'
 import { findWay } from './affected/graph.mjs'
 import { openGraph, relative, showWay } from './affected/related.mjs'
 import { alwaysRun } from './affected/rules.mjs'
+import { legFiles, shardOptions } from './affected/shard.mjs'
 
-const { values } = parseArgs({ options: { project: { type: 'string', multiple: true } } })
+const { values } = parseArgs({ options: { project: { type: 'string', multiple: true }, shard: { type: 'string' } } })
 const project = values.project ?? []
 const projects = project.join(', ') || 'every project'
 
@@ -41,7 +43,7 @@ const { everything, related } = await selection()
 process.env.TEST = 'true'
 process.env.VITEST = 'true'
 process.env.NODE_ENV ??= 'test'
-const vitest = await createVitest('test', { run: true, watch: false, project, ...(related && { related: [...related.keys()] }) })
+const vitest = await createVitest('test', { run: true, watch: false, project, ...(related && { related: [...related.keys()] }), ...shardOptions(values.shard) })
 const all = await vitest.globTestSpecifications()
 const selected = everything ? all : await vitest.getRelevantTestSpecifications()
 const name = (spec) => `|${spec.project.name}| ${relative(spec.moduleId)}`
@@ -58,6 +60,12 @@ if (everything) {
   }
   const chosen = new Set(selected.map(name))
   printGroup(`Skipping ${all.length - selected.length} test files, which import none of the changes`, all.map(name).filter((spec) => !chosen.has(spec)))
+}
+
+if (vitest.config.shard) {
+  const { index, count } = vitest.config.shard
+  const leg = await legFiles(new vitest.config.sequence.sequencer(vitest), selected)
+  printGroup(`Shard ${index}/${count} runs ${leg.length} of the ${selected.length} selected test files`, leg.map(name))
 }
 
 if (selected.length > 0) await vitest.start()
