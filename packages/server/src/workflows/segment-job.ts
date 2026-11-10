@@ -4,6 +4,7 @@ import { defineJob } from '../jobs/define-job'
 import type { JobContext, JobDefinition } from '../jobs/job-types'
 import { postgresRunStore } from './store'
 import { postgresBlockRuns } from './block-runs'
+import { failAfterLastTry } from './last-try'
 
 /** The job that runs one segment of a workflow run. */
 export const segmentJobName = 'workflows.segment'
@@ -42,7 +43,7 @@ export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMod
         .segment(context.db, run, context.signal)
         .catch(async (error: unknown) => {
           // No segment comes after the job's last try, so that try ends the run rather than leaving it running.
-          if (context.job.attempt >= context.job.maxAttempts) await store.update(context.db, run, { status: 'failed', error: 'States.Runtime', cause: `The run's segment failed ${context.job.attempt} times in a row` })
+          if (context.job.attempt >= context.job.maxAttempts) await failAfterLastTry(store, queue, context.db, run, context.job.attempt)
           throw error
         }),
     maxAttempts: 10,
