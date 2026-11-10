@@ -78,6 +78,7 @@ Runs are `derived.compute` jobs, four at a time per worker, retried like any [jo
 
 - <gap>A derived value cannot fill a list of rows in another resource, such as one row per item that needs attention, because syncing a set of rows is not implemented.</gap>
 - <gap>A derived value cannot see the reads inside a database function or view it calls, because reading their definitions is not implemented.</gap> Name them with `depends()`.
+- <gap>A derived value whose function threw cannot show `stale` until its retry runs, because marking a failed run is not implemented; it shows `recalculating` meanwhile.</gap>
 - <gap>A derived value's status cannot be read through the REST API, because serving `derived.values` as a resource is not implemented.</gap>
 
 ## Reusing the detection
