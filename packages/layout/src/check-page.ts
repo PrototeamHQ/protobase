@@ -2,6 +2,7 @@ import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, 
 import { addressErrors, fieldRefsIn } from '@protobase/schema/internal'
 import { chartProblems } from './check-chart'
 import { conditionProblems } from './check-condition'
+import { composerProblems, threadProblems } from './check-conversation'
 import { resolveFieldPath } from './field-path'
 import { settingsProblems } from './settings'
 import { dataProps, type LayoutNode } from './node'
@@ -95,6 +96,12 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
       for (const name of Object.keys((node.props.values as Record<string, unknown> | undefined) ?? {})) {
         if (!Object.hasOwn(model.fields, name)) problems.push(`values: unknown field "${name}" on ${model.name}`)
       }
+      break
+    case 'Thread':
+      if (model) problems.push(...threadProblems(node, model))
+      break
+    case 'Composer':
+      if (model) problems.push(...composerProblems(node, model))
       break
     case 'Settings':
       if (model) problems.push(...settingsProblems(model, node.props.fields as string[] | undefined))

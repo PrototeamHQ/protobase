@@ -1,16 +1,18 @@
-import { walkTree, type LayoutNode, type PageModel } from '@protobase/layout'
+import { threadSort, walkTree, type LayoutNode, type PageModel } from '@protobase/layout'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import type { ReadShape } from './read-shape'
 import { configFilter, configSort, sortText } from './shape-filters'
 import { listSort } from './view-shapes'
 
 // The blocks that list records of their `resource`; a RecordCard with a `recordKey` reads that one record by its key.
-const listing = ['RecordRow', 'RecordCards', 'Table', 'CardRow', 'RecordCard', 'Stat']
+const listing = ['RecordRow', 'RecordCards', 'Table', 'CardRow', 'RecordCard', 'Stat', 'Thread']
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
-// A RecordRow or RecordCards without a sort shows the records in the list's order; the other blocks leave the order to the API.
+// A RecordRow or RecordCards without a sort shows the records in the list's order, a Thread the newest messages
+// first; the other blocks leave the order to the API.
 const blockSort = (node: LayoutNode, model: ResourceModel, view: ViewModel | undefined) => {
+  if (node.type === 'Thread') return configSort(model, threadSort(String(node.props.time)))
   const given = configSort(model, text(node.props.sort))
   if (given) return given
   return node.type === 'RecordRow' || node.type === 'RecordCards' ? listSort(model, view) : undefined

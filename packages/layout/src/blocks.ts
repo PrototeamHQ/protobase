@@ -142,6 +142,34 @@ export type ModalFormProps = {
   values?: Record<string, LayoutValue>
   variant?: ButtonVariant
 }
+/**
+ * A conversation: the latest `limit` records of a message resource, oldest first, each `text` under its `sender` and
+ * `time`, scrolling to the newest as they arrive. `time` is the field that orders them.
+ */
+export type ThreadProps = Heading & {
+  resource: string
+  filter?: string
+  /** Who wrote each message: a relation, named as the record it points at, or a text field. */
+  sender: string
+  /** When each message was sent: a date or timestamp field the API can sort by. */
+  time: string
+  /** The message itself. */
+  text: string
+  /** How many of the latest messages it shows at first; default 50. Earlier ones load on request. */
+  limit?: number
+  empty?: string
+  span?: GridSpan
+}
+/** A box that sends a message: each send creates a record of `resource` with the text in `field`, as the signed-in user. */
+export type ComposerProps = {
+  resource: string
+  /** The text field the message goes in. */
+  field: string
+  /** Values sent with every message, such as the conversation's key. */
+  values?: Record<string, LayoutValue>
+  placeholder?: string
+  span?: GridSpan
+}
 export type ActionProps = { name: string; resource?: string; label?: string; variant?: ButtonVariant }
 export type ShowProps = { when: string; children?: LayoutChildren }
 /**
@@ -186,6 +214,8 @@ export const RecordCards = defineBlock<RecordCardsProps>('RecordCards', false)
 export const Chart = defineBlock<ChartProps>('Chart', false)
 export const Progress = defineBlock<ProgressProps>('Progress', false)
 export const ModalForm = defineBlock<ModalFormProps>('ModalForm', false)
+export const Thread = defineBlock<ThreadProps>('Thread', false)
+export const Composer = defineBlock<ComposerProps>('Composer', false)
 export const Action = defineBlock<ActionProps>('Action', false)
 export const Show = defineBlock<ShowProps>('Show', false)
 export const Link = defineBlock<LinkProps>('Link', false)

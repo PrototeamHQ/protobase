@@ -1,6 +1,6 @@
 import { Kysely } from 'kysely'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { Action, Field, Page, RecordCard, Stat, Table, page } from '@protobase/layout'
+import { Action, Composer, Field, Page, RecordCard, Stat, Table, Thread, page } from '@protobase/layout'
 import { f, resource, userMenu, view } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { configExports } from '../src/resource-source'
@@ -71,6 +71,34 @@ describe('pages in /meta', () => {
     const refused = await viewFor('viewer')
     expect(refused).not.toHaveProperty('recordOpens')
     expect(refused).not.toHaveProperty('createOpens')
+  })
+})
+
+// A conversation whose messages anyone signed in reads, and only admins post to.
+const messages = resource('messages')
+  .table('messages')
+  .fields({ id: f.integer().readOnly(), author_id: f.text(), sent_at: f.timestamp().readOnly().sortable(), body: f.text() })
+  .primaryKey((r) => r.id)
+  .author((r) => r.author_id)
+  .access({ create: isAdmin })
+
+const chat = page('chat', Page({ title: 'Chat', children: [Thread({ resource: 'messages', sender: 'author_id', time: 'sent_at', text: 'body' }), Composer({ resource: 'messages', field: 'body' })] }))
+
+describe('a conversation in /meta', () => {
+  const chatFor = async (roles: string) => {
+    const served = createAdmin({ resources: [messages], pages: [chat], db: db(), authenticate: testAuthenticator })
+    return (await (await served.request('/api/meta', { headers: as(1, roles) })).json()).pages[0].tree.children
+  }
+
+  it('describes the thread and the composer with their resource and fields', async () => {
+    expect(await chatFor('admin')).toEqual([
+      { type: 'Thread', props: { resource: 'messages', sender: 'author_id', time: 'sent_at', text: 'body' }, children: [] },
+      { type: 'Composer', props: { resource: 'messages', field: 'body' }, children: [] },
+    ])
+  })
+
+  it('leaves out the composer for a caller who cannot post', async () => {
+    expect((await chatFor('viewer')).map((node: { type: string }) => node.type)).toEqual(['Thread'])
   })
 })
 

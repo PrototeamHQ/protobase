@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fieldRef, type FieldRefValue } from '@protobase/schema'
-import { Card, Chart, Link, Page, RecordCard, RecordCards, Show, Tab, Table, Tabs } from './blocks'
+import { Card, Chart, Composer, Link, Page, RecordCard, RecordCards, Show, Tab, Table, Tabs, Thread } from './blocks'
 import { component } from './component'
 import type { LayoutNode } from './node'
 import type { PageModel } from './page'
@@ -13,7 +13,7 @@ const everything = { create: true, update: true }
 
 const access = (overrides: Partial<CallerAccess> = {}): CallerAccess => ({
   models: restricted({}),
-  permissions: { subscriptions: everything, paymentMethods: everything, invoices: everything, plans: everything },
+  permissions: { subscriptions: everything, paymentMethods: everything, invoices: everything, plans: everything, messages: everything },
   actions: (resource) => new Set({ subscriptions: ['cancel', 'upgrade'], paymentMethods: ['makeDefault'] }[resource] ?? []),
   ...overrides,
 })
@@ -33,6 +33,20 @@ const find = (page: PageModel | undefined, type: string) => {
 describe('prunePage', () => {
   it('keeps everything for a caller who may use everything', () => {
     expect(prunePage(billing.toModel(), [], access())).toEqual(billing.toModel())
+  })
+
+  it('leaves out a thread whose messages the caller cannot read, and a composer where they cannot write one', () => {
+    const page: PageModel = {
+      name: 'chat',
+      title: 'Chat',
+      tree: Page({ title: 'Chat', children: [Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body' }), Composer({ resource: 'messages', field: 'body', values: { room: 'general' } })] }),
+    }
+    const shown = (overrides: Partial<CallerAccess>) => types(prunePage(page, [], access(overrides))).filter((type) => type !== 'Page')
+    expect(shown({})).toEqual(['Thread', 'Composer'])
+    expect(shown({ models: restricted({ messages: ['author'] }) })).toEqual(['Composer'])
+    expect(shown({ permissions: { messages: { create: false, update: true } } })).toEqual(['Thread'])
+    expect(shown({ models: restricted({}, { messages: ['room'] }) })).toEqual(['Thread'])
+    expect(shown({ models: restricted({}, {}, ['messages']) })).toEqual([])
   })
 
   it('leaves out a chart whose grouped or added up field the caller cannot read', () => {
