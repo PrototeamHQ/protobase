@@ -54,6 +54,9 @@ import { realtimePath, restPath, storagePath, supabaseFunctionsPath, supabasePat
 import { goTrueRoutes } from './gotrue/routes'
 import { wakeDispatch } from './changes/actor'
 import { isCaptured } from './changes/capture-sql'
+import type { ResourceChange } from './changes/resource-change'
+import { createDerived } from './derived/derived-values'
+import type { DerivedCompute } from './derived/run-derived'
 import { changesSchema, type EventsOptions } from './changes/events-options'
 import { appOrigin } from './comments/app-origin'
 import { betterAuthCommentUsers, type CommentUsers } from './comments/comment-users'
@@ -184,6 +187,8 @@ export type CreateAdminInput = {
   jobs?: JobDefinition[]
   /** Where the resources' events are delivered (`subscription(...)` exports of the config module). */
   subscriptions?: SubscriptionDefinition[]
+  /** The compute function of each resource's derived value, by `<resource>.<name>` (see `.derived()`). */
+  derived?: Record<string, DerivedCompute>
   /** Webhook subscriptions made in the admin app, from `webhooks: {}` (see `WebhooksOptions`). */
   webhooks?: WebhooksOptions
   /** Workflows made in the admin app and run on the app's jobs, from `workflows: {}` (see `WorkflowsOptions`). */
@@ -244,7 +249,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, pushRelay, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], derived: computes = {}, webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, pushRelay, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -520,7 +525,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   // Before the system endpoints, which want a token for everything under them
   app.route(systemPath || '/', webManifestRoute(appName, identity, icons))
   app.route(deps.systemPath || '/', system)
-  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }), ...(engine && { onChanges: engine.onChanges }) })
+  const derived = createDerived({ deps, computes, jobNames: jobs.map((job) => job.name) })
+  const onChanges = [engine?.onChanges, derived?.onChanges].filter((hook) => hook !== undefined)
+  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }), ...(onChanges.length > 0 && { onChanges: async (trx: Db, batch: readonly ResourceChange[]) => { for (const hook of onChanges) await hook(trx, batch) } }) })
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), sqlSends: sqlSends(realtime), report })
-  return Object.assign(app, { startRealtimePrune: prune, decryptField, metaPath: `${deps.systemPath}/meta`, jobs: [...webhooks.jobs, ...(engine ? engine.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
+  return Object.assign(app, { startRealtimePrune: prune, decryptField, metaPath: `${deps.systemPath}/meta`, jobs: [...webhooks.jobs, ...(engine ? engine.jobs : []), ...(derived ? derived.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
 }
