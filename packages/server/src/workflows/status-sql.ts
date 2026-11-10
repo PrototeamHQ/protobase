@@ -38,7 +38,8 @@ create index if not exists "resolutions_tenant" on ${s}."resolutions" ("tenant_i
 create index if not exists "resolutions_resolved_at" on ${s}."resolutions" ("resolved_at");
 create index if not exists "runs_ended" on ${s}."runs" ("workflow_id", "finished_at" desc, "id" desc) where "status" in ('succeeded', 'failed');
 
--- The status of a workflow at its version and last mark as resolved, from its last ${statusRuns} ended runs: the run its
+-- The status of a workflow at its version and last mark as resolved, from its last ${statusRuns} ended runs, blocks' runs left out
+-- (a block's failure is its run's): the run its
 -- reason names is the latest for failing and healthy, the latest failure that counts for unresolved, none for the gray ones.
 create or replace function ${s}."workflow_status"(workflow uuid, current_version integer, resolved timestamptz)
 returns table ("run_status" text, "status_run_id" uuid, "status_run_at" timestamptz, "unresolved_failures" integer)
@@ -47,7 +48,7 @@ language sql stable as $$
     select r.id, r.finished_at, r.version, r.status = 'failed' as failed,
       r.status = 'failed' and r.version = current_version and (resolved is null or r.finished_at > resolved) as counts,
       row_number() over (order by r.finished_at desc, r.id desc) as n
-    from (select * from ${s}."runs" where workflow_id = workflow and status in ('succeeded', 'failed') order by finished_at desc, id desc limit ${statusRuns}) r
+    from (select * from ${s}."runs" where workflow_id = workflow and block_of is null and status in ('succeeded', 'failed') order by finished_at desc, id desc limit ${statusRuns}) r
   ),
   latest as (select * from ended where n = 1),
   failure as (select * from ended where counts order by n limit 1),
@@ -98,7 +99,7 @@ end
 $$;
 drop trigger if exists "run_status" on ${s}."runs";
 create trigger "run_status" after update of "status" on ${s}."runs" for each row
-  when (new.status in ('succeeded', 'failed') and old.status is distinct from new.status) execute function ${s}."run_status"();
+  when (new.status in ('succeeded', 'failed') and old.status is distinct from new.status and new.block_of is null) execute function ${s}."run_status"();
 
 -- Marking a workflow resolved: refused for another tenant's workflow as one that is not there, then copied onto it.
 create or replace function ${s}."resolution"() returns trigger

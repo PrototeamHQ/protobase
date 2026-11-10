@@ -10,6 +10,7 @@ import { createApproval, updateApproval } from '../../assistant/write-prompts'
 import { notApproved, onlyNote, outside, type WriteRecordToolsInput } from '../../assistant/write-tool-limits'
 import { notFound } from '../../problem'
 import type { Row } from '../../types'
+import { definitionWarnings, type Definition } from '@protobase/workflows'
 import { mergePatch } from './merge-patch'
 import { definitionParameter, editParameter, idOf, idParameter, objectOf, textOf, workflowRefused } from './workflow-tool-args'
 
@@ -17,13 +18,17 @@ const writes = { readOnlyHint: false, destructiveHint: false, openWorldHint: fal
 const nameParameter = { type: 'string', description: 'A name, 1 to 100 characters.' }
 const descriptionParameter = { type: 'string', description: 'What it does, for people; at most 2000 characters.' }
 
-const saved = (record: Row, etag: string) => JSON.stringify({ id: record.id, version: record.version, etag })
+// With the checker's warnings on the saved definition, which a save goes through with.
+const saved = (record: Row, etag: string) => {
+  const warnings = definitionWarnings(record.definition as Definition)
+  return JSON.stringify({ id: record.id, version: record.version, etag, ...(warnings.length > 0 && { warnings }) })
+}
 
 /** Creates a workflow once the user approves it; a definition the check refuses saves nothing. */
 export const createWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'create_workflow',
-    description: `Creates a workflow from its name and whole definition, checked as validate_workflow checks it, and returns JSON { id, version, etag }. A definition that does not fit is refused with { error, problems }, each problem naming the state, the field and what was expected; nothing is saved then. The user approves each save in their client first.${onlyNote(input)}`,
+    description: `Creates a workflow from its name and whole definition, checked as validate_workflow checks it, and returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A definition that does not fit is refused with { error, problems }, each problem naming the state, the field and what was expected; nothing is saved then. The user approves each save in their client first.${onlyNote(input)}`,
     parameters: { type: 'object', properties: { name: nameParameter, description: descriptionParameter, definition: definitionParameter }, required: ['name', 'definition'] },
     annotations: writes,
     run: async (args, context) => {
@@ -44,7 +49,7 @@ export const createWorkflowTool = (input: WriteRecordToolsInput = {}) =>
 export const updateWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'update_workflow',
-    description: `Changes a workflow: its definition by a small edit (edit, a JSON Merge Patch of the saved definition) or whole (definition), and its name or description. The changed definition is checked as validate_workflow checks it and saved as the workflow's next version; runs started before keep theirs. Returns JSON { id, version, etag }. A definition that does not fit is refused with { error, problems }, each naming the state, the field and what was expected; nothing is saved then. Pass the etag get_workflow gave to fail when someone changed it since. The user approves each save in their client first.${onlyNote(input)}`,
+    description: `Changes a workflow: its definition by a small edit (edit, a JSON Merge Patch of the saved definition) or whole (definition), and its name or description. The changed definition is checked as validate_workflow checks it and saved as the workflow's next version; runs started before keep theirs. Returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A definition that does not fit is refused with { error, problems }, each naming the state, the field and what was expected; nothing is saved then. Pass the etag get_workflow gave to fail when someone changed it since. The user approves each save in their client first.${onlyNote(input)}`,
     parameters: {
       type: 'object',
       properties: { id: idParameter, edit: editParameter, definition: definitionParameter, name: nameParameter, description: descriptionParameter, etag: { type: 'string', description: 'The etag get_workflow gave, to fail when the workflow changed since.' } },

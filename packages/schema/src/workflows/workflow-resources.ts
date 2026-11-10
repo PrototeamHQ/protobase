@@ -65,7 +65,7 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
     l.section('Workflow', [r.run_status, r.name, r.description, r.enabled_version]),
     l.sidebar([r.version, r.created_at, r.updated_at]),
     l.related('Trigger', { resource: 'workflow_triggers', field: 'workflow_id', columns: ['type', 'status', 'version', 'last_error', 'updated_at'] }),
-    l.related('Runs', { resource: 'workflow_runs', field: 'workflow_id', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'version', 'error'] }),
+    l.related('Runs', { resource: 'workflow_runs', field: 'workflow_id', filter: 'isNull(block_of)', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'version', 'error'] }),
     l.related('Versions', { resource: 'workflow_versions', field: 'workflow_id', columns: ['version', 'saved_by', 'saved_at'] }),
   ])
 
@@ -115,6 +115,10 @@ const runsResource = (schema: string) =>
       rerun_of: f.relation('workflow_runs').optional().filterable(),
       rerun_from: f.text().optional().max(200),
       replay: f.boolean().optional(),
+      // Only the engine starts a block's run; a replay or re-run of one copies the Block it runs.
+      block_of: f.relation('workflow_runs').optional().readOnly().filterable(),
+      block_state: f.text().optional().readOnly(),
+      block_visit: f.text().optional().readOnly(),
       tenant_id: f.text().optional().readOnly(),
       created_at: f.timestamp().readOnly().dbDefault().sortable(),
       finished_at: f.timestamp().optional().readOnly(),
@@ -152,6 +156,8 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
       .help("Whether the run keeps a trace of its steps; by default as its workflow, else the app, says"),
     trace_file: r.trace_file.label('Trace').help('Every step with its input, output, logs and timing, one JSON object a line, once the run ended'),
     started_by: r.started_by.label('Started by'),
+    block_of: r.block_of.label('Block of').help("The run whose Block this run ran: it runs that Block's steps alone, and its result went back to that run"),
+    block_state: r.block_state.label('Block').help('The Block whose steps this run runs'),
     created_at: r.created_at.label('Started'),
     finished_at: r.finished_at.label('Finished'),
     duration_ms: r.duration_ms.label('Duration (ms)'),
@@ -164,7 +170,7 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   .layout((r) => [
     l.section('Trace', [r.id]),
     l.section('Run', [r.workflow_id, r.input, r.output, r.error, r.cause, r.trace_file]),
-    l.sidebar([r.status, r.version, r.trace, r.started_by, r.rerun_of, r.rerun_from, r.replay, r.created_at, r.resume_at, r.finished_at, r.duration_ms]),
+    l.sidebar([r.status, r.version, r.trace, r.started_by, r.block_of, r.block_state, r.rerun_of, r.rerun_from, r.replay, r.created_at, r.resume_at, r.finished_at, r.duration_ms]),
     l.related('Re-runs', { resource: 'workflow_runs', field: 'rerun_of', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'error'] }),
   ])
 

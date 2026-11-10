@@ -15,7 +15,7 @@ export const postgresRunStore = (schema: string): RunStore<Db> => {
   const checkpoints = sql.id(schema, 'checkpoints')
   return {
     load: async (db, id) => {
-      const { rows } = await sql<{ id: string; definition: Definition; input: unknown; status: 'queued'; startedAt: Date; trace: TraceMode | null; replay: boolean | null; rerun_of: string | null; replayed: Definition | null }>`select r.id, v.definition, r.input, r.status, r.created_at as "startedAt", r.trace, r.replay, r.rerun_of, rv.definition as replayed
+      const { rows } = await sql<{ id: string; definition: Definition; input: unknown; status: 'queued'; startedAt: Date; trace: TraceMode | null; blockOf: string | null; blockState: string | null; replay: boolean | null; rerun_of: string | null; replayed: Definition | null }>`select r.id, v.definition, r.input, r.status, r.created_at as "startedAt", r.trace, r.block_of as "blockOf", r.block_state as "blockState", r.replay, r.rerun_of, rv.definition as replayed
         from ${runs} r join ${versions} v on v.workflow_id = r.workflow_id and v.version = r.version
         left join ${runs} o on r.replay and o.id = r.rerun_of left join ${versions} rv on rv.workflow_id = o.workflow_id and rv.version = o.version
         where r.id = ${id}`.execute(db)
@@ -66,6 +66,7 @@ export const postgresRunStore = (schema: string): RunStore<Db> => {
       await sql`with changed as (update ${runs} set status = ${change.status},
           resume_at = ${change.status === 'waiting' ? change.resumeAt : null},
           output = ${change.status === 'succeeded' ? json(change.output) : null}::jsonb,
+          output_blanked = ${change.status === 'succeeded' ? change.blanked : null}::boolean,
           error = ${change.status === 'failed' ? change.error : null}, cause = ${change.status === 'failed' ? change.cause : null},
           finished_at = ${ended ? sql`now()` : sql`null`}
         where id = ${id} and status not in ('succeeded', 'failed') returning id)

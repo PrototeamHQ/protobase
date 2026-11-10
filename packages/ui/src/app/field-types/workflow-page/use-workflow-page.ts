@@ -31,7 +31,8 @@ export const useWorkflowPage = (view: WorkflowView) => {
   const enabled = numberOf(workflow.data?.record.enabled_version)
   const byWorkflow = `workflow_id = ${JSON.stringify(view.workflow)}`
   const versions = useList('workflow_versions', { filter: byWorkflow, orderBy: 'version desc', pageSize: versionLimit, fields: ['version', 'saved_at'] })
-  const runs = useList('workflow_runs', { filter: byWorkflow, orderBy: 'created_at desc', pageSize: runLimit, fields: ['id', 'status', 'version', 'created_at', 'duration_ms', 'input', 'started_by', 'rerun_of', 'replay', 'error'] })
+  // A block's run opens from the Block step that started it, not from the workflow's runs.
+  const runs = useList('workflow_runs', { filter: `${byWorkflow} AND isNull(block_of)`, orderBy: 'created_at desc', pageSize: runLimit, fields: ['id', 'status', 'version', 'created_at', 'duration_ms', 'input', 'started_by', 'rerun_of', 'replay', 'error'] })
   const trace = useRunTrace(view.run)
   // A version other than the latest is drawn from its own record
   const shown = view.version

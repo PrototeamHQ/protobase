@@ -1,7 +1,7 @@
 import type { ResourceModel } from '@protobase/schema'
 import type { IssueWebhook } from './webhook-tools'
 import { listConnectionsTool, type ListConnections } from './connection-tools'
-import { checkDefinition, typeCatalog, type CheckOptions, type TypeEntry } from '@protobase/workflows'
+import { checkDefinition, definitionWarnings, typeCatalog, type Definition, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
 import { defineTool, type ToolContext } from '../../assistant/tools'
 import { mergePatch } from './merge-patch'
@@ -73,13 +73,15 @@ const checked = async (definition: unknown, catalog: WorkflowCatalog, context: T
   const { models } = await context.resources()
   // As a save checks it: a definition with no steps yet is checked but for that
   const problems = checkDefinition(withStepsToCheck(definition), catalog.checkWith((name) => models.find((model) => model.name === name)))
-  return JSON.stringify(problems.length > 0 ? { valid: false, problems } : { valid: true })
+  if (problems.length > 0) return JSON.stringify({ valid: false, problems })
+  const warnings = definitionWarnings(definition as Definition)
+  return JSON.stringify({ valid: true, ...(warnings.length > 0 && { warnings }) })
 }
 
 /** Checks a definition, or a saved one with an edit, without saving anything. */
 const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
   name: 'validate_workflow',
-  description: 'Checks a definition as a save checks it, and saves nothing: pass a whole definition, or a workflow\'s id with an edit to check that edit of its saved definition. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected.',
+  description: 'Checks a definition as a save checks it, and saves nothing: pass a whole definition, or a workflow\'s id with an edit to check that edit of its saved definition. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected. A valid one may come with warnings in the same shape, which a save goes through with, such as a Wait between a Block and a state that reads its result, which may have expired by then.',
   parameters: { type: 'object', properties: { definition: definitionParameter, id: idParameter, edit: editParameter } },
   annotations: reads,
   run: async (args, context) => {
@@ -91,8 +93,8 @@ const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
   },
 })
 
-const runFields = ['id', 'workflow_id', 'version', 'rerun_of', 'started_by', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'trace', 'trace_file', 'created_at', 'finished_at', 'duration_ms']
-const stepFields = ['state', 'scope', 'seq', 'type', 'attempt', 'status', 'input', 'output', 'assigned', 'logs', 'error', 'cause', 'next', 'resumeAt', 'startedAt', 'finishedAt', 'recorded']
+const runFields = ['id', 'workflow_id', 'version', 'rerun_of', 'block_of', 'block_state', 'started_by', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'trace', 'trace_file', 'created_at', 'finished_at', 'duration_ms']
+const stepFields = ['state', 'scope', 'seq', 'type', 'attempt', 'status', 'input', 'output', 'assigned', 'logs', 'error', 'cause', 'next', 'resumeAt', 'startedAt', 'finishedAt', 'recorded', 'run']
 
 /** The steps of a run's trace, in the order they ran. */
 export type TraceReader = (runId: string) => Promise<Record<string, unknown>[]>
