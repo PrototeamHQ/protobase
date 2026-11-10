@@ -37,6 +37,8 @@ create index if not exists "resolutions_workflow" on ${s}."resolutions" ("workfl
 create index if not exists "resolutions_tenant" on ${s}."resolutions" ("tenant_id");
 create index if not exists "resolutions_resolved_at" on ${s}."resolutions" ("resolved_at");
 create index if not exists "runs_ended" on ${s}."runs" ("workflow_id", "finished_at" desc, "id" desc) where "status" in ('succeeded', 'failed');
+-- The runs a workflow's status counts, so its status skips no blocks' runs, of which a run starts many, to find them.
+create index if not exists "runs_ended_top" on ${s}."runs" ("workflow_id", "finished_at" desc, "id" desc) where "status" in ('succeeded', 'failed') and "block_of" is null;
 
 -- The status of a workflow at its version and last mark as resolved, from its last ${statusRuns} ended runs, blocks' runs left out
 -- (a block's failure is its run's): the run its
