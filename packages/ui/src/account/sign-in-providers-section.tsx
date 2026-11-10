@@ -1,5 +1,5 @@
 import { Link2 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { AuthError } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import type { SignInProvider } from '../auth/auth-provider'
@@ -24,10 +24,12 @@ export type SignInProvidersSectionProps = {
   /** The section's title and description; default those of connected sign-in accounts. */
   title?: string
   description?: string
+  /** More of the section, under the providers, such as a mailbox's From addresses. */
+  children?: ReactNode
 }
 
 /** The providers someone can sign in with besides a password, and a way to connect one whatever address it has. */
-export const SignInProvidersSection = ({ providers, linked, onConnect, error: returned, reconnect = false, notes = {}, title = text('connectedAccounts'), description = text('connectedAccountsDescription') }: SignInProvidersSectionProps) => {
+export const SignInProvidersSection = ({ providers, linked, onConnect, error: returned, reconnect = false, notes = {}, title = text('connectedAccounts'), description = text('connectedAccountsDescription'), children }: SignInProvidersSectionProps) => {
   const [busy, setBusy] = useState<string>()
   const [error, setError] = useState(returned)
 
@@ -63,6 +65,7 @@ export const SignInProvidersSection = ({ providers, linked, onConnect, error: re
           </li>
         ))}
       </ul>
+      {children}
     </AccountSection>
   )
 }

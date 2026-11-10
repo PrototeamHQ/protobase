@@ -73,6 +73,11 @@ describe('isRefusedForStaff', () => {
     expect(isRefusedForStaff('/policy/sign-in', 'POST')).toBe(true)
   })
 
+  it("refuses changes to the person's From addresses but lets staff list them", () => {
+    for (const path of ['/account/mail-senders/add', '/account/mail-senders/update', '/account/mail-senders/remove']) expect(isRefusedForStaff(path, 'POST')).toBe(true)
+    expect(isRefusedForStaff('/account/mail-senders', 'GET')).toBe(false)
+  })
+
   it('lets reading go through', () => {
     for (const path of ['/get-session', '/token', '/account/sign-in-methods', '/passkey/list-user-passkeys', '/account/connected-apps']) expect(isRefusedForStaff(path, 'GET')).toBe(false)
     expect(isRefusedForStaff('/policy/sign-in', 'GET')).toBe(false)

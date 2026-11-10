@@ -9,6 +9,8 @@ import { betterAuthLinkedAccounts, type TokenAuth } from '../personal-mail/linke
 import { resolvePersonalMail, type PersonalMailProviderId } from '../personal-mail/personal-mail-providers'
 import { personalMailer } from '../personal-mail/personal-mailer'
 import { mailLinkHooks } from '../personal-mail/mail-link-hooks'
+import { mailSendersPlugin } from '../personal-mail/mail-senders-plugin'
+import { adapterSenderStore } from '../personal-mail/sender-store'
 import { bothAccountHooks, connectionAccountHooks } from './connections/connection-account-hooks'
 import { connectionEvents, type ConnectionEvents } from './connections/connection-events'
 import { listConnections } from './connections/list-connections'
@@ -379,6 +381,7 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * sign-in provider already resolved.
  */
 export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
+  const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
   const ownProviders = (connections?.resolved ?? []).filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId)
   const secure = options.baseURL.startsWith('https://')
@@ -506,6 +509,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       }),
       ...(passwordHashes.length > 0 ? [rehashPasswordsPlugin(passwordHashes)] : []),
       ...(personalAccessTokens ? [personalAccessTokensPlugin({ options: personalAccessTokens, definitions })] : []),
+      ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders)] : []),
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
       ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context }) : []),
     ].map((plugin) => withUserColumns(plugin, users)),
@@ -534,7 +538,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       },
       session: refusingConnectionSessions(withEndedReplaced(organizations ? sessionOrganizationHooks(context) : {}) as SessionHooks, connectionHooks?.session.create?.before),
       // Linking a mailbox makes that account the one mail goes through; linking a connection's account resumes its triggers.
-      account: ((mail) => (connectionHooks ? bothAccountHooks(mail, connectionHooks.account) : mail))(mailLinkHooks(resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true))),
+      account: ((mail) => (connectionHooks ? bothAccountHooks(mail, connectionHooks.account) : mail))(mailLinkHooks(mailProviders)),
     },
     rateLimit: {
       enabled: true,
@@ -628,6 +632,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
   instance = auth as unknown as { $context: Promise<AuthContext> }
+  const senderStore = adapterSenderStore(async () => (await context()).adapter)
   return Object.assign(auth, {
     /**
      * Answers a request from the app's iOS or Android build: Better Auth also trusts the Capacitor origin the request
@@ -679,8 +684,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     samlProviders: saml.map(({ id, name }) => ({ id, name })),
     /** The mail providers people link their own mailbox with (`personalMail`). */
     personalMail,
-    /** Mail from `userId`'s own mailbox, through the mail provider they linked (see `personalMailer`). */
-    personalMailer: (userId: string) => personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), personalMail, userId),
+    /** Mail from `userId`'s own mailbox, through the mail provider they linked, from the addresses they may use (see `personalMailer`). */
+    personalMailer: (userId: string) => personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), personalMail, senderStore, userId),
     /** What workflow connections can sign in with: whether tokens are stored encrypted, the sign-in providers, the connections with a client. */
     connectionSupport: { encrypted: options.encryptOAuthTokens === true, signInProviders: socialProviders, clients: connectionClients },
     /**

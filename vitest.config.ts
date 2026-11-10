@@ -93,6 +93,7 @@ const snapshotIsolated = [
   'packages/server/tests/gotrue-clients.test.ts',
   'packages/server/tests/gotrue-provider-sign-in.test.ts',
   'packages/server/tests/meta.test.ts',
+  'packages/server/tests/mail-senders.test.ts',
   'packages/server/tests/mcp-app-instructions.test.ts',
   'packages/server/tests/mcp-comments.test.ts',
   'packages/server/tests/mcp-endpoint.test.ts',

@@ -1,6 +1,7 @@
 import { authBasePath, isLocale } from '@protobase/schema/internal'
 import { accountProfile } from './account-profile'
 import { accountSecurity } from './account-security'
+import { accountMailSenders } from './account-mail-senders'
 import { accountTokens } from './account-tokens'
 import { connectClient } from './connect'
 import { AuthError, authError } from './auth-error'
@@ -178,7 +179,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
       if (error) throw authError(error, 'Could not set the password')
     },
 
-    account: { ...accountSecurity(client), ...accountProfile(client), ...accountTokens(client) },
+    account: { ...accountSecurity(client), ...accountProfile(client), ...accountTokens(client), ...accountMailSenders(client) },
     connect: connectClient(client),
     organizations: organizationsClient(client, () => token({ refresh: true })),
     roles: rolesClient(client, () => token({ refresh: true })),

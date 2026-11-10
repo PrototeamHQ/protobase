@@ -4,7 +4,7 @@ import type { Caller } from '../api-keys/resolve-caller'
 import type { CallsAccess } from '../calls/calls-access'
 import type { DecryptField } from '../encryption/decrypt-field-types'
 import type { ChannelSender } from '../channels/channel-sender'
-import type { Mailer } from '../mail/smtp-mailer'
+import type { PersonalMail } from '../personal-mail/personal-mailer'
 import type { Session } from '../types'
 import type { SocketEvents } from './function-socket'
 import type { FunctionRecords } from './records'
@@ -49,12 +49,16 @@ export type FunctionContext = PublicFunctionContext & FunctionCaller & {
   /**
    * Mail from the caller's own mailbox, through the mail provider they linked (`auth.personalMail`), attachments and
    * all: `personalMail.send({ to, subject, text, html, attachments })`, or an email template's `send(to, data,
-   * context.personalMail, { attachments })`. Rejects with a `PersonalMailError`, sending nothing, when they linked no
+   * context.personalMail, { attachments })`. It goes out from `from` when given (`send({ from, ... })`), else from the
+   * caller's default address, else their mailbox's own: a From address must be their mailbox's own or one they entered
+   * on their account page, or it is refused with a 403 problem naming it
+   * (`MailSenderRefusedError`), sending nothing. `sender(from?)` answers the address a send goes out as, with its own
+   * signature, and `senders()` every address the caller may choose. Rejects with a `PersonalMailError`, sending nothing, when they linked no
    * mailbox (`not_linked`) or the link no longer works (`link_expired`); thrown on, it answers as a 409 problem with
    * that `code`. Only someone signed in as themselves sends from their mailbox: staff signed in as them, or an outside
    * app acting for them, is refused with a 403 problem. Not on a public function's context.
    */
-  personalMail: Mailer
+  personalMail: PersonalMail
 }
 
 /** What a function gets at `/api/sb/functions/v1/<name>`, where supabase-js calls it: the caller its keys and token make. */

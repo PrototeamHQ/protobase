@@ -8,7 +8,7 @@ import { runInBackground } from '../background-work'
 import { callsAccess } from '../calls/calls-access'
 import type { CallsService } from '../calls/calls-service-type'
 import type { FieldDecrypter } from '../encryption/decrypt-field-types'
-import type { Mailer } from '../mail/smtp-mailer'
+import type { PersonalMail } from '../personal-mail/personal-mailer'
 import { forbidden, notFound } from '../problem'
 import { namingTimeouts } from '../statement-timeout'
 import type { Authenticator, Session } from '../types'
@@ -32,7 +32,7 @@ export type FunctionRoutesInput = {
   /** The app's read of encrypted fields, which a protected function's context binds to the function and its caller. */
   decryptField: FieldDecrypter
   /** Mail from a user's own mailbox, a protected function's `personalMail` for its caller; without it, sending rejects. */
-  personalMailer?: (userId: string) => Mailer
+  personalMailer?: (userId: string) => PersonalMail
   /** What a function broadcasts to record channels with. */
   channels: ChannelSender
   onError: ErrorHandler
@@ -57,9 +57,9 @@ export const relativeRequest = (request: Request, prefix: string) => {
   return new Request(url, request)
 }
 
-const noPersonalMail = (): Mailer => ({
-  send: () => Promise.reject(new Error('Personal mail is off: name the mail providers people may link in auth.personalMail, such as ["gmail"]')),
-})
+const personalMailOff = () => Promise.reject(new Error('Personal mail is off: name the mail providers people may link in auth.personalMail, such as ["gmail"]'))
+
+const noPersonalMail = (): PersonalMail => ({ send: personalMailOff, sender: personalMailOff, senders: personalMailOff })
 
 const isUpgrade = (request: Request) => request.headers.get('upgrade')?.toLowerCase() === 'websocket'
 

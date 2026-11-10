@@ -7,6 +7,10 @@ export default {
     roles: { admin: 'Admin', editor: 'Editor' },
     organizations: true,
     personalAccessTokens: { prefix: 'upgrade_' },
+    // Personal mail keeps the From addresses people enter; nothing signs in, so the client is a stand-in.
+    socialProviders: { google: { clientId: 'upgrade.apps.googleusercontent.com', clientSecret: 'upgrade' } },
+    personalMail: ['gmail'],
+    encryptOAuthTokens: true,
   },
   webhooks: {},
   workflows: {},

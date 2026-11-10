@@ -177,13 +177,47 @@ export default defineFunction(async (request, { personalMail }) => {
   { "type": "urn:protobase:problem:personal-mail-link-expired", "status": 409, "code": "link_expired", "provider": "gmail" }
   ```
 
-- **Sender:** the provider sends as the linked address; Gmail sets the From header to it.
+- **Sender:** without a [From address](#from-addresses), the provider sends as the linked address; Gmail sets the From header to it.
 - **Which account:** mail goes out through the account the person connected for mail last. Connecting Gmail with another Google account takes the mail scopes off the earlier one in the app's store, and signing in with the earlier one does not take the mail back; connecting it again does. When the chosen account's link fails, sending fails: it never falls back to another account. Of two accounts that both still hold the mail scopes, as when both connected before this rule came in, mail goes through the one linked to the person last, until they connect one again.
 - **Only the person:** mail goes out from a mailbox only for someone signed in as themselves, or from a [workflow step's `mailbox`](/reference/workflow-plugins/#step-types) in a version that person turned on while signed in as themselves, and only while they may still change the workflow. Staff [signed in as them](/reference/auth/#staff-sign-in), an outside app acting for them, and a job's own code cannot send from it; a request is refused with a `403` problem (`own-sign-in-only`), a step fails with `not_linked`, and nothing is sent. Turning the workflow off, or someone else turning a new version on, ends the first person's consent.
 - **Providers:** Gmail, through Google sign-in. A provider is added to Protobase behind the same `PersonalMailProvider` shape: its sign-in provider, the scopes linking asks for, and how it sends.
 - **Sign-in is not a mailbox:** under **Mailbox**, the account page says when someone signs in with Google without having allowed it to send mail, so a linked Google sign-in is not taken for a connected mailbox.
 - <gap>The account page cannot show which account a mailbox is linked through or disconnect it because unlinking a mailbox is not implemented.</gap>
 - <gap>Mailboxes other than Gmail cannot be linked because no other mail provider is implemented.</gap>
+
+### From addresses
+
+A mailbox may send as more than its own address, such as Gmail's send-as addresses (Gmail's settings → Accounts → **Send mail as**). The person enters each such address once on the account page, under **Mailbox** → **From addresses**; only they can send from it. For each they choose:
+
+- **Signature:** an address may carry its own signature, which takes the place of the app's generic one; left empty, the generic one applies.
+- **Default:** one address, theirs or their mailbox's own, is the one mail goes out from when the app names none.
+
+A function then names the From address with `from`, matched without regard to case. To send a template from it, render it and send the result:
+
+```ts
+export default defineFunction(async (request, { personalMail }) => {
+  const { to, number, pdf } = await readInvoice(request)
+  const sender = await personalMail.sender('billing@shop.example')
+  const email = await invoiceEmail.render({ number, signature: sender.signature ?? defaultSignature })
+  await personalMail.send({ from: sender.address, to, ...email, attachments: [{ filename: `invoice-${number}.pdf`, content: pdf, contentType: 'application/pdf' }] })
+  return new Response(null, { status: 204 })
+})
+```
+
+- **`send({ from, ... })`:** sends from `from`, else the person's default address, else their mailbox's own. Gmail keeps the From header when the address is one of the account's verified send-as addresses; when it is not, Gmail sends from the account's own address instead, without an error.
+- **`sender(from?)`:** the address a send with `from` goes out as: `address`, `signature` when it has its own, and `ownerId`, whose mailbox it goes through. It refuses as `send` does.
+- **`senders()`:** every address the caller may choose, such as for a send dialog: their mailbox's own, then those they entered.
+- **Refused addresses:** a From address that is not the mailbox's own and not one the caller entered is refused before anything is sent, with a `MailSenderRefusedError` that answers as a `403` problem naming it; so is an address someone else entered, in the same words:
+
+  ```json
+  { "type": "urn:protobase:problem:mail-sender-refused", "status": 403, "address": "ceo@shop.example", "detail": "You may not send mail from ceo@shop.example: add it to the Mailbox section of your account page first" }
+  ```
+
+- **The mailbox's own address** is the one its provider's ID token names; Google gives it with the `email` scope sign-in asks for.
+- **The account page's calls:** `GET /api/auth/account/mail-senders` lists the person's addresses with their mailbox's own `address`; `POST .../mail-senders/add { address, signature? }`, `POST .../mail-senders/update { id, signature?, isDefault? }` (`signature: null` drops its own) and `POST .../mail-senders/remove { id }` change them. Each acts on the signed-in person's own addresses only.
+- <gap>An entered address cannot be checked to work before mail goes out from it because the test mail through the mailbox is not implemented.</gap>
+- <gap>An address cannot be shared with others who send mail because proving that the person owns the address is not implemented.</gap>
+- <gap>A From address cannot carry a display name, so its mail shows the bare address, because names per address are not implemented.</gap>
 
 ## In a bundle
 

@@ -65,3 +65,13 @@ export default defineFunction(async (request, { personalMail }) => {
 ```
 
 The message goes out from the linked Gmail, and shows in its Sent folder. When the person linked nothing the call answers `409` with `code: "not_linked"`, and when Google no longer honours the link, as after they removed the app from their Google account, `code: "link_expired"`. An action whose handler calls the function offers to connect Gmail right in its dialog then; mark it `mailbox: true` and it offers that before it runs, while nothing is linked ([Actions that send from someone's mailbox](/reference/ui-config/#actions-that-send-from-someones-mailbox)).
+
+## 5. Send from another address
+
+A Gmail account may send as other addresses of yours, such as a company address beside your own. To have the app send from one:
+
+1. **Set it up in Gmail first:** Gmail's settings → Accounts → **Send mail as** → Add another email address, and confirm it as Gmail asks. An alias of a Google Workspace domain is there already.
+2. **Enter it once in the app:** on the account page, under **Mailbox** → **From addresses**, choose **Add a From address** and type it. Give it a signature of its own if you like, and make it the default to send from it whenever the app names no address.
+3. **Name it when sending:** `personalMail.send({ from: 'billing@shop.example', to, subject, text })`.
+
+Gmail sends from your primary address instead, without an error, when the address is not verified under **Send mail as**, so check the first message's From in the Sent folder. The app sends only from addresses entered this way: any other `from` is refused with a `403` before anything is sent. [From addresses](/reference/email/#from-addresses) has the details.
