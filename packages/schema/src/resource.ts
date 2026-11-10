@@ -7,6 +7,7 @@ import type { BucketFields, BucketMeasuresInput, BucketsSpec } from './buckets/b
 import type { BucketMeasure } from './buckets/buckets-model'
 import { bucketsState } from './buckets/buckets-of'
 import type { ParentAccess, PositionAfterModel, ResourceModel, SearchMatch } from './model'
+import type { DerivedModel, DerivedTarget } from './derived/derived-model'
 import { buildResourceModel, ignoredColumns, type ResourceState } from './resource-model'
 import type { Access, Issue, KeyRefs, RecordOf } from './resource-types'
 import { createRefs, type FieldRefs, type FieldsInput, type Ref } from './refs'
@@ -36,6 +37,18 @@ export type TenantOptions = {
 
 /** A rule over a whole record for `.validate()`: the issues it finds, or `undefined` when there are none. */
 export type Validator<F> = (record: RecordOf<F>) => Issue<F>[] | undefined
+
+/** Where a derived value goes and what it reads (`.derived()`). */
+export type DerivedSpec<F> = {
+  /** A read-only field of the record, or a field of another resource's record of the same key. */
+  into?: ((r: FieldRefs<F>) => Ref) | DerivedTarget
+  /** The job enqueued with `{ resource, key, value }` each time the value changes. */
+  job?: string
+  /** The other resources the compute function reads; their changes are captured. */
+  reads?: string[]
+  /** `false` analyses none of its queries: only the dependencies it names and its clock count. */
+  track?: boolean
+}
 
 /**
  * A resource as `resource(name)` builds it. Every method returns a new builder, so a resource is one chain. See
@@ -272,6 +285,24 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    */
   live() {
     return this.next({ live: true })
+  }
+
+  /**
+   * A value worked out from other records for each of its records, which Protobase keeps current: it records what the
+   * compute function, the default export of `derived/<resource>.<name>.ts`, read, and runs it again when a change
+   * touches that or a time check flips. `into` is the read-only field it goes into, or a field of another resource's
+   * record of the same key; `job` is enqueued each time the value changes. `reads` names the other resources it may
+   * read. See [Derived values](docs/website/src/content/docs/reference/derived.mdx).
+   *
+   * @example
+   * ```ts
+   * .derived('verdict', { into: (r) => r.verdict, reads: ['tasks'] })
+   * ```
+   */
+  derived(name: string, spec: DerivedSpec<F>) {
+    const into = typeof spec.into === 'function' ? { resource: this.state.name, field: spec.into(this.refs()).name } : spec.into
+    const value: DerivedModel = { name, ...(into && { into }), ...(spec.job && { job: spec.job }), reads: [...(spec.reads ?? [])], ...(spec.track === false && { track: false as const }) }
+    return this.next({ derived: [...(this.state.derived ?? []), value] })
   }
 
   /**

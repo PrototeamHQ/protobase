@@ -9,6 +9,8 @@ import { openExistingProblems } from './open-existing-problems'
 import { snakeCase } from './naming'
 import type { FieldsInput } from './refs'
 import type { BucketsModel } from './buckets/buckets-model'
+import type { DerivedModel } from './derived/derived-model'
+import { derivedProblems } from './derived/derived-problems'
 
 export type ResourceState = {
   name: string
@@ -33,6 +35,7 @@ export type ResourceState = {
   etagFrom?: string
   openExisting?: string[]
   buckets?: BucketsModel
+  derived?: DerivedModel[]
 }
 
 export const parseTable = (table: string) => {
@@ -116,6 +119,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.links && { links: state.links }),
     ...(state.openExisting && { openExisting: [...state.openExisting] }),
     ...(state.buckets && { buckets: structuredClone(state.buckets) }),
+    ...(state.derived && { derived: state.derived.map((value) => ({ ...value, reads: [...value.reads] })) }),
   }
 }
 
@@ -246,7 +250,7 @@ const bucketsProblems = (model: ResourceModel) => {
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...derivedProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }
