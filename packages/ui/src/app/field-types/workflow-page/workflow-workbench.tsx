@@ -183,11 +183,13 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
     if (outer !== undefined) return stateAt(draft, outer)?.Type === 'Block' ? text('rerunInBlockStep', { block: outer }) : text('rerunInMap', { map: outer })
     return stateAt(draft, path) ? undefined : text('stepNotInVersion', { version: page.latest ?? 0 })
   }
-  // The outermost Block around a state that the run shown is not itself the run of: the state ran in that block's run
+  // The outermost Block around a state that the run shown is not itself the run of: the state ran in that block's run.
+  // It is the Block of the definition the run ran on, which a later version may have changed or removed.
   const blockAround = (path: string) => {
     const scope = splitPath(path).scope
     const within = trace.place?.within.length ?? 0
-    const index = scope.findIndex((_, at) => at >= within && stateAt(draft, scope.slice(0, at + 1).join('/'))?.Type === 'Block')
+    const ran = trace.definition ?? definition
+    const index = scope.findIndex((_, at) => at >= within && stateAt(ran, scope.slice(0, at + 1).join('/'))?.Type === 'Block')
     return index === -1 ? undefined : scope[index]
   }
   const rerunFooter = (name: string | undefined, path: string) => {

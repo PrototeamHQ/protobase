@@ -68,6 +68,12 @@ const keepFile: Definition = {
   },
 }
 
+/** The signed-file workflow as a later, unpublished version left it, its block taken out. */
+const keepFileUnwrapped: Definition = {
+  ...keepFile,
+  stateMachine: { ...keepFile.stateMachine, StartAt: 'Later', States: { Later: keepFile.stateMachine.States.Later!, Mail: keepFile.stateMachine.States.Mail! } },
+}
+
 /** Waits for the gate the story opens, then echoes the run's input. */
 const gated: Definition = {
   trigger: { manual: {} },
@@ -180,8 +186,9 @@ const Workspace = ({ start, runs = [], traceOnceEnded = false }: { start: string
         workflow(5, 'Greet, keeping no trace', greet('none')),
         workflow(6, 'Greet, keeping failing runs only', greet('failed')),
         workflow(7, 'Keep a signed file', keepFile),
+        { ...workflow(8, 'Keep a signed file, since unwrapped', keepFileUnwrapped), version: 2, enabled_version: 1 },
       ],
-      workflow_versions: [version(1, syncTickets('tikets')), version(2, gated), version(3, mailSummary), version(4, mailThenStore('tikets')), version(5, greet('none')), version(6, greet('failed')), version(7, keepFile)],
+      workflow_versions: [version(1, syncTickets('tikets')), version(2, gated), version(3, mailSummary), version(4, mailThenStore('tikets')), version(5, greet('none')), version(6, greet('failed')), version(7, keepFile), version(8, keepFile), { ...version(8, keepFileUnwrapped), version: 2 }],
       workflow_runs: [],
     }
     // As the resources' access says: runs are created, never changed, and versions only read
@@ -514,6 +521,21 @@ export const BlockRunChecks: StoryObj = {
     await markOf(canvasElement, 'Keep file/Download', 'Succeeded')
     await markOf(canvasElement, 'Keep file/Save', 'Succeeded')
     await expect(calls.store).toBe(1)
+  },
+}
+
+/** A run on a version with a block still leads from a step inside it to the block's run once a later version took the block out. */
+export const BlockRunOfOlderVersionChecks: StoryObj = {
+  name: "A step inside a block a later version took out still opens the block's run (checks)",
+  tags: ['play', '!dev'],
+  render: () => <Workspace start={runPage} runs={[{ workflow_id: 8, input: { url: 'https://files.example.com/report?sig=1' } }]} />,
+  play: async ({ canvasElement }) => {
+    await markOf(canvasElement, 'Mail', 'Succeeded')
+    await userEvent.click(await within(canvasElement).findByRole('link', { name: 'Show on version 1' }))
+    await markOf(canvasElement, 'Keep file', 'Succeeded')
+    await userEvent.click(await nodeOf(canvasElement, 'Keep file/Download'))
+    const open = await sidePanel(canvasElement).findByRole('link', { name: "Open the block's run" })
+    await expect(open).toHaveAttribute('href', appPath({ kind: 'record', resource: 'workflow_runs', key: 'run-2' }))
   },
 }
 
