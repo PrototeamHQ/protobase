@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { checkDefinition } from '@protobase/workflows'
 import { ticketsWorkflow } from '../../testing/workflow-fixtures'
 import { emptyDefinition } from './definition'
 import { addState, addStateAfter, addStateFirst, connect, disconnect, freeName, removeState, renameState, startAt } from './definition-edits'
@@ -24,6 +25,18 @@ describe('workflow edits', () => {
     expect(last.stateMachine.States.B).toEqual({ Type: 'Pass', Next: 'Stop' })
     expect(addStateFirst(two, { type: 'Succeed' }, 'Done', 'Step').stateMachine.StartAt).toBe('A')
     expect(addStateFirst(emptyDefinition(), { type: 'Succeed' }, 'Done', 'Step').stateMachine.StartAt).toBe('Done')
+  })
+
+  it('builds a Block by hand, with a step of its own and one added inside it, that a save takes', () => {
+    const block = addState(emptyDefinition(), [], { type: 'Block' }, 'Keep', 'Step')
+    const inside = addStateAfter(block, ['Keep'], { task: 'app:http' }, 'Fetch', 'Step', 'Step 1')
+    expect(inside.stateMachine.States.Keep).toEqual({
+      Type: 'Block',
+      Processor: { StartAt: 'Step 1', States: { 'Step 1': { Type: 'Pass', Next: 'Fetch' }, Fetch: { Type: 'Task', Resource: 'app:http', Arguments: {}, End: true } } },
+      Cache: { Ttl: '1 hour' },
+      End: true,
+    })
+    expect(checkDefinition(inside, { resources: ['app:http'], triggers: {} })).toEqual([])
   })
 
   it('adds a Map with a state of its own, and a state inside a Map', () => {
