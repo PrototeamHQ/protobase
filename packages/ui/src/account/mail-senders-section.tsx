@@ -12,19 +12,18 @@ import { text } from './messages'
 export type MailSendersSectionProps = {
   senders: MailSenders
   /** Each rejects with `AuthError`, which the section shows. */
-  onAdd: (input: { address: string; shared: boolean; signature?: string }) => Promise<MailSender>
+  onAdd: (input: { address: string; signature?: string }) => Promise<MailSender>
   onUpdate: (id: string, change: MailSenderChange) => Promise<unknown>
   onRemove: (id: string) => Promise<void>
 }
 
 type Editing = { kind: 'add' } | { kind: 'change'; sender: MailSender } | { kind: 'remove'; sender: MailSender }
 
-// "Shared with others here who send mail · Own signature", or "Only you · Generic signature".
-const detailsOf = (sender: MailSender) => [sender.shared ? text('sharedFromAddress') : text('privateFromAddress'), sender.signature ? text('ownSignature') : text('genericSignature')].join(' · ')
+const detailsOf = (sender: MailSender) => (sender.signature ? text('ownSignature') : text('genericSignature'))
 
 /**
  * The From addresses the person's mail goes out from, under their mailbox: its own and those they entered once, such
- * as its send-as addresses, each private or shared, with its own signature or the generic one; one is the default.
+ * as its send-as addresses, each with its own signature or the generic one; one is the default.
  */
 export const MailSendersSection = ({ senders: { address, senders }, onAdd, onUpdate, onRemove }: MailSendersSectionProps) => {
   const [busy, setBusy] = useState(false)
@@ -62,8 +61,8 @@ export const MailSendersSection = ({ senders: { address, senders }, onAdd, onUpd
   const save = (input: MailSenderInput) =>
     attempt(async () => {
       const signature = input.signature.trim() ? input.signature : null
-      if (editing?.kind === 'change') return onUpdate(editing.sender.id, { shared: input.shared, signature, isDefault: input.isDefault })
-      const added = await onAdd({ address: input.address, shared: input.shared, ...(signature && { signature }) })
+      if (editing?.kind === 'change') return onUpdate(editing.sender.id, { signature, isDefault: input.isDefault })
+      const added = await onAdd({ address: input.address, ...(signature && { signature }) })
       if (input.isDefault) await onUpdate(added.id, { isDefault: true })
     })
 

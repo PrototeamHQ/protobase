@@ -122,20 +122,13 @@ describe('personalMailer', () => {
       expect(gmail.send).not.toHaveBeenCalled()
     })
 
-    it("refuses another person's private address, and sends a shared one through its owner's mailbox", async () => {
+    it("refuses another person's address, also one they marked shared, before any call to their mailbox", async () => {
       const gmail = provider()
       const accounts = both()
-      await expect(personalMailer(accounts, [gmail], senders, 'u1').send({ ...message, from: 'u2@private.example' })).rejects.toBeInstanceOf(MailSenderRefusedError)
-      await personalMailer(accounts, [gmail], senders, 'u1').send({ ...message, from: 'sales@acme.example' })
-      expect(accounts.accessToken).toHaveBeenCalledWith('u2', expect.objectContaining({ id: 'acc-u2' }), 'gmail')
-      expect(gmail.send).toHaveBeenCalledTimes(1)
-      expect(gmail.send).toHaveBeenCalledWith(message, 'access-u2', 'sales@acme.example')
-    })
-
-    it('is not_linked when the owner of a shared address linked no mailbox', async () => {
-      const gmail = provider()
-      const accounts: LinkedAccounts = { accounts: async (userId) => (userId === 'u1' ? [linked('acc-u1')] : []), accessToken: vi.fn(async () => 'access') }
-      await expect(personalMailer(accounts, [gmail], senders, 'u1').send({ ...message, from: 'sales@acme.example' })).rejects.toMatchObject({ code: 'not_linked' })
+      for (const from of ['u2@private.example', 'sales@acme.example']) {
+        await expect(personalMailer(accounts, [gmail], senders, 'u1').send({ ...message, from })).rejects.toEqual(new MailSenderRefusedError(from))
+      }
+      expect(accounts.accessToken).not.toHaveBeenCalled()
       expect(gmail.send).not.toHaveBeenCalled()
     })
   })

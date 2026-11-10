@@ -50,8 +50,8 @@ export type FunctionContext = PublicFunctionContext & FunctionCaller & {
    * Mail from the caller's own mailbox, through the mail provider they linked (`auth.personalMail`), attachments and
    * all: `personalMail.send({ to, subject, text, html, attachments })`, or an email template's `send(to, data,
    * context.personalMail, { attachments })`. It goes out from `from` when given (`send({ from, ... })`), else from the
-   * caller's default address, else their mailbox's own: a From address must be their mailbox's own, one they entered
-   * on their account page, or one another person shared there, or it is refused with a 403 problem naming it
+   * caller's default address, else their mailbox's own: a From address must be their mailbox's own or one they entered
+   * on their account page, or it is refused with a 403 problem naming it
    * (`MailSenderRefusedError`), sending nothing. `sender(from?)` answers the address a send goes out as, with its own
    * signature, and `senders()` every address the caller may choose. Rejects with a `PersonalMailError`, sending nothing, when they linked no
    * mailbox (`not_linked`) or the link no longer works (`link_expired`); thrown on, it answers as a 409 problem with

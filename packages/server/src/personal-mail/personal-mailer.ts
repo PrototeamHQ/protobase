@@ -41,9 +41,8 @@ export type PersonalMail = {
 
 /**
  * Mail from `userId`'s own mailbox: each message goes out through the mail provider they linked, with an access token
- * refreshed when it expired, from a From address they may use (`chooseSender`); one another person shared goes out
- * through that person's mailbox. Rejects with a `PersonalMailError` and sends nothing when the mailbox it goes through
- * is not linked (`not_linked`) or the provider no longer honours the link (`link_expired`).
+ * refreshed when it expired, from a From address they may use (`chooseSender`). Rejects with a `PersonalMailError` and
+ * sends nothing when the mailbox it goes through is not linked (`not_linked`) or the provider no longer honours the link (`link_expired`).
  */
 export const personalMailer = (accounts: LinkedAccounts, providers: PersonalMailProvider[], senders: MailSenderStore, userId: string): PersonalMail => {
   const ownAddress = async () => (await linkedProvider(accounts, providers, userId))?.account.address

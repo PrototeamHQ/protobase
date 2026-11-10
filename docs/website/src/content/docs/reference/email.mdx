@@ -187,9 +187,8 @@ export default defineFunction(async (request, { personalMail }) => {
 
 ### From addresses
 
-A mailbox may send as more than its own address, such as Gmail's send-as addresses (Gmail's settings → Accounts → **Send mail as**). The person enters each such address once on the account page, under **Mailbox** → **From addresses**, and chooses for each:
+A mailbox may send as more than its own address, such as Gmail's send-as addresses (Gmail's settings → Accounts → **Send mail as**). The person enters each such address once on the account page, under **Mailbox** → **From addresses**; only they can send from it. For each they choose:
 
-- **Shared or not:** an address is theirs alone, unless they share it with everyone in the app who sends mail; in an app with [organizations](/reference/auth/#organizations), with those who are a member of an organization they are a member of too. Mail from a shared address goes out through its owner's mailbox, whoever sends it.
 - **Signature:** an address may carry its own signature, which takes the place of the app's generic one; left empty, the generic one applies.
 - **Default:** one address, theirs or their mailbox's own, is the one mail goes out from when the app names none.
 
@@ -206,18 +205,18 @@ export default defineFunction(async (request, { personalMail }) => {
 ```
 
 - **`send({ from, ... })`:** sends from `from`, else the person's default address, else their mailbox's own. Gmail keeps the From header when the address is one of the account's verified send-as addresses; when it is not, Gmail sends from the account's own address instead, without an error.
-- **`sender(from?)`:** the address a send with `from` goes out as: `address`, `signature` when it has its own, `shared`, and `ownerId`, whose mailbox it goes through. It refuses as `send` does.
-- **`senders()`:** every address the caller may choose, such as for a send dialog: their mailbox's own, those they entered, then those others shared with them, each once.
-- **Refused addresses:** a From address that is not the mailbox's own, not one the caller entered and not one another person shared with them is refused before anything is sent, with a `MailSenderRefusedError` that answers as a `403` problem naming it; so is someone else's private address, in the same words:
+- **`sender(from?)`:** the address a send with `from` goes out as: `address`, `signature` when it has its own, and `ownerId`, whose mailbox it goes through. It refuses as `send` does.
+- **`senders()`:** every address the caller may choose, such as for a send dialog: their mailbox's own, then those they entered.
+- **Refused addresses:** a From address that is not the mailbox's own and not one the caller entered is refused before anything is sent, with a `MailSenderRefusedError` that answers as a `403` problem naming it; so is an address someone else entered, in the same words:
 
   ```json
   { "type": "urn:protobase:problem:mail-sender-refused", "status": 403, "address": "ceo@shop.example", "detail": "You may not send mail from ceo@shop.example: add it to the Mailbox section of your account page first" }
   ```
 
 - **The mailbox's own address** is the one its provider's ID token names; Google gives it with the `email` scope sign-in asks for.
-- **The account page's calls:** `GET /api/auth/account/mail-senders` lists the person's addresses with their mailbox's own `address`; `POST .../mail-senders/add { address, shared?, signature? }`, `POST .../mail-senders/update { id, shared?, signature?, isDefault? }` (`signature: null` drops its own) and `POST .../mail-senders/remove { id }` change them. Each acts on the signed-in person's own addresses only.
+- **The account page's calls:** `GET /api/auth/account/mail-senders` lists the person's addresses with their mailbox's own `address`; `POST .../mail-senders/add { address, signature? }`, `POST .../mail-senders/update { id, signature?, isDefault? }` (`signature: null` drops its own) and `POST .../mail-senders/remove { id }` change them. Each acts on the signed-in person's own addresses only.
 - <gap>An entered address cannot be checked to work before mail goes out from it because the test mail through the mailbox is not implemented.</gap>
-- <gap>A send from a shared address whose owner's link is missing or expired cannot tell the sender who must connect it again because the `PersonalMailError` names no owner.</gap>
+- <gap>An address cannot be shared with others who send mail because proving that the person owns the address is not implemented.</gap>
 - <gap>A From address cannot carry a display name, so its mail shows the bare address, because names per address are not implemented.</gap>
 
 ## In a bundle

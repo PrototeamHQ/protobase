@@ -21,9 +21,9 @@ export const maxSenders = 50
 export const maxSignatureLength = 2000
 
 /** An address as one entered it, as the account page lists it. */
-export type ListedMailSender = { id: string; address: string; shared: boolean; signature?: string; isDefault: boolean }
+export type ListedMailSender = { id: string; address: string; signature?: string; isDefault: boolean }
 
-const listed = (row: MailSenderRow): ListedMailSender => ({ id: row.id, address: row.address, shared: row.shared, ...(row.signature && { signature: row.signature }), isDefault: row.isDefault })
+const listed = (row: MailSenderRow): ListedMailSender => ({ id: row.id, address: row.address, ...(row.signature && { signature: row.signature }), isDefault: row.isDefault })
 
 const tooMany = { code: 'TOO_MANY_MAIL_SENDERS', message: `You can enter at most ${maxSenders} From addresses.` }
 const taken = { code: 'MAIL_SENDER_EXISTS', message: 'You entered this address already.' }
@@ -35,8 +35,8 @@ const signatureField = z.string().max(maxSignatureLength).transform((value) => (
 /**
  * The From addresses the signed-in person sends mail from through the mailbox they linked, such as the send-as
  * addresses of their Gmail: `GET /account/mail-senders` lists them, oldest first, with their mailbox's own `address`
- * when its link names it; `POST /account/mail-senders/add { address, shared?, signature? }` enters one, private unless
- * `shared`; `POST /account/mail-senders/update { id, shared?, signature?, isDefault? }` changes one, `signature: null`
+ * when its link names it; `POST /account/mail-senders/add { address, signature? }` enters one, usable by them alone;
+ * `POST /account/mail-senders/update { id, signature?, isDefault? }` changes one, `signature: null`
  * dropping its own, and `isDefault` making it, or no longer making it, the address mail goes out from when the app names
  * none; `POST /account/mail-senders/remove { id }` deletes one. Each acts on the session's own person only.
  */
@@ -58,21 +58,22 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[]) =>
 
       addMailSender: createAuthEndpoint(
         mailSenderPaths.add,
-        { method: 'POST', use: [sessionMiddleware], body: z.object({ address: z.email().max(254), shared: z.boolean().optional(), signature: signatureField.optional() }) },
+        { method: 'POST', use: [sessionMiddleware], body: z.object({ address: z.email().max(254), signature: signatureField.optional() }) },
         async (ctx) => {
           const userId = ctx.context.session.user.id
           const address = ctx.body.address.toLowerCase()
           const rows = await sendersOf(ctx.context.adapter, userId)
           if (rows.length >= maxSenders) throw new APIError('BAD_REQUEST', tooMany)
           if (rows.some((row) => row.address === address)) throw new APIError('BAD_REQUEST', taken)
-          const row = await storeSender(ctx.context.adapter, { userId, address, shared: ctx.body.shared ?? false, signature: ctx.body.signature ?? null, isDefault: false, createdAt: new Date() })
+          // Never shared: sharing an address with others waits until the person can prove it is theirs.
+          const row = await storeSender(ctx.context.adapter, { userId, address, shared: false, signature: ctx.body.signature ?? null, isDefault: false, createdAt: new Date() })
           return ctx.json({ sender: listed(row) })
         },
       ),
 
       updateMailSender: createAuthEndpoint(
         mailSenderPaths.update,
-        { method: 'POST', use: [sessionMiddleware], body: z.object({ id: z.string().min(1), shared: z.boolean().optional(), signature: signatureField.nullable().optional(), isDefault: z.boolean().optional() }) },
+        { method: 'POST', use: [sessionMiddleware], body: z.object({ id: z.string().min(1), signature: signatureField.nullable().optional(), isDefault: z.boolean().optional() }) },
         async (ctx) => {
           const userId = ctx.context.session.user.id
           const { id, isDefault, ...update } = ctx.body

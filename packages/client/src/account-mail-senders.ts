@@ -2,17 +2,16 @@ import { authError } from './auth-error'
 import type { BetterAuthClient } from './better-auth-client'
 
 /**
- * A From address the person entered for the mailbox they linked, such as a send-as address of their Gmail: shared with
- * others in the app who send mail, or theirs alone; its own signature, else the generic one applies; and whether
- * mail goes out from it when the app names no address.
+ * A From address the person entered for the mailbox they linked, such as a send-as address of their Gmail, theirs
+ * alone: its own signature, else the generic one applies; and whether mail goes out from it when the app names no address.
  */
-export type MailSender = { id: string; address: string; shared: boolean; signature?: string; isDefault: boolean }
+export type MailSender = { id: string; address: string; signature?: string; isDefault: boolean }
 
 /** The person's From addresses, and their mailbox's own address when its link names it. */
 export type MailSenders = { address?: string; senders: MailSender[] }
 
 /** What changes of an address: `signature: null` drops its own, so the generic one applies. */
-export type MailSenderChange = { shared?: boolean; signature?: string | null; isDefault?: boolean }
+export type MailSenderChange = { signature?: string | null; isDefault?: boolean }
 
 /** The signed-in person's From addresses, on an app with personal mail (`personalMail` in its status). */
 export const accountMailSenders = (client: BetterAuthClient) => ({
@@ -23,8 +22,8 @@ export const accountMailSenders = (client: BetterAuthClient) => ({
     return data
   },
 
-  /** Enters an address, private unless `shared`. */
-  addMailSender: async (input: { address: string; shared?: boolean; signature?: string }): Promise<MailSender> => {
+  /** Enters an address. */
+  addMailSender: async (input: { address: string; signature?: string }): Promise<MailSender> => {
     const { data, error } = await client.$fetch<{ sender: MailSender }>('/account/mail-senders/add', { method: 'POST', body: input })
     if (error || !data) throw authError(error, 'Could not add the From address')
     return data.sender

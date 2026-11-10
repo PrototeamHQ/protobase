@@ -632,7 +632,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
   instance = auth as unknown as { $context: Promise<AuthContext> }
-  const senderStore = adapterSenderStore(async () => (await context()).adapter, Boolean(organizations))
+  const senderStore = adapterSenderStore(async () => (await context()).adapter)
   return Object.assign(auth, {
     /**
      * Answers a request from the app's iOS or Android build: Better Auth also trusts the Capacitor origin the request
