@@ -1,5 +1,5 @@
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
-import { addressErrors, pruneByShape, shapes } from '@protobase/schema/internal'
+import { addressErrors, pruneByShape, rowButtonErrors, shapes } from '@protobase/schema/internal'
 import { chartFields } from './check-chart'
 import { threadFields } from './check-conversation'
 import { elementResource, linkSource } from './check-page'
@@ -72,12 +72,13 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
     }
     case 'Progress':
       return [node.props.value, node.props.max].every((name) => typeof name !== 'string' || readable(name)) ? node : null
+    // Columns narrow to what the caller can read; a row button goes when it reads what they cannot or leads where they cannot go.
     case 'Table': {
-      const columns = node.props.columns as string[] | undefined
-      if (!columns || !model) return node
-      const visible = columns.filter((name) => Object.hasOwn(model.fields, name))
-      const { columns: _, ...props } = node.props
-      return { ...node, props: visible.length > 0 ? { ...props, columns: visible } : props }
+      if (!model) return node
+      const { columns, button, ...props } = node.props
+      const visible = (columns as string[] | undefined)?.filter((name) => Object.hasOwn(model.fields, name)) ?? []
+      const followable = button !== undefined && rowButtonErrors(button, model, { models, createPages: access.createPages }).length === 0
+      return { ...node, props: { ...props, ...(visible.length > 0 && { columns: visible }), ...(followable && { button }) } }
     }
     case 'RecordCards': {
       if (!model || own === undefined) return node

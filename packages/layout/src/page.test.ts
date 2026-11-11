@@ -43,7 +43,7 @@ describe('page', () => {
   it('names unknown, missing and mistyped props', () => {
     const tree: LayoutNode = { type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { colums: ['a'], limit: 0 }, children: [] }] }
     expect(problems(tree)).toEqual([
-      '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, limit, display, empty, span',
+      '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, button, limit, display, empty, span',
       '<Page> › <Table>: "resource" is required',
       '<Page> › <Table>: "limit" must be a positive whole number',
     ])
@@ -70,8 +70,14 @@ describe('page', () => {
     expect(problems(table({ limit: 8, display: 'cards' }))).toEqual([])
     expect(problems(table({ display: 3 }))).toEqual(['<Page> › <Table resource="listings">: "display" must be text'])
     expect(problems(table({ pageSize: 8 }))).toEqual([
-      '<Page> › <Table resource="listings">: unknown prop "pageSize"; it takes resource, filter, sort, title, description, actions, columns, limit, display, empty, span',
+      '<Page> › <Table resource="listings">: unknown prop "pageSize"; it takes resource, filter, sort, title, description, actions, columns, button, limit, display, empty, span',
     ])
+  })
+
+  it('takes a row button on a Table as a label and an address', () => {
+    const table = (button: unknown): LayoutNode => ({ type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { resource: 'tasks', button: button as never }, children: [] }] })
+    expect(problems(table({ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{id}' } }))).toEqual([])
+    expect(problems(table({ label: 'Open' }))).toEqual(['<Page> › <Table resource="tasks">: "button" must be a button, such as { label: \'Open\', to: { kind: \'record\', resource: \'orders\', key: \'{id}\' } }'])
   })
 
   it('refuses children on blocks that take none, and unknown blocks', () => {

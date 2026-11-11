@@ -8,7 +8,7 @@ import { saveSearchErrors, searchesOfErrors } from './view-saved-search'
 import { chartErrors } from './view-chart'
 import { mapDisplayErrors, mapErrors } from './view-map'
 import { recordChartErrors } from './view-record-chart'
-import { relatedActionErrors, relatedSectionErrors } from './view-related'
+import { relatedActionErrors, relatedButtonErrors, relatedSectionErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { editableErrors } from './view-editable'
 import { actionWhenErrors, actionWhenFields } from './view-action-when'
@@ -225,7 +225,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
   const createPages = new Set(views.filter((view) => view.create).map((view) => view.resource))
   const viewProblems = (view: ViewModel, model: ResourceModel) => {
     const related = [
-      ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? [...relatedSectionErrors(item, view.resource, models), ...relatedActionErrors(item, views)].map((error) => `related "${item.title}": ${error}`) : [])),
+      ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? [...relatedSectionErrors(item, view.resource, models), ...relatedActionErrors(item, views), ...relatedButtonErrors(item, models, pageNames, createPages)].map((error) => `related "${item.title}": ${error}`) : [])),
       ...relatedColumnsErrors(view, model, models),
       ...(layoutItems(view.layout).filter((item) => item.kind === 'related' && item.lines).length > 1 ? ['only one related section holds the lines'] : []),
     ]

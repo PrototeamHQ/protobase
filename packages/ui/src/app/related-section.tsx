@@ -68,7 +68,7 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   if (item.presentation === 'cards') {
     return (
       <Section title={item.title} help={item.help}>
-        {listed((filter) => <RelatedCards model={model} view={view} filter={filter} sort={item.sort ?? ''} fields={columns} actions={item.actions ?? []} limit={item.limit ?? 10} display={item.display} empty={item.empty} />)}
+        {listed((filter) => <RelatedCards model={model} view={view} filter={filter} sort={item.sort ?? ''} fields={columns} actions={item.actions ?? []} button={item.button} limit={item.limit ?? 10} display={item.display} empty={item.empty} />)}
       </Section>
     )
   }
@@ -91,7 +91,7 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   }
   return (
     <Section title={item.title} help={item.help} actions={actions}>
-      {listed((filter) => <EmbeddedList key={filter} model={model} view={view} filter={filter} sort={item.sort ?? ''} columns={columns} limit={item.limit ?? 10} display={display} empty={item.empty} opens={opens} />)}
+      {listed((filter) => <EmbeddedList key={filter} model={model} view={view} filter={filter} sort={item.sort ?? ''} columns={columns} limit={item.limit ?? 10} display={display} empty={item.empty} opens={opens} button={item.button} />)}
     </Section>
   )
 }

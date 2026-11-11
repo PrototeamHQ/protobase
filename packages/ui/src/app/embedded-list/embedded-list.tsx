@@ -1,6 +1,7 @@
 import { ArrowRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import type { AppAddress, ResourceModel, ViewModel } from '@protobase/schema'
+import type { AppAddress, ResourceModel, RowButtonModel, ViewModel } from '@protobase/schema'
+import { rowButtonFields } from '@protobase/schema/internal'
 import { DataGrid } from '../../data-grid'
 import { useIsDesktop, useIsXs } from '../../lib/use-media-query'
 import { listColumnNames } from '../../live/columns-from-model'
@@ -21,6 +22,7 @@ import { useProjectUi } from '../pages/project-ui'
 import { defaultOrderBy, parseSort, sortToOrderBy } from '../list-order'
 import { useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
+import { rowButtonColumn } from '../row-button/row-button-column'
 import { AppLink, useAppAddress } from '../use-app-address'
 import { embeddedColumns } from './embedded-columns'
 import { viewAllAddress } from './embedded-display'
@@ -52,6 +54,8 @@ export type EmbeddedListProps = {
   link?: boolean
   /** The relation whose record a table row opens instead of its own, for rows that link this record to another; the row's menu then also opens or edits the row's own record. */
   opens?: string
+  /** A button on each row of the table, as its last column, to an address the row's fields name. */
+  button?: RowButtonModel
 }
 
 /** The switch between the table and the view's displays, for an embedded list's heading; nothing with only a table. */
@@ -66,7 +70,7 @@ const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length:
  * to the whole list with the same filter, order and display, beside a note such as "The first 10 of 37." when there are
  * more. On a phone a cards display is one row that scrolls sideways.
  */
-export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens }: EmbeddedListProps) => {
+export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens, button }: EmbeddedListProps) => {
   const { resources, views } = useAdminMeta()
   const canUpdate = can(usePermissions(model.name), 'update')
   const { fields: fieldTypes } = useProjectUi()
@@ -75,7 +79,8 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const [orderBy, setOrderBy] = useState(sort || defaultOrderBy(model, view))
   const names = columns ?? listColumnNames(model, view)
   const specs = useMemo(() => embeddedColumns(model, view, names, { resources, views, fieldTypes }), [model, view, names.join(','), resources, views, fieldTypes])
-  const fields = useMemo(() => loadedFields(model, view, specs.map((spec) => spec.id)), [model, view, specs])
+  const fields = useMemo(() => loadedFields(model, view, [...specs.map((spec) => spec.id), ...(button ? rowButtonFields(button) : [])]), [model, view, specs, button])
+  const gridColumns = useMemo(() => (button ? [...specs, rowButtonColumn(model, view, button)] : specs), [specs, model, view, button])
   const rows = useEmbeddedRows({ model, filter, orderBy, limit, fields })
   const loaded = rows.data?.rows
   const source = useMemo(() => loaded && { total: loaded.length, rowAt: (index: number) => loaded[index]! }, [loaded])
@@ -118,7 +123,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
       {!shown ? (
         <DataGrid
           fit
-          columns={specs}
+          columns={gridColumns}
           source={source}
           latencyMs={0}
           sort={parseSort(orderBy)}

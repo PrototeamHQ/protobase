@@ -12,6 +12,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [Layout blocks](/reference/blocks/#layout): Pages, responsive grids, cards and links.
 - [Full-width pages](/reference/blocks/#page): A page fills the whole area beside the sidebar instead of a centred column, for a dashboard with many blocks.
 - [Data blocks](/reference/blocks/#data): Counts, tables, single records, rows of cards, field values and progress bars.
+- [Row buttons](/reference/blocks/#row-buttons): A table's rows carry a button to an address their fields name, such as a task's tab, labelled by a field of the row, such as its next step.
 - [Record rows](/reference/blocks/#recordrow): A sideways row of cards for a filter, favorites or saved searches, with a count and new-record marks.
 - [Record cards](/reference/blocks/#recordcards): Full-width cards with fields and buttons, stacked or in a carousel.
 - [Chart block](/reference/blocks/#chart): Counts, sums or averages by value or by date, as bars, lines or a donut, and over time split by a second field.

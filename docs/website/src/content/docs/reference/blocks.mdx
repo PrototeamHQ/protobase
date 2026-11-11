@@ -128,6 +128,7 @@ The first records of a list, drawn the way the resource's list page draws them: 
 | --- | --- |
 | `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
 | `columns` | Field names for the table; default the view's list columns. |
+| `button` | A [button on each row](#row-buttons) to an address the row's fields name. |
 | `limit` | How many records it shows; default 10. It has no pages: the rest are in the list. Before 0.13 this was `pageSize`, rows per page; rename it. |
 | `display` | The display it opens in, such as `cards`; default the list's. |
 | `title`, `description`, `actions` | The heading. |
@@ -137,6 +138,22 @@ The first records of a list, drawn the way the resource's list page draws them: 
 ```tsx
 <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} limit={5} empty="Nothing is overdue." />
 ```
+
+#### Row buttons
+
+`button: { label, to }` adds a last column with a button on each row: a link, drawn as a button, to `to`, an [address](/reference/layouts/#addresses) in the app, such as a record on one of its [tabs](/reference/ui-config/#tabs). `{field}` in the address or the label is replaced by the row's value, the label's as the record page shows it (an enum value by its label), so each row can name its own next step. A row with no value for a field the button names shows no button. The button is checked when the config loads, and `/meta` gives it, on the block or the related section, to callers who can read the fields it names and follow its address, and leaves it out for the others. A [related section](/reference/ui-config/#related-records) takes the same `button`, on its table's rows or its cards.
+
+```tsx
+<Table
+  title="Waiting on you"
+  resource="holds"
+  filter="state = 'open'"
+  columns={['reason', 'task_id']}
+  button={{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: 'Review' } }}
+/>
+```
+
+<gap>A row button cannot show when the table switches to a list display such as cards because drawing it on a display is not implemented.</gap>
 
 ### RecordCard
 

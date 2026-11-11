@@ -837,6 +837,18 @@ export type FilterWidgetModel = (
 export type RelatedPresentation = 'cards'
 
 /**
+ * A button on each row of a table or related section that opens an address in the app named by the row's fields, such as
+ * `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: 'Review' } }`. A row with no value
+ * for a field it names shows no button.
+ */
+export type RowButtonModel = {
+  /** The button's text; `{field}` is replaced by the row's value, an enum value by its label. */
+  label: string
+  /** Where it goes; `{field}` in its resource, key, run, panel, filter, order or values is replaced by the row's value. */
+  to: AppAddress
+}
+
+/**
  * Records of another resource on the record page: those whose `field` holds this record's key or, with `through`,
  * those whose `field` holds one of the `key` values of the `through` records that point at this record (a join table).
  * With `from`, those whose `field` holds the value of that field of this record.
@@ -876,6 +888,8 @@ export type RelatedModel = {
   presentation?: RelatedPresentation
   /** Named actions of `resource`'s view, by name, as buttons on each card; only with `presentation: 'cards'`. */
   actions?: string[]
+  /** A button on each row, or each card, to an address its fields name. */
+  button?: RowButtonModel
   /**
    * The relation field of `resource` whose record a row opens, for rows that are links between this record and another
    * (a join resource); by default the one relation in `resource`'s primary key besides `field`, when there is exactly one.

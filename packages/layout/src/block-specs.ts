@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth'
+type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -26,7 +26,7 @@ export const blockSpecs: Record<string, BlockSpec> = {
   },
   RecordCard: { children: true, props: { ...data, ...heading, recordKey: optional('text'), empty: optional('text'), span: optional('span') } },
   Field: { children: false, props: { name: required('text'), label: optional('label'), format: optional('format') } },
-  Table: { children: false, props: { ...data, ...heading, columns: optional('texts'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
+  Table: { children: false, props: { ...data, ...heading, columns: optional('texts'), button: optional('rowButton'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
   CardRow: { children: true, props: { ...data, ...heading, limit: optional('integer'), empty: optional('text'), span: optional('span') } },
   RecordRow: { children: false, props: { ...data, ...heading, limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
   RecordCards: {
@@ -126,6 +126,10 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   cardWidth: oneOf(cardWidths),
   pageWidth: oneOf(pageWidths),
   address: [(value) => isObject(value) && !isLayoutNode(value) && typeof value.kind === 'string', "an address, such as { kind: 'list', resource: 'orders' }"],
+  rowButton: [
+    (value) => isObject(value) && !isLayoutNode(value) && typeof value.label === 'string' && value.to !== undefined && isObject(value.to) && typeof value.to.kind === 'string',
+    "a button, such as { label: 'Open', to: { kind: 'record', resource: 'orders', key: '{id}' } }",
+  ],
 }
 
 /** Problems with one element's props and children against its block's spec. */

@@ -1,4 +1,4 @@
-import type { AppAddress, FieldFormat, PageWidth } from '@protobase/schema'
+import type { AppAddress, FieldFormat, PageWidth, RowButtonModel } from '@protobase/schema'
 import { defineBlock } from './create-node'
 import type { LayoutChildren, LayoutNode, LayoutValue } from './node'
 
@@ -43,6 +43,12 @@ export type FieldProps = { name: string; label?: string | false; format?: FieldF
 export type TableProps = DataProps &
   Heading & {
     columns?: string[]
+    /**
+     * A last column with a button on each row to an address its fields name, such as
+     * `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: 'Review' } }`; a row with no value
+     * for a field it names shows none.
+     */
+    button?: RowButtonModel
     /** How many records it shows, the first in `sort` order; default 10. "View all" opens the rest in the list. */
     limit?: number
     /** The display of the resource's list it opens in, such as `cards`; the list's default when omitted. */

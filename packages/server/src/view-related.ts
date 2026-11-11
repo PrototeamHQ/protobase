@@ -1,6 +1,6 @@
 import { resolveFieldPath } from '@protobase/layout'
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type RelatedModel, type ResourceModel, type ViewModel } from '@protobase/schema'
-import { relatedTarget } from '@protobase/schema/internal'
+import { relatedTarget, rowButtonErrors } from '@protobase/schema/internal'
 
 export const filterErrors = (model: ResourceModel, source: string | undefined) => {
   if (source === undefined) return []
@@ -129,4 +129,15 @@ export const relatedSectionErrors = (item: RelatedModel, resource: string, model
 export const relatedActionErrors = (item: RelatedModel, views: readonly ViewModel[]) => {
   const named = new Set(views.find((view) => view.resource === item.resource)?.actions.map((action) => action.name))
   return (item.actions ?? []).flatMap((name) => (named.has(name) ? [] : [`actions: "${name}" is no named action of the ${item.resource} view`]))
+}
+
+/**
+ * What is wrong with a related section's `button`, against these models and the app's `pages`: see `rowButtonErrors`.
+ * It is checked apart from the section, so a caller who cannot follow it still gets the section, without the button.
+ */
+export const relatedButtonErrors = (item: RelatedModel, models: Record<string, ResourceModel>, pages?: ReadonlySet<string>, createPages?: ReadonlySet<string>) => {
+  const target = models[item.resource]
+  if (item.button === undefined || !target) return []
+  if (item.lines) return ['button: the lines are edited in place, so they take no button']
+  return rowButtonErrors(item.button, target, { models, pages, createPages }).map((error) => `button: ${error}`)
 }
