@@ -1,5 +1,6 @@
 import type { NativeBridge } from '../../app/native-auth-fetch'
-import { nativePush, pushPluginName } from './native-push'
+import { nativeDevice } from './native-device'
+import { nativePush } from './native-push'
 import { deviceUserAgent, windowPushBrowser } from './push-browser'
 import { indexedDbPushRecords } from './push-records'
 import { webPush, type WebPush, type WebPushOptions } from './web-push'
@@ -17,16 +18,17 @@ const noPush: PushNotifications = {
 }
 
 /**
- * The push of this page, the one place its transport is chosen: Web Push in a browser; FCM in the Android app
- * (`nativeBridge`) when its build compiled the push plugin in, which it does only with the project's Firebase file;
- * none in the iOS app yet, nor where the page has no window.
+ * The push of this page, the one place its transport is chosen: Web Push in a browser; FCM in the Android app and APNs
+ * in the iOS app (`nativeBridge`) when its build compiled native push in (`nativeDevice`); none where the page has no
+ * window.
  */
 export const pushNotifications = ({ nativeBridge, ...options }: Omit<WebPushOptions, 'browser' | 'records'> & { nativeBridge?: NativeBridge }): PushNotifications => {
   if (typeof window === 'undefined') return noPush
   if (nativeBridge) {
-    if (nativeBridge.getPlatform() !== 'android' || !nativeBridge.isPluginAvailable(pushPluginName)) return noPush
+    const device = nativeDevice(nativeBridge)
+    if (!device) return noPush
     const { devices, user, waitMs } = options
-    return nativePush({ bridge: nativeBridge, records: indexedDbPushRecords(), devices, user, userAgent: deviceUserAgent(navigator.userAgent), ...(waitMs !== undefined && { waitMs }) })
+    return nativePush({ bridge: nativeBridge, device, records: indexedDbPushRecords(), devices, user, userAgent: deviceUserAgent(navigator.userAgent), ...(waitMs !== undefined && { waitMs }) })
   }
   const browser = windowPushBrowser()
   if (!browser.supported) return noPush

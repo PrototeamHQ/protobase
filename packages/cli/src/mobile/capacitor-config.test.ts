@@ -36,6 +36,11 @@ describe('capacitorConfig', () => {
     expect(capacitorConfig(base).plugins).not.toHaveProperty('PushNotifications')
   })
 
+  it('names the APNs environment for ProtobasePush in an iOS app with push, and nowhere else', () => {
+    expect(capacitorConfig({ ...base, platform: 'ios', push: true, apnsEnvironment: 'production' }).plugins).toMatchObject({ ProtobasePush: { environment: 'production' } })
+    expect(capacitorConfig({ ...base, platform: 'ios', push: true }).plugins).not.toHaveProperty('ProtobasePush')
+  })
+
   // Capacitor loads any URL of an allowed host inside the WebView, where the native sign-in runs.
   it('never allows navigation to another host', () => {
     for (const config of [capacitorConfig(base), capacitorConfig({ ...base, push: true, allowances: { cleartext: true, mixedContent: true } })]) {

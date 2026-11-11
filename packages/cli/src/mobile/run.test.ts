@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ChildOptions } from './child-process'
+import { writeIosTemplate } from './ios-template-fixture'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
 import { protobaseIosPluginClasses, protobasePluginClasses } from './protobase-plugin'
@@ -57,8 +58,7 @@ const fakeRun =
       write(path.join(options.cwd, 'android/app/src/main/assets/capacitor.plugins.json'), JSON.stringify(android))
     }
     if (command === 'node' && args[1] === 'add' && args[2] === 'ios') {
-      const configuration = '\t\t\t\tCODE_SIGN_STYLE = Automatic;\n'
-      write(path.join(options.cwd, 'ios/App/App.xcodeproj/project.pbxproj'), `${configuration}${configuration}`)
+      writeIosTemplate(options.cwd)
       write(path.join(options.cwd, 'ios/App/App/capacitor.config.json'), JSON.stringify({ packageClassList: ios }))
       const liveUpdate = ios.includes('LiveUpdatePlugin') ? '\n.product(name: "CapawesomeCapacitorLiveUpdate", package: "CapawesomeCapacitorLiveUpdate")' : ''
       write(path.join(options.cwd, 'ios/App/CapApp-SPM/Package.swift'), `.product(name: "ProtobaseMobile", package: "ProtobaseMobile")${liveUpdate}`)
@@ -150,10 +150,22 @@ describe('mobileRun', () => {
       expect(warnings).toContain(`warning: ${path.join(dir, 'google-services.json')} is missing: the Android app builds without push. Put your Firebase project's google-services.json there to turn it on\n`)
     })
 
-    it('leaves push out of the iOS app, which has none yet, without a warning', async () => {
-      const { config, warnings } = await runIn(withNotifications(true), 'ios')
-      expect(config.includePlugins).not.toContain('@capacitor/push-notifications')
+    it('compiles push into the iOS app with the sandbox entitlement and token forwarding, needing no Firebase file', async () => {
+      const { ws, config, warnings } = await runIn(withNotifications(false), 'ios')
+      expect(config.includePlugins).toContain('@capacitor/push-notifications')
+      expect(config.plugins).toMatchObject({ ProtobasePush: { environment: 'sandbox' } })
+      expect(readFileSync(path.join(ws, 'ios', 'App', 'App', 'App.entitlements'), 'utf8')).toContain('<string>development</string>')
+      expect(readFileSync(path.join(ws, 'ios', 'App', 'App.xcodeproj', 'project.pbxproj'), 'utf8')).toContain('CODE_SIGN_ENTITLEMENTS = App/App.entitlements;')
+      expect(readFileSync(path.join(ws, 'ios', 'App', 'App', 'AppDelegate.swift'), 'utf8')).toContain('capacitorDidRegisterForRemoteNotifications')
       expect(warnings.filter((text) => text.includes('google-services.json'))).toEqual([])
+    })
+
+    it('leaves push out of the iOS app without notifications()', async () => {
+      const { ws, config } = await runIn(project("{ appId: 'com.example.shop' }"), 'ios')
+      expect(config.includePlugins).not.toContain('@capacitor/push-notifications')
+      expect(config.plugins).not.toHaveProperty('ProtobasePush')
+      expect(existsSync(path.join(ws, 'ios', 'App', 'App', 'App.entitlements'))).toBe(false)
+      expect(readFileSync(path.join(ws, 'ios', 'App', 'App', 'AppDelegate.swift'), 'utf8')).not.toContain('RemoteNotifications')
     })
 
     it('names native push in the fingerprint, so turning it on or off rebuilds the app natively', async () => {
@@ -253,7 +265,7 @@ describe('mobileRun', () => {
   it("refuses a stale iOS workspace without Protobase's plugin class before it runs the app", async () => {
     const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
     const dir = project("{ appId: 'com.example.shop' }")
-    const deps = { run: fakeRun(calls, { ios: ['AppPlugin', 'ProtobaseBounce'] }), build, fetch }
+    const deps = { run: fakeRun(calls, { ios: ['AppPlugin', 'ProtobaseBounce', 'ProtobaseExternal', 'ProtobasePush'] }), build, fetch }
     await expect(mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, deps)).rejects.toThrow(
       "The iOS app lacks Protobase's native plugin (ProtobaseAuthPlugin)",
     )

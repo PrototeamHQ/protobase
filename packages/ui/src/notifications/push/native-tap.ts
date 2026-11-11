@@ -15,8 +15,8 @@ export type NativeTapContext = {
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /**
- * The target of a tap on a push, from the data Android hands the app: its `url`, the one key FCM's sender writes the
- * message's checked url to, checked again as the server checks it, for the user the push names, who must be the one
+ * The target of a tap on a push, from the data the phone hands the app: its `url`, the one key the FCM and APNs senders
+ * write the message's checked url to, checked again as the server checks it, for the user the push names, who must be the one
  * signed in. A url on the API's origin, compared as parsed origins, opens its page inside the app, by path, query and
  * hash, when that is a path below the base path that cannot be read as another origin (`//host`); a url on any other
  * origin opens outside the app. Anything else opens nothing, and no other key is ever read in its place.
