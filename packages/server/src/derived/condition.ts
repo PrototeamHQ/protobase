@@ -26,8 +26,24 @@ const exactTypes = new Set(['integer', 'bigint', 'text', 'uuid', 'enum', 'boolea
 const numberTypes = new Set(['integer', 'bigint', 'decimal'])
 const timeTypes = new Set(['timestamp', 'date'])
 
-/** A value of an exactly compared type as text, a uuid in the one form Postgres compares it by. */
-const exactText = (type: string | undefined, value: unknown) => (type === 'uuid' ? String(value).toLowerCase().replace(/[{}-]/g, '') : String(value))
+const integerText = /^\s*[+-]?\d+\s*$/
+// The spellings Postgres reads as a boolean, any unique prefix of a word among them.
+const booleanText = (text: string) => {
+  const word = text.trim().toLowerCase()
+  if (word === '') return text
+  if (['1', 'on'].includes(word) || 'true'.startsWith(word) || 'yes'.startsWith(word)) return 'true'
+  if (['0', 'off', 'of'].includes(word) || 'false'.startsWith(word) || 'no'.startsWith(word)) return 'false'
+  return text
+}
+
+/** A value of an exactly compared type as text, in the one form Postgres compares it by: `007` as `7`, `yes` as `true`, a uuid without dashes. */
+const exactText = (type: string | undefined, value: unknown) => {
+  const text = String(value)
+  if (type === 'uuid') return text.toLowerCase().replace(/[{}-]/g, '')
+  if ((type === 'integer' || type === 'bigint') && integerText.test(text)) return BigInt(text.trim()).toString()
+  if (type === 'boolean') return booleanText(text)
+  return text
+}
 
 const equal = (type: string | undefined, a: unknown, b: Scalar): Truth => {
   if (a === null || a === undefined || b === null) return undefined
