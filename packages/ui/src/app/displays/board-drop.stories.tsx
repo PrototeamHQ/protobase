@@ -95,7 +95,7 @@ const Shop = () => {
 export const Quotes: StoryObj = { name: 'A board whose drops record a decision', render: () => <Shop /> }
 
 const column = (canvas: ReturnType<typeof within>, name: string) => canvas.findByRole('region', { name: new RegExp(`^${name}, \\d+$`) })
-const titles = (region: HTMLElement) => within(region).queryAllByRole('link').map((link) => link.firstElementChild?.firstElementChild?.textContent)
+const titles = (region: HTMLElement) => within(region).queryAllByRole('link').map((link) => link.textContent)
 const announced = (text: string) => waitFor(() => expect(within(document.body).getByText(text, { exact: false, ignore: 'a, a *' })).toBeInTheDocument())
 
 // Space picks the card up, each right arrow moves it a column, and Space drops it

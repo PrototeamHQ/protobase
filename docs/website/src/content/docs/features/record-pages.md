@@ -18,6 +18,7 @@ description: The page of one record, with its sections, related records, galleri
 - [Save feedback](/reference/ui-config/#the-record-page): A view shows saving on the Save button instead of in a toast.
 - [Save conflicts](/reference/ui-config/#editing-a-record): When someone else changed a record while you edited it, Save shows their value beside yours for each field you both changed, and you keep yours or take theirs.
 - [Groups and tabs](/reference/ui-config/#groups): Parts of a record page sit under headings that open on click, or in tabs, and the open ones are kept in the address.
+- [Read-only values and a title badge](/reference/ui-config/#read-only-values-and-a-title-badge) (experimental): Read-only fields show as values, and one field can show as a badge beside the title.
 - [Key facts](/reference/ui-config/#key-facts): A section shows its values side by side with icons.
 - [Confirming a change](/reference/ui-config/#confirming-a-change): A field that is easy to set by mistake asks a question before a person changes it in a form or a list cell, and Cancel keeps its value.
 - [Fields only once a record exists](/reference/ui-config/#names-and-columns): A view leaves a field off the create form, such as a choice among records added after it, and the record page shows it as usual.

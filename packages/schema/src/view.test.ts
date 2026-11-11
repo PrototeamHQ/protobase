@@ -694,6 +694,15 @@ describe('view builder', () => {
     expect(() => view<typeof article>('article').title((r) => r.title).toModel(other)).toThrow('title field "title" does not exist')
   })
 
+  it('shows a field as a badge beside the title, which the resource has', () => {
+    expect(view<typeof article>('article').titleBadge((r) => r.status).toModel(article.toModel()).titleBadge).toBe('status')
+    const other = resource('other').table('o').fields({ id: f.integer() }).primaryKey((r) => r.id).toModel()
+    expect(() => view<typeof article>('article').titleBadge((r) => r.status).toModel(other)).toThrow('title badge field "status" does not exist')
+    expect(() => view<typeof article>('article').titleBadge((r) => r.title).toModel(article.toModel())).toThrow('title badge field "title" is no enum')
+    const badged = view<typeof article>('article').fields((r) => ({ title: r.title.format('badge') })).titleBadge((r) => r.title)
+    expect(badged.toModel(article.toModel()).titleBadge).toBe('title')
+  })
+
   it('a title derived by a named rule from the fields it reads', () => {
     expect(view<typeof article>('article').titleFrom('headline', (r) => [r.title, r.status]).toModel(article.toModel()).titleFrom).toEqual({ rule: 'headline', fields: ['title', 'status'] })
     const other = resource('other').table('o').fields({ id: f.integer() }).primaryKey((r) => r.id).toModel()

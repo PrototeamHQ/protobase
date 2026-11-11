@@ -38,7 +38,7 @@ const Gutter = ({ width, index, selectable, selected, onToggle, edge }: { width:
     style={{ width }}
   >
     {selectable && <Checkbox checked={Boolean(selected)} label={text('selectRow', { row: index + 1 })} />}
-    {width > compactGutter && <span className="min-w-6 text-right text-[11px] tabular-nums text-faint-foreground">{formatInt(index + 1)}</span>}
+    {width > compactGutter && <span className="min-w-6 text-right text-[0.6875rem] tabular-nums text-faint-foreground">{formatInt(index + 1)}</span>}
   </div>
 )
 
@@ -83,6 +83,7 @@ export const DataRow = ({ cells, selected, onToggle, onOpen, menu, handle, rowRe
   <div
     ref={rowRef}
     role="row"
+    data-pressable={onOpen ? '' : undefined}
     onClick={onOpen && openUnlessLink(onOpen)}
     className={cn('absolute inset-x-0 top-0 grid items-center border-b', selected ? 'bg-primary-soft' : 'bg-background hover:bg-surface', onOpen && 'cursor-pointer', dragging && 'z-30 bg-surface shadow-pop')}
     style={dragY === undefined ? frameStyle(frame) : dragStyle(frame, dragY, transition)}

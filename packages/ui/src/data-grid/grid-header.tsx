@@ -39,7 +39,7 @@ const SortIcon = ({ sorted }: { sorted: HeaderCell['sorted'] }) => {
 const HeaderLabel = ({ spec }: { spec: ColumnSpec }) => (
   <>
     <span className="truncate">{spec.header}</span>
-    {spec.highlight && <span className="rounded bg-primary px-1 text-[10px] font-semibold uppercase leading-4 text-primary-foreground">{text('new')}</span>}
+    {spec.highlight && <span className="rounded bg-primary px-1 text-[0.625rem] font-semibold uppercase leading-4 text-primary-foreground">{text('new')}</span>}
   </>
 )
 

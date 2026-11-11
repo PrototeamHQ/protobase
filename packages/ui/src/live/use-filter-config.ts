@@ -109,11 +109,13 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras, 
     }
     const field = model.fields[group.id]
     const named = (counts(group.id, group.id) ?? []).flatMap((facet): Array<[string, string]> => (facet.label === undefined ? [] : [[String(facet.value), facet.label]]))
-    const names = new Map([...named, ...(labelQueries[index]?.data ?? []), ...titled(group.id, index)])
+    // An enum's values are named by the view's labels, also a chosen value the counts leave out or have not loaded yet
+    const enumNames = field?.type === 'enum' ? (field.enumValues ?? []).map((value): [string, string] => [value, enumLabel(value, view?.fields[group.id]?.valueLabels)]) : []
+    const names = new Map([...enumNames, ...named, ...(labelQueries[index]?.data ?? []), ...titled(group.id, index)])
     const values = (counts(group.id, group.id) ?? []).flatMap((facet): FacetOption[] =>
       facet.value === null
         ? []
-        : [{ value: String(facet.value), label: field?.type === 'enum' ? enumLabel(String(facet.value), view?.fields[group.id]?.valueLabels) : (names.get(String(facet.value)) ?? String(facet.value)), count: facet.count }],
+        : [{ value: String(facet.value), label: names.get(String(facet.value)) ?? String(facet.value), count: facet.count }],
     )
     const search = searches[index]!
     return {

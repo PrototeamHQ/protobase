@@ -1,0 +1,17 @@
+/*
+ * What a press looks like, for every element that takes one: links, buttons, tabs, menu items, options, switches and
+ * anything marked `data-pressable` (such as a table row that opens its record). Pressed, it takes a light tint of the
+ * foreground colour over its own background, at once and on touch as on a mouse; the browser's own tap highlight and
+ * the wait for a double tap are off. A press inside another pressable tints only the inner one. Hover styles stay with
+ * devices that hover, as Tailwind's `hover:` already only applies there. iOS applies `:active` on touch only while a
+ * touch listener is on the page: `listenForPresses` in `lib/press-feedback.ts` sets one.
+ */
+@layer base {
+  :where(a[href], button, summary, label[for], [role="button"], [role="tab"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"], [data-pressable]) {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  :where(a[href], button:not(:disabled), summary, [role="button"], [role="tab"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], [role="switch"], [data-pressable]):where(:not([aria-disabled="true"])):active:not(:has(:is(a[href], button, summary, [role="button"], [role="tab"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], [role="option"], [role="switch"], [data-pressable]):active)) {
+    background-image: linear-gradient(color-mix(in oklab, var(--foreground) 9%, transparent), color-mix(in oklab, var(--foreground) 9%, transparent));
+  }
+}

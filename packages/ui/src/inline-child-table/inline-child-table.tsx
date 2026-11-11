@@ -32,7 +32,7 @@ export type InlineChildTableProps<L extends { id: string }> = {
   footer?: ReactNode
 }
 
-const headerCell = 'px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground'
+const headerCell = 'px-2 text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground'
 
 const announcementsFor = <L extends { id: string }>(lines: L[], lineName: (line: L) => string): Announcements => {
   const name = (id: string | number) => {

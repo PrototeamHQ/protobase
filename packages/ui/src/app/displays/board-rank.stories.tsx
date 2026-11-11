@@ -53,7 +53,7 @@ const Team = ({ meanwhile, start = '/tasks', teamView = tasksView, ui, models = 
 export const Tasks: StoryObj = { name: 'A board in rank order', render: () => <Team /> }
 
 const column = (canvas: ReturnType<typeof within>, name: string) => canvas.findByRole('region', { name: new RegExp(`^${name}, \\d+$`) })
-const titles = (region: HTMLElement) => within(region).queryAllByRole('link').map((link) => link.firstElementChild?.firstElementChild?.textContent)
+const titles = (region: HTMLElement) => within(region).queryAllByRole('link').map((link) => link.textContent)
 
 // Space picks the focused card up, each arrow key moves it to the place it names, and Space drops it; each key waits
 // for what the board tells a screen reader, so the next one lands once the board listens for it.

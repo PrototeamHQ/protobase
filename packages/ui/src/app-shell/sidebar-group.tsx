@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react'
 import { useId, useState, type MouseEvent } from 'react'
 import { cn } from '../lib/cn'
+import { Skeleton } from '../primitives/skeleton'
 import type { NavItem, NavRecent } from './nav'
 import { navOpenStorageKey, readNavOpen, writeNavOpen } from './nav-open-storage'
 import { SidebarItem } from './sidebar-item'
@@ -50,7 +51,9 @@ export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: Sidebar
       {open && (
         <ul id={listId} aria-label={text('recent', { plural: item.label.toLowerCase() })} className={cn('flex flex-col gap-0.5 border-l pl-1.5', subRowIndent[mode])}>
           {recent.state === 'loading' && (
-            <li className={cn('flex items-center text-faint-foreground', subRow[mode])}>{text('loading')}</li>
+            <li role="status" aria-label={text('loading')} className={cn('flex items-center', subRow[mode])}>
+              <Skeleton className="w-3/4" />
+            </li>
           )}
           {recent.state === 'error' && (
             <li className={cn('flex items-center text-faint-foreground', subRow[mode])}>{text('couldNotLoad')}</li>

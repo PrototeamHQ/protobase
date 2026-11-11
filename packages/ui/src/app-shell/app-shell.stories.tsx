@@ -74,7 +74,7 @@ export const RecentRecords: Story = {
     expect(links[1]).toHaveAttribute('aria-current', 'page')
     expect(links[3]).toHaveAttribute('href', '#orders')
     expect(canvas.getByRole('link', { name: 'Orders' })).toHaveAttribute('href', '#orders')
-    expect(canvas.getByRole('list', { name: 'Recent invoices' })).toHaveTextContent('Loading...')
+    expect(within(canvas.getByRole('list', { name: 'Recent invoices' })).getByRole('status', { name: 'Loading...' })).toBeInTheDocument()
     expect(canvas.getByRole('list', { name: 'Recent shipments' })).toHaveTextContent('Could not load')
 
     await userEvent.click(toggle)

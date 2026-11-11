@@ -11,4 +11,9 @@ description: The app's colours, name, icon, language and installation.
 - [Named icons](/reference/layouts/#named-actions): Actions, key facts and card meta show an icon picked by name from a set, such as `play`, `bed` or `cpu`.
 - [English and Dutch](/reference/languages/): The built-in screens come in English and Dutch, with numbers and dates written to match.
 - [Installable app](/reference/installable-app/): The admin installs as an app on phones and computers, and says when the server cannot be reached.
+
+## Accessibility
+
 - Reduced motion: When the system asks for less motion, animations and pulsing dots stop.
+- [Text size](/reference/theme/#text-size): All text grows with the reader's text size, in the browser and with the phone's text size in the iOS and Android app.
+- Screen readers: Sidebar groups are headings to jump between, each list card reads as one link named by its title, filters read their values' labels, and each page has one main area with headings in order.

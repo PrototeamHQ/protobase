@@ -12,7 +12,7 @@ export const CountBadge = ({ count, className }: { count: number | undefined; cl
   const shown = countBadgeText(count)
   if (!shown) return null
   return (
-    <Badge tone="red" dot={false} className={cn('h-4 min-w-4 justify-center px-1 text-[10px] font-semibold', className)}>
+    <Badge tone="red" dot={false} className={cn('h-4 min-w-4 justify-center px-1 text-[0.625rem] font-semibold', className)}>
       {shown}
     </Badge>
   )

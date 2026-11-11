@@ -8,7 +8,7 @@ type SectionProps = { title?: string; help?: string; actions?: ReactNode; count?
  */
 export const SectionContent = ({ title, help, actions, count, children }: SectionProps) => {
   const heading = title ? (
-    <h2 className="flex items-center gap-2 text-[16px] font-semibold text-foreground">
+    <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
       {title}
       {count}
     </h2>

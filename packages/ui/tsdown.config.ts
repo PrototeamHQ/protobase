@@ -24,6 +24,7 @@ export default defineConfig({
     { from: 'src/styles.css', to: 'dist' },
     { from: 'src/theme.css', to: 'dist' },
     { from: 'src/tokens.css', to: 'dist' },
+    { from: 'src/press.css', to: 'dist' },
     { from: 'src/filter-panel/range-slider.css', to: 'dist/filter-panel' },
     { from: 'src/app/field-types/workflow/workflow-canvas.css', to: 'dist/app/field-types/workflow' },
     { from: 'src/app/index.html', to: 'dist/app' },

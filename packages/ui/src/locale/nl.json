@@ -259,6 +259,7 @@
     "loadingRecord": "Record laden",
     "noComponent": "Er is geen component geregistreerd als {component}. Exporteer die uit protobase.ui.tsx, of laad de plug-in die haar levert.",
     "choose": "Kiezen...",
+    "noValue": "Geen waarde",
     "fileMissing": "Het bestand ontbreekt in de opslag",
     "chooseFileFor": "Kies een bestand voor {label}",
     "notUploaded": "Niet geüpload",
@@ -1897,7 +1898,8 @@
     "loading": "Laden",
     "remove": "{label} verwijderen",
     "previous": "Terug in {label}",
-    "next": "Verder in {label}"
+    "next": "Verder in {label}",
+    "dragToClose": "Sleep omlaag om te sluiten"
   },
   "record-view": {
     "headingCount": "({count, plural, one {# <lower>{singular}</lower>} other {# <lower>{plural}</lower>}})",

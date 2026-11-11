@@ -72,7 +72,9 @@ export const WithValuesChecks: StoryObj = {
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    expect(await canvas.findByDisplayValue('Cortina U4')).toBeVisible()
+    // The page shows once its parts have their data
+    const model = await canvas.findByDisplayValue('Cortina U4')
+    await waitFor(() => expect(model).toBeVisible())
     expect(canvas.getByRole('radio', { name: /Service/ })).toBeChecked()
     expect(canvas.getByRole('button', { name: 'Book repair' })).toBeEnabled()
   },

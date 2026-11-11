@@ -172,7 +172,7 @@ export const RecordsMap = ({ style, layers, initial, points, buckets, fit, onFit
                 strokeDasharray={approximate ? '3 2' : undefined}
               />
               {group.keys.length > 1 && (
-                <span className="absolute -right-2 -top-1 min-w-5 rounded-full border border-background bg-foreground px-1 text-center text-[11px] font-medium leading-4 text-background tabular-nums">
+                <span className="absolute -right-2 -top-1 min-w-5 rounded-full border border-background bg-foreground px-1 text-center text-[0.6875rem] font-medium leading-4 text-background tabular-nums">
                   {group.keys.length}
                 </span>
               )}

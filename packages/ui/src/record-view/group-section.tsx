@@ -4,7 +4,7 @@ import type { AppAddress } from '@protobase/schema'
 import { cn } from '../lib/cn'
 import { AppLink } from '../app/use-app-address'
 
-const headingClass = 'text-[16px] font-semibold text-foreground'
+const headingClass = 'text-base font-semibold text-foreground'
 
 type GroupSectionProps = { title: string; help?: string; count?: ReactNode; open: boolean; toggle?: AppAddress; children: ReactNode }
 

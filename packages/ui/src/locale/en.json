@@ -259,6 +259,7 @@
     "loadingRecord": "Loading record",
     "noComponent": "No component is registered as {component}. Export it from protobase.ui.tsx, or load the plugin that provides it.",
     "choose": "Choose...",
+    "noValue": "No value",
     "fileMissing": "The file is missing from storage",
     "chooseFileFor": "Choose a file for {label}",
     "notUploaded": "Not uploaded",
@@ -1897,7 +1898,8 @@
     "loading": "Loading",
     "remove": "Remove {label}",
     "previous": "Previous {label}",
-    "next": "Next {label}"
+    "next": "Next {label}",
+    "dragToClose": "Drag down to close"
   },
   "record-view": {
     "headingCount": "({count, plural, one {# <lower>{singular}</lower>} other {# <lower>{plural}</lower>}})",

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { signInPath, type SignInStep } from '@protobase/schema'
 import { Button } from '../primitives/button'
+import { cn } from '../lib/cn'
+import { revealLate } from '../primitives/skeleton'
 import { Spinner } from '../primitives/spinner'
 import { useRouter } from '../app/router'
 import { useAuth } from './auth-provider'
@@ -130,7 +132,7 @@ const useAuthPage = (workspace: string | undefined, children: ReactNode): ReactN
   switch (state.kind) {
     case 'loading':
       return (
-        <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
+        <div className={cn('flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground', revealLate)}>
           <Spinner /> {text('loading')}
         </div>
       )

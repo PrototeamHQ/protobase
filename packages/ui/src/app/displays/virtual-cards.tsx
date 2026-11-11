@@ -78,6 +78,16 @@ export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHe
     }),
   )
   useLayoutEffect(() => () => observer.disconnect(), [observer])
+  // The first cards drawn at a width are measured before the browser paints them, so they first show where they stay
+  // rather than at the guessed height and then moved; the observer above keeps the height as cards change later
+  useLayoutEffect(() => {
+    const body = scroll.ref.current
+    if (ready || itemWidth === 0 || !body) return
+    const drawn = [...body.querySelectorAll<HTMLElement>(':scope > li[aria-posinset]')]
+    if (drawn.length === 0) return
+    const tallest = Math.max(...drawn.map((item) => item.getBoundingClientRect().height))
+    setMeasured((current) => withMeasuredHeight(current, itemWidth, tallest))
+  })
   const observe = useCallback(
     (item: HTMLLIElement | null) => {
       if (!item) return
