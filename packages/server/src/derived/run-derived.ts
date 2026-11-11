@@ -9,7 +9,8 @@ import { trackedClock, type DerivedClock } from './tracked-clock'
 export type DerivedContext = {
   /**
    * The app's database, in a read-only transaction. Each query it sends is analysed for the tables and rows it reads,
-   * however it was built.
+   * however it was built. Being a transaction already, it cannot open one of its own: a function that only reads needs
+   * none, and one that writes is refused either way.
    */
   db: Db
   /** The time, whose checks record when their answers flip. */
