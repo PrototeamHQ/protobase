@@ -98,6 +98,17 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
   )
 }
 
+/**
+ * Whether the form shows the field as a value, with no control for its label to name: a relation the user may change is
+ * chosen with a picker, and a sensitive or file field keeps its own control.
+ */
+export const showsValue = (field: FieldModel, hints: FieldViewModel | undefined, locked: boolean, picker: boolean) => {
+  if (field.sensitive || field.type === 'file') return false
+  if (locked || field.readOnly) return true
+  if (field.type === 'relation') return !picker
+  return !isEditable(field, hints)
+}
+
 const ChosenEditor = (props: FieldEditorProps) => {
   const { field, hints, value, stored, invalid, locked, onChange } = props
   const shown = useShownWidget(field, hints)

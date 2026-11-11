@@ -7,7 +7,7 @@ import { usePauseFocusRefresh } from '../data/focus-refresh'
 import { keys } from '../data/query-keys'
 import { useOpenedRecord, type LiveRecord } from '../data/use-record'
 import { displayValue, valueTitle } from '../live/display-value'
-import { fromDraft, isEditable, isRequiredOnEdit, toDraft } from '../live/field-values'
+import { fromDraft, isRequiredOnEdit, toDraft } from '../live/field-values'
 import { auditField } from '../live/audit-fields'
 import { humanize } from '../live/naming'
 import { useRecordTitle } from './titles/record-titles'
@@ -24,7 +24,7 @@ import { MapSection } from './map/map-section'
 import { RecordChartSection } from './record-chart/record-chart-section'
 import { RecordActions } from './pages/record-actions'
 import type { LayoutRecord } from './pages/record-scope'
-import { FieldEditor } from './field-editor'
+import { FieldEditor, showsValue } from './field-editor'
 import { groupOpen, toggledOpen } from './group-open'
 import { attentionTab, shownTab, splitTabs } from './record-tabs'
 import { isWideField, shownWidget } from './field-types/shown-widget'
@@ -243,8 +243,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         help={fieldHelp(hint(name), view, editing)}
         error={problem && fieldMessage(field, label, problem)}
         wide={isWideField(fieldTypes, field, hint(name))}
-        // A value shown as text has no control for its label to name; a sensitive one keeps its reveal control
-        readOnly={(locked || !isEditable(field, hint(name))) && !field.sensitive && field.type !== 'file'}
+        readOnly={showsValue(field, hint(name), locked, Boolean(target))}
         conflict={
           conflict === undefined
             ? undefined

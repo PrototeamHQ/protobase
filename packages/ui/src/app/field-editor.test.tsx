@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { FieldModel, FieldViewModel } from '@protobase/schema'
-import { FieldEditor } from './field-editor'
+import { FieldEditor, showsValue } from './field-editor'
 
 const shown = (field: FieldModel, stored: unknown, hints?: FieldViewModel, locked = false) =>
   renderToStaticMarkup(<FieldEditor field={field} hints={hints} value="" stored={stored} locked={locked} onChange={() => {}} />)
@@ -42,5 +42,24 @@ describe('a field nobody may change on the form', () => {
     const html = shown(flag, true)
     expect(html).not.toContain('role="switch"')
     expect(html).toContain('Yes')
+  })
+})
+
+describe('whether a form shows a field as a value', () => {
+  const owner: FieldModel = { ...base, name: 'owner', type: 'relation', readOnly: false }
+
+  it('keeps a relation the user may pick as a control', () => {
+    expect(showsValue(owner, undefined, false, true)).toBe(false)
+  })
+
+  it('shows a relation with no picker, a read-only one, or one on a locked form as a value', () => {
+    expect(showsValue(owner, undefined, false, false)).toBe(true)
+    expect(showsValue({ ...owner, readOnly: true }, undefined, false, true)).toBe(true)
+    expect(showsValue(owner, undefined, true, true)).toBe(true)
+  })
+
+  it('keeps a sensitive or file field its own control', () => {
+    expect(showsValue({ ...base, name: 'token', type: 'text', sensitive: true }, undefined, true, false)).toBe(false)
+    expect(showsValue({ ...base, name: 'photo', type: 'file' }, undefined, true, false)).toBe(false)
   })
 })
