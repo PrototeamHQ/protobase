@@ -180,9 +180,10 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     await settled(objective.id, 'late')
   })
 
-  it('keeps what was declared when an upgrade adds the version sequence and pending table, and starts the sequence past every version', async () => {
+  it('keeps what was declared when an upgrade adds the version sequence and pending table, starts the sequence past every version, and widens older reads', async () => {
     const models = [objectives.toModel(), tasks.toModel()]
-    await pg.exec(`drop sequence derived.versions; drop table derived.pending`)
+    await pg.exec(`drop sequence derived.versions; drop table derived.pending;
+      insert into derived.reads (name, key, resource, eq_field, eq_value, condition) values ('objectives.verdict', 'old', 'tasks', 'objectiveId', '0007', '{"maybe": true}')`)
     await expect(checkDerived(db, models)).rejects.toThrow('The derived schema is missing')
     const upgrade = (await derivedMigration(db, models))!
     expect(upgrade).not.toContain('jobs.enqueue')
@@ -190,6 +191,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     expect(await derivedMigration(db, models)).toBeUndefined()
     const { rows } = await sql<{ above: boolean }>`select nextval('derived.versions') > (select max(version) from derived.values) as above`.execute(db)
     expect(rows[0]!.above).toBe(true)
+    expect((await sql`select eq_field, eq_value from derived.reads where key = 'old'`.execute(db)).rows).toEqual([{ eq_field: null, eq_value: null }])
+    await sql`delete from derived.reads where key = 'old'`.execute(db)
   })
 
   it('forgets a derived value no longer declared, so declaring it again fills it again', async () => {

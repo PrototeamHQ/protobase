@@ -75,6 +75,10 @@ const isComplete = async (db: Db) => (await hasTables(db)) && (await found(db, '
 // A sequence added to values kept before it starts past their versions; migrations run while nothing else writes.
 const versionsAfter = `select setval('"${derivedSchema}"."versions"', max("version")) from "${derivedSchema}"."values" having max("version") is not null`
 
+// Reads kept before the sequence hold their equality in the form it had then, such as a uuid with dashes, which a
+// change's normalized keys no longer find: they widen to every change of their resource until their record's next run.
+const readsWiden = `update "${derivedSchema}"."reads" set "eq_field" = null, "eq_value" = null where "eq_field" is not null`
+
 const declared = async (db: Db) => new Set((await sql<{ name: string }>`select "name" from "derived"."declared"`.execute(db)).rows.map((row) => row.name))
 
 const quote = (text: string) => `'${text.replaceAll("'", "''")}'`
@@ -100,7 +104,7 @@ export const derivedMigration = async (db: Db, models: readonly ResourceModel[])
     `insert into "${derivedSchema}"."declared" ("name") values (${quote(name)}) on conflict do nothing`,
     `select ${jobsSchema}.enqueue(${quote(fillJobName)}, ${quote(JSON.stringify({ name }))}::jsonb, key => ${quote(name)})`,
   ])
-  const created = tables ? [] : [derivedTablesSql(), ...(exists && !sequence ? [versionsAfter] : [])]
+  const created = tables ? [] : [derivedTablesSql(), ...(exists && !sequence ? [versionsAfter, readsWiden] : [])]
   return [...created, ...removals, ...fills].map((statement) => `${statement};`).join('\n\n')
 }
 
