@@ -552,6 +552,8 @@ How read-only values and the title badge look may change in any release.
 
 On the form, a field nobody may change there, such as a `.readOnly()` field or one the user may only read, shows as its value rather than a greyed input, as the read view shows it: at full text contrast, an enum or a field with `.format('badge')` as a badge in the view's `valueLabels` and `valueColors`, a timestamp with `.format('relative')` as "3 hours ago" with the exact time on hover, and a missing value as a dash that screen readers read as "No value". Its label is text rather than a form label, since there is no control for it to name.
 
+<gap>A relative time on an open record page cannot count up by itself because refreshing it on a timer is not implemented; it updates when the record loads again, such as when the tab regains focus.</gap>
+
 `.titleBadge(...)` shows one field as a badge beside the record's title, in its `valueLabels` and `valueColors`, such as an objective's verdict, in place of the enum `status` the page shows there otherwise. It shows even when the sidebar lists the field, changes as the record does, and is left out while the field has no value or for a reader who cannot read it. `.titleBadge(...)` throws when the field does not exist, or is neither an enum nor shown with `.format('badge')`, so a long text never fills the header.
 
 ```ts
