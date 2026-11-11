@@ -131,7 +131,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
       to={{ kind: 'record', resource: model.name, key: row.key }}
       onClick={() => seedRecord(row.record)}
       data-card-link
-      className={`${className} after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none`}
+      className={`${className} after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden`}
     >
       {children}
     </AppLink>

@@ -51,3 +51,9 @@ export const fixedText = (before, after, factor) =>
     if (!grown) return []
     return Math.abs(grown.size - size * factor) <= 0.5 ? [] : [`"${text}" stays at ${grown.size}px, not ${size * factor}px`]
   })
+
+/**
+ * The links and buttons with no focus ring in forced colors, where the system draws only outlines and drops shadow
+ * rings: `focused` is each one's text and its outline style while focused, with forced colors on.
+ */
+export const hiddenFocus = (focused) => focused.filter(({ outline }) => outline === 'none').map(({ text }) => `"${text}" shows no outline when focused in forced colors`)

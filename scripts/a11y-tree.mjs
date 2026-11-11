@@ -1,13 +1,14 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
-import { axProblems, fixedText } from './a11y-tree/ax-problems.mjs'
+import { axProblems, fixedText, hiddenFocus } from './a11y-tree/ax-problems.mjs'
 import { openStory, settledTree } from './lib/story-layouts.mjs'
 
 /**
  * Checks what a screen reader and a larger text size meet on the main pages in the built Storybook (storybook-static),
  * on desktop and phone: Chromium's accessibility tree has no link or button without a name, one main landmark and no
- * heading that skips a level (a11y-tree/ax-problems.mjs), and all text grows when the root text size doubles.
+ * heading that skips a level (a11y-tree/ax-problems.mjs), all text grows when the root text size doubles, and each
+ * link and button shows an outline when focused in forced colors.
  */
 const root = join(import.meta.dirname, '..')
 const storybookDir = join(root, 'storybook-static')
@@ -34,6 +35,15 @@ const textSizes = () => {
   })
 }
 
+// Each shown link and button's outline style while focused from the keyboard, as `:focus-visible` matches it
+const focusOutlines = () =>
+  [...document.querySelectorAll('a[href], button')].flatMap((element) => {
+    if (element.getClientRects().length === 0 || element.closest('[aria-hidden="true"]')) return []
+    element.focus()
+    if (!element.matches(':focus-visible')) return []
+    return [{ text: (element.textContent.trim() || element.getAttribute('aria-label') || element.tagName).slice(0, 40), outline: getComputedStyle(element).outlineStyle }]
+  })
+
 const browser = await chromium.launch()
 let failed = false
 for (const shot of shots) {
@@ -46,7 +56,9 @@ for (const shot of shots) {
     document.documentElement.style.fontSize = '200%'
   })
   await settledTree(page)
-  const problems = [...axProblems(nodes), ...fixedText(before, await page.evaluate(textSizes), 2)]
+  const after = await page.evaluate(textSizes)
+  await page.emulateMedia({ forcedColors: 'active' })
+  const problems = [...axProblems(nodes), ...fixedText(before, after, 2), ...hiddenFocus(await page.evaluate(focusOutlines))]
   await page.context().close()
   if (problems.length === 0) {
     console.log(`PASS ${shot.name}`)

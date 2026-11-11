@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { axProblems, fixedText } from './ax-problems.mjs'
+import { axProblems, fixedText, hiddenFocus } from './ax-problems.mjs'
 
 type Node = { nodeId: string; parentId?: string; childIds?: string[]; ignored?: boolean; role?: { value: string }; name?: { value: string }; properties?: Array<{ name: string; value: { value: unknown } }>; backendDOMNodeId?: number }
 
@@ -36,5 +36,11 @@ describe('fixedText', () => {
     const before = [{ key: '1', text: 'Grows', size: 14 }, { key: '2', text: 'Stays', size: 11 }, { key: '3', text: 'Gone', size: 12 }]
     const after = [{ key: '1', text: 'Grows', size: 28.2 }, { key: '2', text: 'Stays', size: 11 }]
     expect(fixedText(before, after, 2)).toEqual(['"Stays" stays at 11px, not 22px'])
+  })
+})
+
+describe('hiddenFocus', () => {
+  it('finds the links and buttons whose focus outline forced colors drop', () => {
+    expect(hiddenFocus([{ text: 'Order 7', outline: 'solid' }, { text: 'Order 8', outline: 'none' }])).toEqual(['"Order 8" shows no outline when focused in forced colors'])
   })
 })
