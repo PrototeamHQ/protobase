@@ -11,7 +11,7 @@ import { Quiet } from '../pages/blocks/card-frame'
 import { ErrorBanner } from '../error-banner'
 import { useAdminMeta } from '../meta-gate'
 import { threadItems } from './thread-items'
-import { threadState } from './thread-state'
+import { showsErrorAbove, threadState } from './thread-state'
 import { text } from './messages'
 
 export type MessageThreadProps = MessageFields & {
@@ -42,17 +42,21 @@ export const MessageThread = ({ model, filter, sender, time, text: body, limit =
   // The reader's own newest message: when one arrives, the thread goes to the end wherever they were
   const own = items.findLast((item) => item.kind === 'message' && item.author.id === reader)
   return (
-    <ChatThread length={rows.length} followKey={own?.key} empty={empty ?? text('noMessages')} onLoadEarlier={list.hasNextPage ? () => void list.fetchNextPage() : undefined} loadingEarlier={list.isFetchingNextPage}>
-      {items.map((item) =>
-        item.kind === 'day' ? (
-          <ChatDivider key={item.key} label={item.label} />
-        ) : (
-          <ChatMessage key={item.key} author={item.author} time={item.time} continued={item.continued}>
-            {/* A message keeps its line breaks; rendered markdown makes its own */}
-            {markdown && item.text !== '' ? <Markdown source={item.text} className="whitespace-normal" /> : item.text}
-          </ChatMessage>
-        ),
-      )}
-    </ChatThread>
+    <>
+      {/* The messages stay, so the reader keeps their place; the next refetch or Load earlier messages tries again */}
+      {showsErrorAbove(list) && <div className="shrink-0 p-2"><ErrorBanner title={text('couldNotLoad')} error={list.error} /></div>}
+      <ChatThread length={rows.length} followKey={own?.key} empty={empty ?? text('noMessages')} onLoadEarlier={list.hasNextPage ? () => void list.fetchNextPage() : undefined} loadingEarlier={list.isFetchingNextPage}>
+        {items.map((item) =>
+          item.kind === 'day' ? (
+            <ChatDivider key={item.key} label={item.label} />
+          ) : (
+            <ChatMessage key={item.key} author={item.author} time={item.time} continued={item.continued}>
+              {/* A message keeps its line breaks; rendered markdown makes its own */}
+              {markdown && item.text !== '' ? <Markdown source={item.text} className="whitespace-normal" /> : item.text}
+            </ChatMessage>
+          ),
+        )}
+      </ChatThread>
+    </>
   )
 }
