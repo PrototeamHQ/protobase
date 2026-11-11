@@ -110,6 +110,27 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     }, { timeout: 20_000, interval: 100 })
   })
 
+  it('computes again when a change lands during a record\'s first run, before its reads are kept', async () => {
+    const objective = await post('objectives', { title: 'First' })
+    let ran = false
+    // The run read no task; the dispatch of the new one finds no kept read of it, only the run under way.
+    duringRun = {
+      key: String(objective.id),
+      run: async () => {
+        await sql`insert into tasks (objective_id, status) values (${objective.id}, 'open')`.execute(db)
+        // Gives the dispatch up to 10 seconds to mark it stale; without that the run keeps its stale "done".
+        for (let tries = 0; tries < 100; tries++) {
+          const { rows } = await sql<{ status: string }>`select status from derived.values where name = 'objectives.verdict' and key = ${String(objective.id)}`.execute(db)
+          if (rows[0]?.status === 'stale') break
+          await new Promise((resolve) => setTimeout(resolve, 100))
+        }
+        ran = true
+      },
+    }
+    await vi.waitFor(() => expect(ran).toBe(true), { timeout: 20_000, interval: 100 })
+    await settled(objective.id, 'open')
+  })
+
   it('gives a record deleted and made again a version its old runs never had', async () => {
     const objective = await post('objectives', { title: 'Again' })
     const before = await settled(objective.id, 'done')

@@ -31,6 +31,16 @@ export const claim = async (db: Db, { name, key }: ValueRef) =>
     on conflict ("name", "key") do update set "status" = 'recalculating' returning "version"::text as version`.execute(db)).rows[0]!.version
 
 /**
+ * The records of `names` whose run is under way. A run's reads are kept only when it ends, so a change meanwhile may
+ * touch a read no row holds yet, as on a record's first run.
+ */
+export const recalculating = async (db: Db, names: readonly string[]): Promise<ValueRef[]> => {
+  if (names.length === 0) return []
+  const { rows } = await sql<ValueRef>`select "name", "key" from "derived"."values" where "status" = 'recalculating' and "name" = any(${names}::text[])`.execute(db)
+  return rows
+}
+
+/**
  * The reads of `names`' records that the changes' records may touch: those with an equality a changed record holds,
  * and those without one. One query for a whole dispatch.
  */

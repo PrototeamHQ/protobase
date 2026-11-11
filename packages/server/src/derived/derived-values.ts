@@ -9,7 +9,7 @@ import { defineJob } from '../jobs/define-job'
 import type { Entry } from '../registry'
 import { changeKeys, fieldTypes, touches } from './affected'
 import { derivedName, fillJobName } from './derived-sql'
-import { candidateReads, claim, forget, keep, markStale, type ValueRef } from './derived-state'
+import { candidateReads, claim, forget, keep, markStale, recalculating, type ValueRef } from './derived-state'
 import { runDerived, type DerivedCompute } from './run-derived'
 import { recordExists, writeField, writeSideField } from './write-target'
 
@@ -105,14 +105,20 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
     },
   })
 
-  /** Marks stale, in the dispatch's transaction, every value a change touches, and the values of new records; forgets those of deleted ones. */
+  /**
+   * Marks stale, in the dispatch's transaction, every value a change touches, the values of new records, and those whose
+   * run is under way and reads a changed resource; forgets those of deleted ones.
+   */
   const onChanges = async (trx: Db, changes: readonly ResourceChange[]) => {
     const relevant = changes.filter((change) => watched.has(change.resource))
     if (relevant.length === 0) return
     const own = (change: ResourceChange) => declared.filter((item) => item.entry.name === change.resource).map((item) => ({ name: item.name, key: change.key }))
     await forget(trx, relevant.filter((change) => !change.after).flatMap(own))
     const stale = new Map<string, ValueRef>(relevant.filter((change) => !change.before).flatMap(own).map((ref) => [`${ref.name}:${ref.key}`, ref]))
-    const reads = await candidateReads(trx, [...new Set(relevant.map((change) => change.resource))], changeKeys(relevant, typesOf))
+    const resources = new Set(relevant.map((change) => change.resource))
+    const readers = declared.filter((item) => resources.has(item.entry.name) || item.value.reads.some((read) => resources.has(read))).map((item) => item.name)
+    for (const ref of await recalculating(trx, readers)) stale.set(`${ref.name}:${ref.key}`, ref)
+    const reads = await candidateReads(trx, [...resources], changeKeys(relevant, typesOf))
     for (const read of reads) {
       if (relevant.some((change) => touches(read, change, typesOf(change.resource)))) stale.set(`${read.name}:${read.key}`, { name: read.name, key: read.key })
     }
