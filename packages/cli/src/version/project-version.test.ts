@@ -38,6 +38,13 @@ describe('project versions', () => {
     }
   })
 
+  it('runs a prerelease CLI, such as a build from main, by its numbers', async () => {
+    await manifest({ dependencies: { '@protobase/server': '^0.94.0' } })
+    await writePackage(dir, { name: '@protobase/server', version: '0.94.3' })
+    expect(() => checkProjectVersion(dir, '0.94.4-main.4f8859dd')).not.toThrow()
+    expect(() => checkProjectVersion(dir, '0.95.0-main.4f8859dd')).toThrow('This project asks for Protobase ^0.94.0')
+  })
+
   it('refuses a project whose specifier does not hold the CLI, naming both', async () => {
     for (const specifier of ['^0.13.0', '0.14.1', '^0.15.0', '^1.0.0']) {
       await manifest({ devDependencies: { '@protobase/server': specifier } })

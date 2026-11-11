@@ -14,12 +14,12 @@ const isComparator = (text: string) => {
 
 /**
  * Whether `version` is in `range`: comparators such as `>=0.12.0 <1.0.0`, separated by spaces, all of which must hold.
- * Undefined when the range is not one of those, or the version is no semver version.
+ * A prerelease, such as a build from main, counts by its numbers. Undefined when the range is not one of those, or the version is no semver version.
  */
 export const inRange = (version: string, range: string): boolean | undefined => {
   const comparators = range.trim().split(/\s+/)
   if (semver.valid(version) === null || range.trim() === '' || !comparators.every(isComparator)) return undefined
-  return semver.satisfies(version, range)
+  return semver.satisfies(version, range, { includePrerelease: true })
 }
 
 /** What a plugin's plugin.json says it is built for: a plugin API, and the Protobase versions it runs on. */

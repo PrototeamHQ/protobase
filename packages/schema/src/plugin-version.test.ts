@@ -23,8 +23,11 @@ describe('inRange', () => {
     expect(inRange('twelve', '>=0.12.0')).toBeUndefined()
   })
 
-  it('leaves a prerelease out of a range of releases, as semver does', () => {
-    expect(inRange('0.12.1-beta.1', '>=0.12.0')).toBe(false)
+  it('counts a prerelease, such as a build from main, by its numbers', () => {
+    expect(inRange('0.94.4-main.4f8859dd', '>=0.12.9')).toBe(true)
+    expect(inRange('0.12.1-beta.1', '>=0.12.0 <0.13.0')).toBe(true)
+    expect(inRange('0.12.9-main.4f8859dd', '>=0.13.0')).toBe(false)
+    expect(inRange('0.13.0-main.4f8859dd', '>=0.13.0')).toBe(false)
   })
 })
 
