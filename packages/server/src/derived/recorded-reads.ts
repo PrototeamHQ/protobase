@@ -38,7 +38,7 @@ export const resourceReads = (label: string, reads: readonly TableRead[], models
     const model = found.find((candidate) => candidate.table.schema === read.schema) ?? found[0]
     const table = read.schema ? `${read.schema}.${read.table}` : read.table
     if (!model && appModels.some((candidate) => sameTable(candidate, read))) throw new Error(`${label} read the table ${table}, which is not a resource it reads: add its resource to the value's reads`)
-    if (!model) throw new Error(`${label} read the table ${table}, which is no resource: turn tracking off, name every resource the value depends on with depends(), those behind this table included, and list each one but the value's own resource in its reads`)
+    if (!model) throw new Error(`${label} read the table ${table}, which is no resource: make a table of its own a resource and add it to the value's reads, or, for a table whose changes come from resources, such as a view, turn tracking off, name every resource the value depends on with depends(), those behind this table included, and list each one but the value's own resource in its reads`)
     const columns = new Map(Object.values(model.fields).map((field) => [field.column, field]))
     const fields = read.columns && [...new Set(read.columns.flatMap((column) => (columns.has(column) ? [columns.get(column)!.name] : [])))]
     return { resource: model.name, condition: byField(read.condition, columns), fields }
