@@ -117,7 +117,7 @@ export const CustomerRepairs = ({ limit }: { limit: number }) => {
 
 A list that should stay live polls: `useList('repairs', { refetchInterval: 5000 })` refetches every 5 seconds. It is TanStack Query's `refetchInterval`, so it also takes `false` to stop, or a function of the query, and pauses while the tab is in the background.
 
-`fallback` gives what shows in the section's place, its title included, where the component cannot be drawn: sections and related tables in the main column, sidebar maps in the sidebar, or `[]` for nothing. `/api/meta` sends it with what the user cannot see left out, as [fallbacks](#fallbacks) of composed pages.
+`fallback` gives what shows in the section's place, its title included, where the component cannot be drawn: sections and related tables in the main column, sidebar maps in the sidebar, or `[]` for nothing. `/api/meta` sends it with what the user cannot see left out, as [fallbacks](#fallbacks) of composed pages. <gap>A sidebar section cannot fall back to sections or related tables because drawing those in the sidebar is not implemented.</gap>
 
 ```ts
 l.custom(CustomerRepairs, { title: 'Earlier repairs', props: { limit: 5 }, fallback: [l.section('Customer', [r.customer_id])] })
