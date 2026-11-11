@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { showsErrorAbove, threadState } from './thread-state'
+import { describe, expect, it, vi } from 'vitest'
+import { retryOf, showsErrorAbove, threadState } from './thread-state'
 
 describe('threadState', () => {
   it('shows the error in place of the thread while no message has loaded', () => {
@@ -24,5 +24,21 @@ describe('showsErrorAbove', () => {
   it('shows nothing above the thread without an error, or while the error takes its place', () => {
     expect(showsErrorAbove({ error: null, isLoading: false, items: [{ id: 1 }] })).toBe(false)
     expect(showsErrorAbove({ error: new Error('offline'), isLoading: false, items: [] })).toBe(false)
+  })
+})
+
+describe('retryOf', () => {
+  it('loads the earlier messages again when loading them failed', () => {
+    const list = { isFetchNextPageError: true, fetchNextPage: vi.fn(), refetch: vi.fn() }
+    retryOf(list)()
+    expect(list.fetchNextPage).toHaveBeenCalledOnce()
+    expect(list.refetch).not.toHaveBeenCalled()
+  })
+
+  it('reads the thread again when a refetch or the first load failed', () => {
+    const list = { isFetchNextPageError: false, fetchNextPage: vi.fn(), refetch: vi.fn() }
+    retryOf(list)()
+    expect(list.refetch).toHaveBeenCalledOnce()
+    expect(list.fetchNextPage).not.toHaveBeenCalled()
   })
 })

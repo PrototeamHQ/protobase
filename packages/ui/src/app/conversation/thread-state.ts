@@ -13,3 +13,8 @@ export const threadState = (list: ThreadList) => {
 
 /** Whether a failed refetch or **Load earlier messages** shows its error above the messages that stay loaded. */
 export const showsErrorAbove = (list: ThreadList) => list.items.length > 0 && Boolean(list.error)
+
+type RetryableList = { isFetchNextPageError: boolean; fetchNextPage: () => unknown; refetch: () => unknown }
+
+/** What **Try again** runs on a thread's error: the earlier messages when loading them failed, else the thread again. */
+export const retryOf = (list: RetryableList) => (list.isFetchNextPageError ? () => void list.fetchNextPage() : () => void list.refetch())

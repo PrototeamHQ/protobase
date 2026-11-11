@@ -11,7 +11,7 @@ import { Quiet } from '../pages/blocks/card-frame'
 import { ErrorBanner } from '../error-banner'
 import { useAdminMeta } from '../meta-gate'
 import { threadItems } from './thread-items'
-import { showsErrorAbove, threadState } from './thread-state'
+import { retryOf, showsErrorAbove, threadState } from './thread-state'
 import { text } from './messages'
 
 export type MessageThreadProps = MessageFields & {
@@ -33,7 +33,7 @@ export const MessageThread = ({ model, filter, sender, time, text: body, limit =
   const labels = listLabels(resources, views, model, [sender])
   const list = useList(model.name, { filter, orderBy: threadSort(time), pageSize: limit, labels })
   const state = threadState(list)
-  if (state === 'error') return <ErrorBanner title={text('couldNotLoad')} error={list.error} />
+  if (state === 'error') return <ErrorBanner title={text('couldNotLoad')} error={list.error} onRetry={retryOf(list)} />
   // The live region mounts with the messages it opens on, so a screen reader announces only those that arrive later
   if (state === 'loading') return <div className="p-4"><Quiet>{text('loadingMessages')}</Quiet></div>
   const rows = withLabels(resources, model, [sender], list.items, list.labels)
@@ -43,8 +43,8 @@ export const MessageThread = ({ model, filter, sender, time, text: body, limit =
   const own = items.findLast((item) => item.kind === 'message' && item.author.id === reader)
   return (
     <>
-      {/* The messages stay, so the reader keeps their place; the next refetch or Load earlier messages tries again */}
-      {showsErrorAbove(list) && <div className="shrink-0 p-2"><ErrorBanner title={text('couldNotLoad')} error={list.error} /></div>}
+      {/* The messages stay, so the reader keeps their place; Try again runs what failed once more */}
+      {showsErrorAbove(list) && <div className="shrink-0 p-2"><ErrorBanner title={text('couldNotLoad')} error={list.error} onRetry={retryOf(list)} /></div>}
       <ChatThread length={rows.length} followKey={own?.key} empty={empty ?? text('noMessages')} onLoadEarlier={list.hasNextPage ? () => void list.fetchNextPage() : undefined} loadingEarlier={list.isFetchingNextPage}>
         {items.map((item) =>
           item.kind === 'day' ? (
