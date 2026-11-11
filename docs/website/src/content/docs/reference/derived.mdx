@@ -33,7 +33,7 @@ The function gets the record's key as its URL has it, and returns the value as J
 
 | | |
 | --- | --- |
-| `db` | The app's database, in a read-only transaction, so a write throws before it happens. Each query sent through it is analysed, raw SQL included. |
+| `db` | The app's database, in a read-only transaction, so a write throws before it happens, and so does opening a transaction of its own. Each query sent through it is analysed, raw SQL included. |
 | `clock` | The time; see [The clock](#the-clock). |
 | `depends(resource, where?)` | Names a dependency itself: every record of the resource, or those whose fields hold these values, such as `depends('tasks', { status: ['open', 'late'] })`. |
 | `signal` | Aborted when the run times out or the worker shuts down. |
@@ -58,7 +58,7 @@ Each check that has not flipped yet records the moment it will; the value is com
 
 - **A new record** is computed once it is created, and a value declared for records that exist already computes each of them once, from the migration that adds it.
 - **A change** that touches a recorded read, through the API or not, marks the value stale in the dispatch of [captured changes](/reference/events/#how-changes-are-captured), and its run waits a second, so a burst of changes runs it once.
-- **A change that lands while the function runs** makes the result stale before it is kept: it is dropped, and the value is computed again.
+- **A change that lands while the function runs** and touches one of the reads that run made drops its result, and the value is computed again; a change to what it did not read leaves the result kept.
 - **The value is written only when it differs**, so an unchanged value raises no event, live update or notification.
 - A deleted record's value is dropped.
 - A value no longer declared loses its state at the next migration, so declaring it again computes every record again.
@@ -73,6 +73,7 @@ Runs are `derived.compute` jobs, four at a time per worker, retried like any [jo
 | --- | --- |
 | `derived.values` | A row per record and value: `status` (`current`, `stale` or `recalculating`), `value` as JSON, `computed_at`, and `flips_at`, the clock's next flip. |
 | `derived.reads` | What each record's value read: the resource, the condition, and the fields it used. |
+| `derived.pending` | The changes that landed while a record's run was under way, weighed against that run's reads when it ends. |
 | `derived.declared` | The values whose records the migrations have computed once. |
 
 ## Limits

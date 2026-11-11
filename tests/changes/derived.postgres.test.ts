@@ -22,8 +22,12 @@ const tasks = resource('tasks')
 // Run while the function runs for that record, after its read: a change that lands meanwhile.
 let duringRun: { key: string; run: () => Promise<void> } | undefined
 
+// How many times each record's function ran.
+const runs = new Map<string, number>()
+
 // "late" once an open task is older than two hours, "open" while any is open, else "done".
 const verdict: DerivedCompute = async (key, { db, clock }) => {
+  runs.set(key, (runs.get(key) ?? 0) + 1)
   const open = await db.selectFrom('tasks').select(['created_at']).where('objective_id', '=', Number(key)).where('status', '=', 'open').execute()
   const interfere = duringRun?.key === key ? duringRun : undefined
   if (interfere) duringRun = undefined
@@ -119,17 +123,35 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
       key: String(objective.id),
       run: async () => {
         await sql`insert into tasks (objective_id, status) values (${objective.id}, 'open')`.execute(db)
-        // Gives the dispatch up to 10 seconds to mark it stale; without that the run keeps its stale "done".
-        for (let tries = 0; tries < 100; tries++) {
-          const { rows } = await sql<{ status: string }>`select status from derived.values where name = 'objectives.verdict' and key = ${String(objective.id)}`.execute(db)
-          if (rows[0]?.status === 'stale') break
-          await new Promise((resolve) => setTimeout(resolve, 100))
+        // Gives the dispatch up to 10 seconds to keep the change for the run; without that the run keeps its stale "done".
+        let held = false
+        for (let tries = 0; tries < 100 && !held; tries++) {
+          const { rows } = await sql`select 1 from derived.pending where name = 'objectives.verdict' and key = ${String(objective.id)}`.execute(db)
+          held = rows.length > 0
+          if (!held) await new Promise((resolve) => setTimeout(resolve, 100))
         }
+        expect(held).toBe(true)
         ran = true
       },
     }
     await vi.waitFor(() => expect(ran).toBe(true), { timeout: 20_000, interval: 100 })
     await settled(objective.id, 'open')
+  })
+
+  it('keeps a run\'s result when a change meanwhile touches none of its reads', async () => {
+    const objective = await post('objectives', { title: 'Calm' })
+    const other = await post('objectives', { title: 'Busy' })
+    await settled(objective.id, 'done')
+    await settled(other.id, 'done')
+    let atChange: number | undefined
+    const key = String(objective.id)
+    // A task of another objective lands while it runs: it reads only its own objective's tasks.
+    duringRun = { key, run: async () => void (await sql`insert into tasks (objective_id, status) values (${other.id}, 'open')`.execute(db), (atChange = runs.get(key))) }
+    await sql`insert into tasks (objective_id, status) values (${objective.id}, 'open')`.execute(db)
+    await settled(other.id, 'open')
+    await settled(objective.id, 'open')
+    expect(atChange).toBeDefined()
+    expect(runs.get(key)).toBe(atChange)
   })
 
   it('gives a record deleted and made again a version its old runs never had', async () => {
@@ -156,6 +178,18 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     await sql`insert into tasks (objective_id, status, created_at) values (${objective.id}, 'open', now() - interval '2 hours' + interval '3 seconds')`.execute(db)
     await settled(objective.id, 'open')
     await settled(objective.id, 'late')
+  })
+
+  it('keeps what was declared when an upgrade adds the version sequence and pending table, and starts the sequence past every version', async () => {
+    const models = [objectives.toModel(), tasks.toModel()]
+    await pg.exec(`drop sequence derived.versions; drop table derived.pending`)
+    await expect(checkDerived(db, models)).rejects.toThrow('The derived schema is missing')
+    const upgrade = (await derivedMigration(db, models))!
+    expect(upgrade).not.toContain('jobs.enqueue')
+    await pg.exec(upgrade)
+    expect(await derivedMigration(db, models)).toBeUndefined()
+    const { rows } = await sql<{ above: boolean }>`select nextval('derived.versions') > (select max(version) from derived.values) as above`.execute(db)
+    expect(rows[0]!.above).toBe(true)
   })
 
   it('forgets a derived value no longer declared, so declaring it again fills it again', async () => {

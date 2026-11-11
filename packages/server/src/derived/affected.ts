@@ -5,13 +5,16 @@ import { equalityKeys, mayMatch, type Condition } from './condition'
 /** A read some derived value's record depends on, as the database keeps it. */
 export type StoredRead = { name: string; key: string; resource: string; condition: Condition; fields: string[] | null }
 
+/** What deciding whether a change touches a read takes of it, as a run's pending changes keep it. */
+export type ChangedRecord = Pick<ResourceChange, 'resource' | 'before' | 'after' | 'changed'>
+
 export const fieldTypes = (model: ResourceModel) => Object.fromEntries(Object.values(model.fields).map((field) => [field.name, field.type]))
 
 /**
  * Whether a change touches a read: the record before or after it may meet the read's condition, so a record that comes
  * to match is caught as well as one that leaves it, and an update changed a field the read used.
  */
-export const touches = (read: StoredRead, change: ResourceChange, types: Record<string, string>) => {
+export const touches = (read: Omit<StoredRead, 'name' | 'key'>, change: ChangedRecord, types: Record<string, string>) => {
   if (read.resource !== change.resource) return false
   if (change.before && change.after && read.fields && !change.changed.some((field) => read.fields!.includes(field))) return false
   return [change.before, change.after].some((record) => record !== undefined && mayMatch(read.condition, record, types))
