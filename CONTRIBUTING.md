@@ -51,9 +51,7 @@ The admin app's and server's own texts live in one JSON file per language and pa
 
 ## Layout snapshots
 
-`bun run test:dom`, also in CI, builds Storybook and compares the layout of the main pages (a filtered list, a card list and a record with actions, on desktop and phone) with `scripts/dom-snapshots/layouts`: each element's classes, role and placing CSS, with a plugin's stylesheet loaded after the app's. On a change it prints the changed lines and writes before and after screenshots to `screenshots/dom/`. Fix a regression; for an intended change, run `bun run test:dom:update` and commit the layouts.
-
-`bun run test:a11y`, also in CI, checks the same pages for screen readers and larger text: in Chromium's accessibility tree no link or button lacks a name, there is one main landmark and no heading skips a level, and every shown text doubles when the root text size does. Text sizes are therefore in `rem`, never `px`.
+`bun run test:dom`, also in CI, builds Storybook and compares the main pages' layout (a filtered list, card list and record with actions, on desktop and phone) with `scripts/dom-snapshots/layouts`: each element's classes, role and placing CSS, with a plugin's stylesheet loaded after the app's. A change prints its lines and screenshots to `screenshots/dom/`; fix it or run `bun run test:dom:update` and commit. `bun run test:a11y` checks their accessibility tree and that text grows with the root size, so sizes use `rem`.
 
 ## Snapshot tests
 
