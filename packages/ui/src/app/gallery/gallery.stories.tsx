@@ -246,17 +246,20 @@ export const MobilePhotoDetailsChecks: StoryObj = {
     // A sheet over the lower part of the screen, across it, with the photo's details
     const sheet = await canvas.findByRole('dialog', { name: 'Photo details' })
     expect(await within(sheet).findByText('Front')).toBeVisible()
-    const box = sheet.getBoundingClientRect()
+    // Once it has risen into place
     const screen = dialog.getBoundingClientRect()
-    expect([box.left, box.right, box.bottom]).toEqual([screen.left, screen.right, screen.bottom])
-    expect(box.top).toBeGreaterThan(screen.top)
+    await waitFor(() => {
+      const box = sheet.getBoundingClientRect()
+      expect([box.left, box.right, box.bottom]).toEqual([screen.left, screen.right, screen.bottom])
+    })
+    expect(sheet.getBoundingClientRect().top).toBeGreaterThan(screen.top)
     expect(within(dialog).queryByRole('complementary')).toBeNull()
 
     // Escape closes the sheet alone, and gives focus back to the button
     await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Photo details' })).toBeNull())
     expect(canvas.getByRole('dialog', { name: 'Photos' })).toBeInTheDocument()
-    expect(document.activeElement).toBe(info)
+    await waitFor(() => expect(document.activeElement).toBe(info))
 
     // A swipe down on its header closes it too
     await userEvent.click(info)

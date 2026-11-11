@@ -1896,7 +1896,8 @@
     "loading": "Laden",
     "remove": "{label} verwijderen",
     "previous": "Terug in {label}",
-    "next": "Verder in {label}"
+    "next": "Verder in {label}",
+    "dragToClose": "Sleep omlaag om te sluiten"
   },
   "record-view": {
     "savedDifferent": "{name} bewaarde een andere waarde",

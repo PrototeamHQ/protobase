@@ -282,7 +282,7 @@ A component that asks for input looks like the app's own forms when it is built 
 | `RecordPicker` | Records of another resource, picked as the create form picks a relation: type to narrow them by their search fields or title, scroll for more, or use the keyboard. `resource` names the resource, whose model it reads from the app; `value` is the chosen record's key as text and `onChange` gets the new one. With `multiple`, `value` and `onChange` hold several keys, such as the objectives a task serves through a join resource: each shows as a token that can be taken off. |
 | `Segmented`, `MenuSelect` | A switch between a few short options in a row (`size`, `iconOnly`), and the same options in a menu. |
 | `Button`, `buttonClass` | A button (`variant` `primary`, `secondary`, `ghost` or `danger`, `size` `sm`, `md` or `icon`, a square for an icon alone, and `loading`), and its classes for a link that looks like one. |
-| `Dialog`, `ResponsiveDialog` | A modal with a `title`, `description`, `actions` and a body, which Escape and a click outside close with `onClose`; the responsive one becomes a sheet from the bottom of a phone, which a swipe down on its header closes too. |
+| `Dialog`, `ResponsiveDialog` | A modal with a `title`, `description`, `actions` and a body, which Escape and a click outside close with `onClose`; the responsive one becomes a sheet from the bottom of a phone, which follows a finger dragging it down by its header, or by its content once that is scrolled to its top, and closes when flung or let go past a third of its height. |
 
 ```tsx
 // components/book-repair.tsx, exported from protobase.ui.tsx
