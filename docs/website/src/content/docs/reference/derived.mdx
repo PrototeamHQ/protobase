@@ -8,7 +8,7 @@ import objectives from '../../../../../../docs-examples/derived/config/objective
 import verdict from '../../../../../../docs-examples/derived/derived/objectives.verdict.ts?raw'
 
 :::caution[Experimental]
-Derived values may change in any release. They cannot fill a list of rows in another resource yet, cannot see the reads inside a database function or view they call, show `recalculating` rather than `stale` after a failed run, and their status cannot be read through the REST API; [Limits](#limits) has the detail.
+Derived values may change in any release. They cannot fill a list of rows in another resource yet, cannot see the reads inside a database function or view they call, show `recalculating` rather than `stale` after a failed run, keep what an earlier version of their function computed until a record changes, and their status cannot be read through the REST API; [Limits](#limits) has the detail.
 :::
 
 A **derived value** is worked out from other records for each record of a resource, such as a verdict on an objective from its tasks. You write a small TypeScript function that reads records and the clock; Protobase records what it read, computes it again when a change touches that or when a time check flips, and stores the result. No timer is involved, and a value that did not change is not written. It works on any Postgres, with no extension.
@@ -42,7 +42,7 @@ The function gets the record's key as its URL has it, and returns the value as J
 
 Each query the function sends is parsed with Postgres's own parser, however it was built. For each table it reads, Protobase keeps the query's conditions on that table: comparisons of its columns with constants and parameters, `IN`, `= ANY`, `BETWEEN` and null tests, joined with `AND`, `OR` and `NOT`, with the conditions of inner joins, and of an outer join's `ON` for its optional side. The condition is the dependency, so a new row that comes to match is caught as well as a row that leaves it. A part it cannot work out, such as a function call or a column of another table, counts as matching every row: a query it cannot read at all reads the whole table. Nested queries, `WITH` queries and both sides of a `UNION` count too. An update counts only when it changes a column the query used.
 
-A table that is no resource of `reads` or the record's own stops the run with an error naming it: add its resource to `reads`, or name what the function depends on with `depends()` and set `track: false`.
+A table that is no resource of `reads` or the record's own stops the run with an error naming it: add its resource to `reads`. `depends()` takes only those resources too; with `track: false`, the dependencies it names are the only ones, for a function whose queries say less than it knows.
 
 ## The clock
 
@@ -61,6 +61,7 @@ Each check that has not flipped yet records the moment it will; the value is com
 - **A change that lands while the function runs** makes the result stale before it is kept: it is dropped, and the value is computed again.
 - **The value is written only when it differs**, so an unchanged value raises no event, live update or notification.
 - A deleted record's value is dropped.
+- A value no longer declared loses its state at the next migration, so declaring it again computes every record again.
 
 Runs are `derived.compute` jobs, four at a time per worker, retried like any [job](/reference/jobs/) when the function throws.
 
@@ -79,6 +80,7 @@ Runs are `derived.compute` jobs, four at a time per worker, retried like any [jo
 - <gap>A derived value cannot fill a list of rows in another resource, such as one row per item that needs attention, because syncing a set of rows is not implemented.</gap>
 - <gap>A derived value cannot see the reads inside a database function or view it calls, because reading their definitions is not implemented.</gap> Name them with `depends()`.
 - <gap>A derived value whose function threw cannot show `stale` until its retry runs, because marking a failed run is not implemented; it shows `recalculating` meanwhile.</gap>
+- <gap>A derived value cannot recompute the records it holds when its function changes, because tracking the function's code is not implemented; each record takes the new function at its next change or clock flip.</gap>
 - <gap>A derived value's status cannot be read through the REST API, because serving `derived.values` as a resource is not implemented.</gap>
 
 ## Reusing the detection
