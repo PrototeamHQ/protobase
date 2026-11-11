@@ -123,7 +123,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -138,7 +138,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -153,7 +153,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -168,7 +168,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -183,7 +183,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -198,7 +198,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -213,7 +213,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -228,7 +228,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -243,7 +243,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -258,7 +258,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -273,7 +273,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -288,7 +288,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -303,7 +303,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
@@ -318,7 +318,7 @@ div | block
                 div .h-full | block
                   div .relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30 | flex column nowrap normal normal relative
                     span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
-                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none | block
+                      a .min-w-0 truncate font-medium after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-hidden | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
                     span .truncate text-muted-foreground | block
