@@ -72,8 +72,10 @@ export const moveApp = async ({ sourceUrl, storageUrl, storageKey }: { sourceUrl
   await untilPrinted(child, 'protobase dev ready', 90_000)
   steps.push('bun run dev')
 
+  // SIGTERM, as Ctrl-C does: dev then stops its API process and waits for it. After a SIGKILL that process lives on,
+  // and its pool, reconnecting while the database is dropped, holds the drop until Postgres's authentication timeout.
   const dispose = async () => {
-    await stopProcess(child)
+    await stopProcess(child, 'SIGTERM')
     child = undefined
     await rm(cacheDir, { recursive: true, force: true })
     await rm(projectDir, { recursive: true, force: true })
