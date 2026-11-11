@@ -69,7 +69,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, f
             <div key={group.label} className={cn('flex flex-col gap-0.5', index > 0 && 'mt-3')}>
               {inline ? (
                 group.label && (
-                  <div
+                  <h2
                     className={cn(
                       'px-3 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-faint-foreground',
                       expanding && 'h-4 whitespace-nowrap py-0 opacity-0 transition-opacity group-hover/side:opacity-100 group-focus-within/side:opacity-100',
@@ -77,10 +77,14 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, f
                     )}
                   >
                     {group.label}
-                  </div>
+                  </h2>
                 )
               ) : (
-                index > 0 && <div className="mx-auto mb-1 h-px w-6 bg-border" />
+                <>
+                  {/* Icons alone show no label, but a screen reader still jumps between the groups by their headings */}
+                  {group.label && <h2 className="sr-only">{group.label}</h2>}
+                  {index > 0 && <div className="mx-auto mb-1 h-px w-6 bg-border" />}
+                </>
               )}
               {group.items.map((item) => (
                 <Fragment key={item.id}>

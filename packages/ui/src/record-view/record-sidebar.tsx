@@ -32,7 +32,7 @@ export const RelatedRecords = ({ records, onNavigate }: { records: RelatedRecord
           }}
           className="group flex items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-muted">
           <span className="min-w-0">
-            <span className="block text-[11px] uppercase tracking-wide text-faint-foreground">{record.kind}</span>
+            <span className="block text-[0.6875rem] uppercase tracking-wide text-faint-foreground">{record.kind}</span>
             <span className="block truncate font-medium text-primary-text">{record.label}</span>
             {record.meta && <span className="block text-xs text-muted-foreground">{record.meta}</span>}
           </span>
@@ -45,7 +45,7 @@ export const RelatedRecords = ({ records, onNavigate }: { records: RelatedRecord
 
 export const SidebarCard = ({ title, children }: { title: string; children: ReactNode }) => (
   <div className="rounded-lg border border-border bg-background p-4">
-    <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+    <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
     {children}
   </div>
 )
