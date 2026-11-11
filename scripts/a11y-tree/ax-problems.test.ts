@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { axProblems, fixedText, hiddenFocus, outlineShows } from './ax-problems.mjs'
+import { axProblems, fixedText, hiddenFocus, offScreen, outlineShows } from './ax-problems.mjs'
 
 type Node = { nodeId: string; parentId?: string; childIds?: string[]; ignored?: boolean; role?: { value: string }; name?: { value: string }; properties?: Array<{ name: string; value: { value: unknown } }>; backendDOMNodeId?: number }
 
@@ -52,5 +52,15 @@ describe('hiddenFocus', () => {
   it('finds the links and buttons whose focus outline forced colors drop', () => {
     const focused = [{ text: 'Order 7', outline: 'solid', outlineWidth: 2 }, { text: 'Order 8', outline: 'none', outlineWidth: 2 }, { text: 'Order 9', outline: 'solid', outlineWidth: 0 }]
     expect(hiddenFocus(focused)).toEqual(['"Order 8" shows no outline when focused in forced colors (none 2px)', '"Order 9" shows no outline when focused in forced colors (solid 0px)'])
+  })
+})
+
+describe('offScreen', () => {
+  it('finds a page wider than the screen and the top bar controls that end past it', () => {
+    expect(offScreen({ width: 360, page: 360, bar: [{ text: 'Search', right: 360 }] })).toEqual([])
+    expect(offScreen({ width: 360, page: 420, bar: [{ text: 'Search', right: 300 }, { text: 'Record actions', right: 420 }] })).toEqual([
+      'the page is 420px wide, wider than 360px',
+      'the top bar\'s "Record actions" ends at 420px, past 360px',
+    ])
   })
 })

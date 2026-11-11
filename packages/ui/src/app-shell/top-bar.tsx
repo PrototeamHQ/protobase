@@ -29,11 +29,15 @@ export type TopBarProps = {
   ref?: Ref<HTMLElement>
 }
 
-/** An icon button of the top bar on a mobile screen, as the menu, back and search buttons are. */
-export const topBarButton = 'inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden'
+/**
+ * An icon button of the top bar on a mobile screen, as the menu, back and search buttons are. It and its icon grow with
+ * the text size beyond their default 44px and 20px only up to 13% and 6% of the screen's width, so four buttons still
+ * fit at the largest text sizes, as in a native app's bar; the bar's spacing is in pixels for the same reason.
+ */
+export const topBarButton = 'inline-flex size-[min(2.75rem,max(44px,13vw))] shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))]'
 
 /** The back button that shows the page it goes to, as the trail on a phone leaves that crumb to it: one link, one target. */
-const backWithLabel = 'inline-flex h-11 min-w-0 items-center gap-1 rounded-md pr-2 pl-3 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden'
+const backWithLabel = 'inline-flex min-h-[min(2.75rem,max(44px,13vw))] min-w-0 items-center gap-[4px] rounded-md pr-[8px] pl-[12px] text-muted-foreground hover:bg-muted hover:text-foreground md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))]'
 
 export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOpen, menuControls, search, sticky, slotRef, ref }: TopBarProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
@@ -56,10 +60,10 @@ export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOp
   }, [search])
   return (
     <>
-      <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)]' : 'relative', 'flex h-[calc(3rem+var(--pb-safe-top))] shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 pt-[var(--pb-safe-top)] md:gap-4 md:px-5')}>
+      <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)]' : 'relative', 'flex shrink-0 items-center gap-[4px] border-b bg-background pt-[calc(var(--pb-safe-top)+1.5px)] pr-[8px] pb-[1.5px] pl-[16px] md:h-[calc(3rem+var(--pb-safe-top))] md:gap-4 md:px-5 md:pt-[var(--pb-safe-top)] md:pb-0')}>
         {onMenu && (
-          <button type="button" aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-3')}>
-            <Menu className="size-5" />
+          <button type="button" aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-[12px]')}>
+            <Menu />
           </button>
         )}
         {back && (
@@ -72,21 +76,21 @@ export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOp
               event.preventDefault()
               follow(back.href)
             }}
-            className={cn(back.shown ? backWithLabel : topBarButton, !onMenu && '-ml-3')}
+            className={cn(back.shown ? backWithLabel : topBarButton, !onMenu && '-ml-[12px]')}
           >
-            <ChevronLeft className="size-5 shrink-0" aria-hidden />
+            <ChevronLeft className="shrink-0" aria-hidden />
             {back.shown && <span className="truncate">{back.label}</span>}
           </a>
         )}
         <Breadcrumb parts={breadcrumb} onNavigate={onNavigate} />
-        <div className="ml-auto flex items-center gap-1 md:gap-3">
+        <div className="ml-auto flex items-center gap-[4px] md:gap-3">
           {search && (
             <>
               <div className="hidden md:block">
                 <GlobalSearch ref={desktopSearch} search={search} />
               </div>
               <button type="button" aria-label={text('search')} aria-expanded={searchOpen} onClick={() => setSearchOpen(true)} className={topBarButton}>
-                <Search className="size-5" />
+                <Search />
               </button>
           </>
         )}
@@ -97,7 +101,7 @@ export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOp
         <div className="absolute inset-0 z-20 flex items-center gap-1 bg-background px-3 pt-[var(--pb-safe-top)] md:hidden">
           <GlobalSearch className="min-w-0 flex-1" autoFocus showShortcut={false} search={{ ...search, onSelect: (href) => { search.onSelect(href); setSearchOpen(false) } }} />
           <button type="button" aria-label={text('closeSearch')} onClick={() => setSearchOpen(false)} className={topBarButton}>
-            <X className="size-5" />
+            <X />
           </button>
         </div>
       )}
