@@ -63,7 +63,7 @@ A box with a heading. Text and `Link`s inside it run together as paragraphs.
 
 ### Link
 
-A link in text: `to` an address in the app, or an `href` that leaves it (`https:` opens in a new tab, `mailto:` in the mail app). Its text is its children. With [`className`](/reference/layouts/#tailwind-classes) it drops its own look for those classes.
+A link in text: `to` an address in the app, or an `href` that leaves it (`https:` opens in a new tab, `mailto:` in the mail app). It shows its children inline, text and `Text as="span"`s, or without them where it leads. With [`className`](/reference/layouts/#tailwind-classes) it drops its own look for those classes.
 
 ```tsx
 <Link to={{ kind: 'list', resource: 'invoices', filter: "status = 'overdue'" }}>Overdue invoices</Link>
