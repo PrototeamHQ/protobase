@@ -52,8 +52,13 @@ export const fixedText = (before, after, factor) =>
     return Math.abs(grown.size - size * factor) <= 0.5 ? [] : [`"${text}" stays at ${grown.size}px, not ${size * factor}px`]
   })
 
+// Whether an outline draws: `auto` draws the system's ring whatever its width, any other style but `none` only with a width
+// above zero.
+export const outlineShows = (style, width) => style === 'auto' || (style !== 'none' && width > 0)
+
 /**
  * The links and buttons with no focus ring in forced colors, where the system draws only outlines and drops shadow
- * rings: `focused` is each one's text and its outline style while focused, with forced colors on.
+ * rings: `focused` is each one's text and its outline style and width in pixels while focused, with forced colors on.
  */
-export const hiddenFocus = (focused) => focused.filter(({ outline }) => outline === 'none').map(({ text }) => `"${text}" shows no outline when focused in forced colors`)
+export const hiddenFocus = (focused) =>
+  focused.filter(({ outline, outlineWidth }) => !outlineShows(outline, outlineWidth)).map(({ text, outline, outlineWidth }) => `"${text}" shows no outline when focused in forced colors (${outline} ${outlineWidth}px)`)
