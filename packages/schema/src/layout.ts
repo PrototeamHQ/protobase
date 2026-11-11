@@ -1,4 +1,4 @@
-import { fallbackItemName, fitsMainFallback } from './custom-fallback'
+import { fallbackItemName, fitsFallback } from './custom-fallback'
 import { markFieldRefs } from './field-ref'
 import type { CardPhotosModel, RecordChartRange, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel, ThreadSectionModel } from './model'
 import type { Ref } from './refs'
@@ -172,14 +172,14 @@ export const layout = {
    * A component of the project, registered in `protobase.ui.tsx` under its name, drawn where it is listed: in the main
    * column, or in the sidebar with `sidebar: true`. The record page stays around it, with its title, breadcrumbs,
    * actions and save; the component reads the record with `useLayoutRecord()`. A client that cannot draw it, one
-   * without the component or the web when it throws, shows `fallback` in its place: any main-column item but another
-   * custom component in the main column, conversations included, sidebar maps in the sidebar, or `[]` for nothing.
-   * Throws on any other fallback item.
+   * without the component or the web when it throws, shows `fallback` in its place: any main-column item in the main
+   * column, conversations and other custom components included, sidebar maps and sidebar custom components in the
+   * sidebar, or `[]` for nothing. Throws on any other fallback item.
    */
   custom: <P extends object>(component: ComponentRef<P>, o: { title?: string; props?: ViewProps<P>; sidebar?: boolean; when?: ShowWhen; fallback?: LayoutItemModel[] } = {}): LayoutItemModel => {
     const name = customComponent(component as ComponentRef<never>, 'l.custom')
-    const wrong = o.fallback?.find((item) => (o.sidebar ? !(item.kind === 'map' && item.sidebar) : !fitsMainFallback(item)))
-    if (wrong) throw new Error(`l.custom(${name}) falls back to ${o.sidebar ? 'sidebar maps' : 'main-column items but a custom component'}, not ${fallbackItemName(wrong)}`)
+    const wrong = o.fallback?.find((item) => !fitsFallback(item, o.sidebar === true))
+    if (wrong) throw new Error(`l.custom(${name}) falls back to ${o.sidebar ? 'sidebar maps and custom components' : 'main-column items'}, not ${fallbackItemName(wrong)}`)
     return {
       kind: 'custom',
       component: name,

@@ -373,6 +373,18 @@ describe('pruneView', () => {
     expect(fallback(['at'], [])).toEqual([])
   })
 
+  it("prunes a custom section in another's fallback by what it holds", () => {
+    const Quote = Object.assign(() => null, { blockName: 'Quote', custom: true })
+    const written = view<typeof repairs>('repairs')
+      .layout((r) => [l.custom(Quote, { fallback: [l.custom(Quote, { fallback: [l.section('Quote', [r.estimate]), l.section('Repair', [r.status])] }), l.custom(Quote, { props: { amount: r.estimate } })] })])
+      .toModel()
+    expect(pruneView(written, all.repairs, all).layout).toEqual(written.layout)
+    const hidden = without({ repairs: ['estimate'] })
+    expect(pruneView(written, hidden.repairs!, hidden).layout).toEqual([
+      { kind: 'custom', component: 'Quote', fallback: [{ kind: 'custom', component: 'Quote', fallback: [{ kind: 'section', title: 'Repair', fields: ['status'] }] }] },
+    ])
+  })
+
   it('keeps hideEmpty and a record condition, and leaves out an item whose condition names a field the caller cannot read', () => {
     const written = view<typeof repairs>('repairs')
       .layout((r) => [l.section('Paid', [r.status], { when: 'paid = true' }), l.sidebar([r.number], { when: 'paid = true' }), l.related('Photos', { resource: 'repair_photos', field: 'repairId', when: 'paid = true', hideEmpty: true })])

@@ -400,13 +400,19 @@ describe('view builder', () => {
         ],
       },
     ])
-    expect(() => view<typeof article>('article').layout(() => [l.custom(Plan, { fallback: [l.custom(Plan)] })])).toThrow('l.custom(Plan) falls back to main-column items but a custom component, not a custom component')
-    expect(() => view<typeof article>('article').layout((r) => [l.custom(Plan, { fallback: [l.sidebar([r.title])] })])).toThrow('l.custom(Plan) falls back to main-column items but a custom component, not sidebar')
+    expect(view<typeof article>('article').layout(() => [l.custom(Plan, { fallback: [l.custom(Plan, { fallback: [] })] })]).toModel().layout).toEqual([
+      { kind: 'custom', component: 'Plan', fallback: [{ kind: 'custom', component: 'Plan', fallback: [] }] },
+    ])
+    expect(view<typeof article>('article').layout(() => [l.custom(Plan, { sidebar: true, fallback: [l.custom(Plan, { sidebar: true })] })]).toModel().layout).toEqual([
+      { kind: 'custom', component: 'Plan', sidebar: true, fallback: [{ kind: 'custom', component: 'Plan', sidebar: true }] },
+    ])
+    expect(() => view<typeof article>('article').layout(() => [l.custom(Plan, { fallback: [l.custom(Plan, { sidebar: true })] })])).toThrow('l.custom(Plan) falls back to main-column items, not a sidebar custom component')
+    expect(() => view<typeof article>('article').layout((r) => [l.custom(Plan, { fallback: [l.sidebar([r.title])] })])).toThrow('l.custom(Plan) falls back to main-column items, not sidebar')
     expect(() => view<typeof article>('article').layout((r) => [l.custom(Plan, { fallback: [l.map('Where', { latitude: r.price, longitude: r.price, sidebar: true })] })])).toThrow(
-      'l.custom(Plan) falls back to main-column items but a custom component, not a sidebar map',
+      'l.custom(Plan) falls back to main-column items, not a sidebar map',
     )
     expect(() => view<typeof article>('article').layout((r) => [l.custom(Plan, { sidebar: true, fallback: [l.section('Content', [r.title])] })])).toThrow(
-      'l.custom(Plan) falls back to sidebar maps, not section',
+      'l.custom(Plan) falls back to sidebar maps and custom components, not section',
     )
   })
 

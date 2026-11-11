@@ -932,13 +932,13 @@ export type CustomSectionModel = {
   when?: ShowWhen
   /**
    * What a client without the component, or where it fails to draw, shows in its place, title included: any
-   * main-column item but another custom component in the main column, sidebar maps in the sidebar, or none to show nothing.
+   * main-column item in the main column, sidebar maps and custom sections in the sidebar, or none to show nothing.
    */
   fallback?: CustomFallbackItemModel[]
 }
 
-/** An item a custom section may fall back to: any of the main column but another custom section, or a sidebar map. */
-export type CustomFallbackItemModel = Exclude<TabItemModel, CustomSectionModel>
+/** An item a custom section may fall back to: any of the main column, or a sidebar map or custom section. */
+export type CustomFallbackItemModel = TabItemModel
 
 /**
  * A map of the record's position, its `latitude` and `longitude` fields in decimal degrees (WGS84), centred on a marker

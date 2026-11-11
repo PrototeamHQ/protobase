@@ -1,7 +1,7 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
 import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ThreadSectionModel, ViewModel } from '@protobase/schema'
-import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
+import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay, type RefShape } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { threadSectionErrors } from './view-conversation'
@@ -173,8 +173,7 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
   const related = s.map<RelatedModel>((item) => pruneRelated(item, resource, models))
   const group = s.object<GroupModel>({ kind: s.data, title: s.data, collapsed: s.data, when, items: s.list(s.oneOf({ section, related }), { nonEmpty: true }) }, { requires: ['items', 'when'] })
   const map = s.object<MapSectionModel>({ kind: s.data, title: s.data, latitude: s.field, longitude: s.field, zoom: s.data, sidebar: s.data, when: s.data }, { requires: ['latitude', 'longitude'] })
-  // A custom section falls back to any of these: the main column's items but another custom section
-  const fallbackItems = {
+  const main: { [K in TabItemModel['kind']]: RefShape } = {
     section,
     related,
     group,
@@ -186,13 +185,11 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
     // A conversation goes when the caller cannot read the messages or a field it shows; its box when they cannot create one
     thread: s.map<ThreadSectionModel>((item) => (threadSectionErrors(item, resource, models).length === 0 ? item : undefined)),
     composer: s.map<ComposerSectionModel>((item) => (creates(item, creatable) ? item : undefined)),
+    // A custom section falls back to any main-column item, another custom section included, so its shape, set below, holds these cases, itself included.
+    // A fallback the caller can see none of stays, empty, so the client still draws nothing in the component's place.
+    custom: s.data,
   }
-  // A fallback the caller can see none of stays, empty, so the client still draws nothing in the component's place
-  const fallback = s.list(s.oneOf<CustomFallbackItemModel>(fallbackItems))
-  const main = {
-    ...fallbackItems,
-    custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, when: s.data, props: s.refs, fallback }, { requires: ['props'] }),
-  }
+  main.custom = s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, when: s.data, props: s.refs, fallback: s.list(s.oneOf<CustomFallbackItemModel>(main)) }, { requires: ['props'] })
   return s.oneOf<LayoutItemModel>({
     ...main,
     sidebar: s.object<Of<LayoutItemModel, 'sidebar'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), when }, { requires: ['fields', 'when'] }),
