@@ -8,7 +8,7 @@ export const viewports = { desktop: { width: 1280, height: 720 }, phone: { width
 const now = new Date('2026-10-12T09:00:00Z')
 
 // The layout once it stops changing: data loads and charts draw after the story first renders.
-const settledTree = async (page) => {
+export const settledTree = async (page) => {
   let last = ''
   for (let attempt = 0; attempt < 40; attempt += 1) {
     await page.waitForTimeout(250)
@@ -21,7 +21,7 @@ const settledTree = async (page) => {
 
 // The story rendered in a new page of its own context, which the caller closes. A story that does not render fails with
 // its name and the page's console errors and failed requests.
-const openStory = async (browser, storybookDir, shot) => {
+export const openStory = async (browser, storybookDir, shot) => {
   const context = await browser.newContext({ viewport: viewports[shot.viewport] })
   const base = await routeFiles(context, storybookDir)
   const page = await context.newPage()
