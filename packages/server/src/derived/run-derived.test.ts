@@ -46,7 +46,7 @@ describe('runDerived', () => {
 
   it('refuses a read of a table that is no resource, telling it to name the resources behind it', async () => {
     await expect(runDerived(async (_key, { db }) => sql`select 1 from open_holds`.execute(db), '3', input)).rejects.toThrow(
-      "Derived value objectives.verdict read the table open_holds, which is no resource: name the resources behind it with depends(), list them in the value's reads, and turn tracking off",
+      "Derived value objectives.verdict read the table open_holds, which is no resource: turn tracking off, name every resource the value depends on with depends(), those behind this table included, and list each one but the value's own resource in its reads",
     )
   })
 
