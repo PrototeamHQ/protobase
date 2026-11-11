@@ -309,7 +309,7 @@ A plugin is built for one plugin API and a range of Protobase versions, both wri
   { "engines": { "protobase": ">=0.12.0" } }
   ```
 
-  A range is comparators separated by spaces, all of which must hold: `>=`, `>`, `<=`, `<` or `=` and an `x.y.z` version, such as `>=0.12.0 <2.0.0`. The build checks only the range's form; which versions it holds is the app's to compare when it loads the plugin. If the plugin uses something an older release in its range does not have, it fails to load there and is turned off, as described below.
+  A range is comparators separated by spaces, all of which must hold: `>=`, `>`, `<=`, `<` or `=` and an `x.y.z` version, such as `>=0.12.0 <2.0.0`. The build checks only the range's form; which versions it holds is the app's to compare when it loads the plugin, where a prerelease such as a build from main, `0.94.4-main.4f8859dd`, counts by its numbers. If the plugin uses something an older release in its range does not have, it fails to load there and is turned off, as described below.
 
 The app loads a plugin when the plugin's `api` is its own and its version is in the plugin's `protobase` range. Protobase keeps the plugin API through its releases and starts a new one only when a plugin built for the old one could break:
 
