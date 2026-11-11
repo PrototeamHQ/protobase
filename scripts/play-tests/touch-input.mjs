@@ -3,7 +3,9 @@
  * goes through the browser's own input pipeline, as a finger would, so the page sees trusted events:
  *
  * - `window.pbTouch(steps)` sends touch events, for drags: a step is `{ type: 'start' | 'move', x, y }` or
- *   `{ type: 'end' }`, with an optional `waitMs` before it; one finger only.
+ *   `{ type: 'end' }`, with an optional `waitMs` before it; one finger only. Each event is stamped with the time the
+ *   steps plan for it, so a speed the page reads from event times is the same on a slow machine, where the browser's
+ *   answer to each event takes a frame or more.
  * - `window.pbPress({ x, y, ms })` starts a tap held for `ms` and returns at once, so the play function can check the
  *   pressed look meanwhile. Only a tap gesture makes the browser apply `:active`; touch events alone do not. The tap goes
  *   through DevTools' touch emulator, whose own gesture recognizer turns it into one on every platform; Chromium on
@@ -13,10 +15,12 @@ export const exposeTouchInput = async (page) => {
   const session = await page.context().newCDPSession(page)
   const types = { start: 'touchStart', move: 'touchMove', end: 'touchEnd' }
   await page.exposeFunction('pbTouch', async (steps) => {
+    let planned = Date.now()
     for (const step of steps) {
       if (step.waitMs) await new Promise((resolve) => setTimeout(resolve, step.waitMs))
+      planned += step.waitMs ?? 0
       const touchPoints = step.type === 'end' ? [] : [{ x: step.x, y: step.y }]
-      await session.send('Input.dispatchTouchEvent', { type: types[step.type], touchPoints })
+      await session.send('Input.dispatchTouchEvent', { type: types[step.type], touchPoints, timestamp: planned / 1000 })
     }
   })
   await session.send('Emulation.setEmitTouchEventsForMouse', { enabled: true, configuration: 'mobile' })

@@ -67,13 +67,14 @@ export const useSheetDrag = ({ panel, backdrop, content, open, onClose }: Parts)
     setTimeout(() => close.current(), sheetMotionMs)
   }, [panel, place])
 
-  const begin = (x: number, y: number) => {
-    drag.current = { x, y, samples: [{ y, time: performance.now() }], dragging: false, scrolling: false }
+  // Samples carry the input event's own time, not when it was handled, so a busy page does not change how fast a fling reads
+  const begin = (x: number, y: number, time: number) => {
+    drag.current = { x, y, samples: [{ y, time }], dragging: false, scrolling: false }
   }
-  const move = (y: number) => {
+  const move = (y: number, time: number) => {
     const current = drag.current
     if (!current) return
-    current.samples.push({ y, time: performance.now() })
+    current.samples.push({ y, time })
     place(sheetOffset(y - current.y), false)
   }
   const end = () => {
@@ -95,7 +96,7 @@ export const useSheetDrag = ({ panel, backdrop, content, open, onClose }: Parts)
     const start = (event: TouchEvent) => {
       const touch = event.touches[0]
       if (event.touches.length !== 1 || !touch) return
-      begin(touch.clientX, touch.clientY)
+      begin(touch.clientX, touch.clientY, event.timeStamp)
     }
     const moveTouch = (event: TouchEvent) => {
       const current = drag.current
@@ -114,7 +115,7 @@ export const useSheetDrag = ({ panel, backdrop, content, open, onClose }: Parts)
         current.y = touch.clientY
       }
       event.preventDefault()
-      move(touch.clientY)
+      move(touch.clientY, event.timeStamp)
     }
     area.addEventListener('touchstart', start, { passive: true })
     area.addEventListener('touchmove', moveTouch, { passive: false })
@@ -133,7 +134,7 @@ export const useSheetDrag = ({ panel, backdrop, content, open, onClose }: Parts)
   const header = {
     onPointerDown: (event: PointerEvent<HTMLElement>) => {
       if (event.button !== 0) return
-      begin(event.clientX, event.clientY)
+      begin(event.clientX, event.clientY, event.timeStamp)
       const follow = (next: globalThis.PointerEvent) => {
         const current = drag.current
         if (!current || next.pointerId !== event.pointerId) return
@@ -142,7 +143,7 @@ export const useSheetDrag = ({ panel, backdrop, content, open, onClose }: Parts)
           current.dragging = true
           current.y = next.clientY
         }
-        move(next.clientY)
+        move(next.clientY, next.timeStamp)
       }
       const stop = (next: globalThis.PointerEvent) => {
         if (next.pointerId !== event.pointerId) return
@@ -150,7 +151,7 @@ export const useSheetDrag = ({ panel, backdrop, content, open, onClose }: Parts)
         const current = drag.current
         if (current && !current.dragging && Math.abs(next.clientY - current.y) >= dragSlop) {
           current.dragging = true
-          current.samples.push({ y: next.clientY, time: performance.now() })
+          current.samples.push({ y: next.clientY, time: next.timeStamp })
         }
         window.removeEventListener('pointermove', follow)
         window.removeEventListener('pointerup', stop)
