@@ -1,7 +1,7 @@
 import { appHrefError } from '@protobase/schema/internal'
 import { blockSpecs, propProblems } from './block-specs'
 import { parseCondition } from './condition'
-import type { LayoutNode } from './node'
+import type { LayoutChild, LayoutNode } from './node'
 import { tabsProblems } from './check-tabs'
 import { walkTree, type Scope } from './walk'
 
@@ -41,6 +41,25 @@ const linkProblems = ({ props }: LayoutNode): string[] => {
   return error ? [error] : []
 }
 
+// A picture comes from an API function or a fixed `src`: an `https:` URL or a path on the app's own origin.
+const imageProblems = ({ props }: LayoutNode): string[] => {
+  if ((props.function === undefined) === (props.src === undefined)) return ['takes exactly one of "function" (an API function draws it) and "src" (a fixed picture)']
+  if (typeof props.src !== 'string') return []
+  const ownPath = props.src.startsWith('/') && !props.src.startsWith('//')
+  return [
+    ...(ownPath || props.src.startsWith('https://') ? [] : ['"src" must be an https: URL or a path on the app\'s own origin, such as /logo.svg']),
+    ...(props.alt === undefined ? ['"alt" is required with "src": describe what it shows, or write alt="" when it only decorates'] : []),
+    ...(props.refresh === undefined ? [] : ['"refresh" is for a function\'s picture; a fixed "src" does not change']),
+  ]
+}
+
+// What sits in a line of text: text, links, and a Text that is a piece of the line.
+const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && (child.type === 'Link' || (child.type === 'Text' && child.props.as === 'span')))
+
+// A `Text` is one line of text: what sits in it runs inline.
+const textProblems = ({ children }: LayoutNode): string[] =>
+  children.every(isInline) ? [] : ['holds text, <Link>s and <Text as="span">s only; put other elements beside it in a <Row> or <Column>']
+
 /**
  * Checks a page's tree without the models: the root is one `Page`, every built-in element has known props of the right
  * kind, elements that show a record's fields sit inside one, tabs are placed as their address needs, and conditions
@@ -60,6 +79,8 @@ export const structureProblems = (tree: LayoutNode): string[] => {
     if (node.type === 'Stat') statProblems(node).forEach(report)
     if (node.type === 'Chart') chartStructureProblems(node).forEach(report)
     if (node.type === 'Link') linkProblems(node).forEach(report)
+    if (node.type === 'Image') imageProblems(node).forEach(report)
+    if (node.type === 'Text') textProblems(node).forEach(report)
     if (node.type === 'Show' && typeof node.props.when === 'string') {
       const parsed = parseCondition(node.props.when)
       if (!parsed.ok) report(`"when" is not a valid condition: ${parsed.message}`)

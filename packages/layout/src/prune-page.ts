@@ -109,8 +109,9 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
     }
     case 'Action':
       return resource !== undefined && model && access.actions(resource).has(String(node.props.name)) ? node : null
+    // A fixed picture is anyone's; a function's only for who may call it.
     case 'Image':
-      return access.functions?.(String(node.props.function)) ? node : null
+      return node.props.function === undefined || access.functions?.(String(node.props.function)) ? node : null
     case 'Link':
       return node.props.to === undefined || addressErrors(node.props.to as AppAddress, { models, source: linkSource(models, scope), createPages: access.createPages }).length === 0 ? node : null
     case 'Show': {

@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton'
+type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -16,7 +16,7 @@ const required = (kind: Kind): PropSpec => ({ kind, required: true })
 const heading = { title: optional('text'), description: optional('text'), actions: optional('elements') }
 const data = { resource: required('text'), filter: optional('text'), sort: optional('text') }
 
-export const blockSpecs: Record<string, BlockSpec> = {
+const specs: Record<string, BlockSpec> = {
   Page: { children: true, props: { title: required('text'), description: optional('text'), actions: optional('elements'), width: optional('pageWidth') } },
   Grid: { children: true, props: { columns: optional('columns'), span: optional('span') } },
   Card: { children: true, props: { ...heading, span: optional('span') } },
@@ -72,10 +72,10 @@ export const blockSpecs: Record<string, BlockSpec> = {
     props: { ...heading, resource: required('text'), filter: optional('text'), sender: required('text'), time: required('text'), text: required('text'), limit: optional('integer'), empty: optional('text'), span: optional('span') },
   },
   Composer: { children: false, props: { resource: required('text'), field: required('text'), values: optional('values'), placeholder: optional('text'), span: optional('span') } },
-  Image: { children: false, props: { function: required('text'), alt: optional('text'), width: optional('integer'), height: optional('integer'), refresh: optional('integer') } },
+  Image: { children: false, props: { function: optional('text'), src: optional('text'), alt: optional('text'), width: optional('integer'), height: optional('integer'), refresh: optional('integer') } },
   Action: { children: false, props: { name: required('text'), resource: optional('text'), label: optional('text'), variant: optional('variant') } },
   Show: { children: true, props: { when: required('text') } },
-  Link: { children: true, props: { href: optional('text'), to: optional('address') } },
+  Link: { children: true, props: { href: optional('text'), to: optional('address'), variant: optional('variant') } },
   Tabs: { children: true, props: {} },
   Tab: { children: true, props: { name: required('text'), label: required('text') } },
   Settings: { children: false, props: { resource: required('text'), fields: optional('texts'), title: optional('text'), description: optional('text'), span: optional('span') } },
@@ -91,7 +91,14 @@ export const blockSpecs: Record<string, BlockSpec> = {
   ConnectedApps: { children: false, props: {} },
   PersonalAccessTokens: { children: false, props: {} },
   DeleteAccount: { children: false, props: {} },
+  Box: { children: true, props: {} },
+  Row: { children: true, props: {} },
+  Column: { children: true, props: {} },
+  Text: { children: true, props: { as: optional('textAs') } },
 }
+
+// Every built-in element takes Tailwind classes for its outer element.
+export const blockSpecs: Record<string, BlockSpec> = Object.fromEntries(Object.entries(specs).map(([name, spec]) => [name, { ...spec, props: { ...spec.props, className: optional('text') } }]))
 
 const formats = ['relative', 'absolute', 'compact', 'percent', 'badge', 'code']
 const variants = ['primary', 'secondary', 'danger', 'ghost']
@@ -101,6 +108,7 @@ const ranges = ['7d', '30d', '90d', '1y', 'all']
 const cardsLayouts = ['stack', 'carousel']
 const cardWidths = ['1/4', '1/3', '1/2', '2/3']
 const pageWidths = ['column', 'full']
+const textTags = ['p', 'span', 'h1', 'h2', 'h3', 'h4']
 
 const oneOf = (values: string[]): [test: (value: LayoutValue) => boolean, expected: string] => [(value) => typeof value === 'string' && values.includes(value), values.join(', ')]
 
@@ -126,6 +134,7 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   cardsLayout: oneOf(cardsLayouts),
   cardWidth: oneOf(cardWidths),
   pageWidth: oneOf(pageWidths),
+  textAs: oneOf(textTags),
   address: [(value) => isObject(value) && !isLayoutNode(value) && typeof value.kind === 'string', "an address, such as { kind: 'list', resource: 'orders' }"],
   rowButton: [
     (value) => isObject(value) && !isLayoutNode(value) && typeof value.label === 'string' && value.to !== undefined && isObject(value.to) && typeof value.to.kind === 'string',
