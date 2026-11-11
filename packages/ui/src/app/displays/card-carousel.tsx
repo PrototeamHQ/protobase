@@ -19,9 +19,9 @@ type CardCarouselProps = {
 /**
  * A card whose picture steps through its photos, the card's own image first: a track that snaps photo by photo, swiped
  * on a touch screen or moved by arrows, with dots marking the one in view. The photos come with the card's row, in the
- * same answer as the list, so the dots mark its own image from the start. The track sits inside the card's link, so a
- * tap opens the record and a swipe does not; the arrows sit over it, beside the link in the document, so pressing one
- * does not open the record either. The card's list item must be `relative group/card`.
+ * same answer as the list, so the dots mark its own image from the start. The card puts the track in a link of its own,
+ * so a tap opens the record and a swipe does not; the arrows sit over it, beside the card in the document, so pressing
+ * one does not open the record either. The card's list item must be `relative group/card`.
  */
 export const CardCarousel = ({ photos, cover, swipe = true, children }: CardCarouselProps) => {
   const list = cardPhotoList(cover, photos)

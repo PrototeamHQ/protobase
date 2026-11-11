@@ -4,7 +4,7 @@ import { DotsRoom, RelatedDots, type DotCardComponent } from './related-dots'
 
 const lines = 'flex flex-col gap-1.5'
 
-/** The room a card's lines of dots take at its bottom, inside its link, which the dots are drawn over. */
+/** The room a card's lines of dots take at its bottom, which the dots are drawn over. */
 export const CardDotsRoom = ({ dots }: { dots: CardDotsLine[] }) => (
   <span className={lines}>
     {dots.map(({ column, records }) => (
@@ -14,8 +14,8 @@ export const CardDotsRoom = ({ dots }: { dots: CardDotsLine[] }) => (
 )
 
 /**
- * A card's lines of dots, over the room its link holds for them at its bottom, inside its border and padding: beside
- * the link in the document, so a dot is a link of its own and the pointer between the dots reaches the card's.
+ * A card's lines of dots, over the room the card holds for them at its bottom, inside its border and padding: beside
+ * the card in the document, so a dot is a link of its own and the pointer between the dots reaches the card's link.
  * The card's list item must be `relative`.
  */
 export const CardDots = ({ dots, Card }: { dots: CardDotsLine[]; Card: DotCardComponent }) => {

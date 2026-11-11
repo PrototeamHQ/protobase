@@ -44,8 +44,8 @@ export const MixedStates: StoryObj = {
       return found as HTMLAnchorElement
     })
     expect(card.getAttribute('href')).toBe('/tasks/2')
-    expect(card.textContent).toContain('Bram')
-    expect(within(card).getByText('Doing')).toBeInTheDocument()
+    expect(card.closest('div')!.textContent).toContain('Bram')
+    expect(within(card.closest('div')!).getByText('Doing')).toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(body.queryByText('Bram', { selector: '[data-dot-card] *' })).toBeNull())
   },
@@ -63,8 +63,8 @@ export const OnCards: StoryObj = {
     expect(dot.getAttribute('href')).toBe('/tasks/2')
     expect(dot.parentElement?.closest('a')).toBeNull()
     expect(canvas.getByText('4 tasks: 2 To do, 1 Doing, 1 Done')).toBeInTheDocument()
-    // The dots keep the column's order, and sit inside their card, over the room its link holds at its bottom
-    const card = canvas.getByRole('link', { name: /Ship the objectives page/ })
+    // The dots keep the column's order, and sit inside their card, over the room it holds at its bottom
+    const card = canvas.getByRole('link', { name: /Ship the objectives page/ }).closest('div')!
     const line = dot.parentElement!
     expect([...line.querySelectorAll('a')].map((link) => link.getAttribute('href'))).toEqual(['/tasks/1', '/tasks/2', '/tasks/3', '/tasks/4'])
     const inCard = card.getBoundingClientRect()
@@ -80,6 +80,6 @@ export const OnCards: StoryObj = {
       return found as HTMLAnchorElement
     })
     expect(popover.getAttribute('href')).toBe('/tasks/2')
-    expect(popover.textContent).toContain('Bram')
+    expect(popover.closest('div')!.textContent).toContain('Bram')
   },
 }

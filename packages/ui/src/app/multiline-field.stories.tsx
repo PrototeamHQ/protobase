@@ -103,7 +103,8 @@ export const CardsKeepLineBreaks: StoryObj = {
     const canvas = within(canvasElement)
     const subtitle = await canvas.findByText((_, element) => element?.tagName === 'SPAN' && element.textContent === description)
     expect(getComputedStyle(subtitle).whiteSpace).toBe('pre-line')
-    // The card is a real link to the record
-    expect(subtitle.closest('a')?.getAttribute('href')).toBe('/homes/1')
+    // The card's link, on its title, is a real link to the record
+    expect(subtitle.closest('[data-card-link]')).toBeNull()
+    expect(subtitle.parentElement?.querySelector('a[data-card-link]')?.getAttribute('href')).toBe('/homes/1')
   },
 }

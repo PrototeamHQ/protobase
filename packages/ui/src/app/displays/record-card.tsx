@@ -124,11 +124,23 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
   const favorite = display.favorite
   // A card component draws its own content, so only the built-in card shows the list's dots
   const dots = Card ? [] : cardDotsLines(view, display, row)
-  const builtIn = (picture: ReactNode) => (
+  // The card's one link is its title, stretched over the whole card, so a screen reader reads the card as one link named
+  // by its title and the rest as text
+  const link = (className: string, children: ReactNode) => (
+    <AppLink
+      to={{ kind: 'record', resource: model.name, key: row.key }}
+      onClick={() => seedRecord(row.record)}
+      data-card-link
+      className={`${className} after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none`}
+    >
+      {children}
+    </AppLink>
+  )
+  const builtIn = (picture: ReactNode, linked: boolean) => (
     <>
       {pictured && picture}
       <span className={`flex items-start justify-between gap-2 ${favorite && !pictured ? 'pr-8' : ''}`}>
-        <span className="min-w-0 truncate font-medium">{shownValue(title)}</span>
+        {linked ? link('min-w-0 truncate font-medium', shownValue(title)) : <span className="min-w-0 truncate font-medium">{shownValue(title)}</span>}
         {badge !== undefined && status !== null && status !== undefined && (
           <ValueBadge value={status} hints={view?.fields[badge]}>
             {text(badge)}
@@ -173,32 +185,41 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
       {dots.length > 0 && <CardDotsRoom dots={dots} />}
     </>
   )
+  // Isolated, so what sits beside the card in the document, such as the photo arrows and the heart, stays over its link
   const card = (picture: ReactNode) => (
-    <AppLink
-      to={{ kind: 'record', resource: model.name, key: row.key }}
-      onClick={() => seedRecord(row.record)}
-      className="flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-    >
+    <div className="relative isolate flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-primary/30">
       {mark && !pictured && (
         <Badge tone="blue" className="self-start">
           {mark}
         </Badge>
       )}
       {Card ? (
-        <CustomBoundary name={display.card!} fallback={builtIn(picture)}>
-          <Card row={row} />
-        </CustomBoundary>
+        <>
+          {/* A drawn card's content is not known to hold the title, so the link over it is named by the title unseen */}
+          {link('absolute inset-0', <span className="sr-only">{shownValue(title)}</span>)}
+          <CustomBoundary name={display.card!} fallback={builtIn(picture, false)}>
+            <Card row={row} />
+          </CustomBoundary>
+        </>
       ) : (
-        builtIn(picture)
+        builtIn(picture, true)
       )}
-    </AppLink>
+    </div>
   )
   return (
     <div className={photos ? 'group/card relative h-full' : favorite || mark || dots.length > 0 ? 'relative h-full' : 'h-full'}>
       {photos ? (
         // A card drawn for another record, as the map's chosen card is, starts again at that record's first photo
         <CardCarousel key={row.key} photos={row.photos ?? []} cover={cover} swipe={swipe}>
-          {card}
+          {(picture) =>
+            card(
+              // The photos sit over the title's link, so a swipe moves them; a tap opens the record through a link of their
+              // own, which a screen reader skips as the title's says the same
+              <AppLink to={{ kind: 'record', resource: model.name, key: row.key }} onClick={() => seedRecord(row.record)} tabIndex={-1} aria-hidden className="relative z-[1] block">
+                {picture}
+              </AppLink>,
+            )
+          }
         </CardCarousel>
       ) : (
         card(<CardImage value={cover} />)
