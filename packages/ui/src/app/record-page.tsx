@@ -70,6 +70,7 @@ import { ContactLink } from '../live/contact-link'
 import { contactFormat } from '../live/contact-links'
 import { text as appText } from './messages'
 import { text } from './record-messages'
+import { RecordSkeleton } from './record-skeleton'
 
 const hidden = (model: ResourceModel, name: string) => name === model.tenant || model.primaryKey.includes(name)
 
@@ -93,18 +94,18 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
   const model = resources[resource]
   const record = useOpenedRecord(resource, recordKey)
   if (!model) return <Notice title={appText('notFound')}>{appText('noResource', { name: resource })}</Notice>
-  if (record.isPending) return <Notice title={text('loading')}>{text('fetching')}</Notice>
+  if (record.isPending) return <RecordSkeleton />
   if (record.error) return <div className="p-8">{isApiError(record.error) && record.error.status === 404 ? <RecordNotFound model={model} recordKey={recordKey} /> : <ErrorBanner title={text('couldNotLoad')} error={record.error} />}</div>
   // A record opened from a list shows that row's fields until it has loaded; the loaded record draws the page anew, so
   // its form starts from the whole record
   const standard = <LoadedRecord key={record.isPlaceholderData ? 'preview' : 'loaded'} model={model} recordKey={recordKey} stored={record.data} preview={record.isPlaceholderData} />
   const standardAsked = address?.kind === 'record' && address.standard === true
   const opens = views[resource]?.recordOpens
-  if (opens && !standardAsked) return record.isPlaceholderData ? <Notice title={text('loading')}>{text('fetching')}</Notice> : <RecordOpens to={opens} record={record.data.record} />
+  if (opens && !standardAsked) return record.isPlaceholderData ? <RecordSkeleton /> : <RecordOpens to={opens} record={record.data.record} />
   const page = views[resource]?.record
   if (!page || standardAsked) return standard
   // The app's component reads fields a list row may not have, so it waits for the whole record
-  if (record.isPlaceholderData) return <Notice title={text('loading')}>{text('fetching')}</Notice>
+  if (record.isPlaceholderData) return <RecordSkeleton />
   if ('surface' in page || page.focus) return <RecordFocusPage model={model} recordKey={recordKey} stored={record.data} page={page} standard={standard} />
   const { record: fields, etag, permissions } = record.data
   return <FullAreaRecord component={page.component} scope={{ model, record: fields, key: recordKey, etag, permissions }} standard={standard} />
@@ -113,7 +114,7 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
 // A record the session's organization does not have may be in another of the person's organizations, which opens it
 const RecordNotFound = ({ model, recordKey }: { model: ResourceModel; recordKey: string }) => {
   const elsewhere = useRecordElsewhere(model, recordKey)
-  if (elsewhere.state === 'looking') return <Notice title={text('loading')}>{text('fetching')}</Notice>
+  if (elsewhere.state === 'looking') return <RecordSkeleton />
   if (elsewhere.state === 'switching') return <Notice title={text('loading')}>{text('openingElsewhere')}</Notice>
   if (elsewhere.state === 'failed') return <ErrorBanner title={text('couldNotLoad')} error={elsewhere.error} />
   return <Notice title={appText('notFound')}>{text('noRecord')}</Notice>

@@ -60,6 +60,11 @@
   100% { opacity: 1; }
 }
 
+/* Blank while it waits: a skeleton's delay before it shows. */
+@keyframes pb-reveal {
+  from { visibility: hidden; }
+}
+
 @keyframes pb-slide-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
