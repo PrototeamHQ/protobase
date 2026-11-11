@@ -124,7 +124,7 @@ import { fieldDecrypter } from './encryption/decrypt-field'
 import { createEncryptionRuntime } from './encryption/runtime'
 import { toApiFunction, type FunctionSource } from './functions/define-function'
 import { callerRecords } from './functions/records'
-import { functionGate } from './functions/function-gate'
+import { functionGate, shownGate } from './functions/function-gate'
 import { functionRoutes } from './functions/routes'
 import { supabaseFunctionRoutes } from './functions/supabase-routes'
 import { upgradeAuthenticator } from './functions/upgrade-caller'
@@ -343,7 +343,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     audit: options.audit ?? consoleAuditQueue(),
     report: options.onUnhandledError ?? ((error: unknown) => console.error(error)),
     accessOptions,
-    functionGates: Object.fromEntries(Object.entries(apiFunctions).map(([name, fn]) => [name, functionGate(name, fn.options, accessOptions)])),
+    functionGates: Object.fromEntries(Object.entries(apiFunctions).map(([name, fn]) => [name, shownGate(functionGate(name, fn.options, accessOptions), fn.options)])),
     settingsResources: settingsResources([...pageModels, accountModel]),
     rowPermissions: (resource: string) => (typeof options.rowPermissions === 'object' ? !options.rowPermissions.except.includes(resource) : options.rowPermissions !== false),
     ...(assistant && { assistant: assistant.kind === 'external' ? assistant.url : `${systemPath}/assistant` }),

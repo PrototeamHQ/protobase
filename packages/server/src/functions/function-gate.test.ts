@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { defineRoles } from '@protobase/schema'
 import type { Session } from '../types'
-import { functionGate } from './function-gate'
+import { functionGate, shownGate } from './function-gate'
 
 const roles = defineRoles<'vms' | 'console'>({
   admin: ['*'],
@@ -40,5 +40,18 @@ describe('functionGate', () => {
     expect(() => functionGate('start', { roles: ['admin'], capability: 'vms.update' }, { roles })).toThrow('both roles and a capability')
     expect(() => functionGate('start', { capability: 'vms.start' as never }, { roles })).toThrow('Invalid capability "vms.start"')
     expect(() => functionGate('start', {}, { roles: { can: roles.can } })).toThrow('have no holds(user, capability)')
+  })
+})
+
+describe('shownGate', () => {
+  const visitor: Session = { user: { id: '', roles: ['anonymous'] }, anonymous: true }
+
+  it('shows a visitor without a token only a public function, which its route admits without one', () => {
+    expect(shownGate(functionGate('map', { roles: ['anonymous'] }, { roles }), { roles: ['anonymous'] })(visitor)).toBe(false)
+    expect(shownGate(functionGate('map', { public: true }, { roles }), { public: true })(visitor)).toBe(true)
+  })
+
+  it('shows a signed-in caller what the gate admits', () => {
+    expect(allowed(shownGate(functionGate('map', { roles: ['operator'] }, { roles }), { roles: ['operator'] }))).toEqual(['operator'])
   })
 })

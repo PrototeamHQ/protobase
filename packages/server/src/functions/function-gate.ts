@@ -36,6 +36,13 @@ export const functionGate = (name: string, options: FunctionOptions, access: Res
   return (session) => holds(session.user, '*')
 }
 
+/**
+ * Whether a page shows what a function draws to a caller: what its route admits. The route authenticates a protected
+ * function's caller without the anonymous role's fallback, so a visitor without a token sees only a public function.
+ */
+export const shownGate = (gate: FunctionGate, options: FunctionOptions): FunctionGate =>
+  options.public ? gate : (session) => !session.anonymous && gate(session)
+
 /** Throws the 403 problem for a caller the gate refuses. */
 export const requireGate = (name: string, gate: FunctionGate, session: Session) => {
   if (gate(session)) return
