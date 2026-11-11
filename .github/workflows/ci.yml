@@ -108,10 +108,10 @@ jobs:
       group: integration-${{ matrix.shard }}-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
-    # On a hosted runner the job runs in the Playwright image of the lockfile's Playwright version, which carries
-    # Chromium's system packages, so no run depends on reaching the apt mirrors. A self-hosted runner's server provides
-    # them. Raise the tag with Playwright in bun.lock.
-    container: &playwright-image ${{ !(github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER) && 'mcr.microsoft.com/playwright:v1.63.0-noble' || '' }}
+    # On a hosted runner, one whose label starts with `ubuntu-` (CHECK_RUNNER may name one too), the job runs in the
+    # Playwright image of the lockfile's Playwright version, which carries Chromium's system packages, so no run depends
+    # on reaching the apt mirrors. A self-hosted runner's server provides them. Raise the tag with Playwright in bun.lock.
+    container: &playwright-image ${{ startsWith(github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest', 'ubuntu-') && 'mcr.microsoft.com/playwright:v1.63.0-noble' || '' }}
     # The integration tests' Postgres, as docker-compose.yml runs it locally: same image and user. Its host port is a free
     # one Docker picks, not docker-compose.yml's fixed one, so each job's database is its own and one left behind by an
     # earlier job cannot hold the port this one needs.
