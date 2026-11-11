@@ -62,3 +62,12 @@ export const outlineShows = (style, width) => style === 'auto' || (style !== 'no
  */
 export const hiddenFocus = (focused) =>
   focused.filter(({ outline, outlineWidth }) => !outlineShows(outline, outlineWidth)).map(({ text, outline, outlineWidth }) => `"${text}" shows no outline when focused in forced colors (${outline} ${outlineWidth}px)`)
+
+/**
+ * The page's scrolling width and the top bar's links and buttons that run past the page's `width`: `page` is the page's
+ * scroll width and `bar` each shown control's text and right edge, in pixels.
+ */
+export const offScreen = ({ width, page, bar }) => [
+  ...(page > width ? [`the page is ${page}px wide, wider than ${width}px`] : []),
+  ...bar.filter(({ right }) => right > width).map(({ text, right }) => `the top bar's "${text}" ends at ${right}px, past ${width}px`),
+]

@@ -1,14 +1,15 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
-import { axProblems, fixedText, hiddenFocus } from './a11y-tree/ax-problems.mjs'
+import { axProblems, fixedText, hiddenFocus, offScreen } from './a11y-tree/ax-problems.mjs'
 import { openStory, settledTree } from './lib/story-layouts.mjs'
 
 /**
  * Checks what a screen reader and a larger text size meet on the main pages in the built Storybook (storybook-static),
  * on desktop and phone: Chromium's accessibility tree has no link or button without a name, one main landmark and no
- * heading that skips a level (a11y-tree/ax-problems.mjs), all text grows when the root text size doubles, and each
- * link and button shows an outline when focused in forced colors.
+ * heading that skips a level (a11y-tree/ax-problems.mjs), all text grows when the root text size doubles, the phone's
+ * page and top bar fit its width at 3.3 times the root text size, the largest accessibility size, and each link and
+ * button shows an outline when focused in forced colors.
  */
 const root = join(import.meta.dirname, '..')
 const storybookDir = join(root, 'storybook-static')
@@ -35,6 +36,16 @@ const textSizes = () => {
   })
 }
 
+// The page's scrolling width against the width it shows, and the right edge of each shown link and button of the top bar
+const widths = () => ({
+  width: document.documentElement.clientWidth,
+  page: document.documentElement.scrollWidth,
+  bar: [...document.querySelectorAll('header:has(> nav) a[href], header:has(> nav) button')].flatMap((element) => {
+    if (element.getClientRects().length === 0) return []
+    return [{ text: (element.getAttribute('aria-label') || element.textContent.trim()).slice(0, 40), right: Math.round(element.getBoundingClientRect().right) }]
+  }),
+})
+
 // Each shown link and button's outline style and width while focused from the keyboard, as `:focus-visible` matches it
 const focusOutlines = () =>
   [...document.querySelectorAll('a[href], button')].flatMap((element) => {
@@ -58,8 +69,16 @@ for (const shot of shots) {
   })
   await settledTree(page)
   const after = await page.evaluate(textSizes)
+  const fits = []
+  if (shot.viewport === 'phone') {
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '330%'
+    })
+    await settledTree(page)
+    fits.push(...offScreen(await page.evaluate(widths)))
+  }
   await page.emulateMedia({ forcedColors: 'active' })
-  const problems = [...axProblems(nodes), ...fixedText(before, after, 2), ...hiddenFocus(await page.evaluate(focusOutlines))]
+  const problems = [...axProblems(nodes), ...fixedText(before, after, 2), ...fits, ...hiddenFocus(await page.evaluate(focusOutlines))]
   await page.context().close()
   if (problems.length === 0) {
     console.log(`PASS ${shot.name}`)

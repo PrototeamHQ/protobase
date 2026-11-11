@@ -124,7 +124,9 @@ The list is `packages/ui/src/tokens.css`, and a test fails when one of its token
 
 The app's text follows the reader's text size: every size is in `rem`, so all of it grows with the root size. In a browser that is the browser's own text size; in the [iOS app](/guides/mobile-app/) the phone's text size, Dynamic Type included, and in the Android app the phone's font size. The base size is 0.875rem, 14px at a browser's default. A plugin's text follows it too when its sizes are in `rem`, such as Tailwind's `text-xs`, rather than pixels.
 
-<gap>The phone's top bar cannot fit its buttons at the largest accessibility text sizes, about three times the default, because its icons and buttons grow with the text and the bar neither wraps nor shrinks them.</gap>
+On a phone the top bar's buttons and icons grow with the text only as far as the screen's width allows, as a native app's bar does, so the menu, back, search and record-menu buttons all fit at the largest accessibility sizes, about three times the default; its text keeps growing and the back button's label shortens with an ellipsis.
+
+<gap>A list chart's Day and Week switch cannot fit a phone's width at the largest accessibility text sizes because a phone layout for it is not implemented.</gap>
 
 ## Logo and favicon
 
