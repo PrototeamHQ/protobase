@@ -114,3 +114,43 @@ export const FailedRefresh: StoryObj = {
     expect(canvasElement.querySelectorAll('main img')).toHaveLength(0)
   },
 }
+
+// A picture whose function answers bytes no browser can draw, and a function that answers a file that is no picture
+
+const damaged = page(
+  'damaged',
+  Page({
+    title: 'Damaged',
+    children: [
+      Card({ title: 'Map', children: Image({ function: 'damaged-map', alt: 'The damaged map', width: 120, height: 80 }) }),
+      Card({ title: 'Report', children: Image({ function: 'report', alt: 'The report', width: 120, height: 80 }) }),
+    ],
+  }),
+)
+
+const Damaged = () => {
+  const [client] = useState(() => {
+    const { client: base } = fakeApi({ resources: [], pages: [damaged.toModel()], rows: {} })
+    const invoke = async (name: string) =>
+      name === 'damaged-map' ? new Blob(['not a png'], { type: 'image/png' }) : new Blob(['%PDF-1.7'], { type: 'application/pdf' })
+    return { ...base, invoke } as typeof base
+  })
+  return (
+    <div className="min-h-screen">
+      <App client={client} auth={session} initialUrl="/damaged" />
+    </div>
+  )
+}
+
+/** A picture the browser cannot draw, and an answer that is no picture, each leave their alt. */
+export const Undrawable: StoryObj = {
+  name: 'A picture that cannot be drawn (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Damaged />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText('The damaged map', { selector: 'p' }, { timeout: 3000 })
+    await canvas.findByText('The report', { selector: 'p' })
+    expect(canvasElement.querySelectorAll('main img')).toHaveLength(0)
+  },
+}

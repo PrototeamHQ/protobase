@@ -287,7 +287,7 @@ export default defineFunction({ roles: ['admin', 'support'] }, async (request, {
 })
 ```
 
-The function reads records as the caller, so the picture shows only what they may see. A reader the function's `roles` or `capability` leave out gets the page without the block. So does a visitor without a token, unless the function is public, since only a public function takes a call without one. A client that draws no images, such as one that shows text only, shows `alt` in its place, or nothing without it; the admin app does the same when the function refuses or answers no image, also when a later request fails after an earlier one drew a picture. <gap>An Image cannot ask for a sharper picture on high-density screens because a scale in its query is not implemented.</gap>
+The function reads records as the caller, so the picture shows only what they may see. A reader the function's `roles` or `capability` leave out gets the page without the block. So does a visitor without a token, unless the function is public, since only a public function takes a call without one. A client that draws no images, such as one that shows text only, shows `alt` in its place, or nothing without it; the admin app does the same when the function refuses, answers no image or one the browser cannot draw, also when a later request fails after an earlier one drew a picture. <gap>An Image cannot ask for a sharper picture on high-density screens because a scale in its query is not implemented.</gap>
 
 ### Chart
 

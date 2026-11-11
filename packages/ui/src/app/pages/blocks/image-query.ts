@@ -22,3 +22,6 @@ export const imageRefetch = (refresh?: number) => ({
   refetchOnWindowFocus: false,
   ...(refresh !== undefined && { refetchInterval: refresh * 1000 }),
 })
+
+/** Whether a function's answer is a picture an `<img>` can draw: a `Blob` of an `image/*` type. */
+export const isPicture = (answer: unknown): answer is Blob => answer instanceof Blob && answer.type.startsWith('image/')

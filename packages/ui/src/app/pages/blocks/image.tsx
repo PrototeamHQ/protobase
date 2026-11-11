@@ -7,7 +7,7 @@ import { useElementWidth } from '../../../focus-page/use-element-width'
 import { Skeleton } from '../../../primitives/skeleton'
 import { useTheme } from '../../../theme/theme-provider'
 import { propsOf, type BlockProps } from './block-props'
-import { imageQuery, imageRefetch } from './image-query'
+import { imageQuery, imageRefetch, isPicture } from './image-query'
 
 /** A URL the `<img>` loads a fetched picture from, given back to the browser once another replaces it or the block goes. */
 const useObjectUrl = (blob: Blob | undefined) => {
@@ -21,10 +21,16 @@ const useObjectUrl = (blob: Blob | undefined) => {
   return url
 }
 
+/** Whether the browser failed to draw the picture at `url`, such as a damaged file; a new `url` is tried again. */
+const useBroken = (url: string | undefined) => {
+  const [broken, setBroken] = useState<string>()
+  return [broken !== undefined && broken === url, () => setBroken(url)] as const
+}
+
 /**
  * The picture an API function draws, fetched with the reader's token at the block's size, or the width it has, and the
  * page's theme, again every `refresh` seconds. The previous picture stays while the next loads. A function that refuses
- * or answers no picture, also on a later request, leaves its `alt`, or nothing.
+ * or answers no picture, also on a later request, or a picture the browser cannot draw, leaves its `alt`, or nothing.
  */
 export const ImageBlock = ({ node }: BlockProps) => {
   const { function: name, alt, width, height, refresh } = propsOf<ImageProps>(node)
@@ -39,18 +45,19 @@ export const ImageBlock = ({ node }: BlockProps) => {
     ...imageRefetch(refresh),
     queryFn: async () => {
       const answer = await client.invoke(name, { query })
-      if (!(answer instanceof Blob)) throw new Error(`The function "${name}" answered no picture`)
+      if (!isPicture(answer)) throw new Error(`The function "${name}" answered no picture`)
       return answer
     },
   })
   const url = useObjectUrl(picture.data)
+  const [broken, markBroken] = useBroken(url)
   const size = { ...(width !== undefined && { width }), ...(height !== undefined && { height }) }
   return (
     <div ref={ref} className="min-w-0">
-      {picture.isError ? (
+      {picture.isError || broken ? (
         alt && <p className="text-muted-foreground">{alt}</p>
       ) : url ? (
-        <img src={url} alt={alt ?? ''} style={size} className={width === undefined ? 'w-full max-w-full object-contain' : 'max-w-full object-contain'} />
+        <img src={url} alt={alt ?? ''} onError={markBroken} style={size} className={width === undefined ? 'w-full max-w-full object-contain' : 'max-w-full object-contain'} />
       ) : (
         <Skeleton className="w-full max-w-full" style={{ height: height ?? 160, ...(width !== undefined && { width }) }} />
       )}
