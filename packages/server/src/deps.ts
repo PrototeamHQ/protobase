@@ -13,9 +13,8 @@ import type { PluginOption } from './plugins/plugin-settings'
 import type { Registry } from './registry'
 import type { SourceOption } from './sources/source-settings'
 import type { ScanGuard } from './scan-guard'
-import type { AuditQueue, PipelineHook, WriteCheck } from './types'
+import type { AuditQueue, PipelineHook, Session, WriteCheck } from './types'
 import type { CallsService } from './calls/calls-service-type'
-import type { FunctionGate } from './functions/function-gate'
 
 /** Everything a route needs, built once by `createAdmin` and passed down explicitly. */
 export type Deps = {
@@ -38,7 +37,7 @@ export type Deps = {
   writeChecks: readonly WriteCheck[]
   accessOptions: ResolveOptions
   /** Who may call each API function, which `/meta` keeps a page's `Image` of for; no function without them. */
-  functionGates?: Record<string, FunctionGate>
+  functionGates?: Record<string, (session: Session) => boolean>
   /** The resources the pages' `Settings` blocks show: every caller, an admin too, reads and writes only their own records. */
   settingsResources: ReadonlySet<string>
   /** Where reveals of sensitive fields are published. */
