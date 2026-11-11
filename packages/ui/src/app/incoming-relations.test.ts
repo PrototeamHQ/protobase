@@ -43,6 +43,12 @@ describe('incomingRelations', () => {
     expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toEqual(['orders.customer_id', 'orders.supplier_id', 'order_lines.company_id'])
   })
 
+  it('leaves out the messages a thread of the record shows', () => {
+    const layout = [l.thread('Notes', { resource: 'orders', field: 'customer_id', sender: 'id', time: 'id', text: 'note' })]
+    const found = incomingRelations(company, resources, views, layout)
+    expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toEqual(['people.company_id', 'orders.supplier_id', 'order_lines.company_id'])
+  })
+
   it('leaves out a resource the user cannot see, which the meta does not hold', () => {
     const { people: _, ...visible } = resources
     expect(incomingRelations(company, visible, views, []).map((relation) => relation.resource)).not.toContain('people')

@@ -41,6 +41,8 @@ const placesView = view<typeof places>('places')
     l.gallery('Agency photos', { photos: { resource: 'agencies', field: 'place_id', image: 'name', sort: 'opened_at desc' } }),
     // The agencies stand in for samples: the shape reads only the relation and the time
     l.chart('Openings', { resource: 'agencies', field: 'place_id', at: 'opened_at', series: ['id'] }),
+    // The agencies stand in for messages: the shape reads only the relation and the time
+    l.thread('News', { resource: 'agencies', field: 'place_id', sender: 'owner_id', time: 'opened_at', text: 'name' }),
   ])
 
 const home = page(
@@ -163,6 +165,12 @@ describe('readShapes', () => {
     const chart = shapes.find((shape) => shape.from === 'chart "Openings" on the places record page')
     expect(chart).toMatchObject({ resource: 'agencies', request: 'GET /agencies:aggregate?group_by=opened_at&filter=place_id = …', query: { groupBy: 'opened_at' } })
     expect(chart?.query.filter).toMatchObject({ kind: 'compare', field: { name: 'place_id' } })
+  })
+
+  it("reads a thread's latest messages of this record, newest first", () => {
+    const thread = shapes.find((shape) => shape.from === 'thread "News" on the places record page')
+    expect(thread).toMatchObject({ resource: 'agencies', request: 'GET /agencies?filter=place_id = …&order_by=opened_at desc', query: { sort: [['opened_at', 'desc']] } })
+    expect(thread?.query.filter).toMatchObject({ kind: 'compare', field: { name: 'place_id' } })
   })
 
   it("reads a related section's records by this record's key, with its filter and sort", () => {

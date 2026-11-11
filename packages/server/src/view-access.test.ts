@@ -326,6 +326,27 @@ describe('pruneView', () => {
     expect(charts(['repairId'])).toEqual([])
   })
 
+  it("keeps a repair's conversation for a caller who can read its messages, and its box for one who can write them", () => {
+    const notes = resource('repair_notes')
+      .table('repair_notes')
+      .fields({ id: f.integer(), repairId: f.relation('repairs').filterable(), author: f.text(), at: f.timestamp().sortable(), body: f.text() })
+      .primaryKey((r) => r.id)
+      .toModel()
+    const written = view<typeof repairs>('repairs')
+      .layout(() => [l.thread('Notes', { resource: 'repair_notes', field: 'repairId', sender: 'author', time: 'at', text: 'body' }), l.composer({ resource: 'repair_notes', field: 'repairId', text: 'body' })])
+      .toModel()
+    const layout = (hidden: string[], writable = Object.keys(notes.fields)) => {
+      const readableFields = Object.keys(notes.fields).filter((name) => !hidden.includes(name))
+      const models = { ...all, repair_notes: restrictModel(notes, { readableFields, writableFields: { create: writable, update: [] } }) }
+      return pruneView(written, models.repairs, models).layout.map((item) => item.kind)
+    }
+    expect(layout([])).toEqual(['thread', 'composer'])
+    expect(layout([], [])).toEqual(['thread'])
+    expect(layout(['body'])).toEqual([])
+    expect(layout(['repairId'])).toEqual([])
+    expect(layout(['at'])).toEqual(['composer'])
+  })
+
   it('keeps hideEmpty and a record condition, and leaves out an item whose condition names a field the caller cannot read', () => {
     const written = view<typeof repairs>('repairs')
       .layout((r) => [l.section('Paid', [r.status], { when: 'paid = true' }), l.sidebar([r.number], { when: 'paid = true' }), l.related('Photos', { resource: 'repair_photos', field: 'repairId', when: 'paid = true', hideEmpty: true })])

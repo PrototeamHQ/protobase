@@ -7,6 +7,7 @@ import { cardPhotosErrors } from './view-card-photos'
 import { saveSearchErrors, searchesOfErrors } from './view-saved-search'
 import { chartErrors } from './view-chart'
 import { mapDisplayErrors, mapErrors } from './view-map'
+import { composerSectionErrors, threadSectionErrors } from './view-conversation'
 import { recordChartErrors } from './view-record-chart'
 import { relatedActionErrors, relatedButtonErrors, relatedSectionErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
@@ -216,7 +217,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * edits a list column in its cell that is not a field with an editor of one line the API may write,
  * has a section, related section or sidebar whose `when` condition names what the app does not have, a related section or related list column, more than one related section of lines, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
  * `searchesOf` that do not fit the resources, cards
- * displays of one list that name different photos, a chart per value that cannot group or add up its fields, a chart of related records that does not fit them, a map that cannot show the
+ * displays of one list that name different photos, a chart per value that cannot group or add up its fields, a chart of related records or a conversation that does not fit them, a map that cannot show the
  * record's position or a map display that cannot find the records in its view, a board whose columns are no filterable enum, a calendar or timeline whose dates are no filterable date or timestamp fields, a link to an address the app does not have, an action whose `when` reads what the record does not have, an AI action that cannot write its field, action inputs that do not fit, or a create page that is not one of `pages`.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
@@ -257,8 +258,13 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       ...layoutItems(view.layout).flatMap((item) => (item.kind === 'chart' ? recordChartErrors(item, view.resource, models).map((error) => `chart "${item.title}": ${error}`) : [])),
     ]
     const history = model.history ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
+    const conversations = layoutItems(view.layout).flatMap((item) => {
+      if (item.kind === 'thread') return threadSectionErrors(item, view.resource, models).map((error) => `thread "${item.title}": ${error}`)
+      if (item.kind === 'composer') return composerSectionErrors(item, view.resource, models).map((error) => `composer of ${item.resource}: ${error}`)
+      return []
+    })
     const comments = model.comments ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...notOnCreateErrors(view, model), ...numberHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...opensErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...notOnCreateErrors(view, model), ...numberHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...conversations, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...opensErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
   }
   // A named list is checked as a view of its own, without the record page, which the view's own check covers
   const problems = views.flatMap((view) => {

@@ -62,6 +62,8 @@ import { relatedValue } from './related-value'
 import { ValueBadge } from './value-badge'
 import { useClient } from '../data/api-provider'
 import { markdownExcerpt } from '../markdown/markdown-excerpt'
+import { ComposerSection } from './conversation/composer-section'
+import { ThreadSection } from './conversation/thread-section'
 import { isMarkdown } from '../markdown/markdown-hint'
 import { ContactLink } from '../live/contact-link'
 import { contactFormat } from '../live/contact-links'
@@ -345,6 +347,9 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
     if (item.kind === 'gallery') return [<GallerySection key={`gallery:${index}`} item={item} record={stored.record} recordKey={recordKey} />]
     if (item.kind === 'history') return [<HistorySection key={`history:${index}`} item={item} model={model} view={view} recordKey={recordKey} etag={stored.etag} />]
+    if (item.kind === 'thread') return [<ThreadSection key={`thread:${index}`} item={item} recordKey={recordKey} />]
+    // Writing waits for the record, so a message never goes out from the preview
+    if (item.kind === 'composer') return preview ? [] : [<ComposerSection key={`composer:${index}`} item={item} owner={model} recordKey={recordKey} />]
     if (item.kind === 'comments') return [<CommentsSection key={`comments:${index}`} item={item} resource={model.name} recordKey={recordKey} canWrite={auth.kind !== 'visitor'} />]
     if (item.kind !== 'section') return []
     // A section whose fields are all hidden from this user would be a lone heading, as would key facts all empty

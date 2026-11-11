@@ -348,4 +348,24 @@ describe('checkViews', () => {
     )
     expect(() => checkViews(shopsRegistry, [mapped((r) => [l.map('Location', { latitude: r.secret_lat, longitude: r.lng })])])).toThrow('View "shops": sensitive field "secret_lat" cannot be in a map')
   })
+
+  it("takes a record's conversation over messages that point at it, and names what does not fit", () => {
+    const tasks = resource('tasks').table('tasks').fields({ id: f.integer() }).primaryKey((r) => r.id)
+    const notes = resource('task_notes')
+      .table('task_notes')
+      .fields({ id: f.integer(), task_id: f.relation('tasks').filterable(), payment_id: f.relation('payments').filterable(), author: f.text(), at: f.timestamp().sortable(), body: f.text(), done: f.boolean(), secret: f.text().sensitive() })
+      .primaryKey((r) => r.id)
+    const conversation = { entries: [...registry.entries, { name: 'tasks', model: tasks.toModel() }, { name: 'task_notes', model: notes.toModel() }] } as unknown as Registry
+    const tasksView = (...layout: ReturnType<typeof l.thread>[]) => view<typeof tasks>('tasks').layout(() => layout).toModel()
+    const thread = { resource: 'task_notes', field: 'task_id', sender: 'author', time: 'at', text: 'body' }
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', thread), l.composer({ resource: 'task_notes', field: 'task_id', text: 'body' }))])).not.toThrow()
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, field: 'payment_id' }))])).toThrow('View "tasks": thread "Notes": field: "payment_id" on task_notes is not a relation to tasks')
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, time: 'body' }))])).toThrow('thread "Notes": time: "body" is text; a thread orders its messages by a date or timestamp field')
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, text: 'secret' }))])).toThrow('thread "Notes": "secret" on task_notes is sensitive')
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, resource: 'nope' }))])).toThrow('thread "Notes": unknown resource "nope"')
+    expect(() => checkViews(conversation, [tasksView(l.composer({ resource: 'task_notes', field: 'payment_id', text: 'done' }))])).toThrow(
+      'composer of task_notes: field: "payment_id" on task_notes is not a relation to tasks',
+    )
+    expect(() => checkViews(conversation, [tasksView(l.composer({ resource: 'task_notes', field: 'task_id', text: 'done' }))])).toThrow('composer of task_notes: text: "done" is boolean; a message is written into a text field')
+  })
 })

@@ -64,6 +64,8 @@ export type {
   GalleryModel,
   HistorySectionModel,
   CommentsSectionModel,
+  ThreadSectionModel,
+  ComposerSectionModel,
   ChartRange,
   ChartGranularity,
   ChartModel,

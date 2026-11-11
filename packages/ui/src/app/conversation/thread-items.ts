@@ -1,5 +1,5 @@
-import type { ChatAuthor } from '../../../chat'
-import { chatDayLabel, sameChatDay } from '../../../chat/chat-day'
+import type { ChatAuthor } from '../../chat'
+import { chatDayLabel, sameChatDay } from '../../chat/chat-day'
 
 type Row = Record<string, unknown>
 

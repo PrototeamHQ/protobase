@@ -1020,6 +1020,57 @@ export type CommentsSectionModel = {
   when?: ShowWhen
 }
 
+/**
+ * The conversation of a record: the latest `limit` records of the message resource `resource` whose relation `field`
+ * holds the record's key, oldest first, each `text` under its `sender` and `time`, with earlier ones on request. The text
+ * shows as markdown when the message resource's view marks it `.markdown()`. See
+ * [Conversations](docs/website/src/content/docs/reference/ui-config.mdx#conversations).
+ */
+export type ThreadSectionModel = {
+  /** A record's conversation. */
+  kind: 'thread'
+  /** The section's title. */
+  title: string
+  /** A line under the title. */
+  help?: string
+  /** The message resource. */
+  resource: string
+  /** The filterable relation of `resource` that holds this record's key. */
+  field: string
+  /** Who wrote each message: a relation, named as the record it points at, or a text field. */
+  sender: string
+  /** When each message was sent: a date or timestamp field the API can sort by. */
+  time: string
+  /** The message itself: a text field. */
+  text: string
+  /** How many of the latest messages it shows at first; 50 when omitted. */
+  limit?: number
+  /** What it says while there are no messages. */
+  empty?: string
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
+}
+
+/**
+ * A box that adds a message to the record's conversation: each send creates a record of `resource` with the text in
+ * `text` and the record's key in the relation `field`, as the signed-in user. It shows only to a user who may create
+ * them. See [Conversations](docs/website/src/content/docs/reference/ui-config.mdx#conversations).
+ */
+export type ComposerSectionModel = {
+  /** A box that sends a message about the record. */
+  kind: 'composer'
+  /** The message resource. */
+  resource: string
+  /** The relation of `resource` each message gets the record's key in. */
+  field: string
+  /** The text field the message goes in. */
+  text: string
+  /** The hint in the empty box. */
+  placeholder?: string
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
+}
+
 /** How a section shows its fields on the read view: `facts` as a row of key facts; label/value rows when omitted. */
 export type SectionPresentation = 'facts'
 
@@ -1063,6 +1114,8 @@ export type LayoutItemModel =
   | GalleryModel
   | HistorySectionModel
   | CommentsSectionModel
+  | ThreadSectionModel
+  | ComposerSectionModel
   | TabModel
 
 /** A titled group of sections and related tables on the record page, closed until opened with `collapsed`; see [Groups](docs/website/src/content/docs/reference/ui-config.mdx#groups). */
@@ -1103,6 +1156,8 @@ export type TabItemModel =
   | GalleryModel
   | HistorySectionModel
   | CommentsSectionModel
+  | ThreadSectionModel
+  | ComposerSectionModel
 
 /**
  * A record's photos as tiles in the main column under `title`, one large and the next few smaller, opening a lightbox

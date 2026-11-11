@@ -279,7 +279,7 @@ Each value takes its colour from the view's `valueColors`, else an enum value's 
 
 ## Conversation
 
-A chat declared in the layout like any other block: a `Thread` lists the messages of a resource and a `Composer` beneath it sends one, so [`/meta`](/reference/api/#meta-and-openapi-per-caller) describes the conversation and every client can draw it, with no component of the app's own.
+A chat declared in the layout like any other block: a `Thread` lists the messages of a resource and a `Composer` beneath it sends one, so [`/meta`](/reference/api/#meta-and-openapi-per-caller) describes the conversation and every client can draw it, with no component of the app's own. On a record page, [`l.thread` and `l.composer`](/reference/ui-config/#conversations) hold the conversation of that record.
 
 ```tsx
 <Card title="General">
@@ -299,7 +299,7 @@ The latest messages that match `filter`, oldest first, each under its sender's n
 | `resource`, `filter` | Which messages. `resource` is required. |
 | `sender` | Who wrote each message: a relation, named as the record it points at, or a text field. Required. |
 | `time` | When each was sent: a date or timestamp field the API can sort by, which orders them. Required. |
-| `text` | The message. Required. |
+| `text` | The message; shown rendered when the message resource's view marks it [`.markdown()`](/reference/ui-config/#names-and-columns). Required. |
 | `limit` | How many of the latest it shows at first, and how many each **Load earlier messages** adds; default 50. |
 | `title`, `description`, `actions` | The heading; no card is drawn around the thread, so it can sit in a `Card` with its composer. |
 | `empty` | Text while there are no messages. |

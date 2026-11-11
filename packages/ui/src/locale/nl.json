@@ -501,6 +501,12 @@
     "emailNewCode": "Mail een nieuwe code",
     "nothingToConfirmWith": "Voeg eerst een passkey of een authenticator-app toe op je accountpagina."
   },
+  "app/conversation": {
+    "couldNotLoad": "Kon de berichten niet laden",
+    "notSent": "Niet verzonden",
+    "noMessages": "Nog geen berichten.",
+    "loadingMessages": "Berichten laden…"
+  },
   "app/create": {
     "title": "{noun} toevoegen",
     "subject": "{noun}",
@@ -1254,10 +1260,7 @@
     "wholeNumber": "Een geheel getal",
     "number": "Een getal",
     "dateFormat": "Een datum als JJJJ-MM-DD",
-    "atMost": "Hoogstens {max} tekens",
-    "notSent": "Niet verzonden",
-    "noMessages": "Nog geen berichten.",
-    "loadingMessages": "Berichten laden…"
+    "atMost": "Hoogstens {max} tekens"
   },
   "app/rank-after": {
     "dependsOn": "{record} hangt af van {other}."

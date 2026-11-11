@@ -1,4 +1,5 @@
-import type { FilterWidgetModel, GalleryModel, RecordChartModel, RelatedModel, ResourceModel, SortSpec, ViewModel } from '@protobase/schema'
+import { threadSort } from '@protobase/layout'
+import type { FilterWidgetModel, GalleryModel, RecordChartModel, RelatedModel, ResourceModel, SortSpec, ThreadSectionModel, ViewModel } from '@protobase/schema'
 import { isGroupChart, layoutItems, viewOfList } from '@protobase/schema/internal'
 import type { ReadShape } from './read-shape'
 import { all, any, anyOf, compare, configFilter, configSort, isTrue, sortText } from './shape-filters'
@@ -99,6 +100,15 @@ const recordChartShapes = (item: RecordChartModel, owner: string, models: Models
   return [{ resource: target.name, request: `GET /${target.name}:aggregate?group_by=${item.at}&filter=${field.name} = …`, from: `chart "${item.title}" on the ${owner} record page`, query: { filter: compare(field), groupBy: item.at } }]
 }
 
+// A record's conversation reads the latest messages of the one record on the page, newest first.
+const threadShapes = (item: ThreadSectionModel, owner: string, models: Models): ReadShape[] => {
+  const target = models[item.resource]
+  const field = target?.fields[item.field]
+  if (!target || !field || !target.fields[item.time]) return []
+  const sort = configSort(target, threadSort(item.time))
+  return [{ resource: target.name, request: request(target.name, `${field.name} = …`, sort), from: `thread "${item.title}" on the ${owner} record page`, query: { filter: compare(field), ...(sort && { sort }) } }]
+}
+
 const displayShapes = (model: ResourceModel, view: ViewModel, models: Models): ReadShape[] =>
   (view.list?.displays ?? []).flatMap((display): ReadShape[] => {
     if (display.kind === 'map') {
@@ -178,7 +188,7 @@ const listShapes = (model: ResourceModel, view: ViewModel, list: string, models:
 
 /**
  * The reads a view's pages make: its list in its order, the filter widgets and their counts, its chart per value, its displays' maps,
- * board columns and photos, the records of its related sections and charts and the photos of its galleries, the recent records in the sidebar, a saved search's new records and the records sorted by hand.
+ * board columns and photos, the records of its related sections, charts and conversations and the photos of its galleries, the recent records in the sidebar, a saved search's new records and the records sorted by hand.
  */
 export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
   const model = models[view.resource]
@@ -187,7 +197,7 @@ export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
   return [
     ...listShapes(model, view, list, models),
     ...(view.lists ?? []).flatMap((named) => listShapes(model, viewOfList(view, named.name)!, `${list} "${named.name}"`, models)),
-    ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? relatedShapes(item, model.name, models) : item.kind === 'gallery' ? galleryShapes(item, model.name, models) : item.kind === 'chart' ? recordChartShapes(item, model.name, models) : [])),
+    ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? relatedShapes(item, model.name, models) : item.kind === 'gallery' ? galleryShapes(item, model.name, models) : item.kind === 'chart' ? recordChartShapes(item, model.name, models) : item.kind === 'thread' ? threadShapes(item, model.name, models) : [])),
     ...recentShapes(model, view),
     ...searchesShapes(view, models),
     ...handOrderShapes(model, view, list, models),

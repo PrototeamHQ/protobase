@@ -476,6 +476,22 @@ describe('view builder', () => {
     expect(() => l.chart('Usage', { ...samples, series: [] })).toThrow('l.chart "Usage" needs at least one series')
   })
 
+  it("puts a record's conversation and the box that writes to it in the record layout, and refuses a limit that is no positive whole number", () => {
+    const task = resource('task').table('tasks').fields({ id: f.integer() }).primaryKey((r) => r.id)
+    const messages = { resource: 'task_messages', field: 'task_id' }
+    const model = view<typeof task>('task')
+      .layout(() => [
+        l.thread('Conversation', { ...messages, sender: 'author_id', time: 'sent_at', text: 'body', limit: 20, empty: 'Nothing yet.', help: 'Between the team.', when: 'reading' }),
+        l.composer({ ...messages, text: 'body', placeholder: 'Write a message' }),
+      ])
+      .toModel()
+    expect(model.layout).toEqual([
+      { kind: 'thread', title: 'Conversation', ...messages, sender: 'author_id', time: 'sent_at', text: 'body', limit: 20, empty: 'Nothing yet.', help: 'Between the team.', when: 'reading' },
+      { kind: 'composer', ...messages, text: 'body', placeholder: 'Write a message' },
+    ])
+    expect(() => l.thread('Conversation', { ...messages, sender: 'author_id', time: 'sent_at', text: 'body', limit: 0 })).toThrow('l.thread "Conversation": limit must be a positive whole number')
+  })
+
   it('puts sections and related tables in a group, refuses other items, and refuses two groups with one title', () => {
     const home = resource('home').table('homes').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
     const related = { resource: 'notes', field: 'home_id' }
