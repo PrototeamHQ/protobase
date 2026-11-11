@@ -157,4 +157,13 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     await settled(objective.id, 'open')
     await settled(objective.id, 'late')
   })
+
+  it('forgets a derived value no longer declared, so declaring it again fills it again', async () => {
+    const models = [objectives.toModel(), tasks.toModel()]
+    const removal = await derivedMigration(db, [{ ...models[0]!, derived: [] }, models[1]!])
+    expect(removal).toContain(`delete from "derived"."declared" where "name" = 'objectives.verdict'`)
+    await pg.exec(removal!)
+    expect(await sql`select 1 from derived.values where name = 'objectives.verdict'`.execute(db)).toMatchObject({ rows: [] })
+    expect(await derivedMigration(db, models)).toContain(`select jobs.enqueue('derived.fill'`)
+  })
 })

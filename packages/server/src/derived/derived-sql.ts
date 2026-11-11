@@ -67,21 +67,24 @@ const quote = (text: string) => `'${text.replaceAll("'", "''")}'`
 
 /**
  * The SQL that adds the `derived` schema and its tables, and for each derived value not declared before, marks it
- * declared and enqueues the job that computes its records once; `undefined` when there is nothing to do.
+ * declared and enqueues the job that computes its records once. A value no longer declared loses its mark, state and
+ * reads, so declaring it again fills it again. `undefined` when there is nothing to do.
  */
 export const derivedMigration = async (db: Db, models: readonly ResourceModel[]) => {
   const names = derivedNames(models)
-  if (names.length === 0) return undefined
   const exists = await hasTables(db)
-  const tables = exists && (await hasIndexes(db, derivedSchema, 'reads', indexes.map(([name]) => name)))
+  if (names.length === 0 && !exists) return undefined
+  const tables = names.length === 0 || (exists && (await hasIndexes(db, derivedSchema, 'reads', indexes.map(([name]) => name))))
   const known = exists ? await declared(db) : new Set<string>()
   const fresh = names.filter((name) => !known.has(name))
-  if (tables && fresh.length === 0) return undefined
+  const gone = [...known].filter((name) => !names.includes(name))
+  if (tables && fresh.length === 0 && gone.length === 0) return undefined
+  const removals = gone.flatMap((name) => ['declared', 'reads', 'values'].map((table) => `delete from "${derivedSchema}"."${table}" where "name" = ${quote(name)}`))
   const fills = fresh.flatMap((name) => [
     `insert into "${derivedSchema}"."declared" ("name") values (${quote(name)}) on conflict do nothing`,
     `select ${jobsSchema}.enqueue(${quote(fillJobName)}, ${quote(JSON.stringify({ name }))}::jsonb, key => ${quote(name)})`,
   ])
-  return [...(tables ? [] : [`${derivedTablesSql()};`]), ...fills.map((statement) => `${statement};`)].join('\n\n')
+  return [...(tables ? [] : [`${derivedTablesSql()};`]), ...[...removals, ...fills].map((statement) => `${statement};`)].join('\n\n')
 }
 
 /** Refuses to go on while a resource has derived values and the database lacks their tables; the project's migrations add them. */
