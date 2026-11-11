@@ -46,4 +46,13 @@ describe('a conversation', () => {
     expect(problems(Composer({ resource: 'messages', field: 'nope', values: { channel: 'x' } }))).toEqual([`${composer}: field: unknown field "nope" on messages`, `${composer}: values: unknown field "channel" on messages`])
     expect(problems(Composer({ resource: 'chats', field: 'body' }))).toEqual(['<Page> › <Composer resource="chats">: unknown resource "chats"'])
   })
+  it('sends with each message only values of fields the sender may set', () => {
+    expect(problems(Composer({ resource: 'messages', field: 'body', values: { room: 'general', pinned: true } }))).toEqual([])
+    expect(problems(Composer({ resource: 'messages', field: 'body', values: { sentAt: '2026-01-01T00:00:00Z', organizationId: 2, author: 3, channel: 'x' } }))).toEqual([
+      `${composer}: values: "sentAt" is read-only on messages, so a message cannot set it`,
+      `${composer}: values: "organizationId" is read-only on messages, so a message cannot set it`,
+      `${composer}: values: "author" is read-only on messages, so a message cannot set it`,
+      `${composer}: values: unknown field "channel" on messages`,
+    ])
+  })
 })
