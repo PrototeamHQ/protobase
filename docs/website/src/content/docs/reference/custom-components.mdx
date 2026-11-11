@@ -120,10 +120,22 @@ export const CustomerRepairs = ({ limit }: { limit: number }) => {
 
 A list that should stay live polls: `useList('repairs', { refetchInterval: 5000 })` refetches every 5 seconds. It is TanStack Query's `refetchInterval`, so it also takes `false` to stop, or a function of the query, and pauses while the tab is in the background.
 
-`fallback` gives what shows in the section's place, its title included, where the component cannot be drawn: sections and related tables in the main column, sidebar maps in the sidebar, or `[]` for nothing. `/api/meta` sends it with what the user cannot see left out, as [fallbacks](#fallbacks) of composed pages. <gap>A sidebar section cannot fall back to sections or related tables because drawing those in the sidebar is not implemented.</gap>
+### Record section fallbacks
+
+:::caution[Experimental]
+A sidebar section falls back only to sidebar maps and other sidebar custom components. This may change in any release.
+:::
+
+`fallback` gives what shows in the section's place, its title included, where the component cannot be drawn, such as on a watch: any item of the main column, conversations and other custom components included, sidebar maps and sidebar custom components in the sidebar, or `[]` for nothing. Each item is checked and left out per user as it is elsewhere on the page, so `/api/meta` sends the fallback without a thread the user cannot read or a composer that cannot create their messages, as [fallbacks](#fallbacks) of composed pages. <gap>A sidebar section cannot fall back to sections or related tables because drawing those in the sidebar is not implemented.</gap> <gap>A sidebar section cannot fall back to an `l.sidebar` summary card because merging a fallback's fields into the page's one summary is not implemented.</gap>
 
 ```ts
 l.custom(CustomerRepairs, { title: 'Earlier repairs', props: { limit: 5 }, fallback: [l.section('Customer', [r.customer_id])] })
+l.custom(RepairChat, {
+  fallback: [
+    l.thread('Chat', { resource: 'repair_messages', field: 'repair_id', sender: 'author_id', time: 'sent_at', text: 'body' }),
+    l.composer({ resource: 'repair_messages', field: 'repair_id', text: 'body' }),
+  ],
+})
 ```
 
 ## Full-area record pages

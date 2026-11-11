@@ -351,6 +351,40 @@ describe('pruneView', () => {
     expect(layout(['at'])).toEqual(['composer'])
   })
 
+  it("prunes a conversation in a custom section's fallback as one outside it", () => {
+    const Chat = Object.assign(() => null, { blockName: 'Chat', custom: true })
+    const notes = resource('repair_notes')
+      .table('repair_notes')
+      .fields({ id: f.integer(), repairId: f.relation('repairs').filterable(), author: f.text(), at: f.timestamp().sortable(), body: f.text() })
+      .primaryKey((r) => r.id)
+      .toModel()
+    const written = view<typeof repairs>('repairs')
+      .layout(() => [l.custom(Chat, { fallback: [l.thread('Notes', { resource: 'repair_notes', field: 'repairId', sender: 'author', time: 'at', text: 'body' }), l.composer({ resource: 'repair_notes', field: 'repairId', text: 'body' })] })])
+      .toModel()
+    const fallback = (hidden: string[], create = Object.keys(notes.fields)) => {
+      const readableFields = Object.keys(notes.fields).filter((name) => !hidden.includes(name))
+      const models = { ...all, repair_notes: restrictModel(notes, { readableFields, writableFields: { create, update: [] } }) }
+      const [item] = pruneView(written, models.repairs, models, new Set(), new Set(), new Set(), { repair_notes: create }).layout
+      return item?.kind === 'custom' ? item.fallback?.map((each) => each.kind) : item?.kind
+    }
+    expect(fallback([])).toEqual(['thread', 'composer'])
+    expect(fallback(['at'])).toEqual(['composer'])
+    expect(fallback([], [])).toEqual(['thread'])
+    expect(fallback(['at'], [])).toEqual([])
+  })
+
+  it("prunes a custom section in another's fallback by what it holds", () => {
+    const Quote = Object.assign(() => null, { blockName: 'Quote', custom: true })
+    const written = view<typeof repairs>('repairs')
+      .layout((r) => [l.custom(Quote, { fallback: [l.custom(Quote, { fallback: [l.section('Quote', [r.estimate]), l.section('Repair', [r.status])] }), l.custom(Quote, { props: { amount: r.estimate } })] })])
+      .toModel()
+    expect(pruneView(written, all.repairs, all).layout).toEqual(written.layout)
+    const hidden = without({ repairs: ['estimate'] })
+    expect(pruneView(written, hidden.repairs!, hidden).layout).toEqual([
+      { kind: 'custom', component: 'Quote', fallback: [{ kind: 'custom', component: 'Quote', fallback: [{ kind: 'section', title: 'Repair', fields: ['status'] }] }] },
+    ])
+  })
+
   it('keeps hideEmpty and a record condition, and leaves out an item whose condition names a field the caller cannot read', () => {
     const written = view<typeof repairs>('repairs')
       .layout((r) => [l.section('Paid', [r.status], { when: 'paid = true' }), l.sidebar([r.number], { when: 'paid = true' }), l.related('Photos', { resource: 'repair_photos', field: 'repairId', when: 'paid = true', hideEmpty: true })])

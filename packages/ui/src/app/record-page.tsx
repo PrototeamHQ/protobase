@@ -370,6 +370,13 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     ]
   }
 
+  // A sidebar map, or a sidebar custom section with its fallback of sidebar maps and custom sections in its place
+  const sidebarCard = (item: LayoutItemModel, index: number): ReactElement | null => {
+    if (item.kind === 'map') return <MapSection key={`map:${index}`} item={item} record={stored.record} />
+    if (item.kind !== 'custom') return null
+    return <CustomSection key={`custom:${index}`} item={item} scope={scope} fallback={item.fallback && <>{item.fallback.map(sidebarCard)}</>} />
+  }
+
   return (
     // The preview looks as the loaded form will, but takes no input: typing there would be lost when the record loads
     <div ref={fieldsRef} className="flex flex-1 flex-col" inert={preview}>
@@ -423,11 +430,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
               {!preview && <RecordActions model={model} stored={stored} recordKey={recordKey} edit={offersEdit ? editAddress : undefined} onDelete={startDelete} />}
               {firstSidebar === -1 && summary}
               {layout.map((item, index) => {
-                if (item.kind === 'custom' && item.sidebar && !preview) {
-                  const fallback = item.fallback && <>{item.fallback.map((each, at) => each.kind === 'map' && <MapSection key={at} item={each} record={stored.record} />)}</>
-                  return <CustomSection key={`custom:${index}`} item={item} scope={scope} fallback={fallback} />
-                }
-                if (item.kind === 'map' && item.sidebar && !preview) return <MapSection key={`map:${index}`} item={item} record={stored.record} />
+                if ((item.kind === 'custom' || item.kind === 'map') && item.sidebar && !preview) return sidebarCard(item, index)
                 return index === firstSidebar ? <Fragment key="summary">{summary}</Fragment> : null
               })}
               {/* The record's timestamps, but for those the Summary shows already */}
