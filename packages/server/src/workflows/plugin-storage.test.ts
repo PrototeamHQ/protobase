@@ -1,6 +1,8 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { readdir } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { readdir, stat } from 'node:fs/promises'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { secretRedactor, StepError } from '@protobase/workflows'
@@ -22,12 +24,21 @@ const session: Session = { user: { id: 'u1', roles: ['author'] } }
 const writesFor = ({ writes }: StepType, input: Record<string, unknown>) => (typeof writes === 'function' ? writes(input) : writes)
 const failure = (promise: Promise<unknown>) => promise.then(() => undefined, (error: unknown) => (error instanceof StepError ? [error.error, error.reason] : error))
 
+/** The size of the largest file a local store is still writing in `dir`, its `.tmp/`; 0 before it starts one. */
+const largestWriting = async (dir: string) => {
+  if (!existsSync(dir)) return 0
+  const sizes = await Promise.all((await readdir(dir)).map(async (name) => (await stat(join(dir, name))).size))
+  return Math.max(0, ...sizes)
+}
+
 describe('the storage steps and app:http with store, run through the plugin interface', () => {
   let server: Server
   let base: string
   let folder: Awaited<ReturnType<typeof tempDir>>
   let files: FilesRuntime
   let requests = 0
+  // How much of the big answer was on disk when half of it had been sent
+  let writtenAtHalf = 0
 
   beforeAll(async () => {
     folder = await tempDir()
@@ -35,12 +46,19 @@ describe('the storage steps and app:http with store, run through the plugin inte
     server = createServer((request, response) => {
       requests++
       if (request.url === '/big.bin') {
-        // Generated as it is sent, chunked with no Content-Length, so neither side holds the whole body.
+        // Generated as it is sent, chunked with no Content-Length, so neither side holds the whole body. Halfway it waits,
+        // for 10 seconds at most, until the store has written a quarter: one that held the body would have written nothing.
         response.writeHead(200, { 'content-type': 'application/octet-stream' })
         const chunk = Buffer.alloc(mib, 7)
         let sent = 0
+        const halfway = async () => {
+          const writing = join(folder.dir, 'storage', 'archive', '.tmp')
+          const until = Date.now() + 10_000
+          while ((writtenAtHalf = await largestWriting(writing)) < bigSize / 4 && Date.now() < until) await sleep(10)
+        }
         const more = () => {
           while (sent < bigSize) {
+            if (sent === bigSize / 2 && writtenAtHalf === 0) return void halfway().then(more)
             sent += chunk.length
             if (!response.write(chunk)) return void response.once('drain', more)
           }
@@ -106,16 +124,9 @@ describe('the storage steps and app:http with store, run through the plugin inte
     expect(await failure(step('app:storage.get')({ file: { configuration: 'archive', path: 'missing.pdf', name: 'missing.pdf', type: 'application/pdf', size: 1 } }, context()))).toEqual(['Storage.NotFound', 'file names a file that is gone from "archive"'])
   })
 
-  it('streams a 150 MB answer into a local configuration while the heap stays far below its size', async () => {
-    const gc = (globalThis as { gc?: () => void }).gc
-    gc?.()
-    const before = process.memoryUsage().heapUsed
-    let peak = before
-    const sampler = setInterval(() => { peak = Math.max(peak, process.memoryUsage().heapUsed) }, 5)
+  it('streams a 150 MB answer into a local configuration, writing it to disk while the rest still arrives', async () => {
     const result = (await step('app:http')({ url: `${base}/big.bin`, store: { configuration: 'archive', path: 'big.bin' } }, context())) as { body: { size: number } }
-    clearInterval(sampler)
     expect(result.body.size).toBe(bigSize)
-    // A fifth of the file: holding it, or any large part of it, would pass this whatever the collector's timing.
-    expect(peak - before).toBeLessThan(bigSize / 5)
+    expect(writtenAtHalf).toBeGreaterThanOrEqual(bigSize / 4)
   }, 60_000)
 })
