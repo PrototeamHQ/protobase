@@ -1,17 +1,17 @@
 div | block
   div .h-screen | block
     div .flex min-h-full w-full overflow-x-clip bg-background | flex row nowrap normal normal
-      nav .sticky top-0 h-dvh self-start z-30 shrink-0 w-52 | block sticky
+      nav .sticky top-0 h-dvh self-start z-30 shrink-0 w-52 max-w-[33vw] | block sticky
         div .group/side absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r bg-sidebar pb-[var(--pb-safe-bottom)] pt-[var(--pb-safe-top)] w-full | flex column nowrap normal normal absolute
           div .flex h-12 shrink-0 items-center px-3.5 | flex row nowrap center normal
             div .flex items-center gap-2.5 overflow-hidden | flex row nowrap center normal
               svg .size-7 shrink-0 | block
               div .flex min-w-0 flex-col gap-0.5 leading-tight | flex column nowrap normal normal
                 svg role=img .h-3.5 w-auto self-start | block
-                div .truncate text-[11px] text-muted-foreground | block
+                div .truncate text-[0.6875rem] text-muted-foreground | block
           div .flex-1 overflow-y-auto overflow-x-hidden pb-2 px-2 | block
             div .flex flex-col gap-0.5 | flex column nowrap normal normal
-              div .px-3 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-faint-foreground | block
+              h2 .px-3 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-faint-foreground | block
               a .flex shrink-0 items-center rounded-md font-medium transition-colors h-7 gap-2.5 px-2.5 text-body text-muted-foreground hover:bg-muted hover:text-foreground | flex row nowrap center normal
                 svg .lucide lucide-table-2 shrink-0 size-4 | block
                 span .whitespace-nowrap | block
@@ -24,7 +24,7 @@ div | block
                 span .inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold text-white ring-2 ring-background size-8 text-xs ring-0 | flex row nowrap center center
                 span .min-w-0 flex-1 leading-tight | block
                   span .block truncate font-medium | block
-                  span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-violet-soft text-violet-text mt-0.5 h-4 px-1.5 text-[10px] | inline-flex row nowrap center normal
+                  span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-violet-soft text-violet-text mt-0.5 h-4 px-1.5 text-[0.625rem] | inline-flex row nowrap center normal
                 svg .lucide lucide-chevrons-up-down size-3.5 shrink-0 text-faint-foreground | block
       div .flex min-w-0 flex-1 flex-col pb-[var(--pb-safe-bottom)] | flex column nowrap normal normal
         header .sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)] flex h-[calc(3rem+var(--pb-safe-top))] shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 pt-[var(--pb-safe-top)] md:gap-4 md:px-5 | flex row nowrap center normal sticky
@@ -44,7 +44,7 @@ div | block
                   svg .lucide lucide-search size-4 | block
                   input role=combobox .min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-faint-foreground | block
                   span .hidden md:inline-flex | flex row nowrap normal normal
-                    kbd .inline-flex h-5 items-center rounded border border-border-strong bg-background px-1.5 font-sans text-[11px] font-medium text-muted-foreground | flex row nowrap center normal
+                    kbd .inline-flex h-5 items-center rounded border border-border-strong bg-background px-1.5 font-sans text-[0.6875rem] font-medium text-muted-foreground | flex row nowrap center normal
             button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden | none
               svg .lucide lucide-search size-5 | block
             div .contents md:hidden | none
@@ -61,9 +61,9 @@ div | block
                       h1 .text-xl font-semibold tracking-tight text-foreground md:text-2xl | block
                   div .flex items-center gap-4 | flex row nowrap center normal
                 div .grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12 | grid row nowrap normal normal
-                  main .divide-y divide-border | block
+                  div .divide-y divide-border | block
                     section .py-8 first:pt-8 | block
-                      h2 .text-[16px] font-semibold text-foreground | block
+                      h2 .text-base font-semibold text-foreground | block
                       div .mt-5 | block
                         div .grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 | grid row nowrap normal normal
                           div | block
@@ -91,7 +91,7 @@ div | block
                               input .min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-faint-foreground | block
                             p .mt-1.5 text-xs text-muted-foreground | block
                     section .py-8 first:pt-8 | block
-                      h2 .text-[16px] font-semibold text-foreground | block
+                      h2 .text-base font-semibold text-foreground | block
                       p .mt-1 max-w-xl leading-6 text-muted-foreground | block
                       div .mt-5 | block
                         div .grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 | grid row nowrap normal normal
@@ -117,7 +117,7 @@ div | block
                               input .min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-faint-foreground | block
                             p .mt-1.5 text-xs text-muted-foreground | block
                     section .py-8 first:pt-8 | block
-                      h2 .text-[16px] font-semibold text-foreground | block
+                      h2 .text-base font-semibold text-foreground | block
                       div .mt-5 | block
                         div .grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 | grid row nowrap normal normal
                           div | block
@@ -144,7 +144,7 @@ div | block
                       button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 max-md:min-h-11 max-md:flex-1 md:w-full | flex row nowrap center center
                     div .max-md:hidden | block
                       div .overflow-hidden rounded-lg border border-border bg-background | block
-                        h3 .hidden border-b border-border px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:block | block
+                        h2 .hidden border-b border-border px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:block | block
                         ul .flex flex-wrap gap-2 p-2 md:block md:divide-y md:divide-border md:p-0 | block
                           li | list-item
                             button .flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-3 text-left hover:bg-surface disabled:cursor-default disabled:opacity-60 md:min-h-0 md:w-full md:items-start md:gap-3 md:rounded-none md:border-0 md:px-4 md:py-3 | flex row nowrap flex-start normal
@@ -167,7 +167,7 @@ div | block
                               span | block
                                 span .block font-medium text-danger-text | block
                     div .rounded-lg border border-border bg-background p-4 | block
-                      h3 .mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground | block
+                      h2 .mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground | block
                       dl .grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 | grid row nowrap normal normal
                         div .contents | contents
                           dt .text-muted-foreground | block
@@ -183,7 +183,7 @@ div | block
                           dd .truncate text-right tabular-nums text-foreground | block
                             span | inline
                     div .rounded-lg border border-border bg-background p-4 | block
-                      h3 .mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground | block
+                      h2 .mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground | block
                       dl .grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 | grid row nowrap normal normal
                         div .contents | contents
                           dt .text-muted-foreground | block

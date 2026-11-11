@@ -76,8 +76,10 @@ export const CardComponentChecks: StoryObj = {
     expect(card).toHaveTextContent('Brompton C Line')
     expect(card).toHaveTextContent('Emma Visser')
     expect(card).toHaveTextContent('€42.00')
-    // Still a link to the repair, as every card is
-    expect(card.closest('a')).toHaveAttribute('href', '/repairs/5')
+    // Still a link to the repair, as every card is, named by its title
+    const link = within(card.closest('div:has(> a[data-card-link])') as HTMLElement).getByRole('link')
+    expect(link).toHaveAccessibleName('Brompton C Line')
+    expect(link).toHaveAttribute('href', '/repairs/5')
   },
 }
 
@@ -114,11 +116,11 @@ const pressed = async (canvas: ReturnType<typeof within>) => {
 
 const cardTitles = async (canvas: ReturnType<typeof within>) => {
   const list = await canvas.findByRole('list', { name: 'Repairs' })
-  return within(list).getAllByRole('link').map((link) => link.firstElementChild?.firstElementChild?.textContent)
+  return within(list).getAllByRole('link').map((link) => link.textContent)
 }
 
 const column = (canvas: ReturnType<typeof within>, name: string) => canvas.findByRole('region', { name: new RegExp(`^${name}, \\d+$`) })
-const cardNumbers = (region: HTMLElement) => within(region).queryAllByRole('link').map((link) => link.firstElementChild?.firstElementChild?.textContent)
+const cardNumbers = (region: HTMLElement) => within(region).queryAllByRole('link').map((link) => link.textContent)
 
 export const BoardChecks: StoryObj = {
   ...Board,
@@ -131,7 +133,8 @@ export const BoardChecks: StoryObj = {
     await waitFor(() => expect(canvas.getAllByRole('region').map((region) => region.getAttribute('aria-label'))).toEqual(['booked, 3', 'waiting, 2', 'working, 2', 'ready, 2', 'collected, 5']))
     const ready = await column(canvas, 'ready')
     expect(cardNumbers(ready)).toEqual(['R-305', 'R-311'])
-    expect(within(ready).getAllByRole('link')[0]).toHaveTextContent('Brompton C Line')
+    // The card's link is its title, the rest of the card beside it
+    expect(within(ready).getAllByRole('link')[0]!.closest('div')).toHaveTextContent('Brompton C Line')
     expect(within(ready).getAllByRole('link')[0]).toHaveAttribute('href', '/repairs/5')
     await userEvent.click(within(ready).getAllByRole('link')[0]!)
     await canvas.findByRole('heading', { name: 'R-305' })
@@ -455,7 +458,7 @@ export const CardsChecks: StoryObj = {
     const canvas = within(canvasElement)
     expect(await pressed(canvas)).toBe('Cards')
     await waitFor(async () => expect(await cardTitles(canvas)).toHaveLength(14))
-    const first = within(canvas.getByRole('list', { name: 'Repairs' })).getAllByRole('link')[0]!
+    const first = within(canvas.getByRole('list', { name: 'Repairs' })).getAllByRole('link')[0]!.closest('div')
     expect(first).toHaveTextContent('VanMoof S5')
     expect(first).toHaveTextContent('Daan Bakker')
     expect(first).toHaveTextContent('Booked')
@@ -546,9 +549,9 @@ export const RowsOnPhoneChecks: StoryObj = {
     const first = await waitFor(() => within(list).getAllByRole('link')[0]!)
     // Booked on, newest first
     expect(first.getAttribute('href')).toMatch(/\/repairs\/12$/)
-    expect(first).toHaveTextContent('R-312')
-    expect(first).toHaveTextContent(enumLabel('booked'))
-    expect(first).toHaveTextContent('VanMoof S5')
+    expect(first.closest('div')).toHaveTextContent('R-312')
+    expect(first.closest('div')).toHaveTextContent(enumLabel('booked'))
+    expect(first.closest('div')).toHaveTextContent('VanMoof S5')
     expect(canvas.queryByRole('grid')).toBeNull()
 
     await userEvent.click(canvas.getByRole('button', { name: 'Display: List' }))

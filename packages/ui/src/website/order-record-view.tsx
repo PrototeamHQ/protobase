@@ -48,7 +48,7 @@ export const OrderRecordView = ({ ticking = true }: { ticking?: boolean }) => {
         }
       />
       <div className="grid grid-cols-[minmax(0,1fr)_300px] gap-12">
-        <main className="divide-y divide-border">
+        <div className="divide-y divide-border">
           <Section title="Order details" help="The basics of the order. The number is assigned automatically and cannot be changed.">
             <div className="grid grid-cols-2 gap-x-6 gap-y-5">
               <Field label="Number" help="Generated when the order is created.">
@@ -81,7 +81,7 @@ export const OrderRecordView = ({ ticking = true }: { ticking?: boolean }) => {
               }}
             />
           </Section>
-        </main>
+        </div>
         <aside className="space-y-4 pt-8">
           <ActionRail actions={actions} />
           <SidebarCard title="Details">

@@ -150,7 +150,7 @@ const BoardCard = ({ model, view, card, row, column, rows, more, draggable, plac
       ref={(element) => {
         setNodeRef(element)
         // Space picks the card up from its link, which has the focus
-        setActivatorNodeRef(element?.querySelector('a') ?? element)
+        setActivatorNodeRef(element?.querySelector('a[data-card-link]') ?? element)
       }}
       {...listeners}
       // The card is a link, which the browser would drag as one

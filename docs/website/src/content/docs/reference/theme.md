@@ -120,6 +120,12 @@ What they color:
 
 The list is `packages/ui/src/tokens.css`, and a test fails when one of its tokens disappears.
 
+## Text size
+
+The app's text follows the reader's text size: every size is in `rem`, so all of it grows with the root size. In a browser that is the browser's own text size; in the [iOS app](/guides/mobile-app/) the phone's text size, Dynamic Type included, and in the Android app the phone's font size. The base size is 0.875rem, 14px at a browser's default. A plugin's text follows it too when its sizes are in `rem`, such as Tailwind's `text-xs`, rather than pixels.
+
+<gap>The phone's top bar cannot fit its buttons at the largest accessibility text sizes, about three times the default, because its icons and buttons grow with the text and the bar neither wraps nor shrinks them.</gap>
+
 ## Logo and favicon
 
 The sidebar's logo is the project's own favicon, or without one the app's initial when it has a name of its own and Protobase's mark when it keeps Protobase's, beside the app's [name](/reference/app-identity/#the-name), with the organization the user works in under it, and the icon alone when the sidebar shows only icons. An app that keeps Protobase's name and has no favicon of its own shows Protobase's wordmark beside the mark. A project draws something else with `shell.logo` in `protobase.ui.tsx`, a component drawn in its place ([Shell slots](/reference/custom-components/#shell-slots)); it draws with these tokens like the rest of the app.
@@ -128,4 +134,4 @@ The browser tab shows a neutral mark. A project shows its own with a `protobase.
 
 ## In a plugin
 
-A plugin's utilities read the same tokens, with Tailwind's default as the fallback where an app sets none: `bg-primary` is `var(--primary)`, `rounded-md` is `var(--radius, 6px)` and `font-sans` is `var(--font, ...)`. So a plugin follows the theme of every app that loads it, without knowing it. Write classes such as `bg-primary`, `text-muted-foreground` and `border-border` rather than fixed colors, and the plugin looks at home in light and dark alike. Text takes the app's base size, 14px, without a class; `text-body` restates it where a parent sets another. Where a plugin needs a value of its own for dark, a `dark:` class such as `dark:bg-muted` follows the theme the user picked, not only their system's.
+A plugin's utilities read the same tokens, with Tailwind's default as the fallback where an app sets none: `bg-primary` is `var(--primary)`, `rounded-md` is `var(--radius, 6px)` and `font-sans` is `var(--font, ...)`. So a plugin follows the theme of every app that loads it, without knowing it. Write classes such as `bg-primary`, `text-muted-foreground` and `border-border` rather than fixed colors, and the plugin looks at home in light and dark alike. Text takes the app's base size, 0.875rem, without a class; `text-body` restates it where a parent sets another. Where a plugin needs a value of its own for dark, a `dark:` class such as `dark:bg-muted` follows the theme the user picked, not only their system's.

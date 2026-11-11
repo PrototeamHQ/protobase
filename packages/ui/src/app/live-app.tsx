@@ -42,7 +42,7 @@ export const LiveApp = ({ baseUrl, start, sidebarMode }: { baseUrl: string; star
   if (reach.state === 'down') {
     return (
       <div className="mx-auto max-w-lg p-10">
-        <h1 className="text-[16px] font-semibold">Live story skipped: no API at {baseUrl}</h1>
+        <h1 className="text-base font-semibold">Live story skipped: no API at {baseUrl}</h1>
         <p className="mt-2 text-muted-foreground">{reach.reason}</p>
         <p className="mt-2 text-muted-foreground">
           Start the ERP database and server with <code className="font-mono">bun run db:up</code> and <code className="font-mono">bun run --cwd tests/apps/erp serve</code>, then reload. To use another server, set <code className="font-mono">PROTOBASE_API</code> when starting Storybook or pick another API in the toolbar.

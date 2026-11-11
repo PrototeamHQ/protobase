@@ -216,7 +216,7 @@ export const ProjectShellSlots: StoryObj = {
 // A project's own logo: its initials alone in a compact sidebar, its name beside them otherwise.
 const RijnlandLogo = ({ compact }: ShellLogoProps) => (
   <div className="flex items-center gap-2.5">
-    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">RI</span>
+    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-[0.6875rem] font-bold text-primary-foreground">RI</span>
     {!compact && <span className="font-semibold">Rijnland Industrial</span>}
   </div>
 )

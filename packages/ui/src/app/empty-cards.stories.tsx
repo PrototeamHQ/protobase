@@ -84,8 +84,10 @@ const Owners = ({ path, fields }: { path: string; fields?: RecordPermissions['fi
   )
 }
 
-const sidebarCards = (canvasElement: HTMLElement) => within(canvasElement).queryAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
-const sections = (canvasElement: HTMLElement) => within(canvasElement).queryAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)
+// The record's sidebar cards and main sections are both headed one level below its title; the shell's sidebar groups too
+const headings = (canvasElement: HTMLElement) => within(canvasElement).queryAllByRole('heading', { level: 2 }).filter((heading) => !heading.closest('nav'))
+const sidebarCards = (canvasElement: HTMLElement) => headings(canvasElement).filter((heading) => heading.closest('aside')).map((heading) => heading.textContent)
+const sections = (canvasElement: HTMLElement) => headings(canvasElement).filter((heading) => !heading.closest('aside')).map((heading) => heading.textContent)
 
 export const ReadOnlyWithoutTimestamps: StoryObj = {
   tags: ['play'],
@@ -125,7 +127,7 @@ export const HiddenFields: StoryObj = {
 }
 
 const cardRows = (canvasElement: HTMLElement, title: string) => {
-  const card = within(canvasElement).getByRole('heading', { level: 3, name: title }).parentElement!
+  const card = within(canvasElement).getByRole('heading', { level: 2, name: title }).parentElement!
   return [...card.querySelectorAll('dt')].map((label) => label.textContent)
 }
 

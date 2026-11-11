@@ -415,7 +415,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
             </div>
           )}
           <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12">
-            <main className="divide-y divide-border">
+            <div className="divide-y divide-border">
               {before.flatMap(mainItem)}
               {tab && (
                 <RecordTabs tabs={tabs.map((each, index) => ({ title: each.title, to: recordAt(openGroups, atEdit, index === 0 ? undefined : each.title), current: each === tab }))} />
@@ -426,7 +426,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                 </div>
               )}
               {after.flatMap(mainItem)}
-            </main>
+            </div>
             {/* Beside the main column the sidebar stays in view below the top bar, and scrolls on its own when taller than the window */}
             <aside className="space-y-4 md:sticky md:top-[var(--pb-sticky-top,0px)] md:max-h-[calc(100dvh-var(--pb-sticky-top,0px)-var(--pb-sticky-bottom,0px))] md:self-start md:overflow-y-auto md:pb-4 md:pt-8">
               {formControls && <div className="hidden flex-col items-center gap-2 md:flex">{formControls}</div>}

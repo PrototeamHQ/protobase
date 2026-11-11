@@ -15,12 +15,12 @@ export type CompactTableProps = {
 /** A small read-only table of raw values with a row count, for narrow places such as a side panel. */
 export const CompactTable = ({ columns, rows, caption, truncated, className }: CompactTableProps) => (
   <section aria-label={caption ?? text('table')} className={cn('shrink-0 overflow-hidden rounded-lg border border-border-strong bg-background shadow-sm', className)}>
-    {caption && <code className="block whitespace-pre-wrap break-words bg-surface px-3 py-2 font-mono text-[11px] text-foreground">{caption}</code>}
+    {caption && <code className="block whitespace-pre-wrap break-words bg-surface px-3 py-2 font-mono text-[0.6875rem] text-foreground">{caption}</code>}
     {rows.length === 0 ? (
       <p className="px-3 py-2 text-xs text-muted-foreground">{text('noRows')}</p>
     ) : (
       <div className="max-h-64 overflow-auto">
-        <table className="w-full border-collapse text-left text-[11px]">
+        <table className="w-full border-collapse text-left text-[0.6875rem]">
           <thead className="sticky top-0 bg-background">
             <tr>{columns.map((column) => <th key={column} scope="col" className="border-b border-border px-2 py-1 font-semibold whitespace-nowrap">{column}</th>)}</tr>
           </thead>
@@ -34,7 +34,7 @@ export const CompactTable = ({ columns, rows, caption, truncated, className }: C
         </table>
       </div>
     )}
-    <footer className="border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground">
+    <footer className="border-t border-border px-3 py-1.5 text-[0.6875rem] text-muted-foreground">
       {text('rows', { count: rows.length })}
       {truncated && text('cutOff')}
     </footer>
