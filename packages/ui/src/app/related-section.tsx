@@ -75,11 +75,8 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
     )
   }
   if (item.presentation === 'record') {
-    return (
-      <Section title={item.title} help={item.help}>
-        {listed((filter) => <RelatedRecord model={model} view={view} filter={filter} sort={item.sort ?? ''} fields={columns} button={item.button} empty={item.empty} />)}
-      </Section>
-    )
+    if (match === null) return <Section title={item.title} help={item.help}><Empty empty={item.empty} /></Section>
+    return <RelatedRecord title={item.title} help={item.help} model={model} view={view} filter={match} sort={item.sort ?? ''} fields={columns} button={item.button} empty={item.empty} />
   }
   const handOrder = relatedHandOrder(item, model, permissions)
   const displaySwitch = <EmbeddedDisplaySwitch view={view} value={display} onChange={pick} />

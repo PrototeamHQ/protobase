@@ -95,8 +95,8 @@ export const Notes: StoryObj = { name: 'Coordinator notes on a tab', render: () 
 export const Phone: StoryObj = { ...Notes, name: 'Coordinator notes on a tab, on a phone', globals: { viewport: { value: 'mobile360' } } }
 
 /**
- * The review shows its fields under their labels and the notes their one field in full, without a label, card title,
- * Show more or View all, each with a link to its record; a change to the notes shows as soon as it is heard, and an
+ * The review shows its fields under their labels, with View all as there are older ones, and the notes their one field
+ * in full, without a label, card title, Show more or View all, each with a link to its record on the heading's line; a change to the notes shows as soon as it is heard, and an
  * objective without notes says so.
  */
 export const Checks: StoryObj = {
@@ -110,6 +110,7 @@ export const Checks: StoryObj = {
     expect(review.getByText('Verdict')).toBeVisible()
     expect(review.queryByText('Too early to say')).toBeNull()
     expect(review.getByRole('link', { name: 'Open review' }).getAttribute('href')).toBe('/objective_reviews/2')
+    expect(review.getByRole('link', { name: 'View all reviews' }).getAttribute('href')).toBe(`/objective_reviews?${new URLSearchParams({ filter: 'objective_id = "1"', order_by: 'id desc' })}`)
 
     await userEvent.click(within(canvas.getByRole('navigation', { name: 'Tabs' })).getByRole('link', { name: 'Notes' }))
     const section = within((await canvas.findByRole('heading', { name: 'Coordinator notes' })).closest('section')!)
@@ -119,7 +120,7 @@ export const Checks: StoryObj = {
     expect(section.queryByRole('button', { name: 'Show more' })).toBeNull()
     expect(section.queryByRole('link', { name: /View all/ })).toBeNull()
     expect(section.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/objective_notes/1'])
-    expect(section.getByRole('link', { name: 'Open note' })).toBeVisible()
+    expect(section.getByRole('link', { name: 'Open note' }).compareDocumentPosition(section.getByRole('heading', { name: 'Where it stands' }))).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
 
     stored.objective_notes![0]!.notes = 'Rewritten by the coordinator.'
     for (const listener of listeners) listener.onChanges([{ resource: 'objective_notes', key: '1', operation: 'update' }])
