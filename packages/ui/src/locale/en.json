@@ -1898,7 +1898,8 @@
     "loading": "Loading",
     "remove": "Remove {label}",
     "previous": "Previous {label}",
-    "next": "Next {label}"
+    "next": "Next {label}",
+    "dragToClose": "Drag down to close"
   },
   "record-view": {
     "savedDifferent": "{name} saved a different value",

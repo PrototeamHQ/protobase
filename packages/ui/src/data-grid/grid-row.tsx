@@ -83,6 +83,7 @@ export const DataRow = ({ cells, selected, onToggle, onOpen, menu, handle, rowRe
   <div
     ref={rowRef}
     role="row"
+    data-pressable={onOpen ? '' : undefined}
     onClick={onOpen && openUnlessLink(onOpen)}
     className={cn('absolute inset-x-0 top-0 grid items-center border-b', selected ? 'bg-primary-soft' : 'bg-background hover:bg-surface', onOpen && 'cursor-pointer', dragging && 'z-30 bg-surface shadow-pop')}
     style={dragY === undefined ? frameStyle(frame) : dragStyle(frame, dragY, transition)}

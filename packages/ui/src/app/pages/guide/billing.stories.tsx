@@ -170,7 +170,9 @@ export const MissingComponent: StoryObj = {
   render: () => <GuideApp step={step4} withUi={false} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    expect(await canvas.findByText('No component is registered as SeatHistory. Export it from protobase.ui.tsx, or load the plugin that provides it.')).toBeVisible()
+    // The page shows once its parts have their data
+    const missing = await canvas.findByText('No component is registered as SeatHistory. Export it from protobase.ui.tsx, or load the plugin that provides it.')
+    await waitFor(() => expect(missing).toBeVisible())
     const latest = await region(canvas, 'Latest invoice')
     expect(await latest.findByRole('button', { name: 'Download PDF' })).toBeDisabled()
   },
