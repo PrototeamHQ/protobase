@@ -58,6 +58,7 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
   const byName = new Map(declared.map((item) => [item.name, item]))
   const typesOf = (resource: string) => fieldTypes(deps.registry.find(resource)!.model)
   const readable = (item: Declared) => [item.entry.model, ...item.value.reads.map((read) => deps.registry.find(read)!.model)]
+  const appModels = deps.registry.entries.map((entry) => entry.model)
   const watched = new Set(declared.flatMap((item) => [item.entry.name, ...item.value.reads]))
 
   const queue = async (db: Db, refs: readonly ValueRef[]) => {
@@ -75,7 +76,7 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
       if (!(await recordExists(db, item.entry, ref.key))) return forget(db, [ref])
       const version = await claim(db, ref)
       if (version === undefined) return
-      const result = await runDerived(item.compute, ref.key, { label: `Derived value ${item.name}`, db, now: now(), models: readable(item), track: item.value.track !== false, signal })
+      const result = await runDerived(item.compute, ref.key, { label: `Derived value ${item.name}`, db, now: now(), models: readable(item), appModels, track: item.value.track !== false, signal })
       await db.transaction().execute(async (trx) => {
         const kept = await keep(trx, ref, version, result, typesOf)
         if (kept === 'dropped') return

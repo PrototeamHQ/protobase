@@ -29,14 +29,16 @@ const sameTable = (model: ResourceModel, read: TableRead) =>
 
 /**
  * The reads of a derived value's queries as reads of resources, by field. A table that is no resource, or a resource
- * it may not read, throws, since no change to it would ever reach the value.
+ * it may not read, throws, since no change to it would ever reach the value; `appModels`, every resource of the app,
+ * tells the two apart.
  */
-export const resourceReads = (label: string, reads: readonly TableRead[], models: readonly ResourceModel[]): RecordedRead[] =>
+export const resourceReads = (label: string, reads: readonly TableRead[], models: readonly ResourceModel[], appModels: readonly ResourceModel[]): RecordedRead[] =>
   reads.map((read) => {
     const found = models.filter((model) => sameTable(model, read))
     const model = found.find((candidate) => candidate.table.schema === read.schema) ?? found[0]
     const table = read.schema ? `${read.schema}.${read.table}` : read.table
-    if (!model) throw new Error(`${label} read the table ${table}, which is not a resource it reads: add its resource to the value's reads, or name what it depends on with depends() and turn tracking off`)
+    if (!model && appModels.some((candidate) => sameTable(candidate, read))) throw new Error(`${label} read the table ${table}, which is not a resource it reads: add its resource to the value's reads`)
+    if (!model) throw new Error(`${label} read the table ${table}, which is no resource: make a table of its own a resource and add it to the value's reads, or, for a table whose changes come from resources, such as a view, turn tracking off, name every resource the value depends on with depends(), those behind this table included, and list each one but the value's own resource in its reads`)
     const columns = new Map(Object.values(model.fields).map((field) => [field.column, field]))
     const fields = read.columns && [...new Set(read.columns.flatMap((column) => (columns.has(column) ? [columns.get(column)!.name] : [])))]
     return { resource: model.name, condition: byField(read.condition, columns), fields }
