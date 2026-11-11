@@ -67,5 +67,7 @@ export const PressChecks: StoryObj = {
     await pressing(disabled)
     await new Promise((resolve) => setTimeout(resolve, 300))
     expect(tinted(disabled)).toBe(false)
+    // The finger lifts before the story ends
+    await new Promise((resolve) => setTimeout(resolve, 400))
   },
 }
