@@ -1,5 +1,5 @@
 import { isPageDefinition } from '@protobase/layout'
-import type { AdminOptions, AssistantTool, AuditQueue, DeviceStore, FileProvider, FilesOptions, FunctionSource, HistoryStore, JobDefinition, JobRun, NotificationsOptions, PipelineHook, PushSender, Sharp, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
+import type { AdminOptions, AssistantTool, AuditQueue, DerivedCompute, DeviceStore, FileProvider, FilesOptions, FunctionSource, HistoryStore, JobDefinition, JobRun, NotificationsOptions, PipelineHook, PushSender, Sharp, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
 import { checkNotificationsOptions, declaredJob, fileProviderOf, isSubscription, webhooksModule, workflowsModule } from '@protobase/server/internal'
 import { checkUnique, type MergedConfig } from './merge-config'
 
@@ -45,6 +45,21 @@ export const projectJobs = (config: MergedConfig): JobDefinition[] =>
     const timezone = declaration.timezone ?? config.timezone
     return declaredJob(name, { ...declaration, ...(timezone && { timezone }) }, async () => (await load()).default as JobRun)
   })
+
+/**
+ * The compute functions of the derived values, each the default export of derived/<resource>.<name>.ts in a config's
+ * folder, by that name, loaded on its first run.
+ */
+export const projectDerived = (config: MergedConfig): Record<string, DerivedCompute> => {
+  const all = config.sources.flatMap(({ files, label }) => files.folder('derived').map((file) => ({ name: file.slice('derived/'.length, -'.ts'.length), value: files.module(file)!, label })))
+  checkUnique('The derived value', all)
+  return Object.fromEntries(
+    all.map(({ name, value: load }) => {
+      let compute: Promise<DerivedCompute> | undefined
+      return [name, async (key: string, context: Parameters<DerivedCompute>[1]) => (await (compute ??= load().then((module) => module.default as DerivedCompute)))(key, context)]
+    }),
+  )
+}
 
 /** The API functions of every config's functions/ folder by name, each its file's default export. */
 export const projectFunctions = async (config: MergedConfig): Promise<Record<string, FunctionSource> | undefined> => {

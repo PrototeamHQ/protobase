@@ -24,8 +24,14 @@ export const identifier = (name: string, bytes = 63) => {
 /** The table as SQL names it, qualified when the resource names a schema. */
 export const tableSql = (model: ResourceModel) => qualified(model.table)
 
-/** Whether the triggers capture a resource's changes: for its events, its history, its live updates, or several. */
-export const isCaptured = (model: ResourceModel) => (model.events ?? []).length > 0 || model.history === true || model.live === true
+/** Whether a resource's own declarations need its changes captured: its events, history, live updates or derived values. */
+export const isCaptured = (model: ResourceModel) => (model.events ?? []).length > 0 || model.history === true || model.live === true || (model.derived ?? []).length > 0
+
+/** Whether the triggers capture a resource's changes among `models`: for its own declarations, or as a resource another's derived values read. */
+export const capturedBy = (models: readonly ResourceModel[]) => {
+  const read = new Set(models.flatMap((model) => (model.derived ?? []).flatMap((value) => value.reads)))
+  return (model: ResourceModel) => isCaptured(model) || read.has(model.name)
+}
 
 /**
  * The outbox: one row per changed row, written in the writer's transaction. `transaction` is the writer's transaction

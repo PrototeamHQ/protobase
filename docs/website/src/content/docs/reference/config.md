@@ -138,6 +138,7 @@ The other files belong to an option, and are described with it:
 | `assistant/tools.ts` | [`assistant`](/reference/config/admin-app/#assistant) |
 | `mcp/tools.ts` | [`mcpEndpoint`](/reference/config/api/#mcpendpoint) |
 | `jobs/<name>.ts` | [`jobs`](/reference/config/jobs-and-events/#jobs) |
+| `derived/<resource>.<name>.ts` | a resource's [`.derived()`](/reference/derived/#declaring-a-derived-value) |
 | `webhooks/owner-roles.ts` | [`webhooks`](/reference/config/jobs-and-events/#webhooks) |
 | `workflows/saved-by-roles.ts` | [`workflows`](/reference/config/jobs-and-events/#workflows) |
 | `workflows/plugins/<name>.ts` | [`workflows.plugins`](/reference/config/jobs-and-events/#workflowsplugins) |

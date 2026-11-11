@@ -1,9 +1,9 @@
 import type { PostgresPool } from 'kysely'
 import type { Db } from '@protobase/query'
-import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, PushRelayOptions, StatusOptions, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
+import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, DerivedCompute, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, PushRelayOptions, StatusOptions, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
 import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkPushRelayOptions, checkStatusOptions, workflowPlugins } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
-import { projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
+import { projectDerived, projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
 import { userTablesOn } from './user-tables-config'
 
 /**
@@ -71,6 +71,8 @@ export type BuiltProject = {
   pushRelay?: PushRelayOptions
   calls?: CallsOptions
   jobs: JobDefinition[]
+  /** The derived values' compute functions, by `<resource>.<name>` (`projectDerived`). */
+  derived?: Record<string, DerivedCompute>
   /** The app's own mailer (`projectMailer`), which the jobs send with as sign-in does. */
   mailer?: Mailer
   mobile?: MobileConfig
@@ -95,12 +97,14 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     projectMailer(config),
   ])
   const jobs = projectJobs(config)
+  const derived = projectDerived(config)
   // The installed app's colours, the app's other settings being the config's.
   const identity = config.themeColor || config.backgroundColor ? { ...(config.themeColor && { themeColor: config.themeColor }), ...(config.backgroundColor && { backgroundColor: config.backgroundColor }) } : undefined
   return {
     config: resources,
     authenticate: await projectAuthenticate(config, auth),
     jobs,
+    derived,
     ...(auth && { auth }),
     ...(functions && { functions }),
     ...(files && { files }),

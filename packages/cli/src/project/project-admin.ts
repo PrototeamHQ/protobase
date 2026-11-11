@@ -46,6 +46,7 @@ export const projectAdmin = (project: BuiltProject, db: Db, ui?: BundleUi, repor
     ...(project.app && { app: project.app }),
     ...(ui?.icons && { icons: ui.icons }),
     jobs: project.jobs,
+    ...(project.derived && { derived: project.derived }),
     subscriptions,
     ...(ui && { bundlePlugins: ui.plugins, fieldTypes: ui.fieldTypes }),
     ...(upgradeWebSocket && { upgradeWebSocket }),

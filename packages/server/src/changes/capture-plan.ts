@@ -1,7 +1,7 @@
 import type { ResourceModel } from '@protobase/schema'
 import { historyTableSql } from '../history/history-sql'
 import { noticesTableSql } from '../live/notices-sql'
-import { captureBody, captureFunctionSql, createTriggerSql, dropTriggerSql, isCaptured, outboxSql, quoteIdent, resourceTriggers, tableSql, type TriggerSpec } from './capture-sql'
+import { captureBody, captureFunctionSql, capturedBy, createTriggerSql, dropTriggerSql, outboxSql, quoteIdent, resourceTriggers, tableSql, type TriggerSpec } from './capture-sql'
 
 /** A trigger the database has: on a table it names by its oid, calling a function it names by its oid. */
 export type FoundTrigger = { table: string; tableSql: string; name: string; function: string; type: number; args: string[] }
@@ -52,7 +52,7 @@ const tableOf = (state: CaptureState, model: ResourceModel) => {
  * missing table, two captured resources on one table, or a trigger of the same name that calls another function.
  */
 export const capturePlan = (schema: string, models: readonly ResourceModel[], state: CaptureState): CapturePlan => {
-  const captured = models.filter(isCaptured)
+  const captured = models.filter(capturedBy(models))
   const capture = state.capture
   const current = capture !== undefined && capture.definer && capture.source === captureBody(schema)
   const wanted = captured.flatMap((model) => resourceTriggers(model).map((trigger) => ({ model, trigger, table: tableOf(state, model) })))
@@ -95,7 +95,7 @@ export const planSql = (schema: string, plan: CapturePlan) => {
 /** The resources whose changes would not be captured or kept as the config declares: what a server refuses to start with. */
 export const uncaptured = (plan: CapturePlan, models: readonly ResourceModel[]) => [
   ...new Set([
-    ...(plan.setup ? models.filter(isCaptured) : plan.create.map(({ model }) => model)),
+    ...(plan.setup ? models.filter(capturedBy(models)) : plan.create.map(({ model }) => model)),
     ...(plan.historyMissing ? models.filter((model) => model.history) : []),
     ...(plan.notices ? models.filter((model) => model.live) : []),
   ].map((model) => model.name)),

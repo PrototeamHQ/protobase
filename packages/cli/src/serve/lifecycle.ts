@@ -2,7 +2,7 @@ import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import pg from 'pg'
-import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkJobsSchema, checkNotificationsSchema, checkPushRelaySchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, createFileCleanup, relayed, sqlSends, startJobs, type ErrorReporter } from '@protobase/server'
+import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkJobsSchema, checkNotificationsSchema, checkPushRelaySchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, createFileCleanup, relayed, sqlSends, startJobs, type ErrorReporter } from '@protobase/server'
 import { servedAdmin } from '../project/served-admin'
 import { openAppDatabase } from '../project/pg-db'
 import { buildProject, type AppDatabase } from '../config/build-project'
@@ -65,6 +65,7 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
     if (env.startupChecks && project.auth) await checkResourcesOutsideAuthStore(db, resources.map((resource) => resource.toModel()), project.auth)
     if (env.startupChecks) await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
     if (env.startupChecks) await checkComments(db, resources.map((resource) => resource.toModel()))
+    if (env.startupChecks) await checkDerived(db, resources.map((resource) => resource.toModel()))
     if (env.startupChecks) await checkCalls(db, project.calls, project.events)
     if (env.startupChecks) await checkComputed(db, resources.map((resource) => resource.toModel()))
     if (env.startupChecks && assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })

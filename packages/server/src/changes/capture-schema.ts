@@ -2,7 +2,7 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import type { ResourceModel } from '@protobase/schema'
 import { capturePlan, planSql, uncaptured, type CaptureState, type FoundTrigger } from './capture-plan'
-import { isCaptured, quoteIdent, tableSql } from './capture-sql'
+import { capturedBy, isCaptured, quoteIdent, tableSql } from './capture-sql'
 import { changesSchema, type EventsOptions } from './events-options'
 import { hasIndexes } from '../has-indexes'
 import { historyIndexes } from '../history/history-sql'
@@ -53,7 +53,7 @@ const readCaptureState = async (db: Db, schema: string, models: readonly Resourc
 
 const plan = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions) => {
   const schema = changesSchema(options)
-  return { schema, plan: capturePlan(schema, models, await readCaptureState(db, schema, models.filter(isCaptured))) }
+  return { schema, plan: capturePlan(schema, models, await readCaptureState(db, schema, models.filter(capturedBy(models)))) }
 }
 
 /**

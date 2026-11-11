@@ -34,7 +34,7 @@ const folderFiles = (projectDir: string, folder: string) =>
 export const conventionModules = (projectDir: string) => {
   const inFolder = (folder: string) => folderFiles(projectDir, folder)
   const files = ['auth/hooks.ts', 'auth/authenticate.ts', 'auth/mailer.ts', 'config/roles.ts', 'assistant/tools.ts', 'mcp/tools.ts', 'audit/queue.ts', 'webhooks/owner-roles.ts', 'notifications/store.ts', 'notifications/history-store.ts', 'notifications/senders.ts']
-  return [...inFolder('jobs'), ...inFolder('hooks'), ...inFolder('files'), ...inFolder('workflows/plugins'), ...files.filter((file) => existsSync(path.join(projectDir, file)))].sort()
+  return [...inFolder('jobs'), ...inFolder('derived'), ...inFolder('hooks'), ...inFolder('files'), ...inFolder('workflows/plugins'), ...files.filter((file) => existsSync(path.join(projectDir, file)))].sort()
 }
 
 /** The code in the project's folder `projectDir`, loaded with `importModules`. */

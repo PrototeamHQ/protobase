@@ -1,0 +1,90 @@
+---
+title: Derived values
+description: A TypeScript function's result kept current by itself, recomputed when what it read changes or when a time rule flips.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import objectives from '../../../../../../docs-examples/derived/config/objectives.ts?raw'
+import verdict from '../../../../../../docs-examples/derived/derived/objectives.verdict.ts?raw'
+
+:::caution[Experimental]
+Derived values may change in any release. They cannot fill a list of rows in another resource yet, cannot see the reads inside a database function or view they call, show `recalculating` rather than `stale` after a failed run, and their status cannot be read through the REST API; [Limits](#limits) has the detail.
+:::
+
+A **derived value** is worked out from other records for each record of a resource, such as a verdict on an objective from its tasks. You write a small TypeScript function that reads records and the clock; Protobase records what it read, computes it again when a change touches that or when a time check flips, and stores the result. No timer is involved, and a value that did not change is not written. It works on any Postgres, with no extension.
+
+<Code code={objectives} lang="ts" title="config/objectives.ts" />
+
+<Code code={verdict} lang="ts" title="derived/objectives.verdict.ts" />
+
+## Declaring a derived value
+
+[`.derived(name, spec)`](/api/schema/interfaces/resourcebuilder/#derived) on the resource whose records get a value. Its compute function is the default export of `derived/<resource>.<name>.ts`, typed with `DerivedCompute` from `@protobase/server`.
+
+| Key | |
+| --- | --- |
+| `into: (r) => r.field` | The read-only field of the record the value goes into. |
+| `into: { resource, field }` | A field of another resource's record of the same key, added when it has none. Its other fields need defaults. |
+| `job` | A job of the config, enqueued with `{ resource, key, value }` each time the value changes, in place of `into` or beside it. |
+| `reads` | The other resources the function reads. Their changes are captured as events' are. |
+| `track: false` | Analyses none of its queries: only the dependencies the function names and its clock count. |
+
+The function gets the record's key as its URL has it, and returns the value as JSON can hold it; `undefined` is `null`. Beside the key it gets:
+
+| | |
+| --- | --- |
+| `db` | The app's database. Each query sent through it is analysed, raw SQL included; while it is, a write throws, since the function only reads. |
+| `clock` | The time; see [The clock](#the-clock). |
+| `depends(resource, where?)` | Names a dependency itself: every record of the resource, or those whose fields hold these values, such as `depends('tasks', { status: ['open', 'late'] })`. |
+| `signal` | Aborted when the run times out or the worker shuts down. |
+
+## What it depends on
+
+Each query the function sends is parsed with Postgres's own parser, however it was built. For each table it reads, Protobase keeps the query's conditions on that table: comparisons of its columns with constants and parameters, `IN`, `= ANY`, `BETWEEN` and null tests, joined with `AND`, `OR` and `NOT`, with the conditions of inner joins, and of an outer join's `ON` for its optional side. The condition is the dependency, so a new row that comes to match is caught as well as a row that leaves it. A part it cannot work out, such as a function call or a column of another table, counts as matching every row: a query it cannot read at all reads the whole table. Nested queries, `WITH` queries and both sides of a `UNION` count too. An update counts only when it changes a column the query used.
+
+A table that is no resource of `reads` or the record's own stops the run with an error naming it: add its resource to `reads`, or name what the function depends on with `depends()` and set `track: false`.
+
+## The clock
+
+| | |
+| --- | --- |
+| `clock.isPast(at)` | Whether the time `at` has come. |
+| `clock.olderThan(at, duration)` | Whether more than `duration` has passed since `at`: milliseconds, or text such as `2 hours`. |
+| `clock.now()` | When the function runs. |
+
+Each check that has not flipped yet records the moment it will; the value is computed again then. `now()` records nothing, so a value that shows the time itself is not kept current.
+
+## When it runs
+
+- **A new record** is computed once it is created, and a value declared for records that exist already computes each of them once, from the migration that adds it.
+- **A change** that touches a recorded read, through the API or not, marks the value stale in the dispatch of [captured changes](/reference/events/#how-changes-are-captured), and its run waits a second, so a burst of changes runs it once.
+- **A change that lands while the function runs** makes the result stale before it is kept: it is dropped, and the value is computed again.
+- **The value is written only when it differs**, so an unchanged value raises no event, live update or notification.
+- A deleted record's value is dropped.
+
+Runs are `derived.compute` jobs, four at a time per worker, retried like any [job](/reference/jobs/) when the function throws.
+
+## State
+
+`protobase migration` adds a `derived` schema, applied with the project's other migrations, and `protobase dev` and `protobase serve` do not start without it:
+
+| Table | |
+| --- | --- |
+| `derived.values` | A row per record and value: `status` (`current`, `stale` or `recalculating`), `value` as JSON, `computed_at`, and `flips_at`, the clock's next flip. |
+| `derived.reads` | What each record's value read: the resource, the condition, and the fields it used. |
+| `derived.declared` | The values whose records the migrations have computed once. |
+
+## Limits
+
+- <gap>A derived value cannot fill a list of rows in another resource, such as one row per item that needs attention, because syncing a set of rows is not implemented.</gap>
+- <gap>A derived value cannot see the reads inside a database function or view it calls, because reading their definitions is not implemented.</gap> Name them with `depends()`.
+- <gap>A derived value whose function threw cannot show `stale` until its retry runs, because marking a failed run is not implemented; it shows `recalculating` meanwhile.</gap>
+- <gap>A derived value's status cannot be read through the REST API, because serving `derived.values` as a resource is not implemented.</gap>
+
+## Reusing the detection
+
+The matching of committed changes against recorded reads is not tied to derived values. The same records of which conditions a reader depends on could later drive other features, each weighed on its own and possibly not worth it:
+
+- **Live pages:** a list page's query recorded as a read, so the page refreshes only when a change can alter what it shows, instead of on every change of the resource.
+- **Notifications:** a saved condition, such as "tasks assigned to me that are late", recorded once, so a change or a clock flip that makes a record match notifies its subscriber.
+- **Job queues:** a job whose input is a query, run again when a change touches what it read, as `derived.compute` is.

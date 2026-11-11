@@ -17,4 +17,5 @@ description: React to changes, deliver them to other systems, and run work in th
 - [Recurring jobs](/reference/jobs/#recurring-jobs): Jobs run on a cron schedule in a chosen time zone.
 - [Failed jobs page](/reference/jobs/#failed-jobs-page): Admins see jobs that failed for good and retry or delete them.
 - [Worker process](/reference/jobs/#where-jobs-run): Jobs and event deliveries run beside the API, or in a worker process of their own from the same bundle.
+- [Derived values](/reference/derived/) (experimental): A TypeScript function's result stays current by itself; Protobase records what it read and recomputes it when that changes or when a time rule flips.
 - [Jobs on hosts that sleep](/reference/jobs/#hosts-that-sleep): A host that stops idle apps can wake them when a job is due.
