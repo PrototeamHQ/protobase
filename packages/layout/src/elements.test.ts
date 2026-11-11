@@ -48,6 +48,31 @@ describe('plain elements', () => {
     expect(problems(Page({ title: 'x', children: Text({ children: Text({ children: 'a' }) }) }))).toEqual(['<Page> › <Text>: holds text, <Link>s and <Text as="span">s only; put other elements beside it in a <Row> or <Column>'])
   })
 
+  it('refuse a link inside a link, through a Text span too, naming where the inner one is', () => {
+    const tree = Page({
+      title: 'x',
+      children: [
+        Link({ href: 'https://example.com/a', children: Link({ href: 'https://example.com/b', children: 'b' }) }),
+        Link({ href: 'https://example.com/a', children: Text({ as: 'span', children: ['see ', Link({ href: 'https://example.com/b', children: 'b' })] }) }),
+      ],
+    })
+    expect(problems(tree)).toEqual([
+      '<Page> › <Link>: holds another link at <Link>; a link cannot contain a link',
+      '<Page> › <Link>: holds another link at <Text> › <Link>; a link cannot contain a link',
+    ])
+  })
+
+  it('let links stand beside each other in a Text, and a link hold a span without one', () => {
+    const tree = Page({
+      title: 'x',
+      children: [
+        Text({ children: [Link({ href: 'https://example.com/a', children: 'a' }), ' or ', Link({ href: 'https://example.com/b', children: 'b' })] }),
+        Link({ href: 'https://example.com/a', children: Text({ as: 'span', className: 'font-semibold', children: 'a' }) }),
+      ],
+    })
+    expect(problems(tree)).toEqual([])
+  })
+
   it('keep a Text to text and links, and its as to a paragraph, a span or a heading', () => {
     const tree = Page({ title: 'x', children: [Text({ children: [Box({})] }), { type: 'Text', props: { as: 'div' }, children: ['a'] }] })
     expect(problems(tree)).toEqual([

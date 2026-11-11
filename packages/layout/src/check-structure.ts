@@ -3,7 +3,7 @@ import { blockSpecs, propProblems } from './block-specs'
 import { parseCondition } from './condition'
 import type { LayoutChild, LayoutNode } from './node'
 import { tabsProblems } from './check-tabs'
-import { walkTree, type Scope } from './walk'
+import { label, pageScope, walkTree, type Scope } from './walk'
 
 /** Problems that need a record around the element, which only a `RecordCard` or a `CardRow` card provides. */
 const recordProblems = (node: LayoutNode, scope: Scope): string[] => {
@@ -34,11 +34,24 @@ const statProblems = ({ props }: LayoutNode): string[] => {
 
 const chartStructureProblems = ({ props }: LayoutNode): string[] => (props.sum !== undefined && props.average !== undefined ? ['takes "sum" or "average", not both'] : [])
 
+// A link inside a link is no valid HTML: browsers split them apart.
+const nestedLinkProblems = ({ children }: LayoutNode): string[] => {
+  const problems: string[] = []
+  for (const child of children) {
+    if (typeof child === 'string') continue
+    walkTree(child, (inner, { path }) => {
+      if (!inner.custom && inner.type === 'Link') problems.push(`holds another link at ${path}; a link cannot contain a link`)
+    }, { path: label(child), scope: pageScope })
+  }
+  return problems
+}
+
 // A link goes `to` an address in the app, or to an `href` that leaves it.
-const linkProblems = ({ props }: LayoutNode): string[] => {
+const linkProblems = (node: LayoutNode): string[] => {
+  const { props } = node
   if ((props.to === undefined) === (props.href === undefined)) return ['takes exactly one of "to" (an address in the app) and "href" (a link that leaves it)']
   const error = typeof props.href === 'string' ? appHrefError(props.href) : undefined
-  return error ? [error] : []
+  return [...(error ? [error] : []), ...nestedLinkProblems(node)]
 }
 
 // A picture comes from an API function or a fixed `src`: an `https:` URL or a path on the app's own origin.
