@@ -47,7 +47,7 @@ const checkInstalled = (projectDir: string, cliVersion: string) => {
  * specifier its package.json lists the @protobase packages at must hold the CLI's version, by semver, and in a locked
  * project, whose installed copies run, those must be ones the CLI runs. A specifier that is no semver range, such as
  * `workspace:*`, says no version, so the installed copies are checked instead. A prerelease CLI, such as a build from main,
- * counts by its numbers. Outside a project, or one that lists no
+ * counts as well, just before its own release: 0.94.4-main.x holds ^0.94.0, 0.95.0-main.x does not. Outside a project, or one that lists no
  * @protobase package, there is nothing to check.
  */
 export const checkProjectVersion = (projectDir: string, cliVersion = protobaseVersion) => {
