@@ -1,6 +1,6 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkPushRelaySchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
+import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
 import { projectIcons } from '../build/app-icons'
 import { projectErrorReporter } from '../project/error-reporter'
 import { servedAdmin } from '../project/served-admin'
@@ -46,7 +46,6 @@ if (relayed(project.realtime)) await checkRealtimeRelay(db)
 if (sqlSends(project.realtime)) await checkChannelSends(db)
 if (project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)
 if (project.status) await checkStatusSchema(db, project.status, project.auth)
-if (project.pushRelay) await checkPushRelaySchema(db)
 if (project.userTables) await checkUserTablesSchema(db)
 
 // Functions moved from Supabase read Supabase's variables, of this app, unless .env sets them.

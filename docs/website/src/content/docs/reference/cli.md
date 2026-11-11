@@ -40,7 +40,7 @@ const { exitCode, stdout, stderr } = await runCommand(['doctor', '--env', 'DATAB
 
 The serve runtime is bundled by `protobase build-serve` into one JavaScript file for Bun, so production needs neither `node_modules` nor the CLI (see [serve](#serve)).
 
-`scaffold` and `doctor` read the database with `default_transaction_read_only = on`, so they can never write, and so does `dev`'s check of the connection. The commands that manage the app's data do write: `users`, `organizations`, `push-relay`, `encryption apply`, `files cleanup` and `import supabase`.
+`scaffold` and `doctor` read the database with `default_transaction_read_only = on`, so they can never write, and so does `dev`'s check of the connection. The commands that manage the app's data do write: `users`, `organizations`, `encryption apply`, `files cleanup` and `import supabase`.
 
 ## `scaffold`
 
@@ -546,16 +546,6 @@ protobase notifications vapid-keys
 ```
 
 Prints a fresh key pair for [Web Push](/reference/notifications/#web-push) as `PROTOBASE_VAPID_PUBLIC_KEY` and `PROTOBASE_VAPID_PRIVATE_KEY` lines to paste into the environment or `.env`, and says to set `PROTOBASE_VAPID_SUBJECT` too. It reads no project, writes no file and makes no request.
-
-## `push-relay`
-
-```sh
-protobase push-relay add-credential <origin>
-protobase push-relay list-credentials
-protobase push-relay remove-credential <id>
-```
-
-Manages the workspace credentials of a [push relay](/reference/notifications/#push-relay-service), over the project's `DATABASE_URL`; a project without `pushRelay` in its config is refused. `add-credential` takes the workspace's `https` origin, such as `https://app.example.com`, and prints a new credential bound to it, once, for the workspace's `PROTOBASE_PUSH_RELAY_CREDENTIAL`; the relay keeps only its hash, and its id goes to stderr. `list-credentials` prints each credential's id, origin and when it was added. `remove-credential` removes one by its id, after which its sends are refused.
 
 ## `users`
 
