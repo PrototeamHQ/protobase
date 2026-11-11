@@ -2,7 +2,7 @@ import type { KeyValue } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
 import { labelEntries, listWire, photosWire, queryString, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
 import { originOf, photosWithOrigin, withFileOrigin } from './file-urls'
-import { createTransport, type ClientOptions } from './transport'
+import { createTransport, type CacheMode, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
 import { followLive, type LiveHandlers } from './live'
 import { sharedLive } from './shared-live'
@@ -60,7 +60,7 @@ export type InvokeOptions = {
   query?: Record<string, string>
   headers?: Record<string, string>
   /** How the browser's HTTP cache treats the call, such as `no-store` so another user of the browser never gets the answer. */
-  cache?: RequestCache
+  cache?: CacheMode
 }
 
 /** What `upload` answers: `value` is the ticket to send as the field's value in a create, update or batch write. */
