@@ -293,6 +293,15 @@ export class ViewBuilder<R extends {
   }
 
   /**
+   * The field the record page shows as a badge beside its title, in the field's `valueColors` and labels, such as a
+   * verdict; without it an enum field named `status` shows there. Throws when the field does not exist. See
+   * [The record page](docs/website/src/content/docs/reference/ui-config.mdx#read-only-values-and-a-title-badge).
+   */
+  titleBadge(pick: (r: FieldRefs<FieldsOf<R>>) => Ref) {
+    return this.next({ titleBadge: pick(this.refs()).name })
+  }
+
+  /**
    * Whether the list page offers Import, which creates or updates records from an .xlsx, CSV or JSON file the user
    * picks (`true`, the default, to users who may create records); `.import(false)` turns it off. `.import('table')`
    * makes it a new table users add from the file instead, as the Tables list of user tables does. See
@@ -435,9 +444,12 @@ export class ViewBuilder<R extends {
 
   /** With the resource's model, also verifies the title and `titleFrom`, search result and list display fields, related column names, a gallery's image, `listOf`, `searchesOf`, the sidebar's `recent` group and `tenant`, and the forms' fields. */
   toModel(resource?: ResourceModel): ViewModel {
-    const { title, titleFrom, nav, searchResult, list, listOf } = this.state
+    const { title, titleFrom, titleBadge, nav, searchResult, list, listOf } = this.state
     if (resource && title !== undefined && !Object.hasOwn(resource.fields, title)) {
       throw new Error(`View "${this.state.resource}": title field "${title}" does not exist on the resource`)
+    }
+    if (resource && titleBadge !== undefined && !Object.hasOwn(resource.fields, titleBadge)) {
+      throw new Error(`View "${this.state.resource}": title badge field "${titleBadge}" does not exist on the resource`)
     }
     const unknownTitleField = resource ? titleFrom?.fields.find((name) => !Object.hasOwn(resource.fields, name)) : undefined
     if (unknownTitleField !== undefined) throw new Error(`View "${this.state.resource}": titleFrom field "${unknownTitleField}" does not exist on the resource`)

@@ -1,4 +1,4 @@
-import type { FieldFormat, FieldModel, ResourceModel } from '@protobase/schema'
+import type { FieldFormat, FieldModel, FieldViewModel, ResourceModel } from '@protobase/schema'
 import { displayValue, valueTitle } from '../../live/display-value'
 import { FileImage } from '../../live/file-image'
 import { fileShown, shownImage } from '../../live/file-values'
@@ -33,9 +33,13 @@ const RelationValue = ({ field, value, known }: { field: FieldModel; value: unkn
 
 type FieldValueProps = { model: ResourceModel; field: FieldModel; value: unknown; format?: FieldFormat; relationLabel?: string }
 
-const BuiltInValue = ({ model, field, value, format, relationLabel }: FieldValueProps) => {
-  const { views } = useAdminMeta()
-  const hints = { ...views[model.name]?.fields[field.name], ...(format && { format }) }
+type ShownValueProps = { field: FieldModel; value: unknown; hints: FieldViewModel; relationLabel?: string }
+
+/**
+ * A stored value as the view's `hints` show it, with no field type's display: a dash when empty, names for relations,
+ * badges in the view's `valueColors` for enums and the `badge` format, and timestamps as the `relative` format says.
+ */
+export const ShownValue = ({ field, value, hints, relationLabel }: ShownValueProps) => {
   if (value === null || value === undefined || value === '') return <span className="text-muted-foreground">—</span>
   if (field.type === 'relation') return <RelationValue field={field} value={value} known={relationLabel} />
   const file = field.type === 'file' ? fileShown(value) : undefined
@@ -54,6 +58,12 @@ const BuiltInValue = ({ model, field, value, format, relationLabel }: FieldValue
   if (contact) return <ContactLink format={contact} value={text} />
   if (field.type === 'enum' || hints.format === 'badge') return <ValueBadge value={value} hints={hints}>{text}</ValueBadge>
   return <span title={valueTitle(field, value, undefined, hints)} className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums', hints.multiline && 'whitespace-pre-line break-words')}>{text}</span>
+}
+
+const BuiltInValue = ({ model, field, value, format, relationLabel }: FieldValueProps) => {
+  const { views } = useAdminMeta()
+  const hints = { ...views[model.name]?.fields[field.name], ...(format && { format }) }
+  return <ShownValue field={field} value={value} hints={hints} relationLabel={relationLabel} />
 }
 
 /**

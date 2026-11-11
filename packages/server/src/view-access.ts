@@ -289,6 +289,7 @@ const viewShape = (
     helpWhen: s.data,
     saveFeedback: s.data,
     recordWidth: s.data,
+    titleBadge: s.field,
     actions: s.list(actionShape(model, models, createPages)),
     listOf: s.field,
     signIn: s.data,

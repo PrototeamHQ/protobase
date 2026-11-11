@@ -218,6 +218,7 @@ describe('pruneView', () => {
     const Margin = Object.assign((props: { cost: string }) => props, { blockName: 'Margin', custom: true })
     const everywhere = view<typeof repairs>('repairs')
       .title((r) => r.costPrice)
+      .titleBadge((r) => r.costPrice)
       .searchResult((r) => ({ title: [r.number, r.costPrice], subtitle: r.costPrice }))
       .nav({ recent: { status: 'costPrice', tones: {} } })
       .fields((r) => ({ costPrice: r.costPrice.label('Cost price'), number: r.number.label('Number') }))

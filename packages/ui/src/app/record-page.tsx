@@ -2,14 +2,13 @@ import { Check } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Fragment, useEffect, type ReactElement } from 'react'
 import { isApiError } from '@protobase/client'
-import { enumLabel, type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { usePauseFocusRefresh } from '../data/focus-refresh'
 import { keys } from '../data/query-keys'
 import { useOpenedRecord, type LiveRecord } from '../data/use-record'
 import { displayValue, valueTitle } from '../live/display-value'
 import { fromDraft, isRequiredOnEdit, toDraft } from '../live/field-values'
 import { auditField } from '../live/audit-fields'
-import { valueTone } from '../live/value-color'
 import { humanize } from '../live/naming'
 import { useRecordTitle } from './titles/record-titles'
 import { Button, buttonClass } from '../primitives/button'
@@ -61,6 +60,7 @@ import { isChosen, keyValue } from './create/create-values'
 import { RelatedSection } from './related-section'
 import { relatedValue } from './related-value'
 import { ValueBadge } from './value-badge'
+import { titleBadgeField } from './read-values/title-badge'
 import { useClient } from '../data/api-provider'
 import { markdownExcerpt } from '../markdown/markdown-excerpt'
 import { ComposerSection } from './conversation/composer-section'
@@ -211,15 +211,17 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     if (target) go(recordAt(openGroups, atEdit, target === tabs[0] ? undefined : target.title), { replace: true })
   }, [editor.rejections])
   const sidebarFields = layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))
-  // An enum status shows as the badge, unless it is missing or the sidebar shows it already
-  const hasStatus = model.fields.status?.type === 'enum'
-  const statusValue = stored.record.status
-  const status = hasStatus && !sidebarFields.includes('status') && statusValue !== null && statusValue !== undefined && statusValue !== '' ? String(statusValue) : undefined
   const updatedAt = auditField(model, 'updated')
   const hint = (name: string) => view?.fields[name]
   // A write-only field has no value to show, so it is on the form only
   const visible = (name: string) => fieldAccess(stored.permissions, name) !== 'hidden' && whenShown(hint(name)?.when, editing) && (shown === 'form' || !model.fields[name]?.writeOnly)
   const known = (name: string) => !preview || Object.hasOwn(stored.record, name)
+  const badgeField = titleBadgeField(model, view, stored.record, sidebarFields, visible)
+  const badge = badgeField && (
+    <ValueBadge value={stored.record[badgeField]} hints={hint(badgeField)}>
+      {displayValue(model.fields[badgeField]!, stored.record[badgeField], hint(badgeField))}
+    </ValueBadge>
+  )
 
   const fieldView = (name: string) => {
     const field = model.fields[name]
@@ -384,10 +386,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
       {remove.dialogs}
       <div className="flex-1">
         <div className={cn(view?.recordWidth !== 'full' && 'mx-auto max-w-[1100px]', 'px-4 pb-8 pt-6 md:px-10 md:py-8')}>
-          <RecordHeader
-            title={title}
-            status={status ? { label: enumLabel(status, hint('status')?.valueLabels), tone: valueTone(hint('status')?.valueColors, status) } : undefined}
-          />
+          <RecordHeader title={title} badge={badge} />
           {editor.message && <div className="mt-4"><ErrorBanner title={text('notSaved')} error={new Error(editor.message)} /></div>}
           {editor.linesConflict && (
             <div className="mt-4">

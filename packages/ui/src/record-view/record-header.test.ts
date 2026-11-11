@@ -4,10 +4,11 @@ import { describe, expect, it } from 'vitest'
 import { Pencil } from 'lucide-react'
 import { ActionMenu } from './action-menu'
 import { RecordHeader } from './record-header'
+import { Badge } from '../primitives/badge'
 
 describe('RecordHeader', () => {
   it("shows the record's title as the page's heading, with the status beside it", () => {
-    const html = renderToStaticMarkup(createElement(RecordHeader, { title: 'Nordlicht Systemtechnik GmbH', status: { label: 'Active', tone: 'green' } }))
+    const html = renderToStaticMarkup(createElement(RecordHeader, { title: 'Nordlicht Systemtechnik GmbH', badge: createElement(Badge, { tone: 'green', children: 'Active' }) }))
     expect(html).toContain('<h1 class="text-xl font-semibold tracking-tight text-foreground md:text-2xl">Nordlicht Systemtechnik GmbH</h1>')
     expect(html).toContain('Active')
     expect(html).not.toContain('sr-only')
