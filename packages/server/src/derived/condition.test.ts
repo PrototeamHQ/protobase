@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { equalityKeys, equalityOf, mayMatch, type Condition } from './condition'
 
-const types = { id: 'integer', status: 'enum', due: 'timestamp', score: 'decimal', notes: 'json' }
+const types = { owner: 'uuid', id: 'integer', done: 'boolean', status: 'enum', due: 'timestamp', score: 'decimal', notes: 'json' }
 
 describe('mayMatch', () => {
   it('compares exactly-typed values as text, whichever form they come in', () => {
@@ -33,5 +33,19 @@ describe('the equality index', () => {
     expect(equalityOf({ or: [{ field: 'id', op: '=', value: 3 }] }, types)).toBeUndefined()
     expect(equalityOf({ field: 'score', op: '=', value: 3 }, types)).toBeUndefined()
     expect(equalityKeys({ id: 3, status: null, score: '2.5' }, types)).toEqual([{ field: 'id', value: '3' }])
+  })
+
+  it('holds a uuid in the one form Postgres compares it by, whichever form a query gave', () => {
+    const row = { owner: '0b7e4c2a-1f3d-4e5a-9b6c-7d8e9f0a1b2c' }
+    const given: Condition = { field: 'owner', op: '=', value: '{0B7E4C2A1F3D4E5A9B6C7D8E9F0A1B2C}' }
+    expect(mayMatch(given, row, types)).toBe(true)
+    expect(equalityOf(given, types)).toEqual(equalityKeys(row, types)[0])
+  })
+
+  it('holds integers and booleans in the one form Postgres compares them by, whichever spelling a query gave', () => {
+    expect(equalityOf({ field: 'id', op: '=', value: ' +007' }, types)).toEqual(equalityKeys({ id: 7 }, types)[0])
+    expect(mayMatch({ field: 'id', op: '=', value: '007' }, { id: 7 }, types)).toBe(true)
+    for (const spelling of ['t', 'YES', 'on', '1']) expect(equalityOf({ field: 'done', op: '=', value: spelling }, types)).toEqual({ field: 'done', value: 'true' })
+    for (const spelling of ['f', 'no', 'of', '0']) expect(mayMatch({ field: 'done', op: '=', value: spelling }, { done: true }, types)).toBe(false)
   })
 })

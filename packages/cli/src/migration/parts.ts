@@ -27,8 +27,9 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
     ...(project.readOnlyQueries
       ? [{ name: 'query', title: "The role the assistant's read-only queries run as, which reads only the resources' tables", sql: () => queryRunnerMigration(project.db, project.models, project.authTables) }]
       : []),
-    // After the jobs schema: a newly declared derived value enqueues the job that computes its records once.
-    ...(project.models.some((model) => model.derived) ? [{ name: 'derived', title: "The state of the resources' derived values and what they read", sql: () => derivedMigration(project.db, project.models) }] : []),
+    // After the jobs schema: a newly declared derived value enqueues the job that computes its records once. Always
+    // compared, so that the state of a derived value the config no longer has is dropped.
+    { name: 'derived', title: "The state of the resources' derived values and what they read", sql: () => derivedMigration(project.db, project.models) },
     ...(comments ? [{ name: 'comments', title: 'The comments table of the resources with comments', sql: () => commentsMigration(project.db) }] : []),
     ...(project.webhooks ? [{ name: 'webhooks', title: 'The webhook subscriptions of webhooks', sql: () => webhooksMigration(project.db, project.webhooks, project.events) }] : []),
     ...(project.workflows ? [{ name: 'workflows', title: 'The workflows, their versions, runs and steps', sql: () => workflowsMigration(project.db, project.workflows) }] : []),

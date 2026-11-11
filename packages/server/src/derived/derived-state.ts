@@ -1,6 +1,6 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
-import type { StoredRead } from './affected'
+import { touches, type ChangedRecord, type StoredRead } from './affected'
 import { equalityOf } from './condition'
 import type { RecordedRead } from './recorded-reads'
 
@@ -9,24 +9,55 @@ export type ValueRef = { name: string; key: string }
 
 const pairs = (refs: readonly ValueRef[]) => sql`unnest(${refs.map((ref) => ref.name)}::text[], ${refs.map((ref) => ref.key)}::text[]) as t("name", "key")`
 
-/** Marks the records' values stale, a record without one yet too, and moves each one's version on. */
+const nextVersion = sql`nextval('"derived"."versions"')`
+
+// Only values still declared: a worker that started before a migration removed one cannot bring its state back.
+const declared = (name: unknown) => sql`exists (select 1 from "derived"."declared" d where d."name" = ${name})`
+
+/** Marks the records' values stale, a record without one yet too, each with a version none had before. */
 export const markStale = async (db: Db, refs: readonly ValueRef[]) => {
   if (refs.length === 0) return
-  await sql`insert into "derived"."values" ("name", "key", "status", "version") select t."name", t."key", 'stale', 1 from ${pairs(refs)}
-    on conflict ("name", "key") do update set "status" = 'stale', "version" = "values"."version" + 1`.execute(db)
+  await sql`insert into "derived"."values" ("name", "key", "status", "version") select t."name", t."key", 'stale', ${nextVersion} from ${pairs(refs)} where ${declared(sql`t."name"`)}
+    on conflict ("name", "key") do update set "status" = 'stale', "version" = ${nextVersion}`.execute(db)
 }
 
 /** Drops the values of records that are gone, and what they read. */
 export const forget = async (db: Db, refs: readonly ValueRef[]) => {
   if (refs.length === 0) return
+  await sql`delete from "derived"."pending" p using ${pairs(refs)} where p."name" = t."name" and p."key" = t."key"`.execute(db)
   await sql`delete from "derived"."reads" r using ${pairs(refs)} where r."name" = t."name" and r."key" = t."key"`.execute(db)
   await sql`delete from "derived"."values" v using ${pairs(refs)} where v."name" = t."name" and v."key" = t."key"`.execute(db)
 }
 
-/** Marks the value recalculating and returns its version, the one the result is for. */
-export const claim = async (db: Db, { name, key }: ValueRef) =>
-  (await sql<{ version: string }>`insert into "derived"."values" ("name", "key", "status", "version") values (${name}, ${key}, 'recalculating', 1)
-    on conflict ("name", "key") do update set "status" = 'recalculating' returning "version"::text as version`.execute(db)).rows[0]!.version
+/**
+ * Marks the value recalculating and returns a version of this run's own, the one the result is for, so a run under way
+ * that started before it keeps no result. Changes kept for that earlier run landed before this one reads, so it sees
+ * them. `undefined` for a value no longer declared.
+ */
+export const claim = async (db: Db, { name, key }: ValueRef) => {
+  await sql`delete from "derived"."pending" where "name" = ${name} and "key" = ${key}`.execute(db)
+  return (await sql<{ version: string }>`insert into "derived"."values" ("name", "key", "status", "version") select ${name}, ${key}, 'recalculating', ${nextVersion} where ${declared(name)}
+    on conflict ("name", "key") do update set "status" = 'recalculating', "version" = excluded."version" returning "version"::text as version`.execute(db)).rows[0]?.version
+}
+
+/**
+ * The records of `names` whose run is under way, locked until the dispatch ends so a run's result is kept before or
+ * after it, never meanwhile. A run's reads are kept only when it ends, so a change meanwhile may touch a read no row
+ * holds yet, as on a record's first run.
+ */
+export const recalculating = async (db: Db, names: readonly string[]): Promise<ValueRef[]> => {
+  if (names.length === 0) return []
+  const { rows } = await sql<ValueRef>`select "name", "key" from "derived"."values" where "status" = 'recalculating' and "name" = any(${names}::text[])
+    order by "name", "key" for update`.execute(db)
+  return rows
+}
+
+/** Keeps changes that land while a record's run is under way, which `keep` weighs against the reads the run made. */
+export const holdPending = async (db: Db, held: readonly (ValueRef & { change: ChangedRecord })[]) => {
+  if (held.length === 0) return
+  await sql`insert into "derived"."pending" ("name", "key", "change") select r."name", r."key", r."change"
+    from jsonb_to_recordset(${JSON.stringify(held)}::jsonb) as r("name" text, "key" text, "change" jsonb)`.execute(db)
+}
 
 /**
  * The reads of `names`' records that the changes' records may touch: those with an equality a changed record holds,
@@ -42,15 +73,19 @@ export const candidateReads = async (db: Db, resources: readonly string[], keys:
 
 export type Result = { value: unknown; reads: RecordedRead[]; flipsAt: Date | undefined }
 
+/** What became of a result: `dropped` for a change that made it stale and queued a run, `touched` for a change during the run that touched one of its reads, else whether the value differs from the one kept before. */
+export type Kept = 'dropped' | 'touched' | 'same' | 'changed'
+
 /**
- * Keeps a computed result, in the caller's transaction, when the value's version is still `version`: its reads, the
- * value, `current` and when. Returns whether the value differs from the one kept before, or `undefined` when a change
- * made it stale while it ran, so the result is dropped for the run that change queued.
+ * Keeps a computed result, in the caller's transaction, when the value's version is still `version` and no change kept
+ * while it ran touches one of its reads: its reads, the value, `current` and when.
  */
-export const keep = async (trx: Db, { name, key }: ValueRef, version: string, result: Result, typesOf: (resource: string) => Record<string, string>) => {
+export const keep = async (trx: Db, { name, key }: ValueRef, version: string, result: Result, typesOf: (resource: string) => Record<string, string>): Promise<Kept> => {
   const { rows } = await sql<{ version: string; same: boolean }>`select "version"::text as version, "value" is not distinct from ${JSON.stringify(result.value)}::jsonb as same
     from "derived"."values" where "name" = ${name} and "key" = ${key} for update`.execute(trx)
-  if (rows[0]?.version !== version) return undefined
+  if (rows[0]?.version !== version) return 'dropped'
+  const pending = (await sql<{ change: ChangedRecord }>`delete from "derived"."pending" where "name" = ${name} and "key" = ${key} returning "change"`.execute(trx)).rows
+  if (pending.some(({ change }) => result.reads.some((read) => touches(read, change, typesOf(change.resource))))) return 'touched'
   await sql`delete from "derived"."reads" where "name" = ${name} and "key" = ${key}`.execute(trx)
   const reads = result.reads.map((read) => {
     const equality = equalityOf(read.condition, typesOf(read.resource))
@@ -63,5 +98,5 @@ export const keep = async (trx: Db, { name, key }: ValueRef, version: string, re
   }
   await sql`update "derived"."values" set "status" = 'current', "value" = ${JSON.stringify(result.value)}::jsonb, "computed_at" = now(), "flips_at" = ${result.flipsAt ?? null}
     where "name" = ${name} and "key" = ${key}`.execute(trx)
-  return !rows[0]!.same
+  return rows[0]!.same ? 'same' : 'changed'
 }

@@ -26,10 +26,29 @@ const exactTypes = new Set(['integer', 'bigint', 'text', 'uuid', 'enum', 'boolea
 const numberTypes = new Set(['integer', 'bigint', 'decimal'])
 const timeTypes = new Set(['timestamp', 'date'])
 
+const integerText = /^\s*[+-]?\d+\s*$/
+// The spellings Postgres reads as a boolean, any unique prefix of a word among them.
+const booleanText = (text: string) => {
+  const word = text.trim().toLowerCase()
+  if (word === '') return text
+  if (['1', 'on'].includes(word) || 'true'.startsWith(word) || 'yes'.startsWith(word)) return 'true'
+  if (['0', 'off', 'of'].includes(word) || 'false'.startsWith(word) || 'no'.startsWith(word)) return 'false'
+  return text
+}
+
+/** A value of an exactly compared type as text, in the one form Postgres compares it by: `007` as `7`, `yes` as `true`, a uuid without dashes. */
+const exactText = (type: string | undefined, value: unknown) => {
+  const text = String(value)
+  if (type === 'uuid') return text.toLowerCase().replace(/[{}-]/g, '')
+  if ((type === 'integer' || type === 'bigint') && integerText.test(text)) return BigInt(text.trim()).toString()
+  if (type === 'boolean') return booleanText(text)
+  return text
+}
+
 const equal = (type: string | undefined, a: unknown, b: Scalar): Truth => {
   if (a === null || a === undefined || b === null) return undefined
   if (a === b) return true
-  if (type !== undefined && exactTypes.has(type) && (typeof a !== 'object' || a === null)) return String(a) === String(b)
+  if (type !== undefined && exactTypes.has(type) && (typeof a !== 'object' || a === null)) return exactText(type, a) === exactText(type, b)
   return undefined
 }
 
@@ -84,11 +103,12 @@ export const mayMatch = (condition: Condition, record: Record<string, unknown>, 
 export const equalityOf = (condition: Condition, types: Record<string, string>): { field: string; value: string } | undefined => {
   if ('and' in condition) return condition.and.map((part) => equalityOf(part, types)).find(Boolean)
   if (!('op' in condition) || condition.op !== '=' || condition.value === null) return undefined
-  return exactTypes.has(types[condition.field] ?? '') ? { field: condition.field, value: String(condition.value) } : undefined
+  const type = types[condition.field]
+  return exactTypes.has(type ?? '') ? { field: condition.field, value: exactText(type, condition.value) } : undefined
 }
 
 /** A record's values as the equality index holds them: text, for the fields of a type that compares exactly. */
 export const equalityKeys = (record: Record<string, unknown>, types: Record<string, string>) =>
   Object.entries(record)
     .filter(([field, value]) => exactTypes.has(types[field] ?? '') && value !== null && typeof value !== 'object')
-    .map(([field, value]) => ({ field, value: String(value) }))
+    .map(([field, value]) => ({ field, value: exactText(types[field], value) }))

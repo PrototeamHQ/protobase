@@ -9,7 +9,7 @@ import { defineJob } from '../jobs/define-job'
 import type { Entry } from '../registry'
 import { changeKeys, fieldTypes, touches } from './affected'
 import { derivedName, fillJobName } from './derived-sql'
-import { candidateReads, claim, forget, keep, markStale, type ValueRef } from './derived-state'
+import { candidateReads, claim, forget, holdPending, keep, markStale, recalculating, type ValueRef } from './derived-state'
 import { runDerived, type DerivedCompute } from './run-derived'
 import { recordExists, writeField, writeSideField } from './write-target'
 
@@ -62,7 +62,7 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
 
   const queue = async (db: Db, refs: readonly ValueRef[]) => {
     await markStale(db, refs)
-    for (const ref of refs) await compute.enqueue(db, ref, { key: `${ref.name}:${ref.key}`, delay: settle })
+    for (const ref of refs) await compute.enqueue(db, ref, { key: `change:${ref.name}:${ref.key}`, delay: settle })
   }
 
   const compute = defineJob<ValueRef>({
@@ -74,15 +74,17 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
       if (!item) return
       if (!(await recordExists(db, item.entry, ref.key))) return forget(db, [ref])
       const version = await claim(db, ref)
+      if (version === undefined) return
       const result = await runDerived(item.compute, ref.key, { label: `Derived value ${item.name}`, db, now: now(), models: readable(item), track: item.value.track !== false, signal })
       await db.transaction().execute(async (trx) => {
-        const changed = await keep(trx, ref, version, result, typesOf)
-        if (changed === undefined) return
+        const kept = await keep(trx, ref, version, result, typesOf)
+        if (kept === 'dropped') return
+        if (kept === 'touched') return queue(trx, [ref])
         const { into, job } = item.value
         if (into && into.resource === item.entry.name) await writeField(trx, item.entry, into.field, ref.key, result.value)
         if (into && into.resource !== item.entry.name) await writeSideField(trx, deps.registry.find(into.resource)!, into.field, ref.key, result.value)
-        if (job && changed) await enqueueJob(trx, job, { resource: item.entry.name, key: ref.key, value: result.value })
-        if (result.flipsAt) await compute.enqueue(trx, ref, { key: `${ref.name}:${ref.key}:clock`, mode: 'replace', runAt: result.flipsAt })
+        if (job && kept === 'changed') await enqueueJob(trx, job, { resource: item.entry.name, key: ref.key, value: result.value })
+        if (result.flipsAt) await compute.enqueue(trx, ref, { key: `clock:${ref.name}:${ref.key}`, mode: 'replace', runAt: result.flipsAt })
       })
     },
   })
@@ -105,15 +107,28 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
     },
   })
 
-  /** Marks stale, in the dispatch's transaction, every value a change touches, and the values of new records; forgets those of deleted ones. */
+  /**
+   * Marks stale, in the dispatch's transaction, every value a change touches and the values of new records, and keeps
+   * for a run under way the changes to a resource it may read; forgets the values of deleted records.
+   */
   const onChanges = async (trx: Db, changes: readonly ResourceChange[]) => {
     const relevant = changes.filter((change) => watched.has(change.resource))
     if (relevant.length === 0) return
     const own = (change: ResourceChange) => declared.filter((item) => item.entry.name === change.resource).map((item) => ({ name: item.name, key: change.key }))
     await forget(trx, relevant.filter((change) => !change.after).flatMap(own))
     const stale = new Map<string, ValueRef>(relevant.filter((change) => !change.before).flatMap(own).map((ref) => [`${ref.name}:${ref.key}`, ref]))
-    const reads = await candidateReads(trx, [...new Set(relevant.map((change) => change.resource))], changeKeys(relevant, typesOf))
+    const resources = new Set(relevant.map((change) => change.resource))
+    const readers = declared.filter((item) => resources.has(item.entry.name) || item.value.reads.some((read) => resources.has(read))).map((item) => item.name)
+    const running = await recalculating(trx, readers)
+    await holdPending(trx, running.flatMap((ref) => {
+      const item = byName.get(ref.name)!
+      return relevant.filter((change) => change.resource === item.entry.name || item.value.reads.includes(change.resource)).map(({ resource, before, after, changed }) => ({ ...ref, change: { resource, before, after, changed } }))
+    }))
+    const reads = await candidateReads(trx, [...resources], changeKeys(relevant, typesOf))
+    // A run under way is weighed by the reads it makes, not those of the run before it.
+    const runs = new Set(running.map((ref) => `${ref.name}:${ref.key}`))
     for (const read of reads) {
+      if (runs.has(`${read.name}:${read.key}`)) continue
       if (relevant.some((change) => touches(read, change, typesOf(change.resource)))) stale.set(`${read.name}:${read.key}`, { name: read.name, key: read.key })
     }
     await queue(trx, [...stale.values()])
