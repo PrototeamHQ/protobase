@@ -345,8 +345,9 @@ describe('pruneView', () => {
     // Writing a message's fields on update only creates none
     expect(layout([], [], ['repairId', 'body'])).toEqual(['thread'])
     expect(layout([], ['body'], ['repairId'])).toEqual(['thread'])
-    expect(layout(['body'])).toEqual([])
-    expect(layout(['repairId'])).toEqual([])
+    // A write-only text or relation still lets the caller create a message
+    expect(layout(['body'])).toEqual(['composer'])
+    expect(layout(['repairId'])).toEqual(['composer'])
     expect(layout(['at'])).toEqual(['composer'])
   })
 
