@@ -39,6 +39,13 @@ describe('statementReads', () => {
     })
   })
 
+  it('looks through casts that keep a value, and widens a cast column or a cast that changes the value', async () => {
+    const [kept] = await reads(`select id from tasks where id = $1::int4 and owner = any($2::uuid[]) and title = 'a'::varchar`, ['7', ['a']])
+    expect(kept!.condition).toEqual({ and: [{ field: 'id', op: '=', value: '7' }, { field: 'owner', op: 'in', values: ['a'] }, { field: 'title', op: '=', value: 'a' }] })
+    const [changed] = await reads(`select id from tasks where created_at::date = $1::date and id = 7.5::int4 and title = 'abc'::varchar(2) and status = 'o'::task_status`, ['2026-11-10'])
+    expect(changed!.condition).toEqual({ and: [{ maybe: true }, { maybe: true }, { maybe: true }, { maybe: true }] })
+  })
+
   it('reads a table whose conditions cannot be worked out as every row', async () => {
     expect(await reads('select * from tasks where lower(title) like $1', ['a%'])).toEqual([{ table: 'tasks', condition: { maybe: true }, columns: null }])
     expect(await reads('select id from tasks')).toEqual([{ table: 'tasks', condition: { maybe: true }, columns: ['id'] }])
