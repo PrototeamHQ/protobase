@@ -132,7 +132,7 @@ export const GlobalSearch = ({ search, className = 'w-96', autoFocus, showShortc
           {search.groups.length === 0 && <p className="px-3 py-2 text-muted-foreground">{search.loading ? text('searching') : text('noMatches', { query: search.query })}</p>}
           {search.groups.map((group) => (
             <div key={group.id} role="group" aria-label={group.label}>
-              <div className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-faint-foreground">{group.label}</div>
+              <div className="px-3 pb-1 pt-2 text-[0.6875rem] font-medium uppercase tracking-wide text-faint-foreground">{group.label}</div>
               {group.failed && <p className="px-3 py-1.5 text-danger-text">{text('couldNotSearch', { label: group.label })}</p>}
               {group.hits.map((hit) => {
                 position += 1

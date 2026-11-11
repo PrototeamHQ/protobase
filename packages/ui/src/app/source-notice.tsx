@@ -26,7 +26,7 @@ export const SourceNotice = ({ status }: { status: SourceStatus }) => {
   return (
     <div className="flex h-full min-h-48 flex-1 items-center justify-center p-8">
       <div className="max-w-md text-center">
-        <h1 className="text-[16px] font-semibold">{appText('cannotReach', { label: status.source.label })}</h1>
+        <h1 className="text-base font-semibold">{appText('cannotReach', { label: status.source.label })}</h1>
         <p className="mt-1 text-muted-foreground">{reason(status.error)} {appText('restWorks')}</p>
         <Button className="mt-3" onClick={() => void queryClient.refetchQueries({ queryKey: keys.sourceMetas(status.source.url) })}>
           {appText('tryAgain')}

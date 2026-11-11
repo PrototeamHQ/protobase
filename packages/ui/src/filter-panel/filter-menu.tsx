@@ -44,7 +44,7 @@ export const FilterMenu = ({ label, activeCount, width = 240, defaultOpen = fals
         )}
       >
         {label}
-        {activeCount > 0 && <span className="rounded-full bg-primary px-1.5 text-[11px] leading-4 text-primary-foreground">{activeCount}</span>}
+        {activeCount > 0 && <span className="rounded-full bg-primary px-1.5 text-[0.6875rem] leading-4 text-primary-foreground">{activeCount}</span>}
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </button>
       {open && (

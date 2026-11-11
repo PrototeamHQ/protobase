@@ -19,7 +19,7 @@ const SearchRowItem = ({ model, view, target, targetView, row }: SearchRowItemPr
   const { name, chips, title, body } = useSearchRow({ model, of: view.searchesOf!, target, targetView, row, recordKey: key })
   return (
     <section aria-label={title} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
-      <h3 className="text-[15px] font-semibold">
+      <h3 className="text-[0.9375rem] font-semibold">
         <AppLink to={{ kind: 'record', resource: model.name, key }} className="hover:underline">
           {name ?? <InlineFilterChips chips={chips} />}
         </AppLink>

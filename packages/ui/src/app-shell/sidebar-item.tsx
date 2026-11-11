@@ -10,7 +10,7 @@ const layout = {
   'text-large': 'h-9 gap-3 px-3 text-sm',
   'text-small': 'h-7 gap-2.5 px-2.5 text-body',
   icon: 'size-9 justify-center',
-  'icon-label': 'w-full flex-col gap-0.5 py-1.5 text-[10px]',
+  'icon-label': 'w-full flex-col gap-0.5 py-1.5 text-[0.625rem]',
   'icon-tooltip': 'size-9 justify-center',
   'icon-expand': 'h-8 gap-3 px-3',
 } satisfies Record<SidebarMode, string>
@@ -34,7 +34,7 @@ export const SidebarItem = ({ item, mode, active, onNavigate, className }: Sideb
       <Icon className={cn('shrink-0', mode === 'text-small' ? 'size-4' : 'size-[18px]')} strokeWidth={active ? 2.2 : 1.9} />
       {(showsLabelInline(mode) || mode === 'icon-label') && <span className="whitespace-nowrap">{item.label}</span>}
       {isTextMode(mode) && item.count && (
-        <span className="ml-auto rounded bg-muted px-1.5 text-[11px] tabular-nums text-muted-foreground">{item.count}</span>
+        <span className="ml-auto rounded bg-muted px-1.5 text-[0.6875rem] tabular-nums text-muted-foreground">{item.count}</span>
       )}
       {isTextMode(mode) && item.problem && <TriangleAlert aria-hidden className="ml-auto size-3.5 shrink-0 text-warning-text" />}
     </a>

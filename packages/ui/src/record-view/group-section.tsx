@@ -4,7 +4,7 @@ import type { AppAddress } from '@protobase/schema'
 import { cn } from '../lib/cn'
 import { AppLink } from '../app/use-app-address'
 
-const headingClass = 'text-[16px] font-semibold text-foreground'
+const headingClass = 'text-base font-semibold text-foreground'
 
 /**
  * A heading over sections of the record page. With `toggle`, the address that opens or closes it, the heading is a

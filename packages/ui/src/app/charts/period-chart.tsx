@@ -43,7 +43,7 @@ const formatterOf = (options: Intl.DateTimeFormatOptions) => {
   return (ms: number) => format.format(ms)
 }
 
-const axisTick = { fontSize: 11, fill: 'var(--muted-foreground)' }
+const axisTick = { fontSize: '0.6875rem', fill: 'var(--muted-foreground)' }
 
 const dayMs = 86_400_000
 const withinDay: ReadonlySet<PeriodBucket> = new Set(['minute', '5_minutes', '15_minutes', 'hour'])

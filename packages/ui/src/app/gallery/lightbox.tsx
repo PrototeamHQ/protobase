@@ -124,7 +124,7 @@ export const Lightbox = ({ title, photos, index, onIndex, onClose, details, deta
       </div>
       {hasDetails && detailsOpen && desktop && (
         <aside id={sidebarId} aria-label={detailsTitle} className="min-h-dvh w-[360px] shrink-0 border-l border-border bg-background p-5 pt-[calc(1.25rem+var(--pb-safe-top))] text-foreground">
-          <h2 className="mb-3 text-[16px] font-semibold">{detailsTitle}</h2>
+          <h2 className="mb-3 text-base font-semibold">{detailsTitle}</h2>
           {shownDetails}
         </aside>
       )}

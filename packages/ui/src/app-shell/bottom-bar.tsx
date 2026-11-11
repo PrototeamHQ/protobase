@@ -24,7 +24,7 @@ export type BottomBarProps = {
 
 const inApp = (event: MouseEvent) => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
 
-const tab = 'flex min-h-[49px] min-w-0 flex-1 flex-col items-center justify-center gap-1 pb-1 pt-1.5 text-[10px] font-medium leading-none'
+const tab = 'flex min-h-[49px] min-w-0 flex-1 flex-col items-center justify-center gap-1 pb-1 pt-1.5 text-[0.625rem] font-medium leading-none'
 
 /**
  * Tabs along the bottom of a phone, as on iOS: icon above label, the current screen in the accent colour, and "More"
