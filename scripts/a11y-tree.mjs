@@ -35,13 +35,14 @@ const textSizes = () => {
   })
 }
 
-// Each shown link and button's outline style while focused from the keyboard, as `:focus-visible` matches it
+// Each shown link and button's outline style and width while focused from the keyboard, as `:focus-visible` matches it
 const focusOutlines = () =>
   [...document.querySelectorAll('a[href], button')].flatMap((element) => {
     if (element.getClientRects().length === 0 || element.closest('[aria-hidden="true"]')) return []
     element.focus()
     if (!element.matches(':focus-visible')) return []
-    return [{ text: (element.textContent.trim() || element.getAttribute('aria-label') || element.tagName).slice(0, 40), outline: getComputedStyle(element).outlineStyle }]
+    const style = getComputedStyle(element)
+    return [{ text: (element.textContent.trim() || element.getAttribute('aria-label') || element.tagName).slice(0, 40), outline: style.outlineStyle, outlineWidth: Number.parseFloat(style.outlineWidth) }]
   })
 
 const browser = await chromium.launch()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { axProblems, fixedText, hiddenFocus } from './ax-problems.mjs'
+import { axProblems, fixedText, hiddenFocus, outlineShows } from './ax-problems.mjs'
 
 type Node = { nodeId: string; parentId?: string; childIds?: string[]; ignored?: boolean; role?: { value: string }; name?: { value: string }; properties?: Array<{ name: string; value: { value: unknown } }>; backendDOMNodeId?: number }
 
@@ -39,8 +39,18 @@ describe('fixedText', () => {
   })
 })
 
+describe('outlineShows', () => {
+  it('shows an auto outline at any width and another style only above zero width', () => {
+    expect(outlineShows('auto', 0)).toBe(true)
+    expect(outlineShows('solid', 2)).toBe(true)
+    expect(outlineShows('solid', 0)).toBe(false)
+    expect(outlineShows('none', 2)).toBe(false)
+  })
+})
+
 describe('hiddenFocus', () => {
   it('finds the links and buttons whose focus outline forced colors drop', () => {
-    expect(hiddenFocus([{ text: 'Order 7', outline: 'solid' }, { text: 'Order 8', outline: 'none' }])).toEqual(['"Order 8" shows no outline when focused in forced colors'])
+    const focused = [{ text: 'Order 7', outline: 'solid', outlineWidth: 2 }, { text: 'Order 8', outline: 'none', outlineWidth: 2 }, { text: 'Order 9', outline: 'solid', outlineWidth: 0 }]
+    expect(hiddenFocus(focused)).toEqual(['"Order 8" shows no outline when focused in forced colors (none 2px)', '"Order 9" shows no outline when focused in forced colors (solid 0px)'])
   })
 })
