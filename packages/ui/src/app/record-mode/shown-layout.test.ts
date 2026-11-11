@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LayoutItemModel } from '@protobase/schema'
-import { conditionalItems, shownLayout, whenOf } from './shown-layout'
+import { conditionalItems, fallbackEntries, shownLayout, whenOf } from './shown-layout'
 
 const items: LayoutItemModel[] = [
   { kind: 'section', title: 'Always', fields: ['a'] },
@@ -64,8 +64,22 @@ describe('shownLayout', () => {
     const main: LayoutItemModel = { kind: 'custom', component: 'Chat', fallback: [inner, always] }
     const sidebar: LayoutItemModel = { kind: 'custom', component: 'Card', sidebar: true, fallback: [side] }
     expect(conditionalItems([main, sidebar])).toEqual([done])
-    expect(shownLayout([main, sidebar], [true], false, false)).toEqual([{ ...main, fallback: [always] }, sidebar])
-    expect(shownLayout([main, sidebar], [true], true, false)).toEqual([main, { ...sidebar, fallback: [] }])
-    expect(shownLayout([main, sidebar], [false], true, false)).toEqual([{ ...main, fallback: [{ ...inner, fallback: [] }, always] }, { ...sidebar, fallback: [] }])
+    expect(shownLayout([main, sidebar], [true], false, false)).toEqual([{ ...main, fallback: [always], fallbackAt: [1] }, { ...sidebar, fallbackAt: [0] }])
+    expect(shownLayout([main, sidebar], [true], true, false)).toEqual([
+      { ...main, fallback: [{ ...inner, fallbackAt: [0] }, always], fallbackAt: [0, 1] },
+      { ...sidebar, fallback: [], fallbackAt: [] },
+    ])
+    expect(shownLayout([main, sidebar], [false], true, false)).toEqual([
+      { ...main, fallback: [{ ...inner, fallback: [], fallbackAt: [] }, always], fallbackAt: [0, 1] },
+      { ...sidebar, fallback: [], fallbackAt: [] },
+    ])
+  })
+
+  it('keeps a fallback item at its place in the whole fallback while an item before it hides and shows', () => {
+    const composer: LayoutItemModel = { kind: 'composer', resource: 'messages', field: 'task_id', text: 'body' }
+    const chat: LayoutItemModel = { kind: 'custom', component: 'Chat', fallback: [{ kind: 'section', title: 'Editing', fields: ['b'], when: 'editing' }, composer] }
+    const places = (editing: boolean) => fallbackEntries(shownLayout([chat], [], editing, false)[0] as typeof chat).map(([entry, at]) => [entry.kind, at])
+    expect(places(true)).toEqual([['section', 0], ['composer', 1]])
+    expect(places(false)).toEqual([['composer', 1]])
   })
 })
