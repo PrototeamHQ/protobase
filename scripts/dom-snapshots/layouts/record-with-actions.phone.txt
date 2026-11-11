@@ -40,7 +40,7 @@ div | block
                 div .grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12 | grid row nowrap normal normal
                   main .divide-y divide-border | block
                     section .py-8 first:pt-8 | block
-                      h2 .text-[16px] font-semibold text-foreground | block
+                      h2 .flex items-center gap-2 text-[16px] font-semibold text-foreground | flex row nowrap center normal
                       div .mt-5 | block
                         div .grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 | grid row nowrap normal normal
                           div | block
@@ -68,7 +68,7 @@ div | block
                               input .min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-faint-foreground | block
                             p .mt-1.5 text-xs text-muted-foreground | block
                     section .py-8 first:pt-8 | block
-                      h2 .text-[16px] font-semibold text-foreground | block
+                      h2 .flex items-center gap-2 text-[16px] font-semibold text-foreground | flex row nowrap center normal
                       p .mt-1 max-w-xl leading-6 text-muted-foreground | block
                       div .mt-5 | block
                         div .grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 | grid row nowrap normal normal
@@ -94,7 +94,7 @@ div | block
                               input .min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-faint-foreground | block
                             p .mt-1.5 text-xs text-muted-foreground | block
                     section .py-8 first:pt-8 | block
-                      h2 .text-[16px] font-semibold text-foreground | block
+                      h2 .flex items-center gap-2 text-[16px] font-semibold text-foreground | flex row nowrap center normal
                       div .mt-5 | block
                         div .grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 | grid row nowrap normal normal
                           div | block
