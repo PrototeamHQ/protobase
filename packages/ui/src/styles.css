@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./theme.css";
 @import "./tokens.css";
+@import "./press.css";
 @source "./";
 
 @layer base {
