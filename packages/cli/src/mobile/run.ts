@@ -13,6 +13,7 @@ import { deviceAppName } from './device-app-name'
 import { protobaseVersion } from '../version/version'
 import { generatePlatform } from './generate'
 import { hasGoogleServices, missingGoogleServices } from './google-services'
+import type { ApnsEnvironment } from './ios-push'
 import { liveUpdateSettings } from './live-update-settings'
 import { loadMobileProject } from './load-project'
 import { checkMobileConfig } from './mobile-config'
@@ -67,14 +68,16 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   const { builtInOrder } = live === undefined ? await buildWebPart({ projectDir, ws, extensions, apiOrigin: url.origin, ...(build && { build }), onWarning }) : await placeholderWebPart(ws)
   const fingerprint = nativeFingerprint(pinnedNative, mobile.plugins, { push: project.notifications })
   // Native push comes with notifications(); on Android only with the project's Firebase file, without which it crashes.
-  const push = project.notifications && platform === 'android' && (await hasGoogleServices(projectDir))
-  if (project.notifications && platform === 'android' && !push) onWarning(missingGoogleServices(projectDir))
+  const push = project.notifications && (platform === 'ios' || (await hasGoogleServices(projectDir)))
+  if (project.notifications && !push) onWarning(missingGoogleServices(projectDir))
   const liveUpdate = liveUpdateSettings({ ...(mobile.publicKey && { publicKey: mobile.publicKey }), ...(builtInOrder && { builtInOrder }), apiOrigin: url.origin, live: live !== undefined })
   if (liveUpdate.note) process.stderr.write(`note: ${liveUpdate.note}\n`)
-  const config = { appId: mobile.appId, appName, fingerprint, shellVersion: protobaseVersion, plugins, allowances, apiOrigin: url.origin, platform, ...(release && { release }), ...(push && { push }) }
+  // An iOS store release registers with production APNs, every other iOS build with the sandbox.
+  const apnsEnvironment: ApnsEnvironment | undefined = push && platform === 'ios' ? (release ? 'production' : 'sandbox') : undefined
+  const config = { appId: mobile.appId, appName, fingerprint, shellVersion: protobaseVersion, plugins, allowances, apiOrigin: url.origin, platform, ...(release && { release }), ...(push && { push }), ...(apnsEnvironment && { apnsEnvironment }) }
   await writeCapacitorConfig(ws, capacitorConfig({ ...config, ...(liveUpdate.settings && { liveUpdate: liveUpdate.settings }) }))
   const cap = capacitorRunner(ws, env, run)
-  await generatePlatform(ws, platform, { ...allowances, ...(push && { googleServicesFrom: projectDir }) }, cap)
+  await generatePlatform(ws, platform, { ...allowances, ...(push && platform === 'android' && { googleServicesFrom: projectDir }), ...(apnsEnvironment && { apnsEnvironment }) }, cap)
   if (platform === 'android') {
     await guardLiveUpdate(ws)
     await checkProtobasePlugin(ws)

@@ -1,4 +1,4 @@
-import { ApiError, type DevicesClient } from '@protobase/client'
+import { ApiError, type ApnsDeviceRegistration, type DevicesClient, type FcmDeviceRegistration } from '@protobase/client'
 import type { NativeBridge } from '../../app/native-auth-fetch'
 import type { PushRecords } from './push-records'
 import type { PushState, PushUser } from './web-push'
@@ -6,16 +6,21 @@ import type { PushState, PushUser } from './web-push'
 /** Capacitor's push plugin, by the name its native side registers; the app has it only when the build compiled it in. */
 export const pushPluginName = 'PushNotifications'
 
+/** The device an app's push token registers as, without the user agent and user, which the helper adds. */
+export type NativeDevice = Omit<FcmDeviceRegistration, 'userAgent' | 'userId'> | Omit<ApnsDeviceRegistration, 'userAgent' | 'userId'>
+
 export type NativePushOptions = {
   bridge: NativeBridge
+  /** The device a token from the push plugin registers as: an `fcm` one on Android, an `apns` one on iOS. */
+  device: (token: string) => Promise<NativeDevice>
   records: PushRecords
   devices: Pick<DevicesClient, 'register' | 'remove'>
   /** Who is signed in now, read again after every step that waits. */
   user: () => PushUser | undefined
   userAgent: string
-  /** How long sign-out waits for FCM and the server before it goes on regardless. */
+  /** How long sign-out waits for the push service and the server before it goes on regardless. */
   waitMs?: number
-  /** How long turning push on waits for the app's FCM token. */
+  /** How long turning push on waits for the app's push token. */
   tokenMs?: number
 }
 
@@ -30,16 +35,16 @@ class SignedInChanged extends Error {}
 const isRefusal = (error: unknown, slug: 'device-held' | 'other-user') => error instanceof ApiError && error.status === 409 && error.slug === slug
 
 /**
- * Push in the Android app through Capacitor's push plugin, called through the native bridge: the app's FCM token is
- * registered as an `fcm` device, only for someone signed in as themselves who turned it on, and kept for that same user
- * alone. Signing out, or someone else signing in, forgets it here and deletes the token, so the next user gets a new
+ * Push in the iOS and Android app through Capacitor's push plugin, called through the native bridge: the app's token,
+ * from APNs or FCM, is registered as the device `device` makes of it, only for someone signed in as themselves who
+ * turned it on, and kept for that same user alone. Signing out, or someone else signing in, forgets it here and deletes the token, so the next user gets a new
  * one. The token is never written anywhere but to the server and the local record.
  */
-export const nativePush = ({ bridge, records, devices, user, userAgent, waitMs = 3000, tokenMs = 15_000 }: NativePushOptions) => {
+export const nativePush = ({ bridge, device, records, devices, user, userAgent, waitMs = 3000, tokenMs = 15_000 }: NativePushOptions) => {
   const call = (method: string, options: object = {}) => bridge.nativePromise(pushPluginName, method, options)
   const permission = async () => ((await call('checkPermissions')) as Permission).receive
 
-  // The app's current FCM token, from the event `register` answers with.
+  // The app's current push token, from the event `register` answers with.
   const token = () =>
     new Promise<string>((resolve, reject) => {
       let listeners: Array<{ remove(): Promise<void> }> = []
@@ -49,15 +54,15 @@ export const nativePush = ({ bridge, records, devices, user, userAgent, waitMs =
         listeners = []
         settle()
       }
-      const timer = setTimeout(() => finish(() => reject(new Error(`FCM gave the app no push token within ${tokenMs} ms`))), tokenMs)
+      const timer = setTimeout(() => finish(() => reject(new Error(`The push service gave the app no push token within ${tokenMs} ms`))), tokenMs)
       listeners = [
         bridge.addListener(pushPluginName, 'registration', (data) => finish(() => resolve((data as { value: string }).value))),
-        bridge.addListener(pushPluginName, 'registrationError', () => finish(() => reject(new Error('FCM gave the app no push token')))),
+        bridge.addListener(pushPluginName, 'registrationError', () => finish(() => reject(new Error('The push service gave the app no push token')))),
       ]
       call('register').catch((error: unknown) => finish(() => reject(error)))
     })
 
-  // Nothing of the registration stays here: the record, what the phone shows, and the token, which FCM deletes.
+  // Nothing of the registration stays here: the record, what the phone shows, and the token, which the push service deletes.
   const drop = async () => {
     await records.clear()
     await call('removeAllDeliveredNotifications')
@@ -68,9 +73,9 @@ export const nativePush = ({ bridge, records, devices, user, userAgent, waitMs =
     const same = () => user()?.id === signedIn.id && user()?.own === true
     const current = await token()
     if (!same()) throw new SignedInChanged()
-    const device = await devices.register({ kind: 'fcm', token: current, userAgent, userId: signedIn.id })
+    const registered = await devices.register({ ...(await device(current)), userAgent, userId: signedIn.id })
     if (!same()) throw new SignedInChanged()
-    return { device, token: current }
+    return { device: registered, token: current }
   }
 
   const state = async (): Promise<PushState> => {
@@ -81,8 +86,8 @@ export const nativePush = ({ bridge, records, devices, user, userAgent, waitMs =
   }
 
   /**
-   * Turns push on for the signed-in user: asks for the permission from Android 13 on when the user has not answered,
-   * registers with FCM and the token as the user's device. Does nothing for staff signed in as the user or a visitor;
+   * Turns push on for the signed-in user: asks for the permission, on Android from 13 on, when the user has not
+   * answered, registers with the push service and the token as the user's device. Does nothing for staff signed in as the user or a visitor;
    * a refusal or someone else signing in meanwhile leaves push off. A token another user holds is deleted and one fresh
    * token tried, as a browser subscribes afresh.
    */
@@ -113,7 +118,7 @@ export const nativePush = ({ bridge, records, devices, user, userAgent, waitMs =
     return 'on'
   }
 
-  /** Turns push off here: forgets it, deletes the token and removes the device, waiting at most `waitMs` on FCM and the server. */
+  /** Turns push off here: forgets it, deletes the token and removes the device, waiting at most `waitMs` on the push service and the server. */
   const turnOff = async () => {
     const record = await records.read()
     await records.clear()
@@ -129,7 +134,7 @@ export const nativePush = ({ bridge, records, devices, user, userAgent, waitMs =
   /**
    * Takes the signed-in user in, on every load and sign-in: a registration here for anyone else is forgotten and its
    * token deleted; the user's own, when they signed in as themselves and the permission stands, is registered again
-   * with the app's current token, which FCM may have renewed, and the device of an older token removed.
+   * with the app's current token, which the push service may have renewed, and the device of an older token removed.
    */
   const adopt = async (signedIn: PushUser) => {
     const record = await records.read()

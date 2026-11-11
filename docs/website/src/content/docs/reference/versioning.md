@@ -79,6 +79,8 @@ The CLI makes one version check, when it starts. The project's `package.json` li
 error: This project asks for Protobase ^0.14.0, and this CLI is Protobase 0.15.0: run it with a CLI whose version ^0.14.0 holds
 ```
 
+A prerelease CLI, such as a build from main, is compared the same way, just before its own release: `0.94.4-main.4f8859dd` runs a `^0.94.0` project, and `0.95.0-main.4f8859dd` is refused by it.
+
 In a locked project the installed copies must also be ones the CLI runs: its version in their caret range, which from 1.0 on is the same major and below 1.0, where a minor may break, the same minor, never older. A specifier that is no range, such as `workspace:*`, says no version, so the installed copies are checked instead. A project that lists no `@protobase` package, or has no `package.json`, has nothing to check.
 
 Nothing else compares versions: not the build, not the serve runtime. `protobase build` writes the version of the copies it used into [the manifest](/reference/cli/#the-manifest) as `protobase`: the building CLI's own in a bundled project, the `@protobase` packages its lockfile installed in a locked one, and a host serves the bundle on the runtime of that version. The check is `checkProjectVersion` in `packages/cli/src/version/project-version.ts`.

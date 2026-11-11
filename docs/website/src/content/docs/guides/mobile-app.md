@@ -164,12 +164,20 @@ You submit the app under your own developer account, on both stores: Apple rejec
 
 ## 9. Push notifications
 
-With [`notifications()`](/reference/notifications/) on, `protobase mobile` sets push up in the app itself: there is no push setting in the mobile section. Push on iOS is coming soon.
+With [`notifications()`](/reference/notifications/) on, `protobase mobile` sets push up in the app itself: there is no push setting in the mobile section.
+
+The user turns push on from the bell, or from your own button with [`usePushNotifications`](/reference/notifications/#in-the-browser). The phone asks for the permission then. Signing out removes the phone's registration.
+
+A tap on a notification whose `url` is on your app's server opens that page inside the app. Any other `http` or `https` url opens in the phone's browser, never inside the app, and any other url opens nothing. Turning push on or off changes the app's native code, so it ships in a store release, not a [live update](#7-live-updates). <gap>An app with `notifications()` on cannot get live updates on Protobase Cloud because fingerprinting its release with the manifest's `push` is not implemented there.</gap> <gap>A self-hosted server cannot offer live updates to an app whose config function turns `notifications()` on for `build` and not for `serve`, or the other way round, because fingerprinting a served release from its bundle's manifest is not implemented.</gap>
 
 ### Android
 
-Put your Firebase project's `google-services.json` in the project folder, next to `protobase.config.ts`. You download it from the Firebase console (Project settings, Your apps, an Android app whose package name is the mobile section's `appId`). Every `protobase mobile` run and build copies it into the Android app. Without it, the Android app builds without push and every run says so, naming the path. The server sends through FCM once you set [`PROTOBASE_FCM_SERVICE_ACCOUNT`](/reference/notifications/#android).
+Put your Firebase project's `google-services.json` in the project folder, next to `protobase.config.ts`. You download it from the Firebase console (Project settings, Your apps, an Android app whose package name is the mobile section's `appId`). Every `protobase mobile` run and build copies it into the Android app. Without it, the Android app builds without push and every run says so, naming the path. The server sends through FCM once you set [`PROTOBASE_FCM_SERVICE_ACCOUNT`](/reference/notifications/#android). Android asks for the permission from Android 13 on.
 
-The user turns push on from the bell, or from your own button with [`usePushNotifications`](/reference/notifications/#in-the-browser). Android 13 and later ask for the permission then. Signing out removes the phone's registration.
+### iOS
 
-A tap on a notification whose `url` is on your app's server opens that page inside the app. Any other `http` or `https` url opens in the phone's browser, never inside the app, and any other url opens nothing. Turning push on or off changes the app's native code, so it ships in a store release, not a [live update](#7-live-updates). <gap>An app with `notifications()` on cannot get live updates on Protobase Cloud because fingerprinting its release with the manifest's `push` is not implemented there.</gap> <gap>A self-hosted server cannot offer live updates to an app whose config function turns `notifications()` on for `build` and not for `serve`, or the other way round, because fingerprinting a served release from its bundle's manifest is not implemented.</gap>
+`protobase mobile` adds the push capability to the iOS app and forwards its APNs token to Capacitor itself, on every run and build. Automatic signing turns push on for the app id in your Apple developer account; with manual signing (`--certificate` and `--profile`), the provisioning profile must include push notifications. A free team cannot sign an app with push, so running one on a phone needs a paid team; the simulator needs none.
+
+The server sends through APNs once you create an APNs key in your Apple developer account (Certificates, Identifiers & Profiles, Keys) and set three variables on the server: the `.p8` file's text in `PROTOBASE_APNS_KEY`, the key's id in `PROTOBASE_APNS_KEY_ID` and your team's id in `PROTOBASE_APNS_TEAM_ID`. See [iOS in the notifications reference](/reference/notifications/#ios).
+
+Development runs (`protobase mobile run` and `open`) register with the APNs sandbox, and store builds (`protobase mobile build`) with production, so a phone gets push only from a server sending to the environment its build registered in.
