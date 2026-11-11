@@ -62,7 +62,7 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
 
   const queue = async (db: Db, refs: readonly ValueRef[]) => {
     await markStale(db, refs)
-    for (const ref of refs) await compute.enqueue(db, ref, { key: `${ref.name}:${ref.key}`, delay: settle })
+    for (const ref of refs) await compute.enqueue(db, ref, { key: `change:${ref.name}:${ref.key}`, delay: settle })
   }
 
   const compute = defineJob<ValueRef>({
@@ -82,7 +82,7 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
         if (into && into.resource === item.entry.name) await writeField(trx, item.entry, into.field, ref.key, result.value)
         if (into && into.resource !== item.entry.name) await writeSideField(trx, deps.registry.find(into.resource)!, into.field, ref.key, result.value)
         if (job && changed) await enqueueJob(trx, job, { resource: item.entry.name, key: ref.key, value: result.value })
-        if (result.flipsAt) await compute.enqueue(trx, ref, { key: `${ref.name}:${ref.key}:clock`, mode: 'replace', runAt: result.flipsAt })
+        if (result.flipsAt) await compute.enqueue(trx, ref, { key: `clock:${ref.name}:${ref.key}`, mode: 'replace', runAt: result.flipsAt })
       })
     },
   })
