@@ -69,7 +69,7 @@ export const architecture = ['reference/architecture']`,
   it('refuses an unknown stability, and a coming soon entry that links a whole page', async () => {
     await areaPage('- [Filters](/reference/ui-config/#filters-and-the-chart) (betta): Value menus.\n- [Names](/reference/ui-config/) (coming soon): Names.')
     expect(await problems()).toEqual([
-      'docs/website/src/content/docs/features/lists.md:6: unknown stability "betta", use beta, in development, coming soon or none for stable',
+      'docs/website/src/content/docs/features/lists.md:6: unknown stability "betta", use experimental, beta, in development, coming soon or none for stable',
       'docs/website/src/content/docs/features/lists.md:7: a coming soon entry links a whole page; link the section that describes it, or nothing',
     ])
   })
