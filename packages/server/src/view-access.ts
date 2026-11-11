@@ -1,9 +1,10 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
-import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomFallbackItemModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ViewModel } from '@protobase/schema'
+import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ThreadSectionModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
+import { threadSectionErrors } from './view-conversation'
 import { recordChartErrors } from './view-record-chart'
 import { openErrors, relatedButtonErrors, relatedSectionErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
@@ -162,7 +163,11 @@ const sectionFields = (model: ResourceModel, writeOnly: ReadonlySet<string>) =>
 const fieldHints = (model: ResourceModel, writeOnly: ReadonlySet<string>) =>
   s.map<Record<string, FieldViewModel>>((hints) => Object.fromEntries(Object.entries(hints).filter(([name]) => formFields(model, writeOnly)(name))))
 
-const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, writeOnly: ReadonlySet<string>) => {
+// A composer creates its messages, so it needs the caller to create them with both its fields, not only update them.
+// Startup checked its fields against the full models; the caller need not read them, as a write-only text is still sent.
+const creates = (item: ComposerSectionModel, creatable: Readonly<Record<string, readonly string[]>>) => [item.field, item.text].every((name) => creatable[item.resource]?.includes(name))
+
+const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, writeOnly: ReadonlySet<string>, creatable: Readonly<Record<string, readonly string[]>>) => {
   const when = recordWhenShape(resource, models)
   const section = s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, when, fields: sectionFields(model, writeOnly) }, { requires: ['fields', 'when'] })
   const related = s.map<RelatedModel>((item) => pruneRelated(item, resource, models))
@@ -180,6 +185,9 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
     gallery: s.map<GalleryModel>((item) => pruneGallery(item, resource, model, models)),
     history: s.object<HistorySectionModel>({ kind: s.data, title: s.data, limit: s.data, when: s.data }),
     comments: s.object<CommentsSectionModel>({ kind: s.data, title: s.data, when: s.data }),
+    // A conversation goes when the caller cannot read the messages or a field it shows; its box when they cannot create one
+    thread: s.map<ThreadSectionModel>((item) => (threadSectionErrors(item, resource, models).length === 0 ? item : undefined)),
+    composer: s.map<ComposerSectionModel>((item) => (creates(item, creatable) ? item : undefined)),
   }
   return s.oneOf<LayoutItemModel>({
     ...main,
@@ -244,7 +252,15 @@ const recentFor = (recent: NavRecentModel, model: ResourceModel) => {
 
 // Every part of a view, and what a field the caller cannot read does to it. The compiler wants a shape for each part,
 // so a part added to ViewModel is named here before it reaches anyone.
-const viewShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>, createPages: ReadonlySet<string>, writeOnly: ReadonlySet<string>) => {
+const viewShape = (
+  resource: string,
+  model: ResourceModel,
+  models: Record<string, ResourceModel>,
+  prompted: ReadonlySet<string>,
+  createPages: ReadonlySet<string>,
+  writeOnly: ReadonlySet<string>,
+  creatable: Readonly<Record<string, readonly string[]>>,
+) => {
   const nav = s.object<NavModel>({ hidden: s.data, creatorsOnly: s.data, group: s.data, order: s.data, tenant: s.data, create: s.data, recent: s.map<NavRecentModel>((recent) => recentFor(recent, model)) })
   // A chart goes when the caller cannot read a field it groups, counts over or adds up
   const chart = s.map<ChartModel>((chart) => (chartFields(chart).every((name) => Object.hasOwn(model.fields, name)) ? chart : undefined))
@@ -262,7 +278,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     fields: fieldHints(model, writeOnly),
     list: listShape(resource, model, models, prompted),
     filters: s.list(widgetShape),
-    layout: s.list(layoutShape(resource, model, models, writeOnly)),
+    layout: s.list(layoutShape(resource, model, models, writeOnly, creatable)),
     chart,
     recordMode: s.data,
     helpWhen: s.data,
@@ -296,6 +312,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
  * buttons and the "Save search" button; the buttons stay for a visitor when their resource is one of `prompted`, those
  * that ask the visitor to sign in. A create link may give values of any name to a resource of `createPages`, whose view
  * for the caller opens a create page. The caller's `writeOnly` fields stay in record sections and field hints only.
+ * `creatable` names, per resource, the fields the caller may create a record of it with; a composer needs both of its.
  */
 export const pruneView = (
   view: ViewModel,
@@ -304,8 +321,9 @@ export const pruneView = (
   prompted: ReadonlySet<string> = new Set(),
   createPages: ReadonlySet<string> = new Set(),
   writeOnly: ReadonlySet<string> = new Set(),
+  creatable: Readonly<Record<string, readonly string[]>> = {},
 ): ViewModel => {
-  const pruned = pruneByShape(view, viewShape(view.resource, model, models, prompted, createPages, writeOnly), (name) => Object.hasOwn(model.fields, name))
+  const pruned = pruneByShape(view, viewShape(view.resource, model, models, prompted, createPages, writeOnly, creatable), (name) => Object.hasOwn(model.fields, name))
   if (!pruned) throw new Error(`The view of ${view.resource} is not an object`)
   return pruned
 }

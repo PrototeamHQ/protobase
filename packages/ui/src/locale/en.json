@@ -501,6 +501,12 @@
     "emailNewCode": "Email a new code",
     "nothingToConfirmWith": "Add a passkey or an authenticator app on your account page first."
   },
+  "app/conversation": {
+    "couldNotLoad": "Could not load the messages",
+    "notSent": "Not sent",
+    "noMessages": "No messages yet.",
+    "loadingMessages": "Loading messages…"
+  },
   "app/create": {
     "title": "New <lower>{noun}</lower>",
     "subject": "New <lower>{noun}</lower>",
@@ -1254,10 +1260,7 @@
     "wholeNumber": "A whole number",
     "number": "A number",
     "dateFormat": "A date as YYYY-MM-DD",
-    "atMost": "At most {max} characters",
-    "notSent": "Not sent",
-    "noMessages": "No messages yet.",
-    "loadingMessages": "Loading messages…"
+    "atMost": "At most {max} characters"
   },
   "app/rank-after": {
     "dependsOn": "{record} depends on {other}."

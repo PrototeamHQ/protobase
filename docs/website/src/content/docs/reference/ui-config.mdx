@@ -90,7 +90,7 @@ Field hints:
 | `.confirm(question)` | Asks `question` before a person changes the value in a form or a list cell, and Cancel keeps it. See [Confirming a change](#confirming-a-change). |
 | `.format(format)` | `badge` shows statuses as coloured badges, `code` sets identifiers in monospace, as the list's identifier column too, `percent` adds a % sign, and `signed` shows a whole number in a list with its sign, green above zero and red below, such as a stock change of `+12` or `−3`; it needs an integer field. On a text field, `email`, `phone` and `url` show the value as a link that writes to it (`mailto:`), calls it (`tel:`, its digits and a leading +) or opens it in a new tab (only an `http` or `https` address; anything else stays text), on the record page, in its sidebar and in the list's cells but the title's, which links to the record; forms edit it in an email, phone or web address input, which brings up the keyboard for it on a mobile screen and offers the browser's autofill. Another field type with one of them stops the server at startup. `relative` on a timestamp shows it as "5 minutes ago" or "in 2 hours" in lists and on the record page, with the exact time on hover; `absolute` and `compact` are accepted and carried in `/meta` for apps that render their own lists. <gap>The admin does not use the `absolute` and `compact` formats yet.</gap> |
 | `.multiline()` | A text of several lines, such as a description: forms edit it in a box that grows with the text, so the page scrolls rather than the box, and the record page's sections, a page's field blocks and a card's subtitle keep its line breaks (a card shows the first three lines); the record's sidebar shows it on one line. On the record page and the create form it takes the whole width of its section. Only a text field takes it; the list's table shows the text on one line. |
-| `.markdown()` | Markdown, such as a task's notes: forms edit its source in a box that grows with it, with a Write and Preview switch above it, and store it exactly as typed. The record page's sections and a page's field blocks show it rendered as GitHub does, line breaks kept; raw HTML shows as text, links and images keep only http(s), mailto, tel and relative addresses, and links open in a new tab. A card's subtitle shows its first three lines rendered, its links as text; the list's table, the record's sidebar and a card's other lines show its text on one line without the marks. On the record page and the create form it takes the whole width of its section. Only a text field takes it, and the renderer loads with the first markdown shown. |
+| `.markdown()` | Markdown, such as a task's notes: forms edit its source in a box that grows with it, with a Write and Preview switch above it, and store it exactly as typed. The record page's sections, a page's field blocks and a conversation's messages show it rendered as GitHub does, line breaks kept; raw HTML shows as text, links and images keep only http(s), mailto, tel and relative addresses, and links open in a new tab. A card's subtitle shows its first three lines rendered, its links as text; the list's table, the record's sidebar and a card's other lines show its text on one line without the marks. On the record page and the create form it takes the whole width of its section. Only a text field takes it, and the renderer loads with the first markdown shown. |
 | `.prefix(text)`, `.suffix(text)`, `.decimals(n)` | Text around a number and its decimals: `€` and `2` show `€1,234.50`, `.suffix(' m²')` shows `120 m²`. They show wherever the number does: records, cards, table cells, forms and the range filter. A prefix is plain text, so a list does not show `€` as money; `.currency()` does. |
 | `.currency(code)` | The currency a decimal is an amount of, as an ISO 4217 code such as `EUR`: the list shows it as money in that currency, in its table and its range filter. See [Value tones and currencies](#value-tones-and-currencies). |
 | `.icon(name)` | An icon before the value on a card's meta row: one of the names [actions](/reference/layouts/#named-actions) take, such as `bed`, `calendar` or `cpu`, and above the value in a section of [key facts](#key-facts). Nowhere else shows it. |
@@ -522,6 +522,8 @@ Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for 
 | `l.custom(Component, { title?, props?, sidebar?, when?, fallback? })` | A [custom component](/reference/custom-components/#record-sections) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. `fallback` shows in its place where it cannot be drawn. |
 | `l.map(title, { latitude, longitude, zoom?, sidebar?, when? })` | A map with a pin at the record's position, in the main column or with `sidebar: true` as a sidebar card. See [Maps](#maps). |
 | `l.chart(title, { resource, field, at, series, range?, help?, when? })` | Line graphs of numbers of the records that point at this one, such as a machine's samples, over the last hour, day or week. See [Charts of related records](#charts-of-related-records). |
+| `l.thread(title, { resource, field, sender, time, text, limit?, empty?, help?, when? })` | The record's conversation: the latest messages that point at it, oldest first, under each sender's name and time. See [Conversations](#conversations). |
+| `l.composer({ resource, field, text, placeholder?, when? })` | A box that sends a message about the record, which the thread then shows. See [Conversations](#conversations). |
 | `l.gallery(title, { image?, photos?, when? })` | The record's photos as tiles, opening a lightbox. See [Galleries](#galleries). |
 | `l.history(title?, { limit?, when? })` | The record's changes, newest first, with who made each and the fields before and after; needs `.history()` on the resource, and a view without a layout shows it last by itself. See [Record history](/reference/history/#on-the-record-page). |
 | `l.comments(title?, { when? })` | The record's comments, oldest first, with a box to write one that @mentions people; needs `.comments()` on the resource, and a view without a layout shows it last by itself. See [Record comments](/reference/comments/#on-the-record-page). |
@@ -893,6 +895,45 @@ view<typeof hosts>('hosts').layout((r) => [
 Each series is read through [`:aggregate`](/reference/api/), grouped by `at` with `field = <this record's key>` as its filter, so the user's access applies as on the list, and a user who cannot read `field`, `at` or any series gets no chart (one who cannot read some series gets the others). That filter and grouping need an index on `(field, at)`, such as `create index on host_samples (host_id, sampled_at)`, which [`protobase doctor`](/reference/cli/#doctor) checks. A `field` that is no relation to this resource, an `at` that is no timestamp or not filterable, or a series that is no number or is sensitive stops the server at startup. Keeping the samples, and removing old ones, is the app's own work.
 
 <StoryFrame id="record-page-charts-of-related-records--record-charts" title="A host's CPU and network over the last hour" height={760} />
+
+### Conversations
+
+`l.thread(title, options)` shows the messages that point at the record on the page, as a task's chat between the people working on it, and `l.composer(options)` below it writes one. They are the record page's form of the [Thread and Composer blocks](/reference/blocks/#conversation) of composed pages, scoped to the record by a relation of the messages: the thread reads only the messages whose `field` holds this record's key, and each message the composer sends gets that key in `field`. [`/meta`](/reference/api/#meta-and-openapi-per-caller) describes both as data, so every client can draw the conversation with no component of the app's own.
+
+The thread shows the latest messages oldest first, each under its sender's name and the time it was sent, with a line between days, and **Load earlier messages** reads the ones before; it scrolls in a box of its own, opening at the newest and following what arrives, as the [Thread block](/reference/blocks/#thread) does; others' new messages arrive without a reload when the message resource is [live](/reference/live/) (`.live()`), and otherwise once the page is read again. A message whose text field the message resource's view marks [`.markdown()`](#names-and-columns) shows rendered, its raw HTML as text. The composer sends with Enter, starts a new line with Shift+Enter, and keeps a refused message in the box under the reason. A message carries its sender only when the message resource marks its author with [`.author()`](/reference/data-config/#resource), which every create sets to the signed-in user, so the thread's `sender` names that field, such as `author_id`. It sends only `field` and `text`, so every other required field of the message, such as its time, needs a default, such as `sent_at timestamptz not null default now()`.
+
+| `l.thread` option | |
+| --- | --- |
+| `resource` | The message resource, such as `task_messages`. Required. |
+| `field` | The filterable relation of `resource` that holds this record's key. Required. |
+| `sender` | Who wrote each message: a relation, named as the record it points at, or a text field. Required. |
+| `time` | When each was sent: a date or timestamp field the API can sort by, which orders them. Required. |
+| `text` | The message, a text field. Required. |
+| `limit` | How many of the latest it shows at first, and how many each **Load earlier messages** adds: 1 to 500, the API's largest page; default 50. |
+| `empty` | Text while there are no messages. |
+| `help`, `when` | A line under the title, and whether it shows on the form, the read view or both. |
+
+| `l.composer` option | |
+| --- | --- |
+| `resource` | The message resource. Required. |
+| `field` | The relation of `resource` each message gets this record's key in. Required. |
+| `text` | The text field the message goes in. Required. |
+| `placeholder` | The box's text while empty. |
+| `when` | Whether it shows on the form, the read view or both. |
+
+```ts
+view<typeof task_messages>('task_messages').fields((r) => ({ body: r.body.markdown() }))
+
+view<typeof tasks>('tasks').layout((r) => [
+  l.section('Task', [r.title]),
+  l.thread('Conversation', { resource: 'task_messages', field: 'task_id', sender: 'author_id', time: 'sent_at', text: 'body' }),
+  l.composer({ resource: 'task_messages', field: 'task_id', text: 'body', placeholder: 'Message about this task' }),
+])
+```
+
+The messages are read with `field = <this record's key>` as the filter, newest first by `time`, so the user's access applies as on the list. That read needs an index on `(field, time)`, such as `create index on task_messages (task_id, sent_at)`, which [`protobase doctor`](/reference/cli/#doctor) checks. A user who cannot read `field`, `sender`, `time` or `text` gets no thread, and one who may not create a message with `field` and `text` gets no composer. A `field` that is no relation to this resource, a `time` that is no date or timestamp the API can sort by, a `sender` that is no relation or text field, a thread `text` that is no text field, a sensitive field in the thread, or a composer `text` that is no writable text field stops the server at startup. As with a related section, the record page's count of the records that point at it leaves out the messages its thread shows.
+
+<StoryFrame id="record-page-conversation--record-conversation" title="A task's conversation, its messages in markdown" height={760} />
 
 ## Actions and views per role
 

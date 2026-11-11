@@ -1,5 +1,5 @@
 import { markFieldRefs } from './field-ref'
-import type { CardPhotosModel, RecordChartRange, CommentsSectionModel, CustomFallbackItemModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel } from './model'
+import type { CardPhotosModel, RecordChartRange, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel, ThreadSectionModel } from './model'
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
@@ -79,7 +79,7 @@ export const layout = {
   },
   /**
    * A tab of the record page holding main-column items: sections, groups, related tables, custom components, maps,
-   * charts, galleries, history and comments. A view's tabs stand together and show as one strip, the first tab open unless the
+   * charts, galleries, history, comments and conversations. A view's tabs stand together and show as one strip, the first tab open unless the
    * address names another; items before and after them show on every tab. Throws on a sidebar item or another tab. See
    * [Tabs](docs/website/src/content/docs/reference/ui-config.mdx#tabs).
    */
@@ -150,6 +150,23 @@ export const layout = {
       title,
       ...(o.when !== undefined && { when: o.when }),
     }) satisfies CommentsSectionModel,
+  /**
+   * The record's conversation: the latest messages of `resource` whose relation `field` points at the record, oldest
+   * first, each `text` under its `sender` and `time`, `limit` at first (default 50) and earlier ones on request. The text
+   * shows as markdown when the message resource's view marks it `.markdown()`. Pair it with `l.composer` to write one.
+   * Throws on a `limit` that is not a positive whole number. See
+   * [Conversations](docs/website/src/content/docs/reference/ui-config.mdx#conversations).
+   */
+  thread: (title: string, o: Omit<ThreadSectionModel, 'kind' | 'title'>): LayoutItemModel => {
+    if (o.limit !== undefined && (!Number.isInteger(o.limit) || o.limit < 1)) throw new Error(`l.thread "${title}": limit must be a positive whole number`)
+    return { kind: 'thread', title, ...structuredClone(o) } satisfies ThreadSectionModel
+  },
+  /**
+   * A box that adds a message to the record's conversation: each send creates a record of `resource` with the text in
+   * `text` and the record's key in its relation `field`, for a user who may create them. See
+   * [Conversations](docs/website/src/content/docs/reference/ui-config.mdx#conversations).
+   */
+  composer: (o: Omit<ComposerSectionModel, 'kind'>): LayoutItemModel => ({ kind: 'composer', ...structuredClone(o) }) satisfies ComposerSectionModel,
   /**
    * A component of the project, registered in `protobase.ui.tsx` under its name, drawn where it is listed: in the main
    * column, or in the sidebar with `sidebar: true`. The record page stays around it, with its title, breadcrumbs,
