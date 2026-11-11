@@ -837,7 +837,7 @@ export type FilterWidgetModel = (
  * How a related section shows its records: `cards` as cards stacked full width; `record` as the fields of its one record
  * in full, with no card, for reading; the list's table or display when omitted.
  */
-export type RelatedPresentation = 'cards' | 'record'
+export type RelatedPresentation = 'cards' | 'compact' | 'record'
 
 /**
  * A button on each row of a table or related section that opens an address in the app named by the row's fields, such as
@@ -888,12 +888,18 @@ export type RelatedModel = {
   /** Fields of `resource`, through relations too (`unitId.propertyId`): the table's columns, or the fields each card shows. */
   columns?: string[]
   /**
-   * `cards` shows each record as a card stacked full width, its `columns` and `actions` on it; `record` shows the
-   * `columns` of the first record in full, with a link to its page; the list's table or display when omitted.
+   * `cards` shows each record as a card stacked full width, its `columns` and `actions` on it; `compact` as a card of
+   * one or two lines, its title and `time` on the first, its `columns` inline without labels and its `actions` beside
+   * them; `record` shows the `columns` of the first record in full, with a link to its page; the list's table or display
+   * when omitted.
    */
   presentation?: RelatedPresentation
-  /** Named actions of `resource`'s view, by name, as buttons on each card; only with `presentation: 'cards'`. */
+  /** Named actions of `resource`'s view, by name, as buttons on each card; only with `presentation: 'cards'` or `'compact'`. */
   actions?: string[]
+  /** A date or timestamp field of `resource` each compact card shows beside its title, as its view formats it; only with `presentation: 'compact'`. */
+  time?: string
+  /** An enum field of `resource` whose value colours each card's left edge, by its view's `valueColors`; only with cards. */
+  tone?: string
   /** A button on each row, or each card, to an address its fields name. */
   button?: RowButtonModel
   /**

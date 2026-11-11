@@ -14,12 +14,16 @@ import { actionWhenFields } from './view-action-when'
 type Of<U, K extends string> = Extract<U, { kind: K }>
 
 // Columns narrow to what the caller can read; a section whose resources, fields, filter or sort they cannot use goes.
-// An `open` the caller cannot use goes; the rows then open their own records. So does a `button` they cannot follow.
+// An `open` the caller cannot use goes; the rows then open their own records. So does a `button` they cannot follow, and
+// a card's `time` or `tone` field they cannot read.
 const pruneRelated = (item: RelatedModel, resource: string, models: Record<string, ResourceModel>): RelatedModel | undefined => {
   if (isRecordCondition(item.when) && !conditionReadable(item.when, resource, models)) return undefined
-  const { columns, open, button, ...rest } = item
-  const visible = models[item.resource] ? columns?.filter((column) => resolveFieldPath(models, item.resource, column).ok) : undefined
-  const narrowed: RelatedModel = visible && visible.length > 0 ? { ...rest, columns: visible } : rest
+  const { columns, open, button, time, tone, ...rest } = item
+  const target = models[item.resource]
+  const readable = (name: string | undefined) => (name !== undefined && target !== undefined && Object.hasOwn(target.fields, name) ? name : undefined)
+  const visible = target ? columns?.filter((column) => resolveFieldPath(models, item.resource, column).ok) : undefined
+  const carded: RelatedModel = { ...rest, ...(readable(time) && { time }), ...(readable(tone) && { tone }) }
+  const narrowed: RelatedModel = visible && visible.length > 0 ? { ...carded, columns: visible } : carded
   const opened = open !== undefined && openErrors({ ...narrowed, open }, models).length === 0 ? { ...narrowed, open } : narrowed
   const buttoned = button !== undefined && relatedButtonErrors({ ...opened, button }, models).length === 0 ? { ...opened, button } : opened
   return relatedSectionErrors(buttoned, resource, models).length === 0 ? buttoned : undefined

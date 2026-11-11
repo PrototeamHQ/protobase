@@ -6,15 +6,18 @@ import { useRecordTitle } from '../titles/record-titles'
 import { RowButtonLink } from '../row-button/row-button-link'
 import { AppLink } from '../use-app-address'
 import { RelatedField } from './related-field'
+import { ToneEdge } from './tone-edge'
 
 /**
  * A related record as a card: its title linking to its page, its `fields` under their labels, the buttons of its
- * view's `actions`, run on it as everywhere else, and `button`, a link to the address its fields name.
+ * view's `actions`, run on it as everywhere else, and `button`, a link to the address its fields name; its `tone`
+ * field colours its left edge.
  */
-export const RelatedCard = ({ scope, view, fields, actions, button }: { scope: LayoutRecord; view: ViewModel | undefined; fields: string[]; actions: string[]; button?: RowButtonModel }) => {
+export const RelatedCard = ({ scope, view, fields, tone, actions, button }: { scope: LayoutRecord; view: ViewModel | undefined; fields: string[]; tone?: string; actions: string[]; button?: RowButtonModel }) => {
   const titleOf = useRecordTitle()
   return (
-    <li className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+    <li className="relative flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+      {tone && <ToneEdge view={view} field={tone} record={scope.record} />}
       <AppLink to={{ kind: 'record', resource: scope.model.name, key: recordKey(scope.model, scope.record) }} className="self-start font-medium text-primary-text hover:underline">
         {titleOf(scope.model, view, scope.record, scope.key)}
       </AppLink>

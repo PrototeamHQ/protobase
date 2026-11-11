@@ -12,6 +12,7 @@ import { ErrorBanner } from '../error-banner'
 import { defaultOrderBy } from '../list-order'
 import { scopeOf, useCount, useListPage } from '../pages/use-layout-data'
 import { AppLink } from '../use-app-address'
+import { CompactCard } from './compact-card'
 import { RelatedCard } from './related-card'
 import { text } from './messages'
 
@@ -33,31 +34,44 @@ type RelatedCardsProps = {
   empty?: string
   /** Each card's share of the width in one row that scrolls sideways, snapping each card to its left edge; stacked when omitted. */
   carousel?: number
+  /** Cards of one or two lines, with this date or timestamp field beside the title, or `{}` for none. */
+  compact?: { time?: string }
+  /** The enum field whose value colours each card's left edge. */
+  tone?: string
 }
+
+// Compact cards are two lines high, a long title taking a third on a phone; three of them hold the room a
+// short list takes, so the page below barely moves when they load
+const CardsSkeleton = ({ compact, limit }: { compact: boolean; limit: number }) => (
+  <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
+    {Array.from({ length: compact ? Math.min(limit, 3) : 2 }, (_, index) => <Skeleton key={index} className={compact ? 'h-17.5 w-full max-sm:h-24' : 'h-24 w-full'} />)}
+  </div>
+)
 
 /**
  * The first `limit` records of a list as cards stacked full width or in a `carousel`, each with its fields, its
  * actions' buttons and its row button, and a link to the whole list beside a note such as "The first 10 of 37." when there are more.
  */
-export const RelatedCards = ({ model, view, filter, sort, fields, actions, button, limit, display, empty, carousel }: RelatedCardsProps) => {
+export const RelatedCards = ({ model, view, filter, sort, fields, actions, button, limit, display, empty, carousel, compact, tone }: RelatedCardsProps) => {
   const xs = useIsXs()
   const scroll = useSnapScroll()
   const plural = view?.names?.plural ?? humanize(model.name)
   const orderBy = sort || defaultOrderBy(model, view)
   const page = useListPage(model, { filter, sort: orderBy, pageSize: limit })
   const count = useCount(model, filter)
-  if (page.isPending) return <div className="flex flex-col gap-3">{Array.from({ length: 2 }, (_, index) => <Skeleton key={index} className="h-24 w-full" />)}</div>
+  if (page.isPending) return <CardsSkeleton compact={Boolean(compact)} limit={limit} />
   if (page.error) return <ErrorBanner title={text('couldNotLoad')} error={page.error} />
   const rows = page.data.items
   if (rows.length === 0) return <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
   const cards = rows.map((row) => {
     const scope = scopeOf(model, row)
-    return <RelatedCard key={scope.key} scope={scope} view={view} fields={fields} actions={actions} button={button} />
+    if (compact) return <CompactCard key={scope.key} scope={scope} view={view} fields={fields} time={compact.time} tone={tone} actions={actions} button={button} />
+    return <RelatedCard key={scope.key} scope={scope} view={view} fields={fields} tone={tone} actions={actions} button={button} />
   })
   const note = count.data === undefined ? undefined : cutOffNote(rows.length, count.data, false)
   return (
     <div className="flex flex-col gap-3">
-      {carousel === undefined ? <ul className="flex flex-col gap-3">{cards}</ul> : (
+      {carousel === undefined ? <ul className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>{cards}</ul> : (
         <SnapRow scroll={scroll} label={plural} share={carousel}>
           {cards}
         </SnapRow>

@@ -297,6 +297,15 @@ describe('pruneView', () => {
     expect(related(without({}, ['repairs']))).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId' }])
   })
 
+  it("keeps compact cards but drops the time and tone fields the caller cannot read", () => {
+    const written = view<typeof customers>('customers')
+      .layout(() => [l.related('Repairs', { resource: 'repairs', field: 'customerId', presentation: 'compact', time: 'bookedOn', tone: 'status' })])
+      .toModel()
+    const related = (models: Record<string, ResourceModel>) => pruneView(written, models.customers!, models).layout
+    expect(related(all)).toEqual(written.layout)
+    expect(related(without({ repairs: ['bookedOn', 'status'] }))).toEqual([{ kind: 'related', title: 'Repairs', resource: 'repairs', field: 'customerId', presentation: 'compact' }])
+  })
+
   it('keeps a related section but drops its row button when the caller cannot read a field it names or go where it leads', () => {
     const button = { label: 'Open {repairId}', to: { kind: 'record' as const, resource: 'repairs', key: '{repairId}', tab: 'Work' } }
     const written = view<typeof customers>('customers')

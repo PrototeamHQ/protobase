@@ -67,10 +67,15 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   const columns = item.columns ?? listColumnNames(model, view).filter((name) => name !== item.field)
   // What it lists, when it can match any record
   const listed = (list: (filter: string) => ReactNode) => (match === null ? <Empty empty={item.empty} /> : list(match))
-  if (item.presentation === 'cards') {
+  if (item.presentation === 'cards' || item.presentation === 'compact') {
+    const compact = item.presentation === 'compact' ? { time: item.time } : undefined
+    // The time beside a compact card's title is not shown again among its values; the tone's value shows first, so its
+    // colour is never all that says it
+    const shown = compact ? columns.filter((name) => name !== item.time) : columns
+    const values = item.tone === undefined || shown.includes(item.tone) ? shown : [item.tone, ...shown]
     return (
       <Section title={item.title} help={item.help}>
-        {listed((filter) => <RelatedCards model={model} view={view} filter={filter} sort={item.sort ?? ''} fields={columns} actions={item.actions ?? []} button={item.button} limit={item.limit ?? 10} display={item.display} empty={item.empty} />)}
+        {listed((filter) => <RelatedCards model={model} view={view} filter={filter} sort={item.sort ?? ''} fields={values} actions={item.actions ?? []} button={item.button} limit={item.limit ?? 10} display={item.display} empty={item.empty} compact={compact} tone={item.tone} />)}
       </Section>
     )
   }

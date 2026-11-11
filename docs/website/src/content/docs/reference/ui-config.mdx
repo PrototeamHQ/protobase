@@ -104,7 +104,7 @@ An enum's value labels show everywhere the admin shows its values: badges, selec
 
 An enum value's badge takes the tone or colour its view gives it, and a money field shows in the ISO 4217 currency its view names. Nothing is read from the names of values or fields: a value the view gives no tone is `neutral`, and a decimal without a currency is a number.
 
-`.valueColors(...)` gives each value one of the badge tones, `neutral`, `blue`, `green`, `amber`, `red` or `violet`, or a hex colour that fills the badge. The tone shows on the value's badges in lists, boards and the record page, in the record page's heading and in a list's [related dots](#related-records-in-a-list); a hex colour colours a chart's group too. Anything else throws when the view is built.
+`.valueColors(...)` gives each value one of the badge tones, `neutral`, `blue`, `green`, `amber`, `red` or `violet`, or a hex colour that fills the badge. The tone shows on the value's badges in lists, boards and the record page, in the record page's heading and in a list's [related dots](#related-records-in-a-list) and on the edge of [related cards](#compact-related-cards); a hex colour colours a chart's group too. Anything else throws when the view is built.
 
 `.currency('EUR')` on a decimal field makes the list show it as money in that currency, with the currency's sign and grouping for the language, in the table and in its range filter. A currency on another field type stops the server at startup, as does `.format('signed')` on a field that is not an integer.
 
@@ -832,9 +832,11 @@ Without any configuration, the record page's rail has a **Related records** card
 | `from` | A field of this record whose value `field` must hold, instead of this record's key, such as the task of a question, to list the task's links: `{ resource: 'task_links', field: 'task_id', from: 'task_id' }`. Same type as `field` (a relation to the same resource), not sensitive, and not with `through`. A record with no value lists nothing. |
 | `through` | `{ resource, field, key?, filter? }`: the join records whose `field` (a filterable relation) holds this record's key; their `key` values (default their primary key, filterable, and pointing at one resource with `field`) pick the listed records, in one read with [`related()`](/reference/api/#filtering-through-related-records), so an index must serve `key` too. |
 | `filter`, `sort` | AIP-160 and AIP-132 on `resource`, as in the list API. `filter` narrows the listed records, `through.filter` the join records. |
-| `columns` | Fields of `resource`, through relations too (`unit_id.property_id`); default the view's list columns without `field`. The first links to the record a row opens. With `presentation: 'cards'`, the fields each card shows; with `presentation: 'record'`, the fields of the record it shows. |
-| `presentation` | `'cards'` shows the records as [cards](#related-records-as-cards) instead of the table or display; `'record'` shows [one record in full](#a-related-record-in-full). |
-| `actions` | Named actions of `resource`'s view, by name, as buttons on each card; only with `presentation: 'cards'`. |
+| `columns` | Fields of `resource`, through relations too (`unit_id.property_id`); default the view's list columns without `field`. The first links to the record a row opens. With `presentation: 'cards'` or `'compact'`, the fields each card shows; with `presentation: 'record'`, the fields of the record it shows. |
+| `presentation` | `'cards'` shows the records as [cards](#related-records-as-cards) instead of the table or display; `'compact'` as [compact cards](#compact-related-cards) of a line or two; `'record'` shows [one record in full](#a-related-record-in-full). |
+| `actions` | Named actions of `resource`'s view, by name, as buttons on each card; only with `presentation: 'cards'` or `'compact'`. |
+| `time` | A date or timestamp field of `resource` each compact card shows beside its title, as its view formats it; only with `presentation: 'compact'`. |
+| `tone` | An enum field of `resource` whose value colours each card's left edge, by its view's [`valueColors`](#value-tones-and-currencies); only with `presentation: 'cards'` or `'compact'`. |
 | `button` | `{ label, to }`: a [button on each row](/reference/blocks/#row-buttons), or each card, to an address the row's fields name, such as `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: 'Review' } }`; a row without a value for a field it names shows none. Not with `lines`. |
 | `open` | The relation of `resource` whose record a row opens, for rows that link this record to another. By default the one relation in `resource`'s primary key besides `field`, when there is exactly one (a join resource such as `task_dependencies` keyed on `[task_id, type, depends_on_id]`); otherwise rows open their own records. The row's menu then has **Open** for the other record and **Edit** for the link itself. |
 | `limit` | How many records it shows, 1 to 100; default 10. Not with `presentation: 'record'`. When there are more, the section says so beside View all, such as "The first 10 of 37.". Before 0.13 this was `pageSize`, rows per page; rename it. |
@@ -870,6 +872,32 @@ l.related('Waiting on you', {
 An action that `actions` names must be a named action of `resource`'s view. The cards have no display switch or **Reorder**; View all opens the list as a table section would.
 
 <StoryFrame id="record-page-related-records-as-cards--cards" title="Preconditions to approve on a task's page" height={760} />
+
+#### Compact related cards
+
+:::caution[Experimental]
+Compact cards may change in any release. Their `time` and `tone` are fields of the listed resource itself.
+:::
+
+With `presentation: 'compact'` each card takes a line or two, for a short list where every record needs a glance and an act, such as the causes holding an objective up. The first line holds the record's title, a link to its page, and its `time` at the end of the line; the second holds `columns` side by side without their labels, a dot between them, leaving out a field the record has no value for. The buttons of `actions` and `button` sit beside both lines, or beside the second where the card is narrow, such as on a phone, with the title on a line of its own. The buttons work as on [cards](#related-records-as-cards), and so does View all.
+
+With `tone`, each card's left edge takes the colour its value has in the view's `valueColors`, a tone or a hex colour as its badge does, and the value's badge shows first among the card's values, unless `columns` places it elsewhere, so the colour is never all that says it. An action that changes the value changes the edge as the section loads again. `tone` works on `presentation: 'cards'` too.
+
+```ts
+l.related('Holding it up', {
+  resource: 'objective_causes',
+  field: 'objective_id',
+  presentation: 'compact',
+  time: 'since',
+  tone: 'state',
+  columns: ['owner', 'tasks'],
+  actions: ['clear'],
+})
+```
+
+A `time` or `tone` field the caller cannot read is left out of their cards. <gap>A compact card cannot take its `time` or `tone` through a relation, such as `task_id.updated_at`, because reading them through one is not implemented.</gap>
+
+<StoryFrame id="record-page-related-records-as-compact-cards--compact" title="Causes holding an objective up" height={520} />
 
 #### A related record in full
 
