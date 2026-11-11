@@ -59,6 +59,8 @@ export type InvokeOptions = {
   path?: string
   query?: Record<string, string>
   headers?: Record<string, string>
+  /** How the browser's HTTP cache treats the call, such as `no-store` so another user of the browser never gets the answer. */
+  cache?: RequestCache
 }
 
 /** What `upload` answers: `value` is the ticket to send as the field's value in a create, update or batch write. */
@@ -323,7 +325,7 @@ export const createClient = (options: ClientOptions = {}) => {
    * JSON, text for `text/*` or no content type, a `Blob` of any other type (a PDF, an image), or `undefined` for a 204.
    * A problem rejects as from any other call.
    */
-  const invoke = async <T = unknown>(name: string, { method, body, path = '', query, headers }: InvokeOptions = {}): Promise<T> => {
+  const invoke = async <T = unknown>(name: string, { method, body, path = '', query, headers, cache }: InvokeOptions = {}): Promise<T> => {
     const response = await send({
       method: method ?? (body === undefined ? 'GET' : 'POST'),
       path: `/functions/${encodeURIComponent(name)}${path}`,
@@ -331,6 +333,7 @@ export const createClient = (options: ClientOptions = {}) => {
       body,
       headers,
       system: true,
+      ...(cache && { cache }),
     })
     if (response.status === 204) return undefined as T
     const type = response.headers.get('content-type')

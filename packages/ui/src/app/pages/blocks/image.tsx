@@ -44,7 +44,8 @@ export const ImageBlock = ({ node }: BlockProps) => {
     placeholderData: keepPreviousData,
     ...imageRefetch(refresh),
     queryFn: async () => {
-      const answer = await client.invoke(name, { query })
+      // The picture is the caller's own: the browser's HTTP cache keeps it from no later user of the browser.
+      const answer = await client.invoke(name, { query, cache: 'no-store' })
       if (!isPicture(answer)) throw new Error(`The function "${name}" answered no picture`)
       return answer
     },
