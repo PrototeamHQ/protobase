@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { authenticatorCode, cookiesOf, openVaultDb, serveVault } from './support/vault-app'
 import type { SnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -32,7 +32,7 @@ describe('an account change on a session older than a day', () => {
   })
 
   it('confirms another passkey in place with an emailed second step', async () => {
-    const { sent, post, signIn, age, addPasskey } = await serve()
+    const { nextMail, post, signIn, age, addPasskey } = await serve()
     const signedIn = await signIn()
     const turnedOn = await post('/two-factor/enable', { password: 'correct horse battery', method: 'otp' }, signedIn)
     expect(turnedOn.status).toBe(200)
@@ -40,9 +40,9 @@ describe('an account change on a session older than a day', () => {
     const cookie = cookiesOf(turnedOn) || signedIn
     await age()
     expect(await (await addPasskey(cookie)).json()).toMatchObject({ code: 'STRONG_SIGN_IN_REQUIRED' })
+    const mailed = nextMail()
     expect((await post('/two-factor/send-otp', {}, cookie)).status).toBe(200)
-    // Better Auth sends it after the answer.
-    const code = await vi.waitFor(() => sent.at(-1)!.subject.slice(0, 6))
+    const code = (await mailed).subject.slice(0, 6)
     const confirmed = await post('/two-factor/verify-otp', { code }, cookie)
     expect(confirmed.status).toBe(200)
     expect((await addPasskey(cookiesOf(confirmed) || cookie)).status).toBe(200)

@@ -2,7 +2,7 @@ import { cn } from '../lib/cn'
 
 export type AvatarProps = { initials: string; hue: number; size?: 'xs' | 'sm' | 'md' | 'lg'; className?: string }
 
-const sizes = { xs: 'size-5 text-[9px]', sm: 'size-6 text-[10px]', md: 'size-8 text-xs', lg: 'size-10 text-base' }
+const sizes = { xs: 'size-5 text-[0.5625rem]', sm: 'size-6 text-[0.625rem]', md: 'size-8 text-xs', lg: 'size-10 text-base' }
 
 export const Avatar = ({ initials, hue, size = 'sm', className }: AvatarProps) => (
   <span

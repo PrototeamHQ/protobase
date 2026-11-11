@@ -7,6 +7,7 @@ import { browserLocale } from '../locale/active-locale'
 import { App } from './app'
 import { nativeBridgeOf, type NativeBridge } from './native-auth-fetch'
 import { showKeyboardAccessoryBar } from './native-keyboard'
+import { applyNativeTextSize } from './native-text-size'
 import { applyNativeViewport } from './native-viewport'
 import { pageApiOrigin } from './page-api-origin'
 import { uiFromModule } from './pages/ui-from-module'
@@ -19,6 +20,7 @@ listenForPresses(document)
 const nativeBridge = nativeBridgeOf(window as { Capacitor?: NativeBridge })
 if (nativeBridge) {
   applyNativeViewport(document)
+  applyNativeTextSize(document.documentElement, nativeBridge.getPlatform())
   void showKeyboardAccessoryBar(nativeBridge)
 }
 

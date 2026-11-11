@@ -2,14 +2,13 @@ import { Check } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Fragment, useEffect, type ReactElement } from 'react'
 import { isApiError } from '@protobase/client'
-import { enumLabel, type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { usePauseFocusRefresh } from '../data/focus-refresh'
 import { keys } from '../data/query-keys'
 import { useOpenedRecord, type LiveRecord } from '../data/use-record'
 import { displayValue, valueTitle } from '../live/display-value'
 import { fromDraft, isRequiredOnEdit, toDraft } from '../live/field-values'
 import { auditField } from '../live/audit-fields'
-import { valueTone } from '../live/value-color'
 import { humanize } from '../live/naming'
 import { useRecordTitle } from './titles/record-titles'
 import { Button, buttonClass } from '../primitives/button'
@@ -25,7 +24,7 @@ import { MapSection } from './map/map-section'
 import { RecordChartSection } from './record-chart/record-chart-section'
 import { RecordActions } from './pages/record-actions'
 import type { LayoutRecord } from './pages/record-scope'
-import { FieldEditor } from './field-editor'
+import { FieldEditor, showsValue } from './field-editor'
 import { groupOpen, toggledOpen } from './group-open'
 import { attentionTab, shownTab, splitTabs } from './record-tabs'
 import { isWideField, shownWidget } from './field-types/shown-widget'
@@ -61,6 +60,7 @@ import { isChosen, keyValue } from './create/create-values'
 import { RelatedSection } from './related-section'
 import { relatedValue } from './related-value'
 import { ValueBadge } from './value-badge'
+import { titleBadgeField } from './read-values/title-badge'
 import { useClient } from '../data/api-provider'
 import { markdownExcerpt } from '../markdown/markdown-excerpt'
 import { ComposerSection } from './conversation/composer-section'
@@ -212,15 +212,18 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     if (target) go(recordAt(openGroups, atEdit, target === tabs[0] ? undefined : target.title), { replace: true })
   }, [editor.rejections])
   const sidebarFields = layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))
-  // An enum status shows as the badge, unless it is missing or the sidebar shows it already
-  const hasStatus = model.fields.status?.type === 'enum'
-  const statusValue = stored.record.status
-  const status = hasStatus && !sidebarFields.includes('status') && statusValue !== null && statusValue !== undefined && statusValue !== '' ? String(statusValue) : undefined
   const updatedAt = auditField(model, 'updated')
   const hint = (name: string) => view?.fields[name]
   // A write-only field has no value to show, so it is on the form only
   const visible = (name: string) => fieldAccess(stored.permissions, name) !== 'hidden' && whenShown(hint(name)?.when, editing) && (shown === 'form' || !model.fields[name]?.writeOnly)
   const known = (name: string) => !preview || Object.hasOwn(stored.record, name)
+  const badgeField = titleBadgeField(model, view, stored.record, sidebarFields, visible)
+  const badge = badgeField && (
+    <ValueBadge value={stored.record[badgeField]} hints={hint(badgeField)}>
+      <span className="sr-only">{hint(badgeField)?.label ?? humanize(badgeField)}: </span>
+      {displayValue(model.fields[badgeField]!, stored.record[badgeField], hint(badgeField))}
+    </ValueBadge>
+  )
 
   const fieldView = (name: string) => {
     const field = model.fields[name]
@@ -230,6 +233,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     const target = pickTarget(name)
     const label = hint(name)?.label ?? humanize(name)
     const problem = editor.errors[name]
+    const locked = shown !== 'form' || access === 'read'
     return (
       <Field
         // A revealed sensitive value is forgotten when the record changes
@@ -240,6 +244,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         help={fieldHelp(hint(name), view, editing)}
         error={problem && fieldMessage(field, label, problem)}
         wide={isWideField(fieldTypes, field, hint(name))}
+        readOnly={showsValue(field, hint(name), locked, Boolean(target))}
         conflict={
           conflict === undefined
             ? undefined
@@ -255,7 +260,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
             relationLabel={chosen.labels[name]}
             relationTo={chosen.addresses[name]}
             relationPicker={target && { target, view: meta.views[target.name] }}
-            locked={shown !== 'form' || access === 'read'}
+            locked={locked}
             invalid={Boolean(editor.errors[name])}
             reveal={field.sensitive && !field.writeOnly ? () => client.reveal(model.name, recordKey, name) : undefined}
             resource={model.name}
@@ -385,10 +390,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
       {remove.dialogs}
       <div className="flex-1">
         <div className={cn(view?.recordWidth !== 'full' && 'mx-auto max-w-[1100px]', 'px-4 pb-8 pt-6 md:px-10 md:py-8')}>
-          <RecordHeader
-            title={title}
-            status={status ? { label: enumLabel(status, hint('status')?.valueLabels), tone: valueTone(hint('status')?.valueColors, status) } : undefined}
-          />
+          <RecordHeader title={title} badge={badge} />
           {editor.message && <div className="mt-4"><ErrorBanner title={text('notSaved')} error={new Error(editor.message)} /></div>}
           {editor.linesConflict && (
             <div className="mt-4">
@@ -414,7 +416,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
             </div>
           )}
           <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12">
-            <main className="divide-y divide-border">
+            <div className="divide-y divide-border">
               {before.flatMap(mainItem)}
               {tab && (
                 <RecordTabs tabs={tabs.map((each, index) => ({ title: each.title, to: recordAt(openGroups, atEdit, index === 0 ? undefined : each.title), current: each === tab }))} />
@@ -425,7 +427,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                 </div>
               )}
               {after.flatMap(mainItem)}
-            </main>
+            </div>
             {/* Beside the main column the sidebar stays in view below the top bar, and scrolls on its own when taller than the window */}
             <aside className="space-y-4 md:sticky md:top-[var(--pb-sticky-top,0px)] md:max-h-[calc(100dvh-var(--pb-sticky-top,0px)-var(--pb-sticky-bottom,0px))] md:self-start md:overflow-y-auto md:pb-4 md:pt-8">
               {formControls && <div className="hidden flex-col items-center gap-2 md:flex">{formControls}</div>}

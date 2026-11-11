@@ -67,7 +67,8 @@ const pageHeading = async (canvasElement: HTMLElement) => (await within(canvasEl
 // A record page's main column and its sidebar cards beside it
 const recordColumns = async (canvasElement: HTMLElement) => {
   await within(canvasElement).findByRole('heading', { name: 'R-301' })
-  return { main: canvasElement.querySelector('main main')!.getBoundingClientRect(), aside: canvasElement.querySelector('main aside')!.getBoundingClientRect() }
+  const aside = canvasElement.querySelector('main aside')!
+  return { main: aside.previousElementSibling!.getBoundingClientRect(), aside: aside.getBoundingClientRect() }
 }
 
 export const FullWidthPageChecks: StoryObj = {

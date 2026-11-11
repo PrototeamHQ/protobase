@@ -105,7 +105,7 @@ export const edges = [
 // does not show, the schema API reference, the site's pages and the example code they show, the protobase skill it serves, and the scripts that check them.
 export const site = {
   loads: ['packages/*/src/**/*.stories.tsx', '.storybook/*', 'packages/schema/src/index.ts'],
-  reads: ['packages/**/*.css', 'docs/website/**', 'docs-examples/**', 'tests/apps/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,check-docs,static-server}.mjs', 'scripts/docs-agent-files.ts', 'scripts/docs-agent-files/**', 'scripts/{protobase-skill,skill-links}.ts', 'packages/cli/skills/protobase/**'],
+  reads: ['packages/**/*.css', 'docs/website/**', 'docs-examples/**', 'tests/apps/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/a11y-tree/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,a11y-tree,check-docs,static-server}.mjs', 'scripts/docs-agent-files.ts', 'scripts/docs-agent-files/**', 'scripts/{protobase-skill,skill-links}.ts', 'packages/cli/skills/protobase/**'],
 }
 
 // The upgrade check (tests/upgrade/upgrade.sh, scripts/affected-upgrade.mjs): the CLI it runs from source, through what

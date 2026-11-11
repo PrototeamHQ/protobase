@@ -18,6 +18,7 @@ description: The page of one record, with its sections, related records, galleri
 - [Save feedback](/reference/ui-config/#the-record-page): A view shows saving on the Save button instead of in a toast.
 - [Save conflicts](/reference/ui-config/#editing-a-record): When someone else changed a record while you edited it, Save shows their value beside yours for each field you both changed, and you keep yours or take theirs.
 - [Groups and tabs](/reference/ui-config/#groups): Parts of a record page sit under headings that open on click, or in tabs, and the open ones are kept in the address.
+- [Read-only values and a title badge](/reference/ui-config/#read-only-values-and-a-title-badge) (experimental): Read-only fields show as values, and one field can show as a badge beside the title.
 - [Key facts](/reference/ui-config/#key-facts): A section shows its values side by side with icons.
 - [Confirming a change](/reference/ui-config/#confirming-a-change): A field that is easy to set by mistake asks a question before a person changes it in a form or a list cell, and Cancel keeps its value.
 - [Fields only once a record exists](/reference/ui-config/#names-and-columns): A view leaves a field off the create form, such as a choice among records added after it, and the record page shows it as usual.
@@ -25,6 +26,8 @@ description: The page of one record, with its sections, related records, galleri
 - [Conditional sections](/reference/ui-config/#form-and-read-view): Sections and fields show only while editing, only while reading, or only when a condition on the record holds.
 - [Galleries](/reference/ui-config/#galleries): A record's photos show as tiles that open a full-screen lightbox, with keyboard and swipe navigation.
 - [Related records](/reference/ui-config/#related-records): Every record page shows how many records point at it, and can list related records, also through a join resource, as a table, another display or cards with buttons, each row or card with a button to an address its fields name.
+- [Compact related cards](/reference/ui-config/#compact-related-cards) (experimental): Related records can show as compact cards, coloured by a field.
+- [A related record in full](/reference/ui-config/#a-related-record-in-full): A related record can show its fields in full, without a card, for reading tabs such as notes.
 - [Record lines](/reference/ui-config/#record-lines): The related table a record's view marks as its lines, such as an invoice's, shows all of them on its page, where you edit, add, remove and reorder them, and Save writes the record and its lines together.
 - [Custom section fallbacks](/reference/custom-components/#record-section-fallbacks) (experimental): Where your own component on a record page cannot be drawn, such as on a watch, what you declare shows in its place: any main-column item in the main column, conversations included, and sidebar maps and sidebar custom components in the sidebar.
 - [Conversations](/reference/ui-config/#conversations): A record page holds a chat about the record, such as a task's, with its messages in markdown and a box that sends one, declared in its layout with no component of the app's own.

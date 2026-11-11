@@ -98,7 +98,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], accou
               ) : (
                 <span className="block truncate font-medium">{user.name}</span>
               )}
-              <Badge tone={user.roleTone} dot={false} className="mt-0.5 h-4 px-1.5 text-[10px]">
+              <Badge tone={user.roleTone} dot={false} className="mt-0.5 h-4 px-1.5 text-[0.625rem]">
                 {user.role}
               </Badge>
             </span>

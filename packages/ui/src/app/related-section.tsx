@@ -9,6 +9,7 @@ import { countQuery } from './pages/use-layout-data'
 import { EmbeddedDisplaySwitch, EmbeddedList } from './embedded-list/embedded-list'
 import { useEmbeddedDisplay } from './embedded-list/use-embedded-display'
 import { RelatedCards } from './related-cards/related-cards'
+import { RelatedRecord } from './related-cards/related-record'
 import { relatedOpens } from './related-opens'
 import { relatedHandOrder } from './hand-order/hand-order'
 import { HandSortedList } from './hand-order/hand-sorted-list'
@@ -43,7 +44,8 @@ const Empty = ({ empty }: { empty: string | undefined }) => <p className="text-m
 
 /**
  * A record page section listing the first records of another resource that point at this record, directly or through
- * a join resource, in the list page's table or display, or as cards with their actions, with a link to them all in the list. When they are ordered by
+ * a join resource, in the list page's table or display, or as cards with their actions, with a link to them all in the list,
+ * or the first one's fields in full. When they are ordered by
  * hand within this record, **Reorder** shows them all in their order, to be moved by their drag handles.
  */
 export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; value: string | number | boolean | null; owner: string }) => {
@@ -65,12 +67,21 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   const columns = item.columns ?? listColumnNames(model, view).filter((name) => name !== item.field)
   // What it lists, when it can match any record
   const listed = (list: (filter: string) => ReactNode) => (match === null ? <Empty empty={item.empty} /> : list(match))
-  if (item.presentation === 'cards') {
+  if (item.presentation === 'cards' || item.presentation === 'compact') {
+    const compact = item.presentation === 'compact' ? { time: item.time } : undefined
+    // The time beside a compact card's title is not shown again among its values; the tone's value shows first, so its
+    // colour is never all that says it
+    const shown = compact ? columns.filter((name) => name !== item.time) : columns
+    const values = item.tone === undefined || shown.includes(item.tone) ? shown : [item.tone, ...shown]
     return (
       <Section title={item.title} help={item.help}>
-        {listed((filter) => <RelatedCards model={model} view={view} filter={filter} sort={item.sort ?? ''} fields={columns} actions={item.actions ?? []} button={item.button} limit={item.limit ?? 10} display={item.display} empty={item.empty} />)}
+        {listed((filter) => <RelatedCards model={model} view={view} filter={filter} sort={item.sort ?? ''} fields={values} actions={item.actions ?? []} button={item.button} limit={item.limit ?? 10} display={item.display} empty={item.empty} compact={compact} tone={item.tone} />)}
       </Section>
     )
+  }
+  if (item.presentation === 'record') {
+    if (match === null) return <Section title={item.title} help={item.help}><Empty empty={item.empty} /></Section>
+    return <RelatedRecord title={item.title} help={item.help} model={model} view={view} filter={match} sort={item.sort ?? ''} fields={columns} button={item.button} empty={item.empty} />
   }
   const handOrder = relatedHandOrder(item, model, permissions)
   const displaySwitch = <EmbeddedDisplaySwitch view={view} value={display} onChange={pick} />

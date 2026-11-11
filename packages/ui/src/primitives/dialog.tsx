@@ -26,7 +26,7 @@ export const Dialog = ({ title, description, onClose, actions, children, wide = 
   return createPortal(
     <div data-dialog={name ?? ''} className="fixed inset-0 z-[90] flex items-center justify-center bg-backdrop/30 p-4 pb-[calc(1rem+var(--pb-safe-bottom))] pl-[calc(1rem+var(--pb-safe-left))] pr-[calc(1rem+var(--pb-safe-right))] pt-[calc(1rem+var(--pb-safe-top))]" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className={cn('outline-none max-h-[min(90vh,100%)] w-full overflow-y-auto rounded-lg border bg-background p-4 shadow-pop sm:p-5', wide ? 'max-w-3xl' : 'max-w-md')}>
-        <h2 className="text-[16px] font-semibold">{title}</h2>
+        <h2 className="text-base font-semibold">{title}</h2>
         {description && <p className="mt-1.5 text-muted-foreground">{description}</p>}
         {children && <div className="mt-4">{children}</div>}
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>*]:min-h-11 sm:[&>*]:min-h-0">{actions}</div>

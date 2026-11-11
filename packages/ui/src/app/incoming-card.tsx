@@ -5,6 +5,7 @@ import { Skeleton } from '../primitives/skeleton'
 import { SidebarCard } from '../record-view'
 import { incomingAddress, incomingRelations } from './incoming-relations'
 import { useAdminMeta } from './meta-gate'
+import { useProjectUi } from './pages/project-ui'
 import { AppLink } from './use-app-address'
 import { useIncomingCounts } from './use-incoming-counts'
 import { text } from './record-messages'
@@ -14,7 +15,9 @@ type IncomingCardProps = { model: ResourceModel; recordKey: string; layout: Layo
 /** The rail's card of the records pointing at this one: per resource and field, how many, linking to them in their list. */
 export const IncomingCard = ({ model, recordKey, layout }: IncomingCardProps) => {
   const { resources, views } = useAdminMeta()
-  const counts = useIncomingCounts(incomingRelations(model, resources, views, layout), resources, recordKey)
+  const { components } = useProjectUi()
+  const relations = incomingRelations(model, resources, views, layout, (component) => Boolean(components?.[component]))
+  const counts = useIncomingCounts(relations, resources, recordKey)
   if (counts.length === 0) return null
   return (
     <SidebarCard title={text('relatedRecords')}>

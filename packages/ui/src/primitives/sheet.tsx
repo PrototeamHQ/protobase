@@ -25,7 +25,7 @@ export const Sheet = ({ title, open, onClose, children }: SheetProps) => {
       <div ref={backdrop} className="absolute inset-0 bg-backdrop/40" onClick={dismiss} aria-hidden />
       <div ref={panel} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-xl border-t bg-background pl-[var(--pb-safe-left)] pr-[var(--pb-safe-right)] shadow-pop outline-none will-change-transform">
         <header className="relative flex shrink-0 touch-none select-none items-center justify-between border-b px-4" {...header}>
-          <h2 className="text-[16px] font-semibold">{title}</h2>
+          <h2 className="text-base font-semibold">{title}</h2>
           <button type="button" aria-label={text('close')} onClick={dismiss} className="-mr-2 inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
             <X className="size-5" />
           </button>

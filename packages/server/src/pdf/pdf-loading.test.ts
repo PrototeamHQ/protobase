@@ -22,8 +22,9 @@ const rendererLoadedBy = (then: string) => {
 }
 
 describe("React PDF's renderer", () => {
+  // Two cold Bun processes that each import the whole server: a second alone, and past the default 5 seconds on a busy CI runner.
   it('is loaded on the first document rendered, not by the server, the components or a definition', () => {
     expect(rendererLoadedBy('')).toEqual([])
     expect(rendererLoadedBy('await empty.render({})')).not.toEqual([])
-  })
+  }, 30_000)
 })

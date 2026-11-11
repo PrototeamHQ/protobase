@@ -179,8 +179,9 @@ jobs:
   # Storybook built, its play tests and layout snapshots, and the documentation site built and checked, as two jobs
   # beside check: a push runs them when its changes reach them (scripts/affected-site.mjs); a pull request and a run by
   # hand always do. The play tests set the check phase's length, so storybook runs as 2 legs that each build Storybook
-  # and play every other story; the first also takes the layout snapshots. A leg takes about 3 minutes, at most 7 so
-  # far; a story that hangs fails on its own deadline (scripts/play-tests.mjs), and the job's timeout ends anything else.
+  # and play every other story; the first also takes the layout snapshots, the second checks the main pages'
+  # accessibility tree and text size (scripts/a11y-tree.mjs). A leg takes about 3 minutes, at most 7 so far; a story that
+  # hangs fails on its own deadline (scripts/play-tests.mjs), and the job's timeout ends anything else.
   storybook:
     if: github.event_name != 'schedule'
     name: storybook ${{ matrix.shard }}/2
@@ -216,6 +217,8 @@ jobs:
         run: bun scripts/play-tests.mjs --shard ${{ matrix.shard }}/2
       - if: steps.site.outputs.run == 'true' && matrix.shard == 1
         run: bun scripts/dom-snapshots.mjs --no-screenshots
+      - if: steps.site.outputs.run == 'true' && matrix.shard == 2
+        run: bun scripts/a11y-tree.mjs
 
   docs:
     if: github.event_name != 'schedule'

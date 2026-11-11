@@ -259,6 +259,7 @@
     "loadingRecord": "Loading record",
     "noComponent": "No component is registered as {component}. Export it from protobase.ui.tsx, or load the plugin that provides it.",
     "choose": "Choose...",
+    "noValue": "No value",
     "fileMissing": "The file is missing from storage",
     "chooseFileFor": "Choose a file for {label}",
     "notUploaded": "Not uploaded",
@@ -1325,7 +1326,8 @@
     "showMore": "Show more",
     "showLess": "Show less",
     "couldNotLoad": "Could not load",
-    "nothingYet": "Nothing here yet."
+    "nothingYet": "Nothing here yet.",
+    "open": "Open {singular}"
   },
   "app/related-dots": {
     "none": "No {plural}"

@@ -30,7 +30,7 @@ export const Logo = ({ compact, workspace, appName, appIcon }: ShellLogoProps) =
     {!compact && (
       <div className="flex min-w-0 flex-col gap-0.5 leading-tight">
         {appIcon || (appName && appName !== brandName) ? <div className="truncate text-sm font-semibold text-foreground">{appName ?? brandName}</div> : <Wordmark className="self-start" />}
-        {workspace && <div className="truncate text-[11px] text-muted-foreground">{workspace}</div>}
+        {workspace && <div className="truncate text-[0.6875rem] text-muted-foreground">{workspace}</div>}
       </div>
     )}
   </div>

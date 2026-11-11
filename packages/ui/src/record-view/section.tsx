@@ -4,7 +4,7 @@ type SectionProps = { title?: string; help?: string; actions?: ReactNode; childr
 
 /** A section's title, its `actions` at the end of the title's line and its help, over its content, with no frame or spacing around them. */
 export const SectionContent = ({ title, help, actions, children }: SectionProps) => {
-  const heading = title ? <h2 className="text-[16px] font-semibold text-foreground">{title}</h2> : null
+  const heading = title ? <h2 className="text-base font-semibold text-foreground">{title}</h2> : null
   const headed = Boolean(heading || actions || help)
   return (
     <>

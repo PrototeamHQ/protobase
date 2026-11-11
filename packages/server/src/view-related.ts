@@ -1,6 +1,7 @@
 import { resolveFieldPath } from '@protobase/layout'
-import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type RelatedModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type RelatedModel, type RelatedPresentation, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { relatedTarget, rowButtonErrors } from '@protobase/schema/internal'
+import { relatedCardErrors } from './view-related-cards'
 
 export const filterErrors = (model: ResourceModel, source: string | undefined) => {
   if (source === undefined) return []
@@ -79,6 +80,18 @@ const fromErrors = (item: RelatedModel, from: string, owner: ResourceModel, targ
   return sameKind ? [] : [`from: "${from}" on ${owner.name} and "${item.field}" on ${target.name} do not hold the same kind of value`]
 }
 
+// The options that page or open the listed records, which a section showing its one record has no use for
+const listOnly = ['limit', 'display'] as const
+
+const presentations: readonly string[] = ['cards', 'compact', 'record'] satisfies RelatedPresentation[]
+
+/** What is wrong with how a related section presents its records: cards, its one record, or the list's table or display. */
+const presentationErrors = (item: RelatedModel) => [
+  ...(item.presentation === undefined || presentations.includes(item.presentation) ? [] : [`presentation must be "cards", "compact" or "record", not "${String(item.presentation)}"`]),
+  ...(item.actions === undefined || item.presentation === 'cards' || item.presentation === 'compact' ? [] : ['actions need presentation "cards" or "compact"']),
+  ...(item.presentation === 'record' ? listOnly.filter((key) => item[key] !== undefined).map((key) => `presentation "record" shows one record, so it takes no ${key}`) : []),
+]
+
 // The options of a related section that the record's lines keep; the others pick, page or present records, while the lines show them all.
 const linesOptions = new Set(['kind', 'title', 'help', 'resource', 'field', 'when', 'lines'])
 
@@ -116,8 +129,8 @@ export const relatedErrors = (item: RelatedModel, resource: string, models: Reco
     }),
     ...(item.limit === undefined || (Number.isInteger(item.limit) && item.limit >= 1 && item.limit <= 100) ? [] : ['limit must be a whole number from 1 to 100']),
     ...openErrors(item, models),
-    ...(item.presentation === undefined || item.presentation === 'cards' ? [] : [`presentation must be "cards", not "${String(item.presentation)}"`]),
-    ...(item.actions === undefined || item.presentation === 'cards' ? [] : ['actions need presentation "cards"']),
+    ...presentationErrors(item),
+    ...relatedCardErrors(item, target),
     ...linesErrors(item, target),
   ]
 }

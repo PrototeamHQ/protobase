@@ -6,9 +6,10 @@ export const showsLabelInline = (mode: SidebarMode) => mode === 'text-large' || 
 
 export const isTextMode = (mode: SidebarMode): mode is 'text-large' | 'text-small' => mode === 'text-large' || mode === 'text-small'
 
+// A sidebar of text grows with the text size, up to a third of the window, so a large text size leaves the page its room
 export const sidebarWidth = {
-  'text-large': 'w-60',
-  'text-small': 'w-52',
+  'text-large': 'w-60 max-w-[33vw]',
+  'text-small': 'w-52 max-w-[33vw]',
   icon: 'w-14',
   'icon-label': 'w-[76px]',
   'icon-tooltip': 'w-14',

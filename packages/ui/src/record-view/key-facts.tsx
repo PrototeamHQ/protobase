@@ -27,7 +27,7 @@ export const KeyFacts = ({ facts }: { facts: KeyFact[] }) => (
             label
           )}
         </dt>
-        <dd className="min-w-0 break-words text-[16px] font-semibold text-foreground">{value}</dd>
+        <dd className="min-w-0 break-words text-base font-semibold text-foreground">{value}</dd>
       </div>
     ))}
   </dl>

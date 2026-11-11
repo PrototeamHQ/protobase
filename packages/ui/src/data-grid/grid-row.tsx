@@ -38,7 +38,7 @@ const Gutter = ({ width, index, selectable, selected, onToggle, edge }: { width:
     style={{ width }}
   >
     {selectable && <Checkbox checked={Boolean(selected)} label={text('selectRow', { row: index + 1 })} />}
-    {width > compactGutter && <span className="min-w-6 text-right text-[11px] tabular-nums text-faint-foreground">{formatInt(index + 1)}</span>}
+    {width > compactGutter && <span className="min-w-6 text-right text-[0.6875rem] tabular-nums text-faint-foreground">{formatInt(index + 1)}</span>}
   </div>
 )
 

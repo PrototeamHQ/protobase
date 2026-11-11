@@ -1,49 +1,29 @@
 import type { RowButtonModel, ViewModel } from '@protobase/schema'
 import { recordKey } from '../../live/model-helpers'
-import { Skeleton } from '../../primitives/skeleton'
-import { useAdminMeta } from '../meta-gate'
 import { ActionButton } from '../pages/blocks/action'
-import { fieldLabel } from '../pages/blocks/field'
-import { FieldValue } from '../pages/field-value'
 import { RecordScope, type LayoutRecord } from '../pages/record-scope'
-import { usePathValue } from '../pages/use-path-value'
 import { useRecordTitle } from '../titles/record-titles'
 import { RowButtonLink } from '../row-button/row-button-link'
 import { AppLink } from '../use-app-address'
-import { Clamped } from './clamped'
-
-const isEmpty = (value: unknown) => value === null || value === undefined || value === ''
-
-// A field of the card's record, through relations too, under its label; a long value shows its first lines, and a field
-// without a value is left off so the card shows only what the record says
-const CardField = ({ scope, path }: { scope: LayoutRecord; path: string }) => {
-  const { views } = useAdminMeta()
-  const value = usePathValue(scope, path)
-  if (value.state === 'missing') return null
-  if (value.state === 'ready' && isEmpty(value.value)) return null
-  const label = fieldLabel(path, value.state === 'ready' ? views[value.model.name]?.fields[value.field.name]?.label : undefined)
-  return (
-    <div className="min-w-0">
-      <dt className="text-body text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5">{value.state === 'loading' ? <Skeleton className="h-4 w-24" /> : <Clamped><FieldValue model={value.model} field={value.field} value={value.value} /></Clamped>}</dd>
-    </div>
-  )
-}
+import { RelatedField } from './related-field'
+import { ToneEdge } from './tone-edge'
 
 /**
  * A related record as a card: its title linking to its page, its `fields` under their labels, the buttons of its
- * view's `actions`, run on it as everywhere else, and `button`, a link to the address its fields name.
+ * view's `actions`, run on it as everywhere else, and `button`, a link to the address its fields name; its `tone`
+ * field colours its left edge.
  */
-export const RelatedCard = ({ scope, view, fields, actions, button }: { scope: LayoutRecord; view: ViewModel | undefined; fields: string[]; actions: string[]; button?: RowButtonModel }) => {
+export const RelatedCard = ({ scope, view, fields, tone, actions, button }: { scope: LayoutRecord; view: ViewModel | undefined; fields: string[]; tone?: string; actions: string[]; button?: RowButtonModel }) => {
   const titleOf = useRecordTitle()
   return (
-    <li className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+    <li className="relative flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+      {tone && <ToneEdge view={view} field={tone} record={scope.record} />}
       <AppLink to={{ kind: 'record', resource: scope.model.name, key: recordKey(scope.model, scope.record) }} className="self-start font-medium text-primary-text hover:underline">
         {titleOf(scope.model, view, scope.record, scope.key)}
       </AppLink>
       {fields.length > 0 && (
         <dl className="flex flex-col gap-3">
-          {fields.map((path) => <CardField key={path} scope={scope} path={path} />)}
+          {fields.map((path) => <RelatedField key={path} scope={scope} path={path} clamped />)}
         </dl>
       )}
       {(actions.length > 0 || button) && (

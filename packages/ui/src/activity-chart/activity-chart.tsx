@@ -26,7 +26,7 @@ export type ActivityChartProps = {
   className?: string
 }
 
-const axisTick = { fontSize: 11, fill: 'var(--muted-foreground)' }
+const axisTick = { fontSize: '0.6875rem', fill: 'var(--muted-foreground)' }
 
 export const ActivityChart = ({ title, noun, defaultGranularity = 'day', data, granularity: controlled, onGranularityChange, periodLabel, className }: ActivityChartProps) => {
   const [local, setLocal] = useState(defaultGranularity)
