@@ -59,6 +59,7 @@ import { IncomingCard } from './incoming-card'
 import { isChosen, keyValue } from './create/create-values'
 import { RelatedSection } from './related-section'
 import { relatedValue } from './related-value'
+import { GroupCount } from './group-count'
 import { ValueBadge } from './value-badge'
 import { titleBadgeField } from './read-values/title-badge'
 import { useClient } from '../data/api-provider'
@@ -336,7 +337,10 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
       if (children.length === 0) return []
       const open = groupOpen(item, openGroups, needsAttention)
       const toggle = item.collapsed ? recordAt(toggledOpen(openGroups, item.title), atEdit, addressedTab) : undefined
-      return [<GroupSection key={`group:${item.title}`} title={item.title} open={open} toggle={toggle}>{children}</GroupSection>]
+      // The count covers the related tables the page draws, closed or open
+      const counted = item.items.flatMap((inner) => (inner.kind === 'related' && (inner.from === undefined || known(inner.from)) ? [{ item: inner, value: relatedValue(inner, stored.record, recordKey) }] : []))
+      const count = item.count ? <GroupCount sections={counted} /> : undefined
+      return [<GroupSection key={`group:${item.title}`} title={item.title} help={item.help} count={count} open={open} toggle={toggle}>{children}</GroupSection>]
     }
     if (item.kind === 'related' && item.lines) {
       // The lines load on their own, and only once the record has

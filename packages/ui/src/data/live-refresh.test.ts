@@ -21,8 +21,9 @@ describe('liveRefresh', () => {
   it('reads again, once per burst, every query of the resources that changed', async () => {
     const orders = keys.list('orders', '', '', 50, '')
     const order = keys.record('orders', '1')
+    const count = keys.count('orders', 'customer_id = 7')
     const customers = keys.list('customers', '', '', 50, '')
-    const { queryClient, reads } = await shownQueries(orders, order, customers)
+    const { queryClient, reads } = await shownQueries(orders, order, count, customers)
     vi.useFakeTimers()
     const refresh = liveRefresh(queryClient, () => false)
     refresh.changed(['orders'])
@@ -30,7 +31,7 @@ describe('liveRefresh', () => {
     expect(reads(orders)).toBe(1)
     await vi.advanceTimersByTimeAsync(gatherMs)
     vi.useRealTimers()
-    await vi.waitFor(() => expect([reads(orders), reads(order), reads(customers)]).toEqual([2, 2, 1]))
+    await vi.waitFor(() => expect([reads(orders), reads(order), reads(count), reads(customers)]).toEqual([2, 2, 2, 1]))
   })
 
   it('leaves a record under a form with unsaved changes as it is, only marked stale', async () => {

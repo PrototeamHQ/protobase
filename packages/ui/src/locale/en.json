@@ -1902,6 +1902,8 @@
     "dragToClose": "Drag down to close"
   },
   "record-view": {
+    "headingCount": "({count, plural, one {# <lower>{singular}</lower>} other {# <lower>{plural}</lower>}})",
+    "headingCountRecords": "({count, plural, one {# record} other {# records}})",
     "savedDifferent": "{name} saved a different value",
     "example": "Example:",
     "savedThis": "saved this {ago}:",

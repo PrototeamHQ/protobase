@@ -1,10 +1,18 @@
 import type { ReactNode } from 'react'
 
-type SectionProps = { title?: string; help?: string; actions?: ReactNode; children: ReactNode }
+type SectionProps = { title?: string; help?: string; actions?: ReactNode; count?: ReactNode; children: ReactNode }
 
-/** A section's title, its `actions` at the end of the title's line and its help, over its content, with no frame or spacing around them. */
-export const SectionContent = ({ title, help, actions, children }: SectionProps) => {
-  const heading = title ? <h2 className="text-base font-semibold text-foreground">{title}</h2> : null
+/**
+ * A section's title, `count` after it, its `actions` at the end of the title's line and its help, over its content,
+ * with no frame or spacing around them.
+ */
+export const SectionContent = ({ title, help, actions, count, children }: SectionProps) => {
+  const heading = title ? (
+    <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+      {title}
+      {count}
+    </h2>
+  ) : null
   const headed = Boolean(heading || actions || help)
   return (
     <>
@@ -22,10 +30,10 @@ export const SectionContent = ({ title, help, actions, children }: SectionProps)
   )
 }
 
-/** A titled part of the record page; `actions` sit at the end of the title's line. */
-export const Section = ({ title, help, actions, children }: SectionProps & { title: string }) => (
+/** A titled part of the record page; `count` sits after the title, `actions` at the end of the title's line. */
+export const Section = ({ title, help, actions, count, children }: SectionProps & { title: string }) => (
   <section className="py-8 first:pt-8">
-    <SectionContent title={title} help={help} actions={actions}>
+    <SectionContent title={title} help={help} actions={actions} count={count}>
       {children}
     </SectionContent>
   </section>

@@ -55,7 +55,7 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
 
   const refresh = () => {
     for (const prefix of ['page', 'list', 'first-page', 'map']) void queryClient.invalidateQueries({ queryKey: [prefix, model.name] })
-    for (const prefix of ['facets', 'series', 'histogram']) void queryClient.invalidateQueries({ queryKey: [prefix, model.name] })
+    for (const prefix of ['facets', 'series', 'histogram', 'count']) void queryClient.invalidateQueries({ queryKey: [prefix, model.name] })
   }
 
   /** Deletes with the given ETag (`*` for any version). Returns false after opening the conflict dialog on a 412. */

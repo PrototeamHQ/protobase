@@ -915,6 +915,8 @@ export type RelatedModel = {
   empty?: string
   /** Leave the section off the page while it has no records. */
   hideEmpty?: boolean
+  /** Show how many records match beside the title, such as "Open tasks 3", as the reader may see them. */
+  count?: boolean
   /** Whether it shows on the form, the read view or both, or a condition on the saved record that it shows while it holds. */
   when?: RecordWhen
   /**
@@ -1136,6 +1138,10 @@ export type GroupModel = {
   kind: 'group'
   /** Its heading, unique among the view's groups: the address names an open group by it. */
   title: string
+  /** A line under the heading, shown while the group is closed too. */
+  help?: string
+  /** Show beside the heading how many records its related tables hold together, as the reader may see them. */
+  count?: boolean
   /** The sections and related tables it holds, in order. */
   items: GroupItemModel[]
   /** Closed until the person opens it, or a link does. */

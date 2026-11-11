@@ -628,7 +628,7 @@ view<typeof listings>('listings').recordMode('read')
 
 ### Groups
 
-`l.group(title, items, { collapsed?, when? })` puts a heading over sections and related tables, so a long record page shows what matters first and tucks rarely needed parts away. A group holds only `l.section` and `l.related` items, and not another group. With `collapsed: true` it shows only its heading until the person clicks it; clicking again closes it. A closed group draws nothing, so its related tables load nothing until it opens. Without `collapsed` it is a plain heading over its items.
+`l.group(title, items, { help?, count?, collapsed?, when? })` puts a heading over sections and related tables, so a long record page shows what matters first and tucks rarely needed parts away. A group holds only `l.section` and `l.related` items, and not another group. With `collapsed: true` it shows only its heading until the person clicks it; clicking again closes it. A closed group draws nothing, so its related tables load nothing until it opens. Without `collapsed` it is a plain heading over its items. `help` is a line under the heading, shown while the group is closed too, and `count: true` shows beside the heading how many records its related tables hold together; see [Counts in headings](#counts-in-headings).
 
 The open groups are in the address, as `?open=<title>` once per group, so a link, a copied URL or a new tab opens the page with the group open. Titles are unique among a view's groups, as the address names a group by its title. The page scrolls as a whole; opening a group adds no scroll box. On the form, a group that holds a field with an error or a conflict opens by itself. The create form shows the sections of a group as plain sections.
 
@@ -861,6 +861,7 @@ Without any configuration, the record page's rail has a **Related records** card
 | `display` | The display of `resource`'s list it opens in, and View all opens, such as `cards`; default the list's. Not with `presentation: 'record'`. |
 | `help`, `empty` | A line under the title, and the text when nothing matches (default "Nothing here yet."). |
 | `hideEmpty` | `true` leaves the section off the page while it has no records. |
+| `count` | `true` shows how many records match beside the title; see [Counts in headings](#counts-in-headings). |
 | `lines` | `true` makes the section the record's [lines](#record-lines), edited in place with the record. |
 
 The real estate example lists who a unit is let to (the primary tenant and co-signers of the lease that runs today) and that lease:
@@ -916,6 +917,19 @@ l.related('Holding it up', {
 A `time` or `tone` field the caller cannot read is left out of their cards. <gap>A compact card cannot take its `time` or `tone` through a relation, such as `task_id.updated_at`, because reading them through one is not implemented.</gap>
 
 <StoryFrame id="record-page-related-records-as-compact-cards--compact" title="Causes holding an objective up" height={520} />
+
+#### Counts in headings
+
+With `count: true` a related section shows beside its title how many records match, such as **Doing 2**, so the reader sees what is behind each heading without scrolling. A group with `count: true` shows how many records its related tables hold together, while it is closed too, so a closed group still says whether opening it is worth it. A section with no records shows 0. The count is the records the reader may see, as the list API counts them with their access rules, and it follows the page's own changes and, on a [live](/reference/live/) resource, everyone else's. The count is a quiet pill after the title, 0 as an outline, and a screen reader hears it with the records' name, such as "Doing (2 tasks)"; while it loads, a placeholder of its size holds its place, and a count that cannot be read shows no pill rather than 0. `help` puts a line under the heading of either.
+
+```ts
+l.group('Open tasks', [
+  l.related('Blocked', { resource: 'tasks', field: 'objective_id', filter: 'status = "blocked"', presentation: 'compact', count: true }),
+  l.related('Doing', { resource: 'tasks', field: 'objective_id', filter: 'status = "doing"', presentation: 'compact', count: true }),
+], { help: 'What is left before the objective is met.', count: true })
+```
+
+<StoryFrame id="record-page-heading-counts--counts" title="A group and its related tables with counts" height={640} />
 
 #### A related record in full
 

@@ -1,16 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
-import { createWhere, parseFilter, printFilter, type RelatedModel } from '@protobase/schema'
-import { useClient } from '../data/api-provider'
-import { keys } from '../data/query-keys'
+import { createWhere, printFilter, type RelatedModel } from '@protobase/schema'
 import { listColumnNames } from '../live/columns-from-model'
 import { Section } from '../record-view'
-import { countQuery } from './pages/use-layout-data'
+import { HeadingCount } from '../record-view/heading-count'
 import { EmbeddedDisplaySwitch, EmbeddedList } from './embedded-list/embedded-list'
 import { useEmbeddedDisplay } from './embedded-list/use-embedded-display'
 import { RelatedCards } from './related-cards/related-cards'
 import { RelatedRecord } from './related-cards/related-record'
 import { relatedOpens } from './related-opens'
+import { relatedMatch } from './related-match'
+import { useRelatedCount } from './related-count'
 import { relatedHandOrder } from './hand-order/hand-order'
 import { HandSortedList } from './hand-order/hand-sorted-list'
 import { ReorderButton } from './hand-order/reorder-button'
@@ -18,27 +17,6 @@ import { useAdminMeta, usePermissions } from './meta-gate'
 import { text } from './record-messages'
 
 const where = createWhere()
-
-// A single condition stays as it is, so the list that "View all" opens reads it as its own filter
-const and = (...parts: Array<string | undefined>) => {
-  const given = parts.filter((part): part is string => Boolean(part))
-  return given.length === 1 ? given[0]! : given.map((part) => `(${part})`).join(' AND ')
-}
-
-/**
- * The filter on the section's resource: its `field` is this record's key, or, through a join resource, one of the keys
- * the join records that point at this record hold. `null` without a key, so nothing can match.
- */
-const useMatch = (item: RelatedModel, value: string | number | boolean | null) => {
-  const { resources } = useAdminMeta()
-  const { through } = item
-  if (value === null) return null
-  if (!through) return and(printFilter(where.eq(item.field, value)), item.filter)
-  const key = through.key ?? resources[through.resource]?.primaryKey[0]
-  const links = parseFilter(and(printFilter(where.eq(through.field, value)), through.filter))
-  if (!links.ok || !key) return null
-  return and(printFilter(where.related(item.field, through.resource, key, links.ast)), item.filter)
-}
 
 const Empty = ({ empty }: { empty: string | undefined }) => <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
 
@@ -52,16 +30,15 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   const { resources, views } = useAdminMeta()
   const model = resources[item.resource]
   const view = model && views[model.name]
-  const match = useMatch(item, value)
+  const match = relatedMatch(item, value, resources)
   const [display, pick] = useEmbeddedDisplay(view, `related:${owner}:${item.title}`, item.display)
   const permissions = usePermissions(item.resource)
   const [sorting, setSorting] = useState(false)
-  // Only a section that hides while empty counts its records
-  const client = useClient()
-  const counting = Boolean(item.hideEmpty && model && match)
-  const count = useQuery({ queryKey: keys.count(item.resource, match ?? ''), enabled: counting, queryFn: () => countQuery(client, model!, match ?? '').queryFn() })
+  // Only a section that hides while empty or shows its count counts its records
+  const count = useRelatedCount([{ item, value }], Boolean(item.hideEmpty || item.count))
   if (!model) return null
-  if (item.hideEmpty && (match === null || (counting && (count.isPending || count.data === 0)))) return null
+  if (item.hideEmpty && (count === undefined || count === 0)) return null
+  const heading = { title: item.title, help: item.help, count: item.count ? <HeadingCount count={count} names={view?.names} /> : undefined }
   const opens = relatedOpens(item, model, resources)
   // The relation names this record on every row, so it is left out of the default columns
   const columns = item.columns ?? listColumnNames(model, view).filter((name) => name !== item.field)
@@ -74,14 +51,14 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
     const shown = compact ? columns.filter((name) => name !== item.time) : columns
     const values = item.tone === undefined || shown.includes(item.tone) ? shown : [item.tone, ...shown]
     return (
-      <Section title={item.title} help={item.help}>
+      <Section {...heading}>
         {listed((filter) => <RelatedCards model={model} view={view} filter={filter} sort={item.sort ?? ''} fields={values} actions={item.actions ?? []} button={item.button} limit={item.limit ?? 10} display={item.display} empty={item.empty} compact={compact} tone={item.tone} />)}
       </Section>
     )
   }
   if (item.presentation === 'record') {
-    if (match === null) return <Section title={item.title} help={item.help}><Empty empty={item.empty} /></Section>
-    return <RelatedRecord title={item.title} help={item.help} model={model} view={view} filter={match} sort={item.sort ?? ''} fields={columns} button={item.button} empty={item.empty} />
+    if (match === null) return <Section {...heading}><Empty empty={item.empty} /></Section>
+    return <RelatedRecord {...heading} model={model} view={view} filter={match} sort={item.sort ?? ''} fields={columns} button={item.button} empty={item.empty} />
   }
   const handOrder = relatedHandOrder(item, model, permissions)
   const displaySwitch = <EmbeddedDisplaySwitch view={view} value={display} onChange={pick} />
@@ -95,13 +72,13 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   )
   if (sorting && handOrder) {
     return (
-      <Section title={item.title} help={item.help} actions={actions}>
+      <Section {...heading} actions={actions}>
         <HandSortedList model={model} view={view} field={handOrder} filter={printFilter(where.eq(item.field, value!))} columns={columns} />
       </Section>
     )
   }
   return (
-    <Section title={item.title} help={item.help} actions={actions}>
+    <Section {...heading} actions={actions}>
       {listed((filter) => <EmbeddedList key={filter} model={model} view={view} filter={filter} sort={item.sort ?? ''} columns={columns} limit={item.limit ?? 10} display={display} empty={item.empty} opens={opens} button={item.button} />)}
     </Section>
   )
