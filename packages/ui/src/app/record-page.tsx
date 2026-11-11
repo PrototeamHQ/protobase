@@ -49,6 +49,7 @@ import { CommentsSection } from './comments/comments-section'
 import { filledFields } from './filled-fields'
 import { namedIcon } from './named-icon'
 import { fieldHelp, helpShown, recordShown, whenShown } from './record-mode/record-mode'
+import { fallbackEntries } from './record-mode/shown-layout'
 import { useShownLayout } from './record-mode/use-shown-layout'
 import { useRecordEditor } from './use-record-editor'
 import { useRecordElsewhere } from './use-record-elsewhere'
@@ -343,7 +344,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     if (item.kind === 'chart') return [<RecordChartSection key={`chart:${index}`} item={item} recordKey={recordKey} />]
     // Project components, maps and photos read fields a list row may not have, so they wait for the record
     if (preview && (item.kind === 'custom' || item.kind === 'map' || item.kind === 'gallery')) return []
-    if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} fallback={item.fallback && <>{item.fallback.flatMap(mainItem)}</>} />]
+    if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} fallback={item.fallback && <>{fallbackEntries(item).flatMap(([entry, at]) => mainItem(entry, at))}</>} />]
     if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
     if (item.kind === 'gallery') return [<GallerySection key={`gallery:${index}`} item={item} record={stored.record} recordKey={recordKey} />]
     if (item.kind === 'history') return [<HistorySection key={`history:${index}`} item={item} model={model} view={view} recordKey={recordKey} etag={stored.etag} />]
@@ -374,7 +375,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   const sidebarCard = (item: LayoutItemModel, index: number): ReactElement | null => {
     if (item.kind === 'map') return <MapSection key={`map:${index}`} item={item} record={stored.record} />
     if (item.kind !== 'custom') return null
-    return <CustomSection key={`custom:${index}`} item={item} scope={scope} fallback={item.fallback && <>{item.fallback.map(sidebarCard)}</>} />
+    return <CustomSection key={`custom:${index}`} item={item} scope={scope} fallback={item.fallback && <>{fallbackEntries(item).map(([entry, at]) => sidebarCard(entry, at))}</>} />
   }
 
   return (
