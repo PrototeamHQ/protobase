@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { ProblemError } from '@protobase/client'
-import type { SettingsProps } from '@protobase/layout'
+import type { SettingsProps, Styled } from '@protobase/layout'
 import type { FieldModel, ResourceModel } from '@protobase/schema'
 import { useClient } from '../../../data/api-provider'
 import { differs } from '../../../live/field-values'
@@ -17,17 +17,18 @@ import { useAdminMeta, usePermissions } from '../../meta-gate'
 import { can } from '../../permissions'
 import type { LayoutRecord } from '../record-scope'
 import { scopeOf, useFirstRecord, useRefreshResource } from '../use-layout-data'
+import { cn } from '../../../lib/cn'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame } from './card-frame'
 import { editBody, startingDraft } from './form-draft'
 import { text } from '../messages'
 
-type FormProps = Omit<SettingsProps, 'resource' | 'fields'> & { model: ResourceModel; fields: string[]; stored: LayoutRecord | undefined }
+type FormProps = Omit<SettingsProps, 'resource' | 'fields'> & { model: ResourceModel; fields: string[]; stored: LayoutRecord | undefined; className?: string }
 
 /** A switch or a choice saves as soon as it changes; what is typed waits for Save. */
 export const savesAtOnce = (field: FieldModel) => field.type === 'boolean' || field.type === 'enum'
 
-const SettingsForm = ({ model, fields, title, description, stored: loaded }: FormProps) => {
+const SettingsForm = ({ model, fields, title, description, stored: loaded, className }: FormProps) => {
   const { resources, views } = useAdminMeta()
   const permissions = usePermissions(model.name)
   const client = useClient()
@@ -87,7 +88,7 @@ const SettingsForm = ({ model, fields, title, description, stored: loaded }: For
   }
 
   return (
-    <CardFrame title={title} description={description} className="h-full">
+    <CardFrame title={title} description={description} className={cn('h-full', className)}>
       <form
         className="flex flex-col gap-4"
         onSubmit={(event) => {
@@ -131,7 +132,7 @@ const LoadedSettings = (props: FormProps) => {
   const record = useFirstRecord(props.model, {})
   if (record.isPending) {
     return (
-      <CardFrame title={props.title} description={props.description}>
+      <CardFrame title={props.title} description={props.description} className={props.className}>
         <div className="flex flex-col gap-2">
           <Skeleton className="h-4 w-1/2" />
           <Skeleton className="h-4 w-1/3" />
@@ -141,7 +142,7 @@ const LoadedSettings = (props: FormProps) => {
   }
   if (record.error) {
     return (
-      <CardFrame title={props.title} description={props.description}>
+      <CardFrame title={props.title} description={props.description} className={props.className}>
         <ErrorBanner title={text('couldNotLoad')} error={record.error} />
       </CardFrame>
     )
@@ -154,9 +155,9 @@ const LoadedSettings = (props: FormProps) => {
  * it changes and typed values with Save, the defaults shown until the first save creates the record. The server keeps
  * every caller to their own record, so the list holds at most theirs.
  */
-export const SettingsBlock = ({ node }: BlockProps) => {
-  const { resource, fields = [], ...rest } = propsOf<SettingsProps>(node)
+export const SettingsBlock = ({ node, className }: BlockProps) => {
+  const { resource, fields = [], className: _className, ...rest } = propsOf<SettingsProps & Styled>(node)
   const model = useAdminMeta().resources[resource]
   if (!model) return null
-  return <LoadedSettings {...rest} model={model} fields={fields.filter((name) => Object.hasOwn(model.fields, name))} stored={undefined} />
+  return <LoadedSettings {...rest} model={model} fields={fields.filter((name) => Object.hasOwn(model.fields, name))} stored={undefined} className={className} />
 }

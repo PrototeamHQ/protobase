@@ -8,6 +8,7 @@ import { FieldValue } from '../field-value'
 import { useLayoutRecord } from '../record-scope'
 import { useCount } from '../use-layout-data'
 import { usePathValue } from '../use-path-value'
+import { cn } from '../../../lib/cn'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame } from './card-frame'
 import { formatTag } from '../../../locale/active-locale'
@@ -42,12 +43,12 @@ const RecordValue = ({ field, format }: { field: string; format: StatProps['form
  * One number or value with a label: fixed, a count of matching records (linking to them from anywhere on the card), or
  * a field of the record. A label that wraps pushes nothing out of line: the value sits at the card's bottom.
  */
-export const StatBlock = ({ node }: BlockProps) => {
+export const StatBlock = ({ node, className }: BlockProps) => {
   const { label, value, resource, filter, field, format, description } = propsOf<StatProps>(node)
   const { resources } = useAdminMeta()
   const model = resource === undefined ? undefined : resources[resource]
   return (
-    <CardFrame className="relative h-full" bodyClassName="flex flex-col">
+    <CardFrame className={cn('relative h-full', className)} bodyClassName="flex flex-col">
       <p className="text-muted-foreground break-words">{label}</p>
       <div className="mt-auto pt-1">
         {value !== undefined && <span className={big}>{value}</span>}

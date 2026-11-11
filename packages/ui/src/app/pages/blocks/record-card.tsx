@@ -6,13 +6,14 @@ import { ErrorBanner } from '../../error-banner'
 import { useAdminMeta } from '../../meta-gate'
 import { RecordScope } from '../record-scope'
 import { useFirstRecord } from '../use-layout-data'
+import { cn } from '../../../lib/cn'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame, Quiet } from './card-frame'
 import { text } from '../messages'
 
-type LoadedProps = Omit<RecordCardProps, 'resource' | 'actions' | 'children'> & { model: ResourceModel; actions: ReactNode; children: ReactNode[] }
+type LoadedProps = Omit<RecordCardProps, 'resource' | 'actions' | 'children'> & { model: ResourceModel; actions: ReactNode; children: ReactNode[]; className?: string }
 
-const LoadedRecordCard = ({ model, filter, sort, recordKey, title, description, empty, actions, children }: LoadedProps) => {
+const LoadedRecordCard = ({ model, filter, sort, recordKey, title, description, empty, actions, children, className }: LoadedProps) => {
   const record = useFirstRecord(model, { filter, sort, key: recordKey })
   const scoped = (content: ReactNode) => (record.data ? <RecordScope value={record.data}>{content}</RecordScope> : undefined)
   const body = record.isPending ? (
@@ -28,19 +29,19 @@ const LoadedRecordCard = ({ model, filter, sort, recordKey, title, description, 
     <Quiet>{empty ?? text('nothingYet')}</Quiet>
   )
   return (
-    <CardFrame title={title} description={description} actions={actions ? scoped(actions) : undefined} className="h-full">
+    <CardFrame title={title} description={description} actions={actions ? scoped(actions) : undefined} className={cn('h-full', className)}>
       {body}
     </CardFrame>
   )
 }
 
 /** One record, the one `recordKey` names or the first match: its Fields, Actions and forms inside, actions in the header. */
-export const RecordCardBlock = ({ node, children, slots }: BlockProps) => {
+export const RecordCardBlock = ({ node, children, slots, className }: BlockProps) => {
   const { resource, filter, sort, recordKey, title, description, empty } = propsOf<RecordCardProps>(node)
   const model = useAdminMeta().resources[resource]
   if (!model) return null
   return (
-    <LoadedRecordCard model={model} filter={filter} sort={sort} recordKey={recordKey} title={title} description={description} empty={empty} actions={slots.actions}>
+    <LoadedRecordCard model={model} filter={filter} sort={sort} recordKey={recordKey} title={title} description={description} empty={empty} actions={slots.actions} className={className}>
       {children}
     </LoadedRecordCard>
   )

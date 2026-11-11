@@ -2,6 +2,7 @@ import type { ProgressProps } from '@protobase/layout'
 import { Skeleton } from '../../../primitives/skeleton'
 import { useLayoutRecord } from '../record-scope'
 import { usePathValue } from '../use-path-value'
+import { cn } from '../../../lib/cn'
 import { propsOf, type BlockProps } from './block-props'
 import { formatTag } from '../../../locale/active-locale'
 
@@ -16,7 +17,7 @@ const useAmount = (amount: number | string | undefined, fallback: number) => {
 }
 
 /** A bar for `value` out of `max` (100 by default), with the numbers beside the label. */
-export const ProgressBlock = ({ node }: BlockProps) => {
+export const ProgressBlock = ({ node, className }: BlockProps) => {
   const { value, max, label } = propsOf<ProgressProps>(node)
   const current = useAmount(value, 0)
   const total = useAmount(max, 100)
@@ -24,7 +25,7 @@ export const ProgressBlock = ({ node }: BlockProps) => {
   if (!Number.isFinite(current) || !Number.isFinite(total)) return null
   const share = total > 0 ? Math.min(1, Math.max(0, current / total)) : 0
   return (
-    <div className="min-w-0">
+    <div className={cn('min-w-0', className)}>
       <div className="flex items-baseline justify-between gap-2 text-body">
         <span className="text-muted-foreground">{label}</span>
         <span className="tabular-nums">

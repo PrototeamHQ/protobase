@@ -10,12 +10,12 @@ const spans: Record<GridSpan, string> = { 1: '', 2: 'md:col-span-2', 3: 'md:col-
 const isStat = (child: LayoutChild) => typeof child === 'object' && !child.custom && child.type === 'Stat'
 
 /** Columns that collapse to one on a phone, or two when it holds only `Stat`s; a child's `span` makes it wider. */
-export const GridBlock = ({ node, children }: BlockProps) => {
+export const GridBlock = ({ node, children, className }: BlockProps) => {
   const { columns: count = 2 } = propsOf<GridProps>(node)
   const childNodes = node.children
   const stats = childNodes.length > 0 && childNodes.every(isStat)
   return (
-    <div className={cn('grid grid-cols-1 gap-4', stats ? statColumns[count] : columns[count])}>
+    <div className={cn('grid grid-cols-1 gap-4', stats ? statColumns[count] : columns[count], className)}>
       {children.map((child, index) => {
         const element = childNodes[index]
         const span = typeof element === 'object' ? (element.props.span as GridSpan | undefined) : undefined
