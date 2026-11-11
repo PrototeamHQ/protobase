@@ -1325,7 +1325,8 @@
     "showMore": "Show more",
     "showLess": "Show less",
     "couldNotLoad": "Could not load",
-    "nothingYet": "Nothing here yet."
+    "nothingYet": "Nothing here yet.",
+    "open": "Open {singular}"
   },
   "app/related-dots": {
     "none": "No {plural}"
