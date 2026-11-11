@@ -12,3 +12,13 @@ export const imageQuery = ({ width, height, space, theme }: { width?: number; he
   if (asked === 0) return
   return { width: String(asked), ...(height !== undefined && { height: String(height) }), theme }
 }
+
+/**
+ * When the picture is asked for again: every `refresh` seconds, and never because the window regains focus or the block
+ * mounts again, so without `refresh` each query is asked for once.
+ */
+export const imageRefetch = (refresh?: number) => ({
+  staleTime: Infinity,
+  refetchOnWindowFocus: false,
+  ...(refresh !== undefined && { refetchInterval: refresh * 1000 }),
+})

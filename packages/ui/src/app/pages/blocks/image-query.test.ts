@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { imageQuery } from './image-query'
+import { imageQuery, imageRefetch } from './image-query'
 
 describe('imageQuery', () => {
   it('asks for the size the block names, in its theme', () => {
@@ -12,5 +12,15 @@ describe('imageQuery', () => {
 
   it('asks for nothing before the space is measured', () => {
     expect(imageQuery({ space: 0, theme: 'light' })).toBeUndefined()
+  })
+})
+
+describe('imageRefetch', () => {
+  it('asks again every refresh seconds, never on window focus', () => {
+    expect(imageRefetch(60)).toEqual({ staleTime: Infinity, refetchOnWindowFocus: false, refetchInterval: 60_000 })
+  })
+
+  it('asks once without refresh, also when the window regains focus', () => {
+    expect(imageRefetch()).toEqual({ staleTime: Infinity, refetchOnWindowFocus: false })
   })
 })

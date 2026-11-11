@@ -7,7 +7,7 @@ import { useElementWidth } from '../../../focus-page/use-element-width'
 import { Skeleton } from '../../../primitives/skeleton'
 import { useTheme } from '../../../theme/theme-provider'
 import { propsOf, type BlockProps } from './block-props'
-import { imageQuery } from './image-query'
+import { imageQuery, imageRefetch } from './image-query'
 
 /** A URL the `<img>` loads a fetched picture from, given back to the browser once another replaces it or the block goes. */
 const useObjectUrl = (blob: Blob | undefined) => {
@@ -24,7 +24,7 @@ const useObjectUrl = (blob: Blob | undefined) => {
 /**
  * The picture an API function draws, fetched with the reader's token at the block's size, or the width it has, and the
  * page's theme, again every `refresh` seconds. The previous picture stays while the next loads. A function that refuses
- * or answers no picture leaves its `alt`, or nothing.
+ * or answers no picture, also on a later request, leaves its `alt`, or nothing.
  */
 export const ImageBlock = ({ node }: BlockProps) => {
   const { function: name, alt, width, height, refresh } = propsOf<ImageProps>(node)
@@ -36,7 +36,7 @@ export const ImageBlock = ({ node }: BlockProps) => {
     queryKey: keys.image(name, query ?? {}),
     enabled: query !== undefined,
     placeholderData: keepPreviousData,
-    ...(refresh !== undefined && { refetchInterval: refresh * 1000 }),
+    ...imageRefetch(refresh),
     queryFn: async () => {
       const answer = await client.invoke(name, { query })
       if (!(answer instanceof Blob)) throw new Error(`The function "${name}" answered no picture`)
@@ -47,7 +47,7 @@ export const ImageBlock = ({ node }: BlockProps) => {
   const size = { ...(width !== undefined && { width }), ...(height !== undefined && { height }) }
   return (
     <div ref={ref} className="min-w-0">
-      {picture.isError && !picture.data ? (
+      {picture.isError ? (
         alt && <p className="text-muted-foreground">{alt}</p>
       ) : url ? (
         <img src={url} alt={alt ?? ''} style={size} className={width === undefined ? 'w-full max-w-full object-contain' : 'max-w-full object-contain'} />

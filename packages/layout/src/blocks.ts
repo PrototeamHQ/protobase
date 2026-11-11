@@ -191,7 +191,7 @@ export type ImageProps = {
   width?: number
   /** How tall it is drawn; when omitted, the function's picture decides, and the request names no height. */
   height?: number
-  /** Every how many seconds the client asks for it again; once when omitted. */
+  /** Every how many seconds the client asks for it again; once when omitted, also when the window regains focus. */
   refresh?: number
 }
 export type ActionProps = { name: string; resource?: string; label?: string; variant?: ButtonVariant }

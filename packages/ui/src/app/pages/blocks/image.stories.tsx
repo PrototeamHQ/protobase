@@ -79,3 +79,38 @@ export const Checks: StoryObj = {
     expect(canvasElement.querySelectorAll('main img')).toHaveLength(1)
   },
 }
+
+// A live picture asked for every second, whose function draws it once and then fails
+
+const live = page('live', Page({ title: 'Live', children: Card({ title: 'Load', children: Image({ function: 'load-map', alt: 'The load per server', width: 120, height: 80, refresh: 1 }) }) }))
+
+const Live = () => {
+  const [client] = useState(() => {
+    const { client: base } = fakeApi({ resources: [], pages: [live.toModel()], rows: {} })
+    let calls = 0
+    const invoke = async (_name: string, { query }: InvokeOptions = {}) => {
+      calls += 1
+      if (calls > 1) throw new Error('The drawing service is down')
+      return drawn(query ?? {})
+    }
+    return { ...base, invoke } as typeof base
+  })
+  return (
+    <div className="min-h-screen">
+      <App client={client} auth={session} initialUrl="/live" />
+    </div>
+  )
+}
+
+/** A refresh that fails after a picture was drawn replaces the picture with its alt. */
+export const FailedRefresh: StoryObj = {
+  name: 'A refresh that fails (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Live />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole('img', { name: 'The load per server' })
+    await canvas.findByText('The load per server', { selector: 'p' }, { timeout: 3000 })
+    expect(canvasElement.querySelectorAll('main img')).toHaveLength(0)
+  },
+}
