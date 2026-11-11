@@ -295,6 +295,19 @@ describe('buildDeployBundle', () => {
     )
   }, buildTimeout)
 
+  it("gives a project without protobase.ui.tsx a stylesheet of its own for the Tailwind classes its layouts carry", async () => {
+    const layout = `/** @jsxImportSource @protobase/layout */\nimport { Box, Page, Text, page } from '@protobase/layout'\nexport const home = page('home', <Page title="Home"><Box className="tracking-[0.42em]"><Text>Hi</Text></Box></Page>)\n`
+    projectDir = await createProject({ 'config/index.ts': `${things}export { home } from './home/page'\n`, 'config/home/page.tsx': layout })
+    const outDir = path.join(projectDir, 'dist')
+    const manifest = await buildDeployBundle({ projectDir, outDir })
+    expect(manifest.plugins).toEqual([{ name: 'app', path: 'plugins/app/plugin.json', api: 1, protobase: `>=${protobaseVersion}` }])
+    const plugin = JSON.parse(await readFile(path.join(outDir, 'public/plugins/app/plugin.json'), 'utf8')) as { css: string }
+    expect(await readFile(path.join(outDir, 'public/plugins/app', plugin.css), 'utf8')).toContain('.tracking-\\[0\\.42em\\]{')
+
+    await writeFile(path.join(projectDir, 'config/home/page.tsx'), layout.replace(' className="tracking-[0.42em]"', ''))
+    expect((await buildDeployBundle({ projectDir, outDir })).plugins).toEqual([])
+  }, buildTimeout)
+
   it("with source maps, writes each script of the shell and the plugins with a map beside it carrying the script's debug id", async () => {
     projectDir = await createProject({ 'config/index.ts': things, 'protobase.ui.tsx': `export const Hello = () => <p>Hello</p>\n` })
     const outDir = path.join(projectDir, 'dist')

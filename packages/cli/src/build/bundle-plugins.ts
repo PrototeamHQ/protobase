@@ -12,7 +12,7 @@ export const projectPluginName = 'app'
 /** Where a bundle's plugins go, inside its `public` folder. */
 export const pluginsFolder = 'plugins'
 
-type Source = { dir: string; name: string }
+type Source = { dir: string; name: string; stylesOnly?: boolean }
 
 // An extension's plugin is named by its package.json, else by its folder.
 const extensionName = async (extension: Extension) => {
@@ -24,9 +24,15 @@ const extensionName = async (extension: Extension) => {
 // as dashes.
 const folderOf = (name: string) => name.replace(/^@/, '').replace(/[^\w.-]+/g, '-')
 
+// The project's plugin: its protobase.ui.tsx, else its stylesheet alone when `styles` asks for one, else none.
+const ownSource = (projectDir: string, styles: boolean): Source[] => {
+  if (existsSync(projectUiFile(projectDir))) return [{ dir: projectDir, name: projectPluginName }]
+  return styles ? [{ dir: projectDir, name: projectPluginName, stylesOnly: true }] : []
+}
+
 // The UI configs a bundle carries as plugins, in the order the app merges them: the extensions' first, the project's last.
-const sources = async (projectDir: string, extensions: Extension[]): Promise<Source[]> => {
-  const own = existsSync(projectUiFile(projectDir)) ? [{ dir: projectDir, name: projectPluginName }] : []
+const sources = async (projectDir: string, extensions: Extension[], styles: boolean): Promise<Source[]> => {
+  const own = ownSource(projectDir, styles)
   const extended = await Promise.all(extensions.filter((extension) => extension.ui).map(async (extension) => ({ dir: extension.dir, name: await extensionName(extension) })))
   const all = [...extended, ...own]
   const seen = new Map<string, string>()
@@ -40,14 +46,29 @@ const sources = async (projectDir: string, extensions: Extension[]): Promise<Sou
 
 /**
  * Builds the project's protobase.ui.tsx and each extension's as a plugin under `publicDir`/plugins/<name>/, as
- * `protobase build-plugin` builds one: the app loads them like any other, from what `/meta` names.
+ * `protobase build-plugin` builds one: the app loads them like any other, from what `/meta` names. With `styles`, a
+ * project without a protobase.ui.tsx gets a plugin too, of its stylesheet alone, for the Tailwind classes in its files.
  */
-export const buildBundlePlugins = async ({ projectDir, publicDir, extensions, ignore, sourceMaps }: { projectDir: string; publicDir: string; extensions: Extension[]; ignore: string[]; sourceMaps: boolean }): Promise<BundlePlugin[]> => {
+export const buildBundlePlugins = async ({
+  projectDir,
+  publicDir,
+  extensions,
+  styles = false,
+  ignore,
+  sourceMaps,
+}: {
+  projectDir: string
+  publicDir: string
+  extensions: Extension[]
+  styles?: boolean
+  ignore: string[]
+  sourceMaps: boolean
+}): Promise<BundlePlugin[]> => {
   const plugins: BundlePlugin[] = []
   // One after another: each is a Vite build, and the order is the manifest's.
-  for (const source of await sources(projectDir, extensions)) {
+  for (const source of await sources(projectDir, extensions, styles)) {
     const folder = path.join(pluginsFolder, folderOf(source.name))
-    const manifest = await buildPlugin({ pluginDir: source.dir, outDir: path.join(publicDir, folder), name: source.name, projectDir, ignore, sourceMaps })
+    const manifest = await buildPlugin({ pluginDir: source.dir, outDir: path.join(publicDir, folder), name: source.name, projectDir, ignore, sourceMaps, stylesOnly: source.stylesOnly })
     plugins.push({ name: manifest.name, path: `${folder}/${pluginManifestFile}`, api: manifest.api, protobase: manifest.protobase, ...(manifest.fields && { fields: manifest.fields }) })
   }
   return plugins
