@@ -29,14 +29,16 @@ const sameTable = (model: ResourceModel, read: TableRead) =>
 
 /**
  * The reads of a derived value's queries as reads of resources, by field. A table that is no resource, or a resource
- * it may not read, throws, since no change to it would ever reach the value.
+ * it may not read, throws, since no change to it would ever reach the value; `appModels`, every resource of the app,
+ * tells the two apart.
  */
-export const resourceReads = (label: string, reads: readonly TableRead[], models: readonly ResourceModel[]): RecordedRead[] =>
+export const resourceReads = (label: string, reads: readonly TableRead[], models: readonly ResourceModel[], appModels: readonly ResourceModel[]): RecordedRead[] =>
   reads.map((read) => {
     const found = models.filter((model) => sameTable(model, read))
     const model = found.find((candidate) => candidate.table.schema === read.schema) ?? found[0]
     const table = read.schema ? `${read.schema}.${read.table}` : read.table
-    if (!model) throw new Error(`${label} read the table ${table}, which is not a resource it reads: add its resource to the value's reads, or name what it depends on with depends() and turn tracking off`)
+    if (!model && appModels.some((candidate) => sameTable(candidate, read))) throw new Error(`${label} read the table ${table}, which is not a resource it reads: add its resource to the value's reads`)
+    if (!model) throw new Error(`${label} read the table ${table}, which is no resource: name the resources behind it with depends(), list them in the value's reads, and turn tracking off`)
     const columns = new Map(Object.values(model.fields).map((field) => [field.column, field]))
     const fields = read.columns && [...new Set(read.columns.flatMap((column) => (columns.has(column) ? [columns.get(column)!.name] : [])))]
     return { resource: model.name, condition: byField(read.condition, columns), fields }

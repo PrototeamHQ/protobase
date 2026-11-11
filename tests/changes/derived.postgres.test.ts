@@ -187,7 +187,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
   it('refuses a write before it happens, whether the queries are analysed or not', async () => {
     const { id } = await post('objectives', { title: 'Write' })
     await sql`insert into tasks (objective_id, status) values (${id}, 'open')`.execute(db)
-    const input = { label: 'Derived value objectives.verdict', db, now: new Date(), models: [objectives.toModel(), tasks.toModel()], signal: new AbortController().signal }
+    const models = [objectives.toModel(), tasks.toModel()]
+    const input = { label: 'Derived value objectives.verdict', db, now: new Date(), models, appModels: models, signal: new AbortController().signal }
     const write: DerivedCompute = (key, { db }) => db.deleteFrom('tasks').where('objective_id', '=', Number(key)).execute()
     for (const track of [true, false]) await expect(runDerived(write, String(id), { ...input, track })).rejects.toThrow('read-only transaction')
     expect((await sql`select 1 from tasks where objective_id = ${id}`.execute(db)).rows).toHaveLength(1)

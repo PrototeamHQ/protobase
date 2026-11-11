@@ -57,13 +57,15 @@ export type DerivedRunInput = {
   now: Date
   /** The resources it may read: its own and those of its `reads`. */
   models: readonly ResourceModel[]
+  /** Every resource of the app, so an error tells a resource missing from its reads from a table that is none. */
+  appModels: readonly ResourceModel[]
   /** Whether its queries are analysed. */
   track: boolean
   signal: AbortSignal
 }
 
 /** Runs a compute function, with what it read and when its clock's next check flips. */
-export const runDerived = async (compute: DerivedCompute, key: string, { label, db, now, models, track, signal }: DerivedRunInput) => {
+export const runDerived = async (compute: DerivedCompute, key: string, { label, db, now, models, appModels, track, signal }: DerivedRunInput) => {
   const queries: Query[] = []
   const named: RecordedRead[] = []
   const { clock, flipsAt } = trackedClock(now)
@@ -77,6 +79,6 @@ export const runDerived = async (compute: DerivedCompute, key: string, { label, 
     .transaction()
     .setAccessMode('read only')
     .execute(async (trx) => compute(key, { db: track ? recordingDb(trx, queries) : trx, clock, depends, signal }))
-  const reads = [...resourceReads(label, await tableReads(queries), models), ...named]
+  const reads = [...resourceReads(label, await tableReads(queries), models, appModels), ...named]
   return { value: value === undefined ? null : value, reads, flipsAt: flipsAt() }
 }
