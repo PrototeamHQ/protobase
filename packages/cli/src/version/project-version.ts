@@ -38,7 +38,7 @@ const checkInstalled = (projectDir: string, cliVersion: string) => {
   const installed = projectProtobaseVersion(projectDir)
   if (installed === undefined) return
   const range = `^${installed}`
-  if (semver.satisfies(cliVersion, range)) return
+  if (semver.satisfies(cliVersion, range, { includePrerelease: true })) return
   throw new Error(`This project has Protobase ${installed} installed, and this CLI is Protobase ${cliVersion}: run it with a Protobase ${range} CLI`)
 }
 
@@ -46,14 +46,15 @@ const checkInstalled = (projectDir: string, cliVersion: string) => {
  * Refuses a project whose Protobase version this CLI does not satisfy, the one version check the CLI makes: the
  * specifier its package.json lists the @protobase packages at must hold the CLI's version, by semver, and in a locked
  * project, whose installed copies run, those must be ones the CLI runs. A specifier that is no semver range, such as
- * `workspace:*`, says no version, so the installed copies are checked instead. Outside a project, or one that lists no
+ * `workspace:*`, says no version, so the installed copies are checked instead. A prerelease CLI, such as a build from main,
+ * counts as well, just before its own release: 0.94.4-main.x holds ^0.94.0, 0.95.0-main.x does not. Outside a project, or one that lists no
  * @protobase package, there is nothing to check.
  */
 export const checkProjectVersion = (projectDir: string, cliVersion = protobaseVersion) => {
   const { mode, specifier } = projectPackages(projectDir)
   if (specifier === undefined) return
   const range = semver.validRange(specifier) !== null
-  if (range && !semver.satisfies(cliVersion, specifier)) {
+  if (range && !semver.satisfies(cliVersion, specifier, { includePrerelease: true })) {
     throw new Error(`This project asks for Protobase ${specifier}, and this CLI is Protobase ${cliVersion}: run it with a CLI whose version ${specifier} holds`)
   }
   if (mode === 'locked' || !range) checkInstalled(projectDir, cliVersion)

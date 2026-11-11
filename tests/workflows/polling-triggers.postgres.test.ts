@@ -205,11 +205,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('polling triggers, turne
   })
 
   it('lets a retry of a job whose worker died take its claim back, and the dead try write nothing', async () => {
-    feeds.set('j', { items: [] })
+    // Saved and never turned on, so no poll of its own takes the row's lock while the test claims it.
     const workflow = await save({ 'feed:items': { feed: 'j' } })
-    await enable(workflow.id, 1)
-    await until(async () => polls('j'), (count) => count >= 1)
-    await enable(workflow.id, null)
     // A trigger as a poll job left it, to claim by hand: the job's first try, then its retry under the same id.
     const [row] = (await sql<{ id: string }>`insert into workflows.triggers (workflow_id, version, tenant_id, type, input, status, generation, consecutive_failures, cursor, poll_job_id)
       values (${workflow.id}, 1, '1', 'feed:items', '{"feed":"j"}', 'active', 7, 0, '5', 'job-1') returning id`.execute(db)).rows
