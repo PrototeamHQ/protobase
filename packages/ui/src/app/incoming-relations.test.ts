@@ -19,39 +19,53 @@ const views = {
   orders: view<typeof orders>('orders').names({ singular: 'Order', plural: 'Orders' }).fields((r) => ({ customer_id: r.customer_id.label('Customer'), supplier_id: r.supplier_id.label('Supplier') })).toModel(),
 }
 const company = resources.companies!
+const none = () => false
+const ContactBoard = Object.assign(() => null, { blockName: 'ContactBoard', custom: true })
 
 describe('incomingRelations', () => {
   it('lists each filterable relation pointing here, by the plural name, told apart by label when a resource has two', () => {
-    expect(incomingRelations(company, resources, views, []).map((relation) => relation.label)).toEqual(['People', 'Orders (Customer)', 'Orders (Supplier)', 'Order lines'])
+    expect(incomingRelations(company, resources, views, [], none).map((relation) => relation.label)).toEqual(['People', 'Orders (Customer)', 'Orders (Supplier)', 'Order lines'])
   })
 
   it('leaves out an unfilterable relation, the tenant, and what a related section lists, the lines included', () => {
     const layout = [l.related('Contacts', { resource: 'people', field: 'company_id' }), l.related('Lines', { resource: 'order_lines', field: 'company_id', lines: true })]
-    const found = incomingRelations(company, resources, views, layout)
+    const found = incomingRelations(company, resources, views, layout, none)
     expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toEqual(['orders.customer_id', 'orders.supplier_id'])
   })
 
   it('keeps what a related section matching a field of the record lists, since its rows do not point here', () => {
     const layout = [l.related('Contacts', { resource: 'people', field: 'company_id', from: 'id' })]
-    const found = incomingRelations(company, resources, views, layout)
+    const found = incomingRelations(company, resources, views, layout, none)
     expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toContain('people.company_id')
   })
 
   it('leaves out what a related table inside a group lists', () => {
     const layout = [l.group('More', [l.related('Contacts', { resource: 'people', field: 'company_id' })], { collapsed: true })]
-    const found = incomingRelations(company, resources, views, layout)
+    const found = incomingRelations(company, resources, views, layout, none)
     expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toEqual(['orders.customer_id', 'orders.supplier_id', 'order_lines.company_id'])
   })
 
   it('leaves out the messages a thread of the record shows', () => {
     const layout = [l.thread('Notes', { resource: 'orders', field: 'customer_id', sender: 'id', time: 'id', text: 'note' })]
-    const found = incomingRelations(company, resources, views, layout)
+    const found = incomingRelations(company, resources, views, layout, none)
     expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toEqual(['people.company_id', 'orders.supplier_id', 'order_lines.company_id'])
+  })
+
+  it("keeps what a custom component's fallback lists while the app draws the component instead", () => {
+    const layout = [l.custom(ContactBoard, { fallback: [l.related('Contacts', { resource: 'people', field: 'company_id' })] })]
+    const found = incomingRelations(company, resources, views, layout, (component) => component === 'ContactBoard')
+    expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toContain('people.company_id')
+  })
+
+  it("leaves out what a custom component's fallback lists when the app has no such component and draws the fallback", () => {
+    const layout = [l.tab('More', [l.custom(ContactBoard, { fallback: [l.related('Contacts', { resource: 'people', field: 'company_id' })] })])]
+    const found = incomingRelations(company, resources, views, layout, none)
+    expect(found.map((relation) => `${relation.resource}.${relation.field}`)).not.toContain('people.company_id')
   })
 
   it('leaves out a resource the user cannot see, which the meta does not hold', () => {
     const { people: _, ...visible } = resources
-    expect(incomingRelations(company, visible, views, []).map((relation) => relation.resource)).not.toContain('people')
+    expect(incomingRelations(company, visible, views, [], none).map((relation) => relation.resource)).not.toContain('people')
   })
 
   it("links to the list filtered on this record's key", () => {
