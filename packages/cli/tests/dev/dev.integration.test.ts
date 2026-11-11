@@ -129,6 +129,27 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     expect((await fetch(meta)).status).toBe(401)
   })
 
+  it('serves the functions in ./functions to a bearer token and refuses everyone else', async () => {
+    const whoami = `http://localhost:${port}/api/functions/whoami/me`
+    const signedIn = await fetch(whoami, { headers: { authorization: `Bearer ${token}` } })
+    expect(await signedIn.json()).toEqual({ path: '/me', roles: expect.any(Array) })
+    expect((await fetch(whoami)).status).toBe(401)
+  })
+
+  it('renders a PDF document in a function', async () => {
+    const response = await fetch(`http://localhost:${port}/api/functions/receipt/R-7`, { headers: { authorization: `Bearer ${token}` } })
+    expect(response.headers.get('content-type')).toBe('application/pdf')
+    expect(pdfText(new Uint8Array(await response.arrayBuffer()))).toBe('Receipt R-7')
+  })
+
+  it("serves a function at supabase-js's /api/sb/functions/v1 too, with Supabase's variables of this app", async () => {
+    const response = await fetch(`http://localhost:${port}/api/sb/functions/v1/supabase-env/x`)
+    const origin = `http://localhost:${port}`
+    expect(await response.json()).toEqual({ path: '/supabase-env/x', url: `${origin}/api/sb`, jwks: `${origin}/api/sb/auth/v1/.well-known/jwks.json` })
+  })
+
+  // The page's tests go last: fetching the page has Vite transform the whole admin app in the background, in the process
+  // that also forwards the API's requests, which on a busy machine holds those up for seconds.
   it('names the modules it shares with plugins in the page\'s import map, each a module exporting its names', async () => {
     const page = await (await fetch(`http://localhost:${port}/`, { headers: { accept: 'text/html' } })).text()
     const [, json] = /<script type="importmap">(.*?)<\/script>/.exec(page) ?? []
@@ -151,24 +172,5 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     const theme = await fetch(`http://localhost:${port}/protobase.theme.css`)
     expect(theme.headers.get('content-type')).toContain('text/css')
     expect(await theme.text()).toBe(':root{--primary:#0d9488}')
-  })
-
-  it('serves the functions in ./functions to a bearer token and refuses everyone else', async () => {
-    const whoami = `http://localhost:${port}/api/functions/whoami/me`
-    const signedIn = await fetch(whoami, { headers: { authorization: `Bearer ${token}` } })
-    expect(await signedIn.json()).toEqual({ path: '/me', roles: expect.any(Array) })
-    expect((await fetch(whoami)).status).toBe(401)
-  })
-
-  it('renders a PDF document in a function', async () => {
-    const response = await fetch(`http://localhost:${port}/api/functions/receipt/R-7`, { headers: { authorization: `Bearer ${token}` } })
-    expect(response.headers.get('content-type')).toBe('application/pdf')
-    expect(pdfText(new Uint8Array(await response.arrayBuffer()))).toBe('Receipt R-7')
-  })
-
-  it("serves a function at supabase-js's /api/sb/functions/v1 too, with Supabase's variables of this app", async () => {
-    const response = await fetch(`http://localhost:${port}/api/sb/functions/v1/supabase-env/x`)
-    const origin = `http://localhost:${port}`
-    expect(await response.json()).toEqual({ path: '/supabase-env/x', url: `${origin}/api/sb`, jwks: `${origin}/api/sb/auth/v1/.well-known/jwks.json` })
   })
 })
