@@ -10,6 +10,7 @@ import { AppShell, type SidebarMode } from '../app-shell'
 import { ApiProvider } from '../data/api-provider'
 import { AuthGate, AuthProvider, isAdmin, userToShell, useAuth } from '../auth'
 import { AuthLocale } from '../auth/auth-locale'
+import { cacheOwner } from '../auth/cache-owner'
 import { useSignInAddress } from '../auth/use-sign-in-address'
 import { useLiveUpdates } from '../data/use-live-updates'
 import { useOpenedRecord } from '../data/use-record'
@@ -278,9 +279,10 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
   // A full-width sidebar says the app was updated in a banner, so the toast does not cover the page there
   const sidebarBanner = useSidebarNoticeShown(sidebarMode ?? 'text-small')
   const { path } = useRouter()
-  // A visitor has no token to ask the session for: their requests go without one, as the anonymous role.
+  // A visitor has no token to ask the session for: their requests go without one, as the anonymous role. Another caller
+  // starts with a cache of their own, so a picture or a record fetched for the previous one never shows.
   return (
-    <ApiProvider baseUrl={baseUrl} client={client} sources={sources} token={state.kind === 'visitor' ? undefined : session.token} onUnauthenticated={markSignedOut}>
+    <ApiProvider key={cacheOwner(state)} baseUrl={baseUrl} client={client} sources={sources} token={state.kind === 'visitor' ? undefined : session.token} onUnauthenticated={markSignedOut}>
       <MetaGate>
         <ToastProvider>
           {!sidebarBanner && <NewVersionToast />}
