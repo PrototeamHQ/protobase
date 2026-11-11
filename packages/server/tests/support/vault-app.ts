@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto'
 import { Kysely } from 'kysely'
-import { expect, vi } from 'vitest'
+import { expect } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { betterAuthAuthenticator } from '../../src/better-auth/authenticator'
 import { createAuth } from '../../src/better-auth/create-auth'
@@ -60,6 +60,7 @@ let client = 0
  */
 export const serveVault = async (shared: SnapshotDb, { bob = false, dana = false } = {}) => {
   const sent: MailMessage[] = []
+  const awaiting: ((message: MailMessage) => void)[] = []
   const mail = { failing: false }
   const auth = createAuth({
     database: { dialect: (await shared.clone()).dialect, type: 'postgres' },
@@ -69,6 +70,7 @@ export const serveVault = async (shared: SnapshotDb, { bob = false, dana = false
       send: async (message) => {
         if (mail.failing) throw new Error('The mail server refused the message')
         sent.push(message)
+        for (const resolve of awaiting.splice(0)) resolve(message)
       },
     },
   })
@@ -77,6 +79,9 @@ export const serveVault = async (shared: SnapshotDb, { bob = false, dana = false
   if (dana) await createUser(auth, { email: 'dana@example.com' })
   const { adapter } = await auth.$context
   const app = createAdmin({ resources: [vaults], db: new Kysely<any>({ dialect: shared.dialect }), authenticate: betterAuthAuthenticator({ auth }), auth, options: { audit: { publish: async () => {} } } })
+
+  // The next message mailed: Better Auth sends it after its answer, so ask for it before the request that sends it.
+  const nextMail = () => new Promise<MailMessage>((resolve) => awaiting.push(resolve))
 
   const headers = (cookie: string) => ({ 'content-type': 'application/json', origin: label, cookie, 'x-forwarded-for': `198.51.100.${++client}` })
   const post = (path: string, body: object, cookie = '') => app.request(`${label}/api/auth${path}`, { method: 'POST', headers: headers(cookie), body: JSON.stringify(body) })
@@ -88,13 +93,11 @@ export const serveVault = async (shared: SnapshotDb, { bob = false, dana = false
   }
   // Signs in with an emailed sign-in code, as someone without a password does.
   const signInWithCode = async (email: string) => {
+    const mailed = nextMail()
     expect((await post('/email-otp/send-verification-otp', { email, type: 'sign-in' })).status).toBe(200)
-    // Better Auth sends it after the answer.
-    const message = await vi.waitFor(() => {
-      const found = sent.find((mailed) => mailed.to === email && / sign-in code$/.test(mailed.subject))
-      if (!found) throw new Error('No sign-in code mailed yet')
-      return found
-    })
+    const message = await mailed
+    expect(message.to).toBe(email)
+    expect(message.subject).toMatch(/ sign-in code$/)
     const response = await post('/sign-in/email-otp', { email, otp: message.subject.slice(0, 6) })
     expect(response.status).toBe(200)
     return cookiesOf(response)
@@ -134,5 +137,5 @@ export const serveVault = async (shared: SnapshotDb, { bob = false, dana = false
     // Turning it on signs this browser in anew.
     return { totpURI, cookie: cookiesOf(turnedOn) || cookie }
   }
-  return { adapter, sent, mail, post, get, signIn, signInWithCode, reveal, sendCode, mailedCode, age, addPasskey, turnOnAuthenticatorApp }
+  return { adapter, sent, nextMail, mail, post, get, signIn, signInWithCode, reveal, sendCode, mailedCode, age, addPasskey, turnOnAuthenticatorApp }
 }

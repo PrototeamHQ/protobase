@@ -19,6 +19,8 @@ export type FieldProps = {
   conflict?: FieldConflict
   /** Takes the whole row of a grid of two columns, as a text of several lines does. */
   wide?: boolean
+  /** Shows a value rather than a control: the label is text that names no control, read before the value. */
+  readOnly?: boolean
   children: ReactNode
 }
 
@@ -26,16 +28,20 @@ export type FieldProps = {
  * A labelled form field. The `Input` or `Textarea` inside takes its label, its name, the help and error that describe
  * it and whether it is invalid or required from the field; another control uses `useFieldControl`.
  */
-export const Field = ({ name, label, required, help, example, error, conflict, wide, children }: FieldProps) => {
+export const Field = ({ name, label, required, help, example, error, conflict, wide, readOnly, children }: FieldProps) => {
   const id = useId()
   const describedBy = [help && `${id}-help`, example && `${id}-example`, error && `${id}-error`].filter(Boolean).join(' ') || undefined
   return (
     <div className={wide ? 'sm:col-span-2' : undefined}>
       <div className="mb-1.5 flex items-center gap-2">
-        <label htmlFor={id} className="font-medium text-foreground">
-          {label}
-          {required && <span className="ml-0.5 text-danger-text" aria-hidden="true">*</span>}
-        </label>
+        {readOnly ? (
+          <span className="font-medium text-foreground">{label}</span>
+        ) : (
+          <label htmlFor={id} className="font-medium text-foreground">
+            {label}
+            {required && <span className="ml-0.5 text-danger-text" aria-hidden="true">*</span>}
+          </label>
+        )}
         {conflict && (
           <span className="inline-flex items-center gap-1.5 text-warning-text" title={text('savedDifferent', { name: conflict.user.name })}>
             <TriangleAlert className="size-3.5" />

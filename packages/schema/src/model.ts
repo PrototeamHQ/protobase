@@ -1566,6 +1566,8 @@ export type ViewModel = {
   saveFeedback?: SaveFeedback
   /** How wide the standard record page is; a centred column when omitted. */
   recordWidth?: PageWidth
+  /** The field shown as a badge beside the record page's title; an enum `status` field when omitted. */
+  titleBadge?: string
   /** The named actions of its records. */
   actions: ActionModel[]
   /** The relation field whose records the list page shows instead of this resource's rows, in their own view's list. */

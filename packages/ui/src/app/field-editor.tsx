@@ -5,21 +5,19 @@ import { Input } from '../primitives/input'
 import { Select } from '../primitives/select'
 import { Textarea } from '../primitives/textarea'
 import { cn } from '../lib/cn'
+import { ShownValue } from './pages/field-value'
 import { AppLink } from './use-app-address'
 import { enumLabel, type AppAddress, type FieldModel, type FieldViewModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { RelationPicker } from './relation-picker'
 import { SensitiveField } from './sensitive-field'
 import { FileField } from './file-field'
-import { displayValue, valueTitle } from '../live/display-value'
 import { fromDraft, isEditable, toFieldDraft } from '../live/field-values'
 import { useShownWidget } from './field-types/shown-widget'
 import { WidgetPart } from './field-types/widget-part'
 import { humanize } from '../live/naming'
-import { Markdown } from '../markdown/markdown'
 import { MarkdownEditor } from '../markdown/markdown-editor'
 import { isMarkdown } from '../markdown/markdown-hint'
 import { numeric, numericInputProps } from './numeric-input'
-import { ContactLink } from '../live/contact-link'
 import { contactFormat, contactInputProps } from '../live/contact-links'
 import { text as appText } from './messages'
 import { useChangeConfirm } from './change-confirm/use-change-confirm'
@@ -63,20 +61,15 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
       </div>
     )
   }
-  if (field.type === 'boolean' && locked) return <div className="py-1.5 text-muted-foreground">{displayValue(field, stored, hints)}</div>
-  if (field.type === 'boolean') return <Switch checked={Boolean(value)} onChange={onChange} label={hints?.label ?? humanize(field.name)} />
   if (field.type === 'relation') {
     const label = relationLabel ?? String(stored ?? '—')
     return <div className="py-1.5">{relationTo ? <AppLink to={relationTo} className="font-medium text-primary-text hover:underline">{label}</AppLink> : label}</div>
   }
+  // A value nobody may change here reads as the record page shows it: at full contrast, in its badge, relative when the view says
+  if ((!isEditable(field) || locked)) return <div className="min-w-0 break-words py-1.5 text-foreground"><ShownValue field={field} value={stored} hints={hints ?? {}} /></div>
+  if (field.type === 'boolean') return <Switch checked={Boolean(value)} onChange={onChange} label={hints?.label ?? humanize(field.name)} />
   const multiline = Boolean(hints?.multiline) && field.type === 'text'
-  const markdown = isMarkdown(field, hints)
-  if ((!isEditable(field) || locked) && markdown && typeof stored === 'string' && stored !== '') return <Markdown source={stored} className="py-1.5" />
-  const contact = field.type === 'text' ? contactFormat(hints) : undefined
-  if ((!isEditable(field) || locked) && contact && typeof stored === 'string' && stored !== '') return <div className="min-w-0 break-words py-1.5"><ContactLink format={contact} value={stored} /></div>
-  if (!isEditable(field) || locked) {
-    return <div title={valueTitle(field, stored, undefined, hints)} className={cn('py-1.5 tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground', multiline && 'whitespace-pre-line break-words')}>{displayValue(field, stored, hints)}</div>
-  }
+  if (isMarkdown(field, hints)) return <MarkdownEditor label={hints?.label ?? humanize(field.name)} invalid={invalid} placeholder={placeholder} value={String(value)} onChange={onChange} />
   if (field.type === 'enum') {
     return (
       <Select invalid={invalid} value={String(value)} onChange={(event) => onChange(event.target.value)}>
@@ -89,7 +82,6 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
       </Select>
     )
   }
-  if (markdown) return <MarkdownEditor label={hints?.label ?? humanize(field.name)} invalid={invalid} placeholder={placeholder} value={String(value)} onChange={onChange} />
   if (multiline) return <Textarea invalid={invalid} placeholder={placeholder} value={String(value)} onChange={(event) => onChange(event.target.value)} />
   return (
     <Input
@@ -99,11 +91,22 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
       placeholder={placeholder}
       className={cn(numeric.has(field.type) && 'text-right tabular-nums')}
       {...numericInputProps(field.type)}
-      {...contactInputProps(contact)}
+      {...contactInputProps(field.type === 'text' ? contactFormat(hints) : undefined)}
       value={String(value)}
       onChange={(event) => onChange(event.target.value)}
     />
   )
+}
+
+/**
+ * Whether the form shows the field as a value, with no control for its label to name: a relation the user may change is
+ * chosen with a picker, and a sensitive or file field keeps its own control.
+ */
+export const showsValue = (field: FieldModel, hints: FieldViewModel | undefined, locked: boolean, picker: boolean) => {
+  if (field.sensitive || field.type === 'file') return false
+  if (locked || field.readOnly) return true
+  if (field.type === 'relation') return !picker
+  return !isEditable(field, hints)
 }
 
 const ChosenEditor = (props: FieldEditorProps) => {

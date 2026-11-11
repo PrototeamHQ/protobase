@@ -2,7 +2,7 @@ import { Check, PackageCheck, Printer, Wallet } from 'lucide-react'
 import { useState } from 'react'
 import { formatDate, formatMoney } from '../format'
 import { orderAt, userById } from '../mocks'
-import type { BadgeTone } from '../primitives/badge'
+import { Badge, type BadgeTone } from '../primitives/badge'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { ActionRail } from '../record-view/action-rail'
@@ -34,7 +34,7 @@ export const OrderRecordView = ({ ticking = true }: { ticking?: boolean }) => {
       <RecordHeader
         collection="Orders"
         title={order.number}
-        status={{ label: orderStatusOptions.find((option) => option.value === status)!.label, tone: tones[status] }}
+        badge={<Badge tone={tones[status]}>{orderStatusOptions.find((option) => option.value === status)!.label}</Badge>}
         lastEditedBy={{ name: editor.name, ago: '2 min ago' }}
         presence={[userById('u1'), editor]}
         actions={
