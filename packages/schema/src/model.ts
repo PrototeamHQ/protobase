@@ -913,7 +913,15 @@ export type CustomSectionModel = {
   sidebar?: true
   /** Whether it shows on the form, the read view or both. */
   when?: ShowWhen
+  /**
+   * What a client without the component, or where it fails to draw, shows in its place, title included: sections and
+   * related tables in the main column, sidebar maps in the sidebar, or none to show nothing.
+   */
+  fallback?: CustomFallbackItemModel[]
 }
+
+/** An item a custom section may fall back to. */
+export type CustomFallbackItemModel = GroupItemModel | MapSectionModel
 
 /**
  * A map of the record's position, its `latitude` and `longitude` fields in decimal degrees (WGS84), centred on a marker

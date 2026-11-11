@@ -21,8 +21,8 @@ const label = (node: LayoutNode) => `<${node.type}${typeof node.props.resource =
 const isElements = (value: LayoutValue): value is LayoutNode | LayoutNode[] => isLayoutNode(value) || (Array.isArray(value) && value.length > 0 && value.every(isLayoutNode))
 
 /**
- * Rebuilds the tree bottom-up through `visit`, which sees each element (with its children and element props already
- * rebuilt) and returns it, a replacement, or `null` to leave it out. Text children are kept as they are.
+ * Rebuilds the tree bottom-up through `visit`, which sees each element (with its children, element props and fallback
+ * already rebuilt) and returns it, a replacement, or `null` to leave it out. Text children are kept as they are.
  */
 export const mapTree = (
   node: LayoutNode,
@@ -44,10 +44,16 @@ export const mapTree = (
       return [[name, Array.isArray(value) ? mapped : mapped[0]!]]
     }),
   )
-  return visit({ ...node, props, children }, at)
+  // A fallback stands in the component's place, so it sits in the component's scope
+  const fallback = node.fallback?.flatMap((child): LayoutChild[] => {
+    if (typeof child === 'string') return [child]
+    const mapped = mapTree(child, visit, { path: `${at.path} fallback={${label(child)}}`, scope: at.scope })
+    return mapped ? [mapped] : []
+  })
+  return visit({ ...node, props, children, ...(fallback && { fallback }) }, at)
 }
 
-/** Calls `visit` for every element, parents first. */
+/** Calls `visit` for every element, fallbacks included, parents first. */
 export const walkTree = (node: LayoutNode, visit: (node: LayoutNode, at: Location) => void, at: Location = { path: label(node), scope: pageScope }) => {
   visit(node, at)
   const inner = childScope(node, at.scope)
@@ -57,4 +63,5 @@ export const walkTree = (node: LayoutNode, visit: (node: LayoutNode, at: Locatio
     if (!isElements(value)) continue
     for (const element of Array.isArray(value) ? value : [value]) walkTree(element, visit, { path: `${at.path} ${name}={${label(element)}}`, scope: slot })
   }
+  for (const child of node.fallback ?? []) if (typeof child !== 'string') walkTree(child, visit, { path: `${at.path} fallback={${label(child)}}`, scope: at.scope })
 }

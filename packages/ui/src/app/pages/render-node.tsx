@@ -34,7 +34,7 @@ import { PasskeysBlock } from '../../account/blocks/passkeys-block'
 import { PasswordBlock } from '../../account/blocks/password-block'
 import { ProfileBlock } from '../../account/blocks/profile-block'
 import { TwoFactorBlock } from '../../account/blocks/two-factor-block'
-import { CustomBoundary } from './custom-boundary'
+import { CustomOrFallback } from './custom-or-fallback'
 import { Problem } from './problem'
 import { useProjectUi } from './project-ui'
 import { text } from './messages'
@@ -107,12 +107,11 @@ export const RenderNode = ({ node }: { node: LayoutNode }) => {
   const { components } = useProjectUi()
   if (node.custom) {
     const Custom = components?.[node.type]
-    if (!Custom) return <Problem>{text.rich('noComponent', { component: node.type })}</Problem>
     // Field references reach the component as the names they reference
     return (
-      <CustomBoundary name={node.type}>
-        <Custom {...unmarkFieldRefs(node.props)}>{node.children.length > 0 ? renderChildren(node.children) : undefined}</Custom>
-      </CustomBoundary>
+      <CustomOrFallback name={node.type} registered={Boolean(Custom)} fallback={node.fallback && <>{renderChildren(node.fallback)}</>}>
+        {Custom && <Custom {...unmarkFieldRefs(node.props)}>{node.children.length > 0 ? renderChildren(node.children) : undefined}</Custom>}
+      </CustomOrFallback>
     )
   }
   const Block = blocks[node.type]

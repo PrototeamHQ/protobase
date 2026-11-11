@@ -143,6 +143,19 @@ describe('pruneView', () => {
     expect(pruneView(repairsView, hidden.repairs!, hidden).layout).toEqual([{ kind: 'section', title: 'Repair', fields: ['status'] }])
   })
 
+  it('prunes a custom section\'s fallback by what it holds, keeping one the caller sees none of as empty', () => {
+    const Quote = Object.assign(() => null, { blockName: 'Quote', custom: true })
+    const written = view<typeof repairs>('repairs')
+      .layout((r) => [l.custom(Quote, { fallback: [l.section('Quote', [r.estimate]), l.section('Repair', [r.status, r.estimate])] }), l.custom(Quote, { sidebar: true, fallback: [l.map('Where', { latitude: r.estimate, longitude: r.costPrice, sidebar: true })] })])
+      .toModel()
+    expect(pruneView(written, all.repairs, all).layout).toEqual(written.layout)
+    const hidden = without({ repairs: ['estimate'] })
+    expect(pruneView(written, hidden.repairs!, hidden).layout).toEqual([
+      { kind: 'custom', component: 'Quote', fallback: [{ kind: 'section', title: 'Repair', fields: ['status'] }] },
+      { kind: 'custom', component: 'Quote', sidebar: true, fallback: [] },
+    ])
+  })
+
   it("leaves out a card's flags the caller cannot read", () => {
     const flagged = view<typeof repairs>('repairs').list((r, d) => ({ columns: [r.number], displays: [d.cards({ flags: [r.urgent, r.insured] })] })).toModel(repairs.toModel())
     const hidden = without({ repairs: ['insured'] })

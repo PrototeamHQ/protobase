@@ -1,5 +1,5 @@
 import { markFieldRefs } from './field-ref'
-import type { CardPhotosModel, RecordChartRange, CommentsSectionModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel } from './model'
+import type { CardPhotosModel, RecordChartRange, CommentsSectionModel, CustomFallbackItemModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel } from './model'
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
@@ -153,14 +153,23 @@ export const layout = {
   /**
    * A component of the project, registered in `protobase.ui.tsx` under its name, drawn where it is listed: in the main
    * column, or in the sidebar with `sidebar: true`. The record page stays around it, with its title, breadcrumbs,
-   * actions and save; the component reads the record with `useLayoutRecord()`.
+   * actions and save; the component reads the record with `useLayoutRecord()`. A client that cannot draw it, one
+   * without the component or the web when it throws, shows `fallback` in its place: sections and related tables in the
+   * main column, sidebar maps in the sidebar, or `[]` for nothing. Throws on any other fallback item.
    */
-  custom: <P extends object>(component: ComponentRef<P>, o: { title?: string; props?: ViewProps<P>; sidebar?: boolean; when?: ShowWhen } = {}): LayoutItemModel => ({
-    kind: 'custom',
-    component: customComponent(component as ComponentRef<never>, 'l.custom'),
-    ...(o.title !== undefined && { title: o.title }),
-    ...(o.props && { props: markFieldRefs(o.props) as Record<string, JsonValue> }),
-    ...(o.sidebar && { sidebar: true as const }),
-    ...(o.when !== undefined && { when: o.when }),
-  }),
+  custom: <P extends object>(component: ComponentRef<P>, o: { title?: string; props?: ViewProps<P>; sidebar?: boolean; when?: ShowWhen; fallback?: LayoutItemModel[] } = {}): LayoutItemModel => {
+    const name = customComponent(component as ComponentRef<never>, 'l.custom')
+    const fits = (item: LayoutItemModel) => (o.sidebar ? item.kind === 'map' && item.sidebar : item.kind === 'section' || item.kind === 'related')
+    const wrong = o.fallback?.find((item) => !fits(item))
+    if (wrong) throw new Error(`l.custom(${name}) falls back to ${o.sidebar ? 'sidebar maps' : 'sections and related tables'}, not ${wrong.kind === 'map' ? `a ${wrong.sidebar ? 'sidebar' : 'main-column'} map` : wrong.kind}`)
+    return {
+      kind: 'custom',
+      component: name,
+      ...(o.title !== undefined && { title: o.title }),
+      ...(o.props && { props: markFieldRefs(o.props) as Record<string, JsonValue> }),
+      ...(o.sidebar && { sidebar: true as const }),
+      ...(o.when !== undefined && { when: o.when }),
+      ...(o.fallback && { fallback: o.fallback as CustomFallbackItemModel[] }),
+    }
+  },
 }

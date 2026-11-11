@@ -159,6 +159,16 @@ describe('prunePage', () => {
     expect(types(prunePage(page, [], access({ models: restricted({}, {}, ['invoices']) })))).toEqual(['Page', 'RecordCard', 'Sparkline', 'Sparkline'])
   })
 
+  it('prunes a custom component\'s fallback like the rest of the tree, keeping an emptied one as none', () => {
+    const Sparkline = component('Sparkline', { fallback: [Table({ resource: 'invoices' }), 'See the invoices'] })
+    const Badge = component('Badge', { fallback: Table({ resource: 'invoices' }) })
+    const page: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: [Sparkline({}), Badge({})] }) }
+    expect(types(prunePage(page, [], access()))).toEqual(['Page', 'Sparkline', 'Table', 'Badge', 'Table'])
+    const pruned = prunePage(page, [], access({ models: restricted({}, {}, ['invoices']) }))
+    expect(find(pruned, 'Sparkline')?.fallback).toEqual(['See the invoices'])
+    expect(find(pruned, 'Badge')?.fallback).toEqual([])
+  })
+
   it('leaves out a tab whose every element the caller cannot see, and tabs left with none', () => {
     const page: PageModel = {
       name: 'account',

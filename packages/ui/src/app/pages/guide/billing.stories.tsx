@@ -12,6 +12,7 @@ import { billing as step1 } from './billing-steps/step-1'
 import { billing as step2 } from './billing-steps/step-2'
 import { billing as step3 } from './billing-steps/step-3'
 import { billing as step4 } from './billing-steps/step-4'
+import { billing as withFallbacks } from './billing-steps/fallbacks'
 
 // The "A billing page" guide on docs.protobase.net embeds these, one per step.
 
@@ -42,7 +43,12 @@ const download = ({ record }: ActionContext) => {
   document.title = `Downloading ${String(record?.number)}`
 }
 
-const ui = defineUi({ components: { SeatHistory }, actions: { download } })
+/** A component that throws while drawing, in place of which its fallback shows. */
+const RenewalCountdown = () => {
+  throw new Error('The countdown broke')
+}
+
+const ui = defineUi({ components: { SeatHistory, RenewalCountdown }, actions: { download } })
 
 const GuideApp = ({ step, withUi = true }: { step: PageDefinition; withUi?: boolean }) => {
   const [api] = useState(() => fakeApi({ resources: billingResources, views: billingViews, pages: [step.toModel()], rows: billingRows, afterWrite: billingAfterWrite }))
@@ -167,5 +173,21 @@ export const MissingComponent: StoryObj = {
     expect(await canvas.findByText('No component is registered as SeatHistory. Export it from protobase.ui.tsx, or load the plugin that provides it.')).toBeVisible()
     const latest = await region(canvas, 'Latest invoice')
     expect(await latest.findByRole('button', { name: 'Download PDF' })).toBeDisabled()
+  },
+}
+
+export const Fallbacks: StoryObj = {
+  name: 'Custom components that fall back',
+  tags: ['play'],
+  render: () => <GuideApp step={withFallbacks} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const plan = await region(canvas, 'Your plan')
+    expect(await plan.findByText('Team')).toBeVisible()
+    // A missing component draws its fallback, an empty fallback nothing, and one that throws its fallback too
+    expect(await plan.findByRole('progressbar', { name: 'Seats' })).toHaveAttribute('aria-valuemax', '10')
+    expect(plan.getByText('Renews')).toBeVisible()
+    // The warnings show only in development
+    expect(canvas.queryByRole('alert')).toBeNull()
   },
 }

@@ -53,11 +53,12 @@ export const createNode = (type: unknown, props: Record<string, unknown>): Layou
     children: normalizeChildren(children, `<${name}>`),
   }
   if (type.custom) node.custom = true
+  if (type.fallback) node.fallback = type.fallback
   return node
 }
 
-/** Declares a block named `name`; `custom` marks a component the app implements in React. */
-export const defineBlock = <P>(name: string, custom: boolean): Block<P> => {
-  const block: Block<P> = Object.assign((props: P) => createNode(block, props as Record<string, unknown>), { blockName: name, custom })
+/** Declares a block named `name`; `custom` marks a component the app implements in React, drawn as `fallback` where it cannot be. */
+export const defineBlock = <P>(name: string, custom: boolean, fallback?: LayoutChild[]): Block<P> => {
+  const block: Block<P> = Object.assign((props: P) => createNode(block, props as Record<string, unknown>), { blockName: name, custom, ...(fallback && { fallback }) })
   return block
 }

@@ -44,6 +44,14 @@ Every element compiles to `{ type, props, children }`, and a custom component al
 
 Children are elements and text. `null`, `undefined` and booleans render nothing and numbers become text, as in React, so `{isBeta && <Card />}` and `.map()` over a constant list work. Fragments are flattened. An element may be a prop value too: `actions={<Action name="cancel" />}` or a list of them.
 
+A custom component declared with a [fallback](/reference/custom-components/#fallbacks) carries it on each of its elements as `fallback`, elements and text like children, or `[]` to draw nothing:
+
+```json
+{ "type": "SeatChart", "props": {}, "children": [], "custom": true, "fallback": [{ "type": "Progress", "props": { "label": "Seats", "value": "seats_used", "max": "plan.seats" }, "children": [] }] }
+```
+
+A client that cannot draw the component, such as one without React, draws the fallback instead, and the checks read it like the rest of the tree.
+
 ## What a layout may hold
 
 A prop is a string, a finite number, a boolean, `null`, or an array or plain object of those (elements included). It is JSON in the end, so the rules are checked twice:
@@ -132,4 +140,4 @@ Every block reads the regular API with the user's token, so the access rules app
 - `ModalForm` needs create or update permission and keeps only the fields they may write;
 - an `Action` missing from their view of the resource is left out, and so is a `Show` that names something they cannot see.
 
-Custom components are kept: they get only their props, and fetch through the same API.
+Custom components are kept: they get only their props, and fetch through the same API. A custom component's fallback loses what the user cannot use like the rest of the tree, and a fallback left with nothing is sent as `[]`, so a client still draws nothing in the component's place.

@@ -376,6 +376,26 @@ describe('view builder', () => {
     expect(() => view<typeof article>('article').layout(() => [l.custom(Card)])).toThrow('l.custom takes a component declared with component(...), not the built-in block Card')
   })
 
+  it('gives a custom section a fallback of the items that fit where it stands', () => {
+    const Plan = Object.assign(() => null, { blockName: 'Plan', custom: true })
+    const model = view<typeof article>('article')
+      .layout((r) => [
+        l.custom(Plan, { fallback: [l.section('Content', [r.title])] }),
+        l.custom(Plan, { sidebar: true, fallback: [l.map('Where', { latitude: r.price, longitude: r.price, sidebar: true })] }),
+        l.custom(Plan, { fallback: [] }),
+      ])
+      .toModel()
+    expect(model.layout).toEqual([
+      { kind: 'custom', component: 'Plan', fallback: [{ kind: 'section', title: 'Content', fields: ['title'] }] },
+      { kind: 'custom', component: 'Plan', sidebar: true, fallback: [{ kind: 'map', title: 'Where', latitude: 'price', longitude: 'price', sidebar: true }] },
+      { kind: 'custom', component: 'Plan', fallback: [] },
+    ])
+    expect(() => view<typeof article>('article').layout(() => [l.custom(Plan, { fallback: [l.history()] })])).toThrow('l.custom(Plan) falls back to sections and related tables, not history')
+    expect(() => view<typeof article>('article').layout((r) => [l.custom(Plan, { sidebar: true, fallback: [l.section('Content', [r.title])] })])).toThrow(
+      'l.custom(Plan) falls back to sidebar maps, not section',
+    )
+  })
+
   it('puts the record history and the comments in the record layout, under titles of their own', () => {
     const model = view<typeof article>('article')
       .layout((r) => [l.section('Content', [r.title]), l.history(), l.comments(), l.comments('Notes', { when: 'reading' })])

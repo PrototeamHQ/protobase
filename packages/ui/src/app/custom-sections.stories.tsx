@@ -23,7 +23,12 @@ const session = createStaticSession('story-token', { id: 'pip', email: 'pip@bike
 /** Whether the repair is paid, as a sidebar card of the project's own. */
 const PaymentNote = () => <p>{useLayoutRecord()?.record.paid ? 'Paid' : 'Not paid yet'}</p>
 
-const ui = defineUi({ components: { RepairBoard, CustomerRepairs, PaymentNote } })
+/** A component that throws while drawing, in place of which its fallback shows. */
+const RepairTimeline = () => {
+  throw new Error('The timeline broke')
+}
+
+const ui = defineUi({ components: { RepairBoard, CustomerRepairs, PaymentNote, RepairTimeline } })
 
 const Shop = ({ start, repairsView = workshop.repairsView }: { start: string; repairsView?: { toModel(): ViewModel } }) => {
   const [api] = useState(() => fakeApi({ resources: [customers.toModel(), repairs.toModel()], views: [customersView.toModel(), repairsView.toModel()], rows: { customers: customerRows, repairs: repairRows } }))
@@ -41,6 +46,13 @@ const withSidebar = workshop.repairsView.layout((r) => [
   l.custom(Unregistered),
   l.sidebar([r.status, r.estimate]),
   l.custom(Payment, { title: 'Payment', sidebar: true }),
+])
+
+const withFallbacks = workshop.repairsView.layout((r) => [
+  l.custom(Unregistered, { title: 'Warranty', fallback: [l.section('The bike', [r.customer_id, r.bike])] }),
+  l.custom(component('RepairTimeline'), { title: 'Timeline', fallback: [l.section('The problem', [r.problem])] }),
+  l.sidebar([r.status, r.estimate]),
+  l.custom(component('Confetti'), { title: 'Confetti', sidebar: true, fallback: [] }),
 ])
 
 export const EarlierRepairs: StoryObj = { name: "The customer's earlier repairs", render: () => <Shop start="/repairs/1" /> }
@@ -79,5 +91,23 @@ export const InTheSidebarChecks: StoryObj = {
     expect(await aside.findByText('Payment')).toBeVisible()
     expect(aside.getByText('Not paid yet')).toBeVisible()
     expect(canvas.getByRole('alert')).toHaveTextContent('No component is registered as WarrantyCard')
+  },
+}
+
+export const Fallbacks: StoryObj = {
+  name: 'Components that fall back',
+  tags: ['play'],
+  render: () => <Shop start="/repairs/4" repairsView={withFallbacks} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole('heading', { name: 'R-304' })
+    // A missing component and one that throws give way to their sections, titles included; an empty fallback draws nothing
+    expect(canvas.getByRole('heading', { name: 'The bike' })).toBeVisible()
+    expect(canvas.getByRole('heading', { name: 'The problem' })).toBeVisible()
+    expect(canvas.queryByText('Warranty')).toBeNull()
+    expect(canvas.queryByText('Timeline')).toBeNull()
+    expect(canvas.queryByText('Confetti')).toBeNull()
+    // The warnings show only in development
+    expect(canvas.queryByRole('alert')).toBeNull()
   },
 }
