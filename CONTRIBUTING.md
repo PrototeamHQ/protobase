@@ -29,11 +29,11 @@ The `commit-msg` hook from `bun install` and CI check branch commits with `commi
 - [Name](/page/#anchor) (stability): what someone gets, in one or two plain sentences.
 ```
 
-The link goes to the heading that explains the feature; a feature no page explains yet has no link. A stable feature has no stability; the others say `(beta)`, `(in development)` or `(coming soon)`. A new area page goes into `features` in `docs/website/sidebar.mjs` and gets a line in `features.md`.
+The link goes to the heading that explains the feature; a feature no page explains yet has no link. A stable feature has no stability; the others say `(experimental)`, `(beta)`, `(in development)` or `(coming soon)`. A new area page goes into `features` in `docs/website/sidebar.mjs` and gets a line in `features.md`.
 
 - A feature ships with its docs: the change that adds or changes it updates its page and, for a new feature, adds its entry.
 - Nothing is documented that is not built, unless marked coming soon, and only while a task builds it.
-- Stable: built, released and complete as documented. Beta: released, with the limits its page lists, and may still change. In development: partly released, not usable on its own. Coming soon: documented, not built. The section a non-stable entry links starts with an aside, such as `:::caution[Beta]`, naming what is missing. Stability changes only in a change whose plan says so.
+- Stable: built, released and complete as documented. Experimental: released to try out, with the limits its page lists, and may change in any release. Beta: released, with the limits its page lists, and may still change. In development: partly released, not usable on its own. Coming soon: documented, not built. The section a non-stable entry links starts with an aside, such as `:::caution[Beta]`, naming what is missing. Stability changes only in a change whose plan says so.
 - Public text names no other company or product unless compatibility with it or its own API is the subject: compatibility goes in the compatibility area, a plugin on a service's API in its feature's area.
 - `<gap>…</gap>` marks a known limitation, one sentence: "X cannot do Y because Z is not implemented".
 

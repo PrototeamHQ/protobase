@@ -5,7 +5,7 @@
 //   - Name (stability): one or two plain sentences.
 //
 // with `## Subarea` headings between them where an area has them. The stability is left out for a stable feature, and is
-// otherwise beta, in development or coming soon. It checks that every entry keeps that grammar and links a heading of a
+// otherwise experimental, beta, in development or coming soon. It checks that every entry keeps that grammar and links a heading of a
 // docs page that exists, that every area page is in the sidebar's `features` list and linked from features.md, and that
 // every reference page is linked by an entry, so a new one cannot ship without its feature. The guides page,
 // guides/index.mdx, must link every guide under guides/.
@@ -22,7 +22,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 import { releaseVersion } from './release-tag'
 
-const stabilities = ['beta', 'in development', 'coming soon']
+const stabilities = ['experimental', 'beta', 'in development', 'coming soon']
 const entryPattern = /^- (?:\[(?<linked>[^\]]+)\]\((?<link>[^)\s]*)\)|(?<plain>[^\s[(:][^(:]*?))(?: \((?<stability>[^)]+)\))?: (?<text>\S.*)$/
 const linkPattern = /^\/(?<page>(?:[a-z0-9-]+\/)*[a-z0-9-]+)\/(?:#(?<anchor>[a-z0-9_-]+))?$/
 // Pages that explain no feature of their own: how the packages fit together, for contributors.
