@@ -33,7 +33,7 @@ The function gets the record's key as its URL has it, and returns the value as J
 
 | | |
 | --- | --- |
-| `db` | The app's database. Each query sent through it is analysed, raw SQL included; while it is, a write throws, since the function only reads. |
+| `db` | The app's database, in a read-only transaction, so a write throws before it happens. Each query sent through it is analysed, raw SQL included. |
 | `clock` | The time; see [The clock](#the-clock). |
 | `depends(resource, where?)` | Names a dependency itself: every record of the resource, or those whose fields hold these values, such as `depends('tasks', { status: ['open', 'late'] })`. |
 | `signal` | Aborted when the run times out or the worker shuts down. |

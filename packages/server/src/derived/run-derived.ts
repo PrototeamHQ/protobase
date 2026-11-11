@@ -7,7 +7,10 @@ import { trackedClock, type DerivedClock } from './tracked-clock'
 
 /** What a derived value's compute function gets beside the record's key. */
 export type DerivedContext = {
-  /** The app's database. Each query it sends is analysed for the tables and rows it reads, however it was built. */
+  /**
+   * The app's database, in a read-only transaction. Each query it sends is analysed for the tables and rows it reads,
+   * however it was built.
+   */
   db: Db
   /** The time, whose checks record when their answers flip. */
   clock: DerivedClock
@@ -68,7 +71,11 @@ export const runDerived = async (compute: DerivedCompute, key: string, { label, 
     if (!model) throw new Error(`${label} depends on ${resource}, which is not a resource it reads: add it to the value's reads`)
     named.push(namedRead(model, where))
   }
-  const value = await compute(key, { db: track ? recordingDb(db, queries) : db, clock, depends, signal })
+  // A read-only transaction, so Postgres refuses a write before it happens, whether the queries are analysed or not.
+  const value = await db
+    .transaction()
+    .setAccessMode('read only')
+    .execute((trx) => compute(key, { db: track ? recordingDb(trx, queries) : trx, clock, depends, signal }))
   const reads = [...resourceReads(label, await tableReads(queries), models), ...named]
   return { value: value === undefined ? null : value, reads, flipsAt: flipsAt() }
 }

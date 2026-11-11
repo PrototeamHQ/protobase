@@ -2,6 +2,7 @@ import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { changesMigration, checkDerived, createAdmin, derivedMigration, startJobs, type DerivedCompute, type JobsRuntime } from '@protobase/server'
+import { runDerived } from '../../packages/server/src/derived/run-derived'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 
 // Workers poll on real timers, which a busy machine stretches.
@@ -139,6 +140,15 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     await sql`insert into objectives (id, title) overriding system value values (${objective.id}, 'Again')`.execute(db)
     const after = await settled(objective.id, 'done')
     expect(BigInt(after.version)).toBeGreaterThan(BigInt(before.version))
+  })
+
+  it('refuses a write before it happens, whether the queries are analysed or not', async () => {
+    const { id } = await post('objectives', { title: 'Write' })
+    await sql`insert into tasks (objective_id, status) values (${id}, 'open')`.execute(db)
+    const input = { label: 'Derived value objectives.verdict', db, now: new Date(), models: [objectives.toModel(), tasks.toModel()], signal: new AbortController().signal }
+    const write: DerivedCompute = (key, { db }) => db.deleteFrom('tasks').where('objective_id', '=', Number(key)).execute()
+    for (const track of [true, false]) await expect(runDerived(write, String(id), { ...input, track })).rejects.toThrow('read-only transaction')
+    expect((await sql`select 1 from tasks where objective_id = ${id}`.execute(db)).rows).toHaveLength(1)
   })
 
   it('computes again when a time check flips', async () => {
