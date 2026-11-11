@@ -75,7 +75,7 @@ export const runDerived = async (compute: DerivedCompute, key: string, { label, 
   const value = await db
     .transaction()
     .setAccessMode('read only')
-    .execute((trx) => compute(key, { db: track ? recordingDb(trx, queries) : trx, clock, depends, signal }))
+    .execute(async (trx) => compute(key, { db: track ? recordingDb(trx, queries) : trx, clock, depends, signal }))
   const reads = [...resourceReads(label, await tableReads(queries), models), ...named]
   return { value: value === undefined ? null : value, reads, flipsAt: flipsAt() }
 }
