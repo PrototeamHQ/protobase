@@ -18,7 +18,8 @@ export const LinkBlock = ({ node, children, className }: BlockProps) => {
   const record = useLayoutRecord()?.record
   // A button's look, to which classes add; otherwise classes of its own replace the link's look
   const style = props.variant ? cn(buttonClass({ variant: props.variant }), className) : (className ?? linkStyle)
-  const content = node.children.length > 0 ? children : undefined
+  // Children that are only blank text show nothing, so the link shows where it leads instead
+  const content = node.children.some((child) => typeof child !== 'string' || child.trim() !== '') ? children : undefined
   if (props.to) {
     const to = fillAddress(props.to, record)
     return <AppLink to={to} className={style}>{content ?? appPath(to)}</AppLink>

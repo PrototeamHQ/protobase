@@ -16,6 +16,11 @@ describe('LinkBlock', () => {
     expect(html(node('Link', { href: 'mailto:a@example.com' }))).toBe(`<a href="mailto:a@example.com" ${look}>mailto:a@example.com</a>`)
   })
 
+  it('shows where it leads when its children are only blank text', () => {
+    expect(html(node('Link', { href: 'mailto:a@example.com' }, ['']))).toBe(`<a href="mailto:a@example.com" ${look}>mailto:a@example.com</a>`)
+    expect(html(node('Link', { href: 'mailto:a@example.com' }, ['  ']))).toBe(`<a href="mailto:a@example.com" ${look}>mailto:a@example.com</a>`)
+  })
+
   it('shows text and spans in order inside the link, in no paragraph', () => {
     const link = node('Link', { href: 'mailto:a@example.com' }, ['Mail ', node('Text', { as: 'span', className: 'font-semibold' }, ['Sam'])])
     expect(html(link)).toBe(`<a href="mailto:a@example.com" ${look}>Mail <span class="font-semibold">Sam</span></a>`)
