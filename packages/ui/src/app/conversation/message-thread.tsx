@@ -11,6 +11,7 @@ import { Quiet } from '../pages/blocks/card-frame'
 import { ErrorBanner } from '../error-banner'
 import { useAdminMeta } from '../meta-gate'
 import { threadItems } from './thread-items'
+import { threadState } from './thread-state'
 import { text } from './messages'
 
 export type MessageThreadProps = MessageFields & {
@@ -31,9 +32,10 @@ export const MessageThread = ({ model, filter, sender, time, text: body, limit =
   const reader = auth?.state.kind === 'signed-in' ? auth.state.user.id : undefined
   const labels = listLabels(resources, views, model, [sender])
   const list = useList(model.name, { filter, orderBy: threadSort(time), pageSize: limit, labels })
-  if (list.error) return <ErrorBanner title={text('couldNotLoad')} error={list.error} />
+  const state = threadState(list)
+  if (state === 'error') return <ErrorBanner title={text('couldNotLoad')} error={list.error} />
   // The live region mounts with the messages it opens on, so a screen reader announces only those that arrive later
-  if (list.isLoading) return <div className="p-4"><Quiet>{text('loadingMessages')}</Quiet></div>
+  if (state === 'loading') return <div className="p-4"><Quiet>{text('loadingMessages')}</Quiet></div>
   const rows = withLabels(resources, model, [sender], list.items, list.labels)
   const items = threadItems(rows, { key: (row) => String(recordKey(model, row)), sender, time, text: body })
   const markdown = model.fields[body] !== undefined && isMarkdown(model.fields[body], views[model.name]?.fields[body])
