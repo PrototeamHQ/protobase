@@ -130,10 +130,10 @@ export const RenderNode = ({ node }: { node: LayoutNode }) => {
   const Block = blocks[node.type]
   if (!Block) return <Problem>{text.rich('unknownBlock', { type: node.type })}</Problem>
   const className = typeof node.props.className === 'string' ? node.props.className : undefined
-  // A Text is one line: its text and links run inline, in no paragraph of their own
+  // A Text is one line, and a Link a piece of one: what they hold runs inline, in no paragraph of its own
   const block = (
     <Block node={node} slots={renderSlots(node)} className={className}>
-      {node.type === 'Text' ? renderInline(node.children) : renderChildren(node.children)}
+      {node.type === 'Text' || node.type === 'Link' ? renderInline(node.children) : renderChildren(node.children)}
     </Block>
   )
   return className === undefined || ownClasses.has(node.type) ? block : <div className={className}>{block}</div>
