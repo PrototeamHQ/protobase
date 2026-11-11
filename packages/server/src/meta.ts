@@ -106,8 +106,9 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       return view ? [{ access, view }] : []
     })
     const createPages = new Set(picked.filter(({ view }) => view.create).map(({ view }) => view.resource))
+    const creatable = Object.fromEntries(visible.map(({ entry, resolved }) => [entry.name, resolved.operations.create ? resolved.writableFields.create : []]))
     const views = picked.map(({ access, view }) =>
-      withCurrentTenant(pruneView(view, access.readable, listed, prompted, createPages, new Set(writeOnlyFields(access))), access.model.tenant, session.tenant))
+      withCurrentTenant(pruneView(view, access.readable, listed, prompted, createPages, new Set(writeOnlyFields(access)), creatable), access.model.tenant, session.tenant))
     const callerAccess = {
       createPages,
       models: listed,

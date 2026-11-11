@@ -335,13 +335,16 @@ describe('pruneView', () => {
     const written = view<typeof repairs>('repairs')
       .layout(() => [l.thread('Notes', { resource: 'repair_notes', field: 'repairId', sender: 'author', time: 'at', text: 'body' }), l.composer({ resource: 'repair_notes', field: 'repairId', text: 'body' })])
       .toModel()
-    const layout = (hidden: string[], writable = Object.keys(notes.fields)) => {
+    const layout = (hidden: string[], create = Object.keys(notes.fields), update: string[] = []) => {
       const readableFields = Object.keys(notes.fields).filter((name) => !hidden.includes(name))
-      const models = { ...all, repair_notes: restrictModel(notes, { readableFields, writableFields: { create: writable, update: [] } }) }
-      return pruneView(written, models.repairs, models).layout.map((item) => item.kind)
+      const models = { ...all, repair_notes: restrictModel(notes, { readableFields, writableFields: { create, update } }) }
+      return pruneView(written, models.repairs, models, new Set(), new Set(), new Set(), { repair_notes: create }).layout.map((item) => item.kind)
     }
     expect(layout([])).toEqual(['thread', 'composer'])
     expect(layout([], [])).toEqual(['thread'])
+    // Writing a message's fields on update only creates none
+    expect(layout([], [], ['repairId', 'body'])).toEqual(['thread'])
+    expect(layout([], ['body'], ['repairId'])).toEqual(['thread'])
     expect(layout(['body'])).toEqual([])
     expect(layout(['repairId'])).toEqual([])
     expect(layout(['at'])).toEqual(['composer'])
