@@ -832,13 +832,13 @@ Without any configuration, the record page's rail has a **Related records** card
 | `from` | A field of this record whose value `field` must hold, instead of this record's key, such as the task of a question, to list the task's links: `{ resource: 'task_links', field: 'task_id', from: 'task_id' }`. Same type as `field` (a relation to the same resource), not sensitive, and not with `through`. A record with no value lists nothing. |
 | `through` | `{ resource, field, key?, filter? }`: the join records whose `field` (a filterable relation) holds this record's key; their `key` values (default their primary key, filterable, and pointing at one resource with `field`) pick the listed records, in one read with [`related()`](/reference/api/#filtering-through-related-records), so an index must serve `key` too. |
 | `filter`, `sort` | AIP-160 and AIP-132 on `resource`, as in the list API. `filter` narrows the listed records, `through.filter` the join records. |
-| `columns` | Fields of `resource`, through relations too (`unit_id.property_id`); default the view's list columns without `field`. The first links to the record a row opens. With `presentation: 'cards'`, the fields each card shows. |
-| `presentation` | `'cards'` shows the records as [cards](#related-records-as-cards) instead of the table or display. |
+| `columns` | Fields of `resource`, through relations too (`unit_id.property_id`); default the view's list columns without `field`. The first links to the record a row opens. With `presentation: 'cards'`, the fields each card shows; with `presentation: 'record'`, the fields of the record it shows. |
+| `presentation` | `'cards'` shows the records as [cards](#related-records-as-cards) instead of the table or display; `'record'` shows [one record in full](#a-related-record-in-full). |
 | `actions` | Named actions of `resource`'s view, by name, as buttons on each card; only with `presentation: 'cards'`. |
 | `button` | `{ label, to }`: a [button on each row](/reference/blocks/#row-buttons), or each card, to an address the row's fields name, such as `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: 'Review' } }`; a row without a value for a field it names shows none. Not with `lines`. |
 | `open` | The relation of `resource` whose record a row opens, for rows that link this record to another. By default the one relation in `resource`'s primary key besides `field`, when there is exactly one (a join resource such as `task_dependencies` keyed on `[task_id, type, depends_on_id]`); otherwise rows open their own records. The row's menu then has **Open** for the other record and **Edit** for the link itself. |
-| `limit` | How many records it shows, 1 to 100; default 10. When there are more, the section says so beside View all, such as "The first 10 of 37.". Before 0.13 this was `pageSize`, rows per page; rename it. |
-| `display` | The display of `resource`'s list it opens in, and View all opens, such as `cards`; default the list's. |
+| `limit` | How many records it shows, 1 to 100; default 10. Not with `presentation: 'record'`. When there are more, the section says so beside View all, such as "The first 10 of 37.". Before 0.13 this was `pageSize`, rows per page; rename it. |
+| `display` | The display of `resource`'s list it opens in, and View all opens, such as `cards`; default the list's. Not with `presentation: 'record'`. |
 | `help`, `empty` | A line under the title, and the text when nothing matches (default "Nothing here yet."). |
 | `hideEmpty` | `true` leaves the section off the page while it has no records. |
 | `lines` | `true` makes the section the record's [lines](#record-lines), edited in place with the record. |
@@ -870,6 +870,25 @@ l.related('Waiting on you', {
 An action that `actions` names must be a named action of `resource`'s view. The cards have no display switch or **Reorder**; View all opens the list as a table section would.
 
 <StoryFrame id="record-page-related-records-as-cards--cards" title="Preconditions to approve on a task's page" height={760} />
+
+#### A related record in full
+
+With `presentation: 'record'` the section shows one related record as part of the page, for a tab meant for reading, such as an objective's notes kept in a record of their own: no card, no title of the record, nothing cut short with **Show more** and no View all. It shows the first record in `sort` order, each of `columns` in full as the record page shows it (a markdown field rendered), leaving out a field the record has no value for, then a link **Open** and the singular name of `resource`'s view, such as **Open note**, to the record's own page, and `button` beside it. With one column the value stands alone, without its label; with several each is under its label. Without a record it shows `empty`, or with `hideEmpty` nothing. A change to the record shows as soon as the page hears of it, as in every related section of a [live](/reference/live/) resource.
+
+```ts
+l.tab('Notes', [
+  l.related('Coordinator notes', {
+    resource: 'objective_notes',
+    field: 'objective_id',
+    presentation: 'record',
+    columns: ['notes'],
+  }),
+])
+```
+
+It takes no `limit`, `display` or `actions`.
+
+<StoryFrame id="record-page-a-related-record-in-full--notes" title="An objective's notes on a tab of its own" height={760} />
 
 ### Charts of related records
 

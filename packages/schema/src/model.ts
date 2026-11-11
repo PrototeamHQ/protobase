@@ -833,8 +833,11 @@ export type FilterWidgetModel = (
   secondary?: boolean
 }
 
-/** How a related section shows its records: `cards` as cards stacked full width; the list's table or display when omitted. */
-export type RelatedPresentation = 'cards'
+/**
+ * How a related section shows its records: `cards` as cards stacked full width; `record` as the fields of its one record
+ * in full, with no card, for reading; the list's table or display when omitted.
+ */
+export type RelatedPresentation = 'cards' | 'record'
 
 /**
  * A button on each row of a table or related section that opens an address in the app named by the row's fields, such as
@@ -884,7 +887,10 @@ export type RelatedModel = {
   sort?: string
   /** Fields of `resource`, through relations too (`unitId.propertyId`): the table's columns, or the fields each card shows. */
   columns?: string[]
-  /** `cards` shows each record as a card stacked full width, its `columns` and `actions` on it; the list's table or display when omitted. */
+  /**
+   * `cards` shows each record as a card stacked full width, its `columns` and `actions` on it; `record` shows the
+   * `columns` of the first record in full, with a link to its page; the list's table or display when omitted.
+   */
   presentation?: RelatedPresentation
   /** Named actions of `resource`'s view, by name, as buttons on each card; only with `presentation: 'cards'`. */
   actions?: string[]

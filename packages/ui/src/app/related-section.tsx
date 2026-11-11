@@ -9,6 +9,7 @@ import { countQuery } from './pages/use-layout-data'
 import { EmbeddedDisplaySwitch, EmbeddedList } from './embedded-list/embedded-list'
 import { useEmbeddedDisplay } from './embedded-list/use-embedded-display'
 import { RelatedCards } from './related-cards/related-cards'
+import { RelatedRecord } from './related-cards/related-record'
 import { relatedOpens } from './related-opens'
 import { relatedHandOrder } from './hand-order/hand-order'
 import { HandSortedList } from './hand-order/hand-sorted-list'
@@ -43,7 +44,8 @@ const Empty = ({ empty }: { empty: string | undefined }) => <p className="text-m
 
 /**
  * A record page section listing the first records of another resource that point at this record, directly or through
- * a join resource, in the list page's table or display, or as cards with their actions, with a link to them all in the list. When they are ordered by
+ * a join resource, in the list page's table or display, or as cards with their actions, with a link to them all in the list,
+ * or the first one's fields in full. When they are ordered by
  * hand within this record, **Reorder** shows them all in their order, to be moved by their drag handles.
  */
 export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; value: string | number | boolean | null; owner: string }) => {
@@ -69,6 +71,13 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
     return (
       <Section title={item.title} help={item.help}>
         {listed((filter) => <RelatedCards model={model} view={view} filter={filter} sort={item.sort ?? ''} fields={columns} actions={item.actions ?? []} button={item.button} limit={item.limit ?? 10} display={item.display} empty={item.empty} />)}
+      </Section>
+    )
+  }
+  if (item.presentation === 'record') {
+    return (
+      <Section title={item.title} help={item.help}>
+        {listed((filter) => <RelatedRecord model={model} view={view} filter={filter} sort={item.sort ?? ''} fields={columns} button={item.button} empty={item.empty} />)}
       </Section>
     )
   }

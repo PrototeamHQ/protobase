@@ -1325,7 +1325,8 @@
     "showMore": "Meer tonen",
     "showLess": "Minder tonen",
     "couldNotLoad": "Kon niet laden",
-    "nothingYet": "Hier staat nog niets."
+    "nothingYet": "Hier staat nog niets.",
+    "open": "{singular} openen"
   },
   "app/related-dots": {
     "none": "Geen {plural}"

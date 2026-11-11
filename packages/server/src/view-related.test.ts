@@ -74,8 +74,17 @@ describe('cards', () => {
 
   it('refuses actions without cards, an unknown presentation and an action the view does not name', () => {
     expect(relatedErrors(cards({ actions: ['resolve'] }), 'tasks', models)).toEqual(['actions need presentation "cards"'])
-    expect(relatedErrors(cards({ presentation: 'grid' as never }), 'tasks', models)).toEqual(['presentation must be "cards", not "grid"'])
+    expect(relatedErrors(cards({ presentation: 'grid' as never }), 'tasks', models)).toEqual(['presentation must be "cards" or "record", not "grid"'])
     expect(relatedActionErrors(cards({ presentation: 'cards', actions: ['approve'] }), views)).toEqual(['actions: "approve" is no named action of the task_dependencies view'])
+  })
+
+  it('shows one record without the options that page or open a list', () => {
+    expect(relatedErrors(cards({ presentation: 'record', columns: ['reason'] }), 'tasks', models)).toEqual([])
+    expect(relatedErrors(cards({ presentation: 'record', limit: 1, display: 'cards', actions: ['resolve'] }), 'tasks', models)).toEqual([
+      'actions need presentation "cards"',
+      'presentation "record" shows one record, so it takes no limit',
+      'presentation "record" shows one record, so it takes no display',
+    ])
   })
 })
 
