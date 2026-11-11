@@ -63,6 +63,14 @@ describe('createNode', () => {
     expect(() => component('Greeting', { plugin: ' ' })).toThrow("component('Greeting') names an empty plugin")
   })
 
+  it('carries the fallback a component declares on each of its elements, and none when it declares none', () => {
+    const Map = component('Map', { fallback: [Field({ name: 'address' }), 'Open the map on the web'] })
+    expect(jsx(Map, {})).toEqual({ type: 'Map', props: {}, children: [], custom: true, fallback: [{ type: 'Field', props: { name: 'address' }, children: [] }, 'Open the map on the web'] })
+    expect(jsx(component('Hidden', { fallback: [] }), {}).fallback).toEqual([])
+    expect(jsx(component('Plain'), {})).not.toHaveProperty('fallback')
+    expect(() => component('Broken', { fallback: [() => null] as never })).toThrow("component('Broken') fallback has a child that is a function")
+  })
+
   it('reserves the built-in names and wants PascalCase component names', () => {
     expect(() => component('Table')).toThrow('"Table" is a built-in block')
     expect(() => component('Fragment')).toThrow('built-in block')

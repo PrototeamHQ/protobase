@@ -56,6 +56,7 @@ export type {
   TabItemModel,
   GroupItemModel,
   CustomSectionModel,
+  CustomFallbackItemModel,
   MapSectionModel,
   RecordChartModel,
   RecordChartRange,

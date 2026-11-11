@@ -9,6 +9,11 @@ export type LayoutNode = {
   children: LayoutChild[]
   /** Set on custom components, which the app renders with the React component registered under `type`. */
   custom?: true
+  /**
+   * What a client draws in place of a custom component it does not have, or that fails to draw: elements and text,
+   * or none to draw nothing. Absent when the component declares no fallback.
+   */
+  fallback?: LayoutChild[]
 }
 
 export type LayoutChild = LayoutNode | string
@@ -17,7 +22,7 @@ export type LayoutChild = LayoutNode | string
 export type LayoutChildren = LayoutChild | number | boolean | null | undefined | LayoutChildren[]
 
 /** A block as JSX sees it: called by the runtime with its props, it describes one element. */
-export type Block<P> = ((props: P) => LayoutNode) & { readonly blockName: string; readonly custom: boolean }
+export type Block<P> = ((props: P) => LayoutNode) & { readonly blockName: string; readonly custom: boolean; readonly fallback?: LayoutChild[] }
 
 export const isLayoutNode = (value: unknown): value is LayoutNode =>
   typeof value === 'object' && value !== null && !Array.isArray(value) && typeof (value as LayoutNode).type === 'string' && Array.isArray((value as LayoutNode).children)

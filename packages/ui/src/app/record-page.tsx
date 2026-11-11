@@ -341,7 +341,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     if (item.kind === 'chart') return [<RecordChartSection key={`chart:${index}`} item={item} recordKey={recordKey} />]
     // Project components, maps and photos read fields a list row may not have, so they wait for the record
     if (preview && (item.kind === 'custom' || item.kind === 'map' || item.kind === 'gallery')) return []
-    if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]
+    if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} fallback={item.fallback && <>{item.fallback.flatMap(mainItem)}</>} />]
     if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
     if (item.kind === 'gallery') return [<GallerySection key={`gallery:${index}`} item={item} record={stored.record} recordKey={recordKey} />]
     if (item.kind === 'history') return [<HistorySection key={`history:${index}`} item={item} model={model} view={view} recordKey={recordKey} etag={stored.etag} />]
@@ -418,7 +418,10 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
               {!preview && <RecordActions model={model} stored={stored} recordKey={recordKey} edit={offersEdit ? editAddress : undefined} onDelete={startDelete} />}
               {firstSidebar === -1 && summary}
               {layout.map((item, index) => {
-                if (item.kind === 'custom' && item.sidebar && !preview) return <CustomSection key={`custom:${index}`} item={item} scope={scope} />
+                if (item.kind === 'custom' && item.sidebar && !preview) {
+                  const fallback = item.fallback && <>{item.fallback.map((each, at) => each.kind === 'map' && <MapSection key={at} item={each} record={stored.record} />)}</>
+                  return <CustomSection key={`custom:${index}`} item={item} scope={scope} fallback={fallback} />
+                }
                 if (item.kind === 'map' && item.sidebar && !preview) return <MapSection key={`map:${index}`} item={item} record={stored.record} />
                 return index === firstSidebar ? <Fragment key="summary">{summary}</Fragment> : null
               })}

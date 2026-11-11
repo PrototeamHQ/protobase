@@ -1,6 +1,6 @@
 import { Kysely } from 'kysely'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { Action, Composer, Field, Page, RecordCard, Stat, Table, Thread, page } from '@protobase/layout'
+import { Action, Composer, Field, Page, RecordCard, Stat, Table, Thread, component, page } from '@protobase/layout'
 import { f, resource, userMenu, view } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { configExports } from '../src/resource-source'
@@ -99,6 +99,22 @@ describe('a conversation in /meta', () => {
 
   it('leaves out the composer for a caller who cannot post', async () => {
     expect((await chatFor('viewer')).map((node: { type: string }) => node.type)).toEqual(['Thread'])
+  })
+})
+
+// A component a client may not have, which falls back to the record's fields.
+const LedgerChart = component('LedgerChart', { fallback: [Field({ name: 'title' }), Field({ name: 'secret' })] })
+const charted = page('charted', Page({ title: 'Charted', children: RecordCard({ resource: 'ledger', children: LedgerChart({}) }) }))
+
+describe('a custom component in /meta', () => {
+  const chartFor = async (roles: string) => {
+    const served = createAdmin({ resources: [ledger], views: [ledgerView], pages: [charted], db: db(), authenticate: testAuthenticator })
+    return (await (await served.request('/api/meta', { headers: as(1, roles) })).json()).pages[0].tree.children[0].children[0]
+  }
+
+  it('carries its fallback, without what the caller cannot read', async () => {
+    expect(await chartFor('admin')).toEqual({ type: 'LedgerChart', props: {}, children: [], custom: true, fallback: [{ type: 'Field', props: { name: 'title' }, children: [] }, { type: 'Field', props: { name: 'secret' }, children: [] }] })
+    expect((await chartFor('viewer')).fallback).toEqual([{ type: 'Field', props: { name: 'title' }, children: [] }])
   })
 })
 

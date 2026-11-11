@@ -5,7 +5,7 @@ description: React components, field types, pages and handlers of your own, load
 
 - [Custom components](/reference/custom-components/#components): Your own React components used by name in layouts, reading data under the user's access.
 - [Custom list displays](/reference/custom-components/#list-displays): Draw a list with your own component while the list page keeps loading, filters, search and paging.
-- [Custom record sections](/reference/custom-components/#record-sections): Your own component on a record page, beside its sections.
+- [Custom record sections](/reference/custom-components/#record-sections): Your own component on a record page, beside its sections, with sections to show instead where it cannot be drawn.
 - [Custom record cards](/reference/custom-components/#record-cards): Draw each card with your own component, with the built-in card as the fallback.
 - [Custom field types](/reference/plugins/#field-types): Register how a kind of value is shown and edited, and pick it per field in a view.
 - [Custom create pages](/reference/custom-components/#create-pages): Replace a resource's create form with your own page, such as a booking flow.

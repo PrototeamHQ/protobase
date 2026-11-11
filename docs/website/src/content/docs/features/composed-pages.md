@@ -7,6 +7,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [Layout checks](/reference/layouts/#what-a-layout-may-hold): The build refuses a layout with code, unknown props or unknown fields, and names the file and place.
 - [Conditions](/reference/layouts/#conditions): Part of a page shows only while a condition on a record or a count holds.
 - [App addresses](/reference/layouts/#addresses): Links to lists, records, create forms and pages are typed addresses that can carry filters and prefilled values.
+- [Component fallbacks](/reference/custom-components/#fallbacks): A custom component declares what a client that cannot draw it shows instead, or nothing, and the web shows it too when the component is missing or throws.
 - [Per-user pages](/reference/layouts/#access): Each user gets the page without the parts, fields and actions they cannot use.
 - [Layout blocks](/reference/blocks/#layout): Pages, responsive grids, cards and links.
 - [Full-width pages](/reference/blocks/#page): A page fills the whole area beside the sidebar instead of a centred column, for a dashboard with many blocks.

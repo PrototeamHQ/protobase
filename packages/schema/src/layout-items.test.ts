@@ -16,4 +16,8 @@ describe('layoutItems', () => {
     const tab: LayoutItemModel = { kind: 'tab', title: 'T', items: [section('B') as never, group as never] }
     expect(layoutItems([section('A'), tab, section('D')]).map((item) => (item as { title: string }).title)).toEqual(['A', 'B', 'C', 'D'])
   })
+  it('puts a custom section’s fallback after it', () => {
+    const custom: LayoutItemModel = { kind: 'custom', component: 'Quote', title: 'Q', fallback: [section('B') as never] }
+    expect(layoutItems([custom, section('C')]).map((item) => (item as { title: string }).title)).toEqual(['Q', 'B', 'C'])
+  })
 })
