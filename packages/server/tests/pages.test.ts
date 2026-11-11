@@ -1,6 +1,6 @@
 import { Kysely } from 'kysely'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { Action, Composer, Field, Image, Page, RecordCard, Stat, Table, Thread, component, page } from '@protobase/layout'
+import { Action, Box, Composer, Field, Image, Page, RecordCard, Row, Stat, Table, Text, Thread, component, page } from '@protobase/layout'
 import { f, resource, userMenu, view } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { defineFunction } from '../src/functions/define-function'
@@ -116,6 +116,23 @@ describe('a custom component in /meta', () => {
   it('carries its fallback, without what the caller cannot read', async () => {
     expect(await chartFor('admin')).toEqual({ type: 'LedgerChart', props: {}, children: [], custom: true, fallback: [{ type: 'Field', props: { name: 'title' }, children: [] }, { type: 'Field', props: { name: 'secret' }, children: [] }] })
     expect((await chartFor('viewer')).fallback).toEqual([{ type: 'Field', props: { name: 'title' }, children: [] }])
+  })
+})
+
+// A page too custom for blocks, from plain elements and Tailwind classes.
+const styled = page(
+  'styled',
+  Page({ title: 'Styled', children: [Row({ className: 'items-center gap-3', children: [Box({ className: 'size-3 rounded-full bg-success' }), Text({ as: 'span', children: 'Up' })] }), Table({ resource: 'ledger', className: 'shadow-lg' })] }),
+)
+
+describe('Tailwind classes in /meta', () => {
+  it('sends the plain elements and every class string as written', async () => {
+    const served = createAdmin({ resources: [ledger], pages: [styled], db: db(), authenticate: testAuthenticator })
+    const tree = (await (await served.request('/api/meta', { headers: as(1, 'viewer') })).json()).pages[0].tree
+    expect(tree.children).toEqual([
+      { type: 'Row', props: { className: 'items-center gap-3' }, children: [{ type: 'Box', props: { className: 'size-3 rounded-full bg-success' }, children: [] }, { type: 'Text', props: { as: 'span' }, children: ['Up'] }] },
+      { type: 'Table', props: { resource: 'ledger', className: 'shadow-lg' }, children: [] },
+    ])
   })
 })
 

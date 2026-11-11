@@ -10,6 +10,15 @@ export type GridSpan = 1 | 2 | 3 | 4
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
 
+/**
+ * Tailwind classes for the element's outer element, such as `rounded-xl bg-primary/10 p-6`, which the web draws as
+ * Tailwind does the classes in the app's components. Every built-in element takes them; a client that cannot use them
+ * draws the element without them.
+ */
+export type Styled = { className?: string }
+
+const builtIn = <P>(name: string) => defineBlock<P & Styled>(name, false)
+
 /** Records of `resource` matching `filter` (AIP-160, like the API's `filter`) in `sort` order (AIP-132, like `order_by`). */
 export type DataProps = { resource: string; filter?: string; sort?: string }
 
@@ -177,14 +186,23 @@ export type ComposerProps = {
   span?: GridSpan
 }
 /**
- * The PNG an API function draws, called with the reader's token as `GET /api/functions/<function>?width=&height=&theme=`:
+ * A picture: a fixed one at `src`, or the PNG an API function draws, called with the reader's token as `GET /api/functions/<function>?width=&height=&theme=`:
  * the size in CSS pixels the client draws it at and its `light` or `dark` theme, for pictures such as a map that some
  * clients cannot draw themselves. A client that draws no images, such as one that shows text only, shows `alt`, or
  * nothing without it.
  */
-export type ImageProps = {
-  /** The API function, as in `functions/<function>.ts`; a reader who may not call it sees no image. */
-  function: string
+export type ImageProps = (
+  | {
+      /** The API function, as in `functions/<function>.ts`; a reader who may not call it sees no image. */
+      function: string
+      src?: never
+    }
+  | {
+      /** A fixed picture instead of a function's: an `https:` URL, or a path on the app's own origin such as `/logo.svg`. */
+      src: string
+      function?: never
+    }
+) & {
   /** What the picture shows, for screen readers and for clients that draw no images. */
   alt?: string
   /** How wide it is drawn; the width of the space it is in when omitted. */
@@ -200,7 +218,11 @@ export type ShowProps = { when: string; children?: LayoutChildren }
  * A link: `to` an address in the app, `{field}` in it filled from the record around it, or an `href` that leaves the
  * app (`https:`, `mailto:`). One of the two.
  */
-export type LinkProps = ({ to: AppAddress; href?: never } | { href: string; to?: never }) & { children?: LayoutChildren }
+export type LinkProps = ({ to: AppAddress; href?: never } | { href: string; to?: never }) & {
+  /** Draws it as a button of this variant, with the button's hover and focus states; `className` then adds to it. */
+  variant?: ButtonVariant
+  children?: LayoutChildren
+}
 
 /** One route per `Tab` below the page's address: the first tab at the page's own, each other at `/<page>/<tab name>`. */
 export type TabsProps = { children?: LayoutChildren }
@@ -214,51 +236,51 @@ export type TabProps = { name: string; label: string; children?: LayoutChildren 
  */
 export type SettingsProps = { resource: string; fields?: string[]; title?: string; description?: string; span?: GridSpan }
 
-/** Everyone who can sign in, for admins: inviting by email, adding accounts, changing roles and blocking. Takes no props. */
-export type UsersProps = Record<string, never>
+/** Everyone who can sign in, for admins: inviting by email, adding accounts, changing roles and blocking. Takes no props but `className`. */
+export type UsersProps = Styled
 
 /**
  * A part of the signed-in person's own account, for the `account` page only: their profile, password, passkeys,
- * two-factor authentication, connected accounts, connected apps, or the deletion of the account. Each takes no props,
+ * two-factor authentication, connected accounts, connected apps, or the deletion of the account. Each takes no props but `className`,
  * loads its own data, and hides itself where it does not apply, such as Connected apps without MCP, or Delete account
  * with `auth.accountDeletion: false`.
  */
-export type AccountBlockProps = Record<string, never>
+export type AccountBlockProps = Styled
 
-export const Page = defineBlock<PageProps>('Page', false)
-export const Grid = defineBlock<GridProps>('Grid', false)
-export const Card = defineBlock<CardProps>('Card', false)
-export const Stat = defineBlock<StatProps>('Stat', false)
-export const RecordCard = defineBlock<RecordCardProps>('RecordCard', false)
-export const Field = defineBlock<FieldProps>('Field', false)
-export const Table = defineBlock<TableProps>('Table', false)
-export const CardRow = defineBlock<CardRowProps>('CardRow', false)
-export const RecordRow = defineBlock<RecordRowProps>('RecordRow', false)
-export const RecordCards = defineBlock<RecordCardsProps>('RecordCards', false)
-export const Chart = defineBlock<ChartProps>('Chart', false)
-export const Progress = defineBlock<ProgressProps>('Progress', false)
-export const ModalForm = defineBlock<ModalFormProps>('ModalForm', false)
-export const Thread = defineBlock<ThreadProps>('Thread', false)
-export const Composer = defineBlock<ComposerProps>('Composer', false)
-export const Image = defineBlock<ImageProps>('Image', false)
-export const Action = defineBlock<ActionProps>('Action', false)
-export const Show = defineBlock<ShowProps>('Show', false)
-export const Link = defineBlock<LinkProps>('Link', false)
-export const Tabs = defineBlock<TabsProps>('Tabs', false)
-export const Tab = defineBlock<TabProps>('Tab', false)
-export const Settings = defineBlock<SettingsProps>('Settings', false)
-export const Users = defineBlock<UsersProps>('Users', false)
-export const Profile = defineBlock<AccountBlockProps>('Profile', false)
-export const Password = defineBlock<AccountBlockProps>('Password', false)
-export const Passkeys = defineBlock<AccountBlockProps>('Passkeys', false)
-export const TwoFactor = defineBlock<AccountBlockProps>('TwoFactor', false)
-export const ConnectedAccounts = defineBlock<AccountBlockProps>('ConnectedAccounts', false)
+export const Page = builtIn<PageProps>('Page')
+export const Grid = builtIn<GridProps>('Grid')
+export const Card = builtIn<CardProps>('Card')
+export const Stat = builtIn<StatProps>('Stat')
+export const RecordCard = builtIn<RecordCardProps>('RecordCard')
+export const Field = builtIn<FieldProps>('Field')
+export const Table = builtIn<TableProps>('Table')
+export const CardRow = builtIn<CardRowProps>('CardRow')
+export const RecordRow = builtIn<RecordRowProps>('RecordRow')
+export const RecordCards = builtIn<RecordCardsProps>('RecordCards')
+export const Chart = builtIn<ChartProps>('Chart')
+export const Progress = builtIn<ProgressProps>('Progress')
+export const ModalForm = builtIn<ModalFormProps>('ModalForm')
+export const Thread = builtIn<ThreadProps>('Thread')
+export const Composer = builtIn<ComposerProps>('Composer')
+export const Image = builtIn<ImageProps>('Image')
+export const Action = builtIn<ActionProps>('Action')
+export const Show = builtIn<ShowProps>('Show')
+export const Link = builtIn<LinkProps>('Link')
+export const Tabs = builtIn<TabsProps>('Tabs')
+export const Tab = builtIn<TabProps>('Tab')
+export const Settings = builtIn<SettingsProps>('Settings')
+export const Users = builtIn<UsersProps>('Users')
+export const Profile = builtIn<AccountBlockProps>('Profile')
+export const Password = builtIn<AccountBlockProps>('Password')
+export const Passkeys = builtIn<AccountBlockProps>('Passkeys')
+export const TwoFactor = builtIn<AccountBlockProps>('TwoFactor')
+export const ConnectedAccounts = builtIn<AccountBlockProps>('ConnectedAccounts')
 /** The mailboxes the signed-in person links for the app to send mail from (`auth.personalMail`); nothing when the app has none. */
-export const PersonalMail = defineBlock<AccountBlockProps>('PersonalMail', false)
+export const PersonalMail = builtIn<AccountBlockProps>('PersonalMail')
 /** The accounts the signed-in person connects for their workflows' steps to use; nothing when the app's workflow plugins declare no connection. */
-export const Connections = defineBlock<AccountBlockProps>('Connections', false)
-export const Devices = defineBlock<AccountBlockProps>('Devices', false)
-export const ConnectedApps = defineBlock<AccountBlockProps>('ConnectedApps', false)
+export const Connections = builtIn<AccountBlockProps>('Connections')
+export const Devices = builtIn<AccountBlockProps>('Devices')
+export const ConnectedApps = builtIn<AccountBlockProps>('ConnectedApps')
 /** The signed-in person's personal access tokens, for their scripts (`auth.personalAccessTokens`); nothing when the app has none. */
-export const PersonalAccessTokens = defineBlock<AccountBlockProps>('PersonalAccessTokens', false)
-export const DeleteAccount = defineBlock<AccountBlockProps>('DeleteAccount', false)
+export const PersonalAccessTokens = builtIn<AccountBlockProps>('PersonalAccessTokens')
+export const DeleteAccount = builtIn<AccountBlockProps>('DeleteAccount')

@@ -10,13 +10,13 @@ import { propsOf, type BlockProps } from './block-props'
 import { CardFrame, Quiet } from './card-frame'
 import { text } from '../messages'
 
-type LoadedProps = Omit<CardRowProps, 'resource' | 'actions' | 'children'> & { model: ResourceModel; actions: ReactNode; children: ReactNode[] }
+type LoadedProps = Omit<CardRowProps, 'resource' | 'actions' | 'children'> & { model: ResourceModel; actions: ReactNode; children: ReactNode[]; className?: string }
 
-const LoadedCardRow = ({ model, filter, sort, limit = 12, title, description, empty, actions, children }: LoadedProps) => {
+const LoadedCardRow = ({ model, filter, sort, limit = 12, title, description, empty, actions, children, className }: LoadedProps) => {
   const page = useListPage(model, { filter, sort, pageSize: limit })
   const rows = page.data?.items ?? []
   return (
-    <CardFrame title={title} description={description} actions={actions}>
+    <CardFrame title={title} description={description} actions={actions} className={className}>
       {page.isPending ? (
         <div className="flex gap-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24 w-56" />)}</div>
       ) : page.error ? (

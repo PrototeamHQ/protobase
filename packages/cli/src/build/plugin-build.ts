@@ -132,6 +132,8 @@ export type PluginBuildInput = {
   ignore?: string[]
   /** Ends each script with a `//# debugId=` comment, naming no map, and writes its source map, with the same debug id, beside it. */
   sourceMaps?: boolean
+  /** Builds the stylesheet alone, for a folder without a protobase.ui.tsx: its module exports nothing. */
+  stylesOnly?: boolean
 }
 
 /**
@@ -139,9 +141,9 @@ export type PluginBuildInput = {
  * shared modules by name, its stylesheet, and plugin.json naming both and the field types it registers. The app loads
  * it from the plugin.json's URL.
  */
-export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore = [], sourceMaps = false }: PluginBuildInput): Promise<PluginManifest> => {
+export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore = [], sourceMaps = false, stylesOnly = false }: PluginBuildInput): Promise<PluginManifest> => {
   const entry = path.join(pluginDir, pluginEntryFile)
-  if (!existsSync(entry)) throw new Error(`There is no ${pluginEntryFile} in ${pluginDir}; a plugin exports its components and action handlers from it`)
+  if (!stylesOnly && !existsSync(entry)) throw new Error(`There is no ${pluginEntryFile} in ${pluginDir}; a plugin exports its components and action handlers from it`)
   checkOutDir(pluginDir, outDir)
   const own: UiPackageJson = existsSync(path.join(pluginDir, 'package.json')) ? await readPackageJson(pluginDir) : {}
   const pluginName = (name ?? own.name ?? path.basename(pluginDir)).trim()
@@ -165,6 +167,7 @@ export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore 
       ...(bundled ? [bundledImports([projectDir!, pluginDir])] : []),
       ...(projectDir === undefined ? [] : [extensionImports(projectDir, [{ dir: pluginDir }])]),
       pluginStyles(styles, styleCode(pluginDir, target.theme, [outDir, ...ignore])),
+      ...(stylesOnly ? [pluginStyles(entry, 'export {}\n')] : []),
       react(),
       tailwindcss(),
       layeredStyles(),
@@ -193,7 +196,7 @@ export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore 
   const module = output.find((file) => file.type === 'chunk' && file.isEntry && file.facadeModuleId === entry)
   const css = output.find((file) => file.type === 'asset' && file.fileName.endsWith('.css'))
   if (!module || !css) throw new Error('The plugin build wrote no module or no stylesheet')
-  const fields = await pluginFieldTypes({ pluginDir, entry, uiDir: target.uiDir, projectDir, bundled })
+  const fields = stylesOnly ? {} : await pluginFieldTypes({ pluginDir, entry, uiDir: target.uiDir, projectDir, bundled })
   const manifest: PluginManifest = {
     name: pluginName,
     ...(own.version && { version: own.version }),

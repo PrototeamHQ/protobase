@@ -11,7 +11,7 @@ import { CardFrame } from './card-frame'
  * resource whose view has `listOf`, the records the user's saved ones point at; of one with `searchesOf`, a row per
  * saved search of the user's.
  */
-export const RecordRowBlock = ({ node, slots }: BlockProps) => {
+export const RecordRowBlock = ({ node, slots, className }: BlockProps) => {
   const { resource, filter = '', sort, limit, display, title, description, empty } = propsOf<RecordRowProps>(node)
   const { resources, views } = useAdminMeta()
   const model = resources[resource]
@@ -23,7 +23,7 @@ export const RecordRowBlock = ({ node, slots }: BlockProps) => {
     return <RecordRowBody model={model} view={view} filter={filter} sort={sort} limit={limit} display={display} empty={empty} />
   }
   return (
-    <CardFrame title={title} description={description} actions={slots.actions}>
+    <CardFrame title={title} description={description} actions={slots.actions} className={className}>
       {body()}
     </CardFrame>
   )

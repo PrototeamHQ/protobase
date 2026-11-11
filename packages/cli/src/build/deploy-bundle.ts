@@ -13,6 +13,7 @@ import { buildTheme } from './theme'
 import { buildIcons } from './app-icons'
 import { checkUi } from './ui-check'
 import { checkViews } from './view-check'
+import { pagesCarryClasses } from './page-classes'
 import type { Extension } from '../project/extensions'
 import { protobaseFolder } from '../project/protobase-folder'
 import { pinnedNative } from '../mobile/pinned-packages'
@@ -54,7 +55,8 @@ const copyShell = async (publicDir: string, sourceMaps: boolean) => {
 }
 
 // The folder a host deploys: the config module for the serve runtime with the packages it loads from disk; under
-// public/ the prebuilt app (the shell), the project's protobase.ui.tsx and extensions' UI configs as plugins, its
+// public/ the prebuilt app (the shell), the project's protobase.ui.tsx and extensions' UI configs as plugins (the
+// project's as a stylesheet alone when it has no protobase.ui.tsx but its pages carry Tailwind classes), its
 // theme, checked and minified, and its icons; the project's db/migrations as migrations/; and the manifest saying which
 // paths go to the server, which Protobase version the bundle runs on, its plugins, theme, shell and migrations,
 // which icons are the project's own, the native packages the shell runs on in the mobile app, and with a mobile section
@@ -68,14 +70,14 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
   const components = new Set<string>()
   const { native, mobile, notifications } = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
   const mobileSection = bundleMobile(mobile, notifications)
-  await checkViews(projectDir)
+  const pages = await checkViews(projectDir)
   await checkUi(projectDir, extensions, components)
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []
   const publicDir = path.join(outDir, bundleLayout.public)
   const shell = await copyShell(publicDir, sourceMaps)
   const migrations = await copyMigrations({ projectDir, outDir })
   // What Protobase generates in the project, such as the mobile workspace's packages and native projects, is no source of styles.
-  const plugins = await buildBundlePlugins({ projectDir, publicDir, extensions, ignore: [outDir, path.join(projectDir, protobaseFolder)], sourceMaps })
+  const plugins = await buildBundlePlugins({ projectDir, publicDir, extensions, styles: pagesCarryClasses(pages), ignore: [outDir, path.join(projectDir, protobaseFolder)], sourceMaps })
   for (const warning of await buildTheme({ projectDir, outFile: path.join(publicDir, bundleLayout.theme) })) onWarning?.(warning)
   const icons = await buildIcons({ projectDir, publicDir })
   const manifest: BundleManifest = {

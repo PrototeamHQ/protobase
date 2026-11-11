@@ -11,7 +11,7 @@ import { propsOf, type BlockProps } from './block-props'
  * when the action has `confirm` or `inputs`; nothing when the view has no such action for the user, or none for the
  * record. It is drawn as the action's `variant` unless the block names its own.
  */
-export const ActionButton = ({ name, resource, label, variant }: ActionProps) => {
+export const ActionButton = ({ name, resource, label, variant, className }: ActionProps & { className?: string }) => {
   const scope = useLayoutRecord()
   const action = useRunAction(resource ?? scope?.model.name ?? '', name, resource === undefined || resource === scope?.model.name ? scope : undefined)
   const [asking, setAsking] = useState(false)
@@ -22,7 +22,7 @@ export const ActionButton = ({ name, resource, label, variant }: ActionProps) =>
   const start = () => (asksFirst(action.action!) ? setAsking(true) : void action.run())
   return (
     <>
-      <Button size="sm" variant={shown} loading={action.running} disabled={Boolean(action.blocked)} title={action.blocked} onClick={start}>
+      <Button size="sm" variant={shown} className={className} loading={action.running} disabled={Boolean(action.blocked)} title={action.blocked} onClick={start}>
         {text}
       </Button>
       {asking && (
@@ -46,4 +46,4 @@ export const ActionButton = ({ name, resource, label, variant }: ActionProps) =>
 }
 
 /** An Action block: its button. */
-export const ActionBlock = ({ node }: BlockProps) => <ActionButton {...propsOf<ActionProps>(node)} />
+export const ActionBlock = ({ node, className }: BlockProps) => <ActionButton {...propsOf<ActionProps>(node)} className={className} />

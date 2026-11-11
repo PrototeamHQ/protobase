@@ -64,6 +64,7 @@ export type {
   SettingsProps,
   ShowProps,
   GridSpan,
+  Styled,
   StatProps,
   TabProps,
   TableProps,
@@ -71,6 +72,7 @@ export type {
   ThreadProps,
   UsersProps,
 } from './blocks'
+export { Box, Column, Row, Text, type BoxProps, type ColumnProps, type RowProps, type TextAs, type TextProps } from './elements'
 export { component, type ComponentOptions } from './component'
 export { accountBlocks, accountPageName } from './check-account'
 export { settingsFields, settingsResources, withSettingsFields } from './settings'

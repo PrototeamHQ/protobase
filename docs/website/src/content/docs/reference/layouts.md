@@ -115,6 +115,35 @@ a.link('open_table', { label: 'Open table', to: { kind: 'list', resource: '{name
 
 The button shows only while the app gives the user a resource of that name: on a record whose field is empty, or names a resource the user cannot see or the app does not serve yet, it is left out, and it shows once `/meta` names it. As the resource is known only when the link is followed, such an address takes no filter, order or create values, which the server refuses when it starts; a record's `key` may still be a `{field}`.
 
+## Tailwind classes
+
+:::caution[Experimental]
+Only the web draws the classes: a client that draws natively draws each element without them. A page built while the app runs, such as a bot's card or an assistant's page, takes no classes yet. This may change in any release.
+:::
+
+Some pages are too custom for the blocks, such as a welcome page in the app's own style. For those, every built-in element takes `className`, Tailwind classes as in your components, and the plain elements [`Box`, `Row`, `Column` and `Text`](/reference/blocks/#box-row-column-and-text) build the page from the ground up, with [`Link`](/reference/blocks/#link) and a fixed [`Image`](/reference/blocks/#image) for links and pictures. Blocks stay the better choice where one fits: they bring data, access and every client along.
+
+```tsx
+<Page title="Welcome">
+  <Column className="gap-6 rounded-2xl bg-primary/10 p-8">
+    <Text as="h2" className="text-3xl font-semibold tracking-tight">
+      Good to see you, <Text as="span" className="text-primary-text">team</Text>
+    </Text>
+    <Row className="flex-wrap items-center gap-3">
+      <Image src="/logo.svg" alt="" className="size-10" />
+      <Text className="text-muted-foreground">Start with the orders that wait for you.</Text>
+      <Link to={{ kind: 'list', resource: 'orders' }} variant="primary">Open orders</Link>
+    </Row>
+  </Column>
+  <Table resource="orders" className="shadow-sm" />
+</Page>
+```
+
+- **Where the CSS comes from.** The classes get CSS where those of your components do: Tailwind scans the project's files, layouts included, in `protobase dev` and in `protobase build`, which gives an app without a `protobase.ui.tsx` a stylesheet of its own when its pages carry classes. Write each class out in full, such as `bg-primary`, never pieced together from parts, since the scan reads the files as text. Theme tokens such as `bg-primary` and `text-muted-foreground` follow the app's [theme](/reference/theme/). <gap>A layout of an `--extend` folder without its own `protobase.ui.tsx` cannot get CSS for its classes in a built app because building a stylesheet for such a folder is not implemented.</gap>
+- **On a plain element** the classes are its whole look: a `Row` is only `flex`, a `Column` only `flex flex-col`, and a `Box` and a `Text` nothing. A `Link` or a fixed `Image` with classes drops its own look for them; a `Link` with a `variant` looks like a button of the app, hover and focus included, and its classes add to that.
+- **On a block** they go on its outer element, such as a `Card`'s box, and add to its look. An `Action` puts them on its button, and a `Show` on a `div` around its children while it shows them; an [account block](/reference/blocks/#account-blocks), which draws no element of its own, gets a `div` around it that carries them. <gap>A class cannot change what a block's own look already sets, such as its padding, because ordering layout classes after the framework's own is not implemented.</gap>
+- **In `/api/meta`** each `className` arrives as written, a prop like any other. A client that cannot use Tailwind classes draws the element without them, so a page reads everywhere when its words are in `Text` and its data in blocks.
+
 ## Addresses
 
 Every place in the app has an address, and the app writes and reads them in one way, so no link or component spells out a path:
@@ -139,6 +168,6 @@ Every block reads the regular API with the user's token, so the access rules app
 - `Field`, `Progress` and `Stat field` on a field they cannot read are left out, and table columns are narrowed;
 - `ModalForm` needs create or update permission and keeps only the fields they may write;
 - an `Action` missing from their view of the resource is left out, and so is a `Show` that names something they cannot see.
-- an `Image` whose function they may not call is left out.
+- an `Image` whose function they may not call is left out; a fixed one (`src`) is kept.
 
 Custom components are kept: they get only their props, and fetch through the same API. A custom component's fallback loses what the user cannot use like the rest of the tree, and a fallback left with nothing is sent as `[]`, so a client still draws nothing in the component's place.

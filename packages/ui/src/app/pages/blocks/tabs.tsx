@@ -11,7 +11,7 @@ import { text } from '../messages'
  * order), so the others load nothing. On a phone they are a select. A name the page has no tab for, such as one the
  * user may not see, says so under the tabs.
  */
-export const TabsBlock = ({ node, children }: BlockProps) => {
+export const TabsBlock = ({ node, children, className }: BlockProps) => {
   const { tab: named, pathOf } = usePageTabsRoute()
   const { navigate } = useRouter()
   const tabs = tabsOf(node)
@@ -19,7 +19,7 @@ export const TabsBlock = ({ node, children }: BlockProps) => {
   // The first tab is at the page's own address
   const path = (name: string) => pathOf(name === tabs[0]?.name ? undefined : name)
   return (
-    <div className="flex flex-col gap-6">
+    <div className={cn('flex flex-col gap-6', className)}>
       <select aria-label={text('tabs')} value={shown?.name ?? ''} onChange={(event) => navigate(path(event.target.value))} className="h-9 rounded-md border border-border-strong bg-background px-2 font-medium md:hidden">
         {!shown && <option value="" disabled />}
         {tabs.map((tab) => (

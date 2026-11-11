@@ -115,7 +115,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
       }
       break
     case 'Image':
-      if (functions && !functions.has(String(node.props.function))) problems.push(`no function "${node.props.function}"; add functions/${node.props.function}.ts`)
+      if (functions && node.props.function !== undefined && !functions.has(String(node.props.function))) problems.push(`no function "${node.props.function}"; add functions/${node.props.function}.ts`)
       break
     case 'Link':
       if (node.props.to !== undefined) problems.push(...addressErrors(node.props.to as AppAddress, { models, pages, source: linkSource(models, scope), createPages }).map((error) => `to: ${error}`))

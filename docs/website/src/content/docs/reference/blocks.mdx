@@ -6,7 +6,7 @@ description: Every built-in layout block, its props and what it does, with examp
 import { Code } from '@astrojs/starlight/components'
 import erpPage from '../../../../../../tests/apps/erp/config/overview/page.tsx?raw'
 
-Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. The ERP example's sales overview uses `Page`, `Grid`, `Card`, `Stat`, `Table`, `RecordCard`, `CardRow`, `Field`, `Chart`, `Action`, `ModalForm` and `Show`; of the others, the property portal's home uses `RecordRow`, and the [Users page](/reference/auth/#users-page) `Users`:
+Blocks are imported from `@protobase/layout`. Every block also takes [`className`](/reference/layouts/#tailwind-classes), Tailwind classes for its outer element. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. The ERP example's sales overview uses `Page`, `Grid`, `Card`, `Stat`, `Table`, `RecordCard`, `CardRow`, `Field`, `Chart`, `Action`, `ModalForm` and `Show`; of the others, the property portal's home uses `RecordRow`, and the [Users page](/reference/auth/#users-page) `Users`:
 
 <Code code={erpPage} lang="tsx" title="tests/apps/erp/config/overview/page.tsx" />
 
@@ -63,7 +63,7 @@ A box with a heading. Text and `Link`s inside it run together as paragraphs.
 
 ### Link
 
-A link in text: `to` an address in the app, or an `href` that leaves it (`https:` opens in a new tab, `mailto:` in the mail app). Its text is its children.
+A link in text: `to` an address in the app, or an `href` that leaves it (`https:` opens in a new tab, `mailto:` in the mail app). Its text is its children. With [`className`](/reference/layouts/#tailwind-classes) it drops its own look for those classes.
 
 ```tsx
 <Link to={{ kind: 'list', resource: 'invoices', filter: "status = 'overdue'" }}>Overdue invoices</Link>
@@ -73,8 +73,27 @@ A link in text: `to` an address in the app, or an `href` that leaves it (`https:
 | --- | --- |
 | `to` | An [address](/reference/layouts/#addresses). Inside a record, `{field}` in its key, filter or order is the record's value. |
 | `href` | A link that leaves the app. A path in the app is refused when the config loads: give it as `to`. |
+| `variant` | `primary`, `secondary`, `danger` or `ghost`: drawn as a button of that variant, still a link. `className` adds to it, such as `w-full`. |
 
 One of the two is required. A link to a resource or field the user cannot see is left out of their page.
+
+### Box, Row, Column and Text
+
+Plain elements for a page too custom for the blocks, drawn by their [Tailwind classes](/reference/layouts/#tailwind-classes) alone.
+
+| Element | |
+| --- | --- |
+| `Box` | An element of its own, such as a panel or a banner. No look of its own. |
+| `Row` | Its children side by side: `flex`. |
+| `Column` | Its children one under another: `flex flex-col`. |
+| `Text` | Text, `Link`s and `Text as="span"`s in it, nothing else, run as one line. `as` makes it `p` (the default), `span`, or a heading `h1` to `h4`. |
+
+```tsx
+<Row className="items-center gap-3">
+  <Box className="size-3 rounded-full bg-success" />
+  <Text as="span" className="font-medium">All systems running</Text>
+</Row>
+```
 
 ### Tabs and Tab
 
@@ -255,7 +274,15 @@ A bar for `value` out of `max`, with both numbers. It turns amber from 90%.
 
 ### Image
 
-A picture an [API function](/guides/api-functions/) draws, such as a system map: the block calls `GET /api/functions/<function>` with the reader's token, and draws the image it answers with, such as a PNG. The query says what to draw:
+A fixed picture at `src`, or one an [API function](/guides/api-functions/) draws.
+
+A fixed picture is an `https:` URL or a path on the app's own origin, such as `/logo.svg`, with an `alt` it needs: what it shows, or `alt=""` when it only decorates. It is drawn as a plain image at its `width` and `height`, never wider than its space; with [`className`](/reference/layouts/#tailwind-classes) its classes are its whole look instead. Every reader gets it, and it takes no `refresh`.
+
+```tsx
+<Image src="/logo.svg" alt="Acme" className="size-12 rounded-full" />
+```
+
+A function's picture, such as a system map: the block calls `GET /api/functions/<function>` with the reader's token, and draws the image it answers with, such as a PNG. The query says what to draw:
 
 | Query | |
 | --- | --- |
@@ -265,7 +292,8 @@ A picture an [API function](/guides/api-functions/) draws, such as a system map:
 
 | Prop | |
 | --- | --- |
-| `function` | The function's name, as in `functions/<function>.ts`. Required; the server stops at startup when the app has no such function. |
+| `function` | The function's name, as in `functions/<function>.ts`; the server stops at startup when the app has no such function. |
+| `src` | A fixed picture instead. One of `function` and `src` is required. |
 | `alt` | What the picture shows, for screen readers and for clients that draw no images. |
 | `width`, `height` | The size it is drawn at, in CSS pixels. |
 | `refresh` | Every how many seconds the client asks for the picture again, keeping the last one on screen while the next loads; once when omitted. Regaining window focus never asks again. |

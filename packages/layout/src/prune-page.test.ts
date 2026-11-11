@@ -129,6 +129,11 @@ describe('prunePage', () => {
     expect(types(prunePage(page, [], access()))).toEqual(['Page'])
   })
 
+  it('keeps a fixed image for everyone', () => {
+    const page: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: [Image({ src: '/logo.svg', alt: 'Logo', className: 'size-16' })] }) }
+    expect(prunePage(page, [], access())?.tree.children).toEqual([Image({ src: '/logo.svg', alt: 'Logo', className: 'size-16' })])
+  })
+
   it('leaves out conditions about things the caller cannot see', () => {
     expect(types(prunePage(billing.toModel(), [], access({ models: restricted({}, {}, ['paymentMethods']) })))).not.toContain('Show')
     const page: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: Show({ when: 'invoices.count > 0', children: 'x' }) }) }

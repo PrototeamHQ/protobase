@@ -43,7 +43,7 @@ describe('page', () => {
   it('names unknown, missing and mistyped props', () => {
     const tree: LayoutNode = { type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { colums: ['a'], limit: 0 }, children: [] }] }
     expect(problems(tree)).toEqual([
-      '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, button, limit, display, empty, span',
+      '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, button, limit, display, empty, span, className',
       '<Page> › <Table>: "resource" is required',
       '<Page> › <Table>: "limit" must be a positive whole number',
     ])
@@ -70,7 +70,7 @@ describe('page', () => {
     expect(problems(table({ limit: 8, display: 'cards' }))).toEqual([])
     expect(problems(table({ display: 3 }))).toEqual(['<Page> › <Table resource="listings">: "display" must be text'])
     expect(problems(table({ pageSize: 8 }))).toEqual([
-      '<Page> › <Table resource="listings">: unknown prop "pageSize"; it takes resource, filter, sort, title, description, actions, columns, button, limit, display, empty, span',
+      '<Page> › <Table resource="listings">: unknown prop "pageSize"; it takes resource, filter, sort, title, description, actions, columns, button, limit, display, empty, span, className',
     ])
   })
 
@@ -80,10 +80,24 @@ describe('page', () => {
     expect(problems(table({ label: 'Open' }))).toEqual(['<Page> › <Table resource="tasks">: "button" must be a button, such as { label: \'Open\', to: { kind: \'record\', resource: \'orders\', key: \'{id}\' } }'])
   })
 
-  it('takes an Image as a function and an optional alt, size and refresh in whole numbers', () => {
+  it('takes an Image as a function or a fixed src, and an optional alt, size and refresh in whole numbers', () => {
     const image = (props: Record<string, LayoutValue>): LayoutNode => ({ type: 'Page', props: { title: 'x' }, children: [{ type: 'Image', props, children: [] }] })
+    const one = '<Page> › <Image>: takes exactly one of "function" (an API function draws it) and "src" (a fixed picture)'
     expect(problems(image({ function: 'system-map', alt: 'The system map', width: 320, height: 240, refresh: 60 }))).toEqual([])
-    expect(problems(image({ alt: 'x', width: 1.5 }))).toEqual(['<Page> › <Image>: "function" is required', '<Page> › <Image>: "width" must be a positive whole number'])
+    expect(problems(image({ src: '/logo.svg', alt: 'Logo', width: 64 }))).toEqual([])
+    expect(problems(image({ src: 'https://example.com/hero.jpg', alt: '' }))).toEqual([])
+    expect(problems(image({ src: '/logo.svg' }))).toEqual(['<Page> › <Image>: "alt" is required with "src": describe what it shows, or write alt="" when it only decorates'])
+    expect(problems(image({ alt: 'x', width: 1.5 }))).toEqual(['<Page> › <Image>: "width" must be a positive whole number', one])
+    expect(problems(image({ function: 'system-map', src: '/logo.svg' }))).toEqual([one])
+  })
+
+  it("wants a fixed Image's src on https or the app's own origin, and no refresh", () => {
+    const image = (props: Record<string, LayoutValue>): LayoutNode => ({ type: 'Page', props: { title: 'x' }, children: [{ type: 'Image', props, children: [] }] })
+    const where = '<Page> › <Image>: "src" must be an https: URL or a path on the app\'s own origin, such as /logo.svg'
+    expect(problems(image({ src: 'http://example.com/a.png', alt: '' }))).toEqual([where])
+    expect(problems(image({ src: '//example.com/a.png', alt: '' }))).toEqual([where])
+    expect(problems(image({ src: 'javascript:alert(1)', alt: '' }))).toEqual([where])
+    expect(problems(image({ src: '/a.png', alt: '', refresh: 60 }))).toEqual(['<Page> › <Image>: "refresh" is for a function\'s picture; a fixed "src" does not change'])
   })
 
   it('refuses children on blocks that take none, and unknown blocks', () => {

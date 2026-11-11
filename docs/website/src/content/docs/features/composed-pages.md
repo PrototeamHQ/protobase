@@ -10,6 +10,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [Component fallbacks](/reference/custom-components/#fallbacks): A custom component declares what a client that cannot draw it shows instead, or nothing, and the web shows it too when the component is missing or throws.
 - [Per-user pages](/reference/layouts/#access): Each user gets the page without the parts, fields and actions they cannot use.
 - [Layout blocks](/reference/blocks/#layout): Pages, responsive grids, cards and links.
+- [Tailwind classes](/reference/layouts/#tailwind-classes) (experimental): Layouts can carry Tailwind classes, on plain elements and on blocks, for pages too custom for blocks.
 - [Full-width pages](/reference/blocks/#page): A page fills the whole area beside the sidebar instead of a centred column, for a dashboard with many blocks.
 - [Data blocks](/reference/blocks/#data): Counts, tables, single records, rows of cards, field values and progress bars.
 - [Row buttons](/reference/blocks/#row-buttons): A table's rows carry a button to an address their fields name, such as a task's tab, labelled by a field of the row, such as its next step.

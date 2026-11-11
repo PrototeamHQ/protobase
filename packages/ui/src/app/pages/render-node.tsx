@@ -23,6 +23,7 @@ import { StatBlock } from './blocks/stat'
 import { TableBlock } from './blocks/table'
 import { TabBlock, TabsBlock } from './blocks/tabs'
 import { ThreadBlock } from './blocks/thread'
+import { BoxBlock, ColumnBlock, RowBlock, TextBlock } from './blocks/plain'
 import { UsersBlock } from '../../users/users-block'
 import { ConnectedAccountsBlock } from '../../account/blocks/connected-accounts-block'
 import { PersonalMailBlock } from '../../account/blocks/personal-mail-block'
@@ -75,9 +76,19 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   ConnectedApps: ConnectedAppsBlock,
   PersonalAccessTokens: PersonalAccessTokensBlock,
   DeleteAccount: DeleteAccountBlock,
+  Box: BoxBlock,
+  Row: RowBlock,
+  Column: ColumnBlock,
+  Text: TextBlock,
 }
 
-const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && child.type === 'Link')
+// The blocks that put their classes on an element of their own; the others draw none, or several, and get a <div> for them.
+const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Action', 'Box', 'Row', 'Column', 'Text'])
+
+const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && (child.type === 'Link' || (child.type === 'Text' && child.props.as === 'span')))
+
+/** Text and links as they run in one line. */
+const renderInline = (run: LayoutChild[]) => run.map((child, position) => (typeof child === 'string' ? <Fragment key={position}>{child}</Fragment> : <RenderNode key={position} node={child} />))
 
 /** Text and links run together as one paragraph, like a sentence with a link in it; other elements stand alone. */
 const renderChildren = (children: LayoutChild[]) => {
@@ -92,7 +103,7 @@ const renderChildren = (children: LayoutChild[]) => {
     if (!isInline(first!)) return <RenderNode key={index} node={first as LayoutNode} />
     return (
       <p key={index} className="leading-6">
-        {run.map((child, position) => (typeof child === 'string' ? <Fragment key={position}>{child}</Fragment> : <RenderNode key={position} node={child} />))}
+        {renderInline(run)}
       </p>
     )
   })
@@ -118,9 +129,13 @@ export const RenderNode = ({ node }: { node: LayoutNode }) => {
   }
   const Block = blocks[node.type]
   if (!Block) return <Problem>{text.rich('unknownBlock', { type: node.type })}</Problem>
-  return (
-    <Block node={node} slots={renderSlots(node)}>
-      {renderChildren(node.children)}
+  const className = typeof node.props.className === 'string' ? node.props.className : undefined
+  // A Text is one line: its text and links run inline, in no paragraph of their own
+  const block = (
+    <Block node={node} slots={renderSlots(node)} className={className}>
+      {node.type === 'Text' ? renderInline(node.children) : renderChildren(node.children)}
     </Block>
   )
+  return className === undefined || ownClasses.has(node.type) ? block : <div className={className}>{block}</div>
+
 }
