@@ -64,7 +64,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     return (await response.json()) as { id: number }
   }
   const state = async (id: number) =>
-    (await sql<{ verdict: string | null; xmin: string; status: string; computed_at: Date }>`select o.verdict, o.xmin::text as xmin, v.status, v.computed_at from objectives o
+    (await sql<{ verdict: string | null; xmin: string; status: string; version: string; computed_at: Date }>`select o.verdict, o.xmin::text as xmin, v.status, v.version::text as version, v.computed_at from objectives o
       join derived.values v on v.name = 'objectives.verdict' and v.key = o.id::text where o.id = ${id}`.execute(db)).rows[0]
   const settled = (id: number, value: string) => vi.waitFor(async () => {
     const found = await state(id)
@@ -108,6 +108,16 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
       expect(found).toMatchObject({ verdict: 'done', status: 'current' })
       expect(found!.computed_at.getTime()).toBeGreaterThan(before.computed_at.getTime())
     }, { timeout: 20_000, interval: 100 })
+  })
+
+  it('gives a record deleted and made again a version its old runs never had', async () => {
+    const objective = await post('objectives', { title: 'Again' })
+    const before = await settled(objective.id, 'done')
+    await sql`delete from objectives where id = ${objective.id}`.execute(db)
+    await vi.waitFor(async () => expect(await sql`select 1 from derived.values where name = 'objectives.verdict' and key = ${String(objective.id)}`.execute(db)).toMatchObject({ rows: [] }), { timeout: 20_000, interval: 100 })
+    await sql`insert into objectives (id, title) overriding system value values (${objective.id}, 'Again')`.execute(db)
+    const after = await settled(objective.id, 'done')
+    expect(BigInt(after.version)).toBeGreaterThan(BigInt(before.version))
   })
 
   it('computes again when a time check flips', async () => {

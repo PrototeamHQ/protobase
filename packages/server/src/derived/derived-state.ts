@@ -9,11 +9,13 @@ export type ValueRef = { name: string; key: string }
 
 const pairs = (refs: readonly ValueRef[]) => sql`unnest(${refs.map((ref) => ref.name)}::text[], ${refs.map((ref) => ref.key)}::text[]) as t("name", "key")`
 
-/** Marks the records' values stale, a record without one yet too, and moves each one's version on. */
+const nextVersion = sql`nextval('"derived"."versions"')`
+
+/** Marks the records' values stale, a record without one yet too, each with a version none had before. */
 export const markStale = async (db: Db, refs: readonly ValueRef[]) => {
   if (refs.length === 0) return
-  await sql`insert into "derived"."values" ("name", "key", "status", "version") select t."name", t."key", 'stale', 1 from ${pairs(refs)}
-    on conflict ("name", "key") do update set "status" = 'stale', "version" = "values"."version" + 1`.execute(db)
+  await sql`insert into "derived"."values" ("name", "key", "status", "version") select t."name", t."key", 'stale', ${nextVersion} from ${pairs(refs)}
+    on conflict ("name", "key") do update set "status" = 'stale', "version" = ${nextVersion}`.execute(db)
 }
 
 /** Drops the values of records that are gone, and what they read. */
@@ -25,7 +27,7 @@ export const forget = async (db: Db, refs: readonly ValueRef[]) => {
 
 /** Marks the value recalculating and returns its version, the one the result is for. */
 export const claim = async (db: Db, { name, key }: ValueRef) =>
-  (await sql<{ version: string }>`insert into "derived"."values" ("name", "key", "status", "version") values (${name}, ${key}, 'recalculating', 1)
+  (await sql<{ version: string }>`insert into "derived"."values" ("name", "key", "status", "version") values (${name}, ${key}, 'recalculating', ${nextVersion})
     on conflict ("name", "key") do update set "status" = 'recalculating' returning "version"::text as version`.execute(db)).rows[0]!.version
 
 /**

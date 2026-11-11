@@ -23,12 +23,14 @@ const indexes = [
 ] as const
 
 /**
- * `values`, a row per record of a derived value: whether it is current, stale or recalculating, `version` growing with
- * every change that made it stale, the value as JSON, and when it was computed and when its clock flips next. `reads`,
+ * `values`, a row per record of a derived value: whether it is current, stale or recalculating, `version` taken from
+ * the `versions` sequence by every change that made it stale, so a record deleted and made again never reuses one, the value as JSON, and when it was computed and when its clock flips next. `reads`,
  * a row per read it depends on, with an equality every matching row has (`eq_field`, `eq_value`) when it has one, which
  * the index finds a change's candidates by. `declared`, the derived values whose records the migrations have filled.
  */
 export const derivedTablesSql = () => `create schema if not exists "${derivedSchema}";
+
+create sequence if not exists "${derivedSchema}"."versions";
 
 create table if not exists "${derivedSchema}"."values" (
   "name" text not null,
@@ -57,7 +59,7 @@ ${indexes.map(([name, on]) => `create index if not exists "${name}" on "${derive
 
 // Only reads the catalogue.
 const hasTables = async (db: Db) =>
-  (await sql<{ found: boolean }>`select to_regclass('derived.values') is not null and to_regclass('derived.reads') is not null and to_regclass('derived.declared') is not null as found`.execute(db)).rows[0]!.found
+  (await sql<{ found: boolean }>`select to_regclass('derived.versions') is not null and to_regclass('derived.values') is not null and to_regclass('derived.reads') is not null and to_regclass('derived.declared') is not null as found`.execute(db)).rows[0]!.found
 
 const declared = async (db: Db) => new Set((await sql<{ name: string }>`select "name" from "derived"."declared"`.execute(db)).rows.map((row) => row.name))
 
