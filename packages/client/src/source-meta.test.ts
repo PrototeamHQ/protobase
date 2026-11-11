@@ -17,9 +17,9 @@ const ticketsView = view<typeof tickets>('tickets')
     l.related('Notes', { resource: 'notes', field: 'ticket_id', columns: ['body', 'agent_id.name'] }),
     l.related('Same customer', { resource: 'customers', field: 'id' }),
     l.group('More', [l.related('Elsewhere', { resource: 'customers', field: 'id' })], { collapsed: true }),
-    l.group('Notes again', [l.related('Notes too', { resource: 'notes', field: 'ticket_id' })]),
+    l.group('Notes again', [l.related('Notes too', { resource: 'notes', field: 'ticket_id', button: { label: 'Agent', to: { kind: 'record', resource: 'agents', key: '{agent_id}' } } })]),
     l.tab('Gone', [l.related('Elsewhere too', { resource: 'customers', field: 'id' })]),
-    l.tab('Kept', [l.related('Notes in a tab', { resource: 'notes', field: 'ticket_id' }), l.related('Elsewhere in a tab', { resource: 'customers', field: 'id' })]),
+    l.tab('Kept', [l.related('Notes in a tab', { resource: 'notes', field: 'ticket_id', button: { label: 'Ticket', to: { kind: 'record', resource: 'tickets', key: '{ticket_id}' } } }), l.related('Elsewhere in a tab', { resource: 'customers', field: 'id' })]),
   ])
   .actions((a) => [
     a.link('notes', { label: 'Notes', to: { kind: 'list', resource: 'notes', filter: 'ticket_id = {id}' } }),
@@ -56,13 +56,13 @@ describe('sourceMeta', () => {
     expect(notesModel!.fields.ticket_id!.relation).toEqual({ resource: 'tickets', columns: ['ticket_id'] })
   })
 
-  it('leaves out related records, columns and links that lead out of the source', () => {
+  it('leaves out related records, columns, row buttons and links that lead out of the source', () => {
     const [ticketsView] = drawn.views
     expect(ticketsView!.layout).toEqual([
       { kind: 'section', title: 'Ticket', fields: ['title', 'customer_id'] },
       { kind: 'related', title: 'Notes', resource: 'notes', field: 'ticket_id', columns: ['body'] },
       { kind: 'group', title: 'Notes again', items: [{ kind: 'related', title: 'Notes too', resource: 'notes', field: 'ticket_id' }] },
-      { kind: 'tab', title: 'Kept', items: [{ kind: 'related', title: 'Notes in a tab', resource: 'notes', field: 'ticket_id' }] },
+      { kind: 'tab', title: 'Kept', items: [{ kind: 'related', title: 'Notes in a tab', resource: 'notes', field: 'ticket_id', button: { label: 'Ticket', to: { kind: 'record', resource: 'tickets', key: '{ticket_id}' } } }] },
     ])
     expect(ticketsView!.actions.map((action) => action.name)).toEqual(['notes', 'web', 'close'])
   })

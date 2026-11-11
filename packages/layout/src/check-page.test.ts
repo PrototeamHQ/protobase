@@ -31,6 +31,16 @@ describe('pageProblems', () => {
     expect(pageProblems(billing.toModel(), input)).toEqual([])
   })
 
+  it("checks a table's row button against its rows and the pages", () => {
+    const table = (button: unknown) => model(Page({ title: 'x', children: Table({ resource: 'invoices', button: button as never }) }))
+    expect(pageProblems(table({ label: '{status}', to: { kind: 'record', resource: 'invoices', key: '{id}', tab: 'Payments' } }), input)).toEqual([])
+    expect(pageProblems(table({ label: '{verb}', to: { kind: 'page', page: 'today' } }), { ...input, pages: new Set() })).toEqual([
+      '<Page> › <Table resource="invoices">: button: label: "{verb}" is not a field of invoices',
+      '<Page> › <Table resource="invoices">: button: to: unknown page "today"',
+    ])
+    expect(pageProblems(table('Open'), input)).toEqual(["<Page> › <Table resource=\"invoices\">: button: a row button is { label, to }, such as { label: 'Open', to: { kind: 'record', resource: 'tasks', key: '{id}' } }"])
+  })
+
   it('names unknown resources, filter and sort errors, columns and fields', () => {
     const tree = Page({
       title: 'x',

@@ -88,6 +88,16 @@ describe('prunePage', () => {
     expect(find(prunePage(page, [], access({ models: restricted({ invoices: ['total'] }) })), 'Table')!.props).toEqual({ resource: 'invoices' })
   })
 
+  it("drops a table's row button that reads a hidden field or leads where the caller cannot go", () => {
+    const button = { label: '{status}', to: { kind: 'record' as const, resource: 'invoices', key: '{id}', tab: 'Payments' } }
+    const page: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: Table({ resource: 'invoices', button }) }) }
+    const shown = (models: CallerAccess['models']) => find(prunePage(page, [], access({ models })), 'Table')!.props
+    expect(shown(restricted({}))).toEqual({ resource: 'invoices', button })
+    expect(shown(restricted({ invoices: ['status'] }))).toEqual({ resource: 'invoices' })
+    const elsewhere: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: Table({ resource: 'invoices', button: { label: 'Plan', to: { kind: 'list', resource: 'plans' } } }) }) }
+    expect(find(prunePage(elsewhere, [], access({ models: restricted({}, {}, ['plans']) })), 'Table')!.props).toEqual({ resource: 'invoices' })
+  })
+
   it('leaves out elements whose filter or sort names a hidden field', () => {
     const pruned = prunePage(billing.toModel(), [], access({ models: restricted({ invoices: ['number'], paymentMethods: ['isDefault'] }) }))
     expect(types(pruned)).not.toContain('Table')

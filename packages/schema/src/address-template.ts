@@ -19,11 +19,16 @@ const templated = (to: AppAddress): string[] => {
 /** The fields whose values a link's address takes from the record, from its `{field}` placeholders. */
 export const addressPlaceholders = (to: AppAddress) => [...new Set(templated(to).flatMap(names))]
 
-/** The fields an href takes from the record, from its `{field}` placeholders. */
-export const hrefPlaceholders = (href: string) => [...new Set(names(href))]
+/** The fields a text, such as an href or a label, takes from the record, from its `{field}` placeholders. */
+export const textPlaceholders = (text: string) => [...new Set(names(text))]
 
-const fill = (text: string, record: Record<string, unknown>) =>
-  text.replace(placeholder, (_, name: string) => (record[name] === null || record[name] === undefined ? '' : String(record[name])))
+/** The fields an href takes from the record, from its `{field}` placeholders. */
+export const hrefPlaceholders = textPlaceholders
+
+/** `text` with every `{field}` replaced by `value(field)`, such as a button's label by the row's values as shown. */
+export const fillText = (text: string, value: (name: string) => string) => text.replace(placeholder, (_, name: string) => value(name))
+
+const fill = (text: string, record: Record<string, unknown>) => fillText(text, (name) => (record[name] === null || record[name] === undefined ? '' : String(record[name])))
 
 /** `to` with every `{field}` in its resource, key, run, panel, filter, order or values replaced by the record's value; a missing value becomes empty. */
 export const fillAddress = (to: AppAddress, record: Record<string, unknown> = {}): AppAddress => {

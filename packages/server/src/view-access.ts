@@ -5,7 +5,7 @@ import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentEr
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { recordChartErrors } from './view-record-chart'
-import { openErrors, relatedSectionErrors } from './view-related'
+import { openErrors, relatedButtonErrors, relatedSectionErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { searchesOfFor } from './view-saved-search'
 import { actionWhenFields } from './view-action-when'
@@ -13,14 +13,15 @@ import { actionWhenFields } from './view-action-when'
 type Of<U, K extends string> = Extract<U, { kind: K }>
 
 // Columns narrow to what the caller can read; a section whose resources, fields, filter or sort they cannot use goes.
-// An `open` the caller cannot use goes; the rows then open their own records.
+// An `open` the caller cannot use goes; the rows then open their own records. So does a `button` they cannot follow.
 const pruneRelated = (item: RelatedModel, resource: string, models: Record<string, ResourceModel>): RelatedModel | undefined => {
   if (isRecordCondition(item.when) && !conditionReadable(item.when, resource, models)) return undefined
-  const { columns, open, ...rest } = item
+  const { columns, open, button, ...rest } = item
   const visible = models[item.resource] ? columns?.filter((column) => resolveFieldPath(models, item.resource, column).ok) : undefined
   const narrowed: RelatedModel = visible && visible.length > 0 ? { ...rest, columns: visible } : rest
   const opened = open !== undefined && openErrors({ ...narrowed, open }, models).length === 0 ? { ...narrowed, open } : narrowed
-  return relatedSectionErrors(opened, resource, models).length === 0 ? opened : undefined
+  const buttoned = button !== undefined && relatedButtonErrors({ ...opened, button }, models).length === 0 ? { ...opened, button } : opened
+  return relatedSectionErrors(buttoned, resource, models).length === 0 ? buttoned : undefined
 }
 
 // A chart keeps the series the caller can read, and goes with none left or when they cannot use the rest.

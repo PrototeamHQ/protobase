@@ -1,4 +1,4 @@
-import type { ViewModel } from '@protobase/schema'
+import type { RowButtonModel, ViewModel } from '@protobase/schema'
 import { recordKey } from '../../live/model-helpers'
 import { Skeleton } from '../../primitives/skeleton'
 import { useAdminMeta } from '../meta-gate'
@@ -8,6 +8,7 @@ import { FieldValue } from '../pages/field-value'
 import { RecordScope, type LayoutRecord } from '../pages/record-scope'
 import { usePathValue } from '../pages/use-path-value'
 import { useRecordTitle } from '../titles/record-titles'
+import { RowButtonLink } from '../row-button/row-button-link'
 import { AppLink } from '../use-app-address'
 import { Clamped } from './clamped'
 
@@ -30,10 +31,10 @@ const CardField = ({ scope, path }: { scope: LayoutRecord; path: string }) => {
 }
 
 /**
- * A related record as a card: its title linking to its page, its `fields` under their labels and the buttons of its
- * view's `actions`, run on it as everywhere else.
+ * A related record as a card: its title linking to its page, its `fields` under their labels, the buttons of its
+ * view's `actions`, run on it as everywhere else, and `button`, a link to the address its fields name.
  */
-export const RelatedCard = ({ scope, view, fields, actions }: { scope: LayoutRecord; view: ViewModel | undefined; fields: string[]; actions: string[] }) => {
+export const RelatedCard = ({ scope, view, fields, actions, button }: { scope: LayoutRecord; view: ViewModel | undefined; fields: string[]; actions: string[]; button?: RowButtonModel }) => {
   const titleOf = useRecordTitle()
   return (
     <li className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4">
@@ -45,9 +46,10 @@ export const RelatedCard = ({ scope, view, fields, actions }: { scope: LayoutRec
           {fields.map((path) => <CardField key={path} scope={scope} path={path} />)}
         </dl>
       )}
-      {actions.length > 0 && (
+      {(actions.length > 0 || button) && (
         <RecordScope value={scope}>
           <div className="flex flex-wrap items-center gap-2">
+            {button && <RowButtonLink button={button} model={scope.model} view={view} record={scope.record} />}
             {actions.map((name) => <ActionButton key={name} name={name} />)}
           </div>
         </RecordScope>

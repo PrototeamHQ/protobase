@@ -1,6 +1,6 @@
 import { resolveFieldPath } from '@protobase/layout'
 import type { ActionModel, FieldModel, GroupItemModel, LayoutItemModel, ResourceModel, TabItemModel, ViewModel } from '@protobase/schema'
-import { addressErrors } from '@protobase/schema/internal'
+import { addressErrors, rowButtonErrors } from '@protobase/schema/internal'
 import type { Meta, ResourcePermissions, SourceRef } from './types'
 
 /** What the app draws of a source: the resources it lists that the user may see there, their views and what the user may do. */
@@ -19,7 +19,8 @@ const withinSource = (model: ResourceModel, drawn: Record<string, ResourceModel>
   ),
 })
 
-// Related records of a resource the app does not draw go, and so do columns that go through a relation out of the source.
+// Related records of a resource the app does not draw go, and so do columns that go through a relation out of the source
+// and a row button that leads out of it.
 const keptLayoutItem = (item: LayoutItemModel, models: Record<string, ResourceModel>): LayoutItemModel[] => {
   if (item.kind === 'group') {
     const items = item.items.flatMap((inner) => keptLayoutItem(inner, models)) as GroupItemModel[]
@@ -31,9 +32,10 @@ const keptLayoutItem = (item: LayoutItemModel, models: Record<string, ResourceMo
   }
   if (item.kind !== 'related') return [item]
   if (!Object.hasOwn(models, item.resource) || (item.through && !Object.hasOwn(models, item.through.resource))) return []
-  const { columns, ...rest } = item
+  const { columns, button, ...rest } = item
   const kept = columns?.filter((column) => resolveFieldPath(models, item.resource, column).ok)
-  return [kept && kept.length > 0 ? { ...rest, columns: kept } : rest]
+  const narrowed = kept && kept.length > 0 ? { ...rest, columns: kept } : rest
+  return [button && rowButtonErrors(button, models[item.resource]!, { models, pages: new Set() }).length === 0 ? { ...narrowed, button } : narrowed]
 }
 
 // A link to an address in the app goes when it leads out of the source: to a page, or to a resource the app does not draw.

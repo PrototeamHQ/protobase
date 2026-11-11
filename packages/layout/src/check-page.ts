@@ -1,5 +1,5 @@
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
-import { addressErrors, fieldRefsIn } from '@protobase/schema/internal'
+import { addressErrors, fieldRefsIn, rowButtonErrors } from '@protobase/schema/internal'
 import { chartProblems } from './check-chart'
 import { conditionProblems } from './check-condition'
 import { composerProblems, threadProblems } from './check-conversation'
@@ -78,6 +78,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
       for (const column of (node.props.columns as string[] | undefined) ?? []) {
         if (model && !Object.hasOwn(model.fields, column)) problems.push(`unknown column "${column}" on ${model.name}`)
       }
+      if (model && node.props.button !== undefined) problems.push(...rowButtonErrors(node.props.button, model, { models, pages, createPages }).map((error) => `button: ${error}`))
       break
     case 'RecordCards':
       if (node.props.cardWidth !== undefined && node.props.layout !== 'carousel') problems.push(`"cardWidth" sizes the cards of a carousel; set layout to 'carousel' or leave it out`)

@@ -1,5 +1,5 @@
 import { ArrowRight } from 'lucide-react'
-import type { ResourceModel, ViewModel } from '@protobase/schema'
+import type { ResourceModel, RowButtonModel, ViewModel } from '@protobase/schema'
 import { useIsXs } from '../../lib/use-media-query'
 import { humanize } from '../../live/naming'
 import { Skeleton } from '../../primitives/skeleton'
@@ -25,6 +25,8 @@ type RelatedCardsProps = {
   fields: string[]
   /** The named actions of the view each card has buttons for. */
   actions: string[]
+  /** A button on each card to an address the record's fields name. */
+  button?: RowButtonModel
   limit: number
   /** The display of the list "View all" opens. */
   display: string | undefined
@@ -34,10 +36,10 @@ type RelatedCardsProps = {
 }
 
 /**
- * The first `limit` records of a list as cards stacked full width or in a `carousel`, each with its fields and its
- * actions' buttons, and a link to the whole list beside a note such as "The first 10 of 37." when there are more.
+ * The first `limit` records of a list as cards stacked full width or in a `carousel`, each with its fields, its
+ * actions' buttons and its row button, and a link to the whole list beside a note such as "The first 10 of 37." when there are more.
  */
-export const RelatedCards = ({ model, view, filter, sort, fields, actions, limit, display, empty, carousel }: RelatedCardsProps) => {
+export const RelatedCards = ({ model, view, filter, sort, fields, actions, button, limit, display, empty, carousel }: RelatedCardsProps) => {
   const xs = useIsXs()
   const scroll = useSnapScroll()
   const plural = view?.names?.plural ?? humanize(model.name)
@@ -50,7 +52,7 @@ export const RelatedCards = ({ model, view, filter, sort, fields, actions, limit
   if (rows.length === 0) return <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
   const cards = rows.map((row) => {
     const scope = scopeOf(model, row)
-    return <RelatedCard key={scope.key} scope={scope} view={view} fields={fields} actions={actions} />
+    return <RelatedCard key={scope.key} scope={scope} view={view} fields={fields} actions={actions} button={button} />
   })
   const note = count.data === undefined ? undefined : cutOffNote(rows.length, count.data, false)
   return (

@@ -8,7 +8,7 @@ import { CardFrame } from './card-frame'
 
 type LoadedProps = Omit<TableProps, 'resource' | 'actions'> & { model: ResourceModel; view: ViewModel | undefined; actions: BlockProps['slots'][string] }
 
-const LoadedTable = ({ model, view, filter = '', sort = '', columns, limit = 10, display: preferred, title, description, empty, actions }: LoadedProps) => {
+const LoadedTable = ({ model, view, filter = '', sort = '', columns, button, limit = 10, display: preferred, title, description, empty, actions }: LoadedProps) => {
   const [display, pick] = useEmbeddedDisplay(view, `page:${model.name}:${title ?? ''}:${filter}`, preferred)
   return (
     <CardFrame
@@ -22,12 +22,12 @@ const LoadedTable = ({ model, view, filter = '', sort = '', columns, limit = 10,
       }
       className="h-full"
     >
-      <EmbeddedList model={model} view={view} filter={filter} sort={sort} columns={columns} limit={limit} display={display} empty={empty} />
+      <EmbeddedList model={model} view={view} filter={filter} sort={sort} columns={columns} button={button} limit={limit} display={display} empty={empty} />
     </CardFrame>
   )
 }
 
-/** The first `limit` records in `sort` order, in the list page's table or display, with a link to the whole list. */
+/** The first `limit` records in `sort` order, in the list page's table, with its row button, or display, with a link to the whole list. */
 export const TableBlock = ({ node, slots }: BlockProps) => {
   const props = propsOf<TableProps>(node)
   const { resources, views } = useAdminMeta()

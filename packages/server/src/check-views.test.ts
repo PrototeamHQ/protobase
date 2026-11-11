@@ -264,6 +264,16 @@ describe('checkViews', () => {
     expect(() => checkViews(withInstallments, [lines(2)])).toThrow('View "payments": only one related section holds the lines')
   })
 
+  it("checks a related section's row button against the rows and the app's pages", () => {
+    const refunds = resource('refunds').table('refunds').fields({ id: f.integer(), payment_id: f.relation('payments').filterable(), verb: f.text() }).primaryKey((r) => r.id)
+    const withRefunds = { entries: [...registry.entries, { name: 'refunds', model: refunds.toModel() }] } as unknown as Registry
+    const buttoned = (button: { label: string; to: AppAddress }) => view<typeof payments>('payments').layout(() => [l.related('Refunds', { resource: 'refunds', field: 'payment_id', button })]).toModel()
+    expect(() => checkViews(withRefunds, [buttoned({ label: '{verb}', to: { kind: 'record', resource: 'payments', key: '{payment_id}', tab: 'Refunds' } })])).not.toThrow()
+    expect(() => checkViews(withRefunds, [buttoned({ label: '{action}', to: { kind: 'record', resource: 'refunds', key: '{id}' } })])).toThrow('View "payments": related "Refunds": button: label: "{action}" is not a field of refunds')
+    expect(() => checkViews(withRefunds, [buttoned({ label: 'Today', to: { kind: 'page', page: 'today' } })])).toThrow('View "payments": related "Refunds": button: to: unknown page "today"')
+    expect(() => checkViews(withRefunds, [buttoned({ label: 'Today', to: { kind: 'page', page: 'today' } })], ['today'])).not.toThrow()
+  })
+
   it('checks the items inside a tab', () => {
     const written = view<typeof payments>('payments').toModel()
     written.layout = [{ kind: 'tab', title: 'Log', items: [{ kind: 'history', title: 'Changes' }] }]

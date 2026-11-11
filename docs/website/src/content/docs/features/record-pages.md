@@ -24,7 +24,7 @@ description: The page of one record, with its sections, related records, galleri
 - [Help while editing](/reference/ui-config/#help-while-editing): Help lines meant for whoever changes a record show only on its form.
 - [Conditional sections](/reference/ui-config/#form-and-read-view): Sections and fields show only while editing, only while reading, or only when a condition on the record holds.
 - [Galleries](/reference/ui-config/#galleries): A record's photos show as tiles that open a full-screen lightbox, with keyboard and swipe navigation.
-- [Related records](/reference/ui-config/#related-records): Every record page shows how many records point at it, and can list related records, also through a join resource, as a table, another display or cards with buttons.
+- [Related records](/reference/ui-config/#related-records): Every record page shows how many records point at it, and can list related records, also through a join resource, as a table, another display or cards with buttons, each row or card with a button to an address its fields name.
 - [Record lines](/reference/ui-config/#record-lines): The related table a record's view marks as its lines, such as an invoice's, shows all of them on its page, where you edit, add, remove and reorder them, and Save writes the record and its lines together.
 - [Charts of samples](/reference/ui-config/#charts-of-related-records): A record page graphs numeric samples over the last hour, day or week, such as a server's CPU use.
 - [Fresh data on return](/reference/ui-config/#the-record-page): Records and lists reload when the browser tab is focused again, keeping unsaved edits.
