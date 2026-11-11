@@ -74,6 +74,7 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
       if (!item) return
       if (!(await recordExists(db, item.entry, ref.key))) return forget(db, [ref])
       const version = await claim(db, ref)
+      if (version === undefined) return
       const result = await runDerived(item.compute, ref.key, { label: `Derived value ${item.name}`, db, now: now(), models: readable(item), track: item.value.track !== false, signal })
       await db.transaction().execute(async (trx) => {
         const kept = await keep(trx, ref, version, result, typesOf)

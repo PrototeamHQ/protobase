@@ -11,10 +11,13 @@ const pairs = (refs: readonly ValueRef[]) => sql`unnest(${refs.map((ref) => ref.
 
 const nextVersion = sql`nextval('"derived"."versions"')`
 
+// Only values still declared: a worker that started before a migration removed one cannot bring its state back.
+const declared = (name: unknown) => sql`exists (select 1 from "derived"."declared" d where d."name" = ${name})`
+
 /** Marks the records' values stale, a record without one yet too, each with a version none had before. */
 export const markStale = async (db: Db, refs: readonly ValueRef[]) => {
   if (refs.length === 0) return
-  await sql`insert into "derived"."values" ("name", "key", "status", "version") select t."name", t."key", 'stale', ${nextVersion} from ${pairs(refs)}
+  await sql`insert into "derived"."values" ("name", "key", "status", "version") select t."name", t."key", 'stale', ${nextVersion} from ${pairs(refs)} where ${declared(sql`t."name"`)}
     on conflict ("name", "key") do update set "status" = 'stale', "version" = ${nextVersion}`.execute(db)
 }
 
@@ -27,13 +30,14 @@ export const forget = async (db: Db, refs: readonly ValueRef[]) => {
 }
 
 /**
- * Marks the value recalculating and returns its version, the one the result is for. Changes kept for an earlier run
- * landed before this one reads, so it sees them.
+ * Marks the value recalculating and returns a version of this run's own, the one the result is for, so a run under way
+ * that started before it keeps no result. Changes kept for that earlier run landed before this one reads, so it sees
+ * them. `undefined` for a value no longer declared.
  */
 export const claim = async (db: Db, { name, key }: ValueRef) => {
   await sql`delete from "derived"."pending" where "name" = ${name} and "key" = ${key}`.execute(db)
-  return (await sql<{ version: string }>`insert into "derived"."values" ("name", "key", "status", "version") values (${name}, ${key}, 'recalculating', ${nextVersion})
-    on conflict ("name", "key") do update set "status" = 'recalculating' returning "version"::text as version`.execute(db)).rows[0]!.version
+  return (await sql<{ version: string }>`insert into "derived"."values" ("name", "key", "status", "version") select ${name}, ${key}, 'recalculating', ${nextVersion} where ${declared(name)}
+    on conflict ("name", "key") do update set "status" = 'recalculating', "version" = excluded."version" returning "version"::text as version`.execute(db)).rows[0]?.version
 }
 
 /**

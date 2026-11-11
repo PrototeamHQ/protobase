@@ -2,6 +2,8 @@ import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { changesMigration, checkDerived, createAdmin, derivedMigration, startJobs, type DerivedCompute, type JobsRuntime } from '@protobase/server'
+import { fieldTypes } from '../../packages/server/src/derived/affected'
+import { claim, keep, markStale } from '../../packages/server/src/derived/derived-state'
 import { runDerived } from '../../packages/server/src/derived/run-derived'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 
@@ -164,6 +166,24 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     expect(BigInt(after.version)).toBeGreaterThan(BigInt(before.version))
   })
 
+  it('keeps no result of a run that a later run of the same record overtook, whichever ends first', async () => {
+    const { id } = await post('objectives', { title: 'Overlap' })
+    await settled(id, 'done')
+    const ref = { name: 'objectives.verdict', key: String(id) }
+    const typesOf = (resource: string) => fieldTypes((resource === 'tasks' ? tasks : objectives).toModel())
+    const result = (value: string) => ({ value, reads: [], flipsAt: undefined })
+    const keeps = async (version: string, value: string) => db.transaction().execute((trx) => keep(trx, ref, version, result(value), typesOf))
+    const earlier = (await claim(db, ref))!
+    const later = (await claim(db, ref))!
+    expect(later).not.toBe(earlier)
+    expect(await keeps(later, 'open')).toBe('changed')
+    expect(await keeps(earlier, 'done')).toBe('dropped')
+    const overtaken = (await claim(db, ref))!
+    const last = (await claim(db, ref))!
+    expect(await keeps(overtaken, 'done')).toBe('dropped')
+    expect(await keeps(last, 'done')).toBe('changed')
+  })
+
   it('refuses a write before it happens, whether the queries are analysed or not', async () => {
     const { id } = await post('objectives', { title: 'Write' })
     await sql`insert into tasks (objective_id, status) values (${id}, 'open')`.execute(db)
@@ -200,6 +220,11 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     const removal = await derivedMigration(db, [{ ...models[0]!, derived: [] }, models[1]!])
     expect(removal).toContain(`delete from "derived"."declared" where "name" = 'objectives.verdict'`)
     await pg.exec(removal!)
+    expect(await sql`select 1 from derived.values where name = 'objectives.verdict'`.execute(db)).toMatchObject({ rows: [] })
+    // A worker that started before the removal brings no state back.
+    const ref = { name: 'objectives.verdict', key: '1' }
+    expect(await claim(db, ref)).toBeUndefined()
+    await markStale(db, [ref])
     expect(await sql`select 1 from derived.values where name = 'objectives.verdict'`.execute(db)).toMatchObject({ rows: [] })
     expect(await derivedMigration(db, models)).toContain(`select jobs.enqueue('derived.fill'`)
   })
