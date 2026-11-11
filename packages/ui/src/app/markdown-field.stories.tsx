@@ -148,7 +148,7 @@ export const CardsRenderNotes: StoryObj = {
     const canvas = within(canvasElement)
     const heading = await canvas.findByRole('heading', { name: 'Plan' })
     // The card stays one link to the record, on its title: its notes' links show as their text
-    const card = heading.closest('div:has(a[data-card-link])')!
+    const card = heading.closest<HTMLElement>('div:has(a[data-card-link])')!
     expect([...card.querySelectorAll('a')].map((link) => link.getAttribute('href'))).toEqual(['/tasks/1'])
     expect(within(card).getByText('markdown').tagName).toBe('STRONG')
     expect(getComputedStyle(heading.closest('.line-clamp-3')!).webkitLineClamp).toBe('3')
