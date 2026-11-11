@@ -328,7 +328,7 @@ A message resource marks its sender with [`.author()`](/reference/data-config/#r
 
 ### Thread
 
-The latest messages that match `filter`, oldest first, each under its sender's name and the time it was sent, with a line between days and a sender's next message that day drawn under the first. **Load earlier messages** at the top reads the ones before. The thread opens at the newest message and scrolls in a box of its own, so it follows what arrives while the reader is at the end and keeps their place when they scrolled back, until their own message arrives; new messages come in with the app's [live updates](/reference/live/), and screen readers announce them politely. It is left out of the page of a user who cannot read its sender, time or text.
+The latest messages that match `filter`, oldest first, each under its sender's name and the time it was sent, with a line between days and a sender's next message that day drawn under the first. **Load earlier messages** at the top reads the ones before. The thread opens at the newest message and scrolls in a box of its own, so it follows what arrives while the reader is at the end and keeps their place when they scrolled back, until their own message arrives; new messages arrive by themselves only when the message resource is [`.live()`](/reference/live/), otherwise when the page reads the thread again, and screen readers announce them politely. It is left out of the page of a user who cannot read its sender, time or text.
 
 | Prop | |
 | --- | --- |
@@ -349,7 +349,7 @@ A text box that grows with its text: Enter or the send button creates a record o
 | --- | --- |
 | `resource` | Where a message is created. Required. |
 | `field` | The writable text field the message goes in. Required. |
-| `values` | Sent with every message, such as the room or the parent record's key. |
+| `values` | Sent with every message, such as the room or the parent record's key. Only writable fields: a read-only field, the [tenant](/reference/data-config/#resource) or the author stops the server at startup, since the server sets those itself. Before 0.92 these were accepted; remove them from `values`. |
 | `placeholder` | The box's text while empty. |
 | `span` | Width in a grid. |
 

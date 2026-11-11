@@ -40,7 +40,8 @@ export const models: Record<string, ResourceModel> = {
     field('body', 'text'),
     field('room', 'text'),
     field('pinned', 'boolean'),
-  ], { author: 'author' }),
+    field('organizationId', 'integer'),
+  ], { author: 'author', tenant: 'organizationId' }),
   invoices: model('invoices', [field('id', 'integer', { readOnly: true }), field('number', 'text'), field('status', 'enum', { enumValues: ['open', 'paid'] }), field('total', 'decimal', { readOnly: true }), field('issuedOn', 'date'), field('memo', 'text', { filterable: false })]),
 }
 

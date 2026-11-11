@@ -1,5 +1,6 @@
 import { TriangleAlert } from 'lucide-react'
 import { isApiError } from '@protobase/client'
+import { Button } from '../primitives/button'
 import { text } from './messages'
 
 type Detail = { message: string; hint?: string }
@@ -10,10 +11,11 @@ const describe = (error: unknown): Detail[] => {
   return detailed.length > 0 ? detailed : [{ message: error.message }]
 }
 
-export const ErrorBanner = ({ error, title }: { error: unknown; title: string }) => (
+/** `onRetry` adds a **Try again** button that runs what failed once more. */
+export const ErrorBanner = ({ error, title, onRetry }: { error: unknown; title: string; onRetry?: () => void }) => (
   <div role="alert" className="flex gap-2.5 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-danger-text">
     <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-    <div>
+    <div className="min-w-0 flex-1">
       <p className="font-medium">{title}</p>
       {describe(error).map((detail) => (
         <p key={detail.message} className="text-body">
@@ -22,5 +24,6 @@ export const ErrorBanner = ({ error, title }: { error: unknown; title: string })
         </p>
       ))}
     </div>
+    {onRetry && <Button size="sm" onClick={onRetry}>{text('tryAgain')}</Button>}
   </div>
 )

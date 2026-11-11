@@ -38,12 +38,22 @@ export const threadProblems = (node: LayoutNode, model: ResourceModel): string[]
   ...threadLimitProblems(node.props.limit),
 ]
 
+/** Whether a message may set the field `name`: not one the server sets, such as its tenant or author. */
+const sendable = (name: string, model: ResourceModel) => !fieldOf(model, name)!.readOnly && name !== model.tenant && name !== model.author
+
 /** Why a message cannot be written into the field `name`: it is no text field the sender may set. */
 export const messageTextProblems = (name: string, model: ResourceModel): string[] => {
   const field = fieldOf(model, name)
   if (!field) return [`unknown field "${name}" on ${model.name}`]
   if (field.type !== 'text') return [`"${name}" is ${field.type}; a message is written into a text field`]
-  if (field.readOnly || name === model.tenant || name === model.author) return [`"${name}" is read-only on ${model.name}, so a message cannot be written into it`]
+  if (!sendable(name, model)) return [`"${name}" is read-only on ${model.name}, so a message cannot be written into it`]
+  return []
+}
+
+/** Why a composer cannot send the value of the field `name` with each message: it is unknown, or a field the sender may not set. */
+const valueProblems = (name: string, model: ResourceModel): string[] => {
+  if (!fieldOf(model, name)) return [`values: unknown field "${name}" on ${model.name}`]
+  if (!sendable(name, model)) return [`values: "${name}" is read-only on ${model.name}, so a message cannot set it`]
   return []
 }
 
@@ -51,6 +61,5 @@ export const messageTextProblems = (name: string, model: ResourceModel): string[
 export const composerProblems = (node: LayoutNode, model: ResourceModel): string[] => {
   const fieldProblems = messageTextProblems(String(node.props.field), model).map((problem) => `field: ${problem}`)
   const values = Object.keys((node.props.values as Record<string, unknown> | undefined) ?? {})
-  const valueProblems = values.flatMap((value) => (fieldOf(model, value) ? [] : [`values: unknown field "${value}" on ${model.name}`]))
-  return [...fieldProblems, ...valueProblems]
+  return [...fieldProblems, ...values.flatMap((value) => valueProblems(value, model))]
 }
