@@ -55,4 +55,17 @@ describe('shownLayout', () => {
     expect(shownLayout(tabbed, [true], false, false).map((item) => (item as { title: string }).title)).toEqual(['More'])
     expect(shownLayout(tabbed, [], true, false).map((item) => (item as { title: string }).title)).toEqual(['Form'])
   })
+
+  it('applies each condition inside a custom section fallback, nested and sidebar custom sections included, and keeps an all-hidden fallback as []', () => {
+    const done: LayoutItemModel = { kind: 'section', title: 'Done', fields: ['c'], when: 'status = "done"' }
+    const always: LayoutItemModel = { kind: 'section', title: 'Always', fields: ['a'] }
+    const inner: LayoutItemModel = { kind: 'custom', component: 'Inner', when: 'editing', fallback: [done] }
+    const side: LayoutItemModel = { kind: 'custom', component: 'Side', sidebar: true, when: 'reading' }
+    const main: LayoutItemModel = { kind: 'custom', component: 'Chat', fallback: [inner, always] }
+    const sidebar: LayoutItemModel = { kind: 'custom', component: 'Card', sidebar: true, fallback: [side] }
+    expect(conditionalItems([main, sidebar])).toEqual([done])
+    expect(shownLayout([main, sidebar], [true], false, false)).toEqual([{ ...main, fallback: [always] }, sidebar])
+    expect(shownLayout([main, sidebar], [true], true, false)).toEqual([main, { ...sidebar, fallback: [] }])
+    expect(shownLayout([main, sidebar], [false], true, false)).toEqual([{ ...main, fallback: [{ ...inner, fallback: [] }, always] }, { ...sidebar, fallback: [] }])
+  })
 })
