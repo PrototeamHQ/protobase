@@ -17,6 +17,8 @@ export type CallerAccess = {
   actions: (resource: string) => ReadonlySet<string>
   /** The resources whose view for the caller opens a create page, which a create link may give values of any name. */
   createPages?: ReadonlySet<string>
+  /** Whether the caller may call an API function, which an `Image` draws; without it, no image is kept. */
+  functions?: (name: string) => boolean
 }
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
@@ -107,6 +109,8 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
     }
     case 'Action':
       return resource !== undefined && model && access.actions(resource).has(String(node.props.name)) ? node : null
+    case 'Image':
+      return access.functions?.(String(node.props.function)) ? node : null
     case 'Link':
       return node.props.to === undefined || addressErrors(node.props.to as AppAddress, { models, source: linkSource(models, scope), createPages: access.createPages }).length === 0 ? node : null
     case 'Show': {

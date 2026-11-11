@@ -139,5 +139,6 @@ Every block reads the regular API with the user's token, so the access rules app
 - `Field`, `Progress` and `Stat field` on a field they cannot read are left out, and table columns are narrowed;
 - `ModalForm` needs create or update permission and keeps only the fields they may write;
 - an `Action` missing from their view of the resource is left out, and so is a `Show` that names something they cannot see.
+- an `Image` whose function they may not call is left out.
 
 Custom components are kept: they get only their props, and fetch through the same API. A custom component's fallback loses what the user cannot use like the rest of the tree, and a fallback left with nothing is sent as `[]`, so a client still draws nothing in the component's place.

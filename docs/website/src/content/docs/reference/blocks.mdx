@@ -253,6 +253,42 @@ A bar for `value` out of `max`, with both numbers. It turns amber from 90%.
 <Progress label="Seats" value="seats_used" max="plan.seats" />
 ```
 
+### Image
+
+A picture an [API function](/guides/api-functions/) draws, such as a system map: the block calls `GET /api/functions/<function>` with the reader's token, and draws the image it answers with, such as a PNG. The query says what to draw:
+
+| Query | |
+| --- | --- |
+| `width` | The width the client draws it at, in CSS pixels: the block's `width`, else the width of its space, rounded up to a multiple of 100 so resizing the window asks again only now and then. |
+| `height` | The block's `height`, when it has one. Without it the query names no height, and the picture's own proportions decide. |
+| `theme` | `light` or `dark`, the theme the page is drawn in. |
+
+| Prop | |
+| --- | --- |
+| `function` | The function's name, as in `functions/<function>.ts`. Required; the server stops at startup when the app has no such function. |
+| `alt` | What the picture shows, for screen readers and for clients that draw no images. |
+| `width`, `height` | The size it is drawn at, in CSS pixels. |
+| `refresh` | Every how many seconds the client asks for the picture again, keeping the last one on screen meanwhile; once when omitted. |
+
+```tsx
+<Image function="system-map" alt="The servers and the links between them" height={320} refresh={60} />
+```
+
+```ts
+// functions/system-map.ts
+import { defineFunction } from '@protobase/server'
+import { drawSystemMap } from './_shared/system-map'
+
+export default defineFunction({ roles: ['admin', 'support'] }, async (request, { records }) => {
+  const query = new URL(request.url).searchParams
+  const { items } = await records.list('servers')
+  const png = await drawSystemMap(items, { width: Number(query.get('width')), height: Number(query.get('height')) || undefined, dark: query.get('theme') === 'dark' })
+  return new Response(png, { headers: { 'content-type': 'image/png' } })
+})
+```
+
+The function reads records as the caller, so the picture shows only what they may see. A reader the function's `roles` or `capability` leave out gets the page without the block. A client that draws no images, such as one that shows text only, shows `alt` in its place, or nothing without it; the admin app does the same when the function refuses or answers no image. <gap>An Image cannot ask for a sharper picture on high-density screens because a scale in its query is not implemented.</gap>
+
 ### Chart
 
 Counts, sums or averages of the records that match `filter`, per value of a field or per hour, day, week, month or year of a date field, in a card. It reads [`:aggregate`](/reference/api/#routes), so only what the user may see is counted, and the grouped field needs an index ([scan guard](/reference/api/#safety)).

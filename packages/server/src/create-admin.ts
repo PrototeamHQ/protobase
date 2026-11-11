@@ -124,6 +124,7 @@ import { fieldDecrypter } from './encryption/decrypt-field'
 import { createEncryptionRuntime } from './encryption/runtime'
 import { toApiFunction, type FunctionSource } from './functions/define-function'
 import { callerRecords } from './functions/records'
+import { functionGate } from './functions/function-gate'
 import { functionRoutes } from './functions/routes'
 import { supabaseFunctionRoutes } from './functions/supabase-routes'
 import { upgradeAuthenticator } from './functions/upgrade-caller'
@@ -292,6 +293,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     models: resourceModels,
     actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),
     createPages: new Set(viewModels.filter((view) => view.create).map((view) => view.resource)),
+    functions: new Set(Object.keys(apiFunctions)),
   })
   const forms = createFormsRuntime({ registry, views: viewModels, limits: options.roles?.limits ?? [], env: globalThis.process?.env ?? {}, ...(secret && { secret }), ...(formsDifficulty && { difficulty: formsDifficulty }) })
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
@@ -323,6 +325,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const withAi = withAiFields || hasAiActions(viewModels)
   const model = withAi ? aiModel(options.assistant, globalThis.process?.env ?? {}) : undefined
   const fill = withAiFields ? fillJob(() => deps) : undefined
+  const accessOptions = { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) }
   const deps: Deps = {
     db,
     registry,
@@ -339,7 +342,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     writeChecks: [...(table?.checkUrl ? [subscriptionUrlCheck(table.checkUrl)] : []), ...(engine?.writeChecks ?? [])],
     audit: options.audit ?? consoleAuditQueue(),
     report: options.onUnhandledError ?? ((error: unknown) => console.error(error)),
-    accessOptions: { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) },
+    accessOptions,
+    functionGates: Object.fromEntries(Object.entries(apiFunctions).map(([name, fn]) => [name, functionGate(name, fn.options, accessOptions)])),
     settingsResources: settingsResources([...pageModels, accountModel]),
     rowPermissions: (resource: string) => (typeof options.rowPermissions === 'object' ? !options.rowPermissions.except.includes(resource) : options.rowPermissions !== false),
     ...(assistant && { assistant: assistant.kind === 'external' ? assistant.url : `${systemPath}/assistant` }),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Action, CardRow, Field, Link, ModalForm, Page, RecordCard, RecordCards, RecordRow, Show, Stat, Table } from './blocks'
+import { Action, CardRow, Field, Image, Link, ModalForm, Page, RecordCard, RecordCards, RecordRow, Show, Stat, Table } from './blocks'
 import { fieldRef, type FieldRefValue } from '@protobase/schema'
 import { checkPages, pageProblems } from './check-page'
 import { component } from './component'
@@ -39,6 +39,12 @@ describe('pageProblems', () => {
       '<Page> › <Table resource="invoices">: button: to: unknown page "today"',
     ])
     expect(pageProblems(table('Open'), input)).toEqual(["<Page> › <Table resource=\"invoices\">: button: a row button is { label, to }, such as { label: 'Open', to: { kind: 'record', resource: 'tasks', key: '{id}' } }"])
+  })
+
+  it("checks an image's function against the app's functions", () => {
+    const tree = model(Page({ title: 'x', children: Image({ function: 'system-map' }) }))
+    expect(pageProblems(tree, { ...input, functions: new Set(['system-map']) })).toEqual([])
+    expect(pageProblems(tree, { ...input, functions: new Set() })).toEqual(['<Page> › <Image>: no function "system-map"; add functions/system-map.ts'])
   })
 
   it('names unknown resources, filter and sort errors, columns and fields', () => {

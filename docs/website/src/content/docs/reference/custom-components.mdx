@@ -48,8 +48,11 @@ A client that cannot draw a component, such as a native app without React or the
 
 ```tsx
 export const SeatChart = component('SeatChart', { fallback: <Progress label="Seats" value="seats_used" max="plan.seats" /> })
+export const SystemMap = component('SystemMap', { fallback: <Image function="system-map" /> })
 export const Confetti = component('Confetti', { fallback: [] })
 ```
+
+A visual component, such as a map, falls back to the [picture](/reference/blocks/#image) an API function draws of it; with no `alt`, a client that shows text only draws nothing in its place.
 
 The admin app draws the fallback too when the component is missing or throws while drawing; `protobase dev` also shows the warning above it. Without a fallback, the warning stands in the component's place, as above. A [record section](#record-sections) takes `fallback` in `l.custom`.
 

@@ -61,6 +61,7 @@
     "data/use-live-updates#useLiveUpdates",
     "data/use-record#useOpenedRecord",
     "data/use-source-metas#useSourceMetas",
+    "focus-page/use-element-width#useElementWidth",
     "forms/public-form-page#PublicFormPage",
     "forms/use-form-address#useFormAddress",
     "invitations/invite-form#InviteForm",

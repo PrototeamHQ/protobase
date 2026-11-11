@@ -3,7 +3,7 @@ import { Action, Card, ConnectedAccounts, ConnectedApps, DeleteAccount, Devices,
 import { component } from './component'
 import { isPageDefinition, page } from './page'
 import { billing } from './testing/billing'
-import type { LayoutNode } from './node'
+import type { LayoutNode, LayoutValue } from './node'
 
 const problems = (tree: LayoutNode) => {
   try {
@@ -78,6 +78,12 @@ describe('page', () => {
     const table = (button: unknown): LayoutNode => ({ type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { resource: 'tasks', button: button as never }, children: [] }] })
     expect(problems(table({ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{id}' } }))).toEqual([])
     expect(problems(table({ label: 'Open' }))).toEqual(['<Page> › <Table resource="tasks">: "button" must be a button, such as { label: \'Open\', to: { kind: \'record\', resource: \'orders\', key: \'{id}\' } }'])
+  })
+
+  it('takes an Image as a function and an optional alt, size and refresh in whole numbers', () => {
+    const image = (props: Record<string, LayoutValue>): LayoutNode => ({ type: 'Page', props: { title: 'x' }, children: [{ type: 'Image', props, children: [] }] })
+    expect(problems(image({ function: 'system-map', alt: 'The system map', width: 320, height: 240, refresh: 60 }))).toEqual([])
+    expect(problems(image({ alt: 'x', width: 1.5 }))).toEqual(['<Page> › <Image>: "function" is required', '<Page> › <Image>: "width" must be a positive whole number'])
   })
 
   it('refuses children on blocks that take none, and unknown blocks', () => {

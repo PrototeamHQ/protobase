@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fieldRef, type FieldRefValue } from '@protobase/schema'
-import { Card, Chart, Composer, Link, Page, RecordCard, RecordCards, Show, Tab, Table, Tabs, Thread } from './blocks'
+import { Card, Chart, Composer, Image, Link, Page, RecordCard, RecordCards, Show, Tab, Table, Tabs, Thread } from './blocks'
 import { component } from './component'
 import type { LayoutNode } from './node'
 import type { PageModel } from './page'
@@ -120,6 +120,13 @@ describe('prunePage', () => {
   it('leaves out actions missing from the view the caller gets', () => {
     const pruned = prunePage(billing.toModel(), [], access({ actions: (resource) => new Set(resource === 'subscriptions' ? ['upgrade'] : []) }))
     expect(types(pruned).filter((type) => type.startsWith('Action'))).toEqual(['Action:upgrade'])
+  })
+
+  it('leaves out an image whose function the caller may not call', () => {
+    const page: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: [Image({ function: 'system-map', alt: 'The system map' }), Image({ function: 'billing-chart' })] }) }
+    const pruned = prunePage(page, [], access({ functions: (name) => name === 'system-map' }))
+    expect(pruned?.tree.children).toEqual([Image({ function: 'system-map', alt: 'The system map' })])
+    expect(types(prunePage(page, [], access()))).toEqual(['Page'])
   })
 
   it('leaves out conditions about things the caller cannot see', () => {
