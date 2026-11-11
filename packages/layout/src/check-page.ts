@@ -17,6 +17,8 @@ export type PageCheckInput = {
   pages?: ReadonlySet<string>
   /** The resources whose view opens a create page, which a create link may give values of any name. */
   createPages?: ReadonlySet<string>
+  /** The app's API functions, which an `Image` draws; its function goes unchecked without them. */
+  functions?: ReadonlySet<string>
 }
 
 const filterProblem = (model: ResourceModel, source: string) => {
@@ -42,7 +44,7 @@ export const elementResource = (node: LayoutNode, scope: Scope) => text(node.pro
 /** The record a link's `{field}` placeholders read: the one around it, when there is one. */
 export const linkSource = (models: Record<string, ResourceModel>, scope: Scope) => (scope.record && scope.resource !== undefined ? models[scope.resource] : undefined)
 
-const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, createPages }: PageCheckInput): string[] => {
+const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, createPages, functions }: PageCheckInput): string[] => {
   const problems: string[] = []
   const resource = elementResource(node, scope)
   const own = text(node.props.resource)
@@ -111,6 +113,9 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
       if (resource !== undefined && !actions(resource).has(String(node.props.name))) {
         problems.push(`no action "${node.props.name}" on ${resource}; declare it with view('${resource}').actions(...)`)
       }
+      break
+    case 'Image':
+      if (functions && !functions.has(String(node.props.function))) problems.push(`no function "${node.props.function}"; add functions/${node.props.function}.ts`)
       break
     case 'Link':
       if (node.props.to !== undefined) problems.push(...addressErrors(node.props.to as AppAddress, { models, pages, source: linkSource(models, scope), createPages }).map((error) => `to: ${error}`))

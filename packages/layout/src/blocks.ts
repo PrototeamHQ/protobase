@@ -176,6 +176,24 @@ export type ComposerProps = {
   placeholder?: string
   span?: GridSpan
 }
+/**
+ * The PNG an API function draws, called with the reader's token as `GET /api/functions/<function>?width=&height=&theme=`:
+ * the size in CSS pixels the client draws it at and its `light` or `dark` theme, for pictures such as a map that some
+ * clients cannot draw themselves. A client that draws no images, such as one that shows text only, shows `alt`, or
+ * nothing without it.
+ */
+export type ImageProps = {
+  /** The API function, as in `functions/<function>.ts`; a reader who may not call it sees no image. */
+  function: string
+  /** What the picture shows, for screen readers and for clients that draw no images. */
+  alt?: string
+  /** How wide it is drawn; the width of the space it is in when omitted. */
+  width?: number
+  /** How tall it is drawn; when omitted, the function's picture decides, and the request names no height. */
+  height?: number
+  /** Every how many seconds the client asks for it again; once when omitted. Regaining window focus never asks again. */
+  refresh?: number
+}
 export type ActionProps = { name: string; resource?: string; label?: string; variant?: ButtonVariant }
 export type ShowProps = { when: string; children?: LayoutChildren }
 /**
@@ -222,6 +240,7 @@ export const Progress = defineBlock<ProgressProps>('Progress', false)
 export const ModalForm = defineBlock<ModalFormProps>('ModalForm', false)
 export const Thread = defineBlock<ThreadProps>('Thread', false)
 export const Composer = defineBlock<ComposerProps>('Composer', false)
+export const Image = defineBlock<ImageProps>('Image', false)
 export const Action = defineBlock<ActionProps>('Action', false)
 export const Show = defineBlock<ShowProps>('Show', false)
 export const Link = defineBlock<LinkProps>('Link', false)

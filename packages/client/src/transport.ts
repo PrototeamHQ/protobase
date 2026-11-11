@@ -34,6 +34,8 @@ export type Request = {
   /** Sends this request instead of the client's fetch, such as one that reports upload progress. */
   via?: typeof fetch
   signal?: AbortSignal
+  /** How the browser's HTTP cache treats the request, such as `no-store` for an answer only its caller may see. */
+  cache?: RequestCache
 }
 
 export const createTransport = (options: ClientOptions = {}) => {
@@ -41,7 +43,7 @@ export const createTransport = (options: ClientOptions = {}) => {
   const systemUrl = baseUrl.replace(/\/[^/]*$/, '')
   const doFetch = options.fetch ?? ((input, init) => fetch(input, init))
 
-  return async ({ method, path, query = '', body, headers, accept = [], system, raw, via, signal }: Request) => {
+  return async ({ method, path, query = '', body, headers, accept = [], system, raw, via, signal, cache }: Request) => {
     const attempt = async (refresh: boolean) => {
       const token = await options.token?.({ refresh })
       return (via ?? doFetch)(`${system ? systemUrl : baseUrl}${path}${query}`, {
@@ -54,6 +56,7 @@ export const createTransport = (options: ClientOptions = {}) => {
         },
         body: raw ?? (body === undefined ? undefined : JSON.stringify(body)),
         ...(signal && { signal }),
+        ...(cache && { cache }),
       })
     }
     let response = await attempt(false)

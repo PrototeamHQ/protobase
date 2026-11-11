@@ -114,6 +114,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       models: listed,
       permissions: Object.fromEntries(visible.map(({ entry, resolved }) => [entry.name, { create: resolved.operations.create, update: resolved.operations.update }])),
       actions: (resource: string) => new Set(views.find((view) => view.resource === resource)?.actions.map((action) => action.name) ?? []),
+      functions: (name: string) => deps.functionGates?.[name]?.(session) ?? false,
     }
     const pages = deps.pages.flatMap((page) => prunePage(page, session.user.roles, callerAccess) ?? [])
     const pageNames = new Set(pages.map((page) => page.name))

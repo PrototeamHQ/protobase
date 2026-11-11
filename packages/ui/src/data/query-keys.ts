@@ -14,6 +14,8 @@ export const keys = {
   navRecent: (resource: string, filter: string, orderBy: string, pageSize: number) => ['list', resource, filter, orderBy, pageSize, 'nav-recent'] as const,
   first: (resource: string, filter: string, orderBy: string) => ['first-page', resource, filter, orderBy] as const,
   record: (resource: string, key: string) => ['record', resource, key] as const,
+  /** The picture an API function draws for an `Image` block, at a size and theme. */
+  image: (name: string, query: Record<string, string>) => ['image', name, query] as const,
   /** What a list row knows of a record, which its page shows until the record has loaded. */
   recordPreview: (resource: string, key: string) => ['record-preview', resource, key] as const,
   /** A record's changes; starts with `record`, so refreshing the record refreshes them too. */

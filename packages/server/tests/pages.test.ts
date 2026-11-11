@@ -1,8 +1,9 @@
 import { Kysely } from 'kysely'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { Action, Composer, Field, Page, RecordCard, Stat, Table, Thread, component, page } from '@protobase/layout'
+import { Action, Composer, Field, Image, Page, RecordCard, Stat, Table, Thread, component, page } from '@protobase/layout'
 import { f, resource, userMenu, view } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
+import { defineFunction } from '../src/functions/define-function'
 import { configExports } from '../src/resource-source'
 import { as, testAuthenticator } from '../../../test-support/server'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
@@ -115,6 +116,34 @@ describe('a custom component in /meta', () => {
   it('carries its fallback, without what the caller cannot read', async () => {
     expect(await chartFor('admin')).toEqual({ type: 'LedgerChart', props: {}, children: [], custom: true, fallback: [{ type: 'Field', props: { name: 'title' }, children: [] }, { type: 'Field', props: { name: 'secret' }, children: [] }] })
     expect((await chartFor('viewer')).fallback).toEqual([{ type: 'Field', props: { name: 'title' }, children: [] }])
+  })
+})
+
+// A picture only admins may draw, at the size and theme the client asks.
+const systemMap = defineFunction({ roles: ['admin'] }, (request) => {
+  const { searchParams } = new URL(request.url)
+  return new Response(`${searchParams.get('width')}x${searchParams.get('height')} ${searchParams.get('theme')}`, { headers: { 'content-type': 'image/png' } })
+})
+const mapped = page('mapped', Page({ title: 'Mapped', children: Image({ function: 'system-map', alt: 'The system map', width: 320, height: 240 }) }))
+
+describe('an image in /meta', () => {
+  const served = () => createAdmin({ resources: [ledger], pages: [mapped], functions: { 'system-map': systemMap }, db: db(), authenticate: testAuthenticator })
+  const imagesFor = async (roles: string) => (await (await served().request('/api/meta', { headers: as(1, roles) })).json()).pages[0].tree.children
+
+  it('describes it to a caller who may call its function, and leaves it out for one who may not', async () => {
+    expect(await imagesFor('admin')).toEqual([{ type: 'Image', props: { function: 'system-map', alt: 'The system map', width: 320, height: 240 }, children: [] }])
+    expect(await imagesFor('viewer')).toEqual([])
+  })
+
+  it("answers with the function's picture at the asked size and theme, and refuses a caller it does not admit", async () => {
+    const asked = '/api/functions/system-map?width=320&height=240&theme=dark'
+    const drawn = await served().request(asked, { headers: as(1, 'admin') })
+    expect([drawn.headers.get('content-type'), await drawn.text()]).toEqual(['image/png', '320x240 dark'])
+    expect((await served().request(asked, { headers: as(1, 'viewer') })).status).toBe(403)
+  })
+
+  it('refuses an image whose function the app does not have, at startup', () => {
+    expect(() => createAdmin({ resources: [ledger], pages: [mapped], db: db(), authenticate: testAuthenticator })).toThrow('Page "mapped": <Page> › <Image>: no function "system-map"; add functions/system-map.ts')
   })
 })
 

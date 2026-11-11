@@ -72,6 +72,7 @@ export const blockSpecs: Record<string, BlockSpec> = {
     props: { ...heading, resource: required('text'), filter: optional('text'), sender: required('text'), time: required('text'), text: required('text'), limit: optional('integer'), empty: optional('text'), span: optional('span') },
   },
   Composer: { children: false, props: { resource: required('text'), field: required('text'), values: optional('values'), placeholder: optional('text'), span: optional('span') } },
+  Image: { children: false, props: { function: required('text'), alt: optional('text'), width: optional('integer'), height: optional('integer'), refresh: optional('integer') } },
   Action: { children: false, props: { name: required('text'), resource: optional('text'), label: optional('text'), variant: optional('variant') } },
   Show: { children: true, props: { when: required('text') } },
   Link: { children: true, props: { href: optional('text'), to: optional('address') } },

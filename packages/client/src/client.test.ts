@@ -352,6 +352,13 @@ describe('invoke', () => {
       ['DELETE', '/api/functions/orders/7', undefined],
     ])
     expect(calls[0]!.init.headers).toMatchObject({ authorization: 'Bearer tok' })
+    expect(calls[0]!.init.cache).toBeUndefined()
+  })
+
+  it('passes a cache policy to the request, such as no-store for an answer only its caller may see', async () => {
+    const { calls, fetch } = fakeFetch(() => json({ ok: true }))
+    await createClient({ fetch }).invoke('chart', { cache: 'no-store' })
+    expect(calls[0]!.init.cache).toBe('no-store')
   })
 
   it('resolves to text or nothing when the function answers so, and rejects with its problem', async () => {

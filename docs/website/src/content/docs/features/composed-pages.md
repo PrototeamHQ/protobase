@@ -15,6 +15,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [Row buttons](/reference/blocks/#row-buttons): A table's rows carry a button to an address their fields name, such as a task's tab, labelled by a field of the row, such as its next step.
 - [Record rows](/reference/blocks/#recordrow): A sideways row of cards for a filter, favorites or saved searches, with a count and new-record marks.
 - [Record cards](/reference/blocks/#recordcards): Full-width cards with fields and buttons, stacked or in a carousel.
+- [Image block](/reference/blocks/#image): A picture one of the app's API functions draws for the reader, such as a system map, at the size and theme the client asks, refreshed on a timer; a client that draws no images shows its alt text, or nothing.
 - [Chart block](/reference/blocks/#chart): Counts, sums or averages by value or by date, as bars, lines or a donut, and over time split by a second field.
 - [Conversations](/reference/blocks/#conversation): A chat declared in the layout: a thread of a resource's messages under each sender's name and time, following new ones as they arrive, and a box that sends one as the signed-in user.
 - [Buttons and forms](/reference/blocks/#behaviour): Buttons for named actions, and create or edit forms in a dialog.

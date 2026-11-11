@@ -9,6 +9,7 @@ import { ChartBlock } from './blocks/chart'
 import { ComposerBlock } from './blocks/composer'
 import { FieldBlock } from './blocks/field'
 import { GridBlock } from './blocks/grid'
+import { ImageBlock } from './blocks/image'
 import { LinkBlock } from './blocks/link'
 import { ModalFormBlock } from './blocks/modal-form'
 import { PageBlock } from './blocks/page-block'
@@ -52,6 +53,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   RecordCards: RecordCardsBlock,
   Chart: ChartBlock,
   Progress: ProgressBlock,
+  Image: ImageBlock,
   ModalForm: ModalFormBlock,
   Thread: ThreadBlock,
   Composer: ComposerBlock,
