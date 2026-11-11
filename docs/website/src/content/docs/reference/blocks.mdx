@@ -268,7 +268,7 @@ A picture an [API function](/guides/api-functions/) draws, such as a system map:
 | `function` | The function's name, as in `functions/<function>.ts`. Required; the server stops at startup when the app has no such function. |
 | `alt` | What the picture shows, for screen readers and for clients that draw no images. |
 | `width`, `height` | The size it is drawn at, in CSS pixels. |
-| `refresh` | Every how many seconds the client asks for the picture again, keeping the last one on screen while the next loads; once when omitted, also when the window regains focus. |
+| `refresh` | Every how many seconds the client asks for the picture again, keeping the last one on screen while the next loads; once when omitted. Regaining window focus never asks again. |
 
 ```tsx
 <Image function="system-map" alt="The servers and the links between them" height={320} refresh={60} />

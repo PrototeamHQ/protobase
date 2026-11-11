@@ -20,7 +20,7 @@ describe('imageRefetch', () => {
     expect(imageRefetch(60)).toEqual({ staleTime: Infinity, refetchOnWindowFocus: false, refetchInterval: 60_000 })
   })
 
-  it('asks once without refresh, also when the window regains focus', () => {
+  it('asks once without refresh, and not again when the window regains focus', () => {
     expect(imageRefetch()).toEqual({ staleTime: Infinity, refetchOnWindowFocus: false })
   })
 })
