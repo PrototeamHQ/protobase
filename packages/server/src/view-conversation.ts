@@ -1,4 +1,4 @@
-import { messageFieldsProblems, messageTextProblems } from '@protobase/layout'
+import { messageFieldsProblems, messageTextProblems, threadLimitProblems } from '@protobase/layout'
 import type { ComposerSectionModel, ResourceModel, ThreadSectionModel } from '@protobase/schema'
 import { matchErrors } from './view-related'
 
@@ -13,6 +13,16 @@ const ownerErrors = (item: { resource: string }, resource: string, models: Recor
 const sensitiveErrors = (item: ThreadSectionModel, model: ResourceModel) =>
   [item.sender, item.time, item.text].flatMap((name) => (model.fields[name]?.sensitive ? [`"${name}" on ${model.name} is sensitive`] : []))
 
+// A message shows its sender's name and its text, so the sender is a relation or a text field and the text a text field
+const typeErrors = (item: ThreadSectionModel, model: ResourceModel) => {
+  const sender = model.fields[item.sender]!
+  const body = model.fields[item.text]!
+  return [
+    ...(sender.relation || sender.type === 'text' ? [] : [`sender: "${item.sender}" is ${sender.type}; a sender is a relation or a text field`]),
+    ...(body.type === 'text' ? [] : [`text: "${item.text}" is ${body.type}; a message is a text field`]),
+  ]
+}
+
 /**
  * What is wrong with a record's conversation (`l.thread`) on the record page of `resource`, against these models; empty
  * when it can be shown. Against the full models it checks the config; against a caller's models, whether that caller can use it.
@@ -25,8 +35,8 @@ export const threadSectionErrors = (item: ThreadSectionModel, resource: string, 
   return [
     ...matchErrors(target, item.field, resource).map((error) => `field: ${error}`),
     ...fields,
-    ...(fields.length === 0 ? sensitiveErrors(item, target) : []),
-    ...(item.limit === undefined || (Number.isInteger(item.limit) && item.limit > 0) ? [] : ['limit must be a positive whole number']),
+    ...(fields.length === 0 ? [...typeErrors(item, target), ...sensitiveErrors(item, target)] : []),
+    ...threadLimitProblems(item.limit),
   ]
 }
 

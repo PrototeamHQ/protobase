@@ -24,6 +24,11 @@ describe('a conversation', () => {
     expect(structureProblems(Page({ title: 'Chat', children: [Thread({ resource: 'messages' } as never)] }))).toEqual([`${thread}: "sender" is required`, `${thread}: "time" is required`, `${thread}: "text" is required`])
   })
 
+  it('reads at most one page of the API at once', () => {
+    expect(problems(Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', limit: 500 }))).toEqual([])
+    expect(problems(Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', limit: 501 }))).toEqual([`${thread}: limit must be a whole number from 1 to 500`])
+  })
+
   it('names the fields a thread reads that the messages do not have', () => {
     expect(problems(Thread({ resource: 'messages', sender: 'writer', time: 'sentAt', text: 'content' }))).toEqual([
       `${thread}: sender: unknown field "writer" on messages`,

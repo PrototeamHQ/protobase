@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { f, l, resource, view, type AppAddress } from '@protobase/schema'
+import { maxThreadLimit } from '@protobase/layout'
 import { checkViews } from './check-views'
+import { maxPageSize } from './params'
 import type { Registry } from './registry'
 
 const payments = resource('payments')
@@ -362,6 +364,12 @@ describe('checkViews', () => {
     expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, field: 'payment_id' }))])).toThrow('View "tasks": thread "Notes": field: "payment_id" on task_notes is not a relation to tasks')
     expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, time: 'body' }))])).toThrow('thread "Notes": time: "body" is text; a thread orders its messages by a date or timestamp field')
     expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, text: 'secret' }))])).toThrow('thread "Notes": "secret" on task_notes is sensitive')
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, text: 'done' }))])).toThrow('thread "Notes": text: "done" is boolean; a message is a text field')
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, sender: 'id' }))])).toThrow('thread "Notes": sender: "id" is integer; a sender is a relation or a text field')
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, sender: 'payment_id' }))])).not.toThrow()
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, limit: 501 }))])).toThrow('thread "Notes": limit must be a whole number from 1 to 500')
+    // A thread loads one page at a time, so its largest limit is the API's largest page
+    expect(maxThreadLimit).toBe(maxPageSize)
     expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, resource: 'nope' }))])).toThrow('thread "Notes": unknown resource "nope"')
     expect(() => checkViews(conversation, [tasksView(l.composer({ resource: 'task_notes', field: 'payment_id', text: 'done' }))])).toThrow(
       'composer of task_notes: field: "payment_id" on task_notes is not a relation to tasks',

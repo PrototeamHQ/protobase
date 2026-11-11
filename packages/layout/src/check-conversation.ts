@@ -25,9 +25,18 @@ export const messageFieldsProblems = (fields: MessageFields, model: ResourceMode
   return sorted.ok ? [] : [`time: ${sorted.errors.map((error) => error.message).join('; ')}`]
 }
 
-/** What a thread names that its message resource does not have, or cannot order the messages by. */
-export const threadProblems = (node: LayoutNode, model: ResourceModel): string[] =>
-  messageFieldsProblems({ sender: String(node.props.sender), time: String(node.props.time), text: String(node.props.text) }, model)
+/** The most messages a thread reads at once: each load is one page of the API, whose largest page is 500 records. */
+export const maxThreadLimit = 500
+
+/** Why a thread cannot read `limit` messages at once. */
+export const threadLimitProblems = (limit: unknown): string[] =>
+  limit === undefined || (Number.isInteger(limit) && (limit as number) > 0 && (limit as number) <= maxThreadLimit) ? [] : [`limit must be a whole number from 1 to ${maxThreadLimit}`]
+
+/** What a thread names that its message resource does not have, or cannot order the messages by, and a limit it cannot read. */
+export const threadProblems = (node: LayoutNode, model: ResourceModel): string[] => [
+  ...messageFieldsProblems({ sender: String(node.props.sender), time: String(node.props.time), text: String(node.props.text) }, model),
+  ...threadLimitProblems(node.props.limit),
+]
 
 /** Why a message cannot be written into the field `name`: it is no text field the sender may set. */
 export const messageTextProblems = (name: string, model: ResourceModel): string[] => {
