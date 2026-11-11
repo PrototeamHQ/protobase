@@ -8,7 +8,7 @@ import objectives from '../../../../../../docs-examples/derived/config/objective
 import verdict from '../../../../../../docs-examples/derived/derived/objectives.verdict.ts?raw'
 
 :::caution[Experimental]
-Derived values may change in any release. They cannot fill a list of rows in another resource yet, cannot see the reads inside a database function or view they call, show `recalculating` rather than `stale` after a failed run, keep what an earlier version of their function computed until a record changes, and their status cannot be read through the REST API; [Limits](#limits) has the detail.
+Derived values may change in any release. They cannot fill a list of rows in another resource yet, cannot see the reads inside a database function or view they call, show `recalculating` rather than `stale` after a failed run, keep what an earlier version of their function computed until a record changes, keep no result while what they read changes during every run, and their status cannot be read through the REST API; [Limits](#limits) has the detail.
 :::
 
 A **derived value** is worked out from other records for each record of a resource, such as a verdict on an objective from its tasks. You write a small TypeScript function that reads records and the clock; Protobase records what it read, computes it again when a change touches that or when a time check flips, and stores the result. No timer is involved, and a value that did not change is not written. It works on any Postgres, with no extension.
@@ -58,7 +58,7 @@ Each check that has not flipped yet records the moment it will; the value is com
 
 - **A new record** is computed once it is created, and a value declared for records that exist already computes each of them once, from the migration that adds it.
 - **A change** that touches a recorded read, through the API or not, marks the value stale in the dispatch of [captured changes](/reference/events/#how-changes-are-captured), and its run waits a second, so a burst of changes runs it once.
-- **A change that lands while the function runs** and touches one of the reads that run made drops its result, and the value is computed again; a change to what it did not read leaves the result kept.
+- **A change that lands while the function runs** and touches one of the reads that run made drops its result, and the value is computed again after the same second's wait; a change to what it did not read leaves the result kept.
 - **The value is written only when it differs**, so an unchanged value raises no event, live update or notification.
 - A deleted record's value is dropped.
 - A value no longer declared loses its state at the next migration, so declaring it again computes every record again.
@@ -82,6 +82,7 @@ Runs are `derived.compute` jobs, four at a time per worker, retried like any [jo
 - <gap>A derived value cannot see the reads inside a database function or view it calls, because reading their definitions is not implemented.</gap> Name them with `depends()`.
 - <gap>A derived value whose function threw cannot show `stale` until its retry runs, because marking a failed run is not implemented; it shows `recalculating` meanwhile.</gap>
 - <gap>A derived value cannot recompute the records it holds when its function changes, because tracking the function's code is not implemented; each record takes the new function at its next change or clock flip.</gap>
+- <gap>A derived value cannot keep a result while a change touching what it read lands during every run, because bounding how often a run yields is not implemented; it keeps its last value meanwhile.</gap>
 - <gap>A derived value's status cannot be read through the REST API, because serving `derived.values` as a resource is not implemented.</gap>
 
 ## Reusing the detection
