@@ -349,7 +349,7 @@ A text box that grows with its text: Enter or the send button creates a record o
 | --- | --- |
 | `resource` | Where a message is created. Required. |
 | `field` | The writable text field the message goes in. Required. |
-| `values` | Sent with every message, such as the room or the parent record's key. |
+| `values` | Sent with every message, such as the room or the parent record's key. Only writable fields: a read-only field, the [tenant](/reference/data-config/#resource) or the author stops the server at startup, since the server sets those itself. Before 0.92 these were accepted; remove them from `values`. |
 | `placeholder` | The box's text while empty. |
 | `span` | Width in a grid. |
 
