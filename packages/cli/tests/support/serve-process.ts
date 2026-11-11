@@ -65,10 +65,11 @@ export const serveOnFreePort = async (start: (port: number) => ChildProcess, tim
   throw new Error('the server found its port taken 5 times in a row')
 }
 
-export const stopProcess = async (child: ChildProcess | undefined) => {
+// Ends a process with `signal` and resolves once it exited. A SIGKILL leaves the processes it started running.
+export const stopProcess = async (child: ChildProcess | undefined, signal: NodeJS.Signals = 'SIGKILL') => {
   if (!child || child.exitCode !== null || child.signalCode !== null) return
   const exited = new Promise((resolve) => child.once('exit', resolve))
-  child.kill('SIGKILL')
+  child.kill(signal)
   await exited
 }
 
