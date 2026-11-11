@@ -2,6 +2,7 @@ import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { capacitorOrigin } from '@protobase/schema/internal'
 import type { HttpAllowances } from './api-origin'
+import type { ApnsEnvironment } from './ios-push'
 import type { LiveUpdateSettings } from './live-update-settings'
 import { pushPlugin } from './pinned-packages'
 import type { Platform } from './platform'
@@ -25,6 +26,8 @@ export type CapacitorConfigInput = {
   release?: boolean
   /** Native push: Capacitor's push plugin compiled in, showing a push while the app is open too. */
   push?: boolean
+  /** With push on iOS, the APNs environment the app registers its token in, which ProtobasePush hands the page. */
+  apnsEnvironment?: ApnsEnvironment
 }
 
 // The npm package of Protobase's native plugin: ProtobaseAuth, and the stand-ins that refuse page script Capacitor's
@@ -53,13 +56,14 @@ const readyTimeout = 30_000
  * files, background updates off, a rolled-back bundle blocked and `readyTimeout`, within which the shell must call
  * ready() or the app goes back to its own files. CapacitorHttp and CapacitorCookies stay off; the keyboard plugin
  * resizes natively, its default, and fills the space beside the keyboard's rounded corners with the page's background
- * instead of black. With `push`, Capacitor's push plugin is compiled in and shows a push while the app is open. It
+ * instead of black. With `push`, Capacitor's push plugin is compiled in and shows a push while the app is open, and on
+ * iOS ProtobasePush names the APNs environment, beyond page script. It
  * never sets `server.allowNavigation`, so no other host loads inside the WebView. Protobase's plugin is compiled in last, so its stand-ins replace any plugin of the same name.
  * Service workers get nothing from the local server on Android, which they would reach past the WebViewClient that
  * guards it. The file ships outside the app's web part, so the fingerprint in the user agent and ProtobaseAuth's
  * origins are beyond page script and a live update.
  */
-export const capacitorConfig = ({ appId, appName, fingerprint, shellVersion, plugins, liveUpdate, allowances, apiOrigin, platform, release, push }: CapacitorConfigInput) => ({
+export const capacitorConfig = ({ appId, appName, fingerprint, shellVersion, plugins, liveUpdate, allowances, apiOrigin, platform, release, push, apnsEnvironment }: CapacitorConfigInput) => ({
   appId,
   appName,
   webDir: webPartDir,
@@ -69,6 +73,7 @@ export const capacitorConfig = ({ appId, appName, fingerprint, shellVersion, plu
     ProtobaseAuth: { apiOrigin, origin: capacitorOrigin[platform] },
     Keyboard: { autoBackdropColor: 'dom' },
     ...(push && { PushNotifications: { presentationOptions: pushPresentation } }),
+    ...(apnsEnvironment && { ProtobasePush: { environment: apnsEnvironment } }),
     ...(liveUpdate && {
       LiveUpdate: { ...liveUpdate, readyTimeout, autoUpdateStrategy: 'none', autoDeleteBundles: true, autoBlockRolledBackBundles: true, fingerprint, shellVersion },
     }),
