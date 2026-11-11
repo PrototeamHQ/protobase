@@ -126,6 +126,8 @@ The app's text follows the reader's text size: every size is in `rem`, so all of
 
 On a phone the top bar's buttons and icons grow with the text only as far as the screen's width allows, as a native app's bar does, so the menu, back, search and record-menu buttons all fit at the largest accessibility sizes, about three times the default; its text keeps growing and the back button's label shortens with an ellipsis.
 
+<gap>A list chart's Day and Week switch cannot fit a phone's width at the largest accessibility text sizes because a phone layout for it is not implemented.</gap>
+
 ## Logo and favicon
 
 The sidebar's logo is the project's own favicon, or without one the app's initial when it has a name of its own and Protobase's mark when it keeps Protobase's, beside the app's [name](/reference/app-identity/#the-name), with the organization the user works in under it, and the icon alone when the sidebar shows only icons. An app that keeps Protobase's name and has no favicon of its own shows Protobase's wordmark beside the mark. A project draws something else with `shell.logo` in `protobase.ui.tsx`, a component drawn in its place ([Shell slots](/reference/custom-components/#shell-slots)); it draws with these tokens like the rest of the app.
