@@ -118,6 +118,7 @@
     "record-view/action-menu#ActionMenu",
     "record-view/action-rail#ActionRail",
     "record-view/autosave-status#AutosaveStatus",
+    "record-view/heading-count#HeadingCount",
     "record-view/record-header#RecordHeader",
     "record-view/record-sidebar#MetadataList",
     "record-view/record-sidebar#RelatedRecords",

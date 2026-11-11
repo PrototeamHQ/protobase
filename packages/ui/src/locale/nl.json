@@ -1900,6 +1900,8 @@
     "next": "Verder in {label}"
   },
   "record-view": {
+    "headingCount": "({count, plural, one {# <lower>{singular}</lower>} other {# <lower>{plural}</lower>}})",
+    "headingCountRecords": "({count, plural, one {# record} other {# records}})",
     "savedDifferent": "{name} bewaarde een andere waarde",
     "example": "Voorbeeld:",
     "savedThis": "bewaarde dit {ago}:",

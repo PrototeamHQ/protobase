@@ -132,7 +132,7 @@ export const useImportFlow = ({ model, resources, views, sourceFor = workerSheet
     setStep({ kind: 'importing', progress: emptyProgress, total, cancelling: false })
     let latest = emptyProgress
     const refresh = () => {
-      for (const prefix of ['page', 'list', 'first-page', 'map', 'facets', 'series']) void queryClient.invalidateQueries({ queryKey: [prefix, model.name] })
+      for (const prefix of ['page', 'list', 'first-page', 'map', 'facets', 'series', 'count']) void queryClient.invalidateQueries({ queryKey: [prefix, model.name] })
     }
     runImport(file.source, sheet, plan(), context(), {
       client: clientFor(model.name),

@@ -524,6 +524,18 @@ describe('view builder', () => {
     expect(() => twice.toModel(home.toModel())).toThrow('View "home": two groups are titled "More"')
   })
 
+  it('keeps the help and count of a group, and refuses a count without a related table to count', () => {
+    const related = { resource: 'notes', field: 'home_id', count: true }
+    expect(l.group('More', [l.related('Notes', related)], { help: 'What is left to do.', count: true })).toEqual({
+      kind: 'group',
+      title: 'More',
+      items: [{ kind: 'related', title: 'Notes', ...related }],
+      help: 'What is left to do.',
+      count: true,
+    })
+    expect(() => l.group('More', [l.section('Details', [])], { count: true })).toThrow('l.group "More" counts the records of its related tables, and holds none')
+  })
+
   it('puts main-column items in a tab, refuses sidebar items and nested tabs, and refuses tabs apart, one title twice, and one group title twice', () => {
     const home = resource('home').table('homes').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
     const related = { resource: 'notes', field: 'home_id' }

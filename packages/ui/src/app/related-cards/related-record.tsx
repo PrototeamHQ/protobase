@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react'
+import type { ReactNode } from 'react'
 import type { ResourceModel, RowButtonModel, ViewModel } from '@protobase/schema'
 import { useIsXs } from '../../lib/use-media-query'
 import { recordKey } from '../../live/model-helpers'
@@ -19,6 +20,8 @@ import { text } from './messages'
 type RelatedRecordProps = {
   title: string
   help?: string
+  /** What shows after the title, such as how many records match. */
+  count?: ReactNode
   model: ResourceModel
   view: ViewModel | undefined
   filter: string
@@ -38,14 +41,14 @@ const Empty = ({ empty }: { empty: string | undefined }) => <p className="text-m
  * in full, under their labels when there are several and alone when there is one, with a link to its own page and
  * `button` on the heading's line. A second record is read only to tell there are more, when "View all" opens them.
  */
-export const RelatedRecord = ({ title, help, model, view, filter, sort, fields, button, empty }: RelatedRecordProps) => {
+export const RelatedRecord = ({ title, help, count, model, view, filter, sort, fields, button, empty }: RelatedRecordProps) => {
   const xs = useIsXs()
   const orderBy = sort || defaultOrderBy(model, view)
   const page = useListPage(model, { filter, sort: orderBy, pageSize: 2 })
-  if (page.isPending) return <Section title={title} help={help}><Skeleton className="h-24 w-full" /></Section>
-  if (page.error) return <Section title={title} help={help}><ErrorBanner title={text('couldNotLoad')} error={page.error} /></Section>
+  if (page.isPending) return <Section title={title} help={help} count={count}><Skeleton className="h-24 w-full" /></Section>
+  if (page.error) return <Section title={title} help={help} count={count}><ErrorBanner title={text('couldNotLoad')} error={page.error} /></Section>
   const [row, next] = page.data.items
-  if (!row) return <Section title={title} help={help}><Empty empty={empty} /></Section>
+  if (!row) return <Section title={title} help={help} count={count}><Empty empty={empty} /></Section>
   const scope = scopeOf(model, row)
   const singular = (view?.names?.singular ?? humanize(model.name)).toLowerCase()
   const plural = view?.names?.plural ?? humanize(model.name)
@@ -60,7 +63,7 @@ export const RelatedRecord = ({ title, help, model, view, filter, sort, fields, 
     </div>
   )
   return (
-    <Section title={title} help={help} actions={actions}>
+    <Section title={title} help={help} count={count} actions={actions}>
       <div className="flex min-w-0 flex-col gap-4">
         {labelled ? <dl className="flex flex-col gap-4">{shown}</dl> : shown}
         {next && (

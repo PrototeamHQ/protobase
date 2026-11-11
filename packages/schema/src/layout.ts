@@ -64,16 +64,20 @@ export const layout = {
   }),
   /**
    * A heading over sections and related tables in the main column; `collapsed: true` keeps it closed until the person
-   * opens it, or a link to the record does (the address names the open groups by title). Throws on any other item. See
-   * [Groups](docs/website/src/content/docs/reference/ui-config.mdx#groups).
+   * opens it, or a link to the record does (the address names the open groups by title). `help` is a line under the
+   * heading; `count: true` shows how many records its related tables hold together. Throws on any other item, and on
+   * `count` without a related table. See [Groups](docs/website/src/content/docs/reference/ui-config.mdx#groups).
    */
-  group: (title: string, items: LayoutItemModel[], o: { collapsed?: boolean; when?: RecordWhen } = {}): LayoutItemModel => {
+  group: (title: string, items: LayoutItemModel[], o: { help?: string; count?: boolean; collapsed?: boolean; when?: RecordWhen } = {}): LayoutItemModel => {
     const wrong = items.find((item) => item.kind !== 'section' && item.kind !== 'related')
     if (wrong) throw new Error(`l.group "${title}" holds sections and related tables, not ${wrong.kind}`)
+    if (o.count && !items.some((item) => item.kind === 'related')) throw new Error(`l.group "${title}" counts the records of its related tables, and holds none`)
     return {
       kind: 'group',
       title,
       items: items as GroupItemModel[],
+      ...(o.help !== undefined && { help: o.help }),
+      ...(o.count && { count: true }),
       ...(o.collapsed && { collapsed: true }),
       ...(o.when !== undefined && { when: o.when }),
     }

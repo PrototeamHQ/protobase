@@ -41,6 +41,7 @@ export const useListEdits = (model: ResourceModel) => {
       void queryClient.invalidateQueries({ queryKey: ['page', model.name] })
       void queryClient.invalidateQueries({ queryKey: ['list', model.name] })
       void queryClient.invalidateQueries({ queryKey: ['map', model.name] })
+      void queryClient.invalidateQueries({ queryKey: ['count', model.name] })
     } catch (error) {
       if (!isApiError(error)) {
         patch(row.id, { [name]: row[name] })
