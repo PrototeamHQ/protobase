@@ -125,7 +125,7 @@ describe('checkIosPlugins', () => {
   })
 
   it('refuses an app without ProtobaseAuthPlugin, naming the workspace to delete', async () => {
-    const at = iosWorkspace({ config: listing(['AppPlugin', 'ProtobaseBounce']) })
+    const at = iosWorkspace({ config: listing(['AppPlugin', 'ProtobaseBounce', 'ProtobaseExternal', 'ProtobasePush']) })
     await expect(checkIosPlugins(at)).rejects.toThrow(stale('ProtobaseAuthPlugin', at))
   })
 
