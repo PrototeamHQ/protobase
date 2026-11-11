@@ -29,6 +29,12 @@ describe('nativeTapTarget', () => {
     expect(tap('https://elsewhere.example/x')).toBeUndefined()
   })
 
+  it('reads the iOS payload as Android data: the url and user beside aps, never aps or data', () => {
+    const apns = { aps: { alert: { title: 'Hi' } }, url: `${api}/tasks/1`, user: 'alice', data: { url: 'https://evil.com/x' } }
+    expect(tap(apns)).toEqual({ kind: 'in-app', path: '/tasks/1' })
+    expect(tap({ aps: { alert: { title: 'Hi' }, url: `${api}/x` }, user: 'alice' })).toBeUndefined()
+  })
+
   it('reads the url key alone, never another one in its place', () => {
     expect(tap({ user: 'alice', data: { url: `${api}/x` }, link: `${api}/x`, navigate: `${api}/x` })).toBeUndefined()
     expect(tap({ user: 'alice', url: `${api}/mine`, data: 'https://evil.com/x', link: 'https://evil.com/x' })).toEqual({ kind: 'in-app', path: '/mine' })

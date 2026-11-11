@@ -20,11 +20,12 @@ export const openNativeTap = async (target: NativeTapTarget, { bridge, navigate 
   await bridge.nativePromise(externalPlugin, 'open', { url: target.url })
 }
 
-// The data Android hands the app with a tap, `{ notification: { data } }`.
+// The data the phone hands the app with a tap, `{ notification: { data } }`: FCM's data on Android, the whole APNs
+// payload on iOS.
 const tapData = (action: unknown) => (typeof action === 'object' && action !== null ? (action as { notification?: { data?: unknown } }).notification?.data : undefined)
 
 /**
- * Listens for taps on a push in the Android app, warm or from a cold start, which the plugin keeps for this first
+ * Listens for taps on a push in the iOS and Android app, warm or from a cold start, which the plugin keeps for this first
  * listener, and opens each once the sign-in is known, for the user signed in then (`nativeTapTarget`). Renders nothing.
  */
 export const NativePushTap = ({ nativeBridge, apiOrigin }: { nativeBridge: NativeBridge; apiOrigin: string }) => {

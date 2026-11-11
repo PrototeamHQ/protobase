@@ -30,10 +30,20 @@ describe('pushNotifications in the app', () => {
     expect(calls).toEqual(['PushNotifications.checkPermissions'])
   })
 
-  // Registering without Firebase set up, the build's google-services.json, crashes the Android app.
-  it('offers none, calling no plugin, without the push plugin or on iOS', async () => {
+  it('offers native push in the iOS app whose build compiled the push plugin and ProtobasePush in', async () => {
     vi.stubGlobal('window', {})
-    for (const [platform, plugins] of [['android', []], ['ios', ['PushNotifications']]] as const) {
+    vi.stubGlobal('indexedDB', {})
+    const calls: string[] = []
+    const push = pushNotifications({ nativeBridge: bridge('ios', ['PushNotifications', 'ProtobasePush'], calls), devices, meta, user })
+    expect(await push.state()).toBe('blocked')
+    expect(calls).toEqual(['PushNotifications.checkPermissions'])
+  })
+
+  // Registering without Firebase set up, the build's google-services.json, crashes the Android app; an iOS build from
+  // before push names no APNs environment.
+  it('offers none, calling no plugin, without the push plugin, or on iOS without ProtobasePush', async () => {
+    vi.stubGlobal('window', {})
+    for (const [platform, plugins] of [['android', []], ['ios', ['PushNotifications']], ['ios', ['ProtobasePush']]] as const) {
       const calls: string[] = []
       const push = pushNotifications({ nativeBridge: bridge(platform, [...plugins], calls), devices, meta, user })
       expect(await push.state()).toBe('unsupported')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ApiError, type FcmDeviceRegistration, type RelayDeviceRegistration, type WebDeviceRegistration } from '@protobase/client'
+import { ApiError, type DevicesClient, type FcmDeviceRegistration } from '@protobase/client'
 import type { NativeBridge } from '../../app/native-auth-fetch'
 import { nativePush } from './native-push'
 import type { PushRecord } from './push-records'
@@ -64,7 +64,7 @@ const setup = (options: Options = {}) => {
       clear: async () => void ((record = undefined), log.push('forget')),
     },
     devices: {
-      register: async (registration: WebDeviceRegistration | FcmDeviceRegistration | RelayDeviceRegistration) => {
+      register: async (registration: Parameters<DevicesClient['register']>[0]) => {
         if (registration.kind !== 'fcm') throw new Error('The app registers an fcm device')
         sent.push(registration)
         log.push(`device ${registration.userId} ${registration.token}`)
@@ -73,6 +73,7 @@ const setup = (options: Options = {}) => {
       },
       remove: async (id) => void log.push(`remove ${id}`),
     },
+    device: async (token) => ({ kind: 'fcm', token }),
     tokenMs: 50,
   })
   return { push, log, sent, listeners, record: () => record, signIn: (user: PushUser | undefined) => (signedIn = user) }
@@ -134,9 +135,9 @@ describe('nativePush', () => {
     expect(always.record()).toBeUndefined()
   })
 
-  it('fails when FCM gives no token, leaving nothing registered', async () => {
+  it('fails when the push service gives no token, leaving nothing registered', async () => {
     const { push, sent, record } = setup({ tokenError: true })
-    await expect(push.turnOn()).rejects.toThrow('FCM gave the app no push token')
+    await expect(push.turnOn()).rejects.toThrow('The push service gave the app no push token')
     expect(sent).toEqual([])
     expect(record()).toBeUndefined()
   })

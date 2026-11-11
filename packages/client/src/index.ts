@@ -6,7 +6,7 @@ export { ChannelRefusal, type ChannelError, type ChannelMessage, type ChannelSta
 export type { SocketLike } from './channel-connection'
 export { pollThenSocket, type LiveSocket, type PollThenSocketOptions } from './poll-then-socket'
 export type { OpenedBridge } from './bridges'
-export type { DevicesClient, FcmDeviceRegistration, RegisteredDevice, RelayDeviceRegistration, WebDeviceRegistration } from './devices'
+export type { ApnsDeviceRegistration, DevicesClient, FcmDeviceRegistration, RegisteredDevice, RelayDeviceRegistration, WebDeviceRegistration } from './devices'
 export type { InboxNotification, InboxPage, NotificationHistoryClient } from './notification-history'
 export type { Availability, PersonStatus, StatusClient, StatusInput } from './status'
 export type { WorkflowTypeEntry, WorkflowTypeList } from './workflow-types'
