@@ -19,6 +19,9 @@ export type ClientOptions = {
   webSocket?: (url: string, protocols: string[]) => SocketLike
 }
 
+/** The browser's fetch cache modes but `only-if-cached`, which fetch takes only with a same-origin mode the client never sends. */
+export type CacheMode = Exclude<RequestCache, 'only-if-cached'>
+
 export type Request = {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   path: string
@@ -35,7 +38,7 @@ export type Request = {
   via?: typeof fetch
   signal?: AbortSignal
   /** How the browser's HTTP cache treats the request, such as `no-store` for an answer only its caller may see. */
-  cache?: RequestCache
+  cache?: CacheMode
 }
 
 export const createTransport = (options: ClientOptions = {}) => {

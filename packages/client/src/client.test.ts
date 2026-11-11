@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, where } from '@protobase/schema'
-import { createClient } from './client'
+import { createClient, type InvokeOptions } from './client'
 import { fileUrl } from './file-urls'
 import { ApiError, PreconditionFailedError } from './problem'
 
@@ -359,6 +359,14 @@ describe('invoke', () => {
     const { calls, fetch } = fakeFetch(() => json({ ok: true }))
     await createClient({ fetch }).invoke('chart', { cache: 'no-store' })
     expect(calls[0]!.init.cache).toBe('no-store')
+  })
+
+  it('takes no only-if-cached, which fetch refuses without a same-origin mode', () => {
+    const options: InvokeOptions = {
+      // @ts-expect-error only-if-cached is not a cache mode the client sends
+      cache: 'only-if-cached',
+    }
+    expect(options.cache).toBe('only-if-cached')
   })
 
   it('resolves to text or nothing when the function answers so, and rejects with its problem', async () => {
