@@ -383,14 +383,28 @@ describe('view builder', () => {
         l.custom(Plan, { fallback: [l.section('Content', [r.title])] }),
         l.custom(Plan, { sidebar: true, fallback: [l.map('Where', { latitude: r.price, longitude: r.price, sidebar: true })] }),
         l.custom(Plan, { fallback: [] }),
+        l.custom(Plan, { fallback: [l.history(), l.thread('Chat', { resource: 'messages', field: 'article_id', sender: 'author', time: 'at', text: 'body' }), l.composer({ resource: 'messages', field: 'article_id', text: 'body' })] }),
       ])
       .toModel()
     expect(model.layout).toEqual([
       { kind: 'custom', component: 'Plan', fallback: [{ kind: 'section', title: 'Content', fields: ['title'] }] },
       { kind: 'custom', component: 'Plan', sidebar: true, fallback: [{ kind: 'map', title: 'Where', latitude: 'price', longitude: 'price', sidebar: true }] },
       { kind: 'custom', component: 'Plan', fallback: [] },
+      {
+        kind: 'custom',
+        component: 'Plan',
+        fallback: [
+          { kind: 'history', title: 'History' },
+          { kind: 'thread', title: 'Chat', resource: 'messages', field: 'article_id', sender: 'author', time: 'at', text: 'body' },
+          { kind: 'composer', resource: 'messages', field: 'article_id', text: 'body' },
+        ],
+      },
     ])
-    expect(() => view<typeof article>('article').layout(() => [l.custom(Plan, { fallback: [l.history()] })])).toThrow('l.custom(Plan) falls back to sections and related tables, not history')
+    expect(() => view<typeof article>('article').layout(() => [l.custom(Plan, { fallback: [l.custom(Plan)] })])).toThrow('l.custom(Plan) falls back to main-column items but a custom component, not a custom component')
+    expect(() => view<typeof article>('article').layout((r) => [l.custom(Plan, { fallback: [l.sidebar([r.title])] })])).toThrow('l.custom(Plan) falls back to main-column items but a custom component, not sidebar')
+    expect(() => view<typeof article>('article').layout((r) => [l.custom(Plan, { fallback: [l.map('Where', { latitude: r.price, longitude: r.price, sidebar: true })] })])).toThrow(
+      'l.custom(Plan) falls back to main-column items but a custom component, not a sidebar map',
+    )
     expect(() => view<typeof article>('article').layout((r) => [l.custom(Plan, { sidebar: true, fallback: [l.section('Content', [r.title])] })])).toThrow(
       'l.custom(Plan) falls back to sidebar maps, not section',
     )

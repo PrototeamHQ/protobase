@@ -173,13 +173,11 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
   const related = s.map<RelatedModel>((item) => pruneRelated(item, resource, models))
   const group = s.object<GroupModel>({ kind: s.data, title: s.data, collapsed: s.data, when, items: s.list(s.oneOf({ section, related }), { nonEmpty: true }) }, { requires: ['items', 'when'] })
   const map = s.object<MapSectionModel>({ kind: s.data, title: s.data, latitude: s.field, longitude: s.field, zoom: s.data, sidebar: s.data, when: s.data }, { requires: ['latitude', 'longitude'] })
-  // A fallback the caller can see none of stays, empty, so the client still draws nothing in the component's place
-  const fallback = s.list(s.oneOf<CustomFallbackItemModel>({ section, related, map }))
-  const main = {
+  // A custom section falls back to any of these: the main column's items but another custom section
+  const fallbackItems = {
     section,
     related,
     group,
-    custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, when: s.data, props: s.refs, fallback }, { requires: ['props'] }),
     map,
     chart: s.map<RecordChartModel>((item) => pruneRecordChart(item, resource, models)),
     gallery: s.map<GalleryModel>((item) => pruneGallery(item, resource, model, models)),
@@ -188,6 +186,12 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
     // A conversation goes when the caller cannot read the messages or a field it shows; its box when they cannot create one
     thread: s.map<ThreadSectionModel>((item) => (threadSectionErrors(item, resource, models).length === 0 ? item : undefined)),
     composer: s.map<ComposerSectionModel>((item) => (creates(item, creatable) ? item : undefined)),
+  }
+  // A fallback the caller can see none of stays, empty, so the client still draws nothing in the component's place
+  const fallback = s.list(s.oneOf<CustomFallbackItemModel>(fallbackItems))
+  const main = {
+    ...fallbackItems,
+    custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, when: s.data, props: s.refs, fallback }, { requires: ['props'] }),
   }
   return s.oneOf<LayoutItemModel>({
     ...main,
