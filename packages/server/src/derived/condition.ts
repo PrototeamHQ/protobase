@@ -26,10 +26,13 @@ const exactTypes = new Set(['integer', 'bigint', 'text', 'uuid', 'enum', 'boolea
 const numberTypes = new Set(['integer', 'bigint', 'decimal'])
 const timeTypes = new Set(['timestamp', 'date'])
 
+/** A value of an exactly compared type as text, a uuid in the one form Postgres compares it by. */
+const exactText = (type: string | undefined, value: unknown) => (type === 'uuid' ? String(value).toLowerCase().replace(/[{}-]/g, '') : String(value))
+
 const equal = (type: string | undefined, a: unknown, b: Scalar): Truth => {
   if (a === null || a === undefined || b === null) return undefined
   if (a === b) return true
-  if (type !== undefined && exactTypes.has(type) && (typeof a !== 'object' || a === null)) return String(a) === String(b)
+  if (type !== undefined && exactTypes.has(type) && (typeof a !== 'object' || a === null)) return exactText(type, a) === exactText(type, b)
   return undefined
 }
 
@@ -84,11 +87,12 @@ export const mayMatch = (condition: Condition, record: Record<string, unknown>, 
 export const equalityOf = (condition: Condition, types: Record<string, string>): { field: string; value: string } | undefined => {
   if ('and' in condition) return condition.and.map((part) => equalityOf(part, types)).find(Boolean)
   if (!('op' in condition) || condition.op !== '=' || condition.value === null) return undefined
-  return exactTypes.has(types[condition.field] ?? '') ? { field: condition.field, value: String(condition.value) } : undefined
+  const type = types[condition.field]
+  return exactTypes.has(type ?? '') ? { field: condition.field, value: exactText(type, condition.value) } : undefined
 }
 
 /** A record's values as the equality index holds them: text, for the fields of a type that compares exactly. */
 export const equalityKeys = (record: Record<string, unknown>, types: Record<string, string>) =>
   Object.entries(record)
     .filter(([field, value]) => exactTypes.has(types[field] ?? '') && value !== null && typeof value !== 'object')
-    .map(([field, value]) => ({ field, value: String(value) }))
+    .map(([field, value]) => ({ field, value: exactText(types[field], value) }))
