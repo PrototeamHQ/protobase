@@ -26,8 +26,7 @@ describe('a field nobody may change on the form', () => {
   it('shows a timestamp relative when the view says, its exact time on hover', () => {
     const at: FieldModel = { ...base, name: 'last_sign_at', type: 'timestamp' }
     const html = shown(at, new Date(Date.now() - 3 * 3600_000).toISOString(), { format: 'relative' })
-    expect(html).toMatch(/>3 hours ago<\/span>/)
-    expect(html).toMatch(/title="[^"]*\d/)
+    expect(html).toMatch(/<time datetime="[^"]+" title="[^"]*\d[^"]*">3 hours ago<\/time>/i)
   })
 
   it('shows text at full contrast, and an empty value as a faint dash', () => {
@@ -35,7 +34,7 @@ describe('a field nobody may change on the form', () => {
     const html = shown(note, 'Waiting on review')
     expect(html).toContain('text-foreground')
     expect(html).not.toContain('text-muted-foreground')
-    expect(shown(note, null)).toContain('<span class="text-muted-foreground">—</span>')
+    expect(shown(note, null)).toContain('<span aria-hidden="true">—</span><span class="sr-only">No value</span>')
   })
 
   it('shows a boolean as yes or no, not a switch', () => {

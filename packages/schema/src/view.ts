@@ -294,7 +294,8 @@ export class ViewBuilder<R extends {
 
   /**
    * The field the record page shows as a badge beside its title, in the field's `valueColors` and labels, such as a
-   * verdict; without it an enum field named `status` shows there. Throws when the field does not exist. See
+   * verdict; without it an enum field named `status` shows there. Throws when the field does not exist, or is neither
+   * an enum nor shown with `.format('badge')`. See
    * [The record page](docs/website/src/content/docs/reference/ui-config.mdx#read-only-values-and-a-title-badge).
    */
   titleBadge(pick: (r: FieldRefs<FieldsOf<R>>) => Ref) {
@@ -450,6 +451,9 @@ export class ViewBuilder<R extends {
     }
     if (resource && titleBadge !== undefined && !Object.hasOwn(resource.fields, titleBadge)) {
       throw new Error(`View "${this.state.resource}": title badge field "${titleBadge}" does not exist on the resource`)
+    }
+    if (resource && titleBadge !== undefined && resource.fields[titleBadge]!.type !== 'enum' && this.state.fields[titleBadge]?.format !== 'badge') {
+      throw new Error(`View "${this.state.resource}": title badge field "${titleBadge}" is no enum and has no .format('badge'), so it would not fit a badge`)
     }
     const unknownTitleField = resource ? titleFrom?.fields.find((name) => !Object.hasOwn(resource.fields, name)) : undefined
     if (unknownTitleField !== undefined) throw new Error(`View "${this.state.resource}": titleFrom field "${unknownTitleField}" does not exist on the resource`)

@@ -13,6 +13,7 @@ import { Markdown } from '../../markdown/markdown'
 import { isMarkdown } from '../../markdown/markdown-hint'
 import { ContactLink } from '../../live/contact-link'
 import { contactFormat } from '../../live/contact-links'
+import { text as appText } from '../messages'
 
 // A relation's target named as the record page names it, read unless the page already knows the name
 const RelationLink = ({ target, id, known }: { target: ResourceModel; id: string; known?: string }) => {
@@ -33,6 +34,14 @@ const RelationValue = ({ field, value, known }: { field: FieldModel; value: unkn
 
 type FieldValueProps = { model: ResourceModel; field: FieldModel; value: unknown; format?: FieldFormat; relationLabel?: string }
 
+// A dash, which a screen reader reads as words
+const EmptyValue = () => (
+  <span className="text-muted-foreground">
+    <span aria-hidden="true">—</span>
+    <span className="sr-only">{appText('noValue')}</span>
+  </span>
+)
+
 type ShownValueProps = { field: FieldModel; value: unknown; hints: FieldViewModel; relationLabel?: string }
 
 /**
@@ -40,7 +49,7 @@ type ShownValueProps = { field: FieldModel; value: unknown; hints: FieldViewMode
  * badges in the view's `valueColors` for enums and the `badge` format, and timestamps as the `relative` format says.
  */
 export const ShownValue = ({ field, value, hints, relationLabel }: ShownValueProps) => {
-  if (value === null || value === undefined || value === '') return <span className="text-muted-foreground">—</span>
+  if (value === null || value === undefined || value === '') return <EmptyValue />
   if (field.type === 'relation') return <RelationValue field={field} value={value} known={relationLabel} />
   const file = field.type === 'file' ? fileShown(value) : undefined
   if (file && 'url' in file && file.url) {
@@ -57,6 +66,7 @@ export const ShownValue = ({ field, value, hints, relationLabel }: ShownValuePro
   const contact = field.type === 'text' ? contactFormat(hints) : undefined
   if (contact) return <ContactLink format={contact} value={text} />
   if (field.type === 'enum' || hints.format === 'badge') return <ValueBadge value={value} hints={hints}>{text}</ValueBadge>
+  if (field.type === 'timestamp' || field.type === 'date') return <time dateTime={String(value)} title={valueTitle(field, value, undefined, hints)}>{text}</time>
   return <span title={valueTitle(field, value, undefined, hints)} className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums', hints.multiline && 'whitespace-pre-line break-words')}>{text}</span>
 }
 

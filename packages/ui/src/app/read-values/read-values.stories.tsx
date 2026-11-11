@@ -83,13 +83,20 @@ export const Checks: StoryObj = {
     const canvas = within(canvasElement)
     const heading = await canvas.findByRole('heading', { level: 1, name: 'A fantastic default UX' })
     const header = within(heading.parentElement!)
-    expect(header.getByText('Slowing')).toBeVisible()
+    // The badge says what it is to a screen reader, beside the heading rather than in it
+    const badge = (value: string) => header.getByText((_, element) => element?.tagName === 'SPAN' && element.textContent === `Verdict: ${value}`)
+    expect(badge('Slowing')).toBeVisible()
+    expect(heading.textContent).toBe('A fantastic default UX')
 
     const section = (await canvas.findByRole('heading', { name: 'Verdict' })).closest('section')!
     expect(section.querySelectorAll('input, select, textarea')).toHaveLength(0)
+    // A label names a control, so values have none
+    expect(section.querySelectorAll('label')).toHaveLength(0)
     const verdict = within(section).getByText('Slowing')
     expect(verdict.className).toContain('bg-warning-soft')
-    expect(within(section).getByText('3 hours ago').title).toMatch(/\d/)
+    const time = within(section).getByText('3 hours ago')
+    expect(time.tagName).toBe('TIME')
+    expect(time.title).toMatch(/\d/)
     const headline = within(section).getByText('Two causes hold it up')
     // Full contrast: the colour of the page's text, not the muted one a disabled input has
     expect(getComputedStyle(headline).color).toBe(getComputedStyle(heading).color)
@@ -98,7 +105,7 @@ export const Checks: StoryObj = {
 
     await userEvent.click(await canvas.findByRole('button', { name: 'Mark stuck' }))
     await waitFor(() => expect(stored.objectives![0]!.verdict).toBe('stuck'))
-    await waitFor(() => expect(getComputedStyle(header.getByText('Stuck')).backgroundColor).toBe('rgb(185, 28, 28)'))
+    await waitFor(() => expect(getComputedStyle(badge('Stuck')).backgroundColor).toBe('rgb(185, 28, 28)'))
     await waitFor(() => expect(getComputedStyle(within(section).getByText('Stuck')).backgroundColor).toBe('rgb(185, 28, 28)'))
   },
 }

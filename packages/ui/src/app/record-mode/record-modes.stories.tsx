@@ -98,7 +98,8 @@ export const EmptyValues: StoryObj = {
   play: async ({ canvasElement }) => {
     const home = await section(canvasElement, 'Home')
     const values = [...home.querySelectorAll('dd')].map((value) => value.textContent)
-    expect(values).toEqual(['Oudegracht 7', '—', '—', '—', 'No'])
+    // An empty value is a dash, which a screen reader reads as words
+    expect(values).toEqual(['Oudegracht 7', '—No value', '—No value', '—No value', 'No'])
     // A home without photos has no gallery, once it knows there are none
     await waitFor(() => expect(within(canvasElement).queryByRole('heading', { name: 'Photos' })).toBeNull())
   },

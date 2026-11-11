@@ -7,7 +7,7 @@ import { usePauseFocusRefresh } from '../data/focus-refresh'
 import { keys } from '../data/query-keys'
 import { useOpenedRecord, type LiveRecord } from '../data/use-record'
 import { displayValue, valueTitle } from '../live/display-value'
-import { fromDraft, isRequiredOnEdit, toDraft } from '../live/field-values'
+import { fromDraft, isEditable, isRequiredOnEdit, toDraft } from '../live/field-values'
 import { auditField } from '../live/audit-fields'
 import { humanize } from '../live/naming'
 import { useRecordTitle } from './titles/record-titles'
@@ -219,6 +219,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   const badgeField = titleBadgeField(model, view, stored.record, sidebarFields, visible)
   const badge = badgeField && (
     <ValueBadge value={stored.record[badgeField]} hints={hint(badgeField)}>
+      <span className="sr-only">{hint(badgeField)?.label ?? humanize(badgeField)}: </span>
       {displayValue(model.fields[badgeField]!, stored.record[badgeField], hint(badgeField))}
     </ValueBadge>
   )
@@ -231,6 +232,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     const target = pickTarget(name)
     const label = hint(name)?.label ?? humanize(name)
     const problem = editor.errors[name]
+    const locked = shown !== 'form' || access === 'read'
     return (
       <Field
         // A revealed sensitive value is forgotten when the record changes
@@ -241,6 +243,8 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         help={fieldHelp(hint(name), view, editing)}
         error={problem && fieldMessage(field, label, problem)}
         wide={isWideField(fieldTypes, field, hint(name))}
+        // A value shown as text has no control for its label to name; a sensitive one keeps its reveal control
+        readOnly={(locked || !isEditable(field, hint(name))) && !field.sensitive && field.type !== 'file'}
         conflict={
           conflict === undefined
             ? undefined
@@ -256,7 +260,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
             relationLabel={chosen.labels[name]}
             relationTo={chosen.addresses[name]}
             relationPicker={target && { target, view: meta.views[target.name] }}
-            locked={shown !== 'form' || access === 'read'}
+            locked={locked}
             invalid={Boolean(editor.errors[name])}
             reveal={field.sensitive && !field.writeOnly ? () => client.reveal(model.name, recordKey, name) : undefined}
             resource={model.name}
