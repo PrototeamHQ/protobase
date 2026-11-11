@@ -40,7 +40,6 @@ export const projectAdmin = (project: BuiltProject, db: Db, ui?: BundleUi, repor
     ...(project.realtime && { realtime: project.realtime }),
     ...(project.notifications && { notifications: project.notifications }),
     ...(project.status && { status: project.status }),
-    ...(project.pushRelay && { pushRelay: project.pushRelay }),
     ...(project.calls && { calls: project.calls }),
     ...(project.mobile && { mobile: project.mobile }),
     ...(project.app && { app: project.app }),

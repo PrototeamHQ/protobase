@@ -92,11 +92,6 @@ import { pushJob } from './notifications/push-job'
 import { onDoNotDisturb } from './status/do-not-disturb'
 import { checkStatusAuth, statusNames, type StatusOptions } from './status/options'
 import { statusRoutes } from './status/routes'
-import { checkPushRelayOptions, type PushRelayOptions } from './push-relay/options'
-import { pushRelayPath } from './push-relay/paths'
-import { postgresRelayStore } from './push-relay/postgres-store'
-import { pushRelayRoutes } from './push-relay/routes'
-import { relaySenders } from './push-relay/senders'
 import { storeSchema } from './better-auth/store/store-names'
 import { liveSessions } from './better-auth/live-sessions'
 import type { SubscriptionDefinition } from './webhooks/subscription'
@@ -200,8 +195,6 @@ export type CreateAdminInput = {
   notifications?: NotificationsOptions
   /** People's own status, from `status: {}` (see `StatusOptions`): it needs `auth` with organizations. */
   status?: StatusOptions
-  /** The app as a push relay for a mobile app's workspaces, from `pushRelay: { appId }` (see `PushRelayOptions`). */
-  pushRelay?: PushRelayOptions
   /** The media server behind the calls functions admit members to with `calls.join` (see `CallsOptions`). */
   calls?: CallsOptions
   /**
@@ -250,7 +243,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], derived: computes = {}, webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, pushRelay, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], derived: computes = {}, webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -305,8 +298,6 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const maps = mapSettings(options.maps, globalThis.process?.env ?? {})
   // At startup, so a wrong VAPID or APNs variable stops the server; the sending code calls them through these.
   const senders = notifications ? notificationSenders(notifications, globalThis.process?.env ?? {}, mobile) : []
-  // The relay's APNs and FCM senders, whose variables stop startup when neither is set or one is wrong.
-  const relay = pushRelay && { appId: checkPushRelayOptions(pushRelay).appId, senders: relaySenders(pushRelay, globalThis.process?.env ?? {}) }
   // Who sees a status follows organizations, so an app without them stops here.
   if (status) checkStatusAuth(auth)
   const statusTables = status && auth && { statuses: statusNames(status), members: { schema: storeSchema(auth), table: 'member' } }
@@ -486,8 +477,6 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     if (auth) removeHistoryWithUsers(auth, history)
     app.route(historyPath(systemPath), guarded((routes) => void routes.route('/', historyRoutes(history, auth?.origins ?? []))))
   }
-  // With no sign-in: phones register their tokens, and workspaces send with their relay credential.
-  if (relay) app.route(pushRelayPath(systemPath), pushRelayRoutes({ store: postgresRelayStore(db), ...relay }))
   if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types))))
   if (engine) app.route(workflowRunsPath(systemPath), guarded((routes) => void routes.route('/', workflowTraceRoute(deps, engine.readTrace))))
   if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))

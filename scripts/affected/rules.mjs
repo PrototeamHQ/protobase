@@ -77,8 +77,8 @@ export const edges = [
   { from: ['packages/server/src/better-auth/connections/testing/snapshots.ts'], reads: ['packages/server/src/better-auth/connections/testing/snapshots/**'] },
   // The leak scan of the committed Google recordings reads them by path; the Gmail fake's are under test-support/.
   { from: ['scripts/google-recording/snapshot-files.test.ts'], reads: ['packages/server/src/better-auth/connections/testing/snapshots/google/**'] },
-  // The APNs sender's replay test, the push relay's and the leak scan read APNs's recorded answers by path.
-  { from: ['packages/server/src/notifications/apns/apns-recording.test.ts', 'packages/server/tests/push-relay.test.ts', 'scripts/apns-recording/snapshot-files.test.ts'], reads: ['packages/server/src/notifications/apns/snapshots/**'] },
+  // The APNs sender's replay test and the leak scan read APNs's recorded answers by path.
+  { from: ['packages/server/src/notifications/apns/apns-recording.test.ts', 'scripts/apns-recording/snapshot-files.test.ts'], reads: ['packages/server/src/notifications/apns/snapshots/**'] },
   // The APNs stand-in of the sender's tests serves TLS with a certificate read by path.
   { from: ['packages/server/src/notifications/testing/apns-service.ts'], reads: ['packages/server/src/notifications/testing/self-signed.*'] },
   // The FCM sender's tests answer from the recorded token endpoint and FCM answers, read by path.

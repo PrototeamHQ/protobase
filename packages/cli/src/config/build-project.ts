@@ -1,7 +1,7 @@
 import type { PostgresPool } from 'kysely'
 import type { Db } from '@protobase/query'
-import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, DerivedCompute, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, PushRelayOptions, StatusOptions, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
-import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkPushRelayOptions, checkStatusOptions, workflowPlugins } from '@protobase/server/internal'
+import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, DerivedCompute, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, StatusOptions, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
+import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions, workflowPlugins } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
 import { projectDerived, projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
 import { userTablesOn } from './user-tables-config'
@@ -68,7 +68,6 @@ export type BuiltProject = {
   realtime?: RealtimeOptions
   notifications?: NotificationsOptions
   status?: StatusOptions
-  pushRelay?: PushRelayOptions
   calls?: CallsOptions
   jobs: JobDefinition[]
   /** The derived values' compute functions, by `<resource>.<name>` (`projectDerived`). */
@@ -115,7 +114,6 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     ...(config.realtime && { realtime: config.realtime }),
     ...(notifications && { notifications }),
     ...(config.status && { status: checkStatusOptions(config.status) }),
-    ...(config.pushRelay && { pushRelay: checkPushRelayOptions(config.pushRelay) }),
     ...(config.calls && { calls: checkCallsOptions(config.calls) }),
     ...(mailer && { mailer }),
     ...(config.mobile && { mobile: config.mobile }),

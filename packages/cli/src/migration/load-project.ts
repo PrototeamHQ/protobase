@@ -1,6 +1,6 @@
 import pg from 'pg'
 import { assistantSettings, authStoreTables, configExports } from '@protobase/server'
-import { checkPushRelayOptions, checkStatusOptions } from '@protobase/server/internal'
+import { checkStatusOptions } from '@protobase/server/internal'
 import { projectAuth } from '../config/build-project'
 import type { MergedConfig } from '../config/merge-config'
 import { projectJobs, projectNotifications, projectResources, projectWebhooks } from '../config/project-parts'
@@ -39,7 +39,6 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
     ...(config.calls && { calls: config.calls }),
     ...(notifications && { notifications }),
     ...(config.status && { status: checkStatusOptions(config.status) }),
-    ...(config.pushRelay && { pushRelay: checkPushRelayOptions(config.pushRelay) }),
     jobs,
     userTables: userTablesOn(config),
     // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.

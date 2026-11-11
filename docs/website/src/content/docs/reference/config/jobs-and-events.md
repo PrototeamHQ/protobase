@@ -352,14 +352,3 @@ The schema of the statuses table.
 ```ts
 export default defineConfig({ status: { schema: 'presence' } })
 ```
-
-## pushRelay
-
-- **Type:** `{ appId: string }`
-- **Default:** off
-
-Makes the app a push relay for the mobile app `appId`, with that app's APNs key or FCM service account: it delivers the notifications of the workspaces it holds credentials for, each only to the phones registered for that workspace. Its tables are written by `protobase migration`. See [Push relay service](/reference/notifications/#push-relay-service).
-
-```ts
-export default defineConfig({ pushRelay: { appId: 'com.example.app' } })
-```

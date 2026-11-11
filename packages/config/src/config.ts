@@ -14,7 +14,6 @@ import type {
   NotificationsOptions,
   RealtimeOptions,
   StatusOptions,
-  PushRelayOptions,
   WebhooksOptions,
   WorkflowsOptions,
 } from '@protobase/server'
@@ -122,8 +121,6 @@ export type ProtobaseConfig = AppKeys &
     notifications?: Omit<NotificationsOptions, 'store' | 'historyStore' | 'senders'>
     /** People set their own status and see those they share an organization with (see `StatusOptions`); `{}` turns it on, and it needs organizations. */
     status?: StatusOptions
-    /** The app as a push relay that holds a mobile app's APNs and FCM keys for many workspaces (see `PushRelayOptions`); `{ appId }` turns it on. */
-    pushRelay?: PushRelayOptions
     /** The media server behind the calls functions admit members to with `calls.join` (see `CallsOptions`). */
     calls?: CallsOptions
     /** The app's iOS and Android build (see `MobileConfig`). */
