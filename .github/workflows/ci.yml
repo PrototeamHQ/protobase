@@ -108,6 +108,10 @@ jobs:
       group: integration-${{ matrix.shard }}-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    # On a hosted runner the job runs in the Playwright image of the lockfile's Playwright version, which carries
+    # Chromium's system packages, so no run depends on reaching the apt mirrors. A self-hosted runner's server provides
+    # them. Raise the tag with Playwright in bun.lock.
+    container: &playwright-image ${{ !(github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER) && 'mcr.microsoft.com/playwright:v1.63.0-noble' || '' }}
     # The integration tests' Postgres, as docker-compose.yml runs it locally: same image and user. Its host port is a free
     # one Docker picks, not docker-compose.yml's fixed one, so each job's database is its own and one left behind by an
     # earlier job cannot hold the port this one needs.
@@ -130,27 +134,39 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
+      # In the image git runs as root on a checkout the runner's user owns, and refuses it unless it is marked safe.
+      - &safe-directory
+        if: runner.environment == 'github-hosted'
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - &setup-bun
+        if: runner.environment != 'github-hosted'
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
+      # The Playwright image has no unzip, which setup-bun needs; the npm package brings Bun's binary without it.
+      - &bun-from-npm
+        if: runner.environment == 'github-hosted'
+        run: npm install --global bun@1.4.4
       - run: bun install --frozen-lockfile
-      # The tests reach the server on the port the service was given (scripts/test-db/templates.ts).
+      # The tests reach the server on the port the service was given (scripts/test-db/templates.ts): from the image, on
+      # the job's network under the service's name; on a self-hosted runner, on the host port Docker picked.
       - name: Point the tests at the service's Postgres
         env:
-          POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
-        run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
+          POSTGRES_ADDRESS: ${{ runner.environment == 'github-hosted' && 'postgres:5432' || format('localhost:{0}', job.services.postgres.ports['5432']) }}
+        run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@$POSTGRES_ADDRESS/postgres" >> "$GITHUB_ENV"
       # A throwaway database needs no durability. Each `drop database` the tests' clones end with forces a checkpoint, and
       # on a runner that shares its disk those queue behind each other until hooks time out; without fsync they are quick.
+      # Through the tests' own client, as the image has no docker or psql.
       - name: Turn off the service Postgres' durability
         run: >-
-          docker exec ${{ job.services.postgres.id }} psql -U protobase -d protobase -v ON_ERROR_STOP=1
-          -c "alter system set fsync = off" -c "alter system set synchronous_commit = off"
-          -c "alter system set full_page_writes = off" -c "select pg_reload_conf()"
+          bun -e "const sql = (await import('postgres')).default(process.env.TEST_POSTGRES_URL, { max: 1 });
+          for (const setting of ['fsync', 'synchronous_commit', 'full_page_writes']) await sql.unsafe('alter system set ' + setting + ' = off');
+          await sql\`select pg_reload_conf()\`; await sql.end()"
       - *bun-node
       # The template databases each integration run clones; with CI set, a missing one fails the run instead of skipping.
       - run: bun run test:db
-      # A self-hosted runner has no root to install Chromium's system packages, so its server provides them.
-      - run: bun x --bun playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
+      # In the image, Chromium is already installed when its Playwright version matches the lockfile's.
+      - run: bun x --bun playwright install chromium
       - *check-base
       # `bun run check:integration`, each command on this leg's shard.
       - run: bun scripts/affected-tests.mjs --project 'integration*' --shard ${{ matrix.shard }}/2
@@ -176,24 +192,14 @@ jobs:
       group: storybook-${{ matrix.shard }}-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
-    # On a hosted runner the job runs in the Playwright image of the lockfile's Playwright version, which carries
-    # Chromium's system packages: installing them from the apt mirror can take the whole timeout. A self-hosted runner's
-    # server provides them. Raise the tag with Playwright in bun.lock.
-    container: ${{ !(github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER) && 'mcr.microsoft.com/playwright:v1.63.0-noble' || '' }}
+    container: *playwright-image
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # In the image git runs as root on a checkout the runner's user owns, and refuses it unless it is marked safe.
-      - if: runner.environment == 'github-hosted'
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-      - if: runner.environment != 'github-hosted'
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
-      # The Playwright image has no unzip, which setup-bun needs; the npm package brings Bun's binary without it.
-      - if: runner.environment == 'github-hosted'
-        run: npm install --global bun@1.4.4
+      - *safe-directory
+      - *setup-bun
+      - *bun-from-npm
       # Before the site's gate, which reads the module graph through Vitest.
       - run: bun install --frozen-lockfile
       - *check-base
@@ -217,18 +223,19 @@ jobs:
       group: docs-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    container: *playwright-image
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
+      - *safe-directory
+      - *setup-bun
+      - *bun-from-npm
       - run: bun install --frozen-lockfile
       - *check-base
       - *affected-site
       - if: steps.site.outputs.run == 'true'
-        run: bun x --bun playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
+        run: bun x --bun playwright install chromium
       # The site carries the built Storybook under /storybook, so docs:build builds it here as well.
       - if: steps.site.outputs.run == 'true'
         run: bun run docs:build
