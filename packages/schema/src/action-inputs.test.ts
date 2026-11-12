@@ -60,6 +60,7 @@ describe('action inputs', () => {
     ])
     expect(() => actions.action('a', { label: 'A', inputs: (i) => [i.checklist('x', { label: 'X', items: [] })] })).toThrow('input "x": a checklist needs at least one item')
     expect(() => actions.action('a', { label: 'A', inputs: (i) => [{ ...i.checklist('x', { label: 'X', items: ['A'] }), from: 'list' }] })).toThrow('a checklist takes either "items" or "from"')
+    expect(() => actions.action('a', { label: 'A', inputs: (i) => [i.checklist('x', { label: 'X', items: ['A'], from: 'list' })] })).toThrow('a checklist takes either "items" or "from"')
   })
 
   it('shows an input while its when holds, reading an input that does not show as empty', () => {

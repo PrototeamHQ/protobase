@@ -46,7 +46,7 @@ export const inputs = {
    * record gets the boxes it holds, ticked, as a list of texts.
    */
   checklist: (name: string, o: { label: string; help?: string; when?: string } & ({ items: string[] } | { from: string })) =>
-    input(name, 'checklist', o, 'items' in o ? { items: [...o.items] } : { from: o.from }),
+    input(name, 'checklist', o, { ...('items' in o && { items: [...o.items] }), ...('from' in o && { from: o.from }) }),
   /**
    * What a project component edits, registered in `defineUi({ components })` under `component`: it gets the answer as
    * `value`, `onChange`, whether the answer is refused (`invalid`) and `props`.
