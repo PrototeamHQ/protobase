@@ -698,7 +698,9 @@
     "searchMembers": "Search members"
   },
   "app/field-types/json": {
-    "notJson": "This is not JSON yet: the field keeps the last value that was."
+    "notJson": "This is not JSON yet: the field keeps the last value that was.",
+    "showAll": "Show all {count} lines",
+    "showLess": "Show less"
   },
   "app/field-types/workflow": {
     "addStep": "Add a step",
