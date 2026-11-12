@@ -4,6 +4,7 @@ import { parseSize } from '@protobase/schema/internal'
 import { fileColumns, runCleanup, type FileColumn } from './cleanup-runner'
 import { storageCleanupSchedule, type CleanupSchedule } from './cleanup-schedule'
 import type { Sharp } from './images'
+import { mediaTypes, type MediaTypes } from './media-types'
 import type { FilesOptions } from './options'
 import { resolveProviders, retentionOf } from './providers'
 import { storageProviderName } from './storage-provider'
@@ -25,6 +26,8 @@ export type FilesRuntime = {
   sharp?: Sharp
   /** The hosts whose images are drawn with the page's referrer, besides the app's own (see `trustedImageHosts`). */
   trustedHosts: string[]
+  /** The table between types and extensions: the built-in one and the app's own `files.types`. */
+  types: MediaTypes
   /** The provider `/api/sb/storage/v1` keeps object bytes in and the largest object it takes, when the app serves it. */
   storage?: { provider: string; maxBytes: number }
 }
@@ -75,6 +78,7 @@ export const createFilesRuntime = ({ options = {}, env, secret: appSecret, model
     path: `${systemPath}/files`,
     columns: fileColumns(models),
     trustedHosts: trustedImageHosts(providers, options.trustedHosts),
+    types: mediaTypes(options.types),
     ...(options.sharp && { sharp: options.sharp }),
     ...(storage && { storage }),
   }

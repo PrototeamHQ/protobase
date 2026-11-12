@@ -26,13 +26,14 @@ const fieldWithin = (plugin: PluginInfo, name: string, widget: FieldWidget): Fie
 
 /**
  * A plugin's UI config from its module, read as a `protobase.ui.tsx` module and merged with the configs it extends,
- * named after the plugin: its components, field types, shell slots and `beforeSignIn` draw inside the plugin. Throws
+ * named after the plugin: its components, field types, file viewers, shell slots and `beforeSignIn` draw inside the plugin. Throws
  * `UiConflictError` when the configs it merges define a name twice.
  */
 export const pluginUi = (plugin: PluginInfo, module: Record<string, unknown>): ProjectUi => {
   const ui = mergeUi({ ...uiFromModule(module), name: plugin.name })
   const components = Object.fromEntries(Object.entries(ui.components ?? {}).map(([name, Component]) => [name, within(plugin, Component, name)]))
   const fields = ui.fields && Object.fromEntries(Object.entries(ui.fields).map(([name, widget]) => [name, fieldWithin(plugin, name, widget)]))
+  const fileViewers = ui.fileViewers && Object.fromEntries(Object.entries(ui.fileViewers).map(([type, viewer]) => [type, { component: within(plugin, viewer.component, `fileViewers.${type}`) }]))
   const shell = ui.shell && {
     ...(ui.shell.actions && { actions: within(plugin, ui.shell.actions, 'shell.actions') }),
     ...(ui.shell.rightPanel && { rightPanel: within(plugin, ui.shell.rightPanel, 'shell.rightPanel') }),
@@ -49,6 +50,7 @@ export const pluginUi = (plugin: PluginInfo, module: Record<string, unknown>): P
     ...(ui.titles && { titles: ui.titles }),
     ...(ui.marks && { marks: ui.marks }),
     ...(fields && { fields }),
+    ...(fileViewers && { fileViewers }),
     ...(shell && { shell }),
     ...(beforeSignIn && { beforeSignIn }),
   }

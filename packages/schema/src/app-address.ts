@@ -42,6 +42,8 @@ export const addressWords = {
   run: 'run',
   /** The panel a focus page opens with, by a name its surface knows. */
   panel: 'panel',
+  /** A record's file field opened in the viewer for its media type, by field name. */
+  file: 'file',
 } as const
 
 const listWords = ['list', 'display', 'filter', 'orderBy', 'filterLayout', 'savedSearch'] as const
@@ -102,6 +104,7 @@ const recordQuery = (address: Extract<AppAddress, { kind: 'record' }>) => {
   if (address.version !== undefined) query.set(addressWords.version, String(address.version))
   if (address.run) query.set(addressWords.run, address.run)
   if (address.panel) query.set(addressWords.panel, address.panel)
+  if (address.file) query.set(addressWords.file, address.file)
   const text = query.toString()
   return text ? `?${text}` : ''
 }
@@ -164,6 +167,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
     const version = readVersion(url.searchParams.get(addressWords.version))
     const run = url.searchParams.get(addressWords.run) || undefined
     const panel = url.searchParams.get(addressWords.panel) || undefined
+    const file = url.searchParams.get(addressWords.file) || undefined
     return {
       kind: 'record',
       resource: first,
@@ -176,6 +180,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
       ...(version !== undefined && { version }),
       ...(run && { run }),
       ...(panel && { panel }),
+      ...(file && { file }),
     }
   }
   const params = url.searchParams

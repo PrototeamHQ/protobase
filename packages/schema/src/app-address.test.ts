@@ -119,6 +119,13 @@ describe('readAppPath', () => {
       expect(readAppPath(`/workflows/w-1?version=${version}&run=`, pages)).toEqual({ kind: 'record', resource: 'workflows', key: 'w-1' })
   })
 
+  it("writes a record's file opened in its viewer as file=<field>, and reads an empty one as none", () => {
+    const address: AppAddress = { kind: 'record', resource: 'attachments', key: '7', file: 'file' }
+    expect(appPath(address)).toBe('/attachments/7?file=file')
+    expect(readAppPath(appPath(address), pages)).toEqual(address)
+    expect(readAppPath('/attachments/7?file=', pages)).toEqual({ kind: 'record', resource: 'attachments', key: '7' })
+  })
+
   it('reads only edit=true as the form', () => {
     expect(readAppPath('/listings/42?edit=1', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
     expect(readAppPath('/listings/42?edit=false', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })

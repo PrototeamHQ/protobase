@@ -131,6 +131,18 @@ An upload carries three hints: what the **content** is (C, from its magic bytes)
 
 The decided type picks the stored extension, and downloads are served by that extension, so nothing posing as a PDF is ever served as something else, and nothing is served as HTML.
 
+### Your own types
+
+`files.types` adds the app's own media types, each with its extensions, the first being the one its files are stored with. A file named with such an extension whose content is not a recognized type takes that type: `weekly.report.json` below is stored and served as `application/vnd.example.report+json`, while `weekly.json` stays `application/json`. An extension may hold dots, and the longest one a name ends in counts. A malformed type, a built-in type or a built-in extension stops startup with an error naming it.
+
+```ts
+export default defineConfig({
+  files: { types: { 'application/vnd.example.report+json': ['report.json'] } },
+})
+```
+
+Such files download as attachments. A [viewer](#viewers) opens them in the admin app instead.
+
 ## Downloads
 
 `GET /api/files/<provider>/<path>` on the app's own host:
@@ -139,6 +151,12 @@ The decided type picks the stored extension, and downloads are served by that ex
 - **Public files** are served to anyone at a permanent address, `/api/files/public/<path>`, cached for a year. `publicUrl` links them from elsewhere instead, such as a CDN in front of that route.
 - Every download is `nosniff` with `Content-Security-Policy: sandbox; default-src 'none'`. Raster images, PDF, audio and video are `inline`; everything else, SVG included, is an attachment. A private file is named as its uploader named it, with the extension matched to the type (`photo.png` holding a JPEG downloads as `photo.jpg`); a public file by its stored path. `Range` requests work.
 - A provider in a bucket answers with a redirect to the bucket instead, after the same checks, see [S3-compatible buckets](#s3-compatible-buckets).
+
+## Viewers
+
+A plugin, or the app's own `protobase.ui.tsx`, registers a viewer for a media type (see [File viewers](/reference/plugins/#file-viewers)). A file field's link to a file of that type, on the record page and its form, then opens the viewer on the record's address with `?file=<field>`, such as `/attachments/7?file=file`, in place of a download: a bar with the way back to the record, the file's name and size and a Download button, and the viewer below it. A file without a viewer links to its download as before.
+
+The viewer gets the file and its **siblings**: the record's other files, and the files of the records of the same resource that point at the same records through filterable relations, read in one list call of at most 100 records. For attachments that each point at a task, the siblings of one are the other attachments of that task, so a report can show the images it names by file name.
 
 ## Derived fields
 

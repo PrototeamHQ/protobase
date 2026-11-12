@@ -20,6 +20,13 @@ export type FilesOptions = {
    */
   trustedHosts?: string[]
   /**
+   * The app's own media types, each with its extensions, the first being the one its files are stored with:
+   * `{ 'application/vnd.example.report+json': ['report.json'] }`. A file uploaded with such an extension, whose bytes
+   * are no type the server recognizes, is stored and served as that type, so a viewer the admin app has for it opens it
+   * (see `fileViewers` in `definePlugin`). An extension may hold dots; a type or extension built in is refused.
+   */
+  types?: Record<string, string[]>
+  /**
    * Where `supabase.storage` keeps the bytes of its objects, which the app serves at `/api/sb/storage/v1` when it has an API key
    * (see `apiKeys`): `provider` names one of the providers, default `private`, and `maxFileSize` caps every upload, as
    * `50 MB` (the default) or a number of bytes; a bucket's own limit can only be lower. `false` serves no `/api/sb/storage/v1`.

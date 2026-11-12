@@ -4,7 +4,7 @@ import type { RequestAccess } from '../request-access'
 import type { Row } from '../types'
 import { downloadExpiry, signedDownloadUrl } from './download-url'
 import { externalFile, parseExternalUrl } from './external-url'
-import { octetStream, servedType } from './media-types'
+import { octetStream } from './media-types'
 import type { FilesRuntime } from './runtime'
 import { parseUri, variantPaths, type FileRef } from './uri'
 
@@ -49,13 +49,13 @@ const fileObject = async (files: FilesRuntime, access: RequestAccess, row: Row, 
   const ref = parseUri(value)
   if (!ref || !files.providers[ref.provider]) return { uri: value, missing: true }
   const placeholder = placeholderOf(access, row, field)
-  const described = { uri: value, name: ref.name, type: servedType(ref.path), ...(ref.size !== undefined && { size: ref.size }), ...(placeholder !== undefined && { placeholder }) }
+  const described = { uri: value, name: ref.name, type: files.types.servedType(ref.path), ...(ref.size !== undefined && { size: ref.size }), ...(placeholder !== undefined && { placeholder }) }
   const link = await linker(files, access, row, field.name, ref, expires)
   if (!link) return described
   const variants: Record<string, FileVariantObject> = {}
   for (const [name, path] of Object.entries(variantPaths(ref))) {
     const box = field.file?.variants?.[name]
-    variants[name] = { url: await link(path), type: servedType(path), ...(box?.width !== undefined && { width: box.width }), ...(box?.height !== undefined && { height: box.height }) }
+    variants[name] = { url: await link(path), type: files.types.servedType(path), ...(box?.width !== undefined && { width: box.width }), ...(box?.height !== undefined && { height: box.height }) }
   }
   return { ...described, url: await link(ref.path), ...(Object.keys(variants).length > 0 && { variants }) }
 }

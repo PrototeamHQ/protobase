@@ -38,17 +38,20 @@ export const checkUnique = (kind: string, entries: Array<{ name: string; value: 
   }
 }
 
-// Providers are named things: each name once. Trusted hosts add up. Everything else is the last config's that sets it.
+// Providers and the app's own media types are named things: each name once. Trusted hosts add up. Everything else is the last config's that sets it.
 const mergedFiles = (sources: ConfigSource[]): FilesConfig | undefined => {
   const all = sources.flatMap(({ config, label }) => (config.files ? [{ files: config.files, label }] : []))
   if (all.length === 0) return undefined
   const providers = all.flatMap(({ files, label }) => Object.entries(files.providers ?? {}).map(([name, value]) => ({ name, value, label })))
   checkUnique('The file provider', providers)
+  const types = all.flatMap(({ files, label }) => Object.entries(files.types ?? {}).map(([name, value]) => ({ name, value, label })))
+  checkUnique('The file type', types)
   const trustedHosts = [...new Set(all.flatMap(({ files }) => files.trustedHosts ?? []))]
-  const { providers: _, trustedHosts: __, ...rest } = lastSet(all.map(({ files }) => files))
+  const { providers: _, trustedHosts: __, types: ___, ...rest } = lastSet(all.map(({ files }) => files))
   return {
     ...rest,
     ...(providers.length > 0 && { providers: Object.fromEntries(providers.map(({ name, value }) => [name, value])) }),
+    ...(types.length > 0 && { types: Object.fromEntries(types.map(({ name, value }) => [name, value])) }),
     ...(trustedHosts.length > 0 && { trustedHosts }),
   }
 }

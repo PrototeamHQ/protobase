@@ -8,6 +8,7 @@ import type { DropRule } from '../hand-order/drop-rule'
 import type { TitleRule } from '../titles/title-rule'
 import type { MarksHook } from '../marks/marks-hook'
 import type { PresenceHook } from '../../presence/presence'
+import type { FileViewer } from '../file-viewers/file-viewer'
 
 /**
  * What a named action's handler gets: the record it runs on (inside a RecordCard or CardRow), the API, and a way to move.
@@ -62,6 +63,11 @@ export type ProjectUi = {
   actions?: Record<string, ActionHandler>
   /** Field types by name, each with the storage types it shows and its components (see `FieldWidget`). */
   fields?: Record<string, FieldWidget>
+  /**
+   * Viewers by the media type they show, such as `application/vnd.example.report+json` (see `FileViewer`): a file
+   * field's link to a file of that type opens it in the viewer, on the record's address, instead of downloading it.
+   */
+  fileViewers?: Record<string, FileViewer>
   /** Where re-ranked records may land, by the name a view's `drag.rule` gives (see `DropRule`). */
   dropRules?: Record<string, DropRule>
   /** Which columns of a board take a card and what a drop there writes, by the name a view's `drag.board` gives (see `BoardDrop`). */

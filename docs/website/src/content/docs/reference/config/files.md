@@ -1,6 +1,6 @@
 ---
 title: Files options
-description: The config key files, where file fields keep their bytes, with each provider kind, retention, signing, trusted hosts, the Storage API and the image library, their types, defaults and environment variables.
+description: The config key files, where file fields keep their bytes, with each provider kind, retention, signing, trusted hosts, the app's own media types, the Storage API and the image library, their types, defaults and environment variables.
 ---
 
 The `files` key of [`protobase.config.ts`](/reference/config/): where [file fields](/reference/files/) keep their bytes, and how. Every key is optional; without `files`, the providers a field names default to folders under `data/files`.
@@ -73,6 +73,17 @@ Hosts whose images the admin app draws with the page's referrer, besides the app
 
 ```ts
 export default defineConfig({ files: { trustedHosts: ['images.example.com'] } })
+```
+
+## files.types
+
+- **Type:** `Record<string, string[]>`
+- **Default:** none
+
+The app's own media types, each with its extensions, the first being the one its files are stored with. A file uploaded with such an extension, whose content is no type the server recognizes, is stored and served as that type, and a [viewer](/reference/files/#viewers) registered for it opens it in the admin app. An extension may hold dots. A malformed type, a built-in type or a built-in extension stops startup. See [Your own types](/reference/files/#your-own-types).
+
+```ts
+export default defineConfig({ files: { types: { 'application/vnd.example.report+json': ['report.json'] } } })
 ```
 
 ## files.storage

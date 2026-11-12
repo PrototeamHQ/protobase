@@ -75,6 +75,7 @@ import { contactFormat } from '../live/contact-links'
 import { text as appText } from './messages'
 import { text } from './record-messages'
 import { RecordSkeleton } from './record-skeleton'
+import { FileViewerPage, viewedField } from './file-viewers/file-viewer-page'
 
 const hidden = (model: ResourceModel, name: string) => name === model.tenant || model.primaryKey.includes(name)
 
@@ -95,6 +96,7 @@ const layoutFor = (model: ResourceModel, view: ViewModel | undefined, read: bool
 export const RecordPage = ({ resource, recordKey }: { resource: string; recordKey: string }) => {
   const { resources, views } = useAdminMeta()
   const { address } = useAppAddress()
+  const ui = useProjectUi()
   const model = resources[resource]
   const record = useOpenedRecord(resource, recordKey)
   if (!model) return <Notice title={appText('notFound')}>{appText('noResource', { name: resource })}</Notice>
@@ -103,6 +105,12 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
   // A record opened from a list shows that row's fields until it has loaded; the loaded record draws the page anew, so
   // its form starts from the whole record
   const standard = <LoadedRecord key={record.isPlaceholderData ? 'preview' : 'loaded'} model={model} recordKey={recordKey} stored={record.data} preview={record.isPlaceholderData} />
+  // A file the address opens shows in the viewer for its type, once the whole record has its link
+  const opened = address?.kind === 'record' && address.file !== undefined && !record.isPlaceholderData ? viewedField(ui, model, record.data.record, address.file) : undefined
+  // Back leads to the page whose file links open viewers: the standard page, also on a view whose record page is another
+  const ownPage = views[resource]?.recordOpens !== undefined || views[resource]?.record !== undefined
+  const back = { kind: 'record' as const, resource, key: recordKey, ...(ownPage && { standard: true as const }) }
+  if (opened) return <FileViewerPage key={opened.file.uri} model={model} record={record.data.record} viewed={opened} back={back} />
   const standardAsked = address?.kind === 'record' && address.standard === true
   const opens = views[resource]?.recordOpens
   if (opens && !standardAsked) return record.isPlaceholderData ? <RecordSkeleton /> : <RecordOpens to={opens} record={record.data.record} />
@@ -268,6 +276,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
             invalid={Boolean(editor.errors[name])}
             reveal={field.sensitive && !field.writeOnly ? () => client.reveal(model.name, recordKey, name) : undefined}
             resource={model.name}
+            record={stored.record}
             onChange={(next) => pick(name, next)}
           />
         ) : (

@@ -43,11 +43,13 @@ export type FieldEditorProps = {
   reveal?: () => Promise<unknown>
   /** The resource the field belongs to: a file field uploads to it. */
   resource?: string
+  /** The stored record the field is of: a file field's file opens on it in the viewer for its media type. */
+  record?: Record<string, unknown>
   onChange: (value: unknown) => void
 }
 
-const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo, relationPicker, invalid, locked, placeholder, reveal, resource, onChange }: FieldEditorProps) => {
-  if (field.type === 'file') return <FileField field={field} hints={hints} resource={resource ?? ''} value={value} locked={locked || !resource} invalid={invalid} onChange={onChange} />
+const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo, relationPicker, invalid, locked, placeholder, reveal, resource, record, onChange }: FieldEditorProps) => {
+  if (field.type === 'file') return <FileField field={field} hints={hints} resource={resource ?? ''} record={record} value={value} locked={locked || !resource} invalid={invalid} onChange={onChange} />
   if (field.sensitive) return <SensitiveField field={field} hints={hints} value={value} reveal={reveal} locked={locked || field.readOnly} invalid={invalid} placeholder={placeholder} onChange={onChange} />
   if (field.type === 'relation' && relationPicker && !field.readOnly && !locked) {
     const picker = <RelationPicker target={relationPicker.target} view={relationPicker.view} value={String(value)} label={relationLabel} invalid={invalid} onChange={(next, label) => onChange({ key: next, label })} />

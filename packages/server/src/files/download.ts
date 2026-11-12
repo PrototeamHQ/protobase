@@ -4,7 +4,7 @@ import { decodeKeyText } from '../key'
 import { fetchRecord } from '../records'
 import { readTransaction } from '../transactions'
 import { downloadExpiry, readDownloadUrl } from './download-url'
-import { contentDisposition, downloadName, servedType } from './media-types'
+import { contentDisposition } from './media-types'
 import type { FileStore } from './store'
 import { isFilePath, parseUri, tenantSegment, variantPaths } from './uri'
 
@@ -61,11 +61,12 @@ const redirectToStore = async (store: FileStore, path: string, type: string, nam
  * download links gets a redirect to one instead, with the same type and disposition.
  */
 export const serveFile = async (deps: Deps, request: Request, provider: string, path: string) => {
-  const configured = deps.files?.providers[provider]
-  if (!configured || !isFilePath(path)) throw gone()
+  const files = deps.files
+  const configured = files?.providers[provider]
+  if (!files || !configured || !isFilePath(path)) throw gone()
   const granted = configured.public ? undefined : await grantedName(deps, provider, path, new URL(request.url).searchParams)
-  const type = servedType(path)
-  const name = downloadName(granted?.name ?? path.slice(path.lastIndexOf('/') + 1), type)
+  const type = files.types.servedType(path)
+  const name = files.types.downloadName(granted?.name ?? path.slice(path.lastIndexOf('/') + 1), type)
   if (configured.store.downloadUrl) return redirectToStore(configured.store, path, type, name, granted?.expires ?? downloadExpiry())
 
   const object = await configured.store.head(path)

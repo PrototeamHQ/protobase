@@ -328,6 +328,11 @@ export type AppAddress =
       run?: string
       /** The panel a focus page opens with, by a name its surface knows (`?panel=`). */
       panel?: string
+      /**
+       * A file field of the record, by name, opened in the viewer the admin app has for its file's media type (`?file=`),
+       * in place of the record page; the plain record page without a viewer for it.
+       */
+      file?: string
     }
   | {
       /** The form for a new record. */

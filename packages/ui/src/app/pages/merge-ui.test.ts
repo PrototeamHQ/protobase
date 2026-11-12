@@ -32,6 +32,15 @@ describe('mergeUi', () => {
     expect(() => mergeUi(defineUi({ name: 'a', fields: { rating } }), defineUi({ name: 'b', fields: { rating: slug } }))).toThrow('The field type "rating" is defined twice, by a and by b; rename one of them')
   })
 
+  it('keeps the file viewers of every config, and refuses a media type two configs define', () => {
+    const report = { component: text('report') }
+    const invoice = { component: text('invoice') }
+    const reportType = 'application/vnd.example.report+json'
+    expect(mergeUi(defineUi({ extends: [defineUi({ fileViewers: { [reportType]: report } })], fileViewers: { 'application/vnd.example.invoice+json': invoice } })).fileViewers).toEqual({ [reportType]: report, 'application/vnd.example.invoice+json': invoice })
+    expect(mergeUi(defineUi({ components: {} }))).not.toHaveProperty('fileViewers')
+    expect(() => mergeUi(defineUi({ name: 'a', fileViewers: { [reportType]: report } }), defineUi({ name: 'b', fileViewers: { [reportType]: invoice } }))).toThrow(`The file viewer "${reportType}" is defined twice, by a and by b; rename one of them`)
+  })
+
   it('keeps the drop rules of every config, and refuses one two configs define', () => {
     const first = () => undefined
     const last = () => 'Not here'
