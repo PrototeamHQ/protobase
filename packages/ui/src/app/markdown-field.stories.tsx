@@ -61,10 +61,10 @@ const textarea = async (canvasElement: HTMLElement) => {
 // The box shows all of its text: it never scrolls inside.
 const showsAll = (box: HTMLElement) => expect(box.scrollHeight).toBeLessThanOrEqual(box.clientHeight)
 
-// The rendered notes: a heading, a safe link, raw HTML as text and no script link
+// The rendered notes: a heading under the section's, a safe link, raw HTML as text and no script link
 const rendersNotes = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement)
-  await canvas.findByRole('heading', { name: 'Plan', level: 2 })
+  await canvas.findByRole('heading', { name: 'Plan', level: 3 })
   const docs = canvas.getByRole('link', { name: 'the docs' })
   expect(docs.getAttribute('href')).toBe('https://docs.protobase.net')
   expect(docs.getAttribute('target')).toBe('_blank')
@@ -91,7 +91,7 @@ export const EditNotes: StoryObj = {
     // The preview renders what was typed
     const modes = canvas.getByRole('group', { name: 'Worker notes' })
     await userEvent.click(within(modes).getByRole('button', { name: 'Preview' }))
-    await canvas.findByRole('heading', { name: 'Next', level: 3 })
+    await canvas.findByRole('heading', { name: 'Next', level: 4 })
     expect(canvasElement.querySelector('textarea')).toBeNull()
     await rendersNotes(canvasElement)
     await userEvent.click(within(modes).getByRole('button', { name: 'Write' }))
@@ -113,7 +113,7 @@ export const NewWithNotes: StoryObj = {
     await userEvent.click(canvas.getByRole('button', { name: 'Write' }))
     await userEvent.type(await textarea(canvasElement), '# Brief{enter}Read _this_ first')
     await userEvent.click(canvas.getByRole('button', { name: 'Preview' }))
-    await canvas.findByRole('heading', { name: 'Brief', level: 1 })
+    await canvas.findByRole('heading', { name: 'Brief', level: 3 })
     expect(canvas.getByText('this').tagName).toBe('EM')
     expect(box.isConnected).toBe(false)
   },
