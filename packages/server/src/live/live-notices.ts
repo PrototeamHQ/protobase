@@ -12,7 +12,8 @@ export const anyRecord = ''
 
 /**
  * The notices a batch of changes makes, in order: each change of a live resource, and for each live resource that
- * reads the changed one (`.live({ reads })`), an update of `anyRecord` in the change's tenant, once per batch.
+ * reads the changed one (`.live({ reads })`), an update of `anyRecord` in the change's tenant, once per batch. Only the
+ * direct readers: a reader never reads another reader (checkLiveReads), so no change reaches one through another.
  */
 export const liveNotices = (models: readonly ResourceModel[], changes: readonly ResourceChange[]): NoticeChange[] => {
   const own = new Set(models.filter((model) => model.live && !model.liveReads).map((model) => model.name))

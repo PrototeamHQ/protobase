@@ -101,6 +101,7 @@ import { checkOwnerFields } from './check-owners'
 import { checkRoleLimits } from './check-roles'
 import { checkBuckets } from './check-buckets'
 import { checkParents, parentWarnings } from './check-parents'
+import { checkLiveReads } from './check-live-reads'
 import { checkPositionAfter } from './check-position-after'
 import { checkViews } from './check-views'
 import { liveRoutes } from './live/live-route'
@@ -279,6 +280,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const mcpAuthenticate = mcpAuthenticator(authenticate, auth?.mcp, options.mcp)
   if (options.mcp) checkMcpWrites(registry, declaredRoles(auth, options.roles), options.mcp.writes)
   checkPositionAfter(registry)
+  checkLiveReads(registry.entries.map((entry) => entry.model))
   checkParents(registry)
   for (const warning of parentWarnings(registry)) console.warn(warning)
   const resourceModels = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))

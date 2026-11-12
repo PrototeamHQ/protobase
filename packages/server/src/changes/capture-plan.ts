@@ -1,5 +1,6 @@
 import type { ResourceModel } from '@protobase/schema'
 import { historyTableSql } from '../history/history-sql'
+import { checkLiveReads } from '../check-live-reads'
 import { noticesTableSql } from '../live/notices-sql'
 import { captureBody, captureFunctionSql, capturedBy, createTriggerSql, dropTriggerSql, outboxSql, quoteIdent, resourceTriggers, tableSql, type TriggerSpec } from './capture-sql'
 
@@ -54,13 +55,7 @@ const tableOf = (state: CaptureState, model: ResourceModel) => {
  * missing table, a captured view, two captured resources on one table, or a trigger of the same name that calls another function.
  */
 export const capturePlan = (schema: string, models: readonly ResourceModel[], state: CaptureState): CapturePlan => {
-  for (const model of models) {
-    const unknown = (model.liveReads ?? []).filter((read) => !models.some((candidate) => candidate.name === read))
-    if (unknown.length > 0) throw new Error(`Resource "${model.name}" is live from "${unknown.join('", "')}", which is not a resource`)
-    // A view takes no trigger, so a view's changes come only from the tables it reads: name those instead.
-    const views = (model.liveReads ?? []).filter((read) => models.some((candidate) => candidate.name === read && candidate.liveReads))
-    if (views.length > 0) throw new Error(`Resource "${model.name}" is live from "${views.join('", "')}", which is live from other resources itself: name the resources it reads instead`)
-  }
+  checkLiveReads(models)
   const captured = models.filter(capturedBy(models))
   const views = captured.filter((model) => state.views.includes(model.name)).map((model) => model.name)
   if (views.length > 0) throw new Error(`Resource "${views.join('", "')}" is backed by a view, which takes no trigger: give it no events, history or derived values, name it in no other resource's reads, and make it live with .live({ reads }) naming the resources of the tables it reads`)
