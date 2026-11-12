@@ -9,6 +9,10 @@ export interface WorkflowConfig {
   event?: string
   branch?: string
   targetMinutes: number
+  /** `npm`: the window holds only runs that published, each clocked until npm serves the packages (serve-clock.ts). */
+  until?: 'npm'
+  /** For a window clocked until npm: the guardrail the images' p50 is printed beside, without a verdict. */
+  imagesGuardrailMinutes?: number
 }
 
 export interface Config {
@@ -27,7 +31,10 @@ const runsOf = (filter: RunFilter) => {
 const list = new Intl.ListFormat('en', { type: 'conjunction' })
 
 /** The run count and every event and branch the window takes its runs from, e.g. "3 successful push runs on main". */
-const scope = (workflow: WorkflowConfig, count: number) => `${count} successful ${list.format(runFilters(workflow).map(runsOf))}`
+const scope = (workflow: WorkflowConfig, count: number) => {
+  const runs = `${count} successful ${list.format(runFilters(workflow).map(runsOf))}`
+  return workflow.until === 'npm' ? `${runs} that published, each from its start until npm serves the packages` : runs
+}
 
 const cell = (newestFirst: number[]) => {
   const { p50, p90, latest } = summarize(newestFirst)
@@ -39,6 +46,16 @@ const row = (label: string, timings: Timing[]) =>
 
 /** Job names in the order of the newest run that has them. */
 const jobNames = (runs: RunTimings[]) => [...new Set(runs.flatMap((run) => [...run.jobs.keys()]))]
+
+/** The images' p50, p90 and latest from a run's first job to its last, beside their guardrail. */
+const imagesLine = (workflow: WorkflowConfig, runs: RunTimings[]) => {
+  if (workflow.imagesGuardrailMinutes === undefined) return []
+  const walls = runs.map((run) => {
+    if (run.images === undefined) throw new Error(`run ${run.id} has no images figure`)
+    return run.images
+  })
+  return [`Images, from a run's first job to its last: ${cell(walls)}, guardrail ${formatDuration(workflow.imagesGuardrailMinutes * 60)}.`, '']
+}
 
 /** `runs` newest first. */
 export const workflowReport = (workflow: WorkflowConfig, runs: RunTimings[]) => {
@@ -55,6 +72,7 @@ export const workflowReport = (workflow: WorkflowConfig, runs: RunTimings[]) => 
     '',
     `${scope(workflow, runs.length)}, the newest [${newest.id}](${newest.url}). Each cell is p50 · p90 · latest.`,
     '',
+    ...imagesLine(workflow, runs),
     '| | runs | wall | queue | run |',
     '| --- | --- | --- | --- | --- |',
     row('**workflow**', runs),

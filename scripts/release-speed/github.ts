@@ -2,6 +2,7 @@
 // its token from GH_TOKEN in a workflow and from `gh auth login` locally.
 import { GhServerError, ghApi } from './gh-api'
 import type { WorkflowConfig } from './report'
+import { published } from './serve-clock'
 import type { ApiJob, ApiRun } from './timings'
 
 // In a workflow, the repository it runs in; locally, gh fills in the repository of the checkout's remote.
@@ -55,25 +56,35 @@ export const releasesMerge = (run: ApiRun, jobs: ApiJob[]) => {
   return jobs.some((job) => job.name === 'plan' && job.conclusion === 'success')
 }
 
+/** Whether a run belongs in the window: it releases a merge and, in a window clocked until npm, it published. */
+export const counts = (workflow: WorkflowConfig, run: ApiRun, jobs: ApiJob[]) => {
+  if (!releasesMerge(run, jobs)) return false
+  return workflow.until !== 'npm' || published(jobs)
+}
+
+// A window clocked until npm leaves out the runs that published nothing, about half of the release runs, so it reads
+// the most runs a page holds rather than `window` of them.
+const pageSize = (workflow: WorkflowConfig, window: number) => (workflow.until === 'npm' ? 100 : window)
+
 const successfulRuns = (workflow: WorkflowConfig, filter: RunFilter, window: number, get: Api) => {
-  const query = new URLSearchParams({ status: 'success', per_page: String(window) })
+  const query = new URLSearchParams({ status: 'success', per_page: String(pageSize(workflow, window)) })
   if (filter.event) query.set('event', filter.event)
   if (filter.branch) query.set('branch', filter.branch)
   return get<{ workflow_runs: ApiRun[] }>(`actions/workflows/${workflow.file}/runs?${query}`).workflow_runs
 }
 
-/** The newest successful runs that release a merge, up to `window` of them, newest first, each with its jobs. */
+/** The newest successful runs that count (`counts`), up to `window` of them, newest first, each with its jobs. */
 export const recentRuns = (workflow: WorkflowConfig, window: number, get: Api = api) => {
   const runs = runFilters(workflow)
     .flatMap((filter) => successfulRuns(workflow, filter, window, get))
     .sort((a, b) => Date.parse(b.run_started_at) - Date.parse(a.run_started_at))
-  // A run left out for its jobs' 5xx still takes its place in the window; a dispatch that releases no merge does not.
+  // A run left out for its jobs' 5xx still takes its place in the window; a run that does not count does not.
   const taken: { run: ApiRun; jobs: ApiJob[] }[] = []
   let places = window
   for (const run of runs) {
     if (places === 0) break
     const jobs = jobsOf(run, get)
-    if (jobs && !releasesMerge(run, jobs)) continue
+    if (jobs && !counts(workflow, run, jobs)) continue
     places -= 1
     if (jobs) taken.push({ run, jobs })
   }

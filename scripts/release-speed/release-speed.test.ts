@@ -101,6 +101,16 @@ describe('report', () => {
     expect(workflowReport(next, [fixture(1, 8, 0)])).toContain('1 successful push runs on next, the newest')
   })
 
+  it('names a window clocked until npm and prints the images beside their guardrail', () => {
+    const published: WorkflowConfig = { ...release, until: 'npm', imagesGuardrailMinutes: 10.75 }
+    const runs = [{ ...fixture(2, 10, 0), images: 594 }, { ...fixture(1, 11, 0), images: 660 }]
+    const markdown = workflowReport(published, runs)
+    expect(markdown).toContain('**release p50 10m vs target 10m: met, 0s under**')
+    expect(markdown).toContain('and workflow_dispatch runs on main that published, each from its start until npm serves the packages, the newest [2]')
+    expect(markdown).toContain("Images, from a run's first job to its last: 9m54s · 11m · 9m54s, guardrail 10m45s.")
+    expect(workflowReport(release, runs)).not.toContain('Images')
+  })
+
   it('says when there are no runs to measure', () => {
     const ci: WorkflowConfig = { file: 'ci.yml', targetMinutes: 5 }
     expect(report({ window: 20, workflows: [ci] }, [[]])).toContain('No successful runs on any branch to measure against the target of 5m.')
