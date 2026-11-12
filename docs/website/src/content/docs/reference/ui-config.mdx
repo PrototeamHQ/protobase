@@ -123,12 +123,12 @@ The table's columns take their width from the first rows it shows, and keep it w
 ### JSON fields and link text
 
 :::caution[Experimental]
-JSON summaries and link text are new and may change in any release.
+Cards, boards and the mobile rows do not open a url link's address yet. JSON summaries and link text are new and may change in any release.
 :::
 
-Tables show JSON fields readably, and links can carry their own text. A JSON field, such as a tool call's input, shows in a list's table, a related table, a page's `Table` block and on cards and a phone's rows as a short summary on one line: an object as its keys and values, plain values before nested ones, `command: ls -la, cwd: /tmp, env: {…}`, a list of plain values as those values, and a list of objects as how many it holds, `3 items`. An object or list inside another shows as `{…}` or `[…]`, an empty text as `""`, each value is cut at 40 characters so one long value leaves room for the rest, and the summary at 160. The keys keep the order the database returns, which for a `jsonb` column is shortest first. The record page shows the value written out on several lines across the width of its section; a value of more than 20 lines shows its first 20 with a "Show all" button that shows the rest.
+Tables show JSON fields readably, and links can carry their own text. A JSON field, such as a tool call's input, shows in a list's table, a related table, a page's `Table` block and on cards and the mobile rows as a short summary on one line: an object as its keys and values, plain values before nested ones, `command: ls -la, cwd: /tmp, env: {…}`, a list of plain values as those values, and a list of objects as how many it holds, `3 items`. An object or list inside another shows as `{…}` or `[…]`, an empty text as `""`, each value is cut at 40 characters so one long value leaves room for the rest, and the summary at 160. The keys keep the order the database returns, which for a `jsonb` column is shortest first. The record page shows the value written out on several lines across the width of its section; a value of more than 20 lines shows its first 20 with a "Show all" button that shows the rest.
 
-A `url` field's link shows its address unless you give it a text. `.format('url', { text })` takes a fixed text, or one with `{field}` placeholders the record fills in, each as the record page shows it, such as an enum value by its label:
+A `url` field's link shows its address unless you give it a text. `.format('url', { text })` takes a fixed text, or one with `{field}` placeholders the record fills in, each as the record page shows it, such as an enum value by its label and a relation by the name of the record it points at:
 
 ```ts
 view<typeof errors>('errors').fields((r) => ({
@@ -137,9 +137,9 @@ view<typeof errors>('errors').fields((r) => ({
 }))
 ```
 
-The link still opens the address in a new tab, in the list's cells, related tables, the record page and its sidebar; cards and a phone's rows show the text too. When a field it names is empty, the link shows its address rather than a text with a gap, and so does it for a reader who cannot read a field it names. The list loads the fields a link's text names along with its columns. A text on another format, or one naming a field the resource does not have, stops the server at startup.
+The link still opens the address in a new tab, in the list's cells, related tables, the record page and its sidebar; cards and the mobile rows show the text too. When a field it names is empty, the link shows its address rather than a text with a gap, and so does it for a reader who cannot read a field it names. The list loads the fields a link's text names along with its columns. A text on another format, or one naming a field the resource does not have, stops the server at startup; a later `.format()` with another format drops the text.
 
-<gap>Cards, boards and a list's phone rows cannot open a url field's address because links on a card's one-line parts are not implemented; they show its text or address as plain text.</gap>
+<gap>Cards, boards and a list's mobile rows cannot open a url field's address because links on a card's one-line parts are not implemented; they show its text or address as plain text.</gap>
 
 ### Related records in a list
 
