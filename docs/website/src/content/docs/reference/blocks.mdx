@@ -194,6 +194,8 @@ Each row can decide where its button goes:
 
 <gap>A row button cannot show when the table switches to a list display such as cards because drawing it on a display is not implemented.</gap>
 
+<gap>A row button cannot show beside its row's first cell on a phone, where the table scrolls sideways to reach it, because a phone layout for table rows is not implemented.</gap>
+
 ### RecordCard
 
 One record and what is inside it: the one `recordKey` names (the key as the record's URL has it), else the first that matches `filter` in `sort` order. Its children and its heading `actions` work on that record.
