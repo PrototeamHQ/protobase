@@ -1007,6 +1007,33 @@ export type RecordChartModel = {
 }
 
 /**
+ * Bars of how many records of `resource` point at the record through `field`, per `granularity` of their date or
+ * timestamp `at` over `range`, as a list's chart counts them: such as an objective's shipped tasks per week over 90
+ * days. Read through the aggregate API with the caller's access. See
+ * [Trends of related records](docs/website/src/content/docs/reference/ui-config.mdx#trends-of-related-records).
+ */
+export type RecordTrendModel = {
+  /** A trend of related records. */
+  kind: 'trend'
+  /** The section's title. */
+  title: string
+  /** The resource whose records it counts. */
+  resource: string
+  /** The filterable relation on `resource` that holds this record's key. */
+  field: string
+  /** The filterable date or timestamp field of `resource` the records are counted by. */
+  at: string
+  /** How far back it reaches. */
+  range: ChartRange
+  /** How long each bar is. */
+  granularity: ChartGranularity
+  /** A line under the title. */
+  help?: string
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
+}
+
+/**
  * The record's changes, newest first, with who made each and the fields before and after: only fields the caller may
  * read. Needs `.history()` on the resource. See [Record history](docs/website/src/content/docs/reference/history.mdx).
  */
@@ -1125,6 +1152,7 @@ export type LayoutItemModel =
   | CustomSectionModel
   | MapSectionModel
   | RecordChartModel
+  | RecordTrendModel
   | GalleryModel
   | HistorySectionModel
   | CommentsSectionModel
@@ -1171,6 +1199,7 @@ export type TabItemModel =
   | CustomSectionModel
   | MapSectionModel
   | RecordChartModel
+  | RecordTrendModel
   | GalleryModel
   | HistorySectionModel
   | CommentsSectionModel

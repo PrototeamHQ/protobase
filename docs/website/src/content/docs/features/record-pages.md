@@ -3,7 +3,7 @@ title: Record pages
 description: The page of one record, with its sections, related records, galleries, charts and editing.
 ---
 
-- [Record page layout](/reference/ui-config/#the-record-page): Sections, a summary sidebar, related tables, maps, charts, galleries, history, comments, conversations and your own components.
+- [Record page layout](/reference/ui-config/#the-record-page): Sections, a summary sidebar, related tables, maps, charts, trends, galleries, history, comments, conversations and your own components.
 - [Full-width record pages](/reference/ui-config/#page-width): A view's record pages and create form fill the whole area beside the sidebar instead of a centred column, with the sidebar cards still beside the sections.
 - [Focus pages](/reference/ui-config/#focus-pages) (beta): A record whose page is one big surface, such as a graph or a board, fills the page under a thin bar with its Save, actions and panels, its form a link away.
 - [A create address that opens a page](/reference/ui-config/#focus-pages) (beta): `.createOpens(to)` sends a resource's create address to a page in place of its form, such as a record's focus page with a panel open, filled from the address's values.
@@ -33,5 +33,6 @@ description: The page of one record, with its sections, related records, galleri
 - [Custom section fallbacks](/reference/custom-components/#record-section-fallbacks) (experimental): Where your own component on a record page cannot be drawn, such as on a watch, what you declare shows in its place: any main-column item in the main column, conversations included, and sidebar maps and sidebar custom components in the sidebar.
 - [Conversations](/reference/ui-config/#conversations): A record page holds a chat about the record, such as a task's, with its messages in markdown and a box that sends one, declared in its layout with no component of the app's own.
 - [Charts of samples](/reference/ui-config/#charts-of-related-records): A record page graphs numeric samples over the last hour, day or week, such as a server's CPU use.
+- [Trends of related records](/reference/ui-config/#trends-of-related-records) (experimental): Record pages can chart their related records over time.
 - [Fresh data on return](/reference/ui-config/#the-record-page): Records and lists reload when the browser tab is focused again, keeping unsaved edits.
 - [Safe deletes](/reference/ui-config/#deleting-a-record): Deleting asks first, or offers Undo for a soft delete, offers a review when the record changed since it was opened, and names the records that still point at it.

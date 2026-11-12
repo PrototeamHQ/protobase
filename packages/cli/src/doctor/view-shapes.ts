@@ -1,5 +1,5 @@
 import { threadSort } from '@protobase/layout'
-import type { FilterWidgetModel, GalleryModel, RecordChartModel, RelatedModel, ResourceModel, SortSpec, ThreadSectionModel, ViewModel } from '@protobase/schema'
+import type { FilterWidgetModel, GalleryModel, RecordChartModel, RecordTrendModel, RelatedModel, ResourceModel, SortSpec, ThreadSectionModel, ViewModel } from '@protobase/schema'
 import { isGroupChart, layoutItems, viewOfList } from '@protobase/schema/internal'
 import type { ReadShape } from './read-shape'
 import { all, any, anyOf, compare, configFilter, configSort, isTrue, sortText } from './shape-filters'
@@ -92,12 +92,12 @@ const galleryShapes = (item: GalleryModel, owner: string, models: Models): ReadS
   return [{ resource: holder.name, request: request(holder.name, `${field.name} = …`, sort), from: `gallery "${item.title}" on the ${owner} record page`, query: { filter: compare(field), ...(sort && { sort }) } }]
 }
 
-// A chart of related records groups the samples of the one record on the page by their time.
-const recordChartShapes = (item: RecordChartModel, owner: string, models: Models): ReadShape[] => {
+// A chart or trend of related records groups the records of the one record on the page by their time.
+const recordChartShapes = (item: RecordChartModel | RecordTrendModel, owner: string, models: Models): ReadShape[] => {
   const target = models[item.resource]
   const field = target?.fields[item.field]
   if (!target || !field || !target.fields[item.at]) return []
-  return [{ resource: target.name, request: `GET /${target.name}:aggregate?group_by=${item.at}&filter=${field.name} = …`, from: `chart "${item.title}" on the ${owner} record page`, query: { filter: compare(field), groupBy: item.at } }]
+  return [{ resource: target.name, request: `GET /${target.name}:aggregate?group_by=${item.at}&filter=${field.name} = …`, from: `${item.kind} "${item.title}" on the ${owner} record page`, query: { filter: compare(field), groupBy: item.at } }]
 }
 
 // A record's conversation reads the latest messages of the one record on the page, newest first.
@@ -197,7 +197,7 @@ export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
   return [
     ...listShapes(model, view, list, models),
     ...(view.lists ?? []).flatMap((named) => listShapes(model, viewOfList(view, named.name)!, `${list} "${named.name}"`, models)),
-    ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? relatedShapes(item, model.name, models) : item.kind === 'gallery' ? galleryShapes(item, model.name, models) : item.kind === 'chart' ? recordChartShapes(item, model.name, models) : item.kind === 'thread' ? threadShapes(item, model.name, models) : [])),
+    ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? relatedShapes(item, model.name, models) : item.kind === 'gallery' ? galleryShapes(item, model.name, models) : item.kind === 'chart' || item.kind === 'trend' ? recordChartShapes(item, model.name, models) : item.kind === 'thread' ? threadShapes(item, model.name, models) : [])),
     ...recentShapes(model, view),
     ...searchesShapes(view, models),
     ...handOrderShapes(model, view, list, models),

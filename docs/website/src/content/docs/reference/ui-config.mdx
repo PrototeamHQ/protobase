@@ -636,7 +636,7 @@ The open groups are in the address, as `?open=<title>` once per group, so a link
 
 ### Tabs
 
-`l.tab(title, items)` splits the record page into tabs. A tab holds any main-column item: sections, groups, related tables, custom components, maps, charts, galleries, history and comments. It refuses a sidebar item, another tab, and a custom component or map with `sidebar: true`, since the sidebar stays beside the tabs on every tab.
+`l.tab(title, items)` splits the record page into tabs. A tab holds any main-column item: sections, groups, related tables, custom components, maps, charts, trends, galleries, history and comments. It refuses a sidebar item, another tab, and a custom component or map with `sidebar: true`, since the sidebar stays beside the tabs on every tab.
 
 A view's tabs stand together in the layout and show as one strip; items before them show above the strip and items after them below it, on every tab. Tab titles are unique among a view's tabs, and group titles are unique across the whole layout, groups inside tabs too. The read view and the form show the same tabs.
 
@@ -974,6 +974,35 @@ view<typeof hosts>('hosts').layout((r) => [
 Each series is read through [`:aggregate`](/reference/api/), grouped by `at` with `field = <this record's key>` as its filter, so the user's access applies as on the list, and a user who cannot read `field`, `at` or any series gets no chart (one who cannot read some series gets the others). That filter and grouping need an index on `(field, at)`, such as `create index on host_samples (host_id, sampled_at)`, which [`protobase doctor`](/reference/cli/#doctor) checks. A `field` that is no relation to this resource, an `at` that is no timestamp or not filterable, or a series that is no number or is sensitive stops the server at startup. Keeping the samples, and removing old ones, is the app's own work.
 
 <StoryFrame id="record-page-charts-of-related-records--record-charts" title="A host's CPU and network over the last hour" height={760} />
+
+### Trends of related records
+
+:::caution[Experimental]
+<gap>A reader cannot switch a trend's range or bar length, or open the records a bar counts, because neither is implemented.</gap>
+:::
+
+`l.trend(title, options)` draws bars of how many records point at the record on the page, per day, week or month of a date of theirs, as a list's [chart](#filters-and-the-chart) counts them, such as an objective's shipped tasks per week over the last 90 days. It takes the options of a list's chart, `range` and `granularity`, and counts only this record's records. Records without a value in `at`, such as tasks not shipped yet, are not counted. A line over the bars gives their total over the range, such as **4 in the last 90 days**, or **None in the last 90 days** over flat bars, and a chart that could not load offers **Try again**. Name what `at` means in the title or the help, such as "Shipped per week".
+
+| Option | |
+| --- | --- |
+| `resource` | The records counted, such as `tasks`. Required. |
+| `field` | The filterable relation on `resource` that holds this record's key. Required. |
+| `at` | The filterable date or timestamp field of `resource` the records are counted by. Required. |
+| `range` | How far back it reaches: `7d`, `30d`, `90d`, `1y` or `all`. Required. |
+| `granularity` | How long each bar is: `hour`, `day`, `week` (from Monday) or `month`. Required. |
+| `help`, `when` | A line under the title, and whether it shows on the form, the read view or both. |
+
+```ts
+view<typeof objectives>('objectives').layout((r) => [
+  l.section('Objective', [r.name]),
+  l.trend('Shipped per week', { resource: 'tasks', field: 'objective_id', at: 'shipped_at', range: '90d', granularity: 'week' }),
+  l.related('Tasks', { resource: 'tasks', field: 'objective_id' }),
+])
+```
+
+The counts are read through [`:aggregate`](/reference/api/), grouped by `at` with `field = <this record's key>` as its filter, so the user's access applies as on the list, and a user who cannot read `field` or `at` gets no trend. They are read again when the user adds, changes or deletes such a record, and, for a [live](/reference/live/) resource, when anyone does. An index on `(field, at)`, such as `create index on tasks (objective_id, shipped_at)`, keeps it fast, which [`protobase doctor`](/reference/cli/#doctor) checks. A `field` that is no relation to this resource, or an `at` that is no date or timestamp or is not filterable, stops the server at startup.
+
+<StoryFrame id="record-page-trends-of-related-records--record-trend" title="An objective's shipped tasks per week" height={760} />
 
 ### Conversations
 

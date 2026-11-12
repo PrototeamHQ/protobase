@@ -100,7 +100,7 @@ export const useCreateForm = ({ resource, values, onCreated, feedback: mode }: C
         if (Object.keys(found).length > 0) setRejections((count) => count + 1)
         throw error
       }
-      for (const prefix of ['page', 'list', 'first-page', 'map', 'facets', 'series', 'count']) void queryClient.invalidateQueries({ queryKey: [prefix, resource] })
+      for (const prefix of ['page', 'list', 'first-page', 'map', 'facets', 'series', 'aggregate', 'count']) void queryClient.invalidateQueries({ queryKey: [prefix, resource] })
       onCreated(created.record, { kind: 'record', resource, key: recordKey(model, created.record) })
     })
 

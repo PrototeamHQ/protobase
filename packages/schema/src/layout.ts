@@ -1,6 +1,6 @@
 import { fallbackItemName, fitsFallback } from './custom-fallback'
 import { markFieldRefs } from './field-ref'
-import type { CardPhotosModel, RecordChartRange, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel, ThreadSectionModel } from './model'
+import type { CardPhotosModel, ChartGranularity, ChartRange, RecordChartRange, RecordTrendModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel, ThreadSectionModel } from './model'
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
@@ -84,7 +84,7 @@ export const layout = {
   },
   /**
    * A tab of the record page holding main-column items: sections, groups, related tables, custom components, maps,
-   * charts, galleries, history, comments and conversations. A view's tabs stand together and show as one strip, the first tab open unless the
+   * charts, trends, galleries, history, comments and conversations. A view's tabs stand together and show as one strip, the first tab open unless the
    * address names another; items before and after them show on every tab. Throws on a sidebar item or another tab. See
    * [Tabs](docs/website/src/content/docs/reference/ui-config.mdx#tabs).
    */
@@ -130,6 +130,24 @@ export const layout = {
       ...(o.when !== undefined && { when: o.when }),
     }
   },
+  /**
+   * Bars of how many records of `resource` point at this one through `field`, per `granularity` of their date or
+   * timestamp `at` over `range`, with the options of a list's chart: such as an objective's shipped tasks per week over
+   * 90 days. Records without an `at` are not counted. See
+   * [Trends of related records](docs/website/src/content/docs/reference/ui-config.mdx#trends-of-related-records).
+   */
+  trend: (title: string, o: { resource: string; field: string; at: string; range: ChartRange; granularity: ChartGranularity; help?: string; when?: ShowWhen }): LayoutItemModel =>
+    ({
+      kind: 'trend',
+      title,
+      resource: o.resource,
+      field: o.field,
+      at: o.at,
+      range: o.range,
+      granularity: o.granularity,
+      ...(o.help !== undefined && { help: o.help }),
+      ...(o.when !== undefined && { when: o.when }),
+    }) satisfies RecordTrendModel,
   /**
    * The record's changes, newest first: who made each, when, and the fields before and after, only those the user may
    * read. `limit` changes show before Show more (default 10). Needs `.history()` on the resource; a view without a

@@ -381,6 +381,11 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
         if (strideMs !== undefined) return new Date(Math.floor(Date.parse(text) / strideMs) * strideMs).toISOString().slice(0, 19)
         if (granularity === 'year') return `${text.slice(0, 4)}-01-01T00:00:00`
         if (granularity === 'month') return `${text.slice(0, 7)}-01T00:00:00`
+        // A week starts on Monday, as Postgres's date_trunc starts it
+        if (granularity === 'week') {
+          const day = new Date(`${text.slice(0, 10)}T00:00:00Z`)
+          return new Date(day.getTime() - ((day.getUTCDay() + 6) % 7) * 86_400_000).toISOString().slice(0, 19)
+        }
         return `${text.slice(0, 10)}T00:00:00`
       }
       const groups = new Map<unknown, Row[]>()
