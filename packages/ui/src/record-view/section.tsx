@@ -15,6 +15,7 @@ export const SectionContent = ({ title, help, actions, count, children }: Sectio
     </h2>
   ) : null
   const headed = Boolean(heading || actions || help)
+  const content = heading ? <HeadingLevel.Provider value={2}>{children}</HeadingLevel.Provider> : children
   return (
     <>
       {actions ? (
@@ -26,7 +27,7 @@ export const SectionContent = ({ title, help, actions, count, children }: Sectio
         heading
       )}
       {help && <p className="mt-1 max-w-xl leading-6 text-muted-foreground">{help}</p>}
-      <HeadingLevel.Provider value={heading ? 2 : 0}>{headed ? <div className="mt-5">{children}</div> : children}</HeadingLevel.Provider>
+      {headed ? <div className="mt-5">{content}</div> : content}
     </>
   )
 }
