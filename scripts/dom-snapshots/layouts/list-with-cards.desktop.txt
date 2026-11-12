@@ -77,12 +77,110 @@ div | block
                 span role=group .inline-flex h-7 rounded-md bg-muted p-0.5 | flex row nowrap normal normal
                   button .inline-flex items-center gap-1.5 rounded px-2.5 text-body font-medium transition-colors bg-background text-foreground shadow-sm | flex row nowrap center normal
                   button .inline-flex items-center gap-1.5 rounded px-2.5 text-body font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
-              div .mt-2 h-24 | block
-                div .recharts-responsive-container | block
-                  div | block
-                    div .recharts-wrapper | block relative
-                      div .recharts-tooltip-wrapper | block absolute hidden
-                      svg role=application .recharts-surface | block
+              div .mt-2 | block
+                div .h-24 [&_.recharts-surface]:rounded-sm [&_.recharts-surface:focus-visible]:outline-2 [&_.recharts-surface:focus-visible]:outline-offset-2 [&_.recharts-surface:focus-visible]:outline-primary | block
+                  div .recharts-responsive-container | block
+                    div | block
+                      div .recharts-wrapper | block relative
+                        div .recharts-tooltip-wrapper | block absolute hidden
+                        svg role=application .recharts-surface | block
+                  div .sr-only | block absolute
+                    table | table
+                      thead | table-header-group
+                        tr | table-row
+                          th | table-cell
+                          th | table-cell
+                      tbody | table-row-group
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
+                        tr | table-row
+                          th | table-cell
+                          td | table-cell
             div .flex flex-col gap-2 | flex column nowrap normal normal
               div .flex flex-wrap items-center gap-2 | flex row wrap center normal
                 select .h-8 rounded-md border border-border-strong bg-background px-2.5 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 | block
