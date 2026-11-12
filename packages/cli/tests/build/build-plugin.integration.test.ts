@@ -132,6 +132,8 @@ export default definePlugin({ extends: [imageViewer, pdfViewer] })
     expect(worker).toBeDefined()
     const chunks = await Promise.all(assets.filter((file) => file.endsWith('.js')).map(read))
     expect(chunks.some((code) => code.includes('GlobalWorkerOptions') && code.includes(worker!))).toBe(true)
+    // pdf.js's image decoders, which it asks for by name, are files of the build too.
+    expect(assets.some((file) => /^openjpeg-[\w-]+\.wasm$/.test(file))).toBe(true)
   }, buildTimeout)
 
   it('is named after its folder without a package.json, or by the name given', async () => {

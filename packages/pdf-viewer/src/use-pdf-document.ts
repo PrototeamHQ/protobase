@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import { PdfAssets } from './pdf-assets'
 
 type Loaded = { document: PDFDocumentProxy } | { error: unknown }
 
@@ -12,7 +13,7 @@ export const usePdfDocument = (url: string) => {
   const [loaded, setLoaded] = useState<Loaded>()
   useEffect(() => {
     GlobalWorkerOptions.workerSrc = workerUrl
-    const task = getDocument({ url })
+    const task = getDocument({ url, BinaryDataFactory: PdfAssets })
     let current = true
     task.promise.then(
       (document) => current && setLoaded({ document }),

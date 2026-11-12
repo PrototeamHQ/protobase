@@ -7,7 +7,7 @@ import { defineUi } from '@protobase/ui'
 import { App } from '@protobase/ui/unstable/app/app'
 import { fakeApi } from '@protobase/ui/unstable/app/testing/fake-api'
 import pdfViewer from './index'
-import { samplePdf } from './testing/sample-pdf'
+import { jpxPdf, samplePdf } from './testing/sample-pdf'
 
 const meta = { title: 'Plugins/PDF viewer', parameters: { layout: 'fullscreen' } } satisfies Meta
 export default meta
@@ -27,6 +27,7 @@ const rows = {
   attachments: [
     { id: 1, file: { uri: 'private:1/a.pdf?name=lease.pdf&size=900', name: 'lease.pdf', type: 'application/pdf', size: 900, url: pdfUrl } },
     { id: 2, file: { uri: 'private:1/b.pdf?name=broken.pdf&size=9', name: 'broken.pdf', type: 'application/pdf', size: 9, url: `data:application/pdf;base64,${btoa('not a pdf')}` } },
+    { id: 3, file: { uri: 'private:1/c.pdf?name=scan.pdf&size=700', name: 'scan.pdf', type: 'application/pdf', size: 700, url: jpxPdf() } },
   ],
 }
 
@@ -43,15 +44,32 @@ const Files = ({ path }: { path: string }) => {
   )
 }
 
+// The pixels of a page's canvas; none once it has let them go.
+const pixelsOf = (page: HTMLElement) => {
+  const canvas = page as HTMLCanvasElement
+  if (canvas.width === 0 || canvas.height === 0) return new Uint8ClampedArray()
+  return canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data
+}
+
 // Whether pdf.js has drawn anything dark on the page's canvas, such as its line of text.
 const drawn = (page: HTMLElement) => {
-  const canvas = page as HTMLCanvasElement
-  const pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data
+  const pixels = pixelsOf(page)
   for (let index = 0; index < pixels.length; index += 4) if (pixels[index]! < 128 && pixels[index + 3]! > 0) return true
   return false
 }
 
-/** A PDF's link on its record opens it in the viewer, the pages one under the other, each drawn as it comes near. */
+// Whether the middle of the page's canvas is the scan's green.
+const green = (page: HTMLElement) => {
+  const canvas = page as HTMLCanvasElement
+  const pixels = pixelsOf(page)
+  const middle = (Math.floor(canvas.height / 2) * canvas.width + Math.floor(canvas.width / 2)) * 4
+  return pixels.length > 0 && pixels[middle]! < 60 && pixels[middle + 1]! > 120 && pixels[middle + 2]! < 60
+}
+
+/**
+ * A PDF's link on its record opens it in the viewer, the pages one under the other, each drawn as it comes near and let
+ * go when it moves away.
+ */
 export const OpenAPdf: StoryObj = {
   tags: ['play'],
   render: () => <Files path="/attachments/1" />,
@@ -65,6 +83,9 @@ export const OpenAPdf: StoryObj = {
     expect(drawn(last)).toBe(false)
     last.scrollIntoView()
     await waitFor(() => expect(drawn(last)).toBe(true))
+    // The first page is now two pages above the screen: its canvas holds no pixels, and it keeps its place.
+    await waitFor(() => expect((first as HTMLCanvasElement).width).toBe(0))
+    expect(first.getBoundingClientRect().height).toBeGreaterThan(0)
     expect(first.getBoundingClientRect().bottom).toBeLessThanOrEqual(canvas.getByRole('img', { name: 'Page 2 of 3' }).getBoundingClientRect().top)
   },
 }
@@ -80,6 +101,17 @@ export const OnAPhone: StoryObj = {
     const { width, height, right } = first.getBoundingClientRect()
     expect(right).toBeLessThanOrEqual(window.innerWidth)
     expect(height / width).toBeCloseTo(842 / 595, 1)
+  },
+}
+
+/** A scanned page, a JPEG 2000 image, is drawn with pdf.js's decoder, which the viewer brings. */
+export const ScannedPage: StoryObj = {
+  tags: ['play'],
+  render: () => <Files path="/attachments/3?file=file" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const page = await canvas.findByRole('img', { name: 'Page 1 of 1' })
+    await waitFor(() => expect(green(page)).toBe(true))
   },
 }
 
