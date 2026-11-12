@@ -1,4 +1,4 @@
-import { messageFieldsProblems, messageTextProblems, threadLimitProblems } from '@protobase/layout'
+import { conditionProblems, conditionReadable, messageFieldsProblems, messageStatusProblems, messageTextProblems, threadLimitProblems } from '@protobase/layout'
 import type { ComposerSectionModel, ResourceModel, ThreadSectionModel } from '@protobase/schema'
 import { matchErrors } from './view-related'
 
@@ -11,7 +11,7 @@ const ownerErrors = (item: { resource: string }, resource: string, models: Recor
 
 // A sensitive value never leaves the server, so a message would show without it
 const sensitiveErrors = (item: ThreadSectionModel, model: ResourceModel) =>
-  [item.sender, item.time, item.text].flatMap((name) => (model.fields[name]?.sensitive ? [`"${name}" on ${model.name} is sensitive`] : []))
+  [item.sender, item.time, item.text, ...(item.status === undefined ? [] : [item.status])].flatMap((name) => (model.fields[name]?.sensitive ? [`"${name}" on ${model.name} is sensitive`] : []))
 
 // A message shows its sender's name and its text, so the sender is a relation or a text field and the text a text field
 const typeErrors = (item: ThreadSectionModel, model: ResourceModel) => {
@@ -31,13 +31,26 @@ export const threadSectionErrors = (item: ThreadSectionModel, resource: string, 
   const owner = ownerErrors(item, resource, models)
   if (owner.length > 0) return owner
   const target = models[item.resource]!
-  const fields = messageFieldsProblems(item, target)
+  const fields = [...messageFieldsProblems(item, target), ...messageStatusProblems(item.status, target)]
   return [
     ...matchErrors(target, item.field, resource).map((error) => `field: ${error}`),
     ...fields,
     ...(fields.length === 0 ? [...typeErrors(item, target), ...sensitiveErrors(item, target)] : []),
     ...threadLimitProblems(item.limit),
+    ...(item.working === undefined ? [] : conditionProblems(item.working, resource, models).map((error) => `working: ${error}`)),
   ]
+}
+
+/**
+ * A record's conversation as a caller may see it: gone when they cannot read the messages or a field each one needs,
+ * without its status line or working indicator when they cannot read what those name.
+ */
+export const pruneThreadSection = (item: ThreadSectionModel, resource: string, models: Record<string, ResourceModel>): ThreadSectionModel | undefined => {
+  const { status, working, ...core } = item
+  if (threadSectionErrors(core, resource, models).length > 0) return
+  const keepsStatus = status !== undefined && messageStatusProblems(status, models[item.resource]!).length === 0
+  const keepsWorking = working !== undefined && conditionReadable(working, resource, models)
+  return { ...core, ...(keepsStatus && { status }), ...(keepsWorking && { working }) }
 }
 
 // Each message gets the record's key in a relation to it the sender may set

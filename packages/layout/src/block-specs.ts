@@ -69,7 +69,7 @@ const specs: Record<string, BlockSpec> = {
   },
   Thread: {
     children: false,
-    props: { ...heading, resource: required('text'), filter: optional('text'), sender: required('text'), time: required('text'), text: required('text'), limit: optional('integer'), empty: optional('text'), span: optional('span') },
+    props: { ...heading, resource: required('text'), filter: optional('text'), sender: required('text'), time: required('text'), text: required('text'), status: optional('text'), working: optional('text'), limit: optional('integer'), empty: optional('text'), span: optional('span') },
   },
   Composer: { children: false, props: { resource: required('text'), field: required('text'), values: optional('values'), placeholder: optional('text'), span: optional('span') } },
   Image: { children: false, props: { function: optional('text'), src: optional('text'), alt: optional('text'), width: optional('integer'), height: optional('integer'), refresh: optional('integer') } },

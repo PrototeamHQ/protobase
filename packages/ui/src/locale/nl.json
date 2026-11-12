@@ -1654,7 +1654,8 @@
     "today": "Vandaag",
     "yesterday": "Gisteren",
     "newMessages": "Nieuwe berichten",
-    "loadEarlier": "Eerdere berichten laden"
+    "loadEarlier": "Eerdere berichten laden",
+    "working": "Schrijft een antwoord…"
   },
   "compact-table": {
     "table": "Tabel",

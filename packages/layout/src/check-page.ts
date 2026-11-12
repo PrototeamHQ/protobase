@@ -102,6 +102,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
       break
     case 'Thread':
       if (model) problems.push(...threadProblems(node, model))
+      if (node.props.working !== undefined) problems.push(...conditionProblems(String(node.props.working), scope.record ? scope.resource : undefined, models).map((problem) => `working: ${problem}`))
       break
     case 'Composer':
       if (model) problems.push(...composerProblems(node, model))

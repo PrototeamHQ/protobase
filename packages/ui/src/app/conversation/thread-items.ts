@@ -3,12 +3,12 @@ import { chatDayLabel, sameChatDay } from '../../chat/chat-day'
 
 type Row = Record<string, unknown>
 
-export type ThreadFields = { key: (row: Row) => string; sender: string; time: string; text: string }
+export type ThreadFields = { key: (row: Row) => string; sender: string; time: string; text: string; status?: string }
 
-/** One line of a thread: a day's divider, or a message under its sender, `continued` after one of theirs that day. */
+/** One line of a thread: a day's divider, or a message under its sender, `continued` after one of theirs that day, with its status when it has one. */
 export type ThreadItem =
   | { kind: 'day'; key: string; label: string }
-  | { kind: 'message'; key: string; author: ChatAuthor; time: string | undefined; text: string; continued: boolean }
+  | { kind: 'message'; key: string; author: ChatAuthor; time: string | undefined; text: string; status?: string; continued: boolean }
 
 // A relation comes named as `{ id, name }` (`withLabels`); any other sender is its own name
 const authorOf = (value: unknown): ChatAuthor => {
@@ -23,7 +23,7 @@ const authorOf = (value: unknown): ChatAuthor => {
  * The messages of a thread, read newest first, as its lines oldest first: a day divider above each day's first message,
  * and a message that follows its sender's on the same day drawn as continued.
  */
-export const threadItems = (newestFirst: Row[], { key, sender, time, text }: ThreadFields, now = Date.now()): ThreadItem[] => {
+export const threadItems = (newestFirst: Row[], { key, sender, time, text, status }: ThreadFields, now = Date.now()): ThreadItem[] => {
   const items: ThreadItem[] = []
   let previous: { author: string; time: string | undefined } | undefined
   for (const row of [...newestFirst].reverse()) {
@@ -31,7 +31,8 @@ export const threadItems = (newestFirst: Row[], { key, sender, time, text }: Thr
     const sent = typeof row[time] === 'string' ? (row[time] as string) : undefined
     const sameDay = previous?.time !== undefined && sent !== undefined && sameChatDay(previous.time, sent)
     if (sent !== undefined && !sameDay) items.push({ kind: 'day', key: `day:${key(row)}`, label: chatDayLabel(sent, now) })
-    items.push({ kind: 'message', key: key(row), author, time: sent, text: row[text] == null ? '' : String(row[text]), continued: sameDay && previous?.author === author.id })
+    const state = status === undefined || row[status] == null || row[status] === '' ? undefined : String(row[status])
+    items.push({ kind: 'message', key: key(row), author, time: sent, text: row[text] == null ? '' : String(row[text]), ...(state !== undefined && { status: state }), continued: sameDay && previous?.author === author.id })
     previous = { author: author.id, time: sent }
   }
   return items

@@ -4,7 +4,7 @@ import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, Action
 import { addressErrors, chartFields, followableRowButton, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay, textPlaceholders, type RefShape } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
-import { threadSectionErrors } from './view-conversation'
+import { pruneThreadSection } from './view-conversation'
 import { recordChartErrors } from './view-record-chart'
 import { recordTrendErrors } from './view-record-trend'
 import { openErrors, relatedSectionErrors } from './view-related'
@@ -194,8 +194,8 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
     gallery: s.map<GalleryModel>((item) => pruneGallery(item, resource, model, models)),
     history: s.object<HistorySectionModel>({ kind: s.data, title: s.data, limit: s.data, when: s.data }),
     comments: s.object<CommentsSectionModel>({ kind: s.data, title: s.data, when: s.data }),
-    // A conversation goes when the caller cannot read the messages or a field it shows; its box when they cannot create one
-    thread: s.map<ThreadSectionModel>((item) => (threadSectionErrors(item, resource, models).length === 0 ? item : undefined)),
+    // A conversation goes when the caller cannot read the messages or a field each one needs; its box when they cannot create one
+    thread: s.map<ThreadSectionModel>((item) => pruneThreadSection(item, resource, models)),
     composer: s.map<ComposerSectionModel>((item) => (creates(item, creatable) ? item : undefined)),
     // A custom section falls back to any main-column item, another custom section included, so its shape, set below, holds these cases, itself included.
     // A fallback the caller can see none of stays, empty, so the client still draws nothing in the component's place.
