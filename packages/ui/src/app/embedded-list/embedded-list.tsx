@@ -22,7 +22,7 @@ import { useProjectUi } from '../pages/project-ui'
 import { defaultOrderBy, parseSort, sortToOrderBy } from '../list-order'
 import { useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
-import { rowButtonColumn } from '../row-button/row-button-column'
+import { withRowButton } from '../row-button/row-button-column'
 import { AppLink, useAppAddress } from '../use-app-address'
 import { embeddedColumns } from './embedded-columns'
 import { viewAllAddress } from './embedded-display'
@@ -55,7 +55,7 @@ export type EmbeddedListProps = {
   link?: boolean
   /** The relation whose record a table row opens instead of its own, for rows that link this record to another; the row's menu then also opens or edits the row's own record. */
   opens?: string
-  /** A button on each row of the table, as its last column, to an address the row's fields name. */
+  /** A button on each row of the table, as its last column or on a narrow screen under the first cell, to an address the row's fields name. */
   button?: RowButtonModel
   /** The table's rows can be selected, and the view's `bulk` actions run on the selected rows. */
   bulk?: boolean
@@ -79,11 +79,12 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const { fields: fieldTypes } = useProjectUi()
   const { go, href } = useAppAddress()
   const xs = useIsXs()
+  const narrow = !useIsDesktop()
   const [orderBy, setOrderBy] = useState(sort || defaultOrderBy(model, view))
   const names = columns ?? listColumnNames(model, view)
   const specs = useMemo(() => embeddedColumns(model, view, names, { resources, views, fieldTypes }), [model, view, names.join(','), resources, views, fieldTypes])
   const fields = useMemo(() => loadedFields(model, view, [...specs.map((spec) => spec.id), ...(button ? rowButtonFields(button) : [])]), [model, view, specs, button])
-  const gridColumns = useMemo(() => (button ? [...specs, rowButtonColumn(model, view, button)] : specs), [specs, model, view, button])
+  const gridColumns = useMemo(() => (button ? withRowButton(specs, model, view, button, narrow) : specs), [specs, model, view, button, narrow])
   const rows = useEmbeddedRows({ model, filter, orderBy, limit, fields })
   const named = useListActions(model)
   const loaded = rows.data?.rows

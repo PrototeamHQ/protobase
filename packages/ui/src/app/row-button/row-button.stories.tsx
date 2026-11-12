@@ -120,24 +120,51 @@ export const OnPageChecks: StoryObj = {
 
 export const PerRow: StoryObj = { name: 'An attention list whose rows settle in different places', render: () => <Backlog url="/attention" /> }
 
+const rowButtons = /^(Error report \(opens in a new tab\)|Read its chat|All its holds)$/
+
 /** Each row shows its first choice it has the fields for: an outside report, a task's tab, or a filtered list; a report at a non-https address shows none. */
+const checkPerRow = async (canvasElement: HTMLElement) => {
+  const canvas = within(canvasElement)
+  const report = await canvas.findByRole('link', { name: 'Error report (opens in a new tab)' })
+  expect(report.getAttribute('href')).toBe('https://errors.example/e/42')
+  expect(report.getAttribute('target')).toBe('_blank')
+  expect(report.getAttribute('rel')).toBe('noreferrer')
+  expect(canvas.getAllByRole('link', { name: /^Error report/ })).toHaveLength(1)
+  expect(canvas.getByRole('link', { name: 'Read its chat' }).getAttribute('href')).toBe(appPath({ kind: 'record', resource: 'tasks', key: '1', tab: 'Chat' }))
+  const holds = canvas.getAllByRole('link', { name: 'All its holds' })
+  expect(holds.map((link) => link.getAttribute('href'))).toEqual([1, 1].map(() => appPath({ kind: 'list', resource: 'holds', filter: 'task_id = 1' })))
+  await canvas.findAllByText('Report at a plain address')
+  // Five rows, and the one whose report is not at an https address has no button
+  expect(canvas.getAllByRole('link', { name: rowButtons })).toHaveLength(4)
+}
+
+/** On a wide screen each button is in a column of its own, after the row's text. */
 export const PerRowChecks: StoryObj = {
   ...PerRow,
   name: 'An attention list whose rows settle in different places (checks)',
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
+    await checkPerRow(canvasElement)
+    const cell = within(canvasElement).getByRole('link', { name: 'Read its chat' }).closest('[role=cell]')!
+    expect(within(cell as HTMLElement).queryByText('Read the run')).toBeNull()
+  },
+}
+
+/** On a phone each button sits under its row's text, on screen without scrolling the table sideways. */
+export const PerRowOnPhoneChecks: StoryObj = {
+  ...PerRow,
+  name: 'An attention list whose rows settle in different places, on a phone (checks)',
+  tags: ['play', 'touch', '!dev'],
+  play: async ({ canvasElement }) => {
+    await checkPerRow(canvasElement)
     const canvas = within(canvasElement)
-    const report = await canvas.findByRole('link', { name: 'Error report (opens in a new tab)' })
-    expect(report.getAttribute('href')).toBe('https://errors.example/e/42')
-    expect(report.getAttribute('target')).toBe('_blank')
-    expect(report.getAttribute('rel')).toBe('noreferrer')
-    expect(canvas.getAllByRole('link', { name: /^Error report/ })).toHaveLength(1)
-    expect(canvas.getByRole('link', { name: 'Read its chat' }).getAttribute('href')).toBe(appPath({ kind: 'record', resource: 'tasks', key: '1', tab: 'Chat' }))
-    const holds = canvas.getAllByRole('link', { name: 'All its holds' })
-    expect(holds.map((link) => link.getAttribute('href'))).toEqual([1, 1].map(() => appPath({ kind: 'list', resource: 'holds', filter: 'task_id = 1' })))
-    await canvas.findAllByText('Report at a plain address')
-    // Five rows, and the one whose report is not at an https address has no button
-    expect(canvas.getAllByRole('link', { name: /^(Error report \(opens in a new tab\)|Read its chat|All its holds)$/ })).toHaveLength(4)
+    const cell = canvas.getByRole('link', { name: 'Read its chat' }).closest('[role=cell]')!
+    within(cell as HTMLElement).getByText('Read the run')
+    for (const button of canvas.getAllByRole('link', { name: rowButtons })) {
+      const { left, right } = button.getBoundingClientRect()
+      expect(left).toBeGreaterThanOrEqual(0)
+      expect(right).toBeLessThanOrEqual(window.innerWidth)
+    }
   },
 }
 

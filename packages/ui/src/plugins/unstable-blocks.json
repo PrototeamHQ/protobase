@@ -72,6 +72,7 @@
     "lib/use-media-query#useIsDesktop",
     "lib/use-media-query#useIsXs",
     "lib/use-media-query#useMediaQuery",
+    "lib/use-root-font-size#useRootFontSize",
     "lib/use-visual-viewport#useVisualViewport",
     "lists/paged-search-list#PagedSearchList",
     "lists/use-paged-search#usePagedSearch",
