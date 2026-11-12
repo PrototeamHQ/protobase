@@ -158,6 +158,30 @@ A plugin, or the app's own `protobase.ui.tsx`, registers a viewer for a media ty
 
 The viewer gets the file and its **siblings**: the record's other files, and the files of the records of the same resource that point at the same records through filterable relations, read in one list call of at most 100 records. For attachments that each point at a task, the siblings of one are the other attachments of that task, so a report can show the images it names by file name.
 
+### Image and PDF viewers
+
+Protobase brings no viewer of its own. Two plugins, each a package of its own, open images and PDFs in the app; an app that wants them installs them and extends its `protobase.ui.tsx` with them:
+
+```sh
+npm install @protobase/image-viewer @protobase/pdf-viewer
+```
+
+```tsx
+// protobase.ui.tsx
+import { defineUi } from '@protobase/ui'
+import imageViewer from '@protobase/image-viewer'
+import pdfViewer from '@protobase/pdf-viewer'
+
+export default defineUi({ extends: [imageViewer, pdfViewer] })
+```
+
+Each viewer's code is a chunk of the app's build that loads only when such a file opens, so an app that extends them loads nothing more until then. On a phone both are as wide as the screen. A file a viewer cannot draw shows the Download button in its place.
+
+- `@protobase/image-viewer` opens PNG, JPEG, GIF, WebP, AVIF and BMP, the images downloads serve inline: fitted to the page, with its size in pixels and an **Actual size** button that shows it pixel for pixel, scrolling in its own box when it is wider than the page. SVG stays a download.
+- `@protobase/pdf-viewer` opens PDF files with [pdf.js](https://mozilla.github.io/pdf.js/): the pages one under the other, as wide as the page up to 60rem, each drawn when it comes within a screen of being shown. pdf.js reads the file with `fetch`, so a PDF in a [bucket](#s3-compatible-buckets) needs CORS on the bucket. <gap>The PDF viewer cannot select or search a page's text because a text layer is not implemented, so the page is an image and its text is read in the download.</gap>
+
+Each package also exports its viewer component (`ImageViewer`, `PdfViewer`), for an app that registers it for a type of its own in `fileViewers`.
+
 ## Derived fields
 
 `.derive({ field: processor })` computes values from each upload into other fields of the same resource. Those fields must be `readOnly()`, so only the upload sets them.

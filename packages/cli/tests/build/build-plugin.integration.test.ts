@@ -111,6 +111,29 @@ export default definePlugin({ fields: { rating: { of: ['integer'], display: Star
     expect(manifest.fields).toEqual({ rating: ['integer'] })
   }, buildTimeout)
 
+  it("splits the file viewer plugins an app extends into chunks of their own, loaded only when a file opens", async () => {
+    const app = `import { definePlugin } from '@protobase/ui'
+import imageViewer from '@protobase/image-viewer'
+import pdfViewer from '@protobase/pdf-viewer'
+export default definePlugin({ extends: [imageViewer, pdfViewer] })
+`
+    pluginDir = await createPlugin({ 'protobase.ui.tsx': app })
+    const outDir = path.join(pluginDir, 'dist')
+    const manifest = await buildPlugin({ pluginDir, outDir })
+    const assets = await readdir(path.join(outDir, 'assets'))
+    const read = (file: string) => readFile(path.join(outDir, 'assets', file), 'utf8')
+    const entry = await read(path.basename(manifest.entry))
+    // pdf.js and the viewers' code sit in chunks the entry imports only with import(), and pdf.js's worker in a file of
+    // its own, which the PDF chunk names.
+    expect(entry).not.toContain('GlobalWorkerOptions')
+    expect(entry).toMatch(/import\(\s*["'`]\.\/image-view-[\w-]+\.js["'`]\s*\)/)
+    expect(entry).toMatch(/import\(\s*["'`]\.\/pdf-view-[\w-]+\.js["'`]\s*\)/)
+    const worker = assets.find((file) => /^pdf\.worker\.min-[\w-]+\.mjs$/.test(file))
+    expect(worker).toBeDefined()
+    const chunks = await Promise.all(assets.filter((file) => file.endsWith('.js')).map(read))
+    expect(chunks.some((code) => code.includes('GlobalWorkerOptions') && code.includes(worker!))).toBe(true)
+  }, buildTimeout)
+
   it('is named after its folder without a package.json, or by the name given', async () => {
     pluginDir = await createPlugin({ 'protobase.ui.tsx': `export const Board = () => null\n` })
     expect((await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist') })).name).toBe(path.basename(pluginDir))
