@@ -29,27 +29,45 @@ const linker = async (files: FilesRuntime, access: RequestAccess, row: Row, fiel
   return (path: string) => signedDownloadUrl(files.signer, files.path, { provider: ref.provider, path, resource: access.entry.name, key: keyText, field, expires })
 }
 
+// The value the row holds in one of the field's own readable fields, such as its type field.
+const ownFieldOf = (access: RequestAccess, row: Row, target: string | undefined) => (target !== undefined && access.model.fields[target] ? row[target] : undefined)
+
 // The ThumbHash the row holds for the field's image, when its placeholder field is readable.
 const placeholderOf = (access: RequestAccess, row: Row, field: FieldModel) => {
-  const target = field.file?.placeholder
-  const placeholder = target !== undefined && access.model.fields[target] ? row[target] : undefined
+  const placeholder = ownFieldOf(access, row, field.file?.placeholder)
   return typeof placeholder === 'string' ? placeholder : undefined
 }
 
-// A URL of a field with `.externalUrls()`: linked as it is, with no size or variants.
-const externalObject = (access: RequestAccess, row: Row, field: FieldModel, value: string, url: URL): FileObject => {
-  const { name, type } = externalFile(url)
+// The media type the row's type field holds, when readable and set: it wins over the one the path or URL names.
+const typeOf = (access: RequestAccess, row: Row, field: FieldModel) => {
+  const type = ownFieldOf(access, row, field.file?.typeField)
+  return typeof type === 'string' && type !== '' ? type : undefined
+}
+
+// The size the row's size field holds, when readable and set; a bigint field holds it as text.
+const sizeOf = (access: RequestAccess, row: Row, field: FieldModel) => {
+  const size = ownFieldOf(access, row, field.file?.sizeField)
+  const bytes = typeof size === 'string' ? Number(size) : size
+  return typeof bytes === 'number' && Number.isSafeInteger(bytes) && bytes >= 0 ? bytes : undefined
+}
+
+// A URL of a field with `.externalUrls()`: linked as it is, with no variants, and a size only when its size field holds one.
+const externalObject = (files: FilesRuntime, access: RequestAccess, row: Row, field: FieldModel, value: string, url: URL): FileObject => {
+  const { name, type } = externalFile(url, files.types)
   const placeholder = placeholderOf(access, row, field)
-  return { uri: value, name, type: type ?? octetStream, url: value, ...(placeholder !== undefined && { placeholder }) }
+  const size = sizeOf(access, row, field)
+  return { uri: value, name, type: typeOf(access, row, field) ?? type ?? octetStream, ...(size !== undefined && { size }), url: value, ...(placeholder !== undefined && { placeholder }) }
 }
 
 const fileObject = async (files: FilesRuntime, access: RequestAccess, row: Row, field: FieldModel, value: string, expires: number): Promise<FileObject> => {
   const external = field.file?.external ? parseExternalUrl(value) : undefined
-  if (external) return externalObject(access, row, field, value, external)
+  if (external) return externalObject(files, access, row, field, value, external)
   const ref = parseUri(value)
   if (!ref || !files.providers[ref.provider]) return { uri: value, missing: true }
   const placeholder = placeholderOf(access, row, field)
-  const described = { uri: value, name: ref.name, type: files.types.servedType(ref.path), ...(ref.size !== undefined && { size: ref.size }), ...(placeholder !== undefined && { placeholder }) }
+  const size = sizeOf(access, row, field) ?? ref.size
+  const type = typeOf(access, row, field) ?? files.types.servedType(ref.path)
+  const described = { uri: value, name: ref.name, type, ...(size !== undefined && { size }), ...(placeholder !== undefined && { placeholder }) }
   const link = await linker(files, access, row, field.name, ref, expires)
   if (!link) return described
   const variants: Record<string, FileVariantObject> = {}
@@ -62,7 +80,8 @@ const fileObject = async (files: FilesRuntime, access: RequestAccess, row: Row, 
 
 /**
  * Records as responses carry them: each readable file field as `{ uri, name, type, size, url }`, with its `variants` and
- * `placeholder` when it has them. The URLs are minted here, after the ETag, for a caller who may already see the row:
+ * `placeholder` when it has them. The type and size come from the field's type and size fields when the row holds them,
+ * else from the stored value. The URLs are minted here, after the ETag, for a caller who may already see the row:
  * private files get a signed link to this row's field, public ones their permanent address, and an external URL of a
  * field with `.externalUrls()` is its own `url`. Stored values, hooks and
  * ETags only ever see the URI.

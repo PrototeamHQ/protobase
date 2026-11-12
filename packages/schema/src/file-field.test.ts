@@ -46,7 +46,29 @@ describe('f.file()', () => {
     expect(() => products({ photo }).toModel()).toThrow('derives "photo_placeholder", which is not a field')
     expect(() => products({ photo, photo_placeholder: f.text() }).toModel()).toThrow('which must be readOnly()')
     expect(() => products({ photo, photo_placeholder: f.integer().readOnly() }).toModel()).toThrow('which must be a text field')
-    expect(() => products({ photo: photo.derive({ photo_placeholder: width }), photo_placeholder: f.text().readOnly() }).toModel()).toThrow('derives it as well')
+    expect(() => products({ photo: photo.derive({ photo_placeholder: width }), photo_placeholder: f.text().readOnly() }).toModel()).toThrow('writes "photo_placeholder" twice')
+  })
+
+  it('show the type and size fields as derived fields', () => {
+    const attachment = f.file().typeField('attachment_type').sizeField('attachment_size')
+    const model = products({ attachment, attachment_type: f.text().readOnly(), attachment_size: f.integer().readOnly() }).toModel()
+    expect(model.fields.attachment!.file).toEqual({
+      accept: [],
+      maxSize: 50_000_000,
+      provider: 'private',
+      derive: ['attachment_type', 'attachment_size'],
+      typeField: 'attachment_type',
+      sizeField: 'attachment_size',
+    })
+  })
+
+  it('refuse a type or size field that is missing, writable, of the wrong type, or written twice', () => {
+    expect(() => products({ attachment: f.file().typeField('attachment_type') }).toModel()).toThrow('derives "attachment_type", which is not a field')
+    expect(() => products({ attachment: f.file().sizeField('attachment_size'), attachment_size: f.integer() }).toModel()).toThrow('which must be readOnly()')
+    expect(() => products({ attachment: f.file().typeField('attachment_type'), attachment_type: f.integer().readOnly() }).toModel()).toThrow('has "attachment_type" as its type, which must be a text field')
+    expect(() => products({ attachment: f.file().sizeField('attachment_size'), attachment_size: f.text().readOnly() }).toModel()).toThrow('which must be an integer or bigint field')
+    expect(() => products({ attachment: f.file().typeField('meta').sizeField('meta'), meta: f.text().readOnly() }).toModel()).toThrow('writes "meta" twice')
+    expect(() => products({ front: f.file().typeField('file_type'), back: f.file().typeField('file_type'), file_type: f.text().readOnly() }).toModel()).toThrow('file fields "front" and "back" both write "file_type"')
   })
 
   it('stores text and refuses anything else', () => {

@@ -1,0 +1,42 @@
+{
+  "name": "@protobase/pdf-viewer",
+  "version": "0.14.2",
+  "description": "A file viewer plugin that opens stored PDF files in the admin app, loaded only when one opens.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrototeamHQ/protobase.git",
+    "directory": "packages/pdf-viewer"
+  },
+  "homepage": "https://docs.protobase.net",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "tsdown"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": "./dist/index.js"
+    },
+    "types": "./dist/index.d.ts"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.5.438"
+  },
+  "peerDependencies": {
+    "@protobase/ui": "workspace:^",
+    "react": "^19.3.0"
+  }
+}
