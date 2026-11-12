@@ -22,15 +22,16 @@ export const ticketScope = (access: RequestAccess, field: string): TicketScope =
 const fileFields = (access: RequestAccess) => Object.values(access.full.fields).filter((field) => field.file)
 
 // Why an external URL cannot be stored in a field that takes them; `undefined` when it can.
-const externalRefusal = (field: FieldModel, url: URL) => {
-  const type = externalFile(url).type ?? octetStream
-  return accepts(field.file!.accept, type) ? undefined : `This field takes ${field.file!.accept.join(', ')}; the URL's extension gives ${type}`
+const externalRefusal = (field: FieldModel, type: string | undefined) => {
+  const checked = type ?? octetStream
+  return accepts(field.file!.accept, checked) ? undefined : `This field takes ${field.file!.accept.join(', ')}; the URL's extension gives ${checked}`
 }
 
 /**
  * File values of a validated create or update body, made ready to store: a ticket from `:upload` becomes its clean URI
  * plus the derived fields it carries, `null` clears the field and its derived fields, and the stored value itself is a
- * no-op. A field with `.externalUrls()` also stores an https URL as it is, its derived fields `null`. Anything else is
+ * no-op. A field with `.externalUrls()` also stores an https URL as it is, its derived fields `null` but for its type
+ * field, which takes the type the URL's extension names. Anything else is
  * refused, so a row can only point at a file its writer uploaded for that field, or at one elsewhere.
  */
 export const attachFiles = async (access: RequestAccess, values: Row, current?: Row): Promise<Row> => {
@@ -54,13 +55,16 @@ export const attachFiles = async (access: RequestAccess, values: Row, current?: 
     }
     const external = field.file!.external ? parseExternalUrl(String(value)) : undefined
     if (external) {
-      const refusal = externalRefusal(field, external)
+      const { type } = externalFile(external, files.types)
+      const refusal = externalRefusal(field, type)
       if (refusal) {
         errors.push({ field: name, code: 'invalid-value', message: refusal })
         continue
       }
       result[name] = value
       for (const target of derive) result[target] = null
+      // The type its extension names, as the field's type; its size is unknown.
+      if (field.file!.typeField !== undefined) result[field.file!.typeField] = type ?? null
       continue
     }
     const ticket = await readTicket(files.signer, String(value), ticketScope(access, name), now)

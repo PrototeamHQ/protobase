@@ -12,6 +12,7 @@ description: Uploaded files and images, where they are kept and how they are ser
 - [Your own types](/reference/files/#your-own-types): An app names its own media types and their extensions, and files with them are stored and served as those types.
 - [File viewers](/reference/files/#viewers): A plugin registers a viewer for a media type, and a file of that type opens in it in the app instead of downloading.
 - [Signed downloads](/reference/files/#downloads): Private files open through short-lived links that stop working once the record no longer holds the file.
+- [Type and size fields](/reference/files/#type-and-size-fields): Each file's media type and size are kept in columns of their own, for lists and aggregate queries, and serving reads the type from there.
 - [Derived fields](/reference/files/#derived-fields): Width, height, size and type of each upload are written to other fields.
 - [Image variants and placeholders](/reference/files/#image-variants-and-placeholders): Resized copies of uploaded images, and a blurred placeholder while they load.
 - [External URLs](/reference/files/#external-urls): A file field can hold a link to a file on another site.

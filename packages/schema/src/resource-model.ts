@@ -46,8 +46,11 @@ export const parseTable = (table: string) => {
   throw new Error(`Invalid table "${table}", expected "table" or "schema.table"`)
 }
 
-// The fields an upload writes besides the file: those of `.derive()`, then the placeholder's.
-const writtenFields = (file: FileOptions) => [...Object.keys(file.derive ?? {}), ...(file.placeholder === undefined ? [] : [file.placeholder])]
+// The fields an upload writes besides the file: those of `.derive()`, then the placeholder's, the type's and the size's.
+const writtenFields = (file: FileOptions) => [
+  ...Object.keys(file.derive ?? {}),
+  ...[file.placeholder, file.typeField, file.sizeField].filter((name) => name !== undefined),
+]
 
 const fieldModel = (name: string, field: AnyField): FieldModel => {
   const { meta } = field
@@ -77,6 +80,8 @@ const fieldModel = (name: string, field: AnyField): FieldModel => {
         provider: meta.file.provider,
         ...(writtenFields(meta.file).length > 0 && { derive: writtenFields(meta.file) }),
         ...(meta.file.placeholder !== undefined && { placeholder: meta.file.placeholder }),
+        ...(meta.file.typeField !== undefined && { typeField: meta.file.typeField }),
+        ...(meta.file.sizeField !== undefined && { sizeField: meta.file.sizeField }),
         ...(meta.file.variants && Object.keys(meta.file.variants).length > 0 && { variants: structuredClone(meta.file.variants) }),
         ...(meta.file.original && { original: { ...meta.file.original } }),
         ...(meta.file.external && { external: true as const }),
@@ -165,17 +170,28 @@ const fileProblems = (model: ResourceModel) =>
         return derived.readOnly ? [] : [`derives "${target}", which must be readOnly()`]
       }),
       ...placeholderProblems(model, field),
+      ...writtenTwiceProblems(field),
+      ...writtenTypeProblems(model, field.file!.typeField, 'type', textField),
+      ...writtenTypeProblems(model, field.file!.sizeField, 'size', integerField),
     ].map((problem) => `file field "${field.name}" ${problem}`))
 
-// The placeholder's field is derived like any other (see above), holds text, and is not also a `.derive()` target.
-const placeholderProblems = (model: ResourceModel, field: FieldModel) => {
-  const target = field.file!.placeholder
-  if (target === undefined) return []
+// Each field an upload writes is written for one reason: a `.derive()` target, the placeholder, the type or the size.
+const writtenTwiceProblems = (field: FieldModel) => {
   const derive = field.file!.derive ?? []
-  if (derive.indexOf(target) !== derive.lastIndexOf(target)) return [`has "${target}" as its placeholder and derives it as well`]
-  const placeholder = Object.hasOwn(model.fields, target) ? model.fields[target]! : undefined
-  return placeholder && !placeholder.file && placeholder.type !== 'text' ? [`has "${target}" as its placeholder, which must be a text field`] : []
+  return [...new Set(derive.filter((target, index) => derive.indexOf(target) !== index))].map((target) => `writes "${target}" twice: as a derived field, placeholder, type or size`)
 }
+
+const textField = { types: ['text'], label: 'a text field' }
+const integerField = { types: ['integer', 'bigint'], label: 'an integer or bigint field' }
+
+// A field the upload writes a known kind of value into holds that kind; whether it exists and is read-only is checked above.
+const writtenTypeProblems = (model: ResourceModel, target: string | undefined, role: string, kind: { types: string[]; label: string }) => {
+  const written = target !== undefined && Object.hasOwn(model.fields, target) ? model.fields[target]! : undefined
+  return written && !written.file && !kind.types.includes(written.type) ? [`has "${target}" as its ${role}, which must be ${kind.label}`] : []
+}
+
+// The placeholder's field is derived like any other (see above) and holds text.
+const placeholderProblems = (model: ResourceModel, field: FieldModel) => writtenTypeProblems(model, field.file!.placeholder, 'placeholder', textField)
 
 // The order is an integer the lists sort by; each parent's records are found by filtering on `within`.
 const positionProblems = (model: ResourceModel) => {

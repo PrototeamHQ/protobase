@@ -18,11 +18,14 @@ export type ProductOptions = {
   original?: ImageVariant
   /** The image may also be an https URL of a file elsewhere. */
   external?: boolean
+  /** The image's type goes to `imageType` and its size to `imageSize`, columns only this option adds. */
+  typeAndSize?: boolean
 }
 
-const productImage = ({ derive = {}, accept = ['image/*'], placeholder, variants, original, external }: ProductOptions) => {
+const productImage = ({ derive = {}, accept = ['image/*'], placeholder, variants, original, external, typeAndSize }: ProductOptions) => {
   const accepted = f.file().accept(accept).maxSize('64 KB').optional().derive(derive)
-  const image = external ? accepted.externalUrls() : accepted
+  const typed = typeAndSize ? accepted.typeField('imageType').sizeField('imageSize') : accepted
+  const image = external ? typed.externalUrls() : typed
   const placed = placeholder ? image.placeholder('imagePlaceholder') : image
   return variants ? placed.variants(variants, original && { original }) : placed
 }
@@ -40,6 +43,7 @@ export const products = (options: ProductOptions = {}) =>
       imageRatio: f.decimal({ precision: 8, scale: 4 }).readOnly().optional(),
       datasheet: f.file().accept(['application/pdf']).optional(),
       deletedAt: f.timestamp().readOnly().optional(),
+      ...(options.typeAndSize && { imageType: f.text().readOnly().optional(), imageSize: f.bigint().readOnly().optional() }),
     })
     .primaryKey((r) => r.id)
     .tenant((r) => r.organizationId)
@@ -71,7 +75,7 @@ export const createFilesFixture = async (
 ) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'protobase-files-'))
   const pg = await (options.database ?? (() => openSnapshotDb('empty')))()
-  await pg.exec(ddl)
+  await pg.exec(options.typeAndSize ? `${ddl}alter table products add column image_type text, add column image_size bigint;\n` : ddl)
   const db = new Kysely<any>({ dialect: pg.dialect })
   const files: FilesOptions = {
     providers: options.providers ?? { private: localFiles({ dir: path.join(dir, 'private') }), public: localFiles({ dir: path.join(dir, 'public'), public: true }) },

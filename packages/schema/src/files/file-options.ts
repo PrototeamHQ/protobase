@@ -65,6 +65,10 @@ export type FileOptions = {
   derive?: Record<string, FileProcessor>
   /** The read-only text field each image's ThumbHash goes to (`.placeholder()`). */
   placeholder?: string
+  /** The read-only text field each file's media type goes to (`.typeField()`). */
+  typeField?: string
+  /** The read-only integer field each file's size in bytes goes to (`.sizeField()`). */
+  sizeField?: string
   /** The resized copies stored beside each image, by name (`.variants()`). */
   variants?: Record<string, ImageVariant>
   /** The image stored instead of the upload (`.variants()`' `original`). */

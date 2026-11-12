@@ -91,10 +91,14 @@ export type FileFieldModel = {
   maxSize: number
   /** The name of the storage provider the files go to. */
   provider: string
-  /** The fields each upload writes: those of `.derive()` and the placeholder's. */
+  /** The fields each upload writes: those of `.derive()`, the placeholder's, the type's and the size's. */
   derive?: string[]
   /** The text field holding each image's ThumbHash, base64 (`.placeholder()`). */
   placeholder?: string
+  /** The text field holding each file's media type, which serving and file viewers read (`.typeField()`). */
+  typeField?: string
+  /** The integer field holding each file's size in bytes (`.sizeField()`). */
+  sizeField?: string
   /** The resized copies stored beside each image, by name (`.variants()`). */
   variants?: Record<string, ImageVariant>
   /** What is stored instead of an uploaded image, when the upload is not kept. */
