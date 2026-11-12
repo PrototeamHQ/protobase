@@ -40,6 +40,11 @@ describe('checksState', () => {
     expect(checksState([run()], [], [{ context: 'bot', state: 'pending' }], own).state).toBe('pending')
   })
 
+  it('counts a check run left in_progress with a conclusion as done', () => {
+    expect(checksState([run()], [check({ status: 'in_progress' })], [], own)).toEqual({ state: 'green', names: [] })
+    expect(checksState([run()], [check({ status: 'in_progress', conclusion: 'failure' })], [], own).state).toBe('red')
+  })
+
   it('is pending with nothing on the head yet', () => {
     expect(checksState([], [], [], own).state).toBe('pending')
   })
