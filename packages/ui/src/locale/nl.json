@@ -1018,6 +1018,11 @@
     "resolveDone": "Gemarkeerd als opgelost",
     "resolveFailed": "Markeren als opgelost is mislukt"
   },
+  "app/file-viewers": {
+    "download": "Downloaden",
+    "backToRecord": "Terug naar het record",
+    "couldNotShow": "{name} kan hier niet worden getoond. Download het om het te openen."
+  },
   "app/gallery": {
     "couldNotLoad": "Kon de foto’s niet laden",
     "showAll": "Alle {count} foto’s tonen",

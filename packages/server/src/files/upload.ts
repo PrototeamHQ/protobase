@@ -81,7 +81,7 @@ export const uploadFile = async (deps: Deps, entry: Entry, session: Session, req
     throw tooLarge(maxSize)
   }
   const name = cleanName(incoming.name)
-  const decision = await decideType({ head, complete, name, accept, ...(incoming.declared && { declared: incoming.declared }) })
+  const decision = await decideType({ head, complete, name, accept, types: files.types, ...(incoming.declared && { declared: incoming.declared }) })
   if (!accepts(accept, decision.type)) {
     await reader.cancel()
     throw new HttpProblem(415, 'unsupported-type', 'Unsupported Media Type', `This field takes ${accept.join(', ')}; the file is ${decision.type}`, { detected: decision.type, accept })

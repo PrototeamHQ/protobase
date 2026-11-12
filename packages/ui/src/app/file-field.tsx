@@ -5,17 +5,21 @@ import type { FieldModel, FieldViewModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
 import { cn } from '../lib/cn'
 import { FileImage } from '../live/file-image'
-import { acceptOf, fileShown, formatSize, isPreviewable, shownImage, type FileDraft } from '../live/file-values'
+import { acceptOf, fileShown, isFileDraft, formatSize, isPreviewable, shownImage, type FileDraft } from '../live/file-values'
 import { humanize } from '../live/naming'
 import { Button } from '../primitives/button'
 import { ErrorBanner } from './error-banner'
 import { text as appText } from './messages'
+import { FileLink } from './file-viewers/file-link'
+import { useAdminMeta } from './meta-gate'
 
 export type FileFieldProps = {
   field: FieldModel
   hints?: FieldViewModel
   /** The resource the field belongs to, which the upload goes to. */
   resource: string
+  /** The stored record the field is of, which a stored file opens on in the viewer for its media type. */
+  record?: Record<string, unknown>
   /** The stored file object, a `FileDraft` after an upload, or null. */
   value: unknown
   locked?: boolean
@@ -35,7 +39,8 @@ const Thumbnail = ({ value }: { value: unknown }) => {
 }
 
 /** The file as it is: thumbnail or icon, name (a link while it has a URL), type and size, and what the server corrected. */
-const FileSummary = ({ value }: { value: unknown }) => {
+const FileSummary = ({ value, field, resource, record }: { value: unknown; field: string; resource: string; record?: Record<string, unknown> }) => {
+  const { resources } = useAdminMeta()
   const shown = fileShown(value)
   if (!shown) return <div className="py-1.5 text-muted-foreground">—</div>
   if ('missing' in shown) return <div className="py-1.5 text-danger-text">{appText('fileMissing')}</div>
@@ -46,7 +51,7 @@ const FileSummary = ({ value }: { value: unknown }) => {
       <Thumbnail value={value} />
       <div className="min-w-0">
         {url && !url.startsWith('blob:') ? (
-          <a href={url} target="_blank" rel="noreferrer" className="block truncate font-medium text-primary-text hover:underline">{shown.name}</a>
+          <FileLink field={field} model={resources[resource]} record={isFileDraft(value) ? undefined : record} name={shown.name} url={url} className="block truncate font-medium text-primary-text hover:underline" />
         ) : (
           <span className="block truncate font-medium">{shown.name}</span>
         )}
@@ -64,7 +69,7 @@ const FileSummary = ({ value }: { value: unknown }) => {
  * A file field: drop a file or choose one, and it uploads at once with progress; Save then stores it with the record.
  * The type shown is the one the server detected, so a `photo.png` that is a JPEG says so.
  */
-export const FileField = ({ field, hints, resource, value, locked, invalid, onChange }: FileFieldProps) => {
+export const FileField = ({ field, hints, resource, record, value, locked, invalid, onChange }: FileFieldProps) => {
   const client = useClient()
   const input = useRef<HTMLInputElement>(null)
   const [progress, setProgress] = useState<number | undefined>()
@@ -80,7 +85,7 @@ export const FileField = ({ field, hints, resource, value, locked, invalid, onCh
     onSettled: () => setProgress(undefined),
   })
 
-  if (locked || field.readOnly) return <FileSummary value={value} />
+  if (locked || field.readOnly) return <FileSummary value={value} field={field.name} resource={resource} record={record} />
 
   const choose = (files: FileList | null) => {
     const file = files?.[0]
@@ -109,7 +114,7 @@ export const FileField = ({ field, hints, resource, value, locked, invalid, onCh
     return (
       <div>
         <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1"><FileSummary value={value} /></div>
+          <div className="min-w-0 flex-1"><FileSummary value={value} field={field.name} resource={resource} record={record} /></div>
           <Button size="sm" onClick={() => input.current?.click()}>{appText('replace')}</Button>
           {field.nullable && <Button size="sm" variant="ghost" onClick={() => onChange(null)}>{appText('remove')}</Button>}
         </div>

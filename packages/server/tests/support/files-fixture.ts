@@ -67,7 +67,7 @@ export type FilesDatabase = { exec: (sql: string) => Promise<unknown>; dialect: 
  * temp folder unless `providers` says otherwise.
  */
 export const createFilesFixture = async (
-  options: ProductOptions & { providers?: Record<string, FileProvider>; trustedHosts?: string[]; database?: () => Promise<FilesDatabase> } = {},
+  options: ProductOptions & { providers?: Record<string, FileProvider>; trustedHosts?: string[]; types?: Record<string, string[]>; database?: () => Promise<FilesDatabase> } = {},
 ) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'protobase-files-'))
   const pg = await (options.database ?? (() => openSnapshotDb('empty')))()
@@ -78,6 +78,7 @@ export const createFilesFixture = async (
     secret: 'files-test-secret',
     sharp,
     ...(options.trustedHosts && { trustedHosts: options.trustedHosts }),
+    ...(options.types && { types: options.types }),
   }
   const resources = [products(options), avatars]
   const app = createAdmin({ resources, db, authenticate: testAuthenticator, files })

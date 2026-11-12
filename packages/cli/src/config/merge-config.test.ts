@@ -113,6 +113,15 @@ describe('mergeConfig', () => {
     await expect(projectFiles(mergeConfig(source('app', { files: { providers: { vault: { kind: 'custom' } } } })))).rejects.toThrow('The file provider "vault" is custom but no config\'s folder has files/vault.ts')
   })
 
+  it("keeps the media types of every config, and refuses one two configs define differently", () => {
+    const report = ['report.json']
+    const merged = mergeConfig(source('reports', { files: { types: { 'application/vnd.example.report+json': report } } }), source('app', { files: { trustedHosts: ['images.example.com'] } }))
+    expect(merged.files).toEqual({ types: { 'application/vnd.example.report+json': report }, trustedHosts: ['images.example.com'] })
+    expect(() => mergeConfig(source('reports', { files: { types: { 'application/vnd.example.report+json': report } } }), source('app', { files: { types: { 'application/vnd.example.report+json': ['rpt'] } } }))).toThrow(
+      'The file type "application/vnd.example.report+json" is defined twice, by reports and by app; rename one of them',
+    )
+  })
+
   it("finds sign-in's files in the folder of the last config that sets auth, else in the app's own", () => {
     const [cloudFiles, appFiles] = [folder({}), folder({})]
     expect(mergeConfig(source('cloud', {}, cloudFiles), source('app', {}, appFiles)).authFiles).toBe(appFiles)

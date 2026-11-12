@@ -1018,6 +1018,11 @@
     "resolveDone": "Marked as resolved",
     "resolveFailed": "Could not mark as resolved"
   },
+  "app/file-viewers": {
+    "download": "Download",
+    "backToRecord": "Back to the record",
+    "couldNotShow": "{name} could not be shown here. Download it to open it."
+  },
   "app/gallery": {
     "couldNotLoad": "Could not load the photos",
     "showAll": "Show all {count} photos",

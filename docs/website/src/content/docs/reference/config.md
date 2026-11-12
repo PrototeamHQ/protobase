@@ -165,6 +165,7 @@ export default defineUi({ extends: [tasksUi] })
 | MCP tools of `mcp/tools.ts` | the extensions' first, in order, then the app's | an error naming the tool and both folders |
 | `jobs`, functions, file providers (`files.providers`) | all kept, by name | an error naming the name and both folders |
 | workflow plugins of `workflows/plugins/` | all kept | an error naming the plugin and both sources |
+| `files.types` | all kept, by type | an error naming the type and both folders |
 | `files.trustedHosts` | all kept | |
 | the other keys of `files` | each the app's own; otherwise the last config that sets it | |
 | `writeHooks` | all run, in the same order | |

@@ -16,6 +16,7 @@ import { contactFormat } from '../../live/contact-links'
 import { linkTextOf } from '../../live/link-text'
 import { JsonBlock } from '../field-types/json/json-block'
 import { text as appText } from '../messages'
+import { FileLink } from '../file-viewers/file-link'
 
 // A relation's target named as the record page names it, read unless the page already knows the name
 const RelationLink = ({ target, id, known }: { target: ResourceModel; id: string; known?: string }) => {
@@ -52,14 +53,24 @@ const EmptyValue = () => (
   </span>
 )
 
-type ShownValueProps = { field: FieldModel; value: unknown; hints: FieldViewModel; relationLabel?: string; linkText?: string }
+type ShownValueProps = {
+  field: FieldModel
+  value: unknown
+  hints: FieldViewModel
+  relationLabel?: string
+  linkText?: string
+  /** The resource and record the value is of, which a file opens in its media type's viewer on. */
+  model?: ResourceModel
+  record?: Record<string, unknown>
+}
 
 /**
  * A stored value as the view's `hints` show it, with no field type's display: a dash when empty, names for relations,
  * badges in the view's `valueColors` for enums and the `badge` format, timestamps as the `relative` format says, JSON
- * written out whole and an address as a link showing `linkText` when given.
+ * written out whole, an address as a link showing `linkText` when given and a file as a link to its download, or to its
+ * viewer (`fileViewers`) when given its `model` and `record`.
  */
-export const ShownValue = ({ field, value, hints, relationLabel, linkText }: ShownValueProps) => {
+export const ShownValue = ({ field, value, hints, relationLabel, linkText, model, record }: ShownValueProps) => {
   if (value === null || value === undefined || value === '') return <EmptyValue />
   if (field.type === 'relation') return <RelationValue field={field} value={value} known={relationLabel} />
   const file = field.type === 'file' ? fileShown(value) : undefined
@@ -68,7 +79,7 @@ export const ShownValue = ({ field, value, hints, relationLabel, linkText }: Sho
     return (
       <span className="inline-flex min-w-0 items-center gap-2">
         {image && <FileImage image={image} className="size-10 shrink-0 rounded border border-border object-cover" />}
-        <a href={file.url} target="_blank" rel="noreferrer" className="truncate font-medium text-primary-text hover:underline">{file.name}</a>
+        <FileLink field={field.name} model={model} record={record} name={file.name} url={file.url} className="truncate font-medium text-primary-text hover:underline" />
       </span>
     )
   }
@@ -86,7 +97,7 @@ const BuiltInValue = ({ model, field, value, format, relationLabel, record }: Fi
   const { views } = useAdminMeta()
   const hints = { ...views[model.name]?.fields[field.name], ...(format && { format }) }
   const linkText = record && hints.format === 'url' ? linkTextOf(model, views[model.name], field.name, record) : undefined
-  return <ShownValue field={field} value={value} hints={hints} relationLabel={relationLabel} linkText={linkText} />
+  return <ShownValue field={field} value={value} hints={hints} relationLabel={relationLabel} linkText={linkText} model={model} record={record} />
 }
 
 /**

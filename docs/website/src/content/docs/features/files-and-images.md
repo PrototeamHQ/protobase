@@ -9,6 +9,8 @@ description: Uploaded files and images, where they are kept and how they are ser
 - [S3-compatible buckets](/reference/files/#s3-compatible-buckets) (beta): Files are kept in any bucket that speaks the S3 API, when the app runs on Bun.
 - [Files from a seed](/reference/files/#writing-files-from-a-seed): A seed or another script writes files into the app's providers, read from its config and environment as the server reads them.
 - [Type detection](/reference/files/#how-the-type-is-decided): An upload's type is decided from its content, and a disguised file is refused.
+- [Your own types](/reference/files/#your-own-types): An app names its own media types and their extensions, and files with them are stored and served as those types.
+- [File viewers](/reference/files/#viewers): A plugin registers a viewer for a media type, and a file of that type opens in it in the app instead of downloading.
 - [Signed downloads](/reference/files/#downloads): Private files open through short-lived links that stop working once the record no longer holds the file.
 - [Derived fields](/reference/files/#derived-fields): Width, height, size and type of each upload are written to other fields.
 - [Image variants and placeholders](/reference/files/#image-variants-and-placeholders): Resized copies of uploaded images, and a blurred placeholder while they load.

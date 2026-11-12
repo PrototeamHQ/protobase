@@ -38,6 +38,7 @@ Each place a plugin can fill is an extension point. The config names it, or a pl
 | [Record card](/reference/custom-components/#record-cards) | `d.cards(fields, { card: component('Name') })` | A PascalCase export | `{ row }` | The built-in card: title, subtitle, badge, meta fields |
 | [Field type](#field-types) | `r.field.widget('name', props)` in a view's `fields` | `fields: { name: { of, display, editor?, cell? } }` | `{ field, value, props }`, and `onChange`, `invalid` for the editor | The field as it shows without one |
 | Widget part (the [assistant](/reference/assistant/#widget-parts)) | A widget part's name | A PascalCase export | The part's props | The part's fallback card |
+| [File viewer](#file-viewers) | A file's media type | `fileViewers: { 'type': { component } }` | `{ file, siblings }` | The file's link downloads it; a viewer that throws leaves a Download button |
 | [Action handler](/reference/custom-components/#action-handlers) | `a.action('name')` in a view | `actions: { name }` | `ActionContext` | The button is disabled |
 | [Shell slot](/reference/custom-components/#shell-slots) | Nothing: drawn on every page | `shell: { actions, rightPanel, logo, bell }` | Nothing; `logo` gets `compact`, `workspace`, `appName` and `appIcon` | Not drawn; Protobase's logo for `logo`, its notification bell for `bell` |
 | [Before sign-in](#before-sign-in) | `beforeSignIn: true` where the plugin is listed | `beforeSignIn` | `children`, `params`, `removeParams`, `signedIn` | The pages as they are without it |
@@ -171,6 +172,38 @@ The create form and the record's form pick the members of the organization the s
 `workflow` is the field type the `workflows` resource draws its `definition` with: the [workflow editor](/reference/workflows/#the-editor). Another JSON field holding a workflow's definition picks it as `r.definition.widget('workflow')`. It takes the form's whole width, and a list's table shows how many steps the workflow has. A plugin that registers a field type named `workflow` replaces it.
 
 `workflow_run` is the field type the `workflow_runs` resource draws its own `id` with: the run's [trace](/reference/workflows/#following-and-debugging-a-run) on its workflow's graph, with the chosen step's records under it. Another uuid field holding a run's id picks it as `r.run_id.widget('workflow_run')`. It takes the whole width, and a list's table shows the id. A plugin that registers a field type named `workflow_run` replaces it.
+
+
+## File viewers
+
+A file viewer shows files of one media type in the app, such as a report the app writes as JSON, instead of downloading them. A plugin registers it by the type, which the server must know: a built-in type, or one of the app's own in `files.types` (see [Your own types](/reference/files/#your-own-types)).
+
+```tsx
+// protobase.ui.tsx
+import { definePlugin, fileNamed, useFileText, type FileViewerProps } from '@protobase/ui'
+
+const ReportViewer = ({ file, siblings }: FileViewerProps) => {
+  const read = useFileText(file)
+  if (!read.data) return null
+  const report = JSON.parse(read.data)
+  const chart = fileNamed(siblings, report.chart)
+  return (
+    <article>
+      <h2>{report.title}</h2>
+      {chart && <img src={chart.url} alt={chart.name} />}
+    </article>
+  )
+}
+
+export default definePlugin({ fileViewers: { 'application/vnd.example.report+json': { component: ReportViewer } } })
+```
+
+| Props | |
+| --- | --- |
+| `file` | The file: `name`, `type`, `size`, `url`, the link that downloads it, and `uri`, its stored value. |
+| `siblings` | The other files of its record and of the records that point at the same records, see [Viewers](/reference/files/#viewers). `fileNamed(siblings, 'shots/before.png')` finds one by the last segment of a relative reference, and gives none for an absolute address. |
+
+`useFileText(file)` reads the file's text once, as a TanStack Query result kept while the file stays the same. The viewer draws on the page below the file's bar, which scrolls as the page does. The file's link is a download link served with a sandboxing CSP, so a viewer reads the file and draws it itself rather than framing it.
 
 ## Building
 

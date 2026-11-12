@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { decideType } from './detect'
-import { accepts } from './media-types'
+import { accepts, builtInTypes, mediaTypes } from './media-types'
 import { binary, csv, exe, html, jpeg, pdf, png, svg, zip } from './testing/samples'
 
 const decide = (head: Uint8Array, name: string | undefined, declared: string | undefined, accept: string[]) =>
-  decideType({ head, complete: true, accept, ...(name !== undefined && { name }), ...(declared !== undefined && { declared }) })
+  decideType({ head, complete: true, accept, types: builtInTypes, ...(name !== undefined && { name }), ...(declared !== undefined && { declared }) })
 
 const verdict = async (...args: Parameters<typeof decide>) => {
   const decision = await decide(...args)
@@ -42,7 +42,15 @@ describe('deciding an upload type', () => {
 
   it('read a head cut inside a character as text', async () => {
     const head = new TextEncoder().encode('café').slice(0, 4)
-    expect((await decideType({ head, complete: false, name: 'a.txt', accept: [] })).type).toBe('text/plain')
-    expect((await decideType({ head, complete: true, name: 'a.txt', accept: [] })).type).toBe('application/octet-stream')
+    expect((await decideType({ head, complete: false, name: 'a.txt', accept: [], types: builtInTypes })).type).toBe('text/plain')
+    expect((await decideType({ head, complete: true, name: 'a.txt', accept: [], types: builtInTypes })).type).toBe('application/octet-stream')
+  })
+
+  it("give the app's own type by its extension, unless the bytes are a type the server knows", async () => {
+    const types = mediaTypes({ 'application/vnd.example.report+json': ['report.json'] })
+    const json = new TextEncoder().encode('{"title":"x"}')
+    expect((await decideType({ head: json, complete: true, name: 'weekly.report.json', accept: [], types })).type).toBe('application/vnd.example.report+json')
+    expect((await decideType({ head: json, complete: true, name: 'weekly.json', accept: [], types })).type).toBe('application/json')
+    expect((await decideType({ head: png, complete: true, name: 'shot.report.json', accept: [], types })).type).toBe('image/png')
   })
 })

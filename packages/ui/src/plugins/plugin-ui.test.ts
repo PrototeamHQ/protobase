@@ -24,4 +24,12 @@ describe('pluginUi', () => {
     expect(merged.ui.boardDrops?.park).toBe(drop)
     expect(merged.ui.dropRules?.r).toBe(rule)
   })
+
+  it('draws its file viewers inside the plugin, by media type', () => {
+    const Report = () => createElement('span', null, 'report')
+    const ui = pluginUi(plugin, { default: { fileViewers: { 'application/vnd.example.report+json': { component: Report } } } })
+    expect(ui.fileViewers?.['application/vnd.example.report+json']?.component.displayName).toBe('app:fileViewers.application/vnd.example.report+json')
+    const merged = mergePlugins(undefined, [{ kind: 'loaded', plugin, ui }])
+    expect(Object.keys(merged.ui.fileViewers ?? {})).toEqual(['application/vnd.example.report+json'])
+  })
 })
