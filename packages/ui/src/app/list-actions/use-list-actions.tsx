@@ -14,27 +14,39 @@ import { rowRecord } from './row-record'
 
 // What runs once the action's question is answered: the action on one row, or on each of a selection.
 type Run = { action: ActionModel; row: LayoutRecord } | { action: ActionModel; selection: LayoutRecord[]; skipped: number }
+// A run whose dialog is open, with how to report the records it leaves open once it ends.
+type Asking = Run & { settle: (open: LayoutRecord[] | Promise<LayoutRecord[]>) => void }
 
 /**
  * The named actions of `model`'s view for its list: those without inputs each in the row menu of the rows it shows for,
  * disabled with its reason where `when` disables it, and in red when it is a delete or a danger action; a link is a link
  * there, and a disabled one a disabled item without one. Updates and handlers marked `bulk` are offered for a selection
  * while one selected row applies, ask their question or inputs once, and run on those that do, refusing and naming
- * those the person may not change. `prompt` is the dialog one opens before it runs.
+ * those the person may not change, which stay selected. `prompt` is the dialog one opens before it runs.
  */
 export const useListActions = (model: ResourceModel) => {
   const { views, resources } = useAdminMeta()
   const runner = useActionRunner(model.name, undefined)
   const app = useAppAddress()
   const titleOf = useRecordTitle()
-  const [asking, setAsking] = useState<Run>()
+  const [asking, setAsking] = useState<Asking>()
   const named = views[model.name]?.actions ?? []
   const listed = named.filter((action) => !action.inputs?.length)
-  const perform = (run: Run, values?: Record<string, unknown>) => ('row' in run ? runner.run(run.action, run.row) : runner.runEach(run.action, run.selection, run.skipped, values))
-  const start = (run: Run) => {
-    if (run.action.confirm || run.action.inputs?.length) setAsking(run)
-    else void perform(run)
+  // Resolves to the records the run leaves open, those it was refused on
+  const perform = async (run: Run, values?: Record<string, unknown>) => {
+    if ('row' in run) {
+      await runner.run(run.action, run.row)
+      return []
+    }
+    const outcome = await runner.runEach(run.action, run.selection, run.skipped, values)
+    return outcome.refused
   }
+  // Resolves once the run ended to the records it leaves open: all of them when its dialog is cancelled
+  const start = (run: Run) =>
+    new Promise<LayoutRecord[]>((settle) => {
+      if (run.action.confirm || run.action.inputs?.length) setAsking({ ...run, settle })
+      else settle(perform(run))
+    })
 
   const rowActions = listed.map((action): RowAction => {
     const shown = (row: GridRow) => actionFor(action, rowRecord(model, row).record, resources)
@@ -43,7 +55,7 @@ export const useListActions = (model: ResourceModel) => {
     const blocked = (row: GridRow) => runner.blockedOn(action, rowRecord(model, row))
     const available = (row: GridRow) => shown(row) !== undefined
     if (run?.kind === 'link') return { ...base, available, blocked, link: (row) => actionLink(run, rowRecord(model, row).record, app) }
-    return { ...base, available, blocked, onSelect: (row) => start({ action, row: rowRecord(model, row) }) }
+    return { ...base, available, blocked, onSelect: (row) => void start({ action, row: rowRecord(model, row) }) }
   })
 
   const bulkActions = named
@@ -52,7 +64,11 @@ export const useListActions = (model: ResourceModel) => {
       label: (count) => text('actionCount', { label: action.label, count }),
       destructive: isDanger(action),
       available: (row) => runner.verdictOn(action, rowRecord(model, row)) !== 'skip',
-      onRun: (rows, skipped) => start({ action, selection: rows.map((row) => rowRecord(model, row)), skipped }),
+      onRun: async (rows, skipped) => {
+        const selection = rows.map((row) => rowRecord(model, row))
+        const open = await start({ action, selection, skipped })
+        return rows.filter((_, index) => open.includes(selection[index]!))
+      },
     }))
 
   const prompt = asking && (
@@ -62,14 +78,19 @@ export const useListActions = (model: ResourceModel) => {
       danger={isDanger(asking.action)}
       records={'row' in asking ? [asking.row.record] : asking.selection.map((on) => on.record)}
       names={'row' in asking ? [] : asking.selection.map((on) => quoted(titleOf(model, views[model.name], on.record, on.key)))}
-      onCancel={() => setAsking(undefined)}
+      onCancel={() => {
+        setAsking(undefined)
+        asking.settle('row' in asking ? [asking.row] : asking.selection)
+      }}
       onConfirm={() => {
         setAsking(undefined)
-        void perform(asking)
+        asking.settle(perform(asking))
       }}
       onSubmit={async (values) => {
         setAsking(undefined)
-        await perform(asking, values)
+        const running = perform(asking, values)
+        asking.settle(running)
+        await running
       }}
     />
   )

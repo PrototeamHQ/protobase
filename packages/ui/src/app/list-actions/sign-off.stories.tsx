@@ -118,3 +118,36 @@ export const OnAPageChecks: StoryObj = {
     expect(canvas.getByText('Rotate the signing key')).toBeInTheDocument()
   },
 }
+
+const selected = (canvas: ReturnType<typeof within>) => [1, 2, 3].filter((row) => canvas.getByRole('checkbox', { name: `Select row ${row}` }).getAttribute('aria-checked') === 'true')
+
+/** Cancelling the dialog keeps the selection, to pick up again. */
+export const CancelKeepsSelection: StoryObj = {
+  ...InTheList,
+  name: 'Cancelling keeps the selection (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const body = within(canvasElement.ownerDocument.body)
+    await canvas.findByText('Rotate the signing key')
+    for (const row of [1, 2, 3]) await userEvent.click(await canvas.findByRole('checkbox', { name: `Select row ${row}` }))
+    await userEvent.click(await canvas.findByRole('button', { name: 'Approve (3)' }))
+    const dialog = within(await body.findByRole('dialog', { name: 'Approve (3)' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(body.queryByRole('dialog')).toBeNull())
+    expect(selected(canvas)).toEqual([1, 2, 3])
+    expect(canvas.getByRole('button', { name: 'Approve (3)' })).toBeInTheDocument()
+  },
+}
+
+/** Once the run ends only the refused step stays selected, showing what is still open. */
+export const RefusedStaySelected: StoryObj = {
+  ...InTheList,
+  name: 'Refused rows stay selected (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    await signOffAll(canvasElement)
+    const canvas = within(canvasElement)
+    await waitFor(() => expect(selected(canvas)).toEqual([3]))
+  },
+}

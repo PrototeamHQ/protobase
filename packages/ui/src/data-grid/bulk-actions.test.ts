@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { offeredBulkActions, type BulkAction } from './bulk-actions'
+import { offeredBulkActions, runBulkAction, type BulkAction } from './bulk-actions'
 
 const rows = [
   { id: '1', status: 'running' },
@@ -20,5 +20,22 @@ describe('offeredBulkActions', () => {
   it('leaves out an action no selected row applies to', () => {
     const start: BulkAction = { label: (n) => `Start ${n}`, available: (row) => row.status === 'stopped', onRun: () => undefined }
     expect(offeredBulkActions([start], [rows[0]!])).toEqual([])
+  })
+})
+
+describe('runBulkAction', () => {
+  it('is done with every row of an action that runs at once', async () => {
+    const exportRows: BulkAction = { label: (n) => `Export ${n}`, onRun: () => undefined }
+    expect(await runBulkAction(exportRows, rows, 0)).toEqual(rows)
+  })
+
+  it('is done with none of the rows when the action is cancelled, leaving them all open', async () => {
+    const approve: BulkAction = { label: (n) => `Approve ${n}`, onRun: async (given) => given }
+    expect(await runBulkAction(approve, rows, 0)).toEqual([])
+  })
+
+  it('is done with the rows the run did not leave open, such as refused ones', async () => {
+    const approve: BulkAction = { label: (n) => `Approve ${n}`, onRun: async () => [{ id: '3', status: 'running' }] }
+    expect(await runBulkAction(approve, rows, 0)).toEqual([rows[0], rows[1]])
   })
 })

@@ -3,7 +3,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '../lib/cn'
 import type { ColumnSpec, GridRow } from './column-spec'
 import { buildColumns, features } from './columns'
-import { offeredBulkActions, type BulkAction } from './bulk-actions'
+import { offeredBulkActions, runBulkAction, type BulkAction } from './bulk-actions'
 import { GridFooter } from './grid-footer'
 import { RowMenu, availableActions, type RowAction } from './row-menu'
 import { compactGutter, desktopMinScale, gridMinWidth, gutterWidthFor, rowMenuWidth } from './grid-template'
@@ -251,11 +251,13 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
           bulkActions={offeredBulkActions(bulkActions ?? [], Object.keys(rowSelection).flatMap((id) => selectedRows.current.get(id) ?? [])).map(({ action, rows, skipped }) => ({
             label: action.label(rows.length),
             destructive: action.destructive,
-            onRun: () => {
-              action.onRun(rows, skipped)
-              setRowSelection({})
-              selectedRows.current.clear()
-            },
+            // The selection stays while the action asks first, and keeps the rows it leaves open, such as refused ones
+            onRun: () =>
+              void runBulkAction(action, rows, skipped).then((done) => {
+                const ids = new Set(done.map((row) => row.id))
+                setRowSelection((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !ids.has(id))))
+                for (const id of ids) selectedRows.current.delete(id)
+              }),
           }))}
         />
       )}
