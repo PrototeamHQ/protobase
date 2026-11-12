@@ -9,9 +9,10 @@ import { propsOf, type BlockProps } from './block-props'
 /**
  * A button for a named action of `resource`'s view, by default of the record around it, on that record, asking first
  * when the action has `confirm` or `inputs`; nothing when the view has no such action for the user, or none for the
- * record. It is drawn as the action's `variant` unless the block names its own.
+ * record. It is drawn as the action's `variant` unless the block names its own. `about` names the record in the
+ * button's accessible name after its label, as "Mark clear: <title>", where the same button repeats for several records.
  */
-export const ActionButton = ({ name, resource, label, variant, className }: ActionProps & { className?: string }) => {
+export const ActionButton = ({ name, resource, label, variant, className, about }: ActionProps & { className?: string; about?: string }) => {
   const scope = useLayoutRecord()
   const action = useRunAction(resource ?? scope?.model.name ?? '', name, resource === undefined || resource === scope?.model.name ? scope : undefined)
   const [asking, setAsking] = useState(false)
@@ -22,7 +23,7 @@ export const ActionButton = ({ name, resource, label, variant, className }: Acti
   const start = () => (asksFirst(action.action!) ? setAsking(true) : void action.run())
   return (
     <>
-      <Button size="sm" variant={shown} className={className} loading={action.running} disabled={Boolean(action.blocked)} title={action.blocked} onClick={start}>
+      <Button size="sm" variant={shown} className={className} loading={action.running} disabled={Boolean(action.blocked)} title={action.blocked} aria-label={about === undefined ? undefined : `${text}: ${about}`} onClick={start}>
         {text}
       </Button>
       {asking && (

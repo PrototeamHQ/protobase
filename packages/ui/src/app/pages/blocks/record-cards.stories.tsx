@@ -142,7 +142,7 @@ export const Checks: StoryObj = {
     await userEvent.click(more)
     expect(await section.findByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true')
 
-    await userEvent.click(within(link.closest('li')!).getByRole('button', { name: 'Approve' }))
+    await userEvent.click(within(link.closest('li')!).getByRole('button', { name: 'Approve: Plan review' }))
     await userEvent.click(within(await within(document.body).findByRole('dialog', { name: 'Approve?' })).getByRole('button', { name: 'Approve' }))
     await waitFor(() => expect(stored.task_preconditions!.find((row) => row.id === 1)?.state).toBe('approved'))
     await section.findByRole('link', { name: 'Landing' })
@@ -187,7 +187,7 @@ export const CarouselChecks: StoryObj = {
     const quarter = (narrow.closest('ul')!.getBoundingClientRect().width + 12) / 4 - 12
     expect(narrow.closest('li')!.getBoundingClientRect().width).toBeCloseTo(Math.max(quarter, 192), 0)
 
-    await userEvent.click(within(card).getByRole('button', { name: 'Approve' }))
+    await userEvent.click(within(card).getByRole('button', { name: 'Approve: Plan review' }))
     await userEvent.click(within(await within(document.body).findByRole('dialog', { name: 'Approve?' })).getByRole('button', { name: 'Approve' }))
     await waitFor(() => expect(stored.task_preconditions!.find((item) => item.id === 1)?.state).toBe('approved'))
 
