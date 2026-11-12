@@ -32,7 +32,8 @@ export type TopBarProps = {
 /**
  * An icon button of the top bar on a mobile screen, as the menu, back and search buttons are. It and its icon grow with
  * the text size beyond their default 44px and 20px only up to 13% and 6% of the screen's width, so four buttons still
- * fit at the largest text sizes, as in a native app's bar; the bar's spacing is in pixels for the same reason.
+ * fit at the largest text sizes, as in a native app's bar. The caps and the bar's spacing are in pixels and screen width,
+ * not `rem` as other sizes are, because a size in `rem` alone grows with the text past the screen's width.
  */
 export const topBarButton = 'inline-flex size-[min(2.75rem,max(44px,13vw))] shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))]'
 
