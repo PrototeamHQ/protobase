@@ -148,17 +148,18 @@ export const shownFields = (model: ResourceModel, view: ViewModel | undefined, d
   return [image, title, subtitle, ...amount, badge, code, ...meta, ...footer, ...flags].filter((name): name is string => name !== undefined)
 }
 
-// The fields a column's link text takes from the row, such as a report's title for its url column.
-const linkTextFields = (view: ViewModel | undefined, columns: string[]) => columns.flatMap((name) => textPlaceholders(view?.fields[name]?.linkText ?? ''))
+// The fields the link texts of shown fields take from the row, such as a report's title for its url.
+const linkTextFields = (view: ViewModel | undefined, shown: string[]) => shown.flatMap((name) => textPlaceholders(view?.fields[name]?.linkText ?? ''))
 
 /**
- * The fields to label the list's rows for: the table's columns, the fields their link texts name and every display's,
+ * The fields to label the list's rows for: the table's columns, every display's and the fields their link texts name,
  * so one load serves them all.
  */
 export const loadedFields = (model: ResourceModel, view: ViewModel | undefined, columns: string[]) => {
   const rows = phoneRows(model, view)
   const displays = rows ? [...displaysOf(view), rows] : displaysOf(view)
-  return [...new Set([...columns, ...linkTextFields(view, columns), ...displays.flatMap((display) => shownFields(model, view, display))])]
+  const shown = [...columns, ...displays.flatMap((display) => shownFields(model, view, display))]
+  return [...new Set([...shown, ...linkTextFields(view, shown)])]
 }
 
 /**

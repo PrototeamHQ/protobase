@@ -3,7 +3,15 @@ import { jsonSummary, summaryLength } from './json-summary'
 
 describe('jsonSummary', () => {
   it('shows an object as its keys and values, nested ones as marks', () => {
-    expect(jsonSummary({ command: 'ls -la', cwd: '/tmp', env: { A: '1' }, args: [1, 2], none: null, quiet: true })).toBe('command: ls -la, cwd: /tmp, env: {…}, args: […], none: null, quiet: true')
+    expect(jsonSummary({ command: 'ls -la', cwd: '/tmp', env: { A: '1' }, args: [1, 2], none: null, quiet: true })).toBe('command: ls -la, cwd: /tmp, none: null, quiet: true, env: {…}, args: […]')
+  })
+
+  it('leads with the plain values, wherever the nested ones stand', () => {
+    expect(jsonSummary({ env: { A: '1' }, cwd: '/tmp', command: 'ls' })).toBe('cwd: /tmp, command: ls, env: {…}')
+  })
+
+  it('cuts one long value, so the others still show, and shows an empty text as ""', () => {
+    expect(jsonSummary({ text: 'x'.repeat(100), path: 'a.ts', cwd: '' })).toBe(`text: ${'x'.repeat(39)}…, path: a.ts, cwd: ""`)
   })
 
   it('shows a list of plain values as the values', () => {

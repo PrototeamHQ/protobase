@@ -22,8 +22,9 @@ describe('linkTextOf', () => {
     expect(linkTextOf(model, viewWith('{level}: {title} ({project})'), 'report', record)).toBe('Fatal: Crash on save (Shop)')
   })
 
-  it('is nothing without link text, or when its fields are empty, so the address shows', () => {
+  it('is nothing without link text, or when a field it names is empty, so the address shows', () => {
     expect(linkTextOf(model, viewWith(), 'report', { title: 'x' })).toBeUndefined()
     expect(linkTextOf(model, viewWith('{title}'), 'report', { title: null })).toBeUndefined()
+    expect(linkTextOf(model, viewWith('{title} ({level})'), 'report', { title: 'Crash on save', level: '' })).toBeUndefined()
   })
 })

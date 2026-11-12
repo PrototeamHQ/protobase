@@ -307,7 +307,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         const contact = field.type === 'text' && typeof value === 'string' && value !== '' ? contactFormat(hint(name)) : undefined
         const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : contact ? <ContactLink format={contact} value={text} label={linkTextOf(model, view, name, stored.record)} /> : <span title={valueTitle(field, value, undefined, hint(name))}>{text}</span>
         const shown = shownWidget(fieldTypes, field, hint(name))
-        return [{ label: hint(name)?.label ?? humanize(name), title: json ? JSON.stringify(value) : text, value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
+        return [{ label: hint(name)?.label ?? humanize(name), title: text, value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}
     />
   )
