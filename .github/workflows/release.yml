@@ -20,11 +20,13 @@ on:
         required: false
         default: ''
 
-# One release at a time; a run waiting behind another is replaced by the run of a newer push.
-concurrency:
-  group: release
-  cancel-in-progress: false
-
+# Plan, pack and the checks of every run start at once. From the tag onward each job has a concurrency group of its
+# own, so one run at a time cuts a tag, publishes, builds an image or bumps, while another run's earlier jobs go on
+# beside it. GitHub starts a group's jobs in the order they began to wait, and queue: max keeps every one waiting
+# instead of cancelling all but the newest, so no run that cut a tag misses its publish. A run's job waits only once
+# the same run's previous job ended, and that job ran after the older run's, so every stage keeps the order of the
+# tags: a newer run reads the tags after the older run pushed its own, and npm and the registry get the releases
+# oldest first.
 jobs:
   # The tag this push would cut (scripts/release.mjs --dry-run prints it), or none, so the pack job can start at once.
   # A run by hand without a tag is a release of main's head, so it runs every job a push does, and only from main.
@@ -141,8 +143,14 @@ jobs:
             done
           fi
 
+  # It waits for pack too, though only publish uses the packages, so a slow pack cannot let a newer run publish first.
+  # A run that packs nothing, as plan found nothing to release, still runs it, which then tags nothing.
   release:
-    needs: [plan, check, commits]
+    needs: [plan, pack, check, commits]
+    if: ${{ !cancelled() && !failure() && !inputs.tag }}
+    concurrency:
+      group: release-tag
+      queue: max
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -189,6 +197,9 @@ jobs:
   publish:
     needs: [release, pack]
     if: ${{ !cancelled() && needs.pack.result == 'success' && (inputs.tag || needs.release.outputs.tag != '') }}
+    concurrency:
+      group: release-publish
+      queue: max
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -219,6 +230,9 @@ jobs:
   image:
     needs: [release, publish]
     if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    concurrency:
+      group: release-image
+      queue: max
     permissions:
       contents: read
       packages: write
@@ -230,6 +244,9 @@ jobs:
   image-dev:
     needs: [release, publish]
     if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    concurrency:
+      group: release-image-dev
+      queue: max
     permissions:
       contents: read
       packages: write
@@ -245,6 +262,9 @@ jobs:
   bump:
     needs: [release, publish]
     if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    concurrency:
+      group: release-bump
+      queue: max
     runs-on: ubuntu-latest
     permissions:
       contents: read
