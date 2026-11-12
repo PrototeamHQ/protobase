@@ -72,11 +72,13 @@ export type DataGridProps = {
 }
 
 const headerHeight = 32
+// A small button's height and the gap above it, for a column with something `below` its cells
+const belowHeight = 32
 const footerHeight = 36
 
 export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowLink, rowActions, cellEditor, rowPatches, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable: selecting = true, reorder, fit = false, scroll = 'own', className }: DataGridProps) => {
   const selectable = selecting && !reorder
-  const rowHeight = compact ? 28 : 36
+  const rowHeight = (compact ? 28 : 36) + (given.some((spec) => spec.below) ? belowHeight : 0)
   const narrow = !useIsDesktop()
   // A phone keeps every column whole, so pinning there could leave nothing to scroll
   const pinsByDefault = (defaultPinned ?? (narrow ? [] : defaultPins(given))).join(' ')
@@ -197,10 +199,12 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
       onOpen: onOpenRow ? () => onOpenRow(row) : undefined,
       menu: actions.length > 0 ? <RowMenu row={row} actions={actions} /> : undefined,
       cells: tableRow.getAllCells().map((cell) => {
+        const spec = columns.find((column) => column.id === cell.column.id)!
         const content = <table.FlexRender cell={cell} />
         const editable = Boolean(cellEditor?.editable(row, cell.column.id))
         const linked = rowLink && cell.column.id === linkColumn && !editable ? <RouteLink to={rowLink(row)} className="flex min-w-0 items-center hover:underline">{content}</RouteLink> : content
-        return { spec: columns.find((spec) => spec.id === cell.column.id)!, ...(cellEditing ? cellEditing.cell(index, row, cell.column.id, linked) : { content: linked }) }
+        const stacked = spec.below ? <div className="flex min-w-0 flex-col items-start gap-1">{linked}{spec.below(row)}</div> : linked
+        return { spec, ...(cellEditing ? cellEditing.cell(index, row, cell.column.id, stacked) : { content: stacked }) }
       }),
     }
     return reorder ? <SortableRow key={row.id} {...props} row={row} label={reorder.label(row)} /> : <DataRow key={row.id} {...props} />

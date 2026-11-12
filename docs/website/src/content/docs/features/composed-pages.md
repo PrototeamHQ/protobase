@@ -13,7 +13,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [Tailwind classes](/reference/layouts/#tailwind-classes) (experimental): Layouts can carry Tailwind classes, on plain elements and on blocks, for pages too custom for blocks.
 - [Full-width pages](/reference/blocks/#page): A page fills the whole area beside the sidebar instead of a centred column, for a dashboard with many blocks.
 - [Data blocks](/reference/blocks/#data): Counts, tables, single records, rows of cards, field values and progress bars.
-- [Row buttons](/reference/blocks/#row-buttons) (experimental): A table's rows carry a button labelled by a field of the row, such as its next step; the row decides where it goes: a record tab a field names, a list with a filter built from its fields, or an outside https link a field holds.
+- [Row buttons](/reference/blocks/#row-buttons) (experimental): A table's rows carry a button labelled by a field of the row, such as its next step; the row decides where it goes: a record tab a field names, a list with a filter built from its fields, or an outside https link a field holds. On mobile width the button sits under the row's first cell.
 - [Record rows](/reference/blocks/#recordrow): A sideways row of cards for a filter, favorites or saved searches, with a count and new-record marks.
 - [Record cards](/reference/blocks/#recordcards): Full-width cards with fields and buttons, stacked or in a carousel.
 - [Image block](/reference/blocks/#image): A picture one of the app's API functions draws for the reader, such as a system map, at the size and theme the client asks, refreshed on a timer; a client that draws no images shows its alt text, or nothing.

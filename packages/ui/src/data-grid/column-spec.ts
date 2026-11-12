@@ -54,6 +54,8 @@ export type ColumnSpec = {
   value?: (row: GridRow) => unknown
   /** Draws the cell instead of its kind, such as a field type's cell. */
   render?: (row: GridRow) => ReactNode
+  /** Drawn under the cell's content, outside the link a title cell is; every row of the grid grows to hold it. */
+  below?: (row: GridRow) => ReactNode
 }
 
 export const isRightAligned = (kind: ColumnKind) => kind === 'money' || kind === 'number' || kind === 'signed' || kind === 'percent'
