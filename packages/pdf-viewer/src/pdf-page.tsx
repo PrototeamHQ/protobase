@@ -13,8 +13,9 @@ const sheet: CSSProperties = { display: 'block', background: 'white', boxShadow:
 type PdfPageProps = { document: PDFDocumentProxy; number: number; width: number }
 
 /**
- * Page `number` of `document`, `width` CSS pixels wide: drawn once it comes near the screen, and drawn again when the
- * width changes. A page pdf.js cannot draw throws.
+ * Page `number` of `document`, `width` CSS pixels wide: drawn while it is near the screen, and drawn again when the width
+ * changes. A page that moves away lets its canvas's pixels go and keeps its height, so a long PDF holds only the pages
+ * around the screen. A page pdf.js cannot draw throws.
  */
 export const PdfPage = ({ document, number, width }: PdfPageProps) => {
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -45,6 +46,9 @@ export const PdfPage = ({ document, number, width }: PdfPageProps) => {
     return () => {
       current = false
       render?.cancel()
+      // A canvas of no pixels holds no memory; its CSS size keeps the page's place.
+      target.width = 0
+      target.height = 0
     }
   }, [document, number, width, near])
   if (error) throw error
