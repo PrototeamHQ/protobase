@@ -7,7 +7,7 @@ import { defineRoles, f, resource } from '@protobase/schema'
 import { changesMigration, configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import example from '../../test-support/workflow-plugin-example'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
 
 // Workers poll on real timers, which a busy machine stretches.
@@ -73,7 +73,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
         return { user: { id, roles: ['builder'] }, tenant: people[id]!, organization: { id: people[id]! } }
       },
       workflows,
-      options: { roles },
+      options: { statementTimeoutMs, roles },
     })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error } })
   })

@@ -3,7 +3,7 @@ import { sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource, type AnyField } from '@protobase/schema'
 import { checkComputed, computedMigration, createAdmin } from '@protobase/server'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 
 const orders = (total: AnyField = f.decimal({ precision: 12, scale: 2 }).rollup({ from: 'lines', via: 'order_id', fn: 'sum', field: 'amount' })) =>
   resource('orders')
@@ -70,7 +70,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('rollup and formula fiel
   })
 
   it('serves them as read-only fields of the record', async () => {
-    const admin = createAdmin({ resources: [orders(), lines()], db, authenticate: () => ({ user: { id: 'u1', roles: ['admin'] } }) })
+    const admin = createAdmin({ resources: [orders(), lines()], db, authenticate: () => ({ user: { id: 'u1', roles: ['admin'] } }), options: { statementTimeoutMs } })
     const order = await admin.request('/api/v1/orders/2')
     expect(await order.json()).toMatchObject({ id: 2, total: '10.00', line_count: 1 })
     const created = await admin.request('/api/v1/lines', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ order_id: 2, quantity: 5, price: '2.00' }) })

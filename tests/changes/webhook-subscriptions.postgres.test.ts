@@ -14,7 +14,7 @@ import {
   type WebhooksOptions,
 } from '@protobase/server'
 import { webhooksModule } from '@protobase/server/internal'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { startReceiver } from './receiver'
 
 // Workers poll and retry on real timers, which a busy machine stretches.
@@ -69,6 +69,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('webhook subscriptions m
         return { user: { id, roles: person.roles }, tenant: person.tenant, organization: { id: person.tenant } }
       },
       webhooks,
+      options: { statementTimeoutMs },
     })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
   })

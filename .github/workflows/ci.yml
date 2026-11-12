@@ -156,11 +156,13 @@ jobs:
         run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@$POSTGRES_ADDRESS/postgres" >> "$GITHUB_ENV"
       # A throwaway database needs no durability. Each `drop database` the tests' clones end with forces a checkpoint, and
       # on a runner that shares its disk those queue behind each other until hooks time out; without fsync they are quick.
-      # Through the tests' own client, as the image has no docker or psql.
+      # A lock wait past 100 ms goes to the service's log, so a statement a test sees time out shows whether it waited
+      # on a lock or only ran slowly. Through the tests' own client, as the image has no docker or psql.
       - name: Turn off the service Postgres' durability
         run: >-
           bun -e "const sql = (await import('postgres')).default(process.env.TEST_POSTGRES_URL, { max: 1 });
           for (const setting of ['fsync', 'synchronous_commit', 'full_page_writes']) await sql.unsafe('alter system set ' + setting + ' = off');
+          await sql\`alter system set log_lock_waits = on\`; await sql\`alter system set deadlock_timeout = '100ms'\`;
           await sql\`select pg_reload_conf()\`; await sql.end()"
       - *bun-node
       # The template databases each integration run clones; with CI set, a missing one fails the run instead of skipping.
@@ -300,13 +302,15 @@ jobs:
           POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
         run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
       # As in check: each `drop database` forces a checkpoint, here behind the medium template's writes; no fsync keeps it quick.
+      # Lock waits past 100 ms are logged, as in integration.
       - &postgres-durability
         if: steps.postgres.outputs.run == 'true'
         name: Turn off the service Postgres' durability
         run: >-
           docker exec ${{ job.services.postgres.id }} psql -U protobase -d protobase -v ON_ERROR_STOP=1
           -c "alter system set fsync = off" -c "alter system set synchronous_commit = off"
-          -c "alter system set full_page_writes = off" -c "select pg_reload_conf()"
+          -c "alter system set full_page_writes = off" -c "alter system set log_lock_waits = on"
+          -c "alter system set deadlock_timeout = '100ms'" -c "select pg_reload_conf()"
       # The cloud's pooler in front of the same server, as docker-compose.yml runs it, tracking statement_timeout as the
       # cloud's does, which the image has no variable for, with protobase as its admin, so the tests can pause a database
       # on it as the cloud scales one to zero. It is started here rather than as a service so it reaches

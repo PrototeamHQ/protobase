@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -27,7 +27,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the http step of a work
     const { resources, views } = configExports(workflowsModule(workflows))
     folder = await tempDir()
     const files = { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-http-limit' }
-    admin = createAdmin({ resources, views, db, files, authenticate: () => ({ user: { id: 'ada', roles: ['admin'] }, tenant: '1' }), workflows })
+    admin = createAdmin({ resources, views, db, files, authenticate: () => ({ user: { id: 'ada', roles: ['admin'] }, tenant: '1' }), workflows, options: { statementTimeoutMs } })
     receiver = createServer((request, response) => {
       if (request.url !== '/big') return response.end('small')
       // Writes 11 MiB, more than the step reads.

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, unauthorized, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 30_000 })
@@ -58,7 +58,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("a workflow's status fro
       if (!people[id]) throw unauthorized('Sign in first')
       return { user: { id, roles: people[id] }, tenant: '1' }
     }
-    admin = createAdmin({ resources, views, db, files: trace.files, authenticate, workflows, options: { roles } })
+    admin = createAdmin({ resources, views, db, files: trace.files, authenticate, workflows, options: { statementTimeoutMs, roles } })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error } })
   })
 

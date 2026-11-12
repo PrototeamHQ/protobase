@@ -2,7 +2,7 @@ import { sql, Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { changesMigration, createAdmin, startJobs, subscription, type JobsRuntime, type ResourceChange, type SubscriptionEvent } from '@protobase/server'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 
 // Workers poll and retry on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -69,6 +69,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('dispatch when event cod
         subscription('keys_viewer', { events: ['keys.created', 'keys.made'], as: { roles: ['viewer'] }, run: (event) => void keysViewer.push(event) }),
         subscription('keys_all', { events: ['keys.created'], run: (event) => void keysAll.push(event) }),
       ],
+      options: { statementTimeoutMs },
     })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
   })

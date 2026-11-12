@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { defineRoles, f, maxJsonDepth, resource } from '@protobase/schema'
 import { createAdmin, defineFunction, type FunctionContext } from '@protobase/server'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { as, testAuthenticator } from '../../test-support/server'
 
 const documents = resource('documents')
@@ -26,7 +26,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('a JSON field nested pa
   beforeAll(async () => {
     pg = await openPostgresDatabase('empty')
     await pg.exec('create table documents (id integer generated always as identity primary key, payload jsonb not null, extra jsonb)')
-    app = createAdmin({ resources: [documents], db: pg.db, authenticate: testAuthenticator, options: { roles }, functions: { store } })
+    app = createAdmin({ resources: [documents], db: pg.db, authenticate: testAuthenticator, options: { statementTimeoutMs, roles }, functions: { store } })
   })
   afterAll(async () => {
     await pg?.close()

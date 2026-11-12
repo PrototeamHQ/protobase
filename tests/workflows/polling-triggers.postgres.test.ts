@@ -7,7 +7,7 @@ import { defineRoles } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import { ConnectionError, definePlugin } from '@protobase/workflows/plugin'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
 
 // Workers poll on real timers, which a busy machine stretches.
@@ -79,7 +79,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('polling triggers, turne
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const instance = () => {
       const { resources, views } = configExports({ ...workflowsModule(workflows) })
-      return createAdmin({ resources, views, db, files: trace.files, authenticate: () => ({ user: { id: 'ada', roles: ['builder'] }, tenant: 1, organization: { id: 1 } }), workflows, options: { roles } })
+      return createAdmin({ resources, views, db, files: trace.files, authenticate: () => ({ user: { id: 'ada', roles: ['builder'] }, tenant: 1, organization: { id: 1 } }), workflows, options: { statementTimeoutMs, roles } })
     }
     api = instance()
     const worker = instance()
