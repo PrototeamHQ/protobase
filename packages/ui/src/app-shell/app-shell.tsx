@@ -6,7 +6,7 @@ import { BottomBar, type BottomBarTab } from './bottom-bar'
 import { Drawer } from './drawer'
 import { PageScrollContext, usePageGutter, usePageInsets } from './page-scroll'
 import type { NavGroup } from './nav'
-import { Sidebar } from './sidebar'
+import { Sidebar, type SidebarProps } from './sidebar'
 import { useSidebarNoticeShown } from './sidebar-notice'
 import type { ProfileMenuItem, ProfileOrganizations, ProfileRoles, ProfileStatus, ShellUser } from './profile-menu'
 import type { ProfileTheme } from './theme-switch'
@@ -88,16 +88,16 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   const bottomBarRef = useRef<HTMLElement>(null)
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
   usePageGutter(pageScroll)
-  const sidebar = (mode: SidebarMode, sticky = false, notice?: ReactNode) => (
-    <Sidebar mode={mode} sticky={sticky} notice={notice} activeItem={activeItem} user={user} workspace={workspace} appName={appName} appIcon={appIcon} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} status={status} logo={logo} />
+  const sidebar = (place: Pick<SidebarProps, 'mode' | 'sticky' | 'notice' | 'fill'>) => (
+    <Sidebar {...place} activeItem={activeItem} user={user} workspace={workspace} appName={appName} appIcon={appIcon} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} status={status} logo={logo} />
   )
   return (
     <PageScrollContext.Provider value={setPageScroll}>
       {/* Relative while a box scrolls, so that it clips absolute content such as sr-only text, which otherwise makes the document taller */}
       <div className={cn(pageScroll ? 'flex min-h-full w-full overflow-x-clip bg-background' : 'relative flex h-full min-h-0 w-full overflow-hidden bg-background', className)}>
-        {desktop ? sidebar(sidebarMode, pageScroll, noticeShown && sidebarNotice) : (
+        {desktop ? sidebar({ mode: sidebarMode, sticky: pageScroll, notice: noticeShown && sidebarNotice }) : (
           <Drawer id={drawerId} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-            {sidebar('text-large')}
+            {sidebar({ mode: 'text-large', fill: true })}
           </Drawer>
         )}
         {/* Without the bottom bar, the page keeps clear of the home indicator itself */}
