@@ -62,6 +62,9 @@ export const createAppServer = (options: AppServerOptions, plugins: Plugin[]) =>
     server: {
       // Vite sends these with the page of every navigation, as `protobase serve` does: no other site frames the app.
       headers: frameHeaders,
+      // The API answers CORS itself, by the origins `protobase serve` allows, such as a mobile app's; Vite's own would
+      // answer its preflights first, allowing only localhost. The app's pages and files are same-origin and need none.
+      cors: false,
       host: devHost,
       port: options.port,
       strictPort: true,
