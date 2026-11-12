@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { appReadMaxBytes, appReadUrl } from '@protobase/schema/internal'
 import { limitedFileStore, s3FileStore, type FileProvider } from '@protobase/server'
 import { as, json } from '../../../test-support/server'
 import { fakeBucket } from '../src/files/testing/fake-bucket'
@@ -48,6 +49,26 @@ describe('file fields in a bucket', () => {
     const etag = (await fixture.app.request(`/api/v1/products/${product.id}`, { headers: as(1) })).headers.get('etag')!
     await fixture.app.request(`/api/v1/products/${product.id}`, { method: 'PATCH', headers: { ...as(1), 'content-type': 'application/json', 'if-match': etag }, body: JSON.stringify({ image: replaced.body.value }) })
     expect((await fixture.app.request(product.image.url)).status).toBe(404)
+  })
+
+  it('serve an app read from the app, never a redirect, up to the read limit, once the row is checked', async () => {
+    const objects = await bucketFixture()
+    const product = await create('/api/v1/products', { name: 'Bike', image: (await upload('products', 'image', jpeg, 'photo.jpg', as(1))).body.value }, as(1))
+    expect((await fixture.app.request(product.image.url)).status).toBe(302)
+
+    const read = await fixture.app.request(appReadUrl(product.image.url))
+    expect(read.status).toBe(200)
+    expect(read.headers.get('content-type')).toBe('image/jpeg')
+    expect(read.headers.get('cache-control')).toMatch(/^private, max-age=\d+$/)
+    expect(new Uint8Array(await read.arrayBuffer())).toEqual(jpeg)
+    expect((await fixture.app.request(appReadUrl(product.image.url.replace(/sig=[\w-]+/, 'sig=x')))).status).toBe(403)
+
+    const key = `app/private/${product.image.uri.slice('private:'.length, product.image.uri.indexOf('?'))}`
+    objects.get(key)!.bytes = new Uint8Array(appReadMaxBytes + 1)
+    const tooLarge = await fixture.app.request(appReadUrl(product.image.url))
+    expect(tooLarge.status).toBe(403)
+    expect(await tooLarge.json()).toMatchObject({ type: 'urn:protobase:problem:too-large-to-read' })
+    expect((await fixture.app.request(product.image.url)).status).toBe(302)
   })
 
   it('link public files from the bucket\'s own address', async () => {

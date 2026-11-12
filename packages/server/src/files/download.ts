@@ -1,3 +1,4 @@
+import { appReadMaxBytes, isAppRead } from '@protobase/schema/internal'
 import { HttpProblem, forbidden, notFound } from '../problem'
 import type { Deps } from '../deps'
 import { decodeKeyText } from '../key'
@@ -58,19 +59,24 @@ const redirectToStore = async (store: FileStore, path: string, type: string, nam
  * `GET <systemPath>/files/<provider>/<path>`: a public provider's file for anyone; a private one's only through a signed
  * URL whose row still holds it. The Content-Type comes from the path's extension, never from what was uploaded, and
  * nothing renders: `nosniff`, a sandboxing CSP, and `inline` only for images, PDF, audio and video. A store with its own
- * download links gets a redirect to one instead, with the same type and disposition.
+ * download links gets a redirect to one instead, with the same type and disposition, except for an app read (`appReadUrl`):
+ * a page reading the file with `fetch` gets the bytes from the app's origin, up to `appReadMaxBytes`, since a bucket
+ * sends no CORS headers.
  */
 export const serveFile = async (deps: Deps, request: Request, provider: string, path: string) => {
   const files = deps.files
   const configured = files?.providers[provider]
   if (!files || !configured || !isFilePath(path)) throw gone()
-  const granted = configured.public ? undefined : await grantedName(deps, provider, path, new URL(request.url).searchParams)
+  const query = new URL(request.url).searchParams
+  const granted = configured.public ? undefined : await grantedName(deps, provider, path, query)
+  const appRead = isAppRead(query)
   const type = files.types.servedType(path)
   const name = files.types.downloadName(granted?.name ?? path.slice(path.lastIndexOf('/') + 1), type)
-  if (configured.store.downloadUrl) return redirectToStore(configured.store, path, type, name, granted?.expires ?? downloadExpiry())
+  if (configured.store.downloadUrl && !appRead) return redirectToStore(configured.store, path, type, name, granted?.expires ?? downloadExpiry())
 
   const object = await configured.store.head(path)
   if (!object) throw gone()
+  if (appRead && object.size > appReadMaxBytes) throw forbidden('too-large-to-read', 'This file is too large to read in the app; download it instead')
   const caching = granted ? `private, max-age=${Math.max(granted.expires - Math.floor(Date.now() / 1000), 0)}` : 'public, max-age=31536000, immutable'
   const headers: Record<string, string> = {
     'content-type': type,

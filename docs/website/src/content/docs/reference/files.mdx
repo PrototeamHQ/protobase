@@ -151,6 +151,7 @@ Such files download as attachments. A [viewer](#viewers) opens them in the admin
 - **Public files** are served to anyone at a permanent address, `/api/files/public/<path>`, cached for a year. `publicUrl` links them from elsewhere instead, such as a CDN in front of that route.
 - Every download is `nosniff` with `Content-Security-Policy: sandbox; default-src 'none'`. Raster images, PDF, audio and video are `inline`; everything else, SVG included, is an attachment. A private file is named as its uploader named it, with the extension matched to the type (`photo.png` holding a JPEG downloads as `photo.jpg`); a public file by its stored path. `Range` requests work.
 - A provider in a bucket answers with a redirect to the bucket instead, after the same checks, see [S3-compatible buckets](#s3-compatible-buckets).
+- With `?via=app`, which a viewer's `useFileText` adds, the app serves the bytes itself after the same checks, from a bucket too, so a page can read them with `fetch` without the bucket sending CORS headers. Such a read takes files up to 10 MB and answers a larger one with `403`.
 
 ## Viewers
 
