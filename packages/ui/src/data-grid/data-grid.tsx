@@ -72,7 +72,8 @@ export type DataGridProps = {
 }
 
 const headerHeight = 32
-// A small button's height and the gap above it, for a column with something `below` its cells
+// A small button's height and the gap above it, for a column with something `below` its cells; in pixels, as are the
+// row heights above that rows are placed and virtualized by, so it scales with root text size only once they all do
 const belowHeight = 32
 const footerHeight = 36
 

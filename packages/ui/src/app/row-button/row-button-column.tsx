@@ -21,11 +21,12 @@ export const rowButtonColumn = (model: ResourceModel, view: ViewModel | undefine
 
 /**
  * A table's columns with the row's button: its last column, or on a narrow screen, where the table scrolls sideways
- * and a last column starts off-screen, under the first cell's text.
+ * and a last column starts off-screen, under the first cell's text when there is one.
  */
 export const withRowButton = (specs: ColumnSpec[], model: ResourceModel, view: ViewModel | undefined, button: RowButtonModel, narrow: boolean): ColumnSpec[] => {
   if (!narrow) return [...specs, rowButtonColumn(model, view, button)]
   const [first, ...rest] = specs
-  if (!first) return specs
+  // Without a first cell to sit under, the button keeps its own column
+  if (!first) return [rowButtonColumn(model, view, button)]
   return [{ ...first, below: rowButton(model, view, button) }, ...rest]
 }

@@ -33,7 +33,7 @@ describe('withRowButton', () => {
     expect(below).toContain('Error report')
   })
 
-  it('leaves a table without columns as it is on a narrow screen', () => {
-    expect(withRowButton([], model, undefined, report, true)).toEqual([])
+  it('keeps the button column on a narrow screen when there is no first cell to put it under', () => {
+    expect(withRowButton([], model, undefined, report, true).map((column) => column.id)).toEqual(['_row_button'])
   })
 })
